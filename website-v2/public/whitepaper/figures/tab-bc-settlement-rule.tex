@@ -1,0 +1,20 @@
+% The three-oracle settlement rule, as a table rather than three prose bullets.
+% Three outcomes x three properties is a classification: the reader wants to look
+% up one row (what happens on a 2-of-3 split), not to read three sentences in
+% order. Column widths are set for the Book's 4.5in measure.
+\begin{table}[H]
+\centering
+\caption{The settlement rule is a lookup on how the three oracles agree, not a sequence of steps. Only the no-majority row moves the bond's custody or spends a human; the 2-of-3 row is where the protocol gets its calibration signal, because a dissent is exactly one oracle disagreeing with the two that settled. Sampling the human audit at $\sigma$ turns the bottom row's rate into the oracle layer's detection probability. [internal]}
+\label{tab:bc-settlement-rule}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{1.55cm} >{\raggedright\arraybackslash}p{2.35cm} >{\raggedright\arraybackslash}p{2.25cm} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Verdicts} & \textbf{Settles} & \textbf{Bond} & \textbf{What the dissent is used for} \\
+\midrule
+3 of 3 agree & the agreed outcome & released & nothing: the steady state, where the two cheap oracles carry the volume \\
+2 of 3 agree & the majority outcome & released & the dissenting trace is flagged --- the primary signal for tuning the gameable oracle \\
+no majority & nothing yet; full human arbitration & escrow, until the human verdict lands & the human verdict is the authoritative label that re-calibrates the two cheap oracles \\
+\bottomrule
+\end{tabularx}
+\end{table}

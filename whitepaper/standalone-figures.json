@@ -101,13 +101,16 @@
     "bonded-commons": {
       "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
       "inputs": [
+        "fig-bc-graduated-trigger",
+        "fig-bc-oracle-audit-rate",
         "fig-bonded-key-custody",
         "fig-cartel-game-inline",
         "fig-governance-flow",
         "fig-magic-link-inline",
         "fig-sybil-inline",
         "fig-worked-example",
-        "session-bc-delta30"
+        "session-bc-delta30",
+        "tab-bc-settlement-rule"
       ],
       "inline_figures": 3,
       "inline_tables": 8
