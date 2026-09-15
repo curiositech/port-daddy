@@ -6,8 +6,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
-const frictionScripts = join(repo, 'skills', 'ux-friction-analyzer', 'scripts');
-const frictionExamples = join(repo, 'skills', 'ux-friction-analyzer', 'examples');
+const frictionSkill = join(repo, 'skills', 'ux-friction-analyzer');
+const frictionScripts = join(frictionSkill, 'scripts');
+const frictionExamples = join(frictionSkill, 'examples');
 const appealSkill = join(repo, 'skills', 'product-appeal-analyzer');
 
 const load = (path) => import(pathToFileURL(path).href);
@@ -33,6 +34,83 @@ function linearChain(readerMode = 'study', costSeconds = 60) {
     })),
   };
 }
+
+describe('shipped examples conform to their own schemas', () => {
+  // A schema and its examples drift silently otherwise: this guards both
+  // directions, and the negative cases keep the positives meaningful — a
+  // schema that accepted anything would pass the "valid" assertions alone.
+  const compile = async (schemaPath) => {
+    const { default: Ajv } = await import('ajv');
+    const { readFileSync } = await import('node:fs');
+    return new Ajv({ allErrors: true, strict: false }).compile(
+      JSON.parse(readFileSync(schemaPath, 'utf8'))
+    );
+  };
+  const explain = (validate) =>
+    (validate.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`).join('; ');
+
+  test('surface graphs validate against surface-graph.schema.json', async () => {
+    const validate = await compile(join(frictionSkill, 'schemas', 'surface-graph.schema.json'));
+    for (const name of ['surfer-wireframe.json', 'surfer-latex-book.json']) {
+      const doc = await readJson(join(frictionExamples, name));
+      expect(`${name}: ${validate(doc) ? '' : explain(validate)}`).toBe(`${name}: `);
+    }
+  });
+
+  test('the surface-graph schema rejects the mistakes worth rejecting', async () => {
+    const validate = await compile(join(frictionSkill, 'schemas', 'surface-graph.schema.json'));
+    const good = await readJson(join(frictionExamples, 'surfer-wireframe.json'));
+    expect(validate(good)).toBe(true);
+
+    expect(validate({})).toBe(false); // no nodes
+    expect(validate({ nodes: [] })).toBe(false); // empty nodes
+    expect(validate({ nodes: [{ label: 'no id' }] })).toBe(false); // node without id
+    expect(validate({ ...good, readerMode: 'lounging' })).toBe(false); // not in enum
+    expect(validate({ ...good, patienceBudget: { rationale: 'no seconds' } })).toBe(false);
+    expect(
+      validate({ ...good, nodes: [{ id: 'a', payoff: 5 }] }) // payoff is 0-1
+    ).toBe(false);
+    expect(
+      validate({ ...good, readerPaths: [{ id: 'x' }] }) // a route needs nodes
+    ).toBe(false);
+  });
+
+  test('appeal specs validate against appeal-spec.schema.json', async () => {
+    const validate = await compile(join(appealSkill, 'schemas', 'appeal-spec.schema.json'));
+    for (const name of ['sample-input.json', 'technical-book-spec.json']) {
+      const doc = await readJson(join(appealSkill, 'examples', name));
+      expect(`${name}: ${validate(doc) ? '' : explain(validate)}`).toBe(`${name}: `);
+    }
+  });
+
+  test('the appeal-spec schema rejects the mistakes worth rejecting', async () => {
+    const validate = await compile(join(appealSkill, 'schemas', 'appeal-spec.schema.json'));
+    const good = await readJson(join(appealSkill, 'examples', 'technical-book-spec.json'));
+    expect(validate(good)).toBe(true);
+
+    expect(validate({})).toBe(false); // personas + fiveSecondTest are required
+    expect(validate({ ...good, personas: [] })).toBe(false);
+    expect(validate({ ...good, surfaceKind: 'billboard' })).toBe(false); // not in enum
+    expect(
+      validate({
+        ...good,
+        technicalDocument: { reproducibilityArtifacts: 'vibes' }, // not in enum
+      })
+    ).toBe(false);
+    expect(
+      validate({
+        ...good,
+        technicalDocument: { returnOnEffort: { costTransparency: 11, payoffVisibility: 5 } },
+      })
+    ).toBe(false); // scores are 0-10
+  });
+
+  test('the friction flow sample still validates against flow-audit.schema.json', async () => {
+    const validate = await compile(join(frictionSkill, 'schemas', 'flow-audit.schema.json'));
+    const doc = await readJson(join(frictionExamples, 'sample-input.json'));
+    expect(`sample-input.json: ${validate(doc) ? '' : explain(validate)}`).toBe('sample-input.json: ');
+  });
+});
 
 describe('surfer_model: absorbing-chain invariants', () => {
   test('completion and abandonment partition the arrivals exactly', async () => {
