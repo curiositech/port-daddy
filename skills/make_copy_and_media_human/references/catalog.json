@@ -35,7 +35,7 @@
       "after": "It's a fast database that changes how teams collaborate.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Antithesis is one of the oldest figures in English and is correct when X is a belief the reader actually holds and the piece then earns Y. Positioning copy uses it legitimately when the contrast is real. Flag the strawman X invented only to be knocked down, not the construction."
     },
     {
       "name": "em-dash-density",
@@ -73,7 +73,7 @@
       "after": "The platform is fast, and flexible enough that teams stop fighting it. Mostly they just ship sooner.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "The tricolon is deliberate craft in speechwriting, liturgy and advertising, and is correct whenever the content genuinely has three distinct parts. Flag recurrence across a piece where the third item is padding, not any single triplet."
     },
     {
       "name": "escalating-compliment-sycophancy",
@@ -89,7 +89,7 @@
       "after": "Agreed. Your point about distribution is the part most founders skip, and your churn data backs it up.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Recommendation letters, award citations, toasts and eulogies are conventionally effusive and specific, and warmth between people who know each other is not a tell. The signal is escalation into hyper-specific detail the writer could not know."
     },
     {
       "name": "unattributed-floating-quote",
@@ -105,7 +105,7 @@
       "after": "The team shipped the feature even though no one could prove it would matter, which was the bravest call of the quarter.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "An epigraph the author wrote, a pull quote lifted from the piece itself, a line of verse, or a quotation whose source is given nearby are all legitimate. Flag a line presented AS someone's words with no source and no origin in the text."
     },
     {
       "name": "delve-excess-vocabulary",
@@ -155,7 +155,7 @@
       "after": "We optimized the query for a week before realizing the index was missing.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "This is ordinary spoken-register English and good conversational writing uses it, as does comedy and most podcast transcription. It is correct whenever a genuine turn follows. Flag it only where nothing actually pivots."
     },
     {
       "name": "conclusion-recap-tag",
@@ -171,7 +171,7 @@
       "after": "The trap is stale reads after a write; if you can't tolerate them, skip the cache on that path rather than tuning a TTL you'll forget.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Academic, legal and standards writing require a conclusion section by convention, and a genuinely long document earns a recap the reader needs. Flag a closing paragraph that adds nothing to a piece short enough not to need one."
     },
     {
       "name": "bullet-colonization-of-prose",
@@ -226,7 +226,7 @@
       "after": "The project is three weeks behind. We will not make the deadline.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A real emphatic device, heavily used in speech and political register, and correct when what follows genuinely corrects a likely misreading. Flag it where the sentence after it is not a clarification of anything."
     },
     {
       "name": "apologetic-over-qualification",
@@ -242,7 +242,7 @@
       "after": "Use Postgres. The only case where I'd switch is sub-millisecond key lookups at high volume, and you're nowhere near that.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Epistemic hedging is CORRECT wherever the writer is genuinely uncertain, and is required in science, forecasting and risk writing. It is also a documented feature of the professional register of women and of junior colleagues, so flagging it can amount to enforcing a narrow confident register. Be slow with this one and never treat it as evidence about a person."
     },
     {
       "name": "false-range-spectrum-framing",
@@ -258,7 +258,7 @@
       "after": "This tool is built for two-to-ten-person data teams who are tired of maintaining Airflow themselves.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A scope statement whose endpoints are real and meaningful is doing useful work: 'from 10 to 10,000 seats' tells the reader something. Flag ranges chosen to imply comprehensiveness the piece does not deliver."
     },
     {
       "name": "low-burstiness-uniform-rhythm",
@@ -296,7 +296,7 @@
       "after": "Cache config lives in two places, and the second one usually bites people: the per-route TTL silently overrides the global default.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "This is the correct and expected register in actual customer-service and support writing, where the house style calls for it. Flag it where the medium is a document, an essay, a commit message or a report."
     },
     {
       "name": "dive-delve-openers",
@@ -312,7 +312,7 @@
       "after": "API auth fails in two ways that matter: stolen tokens and replayed requests. Short-lived tokens fix the first; nonces fix the second.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "'Delve' is ordinary English and is measurably commoner in Nigerian, South Asian and other second-language Englishes, so treating it as a machine marker penalises exactly the writers detectors are already documented to penalise. Flag the opener that announces discussion instead of discussing, never the vocabulary alone."
     },
     {
       "name": "transform-verb-marketing-formula",
@@ -328,7 +328,7 @@
       "after": "Cut your weekly status meeting from 60 minutes to 10. Standups post themselves from your commits, so nobody narrates their week out loud.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "These verbs are legitimate marketing vocabulary and a product that genuinely transforms something may say so. The tell is the missing mechanism, not the verb: if the next clause says HOW, there is no finding."
     },
     {
       "name": "emoji-section-headers",
@@ -363,7 +363,7 @@
       "after": "# pg-slowlog\nFinds the 10 queries eating your Postgres CPU and shows the missing index for each.\n```\n$ pg-slowlog --since 1h\n```\n## Install / ## Caveats (it only reads pg_stat_statements)",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "That section order is the community convention and it is genuinely good for discoverability -- a reader knows where to look. Flag a README where every section is generic, not one that follows the standard shape with specific content in it."
     },
     {
       "name": "comment-narrates-next-line",
@@ -456,7 +456,7 @@
       "after": "# (module ends after its definitions; an example lives in tests/test_add.py)",
       "currency": "current",
       "family": "code",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "`if __name__ == '__main__':` is idiomatic Python for a module that is also runnable, and is correct for CLI entry points, teaching code, and smoke tests. Flag it on a library module imported elsewhere, where the block only prints a canned result."
     },
     {
       "name": "hedged-disclaimer-ending",
@@ -472,7 +472,7 @@
       "after": "This assumes Redis on the default port; if yours is TLS-only, add rediss:// and the CA path — nothing else changes.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Documentation that does NOT say a step is environment-dependent can mislead, so the caveat is correct wherever the answer genuinely varies by setup. Flag it where the answer does not vary and the hedge is insurance against being wrong."
     },
     {
       "name": "over-apologetic-error-explanation",
@@ -488,7 +488,7 @@
       "after": "You're right — the loop should stop at len-1, not len. Fixed bound below.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "One proportionate apology for a real mistake is correct and professional. Flag repetition and disproportion -- three apologies for a typo -- not the presence of an apology."
     },
     {
       "name": "gemini-important-to-note-stack",
@@ -504,7 +504,7 @@
       "after": "Compound interest outpaces simple interest, and the gap widens with both the rate and the time horizon.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "'It is important to note' is standard academic and technical English and often marks a genuine caveat. Flag the stack: two or three such clauses in a short answer, several of them introducing nothing important."
     },
     {
       "name": "gemini-question-restatement",
@@ -520,7 +520,7 @@
       "after": "Remote work raises productivity for focused individual tasks and lowers it for fast-iteration collaboration. The split is the whole story.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Restating the question is required in exam answers, legal memos, consulting deliverables and RFP responses, where the reader must see the question addressed. Flag it in conversational reply where it only delays the answer."
     },
     {
       "name": "gemini-safety-caveat-boilerplate",
@@ -536,7 +536,7 @@
       "after": "Magnesium glycinate around 200-400mg before bed helps many people sleep; it can loosen stool at higher doses, so ramp up slowly.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Some of these disclaimers are required by regulation or platform policy for financial, medical and legal content, and there the boilerplate is the compliant behaviour. Flag it where no such requirement applies and the user asked something the caveat does not fit."
     },
     {
       "name": "deepseek-qwen-overformal-register",
@@ -552,7 +552,7 @@
       "after": "Exercise pays off, but only if you keep at it. Consistency beats intensity here.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Formal register with no contractions is how English is taught across much of the world, and is the correct register for academic prose, legal writing and many second-language writers. This is one of the entries most likely to be turned against a person unfairly. Treat it as a note about a MODEL's default when you already know the source, never as a signal about an author."
     },
     {
       "name": "qwen-deepseek-chinglish-calque",
@@ -568,7 +568,7 @@
       "after": "People increasingly care about the environment, and technology keeps making daily life more convenient.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "These are genuine features of Chinese-influenced English as written by people, and flagging them as machine markers is the documented failure mode of AI detectors against second-language writers. Never use this as an authorship signal. It is usable only as an editing note on text you already know to be machine-generated."
     },
     {
       "name": "as-an-ai-leakage",
@@ -600,7 +600,7 @@
       "after": "Exercise lowers resting heart rate, improves insulin sensitivity, and lifts mood within weeks of starting.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Repetition is legitimate for emphasis, in teaching material, in specifications where restating beats a cross-reference, and in anything written to be read aloud. Flag near-identical restatement that adds nothing, in a piece with no reason to repeat."
     },
     {
       "name": "sycophantic-affirmation-opener",
@@ -616,7 +616,7 @@
       "after": "Here's what I found...",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Genuine encouragement is correct in teaching, mentoring, support and code review, and a real compliment is not a tic. Flag the reflexive opener that precedes every response regardless of what was said."
     },
     {
       "name": "kimi-linkedin-confident-slop",
@@ -632,7 +632,7 @@
       "after": "I cut my task list to three items a day and finished more than when I tracked twenty, mostly because I stopped context-switching every forty minutes.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Punchy declarative prose is a real and effective style in advertising, op-eds and manifestos, and confidence is not a defect. Flag the hollow assertion -- a claim with no mechanism and no evidence -- not the rhythm that carries it."
     },
     {
       "name": "kimi-longform-collapse",
@@ -648,7 +648,7 @@
       "after": "[The same essay cut to 1,500 words with each section earning its place and a conclusion that synthesizes rather than recycles.]",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Long human drafts also lose their thread; this is a property of length and fatigue, not of machines. Weak on its own and not usable as evidence about an author. Treat it as a cue to re-read the back half of a long piece."
     },
     {
       "name": "grok-forced-irreverence",
@@ -664,7 +664,7 @@
       "after": "Compound interest is interest earning interest. Leave $1,000 at 7% alone and it doubles in about a decade without you lifting a finger.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Irreverent brand voices genuinely exist and are deliberate, and some writers are actually funny. Flag snark that does not fit the topic or the audience, not the presence of a joke."
     },
     {
       "name": "zero-typo-zero-contraction-affect-flatness",
@@ -701,7 +701,7 @@
       "after": "You open the terminal and run the script. You see an error, so you check the logs, fix the path, and run it again. This time it works.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Drift is extremely common in human drafts, especially multi-author documents and anything assembled from older material. This is an editing cue and never an authorship signal."
     },
     {
       "name": "significance-puffery-testament",
@@ -717,7 +717,7 @@
       "after": "The 1923 bridge carries 40,000 vehicles a day and was the longest steel span in the state when it opened.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Obituaries, award citations, dedications and anniversary pieces are conventionally elevated, and some events genuinely are milestones. Flag unearned emphasis on an ordinary subject, not the register itself."
     },
     {
       "name": "markdown-bold-title-case-scaffold",
@@ -733,7 +733,7 @@
       "after": "## What you get\nIt's fast and it rarely falls over. That's the whole pitch.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Title Case headings are house style at many publications, and bolded key terms are standard in textbooks, glossaries and reference documentation. Flag raw markdown leaking into a medium that does not render it, and formatting applied where no structure exists."
     },
     {
       "name": "h2-spam-full-sentence-headings",
@@ -749,7 +749,7 @@
       "after": "## Choosing a CRM\nA CRM keeps customer data in one place, which matters more than the feature checklist most vendors push. Start with pricing: per-seat costs balloon once your team crosses ten people, so model the 18-month bill, not the sticker.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Reference documentation legitimately has high heading density, accessibility guidance favours descriptive headings over bare labels, and question-shaped headings are a deliberate choice in help content. Flag a heading every one or two paragraphs in a narrative piece."
     },
     {
       "name": "tables-for-non-tabular-content",
@@ -765,7 +765,7 @@
       "after": "The system is fast and rarely goes down, and it stays affordable because we run it on spot instances. The tradeoff: those spot instances are why the 2am batch job occasionally slips an hour.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A two-column term/definition table is a legitimate glossary format, and a comparison table with two real alternatives is tabular. Flag prose forced into 'Aspect | Description' cells and one-row tables."
     },
     {
       "name": "key-takeaways-box-everywhere",
@@ -781,7 +781,7 @@
       "after": "## Pricing\nWe moved to usage-based billing in March. Every plan now meters API calls instead of seats, which is why your invoice line items changed shape.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Per-section summaries are a documented comprehension aid and are standard in textbooks, journalism and technical documentation. Flag a box on EVERY section, especially one restating the heading immediately above it."
     },
     {
       "name": "unsolicited-faq-section",
@@ -797,7 +797,7 @@
       "after": "## Questions we actually get\n**Does this double-count sessions across subdomains?** No. We key on the root domain, which is why your numbers dropped ~8% after the migration.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "An FAQ built from real support tickets is genuinely useful and is one of the highest-value things a docs site can carry. Flag questions invented to map one-to-one onto points already made above."
     },
     {
       "name": "summary-restates-title-conclusion-restates-summary",
@@ -813,7 +813,7 @@
       "after": "Executive Summary: Paid spend doubled but CAC stayed flat — the channel scaled, which it wasn't supposed to at this budget.\nConclusion: The Q4 question is whether flat CAC survives once we exhaust the warm retargeting pool, and we don't yet know.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Several document standards REQUIRE this shape -- executive summaries, IMRaD, briefing formats -- and 'tell them what you will tell them' is taught deliberately for spoken delivery. Flag it where no convention demands it and each layer adds nothing."
     },
     {
       "name": "parallel-overload-uniform-bullets",
@@ -829,7 +829,7 @@
       "after": "- Stop the churn (we lost 200 accounts last quarter to one bug)\n- Automate the refund flow — it's the #1 support ticket\n- Ship to Canada\n- Quality: figure out why test coverage keeps dropping",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Parallel structure in lists is a style-guide REQUIREMENT in Chicago and the Microsoft Style Guide, so this entry sits closest of any to flagging correct writing. Flag only where uniformity has visibly flattened items of genuinely different weight into the same shape and length."
     },
     {
       "name": "linkedin-broetry-one-line-runs",
@@ -865,7 +865,7 @@
       "after": "Hi Sarah,\nCan you look over the report by Friday? Mainly want your eyes on the revenue section before it goes to the board.",
       "currency": "current",
       "family": "form",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Opening pleasantries are required politeness in many business cultures and languages, and omitting them reads as brusque or rude in much of the world. Flag over-structure of a simple request, not the greeting."
     },
     {
       "name": "problem-agitate-solve-by-template",
@@ -881,7 +881,7 @@
       "after": "Last month your team rebuilt the same revenue report 14 times because the source numbers kept moving. This connects to the source once, so the report updates itself.\n[Connect your data — takes 2 minutes]",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "PAS is a legitimate, taught copywriting framework that demonstrably works, and a real problem deserves to be named. Flag the mechanical execution where the pain points are invented and the CTA is generic."
     },
     {
       "name": "headline-then-bullets-disease",
@@ -897,7 +897,7 @@
       "after": "Slide: 'We bet everything on retention this quarter'\nLast year we chased new markets and leaked customers out the back. So Q3 is one number: 15% better retention. Markets wait until that holds.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Assertion-evidence slide structure is a researched, deliberate design and some organisations mandate it. Flag a deck where nothing argues -- every unit asserts and enumerates and no connective thread runs between slides."
     },
     {
       "name": "arrow-chain-as-explanation",
@@ -932,7 +932,7 @@
       "after": "Slide (full bleed): \"I almost cancelled in week two. The thing that kept me was your support team answering at 11pm.\" — actual churn-survey response, account #4471",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A correctly attributed quotation that bears on the argument is fine and often good. Flag the missing attribution, the wrong attribution, or 'Anonymous' standing in for a source nobody checked."
     },
     {
       "name": "inter-geist-default-typeface",
@@ -983,7 +983,7 @@
       "after": "<h1>Build faster</h1> in solid near-black; a single restrained accent underline in the brand terracotta; buttons are flat brand fill.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A brand whose actual palette is violet is entitled to use it, and a gradient chosen against a real brand guideline is a decision rather than a default. Flag the indigo-to-violet default arriving with no brand behind it."
     },
     {
       "name": "emoji-as-ui-icons",
@@ -999,7 +999,7 @@
       "after": "Feature card: a 20px Lucide Rocket, ShieldCheck, Check icon in brand color above each title; CTA reads Get started with an inline ArrowRight SVG.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Emoji are legitimate in informal products, chat interfaces, changelogs and release notes, and are a reasonable choice where a full icon set would be overkill. Flag them in product chrome where they render inconsistently across platforms and carry no accessible name."
     },
     {
       "name": "sparkle-motif-for-ai",
@@ -1015,7 +1015,7 @@
       "after": "<button>Generate</button> with a custom monoline glyph unique to the product; no decorative sparkles; the AI capability is communicated by a short label and a subtle hover shimmer.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "The sparkle has become the conventional affordance for a generative action, and using a convention users already recognise is a legitimate design decision. Flag it as decoration on things that are not generative, not as the icon on a generate button."
     },
     {
       "name": "glassmorphism-card-stack",
@@ -1031,7 +1031,7 @@
       "after": "Feature cards flat with a 1px solid neutral-200 border and 8px radius; the 'popular' pricing card steps up to a real elevation-3 shadow and solid surface; no backdrop-blur except the pinned header.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A deliberate visual style with real precedent in shipping operating systems, and correct where the blur does depth work. Flag the identical token recipe applied to every card with no variation for importance."
     },
     {
       "name": "centered-hero-three-card-skeleton",
@@ -1047,7 +1047,7 @@
       "after": "Left-aligned hero with a live product canvas on the right, one CTA (Start building), then an alternating sequence: a wide demo, a 2x2 bento of differentiated capabilities, a metric strip.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A centered hero with three feature cards converts well and is genuinely the right layout for a great many products. Flag it where it is the only layout the page knows -- the tell is the whole-page template with no section that breaks it, not the hero."
     },
     {
       "name": "dark-mode-radial-glow-blobs",
@@ -1063,7 +1063,7 @@
       "after": "Warm off-white (#F7F5F2) light theme with a single hand-made hero illustration; or a deliberate deep-green dark theme with one structural light source and no ambient glow blobs.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh/blob/aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal, not a refutation -- comment share measures what people find irritating, not what predicts generation -- but do not let this carry a verdict alone."
+      "false_positive_when": "A dark product surface with deliberate accent lighting is a real design, and glow is correct where it directs attention. Flag the corner-bleeding default with a grid overlay and no relationship to the content. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh, blob and aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal rather than a refutation -- comment share measures what irritates people, not what predicts generation -- and do not let this carry a verdict alone."
     },
     {
       "name": "fabricated-testimonial-cards",
@@ -1079,7 +1079,7 @@
       "after": "A single honest line — 'In private beta with 40 teams; case studies coming soon' — or two real, attributed quotes with permission and actual photos.",
       "currency": "current",
       "family": "shape",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A real testimonial from a real customer is the opposite of this finding, and placeholder testimonials in a design mockup, template or component library are expected and correct. Flag invented alliterative names and stock avatars on a SHIPPED page."
     },
     {
       "name": "ai-image-waxy-skin-mangled-hands",
@@ -1112,7 +1112,7 @@
       "after": "Four genuinely distinct licensed portraits with varied lighting, framing, and color treatment — or four monogram/initial avatars instead of faces.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "Stock photo libraries legitimately reuse the same models across a set, and a real team photographed in one session shares a grade and a look by construction. Flag the same underlying face across supposedly different people, not consistency of styling."
     },
     {
       "name": "stock-mesh-gradient-background",
@@ -1128,7 +1128,7 @@
       "after": "Hero sits on a flat warm-neutral surface with a single duotone product screenshot; any gradient uses only the two brand hues at low contrast.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh/blob/aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal, not a refutation -- comment share measures what people find irritating, not what predicts generation -- but do not let this carry a verdict alone."
+      "false_positive_when": "A mesh gradient built from the brand's own palette is a design decision, and the style is genuinely popular on hand-built sites. Flag the literal untouched output of a generator. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh, blob and aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal rather than a refutation -- comment share measures what irritates people, not what predicts generation -- and do not let this carry a verdict alone."
     },
     {
       "name": "mixed-icon-sets-one-view",
@@ -1144,7 +1144,7 @@
       "after": "All three are Lucide outline icons at 24px / 1.5px stroke in brand color, optically centered on a shared baseline.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A product mid-migration between icon sets legitimately shows both for a while, and a third-party embed brings its own iconography that you do not control. Flag mixed stroke weights and fill styles inside first-party chrome."
     },
     {
       "name": "uncanny-padding-rhythm-uniformity",
@@ -1160,7 +1160,7 @@
       "after": "Hero py-32, feature bento py-24, dense pricing table py-16; a full-bleed quote section breaks the column grid; card radii and padding step with hierarchy.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A design system's entire job is consistent spacing, and a spacing scale is correct, not suspicious. Flag the ABSENCE of any emphasis anywhere -- no section denser or airier than another -- rather than the presence of a scale."
     },
     {
       "name": "badge-pill-now-in-beta",
@@ -1176,7 +1176,7 @@
       "after": "Either no pill, or a real link pill at 14px to a dated launch post: 'Read: v2 is live ->' — and only when that post exists.",
       "currency": "current",
       "family": "visual",
-      "false_positive_when": "Not yet characterized. Treat as a cue to look, never as evidence of authorship."
+      "false_positive_when": "A product that IS in beta saying so is useful and honest, and a genuine 'New' badge on something new is doing its job. Flag the pill that has been there for a year, or one announcing a beta on a generally available product."
     },
     {
       "name": "invisible-unicode-artifacts",
@@ -3161,7 +3161,7 @@
       "fix": "Set it on the root: <html lang=\"en\">. Use the real language, and a region subtag only where it changes pronunciation or formatting.",
       "before": "<html>",
       "after": "<html lang=\"en\">",
-      "false_positive_when": "Fragments and partials have no html element.",
+      "false_positive_when": "Fragments, partials and component files have no html element to carry the attribute, and a template-bound value such as lang={locale} is correct even though it does not look like a language tag. Only flag a complete document whose root element has no lang at all.",
       "currency": "current",
       "family": "defect",
       "dialect": "generic-llm",
@@ -8447,7 +8447,7 @@
       "before": "five inputs, no enterkeyhint anywhere",
       "after": "enterkeyhint=\"next\" through the form, \"done\" on the final field",
       "family": "form",
-      "false_positive_when": "A single-field form has nothing to disambiguate.",
+      "false_positive_when": "A single-field form has nothing to disambiguate, and a form whose fields are all selects or checkboxes never opens a keyboard for the hint to label. Only flag forms with several text-entry fields in sequence.",
       "currency": "current"
     },
     {

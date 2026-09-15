@@ -480,7 +480,7 @@ The root html element has no lang attribute.
 
 **Fix:** Set it on the root: <html lang="en">. Use the real language, and a region subtag only where it changes pronunciation or formatting.
 
-**False positive when:** Fragments and partials have no html element.
+**False positive when:** Fragments, partials and component files have no html element to carry the attribute, and a template-bound value such as lang={locale} is correct even though it does not look like a language tag. Only flag a complete document whose root element has no lang at all.
 
 **Before**
 

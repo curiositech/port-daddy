@@ -73,7 +73,7 @@ A heading appears every one to two paragraphs, and the headings are full title-c
 
 **Fix:** Target a heading every 4-6 paragraphs. Make headings short noun phrases in sentence case. Delete any heading whose section is one paragraph.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Reference documentation legitimately has high heading density, accessibility guidance favours descriptive headings over bare labels, and question-shaped headings are a deliberate choice in help content. Flag a heading every one or two paragraphs in a narrative piece.
 
 **Before**
 
@@ -142,7 +142,7 @@ A 'Key Takeaways,' 'TL;DR,' or 'In Summary' box bolted onto every section, not j
 
 **Fix:** Keep at most one summary, at the top or bottom, never per-section. If a section needs a recap, it's too long; split or tighten it.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Per-section summaries are a documented comprehension aid and are standard in textbooks, journalism and technical documentation. Flag a box on EVERY section, especially one restating the heading immediately above it.
 
 **Before**
 
@@ -292,7 +292,7 @@ Replies open with an eager exclamatory affirmation ('Certainly!', 'Great questio
 
 **Fix:** Delete the opener and closer. Start with the answer's first real claim; end on the last substantive point. If a handoff is genuinely needed, make it specific.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** This is the correct and expected register in actual customer-service and support writing, where the house style calls for it. Flag it where the medium is a document, an essay, a commit message or a report.
 
 **Before**
 
@@ -364,7 +364,7 @@ A document, email, or landing page ends with an 'FAQ' section no actual user ask
 
 **Fix:** Cut the FAQ unless you have logged real recurring questions. If kept, use the actual words users asked and answer only what the body didn't cover.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** An FAQ built from real support tickets is genuinely useful and is one of the highest-value things a docs site can carry. Flag questions invented to map one-to-one onto points already made above.
 
 **Before**
 
@@ -433,7 +433,7 @@ Sections and intros launch with movement-metaphor throat-clearing: 'Let's dive i
 
 **Fix:** Cut the runway. Open on the actual content or a concrete specific.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** 'Delve' is ordinary English and is measurably commoner in Nigerian, South Asian and other second-language Englishes, so treating it as a machine marker penalises exactly the writers detectors are already documented to penalise. Flag the opener that announces discussion instead of discussing, never the vocabulary alone.
 
 **Before**
 
@@ -479,7 +479,7 @@ Emails open with 'I hope this email finds you well' / 'Just circling back' and o
 
 **Fix:** Open with the actual reason for writing. Cut 'hope this finds you well.' Match structure to size: a one-line ask gets one line.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Opening pleasantries are required politeness in many business cultures and languages, and omitting them reads as brusque or rude in much of the world. Flag over-structure of a simple request, not the greeting.
 
 **Before**
 
@@ -504,7 +504,7 @@ Closes with a defensive caveat hedging that the answer might not fit: 'Note that
 
 **Fix:** Replace the generic hedge with the one concrete variable that changes between setups, or delete it.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Documentation that does NOT say a step is environment-dependent can mislead, so the caveat is correct wherever the answer genuinely varies by setup. Flag it where the answer does not vary and the hedge is insurance against being wrong.
 
 **Before**
 
@@ -550,7 +550,7 @@ Structural over-formatting carried into contexts that don't call for it: bolded 
 
 **Fix:** Strip mid-sentence bold; emphasis belongs in word choice. Use sentence case for headings. Remove 'In conclusion' wrap-ups and convert bold-lead bullet lists to prose unless genuinely a reference list.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Title Case headings are house style at many publications, and bolded key terms are standard in textbooks, glossaries and reference documentation. Flag raw markdown leaking into a medium that does not render it, and formatting applied where no structure exists.
 
 **Before**
 
@@ -574,7 +574,7 @@ When explaining a bug or correction, the response over-apologizes: 'I apologize 
 
 **Fix:** Acknowledge once, briefly and specifically, then spend the words on the fix.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** One proportionate apology for a real mistake is correct and professional. Flag repetition and disproportion -- three apologies for a typo -- not the presence of an apology.
 
 **Before**
 
@@ -594,7 +594,7 @@ Landing copy mechanically executes Problem-Agitate-Solve: a rhetorical-question 
 
 **Fix:** Keep the logic but break the visible scaffolding. Open with a specific scene, not 'Tired of...?'. Make the CTA describe the actual next action. Skip the agitation pile-on.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** PAS is a legitimate, taught copywriting framework that demonstrably works, and a real problem deserves to be named. Flag the mechanical execution where the pain points are invented and the CTA is generic.
 
 **Before**
 
@@ -618,7 +618,7 @@ A README with a fixed, project-agnostic skeleton: badge row, one-line tagline, t
 
 **Fix:** Lead with the problem this project solves and one real example of output. Keep only sections you have content for. Delete a Contributing section that just says 'PRs welcome'.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** That section order is the community convention and it is genuinely good for discoverability -- a reader knows where to look. Flag a README where every section is generic, not one that follows the standard shape with specific content in it.
 
 **Before**
 
@@ -694,7 +694,7 @@ A two-column markdown table used for things that aren't comparative data: a sing
 
 **Fix:** Use a table only when 2+ items are compared across 2+ shared attributes. For a term gloss use a definition list or inline bold; for one concept's tradeoffs use a short paragraph.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A two-column term/definition table is a legitimate glossary format, and a comparison table with two real alternatives is tabular. Flag prose forced into 'Aspect | Description' cells and one-row tables.
 
 **Before**
 
@@ -718,7 +718,7 @@ A library module ends with a tacked-on demonstration: an `if __name__ == '__main
 
 **Fix:** Move example usage into the test suite or README. A library module should expose its API and stop. Keep `__main__` only for genuine CLI entry points.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** `if __name__ == '__main__':` is idiomatic Python for a module that is also runnable, and is correct for CLI entry points, teaching code, and smoke tests. Flag it on a library module imported elsewhere, where the block only prints a canned result.
 
 **Before**
 

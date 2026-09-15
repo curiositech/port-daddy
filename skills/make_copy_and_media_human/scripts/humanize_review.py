@@ -5763,6 +5763,23 @@ def run_validate():
     if no_th:
         print(f"note: {len(no_th)} ism(s) have no catalog thresholds, using bundled "
               f"fallback: {' '.join(no_th)}")
+
+    # Every generated reference prints "Every item carries a False positive when
+    # line. Read it before you act on the item." 51 items once satisfied that by
+    # saying "Not yet characterized", which honours the sentence and misses the
+    # point: this field is what stands between a finding and an accusation, and
+    # it only does that if somebody actually answered the question.
+    placeholder = re.compile(r"^\s*(?:not yet characteri[sz]ed|tbd|n/?a|unknown|"
+                             r"todo)\b", re.I)
+    thin = sorted(i["name"] for i in CATALOG.get("items", [])
+                  if not (i.get("false_positive_when") or "").strip()
+                  or placeholder.match(i["false_positive_when"])
+                  or len(i["false_positive_when"].split()) < 8)
+    if thin:
+        print(f"NO USABLE false_positive_when ON {len(thin)} ITEM(S): {' '.join(thin)}")
+        print("Every item needs a real answer to 'who legitimately writes this way?'. "
+              "That field is what keeps a finding from becoming an accusation.")
+        return 1
     print("validate OK")
     return 0
 
