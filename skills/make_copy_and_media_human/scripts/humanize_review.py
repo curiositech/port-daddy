@@ -926,8 +926,21 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
                 and (i == 0 or not lines[i - 1].strip()))
     nonblank = sum(1 for l, t in zip(lines, tags) if t == "prose" and l.strip())
 
+    # This item's own false_positive_when says "Reference documentation and API
+    # docs are legitimately heading-dense, because readers arrive by search and
+    # leave immediately. Scope to narrative prose." The detector did not scope to
+    # anything, so a well-formed CLI reference -- short label headings, a code
+    # block under most of them -- scored medium. Implement the caveat instead of
+    # only printing it: reference structure is short labels PLUS code, and both
+    # have to be present before the finding is suppressed.
+    head_words = [len(re.sub(r"^\s{0,3}#{1,6}\s+", "", l).split()) for _, l in heads]
+    short_share = (sum(1 for w in head_words if w <= 5) / len(head_words)) if head_words else 0
+    has_code = bool(re.search(r"^\s*```|^ {4,}\S", "\n".join(lines), re.M))
+    reference_shaped = short_share >= 0.6 and has_code
+
     if len(heads) >= th("heading-spam", "min_headings", 5) and paras \
-       and len(heads) / paras > th("heading-spam", "ratio", 0.5):
+       and len(heads) / paras > th("heading-spam", "ratio", 0.5) \
+       and not reference_shaped:
         out.append(finding(
             path, heads[0][0], f"{len(heads)} headings vs {paras} paragraphs",
             "heading-spam", "medium",
@@ -5686,6 +5699,24 @@ SELFTEST_CLEAN_TEX = (
     "\\end{document}\n")
 
 
+# Reference documentation. Heading density is the CORRECT structure here --
+# readers arrive by search and leave immediately -- and heading-spam's own
+# false_positive_when has always said so. It scored this medium anyway, because
+# the caveat was printed and never implemented.
+SELFTEST_CLEAN_REFDOC = (
+    "# pd lease\n\nClaim, renew and release port leases.\n\n"
+    "## pd lease claim\n\nTakes a port and holds it until the TTL expires or you "
+    "release it.\n\n    pd lease claim 5173 --ttl 600\n\n"
+    "Exits 3 if another owner holds the port, and prints that owner to stderr.\n\n"
+    "## pd lease renew\n\nExtends a lease you already hold. Fails if the lease "
+    "expired while you were away, because a lapsed lease may have been taken by "
+    "someone else.\n\n    pd lease renew 5173\n\n"
+    "## pd lease release\n\nDrops the lease. Idempotent: releasing a port you do "
+    "not hold succeeds.\n\n    pd lease release 5173\n\n"
+    "## pd lease ls\n\nLists live leases with the seconds remaining on each.\n\n"
+    "## Exit codes\n\n    0  ok\n    3  contention\n    4  no such lease\n")
+
+
 SELFTEST_CLEAN = (
     "We shipped the migration on a Tuesday and it went badly for about forty "
     "minutes. The read replicas in us-east-1 lagged behind the primary, so a "
@@ -5740,6 +5771,10 @@ def run_selftest():
     tex_noise = {f["ism"] for f in analyze_file_text(Path("c.tex"), SELFTEST_CLEAN_TEX)}
     if tex_noise:
         print("FALSE POSITIVES on a clean LaTeX paper:", " ".join(sorted(tex_noise)))
+        return 1
+    ref_noise = {f["ism"] for f in analyze_file_text(Path("c.md"), SELFTEST_CLEAN_REFDOC)}
+    if ref_noise:
+        print("FALSE POSITIVES on reference documentation:", " ".join(sorted(ref_noise)))
         return 1
 
     # --baseline is the load-carrying claim of this script, so it gets asserted

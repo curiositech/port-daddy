@@ -1458,7 +1458,7 @@
         "ratio": 0.5
       },
       "description": "A heading every paragraph or two, labelling single paragraphs rather than organizing sections.",
-      "detection": "Ratio of headings to paragraph-start lines.",
+      "detection": "Static: ratio of headings to paragraph-start lines, scoped to narrative prose. Reference shape is excluded mechanically -- 60% or more of headings being short labels (five words or fewer) AND a code block present -- so an API or CLI reference does not trip it.",
       "why_it_reads_ai": "It is the outline the model was given, left in place. Scaffolding that was never taken down after the building went up.",
       "fix": "Cut headings that label a single paragraph. Let the prose carry the transitions.",
       "before": "## Why speed matters\n\nSpeed matters because users leave.\n\n## Why reliability matters\n\nReliability matters because users return.",
