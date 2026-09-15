@@ -161,6 +161,15 @@ test('BOM-bearing registry exports roundtrip to the exact source digest', (t) =>
   assert.equal(result.nativeExport.records[0].id, 'bom')
 })
 
+test('both registry adapters reject duplicate object keys recursively after unescaping', (t) => {
+  const root = fixture(t, {
+    'harbor-duplicate.json': '{"harbor":"first","items":[],"harbor":"second"}',
+    'portable-duplicate.json': '{"schemaVersion":1,"namespace":"test","records":[{"id":"one","metadata":{"role":"author","\\u0072ole":"reviewer"}}]}',
+  })
+  assert.throws(() => readRegistryExport(root, 'harbor-duplicate.json', 'harbor-snapshot'), /duplicate registry object key/)
+  assert.throws(() => readRegistryExport(root, 'portable-duplicate.json', 'registry-v1'), /duplicate registry object key/)
+})
+
 test('Clearance propagates an incomplete census to Markdown and exit status', async (t) => {
   const { runCli } = await import('../scripts/harbor_clearance.mjs')
   const snapshot = JSON.parse(readFileSync(fileURLToPath(new URL('../examples/port-daddy-open-pr-snapshot.json', import.meta.url)), 'utf8'))

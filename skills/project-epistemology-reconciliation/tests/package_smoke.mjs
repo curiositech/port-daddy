@@ -83,7 +83,7 @@ const authorityReceiptRows = ['keep.txt', 'old.txt'].map((sourcePath, index) => 
   disposition: index === 0 ? 'copy-exact' : 'omit-approved',
   authorized: true,
   authorizerId: 'owner-a',
-  limitations: ['Offline exact-copy smoke fixture.'],
+  limitations: [],
 }))
 const authorityReceiptRawRows = authorityReceiptRows.map((row) => Buffer.from(JSON.stringify(row)))
 const authorityReceiptsBytes = Buffer.concat(authorityReceiptRawRows.flatMap((row) => [row, Buffer.from('\n')]))
@@ -107,7 +107,7 @@ const successorApproval = {
   schemaVersion: 1, action: 'materialize-successor', decisionId: 'owner-approval-1', revision: '1',
   manifestSha256: digest(manifestBytes), universeSha256: digest(universeBytes), granted: true,
   approverId: 'owner-a', scope: { sourceId: 'unrelated-successor', revision: 'frozen-1' },
-  limitations: ['Offline exact-copy smoke fixture.'],
+  limitations: [],
 }
 const approvalBytes = Buffer.from(`${JSON.stringify(successorApproval)}\n`)
 const lossAuditBytes = Buffer.from(`${JSON.stringify({

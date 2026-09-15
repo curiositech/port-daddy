@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +13,8 @@ const anchor = hash(Buffer.from('Keep one authority.\n', 'utf8'))
 const attempt = 'a'.repeat(64)
 const json = (value) => Buffer.from(JSON.stringify(value), 'utf8')
 const expectedSourceIdentity = () => ({ sourceId: 'example', revision: '7', path: 'decision.md' })
+const target = join(fileURLToPath(new URL('../../../', import.meta.url)), 'core/target/review-receipt-tests')
+mkdirSync(target, { recursive: true })
 
 function contract() {
   return { schemaVersion: 1, id: 'decision-review', revision: '1', requiredFields: ['decision', 'status'] }
@@ -159,7 +160,7 @@ test('duplicate object keys in contract and receipt bytes are malformed, includi
 })
 
 test('CLI distinguishes policy failure, malformed input and non-regular files', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'harbor-review-receipt-'))
+  const dir = mkdtempSync(join(target, 'case-'))
   const sourcePath = join(dir, 'source.md')
   const contractPath = join(dir, 'contract.json')
   const receiptPath = join(dir, 'receipt.json')

@@ -207,7 +207,10 @@ it. Bind a proposed `agent-reviewed` result to the exact local source bytes and
 run the independent quality receipt gate:
 
 ```sh
-node scripts/review_receipt.mjs --source /absolute/source.md --contract /absolute/review-contract.json --receipt /absolute/review.json
+node scripts/review_receipt.mjs --source /absolute/source.md \
+  --source-id my-project --source-revision COMMIT_OR_DIGEST \
+  --source-path docs/source.md \
+  --contract /absolute/review-contract.json --receipt /absolute/review.json
 node --test tests/review_receipt.test.mjs
 ```
 

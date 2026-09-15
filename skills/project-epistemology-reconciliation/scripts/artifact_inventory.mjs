@@ -11,6 +11,89 @@ const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const excluded = new Set(EXCLUDED_DIRECTORIES)
 const privateName = (name) => /^\.env(?:\.|$)/iu.test(name) || /^(?:credentials|secrets|private-key)(?:\.|$)/iu.test(name)
 
+/**
+ * JSON.parse silently keeps only the final value when an object repeats a key.
+ * Walk the JSON grammar first so a supplied registry cannot hide conflicting
+ * fields that collapse to the same JavaScript property name after unescaping.
+ */
+function rejectDuplicateJsonObjectKeys(text) {
+  let index = 0
+  const invalid = () => { throw new SyntaxError('invalid registry JSON') }
+  const whitespace = () => {
+    while (index < text.length && /[\x20\t\r\n]/u.test(text[index])) index += 1
+  }
+  const string = () => {
+    if (text[index] !== '"') invalid()
+    index += 1
+    let value = ''
+    while (index < text.length) {
+      const character = text[index++]
+      if (character === '"') return value
+      if (character === '\\') {
+        if (index >= text.length) invalid()
+        const escape = text[index++]
+        const simple = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' }
+        if (Object.hasOwn(simple, escape)) value += simple[escape]
+        else if (escape === 'u') {
+          const code = text.slice(index, index + 4)
+          if (!/^[0-9a-f]{4}$/iu.test(code)) invalid()
+          value += String.fromCharCode(Number.parseInt(code, 16))
+          index += 4
+        } else invalid()
+      } else {
+        if (character.charCodeAt(0) <= 0x1f) invalid()
+        value += character
+      }
+    }
+    invalid()
+  }
+  const value = () => {
+    whitespace()
+    if (text[index] === '{') return object()
+    if (text[index] === '[') return array()
+    if (text[index] === '"') { string(); return }
+    const token = text.slice(index)
+    const match = /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/u.exec(token)
+    if (!match) invalid()
+    index += match[0].length
+  }
+  const object = () => {
+    index += 1
+    whitespace()
+    if (text[index] === '}') { index += 1; return }
+    const keys = new Set()
+    while (index < text.length) {
+      whitespace()
+      const key = string()
+      if (keys.has(key)) throw new Error('duplicate registry object key')
+      keys.add(key)
+      whitespace()
+      if (text[index++] !== ':') invalid()
+      value()
+      whitespace()
+      if (text[index] === '}') { index += 1; return }
+      if (text[index++] !== ',') invalid()
+    }
+    invalid()
+  }
+  const array = () => {
+    index += 1
+    whitespace()
+    if (text[index] === ']') { index += 1; return }
+    while (index < text.length) {
+      value()
+      whitespace()
+      if (text[index] === ']') { index += 1; return }
+      if (text[index++] !== ',') invalid()
+    }
+    invalid()
+  }
+  whitespace()
+  value()
+  whitespace()
+  if (index !== text.length) invalid()
+}
+
 export function inside(root, path) {
   const rel = relative(root, path)
   return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`))
@@ -157,7 +240,9 @@ export function scanArtifacts(repoRoot, corpus = [{ path: '.', kind: 'repository
 export function readRegistryExport(repoRoot, path, adapter, maxBytes = DEFAULT_LIMITS.fileBytes, onReadBytes) {
   const bytes = readSource(repoRoot, path, maxBytes, onReadBytes)
   const rawExport = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
-  const value = JSON.parse(rawExport.replace(/^\uFEFF/u, ''), (_key, field) => {
+  const jsonText = rawExport.replace(/^\uFEFF/u, '')
+  rejectDuplicateJsonObjectKeys(jsonText)
+  const value = JSON.parse(jsonText, (_key, field) => {
     if (typeof field === 'number' && (!Number.isFinite(field) || (Number.isInteger(field) && !Number.isSafeInteger(field)))) throw new Error('unsafe registry number; use string identities and revisions')
     return field
   })

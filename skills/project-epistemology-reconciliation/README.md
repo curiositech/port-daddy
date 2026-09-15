@@ -132,6 +132,10 @@ read-only and stdout-only.
   100 bytes per segment and 240 bytes total, with reserved basenames and
   case-insensitive collisions rejected before writing.
 
+This local v1 accepts only unconditional approval and disposition receipts:
+their `limitations` arrays must be empty. Free-text conditions cannot be safely
+interpreted or enforced, so any non-empty limitation holds materialization.
+
 The only dispositions are `copy-exact`, `regenerate-alias`, and
 `omit-approved`. There is deliberately no content-transform or inferred-omit
 mode. Verification is the default and writes only JSON to stdout. Materialize

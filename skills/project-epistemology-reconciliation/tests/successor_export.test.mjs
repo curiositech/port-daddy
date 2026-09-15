@@ -77,7 +77,7 @@ function fixture() {
     granted: true,
     approverId: 'owner-a',
     scope: { sourceId: 'unrelated-project', revision: 'frozen-1' },
-    limitations: ['Local exact-copy successor only.'],
+    limitations: [],
   }
   const approvalBytes = json(approval)
   const lossAudit = {
@@ -182,6 +182,23 @@ test('unresolved blockers and absent authorization fail closed', () => {
   const result = audit(f).result
   assert.equal(result.pass, false)
   assert.deepEqual(result.findings.map((entry) => entry.id), ['SE-AUTHORITY', 'SE-AUTHORITY'])
+})
+
+test('free-text approval and authority limitations remain held instead of being ignored', () => {
+  const approvalLimited = fixture()
+  approvalLimited.approval.limitations = ['Do not materialize until legal review.']
+  approvalLimited.approvalBytes = json(approvalLimited.approval)
+  approvalLimited.lossAudit.authorization.approvalSha256 = sha(approvalLimited.approvalBytes)
+  approvalLimited.lossAuditBytes = json(approvalLimited.lossAudit)
+  const approvalResult = audit(approvalLimited).result
+  assert.equal(approvalResult.pass, false)
+  assert.ok(approvalResult.findings.some((entry) => entry.id === 'SE-AUTHORITY' && entry.path === 'approval.limitations'))
+
+  const rowLimited = fixture()
+  replaceAuthorityReceipt(rowLimited, 0, (receipt) => { receipt.limitations = ['Do not copy until source owner confirms.'] })
+  const rowResult = audit(rowLimited).result
+  assert.equal(rowResult.pass, false)
+  assert.ok(rowResult.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && entry.path === 'canonical.txt'))
 })
 
 test('manifest, universe and approval byte drift remain held', () => {

@@ -6,7 +6,8 @@
   materializer for complete, independently enumerated source universes.
 - Required exact universe, manifest, loss-audit and separate approval byte
   bindings plus one exact source-scoped authority receipt per disposition;
-  unresolved blockers, missing receipts and absent authorization remain held.
+  unresolved blockers, missing receipts, free-text limitations and absent
+  authorization remain held.
 - Supported only exact copies, byte-identical regenerated installation aliases
   and explicitly approved omissions. Content transformation remains out of
   scope rather than becoming an unreviewed rewrite path.

@@ -312,7 +312,7 @@ function validateApproval(value) {
   exactKeys(value.scope, ['sourceId', 'revision'], 'approval.scope')
   string(value.scope.sourceId, 'approval.scope.sourceId')
   string(value.scope.revision, 'approval.scope.revision')
-  strings(value.limitations, 'approval.limitations')
+  strings(value.limitations, 'approval.limitations', { allowEmpty: true })
 }
 
 function readBoundedRegular(path, limit, label) {
@@ -471,6 +471,7 @@ export function auditSuccessor({ sourceRoot, universeBytes, manifestBytes, lossA
   if (!sameSet(universe.map((row) => row.path), manifest.map((row) => row.sourcePath))) add('SE-COVERAGE', 'manifest', 'Manifest source paths must exactly equal the independently supplied universe.')
   if (!lossAudit.authorization.exportAuthorized) add('SE-AUTHORITY', 'lossAudit.authorization.exportAuthorized', 'Loss audit does not authorize export.')
   if (lossAudit.blockers.length > 0) add('SE-AUTHORITY', 'lossAudit.blockers', 'Loss audit retains unresolved blockers.')
+  if (approval.limitations.length > 0) add('SE-AUTHORITY', 'approval.limitations', 'Local v1 cannot enforce free-text approval limitations; materialization requires an unconditional grant with an empty limitations array.')
   if (approval.scope.sourceId !== lossAudit.source.sourceId || approval.scope.revision !== lossAudit.source.revision) add('SE-AUTHORITY', 'approval.scope', 'Approval scope does not match the loss-audit source identity and revision.')
 
   const referencedAuthority = new Set()
@@ -492,6 +493,7 @@ export function auditSuccessor({ sourceRoot, universeBytes, manifestBytes, lossA
       receipt.scope.sourcePath !== row.sourcePath ||
       receipt.disposition !== row.disposition
     ) add('SE-AUTHORITY-RECEIPT', row.sourcePath, 'Authority receipt decision, revision, source scope, or disposition does not exactly match its manifest row and loss-audit source.')
+    if (receipt.limitations.length > 0) add('SE-AUTHORITY-RECEIPT', row.sourcePath, 'Local v1 cannot enforce free-text authority limitations; this disposition requires an unconditional receipt with an empty limitations array.')
   }
   for (const receiptSha256 of authorityByDigest.keys()) {
     if (!referencedAuthority.has(receiptSha256)) add('SE-AUTHORITY-RECEIPT', receiptSha256, 'Authority receipt bundle contains an unreferenced row.')
