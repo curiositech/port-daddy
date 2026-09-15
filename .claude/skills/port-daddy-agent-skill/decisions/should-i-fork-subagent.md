@@ -80,7 +80,8 @@ START: I'm considering forking work to a sub-agent
 Every sub-agent MUST:
 
 1. Run `pd briefing` and `pd sessions --all-worktrees` before any work.
-2. Have its own `pd begin` session if it edits files (or be passed an explicit `--session`).
+2. Have its own `pd begin` session with inherited roadmap rent if it edits files
+   (or be passed an explicit `--session`).
 3. Claim the files it intends to touch.
 4. Drop a scope note before mutation.
 5. Drop a result note before returning.
