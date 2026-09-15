@@ -1,15 +1,15 @@
 [
   {
-    "id": "fig-anchor-card-lifecycle",
-    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
-    "chapter": 2,
+    "id": "fig-anchor-phases",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-phases.tex",
+    "chapter": 5,
     "checks_failed": [
-      "T2",
-      "T3"
+      "T1",
+      "T4"
     ],
     "first_seen": "2026-09-15",
     "waiver": {
-      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "reason": "orphaned three-phase predecessor of fig-anchor-four-phases.tex; never \\input by any document and never kept in sync with the current textwidth/font conventions; only its header comment (pointing readers at its successor) changed in PR #10244",
       "expires": "2026-10-31"
     }
   },
@@ -267,19 +267,6 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": {
-      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
-      "expires": "2026-10-31"
-    }
-  },
-  {
-    "id": "fig-swk-controllability-quadrant",
-    "fragment": "whitepaper/figures/fig-swk-controllability-quadrant.tex",
-    "chapter": 1,
-    "checks_failed": [
-      "T4"
-    ],
-    "first_seen": "2026-09-15",
     "waiver": {
       "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
       "expires": "2026-10-31"
