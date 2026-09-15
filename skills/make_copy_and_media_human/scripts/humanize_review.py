@@ -119,6 +119,35 @@ DEFAULT_THRESHOLDS = {
     "sort-header-not-button-no-aria-sort": {"min_count": 1},
     "unbounded-spinner-no-error-path": {"min_count": 1},
     "settings-flat-toggle-wall": {"min_toggles": 8},
+    "nav-without-active-state": {"min_links": 3},
+    "hamburger-at-desktop-width": {"min_count": 1},
+    "decorative-site-search": {"min_count": 1},
+    "footer-sitemap-dump": {"min_links": 12, "dead_share": 0.3},
+    "lang-frozen-on-locale-switch": {"min_count": 1},
+    "rtl-unsupported-physical-properties": {"phys_ratio": 5.0},
+    "name-and-address-shape-assumed": {"min_markers": 2},
+    "text-baked-into-image": {"min_alt_words": 8},
+    "flag-as-language-selector": {"min_flags": 2},
+    "consent-choice-asymmetry": {"area_ratio": 1.5},
+    "tracking-before-consent": {"min_count": 1},
+    "prechecked-optin": {"min_count": 1},
+    "confirmshaming-decline-label": {"min_count": 1},
+    "no-print-stylesheet": {"min_hostile": 2},
+    "docs-generator-defaults-unmodified": {"min_markers": 3},
+    "docs-search-indexes-nothing": {"min_count": 1},
+    "hardcoded-locale-formats": {"min_count": 1},
+    "sentence-assembled-from-fragments": {"min_count": 1},
+    "countdown-that-resets": {"min_count": 1},
+    "fabricated-live-activity-counter": {"min_count": 1},
+    "modal-on-first-paint": {"min_count": 1},
+    "cancellation-has-no-path": {"min_count": 1},
+    "checkout-without-guest-option": {"min_count": 1},
+    "no-plain-text-part": {"min_count": 1},
+    "email-built-with-web-css": {"min_count": 1},
+    "preheader-never-set": {"min_count": 1},
+    "receipt-generated-as-screenshot": {"min_count": 1},
+    "code-sample-not-runnable": {"min_blocks": 4, "untagged_share": 0.5},
+    "every-page-opens-with-in-this-guide": {"min_consecutive": 3},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -1845,8 +1874,12 @@ def analyze_web_build(path, text):
             "viewport at all, which is usually the better answer.",
             family="defect"))
 
+    # A lang bound to a template expression — lang="{{ locale }}", lang={locale},
+    # :lang — is the CORRECT shape, not a missing attribute. Treating it as missing
+    # sent every properly internationalised root layout a false positive.
     if ext in {".html", ".htm"} and re.search(r"<html\b", low) \
-       and not re.search(r"<html\b[^>]*\blang\s*=\s*[\"']\s*[a-z]", low):
+       and not re.search(r"<html\b[^>]*\blang\s*=\s*[\"']\s*[a-z]", low) \
+       and not re.search(r"<html\b[^>]*\b:?lang\s*=\s*[\"']?\s*[{<]", low):
         out.append(finding(
             path, first(r"<html"), "<html> has no lang attribute",
             "missing-html-lang", "medium",
@@ -1933,6 +1966,305 @@ def analyze_web_build(path, text):
             "so the page makes an honest promise.",
             family="defect"))
 
+
+    # =============== unopened surfaces: navigation and wayfinding ===============
+    # The umbrella diagnosis for this cluster is ia-is-a-projection-of-the-filesystem:
+    # the nav lists every route, the footer lists every page, because enumeration is
+    # free and prioritisation needs knowledge the generator does not have. Each
+    # symptom below is decidable from one file; the cluster is the diagnosis.
+
+    nav_anchor = re.search(r"<nav\b", low) or re.search(r'role=["\']navigation["\']', low)
+    if nav_anchor:
+        nav_links = len(re.findall(r"<a\b|<Link\b", text))
+        if nav_links >= 3 \
+           and not re.search(r"aria-current", text, re.I) \
+           and not re.search(r"usePathname|useRouter|\bisActive\b|activeClass|"
+                             r"aria-selected|data-active|router\.pathname|\$page\.url", text) \
+           and not re.search(r'class(?:Name)?=["\'][^"\']*\bactive\b', text, re.I):
+            out.append(finding(
+                path, first(r"<nav|role=[\"']navigation"),
+                f"nav with {nav_links} links and no current-page indicator",
+                "nav-without-active-state", "high",
+                "Nothing marks the page you are on. The nav is authored once as a stateless "
+                "component and page two is never rendered, so there is no moment at which the "
+                "missing state is visible. NN/g calls this the commonest menu mistake, and "
+                "conveying location visually only is a WCAG 1.3.1 failure — here it is not "
+                "conveyed at all.",
+                "Set aria-current=\"page\" on the matching link and style "
+                "[aria-current=\"page\"]. Do both: the attribute is what assistive technology "
+                "reads, the style is what everyone else reads. Do not use colour alone.",
+                family="defect"))
+
+    toggle = re.search(r"<button[^>]*(?:aria-expanded|aria-label=[\"'][^\"']*"
+                       r"(?:menu|navigation)[^\"']*[\"'])", text, re.I)
+    if toggle and re.search(r'class(?:Name)?=["\'][^"\']*\bhidden\b', text) \
+       and not re.search(r"\b(?:sm|md|lg|xl|2xl):(?:flex|block|grid|inline-flex)\b", text):
+        out.append(finding(
+            path, first(r"aria-expanded|aria-label=[\"'][^\"']*(menu|navigation)"),
+            "nav toggle present, nav list hidden with no breakpoint that reveals it",
+            "hamburger-at-desktop-width", "high",
+            "The list is hidden and nothing brings it back at any width, so the full nav is "
+            "behind a toggle on a 1440px screen. The responsive nav pattern was written from "
+            "memory and the breakpoint pair came out wrong; nobody opened a desktop viewport. "
+            "NN/g measured the cost — discoverability roughly halves.",
+            "Reveal it from md or lg up: `hidden md:flex` on the list, `md:hidden` on the "
+            "toggle. Then load the page at 1280 and at 1440 and look.",
+            family="defect"))
+
+    if re.search(r'type=["\']search["\']|role=["\']searchbox["\']', text, re.I) \
+       and not re.search(r"<form[^>]*action=", text, re.I) \
+       and not re.search(r"onSubmit|handleSearch|\bsearch\(|/search", text, re.I) \
+       and not re.search(r"fuse\.js|lunr|flexsearch|minisearch|pagefind|docsearch|"
+                         r"algoliasearch|typesense", low):
+        out.append(finding(
+            path, first(r'type=["\']search|role=["\']searchbox'),
+            "search input with no form action, no handler and no index",
+            "decorative-site-search", "high",
+            "A search box that submits nowhere. Same family as form-without-destination: "
+            "search is a component the model can render convincingly and a backend it was not "
+            "asked to build. It is worse than no search, because the control makes a promise "
+            "and then tells the visitor their content does not exist.",
+            "Wire it — Pagefind or Fuse.js index a static build in minutes — or "
+            "delete the input. Under about a dozen pages, deleting it and fixing the menu is "
+            "the right answer. Then search for a string you know is on the page.",
+            family="defect"))
+
+    fm = re.search(r"<footer\b", low)
+    if fm:
+        foot = text[fm.start():]
+        fl = re.findall(r"<(?:a|Link)\b[^>]*?(?:href|to)=[\"']([^\"']*)[\"']", foot, re.I)
+        dead = [h for h in fl if h.strip() in {"#", ""} or h.startswith("javascript:")]
+        if len(fl) >= th("footer-sitemap-dump", "min_links", 12) \
+           and len(dead) >= len(fl) * th("footer-sitemap-dump", "dead_share", 0.3):
+            out.append(finding(
+                path, first(r"<footer"),
+                f"{len(fl)} footer links, {len(dead)} of them going nowhere",
+                "footer-sitemap-dump", "medium",
+                "The four-column corporate footer, on a site with one product and no company. "
+                "This is where the generator puts the IDEA of an organisation: a real company "
+                "has a Press page, so the link appears. The dead href is the symptom; the "
+                "shape is the finding.",
+                "List only what exists. Legally required links stay; the rest go when the page "
+                "does. If two labels point at one page, pick one and use it in both places so "
+                "visited-link state and recall work.",
+                family="shape"))
+
+    # ======================= unopened surfaces: i18n =======================
+    # Every check here is gated on the site CLAIMING more than one locale. A
+    # single-locale site is not defective for being single-locale, and firing on
+    # one would be the kind of false positive that gets a tool switched off.
+    i18n_claim = bool(re.search(r"hreflang|\blocales\b|useTranslation|i18n|next-intl|"
+                                r"react-i18next|\{\s*t\(|formatMessage", text, re.I))
+
+    if i18n_claim and re.search(r'<html[^>]*\blang=["\']en["\']', text, re.I) \
+       and not re.search(r"lang=\{|:lang=|lang=\"\{", text):
+        out.append(finding(
+            path, first(r"<html"), 'literal lang="en" on a site that claims other locales',
+            "lang-frozen-on-locale-switch", "high",
+            "The attribute is present and wrong, which is why no \"is it there\" check finds "
+            "it. The switcher and the strings are the visible half of i18n; the half only "
+            "assistive technology observes was not wired, so a screen reader reads Spanish "
+            "with an English voice.",
+            "Bind lang to the active locale in the root layout and set dir from the same "
+            "source. Wrap inline other-language passages in <span lang=\"…\">.",
+            family="defect"))
+
+    if re.search(r"[\"'](?:ar|he|fa|ur|yi|dv|ps|ckb)[\"']|[\"']ar-|[\"']he-", text) \
+       and i18n_claim and not re.search(r"\bdir=", text, re.I):
+        phys = len(re.findall(r"margin-left|margin-right|padding-left|padding-right|"
+                              r"text-align\s*:\s*(?:left|right)|border-left|border-right", low))
+        phys += len(re.findall(r"\b(?:ml|mr|pl|pr|text-left|text-right|rounded-l|rounded-r|"
+                               r"border-l|border-r)-", text))
+        logi = len(re.findall(r"margin-inline|padding-inline|inset-inline|"
+                              r"text-align\s*:\s*(?:start|end)|border-inline", low))
+        logi += len(re.findall(r"\b(?:ms|me|ps|pe|text-start|text-end|rounded-s|rounded-e|"
+                               r"border-s|border-e)-", text))
+        if phys >= 5 and phys >= (logi + 1) * th("rtl-unsupported-physical-properties",
+                                                 "phys_ratio", 5.0):
+            out.append(finding(
+                path, first(r"margin-left|padding-left|\bml-|\bpl-"),
+                f"an RTL locale is offered; {phys} physical spacing rules against {logi} "
+                f"logical ones, and no dir attribute",
+                "rtl-unsupported-physical-properties", "high",
+                "Arabic or Hebrew is on the menu and the layout cannot mirror. Physical "
+                "properties are what the corpus is made of, so they are what gets generated; "
+                "logical properties require someone to have thought about a reader who is not "
+                "the author.",
+                "Set dir on <html> from the locale and convert spacing and alignment to "
+                "logical properties — margin-inline-start, text-align:start, "
+                "border-inline-start. Mirror directional icons, and do NOT mirror icons of "
+                "real-world objects: a clock, a play button, a logo.",
+                family="defect"))
+
+    us_form = sum(bool(x) for x in (
+        re.search(r'name=["\'](?:firstName|first_name|fname)["\']', text, re.I)
+        and not re.search(r'name=["\'](?:name|fullName|full_name)["\']', text, re.I),
+        re.search(r'pattern=["\']\^?\\\\?d\{5\}|maxlength=["\']5["\'][^>]*zip', text, re.I),
+        re.search(r'name=["\']state["\'][^>]*required|<option[^>]*>\s*Alabama', text, re.I),
+        re.search(r"\\\(\\\\?d\{3\}\\\)|\(\d{3}\)\s*\d{3}-\d{4}", text),
+    ))
+    if us_form >= 2:
+        out.append(finding(
+            path, first(r"firstName|first_name|pattern=[\"']\^?\\\\?d\{5\}|name=[\"']state"),
+            "a form shaped for one country: split names, US states, five-digit postal, "
+            "US phone mask",
+            "name-and-address-shape-assumed", "medium",
+            "The US address form is the overwhelming majority shape in the training data, so "
+            "it is the default produced — including for a product whose stated market is "
+            "somewhere else. Several of these fields describe nobody in Ireland, Hong Kong or "
+            "Iceland.",
+            "One Full name field with autocomplete=\"name\" unless you have a concrete reason "
+            "to split. Make the address field set depend on the country, and make state and "
+            "postcode optional where the country does not use them. Never validate phone "
+            "numbers with a country-specific regex.",
+            family="defect"))
+
+    for m in re.finditer(r"<img\b[^>]*\balt=[\"']([^\"']{40,})[\"']", text, re.I):
+        alt = m.group(1)
+        if len(alt.split()) >= 8 and re.search(r"[.!—]|\$\d|\d+%|free trial|per month|"
+                                               r"no card required", alt, re.I):
+            out.append(finding(
+                path, text[:m.start()].count("\n") + 1,
+                f'alt text carrying the marketing copy: "{alt[:70]}…"',
+                "text-baked-into-image", "medium",
+                "The headline moved into the image and its words survive only in the alt "
+                "attribute — so they cannot be translated, selected, searched, resized "
+                "or reflowed. Generated hero imagery increasingly contains generated text, "
+                "which is why this now appears for a model-specific reason and not only the "
+                "old designer-hands-over-a-PNG one. WCAG 1.4.5.",
+                "Live text over the image, positioned with CSS: an <h2> and a <p> over an "
+                "<img alt=\"\">. For diagrams use inline SVG with real <text> nodes so labels "
+                "stay translatable and selectable.",
+                family="defect"))
+            break
+
+    flags = len(re.findall(r"[\U0001F1E6-\U0001F1FF]{2}", text)) \
+        + len(re.findall(r'class(?:Name)?=["\'][^"\']*(?:flag-icon|fi fi-|country-flag)', text))
+    if flags >= 2 and i18n_claim \
+       and not re.search(r"Español|Deutsch|Français|Português|Italiano|"
+                         r"日本語|العربية|"
+                         r"中文|한국어", text):
+        out.append(finding(
+            path, first(r"[\U0001F1E6-\U0001F1FF]{2}|flag-icon|fi fi-|country-flag"),
+            f"{flags} flags used as a language selector, with no language named",
+            "flag-as-language-selector", "low",
+            "Languages are not countries and the mapping is many-to-many. Flags are the most "
+            "visually available representation of \"language\" in the corpus and cost nothing "
+            "to emit. The compounding failure is that the control is usually labelled only in "
+            "the CURRENT language, so a visitor who landed on the wrong locale cannot read the "
+            "way out.",
+            "Label each option with its endonym — English, Español, Deutsch, "
+            "日本語 — plus the BCP-47 tag in lang and hreflang. Never use a "
+            "flag as the sole cue.",
+            family="shape"))
+
+    # ============ dark patterns the corpus supplies by default ============
+    # None of this is an inference about intent. These shapes are statistically
+    # normal on the commercial web, so they are what "add a cookie banner" or
+    # "add a product page" retrieves. The output is still deceptive, and in
+    # several cases below unlawful, which is the author's decision to make.
+    consent_ctx = bool(re.search(r"cookie|consent|gdpr|ccpa", low))
+    if consent_ctx and re.search(r">\s*(?:Accept|Allow|Agree|Got it|I understand)\b", text, re.I) \
+       and not re.search(r">\s*(?:Reject|Decline|Deny|Refuse|Only necessary|Necessary only|"
+                         r"Essential only)\b", text, re.I):
+        out.append(finding(
+            path, first(r">\s*(Accept|Allow|Agree|Got it)"),
+            "consent banner with an accept control and no reject control",
+            "consent-choice-asymmetry", "high",
+            "The asymmetric banner is close to universal on the commercial web, so it is what "
+            "the corpus supplies. It is nonetheless non-compliant: the EDPB taskforce and the "
+            "CPPA both require symmetry of choice, and the privacy-protective path may not be "
+            "longer or harder than the permissive one.",
+            "Put \"Reject all\" on the first layer: same element, same size, same weight as "
+            "\"Accept all\". A third \"Manage\" option may be a link. Default every "
+            "non-essential category to off.",
+            family="defect"))
+
+    tracker = re.search(r"googletagmanager|google-analytics|connect\.facebook\.net|"
+                        r"hotjar|clarity\.ms|/analytics\.js", low)
+    if tracker and consent_ctx \
+       and not re.search(r"text/plain|consent[\"']?\s*,|analytics_storage|ad_storage|"
+                         r"granted|denied|CookieConsent|cookieyes|onetrust|klaro", text, re.I):
+        out.append(finding(
+            path, first(r"googletagmanager|google-analytics|connect\.facebook\.net|hotjar|clarity"),
+            "a tracking tag and a consent banner in the same file, with nothing connecting them",
+            "tracking-before-consent", "high",
+            "The purest declared-but-not-wired defect in this lane, and the clearest case of "
+            "two correct halves adding up to a violation. Each vendor documents a "
+            "paste-into-head snippet; the banner is a separate component; both are generated "
+            "correctly in isolation and nothing gates one on the other. The banner ends up "
+            "sitting on top of a completed violation.",
+            "Initialise Consent Mode with every storage denied BEFORE the tag loads, and flip "
+            "it in the banner's accept handler — or let a CMP rewrite the script tags. "
+            "Then verify in a fresh profile with devtools open, not by reading the code.",
+            family="defect"))
+
+    for m in re.finditer(r"<input\b[^>]*type=[\"']checkbox[\"'][^>]*>", text, re.I):
+        tag = m.group(0)
+        if not re.search(r"\bchecked\b|defaultChecked", tag, re.I):
+            continue
+        ctx = text[m.start():m.start() + 400]
+        if re.search(r"newsletter|marketing|updates|offers|promotions|partners|"
+                     r"third[- ]part|share my|keep me posted", ctx, re.I):
+            out.append(finding(
+                path, text[:m.start()].count("\n") + 1,
+                "a marketing checkbox that ships already ticked",
+                "prechecked-optin", "high",
+                "Consent obtained by inattention. Pre-ticked boxes are the majority shape in "
+                "the corpus of signup forms, so they are the default produced. CJEU "
+                "C-673/17 Planet49: consent is not validly constituted by a pre-ticked box the "
+                "user must deselect to refuse.",
+                "Ship it unchecked. Separate consents get separate boxes — never bundle "
+                "marketing consent with terms acceptance. Phrase the label positively so the "
+                "checked state means yes.",
+                family="defect"))
+            break
+
+    cs = re.search(r">\s*(No,?\s*thanks?,?\s+I\b[^<]{0,70}|I'?d rather[^<]{0,60}|"
+                   r"No,?\s*I (?:don'?t|do not) (?:want|need)[^<]{0,60})<", text, re.I)
+    if cs:
+        out.append(finding(
+            path, text[:cs.start()].count("\n") + 1,
+            f'decline label written as a confession: "{cs.group(1).strip()[:60]}"',
+            "confirmshaming-decline-label", "medium",
+            "The decline control judges the person using it. This is a copywriting convention "
+            "in the corpus — the model has read thousands of these and produces them as "
+            "the house style for a dismiss link — which makes it the most easily removed "
+            "item in this lane and the one most likely to be pure imitation.",
+            "Label the action, not the person: \"No thanks\", \"Not now\", \"Close\". Keep the "
+            "decline as findable and as clickable as the accept.",
+            family="form"))
+
+    # ------------------------------------------------- print: nobody pressed Ctrl-P
+    # An email template is not a printed web page, and it is full of exactly the
+    # signals this check reads as print-hostile. Skip it.
+    is_email_tpl = bool(re.search(r"mso-hide|<!--\[if mso\]|role=[\"']presentation[\"']|"
+                                  r"view (?:this )?(?:email|message) (?:in|on)", low))
+    if ext in {".css", ".html", ".htm"} and not is_email_tpl \
+       and "@media print" not in low \
+       and not re.search(r'media=["\']print', low):
+        hostile = sum(bool(x) for x in (
+            re.search(r"position\s*:\s*(?:fixed|sticky)", low),
+            re.search(r"100vh|min-h-screen|height\s*:\s*100vh", low),
+            re.search(r"overflow\s*:\s*hidden", low),
+        ))
+        doc_like = bool(re.search(r"invoice|receipt|ticket|itinerary|boarding|statement|"
+                                  r"packing slip", low))
+        if hostile >= 2 or doc_like:
+            out.append(finding(
+                path, first(r"position\s*:\s*(fixed|sticky)|100vh|invoice|receipt"),
+                "no @media print rule, on a page with fixed chrome or a printable document",
+                "no-print-stylesheet", "high" if doc_like else "medium",
+                "The page prints as a fixed header, a hamburger button and three blank sheets, "
+                "with every link destination invisible. Print is not in the generation loop at "
+                "all — the least-visited surface here — and the things people "
+                "actually print are invoices, tickets and itineraries.",
+                "Add a print block: hide the chrome, unpin fixed positioning, reset "
+                "viewport-height sections, avoid breaking inside headings, tables and figures, "
+                "print link destinations after external anchors with a[href^=\"http\"]::after, "
+                "and set @page { margin: 15mm }. Then actually print it.",
+                family="defect"))
+
     dbg = len(re.findall(r"\bconsole\.(?:log|debug|warn)\s*\(", text)) \
         + len(re.findall(r"\bdebugger\s*;", text))
     if dbg >= th("debug-residue-in-production", "min_count", 3):
@@ -1973,6 +2305,263 @@ def analyze_web_build(path, text):
     return out
 
 # ------------------------------------------------------------- code signals
+
+# ------------------------------------------------- app surfaces (markup AND script)
+
+JS_FAMILY = {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte"}
+
+
+def analyze_app_surfaces(path, text):
+    """Checks that live in script and config as often as in markup.
+
+    These run for stylesheets, templates AND plain .js/.ts, because the surfaces
+    they cover — the send call, the PDF export, the price formatter, the
+    countdown — are usually nowhere near the markup. Everything here is a
+    defect you can reproduce, not an inference about who wrote it.
+    """
+    out = []
+    lines = mask_ignored(text.splitlines())
+    text = "\n".join(lines)
+    low = text.lower()
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+    # ---- scaffold residue: the docs site that is still the starter
+    markers = []
+    if re.search(r"--ifm-color-primary\s*:\s*#2e8555", low):
+        markers.append("the Docusaurus scaffold green")
+    if "dinosaurs are cool" in low:
+        markers.append("the scaffold tagline")
+    if re.search(r"YOUR_APP_ID|YOUR_SEARCH_API_KEY|YOUR_INDEX_NAME", text):
+        markers.append("placeholder Algolia credentials")
+    if re.search(r"tutorial-basics|docs/intro\.md|MDX Blog Post", text):
+        markers.append("scaffold pages still present")
+    if re.search(r"Stack Overflow[\s\S]{0,200}Discord", text) and "footer" in low:
+        markers.append("the scaffold footer link groups")
+    if len(markers) >= th("docs-generator-defaults-unmodified", "min_markers", 3):
+        out.append(finding(
+            path, first(r"2e8555|Dinosaurs are cool|YOUR_APP_ID|tutorial-basics"),
+            "; ".join(markers), "docs-generator-defaults-unmodified", "medium",
+            "The docs site is the starter with the content swapped. \"Set up a docs site\" "
+            "resolves to running the scaffolder, and the scaffolder's output is already a "
+            "complete, good-looking site — so the loop terminates. The tell is not "
+            "ugliness; it is being indistinguishable from the template.",
+            "Change four things at minimum: the primary colour tokens, the logo and favicon, "
+            "the footer link groups, and the landing page. Delete every scaffold page.",
+            family="residue"))
+    elif re.search(r"YOUR_APP_ID|YOUR_SEARCH_API_KEY|YOUR_INDEX_NAME", text):
+        out.append(finding(
+            path, first(r"YOUR_APP_ID|YOUR_SEARCH_API_KEY|YOUR_INDEX_NAME"),
+            "search configured with placeholder credentials",
+            "docs-search-indexes-nothing", "high",
+            "The theme renders a search box whether or not you supply an index, so the "
+            "generator gets the UI for free and never discovers it is hollow. Search is the "
+            "primary navigation mode for documentation; a hollow one is worse than none.",
+            "Wire a local index — docusaurus-search-local or Pagefind: no external "
+            "service, works offline, indexes at build. Then search for a string you know is on "
+            "the page and confirm it comes back.",
+            family="defect"))
+
+    # ---- money and dates written for exactly one place
+    if re.search(r"[$€£¥][\s'\"}+]*\s*[\w.$\[\]()]*\.toFixed\(\s*2\s*\)"
+                 r"|\.toFixed\(\s*2\s*\)\s*[\s'\"}]*\s*[$€£¥]"
+                 r"|toLocaleDateString\(\s*[\"']en-US[\"']"
+                 r"|[\"'](?:MM/DD/YYYY|MM/dd/yyyy)[\"']"
+                 r"|\\B\(\?=\(\\d\{3\}\)\+\(\?!\\d\)\)", text) \
+       and not re.search(r"Intl\.(?:NumberFormat|DateTimeFormat|RelativeTimeFormat)", text):
+        out.append(finding(
+            path, first(r"toFixed\(\s*2\s*\)|toLocaleDateString|MM/DD/YYYY"),
+            "prices or dates formatted by hand, with no Intl formatter anywhere",
+            "hardcoded-locale-formats", "medium",
+            "toFixed(2) with a currency symbol is the commonest price-rendering idiom in the "
+            "training data. It is not wrong so much as monolingual: JPY has zero decimals, KWD "
+            "has three, and Germany writes 1.234,56 € with the symbol trailing.",
+            "Intl.NumberFormat(locale, {style:'currency', currency}).format(amount) and "
+            "Intl.DateTimeFormat(locale, {dateStyle:'medium'}).format(d). Take locale from the "
+            "user's stored preference. Store money as integer minor units, never float.",
+            family="defect"))
+
+    if re.search(r"\bt\(\s*[\"'`][^\"'`]+[\"'`]\s*\)\s*\+|\+\s*t\(\s*[\"'`]"
+                 r"|[\"'][\w.]*_(?:part\d|prefix|suffix|start|end)[\"']", text):
+        out.append(finding(
+            path, first(r"t\(\s*[\"'`][^\"'`]+[\"'`]\s*\)\s*\+|\+\s*t\(|_part\d|_prefix|_suffix"),
+            "a translated sentence assembled from concatenated fragments",
+            "sentence-assembled-from-fragments", "medium",
+            "Fragment assembly reads perfectly in English, which is the only language the "
+            "generator renders. Translators receive word-order-locked pieces they cannot "
+            "reorder, and no language with grammatical gender, case or non-binary plurals can "
+            "come out right. It is invisible until someone opens the string file.",
+            "One message per sentence, with named placeholders and ICU plurals: "
+            "t('cart.count', {count}) where the message is "
+            "\"{count, plural, one {# item} other {# items}}\". Give translators context "
+            "comments.",
+            family="defect"))
+
+    # ---- urgency and social proof with no source
+    cd = re.search(r"(?:Date\.now\(\)|new Date\(\)(?:\.getTime\(\))?)\s*\+\s*\d"
+                   r"|useState\(\s*\d{2,}\s*\*\s*60", text)
+    if cd and re.search(r"countdown|timer|offerEnd|expires|deadline|flashSale|ends in",
+                        text, re.I):
+        out.append(finding(
+            path, text[:cd.start()].count("\n") + 1,
+            "a countdown whose deadline is computed from now, so it restarts on every load",
+            "countdown-that-resets", "high",
+            "A client-side countdown is a tidy, self-contained component; a real deadline needs "
+            "a server, a promotion record and an end date. The model builds the component it "
+            "can complete. Princeton counted 393 countdown timers across 361 of 11,000 shopping "
+            "sites, so this is the corpus default, not a choice.",
+            "If the offer has a real end, render it from a server timestamp and let the timer "
+            "stop and the offer actually end. If it does not, delete the timer — a fake "
+            "countdown is a false statement about price and availability.",
+            family="defect"))
+
+    fake = re.search(r"(?:Math\.random\(\)|Date\.now\(\)\s*%)[\s\S]{0,200}?"
+                     r"(?:viewing|watching|looking at|people|shoppers|left in stock|"
+                     r"only \d+ left)", text, re.I) \
+        or re.search(r"(?:viewing|watching|people are|shoppers)[\s\S]{0,200}?Math\.random\(\)",
+                     text, re.I)
+    if fake:
+        out.append(finding(
+            path, text[:fake.start()].count("\n") + 1,
+            "a live-activity or low-stock number generated from Math.random()",
+            "fabricated-live-activity-counter", "high",
+            "A live-data widget with no live data, asserting a present-tense fact that is "
+            "verifiably false. Princeton counted 313 activity messages and 632 low-stock "
+            "messages across the same corpus, which is why the model produces one on request. "
+            "Adjacent to unbacked-social-proof, but narrower and more serious: that one is a "
+            "copy claim, this one is a fabricated measurement.",
+            "Wire it to real inventory or real concurrent-session data, and show nothing when "
+            "the number is unremarkable. If you cannot, delete it.",
+            family="defect"))
+
+    mo = re.search(r"useEffect\(\s*\(\s*\)\s*=>\s*\{?\s*set(?:Show|Open|Is)\w*\(\s*true\s*\)"
+                   r"[\s\S]{0,80}?\}?\s*,\s*\[\s*\]\s*\)", text)
+    if mo and not re.search(r"localStorage|sessionStorage|scrollY|IntersectionObserver|"
+                            r"mouseleave|setTimeout", text[max(0, mo.start() - 300):mo.end() + 300]):
+        out.append(finding(
+            path, text[:mo.start()].count("\n") + 1,
+            "an overlay opened on mount with no delay, scroll trigger or suppression",
+            "modal-on-first-paint", "medium",
+            "The visitor is interrupted before reading a word. \"Add an email capture modal\" "
+            "retrieves the simplest possible implementation and the simplest is unconditional; "
+            "the suppression logic — show once, remember the dismissal, never during "
+            "checkout — is the part that requires someone to have USED the site.",
+            "Gate it on 50–60% scroll depth, or 30+ seconds, or exit intent. Persist the "
+            "dismissal for at least 30 days. Never stack it over a consent banner, and never "
+            "show it on checkout.",
+            family="defect"))
+
+    # ---- the exit that was never specified
+    if re.search(r"(?:checkout\.sessions|subscriptions)\.create|billing_cycle_anchor|"
+                 r"createSubscription|paddle\.Checkout", text, re.I) \
+       and not re.search(r"billingPortal|cancelSubscription|subscriptions\.cancel|"
+                         r"/cancel|deleteAccount|close-account|downgrade", text, re.I):
+        out.append(finding(
+            path, first(r"checkout\.sessions|subscriptions\.create|paddle\.Checkout"),
+            "subscription creation with no cancellation path in the same surface",
+            "cancellation-has-no-path", "high",
+            "The happy path is what gets specified and what the corpus is full of; the exit "
+            "path is specified by nobody. This reads UNREVIEWED more than deceptive — but "
+            "the effect is a roach motel, and ROSCA still requires a simple mechanism to stop "
+            "recurring charges whatever happened to the FTC's rule.",
+            "Mount the provider's billing portal — for Stripe it is one API call and gives "
+            "self-serve cancel, plan change and invoice history. Cancellation must be at least "
+            "as easy as signup, in the medium the user signed up in.",
+            family="defect"))
+
+    if re.search(r"/checkout", text) \
+       and re.search(r"if\s*\(\s*!\s*(?:session|user|auth)[\s\S]{0,60}redirect\(|"
+                     r"matcher\s*:\s*\[[^\]]*checkout", text, re.I) \
+       and not re.search(r"guest", text, re.I):
+        out.append(finding(
+            path, first(r"/checkout"),
+            "checkout behind an auth guard with no guest branch",
+            "checkout-without-guest-option", "high",
+            "Auth-gating a route is the default generated pattern for anything with an order "
+            "record, and guest checkout is an exception someone has to ask for. The model "
+            "optimises for a clean data model; Baymard measures the cost at roughly a fifth to "
+            "a quarter of buyers abandoning at the wall.",
+            "Email-only guest checkout as the default path, with account creation offered after "
+            "the order is placed and pre-filled from it. If you need an account for order "
+            "history, create it silently and send a set-password link with the receipt.",
+            family="defect"))
+
+    # ------------------------------------------------- email: a surface with no preview
+    send = re.search(r"(?:emails\.send|sgMail\.send|sendMail|sendEmail|messages\.create)"
+                     r"\s*\(\s*\{[\s\S]{0,600}?\}", text)
+    if send and re.search(r"\bhtml\s*:", send.group(0)) \
+       and not re.search(r"\btext\s*:|TextPart|Body\.Text", send.group(0)):
+        out.append(finding(
+            path, text[:send.start()].count("\n") + 1,
+            "a send call with an html part and no text/plain alternative",
+            "no-plain-text-part", "medium",
+            "html: is the documented minimum in every provider's quickstart, so it is what gets "
+            "generated; the multipart alternative is the step the quickstart omits. Text-only "
+            "clients, watch previews and several spam filters get nothing or an auto-stripped "
+            "mangle.",
+            "Send both parts and write the text version deliberately — do not let the ESP "
+            "auto-strip tags, which produces link soup. Keep the same links and the same "
+            "unsubscribe.",
+            family="defect"))
+
+    email_tpl = bool(re.search(r"<mjml|role=[\"']presentation[\"']|mso-hide|"
+                               r"<!--\[if mso\]|email.*template|<td\b", text, re.I)) \
+        and bool(re.search(r"<table|<td\b|preheader|unsubscribe|view (?:this )?email", text, re.I))
+    if email_tpl:
+        if re.search(r"display\s*:\s*(?:flex|grid)|position\s*:\s*(?:absolute|fixed)", low) \
+           and not re.search(r"<!--\[if mso\]|mjml|maizzle|juice|premailer", low):
+            out.append(finding(
+                path, first(r"display\s*:\s*(flex|grid)"),
+                "an email template laid out with flex or grid and no Outlook fallback",
+                "email-built-with-web-css", "high",
+                "The corpus of HTML is overwhelmingly WEB HTML; email HTML is a tiny dialect "
+                "frozen around 2003, and the model writes the majority one. It renders "
+                "perfectly in the preview pane the author checks and collapses in Outlook's "
+                "Word engine, which a large share of recipients still use.",
+                "Use MJML or Maizzle and let them emit the table soup and the MSO conditionals. "
+                "Hand-written: nested tables with role=\"presentation\", padding on td only, "
+                "every style inlined, ghost tables for Outlook. Then test in a rendering "
+                "service, not in Gmail alone.",
+                family="defect"))
+        if not re.search(r"mso-hide|display\s*:\s*none[^<]{0,120}max-height\s*:\s*0", low) \
+           and re.search(r"view (?:this )?(?:email|message) (?:in|on)|having trouble|"
+                         r"can'?t see this", text, re.I):
+            out.append(finding(
+                path, first(r"view (this )?(email|message) (in|on)|having trouble"),
+                "no preheader, so the inbox preview shows the view-in-browser line",
+                "preheader-never-set", "low",
+                "The preheader exists only in the inbox list view, never in any preview the "
+                "author opens — so nothing in the loop surfaces its absence, and prime "
+                "inbox real estate goes to boilerplate.",
+                "Make the first child of <body> a hidden div carrying 40–100 characters "
+                "that CONTINUE the subject rather than repeating it, padded with zero-width "
+                "characters so no boilerplate leaks in behind it. Move \"View in browser\" "
+                "below it.",
+                family="defect"))
+
+    # ---- the invoice that is a picture of an invoice
+    ras = re.search(r"page\.screenshot\s*\(|html2canvas\s*\(|domtoimage\.|"
+                    r"addImage\s*\([^)]*canvas", text)
+    if ras and re.search(r"invoice|receipt|pdf|statement|ticket|report", low) \
+       and not re.search(r"page\.pdf\s*\(|pdfkit|pdfmake|react-pdf|wkhtmltopdf|weasyprint", low):
+        out.append(finding(
+            path, text[:ras.start()].count("\n") + 1,
+            "a document exported by rasterising the page rather than printing it",
+            "receipt-generated-as-screenshot", "high",
+            "\"Generate a PDF of this page\" retrieves a Puppeteer snippet, and screenshot() is "
+            "the more prominent method. The output looks right in a viewer and is functionally "
+            "dead: no selectable text, no searchable invoice number, nothing a screen reader "
+            "or accounting software can read.",
+            "page.pdf({format:'A4', printBackground:true}) preserves real text AND honours your "
+            "print stylesheet — so this and no-print-stylesheet are fixed by the same "
+            "work. For structured documents, generate the PDF from data with a PDF library and "
+            "tag it so amounts and totals are machine-readable.",
+            family="defect"))
+
+    return out
+
 
 def analyze_code(path, text):
     """Overlap between a comment and the line beneath it is countable. Whether a
@@ -2088,6 +2677,116 @@ def analyze_code(path, text):
     return out
 
 
+DOCS_OPENER = re.compile(
+    r"^(in this (?:guide|article|tutorial|section|post|chapter)\b"
+    r"|this (?:guide|article|tutorial|document|post) (?:will|covers|explains|walks)\b"
+    r"|by the end of this\b"
+    r"|let'?s (?:dive|get started|take a look|begin)\b"
+    r"|we'?ll (?:walk|cover|explore|take a look|be)\b)", re.I)
+
+
+def analyze_docs_markdown(path, text):
+    """Two docs-page defects that are decidable from one markdown file.
+
+    The second one is only HALF decidable from one file, and says so: the tell
+    for a templated opening is repetition across pages, not any single sentence.
+    A lone instance is reported at low and upgraded by escalate_docs_openers()
+    once the run has seen enough pages to justify it.
+    """
+    out = []
+    lines = mask_ignored(text.splitlines())
+    body = "\n".join(lines)
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+    # ---- code blocks nobody pasted anywhere
+    fences = re.findall(r"^(```+)([^\n`]*)$", body, re.M)
+    blocks = re.findall(r"^```+[^\n]*\n([\s\S]*?)^```+\s*$", body, re.M)
+    if len(blocks) >= th("code-sample-not-runnable", "min_blocks", 4):
+        untagged = sum(1 for _, info in fences[::2] if not info.strip())
+        elided = sum(1 for b in blocks
+                     if re.search(r"//\s*\.\.\.|#\s*\.\.\.|\.\.\.\s*$|"
+                                  r"//\s*(?:rest of|your code here|implementation|etc)", b, re.M))
+        dollar = sum(1 for b in blocks
+                     if b.strip() and sum(1 for l in b.splitlines() if l.strip())
+                     and sum(1 for l in b.splitlines()
+                             if l.strip().startswith("$ ")) >= 0.8 * max(
+                         1, sum(1 for l in b.splitlines() if l.strip())))
+        placeholder = sum(1 for b in blocks
+                          if re.search(r"<(?:YOUR|MY)_[A-Z_]+>|YOUR_API_KEY|xxxx+", b))
+        reasons = []
+        if untagged >= len(blocks) * th("code-sample-not-runnable", "untagged_share", 0.5):
+            reasons.append(f"{untagged} of {len(blocks)} fences carry no language")
+        if elided:
+            reasons.append(f"{elided} block(s) elide the code with an ellipsis comment")
+        if dollar:
+            reasons.append(f"{dollar} shell block(s) prefix every line with $, which the "
+                           "copy button then copies")
+        if placeholder:
+            reasons.append(f"{placeholder} block(s) contain an unexplained placeholder")
+        if len(reasons) >= 2:
+            out.append(finding(
+                path, first(r"^```"), "; ".join(reasons),
+                "code-sample-not-runnable", "medium",
+                "Nothing here can be pasted and run. The model writes illustrative fragments "
+                "because fragments are what documentation prose looks like in the corpus; it "
+                "never pastes one into a terminal. The $-prefix case is the nastiest — it "
+                "LOOKS like a transcript and silently breaks paste.",
+                "Tag every fence with a language. Strip $ prompts from copyable shell blocks. "
+                "Ship at least one complete, copy-paste-and-run example per page, and run it in "
+                "CI so it cannot rot.",
+                family="defect"))
+
+    # ---- the templated opening
+    stripped = re.sub(r"^---\n[\s\S]*?\n---\n", "", body)
+    opens = []
+    for m in re.finditer(r"^#{1,3} .*$", stripped, re.M):
+        rest = stripped[m.end():].lstrip()
+        if not rest:
+            continue
+        sent = split_sentences(rest[:400])
+        if sent and DOCS_OPENER.match(sent[0].strip()):
+            opens.append((stripped[:m.end()].count("\n") + 1, sent[0].strip()[:70]))
+    if opens:
+        many = len(opens) >= th("every-page-opens-with-in-this-guide", "min_consecutive", 3)
+        out.append(finding(
+            path, opens[0][0],
+            (f"{len(opens)} sections open with the same framing sentence"
+             if many else f'section opens with "{opens[0][1]}…"'),
+            "every-page-opens-with-in-this-guide", "medium" if many else "low",
+            "A human writing twenty sections varies the opening, because writing the same "
+            "sentence twenty times is unbearable. A generator writing them independently "
+            "produces the highest-probability opening every time. The UNIFORMITY is the signal "
+            + ("— and this file shows it on its own."
+               if many else "— one instance is not evidence, so this is reported low "
+                            "until the run sees the same opening on other pages."),
+            "Delete the opening paragraph and start with the first real sentence. If the page "
+            "needs orientation, state the outcome in one line and let the heading and the "
+            "sidebar do the structural work.",
+            family="form"))
+    return out
+
+
+def escalate_docs_openers(findings):
+    """The templated-opening tell is a property of a SET of pages, not a page.
+
+    A single low finding on one file is honest but weak. Once three or more
+    separate files in the same run carry it, the repetition is the evidence the
+    catalog entry actually describes, so raise them together.
+    """
+    hits = [f for f in findings if f.get("ism") == "every-page-opens-with-in-this-guide"]
+    files = {f.get("file") for f in hits}
+    if len(files) >= th("every-page-opens-with-in-this-guide", "min_consecutive", 3):
+        for f in hits:
+            if f.get("severity") == "low":
+                f["severity"] = "medium"
+                f["explanation"] += (f" Escalated: {len(files)} files in this run open the "
+                                     "same way, which is the repetition the finding is about.")
+    return findings
+
+
 def analyze_file(path, base=None):
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -2095,7 +2794,8 @@ def analyze_file(path, base=None):
         return [finding(path, 0, str(e), "unreadable", "low", f"Could not read {path}.")]
     suffix = path.suffix.lower()
     if suffix in MARKUP_EXT:
-        res = analyze_markup(path, text) + analyze_web_build(path, text)
+        res = (analyze_markup(path, text) + analyze_web_build(path, text)
+               + analyze_app_surfaces(path, text))
         if suffix in {".html", ".htm"}:
             res += analyze_prose(path, strip_markup(text), suffix, base,
                                  from_markup=True)
@@ -2103,8 +2803,16 @@ def analyze_file(path, base=None):
             res += analyze_code(path, text)
         return res
     if suffix in CODE_EXT:
-        return analyze_code(path, text)
-    return analyze_prose(path, text, suffix or ".txt", base)
+        res = analyze_code(path, text)
+        # The send call, the PDF export and the price formatter are rarely near
+        # the markup, so a plain .js or .ts file needs these checks too.
+        if suffix in JS_FAMILY:
+            res += analyze_app_surfaces(path, text)
+        return res
+    res = analyze_prose(path, text, suffix or ".txt", base)
+    if suffix in {".md", ".mdx"}:
+        res += analyze_docs_markdown(path, text)
+    return res
 
 
 # ------------------------------------------------------------------- report
@@ -2413,6 +3121,7 @@ def main():
     findings = []
     for f in args.files:
         findings += analyze_file(Path(f), base)
+    escalate_docs_openers(findings)
 
     if args.findings:
         try:

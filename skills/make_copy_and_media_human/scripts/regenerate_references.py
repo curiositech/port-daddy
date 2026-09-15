@@ -69,9 +69,10 @@ GROUPS = {
     "web-build-defects.md": {
         "title": "Web build defects \u2014 the half you can reproduce",
         "intro": "A different KIND of finding from the rest of this catalog. Everything here is a defect you can reproduce by opening the page: it scrolls sideways at 390px, the button is not a button, the grey text fails contrast. So none of it is an inference about who built the page, none of it carries the fairness caveat the rest of the skill insists on, and all of it can be acted on with full confidence \u2014 the same standing as a dead citation. Act on this file FIRST: a page that does not work on a phone has a bigger problem than a page that reads a bit generated.\n\nMost of these are decidable from source and run in the normal structural pass. The ones marked `rendered` need `scripts/render_check.py`, the one optional script in this bundle, which opens the page at real viewports and names the elements at fault.",
-        "pick": lambda i: i.get("family") == "defect"
-                          or i["name"] in {"scaffold-title-residue",
-                                          "placeholder-copy-residue"},
+        "pick": lambda i: not i.get("lane")
+                          and (i.get("family") == "defect"
+                               or i["name"] in {"scaffold-title-residue",
+                                                "placeholder-copy-residue"}),
     },
     "fiction-and-narrative-tells.md": {
         "title": "Fiction and narrative tells",
@@ -82,6 +83,17 @@ GROUPS = {
         "title": "Engineering-artifact tells — commits, PRs, reviews, code, tests, docs",
         "intro": "What generated engineering work looks like in the artifacts maintainers actually read. The highest-precision checks in this file are all RELATIVE — drift from the repo's own log, idiom, or PR norm — because those need no word list, do not age as models change, and a contributor who read the surrounding code passes them automatically.",
         "pick": lambda i: i["medium"] in ENG_MEDIA,
+    },
+    "unopened-surfaces.md": {
+        "title": "Unopened surfaces \u2014 navigation, i18n, docs, commerce, email, print",
+        "intro": "Everything in this file is about a surface that was never opened. The model has no printer, no Outlook, no German tester, no screen reader, and no second page to navigate to \u2014 so the tell is rarely that it wrote something strange. The tell is that a whole class of output was never looked at, and the defect sat there because looking is the only thing that would have found it.\n\nThat makes this file read UNREVIEWED rather than AI, and the distinction matters when you report a finding: you are telling an author what they have not yet checked, not making a claim about who wrote it. The handful of genuinely model-flavoured entries say so in their own **Why it reads AI** line.\n\nOne structural finding runs through the navigation entries and is worth reading first: `ia-is-a-projection-of-the-filesystem`. The flat nav, the fat footer, the empty mega-menu and the four-deep docs sidebar are four symptoms of one cause \u2014 the information architecture is a rendering of the directory listing, because enumeration is free and prioritisation needs knowledge the generator does not have.\n\nTwo entries here share a fix, which is unusual enough to name: switching a PDF export from `screenshot()` to `page.pdf()` makes the invoice text-selectable AND makes it honour a print stylesheet, so twelve lines of `@media print` repair browser printing and turn a dead raster receipt into a real document at the same time.",
+        "pick": lambda i: i.get("lane") in {"navigation-and-ia", "i18n", "docs",
+                                            "commerce", "email", "print"},
+    },
+    "dark-patterns-the-model-inherits.md": {
+        "title": "Dark patterns the model inherits",
+        "intro": "A model that produces a fake countdown or an asymmetric cookie banner is not choosing to deceive. These patterns are statistically NORMAL on the commercial web \u2014 Princeton found 1,818 dark-pattern instances across 1,254 of 11,000 shopping sites \u2014 so they are what \"build me a product page\" or \"add a cookie banner\" retrieves. Treat every item here as a high-confidence finding the author must decide about, never as an inference about intent.\n\nThe surprising part, and the reason this file exists separately: the unlawful thing is usually not the generated component but the GAP between two generated components. `tracking-before-consent` is the clean case \u2014 the analytics snippet is correct, the consent banner is correct, nothing connects them, and the site ends up with a compliant-looking banner sitting on top of a completed violation that no static check of either half would find. `cancellation-has-no-path` and `cost-revealed-at-last-step` have the same shape. So the highest-value checks in this file are RELATIONAL and RENDERED: load the page in a fresh profile and watch the network, rather than grepping either component.\n\nWhich also makes the fairness framing different here from the rest of the catalog. You are not telling an author they wrote something manipulative. You are telling them that two innocent halves add up to a fine.",
+        "pick": lambda i: i.get("lane") == "dark-patterns",
     },
 }
 
@@ -95,7 +107,8 @@ CURRENCY_NOTE = {
 
 def block(i):
     L = [(f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
-          + f"{i.get('detection_type','')} · family: {i.get('family','')}"), ""]
+          + f"{i.get('detection_type','')} · family: {i.get('family','')}"
+          + (f" · lane: {i['lane']}" if i.get("lane") else "")), ""]
     note = CURRENCY_NOTE.get(i.get("currency", "current"), "")
     if note:
         L += [f"**Currency:** {note}", ""]
