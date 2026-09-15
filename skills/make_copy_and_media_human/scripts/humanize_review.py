@@ -171,6 +171,24 @@ DEFAULT_THRESHOLDS = {
     "auto-advancing-content-with-no-pause": {"min_count": 1},
     "instructions-live-only-in-the-placeholder": {"min_chars": 16},
     "accessibility-overlay-installed": {"min_count": 1},
+    "generic-failure-string": {"min_count": 1},
+    "apology-in-place-of-explanation": {"min_count": 1},
+    "forced-cheer-interjection": {"min_count": 1},
+    "assistant-register-in-product-chrome": {"min_count": 1},
+    "error-blames-the-user": {"min_count": 1},
+    "invalid-as-the-entire-diagnosis": {"min_count": 1},
+    "are-you-sure-without-the-object": {"min_count": 1},
+    "no-data-available-string": {"min_count": 1},
+    "http-status-as-user-prose": {"min_count": 1},
+    "welcome-tour-boilerplate": {"min_count": 1},
+    "success-toast-for-a-visible-result": {"min_count": 1},
+    "objectless-notification": {"min_count": 1},
+    "permission-ask-without-a-why": {"min_count": 1},
+    "widget-named-action-label": {"min_count": 1},
+    "joke-in-a-failure-state": {"min_count": 1},
+    "exclamation-in-system-strings": {"max_rate": 0.083},
+    "emoji-in-system-status-strings": {"min_count": 1},
+    "unresolved-token-in-ui-string": {"min_count": 1},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -3390,15 +3408,323 @@ def scan_provenance(paths):
     return 0
 
 
+# ----------------------------------------------------- in-product UI strings
+
+# Hard string matching is defensible HERE and nowhere else in this skill. In
+# prose a closed phrase list is a bad detector: the words have honest uses and
+# the list ages out in months. A product's user-facing string table is different
+# in kind -- small, enumerable, extractable -- and within it the phrase space is
+# genuinely narrow, because there are only so many ways to say nothing.
+# "Something went wrong" is not a phrase with a good use at a different
+# frequency; it is a phrase with no good use at all in a product that knows what
+# went wrong.
+#
+# Which is why extraction matters more than the sets do. These run over UI
+# strings only: JSX/template text, string literals in the render and error path,
+# and i18n catalog values. Running them over an article would be a false
+# positive, and an article is allowed to quote any of them.
+
+I18N_KEYISH = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z0-9_]+){1,}$")
+
+UI_SETS = {
+    "generic-failure-string": (
+        r"something went wrong|an (?:unexpected )?error (?:occurred|has occurred)"
+        r"|we(?:'re| are) having trouble|we ran into a problem"
+        r"|unable to complete your request|unknown error|error loading data"
+        r"|we couldn'?t process your request", "high"),
+    "apology-in-place-of-explanation": (
+        r"we(?:'re| are) sorry|sorry about that|sorry for the inconvenience"
+        r"|we apologi[sz]e|our apologies|please accept our apologies"
+        r"|the inconvenience|bear with us|thank you for your patience", "high"),
+    "forced-cheer-interjection": (
+        r"^\W{0,3}(?:oops|whoops|woops|uh[ -]oh|oh no|oh snap|yikes|eek|yay"
+        r"|woohoo|hoo?ray|bummer|darn)\b|well,? this is awkward", "high"),
+    "assistant-register-in-product-chrome": (
+        r"\blet'?s (?:get you|get started|dive in|take a look|begin|set up|make sure)"
+        r"|\bi'?ll help you\b|\bi can help you\b|\bi'?ve gone ahead and\b"
+        r"|\bfeel free to\b|\bhappy to help\b|\bgreat (?:choice|question)\b"
+        r"|\bno worries\b|\bdon'?t worry\b", "high"),
+    "error-blames-the-user": (
+        r"\byou (?:entered|forgot|failed to|did ?n[o']t|have not|provided|selected"
+        r"|incorrectly)\b|your entry is invalid", "high"),
+    "invalid-as-the-entire-diagnosis": (
+        r"^(?:invalid|not a valid|please enter a valid)\b", "medium"),
+    "are-you-sure-without-the-object": (
+        r"^are you sure\b|^please confirm\.?$|^confirm action\.?$"
+        r"|^this action (?:cannot|can'?t) be undone\.?$|^do you want to continue\??$",
+        "high"),
+    "no-data-available-string": (
+        r"^no (?:data|records?|items?|results?|content)(?: (?:available|found|to display))?\.?$"
+        r"|^nothing (?:here yet|to see here|found)\.?$|^it'?s (?:empty|lonely) (?:in )?here",
+        "medium"),
+    "http-status-as-user-prose": (
+        r"\b[45]\d\d\b.{0,3}(?:internal server error|bad gateway|service unavailable"
+        r"|forbidden|unauthorized|not found|bad request|gateway timeout"
+        r"|unprocessable entity|too many requests|request timeout|conflict)"
+        r"|^(?:internal server error|bad gateway|forbidden|unauthorized)\.?$", "medium"),
+    "welcome-tour-boilerplate": (
+        r"let'?s get (?:you )?started|getting started is easy|we(?:'re| are) (?:so )?glad "
+        r"you'?re here|we(?:'re| are) excited to have you|here'?s a quick tour"
+        r"|take a quick tour|welcome aboard", "medium"),
+    "success-toast-for-a-visible-result": (
+        r"\bsuccessfully\b|^success[!.]?$|^saved[!.]?$|^changes saved", "medium"),
+    "objectless-notification": (
+        r"^(?:update|sync|import|export|processing) (?:complete|finished)\.?$"
+        r"|^task completed\.?$|^operation (?:successful|completed)\.?$|^all set[!.]?$",
+        "medium"),
+    "permission-ask-without-a-why": (
+        r"to (?:improve|enhance) your experience|for a better experience"
+        r"|to provide better service|to help us serve you better|to improve our services",
+        "high"),
+    "widget-named-action-label": (
+        r"^(?:submit|ok|okay|confirm|done|apply|proceed)$", "high"),
+    "joke-in-a-failure-state": (
+        r"\bgremlins?\b|\bhamsters?\b|took a coffee break|our bad\b"
+        r"|this is embarrassing|sad panda|blame the interns", "medium"),
+}
+
+UI_WHY = {
+    "generic-failure-string":
+        "A model generating an error handler writes the string before the failure exists. "
+        "There is no caught exception it has inspected, so it emits the string valid for every "
+        "possible cause — which is the string carrying no cause.",
+    "apology-in-place-of-explanation":
+        "Apology is the single safest completion an assistant can produce: it cannot be "
+        "factually wrong and it cannot offend. So under uncertainty about what failed, the "
+        "model reaches for the token that costs nothing to assert — and it does not "
+        "merely waste the slot, it inflates the perceived severity.",
+    "forced-cheer-interjection":
+        "Emotional hedging that signals the message is not the reader's fault before the "
+        "message says anything. A bare failure sentence reads harsh, and harshness is what "
+        "alignment training discourages, so the safe completion prepends a softener.",
+    "assistant-register-in-product-chrome":
+        "Literal register bleed. The model's own conversational voice is its strongest prior, "
+        "and without a voice spec it writes UI strings in that voice — so the product "
+        "addresses the user as a helper rather than as a tool. \"Don't worry\" is the worst of "
+        "them, because it instructs the user about their emotional state.",
+    "error-blames-the-user":
+        "Second person is the house style of an assistant, so \"you\" is the default subject of "
+        "any sentence a model writes about a person. Right in chat, wrong in a validation "
+        "message, where it converts a system constraint into a personal accusation — and "
+        "the constraint is the product's fault, because the form permitted the input.",
+    "invalid-as-the-entire-diagnosis":
+        "\"Invalid\" is the model's word for THE PREDICATE RETURNED FALSE, available without "
+        "knowing which predicate. The real message requires reading the validator and restating "
+        "it in English; this one summarises the boolean.",
+    "are-you-sure-without-the-object":
+        "The safe completion for a dialog whose contents the model does not know. It is valid "
+        "for deleting a file, ending a subscription and dropping a database, which is exactly "
+        "what makes it worthless: a question carrying no new information can only be answered "
+        "one way.",
+    "no-data-available-string":
+        "A restatement of the render condition — the English translation of a zero-length "
+        "array, which is the only fact the generating model has. It describes the array, not "
+        "the user's situation.",
+    "http-status-as-user-prose":
+        "The status code is the one piece of vocabulary guaranteed correct, so a model with no "
+        "knowledge of the domain reaches for it. The giveaway is the protocol's word choice "
+        "leaking through unedited: \"Forbidden\" is a term of art nobody writing a permissions "
+        "message would choose.",
+    "welcome-tour-boilerplate":
+        "The most templated artifact in software, and what \"add onboarding\" retrieves. "
+        "Content-free by construction: the model has no idea what THIS user should do first, so "
+        "it writes the greeting, which is true of every product.",
+    "success-toast-for-a-visible-result":
+        "Every mutation handler gets the same completion block, because a model writing "
+        "handlers writes them uniformly. Nothing asks whether the user can already SEE the "
+        "outcome. Note \"successfully\" is near-diagnostic on its own — people rarely "
+        "write the adverb.",
+    "objectless-notification":
+        "Written at the point where the job finishes, where the object is a variable the string "
+        "does not interpolate and the time is implicit. Both omissions are invisible at write "
+        "time and obvious at read time, because a notification centre is read hours later, out "
+        "of order, in a stack.",
+    "permission-ask-without-a-why":
+        "The model knows what the API call requires and not what the feature is for, so it "
+        "writes the request precisely and the rationale generically. \"To improve your "
+        "experience\" is true of everything and commits to nothing.",
+    "widget-named-action-label":
+        "\"Submit\" is the HTML default and the most frequent button string in the web corpus, "
+        "so a model generating a form emits the corpus mode. Deeper: a model that has not "
+        "modelled the next screen cannot name it, so it names the interaction.",
+    "joke-in-a-failure-state":
+        "Humour is one of the few ways a model can make a string feel authored. But the joke is "
+        "generated without knowledge of stakes — the same quip for a mistyped URL and a "
+        "failed medical-record upload — because the generator sees an error SLOT, not a "
+        "SITUATION.",
+}
+
+UI_FIX = {
+    "generic-failure-string":
+        "Branch on the cause you already have in hand. One string per branch, each naming the "
+        "cause and the next action, plus one true fallback carrying a support reference.",
+    "apology-in-place-of-explanation":
+        "Delete the apology. Lead with what happened, follow with what to do. A genuinely "
+        "severe, self-inflicted failure earns one short acknowledgement AFTER the facts.",
+    "forced-cheer-interjection": "Delete the interjection. Nothing replaces it.",
+    "assistant-register-in-product-chrome":
+        "Strip the cohortative and the first person singular. State what the screen is and what "
+        "to do. \"We\" meaning the company is fine; \"let's\" and \"I'll\" are not.",
+    "error-blames-the-user":
+        "Drop the agent. An imperative for an empty field, a neutral description for a "
+        "constraint violation: \"Enter a postal code in the format SW1A 1AA.\"",
+    "invalid-as-the-entire-diagnosis":
+        "State the rule, and quote the value back where it helps: \"The postal code must be "
+        "five or nine digits. You entered seven (4872953).\"",
+    "are-you-sure-without-the-object":
+        "Replace the question with the consequence — object, quantity, irreversibility "
+        "— and let the buttons carry the two outcomes.",
+    "no-data-available-string":
+        "Say what belongs here, why it is empty, and what fills it, with the action wired.",
+    "http-status-as-user-prose":
+        "Keep the number for support and lead with the situation. Map each status you emit to a "
+        "sentence about the user's world.",
+    "welcome-tour-boilerplate":
+        "Delete it and make the first real screen teach. If something must be said first, say "
+        "the one thing and get out of the way.",
+    "success-toast-for-a-visible-result":
+        "Toast only when the result is invisible, off-screen, asynchronous or reversible "
+        "— and when it is reversible, put the undo in the toast so it earns the "
+        "interruption.",
+    "objectless-notification":
+        "Object, time, action: what happened to what, when, and somewhere to go.",
+    "permission-ask-without-a-why":
+        "One sentence naming the concrete capability unlocked, shown at the moment the user "
+        "reaches for the feature.",
+    "widget-named-action-label":
+        "Verb plus object, naming the result, so the label answers the dialog's question.",
+    "joke-in-a-failure-state":
+        "Reserve humour for low-stakes failures that still say what happened and offer a route "
+        "back. Never on data, money, or a blocked task.",
+}
+
+
+def extract_ui_strings(text, suffix):
+    """Candidate user-facing strings, with their line numbers.
+
+    Deliberately narrow. A false positive here is a phrase quoted in an article,
+    so the extraction refuses anything that is not plausibly a UI string: i18n
+    catalog values, JSX text nodes, and string literals in the render or error
+    path.
+    """
+    out = []
+    if suffix == ".json":
+        # An i18n catalog: flat or nested string values, keyed by dotted ids.
+        for m in re.finditer(r'"[^"]+"\s*:\s*"([^"\\]{2,200})"', text):
+            out.append((text[:m.start()].count("\n") + 1, m.group(1)))
+        return out
+    for m in re.finditer(r">\s*([^<>{}\n][^<>{}]{1,160}?)\s*<", text):
+        v = m.group(1).strip()
+        if v and not v.startswith(("//", "/*", "@")):
+            out.append((text[:m.start()].count("\n") + 1, v))
+    for m in re.finditer(r"""(?:toast|alert|setError|setMessage|notify|Error|message|
+                             label|title|placeholder|description|error|text|children)
+                             \s*[:=(]\s*["'`]([^"'`\\]{2,200})["'`]""",
+                         text, re.X | re.I):
+        out.append((text[:m.start()].count("\n") + 1, m.group(1).strip()))
+    return out
+
+
+def analyze_ui_strings(path, text):
+    """Closed-set matching over extracted UI strings only."""
+    out = []
+    suffix = path.suffix.lower()
+    if suffix == ".json" and not re.search(r'"[a-z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)*"\s*:\s*"',
+                                           text):
+        return out
+    text = "\n".join(mask_ignored(text.splitlines()))
+    strings = extract_ui_strings(text, suffix)
+    if not strings:
+        return out
+    seen = set()
+    for ism, (pat, sev) in UI_SETS.items():
+        hits = [(ln, v) for ln, v in strings if re.search(pat, v, re.I)]
+        if not hits:
+            continue
+        # One finding per ism, naming up to three real strings, because a string
+        # table repeats the same phrase and forty identical findings is noise.
+        ex = "; ".join(f'"{v[:60]}"' for _, v in hits[:3])
+        out.append(finding(
+            path, hits[0][0],
+            f"{len(hits)} UI string(s) matching {ism.replace('-', ' ')}: {ex}",
+            ism, sev, UI_WHY[ism], UI_FIX[ism],
+            family="form" if ism != "success-toast-for-a-visible-result" else "defect"))
+        seen.add(ism)
+
+    # Exclamation marks: a rate, not a phrase. One celebratory string is a
+    # choice and forty is a default, which is the same argument the rhythm
+    # signals make -- so this is scored as a rate and capped accordingly.
+    bangs = [(ln, v) for ln, v in strings if "!" in v]
+    err_bangs = [(ln, v) for ln, v in bangs
+                 if re.search(r"error|fail|invalid|denied|unable|couldn'?t|cannot|wrong", v, re.I)]
+    if err_bangs or (len(strings) >= 12 and len(bangs) > len(strings) / 12):
+        hits = err_bangs or bangs
+        out.append(finding(
+            path, hits[0][0],
+            (f"{len(err_bangs)} error string(s) carrying an exclamation mark"
+             if err_bangs else
+             f"{len(bangs)} of {len(strings)} UI strings carry an exclamation mark"),
+            "exclamation-in-system-strings", "medium" if err_bangs else "low",
+            "Exclamation is the cheapest available warmth — one character that makes a "
+            "flat string feel friendly — so a model rewarded for warmth applies it "
+            "uniformly, which destroys the contrast it is reaching for. Human-written string "
+            "tables are UNEVEN: a couple at real milestones and none anywhere else. Generated "
+            "tables are flat, and the flatness is the tell.",
+            "Remove all of them from errors and warnings. Keep at most one or two in the whole "
+            "product, at genuine milestones.",
+            family="rhythm"))
+
+    emoji_hits = [(ln, v) for ln, v in strings
+                  if any(is_emoji(c) for c in v)
+                  and re.search(r"error|fail|invalid|unable|couldn'?t|wrong|warning|sorry", v,
+                                re.I)]
+    if emoji_hits:
+        out.append(finding(
+            path, emoji_hits[0][0],
+            f'{len(emoji_hits)} error or warning string(s) carrying emoji: '
+            f'"{emoji_hits[0][1][:60]}"',
+            "emoji-in-system-status-strings", "medium",
+            "Emoji are the highest-density warmth-per-token available and they survive every "
+            "style constraint a prompt imposes, so they are what a model reaches for when told "
+            "to make copy friendly. In a failure state the effect inverts: the emoji reads as "
+            "the product being pleased with itself while the user is stuck. Screen readers "
+            "announce emoji names aloud mid-sentence.",
+            "Replace with a real icon from the product's set, or with nothing. An error state "
+            "should carry no emoji at all.",
+            family="form"))
+
+    residue = [(ln, v) for ln, v in strings
+               if re.search(r"\bundefined\b|\bNaN\b|\[object Object\]|\{\{[^}]+\}\}", v)
+               or I18N_KEYISH.match(v)]
+    if residue:
+        out.append(finding(
+            path, residue[0][0],
+            f'{len(residue)} UI string(s) carrying unresolved scaffolding: '
+            f'"{residue[0][1][:60]}"',
+            "unresolved-token-in-ui-string", "high",
+            "Generated code assumes the happy shape of its own data: the name field is always "
+            "present in the mock, so the fallback is never written; the i18n key is added to "
+            "the component and not to the locale file. These are defects of never having looked "
+            "at the running screen with imperfect data.",
+            "Fallbacks at every interpolation, a locale-key linter in CI, and a probe suite "
+            "that renders every screen with null-heavy fixtures.",
+            family="residue"))
+    return out
+
+
 def analyze_file(path, base=None):
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except Exception as e:
         return [finding(path, 0, str(e), "unreadable", "low", f"Could not read {path}.")]
     suffix = path.suffix.lower()
+    if suffix == ".json":
+        # An i18n catalog is a string table, not prose. Nothing else in the
+        # bundle reads .json, so this is the only route to it.
+        return analyze_ui_strings(path, text)
     if suffix in MARKUP_EXT:
         res = (analyze_markup(path, text) + analyze_web_build(path, text)
-               + analyze_app_surfaces(path, text))
+               + analyze_app_surfaces(path, text) + analyze_ui_strings(path, text))
         if suffix in {".html", ".htm"}:
             res += analyze_prose(path, strip_markup(text), suffix, base,
                                  from_markup=True)
@@ -3410,7 +3736,7 @@ def analyze_file(path, base=None):
         # The send call, the PDF export and the price formatter are rarely near
         # the markup, so a plain .js or .ts file needs these checks too.
         if suffix in JS_FAMILY:
-            res += analyze_app_surfaces(path, text)
+            res += analyze_app_surfaces(path, text) + analyze_ui_strings(path, text)
         return res
     res = analyze_prose(path, text, suffix or ".txt", base)
     if suffix in {".md", ".mdx"}:
