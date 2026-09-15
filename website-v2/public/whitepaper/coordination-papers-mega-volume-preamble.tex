@@ -853,10 +853,29 @@
 \newsavebox{\pd@picbox}
 \let\pd@typesetpicturebox\pgfsys@typesetpicturebox
 \def\pgfsys@typesetpicturebox#1{%
+  \sbox{\pd@picbox}{\pd@typesetpicturebox#1}%
+  % Figure-band recording for \pd@placemargin's centering (pd-pedagogy.tex):
+  % from THIS box's own \ht/\dp, not from \pagetotal at \end{figure}. The
+  % latter was tried first and does not work -- for an [H] float the
+  % package defers inserting the box into the main vertical list past
+  % \end{figure} itself, so \pagetotal read there (even settled) still
+  % under-reads by the whole figure and \pd@figbot came out equal to
+  % \pd@figtop on every figure measured. \pagetotal HERE, mid-paragraph
+  % while pgf is still handing us the finished picture box, is the page
+  % height immediately above where this box is about to be placed, and the
+  % box's own \ht+\dp is its true rendered height regardless of how (or
+  % whether) it gets rescaled below -- both read before any resizing, which
+  % is fine: \pd@placemargin only wants the figure's vertical band, and
+  % \resizebox below does not change a box's VERTICAL position, only its
+  % size, and \centering does not move a box vertically at all.
+  \ifpdmargincolumn
+    \xdef\pd@figpage{\thepage}%
+    \global\pd@figtop=\pagetotal
+    \global\pd@figbot=\dimexpr\pagetotal+\ht\pd@picbox+\dp\pd@picbox\relax
+  \fi
   % the box has no width of its own yet; pgf sets it from the bounding box
   \@tempdima=\dimexpr\pgf@picmaxx-\pgf@picminx\relax
   \ifdim\@tempdima>\linewidth
-    \sbox{\pd@picbox}{\pd@typesetpicturebox#1}%
     \ifdim\linewidth<\dimexpr\textwidth-1pt\relax
       % inside a minipage, a margin note or a table cell: fit the box we are in
       \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to a \the\linewidth\space box}%
@@ -868,9 +887,30 @@
       \else
         \PackageInfo{pd-book}{picture \the\wd\pd@picbox\space wide set full width}%
       \fi
+      % Always flush LEFT (hang the excess into the margin column on the
+      % right). Investigated and deliberately did NOT make this depend on
+      % page parity: this Book's geometry is ONE-SIDED (no \evensidemargin
+      % swap; \geometry{...} above sets a fixed left/right, and no
+      % \ifpdmargincolumn call anywhere enables \@twoside) so the margin
+      % column sits at the same absolute x on every page -- measured via
+      % every \pd@marginhead ("RECALL", "PITFALL", ...) box in the built
+      % Book landing at x=396.0pt regardless of \thepage's parity. A
+      % \checkoddpage/\ifoddpage branch was tried and reverted: \thepage (and
+      % so \c@page, which \checkoddpage reads) is the page TeX currently
+      % THINKS it is composing, and for a picture that ends up shipped on
+      % the NEXT page because a break falls between this hook firing and the
+      % page actually breaking, that reading is stale -- confirmed on this
+      % Book, where fig-sealed-pillar-pipeline's hook fired at \thepage=118
+      % (even) for a figure that ships on page 119 (odd). A parity branch
+      % keyed on that stale reading chose flush-RIGHT for a page whose
+      % margin is on the right, hanging the figure's leftmost node off the
+      % physical left edge of the page -- a strictly worse, self-inflicted
+      % defect. Flush-left has no such failure mode: it is correct on every
+      % page in a one-sided book regardless of which \thepage the hook
+      % happens to read.
       \makebox[\textwidth][l]{\usebox{\pd@picbox}}%
     \fi
   \else
-    \pd@typesetpicturebox#1%
+    \usebox{\pd@picbox}%
   \fi}
 \makeatother
