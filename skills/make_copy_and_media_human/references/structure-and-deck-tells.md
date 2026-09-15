@@ -2,7 +2,7 @@
 
 Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 
-_59 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_62 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -762,6 +762,26 @@ List items led by status glyphs — checkmarks, crosses, warning triangles, targ
 
 > It handles about 4,000 requests a second, runs in our SOC 2 boundary, and has survived two regional failovers.
 
+### `confirmshaming-decline-label`  ·  medium · generic-llm · marketing-copy · structural · family: form · lane: dark-patterns
+
+The decline control is written as a first-person confession of stupidity: "No thanks, I hate saving money", "I'd rather pay full price", "No, I don't want to grow my business".
+
+**Why it reads AI:** This is a COPYWRITING CONVENTION in the corpus — the model has read thousands of these and produces them as the house style for a dismiss link. It is the most easily removed entry in this lane and the one most likely to be there by pure imitation.
+
+**Detect:** On any modal or banner dismiss control: /^\s*no,?\s*(thanks,?\s*)?i\b/i, /i'?d rather/i, /i (don'?t|do not) (want|like|need|care)/i, /i (hate|prefer to)/i, /i'?m (fine|ok|good) (with|being|staying)/i, /no thanks,? i'?ll/i. Judge pass for the general case: does this decline label express a negative judgement about the person declining?
+
+**Fix:** Label the action, not the person: "No thanks", "Not now", "Close". Keep the decline as findable and as clickable as the accept.
+
+**False positive when:** Brands with a genuinely jokey voice where the copy is self-deprecating rather than reader-deprecating — the test is whether declining is made to feel bad, not whether it is funny. Confirmation dialogues for destructive actions legitimately state consequences ("Delete — this cannot be undone") and are not confirmshaming.
+
+**Before**
+
+> No thanks, I'd rather pay full price
+
+**After**
+
+> No thanks
+
 ### `credential-persona-opener`  ·  medium · generic-llm · social-post · llm-judge · family: shape
 
 An opener claiming standing that the rest of the comment never uses: 'As someone who has worked in this field for fifteen years', followed by advice available on any search engine.
@@ -974,6 +994,26 @@ Bold headers, numbered sections and horizontal rules inside a threaded comment, 
 
 > yeah, mostly cost. it's about a third the price and marginally faster, which surprised me
 
+### `no-real-product-photography`  ·  medium · generic-llm · listing · llm-judge · family: visual · lane: commerce
+
+Every product has exactly one image, all images share a single stock host or a single generated aesthetic, and there are no alternate angles, no scale reference, no variant-specific photos and no user-submitted images.
+
+**Why it reads AI:** A different measurement from the image-forensics tells: this is about COVERAGE, not pixels. A real catalogue accumulates photographic inconsistency — different days, different lights, a hand in one shot. Perfect visual uniformity across a catalogue is the tell, and it is exactly what a generated store produces.
+
+**Detect:** Flag when: median images per product is one; all product image hosts resolve to one stock CDN or one generation pipeline; filenames follow product-\d+\.(jpg|png|webp); variant selectors exist but do not change the image; no zoom, lightbox or gallery component in the build. Judge on the set: do these images share one lighting setup and one background such that they cannot be photographs of different real objects?
+
+**Fix:** Photograph the actual product from at least three angles plus one in-use or scale shot. If you are reselling, use supplier imagery and say so. Make variant selection change the image. Never present a generated image as a photograph of a physical good.
+
+**False positive when:** Digital goods, services and software — there is nothing to photograph. Pre-launch catalogues with placeholder imagery tracked on a checklist. Brands with a deliberate, disclosed 3D-render pipeline, which is legitimate when the render is accurate and labelled. Marketplaces early in seller onboarding.
+
+**Before**
+
+> one stock-CDN image per SKU, identical studio background across unrelated categories
+
+**After**
+
+> 4–6 real images per SKU including scale and detail; a variant-linked gallery
+
 ### `notability-padding`  ·  medium · generic-llm · marketing-copy · llm-judge · family: shape
 
 Canned proof-of-importance: 'has been featured in local, regional, and national media outlets', 'garnered coverage in trade publications', 'maintains a strong digital presence'.
@@ -1135,6 +1175,28 @@ Meta-navigation substituted for structure: 'First we'll explore... Next we'll ex
 **After**
 
 > The fix had two halves, and the second one is the interesting part.
+
+### `spec-table-as-prose`  ·  medium · generic-llm · listing · structural · family: shape · lane: commerce
+
+Dimensions, materials, compatibility and sizing written as a paragraph instead of a table the reader can scan or compare.
+
+**Why it reads AI:** Generators write prose by default; a table requires deciding the schema. The prose reads fluently and destroys the one thing the reader came for, which is comparison. Baymard finds half of sites get spec-sheet scannability wrong.
+
+**Detect:** A section whose heading matches /specification|specs|dimensions|size (guide|chart)|materials|technical details|what'?s included/i rendered as paragraphs or a bullet list rather than a table or definition list, containing min_pairs or more extractable label–value or number–unit pairs. Also flag a multi-column spec table, which readers misread as a comparison sheet, and a size chart rendered as an image.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_pairs` = 4
+
+**Fix:** One-column table or definition list, grouped into semantic sections, with labels consistent across every product in the category so cross-product comparison works. Size charts as real tables with both metric and imperial, not as a JPEG.
+
+**False positive when:** Products with genuinely few specs, where a two-row table is worse than a sentence. Narrative product descriptions that accompany a real spec table elsewhere on the page. Apparel where fit is described qualitatively alongside a real measurements table.
+
+**Before**
+
+> <p>Measures 42cm wide by 30cm deep by 18cm tall, made from powder-coated steel…</p>
+
+**After**
+
+> a table with rows: Width 42 cm / Depth 30 cm / Height 18 cm / Material powder-coated steel, oak veneer / Max load 25 kg
 
 ### `subhead-restates-the-h1`  ·  medium · generic-llm · marketing-copy · llm-judge · family: form
 

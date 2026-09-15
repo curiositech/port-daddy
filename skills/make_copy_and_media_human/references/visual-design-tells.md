@@ -2,7 +2,7 @@
 
 What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.
 
-_45 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_50 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -539,6 +539,50 @@ Hero, logo bar, three features, testimonial, pricing, CTA, in that order, regard
 
 > Demonstration, then the objection it raises, then the answer, then pricing.
 
+### `flat-nav-every-route`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
+
+The primary nav lists every routable page at one level, ordered by file-system order, with no grouping and no submenu. Six to twelve items, all equal weight.
+
+**Why it reads AI:** Humans build navigation by dropping things. The generator's default move is to expose everything it created. NN/g treats flat versus deep as a researched trade-off with real costs on both sides; a nav that reflects no choice at all is the tell, not the depth.
+
+**Detect:** Count anchors inside the primary nav (header nav, nav[aria-label*=main], nav[role=navigation]). Flag when nav_links >= min_links AND the nav contains no nested list, no [role=menu] and no disclosure button AND nav_links / total_routes >= route_ratio, with routes read from app/**/page.tsx, pages/**, sitemap.xml or a routes config. The ratio is the signal; the raw count alone is not.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_links` = 6, `route_ratio` = 0.8
+
+**Fix:** Pick the three to five destinations that matter and cut the rest to the footer or into groups. If you cannot cut anything, you have not yet decided what the site is for.
+
+**False positive when:** Docs, wikis and reference sites. Sites with genuinely five or six equal-weight sections. A deliberately flat IA validated by tree testing.
+
+**Before**
+
+> nav: Home, About, Services, Pricing, Blog, Case Studies, Team, Careers, FAQ, Contact (10 links, 10 routes)
+
+**After**
+
+> nav: Services, Pricing, Work, About
+
+### `footer-sitemap-dump`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
+
+A four-column footer headed Company / Product / Resources / Legal containing every page on the site plus links that do not resolve — Careers, Press, Status, Changelog — several of them duplicating nav items under a different label.
+
+**Why it reads AI:** The footer is where the generator puts the IDEA of a company: a real company has a Press page, so the link appears. The dead href itself is caught mechanically by dead-anchor-href; this entry is about the SHAPE — the four-column corporate footer on a site with one product and no company.
+
+**Detect:** footer anchors >= min_links on a site with fewer real routes than that; OR at least dead_share of footer anchors resolving to #, javascript:void(0), or a route absent from the route table. Secondary: two anchors with the same href and different text across nav and footer (About and Our Story both to /about).
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_links` = 12, `dead_share` = 0.3
+
+**Fix:** List only what exists. Legally required links stay; everything else goes when the page does. If two labels point at one page, pick one and use it in both places, so visited-link state and recall work.
+
+**False positive when:** Large organisations where a fat footer is a genuine secondary IA and every link resolves — a footer sitemap makes deep pages reachable in two hops. Pre-launch sites with placeholder legal links tracked on a checklist. An image and its caption both linking to one destination is one link, not a duplicate.
+
+**Before**
+
+> 4 columns, 22 links, 9 of them #
+
+**After**
+
+> 1–2 columns, 6 links, all resolving; legal row on its own line
+
 ### `glassmorphism-card-stack`  ·  medium · generic-llm · web-ui · structural · family: visual
 
 Cards use the identical recipe: semi-transparent fill, backdrop-blur, rounded-2xl/3xl corners, soft drop shadow, and a 1px white-at-10%-opacity inset border. Every card shares the exact token combo.
@@ -558,6 +602,26 @@ Cards use the identical recipe: semi-transparent fill, backdrop-blur, rounded-2x
 **After**
 
 > Feature cards flat with a 1px solid neutral-200 border and 8px radius; the 'popular' pricing card steps up to a real elevation-3 shadow and solid surface; no backdrop-blur except the pinned header.
+
+### `ia-is-a-projection-of-the-filesystem`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
+
+The umbrella finding for this lane, and the one worth reading first. Generated navigation is rarely WRONG; it is unfiltered. The nav lists every route, the footer lists every page, the mega-menu has nothing in it, the docs sidebar is four deep because it mirrors the source tree. Four separate symptoms, one cause: nobody decided what mattered, so the information architecture became a rendering of the directory listing.
+
+**Why it reads AI:** Enumeration is free and prioritisation is not. Deciding that Careers does not belong in the primary nav requires knowing what the business wants a visitor to do, which is exactly the input a generator does not have. So it ships the complete list, which is the only answer available without that knowledge.
+
+**Detect:** Not a single regex. Look for two or more of: nav link count over total route count near 1.0; a footer with more links than the site has pages; a dropdown panel with fewer real destinations than columns; a sidebar whose nesting depth equals the content directory's depth. Each has its own catalog entry; the cluster is the diagnosis.
+
+**Fix:** Do the subtraction pass a person would do. Name the three to five things a visitor is here for; those are the nav. Everything else moves to the footer, into a group, or off the site. If two items would sit in the same group, make the group. The test is whether any item was removed: an IA with no deletions in it is not an IA.
+
+**False positive when:** Documentation, wikis and reference sites legitimately expose a wide flat top level, and search carries the load there. A site with genuinely five equal-weight sections (Menu, Hours, Location, Book) is correct as-is. A flat IA chosen after tree testing is a decision, not a default.
+
+**Before**
+
+> Home · About · Services · Pricing · Blog · Case Studies · Team · Careers · FAQ · Contact
+
+**After**
+
+> Services · Pricing · Work · About  (Blog, FAQ, Careers, Team move to the footer; Contact becomes the button)
 
 ### `inter-geist-default-typeface`  ·  medium · generic-llm · typography · structural · family: visual
 
@@ -626,6 +690,28 @@ Body text running the full width of a wide container: 100, 130, 160 characters p
 **After**
 
 > .wrap { padding: 2rem; max-width: 65ch; margin-inline: auto }
+
+### `mega-menu-on-a-small-site`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
+
+A multi-column dropdown panel with section headers and descriptions, on a site with under fifteen pages. The panel is mostly whitespace and duplicate links.
+
+**Why it reads AI:** A mega-menu is a strong visual signal of "serious company" and costs nothing to generate, so it gets produced for sites with nothing to put in it. The mismatch between the menu apparatus and the site's size is the tell. NN/g endorses mega menus specifically for large, deep sites.
+
+**Detect:** A nav dropdown or panel containing two or more column groups, or ten or more links, while the site's total routable pages is under min_site_routes. Tailwind shape: an absolutely positioned panel with grid-cols-2/3 inside a group-hover or data-[state=open] trigger.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_site_routes` = 15
+
+**Fix:** Delete it. A flat dropdown, or no dropdown, for anything under about thirty pages across two levels. Spend the effort on the four labels instead.
+
+**False positive when:** Sites with a real product catalogue, or e-commerce with genuine category depth. A menu that is actually full is doing its job.
+
+**Before**
+
+> Products ▾ opens a three-column panel: Overview / Features / Integrations / Changelog, where Overview and Features are the same page
+
+**After**
+
+> Product · Pricing · Docs · About
 
 ### `mixed-icon-sets-one-view`  ·  medium · generic-llm · iconography · structural · family: visual
 
@@ -878,6 +964,26 @@ console.log, console.debug and debugger statements on a shipped page.
 **After**
 
 > (removed)
+
+### `flag-as-language-selector`  ·  low · generic-llm · web-ui · structural · family: shape · lane: i18n
+
+Languages chosen by national flag: a UK flag for English, a Spanish flag for Spanish, a Saudi flag for Arabic. Languages are not countries; the mapping is many-to-many and politically loaded.
+
+**Why it reads AI:** Flags are the most visually available representation of "language" in the corpus and are cheap to emit as emoji. The compounding failure is the second one: the control is often labelled only in the CURRENT language, so a visitor who landed on the wrong locale cannot read the way out.
+
+**Detect:** A locale-switching control whose only child content is a flag — a pair of Regional Indicator codepoints, img[src*="/flags/"], [class*="flag-icon"], fi fi-xx, country-flag — with no sibling text node giving the language name. Severity rises to medium when the flag is the only affordance.
+
+**Fix:** Label each option with its endonym — English, Español, Deutsch, العربية, 日本語 — plus the BCP-47 tag in lang and hreflang. Never use a flag as the sole cue. Put the switcher somewhere findable, and never auto-switch on IP alone without an obvious override.
+
+**False positive when:** The selector genuinely picks a market or region — shipping destination, tax jurisdiction, store — where a flag is correct. Flags used decoratively alongside endonyms. Products whose audience is explicitly national.
+
+**Before**
+
+> <button>🇩🇪</button> <button>🇬🇧</button>
+
+**After**
+
+> <a href="/de" lang="de" hreflang="de">Deutsch</a> · <a href="/en" lang="en" hreflang="en">English</a>
 
 ### `obligatory-dual-cta`  ·  low · generic-llm · web-ui · structural · family: form
 

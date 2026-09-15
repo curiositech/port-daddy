@@ -330,6 +330,33 @@ findings merge into the same report through the normal `--findings` path.
 If you cannot run it, open the page yourself at phone width. Half the findings in
 `references/web-build-defects.md` are visible in ten seconds that way.
 
+### Two surfaces worth naming separately
+
+Most of this skill asks whether something reads generated. Two reference files do
+not, and they need a different sentence when you report them.
+
+`references/unopened-surfaces.md` is about surfaces a model has no way to open.
+There is no printer, no Outlook, no German tester, no screen reader and no second
+page to navigate to, so the tell is not that the output is strange — it is
+that a whole class of output was never looked at. Report these as what the author
+has not yet checked, never as a claim about who wrote it. Its navigation entries
+share one cause, which is worth saying out loud when you find two of them:
+`ia-is-a-projection-of-the-filesystem`. The flat nav, the fat footer, the empty
+mega-menu and the four-deep sidebar are four symptoms of an information
+architecture that is a rendering of the directory listing, because enumeration is
+free and prioritisation needs knowledge the generator does not have.
+
+`references/dark-patterns-the-model-inherits.md` is about shapes the commercial
+web supplied. A model producing a fake countdown or an accept-only cookie banner
+is not choosing to deceive; Princeton found 1,818 dark-pattern instances across
+1,254 of 11,000 shopping sites, so these ARE the majority pattern. The output is
+still deceptive and sometimes unlawful, which makes it the author's decision, not
+yours. The useful thing to notice is that the violation usually lives in the gap
+BETWEEN two correct components rather than inside either one: the analytics
+snippet is right, the consent banner is right, nothing gates one on the other.
+So the checks that matter most there are relational and rendered — load the
+page in a fresh profile and watch the network, rather than reading either half.
+
 ### Run the judge pass
 
 Read `references/catalog.json`. For every item whose `detection_type` is
@@ -384,6 +411,8 @@ already one of them.
 | `references/fiction-and-narrative-tells.md` | Fiction, narrative, and anything told as a story; the strongest tells in the catalog live here |
 | `references/web-build-defects.md` | Any web page, before anything else: responsive, semantics, contrast, scaffold residue |
 | `references/engineering-artifact-tells.md` | Commits, PRs, code review, tests, docs, source files |
+| `references/unopened-surfaces.md` | Navigation, i18n, docs sites, commerce, email templates, print and PDF — the surfaces a model has no way to open |
+| `references/dark-patterns-the-model-inherits.md` | Consent banners, countdowns, activity counters, cancellation and checkout: shapes the commercial web supplied, several of them unlawful |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -494,6 +523,7 @@ launch announcement in machine accent and then edited,
 **`references/`**
 - [`references/catalog.json`](references/catalog.json) — catalog (data/schema)
 - [`references/claudeisms.md`](references/claudeisms.md) — Claudeisms — and the generic prose tells Claude amplifies — Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers.
+- [`references/dark-patterns-the-model-inherits.md`](references/dark-patterns-the-model-inherits.md) — Dark patterns the model inherits — A model that produces a fake countdown or an asymmetric cookie banner is not choosing to deceive.
 - [`references/engineering-artifact-tells.md`](references/engineering-artifact-tells.md) — Engineering-artifact tells — commits, PRs, reviews, code, tests, docs — What generated engineering work looks like in the artifacts maintainers actually read.
 - [`references/fairness-and-false-positives.md`](references/fairness-and-false-positives.md) — Fairness and false positives — read this before you act on any finding — Hand-written, not generated from the catalog.
 - [`references/fiction-and-narrative-tells.md`](references/fiction-and-narrative-tells.md) — Fiction and narrative tells — What generated fiction does at the level of story rather than sentence.
@@ -501,6 +531,7 @@ launch announcement in machine accent and then edited,
 - [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
 - [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
+- [`references/unopened-surfaces.md`](references/unopened-surfaces.md) — Unopened surfaces — navigation, i18n, docs, commerce, email, print — Everything in this file is about a surface that was never opened.
 - [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look and generated imagery — What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.
 - [`references/web-build-defects.md`](references/web-build-defects.md) — Web build defects — the half you can reproduce — A different KIND of finding from the rest of this catalog.
 
