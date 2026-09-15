@@ -132,10 +132,17 @@ quote.
   a no-op when `\ifpdmargincolumn` is false) and the whole pedagogic apparatus
   (`pdclaim`, `pdboundary`, `pdexample`, `pdrecitation`, `pdexercise`,
   `pdsession`). `[verified — read directly, this repo]`
-- `\pdgloss` does **not exist yet** in this repository. `docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md`
-  lists "`pdmarginfigure` and `pdgloss` to be added to the pedagogy twins" as a
-  planned, not-yet-done step. `[verified — read directly, this repo]` Do not tell a
-  caller to use `\pdgloss`; it will fail to compile. See
+- `\pdgloss{Term}{one-line definition}` **is implemented** in
+  `whitepaper/figures/pd-pedagogy.tex` (and its byte-identical twin
+  `website-v2/public/whitepaper/figures/pd-pedagogy.tex`), in the "Shared
+  helpers" section alongside `\pd@marginglyph`. It sets `Term` bold at its
+  point of definition in the running text, then, when the Book's
+  `\ifpdmargincolumn` switch is true, carries the definition as one combined
+  margin note (a small-caps repeat of `Term` above the definition, set at
+  `\marginfont`); in a standalone chapter (`\ifpdmargincolumn` false, the
+  default) it instead folds the definition back into the sentence as an
+  italic parenthetical, so no content is lost either way. `[verified — read
+  directly, this repo]` It is safe to tell a caller to use `\pdgloss`. See
   `references/margin-apparatus.md`.
 - `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md` and
   `docs/harbor-research/exposition/READING-FLOW-AUDIT.md` — the current
