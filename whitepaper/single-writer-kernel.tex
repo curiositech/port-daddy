@@ -698,7 +698,7 @@ heartbeats resume. What is \emph{not} defensible is letting the prose imply the
 stronger guarantee --- and for the few paths that genuinely need I1b, the right fix
 is a per-write-path selector rather than a global change of synchronization level.
 
-The design, \textbf{Selective Checkpointing} (\Designed, OP-10), is small: a
+The design, \pdgloss{Selective Checkpointing}{a per-write-path opt-in that forces a synchronous WAL flush on a high-stakes write while every other path keeps the fast default.} (\Designed, OP-10), is small: a
 high-stakes, money-bearing write path --- a settlement-ledger entry, say --- appends
 \texttt{PRAGMA wal\_checkpoint(FULL);} to its commit path, forcing a synchronous
 flush to disk, while claim, marker, and note writes keep the fast default. Two
@@ -856,7 +856,7 @@ racy first-come, so a fast agent churning a hot file can starve a slow agent
 indefinitely.
 
 The design that would close OP-1 without dragging a background scheduler into the
-kernel is a \textbf{Stigmergic Ticket-Lock}. It is \Designed{} --- specified here in
+kernel is a \pdgloss{Stigmergic Ticket-Lock}{a starved agent leaves a queued-claim marker in the shared store instead of retrying blind, so fairness emerges from traces other agents read rather than from a scheduler.}. It is \Designed{} --- specified here in
 enough detail to build and to attack, but not realized: no \texttt{claim\_tickets}
 table exists in the reference implementation, and the lifecycle above is still the
 one the kernel runs. It would introduce a \texttt{claim\_tickets} table:
@@ -1349,6 +1349,8 @@ grading: under complete mediation the figure is one more enforceable safety poli
 $\Sigma_u \neq \emptyset$ the same two states become the canonical witness that a policy may
 reference an unrefusable event freely so long as it never tries to refuse it.
 
+\input{figures/fig-swk-taint-automaton}
+
 Three consequences, in increasing order of consequence.
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \textbf{The design rule.} A compound trigger-to-effect policy is regimentable if and
@@ -1596,7 +1598,7 @@ that free-text closure would.}
 
 The obvious way to widen what a commitment can close against is to widen the
 vocabulary, and there is a concrete design for doing so without re-admitting the
-Goodhart hole. \textbf{State-Machine Assertions} (\Designed) would add two kinds to
+Goodhart hole. \pdgloss{State-Machine Assertions}{an oracle-vocabulary kind closed against a machine-checkable delta or an AST structural property, not a general finite-state-machine verification method.} (\Designed) would add two kinds to
 Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
