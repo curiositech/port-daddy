@@ -69,7 +69,7 @@ Before inventing personas, it's worth noting that the Book already names one fra
 | Legibility | **the operator** | *The Legible Swarm* |
 | Economy | the market between operators | *The Harbor Economy* |
 
-This is a genuine, load-bearing distinction inside the product's own architecture, not
+This is a genuine distinction inside the product's own architecture, not
 just the Book's structure: "operator" is a first-class actor the daemon is built to serve
 (FleetBar, Control Center, and pd-console are literally named "Operator Surfaces" in the
 README), distinct from "the agents" the coordination layer serves. That distinction is one
