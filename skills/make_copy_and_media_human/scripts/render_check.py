@@ -30,6 +30,10 @@ dead citation: a fact about whether the thing works.
   body-text-below-readable        rendered text under 12px
   low-contrast-text               computed contrast below WCAG AA
   image-without-dimensions        <img> with no width/height, which shifts layout
+  text-spacing-override-breaks-the-layout  with --probe-a11y: applies the WCAG
+                                  1.4.12 spacing values and measures the clipping
+  forced-colors-mode-erases-the-interface  with --probe-a11y: what loses its only
+                                  boundary when the OS takes over the palette
   escape-and-focus-declared-not-wired   with --probe-modals: opens each trigger and
                                   tests focus-in, Escape, Tab containment, restore
 """
@@ -295,7 +299,135 @@ def probe_modals(page, target, limit=6):
     return out
 
 
-def run(target, viewports, timeout_ms, probe_modal=False):
+# Two WCAG criteria that are a minute of work to test and that nothing in a
+# normal review touches, because both need a state the author's browser is not
+# in. Neither is visible in a screenshot of the page as shipped.
+
+TEXT_SPACING_CSS = """*, *::before, *::after {
+  line-height: 1.5 !important;
+  letter-spacing: 0.12em !important;
+  word-spacing: 0.16em !important;
+}
+p { margin-bottom: 2em !important; }"""
+
+SPACING_PROBE = r"""() => {
+  const bad = [];
+  const sel = el => el.id ? '#' + el.id
+    : el.tagName.toLowerCase() + (el.className && typeof el.className === 'string'
+        ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+  for (const el of document.querySelectorAll('button, a, h1, h2, h3, label, li, th, td, p')) {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    if (!(el.innerText || '').trim()) continue;
+    const clipped = (cs.overflow === 'hidden' || cs.overflowY === 'hidden')
+      && el.scrollHeight > el.clientHeight + 1;
+    const wide = (cs.overflow === 'hidden' || cs.overflowX === 'hidden')
+      && el.scrollWidth > el.clientWidth + 1;
+    if (clipped || wide) bad.push({sel: sel(el), how: clipped ? 'clipped vertically'
+                                                             : 'clipped horizontally'});
+    if (bad.length >= 8) break;
+  }
+  return bad;
+}"""
+
+FORCED_COLORS_PROBE = r"""() => {
+  // Run this in the NORMAL palette. Under forced colors the gradient has already
+  // been reverted, so asking what the element relies on after the fact returns
+  // nothing -- which is how the first version of this probe silently passed.
+  const risky = [];
+  const sel = el => el.id ? '#' + el.id
+    : el.tagName.toLowerCase() + (el.className && typeof el.className === 'string'
+        ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+  for (const el of document.querySelectorAll('*')) {
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    if (r.width < 40 || r.height < 20) continue;
+    const noBorder = cs.borderTopWidth === '0px' && cs.borderBottomWidth === '0px'
+                  && cs.borderLeftWidth === '0px' && cs.borderRightWidth === '0px';
+    const hadBg = cs.backgroundImage && cs.backgroundImage !== 'none'
+                  && !cs.backgroundImage.includes('url(');
+    const hadShadow = cs.boxShadow && cs.boxShadow !== 'none';
+    if (noBorder && (hadBg || hadShadow)) {
+      el.setAttribute('data-fc-probe', String(risky.length));
+      risky.push({sel: sel(el), on: hadBg ? 'a gradient' : 'a shadow'});
+    }
+    if (risky.length >= 8) break;
+  }
+  return risky;
+}"""
+
+CONFIRM_ERASED_JS = r"""() => {
+  // With forced colors active, ask whether the marked elements kept ANY boundary.
+  const gone = [];
+  for (const el of document.querySelectorAll('[data-fc-probe]')) {
+    const cs = getComputedStyle(el);
+    const hasBorder = ['Top', 'Bottom', 'Left', 'Right']
+      .some(s => parseFloat(cs['border' + s + 'Width']) > 0);
+    const hasBg = cs.backgroundImage && cs.backgroundImage !== 'none';
+    if (!hasBorder && !hasBg) gone.push(el.getAttribute('data-fc-probe'));
+  }
+  return gone;
+}"""
+
+
+def probe_text_spacing(page, target):
+    """WCAG 1.4.12. Apply the four user values and see what stops fitting."""
+    page.add_style_tag(content=TEXT_SPACING_CSS)
+    page.wait_for_timeout(200)
+    bad = page.evaluate(SPACING_PROBE)
+    if not bad:
+        return []
+    ex = ", ".join(f"{b['sel']} {b['how']}" for b in bad[:4])
+    return [finding(
+        target, "text-spacing-override-breaks-the-layout", "medium",
+        f"{len(bad)} element(s) clip their own text under the WCAG 1.4.12 spacing values: {ex}",
+        "A reader with dyslexia raises line height to 1.5, letter spacing to 0.12em and word "
+        "spacing to 0.16em, and these controls stop containing their labels. Driven here, not "
+        "inferred: the values were applied and the overflow measured. Fixed heights are what "
+        "you write when matching a design mock, which is why generated components are full of "
+        "them.",
+        "min-height instead of height, unitless line-height, and padding rather than a fixed "
+        "height to size a control. Never overflow:hidden on a text container unless you are "
+        "ellipsising on purpose. Note the criterion applies only to scripts that use these "
+        "properties.")]
+
+
+def probe_forced_colors(page, target):
+    """WCAG-adjacent, and only settleable by driving it.
+
+    Mark the elements whose only boundary is a gradient or a shadow while the
+    normal palette is still in effect, THEN switch to forced colors and confirm
+    the boundary actually vanished. Asking after the switch returns nothing,
+    because by then the gradient has already been reverted.
+    """
+    risky = page.evaluate(FORCED_COLORS_PROBE)
+    if not risky:
+        return []
+    page.emulate_media(forced_colors="active")
+    page.wait_for_timeout(200)
+    gone = set(page.evaluate(CONFIRM_ERASED_JS))
+    page.emulate_media(forced_colors="none")
+    erased = [r for i, r in enumerate(risky) if str(i) in gone]
+    if not erased:
+        return []
+    ex = ", ".join(f"{r['sel']} (was {r['on']})" for r in erased[:4])
+    return [finding(
+        target, "forced-colors-mode-erases-the-interface", "medium",
+        f"{len(erased)} element(s) lost their only visible boundary with forced colors "
+        f"active: {ex}",
+        "Forced colors reverts every background-image that is not a url(), so a card whose "
+        "edge was a gradient and a tab whose selected state was a shadow both stop existing. "
+        "Confirmed by switching the palette and re-measuring, not inferred from the "
+        "stylesheet. It is invisible unless you are on the platform with the setting on, "
+        "which nobody on the team is \u2014 and generated UI leans entirely on shadow and "
+        "gradient for structure.",
+        "Give these elements a real border, and convey state with something forced colors "
+        "preserves: a border, an underline, text. Add one @media (forced-colors: active) "
+        "block using system colour keywords. Use outline for focus rings, which survives; "
+        "box-shadow does not.")]
+
+
+def run(target, viewports, timeout_ms, probe_modal=False, probe_a11y=False):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -349,6 +481,10 @@ def run(target, viewports, timeout_ms, probe_modal=False):
             out += interpret(target, name, w, r)
             if probe_modal and name == "desktop":
                 out += probe_modals(page, target)
+            if probe_a11y and name == "desktop":
+                # forced colors first: the spacing probe mutates the page.
+                out += probe_forced_colors(page, target)
+                out += probe_text_spacing(page, target)
             page.close()
         browser.close()
     return out
@@ -446,6 +582,11 @@ def main():
     ap.add_argument("--viewport", action="append", default=[],
                     metavar="NAME:WxH", help="override viewports, repeatable")
     ap.add_argument("--timeout", type=int, default=20000)
+    ap.add_argument("--probe-a11y", action="store_true",
+                    help="apply the WCAG 1.4.12 text-spacing values and emulate forced colors, "
+                         "then measure what stops fitting and what stops being visible. Two "
+                         "criteria nobody tests because both need a state the author's browser "
+                         "is not in.")
     ap.add_argument("--probe-modals", action="store_true",
                     help="open each plausible trigger and test the four modal behaviours: focus in, Escape closes, Tab contained, focus restored. The one check source review cannot settle.")
     args = ap.parse_args()
@@ -458,7 +599,8 @@ def main():
             w, _, h = dims.partition("x")
             vps.append((name, int(w), int(h)))
 
-    res = run(args.target, vps, args.timeout, probe_modal=args.probe_modals)
+    res = run(args.target, vps, args.timeout, probe_modal=args.probe_modals,
+              probe_a11y=args.probe_a11y)
     if res is None:
         sys.exit(2)
 
