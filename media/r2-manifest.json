@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 589,
-    "distinctObjects": 553,
-    "bytes": 275717079,
-    "distinctBytes": 272923488
+    "assets": 625,
+    "distinctObjects": 589,
+    "bytes": 283676921,
+    "distinctBytes": 280883330
   },
   "assets": [
     {
@@ -766,6 +766,244 @@
       "contentType": "image/gif"
     },
     {
+      "path": "docs/pr-assets/figures-pixel-judgment/before-after-fig-5-8-audit-tower.png",
+      "bytes": 325112,
+      "sha256": "76c728781ec5d91be8115cc8737e147d2e00c1ea32cfbe9fef60d5af9f51cfed",
+      "key": "sha256/76/76c728781ec5d91be8115cc8737e147d2e00c1ea32cfbe9fef60d5af9f51cfed.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-1-figures.png",
+      "bytes": 508572,
+      "sha256": "ee5b541a97e1d93dbe027a360acf260f04c2a19c4ed2cd971f78c79eefc7fdfc",
+      "key": "sha256/ee/ee5b541a97e1d93dbe027a360acf260f04c2a19c4ed2cd971f78c79eefc7fdfc.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-2-figures.png",
+      "bytes": 270062,
+      "sha256": "e07f8309da163281e732f99fcaa926b2055df131e4b22d10b88236ff9a875853",
+      "key": "sha256/e0/e07f8309da163281e732f99fcaa926b2055df131e4b22d10b88236ff9a875853.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-3-figures.png",
+      "bytes": 198387,
+      "sha256": "583a027a3f6e2bf8be0aec3531f13290fae8d7f087cf38b7fdd0221e95e6fd25",
+      "key": "sha256/58/583a027a3f6e2bf8be0aec3531f13290fae8d7f087cf38b7fdd0221e95e6fd25.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-4-figures.png",
+      "bytes": 248126,
+      "sha256": "75f4ef1163e7c8e5bd66ab4bad4927dfb7ea16658c40604f37af65d437e6c60e",
+      "key": "sha256/75/75f4ef1163e7c8e5bd66ab4bad4927dfb7ea16658c40604f37af65d437e6c60e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-5-figures.png",
+      "bytes": 427947,
+      "sha256": "8c074f38916be1210b79d88084447f0cb64a19d4bb3df5e8d569b502d62c9d01",
+      "key": "sha256/8c/8c074f38916be1210b79d88084447f0cb64a19d4bb3df5e8d569b502d62c9d01.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-6-figures.png",
+      "bytes": 200022,
+      "sha256": "30d742b4ecfeda62e8ed5af6c8df9c4fe0dd7b3d7c66c62182d2cbb6e32ad132",
+      "key": "sha256/30/30d742b4ecfeda62e8ed5af6c8df9c4fe0dd7b3d7c66c62182d2cbb6e32ad132.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-7-figures.png",
+      "bytes": 421264,
+      "sha256": "f9e3a693ff36ce873cbcf7e4d392dc1706893e4612b8cc408261499d298b551c",
+      "key": "sha256/f9/f9e3a693ff36ce873cbcf7e4d392dc1706893e4612b8cc408261499d298b551c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-8-figures.png",
+      "bytes": 285269,
+      "sha256": "62d33543cde16dcfe57c4e96384f2aefae633b25edd899f954ee3a9686840942",
+      "key": "sha256/62/62d33543cde16dcfe57c4e96384f2aefae633b25edd899f954ee3a9686840942.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/new-figures-chapter-7.png",
+      "bytes": 539365,
+      "sha256": "0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af",
+      "key": "sha256/09/0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-desktop-dark-after.png",
+      "bytes": 149368,
+      "sha256": "2bd3d5357061900ce3de60fb8caf21ecbbc00376f988afb04c58f889a957d514",
+      "key": "sha256/2b/2bd3d5357061900ce3de60fb8caf21ecbbc00376f988afb04c58f889a957d514.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-desktop-dark-before.png",
+      "bytes": 141919,
+      "sha256": "5673f65012ca237bb4eb07cd6a0627f6368087615af298fa6758072cf1ad269b",
+      "key": "sha256/56/5673f65012ca237bb4eb07cd6a0627f6368087615af298fa6758072cf1ad269b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-desktop-light-after.png",
+      "bytes": 148296,
+      "sha256": "0b0417299a12a969c91e75c13ac4a122459d2d58b4561367475474a9312d970e",
+      "key": "sha256/0b/0b0417299a12a969c91e75c13ac4a122459d2d58b4561367475474a9312d970e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-desktop-light-before.png",
+      "bytes": 140528,
+      "sha256": "c3fff17d713d062814d66f2ab53c32fa0e46e3ff265619f0f91735b6f2109ed5",
+      "key": "sha256/c3/c3fff17d713d062814d66f2ab53c32fa0e46e3ff265619f0f91735b6f2109ed5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-phone-dark-after.png",
+      "bytes": 142311,
+      "sha256": "da2ab5f7b3b7ae5f50bae0d6c8e865fc94399e64ce2e1c6c3c7bd990e439444a",
+      "key": "sha256/da/da2ab5f7b3b7ae5f50bae0d6c8e865fc94399e64ce2e1c6c3c7bd990e439444a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-phone-dark-before.png",
+      "bytes": 119770,
+      "sha256": "126826f136eb76d80dc1aac7e206b80ad1e2395f2b96166f3e701ad4f72a8146",
+      "key": "sha256/12/126826f136eb76d80dc1aac7e206b80ad1e2395f2b96166f3e701ad4f72a8146.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-phone-light-after.png",
+      "bytes": 141274,
+      "sha256": "7846d51f6966875c17eb513e64f5353322720e888e60461edbcb1d0e81cf26c5",
+      "key": "sha256/78/7846d51f6966875c17eb513e64f5353322720e888e60461edbcb1d0e81cf26c5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/chapter-phone-light-before.png",
+      "bytes": 118234,
+      "sha256": "0eb3c77c80ed831dc3df887f610153db075dfca7d6aee5b69423c4a4752ef5bf",
+      "key": "sha256/0e/0eb3c77c80ed831dc3df887f610153db075dfca7d6aee5b69423c4a4752ef5bf.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-desktop-dark-after.png",
+      "bytes": 134526,
+      "sha256": "1665cafcd6dffa9ba30da3944b715ca6346b34fcafb34ea2b5c731f0be466a1a",
+      "key": "sha256/16/1665cafcd6dffa9ba30da3944b715ca6346b34fcafb34ea2b5c731f0be466a1a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-desktop-dark-before.png",
+      "bytes": 133480,
+      "sha256": "325f48283549fe6a307d932c62e10f669d8d8355d1bfdaa36aad0a8b24f91ef0",
+      "key": "sha256/32/325f48283549fe6a307d932c62e10f669d8d8355d1bfdaa36aad0a8b24f91ef0.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-desktop-light-after.png",
+      "bytes": 134237,
+      "sha256": "d2591aed25b38604c026ad9a5910fa7294946c88b92295b77bd5429c3a8a1537",
+      "key": "sha256/d2/d2591aed25b38604c026ad9a5910fa7294946c88b92295b77bd5429c3a8a1537.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-desktop-light-before.png",
+      "bytes": 133025,
+      "sha256": "11163ec2c4af0149a52cadde64b076a288d0084e22fcd353f3b7bbfbe27e4ebf",
+      "key": "sha256/11/11163ec2c4af0149a52cadde64b076a288d0084e22fcd353f3b7bbfbe27e4ebf.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-phone-dark-after.png",
+      "bytes": 222505,
+      "sha256": "20904418f0e18298e04cc02fccc0b003dbcb18f2ba9b26f4796cf70eef6044b8",
+      "key": "sha256/20/20904418f0e18298e04cc02fccc0b003dbcb18f2ba9b26f4796cf70eef6044b8.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-phone-dark-before.png",
+      "bytes": 221063,
+      "sha256": "ae08cf403c80bcc9ec12c6caee0a4a88c44682216b16b0013e1397c94f536f22",
+      "key": "sha256/ae/ae08cf403c80bcc9ec12c6caee0a4a88c44682216b16b0013e1397c94f536f22.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-phone-light-after.png",
+      "bytes": 219122,
+      "sha256": "b6c5a83c5a7e7f76af036e906ca4ab14b35d4ac0b6175bd93b03a52093100e6b",
+      "key": "sha256/b6/b6c5a83c5a7e7f76af036e906ca4ab14b35d4ac0b6175bd93b03a52093100e6b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/home-cta-phone-light-before.png",
+      "bytes": 218199,
+      "sha256": "bd5c3ad877f9e218a80c9913bf67abd1747b0b0231ed406c90ed3e303370d7ed",
+      "key": "sha256/bd/bd5c3ad877f9e218a80c9913bf67abd1747b0b0231ed406c90ed3e303370d7ed.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-desktop-dark-after.png",
+      "bytes": 164110,
+      "sha256": "add2198a78d0f8c845a4ed04828093ebcd57917bf57987efe9d6d5e305252876",
+      "key": "sha256/ad/add2198a78d0f8c845a4ed04828093ebcd57917bf57987efe9d6d5e305252876.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-desktop-dark-before.png",
+      "bytes": 163547,
+      "sha256": "05908510a4681ea581a1289b51d395037bfa25b72f733f33b4d6c72b0f7dc366",
+      "key": "sha256/05/05908510a4681ea581a1289b51d395037bfa25b72f733f33b4d6c72b0f7dc366.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-desktop-light-after.png",
+      "bytes": 163244,
+      "sha256": "f6a866a4ce947821d44d92fde191d9a0e0463332b474a541f30ea2ca7d0b9835",
+      "key": "sha256/f6/f6a866a4ce947821d44d92fde191d9a0e0463332b474a541f30ea2ca7d0b9835.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-desktop-light-before.png",
+      "bytes": 162721,
+      "sha256": "6a8cfb5d3f219c4ec4f42bdb3a67979384433de90ab82de85991180d799aa34e",
+      "key": "sha256/6a/6a8cfb5d3f219c4ec4f42bdb3a67979384433de90ab82de85991180d799aa34e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-phone-dark-after.png",
+      "bytes": 206116,
+      "sha256": "48bdba01506ac3159273c0984432519676ee0e7565c134494289b6032ce33b42",
+      "key": "sha256/48/48bdba01506ac3159273c0984432519676ee0e7565c134494289b6032ce33b42.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-phone-dark-before.png",
+      "bytes": 199420,
+      "sha256": "15dc1398e5b061e6e3a1a9e9fa4b4caf5703887250843a3a875a24ac0dbef271",
+      "key": "sha256/15/15dc1398e5b061e6e3a1a9e9fa4b4caf5703887250843a3a875a24ac0dbef271.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-phone-light-after.png",
+      "bytes": 205105,
+      "sha256": "dce6701bf308539a1f00a92ed4c8e39282e9983b56302665f1e1923c00be7a71",
+      "key": "sha256/dc/dce6701bf308539a1f00a92ed4c8e39282e9983b56302665f1e1923c00be7a71.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10172/manifesto-phone-light-before.png",
+      "bytes": 198686,
+      "sha256": "9f7525081a430fcdded50a7a9c2f26696a33331a820b0cd50486337f222834fd",
+      "key": "sha256/9f/9f7525081a430fcdded50a7a9c2f26696a33331a820b0cd50486337f222834fd.png",
+      "contentType": "image/png"
+    },
+    {
       "path": "docs/pr-assets/pr-10178/fh-xfer-ceremony-record-vs-render-1x-150dpi.png",
       "bytes": 169365,
       "sha256": "157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3",
@@ -841,6 +1079,20 @@
       "sha256": "4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337",
       "key": "sha256/4c/4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337.webm",
       "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/retire-chapter-pdfs/after-single-writer-kernel.png",
+      "bytes": 279065,
+      "sha256": "d02e296c9c594210f5affa5fc31fe6ff7f3a0104c6c395dbf58f072472b80096",
+      "key": "sha256/d0/d02e296c9c594210f5affa5fc31fe6ff7f3a0104c6c395dbf58f072472b80096.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/retire-chapter-pdfs/before-single-writer-kernel.png",
+      "bytes": 275845,
+      "sha256": "c521572bc53e953f541b50b17a66918ba79e3ac9736d249e9b0673f5a0239b27",
+      "key": "sha256/c5/c521572bc53e953f541b50b17a66918ba79e3ac9736d249e9b0673f5a0239b27.png",
+      "contentType": "image/png"
     },
     {
       "path": "docs/pr-media/squid-hook-debug/03-hook-debug-running.png",
