@@ -498,7 +498,7 @@ A library module ends with a tacked-on demonstration: an `if __name__ == '__main
 
 **Fix:** Move example usage into the test suite or README. A library module should expose its API and stop. Keep `__main__` only for genuine CLI entry points.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** `if __name__ == '__main__':` is idiomatic Python for a module that is also runnable, and is correct for CLI entry points, teaching code, and smoke tests. Flag it on a library module imported elsewhere, where the block only prints a canned result.
 
 **Before**
 

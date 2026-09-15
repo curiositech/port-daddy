@@ -429,7 +429,7 @@ Every field's on-screen return key says the same thing. On a phone the user cann
 
 **Fix:** enterkeyhint="next" on every field but the last, "done" or "send" on the last. One attribute per input.
 
-**False positive when:** A single-field form has nothing to disambiguate.
+**False positive when:** A single-field form has nothing to disambiguate, and a form whose fields are all selects or checkboxes never opens a keyboard for the hint to label. Only flag forms with several text-entry fields in sequence.
 
 **Before**
 

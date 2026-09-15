@@ -41,7 +41,7 @@ The whole-page template: centered badge pill ('Now in beta'), giant centered hea
 
 **Fix:** Break the symmetry: asymmetric/left-aligned hero, a product screenshot or demo doing the talking, one primary CTA, and feature sections with varied layouts (alternating media-text rows, a bento grid) rather than a uniform 3-up.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A centered hero with three feature cards converts well and is genuinely the right layout for a great many products. Flag it where it is the only layout the page knows -- the tell is the whole-page template with no section that breaks it, not the hero.
 
 **Before**
 
@@ -81,7 +81,7 @@ Emoji stand in for a real icon system: rocket in 'Get started' buttons, check bu
 
 **Fix:** Replace every UI emoji with a consistent SVG icon set (Lucide, Heroicons, Phosphor). Icons inherit currentColor and share stroke weight. Reserve emoji for actual content.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Emoji are legitimate in informal products, chat interfaces, changelogs and release notes, and are a reasonable choice where a full icon set would be overkill. Flag them in product chrome where they render inconsistently across platforms and carry no accessible name.
 
 **Before**
 
@@ -123,7 +123,7 @@ Across 'different' avatars or testimonial photos, the same underlying face recur
 
 **Fix:** Use distinct real people. If generating, vary seeds/prompts hard and verify faces are genuinely different, or avoid faces entirely. Diversify color grade and depth-of-field.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Stock photo libraries legitimately reuse the same models across a set, and a real team photographed in one session shares a grade and a look by construction. Flag the same underlying face across supposedly different people, not consistency of styling.
 
 **Before**
 
@@ -225,7 +225,7 @@ The headline (or one hero word) uses a linear-gradient clipped to text running i
 
 **Fix:** Make the headline a solid, confident color. If a gradient is truly wanted, use unexpected stops tied to brand and apply it to one deliberate element, not every accent.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A brand whose actual palette is violet is entitled to use it, and a gradient chosen against a real brand guideline is a decision rather than a default. Flag the indigo-to-violet default arriving with no brand behind it.
 
 **Before**
 
@@ -379,7 +379,7 @@ A small rounded-full pill above the headline with a tiny dot or sparkle and text
 
 **Fix:** Only show an announcement pill when there is a genuine linkable announcement, and make it a real link. Otherwise delete it. If kept, ensure label text is >=14px or a proper >=600-weight uppercase eyebrow, not text-xs.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A product that IS in beta saying so is useful and honest, and a genuine 'New' badge on something new is doing its job. Flag the pill that has been there for a year, or one announcing a beta on a generally available product.
 
 **Before**
 
@@ -507,7 +507,7 @@ Cards use the identical recipe: semi-transparent fill, backdrop-blur, rounded-2x
 
 **Fix:** Choose a surface treatment that fits the brand and vary radius/elevation by hierarchy. If using glass, restrict it to one intentional layer (a sticky nav), not every card.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A deliberate visual style with real precedent in shipping operating systems, and correct where the blur does depth work. Flag the identical token recipe applied to every card with no variation for importance.
 
 **Before**
 
@@ -595,7 +595,7 @@ A single view mixes icon vocabularies: some Lucide line icons, some Heroicons so
 
 **Fix:** Standardize on a single icon library and one style (e.g. Lucide, 1.5px stroke, 24px grid) across the app. Remove emoji from UI. Audit every icon for shared weight, size, and alignment.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A product mid-migration between icon sets legitimately shows both for a while, and a third-party embed brings its own iconography that you do not control. Flag mixed stroke weights and fill styles inside first-party chrome.
 
 **Before**
 
@@ -697,7 +697,7 @@ The four-point sparkle (Lucide Sparkles, Material's AI sparkle) slapped on anyth
 
 **Fix:** Design a distinct affordance for AI actions — a custom glyph, a labeled button, a motion cue. If a sparkle is unavoidable, make it bespoke and use it once.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** The sparkle has become the conventional affordance for a generative action, and using a convention users already recognise is a legitimate design decision. Flag it as decoration on things that are not generative, not as the icon on a generate button.
 
 **Before**
 
@@ -805,7 +805,7 @@ Dark-mode-by-default near-black background (#0A0A0A / slate-950) decorated with 
 
 **Fix:** Justify the color mode by the product. If dark, build a real neutral scale and use lighting with intent; drop the corner glow-blobs or replace with a meaningful brand visual. Consider light or a distinctive non-black dark.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh/blob/aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal, not a refutation -- comment share measures what people find irritating, not what predicts generation -- but do not let this carry a verdict alone.
+**False positive when:** A dark product surface with deliberate accent lighting is a real design, and glow is correct where it directs attention. Flag the corner-bleeding default with a grid overlay and no relationship to the content. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh, blob and aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal rather than a refutation -- comment share measures what irritates people, not what predicts generation -- and do not let this carry a verdict alone.
 
 **Before**
 
@@ -891,7 +891,7 @@ The hero or full-page background is a soft multi-stop mesh gradient (pink-purple
 
 **Fix:** Make the background earn its place: a solid brand-tinted surface, a real product visual, a subtle texture, or a gradient built from actual brand colors. Avoid the default rainbow-pastel mesh.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh/blob/aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal, not a refutation -- comment share measures what people find irritating, not what predicts generation -- but do not let this carry a verdict alone.
+**False positive when:** A mesh gradient built from the brand's own palette is a design decision, and the style is genuinely popular on hand-built sites. Flag the literal untouched output of a generator. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh, blob and aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal rather than a refutation -- comment share measures what irritates people, not what predicts generation -- and do not let this carry a verdict alone.
 
 **Before**
 
@@ -911,7 +911,7 @@ Every section uses the exact same vertical padding, every card the same internal
 
 **Fix:** Introduce intentional rhythm: vary section padding by importance, let a hero be spacious and a table tight, use radius/elevation to signal hierarchy, and add one deliberate irregularity.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A design system's entire job is consistent spacing, and a spacing scale is correct, not suspicious. Flag the ABSENCE of any emphasis anywhere -- no section denser or airier than another -- rather than the presence of a scale.
 
 **Before**
 

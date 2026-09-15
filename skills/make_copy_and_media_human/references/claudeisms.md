@@ -43,7 +43,7 @@ The escalating-specificity compliment chain: 'you're the only PM who gets this, 
 
 **Fix:** Cut the validation entirely; go straight to substance. If praise is warranted, give one specific true observation and stop. Never invent details for flattery.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Recommendation letters, award citations, toasts and eulogies are conventionally effusive and specific, and warmth between people who know each other is not a tell. The signal is escalation into hyper-specific detail the writer could not know.
 
 **Before**
 
@@ -63,7 +63,7 @@ The negation-contrast family: 'It's not X, it's Y' / 'This isn't about X, it's a
 
 **Fix:** State Y directly. Only keep the negation if X is a genuinely held belief you're correcting; then name who holds it and why they're wrong.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Antithesis is one of the oldest figures in English and is correct when X is a belief the reader actually holds and the piece then earns Y. Positioning copy uses it legitimately when the contrast is real. Flag the strawman X invented only to be knocked down, not the construction.
 
 **Before**
 
@@ -169,7 +169,7 @@ Unearned emphasis on importance and legacy: 'stands as a testament to,' 'plays a
 
 **Fix:** Delete the significance claim and state the concrete fact instead. Let the reader infer importance from numbers, dates, and outcomes.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Obituaries, award citations, dedications and anniversary pieces are conventionally elevated, and some events genuinely are milestones. Flag unearned emphasis on an ordinary subject, not the register itself.
 
 **Before**
 
@@ -361,7 +361,7 @@ Reflexive softening and self-undercutting: 'I could be wrong, but...,' 'This is 
 
 **Fix:** Make the call. Replace 'it depends' with the actual dependency ('use Postgres unless you need sub-millisecond reads, then Redis'). Drop disclaimers unless you genuinely hold low confidence, then quantify it.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Epistemic hedging is CORRECT wherever the writer is genuinely uncertain, and is required in science, forecasting and risk writing. It is also a documented feature of the professional register of women and of junior colleagues, so flagging it can amount to enforcing a narrow confident register. Be slow with this one and never treat it as evidence about a person.
 
 **Before**
 
@@ -539,7 +539,7 @@ The faux-conversational pivot that signals a reveal: 'Here's the thing.' 'Here's
 
 **Fix:** Delete the pivot phrase and just say the thing. A genuine surprise carries the turn without announcing it.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** This is ordinary spoken-register English and good conversational writing uses it, as does comedy and most podcast transcription. It is correct whenever a genuine turn follows. Flag it only where nothing actually pivots.
 
 **Before**
 
@@ -559,7 +559,7 @@ Meta-announcements of candor before saying anything: 'Let me be clear.' 'I'll be
 
 **Fix:** Delete the preamble and state the blunt thing immediately. The directness should live in the claim, not in an announcement about it.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A real emphatic device, heavily used in speech and political register, and correct when what follows genuinely corrects a likely misreading. Flag it where the sentence after it is not a clarification of anything.
 
 **Before**
 
@@ -603,7 +603,7 @@ Every bullet in a list has identical grammatical shape and near-identical length
 
 **Fix:** Let items differ in length and shape. Some bullets are one word; some carry a caveat. Vary the opening word. If every bullet is the same template, you're padding to hit a count.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Parallel structure in lists is a style-guide REQUIREMENT in Chicago and the Microsoft Style Guide, so this entry sits closest of any to flagging correct writing. Flag only where uniformity has visibly flattened items of genuinely different weight into the same shape and length.
 
 **Before**
 
@@ -675,7 +675,7 @@ Compulsive triplets: three adjectives, three nouns, three parallel clauses or li
 
 **Fix:** Let the real number of items dictate the count. Use two when there are two, four when there are four. Reserve the deliberate tricolon for one genuine rhetorical peak.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** The tricolon is deliberate craft in speechwriting, liturgy and advertising, and is correct whenever the content genuinely has three distinct parts. Flag recurrence across a piece where the third item is padding, not any single triplet.
 
 **Before**
 
@@ -719,7 +719,7 @@ Reflexive unconditional praise or agreement openers: 'You're absolutely right!',
 
 **Fix:** Delete the opener and start with the substance. Agreement should be earned and specific; if the user is wrong, say so plainly.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Genuine encouragement is correct in teaching, mentoring, support and code review, and a real compliment is not a tic. Flag the reflexive opener that precedes every response regardless of what was said.
 
 **Before**
 
@@ -739,7 +739,7 @@ An italicized or block-quoted line dropped in as if it were a quotation or someo
 
 **Fix:** Attribute it to a real source, cut it, or rewrite it as a normal sentence in your own voice. Don't dress your own assertion as an anonymous epigraph.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** An epigraph the author wrote, a pull quote lifted from the piece itself, a line of verse, or a quotation whose source is given nearby are all legitimate. Flag a line presented AS someone's words with no source and no origin in the text.
 
 **Before**
 
@@ -835,7 +835,7 @@ The sweeping 'from X to Y' / 'whether you're a beginner or an expert' constructi
 
 **Fix:** Name the specific audience or domain you actually mean, or cut the range. Breadth claims should come with at least one concrete example.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A scope statement whose endpoints are real and meaningful is doing useful work: 'from 10 to 10,000 seats' tells the reader something. Flag ranges chosen to imply comprehensiveness the piece does not deliver.
 
 **Before**
 

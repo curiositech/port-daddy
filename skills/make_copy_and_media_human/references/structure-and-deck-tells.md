@@ -94,7 +94,7 @@ A closing paragraph flagged with 'In conclusion,' 'In short,' 'Ultimately,' 'Ove
 
 **Fix:** End on the strongest concrete point or a forward-looking specific. If a reader could skip the last paragraph and lose nothing, cut it.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Academic, legal and standards writing require a conclusion section by convention, and a genuinely long document earns a recap the reader needs. Flag a closing paragraph that adds nothing to a piece short enough not to need one.
 
 **Before**
 
@@ -140,7 +140,7 @@ A testimonial section with placeholder quotes attributed to alliterative invente
 
 **Fix:** Remove fabricated proof until real testimonials exist. Replace with an honest early-access note, real logos you may show, or concrete product facts. Never ship invented people.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A real testimonial from a real customer is the opposite of this finding, and placeholder testimonials in a design mockup, template or component library are expected and correct. Flag invented alliterative names and stock avatars on a SHIPPED page.
 
 **Before**
 
@@ -200,7 +200,7 @@ A heading appears every one to two paragraphs, and the headings are full title-c
 
 **Fix:** Target a heading every 4-6 paragraphs. Make headings short noun phrases in sentence case. Delete any heading whose section is one paragraph.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Reference documentation legitimately has high heading density, accessibility guidance favours descriptive headings over bare labels, and question-shaped headings are a deliberate choice in help content. Flag a heading every one or two paragraphs in a narrative piece.
 
 **Before**
 
@@ -224,7 +224,7 @@ Every slide is a declarative claim followed by 3-5 bullets, with no connective n
 
 **Fix:** Convert at least one in three slides to a single-idea statement, a chart with one annotation, or a narrative card. Let bullet counts vary. Add a 'so what' sentence instead of another bullet.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Assertion-evidence slide structure is a researched, deliberate design and some organisations mandate it. Flag a deck where nothing argues -- every unit asserts and enumerates and no connective thread runs between slides.
 
 **Before**
 
@@ -277,7 +277,7 @@ A 'Key Takeaways,' 'TL;DR,' or 'In Summary' box bolted onto every section, not j
 
 **Fix:** Keep at most one summary, at the top or bottom, never per-section. If a section needs a recap, it's too long; split or tighten it.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Per-section summaries are a documented comprehension aid and are standard in textbooks, journalism and technical documentation. Flag a box on EVERY section, especially one restating the heading immediately above it.
 
 **Before**
 
@@ -480,7 +480,7 @@ An Executive Summary that paraphrases the title, a body that paraphrases the sum
 
 **Fix:** The summary should contain the single most important finding or number. The conclusion should add the implication or next decision. Delete 'This document outlines' openers.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Several document standards REQUIRE this shape -- executive summaries, IMRaD, briefing formats -- and 'tell them what you will tell them' is taught deliberately for spoken delivery. Flag it where no convention demands it and each layer adds nothing.
 
 **Before**
 
@@ -589,7 +589,7 @@ Copy leans on aspirational hollow verbs — Unlock, Elevate, Transform, Supercha
 
 **Fix:** Replace the verb+abstraction with a verb+concrete-outcome-with-a-number. Name the specific job. If you can't make it specific, you don't yet understand the benefit.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** These verbs are legitimate marketing vocabulary and a product that genuinely transforms something may say so. The tell is the missing mechanism, not the verb: if the next clause says HOW, there is no finding.
 
 **Before**
 
@@ -631,7 +631,7 @@ A document, email, or landing page ends with an 'FAQ' section no actual user ask
 
 **Fix:** Cut the FAQ unless you have logged real recurring questions. If kept, use the actual words users asked and answer only what the body didn't cover.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** An FAQ built from real support tickets is genuinely useful and is one of the highest-value things a docs site can carry. Flag questions invented to map one-to-one onto points already made above.
 
 **Before**
 
@@ -813,7 +813,7 @@ Grok is prompt-tuned for an 'edgy/spicy' persona, producing try-hard irreverence
 
 **Fix:** Cut the persona scaffolding. Let wit emerge from a genuinely sharp observation about the specific subject, used sparingly.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Irreverent brand voices genuinely exist and are deliberate, and some writers are actually funny. Flag snark that does not fit the topic or the audience, not the presence of a joke.
 
 **Before**
 
@@ -893,7 +893,7 @@ Kimi K2 is RL-tuned to be confident and avoid self-qualification, producing punc
 
 **Fix:** Replace assertion with specifics: one concrete number, example, or mechanism beats three confident abstractions. Cut the rhetorical-fragment hooks.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Punchy declarative prose is a real and effective style in advertising, op-eds and manifestos, and confidence is not a defect. Flag the hollow assertion -- a claim with no mechanism and no evidence -- not the rhythm that carries it.
 
 **Before**
 
@@ -913,7 +913,7 @@ Structural over-formatting carried into contexts that don't call for it: bolded 
 
 **Fix:** Strip mid-sentence bold; emphasis belongs in word choice. Use sentence case for headings. Remove 'In conclusion' wrap-ups and convert bold-lead bullet lists to prose unless genuinely a reference list.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Title Case headings are house style at many publications, and bolded key terms are standard in textbooks, glossaries and reference documentation. Flag raw markdown leaking into a medium that does not render it, and formatting applied where no structure exists.
 
 **Before**
 
@@ -1004,7 +1004,7 @@ Landing copy mechanically executes Problem-Agitate-Solve: a rhetorical-question 
 
 **Fix:** Keep the logic but break the visible scaffolding. Open with a specific scene, not 'Tired of...?'. Make the CTA describe the actual next action. Skip the agitation pile-on.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** PAS is a legitimate, taught copywriting framework that demonstrably works, and a real problem deserves to be named. Flag the mechanical execution where the pain points are invented and the CTA is generic.
 
 **Before**
 
@@ -1028,7 +1028,7 @@ A README with a fixed, project-agnostic skeleton: badge row, one-line tagline, t
 
 **Fix:** Lead with the problem this project solves and one real example of output. Keep only sections you have content for. Delete a Contributing section that just says 'PRs welcome'.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** That section order is the community convention and it is genuinely good for discoverability -- a reader knows where to look. Flag a README where every section is generic, not one that follows the standard shape with specific content in it.
 
 **Before**
 
@@ -1184,7 +1184,7 @@ A two-column markdown table used for things that aren't comparative data: a sing
 
 **Fix:** Use a table only when 2+ items are compared across 2+ shared attributes. For a term gloss use a definition list or inline bold; for one concept's tradeoffs use a short paragraph.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A two-column term/definition table is a legitimate glossary format, and a comparison table with two real alternatives is tabular. Flag prose forced into 'Aspect | Description' cells and one-row tables.
 
 **Before**
 
@@ -1208,7 +1208,7 @@ A full-bleed slide carries a generic inspirational quote in large type, unattrib
 
 **Fix:** Cut the quote unless it's real, correctly attributed, and central. Better: replace it with a concrete artifact — a customer's actual words, a real data point.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** A correctly attributed quotation that bears on the argument is fine and often good. Flag the missing attribution, the wrong attribution, or 'Anonymous' standing in for a source nobody checked.
 
 **Before**
 

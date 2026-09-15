@@ -43,7 +43,7 @@ Gemini compulsively front-loads or interleaves hedging meta-clauses: 'It's impor
 
 **Fix:** Delete the meta-clause and state the fact directly. If a caveat is pivotal, fold it into the sentence as a clause.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** 'It is important to note' is standard academic and technical English and often marks a genuine caveat. Flag the stack: two or three such clauses in a short answer, several of them introducing nothing important.
 
 **Before**
 
@@ -63,7 +63,7 @@ On any topic adjacent to health, law, finance, or relationships, Gemini appends 
 
 **Fix:** Remove unsolicited disclaimers. If a genuine risk warrants a caveat, make it specific and singular.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Some of these disclaimers are required by regulation or platform policy for financial, medical and legal content, and there the boilerplate is the compliant behaviour. Flag it where no such requirement applies and the user asked something the caveat does not fit.
 
 **Before**
 
@@ -83,7 +83,7 @@ Llama-family models loop: restating the same point in slightly reworded sentence
 
 **Fix:** Deduplicate: keep one statement of each idea, cut recycled transitions, end once. If length is needed, add evidence or examples, not paraphrases.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Repetition is legitimate for emphasis, in teaching material, in specifications where restating beats a cross-reference, and in anything written to be read aloud. Flag near-identical restatement that adds nothing, in a piece with no reason to repeat.
 
 **Before**
 
@@ -125,7 +125,7 @@ DeepSeek and Qwen default to a stiff, examination-essay register in English: ele
 
 **Fix:** Drop a register: use contractions, swap 'Moreover/Furthermore' for 'and/also' or a new sentence, and let some sentences be short and plain. Match the formality the user used.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Formal register with no contractions is how English is taught across much of the world, and is the correct register for academic prose, legal writing and many second-language writers. This is one of the entries most likely to be turned against a person unfairly. Treat it as a note about a MODEL's default when you already know the source, never as a signal about an author.
 
 **Before**
 
@@ -145,7 +145,7 @@ Gemini opens by restating the user's question as a thesis before answering: 'The
 
 **Fix:** Cut the restatement and lead with the answer's first real claim. The reader knows what they asked.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Restating the question is required in exam answers, legal memos, consulting deliverables and RFP responses, where the reader must see the question addressed. Flag it in conversational reply where it only delays the answer.
 
 **Before**
 
@@ -165,7 +165,7 @@ Grok is prompt-tuned for an 'edgy/spicy' persona, producing try-hard irreverence
 
 **Fix:** Cut the persona scaffolding. Let wit emerge from a genuinely sharp observation about the specific subject, used sparingly.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Irreverent brand voices genuinely exist and are deliberate, and some writers are actually funny. Flag snark that does not fit the topic or the audience, not the presence of a joke.
 
 **Before**
 
@@ -185,7 +185,7 @@ Kimi K2 is RL-tuned to be confident and avoid self-qualification, producing punc
 
 **Fix:** Replace assertion with specifics: one concrete number, example, or mechanism beats three confident abstractions. Cut the rhetorical-fragment hooks.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Punchy declarative prose is a real and effective style in advertising, op-eds and manifestos, and confidence is not a defect. Flag the hollow assertion -- a claim with no mechanism and no evidence -- not the rhythm that carries it.
 
 **Before**
 
@@ -205,7 +205,7 @@ Qwen and DeepSeek occasionally surface calques and idiom mistranslations from Ch
 
 **Fix:** Replace calques with natural English ('increasingly' not 'more and more'; 'is central to' not 'plays an important role'), fix article usage, and read aloud for cadence.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** These are genuine features of Chinese-influenced English as written by people, and flagging them as machine markers is the documented failure mode of AI detectors against second-language writers. Never use this as an authorship signal. It is usable only as an editing note on text you already know to be machine-generated.
 
 **Before**
 
@@ -225,7 +225,7 @@ In longer outputs, models drift unmotivated between tenses (past to present and 
 
 **Fix:** Pick one tense and one mode of address up front and enforce it on a full read-through. Switch only with deliberate purpose.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Drift is extremely common in human drafts, especially multi-author documents and anything assembled from older material. This is an editing cue and never an authorship signal.
 
 **Before**
 
@@ -245,7 +245,7 @@ Kimi K2 holds voice well under ~300 words but degrades past ~3000: structure loo
 
 **Fix:** For long pieces, generate in bounded sections with a fixed outline and a maintained through-line, then hand-edit the back half where coherence drops.
 
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
+**False positive when:** Long human drafts also lose their thread; this is a property of length and fatigue, not of machines. Weak on its own and not usable as evidence about an author. Treat it as a cue to re-read the back half of a long piece.
 
 **Before**
 
