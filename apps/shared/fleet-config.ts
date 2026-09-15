@@ -21,6 +21,15 @@ import {
   CF_ADMITTED_MODELS,
   resolveCfModel,
 } from './model-registry.generated.js';
+import {
+  DENY_ALL_EXECUTION,
+  isShipParticipationPolicyValid,
+  parseShipExecutionConfiguration,
+  parseShipParticipationPolicy,
+  type ShipExecutionPolicy,
+  type ShipExecutionConfigState,
+  type ShipParticipationPolicy,
+} from './fleet-participation.js';
 
 const WORKERS_AI_RATES = CF_PRICES;
 
@@ -64,16 +73,13 @@ export interface ShipConfig {
    * false (default), the ship posts findings but never fails the check.
    */
   blocking: boolean;
-  /** When true, ship needs execution (bash/write) — dispatch to GHA instead */
-  needsExecution: boolean;
   /**
-   * When true, this is an IDEATION ship (spark, spider, lookout, snipe): it
+   * When true, this is an IDEATION ship: it
    * proposes forward work via the {@link Proposal} schema and its comment is
    * rendered into real actionable Port Daddy syntax, rather than raising
    * file:line findings. Ideation ships are ALWAYS advisory (never blocking) and
-   * never gate a merge. Derived from a `class: ideation` field in pd-fleet.yml
-   * OR from membership in {@link IDEATION_SHIPS} (belt-and-suspenders so a ship
-   * that forgets the field still gets the ideation contract).
+   * never gates a merge. Derived only from the trusted `class: ideation` role;
+   * ship names never confer or remove voting authority.
    */
   ideation: boolean;
   /**
@@ -107,22 +113,16 @@ export interface ShipConfig {
    * declared without a graft list gets {@link PURSER_DEFAULT_GRAFT}.
    */
   graft: string[];
+  /** PR/risk-specific voting posture. `blocking` remains its legacy projection. */
+  participation: ShipParticipationPolicy;
+  participationValid: boolean;
+  /** Explicit execution authority. Missing config is deny-all, never inferred. */
+  execution: ShipExecutionPolicy;
+  /** Keeps an explicit malformed declaration distinct from an omitted deny-all policy. */
+  executionConfigState: ShipExecutionConfigState;
 }
 
-/**
- * Ships that are ideation-class by identity, regardless of whether pd-fleet.yml
- * declares `class: ideation`. These four always propose forward work and are
- * always advisory. A repo can add more via `class: ideation` on its own ships.
- */
-export const IDEATION_SHIPS: ReadonlySet<string> = new Set([
-  'spark',
-  'spider',
-  'lookout',
-  'snipe',
-]);
-
-function deriveIdeation(name: string, agentClass: unknown): boolean {
-  if (IDEATION_SHIPS.has(name)) return true;
+function deriveIdeation(agentClass: unknown): boolean {
   return agentClass === 'ideation';
 }
 
@@ -207,19 +207,6 @@ function resolveModelToken(raw: unknown): string | undefined {
   return undefined;
 }
 
-// Tools that require local execution (can't run in a Worker). Matches any
-// Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
-const EXECUTION_TOOLS_RE = /Bash\((?!gh)[^)]*\)/;
-
-/**
- * Ships that are CLOUD-STATIC reviewers by contract: they analyze the diff and
- * existing tests but NEVER execute. `qa` historically lists `Bash(npm test*)`
- * in `allowedTools` (a relic of its local-runner past); the cloud executor runs
- * it as a static reviewer per fleet/ships/qa.md, so we force needsExecution=false
- * for it regardless of allowedTools.
- */
-const CLOUD_STATIC_SHIPS = new Set(['qa']);
-
 interface RawFallback {
   backend?: string;
   /**
@@ -247,7 +234,6 @@ interface RawAgent {
   prompt?: string;
   backend?: string;
   fallbacks?: RawFallback[];
-  allowedTools?: string;
   telos?: string;
   role?: string;
   temperature?: unknown;
@@ -263,6 +249,8 @@ interface RawAgent {
   testPaths?: unknown;
   /** Any ship: repo skill ids to graft onto the prompt (skill-graft.ts). */
   graft?: unknown;
+  participation?: unknown;
+  execution?: unknown;
   /**
    * Any ship: the cloud-plane role that scans ONE chunk (`map_cf_role:` in
    * pd-fleet.yml; `mapCfRole` accepted too). REDUCE keeps the ship's `cfModel`.
@@ -650,11 +638,6 @@ function deriveGraft(value: unknown, purser: boolean): string[] {
   return ids;
 }
 
-function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
-  if (CLOUD_STATIC_SHIPS.has(name)) return false;
-  return EXECUTION_TOOLS_RE.test(typeof allowedTools === 'string' ? allowedTools : '');
-}
-
 /**
  * Does a ship's trigger (string or array) match the requested event trigger?
  * Matches an exact trigger (`pull_request:opened`) or a wildcard
@@ -804,7 +787,7 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
 
     const telos = typeof agent.telos === 'string' ? agent.telos : '';
     const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
-    const ideation = purser ? false : deriveIdeation(name, agent.class);
+    const ideation = purser ? false : deriveIdeation(agent.class);
     const shipCfModel = purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name);
     const shipMapModel = deriveMapModel(agent, shipCfModel);
     // Per-step tiers exist only for the purser, whose steps genuinely differ in
@@ -813,6 +796,9 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
     const shipPlanModel = purser ? derivePurserPlanModel(agent, shipCfModel) : undefined;
     const shipAuthorModel = purser ? derivePurserAuthorModel(agent, shipCfModel) : undefined;
 
+    const blocking = ideation ? false : coerceBlocking(agent.blocking);
+    const participation = parseShipParticipationPolicy(agent.participation);
+    const execution = parseShipExecutionConfiguration(agent.execution);
     ships.push({
       name,
       trigger: agent.trigger as string | string[],
@@ -831,15 +817,18 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
       telos,
       // Ideation ships are advisory by definition — they can never gate a merge,
       // even if pd-fleet.yml mistakenly sets `blocking: true` on one.
-      blocking: ideation ? false : coerceBlocking(agent.blocking),
-      // Purser runs entirely against the GitHub API + Workers AI: cloud-executable
-      // by contract, regardless of any allowedTools relic.
-      needsExecution: purser ? false : deriveNeedsExecution(name, agent.allowedTools),
+      blocking,
       ideation,
       purser,
       blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
       testPaths: purser ? coerceStringList(agent.testPaths) : [],
       graft: deriveGraft(agent.graft, purser),
+      participation,
+      participationValid: isShipParticipationPolicyValid(agent.participation) &&
+        (!ideation || (participation.default !== 'required' &&
+          !participation.rules.some(rule => rule.disposition === 'required'))),
+      execution: execution.policy,
+      executionConfigState: execution.state,
     });
   }
 
@@ -885,12 +874,15 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       role: 'Catch the bugs the diff would otherwise ship.',
       telos: 'Catch the bugs the diff would otherwise ship; cite ADRs.',
       blocking: true,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'required', rules: [] },
+      participationValid: true,
+      execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     {
       name: 'qa',
@@ -913,12 +905,15 @@ Output:
       role: 'Find the test gaps and edge cases the author missed.',
       telos: 'Find the edge cases.',
       blocking: false,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'advisory', rules: [] },
+      participationValid: true,
+      execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     {
       name: 'red-team',
@@ -941,12 +936,15 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       role: 'Probe for security vulnerabilities in auth and capability surfaces.',
       telos: 'Find the attack before an adversary does.',
       blocking: true,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'required', rules: [] },
+      participationValid: true,
+      execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     {
       name: 'copy-pm',
@@ -997,12 +995,15 @@ Rules:
       role: 'Catch AI-isms in user-facing copy before they ship.',
       telos: 'Read every user-facing string as a new user. Strip the machine accent without flattening the voice.',
       blocking: false,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'advisory', rules: [] },
+      participationValid: true,
+      execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     ...ideationDefaults(),
   ];
@@ -1029,12 +1030,15 @@ function ideationDefaults(): ShipConfig[] {
     role: telos,
     telos,
     blocking: false,
-    needsExecution: false,
     ideation: true,
     purser: false,
     blockWithoutSandbox: false,
     testPaths: [],
     graft: [],
+    participation: { default: 'advisory', rules: [] },
+    participationValid: true,
+    execution: { ...DENY_ALL_EXECUTION },
+    executionConfigState: 'absent',
   });
 
   return [

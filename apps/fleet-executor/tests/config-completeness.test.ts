@@ -33,7 +33,6 @@ const CODE_ONLY: Record<string, string> = {
   trigger: "parsed, but as the entry's `trigger:` key rather than a ShipConfig-shaped field",
   prompt: 'parsed from `prompt:`; listed because the mapping is not name-for-name',
   role: 'derived from telos or `role:`, never set directly',
-  needsExecution: 'DERIVED from allowedTools -- an operator declaring it could claim a ship is cloud-safe when it is not',
   ideation: 'derived from `class: ideation` plus the IDEATION_SHIPS identity list',
   purser: 'derived from `class: purser`',
 };
