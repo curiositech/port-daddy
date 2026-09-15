@@ -1,5 +1,19 @@
 [
   {
+    "id": "fig-anchor-phases",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-phases.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-15",
+    "waiver": {
+      "reason": "orphaned three-phase predecessor of fig-anchor-four-phases.tex; never \\input by any document and never kept in sync with the current textwidth/font conventions; only its header comment (pointing readers at its successor) changed in PR #10244",
+      "expires": "2026-10-31"
+    }
+  },
+  {
     "id": "fig-bonded-key-custody",
     "fragment": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
     "chapter": 7,
