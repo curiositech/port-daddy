@@ -389,6 +389,12 @@ fleet:
     # a merge. Pausing them removes proposals, not review. The blocking review
     # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
     # untouched and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     spark:
       enabled: false
       # High-temperature product imagination. Spark comments buildable
@@ -603,6 +609,12 @@ fleet:
     # a merge. Pausing them removes proposals, not review. The blocking review
     # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
     # untouched and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     spider:
       enabled: false
       # Syllogism engine. Spider combines two existing facts/capabilities
@@ -679,6 +691,12 @@ fleet:
     # a merge. Pausing them removes proposals, not review. The blocking review
     # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
     # untouched and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     lookout:
       enabled: false
       # Trouble-ahead watch. The PR-commenting embodiment of the Lookout actor:
@@ -746,6 +764,12 @@ fleet:
     # a merge. Pausing them removes proposals, not review. The blocking review
     # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
     # untouched and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     snipe:
       enabled: false
       # Engineman. Looks at the code/ideas a PR introduces and, when a reusable
