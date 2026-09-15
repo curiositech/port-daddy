@@ -458,11 +458,39 @@ function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
   });
 }
 
+// True when the character at `index` sits after an unescaped % on its own
+// line, i.e. inside a TeX comment. Scanning back to the line start is enough:
+// a comment runs to end of line and cannot be reopened.
+function inComment(tex, index) {
+  const lineStart = tex.lastIndexOf('\n', index - 1) + 1;
+  for (let i = lineStart; i < index; i += 1) {
+    if (tex[i] === '\\') { i += 1; continue; }
+    if (tex[i] === '%') return true;
+  }
+  return false;
+}
+
+// The document markers must be found in TeX, not in prose about TeX. A chapter
+// preamble that explains itself -- "the pedagogy twin's redefinition always
+// wins at \begin{document}" -- used to move the body's start up into the
+// preamble, so every \newtheorem below the comment was emitted into the
+// collated body and xelatex died 9000 lines later on "Command \definition
+// already defined". Skip commented occurrences on both ends.
 function documentBody(tex, source) {
-  const begin = tex.indexOf('\\begin{document}');
-  const end = tex.lastIndexOf('\\end{document}');
+  const BEGIN = '\\begin{document}';
+  const END = '\\end{document}';
+
+  let begin = -1;
+  for (let at = tex.indexOf(BEGIN); at >= 0; at = tex.indexOf(BEGIN, at + 1)) {
+    if (!inComment(tex, at)) { begin = at; break; }
+  }
+  let end = -1;
+  for (let at = tex.lastIndexOf(END); at >= 0; at = tex.lastIndexOf(END, at - 1)) {
+    if (!inComment(tex, at)) { end = at; break; }
+  }
+
   if (begin < 0 || end < begin) throw new Error(`${source}: malformed document body`);
-  return tex.slice(begin + '\\begin{document}'.length, end);
+  return tex.slice(begin + BEGIN.length, end);
 }
 
 // ---------------------------------------------------------------------------
@@ -1466,6 +1494,7 @@ export {
   stripPaperApparatus,
   collateReferences,
   compareNormalizedReferences,
+  documentBody,
   generate,
   inlineInputs,
   loadCiteShortforms,
