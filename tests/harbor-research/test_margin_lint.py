@@ -42,6 +42,22 @@ VALID_SIDECAR = {
     "crop": "no crop applied; used at full frame",
 }
 
+# margin_lint.py's margin-carries-the-caption rule (margin-apparatus.md section
+# 3): a chapter that puts a \pdmarginfigure in the margin and NOTHING else has
+# an empty margin apparatus with decoration in it, and fails. Portraits are the
+# margin's sixth-priority device; a caption is its first. So every fixture
+# whose subject is a margin figure carries one real first-priority device
+# beside it, exactly as a well-formed chapter does -- otherwise the fixture is
+# not a chapter the Book would accept and the rule under test is being
+# exercised on a shape the doctrine forbids.
+#
+# The sentence states a claim rather than naming a subject, so it does not trip
+# caption-states-a-claim either.
+CARRIED_CAPTION = (
+    "\\pdmargincaption{Throughput stays flat until the queue crosses eight "
+    "writers, then falls linearly.}%\n"
+)
+
 
 def write_chapter(repo: Path, name: str, text: str) -> Path:
     path = repo / name
@@ -73,7 +89,9 @@ class TestOnePortraitPerSection(unittest.TestCase):
             chapter = write_chapter(repo, "ch.tex", (
                 "\\section{Intro}\n"
                 "This idea is Lampson's access matrix, load-bearing here.\n"
-                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n\n"
+                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                + CARRIED_CAPTION +
+                "\n"
                 "\\section{Later}\n"
                 "This idea is Wonham's supervisory control theory, load-bearing here.\n"
                 "\\pdmarginfigure{wonham}{Wonham's supervisory control.}%\n"
@@ -116,6 +134,7 @@ class TestNonPortraitMarginFiguresUnlimited(unittest.TestCase):
                 "\\pdmarginfigure{regime-strip-a}{A small regime strip.}%\n"
                 "A second one appears close by.\n"
                 "\\pdmarginfigure{regime-strip-b}{Another small regime strip.}%\n"
+                + CARRIED_CAPTION
             ))
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
@@ -132,6 +151,7 @@ class TestNonPortraitMarginFiguresUnlimited(unittest.TestCase):
                 "\\pdmarginfigure{regime-strip-a}{A small regime strip.}%\n"
                 f"{filler}\n"
                 "\\pdmarginfigure{regime-strip-b}{Another small regime strip, far away.}%\n"
+                + CARRIED_CAPTION
             ))
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
@@ -176,6 +196,7 @@ class TestMarginaliaSidecar(unittest.TestCase):
                 "\\section{Intro}\n"
                 "This idea is Lampson's access matrix, load-bearing here.\n"
                 "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                + CARRIED_CAPTION
             ))
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
@@ -191,6 +212,7 @@ class TestMarginaliaSidecar(unittest.TestCase):
                 "\\section{Intro}\n"
                 "This idea is Lampson's access matrix, load-bearing here.\n"
                 "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                + CARRIED_CAPTION
             ))
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 1)
@@ -205,6 +227,7 @@ class TestMarginaliaSidecar(unittest.TestCase):
                 "\\section{Intro}\n"
                 "This idea is Lampson's access matrix, load-bearing here.\n"
                 "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                + CARRIED_CAPTION
             ))
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
@@ -337,8 +360,216 @@ class TestGlossInRunningProse(unittest.TestCase):
             self.assertIn("gloss-in-running-prose", result.stdout)
 
 
-class TestFootnoteAdvisory(unittest.TestCase):
-    def test_footnote_is_reported_but_does_not_fail(self) -> None:
+class TestMarginCarriesTheCaption(unittest.TestCase):
+    r"""margin-apparatus.md section 3 orders the margin's claims: captions,
+    sidenotes, short-form citations, small explanatory graphics, glosses, and
+    portraits LAST. A chapter using the margin for the sixth-priority device
+    while the first five are all absent has an empty apparatus with decoration
+    in it, and that is the defect margin_lint.py exists to catch.
+    """
+
+    def test_portrait_alone_in_the_margin_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write_plate(repo, "lampson", VALID_SIDECAR)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "This idea is Lampson's access matrix, load-bearing here.\n"
+                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("margin-carries-the-caption", result.stdout)
+
+    def test_a_caption_beside_the_portrait_satisfies_it(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write_plate(repo, "lampson", VALID_SIDECAR)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "This idea is Lampson's access matrix, load-bearing here.\n"
+                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                + CARRIED_CAPTION
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("margin-carries-the-caption", result.stdout)
+
+    def test_a_sidenote_also_satisfies_it(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write_plate(repo, "lampson", VALID_SIDECAR)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "This idea is Lampson's access matrix, load-bearing here.\n"
+                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                "A claim carries its provenance.\\pdsidenote{Lampson 1971.}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("margin-carries-the-caption", result.stdout)
+
+    def test_a_gloss_also_satisfies_it(self) -> None:
+        """The rule counts three things and only two were exercised.
+
+        check_margin_carries_the_caption sums \\pdmargincaption, \\pdsidenote
+        AND \\pdgloss. Dropping the \\pdgloss term would have left the suite
+        green while the rule started failing every chapter whose margin carries
+        glosses beside its portraits -- which margin-apparatus.md section 3
+        explicitly permits.
+        """
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write_plate(repo, "lampson", VALID_SIDECAR)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "This idea is Lampson's access matrix, load-bearing here.\n"
+                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                "The swarm uses \\pdgloss{Stigmergy}{coordination through traces left in the "
+                "shared environment rather than through direct messages.} to stay legible.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("margin-carries-the-caption", result.stdout)
+
+    def test_a_chapter_with_no_margin_figure_is_not_reported(self) -> None:
+        """The rule is about a margin used badly, not a margin left empty."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\nPlain prose, no margin apparatus.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("margin-carries-the-caption", result.stdout)
+
+
+class TestCaptionStatesAClaim(unittest.TestCase):
+    r"""SKILL.md's checklist: every caption states the figure's CLAIM as a
+    sentence, not a label. A script cannot parse English, but one shape of
+    label is mechanically unmistakable -- a first sentence opening with an
+    interrogative or relative word names the subject and asserts nothing.
+    """
+
+    def test_caption_opening_with_how_is_flagged(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\pdmargincaption{How the harbor economy sits relative to the nearest "
+                "prior art on each axis.}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("caption-states-a-claim", result.stdout)
+
+    def test_caption_stating_an_assertion_passes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n" + CARRIED_CAPTION
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+    def test_a_claim_that_merely_contains_a_label_word_passes(self) -> None:
+        """The rule reads the FIRST word of the first sentence, not the
+        caption's whole text -- "when" mid-sentence is ordinary English."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\pdmargincaption{Latency doubles when the shard count passes four.}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+
+class TestMarginGraphicFits(unittest.TestCase):
+    r"""margin-apparatus.md section 3.4: the margin column is 1.3in, and a
+    graphic wider than that is not a margin graphic. Redraw it smaller with
+    fewer marks, or leave it in the column -- never scale a column figure
+    down, which is legible at 4.5in and not at 1.3in.
+    """
+
+    def test_a_textwidth_graphic_in_the_margin_is_flagged(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\pdsidenote{\\includegraphics[width=0.9\\textwidth]{plot}}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("margin-graphic-fits", result.stdout)
+
+    def test_a_graphic_drawn_to_the_margin_column_passes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\pdsidenote{\\includegraphics[width=1.2in]{regime-strip}}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+
+class TestCaptionInColumn(unittest.TestCase):
+    r"""margin-apparatus.md section 3.1 makes a margin caption the default
+    rather than the exception. Which captions are eligible is not re-derived
+    in the lint: it asks captions_to_margin.py, so the converter and the lint
+    can never disagree about what counts.
+    """
+
+    def test_a_figure_caption_left_in_the_column_is_flagged(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\begin{figure}\n"
+                "\\includegraphics{plot}\n"
+                "\\caption{Throughput falls linearly past eight writers.}\n"
+                "\\end{figure}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("caption-in-column", result.stdout)
+
+    def test_a_longtable_caption_is_exempt(self) -> None:
+        r"""That \caption is longtable's own: it must sit in its own row and
+        it heads a table that spans pages, so one margin block beside page one
+        points at the wrong content. All seven captions still in the Book's
+        text column are this shape."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\begin{longtable}{ll}\n"
+                "\\caption{Per-claim maturity against the reference daemon.}\\\\\n"
+                "a & b\\\\\n"
+                "\\end{longtable}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("caption-in-column", result.stdout)
+
+
+class TestFootnoteEnforced(unittest.TestCase):
+    r"""no-footnote-in-body is ENFORCED, not advisory.
+
+    It was advisory for one stated reason: margin-apparatus.md's Net
+    comparison table recorded a numbered inline sidenote as "not implemented"
+    in this repo, so rewriting a \footnote was an editorial call about where a
+    provenance note should live, not a rename. \pdsidenote now exists in
+    figures/pd-pedagogy.tex, so that reason is gone and the conversion is
+    mechanical -- captions_to_margin.py --fix performs it. The rule fails the
+    build accordingly.
+
+    The exemption below is the part that must not regress: a footnote with no
+    line of running prose beside it stays a footnote.
+    """
+
+    def test_footnote_beside_prose_fails(self) -> None:
         with TemporaryDirectory() as tmp:
             repo = Path(tmp)
             chapter = write_chapter(repo, "ch.tex", (
@@ -347,9 +578,45 @@ class TestFootnoteAdvisory(unittest.TestCase):
                 "elsewhere.}\n"
             ))
             result = run_checker(repo, [chapter])
-            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
             self.assertIn("no-footnote-in-body", result.stdout)
-            self.assertIn("ADVISORY", result.stdout)
+            self.assertIn("[FAIL]", result.stdout)
+
+    def test_footnote_in_a_heading_title_is_exempt(self) -> None:
+        r"""A heading title is a moving argument -- it is written to the .toc
+        and the .aux -- and a margin device expanded there ended the Book's
+        build (100 "Missing \endcsname inserted" errors, a 360-page torso of
+        the 549-page Book). The Book's one surviving \footnote is this shape.
+        """
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\subsubsection{Pricing Mechanism\\protect\\footnote{Contributed by a "
+                "second author.}}\n"
+                "Prose follows the heading.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("no-footnote-in-body", result.stdout)
+
+    def test_footnote_inside_a_float_is_exempt(self) -> None:
+        r"""A margin note issued from inside a float box anchors to the float,
+        not to the sentence, so it would point the reader at the wrong thing.
+        """
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\begin{table}\n"
+                "\\pdmargincaption{Latency doubles once the shard count passes four.}\n"
+                "\\begin{tabular}{ll}a & b\\footnote{A note with no prose beside it.}\\\\\n"
+                "\\end{tabular}\n"
+                "\\end{table}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("no-footnote-in-body", result.stdout)
 
 
 class TestJsonOutput(unittest.TestCase):
@@ -362,11 +629,11 @@ class TestJsonOutput(unittest.TestCase):
                 "elsewhere.}\n"
             ))
             result = run_checker(repo, [chapter], extra=["--json"])
-            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.returncode, 1)
             findings = json.loads(result.stdout)
             self.assertEqual(len(findings), 1)
             self.assertEqual(findings[0]["rule"], "no-footnote-in-body")
-            self.assertEqual(findings[0]["severity"], "advisory")
+            self.assertEqual(findings[0]["severity"], "enforced")
 
 
 class TestProvedOnResolves(unittest.TestCase):

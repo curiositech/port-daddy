@@ -307,6 +307,12 @@ routes through it. Each route names the critical section and the artifact it
 turns on.
 
 \begin{table}[H]
+\pdmargincaption{Reader's Map. The core product arc is \pdchapref{swk}{The Single-Writer
+Kernel} (the transactional floor) $\to$ \pdchapref{ls}{The Legible Swarm} (the
+wedge) $\to$ \textbf{this chapter (the bridge)} $\to$ \pdchapref{he}{The Harbor
+Economy} (the market). This chapter can be read directly after \pdchapref{ls}{The
+Legible Swarm} for the ``why a person can be priced'' argument.}
+\label{tab:readers-map}
 \centering
 \small
 \renewcommand{\arraystretch}{1.35}
@@ -334,12 +340,6 @@ A distributed-systems / crypto reader &
 The keystone-split table (Table~\ref{tab:keystone-split}) \\
 \bottomrule
 \end{tabular}
-\caption{Reader's Map. The core product arc is \pdchapref{swk}{The Single-Writer
-Kernel} (the transactional floor) $\to$ \pdchapref{ls}{The Legible Swarm} (the
-wedge) $\to$ \textbf{this chapter (the bridge)} $\to$ \pdchapref{he}{The Harbor
-Economy} (the market). This chapter can be read directly after \pdchapref{ls}{The
-Legible Swarm} for the ``why a person can be priced'' argument.}
-\label{tab:readers-map}
 \end{table}
 
 \keyidea{The whole series is one ladder. L0 is the daemon (the machine's truth),
@@ -491,6 +491,10 @@ substrate argument (\S\ref{sec:substrate}) to insist that none of them buys
 anything over a forgeable identity or an agent-authored oracle.
 
 \begin{table}[H]
+\pdmargincaption{Estimators by signal type. Choosing the wrong estimator for the signal is
+a real error; choosing \emph{any} estimator before securing the substrate is the
+larger one (\S\ref{sec:substrate}).}
+\label{tab:estimators}
 \centering\small\renewcommand{\arraystretch}{1.3}
 \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -502,10 +506,6 @@ TrueSkill~\pdcite{herbrich2007trueskill} & pairwise, few games & calibrated $\si
 EigenTrust~\pdcite{kamvar2003eigentrust} & who-trusts-whom graph & resists collusive cliques & signal is per-task quality, not trust \\
 \bottomrule
 \end{tabularx}
-\caption{Estimators by signal type. Choosing the wrong estimator for the signal is
-a real error; choosing \emph{any} estimator before securing the substrate is the
-larger one (\S\ref{sec:substrate}).}
-\label{tab:estimators}
 \end{table}
 
 \subsection{Reputation economics: cheap pseudonyms and limited records}
@@ -523,7 +523,7 @@ memory and non-stationary types, reputation can build and collapse in cycles, an
 $\infty$-memory is rarely optimal}) is why \S\ref{sec:revoke} treats bounded memory
 as a \emph{parameter}, not a virtue. \textbf{Our departure:} the broader mechanism
 falls under mechanism design~\pdcite{nisan2007agt,myerson1981}, and we treat the
-grading oracle's own incentive-compatibility (\S\ref{sec:oracle}) as a hole in the
+grading \pdgloss{oracle}{A trusted source of ground truth the graded agent cannot edit, which is what turns an opinion about work into evidence about it.}'s own incentive-compatibility (\S\ref{sec:oracle}) as a hole in the
 core theorem rather than an assumption --- a move the platform-reputation
 literature, which usually takes the rating signal as exogenous, does not make.
 
@@ -540,6 +540,8 @@ skin in the game is capturable regardless of how well it is prompted.
 \subsection{What is genuinely new here}
 
 \begin{table}[H]
+\pdmargincaption{This paper departs from its closest prior art in three places: the impossibility/cost theorems, the multi-dimensional vector with a judge per axis, and treating the grader's incentive-compatibility as a first-class hole.}
+\label{tab:contributions}
 \centering\small\renewcommand{\arraystretch}{1.3}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -551,10 +553,6 @@ How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, ju
 Who grades the graders? & LLM-as-judge (debias only) & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
 \bottomrule
 \end{tabularx}
-\caption{Where this paper departs from its closest prior art. The contributions are
-the impossibility/cost theorems, the multi-dimensional vector with a judge per
-axis, and treating the grader's incentive-compatibility as a first-class hole.}
-\label{tab:contributions}
 \end{table}
 % SUBMISSION-SKILL: naming conflict -- the "How to score quality?" row lists
 % Elo/BT/TrueSkill as the closest prior art for the vector-vs-scalar move, but a
@@ -817,7 +815,7 @@ We use the neutral maturity scale throughout (\BUILT~/
 % --- FIGURE 4: the three continuity organs ---
 \begin{table}[H]
 \centering
-\caption{The three continuity organs have different survival depths. A successor inherits what each organ stores, and each stores less than the live body had: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
+\pdmargincaption{The three continuity organs have different survival depths. A successor inherits what each organ stores, and each stores less than the live body had: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
 \label{tab:stp-organs}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -964,7 +962,7 @@ it is the governing impossibility result the rest of the paper leans on: no
 amount of estimator cleverness can rescue a reputation built on a re-pickable
 identity.
 
-\begin{definition}[Sanction-respecting reputation]\label{def:sanction-respecting}\footnote{In
+\begin{definition}[Sanction-respecting reputation]\label{def:sanction-respecting}\pdsidenote{In
 the first edition this was Definition III.6.1; the standalone research paper on
 reputation inheritance cites it under that number.}
 Fix a reputation mechanism $M$ that maps each identity $i$ to a score $r(i)$ used
@@ -1008,6 +1006,11 @@ $\max(r(i)-\Delta,\ r_0)$ in the proof is one line of arithmetic; check it. Let 
 newcomer score be $r_0=50$ and let a dishonest outcome cost $\Delta=30$.
 
 \begin{table}[H]
+\pdmargincaption{Free identity minting does not defeat \emph{every} sanction --- it defeats
+every sanction that would push the actor below the newcomer floor $r_0$. That is
+the whole content of Theorem~\ref{thm:necessity}: the floor, not the penalty, is
+what an attacker optimizes against.}
+\label{tab:necessity-numbers}
 \centering\small\renewcommand{\arraystretch}{1.25}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} c c c >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -1019,11 +1022,6 @@ Strong record, free minting & $90$ & $60$ & $\max(60,50)=60$ &
 Yes --- abandoning costs it $60-50=10$, so it keeps the identity and eats the $30$. \\
 \bottomrule
 \end{tabularx}
-\caption{Free identity minting does not defeat \emph{every} sanction --- it defeats
-every sanction that would push the actor below the newcomer floor $r_0$. That is
-the whole content of Theorem~\ref{thm:necessity}: the floor, not the penalty, is
-what an attacker optimizes against.}
-\label{tab:necessity-numbers}
 \end{table}
 
 \noindent Row 2 is the more instructive one: an actor with a strong enough record
@@ -1156,6 +1154,10 @@ linear five-period climb $\kappa_t = 10 + 18t$, and per-period surplus
 $\pi(\kappa)=0.1\kappa$.
 
 \begin{table}[H]
+\pdmargincaption{The whitewasher's bill, computed. Re-entering as a newcomer forgoes
+$W=18.0$ of surplus over the maturation window; any single-outcome fraud gain below
+that is not worth the reset.}
+\label{tab:whitewash-numbers}
 \centering\small\renewcommand{\arraystretch}{1.25}
 \begin{tabular}{@{}l c c c c c c@{}}
 \toprule
@@ -1166,10 +1168,6 @@ Surplus $\pi(\kappa_t)$ & $2.8$ & $4.6$ & $6.4$ & $8.2$ & $10.0$ & --- \\
 Gap $\pi(\kappa^\star)-\pi(\kappa_t)$ & $7.2$ & $5.4$ & $3.6$ & $1.8$ & $0.0$ & $\mathbf{W=18.0}$ \\
 \bottomrule
 \end{tabular}
-\caption{The whitewasher's bill, computed. Re-entering as a newcomer forgoes
-$W=18.0$ of surplus over the maturation window; any single-outcome fraud gain below
-that is not worth the reset.}
-\label{tab:whitewash-numbers}
 \end{table}
 
 \noindent So a fraud gain of $G_{\max}=15$ is deterred by this schedule
@@ -1361,7 +1359,7 @@ non-forgeable identity is bound to exactly one principal at mint time.
 \subsection{The body behind the name: engine swaps and resurrection}\label{sec:body-behind-name}
 
 Everything above binds a record to a name the actor cannot re-pick. It says
-nothing yet about what is running \emph{behind} the name.\footnote{A
+nothing yet about what is running \emph{behind} the name.\pdsidenote{A
 standalone, submission-form version of this section is \emph{Continuity
 Without Metaphysics} (research paper~5)~\cite{harborpaper5}; the sweeps and the
 migration model check cited here are its artifacts, regenerated by
@@ -1647,7 +1645,7 @@ not.} While this series was being written, the agentic-payments industry shipped
 the credential dialect the second stone will be carved in: the Agent Payments
 Protocol~\pdcite{ap2mandates2026}, adopted by the Universal Commerce
 Protocol~\pdcite{ucp2026} (Google/Shopify, 2026), expresses principal authorization
-as W3C Verifiable Credentials in SD-JWT form.\footnote{SD-JWT+kb with
+as W3C Verifiable Credentials in SD-JWT form.\pdsidenote{SD-JWT+kb with
 hardware-bindable ES256 keys for the principal, JWS detached-content signatures
 over JCS-canonicalized payloads for the counterparty, and keys published as JWK
 sets under a \texttt{/.well-known} profile.} The reference implementation adopts this
@@ -1761,7 +1759,7 @@ Table~\ref{tab:stp-not-bandit} lines the four bandit assumptions up against the 
 reality that breaks each.
 \begin{table}[H]
 \centering
-\caption{Why public reputation is not a bandit problem. Each row is an assumption the bandit model needs, the market fact that breaks it, and what a reputation substrate keeps instead. [internal]}
+\pdmargincaption{Public reputation is not a bandit problem. Each row is an assumption the bandit model needs, the market fact that breaks it, and what a reputation substrate keeps instead. [internal]}
 \label{tab:stp-not-bandit}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -1831,7 +1829,7 @@ stationarity (no model upgrades). All four are false in a market.}
 
 We now define the central protocol contribution of this paper: a
 \textbf{multi-dimensional reputation} built over witnessed outcomes. It has three
-parts: a multi-dimensional quality vector; a market of neutral, conflict-free,
+parts: a multi-dimensional \pdgloss{quality vector}{A witnessed outcome's score on three axes at once, so one number cannot hide a trade made between them.}; a market of neutral, conflict-free,
 influence-free evaluators; and a skill$\to$agent helpfulness attribution. We state
 it formally as a design (\DESIGNED-to-\VISION): the reference system has no
 reputation component yet, only the witnessed-outcome substrate the protocol scores

@@ -170,9 +170,12 @@ class TestMarginLintSubcommand(unittest.TestCase):
                 encoding="utf-8",
             )
             result = run_cli(["margin-lint", str(chapter), "--repo-root", str(repo), "--json"])
-            self.assertEqual(result.returncode, 0)  # footnote rule is advisory
+            # no-footnote-in-body is enforced now that \pdsidenote exists, so
+            # the subcommand must propagate the checker's failing status too.
+            self.assertEqual(result.returncode, 1)
             findings = json.loads(result.stdout)
             self.assertEqual(findings[0]["rule"], "no-footnote-in-body")
+            self.assertEqual(findings[0]["severity"], "enforced")
 
 
 class TestChecklistSubcommand(unittest.TestCase):

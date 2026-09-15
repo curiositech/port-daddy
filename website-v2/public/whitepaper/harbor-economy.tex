@@ -293,10 +293,7 @@ but it is the fourth paper for a reason: it depends on everything underneath.
 \begin{table}[H]
 \centering
 \small
-\caption{Where to enter, by who you are. Five reader types, each routed to the
-section that answers their question and to the one figure or theorem that would have
-to survive a review from someone in that role --- so nobody has to read the paper
-end to end to get their own answer out of it.}
+\pdmargincaption{Five reader types enter this chapter at five different places, each routed to the section that answers their question and to the one figure or theorem that would have to survive a review from someone in that role --- so nobody has to read the paper end to end to get their own answer out of it.}
 \label{tab:readers-map}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -373,7 +370,7 @@ Three claims follow, and the rest of the paper defends each:
     --- not two. Counting them correctly changes the pricing
     (\S\ref{sec:three-sides}).
   \item \textbf{C2 (one ledger, one escrow object).} All three sides settle on the
-    same \textbf{float plan} escrowed in the same bond ledger. Conservation of
+    same \pdgloss{float plan}{A signed declaration of intent filed before the work starts: the task, the machines it may touch, and the bond posted against it.} escrowed in the same bond ledger. Conservation of
     value across every settlement path is the invariant that holds the market
     together, and it is the one thing here that is actually \Built{}
     (\S\ref{sec:float-plan}, \S\ref{sec:conservation}).
@@ -556,7 +553,7 @@ arrivals still queueing through the outage. Compare its expected wait
 $W_{\mathrm{bd}}$ against a $c$-server pool's Erlang-C wait $W_{\mathrm{pool}}$
 plus a per-task hire-and-monitor overhead $A/(w\lambda)$; call the sum $K$. The
 pool wins at \emph{every} skill premium once $\xi/\eta$ clears the
-\textbf{succession price} $D^\star=\eta K/(1-\eta K)$: no amount of $a_2$'s skill
+\pdgloss{succession price}{The mortality-to-succession ratio above which no amount of a specialist's skill is worth depending on that specialist alone.} $D^\star=\eta K/(1-\eta K)$: no amount of $a_2$'s skill
 buys back a mortality-to-succession ratio worse than $D^\star$. At the program's
 own worked instance --- $\lambda=1$, a $c{=}4$-server pool at $\mu_g=1.2$
 ($\rho=0.208$), hire/monitor cost $A=0.2$, wait-cost weight $w=1$, succession
@@ -711,7 +708,7 @@ check}) over the acceptance criteria and lands in one of four states.
 \begin{table}[H]
 \centering
 \small
-\caption{The four terminal settlement states. Closure binds to an oracle, not to a
+\pdmargincaption{The four terminal settlement states. Closure binds to an oracle, not to a
 free-text ``Result:'' note --- the Goodhart-resistant discipline that the
 commitment layer imposes: \emph{the agent picks the work; the daemon derives the
 grade}.}
@@ -779,7 +776,7 @@ allocates \emph{capability} (what the leased agent \emph{can} do at runtime). Th
 deontic layer separately governs \emph{permission} (what it \emph{may} do).
 ``Able but forbidden'' must stay expressible; the jail bounds ability, not norm.}
 
-\paragraph{The deontic layer's decision procedure.}\footnote{A standalone,
+\paragraph{The deontic layer's decision procedure.}\pdsidenote{A standalone,
 submission-form version of the results folded into this section and the
 succession price of \S\ref{sec:three-sides} is \emph{What Needs an Authority}
 (research paper~6)~\cite{paper6}; the sweeps cited here are its artifacts,
@@ -1749,10 +1746,7 @@ critical promise made earlier in this paper:
 \begin{table}[H]
 \centering
 \small
-\caption{Which promise each gap threatens. The two gaps that reach the
-\emph{conservation} invariant are the urgent ones, because conservation is the only
-claim in this paper graded \Built{} --- a hole there falsifies something that is
-currently true, rather than deferring something that is not yet true.}
+\pdmargincaption{Each gap threatens a named promise, and the two that reach the \emph{conservation} invariant are the urgent ones, because conservation is the only claim in this paper graded \Built{} --- a hole there falsifies something that is currently true, rather than deferring something that is not yet true.}
 \label{tab:gaps}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.32\textwidth} l >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -2456,7 +2450,7 @@ expected forfeiture must match its gain from misreporting.
 \begin{table}[H]
 \centering
 \small
-\caption{How the harbor economy sits relative to the nearest prior art on each axis.}
+\pdmargincaption{The harbor economy has a nearest prior art on every axis, and this table names it axis by axis rather than claiming the ground is new.}
 \label{tab:related}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
