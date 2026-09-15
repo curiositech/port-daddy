@@ -696,7 +696,6 @@ def rule_metaphor_never_instantiated(ch: Chapter, lex: dict) -> list:
             # counting a figure across them measures nothing.
             continue
         events = []   # (offset-in-section-prose, kind, value)
-        cursor = 0
         prose = section + ". "
         for p in paras:
             prose += p.plain + "\n\n"
