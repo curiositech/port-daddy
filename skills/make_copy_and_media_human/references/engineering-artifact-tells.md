@@ -2,7 +2,7 @@
 
 What generated engineering work looks like in the artifacts maintainers actually read. The highest-precision checks in this file are all RELATIVE — drift from the repo's own log, idiom, or PR norm — because those need no word list, do not age as models change, and a contributor who read the surrounding code passes them automatically.
 
-_25 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_27 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -109,6 +109,28 @@ Conventional Commits appearing in a repo whose history does not use them — or 
 
 > Add per-profile override scripts
 
+### `dead-internal-cross-reference`  ·  high · generic-llm · docs · structural · family: residue
+
+'See the section on X' where there is no section on X; a link to an anchor that does not exist; a reference to a page that was never written.
+
+**Why it reads AI:** The model refers to the document it would have written. Nothing in the loop resolves the reference against the document that exists.
+
+**Detect:** Pure name and link resolution: every internal anchor, every 'see the X section', every relative link. Zero judgment required, and it belongs in CI.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Resolve every internal reference mechanically and fix or delete each miss. This is the highest yield-per-effort check in the whole exposition family because it needs no taste at all.
+
+**False positive when:** Documents generated into a larger site where anchors resolve at build time rather than in source. Resolve against the built output in that case.
+
+**Before**
+
+> See the configuration section below for details. [there is no configuration section]
+
+**After**
+
+> [section written, or the sentence deleted]
+
 ### `fabricated-doc-claims`  ·  high · generic-llm · docs · llm-judge · family: code
 
 Documentation describing an architecture the code does not have, platforms nobody tested, or features that are restatements of function names.
@@ -179,6 +201,30 @@ Assertions that cannot fail: assert True, assert result == result, assert x is n
 **After**
 
 > assert parse(payload).currency == 'EUR'
+
+### `how-it-works-that-says-what`  ·  high · generic-llm · docs · llm-judge · family: form
+
+A 'How it works' section that describes what the system does rather than how or why, restating the feature list in longer sentences.
+
+**Why it reads AI:** Template completion. The heading is a slot and the model fills it from what it has, which is the feature list. Mechanism requires knowing the implementation; capability can be inferred from the name.
+
+**Detect:** Judge, or compute: the ratio of sentences stating a mechanism or a reason to sentences restating a capability. This is the single most-quoted complaint in the reader corpus.
+
+**Fix:** Every sentence under that heading should answer how or why. If a sentence would survive unchanged under the heading 'Features', it belongs there instead or nowhere. Name the data path, the decision, the trade-off you took.
+
+**False positive when:** Marketing pages where the section is deliberately non-technical, and products whose mechanism is genuinely proprietary — though in that case say so rather than filling the space.
+
+**Before**
+
+> ## How it works
+> 
+> Flowstate automatically syncs your data and keeps everything up to date in real time.
+
+**After**
+
+> ## How it works
+> 
+> We hold a logical replication slot on your primary and stream the WAL. That means we see a row change about 200ms after your database does, and it also means we cannot see anything that never hits the WAL, like a truncate.
 
 ### `idiom-drift-within-file`  ·  high · generic-llm · code · structural · family: code
 

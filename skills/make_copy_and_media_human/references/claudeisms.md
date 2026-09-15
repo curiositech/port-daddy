@@ -2,7 +2,7 @@
 
 Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.
 
-_40 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_44 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -114,6 +114,26 @@ The unifying rubric. A passage fails when it contains no detail that could only 
 **After**
 
 > Your talk on partial index maintenance is the reason we stopped rebuilding ours nightly.
+
+### `no-worked-example`  ·  high · generic-llm · prose · llm-judge · family: form
+
+Abstractions with no concrete instance. The piece defines, categorises and qualifies, and never once shows the thing happening.
+
+**Why it reads AI:** Also altitude lock. A worked example requires committing to particular values, which is where a model is most likely to be wrong, so the safest output stays general. The reader is left holding a definition they cannot apply.
+
+**Detect:** Judge: count the places the text moves from a general claim to a specific instance with real values in it. Zero in a long explanatory piece is the finding.
+
+**Fix:** For each hard idea, show one instance end to end with real numbers, real names, real output. If you cannot produce one, you have found something you do not understand yet, which is worth knowing before publishing.
+
+**False positive when:** Reference pages, API listings and conceptual overviews that explicitly hand off to a tutorial.
+
+**Before**
+
+> Exponential backoff increases the delay between retries to reduce contention.
+
+**After**
+
+> Exponential backoff increases the delay between retries: 1s, then 2s, then 4s. Our third retry lands at 4s, by which point the dogpile that caused the failure has usually cleared.
 
 ### `nothing-at-stake`  ·  high · generic-llm · prose · llm-judge · family: form
 
@@ -289,6 +309,28 @@ The piece points at a history the reader was never present for: 'building on our
 
 > Our scheduler used to hand the same job to two workers about once every forty thousand runs. Quantum Lane is the fix.
 
+### `uniform-explanatory-depth`  ·  high · generic-llm · prose · llm-judge · family: form
+
+Everything explained at the same level of detail, so nothing is marked as hard. The reader cannot tell which two ideas actually needed the effort.
+
+**Why it reads AI:** This is altitude lock, and it is the strongest evidence that context leakage is not the whole story: it persists when the audience is stated in the prompt. Explanations generated for different stated audiences come out indistinguishable in reading level, and match their intended level about half the time against roughly four-fifths for human-written ones. A model has a set readability range and does not move off it on request.
+
+**Detect:** Judge: name the two hardest ideas in the piece, then check whether they got more room than the easy ones. Equal room is the finding.
+
+**Fix:** Supply the depth plan yourself, because prompting will not produce one. Decide which two ideas are hard, give each a worked example, and cut the easy ones to a sentence. The shape of good exposition is uneven on purpose, and the unevenness is the signal to the reader about where to slow down.
+
+**False positive when:** Reference documentation is uniform by design and correctly so — every entry gets the same treatment because readers arrive at one and leave. Scope this to anything meant to be read start to finish.
+
+**Evidence:** ELI-Why, arXiv:2506.14200 (13.4K why-questions, two human studies); Know Your Audience, arXiv:2312.02065.
+
+**Before**
+
+> Six sections, each three paragraphs, covering install, config, the consistency model, logging, the CLI, and the consistency model's failure mode.
+
+**After**
+
+> Two paragraphs on install. Nine on the consistency model, with a worked example. One line each on logging and the CLI.
+
 ### `vague-attribution`  ·  high · generic-llm · prose · llm-judge · family: form
 
 Claims sourced to an unnamed collective: 'Industry reports suggest', 'Experts argue', 'Observers have noted', 'Some critics contend'.
@@ -310,6 +352,26 @@ Claims sourced to an unnamed collective: 'Industry reports suggest', 'Experts ar
 **After**
 
 > Gartner put 2025 adoption at 34%, up from 19% in 2023.
+
+### `abstraction-jump-no-rung`  ·  medium · generic-llm · prose · llm-judge · family: form
+
+The prose moves between levels of abstraction with no transition: a sentence about business outcomes followed by a sentence about a mutex, with nothing between them.
+
+**Why it reads AI:** Altitude lock again. Holding a ladder of abstraction requires modelling where the reader currently stands, and the model has one register it returns to regardless.
+
+**Detect:** Judge: read consecutive paragraphs and ask whether each is at the same altitude as its neighbour, or whether a rung is missing.
+
+**Fix:** Add the missing rung, which is usually one sentence naming the mechanism that connects the two levels. Read consecutive paragraphs aloud and listen for the place your voice would have to change.
+
+**False positive when:** Deliberate rhetorical juxtaposition, and pieces that establish the ladder early and can then move freely on it.
+
+**Before**
+
+> This cuts month-end close from five days to two. The scheduler takes a lease with a ninety-second TTL.
+
+**After**
+
+> This cuts month-end close from five days to two, because nothing waits on a human to unblock a stuck job any more. The scheduler does that by taking a lease with a ninety-second TTL, so a dead worker's claim expires on its own.
 
 ### `adjective-inflation`  ·  medium · generic-llm · prose · llm-judge · family: form
 
@@ -376,6 +438,26 @@ Systematic replacement of 'is' and 'are' with inflated substitutes: serves as, s
 **After**
 
 > The building is the agency's headquarters. Its atrium was restored in 2011.
+
+### `decision-without-alternatives`  ·  medium · generic-llm · prose · llm-judge · family: form
+
+'We decided to go with X' where the reader never learns what else was on the table or what criteria settled it.
+
+**Why it reads AI:** Context leakage. The alternatives were discussed in a thread the reader was not in, and the conclusion is the only part that reached the page.
+
+**Detect:** Judge: for each stated decision, is there a named alternative and a reason one won?
+
+**Fix:** Name the alternative and the thing that decided it, in one sentence. That sentence is usually the most useful in the piece, because it is the part a reader facing the same choice can actually reuse.
+
+**False positive when:** Pieces about a decision already documented elsewhere and linked, and contexts where the alternatives are obvious to the stated audience.
+
+**Before**
+
+> We decided to go with Postgres.
+
+**After**
+
+> We went with Postgres over DynamoDB because our access pattern needs joins across four tables and we were not willing to denormalise them.
 
 ### `delve-excess-vocabulary`  ·  medium · generic-llm · prose · structural · family: form
 

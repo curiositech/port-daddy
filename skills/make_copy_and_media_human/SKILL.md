@@ -182,26 +182,41 @@ the gap with a gradient.
 
 ## Ask what the reader already knows
 
-Expository writing fails in a way sentence-level review never catches: the piece
-is written from the author's context rather than the reader's. A blog post touts
-improvements over a v2 nobody saw. Internal codenames arrive unglossed. A term of
-art is used three times and defined never.
+Expository writing fails in ways sentence-level review never catches. A blog post
+touts improvements over a v2 nobody saw. Internal codenames arrive unglossed. A
+term of art is used three times and defined never. Everything is explained at the
+same depth, so nothing is signposted as hard.
 
-These are one failure, and the mechanism is worth naming. A model writes from its
-context window, and that window holds the previous versions, the internal thread
-and the repository. Nothing in the loop marks which parts the reader was present
-for. It is the curse of knowledge with a machine behind it, and it produces prose
-that reads fine to everyone who was in the room and as noise to everyone else.
+It is tempting to call these one failure, and I did until the evidence said
+otherwise. There are three mechanisms, and they need different fixes.
 
-Four detectors cover it: `unearned-prior-reference`, `repo-context-leak`,
-`definition-after-use` and `signposting-without-structure`. The last one is the
-tell that a structure was announced rather than built.
+**Context leakage.** The model writes from its context window, which holds the
+previous versions, the internal thread and the repository, and nothing in the
+loop marks which parts the reader was present for. It treats availability as
+sharedness. This is the curse of knowledge with a machine behind it, and it is
+the family `unearned-prior-reference`, `repo-context-leak` and
+`definition-after-use` catch. **Fix it with a referent audit:** for every back-
+reference, name, and term, check that the thing it points at exists on the page.
+
+**Altitude lock**, and this is the one that breaks the tidy story. When the
+audience is stated explicitly in the prompt — so the model has been told what the
+reader knows and the context confusion is gone — it still fails. Explanations
+generated for different stated audiences come out indistinguishable in reading
+level, and match their intended level about half the time against roughly
+four-fifths for human-written ones. **Prompting the audience does not fix this.**
+The author has to supply a depth plan: which two ideas are hard, which get a
+worked example, which get one sentence.
+
+**Template completion.** The structure is announced rather than built, the
+promised idea never arrives, the release notes wear an essay's clothes. Form
+before content, which is the `shape` family. **Fix it by deleting the scaffold.**
 
 The diagnostic, when you want one question: **could a competent stranger who
 arrived from a search result follow this, and where is the first place they would
-have to stop and look something up?** That spot is the fix. The remedy is almost
-always the same shape — define a term at or before its first substantive use,
-introduce one new idea at a time, and let each one earn the next.
+have to stop and look something up?** That spot is the fix. But note it only
+surfaces the first family reliably — altitude lock produces prose a stranger can
+follow and learn nothing from, so for that one ask instead which two things here
+are hard, and whether the piece spends more time on them than on the easy parts.
 
 ## Scale severity by the venue's base rate
 

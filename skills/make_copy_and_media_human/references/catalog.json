@@ -3487,6 +3487,122 @@
       "currency": "current",
       "family": "form",
       "dialect": "generic-llm"
+    },
+    {
+      "name": "uniform-explanatory-depth",
+      "severity": "high",
+      "description": "Everything explained at the same level of detail, so nothing is marked as hard. The reader cannot tell which two ideas actually needed the effort.",
+      "detection": "Judge: name the two hardest ideas in the piece, then check whether they got more room than the easy ones. Equal room is the finding.",
+      "why_it_reads_ai": "This is altitude lock, and it is the strongest evidence that context leakage is not the whole story: it persists when the audience is stated in the prompt. Explanations generated for different stated audiences come out indistinguishable in reading level, and match their intended level about half the time against roughly four-fifths for human-written ones. A model has a set readability range and does not move off it on request.",
+      "fix": "Supply the depth plan yourself, because prompting will not produce one. Decide which two ideas are hard, give each a worked example, and cut the easy ones to a sentence. The shape of good exposition is uneven on purpose, and the unevenness is the signal to the reader about where to slow down.",
+      "before": "Six sections, each three paragraphs, covering install, config, the consistency model, logging, the CLI, and the consistency model's failure mode.",
+      "after": "Two paragraphs on install. Nine on the consistency model, with a worked example. One line each on logging and the CLI.",
+      "false_positive_when": "Reference documentation is uniform by design and correctly so — every entry gets the same treatment because readers arrive at one and leave. Scope this to anything meant to be read start to finish.",
+      "evidence": "ELI-Why, arXiv:2506.14200 (13.4K why-questions, two human studies); Know Your Audience, arXiv:2312.02065.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "llm-judge",
+      "family": "form",
+      "medium": "prose"
+    },
+    {
+      "name": "no-worked-example",
+      "severity": "high",
+      "description": "Abstractions with no concrete instance. The piece defines, categorises and qualifies, and never once shows the thing happening.",
+      "detection": "Judge: count the places the text moves from a general claim to a specific instance with real values in it. Zero in a long explanatory piece is the finding.",
+      "why_it_reads_ai": "Also altitude lock. A worked example requires committing to particular values, which is where a model is most likely to be wrong, so the safest output stays general. The reader is left holding a definition they cannot apply.",
+      "fix": "For each hard idea, show one instance end to end with real numbers, real names, real output. If you cannot produce one, you have found something you do not understand yet, which is worth knowing before publishing.",
+      "before": "Exponential backoff increases the delay between retries to reduce contention.",
+      "after": "Exponential backoff increases the delay between retries: 1s, then 2s, then 4s. Our third retry lands at 4s, by which point the dogpile that caused the failure has usually cleared.",
+      "false_positive_when": "Reference pages, API listings and conceptual overviews that explicitly hand off to a tutorial.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "llm-judge",
+      "family": "form",
+      "medium": "prose"
+    },
+    {
+      "name": "abstraction-jump-no-rung",
+      "severity": "medium",
+      "description": "The prose moves between levels of abstraction with no transition: a sentence about business outcomes followed by a sentence about a mutex, with nothing between them.",
+      "detection": "Judge: read consecutive paragraphs and ask whether each is at the same altitude as its neighbour, or whether a rung is missing.",
+      "why_it_reads_ai": "Altitude lock again. Holding a ladder of abstraction requires modelling where the reader currently stands, and the model has one register it returns to regardless.",
+      "fix": "Add the missing rung, which is usually one sentence naming the mechanism that connects the two levels. Read consecutive paragraphs aloud and listen for the place your voice would have to change.",
+      "before": "This cuts month-end close from five days to two. The scheduler takes a lease with a ninety-second TTL.",
+      "after": "This cuts month-end close from five days to two, because nothing waits on a human to unblock a stuck job any more. The scheduler does that by taking a lease with a ninety-second TTL, so a dead worker's claim expires on its own.",
+      "false_positive_when": "Deliberate rhetorical juxtaposition, and pieces that establish the ladder early and can then move freely on it.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "llm-judge",
+      "family": "form",
+      "medium": "prose"
+    },
+    {
+      "name": "how-it-works-that-says-what",
+      "medium": "docs",
+      "severity": "high",
+      "description": "A 'How it works' section that describes what the system does rather than how or why, restating the feature list in longer sentences.",
+      "detection": "Judge, or compute: the ratio of sentences stating a mechanism or a reason to sentences restating a capability. This is the single most-quoted complaint in the reader corpus.",
+      "why_it_reads_ai": "Template completion. The heading is a slot and the model fills it from what it has, which is the feature list. Mechanism requires knowing the implementation; capability can be inferred from the name.",
+      "fix": "Every sentence under that heading should answer how or why. If a sentence would survive unchanged under the heading 'Features', it belongs there instead or nowhere. Name the data path, the decision, the trade-off you took.",
+      "before": "## How it works\n\nFlowstate automatically syncs your data and keeps everything up to date in real time.",
+      "after": "## How it works\n\nWe hold a logical replication slot on your primary and stream the WAL. That means we see a row change about 200ms after your database does, and it also means we cannot see anything that never hits the WAL, like a truncate.",
+      "false_positive_when": "Marketing pages where the section is deliberately non-technical, and products whose mechanism is genuinely proprietary — though in that case say so rather than filling the space.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "llm-judge",
+      "family": "form"
+    },
+    {
+      "name": "promised-idea-never-delivered",
+      "medium": "structure",
+      "family": "shape",
+      "severity": "high",
+      "description": "The piece sets up an idea it never returns to. A question posed in the opening, a tension introduced, a 'we will come back to this' that never comes back.",
+      "detection": "Judge: list every promise the opening makes, then check each against the body. An unclosed loop is the finding.",
+      "why_it_reads_ai": "Template completion. An opening that raises a question is a learned move; closing it requires holding the promise across the whole document, which nothing in the generation loop enforces.",
+      "fix": "Close the loop or cut the setup. Usually cutting is right, because the setup was rhetorical furniture rather than a real question. If it was a real question, answering it is probably the best part of the piece.",
+      "before": "The interesting part is what happens when the clock skews — more on that below. [no more on that below]",
+      "after": "The interesting part is what happens when the clock skews. [three paragraphs on clock skew]",
+      "false_positive_when": "Part one of a stated series, and pieces that explicitly defer to a linked follow-up.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "llm-judge"
+    },
+    {
+      "name": "decision-without-alternatives",
+      "severity": "medium",
+      "description": "'We decided to go with X' where the reader never learns what else was on the table or what criteria settled it.",
+      "detection": "Judge: for each stated decision, is there a named alternative and a reason one won?",
+      "why_it_reads_ai": "Context leakage. The alternatives were discussed in a thread the reader was not in, and the conclusion is the only part that reached the page.",
+      "fix": "Name the alternative and the thing that decided it, in one sentence. That sentence is usually the most useful in the piece, because it is the part a reader facing the same choice can actually reuse.",
+      "before": "We decided to go with Postgres.",
+      "after": "We went with Postgres over DynamoDB because our access pattern needs joins across four tables and we were not willing to denormalise them.",
+      "false_positive_when": "Pieces about a decision already documented elsewhere and linked, and contexts where the alternatives are obvious to the stated audience.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "llm-judge",
+      "family": "form",
+      "medium": "prose"
+    },
+    {
+      "name": "dead-internal-cross-reference",
+      "medium": "docs",
+      "family": "residue",
+      "detection_type": "structural",
+      "severity": "high",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "'See the section on X' where there is no section on X; a link to an anchor that does not exist; a reference to a page that was never written.",
+      "detection": "Pure name and link resolution: every internal anchor, every 'see the X section', every relative link. Zero judgment required, and it belongs in CI.",
+      "why_it_reads_ai": "The model refers to the document it would have written. Nothing in the loop resolves the reference against the document that exists.",
+      "fix": "Resolve every internal reference mechanically and fix or delete each miss. This is the highest yield-per-effort check in the whole exposition family because it needs no taste at all.",
+      "before": "See the configuration section below for details. [there is no configuration section]",
+      "after": "[section written, or the sentence deleted]",
+      "false_positive_when": "Documents generated into a larger site where anchors resolve at build time rather than in source. Resolve against the built output in that case.",
+      "currency": "current",
+      "dialect": "generic-llm"
     }
   ],
   "sources": [
@@ -3914,6 +4030,21 @@
       "title": "Block Quotes and Pull Quotes: Examples and Good Practices - Smashing Magazine",
       "url": "https://www.smashingmagazine.com/2008/06/block-quotes-and-pull-quotes-examples-and-good-practices/",
       "note": "Draws the line the detector implements: pull quotes are excerpts of the presented text, while block quotations refer to an external citation not already in the article. Also the density guidance: an ordinary article should carry at most one or two."
+    },
+    {
+      "title": "ELI-Why: benchmarking the pedagogical utility of LLM explanations (arXiv:2506.14200)",
+      "url": "https://arxiv.org/abs/2506.14200",
+      "note": "The evidence that breaks the tidy unification of the exposition family. 13.4K why-questions and two human studies: GPT-4 explanations match their intended educational background only 50% of the time against 79% for lay human-curated ones, and explanations generated across model families for different informational needs remain indistinguishable in grade level. Prompting the audience does not fix altitude lock."
+    },
+    {
+      "title": "Know Your Audience: do LLMs adapt to different age and education levels? (arXiv:2312.02065)",
+      "url": "https://arxiv.org/abs/2312.02065",
+      "note": "Corroborates the same finding independently: current LLMs have set readability ranges and do not adapt well to different audiences even when prompted."
+    },
+    {
+      "title": "The Curse of Knowledge: Pinker Describes a Key Cause of Bad Writing - APS",
+      "url": "https://www.psychologicalscience.org/observer/the-curse-of-knowledge-pinker-describes-a-key-cause-of-bad-writing",
+      "note": "The human mechanism the context-leakage family is the machine analogue of: 'It simply doesn't occur to the writer that readers haven't learned their jargon, don't seem to know the intermediate steps that seem to them to be too obvious to mention.' Underlying literature: Camerer, Loewenstein & Weber 1989; Nickerson 1999."
     }
   ]
 }
