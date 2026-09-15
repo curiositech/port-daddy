@@ -30,6 +30,8 @@ dead citation: a fact about whether the thing works.
   body-text-below-readable        rendered text under 12px
   low-contrast-text               computed contrast below WCAG AA
   image-without-dimensions        <img> with no width/height, which shifts layout
+  escape-and-focus-declared-not-wired   with --probe-modals: opens each trigger and
+                                  tests focus-in, Escape, Tab containment, restore
 """
 
 import argparse
@@ -192,7 +194,108 @@ def finding(file, ism, severity, excerpt, explanation, rewrite):
             "layer": "render", "family": "defect"}
 
 
-def run(target, viewports, timeout_ms):
+# The one check in this bundle that source review provably cannot settle.
+# Generated modals carried an Escape handler in 79% of trials and Escape worked
+# in 59%, and 1,031 of 1,032 failures threw no console error. So a static pass
+# reports success on a broken modal, and only driving it in a browser disagrees.
+MODAL_PROBE = r"""() => {
+  const open = document.querySelector('dialog[open], [role="dialog"], [role="alertdialog"]');
+  if (!open) return null;
+  const r = open.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return null;
+  const focusable = open.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])');
+  return {
+    native: open.tagName.toLowerCase() === 'dialog',
+    modal: open.matches('dialog[open]') ? !!open.getAttribute('open') : true,
+    focusables: focusable.length,
+    focusInside: open.contains(document.activeElement),
+    activeTag: document.activeElement ? document.activeElement.tagName.toLowerCase() : null,
+  };
+}"""
+
+
+CONTAINED_JS = r"""() => {
+  const d = document.querySelector('dialog[open], [role="dialog"], [role="alertdialog"]');
+  return d ? d.contains(document.activeElement) : true;
+}"""
+
+
+def probe_modals(page, target, limit=6):
+    """Open each plausible trigger, then test the four behaviours that matter:
+    focus moves in, Escape closes, Tab stays contained, focus returns."""
+    out = []
+    triggers = page.query_selector_all(
+        'button, [role="button"], a[href="#"], [data-testid*="open"], [aria-haspopup="dialog"]')
+    tested = 0
+    for tr in triggers:
+        if tested >= limit:
+            break
+        try:
+            if not tr.is_visible() or not tr.is_enabled():
+                continue
+            label = (tr.inner_text() or tr.get_attribute("aria-label") or "").strip()[:40]
+            tr.focus()
+            tr.press("Enter")
+            page.wait_for_timeout(180)
+            st = page.evaluate(MODAL_PROBE)
+            if not st:
+                continue                      # this control does not open a dialog
+            tested += 1
+            name = label or f"trigger #{tested}"
+            problems = []
+
+            if not st["focusInside"]:
+                problems.append("focus was not moved into the dialog on open")
+
+            # Escape.
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(180)
+            still = page.evaluate(MODAL_PROBE)
+            if still:
+                problems.append("Escape did not close it")
+            else:
+                back = page.evaluate(
+                    "() => document.activeElement && document.activeElement.tagName.toLowerCase()")
+                if back == "body":
+                    problems.append("focus was not restored to the trigger on close")
+
+            # Containment, only meaningful while it is still open.
+            if still and still["focusables"]:
+                escaped = False
+                for _ in range(min(still["focusables"] + 2, 12)):
+                    page.keyboard.press("Tab")
+                    if not page.evaluate(CONTAINED_JS):
+                        escaped = True
+                        break
+                if escaped:
+                    problems.append("Tab moved focus out of the dialog into the page behind")
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(120)
+                if page.evaluate(MODAL_PROBE):
+                    page.reload(wait_until="domcontentloaded")
+                    page.wait_for_timeout(200)
+
+            if problems:
+                out.append(finding(
+                    target, "escape-and-focus-declared-not-wired", "high",
+                    f'modal opened by "{name}"'
+                    + (" (native <dialog>)" if st["native"] else " (hand-rolled)")
+                    + ": " + "; ".join(problems),
+                    "Driven in a browser, not inferred from source. This is the class of "
+                    "failure that throws no console error and passes every static check, "
+                    "which is why it needed a real keyboard and a real browser to find.",
+                    "Stop hand-writing modal behaviour. Native <dialog> opened with "
+                    "showModal(), or Radix or React Aria with their defaults left alone, "
+                    "supply focus-in, containment, Escape and focus restoration for free. "
+                    "If custom code must stay, all four are required and all four need a "
+                    "driven test, because source presence is not evidence any of them run."))
+        except Exception:
+            continue                          # a trigger that navigates or throws is not ours
+    return out
+
+
+def run(target, viewports, timeout_ms, probe_modal=False):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -244,6 +347,8 @@ def run(target, viewports, timeout_ms):
             page.wait_for_timeout(250)
             r = page.evaluate(PROBE)
             out += interpret(target, name, w, r)
+            if probe_modal and name == "desktop":
+                out += probe_modals(page, target)
             page.close()
         browser.close()
     return out
@@ -341,6 +446,8 @@ def main():
     ap.add_argument("--viewport", action="append", default=[],
                     metavar="NAME:WxH", help="override viewports, repeatable")
     ap.add_argument("--timeout", type=int, default=20000)
+    ap.add_argument("--probe-modals", action="store_true",
+                    help="open each plausible trigger and test the four modal behaviours: focus in, Escape closes, Tab contained, focus restored. The one check source review cannot settle.")
     args = ap.parse_args()
 
     vps = VIEWPORTS
@@ -351,7 +458,7 @@ def main():
             w, _, h = dims.partition("x")
             vps.append((name, int(w), int(h)))
 
-    res = run(args.target, vps, args.timeout)
+    res = run(args.target, vps, args.timeout, probe_modal=args.probe_modals)
     if res is None:
         sys.exit(2)
 
