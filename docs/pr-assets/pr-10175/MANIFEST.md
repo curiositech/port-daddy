@@ -96,7 +96,7 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[412-1].get_pixmap(dpi=150)
 1 / Sovereignty over the card is not sovereignty over what it touches
 
 - File: `https://media.portdaddy.dev/sha256/e3/e3abd454f08450011050890f935ffa164a23eb32b2d2882057f6f7666ec82b21.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25bhttps://media.portdaddy.dev/sha256/e3/e3abd454f08450011050890f935ffa164a23eb32b2d2882057f6f7666ec82b21.png`
+  - raw: `https://media.portdaddy.dev/sha256/e3/e3abd454f08450011050890f935ffa164a23eb32b2d2882057f6f7666ec82b21.png`
 - Shows: before = p.412 · after = p.412 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 781 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -112,7 +112,7 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[412-1].get_pixmap(dpi=150)
 2 / One breach traced end to end, before the taxonomy
 
 - File: `https://media.portdaddy.dev/sha256/5d/5ddeef7dabc0b8a59f386dbddad447af397a011f2ac400e539330ee9a9ea8a09.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25bhttps://media.portdaddy.dev/sha256/5d/5ddeef7dabc0b8a59f386dbddad447af397a011f2ac400e539330ee9a9ea8a09.png`
+  - raw: `https://media.portdaddy.dev/sha256/5d/5ddeef7dabc0b8a59f386dbddad447af397a011f2ac400e539330ee9a9ea8a09.png`
 - Shows: before = p.414 · after = p.415 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 799 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -128,7 +128,7 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[412-1].get_pixmap(dpi=150)
 3 / What is actually mechanized, laid out as a two-layer substrate
 
 - File: `https://media.portdaddy.dev/sha256/28/280c636012aad25191358fce8935a72d1f442cd1f1ab01c7b815ab45cb33a6a7.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25bhttps://media.portdaddy.dev/sha256/28/280c636012aad25191358fce8935a72d1f442cd1f1ab01c7b815ab45cb33a6a7.png`
+  - raw: `https://media.portdaddy.dev/sha256/28/280c636012aad25191358fce8935a72d1f442cd1f1ab01c7b815ab45cb33a6a7.png`
 - Shows: before = p.440 · after = p.442 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 570 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon

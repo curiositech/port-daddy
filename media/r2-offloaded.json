@@ -348,6 +348,30 @@
       "url": "https://media.portdaddy.dev/sha256/e3/e3abd454f08450011050890f935ffa164a23eb32b2d2882057f6f7666ec82b21.png"
     },
     {
+      "path": "docs/pr-assets/pr-10178/fh-xfer-ceremony-record-vs-render-1x-150dpi.png",
+      "sha256": "157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3",
+      "key": "sha256/15/157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3.png",
+      "bytes": 169365,
+      "contentType": "image/png",
+      "url": "https://media.portdaddy.dev/sha256/15/157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3.png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10178/stp-parfit-chain-record-vs-render-1x-150dpi.png",
+      "sha256": "bb76f507e4f31b81d5198cefced8272a96be8a0758579d17edf5236eafded0c2",
+      "key": "sha256/bb/bb76f507e4f31b81d5198cefced8272a96be8a0758579d17edf5236eafded0c2.png",
+      "bytes": 114730,
+      "contentType": "image/png",
+      "url": "https://media.portdaddy.dev/sha256/bb/bb76f507e4f31b81d5198cefced8272a96be8a0758579d17edf5236eafded0c2.png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10178/swk-durability-faultclass-record-vs-render-1x-150dpi.png",
+      "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
+      "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "bytes": 108042,
+      "contentType": "image/png",
+      "url": "https://media.portdaddy.dev/sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png"
+    },
+    {
       "path": "docs/pr-assets/pr-655/backend-dropdown-popover.png",
       "sha256": "5c324ff080e07f393edc9a448fdd369eb996750c58053c2173feb4913c26e685",
       "key": "sha256/5c/5c324ff080e07f393edc9a448fdd369eb996750c58053c2173feb4913c26e685.png",
@@ -869,7 +893,7 @@
     }
   ],
   "counts": {
-    "entries": 108,
-    "bytes": 70217987
+    "entries": 111,
+    "bytes": 70610124
   }
 }

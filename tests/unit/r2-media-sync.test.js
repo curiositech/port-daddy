@@ -29,7 +29,7 @@ import {
   serializeManifest,
   trackedFiles,
 } from '../../scripts/r2-media-manifest.mjs';
-import { findReferrers } from '../../scripts/r2-offload-move.mjs';
+import { findReferrers, rewriteProse } from '../../scripts/r2-offload-move.mjs';
 import { verifyEntry } from '../../scripts/verify-r2-public-reads.mjs';
 import { diffManifests } from '../../scripts/check-r2-media-manifest.mjs';
 import {
@@ -635,6 +635,34 @@ describe('offloaded files are gone from git and readable from R2', () => {
     const manifest = JSON.parse(readFileSync(join(REPO_ROOT, 'media/r2-manifest.json'), 'utf8'));
     const manifestPaths = new Set(manifest.assets.map((a) => a.path));
     for (const entry of offloaded.entries) expect(manifestPaths.has(entry.path)).toBe(false);
+  });
+});
+
+describe('rewriteProse replaces the whole url, not just the trailing path', () => {
+  // A regression for a real bug shipped in this PR: docs/pr-assets/*/MANIFEST.md
+  // files pin a "raw" link with a DIFFERENT host and commit than the file's own
+  // repo-relative path -- `raw.githubusercontent.com/.../<asset-only-sha>/<path>`
+  // -- to the same asset. Replacing only the trailing `<path>` substring left
+  // the old host+commit prefix in place and glued the new absolute url directly
+  // onto the end of it, producing one string that is two concatenated urls.
+  const asset = 'docs/pr-assets/pr-10175/foo.png';
+  const url = 'https://media.portdaddy.dev/sha256/ab/abcd1234.png';
+
+  test('a bare relative path is replaced outright', () => {
+    const text = `- File: \`${asset}\` (1 KiB)\n`;
+    expect(rewriteProse(text, 'docs/pr-assets/pr-10175/MANIFEST.md', asset, url))
+      .toBe(`- File: \`${url}\` (1 KiB)\n`);
+  });
+
+  test('the path as the tail of an absolute raw.githubusercontent.com url is replaced whole', () => {
+    const text = `  - raw: \`https://raw.githubusercontent.com/curiositech/port-daddy/`
+      + `de8f95337bc70c1e68b5908549c4c98002c5e25b/${asset}\`\n`;
+    const out = rewriteProse(text, 'docs/pr-assets/pr-10175/MANIFEST.md', asset, url);
+    expect(out).toBe(`  - raw: \`${url}\`\n`);
+    expect(out).not.toMatch(/githubusercontent/);
+    // The failure mode this guards: two protocols concatenated with no
+    // separator between the old commit sha and the new host.
+    expect(out).not.toMatch(/[0-9a-f]{7,40}https:\/\//);
   });
 });
 
