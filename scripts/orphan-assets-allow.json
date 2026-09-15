@@ -46,6 +46,30 @@
     {
       "path": "website-v2/public/design-preview/art/pr-fleet-light.jpg",
       "reason": "Byte-identical copy (verified with cmp) of docs/design/story-linework/art/pr-fleet-light.jpg. Its dark twin in this directory IS used by design-preview/og.html, so the pair is kept together rather than splitting a light/dark set across two trees."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-bc-delta-threshold.tex",
+      "reason": "Landed here as a drawable fragment, deliberately not yet \\input by any chapter, because it is one of two rivals for the same slot. FIGURE-RIVALS.json records a same_slot_rivalries entry: this fragment (claude/figures-that-were-missing, PR #10190) and fig-bc-graduated-trigger (claude/figures-missing-and-judged, PR #10198) independently draw the SAME chapter-7 fact -- delta*(k=3) approx 0.3425 against the grim bound 1/3 -- under two different names, so no filename collision flags them. They disagree on form and on the arithmetic of the gap. Only one may go into the Book, and that editorial choice is not this PR's to make; wiring both up would put two figures of one fact into chapter 7. The originating branch wires it at agent-transactions-whitepaper.tex line 926, so adopting it is a one-line change once the choice is made."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-bc-graduated-trigger.tex",
+      "reason": "The other half of the chapter-7 same-slot rivalry described in the fig-bc-delta-threshold entry above: this is the claude/figures-missing-and-judged (PR #10198) drawing of delta*(k) against rounds of punishment k, against #10190's payoff-versus-delta form of the same fact. Held unwired for the same reason and by the same decision; whichever fragment loses should be deleted rather than left allow-listed once someone picks. Its originating branch wires it at agent-transactions-whitepaper.tex line 898."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-bc-oracle-audit-rate.tex",
+      "reason": "Uncontested fragment landed ahead of its call site: it draws the cartel-fragility threshold p_d*(delta) at chapter 7's own supplied payoffs, from the committed series whitepaper/figures/data/oracle-audit-threshold.csv. It is not \\input here because this PR lands the six settled fragments plus the data that feeds them and leaves chapter placement to the editorial pass; its originating branch claude/figures-missing-and-judged (PR #10198) wires it at agent-transactions-whitepaper.tex line 1069, and no prose on this branch \\ref's fig:bc-oracle-audit-rate, so nothing cites a figure that fails to print."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/tab-bc-settlement-rule.tex",
+      "reason": "The settlement-rule table, uncontested, landed ahead of its call site for the same reason as fig-bc-oracle-audit-rate above. It is the one figure id invented by this pass -- PIXEL-JUDGMENT.md lists it as 'Table (new)' with no number, recorded as T.1 -- so there is no prior placement to inherit. Its originating branch claude/figures-missing-and-judged (PR #10198) wires it at agent-transactions-whitepaper.tex line 1064, and nothing on this branch \\ref's tab:bc-settlement-rule."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-he-succession-price.tex",
+      "reason": "Uncontested fragment landed ahead of its call site: the succession-price boundary, drawn in the (etaK, xi/eta) plane the criterion is literally stated over rather than against expected wait as register row ch6-04 asked, so the marked points are the criterion's own coordinates. Its originating branch claude/figures-that-were-missing (PR #10190) wires it at harbor-economy.tex line 586; nothing on this branch \\ref's fig:he-succession-price, so no citation dangles while it waits."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-anchor-handshake-ladder.tex",
+      "reason": "Uncontested fragment landed ahead of its call site: the issue-delegate-verify sequence ladder for the Anchor chapter's Phase 3, whose readable fact is that the daemon's lifeline goes dotted after message 1 and no arrow returns to it. Its originating branch claude/figures-that-were-missing (PR #10190) wires it at anchor-protocol-whitepaper.tex line 305; nothing on this branch \\ref's fig:anchor-handshake-ladder. Held with the other five so the chapter placement of all six is decided in one editorial pass rather than piecemeal."
     }
   ]
 }
