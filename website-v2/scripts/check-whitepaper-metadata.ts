@@ -70,11 +70,13 @@ function partitionEditions(
 
 const { present: presentEditions, missing: missingEditions } = partitionEditions(COLLECTED_VOLUME.editions ?? [])
 
-// The Book is a publication artifact, not an eighth chapter, but its page and
-// byte metadata must obey the same drift guard as the chapters. Its
-// alternate-typography editions are checked the same way once their PDF
-// exists (see partitionEditions above).
-const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...WHITE_PAPERS, ...presentEditions]
+// The eight chapters no longer publish a standalone PDF (retired: an A4
+// render of the same words with no margin column). WHITE_PAPERS entries
+// therefore carry no `pdfPath` and are not in this list — there is nothing on
+// disk left to drift-check them against. Only the Book itself, and its
+// alternate-typography editions once their PDF exists (see
+// partitionEditions above), are checked here.
+const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...presentEditions]
 // The standalone research papers (public/research/paperN.pdf) declare pages and
 // sizeKb in researchPapers.ts and drift the same way; they had no guard before.
 const PUBLISHED_RESEARCH_PDFS = RESEARCH_PAPERS
@@ -436,7 +438,7 @@ function main(argv: string[]): number {
     const editionsNote =
       presentEditions.length > 0 ? ` + ${presentEditions.length} Book edition(s)` : ''
     console.log(
-      `Whitepaper metadata in sync (${WHITE_PAPERS.length} chapters + the Book${editionsNote} + ${RESEARCH_PAPERS.length} research papers checked; publication digests match).`,
+      `Whitepaper metadata in sync (the Book (${WHITE_PAPERS.length} chapters)${editionsNote} + ${RESEARCH_PAPERS.length} research papers checked; publication digests match).`,
     )
     return 0
   }

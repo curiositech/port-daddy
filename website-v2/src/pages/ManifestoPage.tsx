@@ -20,7 +20,7 @@ import {
   ologFunctorFigure,
   technologyPrimitives,
 } from '@/data/manifestoContent'
-import { findWhitePaperById } from '@/data/whitePapers'
+import { COLLECTED_VOLUME, findWhitePaperById } from '@/data/whitePapers'
 
 // Figures that should float so prose wraps around them, and the side they go on.
 const WRAP_FIGURES: Record<string, 'right' | 'left'> = {
@@ -568,7 +568,7 @@ function ShippedPaperCard({ spec }: { spec: (typeof cryptoPapers)[number] }) {
         </span>
         {paper && (
           <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-            {paper.pages} pp · {paper.status}
+            {paper.status}
           </span>
         )}
       </div>
@@ -603,12 +603,12 @@ function ShippedPaperCard({ spec }: { spec: (typeof cryptoPapers)[number] }) {
         )}
         {paper && (
           <a
-            href={paper.pdfPath}
+            href={COLLECTED_VOLUME.pdfPath}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 font-sans text-[length:var(--text-base)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] underline-offset-4 hover:text-[var(--text-primary)] hover:underline"
           >
-            PDF
+            The Book
           </a>
         )}
       </div>

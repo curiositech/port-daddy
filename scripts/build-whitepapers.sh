@@ -57,15 +57,13 @@ trap clean_build_dir EXIT
 # which is what paper_changed_since / --list-unchanged-since exist to answer.
 #
 # paper table: "<srcdir>|<root.tex>|<dest published pdf path>"
+#
+# The eight chapters no longer publish a standalone PDF of their own (retired:
+# they were an A4 render of the same words with no margin column, a worse
+# layout of the Book's 7x10in trim). Their .tex sources stay in the tree —
+# the Book still assembles from them — but this list now builds only the one
+# artifact the site actually serves per chapter: the Book itself.
 PAPERS=(
-  "$PUB|agent-transactions-whitepaper.tex|$PUB/agent-transactions-whitepaper.pdf"
-  "$PUB|anchor-protocol-whitepaper.tex|$PUB/anchor-protocol-whitepaper.pdf"
-  "$PUB|federated-harbor-whitepaper.tex|$PUB/federated-harbor-whitepaper.pdf"
-  "$PUB|harbor-economy.tex|$PUB/harbor-economy-whitepaper.pdf"
-  "$PUB|sealed-harbor.tex|$PUB/sealed-harbor-whitepaper.pdf"
-  "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
-  "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
-  "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
   "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
 )
 
@@ -248,7 +246,13 @@ build_one() {
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
     # The Book sets its monospace face through fontspec (a Unicode-engine
     # package) and turns off XeTeX's glyph-metric line boxes, so it is
-    # compiled with xelatex; the standalone chapters stay on pdfTeX.
+    # compiled with xelatex. Every row this script can reach is a
+    # coordination-papers-mega-volume* root now that the standalone chapters
+    # are retired, so the case below always fires and this default is dead.
+    # It stays because pdfTeX is still a first-class engine in this repository
+    # -- docs/harbor-research/Makefile builds the seven research papers with
+    # it, from the same pinned TeX Live digest -- so a future plain-pdflatex
+    # root here would be a new row, not a new engine.
     local engine=pdflatex latexmk_engine=-pdf
     case "$roottex" in
       coordination-papers-mega-volume*.tex) engine=xelatex; latexmk_engine=-xelatex ;;

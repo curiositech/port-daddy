@@ -41,6 +41,13 @@
 % The Book defines \pdcurrentchaptercolor (per part) AFTER this file; a
 % standalone chapter never does. Resolve it lazily, falling back to cobalt.
 \newcommand{\pd@chaptercolor}{\ifdefined\pdcurrentchaptercolor\pdcurrentchaptercolor\else pdcobalt\fi}
+% The eight standalone chapter PDFs this false branch exists for are retired
+% as of this change (the chapters no longer build or publish an A4 edition of
+% themselves). Every \ifpdmargincolumn false branch below is now dead weight
+% kept alive only by the chapters' .tex sources still being independently
+% compilable; do NOT delete it in this change -- the margin apparatus work is
+% in flight on another branch and this would collide with it. Removing the
+% false branch (and, eventually, the conditional itself) is that wave's job.
 \newif\ifpdmargincolumn
 \pdmargincolumnfalse
 \renewcommand*{\marginfont}{\footnotesize\raggedright\color{pdinkmuted}}

@@ -155,6 +155,39 @@ class AtlasCoverageTests(unittest.TestCase):
         self.assertEqual(len(roots), 8)
         self.assertEqual(coverage.canonical_root_drift(repo_root, roots), [])
 
+    def test_build_table_may_name_no_chapter_root(self) -> None:
+        """A chapter builds no standalone PDF, so the table names no chapter.
+
+        Absence is the shipped state, not drift; only a chapter root the atlas
+        does not declare canonical is.
+        """
+        repo_root = Path(__file__).resolve().parents[3]
+        self.assertEqual(coverage.canonical_roots_from_build_script(repo_root), set())
+
+    def test_canonical_root_drift_rejects_a_noncanonical_build_entry(self) -> None:
+        repo_root = Path(__file__).resolve().parents[3]
+        roots = coverage.canonical_roots_from_textbook(repo_root)
+        with tempfile.TemporaryDirectory() as directory:
+            fake_root = Path(directory)
+            (fake_root / "scripts").mkdir()
+            (fake_root / "whitepaper").mkdir()
+            (fake_root / "scripts/build-whitepapers.sh").write_text(
+                'PAPERS=(\n'
+                '  "$PUB|coordination-papers-mega-volume.tex|'
+                '$PUB/coordination-papers-mega-volume.pdf"\n'
+                '  "whitepaper|ninth-chapter.tex|$PUB/ninth-chapter.pdf"\n'
+                ')\n',
+                encoding="utf-8",
+            )
+            (fake_root / "whitepaper/textbook.json").write_text(
+                (repo_root / "whitepaper/textbook.json").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            drift = coverage.canonical_root_drift(fake_root, roots)
+        self.assertEqual(
+            drift, ["build-whitepapers:extra=whitepaper/ninth-chapter.tex"]
+        )
+
     def test_canonical_root_parity_rejects_swapped_volume_mapping(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
         swapped = coverage.extract_atlas_volume_roots(self.live_atlas(repo_root))

@@ -164,12 +164,18 @@ Canonical root: `website-v2/public/whitepaper/harbor-economy.tex` (15 figures).
 | `IV/fig:fh-threat-bands` | Which threat bands require which assurance mechanisms? | assurance matrix or banded ledger | threat class; local/federated boundary; mechanism; residual risk; established/proposed status | decorative shield bands; undifferentiated checklist |
 | `IV/fig:cartel-game-inline` | Under which parameters is collusion sustainable? | payoff inequality plus phase/regime plot | collusive stream; detection probability; loss; discounting; deviation payoff; sustainable boundary | decorative seesaw; five blue ticks with no scale; equation floating alone |
 
-**The last five rows are standalone-only, and that is the point.** They sit
-inside the `\else` branch of an `\ifpdbook` in `harbor-economy.tex`: the
-assembled Book takes a `\pdchapref` to chapter 7 or 8, and
-`harbor-economy-whitepaper.pdf` — a submission artifact whose reader has no
-other chapters to be pointed at — draws them. The atlas covers what the SOURCES
-carry, because both PDFs ship.
+**The last five rows are compiled by nothing, and the atlas keeps them anyway.**
+They sit inside the `\else` branch of an `\ifpdbook` in `harbor-economy.tex`:
+the assembled Book takes a `\pdchapref` to chapter 7 or 8, and the chapter's
+standalone form — a submission-style reading whose reader had no other chapters
+to be pointed at — drew them instead. That form is retired: it was an A4 render
+of the same words with no margin column, and it no longer ships as a PDF. So
+the `\else` branch is now source with no output, and the CI check that policed
+it (`check_standalone_figures.py`) has been retired with it.
+
+The rows stay because the atlas covers what the SOURCES carry. Whether those
+branches should still be in the sources at all is an open question, and the
+five rows are the best inventory of what would be lost by deleting them.
 
 ## Volume V: The Anchor Protocol
 
@@ -248,12 +254,16 @@ mechanically found seven. The author's decision was that the chapter which
 DEVELOPS an idea owns the drawing and the other points at it, so the five volume
 IV rows went with them.
 
-Deleting them was half a fix. `harbor-economy.tex` is not only chapter 6; it is
-also the source of `harbor-economy-whitepaper.pdf`, and rewriting its prose to
-point at chapters removed five figures from a submission paper and left it
-telling a conference reader that a ceremony is "drawn in The Federated Harbor" —
-a document that reader does not have. The whole fix is `\ifpdbook`: the Book
-takes the cross-reference, the paper keeps its own copy.
+Deleting them was half a fix. `harbor-economy.tex` was not only chapter 6; it
+was also the source of `harbor-economy-whitepaper.pdf`, and rewriting its prose
+to point at chapters removed five figures from that submission paper and left
+it telling a conference reader that a ceremony is "drawn in The Federated
+Harbor" — a document that reader did not have. The fix was `\ifpdbook`: the
+Book takes the cross-reference, the paper keeps its own copy.
+
+The per-chapter PDFs have since been retired, so there is no second document to
+protect and the `\else` branch compiles nowhere. The conditional is recorded
+here as the reason the five rows exist, not as live machinery.
 
 Which is exactly the case the previous revision of this note said would refill
 the table — "a standalone paper carrying its own copy is exactly that case" —

@@ -263,17 +263,19 @@ jobs:
       - name: Every \begin has its \end, and every source file balances
         run: python3 scripts/harbor-research/check_tex_environments.py
 
-      # Every chapter source is also a submission paper. An edit made for the
-      # Book -- five figure sites in chapter 6 rewritten to point at the
-      # chapters that own the drawings -- took five figures out of
-      # harbor-economy-whitepaper.pdf, and the only thing that noticed was a
-      # regen commit 50 KB lighter. This reads the \else side of every
-      # \ifpdbook, which is what the standalone paper compiles, and compares
-      # its figure sites with the committed record; a paper that lost a site
-      # fails, and so does a stale record (refresh it with --write when the
-      # change to the paper is the point).
-      - name: No Book-side edit has shrunk a standalone paper
-        run: python3 scripts/harbor-research/check_standalone_figures.py
+      # RETIRED WITH THE ARTIFACT IT GUARDED: "No Book-side edit has shrunk a
+      # standalone paper" (check_standalone_figures.py). It existed because a
+      # chapter source was also a submission paper -- an edit for the Book took
+      # five figures out of harbor-economy-whitepaper.pdf and only a lighter
+      # regen commit noticed. There is no second artifact now, so the check had
+      # no subject; worse, it had turned around. The very edit it was built to
+      # catch, pointing a figure site at the chapter that owns the drawing, is
+      # what the duplicate check below WANTS, and this gate failed it until
+      # someone refreshed a record of a rendering nobody publishes. The \else
+      # branches stay in the sources and the scanner that reads them stays --
+      # the duplicate checks depend on it, and tests/harbor-research/
+      # test_pdbook_branch.py covers it. Deciding the fate of those branches is
+      # its own change; see the retirement PR.
 
       # A drawing shared by two chapters is invisible in either chapter's source
       # and invisible in either standalone PDF; it shows only in the assembled

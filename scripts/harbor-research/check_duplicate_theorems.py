@@ -21,12 +21,14 @@ different ledgers. A theorem-family environment (theorem, lemma, proposition,
 corollary, conjecture, definition, property, protocol, remark, and the pdclaim
 box) whose label appears in two chapters is reported; the fix is the same as
 for a drawing -- decide which chapter proves it, keep the statement there, and
-have the other chapter refer to it (\ref{<prefix>:<label>} inside \ifpdbook,
-which the generator now leaves un-namespaced).
+have the other chapter refer to it (\ref{<prefix>:<label>}, which the generator
+leaves un-namespaced).
 
 Same discipline as the figure check: read only what the Book compiles, the
-\ifpdbook branch of each conditional, because a standalone paper keeps its own
-statement and the duplication exists only in the assembled Book.
+\ifpdbook branch of each conditional. That conditional dates from when each
+chapter also published a standalone PDF that kept its own statement; the
+branches are still in the sources, so the scanner still has to pick a side,
+and the Book's side is the only one that renders.
 
 Exit 1 when a label is shared. `--allow label` records a deliberate exception
 -- a definition two chapters restate on purpose, say, until someone decides
@@ -127,8 +129,9 @@ def main(argv=None) -> int:
     print('   namespaces them apart so the Book compiles, and the reader meets')
     print('   the same statement twice with two numbers. Decide which chapter')
     print('   proves it, keep the statement there, and have the other refer to')
-    print('   it -- \\ref{<owner prefix>:<label>} inside \\ifpdbook, with the')
-    print('   standalone paper keeping its own copy in the \\else branch.')
+    print('   it: \\ref{<owner prefix>:<label>}, plainly. The Book is the only')
+    print('   document these chapters render into, so nothing needs a second')
+    print('   copy kept behind \\ifpdbook.')
     return 1
 
 

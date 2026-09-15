@@ -17,8 +17,13 @@
   \XeTeXuseglyphmetrics=0
   \usepackage{fontspec}
   % Source Code Pro: dense, with a bold that separates typed input from output
-  % in a session; sized to Palatino's lowercase.
+  % in a session; sized to Palatino's lowercase. ItalicFont/BoldItalicFont are
+  % declared because \lstdefinestyle{pdcode}'s commentstyle sets \itshape on
+  % this family (see below) — without them fontspec has no `m/it` shape to
+  % select and silently substitutes upright glyphs for every listing comment,
+  % which is exactly the defect this comment used to leave unfixed.
   \setmonofont{SourceCodePro-Regular.otf}[BoldFont=SourceCodePro-Bold.otf,
+    ItalicFont=SourceCodePro-RegularIt.otf,BoldItalicFont=SourceCodePro-BoldIt.otf,
     Scale=MatchLowercase]
   % Sans: TeX Gyre Heros, the grotesk the Swiss and technical editions already
   % use for display; without it \textsf falls to Latin Modern Sans.
