@@ -14,6 +14,7 @@
         "fig-swk-reference-monitor",
         "fig-swk-single-writer",
         "fig-swk-stack-map",
+        "fig-swk-taint-automaton",
         "fig-swk-workunit-machine",
         "session-swk-lock-demo",
         "session-swk-workunit-check"
@@ -25,6 +26,7 @@
       "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
       "inputs": [
         "fig-anchor-alg-confusion",
+        "fig-anchor-assurance-chain",
         "fig-anchor-capability-attenuation",
         "fig-anchor-card-lifecycle",
         "fig-anchor-cuckoo-inline",
@@ -50,6 +52,7 @@
     "legible-swarm": {
       "source": "whitepaper/legible-swarm.tex",
       "inputs": [
+        "legible-swarm-cooperation-modes",
         "legible-swarm-readpoverty",
         "legible-swarm-roles",
         "legible-swarm-sdt",
@@ -71,6 +74,7 @@
         "fig-stp-parfit-chain",
         "fig-stp-probation-cliff",
         "fig-stp-rate-the-raters",
+        "fig-stp-resurrection-gates",
         "fig-stp-role-vs-person",
         "fig-stp-sybil-whitewash",
         "fig-stp-tombstone",
@@ -102,6 +106,7 @@
       "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
       "inputs": [
         "fig-bonded-key-custody",
+        "fig-bonded-three-layers",
         "fig-cartel-game-inline",
         "fig-governance-flow",
         "fig-magic-link-inline",

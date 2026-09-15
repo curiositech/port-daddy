@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 586,
+    "distinctObjects": 550,
+    "bytes": 275696643,
+    "distinctBytes": 272903052
   },
   "assets": [
     {
@@ -799,6 +799,27 @@
       "sha256": "4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337",
       "key": "sha256/4c/4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337.webm",
       "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/whitepaper-editorial-integration-contact-sheet.png",
+      "bytes": 694192,
+      "sha256": "b0775db4db395474c15d862753c5257af0d4be76fd0a3bc12fb66afe1161ce04",
+      "key": "sha256/b0/b0775db4db395474c15d862753c5257af0d4be76fd0a3bc12fb66afe1161ce04.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/whitepaper-editorial-integration-site-recording.webm",
+      "bytes": 522898,
+      "sha256": "2f9a168f191c589253e7e81a95ac9c948bfed52170acc13aebee3fc9299f0834",
+      "key": "sha256/2f/2f9a168f191c589253e7e81a95ac9c948bfed52170acc13aebee3fc9299f0834.webm",
+      "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/whitepaper-editorial-integration-site-screenshot.png",
+      "bytes": 242272,
+      "sha256": "b3bc81c8fcffff5e69b910fb87db606a8a8250321af4ad573d6e7d0cb08c6ac1",
+      "key": "sha256/b3/b3bc81c8fcffff5e69b910fb87db606a8a8250321af4ad573d6e7d0cb08c6ac1.png",
+      "contentType": "image/png"
     },
     {
       "path": "docs/pr-media/squid-hook-debug/03-hook-debug-running.png",
