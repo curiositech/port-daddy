@@ -32,12 +32,26 @@ ENG_MEDIA = {"commit-message", "pr-description", "code-review", "code", "docs",
 PLATFORM_MEDIA = {"social-post", "email", "listing", "resume"}
 VISUAL_ASSET_MEDIA = {"image", "video", "audio", "chart", "brand-identity"}
 
+# Tells that mark ANY machine output regardless of vendor. Documented in
+# other-model-dialects.md by name; the Claude view defers to that claim so the
+# two rules cannot both take them.
+# Residue that is reproducible by opening the page, so web-build-defects.md
+# claims it by name even though its medium would otherwise route it elsewhere.
+# The visual and structure views defer, so the three rules cannot both take it.
+WEB_DEFECT_CLAIMED = {"scaffold-title-residue", "placeholder-copy-residue"}
+
+CROSS_MODEL_PROSE = {"zero-typo-zero-contraction-affect-flatness",
+                     "tense-and-perspective-drift", "low-burstiness-uniform-rhythm",
+                     "as-an-ai-leakage", "register-leveling"}
+
 GROUPS = {
     "claudeisms.md": {
         "title": "Claudeisms — and the generic prose tells Claude amplifies",
         "intro": "Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.",
-        "pick": lambda i: not i.get("lane") and (i["dialect"] == "claude"
-                          or (i["dialect"] == "generic-llm" and i["medium"] in PROSE_GENERIC)),
+        "pick": lambda i: not i.get("lane") and i["name"] not in CROSS_MODEL_PROSE
+                          and (i["dialect"] == "claude"
+                               or (i["dialect"] == "generic-llm"
+                                   and i["medium"] in PROSE_GENERIC)),
     },
     "gptisms-codexisms.md": {
         "title": "GPT-isms and Codexisms",
@@ -48,17 +62,15 @@ GROUPS = {
         "title": "Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese",
         "intro": "Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.",
         "pick": lambda i: i["dialect"] in {"gemini", "kimi", "deepseek", "qwen", "llama", "grok"}
-                          or i["name"] in {"zero-typo-zero-contraction-affect-flatness",
-                                           "tense-and-perspective-drift",
-                                           "low-burstiness-uniform-rhythm", "as-an-ai-leakage",
-                                           "register-leveling"},
+                          or i["name"] in CROSS_MODEL_PROSE,
     },
     "visual-design-tells.md": {
         "title": "Visual design tells — the v0/Lovable look and generated imagery",
         "intro": "What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.",
         "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
+                          and i["name"] not in WEB_DEFECT_CLAIMED
                           and (i["medium"] in VISUAL_MEDIA or i["medium"] in VISUAL_ASSET_MEDIA)
-                          or i["name"].startswith("ai-image")
+                          or (not i.get("lane") and i["name"].startswith("ai-image"))
                           or i["name"] in {"identical-face-different-people",
                                            "stock-mesh-gradient-background"},
     },
@@ -66,6 +78,7 @@ GROUPS = {
         "title": "Structure, deck, and marketing-copy tells",
         "intro": "Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.",
         "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
+                          and i["name"] not in WEB_DEFECT_CLAIMED
                           and (i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA),
     },
     "web-build-defects.md": {
@@ -73,13 +86,12 @@ GROUPS = {
         "intro": "A different KIND of finding from the rest of this catalog. Everything here is a defect you can reproduce by opening the page: it scrolls sideways at 390px, the button is not a button, the grey text fails contrast. So none of it is an inference about who built the page, none of it carries the fairness caveat the rest of the skill insists on, and all of it can be acted on with full confidence \u2014 the same standing as a dead citation. Act on this file FIRST: a page that does not work on a phone has a bigger problem than a page that reads a bit generated.\n\nMost of these are decidable from source and run in the normal structural pass. The ones marked `rendered` need `scripts/render_check.py`, the one optional script in this bundle, which opens the page at real viewports and names the elements at fault.",
         "pick": lambda i: not i.get("lane")
                           and (i.get("family") == "defect"
-                               or i["name"] in {"scaffold-title-residue",
-                                                "placeholder-copy-residue"}),
+                                    or i["name"] in WEB_DEFECT_CLAIMED),
     },
     "fiction-and-narrative-tells.md": {
         "title": "Fiction and narrative tells",
         "intro": "What generated fiction does at the level of story rather than sentence. This file matters out of proportion to its length: a 61,608-story study separated human from AI fiction at 93.2% macro-F1 using discourse-level narrative features ALONE, with every stylistic cue stripped out. Which means the tells here are stronger than any phrase in the rest of the catalog, and they survive a model that has learned not to say \"delve\".",
-        "pick": lambda i: i["medium"] == "fiction",
+        "pick": lambda i: not i.get("lane") and i["medium"] == "fiction",
     },
     "engineering-artifact-tells.md": {
         "title": "Engineering-artifact tells — commits, PRs, reviews, code, tests, docs",
@@ -134,6 +146,23 @@ GROUPS = {
     },
 }
 
+# Which axis each generated reference sits on. The files are VIEWS over one
+# catalog, not a partition: by model dialect, and by artifact medium. An item
+# may appear once on each axis -- "what Codex does" and "what is wrong with your
+# commits" are both true of the same tell, and a reader arrives from either
+# direction. Two homes on the SAME axis is a bug, and a lane item belongs to
+# exactly one file, full stop.
+AXIS = {
+    "claudeisms.md": "dialect",
+    "gptisms-codexisms.md": "dialect",
+    "other-model-dialects.md": "dialect",
+    "visual-design-tells.md": "medium",
+    "structure-and-deck-tells.md": "medium",
+    "web-build-defects.md": "medium",
+    "engineering-artifact-tells.md": "medium",
+    "fiction-and-narrative-tells.md": "medium",
+}
+
 SEV_RANK = {"high": 0, "medium": 1, "low": 2}
 CURRENCY_NOTE = {
     "obsolete": "⚠ OBSOLETE — retained as a caution, not as a test.",
@@ -171,10 +200,17 @@ def block(i):
 
 
 placed = set()
+# name -> the files that claimed it. The orphan guard below catches an item that
+# lands in NO file; it cannot catch one that lands in several, which is the bug
+# that actually happened: a single entry appeared in three generated references
+# and every per-file count stopped meaning anything. Track homes, not membership.
+homes = {}
 for fname, g in GROUPS.items():
     picked = sorted((i for i in items if g["pick"](i)),
                     key=lambda i: (SEV_RANK.get(i["severity"], 3), i["name"]))
     placed |= {i["name"] for i in picked}
+    for i in picked:
+        homes.setdefault(i["name"], []).append(fname)
     doc = [f"# {g['title']}", "", g["intro"], "",
            (f"_{len(picked)} items. Generated from catalog.json — edit there, then re-run "
             + "`scripts/regenerate_references.py`. Do not hand-edit this file._"), "",
@@ -188,6 +224,34 @@ for fname, g in GROUPS.items():
     doc += ["<!-- humanize:ignore-end -->", ""]
     (REF / fname).write_text("\n".join(doc), encoding="utf-8")
     print(f"{fname}: {len(picked)} items")
+
+bad_homes = {}
+for n, files in homes.items():
+    it = next(x for x in items if x["name"] == n)
+    if it.get("lane"):
+        # A lane item is documented in its lane file and nowhere else. Without
+        # this, one entry appeared in three files and every count was inflated.
+        if len(files) > 1:
+            bad_homes[n] = (files, "lane item with more than one home")
+        continue
+    per_axis = {}
+    for f in files:
+        per_axis.setdefault(AXIS.get(f, f"lane:{f}"), []).append(f)
+    for axis, fs in per_axis.items():
+        if len(fs) > 1:
+            bad_homes[n] = (fs, f"listed twice on the {axis} axis")
+if bad_homes:
+    print("\nERROR: these catalog items are documented in the wrong number of places:",
+          file=sys.stderr)
+    for n, (files, why) in sorted(bad_homes.items()):
+        it = next(x for x in items if x["name"] == n)
+        print(f"  {n}  -> {', '.join(files)}"
+              f"   ({why}; lane={it.get('lane') or '-'} medium={it['medium']})",
+              file=sys.stderr)
+    print("Cross-listing across the dialect and medium axes is fine and intended. "
+          "Twice on ONE axis is not, and a lane item needs exactly one home -- a "
+          "medium-based pick almost always needs `not i.get(\"lane\")`.", file=sys.stderr)
+    sys.exit(1)
 
 orphans = [i["name"] for i in items if i["name"] not in placed]
 if orphans:
@@ -246,4 +310,4 @@ for s in sorted(sources, key=lambda s: s["title"].lower()):
 src_doc.append("\n<!-- humanize:ignore-end -->")
 (REF / "sources.md").write_text("\n".join(src_doc) + "\n", encoding="utf-8")
 print(f"sources.md: {len(sources)} sources")
-print(f"\nall {len(items)} items placed, no orphans")
+print(f"\nall {len(items)} items placed, exactly one home each")
