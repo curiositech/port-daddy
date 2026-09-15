@@ -1,6 +1,6 @@
 # ADR-0141: OIDC Workload Identity and the Standing Operator Grant
 
-- **Status:** Proposed; design only — no runtime change lands with this ADR
+- **Status:** Accepted; CI workload and publisher-grant vertical slice implemented
 - **Date:** 2026-09-14
 - **Roadmap:** `fleetbot-workload-identity-admission`
 - **Builds on:** [ADR-0025](0025-pki-decision.md) (OIDC-first PKI),
@@ -21,16 +21,17 @@
 
 ### The defect, verified in the code rather than paraphrased
 
-`FleetbotPublisherCapability` in `lib/github-publisher-contract.ts` carries
-`accountTokenHash`. `apps/relay/src/github-publisher.ts` enforces the binding
-twice: `bearer()` requires an `Authorization: Bearer pdu_<64 hex>` header on
-every request, and `verifyAndConsumeCapability` refuses the action unless
+Before this change, `FleetbotPublisherCapability` in
+`lib/github-publisher-contract.ts` carried
+`accountTokenHash`. `apps/relay/src/github-publisher.ts` enforced the binding
+twice: `bearer()` required an `Authorization: Bearer pdu_<64 hex>` header on
+every request, and `verifyAndConsumeCapability` refused the action unless
 `capability.accountTokenHash` equals `hashHex(rawToken)` of that same header.
 The nonce row written to `github_publisher_capability_uses`
 (`apps/relay/migrations/2026-09-11-fleetbot-publisher-hardening.sql`) records
 `account_token_hash` a third time.
 
-The bearer is not decoration. `credentialForAccount` uses its hash to open the
+The bearer was not decoration. `credentialForAccount` used its hash to open the
 operator's sealed GitHub OAuth credential out of `user_tokens.gh_credential_enc`
 (`apps/relay/migrations/2026-09-05-fleetbot-publisher.sql`), refreshes it when
 stale, and `authorizeExactRepository(installationId, repository,
@@ -311,17 +312,14 @@ reaches.
 | **Stale grant after the operator revokes** | The grant is re-read on **every** request, not cached into the capability. Revocation is visible at the next request, with no TTL to wait out. The `epoch` check additionally kills capabilities minted against a superseded grant version, so a narrowing edit takes effect immediately rather than at the next expiry |
 | **Forged `sessionId`** | Today Relay never independently verifies `sessionId` — the contract comment says the daemon proves ownership. The fix is derivation, not a second list: `sessionId` becomes namespaced to its workload by **first-use binding**. The first capability naming a given `sessionId` binds it to that `daemon_fingerprint` in `github_publisher_capability_uses`; any later capability naming the same `sessionId` under a *different* fingerprint is refused. Cross-workload session theft is therefore impossible. **Within** one workload, `sessionId` remains self-asserted — that is the unchanged daemon trust boundary, and it is a residual risk, stated, not papered over |
 
-### D7 — Migration without a flag day
+### D7 — Immediate replacement
 
-There is no deployed client, which makes this cheap. Even so, it lands as
-dual-accept so that a bootstrap publisher can be used during cutover.
-
-| Phase | What lands | What is still accepted |
-| --- | --- | --- |
-| M0 | `publisher_grants` table, the operator account surface that writes rows, the read path | Nothing changes; v1 is the only capability schema |
-| M1 | Capability schema v2 (`grantId` + `grantEpoch`); Relay accepts v1 **and** v2; the receipt records which admitted it | Both. v1 admissions carry `admission: 'legacy-account-bearer'` in the receipt so the deprecation is visible in evidence, not in a changelog |
-| M2 | The first real workload enrols and the operator writes its grant. v2 becomes the documented path; `skills/github-app-actuator/SKILL.md` drops its "Current admission defect" section for a "how to enrol" section | Both, with v1 emitting a warning |
-| M3 | `bearer()` is deleted from the route; v1 capabilities are refused with `CAPABILITY_SCHEMA_RETIRED` | v2 only |
+There was no deployed publisher client, so a compatibility window would only
+preserve an unsafe path for hypothetical callers. The implementation therefore
+replaces v1 in one slice: the grant table and operator surface, capability v2,
+signed workload snapshot, Actions enrol/inspect client, v2-only Relay parser,
+and bearer deletion land together. There is no legacy admission receipt and no
+feature flag that can restore the bearer path.
 
 **What the retirement ceremony becomes.** The ceremony in
 `skills/github-app-actuator/SKILL.md` today retires the operator's *GitHub*
@@ -329,18 +327,15 @@ personal credential. It becomes a **two-credential ceremony**, because this ADR
 identifies a second personal credential in the agent path that the ceremony
 never named:
 
-1. The final allowed legacy operation is the M3 cutover publish itself,
-   performed under v1, naming exactly that one operation.
-2. Retire the GitHub personal credential exactly as the skill already
+1. Retire any GitHub personal credential previously exposed to an agent exactly as the skill already
    prescribes: remove from every `gh` host config, credential helper,
    environment injection, launcher and CI secret; revoke at GitHub; rotate
    anything ever printed or same-UID exposed.
-3. **New:** retire the `pdu_` bearer *from the publisher path*. Delete
-   `bearer()`; verify `POST /v1/fleetbot/publish` returns
-   `CAPABILITY_SCHEMA_RETIRED` for a v1 request; verify a v2 request with a
+2. Retire the `pdu_` bearer *from the publisher path*. Verify the v2-only parser
+   refuses a v1 request; verify a v2 request with a
    valid grant still publishes; verify a v2 request with a revoked grant fails
    closed.
-4. Record kind, storage location, revocation timestamp, verification result and
+3. Record kind, storage location, revocation timestamp, verification result and
    actor. Never a token or a recoverable prefix.
 
 The ceremony stops being an exception granted to a bootstrap publisher and
@@ -568,27 +563,20 @@ justification is R5 containment and the other rungs should not ship.
 
 | Phase | Roadmap slug | Status | Depends on | Description |
 | --- | --- | --- | --- | --- |
-| 0 | `fleetbot-workload-identity-admission` | now | — | This ADR: freeze the admission contract, the grant schema, the scope vocabulary, and the threat bindings |
-| 1 | `publisher-grant-record` | now | Phase 0 | `publisher_grants` migration, the operator account surface that writes rows, per-request read and intersection with live installation scope |
-| 2 | `fleetbot-capability-v2` | now | Phase 1 | Capability schema v2 (`grantId`/`grantEpoch`), **and the route that mints and validates it**: the daemon-side mint that reads the grant and stamps `grantId`/`grantEpoch` into the capability, and the Relay-side enforcement of all eight D3 admission conditions. Plus dual-accept admission, first-use session binding, nonce table column swap, negative fixtures for each D6 row |
+| 0 | `fleetbot-workload-identity-admission` | implemented | — | This ADR plus fail-closed exact GitHub Actions claim policy and hostile fixtures |
+| 1 | `publisher-grant-record` | implemented | Phase 0 | `publisher_grants` migration, repository-admin account surface, signed workload snapshot, revocation, and live installation intersection |
+| 2 | `fleetbot-capability-v2` | implemented | Phase 1 | Capability schema v2 (`grantId`/`grantEpoch`), protected Actions enrol/inspect client, first-use session binding, nonce consumption, daily mutation ceiling, exact-scope enforcement, and signed grant-bearing receipts. V1 and the account bearer path are removed rather than dual-accepted |
 | 3 | `fleetbot-host-workload-enrolment` | backlog | Phase 2, OQ-1 | Enrol class `host` per the OQ-1 recommendation; record attestation-versus-issuer provenance honestly in the identity row |
-| 4 | `fleetbot-account-bearer-retirement` | backlog | Phase 3 | Delete `bearer()`, refuse v1, run the two-credential retirement ceremony, amend `skills/github-app-actuator/SKILL.md` |
-| 5 | `consent-ladder-asks-baseline` | now | Phase 0, OQ-7 | Instrument `asks_per_episode` and publish the pre-ladder baseline — the falsifiability precondition for the whole ladder |
-| 6 | `consent-grant-surface` | backlog | Phase 1, Phase 5 | Generalize the grant row with a `surface` discriminator; R0/R1/R3 standing grants; receipts name the authorizing grant |
+| 4 | `fleetbot-account-bearer-retirement` | code complete; deployment pending | Phase 2 | Publisher rejects v1 and no longer reads an account bearer. Production migration, secret provisioning, grant creation, and workload enrolment remain release steps |
+| 5 | `consent-ladder-asks-baseline` | backlog | Phase 0, OQ-7 | Instrument `asks_per_episode` and publish the pre-ladder baseline — the falsifiability precondition for the whole ladder |
+| 6 | `consent-grant-surface` | partial | Phase 1, Phase 5 | The grant and receipts carry `surface: publisher`; R0/R1/R3 consent grants remain backlog |
 | 7 | `plan-ask-rendering` | backlog | Phase 6 | Render `WorkPlanPayload` as the sixty-second plan review: three numbers, one line per node, twelve-node cap, flagged-node float, re-approval diff, digest-scoped answers |
 | 8 | `cost-band-calibration` | backlog | Phase 6 | Estimate bands derived from `lib/cost-ledger.ts`; estimated-versus-actual on every receipt; drift reported, not gated |
 
-Phase 0 changes no runtime behaviour. Nothing in this ADR should be described as
-shipped, enforced, or credential-separated until Phase 4 lands.
-
-To be explicit about the `grantId`/`grantEpoch` contract specified in D3: this
-ADR *specifies* the format and the eight admission conditions, and **no phase
-before Phase 2 makes them enforceable**. Phase 1 delivers the `publisher_grants`
-record and the per-request read; Phase 2 delivers the route that mints a
-capability against a grant and the Relay-side check that validates one. Until
-Phase 2 lands there is no code path that accepts a `grantId`, so a reader should
-not treat D3 as a contract the tree currently enforces — it is a contract this
-ADR freezes for Phase 2 to implement.
+The source tree implements Phases 0–2 and the Phase 4 bearer retirement. That is
+not deployment evidence. Production remains fail closed until the D1 migration,
+reviewed Relay version, protected workflow environment, workload key, enrolment,
+and repository-admin grant have each been applied and read back.
 
 ## Consequences
 
