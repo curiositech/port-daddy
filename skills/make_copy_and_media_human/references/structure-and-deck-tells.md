@@ -633,13 +633,13 @@ Template scaffolding shipped live. Two mechanically identical families: merge ta
 
 **Why it reads AI:** It is the one item in this catalog that is proof rather than inference: unreviewed generated or templated output reached a recipient. Nothing else here is that certain.
 
-**Detect:** Regex for merge-tag and bracket-placeholder syntax. This should be a hard fail rather than a score.
+**Detect:** Static: regex for merge-tag and bracket-placeholder syntax -- {{ name }}, %%FIELD%%, *|MERGE|*, [Job Title]. Both braces are required: a single {word} group is one of the commonest constructs in text and markup and must not match. This is a hard fail rather than a score.
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
 
 **Fix:** Block send or publish on any placeholder pattern. Set fallbacks on every merge field, and grep the final artifact before it leaves.
 
-**False positive when:** Documentation, template libraries, tutorials and code samples show unrendered merge tags on purpose, which is the point of them. Never fire inside fenced code, or in content whose subject IS templating. Some CRMs also render the braces in preview panes.
+**False positive when:** Documentation, template libraries, tutorials and code samples show unrendered merge tags on purpose, which is the point of them. Never fire inside fenced code, or in content whose subject IS templating. Some CRMs also render the braces in preview panes. And a single-brace group is not a placeholder: \usepackage{amsmath}, a CSS block, and a Python format string all use one brace, and an earlier version of this check scored a clean hand-written LaTeX paper HIGH because of it.
 
 **Before**
 

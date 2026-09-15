@@ -650,8 +650,14 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
             break
 
     # humanize:ignore-start -- the placeholder patterns below are specimens
+    # Both braces are REQUIRED. The first version made each optional, so a single
+    # brace group of lowercase letters matched -- and that is one of the
+    # commonest constructs in text there is. A clean, hand-written LaTeX paper
+    # scored a HIGH finding off `\usepackage{amsmath}`, which is the exact
+    # failure this catalog exists to prevent: a confident accusation on the most
+    # ordinary possible input. No templating language needs the loose form.
     PLACEHOLDER = re.compile(
-        r"\{\{?\s*[a-z_][a-z_ ]{1,30}\s*\}?\}|%%\w+%%|\*\|\w+\|\*"
+        r"\{\{\s*[a-z_][a-z_ ]{1,30}\s*\}\}|%%\w+%%|\*\|\w+\|\*"
         r"|\b(FNAME|LNAME|FIRSTNAME)\b|\[(?:Job Title|Company Name|Your Name|"
         r"insert [^\]]{2,30}|specific [^\]]{2,30})\]", re.I)
     # humanize:ignore-end
@@ -5655,6 +5661,31 @@ def get_user_name(user_id):
 
 # Real human prose. If a detector fires on this, the detector is wrong: it will
 # train people to ignore the whole report, which is worse than shipping nothing.
+# A clean, hand-written LaTeX paper. It is here because the placeholder detector
+# once scored it HIGH off `\\usepackage{amsmath}` -- every single-brace group read
+# as an unfilled template token. A confident accusation on the most ordinary
+# possible input in its domain is the exact failure this catalog exists to
+# prevent, so the regression is asserted rather than remembered.
+SELFTEST_CLEAN_TEX = (
+    "\\documentclass[11pt]{article}\n"
+    "\\usepackage{amsmath}\n"
+    "\\usepackage{graphicx}\n"
+    "\\title{A Study of Port Allocation Under Contention}\n"
+    "\\begin{document}\n"
+    "\\maketitle\n"
+    "\\begin{abstract}\n"
+    "We measure how a port broker behaves when many agents request at once. "
+    "Across 4,096 trials the median wait fell from 180ms to 12ms once the lease "
+    "table moved into shared memory. The remaining tail is dominated by fsync.\n"
+    "\\end{abstract}\n"
+    "\\section{Introduction}\n"
+    "Port conflicts are the commonest failure in multi-agent development. We ran "
+    "the broker against a synthetic load and recorded every grant. "
+    "Table~\\ref{tab:results} lists the runs. Nothing here depends on the "
+    "operating system beyond the clock.\n"
+    "\\end{document}\n")
+
+
 SELFTEST_CLEAN = (
     "We shipped the migration on a Tuesday and it went badly for about forty "
     "minutes. The read replicas in us-east-1 lagged behind the primary, so a "
@@ -5670,6 +5701,19 @@ SELFTEST_CLEAN = (
 
 
 # humanize:ignore-end
+
+
+def analyze_file_text(path, text):
+    """Run the dispatch over in-memory text, as analyze_file does for a real file.
+
+    The selftest needs this so a regression is caught on the route a user's file
+    actually takes, not on whichever single analyzer the test happened to call.
+    """
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / path.name
+        f.write_text(text, encoding="utf-8")
+        return analyze_file(f)
 
 
 def run_selftest():
@@ -5692,6 +5736,10 @@ def run_selftest():
     noise = {f["ism"] for f in analyze_prose(Path("c.md"), SELFTEST_CLEAN, ".md")}
     if noise:
         print("FALSE POSITIVES on human prose:", " ".join(sorted(noise)))
+        return 1
+    tex_noise = {f["ism"] for f in analyze_file_text(Path("c.tex"), SELFTEST_CLEAN_TEX)}
+    if tex_noise:
+        print("FALSE POSITIVES on a clean LaTeX paper:", " ".join(sorted(tex_noise)))
         return 1
 
     # --baseline is the load-carrying claim of this script, so it gets asserted
