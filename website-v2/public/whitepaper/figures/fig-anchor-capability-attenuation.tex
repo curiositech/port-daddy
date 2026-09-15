@@ -11,7 +11,7 @@
     at (-4.7,4.15) {capability reach};
 
   \foreach \y/\rightname in {1/{\texttt{db:write}},2/{+ \texttt{fs:read}},3/{+ \texttt{net:*}}} {
-    \draw[pd guide] (0,\y) -- (63,\y);
+    \draw[pd lattice] (0,\y) -- (63,\y);
     \node[pd axis label,anchor=east] at (-.6,\y) {\rightname};
   }
   \foreach \x/\tickname in {5/5,15/15,60/60} {

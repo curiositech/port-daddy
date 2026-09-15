@@ -478,7 +478,7 @@ jobs:
     # below the print floor), but nothing in CI ran it. This job compiles
     # only what a PR actually touches (plus every fragment blockers.json
     # already knows about), under the Book's own preamble — the only
-    # context a chapter figure is actually printed in — and fails on a T1-T5
+    # context a chapter figure is actually printed in — and fails on a T1-T5 or T9
     # finding unless docs/harbor-research/exposition/figures/blockers.json
     # already waives it. It never touches a TikZ fragment itself; it only
     # reads and reports. Runs on ubuntu-latest, not the texlive container:
@@ -537,10 +537,51 @@ jobs:
           # second copy arrives appended to a half-executed script. Landing it
           # in a file first means a retry replaces the download instead of
           # continuing it, and sh sees one whole script or nothing.
+          # THE RETRY ABOVE COVERS THE FIRST HOP ONLY, and the failure it was
+          # written for arrived on the second. Fetching this script from
+          # drop-sh.fullyjustified.net is one download; the script then fetches
+          # the tectonic TARBALL from GitHub's release CDN with its own
+          # downloader, which has no retry of its own. On 2026-09-14 that second
+          # hop returned a 504 and the step died:
+          #
+          #   tectonic(drop-installer.sh): downloading version 0.17.0 ...
+          #   curl: (22) The requested URL returned error: 504
+          #   tectonic(drop-installer.sh): command failed: downloader
+          #     https://github.com/.../tectonic-0.17.0-...tar.gz
+          #
+          # Nothing compiled, no figcheck JSON was written, the artifact upload
+          # found no files, and figure-gates reported red on a pull request
+          # whose figures were fine -- which is precisely the "network error
+          # dressed up as a figure finding" the comment above says this step
+          # exists to prevent. It prevented it on one host out of two.
+          #
+          # So the whole installer run is retried, with a widening backoff. `if`
+          # rather than a bare call because `set -e` is on and errexit is
+          # suspended inside a condition; the explicit exit on the last attempt
+          # keeps a genuine outage loud instead of leaving a half-installed tree
+          # to fail two hundred lines later.
           curl --proto '=https' --tlsv1.2 -fsSL \
             --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
             -o /tmp/install-tectonic.sh https://drop-sh.fullyjustified.net
-          sh /tmp/install-tectonic.sh
+          for attempt in 1 2 3 4 5; do
+            if sh /tmp/install-tectonic.sh; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "::error::tectonic could not be installed after 5 attempts. This is a network failure on the release CDN, NOT a figure finding -- no fragment was compiled and no figcheck result exists for this run."
+              exit 1
+            fi
+            echo "tectonic install attempt $attempt failed; retrying in $((attempt * 5))s"
+            sleep "$((attempt * 5))"
+          done
+          # A partial install is worse than a failed one: it leaves the step
+          # green and every compile below failing for a reason that looks like
+          # TeX. Assert the thing we are about to name in TECTONIC actually runs.
+          if [ ! -x "$PWD/tectonic" ]; then
+            echo "::error::the tectonic installer reported success but left no executable at $PWD/tectonic"
+            exit 1
+          fi
+          "$PWD/tectonic" --version
           echo "TECTONIC=$PWD/tectonic" >> "$GITHUB_ENV"
 
       - name: Determine which fragments to compile (changed in this PR, plus every current blocker)
@@ -605,6 +646,39 @@ jobs:
             echo "::error::could not read the apparatus list from the Book preamble; refusing to guess which files are drawings"
             exit 1
           fi
+          # A fragment that is not ONE figure cannot be measured by a checker
+          # whose contract is one figure per PDF. figcheck says so in its own
+          # docstring ("mechanical geometry QA on one compiled figure PDF"), and
+          # it shows: on appendix-figures.tex -- six \begin{figure} environments
+          # in one file, floating onto two pages -- find_caption_lines returns
+          # TWO captions per page, and T3 compares every text line on a page
+          # against every other, so two unrelated figures get compared to each
+          # other. That is the tool being asked the wrong question, not a defect
+          # in the drawing.
+          #
+          # By shape, not by name, and with a notice rather than silence: this is
+          # the only such file in all three corpora today, and if a second
+          # appears the notice says so on the run that introduces it. Its real
+          # remedy is a FIGURE-TRIAGE.md row -- it has none, and no figcheck
+          # record either, so the audit has never assessed it. A waiver would be
+          # the wrong instrument twice over: blockers.json is GENERATED from the
+          # figcheck records plus the triage, so a hand-written entry there is
+          # erased by the next `render_figure_audit.py --write`.
+          multifig=""
+          for stem in $changed; do
+            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+              [ -f "$d/$stem.tex" ] || continue
+              count=$(grep -c '\\begin{figure' "$d/$stem.tex" || true)
+              if [ "${count:-0}" -gt 1 ]; then
+                echo "::notice::$stem holds $count figure environments in one file; figcheck measures one figure per PDF, so it is out of this gate's scope. It needs a FIGURE-TRIAGE.md row, not a waiver."
+                multifig="$multifig $stem"
+              fi
+              break
+            done
+          done
+          for stem in $multifig; do
+            changed="$(printf '%s\n' "$changed" | grep -vxF "$stem" || true)"
+          done
           blocked="$(python3 -c "import json; print(chr(10).join(e['id'] for e in json.load(open('docs/harbor-research/exposition/figures/blockers.json'))))")"
           { printf '%s\n' "$changed"; printf '%s\n' "$blocked"; } | grep -v '^$' | sort -u > /tmp/figure-gate-scope.txt
           count="$(wc -l < /tmp/figure-gate-scope.txt)"
@@ -650,7 +724,31 @@ jobs:
               echo "::notice::$stem has no fragment on disk (already retired) — skipping compile"
               continue
             fi
-            if ! skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf; then
+            # Three outcomes, not two. compile_fragment.sh exits 3 when LaTeX
+            # reported no error and no pages -- a file under figures/ that
+            # defines style or apparatus and draws nothing. That is not a
+            # broken fragment and must not redden the gate; it is also not
+            # silent, because a notice is how the next person finds out that
+            # the gate's scope has picked up a non-drawing.
+            #
+            # This is the shape-based half of the pair. The step above still
+            # subtracts the apparatus the Book preamble \inputs by name, which
+            # catches pd-figure-language.tex (it fails with a REAL error,
+            # "already defined", because the wrapper's preamble has loaded it
+            # once already). It could not catch the per-edition overrides:
+            # pd-figure-language.tex pulls those in as
+            # \input{figures/pd-figure-language-\pdedition}, a name built from
+            # a macro, which no grep for a literal path will ever see. Exit 3
+            # catches them without anyone having to predict the next one.
+            set +e
+            skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf
+            rc=$?
+            set -e
+            if [ "$rc" -eq 3 ]; then
+              echo "::notice::$stem defines style or apparatus and draws nothing — no picture to check, skipping"
+              continue
+            fi
+            if [ "$rc" -ne 0 ]; then
               echo "::error::$stem failed to compile under the Book preamble"
               uncompilable="$uncompilable $stem"
               continue
@@ -685,6 +783,6 @@ jobs:
             /tmp/figure-gate/contact-sheet.png
           if-no-files-found: ignore
 
-      - name: Fail on any unwaived T1-T5 failure
+      - name: Fail on any unwaived T1-T5 or T9 failure
         if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
         run: python3 scripts/harbor-research/check_figure_gate_results.py --results-dir /tmp/figure-gate/json

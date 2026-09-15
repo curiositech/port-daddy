@@ -3,7 +3,7 @@
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+    "textwidth_cm": 11.43
   },
   "checks": {
     "T1": {
@@ -22,9 +22,56 @@
       "findings": []
     },
     "T4": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+      "status": "fail",
+      "count": 2,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            106.56092834472656,
+            115.26882934570312,
+            115.27835083007812,
+            128.62391662597656
+          ],
+          "text": "yes",
+          "line_segment": [
+            [
+              113.88125610351562,
+              253.7631072998047
+            ],
+            [
+              113.88125610351562,
+              78.01298522949219
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'yes'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            106.56092834472656,
+            204.97862243652344,
+            115.27835083007812,
+            214.67239379882812
+          ],
+          "text": "no",
+          "line_segment": [
+            [
+              113.88125610351562,
+              253.7631072998047
+            ],
+            [
+              113.88125610351562,
+              78.01298522949219
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'no'"
+        }
+      ]
     },
     "T5": {
       "status": "pass",
@@ -50,17 +97,19 @@
   "ink": [
     {
       "page": 0,
-      "ink_fraction": 0.1593,
-      "edge_density": 0.0666,
-      "distinct_colors": 968,
+      "ink_fraction": 0.2233,
+      "edge_density": 0.0947,
+      "distinct_colors": 778,
       "flags": [
-        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+        "edge_density=0.095 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
       ]
     }
   ],
   "summary": {
-    "result": "pass",
-    "failed_checks": [],
+    "result": "fail",
+    "failed_checks": [
+      "T4"
+    ],
     "warned_checks": []
   }
 }

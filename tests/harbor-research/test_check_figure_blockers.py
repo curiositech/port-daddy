@@ -74,13 +74,24 @@ class TestCheckFigureBlockers(unittest.TestCase):
         gate exists to surface, so it blocks until the figure or the triage row
         is corrected -- which is a chapter-source edit, and a later wave's work.
         The negative controls for both waiver rules live in the tests below, on
-        fixtures; this one only records what the real register says."""
+        fixtures; this one only records what the real register says.
+
+        The count moved again on 2026-09-15 (PR #10191): renaming bare
+        hhink/hhamber colours to the pd-prefixed rule/direct-label styles in
+        fig-anchor-card-lifecycle and fig-swk-controllability-quadrant pulled
+        both into the figure-gate's Book-preamble compile scope for the first
+        time, surfacing two more pre-existing Wave 11 backlog defects (2.7
+        restyle, T2/T3; 1.10 redraw, T4) that the corpus had simply never
+        measured before. Their figcheck/*.json records were regenerated
+        against that compile and both are waived on the same Wave 11 terms as
+        the other 20, so 21/20 became 23/22; fig-stp-deterrence-regime is
+        still the one figure that stays unwaived."""
         result = subprocess.run(
             [sys.executable, str(SCRIPT), "--verbose"],
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
         self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
-        self.assertIn("21 total, 20 waived, 1 failure(s)", result.stdout)
+        self.assertIn("23 total, 22 waived, 1 failure(s)", result.stdout)
         self.assertIn("fig-stp-deterrence-regime", result.stdout)
 
     def test_all_waived_and_unexpired_passes(self) -> None:

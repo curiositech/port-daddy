@@ -1,5 +1,19 @@
 [
   {
+    "id": "fig-anchor-card-lifecycle",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T2",
+      "T3"
+    ],
+    "first_seen": "2026-09-15",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
     "id": "fig-bonded-key-custody",
     "fragment": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
     "chapter": 7,
@@ -253,6 +267,19 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-controllability-quadrant",
+    "fragment": "whitepaper/figures/fig-swk-controllability-quadrant.tex",
+    "chapter": 1,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-15",
     "waiver": {
       "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
       "expires": "2026-10-31"

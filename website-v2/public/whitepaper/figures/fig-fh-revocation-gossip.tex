@@ -10,11 +10,11 @@
   \node[pd axis label,anchor=east] at (-5.15,-1.05) {Harbor C};
 
   % Stale-to-synchronized state bands.
-  \fill[hhteal!13] (-4.80,1.00) rectangle (6.00,1.90);
-  \fill[hhamber!16] (-4.80,-.25) rectangle (-1.20,.65);
-  \fill[hhteal!13] (-1.20,-.25) rectangle (6.00,.65);
-  \fill[hhamber!16] (-4.80,-1.50) rectangle (1.95,-.60);
-  \fill[hhteal!13] (1.95,-1.50) rectangle (6.00,-.60);
+  \fill[pd focus fill] (-4.80,1.00) rectangle (6.00,1.90);
+  \fill[pd caution fill] (-4.80,-.25) rectangle (-1.20,.65);
+  \fill[pd focus fill] (-1.20,-.25) rectangle (6.00,.65);
+  \fill[pd caution fill] (-4.80,-1.50) rectangle (1.95,-.60);
+  \fill[pd focus fill] (1.95,-1.50) rectangle (6.00,-.60);
   \foreach \y in {1.00,1.90,-.25,.65,-1.50,-.60}
     \draw[pd hairline] (-4.80,\y)--(6.00,\y);
 
@@ -24,7 +24,7 @@
   \node[pd direct label,text=hhamber,anchor=west] at (-4.45,-1.05) {stale verifier};
 
   \foreach \x/\lab in {-4.80/$0$,-1.20/$\Delta$,1.95/$2\Delta$,5.20/$3\Delta$}
-    {\draw[pd guide] (\x,-1.72)--(\x,2.15);
+    {\draw[pd lattice] (\x,-1.72)--(\x,2.15);
      \node[pd axis label,anchor=north] at (\x,-1.88) {\lab};}
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.90,-1.72)--(6.20,-1.72);
   \node[pd axis label,anchor=west] at (6.30,-1.72) {time};

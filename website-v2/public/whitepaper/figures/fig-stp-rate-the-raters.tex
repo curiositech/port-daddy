@@ -8,34 +8,38 @@
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (6.4,-2.10);
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (-6.0,2.55);
   \node[pd axis label,anchor=west] at (6.5,-2.10) {audit level $k$};
-  \node[pd axis label,anchor=center,rotate=90] at (-6.43,.20) {$G_k$ (log scale)};
+  \node[pd axis label,anchor=center,rotate=90] at (-6.43,.20) {{\pdfigmath $G_k$} (log scale)};
 
   \foreach \x/\lab in {-5.8/0,-3.75/10,-1.7/20,.35/30,2.4/40,4.45/50,5.7/56} {
     \draw[pd tick] (\x,-2.22) -- (\x,-1.98);
     \node[pd axis label,anchor=north] at (\x,-2.32) {\lab};
   }
-  \foreach \y in {-1.05,.0,1.05,2.10} \draw[pd guide] (-5.95,\y) -- (6.0,\y);
+  \foreach \y in {-1.05,.0,1.05,2.10} \draw[pd lattice] (-5.95,\y) -- (6.0,\y);
 
   % Parameterized example: heterogeneous pools contract faster.
   \draw[pd focus rule,line width=1.55pt]
     plot[smooth] coordinates {(-5.8,2.15) (-4.75,1.72) (-3.70,1.25) (-2.65,.72) (-1.60,.15) (-.55,-.48) (.05,-1.55)};
   \draw[pd caution rule,dashed,line width=1.55pt]
     plot[smooth] coordinates {(-5.8,2.15) (-3.75,1.78) (-1.70,1.28) (.35,.72) (2.40,.10) (4.45,-.62) (5.45,-1.55)};
-  \node[pd direct label,text=hhteal,anchor=west] at (-2.65,1.02)
-    {$C=8$: heterogeneous cliques\\[-1pt]{\tiny reaches root near level 27}};
-  \node[pd direct label,text=hhamber,anchor=west] at (2.20,.55)
-    {$C=1$: monoculture\\[-1pt]{\tiny reaches root near level 53}};
+  % Both labels now carry a readable second line instead of a 5pt one, so they
+  % no longer fit in the gap BETWEEN the two curves -- the curves nearly touch
+  % on the left. Each moves into the open field under its own curve, which is
+  % also where it stops competing with the other series.
+  \node[pd direct label,text=hhteal,anchor=west] at (-5.60,-.35)
+    {$C=8$: heterogeneous cliques\\[-1pt]{\pdfigsub reaches root near level 27}};
+  \node[pd direct label,text=hhamber,anchor=west] at (1.05,-.62)
+    {$C=1$: monoculture\\[-1pt]{\pdfigsub reaches root near level 53}};
 
   % The theorem ends at a separately owed root.
-  \fill[hhamber!9] (-5.95,-1.95) rectangle (6.0,-1.45);
-  \draw[pd caution rule] (-5.95,-1.45) -- (6.0,-1.45);
-  \node[pd direct label,text=hhamber,anchor=west] at (-5.65,-1.70)
+  \fill[pd caution fill] (-5.95,-2.06) rectangle (6.0,-1.30);
+  \draw[pd caution rule] (-5.95,-1.30) -- (6.0,-1.30);
+  \node[pd direct label,fill=none,text=hhamber,anchor=west] at (-5.90,-1.68)
     {exogenously honest root required; the contraction theorem does not manufacture it};
 
   \node[pd direct label,anchor=west] at (-5.75,-3.05)
-    {$\rho d B\ge G_k$ at each level};
+    {{\pdfigmath $\rho d B\ge G_k$} at each level};
   \node[pd direct label,anchor=west] at (-.65,-3.05)
-    {$G_{k+1}=(1-\rho d)G_k$ only under sealed sampling across $C$ disjoint cliques};
+    {{\pdfigmath $G_{k+1}=(1-\rho d)G_k$} only under sealed sampling across $C$ disjoint cliques};
 \end{tikzpicture}}
 \caption{\textbf{Recursive auditing becomes finite only when corrupt opportunity
 contracts.} The parameterized example plots the chapter's reported depths:

@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 619,
-    "distinctObjects": 583,
-    "bytes": 282197123,
-    "distinctBytes": 279403532
+    "assets": 625,
+    "distinctObjects": 589,
+    "bytes": 283676921,
+    "distinctBytes": 280883330
   },
   "assets": [
     {
@@ -1022,6 +1022,48 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/anchor-phases-gloss-lines-book-1x-150dpi.png",
+      "bytes": 226263,
+      "sha256": "48ed13bc9141e1cd6670b8ca48787160b271898cade2ed15e33a8b5377ef295e",
+      "key": "sha256/48/48ed13bc9141e1cd6670b8ca48787160b271898cade2ed15e33a8b5377ef295e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/bonded-key-custody-size-floor-book-1x-150dpi.png",
+      "bytes": 170104,
+      "sha256": "df8f7d63c26b4298ad41dcd068d69f984596e0d8c42b8643f732f0b765356dcb",
+      "key": "sha256/df/df8f7d63c26b4298ad41dcd068d69f984596e0d8c42b8643f732f0b765356dcb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/bonded-key-custody-size-floor-chapter-1x-150dpi.png",
+      "bytes": 252872,
+      "sha256": "7d3da562b13fab6fb21cebf16a08ce06d35124bfb7ff192363d77b74c87a8f2e",
+      "key": "sha256/7d/7d3da562b13fab6fb21cebf16a08ce06d35124bfb7ff192363d77b74c87a8f2e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/sealed-operating-curve-guide-dash-book-1x-150dpi.png",
+      "bytes": 259515,
+      "sha256": "c37394f0159edcb5d353477568abdb46e7077f24a1c4f446c40778759a6287fb",
+      "key": "sha256/c3/c37394f0159edcb5d353477568abdb46e7077f24a1c4f446c40778759a6287fb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/sealed-pillar-pipeline-mono-and-reverse-book-1x-150dpi.png",
+      "bytes": 291595,
+      "sha256": "135782ee276c626390719a4cfe758f7f94ec9e9ac28142a813c9ede72155bd9b",
+      "key": "sha256/13/135782ee276c626390719a4cfe758f7f94ec9e9ac28142a813c9ede72155bd9b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/stp-rate-the-raters-gloss-and-math-book-1x-150dpi.png",
+      "bytes": 279449,
+      "sha256": "33ad4d08501d7567637fc6c78527baf35fcf03bf381f1da24787b8b2629e9444",
+      "key": "sha256/33/33ad4d08501d7567637fc6c78527baf35fcf03bf381f1da24787b8b2629e9444.png",
       "contentType": "image/png"
     },
     {

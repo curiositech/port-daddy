@@ -3,7 +3,7 @@
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+    "textwidth_cm": 11.43
   },
   "checks": {
     "T1": {
@@ -12,14 +12,56 @@
       "findings": []
     },
     "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T2",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            250.77593994140625,
+            148.0702667236328,
+            368.64404296875,
+            156.78768920898438
+          ],
+          "container_bbox": [
+            284.3891906738281,
+            139.30372619628906,
+            318.5462646484375,
+            155.1206817626953
+          ],
+          "text": "new id k18: new authority, old",
+          "message": "text 'new id k18: new authority, old' escapes its containing rect (284.4, 139.3, 318.5, 155.1)"
+        }
+      ]
     },
     "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            287.3780212402344,
+            144.12429809570312,
+            315.5570983886719,
+            151.95181274414062
+          ],
+          "other_bbox": [
+            250.77593994140625,
+            148.0702667236328,
+            368.64404296875,
+            156.78768920898438
+          ],
+          "text": "t0+tau",
+          "other_text": "new id k18: new authority, old",
+          "overlap_fraction": 0.496,
+          "message": "text 't0+tau' overlaps 'new id k18: new authority, old' by 49.6% of the smaller bbox"
+        }
+      ]
     },
     "T4": {
       "status": "pass",
@@ -50,17 +92,20 @@
   "ink": [
     {
       "page": 0,
-      "ink_fraction": 0.14,
-      "edge_density": 0.067,
-      "distinct_colors": 1698,
+      "ink_fraction": 0.2151,
+      "edge_density": 0.0891,
+      "distinct_colors": 1595,
       "flags": [
-        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+        "edge_density=0.089 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
       ]
     }
   ],
   "summary": {
-    "result": "pass",
-    "failed_checks": [],
+    "result": "fail",
+    "failed_checks": [
+      "T2",
+      "T3"
+    ],
     "warned_checks": []
   }
 }
