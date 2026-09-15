@@ -86,8 +86,67 @@
 % without opening a breakpoint. Outer vertical mode only: inside a box the
 % penalty lands on the box's own list and settles nothing.
 \newcommand{\pd@settle}{\ifvmode\ifinner\else\penalty\@M\vskip\z@\fi\fi}
+% ---------------------------------------------------------------------------
+% Figure-band tracking, for vertical CENTERING of a margin device against the
+% main-column figure it accompanies (2026-09). \pd@figtop/\pd@figbot/\pd@figpage
+% are declared here but SET in the Book preamble's \pgfsys@typesetpicturebox
+% hook (coordination-papers-mega-volume-preamble.tex), not by an
+% \AtBeginEnvironment{figure}/\AtEndEnvironment{figure} pair on \pagetotal --
+% that was the first attempt and it does not work: for a \begin{figure}[H]
+% float, the `float' package defers inserting the box into the main vertical
+% list past \end{figure} itself, so \pagetotal read there under-reads by the
+% whole figure and \pd@figbot always came out equal to \pd@figtop (measured:
+% every firing in the built Book). The pgf hook that already intercepts every
+% TikZ picture on its way into the page knows the box's own \ht+\dp directly,
+% which is exact regardless of page-builder timing, so that is where the span
+% is recorded now. \pd@figpage guards against reading a stale span left over
+% from a figure several pages back: \pd@placemargin only trusts the span when
+% \pd@figpage still equals \thepage. Only one span is kept -- the most
+% recently drawn picture on this page -- which is deliberately the figure a
+% margin device issued shortly afterward is almost always about; a page with
+% two unrelated figures and one margin device between them is not a case this
+% file has seen.
+\newlength{\pd@figtop}\newlength{\pd@figbot}\def\pd@figpage{0}
+% Does OFFSET (already sitting in \pd@blockoff) sit inside the room this page
+% actually has for it, without moving? \pd@reqmin/\pd@reqmax are computed by
+% \pd@marginbounds below, from exactly the three collision facts \pd@placemargin
+% already knew about (page top, the last margin head, the last margin block) --
+% this is a read of the same facts, not a new rule. A candidate that fits
+% clean is preferred over one merely clamped INTO range, because a clamped
+% value is a collision this page already had; a candidate the bounds do not
+% touch is one that was never in anyone's way.
+\newlength{\pd@reqmin}\newlength{\pd@reqmax}\newif\ifpd@havemax\newif\ifpd@fits
+\newcommand{\pd@marginbounds}[1]{%
+  \setlength{\pd@reqmin}{-\pagetotal}%
+  \ifnum\pd@lastheadpage=\thepage\relax
+    \ifdim\pd@reqmin<\dimexpr\pd@lastheadbottom-\pagetotal\relax
+      \setlength{\pd@reqmin}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi\fi
+  \ifnum\pd@blockpage=\thepage\relax
+    \ifdim\pd@reqmin<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
+      \setlength{\pd@reqmin}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi\fi
+  \ifdim\pagegoal<\maxdimen
+    \pd@havemaxtrue
+    \setlength{\pd@reqmax}{\dimexpr\pagegoal-\pagetotal-\ht#1-\dp#1\relax}%
+  \else\pd@havemaxfalse\fi}
+\newcommand{\pd@tryoffset}{%
+  \pd@fitstrue
+  \ifdim\pd@blockoff<\pd@reqmin\pd@fitsfalse\fi
+  \ifpd@fits\ifpd@havemax\ifdim\pd@blockoff>\pd@reqmax\pd@fitsfalse\fi\fi\fi}
 \newcommand{\pd@marginhead}[1]{%
   \ifpdmargincolumn
+    % Settle before the first \pagetotal read, unlike this macro's earlier
+    % form. Every OTHER margin device in this file settles first (the
+    % comment two macros up even says why: "\pagetotal is the page above
+    % the LAST paragraph the builder saw"), but this one read \pagetotal
+    % raw at the head's own issuing point and called the resulting slop
+    % "to within a line" -- acceptable when a block follows a head closely,
+    % not when many lines of prose come between them and a margin block
+    % later clamps to \pd@lastheadbottom expecting it exact. Measured: a
+    % \pdboundary head ("Where this stops") 14 lines above its section's
+    % \end{pdrecitation}, recorded 2.35 pt short, so the Recall block's
+    % clamp (aimed at a 3 pt gap under the head) landed 2.35 pt INSIDE it
+    % instead -- built and measured overlapping, PDF p. 244.
+    \pd@settle
     \setlength{\pd@headshift}{0pt}%
     \ifnum\pd@blockpage=\thepage\relax
       \ifdim\pagetotal<\pd@blockbottom
@@ -115,8 +174,20 @@
     \sbox{\pd@headbox}{\begin{minipage}{\marginparwidth}\marginfont\scshape #1\end{minipage}}%
     \marginnote{\scshape #1}[\pd@headshift]%
     \xdef\pd@lastheadpage{\thepage}%
+    % +8pt, not +3pt: \pd@headbox measures the head's own text, but the
+    % marginnote package sets every note's content behind a \strut (its
+    % \marginfont\raggedrightmarginnote\strut...) whose height+depth come
+    % from \marginfont's normal font metrics, not from \scshape "Where this
+    % stops" alone -- the strut is measurably taller, so \ht+\dp here
+    % under-reads the head's true rendered bottom. +3pt covered one 0.1pt
+    % case (comment above); it did not cover this one -- built and measured
+    % a Recall block clamped to +3pt still overlapping "Where this stops" by
+    % 2.35 pt (PDF p. 244, pdboundary fourteen lines above its section's
+    % \end{pdrecitation}). +8pt re-measured clear on that page and does not
+    % reopen the "1.3 pt under" case the \newpage reservation above already
+    % handles (a different mechanism -- a migrated page, not a short strut).
     \global\pd@lastheadbottom=\dimexpr\pagetotal+\pd@headshift
-      +\ht\pd@headbox+\dp\pd@headbox+3pt\relax
+      +\ht\pd@headbox+\dp\pd@headbox+8pt\relax
   \else{\scshape\bfseries #1.}\enspace\fi}
 % A small square in the chapter's hue, in the margin, marking a worked example
 % so a reader flipping through finds every one.
@@ -177,7 +248,42 @@
   \xdef\pd@blockpage{\thepage}%
   \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
 
+% Default placement is now CENTERED on the vertical span of the most recently
+% closed figure on this page, not anchored to the line that issues the note --
+% a Recall block or a gloss discussing a figure reads naturally beside its
+% middle, not hanging off one edge. Center only WHEN IT FITS CLEAN: tried
+% against \pd@marginbounds's read of the same three collision facts the old
+% single anchor already obeyed (page top, the last margin head, the last
+% margin block), with no clamping. A center that does not fit clean is not
+% clamped into place -- clamping a center is neither center nor top nor
+% bottom, it is just wherever the clamp landed, and the point of asking for an
+% aligned center was to get one honestly or not at all. Top-of-figure is tried
+% next, then bottom-of-figure; the first of the three that needs no clamp
+% wins. If none does, this falls through unchanged to the pre-existing
+% issuing-line anchor and its own clamps below -- the same fallback this file
+% always had, now reached only when no figure-relative placement clears.
+\newif\ifpd@figcentered
 \newcommand{\pd@placemargin}[1]{%
+  \pd@figcenteredfalse
+  \ifnum\pd@figpage=\thepage\relax\ifdim\pd@figbot>\z@
+    \pd@marginbounds{#1}%
+    \setlength{\pd@blockoff}{\dimexpr(\pd@figtop+\pd@figbot)/2-\pagetotal-(\ht#1+\dp#1)/2\relax}%
+    \pd@tryoffset
+    \ifpd@fits\pd@figcenteredtrue\else
+      \setlength{\pd@blockoff}{\dimexpr\pd@figtop-\pagetotal\relax}%
+      \pd@tryoffset
+      \ifpd@fits\pd@figcenteredtrue\else
+        \setlength{\pd@blockoff}{\dimexpr\pd@figbot-\pagetotal-\ht#1-\dp#1\relax}%
+        \pd@tryoffset
+        \ifpd@fits\pd@figcenteredtrue\fi
+      \fi
+    \fi
+  \fi\fi
+  \ifpd@figcentered
+    \marginnote{\usebox#1}[\pd@blockoff]%
+    \xdef\pd@blockpage{\thepage}%
+    \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax
+  \else
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
   % A note never starts below the line that issues it -- clamped here, BEFORE
   % the occupancy caps, not after. Clamping last undid every downward push:
@@ -219,7 +325,8 @@
   \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
   \xdef\pd@blockpage{\thepage}%
-  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
+  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax
+  \fi}
 % The same placement for a note the page can do without. A Recall block, a
 % margin figure and a gloss carry content that is nowhere else, so they are
 % always placed. A short-form citation, a provenance note and a discharge
