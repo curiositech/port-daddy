@@ -477,26 +477,6 @@ Straight and curly quotation marks or apostrophes both used within one document.
 
 > The team's “big bet” was the company's “only bet”.
 
-### `dark-mode-radial-glow-blobs`  ·  medium · generic-llm · color · structural · family: visual
-
-Dark-mode-by-default near-black background (#0A0A0A / slate-950) decorated with large blurred radial-gradient glow blobs in indigo/violet/cyan bleeding from the corners, plus a faint grid or dot overlay.
-
-**Why it reads AI:** Linear/Vercel-style dark hero with ambient purple glows is the default 'looks expensive' move. When every AI site has the same two violet smudges on near-black, it reads as templated.
-
-**Detect:** structural: detect a body background near #000-#0B0F1A combined with absolutely-positioned divs carrying `radial-gradient` + heavy `blur()` (>60px) in indigo/violet/cyan, and/or a repeating grid/dot background SVG. The dark-bg + corner glow-blob + grid-overlay triple is the signature.
-
-**Fix:** Justify the color mode by the product. If dark, build a real neutral scale and use lighting with intent; drop the corner glow-blobs or replace with a meaningful brand visual. Consider light or a distinctive non-black dark.
-
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
-
-**Before**
-
-> bg-slate-950 with two blur-3xl violet/indigo radial blobs top-left and bottom-right and a faint dot-grid overlay behind the hero.
-
-**After**
-
-> Warm off-white (#F7F5F2) light theme with a single hand-made hero illustration; or a deliberate deep-green dark theme with one structural light source and no ambient glow blobs.
-
 ### `eight-second-shot-ceiling`  ·  medium · generic-llm · video · structural · family: visual
 
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
@@ -789,26 +769,6 @@ The diverse team around a laptop, mid-laugh, pointing at a screen that is not th
 
 > The three people who built it, at their desks, badly lit.
 
-### `stock-mesh-gradient-background`  ·  medium · generic-llm · color · structural · family: visual
-
-The hero or full-page background is a soft multi-stop mesh gradient (pink-purple-blue-teal blend), often the literal default from a mesh-gradient generator, used as decoration unrelated to the brand.
-
-**Why it reads AI:** Mesh gradients had a moment, so models emit them as instant 'modern' backdrop. A pastel mesh that doesn't echo any brand color is decoration-by-default.
-
-**Detect:** structural: detect large conic/radial multi-stop gradients or a mesh-gradient SVG/PNG covering the hero with 3+ pastel stops in the magenta-violet-blue-cyan range, frequently with blur.
-
-**Fix:** Make the background earn its place: a solid brand-tinted surface, a real product visual, a subtle texture, or a gradient built from actual brand colors. Avoid the default rainbow-pastel mesh.
-
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
-
-**Before**
-
-> Full-bleed hero behind the headline is a blurred pink-to-purple-to-cyan mesh gradient lifted from a generator preset.
-
-**After**
-
-> Hero sits on a flat warm-neutral surface with a single duotone product screenshot; any gradient uses only the two brand hues at low contrast.
-
 ### `triplicate-grid`  ·  medium · generic-llm · layout · structural · family: form
 
 The same three-column card grid used for features, then benefits, then testimonials, then pricing. One layout answering every content shape.
@@ -877,6 +837,26 @@ OBSOLETE AS A PRIMARY TEST. The 2022-2024 image giveaways — six-fingered hands
 
 > Checking Content Credentials, running a reverse image search, and asking the designer where the file came from.
 
+### `dark-mode-radial-glow-blobs`  ·  low · generic-llm · color · structural · family: visual
+
+Dark-mode-by-default near-black background (#0A0A0A / slate-950) decorated with large blurred radial-gradient glow blobs in indigo/violet/cyan bleeding from the corners, plus a faint grid or dot overlay.
+
+**Why it reads AI:** Linear/Vercel-style dark hero with ambient purple glows is the default 'looks expensive' move. When every AI site has the same two violet smudges on near-black, it reads as templated.
+
+**Detect:** structural: detect a body background near #000-#0B0F1A combined with absolutely-positioned divs carrying `radial-gradient` + heavy `blur()` (>60px) in indigo/violet/cyan, and/or a repeating grid/dot background SVG. The dark-bg + corner glow-blob + grid-overlay triple is the signature.
+
+**Fix:** Justify the color mode by the product. If dark, build a real neutral scale and use lighting with intent; drop the corner glow-blobs or replace with a meaningful brand visual. Consider light or a distinctive non-black dark.
+
+**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh/blob/aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal, not a refutation -- comment share measures what people find irritating, not what predicts generation -- but do not let this carry a verdict alone.
+
+**Before**
+
+> bg-slate-950 with two blur-3xl violet/indigo radial blobs top-left and bottom-right and a faint dot-grid overlay behind the hero.
+
+**After**
+
+> Warm off-white (#F7F5F2) light theme with a single hand-made hero illustration; or a deliberate deep-green dark theme with one structural light source and no ambient glow blobs.
+
 ### `debug-residue-in-production`  ·  low · generic-llm · web-ui · structural · family: residue
 
 console.log, console.debug and debugger statements on a shipped page.
@@ -942,6 +922,26 @@ Display and body set in the same typeface, differentiated only by size and weigh
 **After**
 
 > A display serif at the headline, the grotesque kept for body.
+
+### `stock-mesh-gradient-background`  ·  low · generic-llm · color · structural · family: visual
+
+The hero or full-page background is a soft multi-stop mesh gradient (pink-purple-blue-teal blend), often the literal default from a mesh-gradient generator, used as decoration unrelated to the brand.
+
+**Why it reads AI:** Mesh gradients had a moment, so models emit them as instant 'modern' backdrop. A pastel mesh that doesn't echo any brand color is decoration-by-default.
+
+**Detect:** structural: detect large conic/radial multi-stop gradients or a mesh-gradient SVG/PNG covering the hero with 3+ pastel stops in the magenta-violet-blue-cyan range, frequently with blur.
+
+**Fix:** Make the background earn its place: a solid brand-tinted surface, a real product visual, a subtle texture, or a gradient built from actual brand colors. Avoid the default rainbow-pastel mesh.
+
+**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship. Measured against complaint volume this signal is weak: a ranked analysis of ~3.2M posts across 47 subreddits puts mesh/blob/aurora backgrounds at roughly 0.1% of comments naming AI slop and advises against chasing them. Read that as a bound on the signal, not a refutation -- comment share measures what people find irritating, not what predicts generation -- but do not let this carry a verdict alone.
+
+**Before**
+
+> Full-bleed hero behind the headline is a blurred pink-to-purple-to-cyan mesh gradient lifted from a generator preset.
+
+**After**
+
+> Hero sits on a flat warm-neutral surface with a single duotone product screenshot; any gradient uses only the two brand hues at low contrast.
 
 ### `uncanny-padding-rhythm-uniformity`  ·  low · generic-llm · layout · structural · family: visual
 
