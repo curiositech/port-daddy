@@ -28,8 +28,8 @@
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 64,
-      "bytes": 946214,
-      "sha256": "c0d848b088e2f45ae1976d0df7901d07f260b83622cb73d6693e5cdd437691a2"
+      "bytes": 946173,
+      "sha256": "1ca1fb8a93527f11523467c451ed544b0c8282e3a6b0a5f00f488d9b1f45c8e2"
     },
     "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
       "pages": 21,
@@ -37,9 +37,9 @@
       "sha256": "b5eeae7b9f5cf71fc47ce6d9e965ee86cc2872de57c48ec02d336737d5b7fce9"
     },
     "website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf": {
-      "pages": 58,
-      "bytes": 812260,
-      "sha256": "cf1bd69d2424807c74d440425b1a2f66afc1df2941dffa59a09c1f8f10e32463"
+      "pages": 57,
+      "bytes": 811568,
+      "sha256": "a4dd6c275527b2abd8842fc104d9729c1f33a5d1fcd75f15560af0f59c7f6946"
     },
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 53,

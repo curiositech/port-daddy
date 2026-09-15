@@ -465,7 +465,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
-    pages: 58,
+    pages: 57,
     sizeKb: 793,
     status: 'Version 1.2 (textbook edition)',
     order: '01',
