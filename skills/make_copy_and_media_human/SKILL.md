@@ -345,6 +345,32 @@ their only visible boundary. Both matter because a static pass reports success o
 exactly these: the Escape handler is present in source whether or not it runs,
 and a gradient looks like a boundary right up until the OS reverts it.
 
+### Where hard string matching is allowed
+
+Everywhere else in this skill, a closed phrase list is a bad detector: the words
+have honest uses, and the list ages out as models change. In-product UI strings
+are different in kind. A product's user-facing string table is small,
+enumerable and extractable — from i18n catalogs, from string literals in the
+render and error path, from the error and empty and toast slots in the DOM —
+and within that surface the phrase space is genuinely narrow, because there are
+only so many ways to say nothing. "Something went wrong" is not a phrase with a
+good use at a different frequency; it is a phrase with no good use at all in a
+product that knows what went wrong.
+
+So `references/product-ux-writing.md` ships closed sets as hard matches, and the
+script runs them only over extracted UI strings. It will not fire on an article
+that quotes the same phrase, and that narrowness is the whole reason the sets are
+defensible.
+
+The mechanism underneath them is worth carrying into any review of product copy.
+Under uncertainty about what failed, every substantive clause a model could write
+risks being wrong, and exactly one clause carries zero risk: the one about how
+sorry everyone is. So the string is optimised for the writer's uncertainty
+rather than the reader's blockage — and the two are anti-correlated. **The
+less the system knows about the failure, the warmer the copy gets.** A person who
+does not know what went wrong writes something terse and slightly embarrassed. A
+model writes something fluent and kind.
+
 ### Two surfaces worth naming separately
 
 Most of this skill asks whether something reads generated. Two reference files do
@@ -467,6 +493,7 @@ already one of them.
 | `references/tool-fingerprints.md` | Asked which tool built a page, or about to report a generator string as a finding — read the first two items before the other nineteen |
 | `references/five-minute-manual-pass.md` | Reviewing any web page for accessibility — eleven keyboard and screen-reader steps, written for someone who has never used one |
 | `references/accessibility-beyond-the-checklist.md` | After the manual pass, or when an automated scan came back clean and you need the other 70% |
+| `references/product-ux-writing.md` | Any string a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -585,6 +612,7 @@ launch announcement in machine accent and then edited,
 - [`references/five-minute-manual-pass.md`](references/five-minute-manual-pass.md) — The five-minute manual pass — Written for someone who has never used a screen reader.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
 - [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
+- [`references/product-ux-writing.md`](references/product-ux-writing.md) — UX writing inside the product — The strings a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints.
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
 - [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 - [`references/tool-fingerprints.md`](references/tool-fingerprints.md) — Tool fingerprints — provenance, and the few that are also defects — Read the first two items in this file before the other nineteen, because they are the rules the rest depends on.
