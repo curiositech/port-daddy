@@ -78,6 +78,22 @@
   checkers and is not itself checked is the same defect one layer up.
   `claude/figcheck-suite-repair` adds the same step with a floor of 86 — if it lands
   first that is a one-number conflict, and the higher number is the right one.
+- `references/craft-rules.md` gains §7, "Claims, notation and convention": the eight
+  rules drawn out of one review of `fig:anchor-handshake-ladder` — caption–drawing
+  integrity, caption vocabulary, one notation per entity, show data variation not design
+  variation, use the convention before inventing, encode the boundary don't annotate it,
+  caption states the claim, termination padding, and edition type. The old §7
+  (sources) becomes §8.
+- `scripts/tikz_precheck.py` gains P15 (a caption promising `dotted`/`dashed`/`shaded`/
+  `bold`/`greyed`/`hatched` with no directive that could draw it), P16 (one identifier
+  spelled two ways in a fragment) and P17 (a caption naming an identifier no label
+  carries; warning). Each has a passing and a failing fixture in
+  `tests/test_tikz_precheck_new_rules.py`. All three run clean over all ~100 fragments
+  in the three corpora.
+- Not mechanized, and marked as human rules in craft-rules.md: register mixing
+  (`$card_0$` vs `\texttt{card\_0}`), figure-versus-chapter notation disagreement, and
+  "drawn but too faint to read". A node/lifeline overlap check was not added to the
+  source linter either — figcheck's T4 already answers that soundly on the compiled PDF.
 
 ## v1.0.0 (2026-09-06)
 
