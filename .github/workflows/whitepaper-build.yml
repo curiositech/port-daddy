@@ -6,11 +6,40 @@ name: Whitepaper PDF Build & Deploy
 # render (retired cinnabar) eight days after the source moved to cobalt.
 #
 # Modes:
-#   * configured feature-branch push -> rebuild and COMMIT changed PDFs.
-#   * same-repository PR -> rebuild and COMMIT changed PDFs to the PR head;
-#       fork PRs remain advisory because their token is read-only.
+#   * release-lane push (release/whitepapers, or the configured papers branch)
+#       -> rebuild and COMMIT changed PDFs with their derived metadata. This is
+#       the ONLY writer of PDF bytes.
+#   * any pull request -> rebuild, run every gate, and COMMIT NOTHING.
 #   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
-#       protected and should only ever receive fresh PDFs via merged PRs.
+#       protected and should only ever receive fresh PDFs via the release lane.
+#
+# WHY A PULL REQUEST NO LONGER RECEIVES A BUILD COMMIT.
+#
+# This job used to commit regenerated PDFs onto same-repository PR heads. For
+# `coordination-papers-mega-volume.pdf` -- the Book, 9,740,631 bytes -- that made
+# the repository's merge policy unsatisfiable. The policy is rebase-only; git
+# cannot three-way-merge a PDF; and EVERY whitepaper PR regenerated the Book,
+# because every whitepaper PR touches a .tex the Book \input{}s. So the first
+# such PR merged and every other one rebased straight into a binary conflict,
+# with no resolution available but "pick a side and rebuild" -- which produces a
+# different 9.7 MB blob, and the next PR in the queue hits it again. The healing
+# commit was not a casualty of that deadlock; it was its mechanism.
+#
+# Measured on two synthetic whitepaper PRs built off the same base:
+#
+#   before   `git diff --numstat` on the PR head reports `-  -` for the Book
+#            (git's marker for a binary file), the head carries a 9,740,646-byte
+#            blob, and `git merge-tree` of the two heads reports
+#            CONFLICT (content) in the PDF -- a conflict with no text form.
+#   after    the same two PRs change 2 lines of JSON, and `git merge-tree`
+#            reports a conflict in publication-digests.json WITH ORDINARY
+#            CONFLICT MARKERS around the two sha256 lines. That is a conflict a
+#            rebase can resolve, and which regeneration resolves mechanically.
+#
+# The PDFs still reach main through the release lane above, and the freshness
+# check at the bottom of this job still fails on main if they have not. What
+# changed is only WHERE the bytes are written: one serialized branch, instead of
+# every open PR head at once.
 #
 # The regen commit carries its own derived metadata. publication-digests.json
 # and whitePapers.ts record the byte length, SHA-256 and page count of each
@@ -36,7 +65,10 @@ name: Whitepaper PDF Build & Deploy
 
 on:
   push:
-    branches: [main, claude/papers-feature-branches-hb055f]
+    # `release/whitepapers` is the release lane: the one branch where rebuilt PDF
+    # bytes are written. Serializing the writer is what stops two PRs producing
+    # two different renders of the same Book.
+    branches: [main, 'release/whitepapers', claude/papers-feature-branches-hb055f]
     paths:
       - 'website-v2/public/whitepaper/**/*.tex'
       - 'whitepaper/**/*.tex'
@@ -223,15 +255,17 @@ jobs:
       - name: Decide whether this run has derived output to own
         id: regen
         env:
-          # Heal configured feature-branch pushes and same-repository PR heads.
-          # Fork PRs retain a read-only token and stay advisory; main is protected
-          # and receives the already-healed artifact through the merge queue.
-          COMMITTABLE: ${{ (github.event_name == 'push' && github.ref_name != 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
+          # Heal the release lane, and nothing else. Pull requests are excluded
+          # deliberately -- that exclusion is the point of this change; see the
+          # header of this file. main is protected and receives the already-healed
+          # artifact through the merge queue. A manual run on the lane heals it
+          # too, so a human can drive the lane without inventing a commit to push.
+          COMMITTABLE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name != 'main' }}
         run: |
           set -euo pipefail
           emit() { echo "carry=$1" >> "$GITHUB_OUTPUT"; echo "$2"; exit 0; }
           if [ "$COMMITTABLE" != "true" ]; then
-            emit false "This event cannot commit (fork PR, or main) — the render stays advisory."
+            emit false "This event does not write PDF bytes (pull request, or main) — the render stays advisory. PDF bytes are written only on the release lane."
           fi
           # Loop-breaker: never stack a second build commit on our own. This
           # bounds the build->commit->build chain to a single extra commit even
@@ -335,8 +369,10 @@ jobs:
           exit 1
 
       - name: Freshness check (advisory on PRs, enforced on main)
-        # Feature-branch pushes are skipped; PRs verify the clean worktree after
-        # the healing commit above, while forks remain advisory.
+        # A PR is expected to be "dirty" here now -- it deliberately carries no
+        # PDF bytes -- so the report below is information for the author, not a
+        # finding. main is the one place staleness is a failure, and the release
+        # lane is what heals it.
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
@@ -346,12 +382,15 @@ jobs:
           echo "Published PDFs differ from a fresh render of current source:"
           git diff --stat -- 'website-v2/public/whitepaper/*.pdf' || true
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
-            echo "::error::main is serving stale whitepaper PDFs — a PR must carry"
-            echo "rebuilt PDFs (the feature-branch build commits them automatically)."
+            echo "::error::main is serving stale whitepaper PDFs. Heal them on the release"
+            echo "lane: push the rebuilt source to release/whitepapers (or run this workflow"
+            echo "via workflow_dispatch on that branch), then merge the one-commit result."
+            echo "Pull requests deliberately no longer carry PDF bytes; see this file's header."
             exit 1
           fi
-          echo "::notice::Advisory only — PDFs are regenerated and committed on the"
-          echo "feature branch, so the merge carries fresh artifacts to main."
+          echo "::notice::This PR is NOT receiving a build commit, and is not expected to."
+          echo "PDF bytes are written only on the release lane. What a PR carries when the"
+          echo "Book moves is the text record in publication-digests.json — see the header.""
 
   cover-band:
     # The page half of the type-over-art check: for every page of every
