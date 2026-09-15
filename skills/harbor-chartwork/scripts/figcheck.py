@@ -644,6 +644,7 @@ def compute_page_ink(page, content_rect, page_rect, page_no, ink_audit):
 # --------------------------------------------------------------------------- #
 
 def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
+    pdf_path = Path(pdf_path)
     doc = pymupdf.open(pdf_path)
     textwidth_pt = textwidth_cm * PT_PER_CM
     findings = []
@@ -723,7 +724,7 @@ CHECK_LABELS = {
 
 def render_markdown(report):
     lines = []
-    lines.append(f"# figcheck: `{Path(report['pdf']).name}`")
+    lines.append(f"# figcheck: `{report['figure']}`")
     lines.append("")
     lines.append(f"Result: **{report['summary']['result'].upper()}** "
                  f"({report['page_count']} page(s))")
