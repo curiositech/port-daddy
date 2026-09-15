@@ -2,7 +2,7 @@
 
 Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 
-_55 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_59 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -170,6 +170,26 @@ A specific-sounding number with no source: '73% of teams report improved collabo
 
 > Every remote team I've worked on has had the same problem with async, and none of us solved it well.
 
+### `h1-names-a-category-not-a-product`  ·  high · generic-llm · marketing-copy · llm-judge · family: form
+
+The headline is a value proposition or a category description rather than a statement of what the thing is. The canonical form is a mad-lib: 'The AI-powered X for modern Y.'
+
+**Why it reads AI:** A generator given a product name and a category has the category available and the mechanism not. The reader finishes the hero knowing which aisle the product is shelved in and nothing else.
+
+**Detect:** Judge: after reading only the hero, can you name one thing the product does? A structural pre-filter is possible on the template shapes and on headlines containing no verb describing an action the software performs.
+
+**Fix:** Say what it does, with a verb and an object. 'Turn Figma files into React components' beats any arrangement of platform, workspace, and modern teams. Test it by asking whether a competitor could use the same headline unchanged.
+
+**False positive when:** Category-defining products genuinely name a category, and established brands can lead with positioning because the reader already knows the mechanism.
+
+**Before**
+
+> The AI-powered workspace for modern teams
+
+**After**
+
+> Turn Figma files into React components
+
 ### `h2-spam-full-sentence-headings`  ·  high · chatgpt · structure · structural · family: shape
 
 A heading appears every one to two paragraphs, and the headings are full title-case sentences ('How To Structure Your Onboarding For Maximum Retention') rather than short labels. Heading density approaches paragraph density.
@@ -299,6 +319,28 @@ A post built as a vertical stack of one-line paragraphs separated by blank lines
 **After**
 
 > I got rejected by 40 companies before the 41st said yes — and the 41st only happened because a friend forwarded my resume past the screener. The lesson isn't 'never give up.' It's that the application pile is a lottery you win by knowing someone.
+
+### `magnitudes-without-a-baseline`  ·  high · generic-llm · marketing-copy · structural · family: form
+
+'10x faster.' 'Cut costs by 40%.' A comparative claim with no comparand, no method and no source.
+
+**Why it reads AI:** The figure does the rhetorical work of evidence while carrying none of the risk, which is exactly what a generator reaches for when it has no measurement to report. It is the visual-design sibling of the fabricated statistic.
+
+**Detect:** Match multipliers and improvement frames attached to numbers, then check the surrounding block for a comparison target, a measurement method, a date or an outbound link. A bare percentage is deliberately NOT matched: a proportion is not a claim.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Give every number its denominator and its method, or delete it. 'Median build time fell from 4m12s to 1m50s across our own CI over March' beats '3x faster' and cannot be doubted the same way.
+
+**False positive when:** Claims with the comparand and method already attached pass and should. Regulated industries often have approved comparative language with the substantiation held elsewhere and linked.
+
+**Before**
+
+> 10x faster. Save 40% on costs.
+
+**After**
+
+> Median build time fell from 4m12s to 1m50s, measured across our own CI over March.
 
 ### `markdown-leak-in-unrendered-medium`  ·  high · chatgpt · structure · structural · family: form
 
@@ -513,6 +555,28 @@ The generated review arc plus its content signature. Skeptic-conversion opener, 
 
 > Third one of these I've owned. The hinge on the previous two gave out around 14 months; this revision uses a metal pin. It does not fit a 15-inch laptop with a case on, despite the listing photo.
 
+### `testimonial-with-no-traceable-source`  ·  high · generic-llm · marketing-copy · structural · family: form
+
+A quote attributed to 'Sarah C., Product Manager' with a generated face. A first name, a job title, no company, no link.
+
+**Why it reads AI:** Nothing in the attribution can be checked, which is the design rather than an oversight. The template has a testimonial slot and a testimonial needs a face, so a face is fetched from wherever faces come from.
+
+**Detect:** Placeholder avatar hosts (pravatar, randomuser, ui-avatars, thispersondoesnotexist) are the cleanest signal, plus first-name-plus-initial attribution patterns. Near-zero false positive on the avatar hosts: no real customer has a portrait served from a random-face API.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Get a real name, role, company and a link, or take the section down. One checkable quote outperforms five unfalsifiable ones, and a page with no testimonials is more credible than a page with invented ones.
+
+**False positive when:** Design-system documentation and component galleries use placeholder avatars correctly. Anonymised testimonials from regulated or security-sensitive customers are legitimate when the page says why the name is withheld.
+
+**Before**
+
+> <img src="https://i.pravatar.cc/100"> Sarah C., Product Manager
+
+**After**
+
+> <img src="/customers/priya.jpg"> Priya Raman, Staff SRE at Calder — <a href="/customers/calder">read the write-up</a>
+
 ### `tracking-param-residue`  ·  high · chatgpt · structure · structural · family: residue
 
 URLs carrying utm_source=chatgpt.com, utm_source=perplexity, or a sibling attribution parameter, pasted straight out of a chat UI.
@@ -651,6 +715,26 @@ Breaking flowing argument or narrative into headline-plus-bullet lists, includin
 **After**
 
 > The launch failed mostly on timing: we shipped the week of a competitor's conference, signups came in low, and once the numbers looked bad leadership cut the budget, which ended marketing entirely.
+
+### `bullet-restates-its-own-title`  ·  medium · generic-llm · marketing-copy · llm-judge · family: form
+
+Each feature card has a two-word title and a body that is the title again as a sentence. 'Real-time sync — Keep everything in sync, in real time.'
+
+**Why it reads AI:** The card has a body slot, so a body is generated, and the only guaranteed-relevant content for that slot is the title it sits under.
+
+**Detect:** Content-word overlap between a card's title and its body, discounting stopwords. Flag when most of the title's content words reappear and the body adds no proper noun, numeral or unit.
+
+**Fix:** Make the body say the thing the title cannot: the mechanism, the limit, the number. If you cannot, delete the body and let the title stand alone.
+
+**False positive when:** A deliberately redundant summary line for scanning, and accessibility patterns where the body expands an abbreviated title.
+
+**Before**
+
+> **Real-time sync** — Keep everything in sync, in real time.
+
+**After**
+
+> **Real-time sync** — Changes land in about 200ms; we stream the WAL rather than polling.
 
 ### `checkmark-bullet-grid`  ·  medium · chatgpt · structure · structural · family: form
 

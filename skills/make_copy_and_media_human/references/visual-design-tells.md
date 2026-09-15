@@ -2,7 +2,7 @@
 
 What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.
 
-_35 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_44 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -132,6 +132,26 @@ Across 'different' avatars or testimonial photos, the same underlying face recur
 **After**
 
 > Four genuinely distinct licensed portraits with varied lighting, framing, and color treatment — or four monogram/initial avatars instead of faces.
+
+### `mockup-of-nothing`  ·  high · generic-llm · image · llm-judge · family: form
+
+A hero visual that is chrome without a product: a browser frame or device bezel around an interface that does not exist, with invented chart shapes and plausible-but-fictional nav items.
+
+**Why it reads AI:** More dishonest than the image-less hero, because it makes a claim. A generator cannot screenshot software it has never run, but it can draw something that looks like one.
+
+**Detect:** Judge: is this a screenshot of a running application or an illustration of one? Look for data following a real distribution, labels naming domain-specific nouns, scrollbars, focus rings, timestamps, truncation, and empty states. A structural hint: a hero 'screenshot' built as a DOM tree or inline SVG rather than a raster, because a real screenshot is almost never hand-rebuilt in markup.
+
+**Fix:** Replace it with a real screenshot, cropped to the view that makes the value legible, with real data in it. If the product is not built, an honest diagram of the intended mechanism is better than a fake of the finished thing.
+
+**False positive when:** Deliberate illustration clearly presented as illustration, and pre-release products showing a design mock labelled as one.
+
+**Before**
+
+> A MacBook bezel around a hand-drawn dashboard with Project Alpha, Project Beta, Project Gamma.
+
+**After**
+
+> A screenshot of the real queue with three real table names in it.
 
 ### `no-idle-micro-behavior`  ·  high · generic-llm · video · llm-judge · family: visual
 
@@ -391,6 +411,28 @@ A small rounded-full pill above the headline with a tiny dot or sparkle and text
 
 > Either no pill, or a real link pill at 14px to a dated launch post: 'Read: v2 is live ->' — and only when that post exists.
 
+### `centred-body-copy`  ·  medium · generic-llm · typography · structural · family: form
+
+Centring applied to paragraphs and not just headings, so every block has a ragged left edge.
+
+**Why it reads AI:** It looks balanced in a thumbnail, which is the view the generation loop optimises. It reads badly at full size because the eye loses the line start.
+
+**Detect:** Count centred text blocks across the page.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 6
+
+**Fix:** Centre headings if you like; left-align anything over two lines. The left edge is what the eye returns to, and a ragged one costs the reader on every line.
+
+**False positive when:** Short hero subheads, pull quotes, and genuinely centred editorial layouts. The threshold is set high because a few centred blocks are ordinary.
+
+**Before**
+
+> Every card body centred.
+
+**After**
+
+> Headings centred, bodies left-aligned.
+
 ### `curly-straight-quote-mixing`  ·  medium · generic-llm · typography · structural · family: residue
 
 Straight and curly quotation marks or apostrophes both used within one document.
@@ -476,6 +518,26 @@ Every section, card and heading enters with the same fade-and-rise animation on 
 **After**
 
 > A static page with one deliberate transition where state actually changes.
+
+### `fixed-section-order`  ·  medium · generic-llm · layout · llm-judge · family: form
+
+Hero, logo bar, three features, testimonial, pricing, CTA, in that order, regardless of what the product is or what a visitor needs to believe first.
+
+**Why it reads AI:** The order is the template's, not the argument's. Deciding what a reader must believe first requires knowing who the reader is.
+
+**Detect:** Classify top-level sections and compare the sequence against the canonical order. Report once per page rather than per section.
+
+**Fix:** Decide the one thing a visitor must believe before anything else, and put the section that establishes it first. For a product nobody has heard of that is usually the demonstration, not the logo bar.
+
+**False positive when:** The canonical order is canonical because it often works, and a page following it deliberately is not at fault. The tell is following it without having considered an alternative.
+
+**Before**
+
+> The canonical six-section stack.
+
+**After**
+
+> Demonstration, then the objection it raises, then the answer, then pricing.
 
 ### `glassmorphism-card-stack`  ·  medium · generic-llm · web-ui · structural · family: visual
 
@@ -605,6 +667,28 @@ The file's provenance record: a C2PA manifest naming a generator, a manifest nam
 
 > Signed at capture or export, with the manifest preserved through the build pipeline.
 
+### `reveal-animation-on-everything`  ·  medium · generic-llm · web-ui · structural · family: form
+
+Every element fades and rises into view on scroll, so the motion marks nothing and delays everything.
+
+**Why it reads AI:** Motion applied by rule rather than to direct attention. Deciding which one element deserves an entrance requires knowing which one matters.
+
+**Detect:** Count scroll-entrance animation usages.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 8
+
+**Fix:** Animate the one element whose arrival is the point and let the rest be present when the page is. Then add the prefers-reduced-motion guard, which a page with this much motion needs and almost never has.
+
+**False positive when:** Motion systems with a documented entrance token, and long marketing pages that use entrance motion deliberately for pacing.
+
+**Before**
+
+> Twelve elements sharing one fade-up variant with a stagger.
+
+**After**
+
+> A static page with one deliberate transition where state actually changes.
+
 ### `shadcn-defaults-unmodified`  ·  medium · generic-llm · web-ui · structural · family: visual
 
 shadcn/ui shipped exactly as generated: default radius, default zinc neutrals, default hairline borders, lucide as the only icon set, no token overrides.
@@ -645,6 +729,26 @@ The four-point sparkle (Lucide Sparkles, Material's AI sparkle) slapped on anyth
 
 > <button>Generate</button> with a custom monoline glyph unique to the product; no decorative sparkles; the AI capability is communicated by a short label and a subtle hover shimmer.
 
+### `stock-collaboration-photography`  ·  medium · generic-llm · image · llm-judge · family: form
+
+The diverse team around a laptop, mid-laugh, pointing at a screen that is not the product. Or its generated successor: same composition, same lighting, nobody real.
+
+**Why it reads AI:** The image occupies the space where evidence would go. It is the visual form of copy that names no mechanism.
+
+**Detect:** Judge: is this a photograph of this company's people, customers or product in use, or a generic image of work happening? Structural hints include stock-CDN filenames and hosts, and the same image on several pages.
+
+**Fix:** Photograph your actual team, your actual customer, or your actual screen. A worse photograph of a real thing beats a better photograph of nothing.
+
+**False positive when:** Licensed stock used knowingly for mood on a brand page, and industries where showing real customers is not permitted.
+
+**Before**
+
+> Smiling team around a laptop, stock CDN.
+
+**After**
+
+> The three people who built it, at their desks, badly lit.
+
 ### `stock-mesh-gradient-background`  ·  medium · generic-llm · color · structural · family: visual
 
 The hero or full-page background is a soft multi-stop mesh gradient (pink-purple-blue-teal blend), often the literal default from a mesh-gradient generator, used as decoration unrelated to the brand.
@@ -664,6 +768,28 @@ The hero or full-page background is a soft multi-stop mesh gradient (pink-purple
 **After**
 
 > Hero sits on a flat warm-neutral surface with a single duotone product screenshot; any gradient uses only the two brand hues at low contrast.
+
+### `triplicate-grid`  ·  medium · generic-llm · layout · structural · family: form
+
+The same three-column card grid used for features, then benefits, then testimonials, then pricing. One layout answering every content shape.
+
+**Why it reads AI:** The grid was chosen once and reused, because choosing per section requires knowing what each section contains. It is the layout equivalent of one register for every genre.
+
+**Detect:** Count three-column grid containers on the page.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_sections` = 3
+
+**Fix:** Let each content shape pick its own container. Two features with screenshots want something different from five testimonials, and a pricing table is not a card grid. When every section looks the same the reader stops distinguishing them.
+
+**False positive when:** A deliberate modular system, and pages where the content genuinely is three parallel things three times over.
+
+**Before**
+
+> Four sections, all grid-cols-3.
+
+**After**
+
+> Features as two wide rows with screenshots; testimonials as a single quote; pricing as a table.
 
 ### `undifferentiated-section-padding`  ·  medium · generic-llm · layout · structural · family: form
 
@@ -733,6 +859,50 @@ console.log, console.debug and debugger statements on a shipped page.
 
 > (removed)
 
+### `obligatory-dual-cta`  ·  low · generic-llm · web-ui · structural · family: form
+
+The hero always carries exactly two buttons side by side, one solid and one ghost: 'Get Started Free' plus 'Learn More'.
+
+**Why it reads AI:** The hero component has two button slots, so two buttons appear. It is not two audiences with two next steps; the secondary almost always points at the section immediately below it, which the reader would have reached by scrolling.
+
+**Detect:** Count buttons and anchors in the hero; flag a pair where one is filled and one is outline or ghost.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Decide what the one next step is and offer that. Keep a second action only when it serves a genuinely different reader, and then make its label name that reader's outcome rather than 'Learn more'.
+
+**False positive when:** Products with two genuinely distinct entry points (self-serve and sales-assisted) legitimately offer both, and a documented design system may standardise the pair.
+
+**Before**
+
+> <a class="btn">Get Started Free</a><a class="btn-outline">Learn More</a>
+
+**After**
+
+> <a class="btn">Start a 14-day trial — no card</a>
+
+### `one-family-no-contrast`  ·  low · generic-llm · typography · structural · family: form
+
+Display and body set in the same typeface, differentiated only by size and weight. Headlines are body text made large.
+
+**Why it reads AI:** Pairing is a decision and a single family is a default. Nothing in the generation loop rewards the second choice.
+
+**Detect:** Count distinct non-monospace font families in use; flag a page with exactly one and a display heading.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Pair a display face with the text face, or at minimum set an optical-size axis so the headline is drawn for headline sizes. One good pairing does more for a page than any amount of spacing work.
+
+**False positive when:** Single-family systems are a real and respected choice, especially with a variable font carrying genuine optical sizing. This is low severity for exactly that reason.
+
+**Before**
+
+> Inter for everything, 400 and 700.
+
+**After**
+
+> A display serif at the headline, the grotesque kept for body.
+
 ### `uncanny-padding-rhythm-uniformity`  ·  low · generic-llm · layout · structural · family: visual
 
 Every section uses the exact same vertical padding, every card the same internal padding and gap, every element the same radius token — mechanically uniform rhythm with no focal emphasis or intentional density change.
@@ -752,5 +922,27 @@ Every section uses the exact same vertical padding, every card the same internal
 **After**
 
 > Hero py-32, feature bento py-24, dense pricing table py-16; a full-bleed quote section breaks the column grid; card radii and padding step with hierarchy.
+
+### `untouched-default-icon-set`  ·  low · generic-llm · iconography · structural · family: form
+
+The default icon library at default stroke width, with the worn glyph set: Sparkles beside anything AI, Zap beside anything fast, ArrowRight on every button.
+
+**Why it reads AI:** Not the library, which is good, but the glyph choice. These are the icons a generator picks because they are the icons the training data picks, and they name the adjective rather than the thing.
+
+**Detect:** Library import signature plus the specific glyph names.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Choose glyphs that name the actual noun: if the feature is scheduling, the icon is a calendar, not a lightning bolt. Drop Sparkles entirely, which now reads as a label saying AI went here.
+
+**False positive when:** A well-chosen icon set used consistently is good practice, and these libraries are genuinely good. The tell is the specific worn triad, not the library.
+
+**Before**
+
+> Sparkles, Zap, ArrowRight across the feature grid.
+
+**After**
+
+> Calendar, Database, ArrowUpRight — each naming what its card is about.
 
 <!-- humanize:ignore-end -->

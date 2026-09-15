@@ -104,6 +104,14 @@ DEFAULT_THRESHOLDS = {
     "pull-quote-that-quotes-nothing": {"min_count": 1},
     "hero-with-nothing-to-look-at": {"min_count": 1},
     "undifferentiated-section-padding": {"min_sections": 4},
+    "obligatory-dual-cta": {"min_count": 1},
+    "triplicate-grid": {"min_sections": 3},
+    "magnitudes-without-a-baseline": {"min_count": 1},
+    "testimonial-with-no-traceable-source": {"min_count": 1},
+    "one-family-no-contrast": {"min_count": 1},
+    "centred-body-copy": {"min_count": 6},
+    "untouched-default-icon-set": {"min_count": 1},
+    "reveal-animation-on-everything": {"min_count": 8},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -1126,6 +1134,164 @@ def analyze_markup(path, text):
             "designed; one value used everywhere reads as a default.",
             family="form"))
 
+
+    # analyze_markup names the comment-stripped lowercase text `scan`; the taste
+    # checks below were written against `low`, which is the web-build analyzer's
+    # name for the same thing. Alias rather than diverge.
+    low = scan
+
+    # ---- the two-button hero. Not two audiences with two next steps; two slots.
+    hero_src = hero_m.group(1) if (hero_m and re.search(r"<h1\b", hero_m.group(1), re.I)) else ""
+    if hero_src:
+        btns = re.findall(r"<(?:a|button)\b[^>]*>", hero_src, re.I)
+        ghosty = [b for b in btns if re.search(r"outline|ghost|border|transparent|secondary", b, re.I)]
+        if len(btns) == 2 and len(ghosty) == 1:
+            out.append(finding(
+                path, text[:hero_m.start()].count("\n") + 1,
+                "hero has exactly one solid and one ghost button",
+                "obligatory-dual-cta", "low",
+                "The solid-plus-ghost pair turns up because the hero component has two "
+                "button slots, not because the page has two audiences with two next "
+                "steps. The second button usually says Learn More and goes to the "
+                "section immediately below it.",
+                "Decide what the one next step is and offer that. Keep a second action "
+                "only when it serves a genuinely different reader, and then make its "
+                "label name that reader's outcome rather than 'Learn more'.",
+                family="form"))
+
+    # ---- one grid answering every content shape
+    grid3 = len(re.findall(r"grid-cols-3\b", low)) + \
+        len(re.findall(r"grid-template-columns\s*:\s*repeat\(\s*3", low))
+    if grid3 >= th("triplicate-grid", "min_sections", 3):
+        out.append(finding(
+            path, next((i + 1 for i, l in enumerate(lines)
+                        if re.search(r"grid-cols-3|repeat\(\s*3", l, re.I)), 1),
+            f"{grid3} three-column grids on one page",
+            "triplicate-grid", "medium",
+            "One layout answering features, then benefits, then testimonials, then "
+            "pricing. The grid was not chosen for any of them; it was chosen once.",
+            "Let each content shape pick its own layout. Two features with screenshots "
+            "want a different container from five testimonials, and a pricing table is "
+            "not a card grid at all. If every section looks the same the reader stops "
+            "distinguishing them.",
+            family="form"))
+
+    # ---- a number doing the work of evidence
+    # A bare percentage is a proportion, not a claim: "flags the 2% that need a
+    # human" is grounded prose. The tell is a COMPARATIVE improvement with no
+    # comparand, so require a multiplier or an improvement frame around the number.
+    mags = re.findall(
+        r"\b\d+(?:\.\d+)?x\b"
+        r"|\b\d{1,3}%\s*(?:faster|slower|more|less|fewer|cheaper|improvement|increase|reduction|better)"
+        r"|\b(?:save|cut|reduce|increase|boost|improve|slash|double|triple)s?\b"
+        r"[^.!?\n]{0,24}?\b\d+(?:\.\d+)?\s*(?:%|x|hours?|days?|weeks?|minutes?)\b", low)
+    if mags:
+        has_ground = re.search(r"\b(?:compared (?:to|with)|versus|vs\.?|measured|benchmark|"
+                               r"n\s*=|median|average of|baseline|according to|source:)\b", low)
+        if not has_ground:
+            out.append(finding(
+                path, next((i + 1 for i, l in enumerate(lines)
+                            if re.search(r"\d+x\b|\d{1,3}%", l, re.I)), 1),
+                f"{len(mags)} magnitude claim(s) with no comparison, method or source: "
+                + ", ".join(sorted(set(mags))[:4]),
+                "magnitudes-without-a-baseline", "high",
+                "A number with no denominator. 10x faster than what, measured how, "
+                "against which workload? The figure does the rhetorical work of evidence "
+                "while carrying none of the risk, which is why a generator reaches for it "
+                "when it has no measurement to report.",
+                "Give every number its denominator and its method, or delete it. "
+                "'Median build time fell from 4m12s to 1m50s across our own CI over "
+                "March' beats '3x faster' and cannot be doubted the same way.",
+                family="form"))
+
+    # ---- attribution that cannot be checked
+    fake_av = re.findall(r"(?:pravatar\.cc|randomuser\.me|ui-avatars\.com|"
+                         r"thispersondoesnotexist|avatar\.vercel\.sh|i\.pravatar)", low)
+    initials = re.findall(r">\s*([A-Z][a-z]+ [A-Z]\.?)\s*,", text)
+    if fake_av or len(initials) >= 2:
+        detail = (f"{len(fake_av)} placeholder avatar URL(s)" if fake_av else "") + \
+                 (f"{'; ' if fake_av else ''}{len(initials)} first-name-plus-initial attributions"
+                  if len(initials) >= 2 else "")
+        out.append(finding(
+            path, next((i + 1 for i, l in enumerate(lines)
+                        if re.search(r"pravatar|randomuser|ui-avatars|[A-Z][a-z]+ [A-Z]\.,", l)), 1),
+            detail, "testimonial-with-no-traceable-source", "high",
+            "A quote from 'Sarah C., Product Manager' with a generated face. Nothing in "
+            "the attribution can be checked, which is the design rather than an "
+            "oversight. Placeholder avatar services are the clearest form: no real "
+            "customer has a portrait served from a random-face API.",
+            "Get a real name, role, company and a link, or take the testimonial down. "
+            "One checkable quote outperforms five unfalsifiable ones, and a page with no "
+            "testimonials is more credible than a page with invented ones.",
+            family="form"))
+
+    # ---- one typeface doing every job
+    fams = set(re.findall(r"font-family\s*:\s*([^;}\n]+)", scan))
+    fams = {f.strip().strip('"\'') for f in fams
+            if "mono" not in f and "icon" not in f}
+    if len(fams) == 1 and re.search(r"<h1\b", low):
+        out.append(finding(
+            path, next((i + 1 for i, l in enumerate(lines)
+                        if "font-family" in l.lower()), 1),
+            f"one typeface for everything: {list(fams)[0][:50]}",
+            "one-family-no-contrast", "low",
+            "Display and body are the same face, differentiated only by size and weight. "
+            "Headlines are body text made large. There is no pairing and no contrast of "
+            "voice, because pairing is a decision and a single family is a default.",
+            "Pair a display face with the text face, or at minimum set an optical size "
+            "axis so the headline is drawn for headline sizes. One well-chosen pairing "
+            "does more for a page than any amount of spacing work.",
+            family="form"))
+
+    # ---- centred paragraphs
+    centred = len(re.findall(r"text-align\s*:\s*center", scan)) + \
+        len(re.findall(r"\btext-center\b", scan))
+    if centred >= th("centred-body-copy", "min_count", 6):
+        out.append(finding(
+            path, next((i + 1 for i, l in enumerate(lines)
+                        if re.search(r"text-center|text-align\s*:\s*center", l, re.I)), 1),
+            f"{centred} centred text blocks",
+            "centred-body-copy", "medium",
+            "Centring applied to paragraphs and not just headings, so every block has a "
+            "ragged left edge and the eye has to find the start of each line. It looks "
+            "balanced in a thumbnail and reads badly at full size.",
+            "Centre headings if you like; left-align anything over two lines. The left "
+            "edge is what the eye returns to, and a ragged one costs the reader on every "
+            "line.",
+            family="form"))
+
+    # ---- the untouched icon set
+    if re.search(r"lucide", low) and re.search(r"\bSparkles\b", text) and \
+       (re.search(r"\bZap\b", text) or re.search(r"\bArrowRight\b", text)):
+        out.append(finding(
+            path, next((i + 1 for i, l in enumerate(lines) if "lucide" in l.lower()), 1),
+            "default icon set with the worn glyph set (Sparkles, Zap, ArrowRight)",
+            "untouched-default-icon-set", "low",
+            "Not the library, which is good, but the specific glyphs: Sparkles beside "
+            "anything AI, Zap beside anything fast, ArrowRight on every button. These "
+            "are the icons a generator picks because they are the icons the training "
+            "data picks.",
+            "Choose glyphs that name the actual thing rather than the adjective. If the "
+            "feature is scheduling, the icon is a calendar, not a lightning bolt. And "
+            "drop Sparkles entirely, which now reads as a label saying 'AI went here'.",
+            family="form"))
+
+    # ---- motion applied by rule
+    reveals = len(re.findall(r"whileInView|data-aos|animate-fade-?in-?up|\bfade-up\b", low))
+    if reveals >= th("reveal-animation-on-everything", "min_count", 8):
+        out.append(finding(
+            path, next((i + 1 for i, l in enumerate(lines)
+                        if re.search(r"whileInView|data-aos|fade-?in-?up", l, re.I)), 1),
+            f"{reveals} scroll-entrance animations",
+            "reveal-animation-on-everything", "medium",
+            "Every element fades and rises into view, so the motion directs attention to "
+            "nothing and delays all of it. Motion applied by rule rather than to mark "
+            "the one thing that matters.",
+            "Animate the one element whose arrival is the point and let the rest be "
+            "present when the page is. Then add the prefers-reduced-motion guard, which "
+            "a page with this much motion needs and almost never has.",
+            family="form"))
+
     for i, l in enumerate(lines):
         if re.search(r"<(button|a|h[1-6]|th|label|summary)\b[^>]*>[^<]*", l):
             seg = re.findall(r">([^<]+)<", l)
@@ -1676,6 +1842,11 @@ def analyze_code(path, text):
             continue
         comment, nxt = m.group(1).strip(), lines[i + 1].strip()
         if not comment or not nxt or COMMENT_PREFIX.match(lines[i + 1]):
+            continue
+        # A section divider ("# ---- centred paragraphs") introduces a block; it
+        # is not a comment narrating the statement beneath it, and treating it as
+        # one flagged this script's own headings.
+        if re.match(r"^[-=*~_]{2,}", comment):
             continue
         cw = ident_words(comment) - STOPWORDS
         nw = ident_words(nxt) - STOPWORDS
