@@ -1,0 +1,1898 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Harbor Figure Desk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Harbor Figure Desk — Swiss edition.
+
+   Fractional linework, per website-v2/src/styles/tokens.source.css:
+     1px   texture (hairlines)      1.5px linework marks (brackets, rings)
+     2px   enclosure                3px   stripes carry state
+     14px  bracket arm
+   Never more than two of those on one surface, and never 1.5 beside 2.
+
+   Colour is a FIELD, not a fill. Every block that used to be a solid slab
+   of --red / --blue / --green / --yellow / --ink / --slate is now an
+   ordered halftone: two dot lattices on a 5px pitch, offset half a cell,
+   painted in ONE opaque tone colour over ONE opaque base. The extreme
+   pixel of a field is therefore exactly the tone colour, and that — not
+   the average tint — is what the contrast figures were measured against.
+   Small marks (the three reviewer squares, region tags, the toast) stay
+   solid: dither the field, never the figure. */
+
+:root{
+  --paper:#EDEAE2;
+  --sheet:#F8F6F1;
+  --ink:#14120F;
+  --ink2:#5E5A51;
+  --rule:#CBC5B8;
+  --rule2:#DDD8CD;
+  --red:#CE3418;
+  --blue:#16469B;
+  --green:#1B6C45;
+  --yellow:#DFA200;
+  --slate:#565248;
+  --onblock:#F5F2EA;
+  --onyellow:#14120F;
+  --focus:#16469B;
+
+  --lw-hairline:1px;
+  --lw-weight:1.5px;
+  --lw-enclosure:2px;
+  --lw-stripe:3px;
+  --lw-bracket:14px;
+
+  /* hue share inside the dither ink, and inside the flat gap between dots */
+  --tone-a:38%;   /* chromatic hues */
+  --tone-n:30%;   /* the neutral ink screen */
+  --tone-b:8%;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#100F0D;
+    --sheet:#1A1917;
+    --ink:#EDEAE2;
+    --ink2:#9B958A;
+    --rule:#37342E;
+    --rule2:#26241F;
+    --red:#EF563A;
+    --blue:#6A93E8;
+    --green:#33A46E;
+    --yellow:#EAB424;
+    --slate:#8A8478;
+    --onblock:#0D0C0B;
+    --onyellow:#14120F;
+    --focus:#6A93E8;
+    --tone-a:32%;
+    --tone-n:22%;
+    --tone-b:10%;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#100F0D;
+  --sheet:#1A1917;
+  --ink:#EDEAE2;
+  --ink2:#9B958A;
+  --rule:#37342E;
+  --rule2:#26241F;
+  --red:#EF563A;
+  --blue:#6A93E8;
+  --green:#33A46E;
+  --yellow:#EAB424;
+  --slate:#8A8478;
+  --onblock:#0D0C0B;
+  --onyellow:#14120F;
+  --focus:#6A93E8;
+  --tone-a:32%;
+  --tone-n:22%;
+  --tone-b:10%;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-size:14px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;text-align:left}
+:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+a{color:var(--blue)}
+
+/* ── the screen tone ──────────────────────────────────────────────────
+   Any element carrying --hue gets the field treatment: a base that is
+   the hue at 8-10% over the sheet, and a dot lattice at 32-38%. */
+.field{
+  background-color:color-mix(in srgb,var(--hue,var(--ink)) var(--tone-b),var(--sheet));
+  background-image:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb,var(--hue,var(--ink)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px),
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb,var(--hue,var(--ink)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px);
+  background-size:5px 5px;
+  background-position:0 0,2.5px 2.5px;
+  color:var(--ink);
+}
+/* Controls take the wash without the texture — a dot lattice inside a
+   24px button is noise, not tone. */
+.wash{
+  background-color:color-mix(in srgb,var(--hue,var(--ink)) var(--tone-b),var(--sheet));
+  background-image:none;
+  color:var(--ink);
+}
+
+/* semantic hue carriers — one declaration each, reused by every surface */
+.v-keep,.b-keep,.c-green{--hue:var(--green)}
+.v-redraw,.b-redraw,.c-red{--hue:var(--red)}
+.v-table,.b-table,.v-draw,.b-draw,.v-add,.c-blue{--hue:var(--blue)}
+.v-delete,.b-delete,.c-ink{--hue:var(--ink);--tone-a:var(--tone-n)}
+.v-defer,.b-defer,.v-restyle,.c-yellow{--hue:var(--yellow)}
+.v-skip,.b-skip,.c-slate{--hue:var(--slate)}
+.v-none{--hue:var(--rule)}
+
+/* ── masthead ─────────────────────────────── */
+#top{
+  border-bottom:var(--lw-enclosure) solid var(--ink);
+  padding:0 16px;
+  /* a shallow gradient, not a slab: the sheet lifts toward the counts row */
+  background-image:linear-gradient(to bottom,
+    color-mix(in srgb,var(--blue) 7%,var(--paper)) 0%,
+    var(--paper) 62%);
+}
+.mast{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;padding-block:14px 12px}
+.mast h1{
+  margin:0;font-size:clamp(19px,2.6vw,27px);font-weight:900;
+  font-stretch:112%;letter-spacing:-.02em;text-transform:uppercase;line-height:1;
+}
+.mast h1 em{font-style:normal;color:var(--red)}
+.mast p{margin:0;color:var(--ink2);font-size:12px;letter-spacing:.02em;max-width:62ch}
+.mast .sp{flex:1 1 auto}
+.themebtn{
+  font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  border:var(--lw-hairline) solid var(--rule);padding:5px 9px;color:var(--ink2);
+}
+.themebtn:hover{border-color:var(--ink);color:var(--ink)}
+
+/* count tiles — halftone field, 3px state stripe, 1.5px corner brackets.
+   Two weights, and the numeral itself stays undithered ink. */
+.counts{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding-bottom:14px}
+@media (max-width:1379px){.counts{grid-template-columns:repeat(4,1fr)}}
+.cblk{
+  position:relative;
+  display:flex;flex-direction:column;justify-content:space-between;
+  min-height:92px;padding:12px 10px 8px;cursor:pointer;
+  background-color:color-mix(in srgb,var(--hue,var(--ink)) var(--tone-b),var(--sheet));
+  background-image:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb,var(--hue,var(--ink)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px),
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb,var(--hue,var(--ink)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px);
+  background-size:5px 5px;
+  background-position:0 0,2.5px 2.5px;
+  color:var(--ink);
+  box-shadow:inset 0 var(--lw-stripe) 0 var(--hue,var(--ink));
+  transition:background-color .12s linear;
+}
+.cblk::before,.cblk::after{
+  content:"";position:absolute;width:var(--lw-bracket);height:var(--lw-bracket);
+  border:0 solid var(--hue,var(--ink));pointer-events:none;
+}
+.cblk::before{bottom:0;left:0;border-bottom-width:var(--lw-weight);border-left-width:var(--lw-weight)}
+.cblk::after{bottom:0;right:0;border-bottom-width:var(--lw-weight);border-right-width:var(--lw-weight)}
+.cblk:hover{background-color:color-mix(in srgb,var(--hue,var(--ink)) 16%,var(--sheet))}
+.cblk .l{font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;line-height:1.3}
+.cblk .n{
+  font-size:clamp(34px,4.6vw,58px);font-weight:900;font-stretch:125%;
+  line-height:.8;font-variant-numeric:tabular-nums;letter-spacing:-.03em;
+}
+.cblk .n small{font-size:.4em;font-stretch:100%;letter-spacing:0;color:var(--ink);font-weight:700}
+.cblk.act{box-shadow:inset 0 var(--lw-stripe) 0 var(--hue,var(--ink)),inset 0 0 0 var(--lw-stripe) var(--hue,var(--ink))}
+
+/* ── shell ────────────────────────────────── */
+#grid{
+  display:grid;
+  grid-template-columns:300px minmax(0,1fr) 372px;
+  grid-template-areas:"rail stage desk";
+  align-items:start;
+}
+#rail{grid-area:rail;border-right:var(--lw-hairline) solid var(--rule);min-width:0}
+#stage{grid-area:stage;min-width:0;padding:0 16px 40px}
+#desk{grid-area:desk;border-left:var(--lw-hairline) solid var(--rule);min-width:0}
+@media (max-width:1179px){
+  #grid{grid-template-columns:272px minmax(0,1fr);grid-template-areas:"rail desk" "rail stage"}
+  #desk{border-left:var(--lw-hairline) solid var(--rule);border-bottom:var(--lw-hairline) solid var(--rule)}
+}
+@media (max-width:819px){
+  #grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"rail" "desk" "stage"}
+  #rail{border-right:0;border-bottom:var(--lw-hairline) solid var(--rule)}
+  #desk{border-left:0;border-top:0}
+  #stage{padding-inline:16px}
+  .counts{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:430px){.counts{grid-template-columns:repeat(2,1fr)}}
+
+/* section bands — were solid ink knockout; now a quiet ink screen with a
+   3px leading stripe. Weights: 1px hairline + 3px stripe. */
+.sec{
+  font-size:9.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink);padding:6px 12px 6px 15px;
+  background-color:color-mix(in srgb,var(--ink) var(--tone-b),var(--sheet));
+  background-image:
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--ink) var(--tone-n),var(--sheet)) 0 1.1px,transparent 1.15px),
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--ink) var(--tone-n),var(--sheet)) 0 1.1px,transparent 1.15px);
+  background-size:5px 5px;background-position:0 0,2.5px 2.5px;
+  box-shadow:inset var(--lw-stripe) 0 0 var(--ink),inset 0 calc(-1 * var(--lw-hairline)) 0 var(--rule);
+}
+.sec.alt{box-shadow:inset var(--lw-stripe) 0 0 var(--slate),inset 0 calc(-1 * var(--lw-hairline)) 0 var(--rule)}
+summary.sec{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+summary.sec::-webkit-details-marker{display:none}
+summary.sec::after{content:"\2013";margin-left:auto;font-weight:800}
+details:not([open]) summary.sec::after{content:"+"}
+.pad{padding:12px}
+
+/* ── filters ──────────────────────────────── */
+.fgroup{display:flex;flex-direction:column;gap:4px}
+.flab{font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+.seg{display:flex;border:var(--lw-hairline) solid var(--rule);background:var(--sheet)}
+.seg button{
+  flex:1 1 0;padding:6px 4px 8px;text-align:center;font-size:10.5px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;border-right:var(--lw-hairline) solid var(--rule);
+  color:var(--ink2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{
+  background-color:color-mix(in srgb,var(--ink) var(--tone-b),var(--sheet));
+  color:var(--ink);font-weight:800;
+  box-shadow:inset 0 calc(-1 * var(--lw-stripe)) 0 var(--ink);
+}
+select,input[type=search],textarea{
+  width:100%;background:var(--sheet);border:var(--lw-hairline) solid var(--rule);border-radius:0;
+  padding:6px 8px;font-size:12.5px;color:var(--ink);
+}
+select:focus,input[type=search]:focus,textarea:focus{border-color:var(--ink)}
+select{appearance:none;background-image:none;cursor:pointer}
+textarea{resize:vertical;min-height:74px;line-height:1.45;font-size:13px}
+input[type=search]{-webkit-appearance:none}
+
+/* ── figure list ──────────────────────────── */
+#list{max-height:min(56vh,640px);overflow-y:auto;border-top:var(--lw-hairline) solid var(--rule)}
+@media (max-width:819px){#list{max-height:44vh}}
+.row{
+  display:block;width:100%;padding:8px 12px 9px;border-bottom:var(--lw-hairline) solid var(--rule2);
+  position:relative;
+}
+.row:hover{background:var(--sheet)}
+/* selected row — ink screen + 3px stripe instead of a knockout slab */
+.row.sel{
+  padding-left:15px;
+  background-color:color-mix(in srgb,var(--ink) var(--tone-b),var(--sheet));
+  background-image:
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--ink) var(--tone-n),var(--sheet)) 0 1.1px,transparent 1.15px),
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--ink) var(--tone-n),var(--sheet)) 0 1.1px,transparent 1.15px);
+  background-size:5px 5px;background-position:0 0,2.5px 2.5px;
+  color:var(--ink);
+  box-shadow:inset var(--lw-stripe) 0 0 var(--ink);
+}
+.row.sel .r2,.row.sel .rnum{color:var(--ink)}
+.r1{display:flex;align-items:baseline;gap:6px}
+.rid{
+  font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto;letter-spacing:-.01em;
+}
+.rnum{font-size:10.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink2);flex:none}
+.r2{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:10px;color:var(--ink2);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.r2 .sp{flex:1 1 auto}
+/* The three reviewer verdicts are SEMANTIC STATE, so they stay squares.
+   A dot in this system means liveness and nothing else. */
+.lens{display:flex;gap:1px;flex:none}
+.lens i{width:8px;height:8px;display:block;background:var(--hue,transparent)}
+.lens i.v-none{background:transparent;box-shadow:inset 0 0 0 var(--lw-hairline) var(--rule)}
+/* small chips: a wash carried by a 3px state stripe, ink text */
+.mine,.badge,.und,.splitmark{
+  background-color:color-mix(in srgb,var(--hue,var(--ink)) var(--tone-b),var(--sheet));
+  box-shadow:inset var(--lw-stripe) 0 0 var(--hue,var(--ink));
+  color:var(--ink);
+}
+.mine{flex:none;padding:1px 5px 1px 8px;font-size:9.5px;font-weight:800;letter-spacing:.1em}
+.mine.none{--hue:var(--rule);color:var(--ink2)}
+.splitmark{
+  flex:none;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:10px;
+  --hue:var(--yellow);padding:1px 4px 1px 7px;letter-spacing:.06em;
+}
+.und{flex:none;--hue:var(--blue);padding:1px 5px 1px 8px;font-size:9.5px;font-weight:800;letter-spacing:.1em}
+.rgn{flex:none;font-size:10px;font-weight:800;color:var(--red)}
+.empty{padding:16px 12px;color:var(--ink2);font-size:12.5px}
+
+/* ── desk (ruling) ────────────────────────── */
+.dhead{display:flex;gap:12px;align-items:flex-start;padding:12px}
+.dnum{
+  font-size:46px;font-weight:900;font-stretch:125%;line-height:.78;letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;flex:none;
+}
+.dmeta{min-width:0}
+.dslug{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:600;word-break:break-word}
+.dsub{font-size:11px;color:var(--ink2);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-top:2px}
+.dcap{padding:0 12px 12px;font-size:12.5px;color:var(--ink2);line-height:1.5}
+
+/* verdict buttons — wash + 3px state stripe, ink text.
+   Weights: 1px dividers + 3px stripe. */
+.vseg{display:grid;grid-template-columns:repeat(5,1fr);border:var(--lw-hairline) solid var(--rule)}
+.vseg.three{grid-template-columns:repeat(3,1fr)}
+.vseg button{
+  padding:10px 2px 12px;text-align:center;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;border-right:var(--lw-hairline) solid var(--rule);color:var(--ink2);background:var(--sheet);
+}
+.vseg button:last-child{border-right:0}
+.vseg button:hover{color:var(--ink);background:var(--paper)}
+.vseg button[aria-pressed="true"]{
+  color:var(--ink);
+  background-color:color-mix(in srgb,var(--hue,var(--ink)) var(--tone-b),var(--sheet));
+  box-shadow:inset 0 calc(-1 * var(--lw-stripe)) 0 var(--hue,var(--ink));
+}
+.stamp{font-size:10px;color:var(--ink2);letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.btn{
+  border:var(--lw-enclosure) solid var(--ink);
+  background-color:color-mix(in srgb,var(--ink) var(--tone-b),var(--sheet));
+  color:var(--ink);
+  padding:7px 12px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+}
+.btn:hover{background-color:color-mix(in srgb,var(--ink) 16%,var(--sheet))}
+.btn.ghost{background:transparent;border-color:var(--rule);color:var(--ink2)}
+.btn.ghost:hover{background:var(--sheet);color:var(--ink)}
+button[disabled]{opacity:.42;cursor:not-allowed}
+.brow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* the three reviewers — halftone tiles, ink text, 3px state stripe.
+   Weights: 3px stripe + 1.5px bracket. */
+.rev{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.revb{
+  position:relative;padding:10px 8px 8px;min-height:74px;
+  display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:left;width:100%;
+  background-color:color-mix(in srgb,var(--hue,var(--slate)) var(--tone-b),var(--sheet));
+  background-image:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb,var(--hue,var(--slate)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px),
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb,var(--hue,var(--slate)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px);
+  background-size:5px 5px;background-position:0 0,2.5px 2.5px;
+  color:var(--ink);
+  box-shadow:inset 0 var(--lw-stripe) 0 var(--hue,var(--slate));
+}
+.revb.v-none{--hue:var(--slate)}
+.revb::after{
+  content:"";position:absolute;bottom:0;right:0;width:var(--lw-bracket);height:var(--lw-bracket);
+  border:0 solid var(--hue,var(--slate));pointer-events:none;
+  border-bottom-width:var(--lw-weight);border-right-width:var(--lw-weight);
+}
+.revb .rl{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.revb .rv{font-size:15px;font-weight:900;font-stretch:112%;text-transform:uppercase;letter-spacing:-.01em;line-height:1}
+.splitban{
+  --hue:var(--yellow);
+  background-color:color-mix(in srgb,var(--yellow) var(--tone-b),var(--sheet));
+  color:var(--ink);padding:8px 12px 8px 15px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  box-shadow:inset var(--lw-stripe) 0 0 var(--yellow);
+}
+.detail{border-top:var(--lw-hairline) solid var(--rule2);padding:10px 12px;font-size:12.5px;line-height:1.5}
+.detail .k{font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);margin-top:9px}
+.detail .k:first-child{margin-top:0}
+.detail p{margin:2px 0 0}
+.badge{display:inline-block;padding:2px 6px 2px 9px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px}
+
+.rlist{display:flex;flex-direction:column}
+.ritem{display:flex;gap:8px;padding:9px 12px;border-bottom:var(--lw-hairline) solid var(--rule2);align-items:flex-start;width:100%;text-align:left}
+.ritem:hover{background:var(--sheet)}
+.ritem.on{background:var(--sheet);box-shadow:inset var(--lw-stripe) 0 0 var(--red)}
+/* region tags stay solid: they are marks ON a photograph of a page, and a
+   screen tone there would fight the halftone of the printed page itself. */
+.rtag{flex:none;width:20px;height:20px;background:var(--red);color:var(--onblock);font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.rbody{min-width:0;flex:1 1 auto}
+.rnote{font-size:12.5px;line-height:1.4;word-break:break-word}
+.rcoord{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink2);margin-top:2px}
+.xbtn{flex:none;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);padding:2px 4px}
+.xbtn:hover{color:var(--red)}
+
+/* ── stage ────────────────────────────────── */
+.stoolbar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 0;border-bottom:var(--lw-hairline) solid var(--rule);margin-bottom:12px;
+}
+.pnav{display:flex;align-items:center;border:var(--lw-hairline) solid var(--rule)}
+.pnav button{padding:5px 9px;font-weight:800;font-size:13px;line-height:1}
+.pnav button:hover{background:var(--sheet)}
+.pnav span{padding:5px 10px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;border-inline:var(--lw-hairline) solid var(--rule);font-variant-numeric:tabular-nums}
+.stoolbar .seg button{flex:0 0 auto;padding:6px 12px 8px}
+.tog{border:var(--lw-hairline) solid var(--rule);padding:6px 10px 8px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.tog[aria-pressed="true"]{
+  background-color:color-mix(in srgb,var(--red) var(--tone-b),var(--sheet));
+  color:var(--ink);border-color:var(--red);
+  box-shadow:inset 0 calc(-1 * var(--lw-stripe)) 0 var(--red);
+}
+.hint{font-size:11px;color:var(--ink2);letter-spacing:.02em}
+
+#sheetwrap{max-width:860px;margin:0 auto}
+.sheet{position:relative;display:block;background:var(--sheet);border:var(--lw-hairline) solid var(--rule);user-select:none}
+.sheet.draw{cursor:crosshair;touch-action:none}
+.sheet img{display:block;width:100%;height:auto}
+.region{position:absolute;border:var(--lw-enclosure) solid var(--red);background:color-mix(in srgb,var(--red) 10%,transparent);cursor:pointer}
+.region.pagenote{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 10%,transparent)}
+.region.on{border-width:3px;background:color-mix(in srgb,var(--red) 22%,transparent)}
+.region .tag{
+  position:absolute;top:0;left:0;background:var(--red);color:var(--onblock);
+  font-size:11px;font-weight:900;min-width:18px;height:18px;display:flex;align-items:center;
+  justify-content:center;padding:0 3px;font-variant-numeric:tabular-nums;
+}
+.region.pagenote .tag{background:var(--blue)}
+.region .tip{
+  display:none;position:absolute;top:100%;left:-2px;margin-top:3px;z-index:6;
+  background:var(--ink);color:var(--paper);padding:6px 8px;font-size:11.5px;line-height:1.35;
+  width:max-content;max-width:240px;pointer-events:none;
+}
+.region:hover .tip,.region.on .tip{display:block}
+#dragbox{position:absolute;border:var(--lw-enclosure) dashed var(--red);background:color-mix(in srgb,var(--red) 8%,transparent);display:none;pointer-events:none}
+
+.composer{border:var(--lw-enclosure) solid var(--red);background:var(--sheet);padding:12px;margin-bottom:12px}
+.composer h3{margin:0 0 8px;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--red)}
+/* the "never drawn" spec block — was a full blue slab. Now a blue halftone
+   field with 1.5px brackets and a 3px stripe; the display line is ink. */
+.specblock{
+  position:relative;padding:22px 24px;max-width:860px;margin:0 auto;
+  background-color:color-mix(in srgb,var(--blue) var(--tone-b),var(--sheet));
+  background-image:
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--blue) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px),
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--blue) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px);
+  background-size:5px 5px;background-position:0 0,2.5px 2.5px;
+  color:var(--ink);
+  box-shadow:inset 0 var(--lw-stripe) 0 var(--blue);
+}
+.specblock::before,.specblock::after{
+  content:"";position:absolute;width:var(--lw-bracket);height:var(--lw-bracket);
+  border:0 solid var(--blue);pointer-events:none;
+}
+.specblock::before{bottom:0;left:0;border-bottom-width:var(--lw-weight);border-left-width:var(--lw-weight)}
+.specblock::after{bottom:0;right:0;border-bottom-width:var(--lw-weight);border-right-width:var(--lw-weight)}
+.specblock .big{font-size:clamp(26px,4vw,44px);font-weight:900;font-stretch:118%;line-height:.9;letter-spacing:-.03em;text-transform:uppercase;margin-bottom:14px}
+.specblock .k{font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);margin-top:14px}
+.specblock p{margin:2px 0 0;font-size:14px;line-height:1.5}
+
+/* store banners — wash + 3px stripe, and the one dot on the desk.
+   A dot means LIVENESS: it pulses only while fresh evidence is still
+   arriving, and goes static the moment the state is settled either way. */
+.banner{
+  position:relative;
+  background-color:color-mix(in srgb,var(--yellow) var(--tone-b),var(--sheet));
+  color:var(--ink);padding:9px 16px 9px 36px;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+  box-shadow:inset var(--lw-stripe) 0 0 var(--yellow);
+}
+.banner::before{
+  content:"";position:absolute;left:17px;top:calc(50% - 4px);width:8px;height:8px;
+  border-radius:9999px;background:var(--yellow);
+}
+.banner::after{
+  content:"";position:absolute;left:17px;top:calc(50% - 4px);width:8px;height:8px;
+  border-radius:9999px;border:var(--lw-weight) solid var(--yellow);
+  animation:lw-pulse 1.8s ease-out infinite;pointer-events:none;
+}
+.banner.bad{
+  background-color:color-mix(in srgb,var(--red) var(--tone-b),var(--sheet));
+  box-shadow:inset var(--lw-stripe) 0 0 var(--red);
+}
+.banner.bad::before{background:var(--red)}
+.banner.bad::after{animation:none;border:0}
+@keyframes lw-pulse{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2);opacity:0}}
+/* the toast is a transient mark, not a field: it stays solid on purpose */
+#toast{
+  position:fixed;left:16px;bottom:16px;z-index:40;background:var(--ink);color:var(--paper);
+  padding:9px 13px;font-size:12px;font-weight:700;letter-spacing:.04em;display:none;max-width:calc(100vw - 32px);
+  box-shadow:inset 0 calc(-1 * var(--lw-stripe)) 0 var(--yellow);
+}
+.conflict{
+  background-color:color-mix(in srgb,var(--yellow) var(--tone-b),var(--sheet));
+  color:var(--ink);padding:8px 9px 8px 12px;font-size:11.5px;font-weight:700;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;
+  box-shadow:inset var(--lw-stripe) 0 0 var(--yellow);
+}
+.conflict button{text-decoration:underline;font-weight:800}
+.gap{display:flex;flex-direction:column;gap:10px}
+
+/* ── the pixel voice ──────────────────────────────────────────────────
+   A fourth reviewer, but a different KIND of evidence: the other three
+   read the fragment, this one read the printed page. So it is not a
+   fourth column in the three-up grid — it spans the row beneath them,
+   which is where the disagreement between the two kinds becomes the
+   thing you look at. Same tile, same weights, no new treatment. */
+.revb.px{grid-column:1/-1;min-height:0;flex-direction:row;align-items:baseline;gap:10px}
+.revb.px .rl{flex:none}
+.revb.px .rv{margin-left:auto}
+/* the disagreement strip — .splitban's shape, carried by red instead of
+   yellow, because a split between reviewers and a split between kinds of
+   evidence are not the same event */
+.splitban.px{
+  --hue:var(--red);
+  background-color:color-mix(in srgb,var(--red) var(--tone-b),var(--sheet));
+  box-shadow:inset var(--lw-stripe) 0 0 var(--red);
+}
+/* the epigraph: the argument, set as the argument */
+.epi{
+  margin:0;font-size:clamp(12.5px,1.5vw,15px);line-height:1.4;font-weight:700;
+  max-width:70ch;border-left:var(--lw-stripe) solid var(--red);padding-left:10px;
+}
+.epi em{font-style:normal;color:var(--red)}
+.epi cite{display:block;font-style:normal;font-weight:600;font-size:10px;color:var(--ink2);
+  letter-spacing:.12em;text-transform:uppercase;margin-top:4px}
+/* the cross-cutting band — findings that belong to no single figure */
+#cross{border-bottom:var(--lw-enclosure) solid var(--ink)}
+#cross .inner{padding:12px 16px 18px;display:grid;gap:2px;
+  grid-template-columns:repeat(auto-fit,minmax(248px,1fr));align-items:start}
+.find{
+  position:relative;padding:12px 12px 14px;
+  background-color:color-mix(in srgb,var(--hue,var(--ink)) var(--tone-b),var(--sheet));
+  background-image:
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--hue,var(--ink)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px),
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--hue,var(--ink)) var(--tone-a),var(--sheet)) 0 1.1px,transparent 1.15px);
+  background-size:5px 5px;background-position:0 0,2.5px 2.5px;
+  color:var(--ink);box-shadow:inset 0 var(--lw-stripe) 0 var(--hue,var(--ink));
+}
+.find::after{content:"";position:absolute;bottom:0;right:0;
+  width:var(--lw-bracket);height:var(--lw-bracket);border:0 solid var(--hue,var(--ink));
+  border-bottom-width:var(--lw-weight);border-right-width:var(--lw-weight);pointer-events:none}
+.find h4{margin:0 0 6px;font-size:11.5px;font-weight:900;font-stretch:112%;letter-spacing:-.01em;line-height:1.25}
+.find .fn{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:700;color:var(--ink2);letter-spacing:.06em}
+.find p{margin:6px 0 0;font-size:12px;line-height:1.45}
+.find ul{margin:6px 0 0;padding-left:15px;font-size:12px;line-height:1.45}
+.find pre{margin:8px 0 0;font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.4;
+  white-space:pre-wrap;word-break:break-word;color:var(--ink2);max-height:190px;overflow:auto}
+.find details>summary{cursor:pointer;font-size:9.5px;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink2);margin-top:8px}
+.find details[open]>summary{color:var(--ink)}
+.recon{padding:0 16px 16px;font-size:12px;line-height:1.5;color:var(--ink2);max-width:92ch}
+.recon b{color:var(--ink)}
+.recon code{font-family:"IBM Plex Mono",monospace;font-size:11px}
+.sheetlink{display:block;max-width:860px;margin:0 auto 12px}
+.sheetlink img{display:block;width:100%;border:var(--lw-hairline) solid var(--rule);background:var(--sheet)}
+
+/* ── the doctrine rubric ──────────────────────────────────────────────
+   Named criteria, each with its source. A criterion's mark is a square,
+   like the reviewer verdicts, because it is the same kind of thing: a
+   state, not a quantity. */
+.rub{display:flex;flex-direction:column}
+.rubgrp{font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink2);padding:9px 12px 3px}
+.rubrow{display:flex;align-items:flex-start;gap:7px;padding:5px 12px 6px;width:100%;text-align:left;
+  border-bottom:var(--lw-hairline) solid var(--rule2)}
+.rubrow:hover{background:var(--sheet)}
+.rubrow.on{background:var(--sheet);box-shadow:inset var(--lw-stripe) 0 0 var(--ink)}
+.rubrow i{width:8px;height:8px;display:block;flex:none;margin-top:4px;background:var(--hue,var(--rule))}
+.rubrow i.na{background:transparent;box-shadow:inset 0 0 0 var(--lw-hairline) var(--rule)}
+.rubrow .cid{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;
+  flex:1 1 auto;min-width:0;word-break:break-word;letter-spacing:-.01em}
+.rubrow .cv{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink2);flex:none}
+.rubrow .dag{color:var(--red);font-weight:900;flex:none}
+.rubev{padding:8px 12px 11px 27px;border-bottom:var(--lw-hairline) solid var(--rule2);
+  background:var(--sheet);font-size:12px;line-height:1.5}
+.rubev .k{font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink2);margin-top:8px}
+.rubev .k:first-child{margin-top:0}
+.rubev p{margin:2px 0 0}
+.rubev .src{font-size:11px;color:var(--ink2)}
+.rubev .disp{
+  margin-top:8px;padding:6px 8px 6px 11px;font-size:11.5px;line-height:1.45;
+  background-color:color-mix(in srgb,var(--red) var(--tone-b),var(--sheet));
+  box-shadow:inset var(--lw-stripe) 0 0 var(--red);
+}
+.rubsum{padding:8px 12px 10px;font-size:11.5px;color:var(--ink2);line-height:1.5;
+  border-bottom:var(--lw-hairline) solid var(--rule2)}
+.rubsum b{color:var(--ink)}
+/* the three rubric lists in the cross-cutting band */
+.lists{padding:0 16px 18px;display:grid;gap:2px;
+  grid-template-columns:repeat(auto-fit,minmax(272px,1fr));align-items:start}
+.lists h5{margin:0 0 4px;font-size:11.5px;font-weight:900;font-stretch:112%;line-height:1.25}
+.lists .why{margin:0 0 7px;font-size:11.5px;line-height:1.45;color:var(--ink2)}
+.lists ol{margin:0;padding-left:17px;font-size:11.5px;line-height:1.55;
+  font-family:"IBM Plex Mono",monospace;max-height:250px;overflow:auto}
+.lists li button{font:inherit;text-decoration:underline;padding:0}
+.lists li button:hover{color:var(--red)}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+  .banner::after{opacity:.5}
+}
+</style>
+
+<div id="dbbanner" hidden></div>
+
+<header id="top">
+  <div class="mast">
+    <div>
+      <h1>Harbor <em>Figure Desk</em></h1>
+      <p id="mastsub">Coordination Papers, mega-volume. Fifteen named criteria and four reviewers have already scored every figure. Yours is the ruling that decides.</p>
+    </div>
+    <span class="sp"></span>
+    <button class="themebtn" id="themebtn" type="button">Theme</button>
+  </div>
+  <p class="epi" id="epigraph" hidden></p>
+  <div class="counts" id="counts"></div>
+</header>
+
+<details id="cross" open>
+  <summary class="sec">Findings that are not about any one figure</summary>
+  <div class="inner" id="crosshost"></div>
+  <div class="recon" id="reconhost"></div>
+</details>
+
+<details id="rubricband" open>
+  <summary class="sec alt">What the rubric finds that the reviewers did not</summary>
+  <div class="lists" id="listshost"></div>
+  <div class="recon" id="rubricnote"></div>
+</details>
+
+<div id="grid">
+
+  <aside id="rail">
+    <details id="filters" open>
+    <summary class="sec">Filter</summary>
+    <div class="pad gap">
+      <div class="fgroup">
+        <span class="flab">Set</span>
+        <div class="seg" id="f-set">
+          <button type="button" data-v="all" aria-pressed="true">All 66</button>
+          <button type="button" data-v="fig" aria-pressed="false">Drawn</button>
+          <button type="button" data-v="undrawn" aria-pressed="false">Undrawn</button>
+        </div>
+      </div>
+      <div class="fgroup">
+        <span class="flab">Your ruling</span>
+        <div class="seg" id="f-ruled">
+          <button type="button" data-v="all" aria-pressed="false">All</button>
+          <button type="button" data-v="unruled" aria-pressed="true">Unruled</button>
+          <button type="button" data-v="ruled" aria-pressed="false">Ruled</button>
+        </div>
+      </div>
+      <div class="fgroup">
+        <span class="flab">Reviewers</span>
+        <div class="seg" id="f-split">
+          <button type="button" data-v="all" aria-pressed="true">Any</button>
+          <button type="button" data-v="contested" aria-pressed="false">Split only</button>
+          <button type="button" data-v="agreed" aria-pressed="false">Agreed</button>
+        </div>
+      </div>
+      <div class="fgroup">
+        <span class="flab">Pixel judgment</span>
+        <div class="seg" id="f-px">
+          <button type="button" data-v="all" aria-pressed="true">Any</button>
+          <button type="button" data-v="disagree" aria-pressed="false">Disagrees</button>
+          <button type="button" data-v="agree" aria-pressed="false">Agrees</button>
+        </div>
+        <select id="f-pxv" style="margin-top:4px">
+          <option value="all">Any pixel verdict</option>
+          <option value="keep">keep</option>
+          <option value="restyle">restyle</option>
+          <option value="redraw">redraw</option>
+          <option value="table">table</option>
+          <option value="add">add</option>
+        </select>
+      </div>
+      <div class="fgroup">
+        <span class="flab">Rubric</span>
+        <select id="f-crit"><option value="all">Any criterion</option></select>
+      </div>
+      <div class="fgroup">
+        <span class="flab">Chapter</span>
+        <select id="f-ch"><option value="all">All eight chapters</option></select>
+      </div>
+      <div class="fgroup">
+        <span class="flab">Triage disposition</span>
+        <select id="f-disp">
+          <option value="all">Any disposition</option>
+          <option value="keep">keep</option>
+          <option value="restyle">restyle</option>
+          <option value="redraw">redraw</option>
+          <option value="add">add (now drawn)</option>
+          <option value="undrawn">never drawn</option>
+        </select>
+      </div>
+      <div class="fgroup">
+        <span class="flab">Search</span>
+        <input type="search" id="f-q" placeholder="slug, caption, idea&hellip;" autocomplete="off">
+        <div class="seg" id="f-qmode" style="margin-top:4px">
+          <button type="button" data-v="fig" aria-pressed="true">Figures</button>
+          <button type="button" data-v="page" aria-pressed="false">Page text</button>
+        </div>
+      </div>
+    </div>
+    </details>
+    <div class="sec alt" id="listhead">Figures</div>
+    <div id="list"></div>
+  </aside>
+
+  <section id="desk"></section>
+
+  <section id="stage"></section>
+
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="data/CHAPTERS.js"></script>
+<script src="data/FIGS.js"></script>
+<script src="data/CRIT.js"></script>
+<script src="data/RESEARCH.js"></script>
+<script src="data/TRIAGE.js"></script>
+<script src="data/UNDRAWN.js"></script>
+<script src="data/PIXEL.js"></script>
+<script src="data/FINDINGS.js"></script>
+<script src="data/DOCTRINE.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ───────────────────────── source data ───────────────────────── */
+var FIGS=window.FIGS||[], CRIT=window.CRIT||{}, TRIAGE=window.TRIAGE||{},
+    UNDRAWN=window.UNDRAWN||[], RESEARCH=window.RESEARCH||{}, CHAPTERS=window.CHAPTERS||{},
+    PIXEL=window.PIXEL||{}, FINDINGS=window.FINDINGS||null,
+    DOCTRINE=window.DOCTRINE||null;
+var DSCORE=(DOCTRINE&&DOCTRINE.scores)||{};
+var DCRIT=(DOCTRINE&&DOCTRINE.criteria)||[];
+var DCRIT_BY={}; DCRIT.forEach(function(c){DCRIT_BY[c.id]=c;});
+var DGROUPS=[]; DCRIT.forEach(function(c){if(DGROUPS.indexOf(c.group)<0)DGROUPS.push(c.group);});
+var VHUE={fails:'var(--red)',passes:'var(--green)',unscored:'var(--slate)'};
+
+var FIG_VERDICTS=['keep','redraw','table','delete','defer'];
+var UND_VERDICTS=['draw','skip','defer'];
+var LENSNAME={lensA:'A · exposition',lensB:'B · drawing',lensC:'C · evidence'};
+var RUBRIC=[['fact','one readable fact'],['instance','concrete instance'],
+            ['anchored','anchored geometry'],['contrast','print contrast at 100%'],
+            ['collisions','no collisions']];
+var SHEET_FOR_CH={1:'chapter-1-figures.png',2:'chapter-2-figures.png',3:'chapter-3-figures.png',
+  4:'chapter-4-figures.png',5:'chapter-5-figures.png',6:'chapter-6-figures.png',
+  7:'chapter-7-figures.png',8:'chapter-8-figures.png'};
+
+function dispBase(d){
+  if(!d) return '';
+  var s=String(d).toLowerCase();
+  if(s.indexOf('keep')===0) return 'keep';
+  if(s.indexOf('restyle')===0) return 'restyle';
+  if(s.indexOf('redraw')===0) return 'redraw';
+  if(s.indexOf('add')===0) return 'add';
+  return s.split(/[\s(]/)[0];
+}
+
+function rubFailsOf(sc){
+  if(!sc)return [];
+  return Object.keys(sc).filter(function(k){return sc[k].verdict==='fails';}).sort();
+}
+
+var ITEMS=[];
+FIGS.forEach(function(f){
+  var t=TRIAGE[f.id]||{}, c=CRIT[f.id]||{}, px=PIXEL[f.id]||null;
+  var ag=(px&&px.agreement)||null;
+  ITEMS.push({
+    kind:'fig', id:f.id, ch:f.ch, page:f.page, num:(px&&px.num)||t.num||'',
+    label:f.id.replace(/^fig-/,''), caption:f.caption||'',
+    idea:t.idea||'', drawn:t.drawn||'', role:t.role||'', spec:t.spec||'',
+    disp:t.disposition||'', dispBase:dispBase(t.disposition),
+    crit:c, contested:!!c._contested, research:RESEARCH[f.id]||null,
+    coll:'rulings', verdicts:FIG_VERDICTS, src:f.src||'',
+    pixel:px, pixelBase:px?dispBase(px.verdict):'',
+    pxSplit:!!(ag&&(ag.disagreesWithLenses.length||ag.disagreesWithTriage)),
+    bookPage:f.bookPage||null, imported:!!f.imported,
+    chapters:f.chapters||[f.ch], shared:!!f.shared,
+    rub:DSCORE[f.id]||null, rubFails:rubFailsOf(DSCORE[f.id])
+  });
+});
+UNDRAWN.forEach(function(u){
+  ITEMS.push({
+    kind:'undrawn', id:u.id, ch:u.ch, page:u.page||null, num:u.section||'',
+    label:u.id.replace(/^undrawn-/,''), caption:u.idea||'',
+    idea:u.idea||'', drawn:'', role:'', spec:u.spec||'',
+    disp:'never drawn', dispBase:'undrawn',
+    crit:{}, contested:false, research:null,
+    coll:'undrawn', verdicts:UND_VERDICTS,
+    pixel:null, pixelBase:'', pxSplit:false, bookPage:null, imported:false,
+    chapters:[u.ch], shared:false, rub:null, rubFails:[],
+    dkind:u.kind||'', pageNote:u.pageNote||'', noFigure:!!u.noFigure, section:u.section||''
+  });
+});
+var BY_ID={}; ITEMS.forEach(function(i){BY_ID[i.id]=i;});
+/* only the figure pages and their immediate neighbours were rendered to JPG */
+var PAGESET={};
+FIGS.forEach(function(f){PAGESET[f.page-1]=1;PAGESET[f.page]=1;PAGESET[f.page+1]=1;});
+var N_FIG=FIGS.length, N_UND=UNDRAWN.length;
+var N_CONTESTED=ITEMS.filter(function(i){return i.contested;}).length;
+var N_PXSPLIT=ITEMS.filter(function(i){return i.pxSplit;}).length;
+var VS_LENSES=(DOCTRINE&&DOCTRINE.vsLenses)||{};
+var N_VSLENS=Object.keys(VS_LENSES).length;
+
+/* ───────────────────────── state ───────────────────────── */
+var S={
+  set:'all', ruled:'unruled', split:'all', ch:'all', disp:'all', q:'', qmode:'fig',
+  px:'all', pxv:'all', sheet:false, crit:'all', openCrit:null,
+  sel:null,            // item id
+  page:null,           // page currently on the sheet
+  draw:true,           // drawing armed
+  attach:'fig',        // 'fig' | 'page'  — what the next region attaches to
+  selRegion:null,
+  openLens:null
+};
+var RULINGS={}, UNDRULINGS={}, REGIONS=[];   // id -> doc data ; regions array of {_id,...}
+var DB=null, DBSTATE='connecting';
+var pending=null;      // {x,y,w,h} normalized, awaiting a note
+var editing=null;      // region _id being edited
+var noteBase='';       // remote note value the textarea was seeded from
+
+/* ───────────────────────── helpers ───────────────────────── */
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+function $(id){return document.getElementById(id);}
+function pageFile(p){return 'p'+String(p).padStart(3,'0')+'.jpg';}
+function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(function(){t.style.display='none';},2800);}
+function nowISO(){return new Date().toISOString();}
+function hhmm(iso){try{var d=new Date(iso);return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return iso;}}
+function ruleOf(item){return (item.kind==='fig'?RULINGS:UNDRULINGS)[item.id]||null;}
+function isRuled(item){var r=ruleOf(item);return !!(r&&r.verdict);}
+function regionsFor(id){return REGIONS.filter(function(r){return r.fig===id;});}
+function regionsOnPage(p){return REGIONS.filter(function(r){return r.page===pageFile(p);});}
+function canWrite(){return DBSTATE==='on';}
+
+/* ───────────────────────── db ───────────────────────── */
+function setDbBanner(){
+  var b=$('dbbanner');
+  if(DBSTATE==='on'){b.hidden=true;return;}
+  b.hidden=false;
+  if(DBSTATE==='connecting'){b.className='banner';b.textContent='Connecting to your saved rulings…';}
+  else{b.className='banner bad';b.textContent='Read-only desk — saved rulings are not available in this view, so verdicts and region notes cannot be recorded. Everything the reviewers said is still here.';}
+}
+function bootDb(){
+  setDbBanner();
+  var tries=0;
+  (function wait(){
+    var c=window.claude;
+    if(c&&typeof c.use==='function'){
+      c.use('db').then(function(db){
+        if(!db){DBSTATE='off';setDbBanner();renderAll();return;}
+        DB=db;DBSTATE='on';setDbBanner();subscribe();renderAll();
+      },function(){DBSTATE='off';setDbBanner();renderAll();});
+      return;
+    }
+    if(++tries>25){DBSTATE='off';setDbBanner();renderAll();return;}
+    setTimeout(wait,200);
+  })();
+}
+function subscribe(){
+  function onErr(e){DBSTATE='off';setDbBanner();renderAll();console.warn('db',e);}
+  DB.collection('rulings').onSnapshot(function(s){
+    RULINGS={};s.docs.forEach(function(d){RULINGS[d.id]=d.data();});
+    afterRemote('rulings');
+  },onErr);
+  DB.collection('undrawn').onSnapshot(function(s){
+    UNDRULINGS={};s.docs.forEach(function(d){UNDRULINGS[d.id]=d.data();});
+    afterRemote('undrawn');
+  },onErr);
+  DB.collection('regions').limit(1000).onSnapshot(function(s){
+    REGIONS=s.docs.map(function(d){var o=Object.assign({},d.data());o._id=d.id;return o;});
+    REGIONS.sort(function(a,b){return String(a.createdAt||'').localeCompare(String(b.createdAt||''));});
+    renderCounts();renderList();renderDesk();drawRegions();
+  },onErr);
+}
+function afterRemote(which){
+  // a note being typed must not be silently replaced by another tab's save
+  var it=S.sel&&BY_ID[S.sel];
+  if(it&&((which==='rulings'&&it.kind==='fig')||(which==='undrawn'&&it.kind==='undrawn'))){
+    var ta=$('notefield');
+    var remote=(ruleOf(it)||{}).note||'';
+    if(ta&&ta.value!==remote&&ta.value!==noteBase){ showConflict(remote); }
+    else if(ta&&ta.value!==remote){ ta.value=remote; noteBase=remote; }
+  }
+  renderCounts();renderList();renderDesk();
+}
+function showConflict(remote){
+  var host=$('conflicthost'); if(!host) return;
+  host.innerHTML='';
+  var d=el('div','conflict');
+  d.appendChild(el('span',null,'Saved in another tab while you were typing.'));
+  var b=el('button',null,'Load theirs');
+  b.onclick=function(){var ta=$('notefield');if(ta){ta.value=remote;noteBase=remote;}host.innerHTML='';};
+  d.appendChild(b);
+  var k=el('button',null,'Keep mine');
+  k.onclick=function(){host.innerHTML='';};
+  d.appendChild(k);
+  host.appendChild(d);
+}
+function saveRuling(item,verdict,note){
+  if(!canWrite()){toast('Read-only desk — nothing was saved.');return;}
+  var body={verdict:verdict||'',note:note||'',updatedAt:nowISO()};
+  // optimistic, so the count moves the instant the author rules
+  (item.kind==='fig'?RULINGS:UNDRULINGS)[item.id]=body;
+  renderCounts();renderList();renderDesk();
+  DB.doc(item.coll+'/'+item.id).set(body).then(function(){
+    toast(verdict?('Ruled '+verdict.toUpperCase()+' · '+item.label):'Ruling cleared');
+  },function(e){toast('Could not save: '+(e&&e.code||'error'));});
+}
+function clearRuling(item){
+  if(!canWrite()){toast('Read-only desk — nothing was saved.');return;}
+  delete (item.kind==='fig'?RULINGS:UNDRULINGS)[item.id];
+  renderCounts();renderList();renderDesk();
+  DB.doc(item.coll+'/'+item.id).delete().then(function(){toast('Ruling cleared');},
+    function(e){toast('Could not clear: '+(e&&e.code||'error'));});
+}
+function saveRegion(rect,note){
+  if(!canWrite()){toast('Read-only desk — the region was not saved.');return;}
+  var it=S.sel&&BY_ID[S.sel];
+  var attachFig=(S.attach==='fig'&&it&&it.page===S.page)?it.id:null;
+  var body={
+    page:pageFile(S.page), fig:attachFig,
+    x:round4(rect.x), y:round4(rect.y), w:round4(rect.w), h:round4(rect.h),
+    note:note||'', createdAt:nowISO()
+  };
+  var ref=DB.collection('regions').doc();
+  var local=Object.assign({_id:ref.id},body);
+  REGIONS.push(local);renderCounts();renderList();renderDesk();drawRegions();
+  ref.set(body).then(function(){toast('Region saved on '+body.page);},
+    function(e){
+      REGIONS=REGIONS.filter(function(r){return r._id!==ref.id;});
+      drawRegions();renderDesk();toast('Could not save region: '+(e&&e.code||'error'));
+    });
+}
+function updateRegionNote(id,note){
+  if(!canWrite())return;
+  var r=REGIONS.filter(function(x){return x._id===id;})[0]; if(r)r.note=note;
+  renderDesk();drawRegions();
+  DB.doc('regions/'+id).update({note:note}).then(function(){toast('Note updated');},
+    function(e){toast('Could not update: '+(e&&e.code||'error'));});
+}
+function deleteRegion(id){
+  if(!canWrite())return;
+  REGIONS=REGIONS.filter(function(x){return x._id!==id;});
+  if(S.selRegion===id)S.selRegion=null;
+  renderCounts();renderList();renderDesk();drawRegions();
+  DB.doc('regions/'+id).delete().then(function(){toast('Region deleted');},
+    function(e){toast('Could not delete: '+(e&&e.code||'error'));});
+}
+function round4(n){return Math.round(n*1e4)/1e4;}
+
+/* ───────────────────────── counts ───────────────────────── */
+function renderCounts(){
+  var ruledFig=FIGS.filter(function(f){return RULINGS[f.id]&&RULINGS[f.id].verdict;}).length;
+  var ruledUnd=UNDRAWN.filter(function(u){return UNDRULINGS[u.id]&&UNDRULINGS[u.id].verdict;}).length;
+  var unruled=(N_FIG+N_UND)-(ruledFig+ruledUnd);
+  var contestedUnruled=ITEMS.filter(function(i){return i.contested&&!isRuled(i);}).length;
+  var blocks=[
+    ['Unruled','c-red',unruled,'of '+(N_FIG+N_UND),function(){setFilter('ruled','unruled');setFilter('set','all');}],
+    ['Your rulings','c-green',ruledFig+ruledUnd,'',function(){setFilter('ruled','ruled');setFilter('set','all');}],
+    ['Split, unruled','c-yellow',contestedUnruled,'of '+N_CONTESTED,function(){setFilter('split','contested');setFilter('ruled','unruled');}],
+    ['Pixels disagree','c-red',N_PXSPLIT,'of '+N_FIG,function(){setFilter('px','disagree');setFilter('set','all');setFilter('ruled','all');}],
+    ['Rubric vs lenses','c-red',N_VSLENS,'of '+N_FIG,function(){setFilter('crit','vslens');setFilter('set','all');setFilter('ruled','all');}],
+    ['Drawn figures','c-ink',N_FIG,'',function(){setFilter('set','fig');setFilter('ruled','all');}],
+    ['Never drawn','c-blue',N_UND,'',function(){setFilter('set','undrawn');setFilter('ruled','all');}],
+    ['Region notes','c-slate',REGIONS.length,'',function(){toast(REGIONS.length?'Region notes live on the page images — open a figure to see them.':'No region notes yet. Drag a box on a page.');}]
+  ];
+  var host=$('counts');host.innerHTML='';
+  blocks.forEach(function(b){
+    var d=el('button','cblk '+b[1]);d.type='button';
+    d.appendChild(el('span','l',b[0]));
+    var n=el('span','n');n.appendChild(document.createTextNode(String(b[2])));
+    if(b[3]){var s=el('small',null,' '+b[3]);n.appendChild(s);}
+    d.appendChild(n);d.onclick=b[4];
+    host.appendChild(d);
+  });
+}
+
+/* ───────────────────────── list ───────────────────────── */
+var PAGEHITS=null;   // set when a page-text search runs
+function visible(){
+  var out=ITEMS.filter(function(i){
+    if(S.set==='fig'&&i.kind!=='fig')return false;
+    if(S.set==='undrawn'&&i.kind!=='undrawn')return false;
+    if(S.ch!=='all'&&String(i.ch)!==S.ch)return false;
+    if(S.disp!=='all'&&i.dispBase!==S.disp)return false;
+    if(S.ruled==='ruled'&&!isRuled(i))return false;
+    if(S.ruled==='unruled'&&isRuled(i))return false;
+    if(S.split==='contested'&&!i.contested)return false;
+    if(S.split==='agreed'&&i.contested)return false;
+    if(S.px==='disagree'&&!i.pxSplit)return false;
+    if(S.px==='agree'&&(!i.pixel||i.pxSplit))return false;
+    if(S.pxv!=='all'&&i.pixelBase!==S.pxv)return false;
+    if(S.crit!=='all'){
+      if(S.crit==='any'){ if(!i.rubFails.length)return false; }
+      else if(S.crit==='vslens'){ if(!VS_LENSES[i.id])return false; }
+      else if(i.rubFails.indexOf(S.crit)<0)return false;
+    }
+    if(S.q){
+      if(S.qmode==='page'){
+        if(!PAGEHITS)return false;
+        if(!i.page||!PAGEHITS[i.page])return false;
+      }else{
+        var hay=(i.id+' '+i.caption+' '+i.idea+' '+i.spec+' '+i.disp+' '+(CHAPTERS[i.ch]||'')).toLowerCase();
+        if(hay.indexOf(S.q.toLowerCase())<0)return false;
+      }
+    }
+    return true;
+  });
+  out.sort(function(a,b){
+    var ar=isRuled(a)?1:0, br=isRuled(b)?1:0;
+    if(ar!==br)return ar-br;                       // unruled first
+    // a pixel/lens disagreement is the most useful row on the page, so it
+    // outranks a lens-only split for the author's attention
+    if(a.pxSplit!==b.pxSplit)return a.pxSplit?-1:1;
+    if(a.contested!==b.contested)return a.contested?-1:1;   // contested first
+    if(a.ch!==b.ch)return a.ch-b.ch;
+    return (a.page||9999)-(b.page||9999);
+  });
+  return out;
+}
+function lensDots(item){
+  var d=el('span','lens');
+  ['lensA','lensB','lensC'].forEach(function(L){
+    var r=item.crit[L];
+    d.appendChild(el('i','v-'+(r&&r.verdict?r.verdict:'none')));
+  });
+  /* the pixel verdict is the fourth square, set off by a gap so the eye
+     reads "three, then one" rather than "four" */
+  var p=el('i','v-'+(item.pixelBase||'none'));
+  p.style.marginLeft='3px';
+  p.title=item.pixel?('pixel judgment: '+item.pixel.verdict):'not judged on the page';
+  d.appendChild(p);
+  return d;
+}
+function renderList(){
+  var vis=visible(), host=$('list');host.innerHTML='';
+  $('listhead').textContent=vis.length+' of '+ITEMS.length+' · unruled first, split first';
+  if(!vis.length){host.appendChild(el('p','empty','Nothing matches these filters.'));return;}
+  vis.forEach(function(i){
+    var b=el('button','row'+(S.sel===i.id?' sel':''));b.type='button';
+    var r1=el('div','r1');
+    r1.appendChild(el('span','rnum',i.num||('§'+i.ch)));
+    r1.appendChild(el('span','rid',i.label));
+    var rule=ruleOf(i);
+    if(rule&&rule.verdict)r1.appendChild(el('span','mine v-'+rule.verdict,rule.verdict));
+    else r1.appendChild(el('span','mine none','—'));
+    b.appendChild(r1);
+    var r2=el('div','r2');
+    if(i.kind==='undrawn')r2.appendChild(el('span','und','undrawn'));
+    r2.appendChild(el('span',null,i.page?('p'+i.page):'page unknown'));
+    r2.appendChild(el('span',null,i.dispBase||'—'));
+    r2.appendChild(el('span','sp'));
+    var nr=(regionsFor(i.id).length);
+    if(nr)r2.appendChild(el('span','rgn','□'+nr));
+    if(i.rubFails.length){
+      var rf=el('span','splitmark','R'+i.rubFails.length);
+      rf.style.setProperty('--hue',VS_LENSES[i.id]?'var(--red)':'var(--slate)');
+      rf.title=i.rubFails.length+' rubric criteria fail: '+i.rubFails.join(', ')+
+        (VS_LENSES[i.id]?' — and a lens said keep':'');
+      r2.appendChild(rf);
+    }
+    if(i.pxSplit){
+      var pm=el('span','splitmark','px');
+      pm.style.setProperty('--hue','var(--red)');
+      pm.title='the pixel judgment disagrees with an earlier reviewer';
+      r2.appendChild(pm);
+    }
+    if(i.contested)r2.appendChild(el('span','splitmark','split'));
+    if(i.kind==='fig')r2.appendChild(lensDots(i));
+    b.appendChild(r2);
+    b.onclick=function(){select(i.id);};
+    host.appendChild(b);
+  });
+}
+
+/* ───────────────────────── desk panel ───────────────────────── */
+function renderDesk(){
+  var host=$('desk');host.innerHTML='';
+  var it=S.sel&&BY_ID[S.sel];
+  if(!it){host.appendChild(el('div','sec','Your ruling'));host.appendChild(el('p','empty','Pick a figure from the list.'));return;}
+
+  host.appendChild(el('div','sec','Your ruling'));
+
+  var h=el('div','dhead');
+  h.appendChild(el('div','dnum',String(it.ch)));
+  var m=el('div','dmeta');
+  m.appendChild(el('div','dslug',it.id));
+  m.appendChild(el('div','dsub',(it.num?it.num+' · ':'')+(CHAPTERS[it.ch]||'')+(it.page?' · p'+it.page:' · page unknown')));
+  h.appendChild(m);
+  host.appendChild(h);
+
+  /* verdict control */
+  var wrap=el('div','pad gap');
+  var rule=ruleOf(it)||{};
+  var seg=el('div','vseg'+(it.verdicts.length===3?' three':''));
+  it.verdicts.forEach(function(v){
+    var b=el('button','b-'+v,v);b.type='button';
+    b.setAttribute('aria-pressed',String(rule.verdict===v));
+    if(!canWrite())b.disabled=true;
+    b.onclick=function(){
+      var note=($('notefield')&&$('notefield').value)||rule.note||'';
+      if(rule.verdict===v)clearRuling(it); else saveRuling(it,v,note);
+    };
+    seg.appendChild(b);
+  });
+  wrap.appendChild(seg);
+
+  var ch=el('div');ch.id='conflicthost';wrap.appendChild(ch);
+
+  var ta=el('textarea');ta.id='notefield';
+  ta.placeholder=it.kind==='undrawn'?'Why draw it, or why not — and what it must show.':'What decides it. Whole-figure note; use a region box for anything local.';
+  ta.value=rule.note||'';noteBase=rule.note||'';
+  if(!canWrite())ta.disabled=true;
+  wrap.appendChild(ta);
+
+  var br=el('div','brow');
+  var save=el('button','btn','Save note');save.type='button';
+  if(!canWrite())save.disabled=true;
+  save.onclick=function(){
+    var cur=ruleOf(it)||{};
+    saveRuling(it,cur.verdict||'',ta.value);
+    noteBase=ta.value;
+  };
+  br.appendChild(save);
+  if(rule.verdict||rule.note){
+    var cl=el('button','btn ghost','Clear');cl.type='button';
+    if(!canWrite())cl.disabled=true;
+    cl.onclick=function(){clearRuling(it);};
+    br.appendChild(cl);
+  }
+  if(rule.updatedAt)br.appendChild(el('span','stamp','you ruled '+hhmm(rule.updatedAt)));
+  else br.appendChild(el('span','stamp','not yet ruled'));
+  wrap.appendChild(br);
+  host.appendChild(wrap);
+
+  /* regions on this item */
+  var mine=regionsFor(it.id);
+  host.appendChild(el('div','sec alt','Region notes · '+mine.length));
+  if(!mine.length){
+    host.appendChild(el('p','empty',it.page?'Drag a box on the page to pin a note to one spot.':'This figure has no page yet, so it has no regions.'));
+  }else{
+    var rl=el('div','rlist');
+    mine.forEach(function(r,i){
+      rl.appendChild(regionRow(r,i+1));
+    });
+    host.appendChild(rl);
+  }
+  var pageOnly=S.page?regionsOnPage(S.page).filter(function(r){return !r.fig;}):[];
+  if(pageOnly.length){
+    host.appendChild(el('div','sec alt','Notes on p'+S.page+' itself · '+pageOnly.length));
+    var pl=el('div','rlist');
+    pageOnly.forEach(function(r,i){pl.appendChild(regionRow(r,i+1));});
+    host.appendChild(pl);
+  }
+
+  /* the rubric goes above the reviewers: criteria first, opinions second */
+  renderRubric(host,it);
+
+  /* reviewers */
+  if(it.kind==='fig'){
+    host.appendChild(el('div','sec','Four reviewers'));
+    if(it.contested){
+      var verd=['lensA','lensB','lensC'].map(function(L){return it.crit[L]?L.slice(4)+' '+it.crit[L].verdict:null;}).filter(Boolean).join('  /  ');
+      host.appendChild(el('div','splitban','The three split — '+verd+' · your ruling breaks the tie'));
+    }
+    if(it.pxSplit)host.appendChild(pixelSplitBanner(it));
+    var rv=el('div','rev');
+    ['lensA','lensB','lensC'].forEach(function(L){
+      var r=it.crit[L];
+      var b=el('button','revb '+(r?'v-'+r.verdict:'v-none'));b.type='button';
+      /* .revb.v-none already carries the slate field */
+      b.appendChild(el('span','rl',LENSNAME[L]));
+      b.appendChild(el('span','rv',r?r.verdict:'—'));
+      b.onclick=function(){S.openLens=(S.openLens===L?null:L);renderDesk();};
+      b.setAttribute('aria-expanded',String(S.openLens===L));
+      rv.appendChild(b);
+    });
+    /* The fourth voice, spanning the row: it read the printed page, not the
+       fragment, so it sits under the three rather than beside them. */
+    var pb=el('button','revb px '+(it.pixel?'v-'+it.pixelBase:'v-none'));pb.type='button';
+    pb.appendChild(el('span','rl','D · on the printed page'));
+    pb.appendChild(el('span','rv',it.pixel?it.pixel.verdict:'not judged'));
+    pb.onclick=function(){S.openLens=(S.openLens==='pixel'?null:'pixel');renderDesk();};
+    pb.setAttribute('aria-expanded',String(S.openLens==='pixel'));
+    rv.appendChild(pb);
+    host.appendChild(rv);
+    if(S.openLens&&S.openLens!=='pixel'&&it.crit[S.openLens])host.appendChild(lensDetail(it.crit[S.openLens],S.openLens));
+    if(S.openLens==='pixel'&&it.pixel)host.appendChild(pixelDetail(it));
+
+    if(it.research){
+      host.appendChild(el('div','sec alt','Fourth voice · diagram research'));
+      var d=el('div','detail');
+      if(it.research.verdict){
+        var bd=el('span','badge v-'+dispBase(it.research.verdict),it.research.verdict);
+        bd.style.setProperty('--hue','var(--slate)');
+        d.appendChild(bd);
+      }
+      [['disagreement',it.contested?'what they disagree about':'where they agree'],
+       ['verification','checked in the source'],
+       ['recommendation','recommendation'],
+       ['sources','sources']].forEach(function(p){
+        var v=it.research[p[0]];if(!v)return;
+        d.appendChild(el('div','k',p[1]));
+        d.appendChild(linkify(String(v)));
+      });
+      host.appendChild(d);
+    }
+  }
+
+  /* triage / spec */
+  host.appendChild(el('div','sec alt',it.kind==='undrawn'?'Why it was proposed':'Wave-11 triage'));
+  var td=el('div','detail');
+  if(it.kind==='undrawn'){
+    td.appendChild(el('div','k','section'));td.appendChild(el('p',null,it.section||'—'));
+    td.appendChild(el('div','k','kind proposed'));td.appendChild(el('p',null,it.dkind||'—'));
+    td.appendChild(el('div','k','spec'));td.appendChild(el('p',null,it.spec));
+    if(it.noFigure){td.appendChild(el('div','k','note'));td.appendChild(el('p',null,'The triage row asks for a worked example, not a drawing.'));}
+    if(it.pageNote){td.appendChild(el('div','k','why this page'));td.appendChild(el('p',null,it.pageNote));}
+  }else{
+    var b2=el('span','badge v-'+(it.dispBase||'none'),it.disp||'—');
+    if(it.dispBase==='restyle')b2.className='badge v-restyle';
+    td.appendChild(b2);
+    td.appendChild(el('div','k','the idea it must carry'));td.appendChild(el('p',null,it.idea||'—'));
+    if(it.drawn){td.appendChild(el('div','k','as drawn now'));td.appendChild(el('p',null,it.drawn));}
+    if(it.role){td.appendChild(el('div','k','role on the page'));td.appendChild(el('p',null,it.role));}
+    if(it.spec){td.appendChild(el('div','k','spec'));td.appendChild(el('p',null,it.spec));}
+    if(it.shared&&it.chapters.length>1){
+      td.appendChild(el('div','k','shared'));
+      td.appendChild(el('p',null,'Drawn once, input by chapters '+it.chapters.join(' and ')+'.'));
+    }
+    if(it.src){td.appendChild(el('div','k','source'));var s=el('p','mono',it.src);td.appendChild(s);}
+    if(it.caption){td.appendChild(el('div','k','caption'));td.appendChild(el('p',null,it.caption));}
+  }
+  host.appendChild(td);
+}
+function regionRow(r,n){
+  var row=el('div','ritem'+(S.selRegion===r._id?' on':''));
+  var tag=el('span','rtag',String(n));
+  if(!r.fig)tag.style.background='var(--blue)';
+  row.appendChild(tag);
+  var body=el('div','rbody');
+  var note=el('div','rnote',r.note||'(no note)');
+  body.appendChild(note);
+  body.appendChild(el('div','rcoord',r.page+'  x'+r.x+' y'+r.y+' w'+r.w+' h'+r.h));
+  row.appendChild(body);
+  var ed=el('button','xbtn','Edit');ed.type='button';
+  ed.onclick=function(ev){ev.stopPropagation();startEdit(r);};
+  var rm=el('button','xbtn','Del');rm.type='button';
+  rm.onclick=function(ev){ev.stopPropagation();deleteRegion(r._id);};
+  if(canWrite()){row.appendChild(ed);row.appendChild(rm);}
+  row.onclick=function(){
+    S.selRegion=r._id;
+    var p=parseInt(String(r.page).replace(/\D/g,''),10);
+    if(p!==S.page){S.page=p;renderStage();}else{drawRegions();}
+    renderDesk();
+  };
+  return row;
+}
+/* ── the doctrine rubric ───────────────────────────────────────────────
+   Fifteen named criteria, each with its source and, where it is contested,
+   who objects and on what grounds. A criterion the repository cannot answer
+   says so; it does not get a guessed verdict. */
+function renderRubric(host,it){
+  if(!it.rub){
+    host.appendChild(el('div','sec alt','Doctrine rubric'));
+    host.appendChild(el('p','empty',
+      it.kind==='undrawn'
+        ? 'Nothing is drawn yet, so there is nothing to score. The rubric applies to marks on a page.'
+        : 'Not scored.'));
+    return;
+  }
+  var fails=it.rubFails.length;
+  host.appendChild(el('div','sec alt','Doctrine rubric · '+fails+' failing'));
+
+  var vs=VS_LENSES[it.id];
+  if(vs){
+    host.appendChild(el('div','splitban px',
+      vs.lensesSaidKeep.map(function(L){return LENSNAME[L].slice(0,1);}).join(', ')+
+      ' said keep — the rubric fails '+vs.fails.join(', ')));
+  }
+
+  var sum=el('div','rubsum');
+  var nMach=DCRIT.filter(function(c){return c.evidence==='machine';}).length;
+  var nOpen=DCRIT.filter(function(c){return c.evidence==='open';}).length;
+  sum.innerHTML='<b>'+DCRIT.length+'</b> criteria — '+nMach+' computed from committed sources, '+
+    (DCRIT.length-nMach-nOpen)+' mapped from the page reading, <b>'+nOpen+'</b> that nothing '+
+    'committed can answer. The unscored ones are shown, not hidden: a rubric that reports only '+
+    'what it can measure reads as more complete than it is.';
+  host.appendChild(sum);
+
+  var wrap=el('div','rub');
+  DGROUPS.forEach(function(g){
+    wrap.appendChild(el('div','rubgrp',g));
+    DCRIT.filter(function(c){return c.group===g;}).forEach(function(c){
+      var r=it.rub[c.id]; if(!r)return;
+      var open=(S.openCrit===c.id);
+      var b=el('button','rubrow'+(open?' on':''));b.type='button';
+      var sq=el('i',r.verdict==='n/a'?'na':'');
+      if(VHUE[r.verdict])sq.style.setProperty('--hue',VHUE[r.verdict]);
+      b.appendChild(sq);
+      b.appendChild(el('span','cid',c.id));
+      if(c.contested){var d=el('span','dag','†');d.title='contested doctrine';b.appendChild(d);}
+      b.appendChild(el('span','cv',r.verdict));
+      b.setAttribute('aria-expanded',String(open));
+      b.onclick=function(){S.openCrit=(S.openCrit===c.id?null:c.id);renderDesk();};
+      wrap.appendChild(b);
+      if(open)wrap.appendChild(critEvidence(c,r));
+    });
+  });
+  host.appendChild(wrap);
+}
+
+function critEvidence(c,r){
+  var d=el('div','rubev');
+  d.appendChild(el('div','k','what it asks'));
+  d.appendChild(el('p',null,c.ask));
+  d.appendChild(el('div','k','on this figure'));
+  d.appendChild(el('p',null,r.evidence||'—'));
+  if(r.mappedFrom){
+    d.appendChild(el('div','k','read from'));
+    d.appendChild(el('p','src',r.mappedFrom));
+  }
+  if(c.heuristic||r.heuristic){
+    d.appendChild(el('div','k','how it is judged'));
+    d.appendChild(el('p','src',c.heuristic||'Machine-judged heuristic.'));
+  }
+  d.appendChild(el('div','k','source'));
+  d.appendChild(el('p','src',c.source));
+  if(c.contested){
+    var w=el('div','disp');
+    w.appendChild(el('strong',null,'Contested. '));
+    w.appendChild(document.createTextNode(c.objectors||''));
+    d.appendChild(w);
+  }
+  if(c.counterCheckFor){
+    d.appendChild(el('div','k','counter-check'));
+    d.appendChild(el('p','src','This criterion exists to stop '+c.counterCheckFor+
+      ' flattering the figure. A clean score there and a failure here is a real defect, not a pass.'));
+  }
+  return d;
+}
+
+/* the three lists the coordinator asked for, in the band under the masthead */
+function renderRubricLists(){
+  var host=$('listshost'), note=$('rubricnote');
+  if(!host)return;
+  host.innerHTML='';note.innerHTML='';
+  if(!DOCTRINE){
+    host.appendChild(el('p','empty','The rubric did not load.'));
+    return;
+  }
+  function list(hue,title,why,ids,extra){
+    var d=el('div','find');d.style.setProperty('--hue',hue);
+    d.appendChild(el('span','fn',String(ids.length)));
+    d.appendChild(el('h5',null,title));
+    d.appendChild(el('p','why',why));
+    if(!ids.length){d.appendChild(el('p','why','None.'));host.appendChild(d);return;}
+    var ol=el('ol');
+    ids.forEach(function(id){
+      var li=el('li');
+      var b=el('button',null,id);b.type='button';
+      b.onclick=function(){select(id);document.getElementById('desk').scrollIntoView({block:'start'});};
+      li.appendChild(b);
+      if(extra){var x=extra(id);if(x)li.appendChild(el('span',null,' '+x));}
+      ol.appendChild(li);
+    });
+    d.appendChild(ol);
+    host.appendChild(d);
+  }
+
+  var vs=Object.keys(VS_LENSES).sort();
+  list('var(--red)','Where the rubric and the three lenses disagree',
+    'A lens said keep; a named criterion says the figure is broken. Disagreement is the signal — '+
+    'agreement is only two readers sharing a blind spot.',
+    vs, function(id){
+      var v=VS_LENSES[id];
+      return '— '+v.lensesSaidKeep.map(function(L){return LENSNAME[L].slice(0,1);}).join(',')+
+        ' keep / fails '+v.fails.join(', ');
+    });
+
+  list('var(--yellow)','Every figure failing over-erased',
+    'The list this repository’s own gates structurally cannot produce: every mechanical check '+
+    'it owns measures the presence of a mark, and this one measures a harmful absence. One style '+
+    'file sets draw=none on five fill styles, and the Book is the Swiss edition.',
+    DOCTRINE.overErased||[]);
+
+  var both=DOCTRINE.captionDoubleFail||[];
+  list('var(--blue)','Captions that are a label above a paragraph that says nothing',
+    'Failing caption-states-a-claim and caption-carries-the-fact together: the caption names its '+
+    'axes instead of asserting anything, and the paragraph introducing it states nothing concrete '+
+    'either. A figure no reader can use.',
+    both);
+
+  var pal=DOCTRINE.palette&&DOCTRINE.palette.counts;
+  var live=(DOCTRINE.context&&DOCTRINE.context.livePalettePairs)||[];
+  if(pal){
+    var p=el('p');
+    p.innerHTML='<b>Colour, computed rather than eyeballed.</b> '+pal.fail+' of '+pal.pairs+
+      ' story-colour pairs fail separation, '+pal.floorOnly+' is floor-only and '+pal.clear+
+      ' are clear. Only <b>'+live.length+'</b> of those failures is live in the Book, because only '+
+      'four of the seven colours are carried by a chapter: '+
+      live.map(function(x){return x.a+'/'+x.b+' (ΔE '+x.normal+' normal, '+x.worst+' worst CVD)';}).join(', ')+
+      '. Those are the pairs a palette fix has to be validated against.';
+    p.style.margin='0 0 8px';note.appendChild(p);
+  }
+  var cov=el('p');
+  var open=DCRIT.filter(function(c){return c.evidence==='open';});
+  cov.innerHTML='<b>What the rubric cannot answer.</b> '+open.length+' criteria are unscored for '+
+    'every figure — '+open.map(function(c){return '<code>'+c.id+'</code>';}).join(', ')+
+    ' — because nothing committed answers them. They are listed rather than dropped so the '+
+    'rubric’s coverage is legible. Criteria marked † are contested; open one on any figure to '+
+    'see who objects and on what grounds.';
+  cov.style.margin='0';note.appendChild(cov);
+}
+
+/* ── the pixel voice ───────────────────────────────────────────────── */
+function pixelSplitBanner(it){
+  var ag=it.pixel.agreement, bits=[];
+  ag.disagreesWithLenses.forEach(function(L){
+    bits.push(LENSNAME[L].slice(0,1).toLowerCase()+' said '+ag.lenses[L].verdict);
+  });
+  if(ag.disagreesWithTriage)bits.push('wave-11 said '+ag.triage.verdict);
+  var txt=(ag.unanimousAgainst?'All three read the fragment and said ':'')+
+    'the page says '+it.pixel.verdict+' — '+bits.join(', ');
+  return el('div','splitban px',txt);
+}
+function pixelDetail(it){
+  var r=it.pixel, d=el('div','detail');
+  var b=el('span','badge v-'+it.pixelBase,r.verdict);d.appendChild(b);
+  if(it.imported){
+    var im=el('span','badge','imported pdf');
+    im.style.setProperty('--hue','var(--red)');im.style.marginLeft='4px';
+    im.title='an \\includegraphics PDF: no TikZ fragment, so no tikz_precheck, no compile_fragment and no figcheck row';
+    d.appendChild(im);
+  }
+  if(r.isNew){
+    var nw=el('span','badge','added by this pass');
+    nw.style.setProperty('--hue','var(--blue)');nw.style.marginLeft='4px';
+    d.appendChild(nw);
+  }
+
+  d.appendChild(el('div','k','what the pixels show'));
+  d.appendChild(el('p',null,r.pixels||'—'));
+
+  /* the five-point rubric, as five marks and their names */
+  if(r.rubric&&Object.keys(r.rubric).length){
+    d.appendChild(el('div','k','five-point rubric'));
+    var ul=el('div');ul.style.cssText='display:flex;flex-direction:column;gap:2px;margin-top:3px';
+    RUBRIC.forEach(function(p){
+      var ok=r.rubric[p[0]];
+      var row=el('div');row.style.cssText='display:flex;align-items:center;gap:6px;font-size:12px';
+      var sq=el('i','v-'+(ok?'keep':'redraw'));
+      sq.style.cssText='width:8px;height:8px;display:block;flex:none;background:var(--hue)';
+      row.appendChild(sq);
+      row.appendChild(el('span',null,(ok?'':'fails: ')+p[1]));
+      ul.appendChild(row);
+    });
+    d.appendChild(ul);
+  }
+  [['measured','measured on the page'],['dataviz','dataviz check'],
+   ['idea','the page’s one idea'],['role','role on the page']].forEach(function(p){
+    if(!r[p[0]])return;
+    d.appendChild(el('div','k',p[1]));
+    d.appendChild(el('p',null,String(r[p[0]])));
+  });
+
+  /* the mechanical gates, beside the judgment — the epigraph's own point */
+  var g=FINDINGS&&FINDINGS.gates&&FINDINGS.gates.byFigure[it.id];
+  d.appendChild(el('div','k','what the mechanical gates say'));
+  if(g){
+    d.appendChild(el('p',null,
+      g.checksFailed.join(', ')+' failed'+(g.waived?', and waived until '+g.waiverExpires:'')+'.'));
+  }else if(it.imported){
+    d.appendChild(el('p',null,'No gate looks at it at all: it is an imported PDF, so tikz_precheck skips it, compile_fragment cannot wrap it, and it has no figcheck row.'));
+  }else{
+    d.appendChild(el('p',null,'Clean on every mechanical check.'));
+  }
+  if(r.bookPage){
+    d.appendChild(el('div','k','judged on'));
+    d.appendChild(el('p','mono','Book p'+r.bookPage+
+      (it.page&&it.page!==r.bookPage?'  ·  page image here is p'+it.page+' of the earlier build':'')));
+  }
+  return d;
+}
+
+function lensDetail(r,L){
+  var d=el('div','detail');
+  var b=el('span','badge v-'+r.verdict,r.verdict);d.appendChild(b);
+  if(r.severity){var sv=el('span','badge',' '+r.severity);sv.style.setProperty('--hue','var(--slate)');sv.style.marginLeft='4px';d.appendChild(sv);}
+  if(r.wrong_type){var w=el('span','badge','wrong kind');w.style.setProperty('--hue','var(--red)');w.style.marginLeft='4px';d.appendChild(w);}
+  [['readable_fact','the one readable fact'],['page_role','role on the page'],['problem','problem'],
+   ['kind_now','drawn as'],['kind_should_be','should be'],['execution','execution'],
+   ['encoding_fit','encoding'],['integrity','integrity'],['data_ink','data-ink'],
+   ['numbers_note','numbers'],['better_idea','better idea'],['note','note']].forEach(function(p){
+    var v=r[p[0]];
+    if(v===undefined||v===null||v===''||v===false)return;
+    d.appendChild(el('div','k',p[1]));
+    d.appendChild(el('p',null,String(v)));
+  });
+  return d;
+}
+function linkify(txt){
+  var p=el('p');
+  txt.split(/<(https?:\/\/[^>]+)>/).forEach(function(t,i){
+    if(i%2){var a=el('a',null,t.replace(/^https?:\/\//,''));a.href=t;a.target='_blank';a.rel='noopener';p.appendChild(a);}
+    else if(t)p.appendChild(document.createTextNode(t));
+  });
+  return p;
+}
+function startEdit(r){
+  editing=r._id;S.selRegion=r._id;
+  var p=parseInt(String(r.page).replace(/\D/g,''),10);
+  if(p!==S.page)S.page=p;
+  pending=null;renderStage();renderDesk();
+  var ta=$('composertext');if(ta){ta.value=r.note||'';ta.focus();}
+}
+
+/* ───────────────────────── stage ───────────────────────── */
+function renderStage(){
+  var host=$('stage');host.innerHTML='';
+  var it=S.sel&&BY_ID[S.sel];
+  if(!it){host.appendChild(el('p','empty','Pick a figure.'));return;}
+
+  if(!S.page&&it.page)S.page=it.page;
+
+  if(!it.page&&!S.page){
+    var sb=el('div','specblock');
+    sb.appendChild(el('div','big','Never drawn'));
+    sb.appendChild(el('p',null,it.idea));
+    sb.appendChild(el('div','k','kind proposed'));sb.appendChild(el('p',null,it.dkind||'—'));
+    sb.appendChild(el('div','k','spec'));sb.appendChild(el('p',null,it.spec));
+    sb.appendChild(el('div','k','page'));sb.appendChild(el('p',null,'unknown — the triage row names no page, so there is nothing to box'));
+    host.appendChild(sb);
+    return;
+  }
+
+  /* toolbar */
+  var tb=el('div','stoolbar');
+  var nav=el('div','pnav');
+  var prev=el('button',null,'‹');prev.type='button';prev.title='previous rendered page';
+  prev.disabled=!PAGESET[S.page-1];
+  prev.onclick=function(){S.page=S.page-1;S.selRegion=null;renderStage();renderDesk();};
+  var lab=el('span',null,'page '+S.page);
+  var next=el('button',null,'›');next.type='button';next.title='next rendered page';
+  next.disabled=!PAGESET[S.page+1];
+  next.onclick=function(){S.page=S.page+1;S.selRegion=null;renderStage();renderDesk();};
+  nav.appendChild(prev);nav.appendChild(lab);nav.appendChild(next);
+  tb.appendChild(nav);
+
+  if(it.page&&S.page!==it.page){
+    var back=el('button','tog','Back to p'+it.page);back.type='button';
+    back.onclick=function(){S.page=it.page;S.selRegion=null;renderStage();renderDesk();};
+    tb.appendChild(back);
+  }
+
+  var dt=el('button','tog','Draw regions');dt.type='button';
+  dt.setAttribute('aria-pressed',String(S.draw));
+  dt.onclick=function(){S.draw=!S.draw;renderStage();};
+  tb.appendChild(dt);
+
+  tb.appendChild(el('span','flab','attach note to'));
+  var att=el('div','seg');att.style.flex='0 0 auto';
+  [['fig','Figure'],['page','Page']].forEach(function(p){
+    var b=el('button',null,p[1]);b.type='button';
+    var enabled=(p[0]==='page')||(it.page===S.page);
+    b.setAttribute('aria-pressed',String(S.attach===p[0]&&enabled));
+    if(!enabled)b.disabled=true;
+    b.onclick=function(){S.attach=p[0];renderStage();};
+    att.appendChild(b);
+  });
+  tb.appendChild(att);
+  /* the pixel pass's own page-scale render of this chapter: the figures side
+     by side at the size they print, which is the only way the type-size
+     findings are visible at all */
+  if(SHEET_FOR_CH[it.ch]){
+    var cs=el('button','tog','Contact sheet');cs.type='button';
+    cs.title='every figure in chapter '+it.ch+' at print scale, from the pixel judgment';
+    cs.setAttribute('aria-pressed',String(S.sheet));
+    cs.onclick=function(){S.sheet=!S.sheet;renderStage();};
+    tb.appendChild(cs);
+  }
+
+  tb.appendChild(el('span','hint',S.draw?'Drag anywhere on the sheet to box a spot.':'Drawing is off — the sheet scrolls.'));
+  host.appendChild(tb);
+
+  if(S.sheet&&SHEET_FOR_CH[it.ch]){
+    var sw=el('div','sheetlink');
+    var si=el('img');
+    si.src='sheets/'+SHEET_FOR_CH[it.ch];
+    si.alt='Contact sheet: every figure in chapter '+it.ch+' at print scale';
+    si.loading='lazy';
+    sw.appendChild(si);
+    sw.appendChild(el('p','hint','Chapter '+it.ch+' at print scale, as the pixel judgment saw it. No region boxes here — draw those on the page below.'));
+    host.appendChild(sw);
+  }
+
+  /* composer */
+  if(pending||editing){
+    var c=el('div','composer');
+    c.appendChild(el('h3',null,editing?'Edit this region note':('New region on '+pageFile(S.page)+(S.attach==='fig'&&it.page===S.page?' · attached to '+it.label:' · about the page itself'))));
+    var ta=el('textarea');ta.id='composertext';
+    ta.placeholder='What is wrong, or right, in this box?';
+    c.appendChild(ta);
+    var br=el('div','brow');br.style.marginTop='8px';
+    var sv=el('button','btn',editing?'Update note':'Save region');sv.type='button';
+    sv.onclick=function(){
+      if(editing){updateRegionNote(editing,ta.value.trim());editing=null;}
+      else{saveRegion(pending,ta.value.trim());pending=null;}
+      renderStage();renderDesk();
+    };
+    var cn=el('button','btn ghost','Cancel');cn.type='button';
+    cn.onclick=function(){pending=null;editing=null;renderStage();renderDesk();};
+    br.appendChild(sv);br.appendChild(cn);
+    if(pending)br.appendChild(el('span','stamp mono','x'+round4(pending.x)+' y'+round4(pending.y)+' w'+round4(pending.w)+' h'+round4(pending.h)));
+    c.appendChild(br);
+    host.appendChild(c);
+    setTimeout(function(){var t=$('composertext');if(t&&editing){var r=REGIONS.filter(function(x){return x._id===editing;})[0];if(r)t.value=r.note||'';}if(t)t.focus();},0);
+  }
+
+  /* the sheet */
+  var w=el('div');w.id='sheetwrap';
+  var sheet=el('div','sheet'+(S.draw?' draw':''));sheet.id='sheet';
+  var img=el('img');
+  img.src='pages/'+pageFile(S.page);
+  img.width=1050;img.height=1500;img.draggable=false;
+  img.alt='Page '+S.page+' of the Book';
+  sheet.appendChild(img);
+  var ov=el('div');ov.id='overlay';
+  ov.style.cssText='position:absolute;inset:0';
+  sheet.appendChild(ov);
+  var dragbox=el('div');dragbox.id='dragbox';sheet.appendChild(dragbox);
+  w.appendChild(sheet);
+  w.appendChild(el('p','hint','Page '+S.page+' as rendered · region coordinates are stored as fractions of this image, so they survive a re-render at any dpi.'));
+  host.appendChild(w);
+  wireDraw(sheet,dragbox);
+  drawRegions();
+}
+
+function drawRegions(){
+  var ov=$('overlay');if(!ov)return;
+  ov.innerHTML='';
+  var here=regionsOnPage(S.page);
+  var it=S.sel&&BY_ID[S.sel];
+  here.forEach(function(r,i){
+    var d=el('div','region'+(r.fig?'':' pagenote')+(S.selRegion===r._id?' on':''));
+    d.style.cssText='left:'+(r.x*100)+'%;top:'+(r.y*100)+'%;width:'+(r.w*100)+'%;height:'+(r.h*100)+'%';
+    var t=el('span','tag',String(i+1));
+    if(r.fig&&it&&r.fig!==it.id)t.style.background='var(--slate)';
+    d.appendChild(t);
+    var tip=el('span','tip',(r.note||'(no note)')+(r.fig?'  — '+r.fig.replace(/^fig-/,''):'  — about the page'));
+    d.appendChild(tip);
+    d.onclick=function(ev){ev.stopPropagation();S.selRegion=(S.selRegion===r._id?null:r._id);drawRegions();renderDesk();};
+    ov.appendChild(d);
+  });
+}
+
+function wireDraw(sheet,dragbox){
+  var start=null,rect=null;
+  sheet.addEventListener('pointerdown',function(e){
+    if(!S.draw||!canWrite())return;
+    if(e.button!==undefined&&e.button!==0)return;
+    if(e.target.closest('.region'))return;
+    rect=sheet.getBoundingClientRect();
+    start={x:(e.clientX-rect.left)/rect.width,y:(e.clientY-rect.top)/rect.height};
+    dragbox.style.display='block';
+    dragbox.style.cssText='display:block;left:'+(start.x*100)+'%;top:'+(start.y*100)+'%;width:0;height:0';
+    try{sheet.setPointerCapture(e.pointerId);}catch(err){}
+    e.preventDefault();
+  });
+  sheet.addEventListener('pointermove',function(e){
+    if(!start)return;
+    var x=clamp01((e.clientX-rect.left)/rect.width), y=clamp01((e.clientY-rect.top)/rect.height);
+    var x0=Math.min(x,start.x),y0=Math.min(y,start.y);
+    dragbox.style.left=(x0*100)+'%';dragbox.style.top=(y0*100)+'%';
+    dragbox.style.width=(Math.abs(x-start.x)*100)+'%';dragbox.style.height=(Math.abs(y-start.y)*100)+'%';
+  });
+  function finish(e){
+    if(!start)return;
+    var x=clamp01((e.clientX-rect.left)/rect.width), y=clamp01((e.clientY-rect.top)/rect.height);
+    var r={x:Math.min(x,start.x),y:Math.min(y,start.y),w:Math.abs(x-start.x),h:Math.abs(y-start.y)};
+    start=null;dragbox.style.display='none';
+    if(r.w<0.012||r.h<0.008){return;}          // a tap, not a box — forgiving on a trackpad
+    if(r.w<0.02)r.w=0.02;
+    if(r.h<0.012)r.h=0.012;
+    pending=r;editing=null;
+    renderStage();
+    setTimeout(function(){var t=$('composertext');if(t)t.focus();},0);
+  }
+  sheet.addEventListener('pointerup',finish);
+  sheet.addEventListener('pointercancel',function(){start=null;dragbox.style.display='none';});
+}
+function clamp01(n){return n<0?0:n>1?1:n;}
+
+/* ───────────────────────── selection & filters ───────────────────────── */
+function select(id){
+  S.sel=id;S.selRegion=null;S.openLens=null;S.openCrit=null;pending=null;editing=null;
+  var it=BY_ID[id];
+  S.page=it.page||null;
+  S.attach=it.page?'fig':'page';
+  try{location.hash=id;}catch(e){}
+  renderList();renderDesk();renderStage();
+}
+function setFilter(k,v){
+  S[k]=v;
+  syncSeg('f-set',S.set);syncSeg('f-ruled',S.ruled);syncSeg('f-split',S.split);syncSeg('f-px',S.px);
+  $('f-ch').value=S.ch;$('f-disp').value=S.disp;$('f-pxv').value=S.pxv;$('f-crit').value=S.crit;
+  renderList();
+}
+function syncSeg(id,v){
+  var g=$(id);if(!g)return;
+  [].forEach.call(g.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.dataset.v===v));});
+}
+function wireSeg(id,key){
+  var g=$(id);
+  [].forEach.call(g.querySelectorAll('button'),function(b){
+    b.onclick=function(){setFilter(key,b.dataset.v);};
+  });
+}
+
+/* page-text search lazily pulls in the 1.3 MB word index */
+var wordsLoading=false;
+function runPageSearch(q){
+  if(!q){PAGEHITS=null;renderList();return;}
+  if(!window.WORDS){
+    if(wordsLoading)return;
+    wordsLoading=true;
+    var s=document.createElement('script');
+    s.src='data/WORDS.js';
+    s.onload=function(){wordsLoading=false;runPageSearch($('f-q').value.trim());};
+    s.onerror=function(){wordsLoading=false;toast('Could not load the page-text index.');};
+    document.body.appendChild(s);
+    $('listhead').textContent='Loading the page-text index…';
+    return;
+  }
+  var needle=q.toLowerCase(),hits={};
+  var W=window.WORDS.words;
+  Object.keys(W).forEach(function(p){
+    var line=W[p].map(function(w){return w[4];}).join(' ').toLowerCase();
+    if(line.indexOf(needle)>=0)hits[+p]=true;
+  });
+  PAGEHITS=hits;renderList();
+}
+
+/* ───────────────────────── cross-cutting findings ─────────────────────────
+   These belong to no figure — one file breaks every region edge in the Book,
+   one macro shrinks twenty-four pictures below the type floor — so they get
+   the one place on the desk that is not a figure: a band under the masthead. */
+var FIND_HUE=['var(--red)','var(--yellow)','var(--blue)','var(--red)','var(--yellow)','var(--slate)'];
+function renderCross(){
+  var host=$('crosshost'), rec=$('reconhost');
+  if(!host)return;
+  host.innerHTML='';rec.innerHTML='';
+  if(!FINDINGS){
+    host.appendChild(el('p','empty','The cross-cutting findings did not load.'));
+    return;
+  }
+  if(FINDINGS.epigraph){
+    var e=$('epigraph');
+    e.hidden=false;e.innerHTML='';
+    e.appendChild(el('em',null,FINDINGS.epigraph));
+    var c=el('cite',null,'Pixel judgment, '+(FINDINGS.provenance.pages||551)+' pp. at 150 dpi · '+
+      (FINDINGS.judged||0)+' figures judged on the printed page');
+    e.appendChild(c);
+  }
+  (FINDINGS.findings||[]).forEach(function(f,i){
+    var d=el('div','find');
+    d.style.setProperty('--hue',FIND_HUE[i%FIND_HUE.length]);
+    d.appendChild(el('span','fn',f.num));
+    d.appendChild(el('h4',null,f.title));
+    if(f.lede)d.appendChild(el('p',null,f.lede));
+    var more=(f.body||[]).concat([]);
+    if((f.bullets||[]).length||more.length||(f.blocks||[]).length){
+      var det=el('details');
+      det.appendChild(el('summary',null,'the whole finding'));
+      more.forEach(function(p){det.appendChild(el('p',null,p));});
+      if((f.bullets||[]).length){
+        var ul=el('ul');
+        f.bullets.forEach(function(b){ul.appendChild(el('li',null,b.replace(/^-\s*/,'')));});
+        det.appendChild(ul);
+      }
+      (f.blocks||[]).forEach(function(b){
+        det.appendChild(el('pre',null,b.replace(/^```\w*\n?/,'').replace(/```$/,'').trim()));
+      });
+      d.appendChild(det);
+    }
+    host.appendChild(d);
+  });
+
+  /* the reconciliation, said out loud rather than left to be noticed */
+  var r=FINDINGS.reconciliation||{}, g=FINDINGS.gates||{};
+  function line(html){var p=el('p');p.innerHTML=html;p.style.margin='6px 0 0';rec.appendChild(p);}
+  line('<b>'+(r.deskFigures||0)+'</b> figures are in the committed Book — every one of them judged on its page. '+
+       '<b>'+(r.undrawn||0)+'</b> more are candidates the Wave 11 triage asked for and nobody has drawn; '+
+       'they have no page, so the pixel pass could not reach them. That is the whole desk: <b>'+
+       ((r.deskFigures||0)+(r.undrawn||0))+'</b> items.');
+  if((r.judgedOnly||[]).length){
+    line('Judged but <b>not in the Book yet</b> — drawn by the pixel-judgment change itself and waiting on its PR: '+
+         '<code>'+r.judgedOnly.join('</code>, <code>')+'</code>. They appear here as soon as a chapter inputs them.');
+  }
+  if(g.total){
+    line('The gates: <b>'+g.total+'</b> mechanical findings across '+Object.keys(g.byFigure||{}).length+
+         ' fragments, <b>'+g.waived+'</b> of them waived. The blocker check reports zero failures because every finding is waived.');
+  }
+  if((r.renderDrift||[]).length){
+    line('<b>'+r.renderDrift.length+'</b> of these figures sit on a different page in today’s Book than in the build '+
+         'these page images came from. The images and every region box you have drawn are pinned to the build they were '+
+         'rendered from; the pixel pass’s own page number is shown beside each figure.');
+  }
+  if((FINDINGS.parseGaps||[]).length){
+    var det=el('details');det.style.marginTop='8px';
+    det.appendChild(el('summary',null,'where the markdown parse gave up ('+FINDINGS.parseGaps.length+')'));
+    var ul=el('ul');ul.style.cssText='margin:6px 0 0;padding-left:16px;font-size:11.5px';
+    FINDINGS.parseGaps.forEach(function(x){ul.appendChild(el('li',null,x));});
+    det.appendChild(ul);
+    rec.appendChild(det);
+  }
+}
+
+/* ───────────────────────── theme ───────────────────────── */
+function initTheme(){
+  var stored=null;
+  try{stored=localStorage.getItem('hfd-theme');}catch(e){}
+  if(stored)document.documentElement.setAttribute('data-theme',stored);
+  $('themebtn').onclick=function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    var dark=cur?cur==='dark':window.matchMedia('(prefers-color-scheme:dark)').matches;
+    var next=dark?'light':'dark';
+    document.documentElement.setAttribute('data-theme',next);
+    try{localStorage.setItem('hfd-theme',next);}catch(e){}
+  };
+}
+
+/* ───────────────────────── boot ───────────────────────── */
+function renderAll(){renderCounts();renderList();renderDesk();renderStage();}
+
+function boot(){
+  var sel=$('f-ch');
+  Object.keys(CHAPTERS).sort(function(a,b){return a-b;}).forEach(function(c){
+    var o=el('option',null,c+' · '+CHAPTERS[c]);o.value=c;sel.appendChild(o);
+  });
+  wireSeg('f-set','set');wireSeg('f-ruled','ruled');wireSeg('f-split','split');wireSeg('f-px','px');
+  $('f-ch').onchange=function(){S.ch=this.value;renderList();};
+  $('f-disp').onchange=function(){S.disp=this.value;renderList();};
+  $('f-pxv').onchange=function(){S.pxv=this.value;renderList();};
+  var cs=$('f-crit');
+  [['any','Any criterion failing'],['vslens','Rubric fails, a lens said keep']].forEach(function(o){
+    var op=el('option',null,o[1]);op.value=o[0];cs.appendChild(op);
+  });
+  DGROUPS.forEach(function(g){
+    var og=document.createElement('optgroup');og.label=g;
+    DCRIT.filter(function(c){return c.group===g;}).forEach(function(c){
+      var n=(DOCTRINE&&DOCTRINE.failingByCriterion&&DOCTRINE.failingByCriterion[c.id]||[]).length;
+      var op=el('option',null,c.id+' ('+n+')');op.value=c.id;
+      if(!n)op.disabled=true;
+      og.appendChild(op);
+    });
+    cs.appendChild(og);
+  });
+  cs.onchange=function(){S.crit=this.value;renderList();};
+  var qt=null;
+  $('f-q').oninput=function(){
+    var v=this.value.trim();
+    clearTimeout(qt);
+    qt=setTimeout(function(){
+      S.q=v;
+      if(S.qmode==='page')runPageSearch(v); else renderList();
+    },180);
+  };
+  [].forEach.call($('f-qmode').querySelectorAll('button'),function(b){
+    b.onclick=function(){
+      S.qmode=b.dataset.v;syncSeg('f-qmode',S.qmode);
+      if(S.qmode==='page')runPageSearch(S.q); else {PAGEHITS=null;renderList();}
+    };
+  });
+  initTheme();
+  renderCross();
+  renderRubricLists();
+  if(window.innerWidth<820){
+    var fd=$('filters');if(fd)fd.open=false;
+    var cd=$('cross');if(cd)cd.open=false;
+    var rb=$('rubricband');if(rb)rb.open=false;
+  }
+
+  var first=(location.hash||'').slice(1);
+  S.sel=BY_ID[first]?first:(ITEMS[0]&&ITEMS[0].id);
+  if(S.sel)S.page=BY_ID[S.sel].page||null;
+  renderAll();
+  bootDb();
+}
+boot();
+})();
+</script>
+
+</body></html>

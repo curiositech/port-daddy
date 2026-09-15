@@ -185,9 +185,13 @@ jobs:
             echo "::error::the harbor-research suite failed; its output is above"
             exit 1
           fi
+          # The floor is the count the suite actually has, raised whenever it
+          # grows -- it sat at 212 while the suite had grown to 291, which is a
+          # floor that would no longer have caught the missing-import case it
+          # was written for.
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 301 ]; then
-            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 301 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 331 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 331 it has; a module failed to import"
             exit 1
           fi
 
@@ -293,6 +297,34 @@ jobs:
         run: >-
           python3 scripts/harbor-research/check_duplicate_theorems.py
           --allow def:0040b --allow def:float-plan
+
+      # The two steps above fixed half of what an outside reader found and then
+      # went green over the other half. The reader wrote that "the four-message
+      # cross-harbor transfer appears in both Chapter 6 and Chapter 8"; the
+      # shared *drawing* moved into \ifpdbook and both checks passed, while the
+      # ceremony itself stayed written out twice -- a labelled Protocol in
+      # chapter 6, a hand-written enumerate in chapter 8. Neither sibling can
+      # see that: there is no shared \input and no shared \label. A green check
+      # over the half that was fixed is worse than no check, because it reads
+      # as coverage, so this is the other half. The allow records the one
+      # duplication that is still waiting for an owner, by chapter pair and by
+      # the exact message names, so that a different one -- or a change to this
+      # one -- still fails.
+      - name: No message ceremony is written out twice in the Book
+        run: >-
+          python3 scripts/harbor-research/check_duplicate_protocols.py
+          --allow '6:8:xfer_ack,xfer_deliver,xfer_offer,xfer_req'
+
+      # Figure 4.5's caption tells the reader its sweep CSV "is not yet
+      # present", so the curves are the closed-form floor rather than the
+      # measurement the plot looks like. The honesty belongs in the tree, not
+      # in a caption a skimming reader never reaches; the allow keeps that one
+      # debt visible here until the CSV is committed, and a second such caption
+      # anywhere in the corpus fails.
+      - name: No figure caption says the data behind it is absent
+        run: >-
+          python3 scripts/harbor-research/check_absent_data_captions.py
+          --allow 'whitepaper/figures/legible-swarm-readpoverty.tex:not yet present'
 
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check

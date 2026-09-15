@@ -134,7 +134,7 @@ export interface WhitePaper {
    */
   maturity: string
   /**
-   * Cross-reference edges that make the seven read as one book. Each is a list
+   * Cross-reference edges that make the current eight read as one book. Each is a list
    * of chapter ids with a short reason — rendered as assumes / underwrites /
    * proved-by / proves links on the library page. Ids, not numbers: the
    * numbering can change; the chapters do not.
