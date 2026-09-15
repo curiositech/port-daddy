@@ -3,6 +3,7 @@
   "schemaVersion": 1,
   "kind": "DrydockHypertreeExecution",
   "executionId": "drydock-observatory-review-loop-fixture",
+  "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
   "status": "fixture-static-design",
   "plan": {
     "id": "drydock-resurrection-capacity-context-control",
@@ -15,13 +16,28 @@
     }
   },
   "scope": {
-    "nodeIds": ["DD-070"],
+    "nodeIds": [
+      "DD-070"
+    ],
+    "dependencies": [
+      {
+        "nodeId": "DD-070",
+        "dependsOnNodeIds": []
+      }
+    ],
     "fixturePurpose": "Prove that a deficient candidate cannot pass review, receives one named bounded rework edge, and is projected identically to HTML, Swift, and Rust clients."
+  },
+  "authorityModel": {
+    "eventAdmission": "controller-only",
+    "projectionReducer": "controller-typescript",
+    "clientAuthority": "projection-only"
   },
   "contracts": {
     "inputEnvelopeSchema": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json",
     "outputEnvelopeSchema": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json",
     "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+    "projectionUpdateSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection-update.v1.json",
+    "reducerVersion": "drydock-hypertree-reducer.v1",
     "nodeContracts": [
       {
         "id": "dd-070-contract-v1",
@@ -46,8 +62,13 @@
           ],
           "undeclaredOutputs": "quarantine"
         },
-        "riskClasses": ["authority"],
-        "requiredReviewerClasses": ["low-cost-independent", "specialist"],
+        "riskClasses": [
+          "authority"
+        ],
+        "requiredReviewerClasses": [
+          "low-cost-independent",
+          "specialist"
+        ],
         "reviewPolicyId": "drydock-bounded-review-v1"
       }
     ]
@@ -92,26 +113,37 @@
       "mayWaiveChecks": false,
       "maySelfApprove": false,
       "requiredEvidence": [
-        "schema-valid output",
-        "all deterministic checks PASS",
-        "independent review APPROVE",
-        "no unresolved blocking finding"
-      ]
+        "schema-valid-output",
+        "all-deterministic-checks-pass",
+        "all-required-reviews-approve",
+        "no-unresolved-blocking-findings"
+      ],
+      "reservationUnit": "provider-native-units",
+      "maxUnitsPerDecision": 20
     },
     "rework": {
-      "verdicts": ["APPROVE", "REWORK", "ESCALATE"],
+      "verdicts": [
+        "APPROVE",
+        "REWORK",
+        "ESCALATE"
+      ],
       "targetMustBeNamed": true,
       "findingIdsRequired": true,
       "sameFindingRepeatLimit": 1
     }
   },
   "limits": {
+    "maxScopeNodes": 100,
+    "maxEvents": 500,
+    "maxNodeStartsTotal": 20,
+    "maxCapacityReservationsTotal": 40,
+    "maxArtifactsPerOutput": 16,
+    "maxOutputBytesPerAttempt": 1048576,
     "maxNodeAttempts": 3,
     "maxReworkRounds": 2,
     "maxManagerRounds": 3,
     "maxTopologyMutations": 3,
     "maxWallClockSeconds": 600,
-    "maxReviewUnitsTotal": 70,
     "maxRecursiveBirths": 0,
     "retryOwner": "external-controller",
     "retryLayers": 1
@@ -123,6 +155,8 @@
       "transport": "sse-json",
       "decoder": "json-schema-2020-12",
       "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+      "projectionUpdateSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection-update.v1.json",
+      "rawEventInput": "denied",
       "authority": "projection-only",
       "commandPath": "separate-signed-control-api",
       "resumeCursor": "sequence-and-event-id",
@@ -134,6 +168,8 @@
       "transport": "relay-sse-json",
       "decoder": "swift-codable",
       "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+      "projectionUpdateSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection-update.v1.json",
+      "rawEventInput": "denied",
       "authority": "projection-only",
       "commandPath": "separate-signed-control-api",
       "resumeCursor": "sequence-and-event-id",
@@ -145,6 +181,8 @@
       "transport": "in-process-json-or-sse",
       "decoder": "rust-serde",
       "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+      "projectionUpdateSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection-update.v1.json",
+      "rawEventInput": "denied",
       "authority": "projection-only",
       "commandPath": "separate-signed-control-api",
       "resumeCursor": "sequence-and-event-id",
@@ -163,7 +201,10 @@
       "attempt": null,
       "payload": {
         "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
-        "scopeNodeIds": ["DD-070"]
+        "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
+        "scopeNodeIds": [
+          "DD-070"
+        ]
       }
     },
     {
@@ -177,44 +218,70 @@
       "attempt": 1,
       "payload": {
         "workerIdentity": "agent/ux-worker-1",
-        "managerRound": 1,
         "input": {
           "schema": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json",
           "nodeContractId": "dd-070-contract-v1",
           "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+          "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
           "artifacts": [
             {
               "id": "lifecycle-states-v1",
               "kind": "lifecycle states",
               "mediaType": "application/json",
               "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "evidenceUri": "evidence://inputs/lifecycle-states-v1"
+              "evidenceUri": "evidence://inputs/lifecycle-states-v1",
+              "byteLength": 512
             },
             {
               "id": "capacity-states-v1",
               "kind": "capacity states",
               "mediaType": "application/json",
               "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-              "evidenceUri": "evidence://inputs/capacity-states-v1"
+              "evidenceUri": "evidence://inputs/capacity-states-v1",
+              "byteLength": 1024
             },
             {
               "id": "capability-states-v1",
               "kind": "capability states",
               "mediaType": "application/json",
               "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-              "evidenceUri": "evidence://inputs/capability-states-v1"
+              "evidenceUri": "evidence://inputs/capability-states-v1",
+              "byteLength": 1536
             },
             {
               "id": "operator-control-contract-v1",
               "kind": "operator-control contract",
               "mediaType": "application/json",
               "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-              "evidenceUri": "evidence://inputs/operator-control-contract-v1"
+              "evidenceUri": "evidence://inputs/operator-control-contract-v1",
+              "byteLength": 2048
             }
           ],
           "priorAttemptArtifactIds": [],
+          "reworkDirective": null,
           "capabilitySetDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-          "capacityReservationIds": ["review-capacity-round-1"]
+          "capacityReservations": [
+            {
+              "id": "capacity/work/dd-070/1/2",
+              "idempotencyKey": "idempotency/work/dd-070/1/2",
+              "budgetId": "codex-subscription-window",
+              "purpose": "work",
+              "executionId": "drydock-observatory-review-loop-fixture",
+              "nodeId": "DD-070",
+              "attempt": 1,
+              "reservedUnits": 120,
+              "expiresAt": "2026-09-14T12:09:59Z",
+              "receiptDigest": "sha256:6af1086a4016ee71b78d2bd61d554dc5a1724f403948d9dc470d3f4b80f4ed6a",
+              "evidenceUri": "evidence://capacity/reservations/capacity/work/dd-070/1/2"
+            }
+          ]
+        },
+        "assignment": {
+          "round": 1,
+          "managerIdentity": "agent/drydock-manager-1",
+          "roleId": "ux-worker",
+          "receiptDigest": "sha256:1d3232d967da0efb64d5d2a8456bdee015ab0030ae41d32d9de9f1cc219d657b",
+          "evidenceUri": "evidence://staffing/dd-070/attempt/1/assignment"
         }
       }
     },
@@ -237,21 +304,41 @@
             "kind": "authority split",
             "mediaType": "application/json",
             "digest": "sha256:2111111111111111111111111111111111111111111111111111111111111111",
-            "evidenceUri": "evidence://run/dd-070/attempt/1/authority-split"
+            "evidenceUri": "evidence://run/dd-070/attempt/1/authority-split",
+            "byteLength": 4096
           },
           {
             "id": "state-reel-a1",
             "kind": "state reel",
             "mediaType": "application/json",
             "digest": "sha256:3111111111111111111111111111111111111111111111111111111111111111",
-            "evidenceUri": "evidence://run/dd-070/attempt/1/state-reel"
+            "evidenceUri": "evidence://run/dd-070/attempt/1/state-reel",
+            "byteLength": 8192
           },
           {
             "id": "zoom-paths-a1",
             "kind": "two-action evidence paths",
             "mediaType": "application/json",
             "digest": "sha256:4111111111111111111111111111111111111111111111111111111111111111",
-            "evidenceUri": "evidence://run/dd-070/attempt/1/zoom-paths"
+            "evidenceUri": "evidence://run/dd-070/attempt/1/zoom-paths",
+            "byteLength": 12288
+          },
+          {
+            "id": "responsive-rules-a1",
+            "kind": "responsive rules",
+            "mediaType": "application/json",
+            "digest": "sha256:5111111111111111111111111111111111111111111111111111111111111111",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/responsive-rules",
+            "byteLength": 16384
+          }
+        ],
+        "capacitySettlements": [
+          {
+            "reservationId": "capacity/work/dd-070/1/2",
+            "outcome": "CONSUMED",
+            "usedUnits": 90,
+            "receiptDigest": "sha256:592f0b5dad21c33aa6dcbc709d210256d25e373c2ade5b6a11951f03f93c4bc9",
+            "evidenceUri": "evidence://capacity/settlements/capacity/work/dd-070/1/2"
           }
         ]
       }
@@ -267,10 +354,26 @@
       "attempt": 1,
       "payload": {
         "checks": [
-          { "id": "control-projection-separation", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/control-projection-separation" },
-          { "id": "fixture-label-visible", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/fixture-label-visible" },
-          { "id": "stale-unknown-honesty", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/stale-unknown-honesty" },
-          { "id": "reduced-motion-contract", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/reduced-motion-contract" }
+          {
+            "id": "control-projection-separation",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/check/control-projection-separation"
+          },
+          {
+            "id": "fixture-label-visible",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/check/fixture-label-visible"
+          },
+          {
+            "id": "stale-unknown-honesty",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/check/stale-unknown-honesty"
+          },
+          {
+            "id": "reduced-motion-contract",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/check/reduced-motion-contract"
+          }
         ]
       }
     },
@@ -288,16 +391,34 @@
         "reviewerClass": "low-cost-independent",
         "producerIdentity": "agent/ux-worker-1",
         "verdict": "REWORK",
-        "reservedUnits": 20,
-        "usedUnits": 8,
         "findings": [
           {
-            "id": "missing-responsive-rules",
+            "id": "unproven-responsive-rules",
             "severity": "blocking",
-            "summary": "The candidate omits the required responsive-rules artifact, so no client can prove layout behavior across view sizes.",
-            "evidenceUri": "evidence://run/dd-070/attempt/1/review/missing-responsive-rules"
+            "summary": "The responsive-rules artifact contains only nominal breakpoints and no measured 100-, 300-, or 500-node layout evidence.",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/review/unproven-responsive-rules"
           }
-        ]
+        ],
+        "capacityReservation": {
+          "id": "capacity/review/low-cost-independent/dd-070/1/5",
+          "idempotencyKey": "idempotency/review/low-cost-independent/dd-070/1/5",
+          "budgetId": "codex-subscription-window",
+          "purpose": "review:low-cost-independent",
+          "executionId": "drydock-observatory-review-loop-fixture",
+          "nodeId": "DD-070",
+          "attempt": 1,
+          "reservedUnits": 20,
+          "expiresAt": "2026-09-14T12:09:59Z",
+          "receiptDigest": "sha256:eccb838c97e6a2bd1888d256ea7d93be0e5e48a7df4ced3d7ed29b6a36c6c1de",
+          "evidenceUri": "evidence://capacity/reservations/capacity/review/low-cost-independent/dd-070/1/5"
+        },
+        "capacitySettlement": {
+          "reservationId": "capacity/review/low-cost-independent/dd-070/1/5",
+          "outcome": "CONSUMED",
+          "usedUnits": 8,
+          "receiptDigest": "sha256:995d4f84aec0d39ba6542f29eebbcd2708a1ff7babe551d53cff51d1a4e97c64",
+          "evidenceUri": "evidence://capacity/settlements/capacity/review/low-cost-independent/dd-070/1/5"
+        }
       }
     },
     {
@@ -312,8 +433,16 @@
       "payload": {
         "targetNodeId": "DD-070",
         "targetAttempt": 2,
-        "findingIds": ["missing-responsive-rules"],
-        "requiredEvidence": ["responsive rules artifact with desktop, compact, and reduced-motion states"]
+        "requiredArtifactKinds": [
+          "responsive rules"
+        ],
+        "findings": [
+          {
+            "id": "unproven-responsive-rules",
+            "sourceEventId": "evt-005",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/review/unproven-responsive-rules"
+          }
+        ]
       }
     },
     {
@@ -327,44 +456,87 @@
       "attempt": 2,
       "payload": {
         "workerIdentity": "agent/ux-worker-1",
-        "managerRound": 2,
         "input": {
           "schema": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json",
           "nodeContractId": "dd-070-contract-v1",
           "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+          "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
           "artifacts": [
             {
               "id": "lifecycle-states-v1",
               "kind": "lifecycle states",
               "mediaType": "application/json",
               "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "evidenceUri": "evidence://inputs/lifecycle-states-v1"
+              "evidenceUri": "evidence://inputs/lifecycle-states-v1",
+              "byteLength": 512
             },
             {
               "id": "capacity-states-v1",
               "kind": "capacity states",
               "mediaType": "application/json",
               "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-              "evidenceUri": "evidence://inputs/capacity-states-v1"
+              "evidenceUri": "evidence://inputs/capacity-states-v1",
+              "byteLength": 1024
             },
             {
               "id": "capability-states-v1",
               "kind": "capability states",
               "mediaType": "application/json",
               "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-              "evidenceUri": "evidence://inputs/capability-states-v1"
+              "evidenceUri": "evidence://inputs/capability-states-v1",
+              "byteLength": 1536
             },
             {
               "id": "operator-control-contract-v1",
               "kind": "operator-control contract",
               "mediaType": "application/json",
               "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-              "evidenceUri": "evidence://inputs/operator-control-contract-v1"
+              "evidenceUri": "evidence://inputs/operator-control-contract-v1",
+              "byteLength": 2048
             }
           ],
-          "priorAttemptArtifactIds": ["authority-split-a1", "state-reel-a1", "zoom-paths-a1"],
+          "priorAttemptArtifactIds": [
+            "authority-split-a1",
+            "state-reel-a1",
+            "zoom-paths-a1",
+            "responsive-rules-a1"
+          ],
+          "reworkDirective": {
+            "eventId": "evt-006",
+            "requiredArtifactKinds": [
+              "responsive rules"
+            ],
+            "findings": [
+              {
+                "id": "unproven-responsive-rules",
+                "sourceEventId": "evt-005",
+                "evidenceUri": "evidence://run/dd-070/attempt/1/review/unproven-responsive-rules"
+              }
+            ]
+          },
           "capabilitySetDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-          "capacityReservationIds": ["review-capacity-round-2"]
+          "capacityReservations": [
+            {
+              "id": "capacity/work/dd-070/2/7",
+              "idempotencyKey": "idempotency/work/dd-070/2/7",
+              "budgetId": "codex-subscription-window",
+              "purpose": "work",
+              "executionId": "drydock-observatory-review-loop-fixture",
+              "nodeId": "DD-070",
+              "attempt": 2,
+              "reservedUnits": 120,
+              "expiresAt": "2026-09-14T12:09:59Z",
+              "receiptDigest": "sha256:5c2b8d7608e29d5e61089b2d4c69fbd8e8c1514f6b15a0245365c4576b1c769e",
+              "evidenceUri": "evidence://capacity/reservations/capacity/work/dd-070/2/7"
+            }
+          ]
+        },
+        "assignment": {
+          "round": 2,
+          "managerIdentity": "agent/drydock-manager-1",
+          "roleId": "ux-worker",
+          "receiptDigest": "sha256:497bf6daed2e0f3eda2fb9f21fbe2d6a11da94ac1eaf5245801b1c6e500f7616",
+          "evidenceUri": "evidence://staffing/dd-070/attempt/2/assignment"
         }
       }
     },
@@ -387,28 +559,41 @@
             "kind": "authority split",
             "mediaType": "application/json",
             "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-            "evidenceUri": "evidence://run/dd-070/attempt/2/authority-split"
+            "evidenceUri": "evidence://run/dd-070/attempt/2/authority-split",
+            "byteLength": 4096
           },
           {
             "id": "state-reel-a2",
             "kind": "state reel",
             "mediaType": "application/json",
             "digest": "sha256:3222222222222222222222222222222222222222222222222222222222222222",
-            "evidenceUri": "evidence://run/dd-070/attempt/2/state-reel"
+            "evidenceUri": "evidence://run/dd-070/attempt/2/state-reel",
+            "byteLength": 8192
           },
           {
             "id": "zoom-paths-a2",
             "kind": "two-action evidence paths",
             "mediaType": "application/json",
             "digest": "sha256:4222222222222222222222222222222222222222222222222222222222222222",
-            "evidenceUri": "evidence://run/dd-070/attempt/2/zoom-paths"
+            "evidenceUri": "evidence://run/dd-070/attempt/2/zoom-paths",
+            "byteLength": 12288
           },
           {
             "id": "responsive-rules-a2",
             "kind": "responsive rules",
             "mediaType": "application/json",
             "digest": "sha256:5222222222222222222222222222222222222222222222222222222222222222",
-            "evidenceUri": "evidence://run/dd-070/attempt/2/responsive-rules"
+            "evidenceUri": "evidence://run/dd-070/attempt/2/responsive-rules",
+            "byteLength": 16384
+          }
+        ],
+        "capacitySettlements": [
+          {
+            "reservationId": "capacity/work/dd-070/2/7",
+            "outcome": "CONSUMED",
+            "usedUnits": 80,
+            "receiptDigest": "sha256:3f21d6103a5f5f8fec3fdb8093c60ae0cf636a2e70c5e8db1520e30bb7e47b17",
+            "evidenceUri": "evidence://capacity/settlements/capacity/work/dd-070/2/7"
           }
         ]
       }
@@ -424,10 +609,26 @@
       "attempt": 2,
       "payload": {
         "checks": [
-          { "id": "control-projection-separation", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/control-projection-separation" },
-          { "id": "fixture-label-visible", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/fixture-label-visible" },
-          { "id": "stale-unknown-honesty", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/stale-unknown-honesty" },
-          { "id": "reduced-motion-contract", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/reduced-motion-contract" }
+          {
+            "id": "control-projection-separation",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/check/control-projection-separation"
+          },
+          {
+            "id": "fixture-label-visible",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/check/fixture-label-visible"
+          },
+          {
+            "id": "stale-unknown-honesty",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/check/stale-unknown-honesty"
+          },
+          {
+            "id": "reduced-motion-contract",
+            "status": "PASS",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/check/reduced-motion-contract"
+          }
         ]
       }
     },
@@ -445,9 +646,27 @@
         "reviewerClass": "low-cost-independent",
         "producerIdentity": "agent/ux-worker-1",
         "verdict": "APPROVE",
-        "reservedUnits": 20,
-        "usedUnits": 7,
-        "findings": []
+        "findings": [],
+        "capacityReservation": {
+          "id": "capacity/review/low-cost-independent/dd-070/2/10",
+          "idempotencyKey": "idempotency/review/low-cost-independent/dd-070/2/10",
+          "budgetId": "codex-subscription-window",
+          "purpose": "review:low-cost-independent",
+          "executionId": "drydock-observatory-review-loop-fixture",
+          "nodeId": "DD-070",
+          "attempt": 2,
+          "reservedUnits": 20,
+          "expiresAt": "2026-09-14T12:09:59Z",
+          "receiptDigest": "sha256:c3a247fb31aca361062959a695d9cec356f1911c62003a929ecdb5e640016d83",
+          "evidenceUri": "evidence://capacity/reservations/capacity/review/low-cost-independent/dd-070/2/10"
+        },
+        "capacitySettlement": {
+          "reservationId": "capacity/review/low-cost-independent/dd-070/2/10",
+          "outcome": "CONSUMED",
+          "usedUnits": 7,
+          "receiptDigest": "sha256:4a0f92352e8ea4ff3096ffe4b73fd5753c354b98ec3549ee5d6fa0d51fea2992",
+          "evidenceUri": "evidence://capacity/settlements/capacity/review/low-cost-independent/dd-070/2/10"
+        }
       }
     },
     {
@@ -464,9 +683,27 @@
         "reviewerClass": "specialist",
         "producerIdentity": "agent/ux-worker-1",
         "verdict": "APPROVE",
-        "reservedUnits": 30,
-        "usedUnits": 12,
-        "findings": []
+        "findings": [],
+        "capacityReservation": {
+          "id": "capacity/review/specialist/dd-070/2/11",
+          "idempotencyKey": "idempotency/review/specialist/dd-070/2/11",
+          "budgetId": "codex-subscription-window",
+          "purpose": "review:specialist",
+          "executionId": "drydock-observatory-review-loop-fixture",
+          "nodeId": "DD-070",
+          "attempt": 2,
+          "reservedUnits": 30,
+          "expiresAt": "2026-09-14T12:09:59Z",
+          "receiptDigest": "sha256:c024b7e777e2097ba8383718a750f61e857fcc70411ddceb8fccbd3fb708b368",
+          "evidenceUri": "evidence://capacity/reservations/capacity/review/specialist/dd-070/2/11"
+        },
+        "capacitySettlement": {
+          "reservationId": "capacity/review/specialist/dd-070/2/11",
+          "outcome": "CONSUMED",
+          "usedUnits": 12,
+          "receiptDigest": "sha256:aa0c6772d414cd2758b53e8fbca791f08ce803a21bf9cac382b72942b0084844",
+          "evidenceUri": "evidence://capacity/settlements/capacity/review/specialist/dd-070/2/11"
+        }
       }
     },
     {
@@ -482,14 +719,34 @@
         "managerIdentity": "agent/drydock-manager-1",
         "decision": "APPROVE_NODE",
         "reasoningEvidenceIds": [
-          "control-projection-separation",
-          "fixture-label-visible",
-          "stale-unknown-honesty",
-          "reduced-motion-contract",
-          "responsive-rules-a2"
+          "evt-008",
+          "evt-009",
+          "evt-010",
+          "evt-011"
         ],
         "bypassedGateIds": [],
-        "assignments": []
+        "assignments": [],
+        "rework": null,
+        "capacityReservation": {
+          "id": "capacity/manager/dd-070/2/12",
+          "idempotencyKey": "idempotency/manager/dd-070/2/12",
+          "budgetId": "codex-subscription-window",
+          "purpose": "manager",
+          "executionId": "drydock-observatory-review-loop-fixture",
+          "nodeId": "DD-070",
+          "attempt": 2,
+          "reservedUnits": 15,
+          "expiresAt": "2026-09-14T12:09:59Z",
+          "receiptDigest": "sha256:e04c4908df051874916a80aff09d7ee41e2883a7e64d7b4ee161bdeb180e16f0",
+          "evidenceUri": "evidence://capacity/reservations/capacity/manager/dd-070/2/12"
+        },
+        "capacitySettlement": {
+          "reservationId": "capacity/manager/dd-070/2/12",
+          "outcome": "CONSUMED",
+          "usedUnits": 6,
+          "receiptDigest": "sha256:66baeadfc9bcb234ab12b51d83b38fec5ff7919e7b2772a2e8418804200dfb64",
+          "evidenceUri": "evidence://capacity/settlements/capacity/manager/dd-070/2/12"
+        }
       }
     },
     {
@@ -502,7 +759,13 @@
       "nodeId": "DD-070",
       "attempt": 2,
       "payload": {
-        "approvalEvidenceIds": ["evt-009", "evt-010", "evt-011", "evt-012"]
+        "approvalEvidenceIds": [
+          "evt-008",
+          "evt-009",
+          "evt-010",
+          "evt-011",
+          "evt-012"
+        ]
       }
     },
     {
@@ -515,13 +778,20 @@
       "nodeId": null,
       "attempt": null,
       "payload": {
-        "terminalNodeIds": ["DD-070"],
-        "evidenceRoot": "sha256:6222222222222222222222222222222222222222222222222222222222222222"
+        "terminalNodeIds": [
+          "DD-070"
+        ],
+        "evidenceRoot": "sha256:b0e657ebb4b7b6c195a29df847f3d94de22b446ab64bbf92f534824a867c1ade"
       }
     }
   ],
   "expectedProjection": {
     "schema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+    "reducerVersion": "drydock-hypertree-reducer.v1",
+    "executionId": "drydock-observatory-review-loop-fixture",
+    "planId": "drydock-resurrection-capacity-context-control",
+    "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+    "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
     "asOfSequence": 14,
     "asOfEventId": "evt-014",
     "runState": "COMPLETED",
@@ -534,6 +804,7 @@
     "nodes": [
       {
         "nodeId": "DD-070",
+        "dependsOnNodeIds": [],
         "state": "APPROVED",
         "attempt": 2,
         "reworkRounds": 1,
@@ -549,8 +820,31 @@
         ]
       }
     ],
+    "capacity": [
+      {
+        "budgetId": "codex-subscription-window",
+        "providerId": "openai-codex",
+        "accountRef": "operator/main",
+        "unit": "subscription-basis-points",
+        "maxReservedUnits": 1000,
+        "reservedUnits": 325,
+        "heldUnits": 0,
+        "usedUnits": 203,
+        "reservationCount": 6
+      }
+    ],
     "staleAfter": "2026-09-14T12:05:24Z",
-    "truthState": "FIXTURE"
+    "truthState": "FIXTURE",
+    "terminalEvidenceRoot": "sha256:b0e657ebb4b7b6c195a29df847f3d94de22b446ab64bbf92f534824a867c1ade"
   },
-  "executionDigest": "sha256:bc1d21bf071cd1be503b615fcfdeb66161f43699802d184667b1c555aeba81b1"
+  "executionDigest": "sha256:1b226d38eac7ff99f0fb3653365fab10f7a6a2cc838020833e347af754b119cd",
+  "capacityBudgets": [
+    {
+      "id": "codex-subscription-window",
+      "providerId": "openai-codex",
+      "accountRef": "operator/main",
+      "unit": "subscription-basis-points",
+      "maxReservedUnits": 1000
+    }
+  ]
 }
