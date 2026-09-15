@@ -55,6 +55,7 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0139](0139-verdict-integrity-separating-infra-failure-from-review-verdict.md) | Verdict Integrity — separating infrastructure failure from review verdict | Proposed | 2026-08 |
 | [0140](0140-provable-action-adjudication-contract.md) | Provable Action Adjudication Contract | Proposed | 2026-09 |
 | [0142](0142-r2-media-offload.md) | Review-evidence media moves to R2 — content-addressed, manifest derived from the tree | Proposed | 2026-09 |
+| [0143](0143-book-is-the-only-published-whitepaper-edition.md) | The Book is the only published whitepaper edition; standalone chapter PDFs are retired | Accepted | 2026-09 |
 
 > **Numbering authority.** The machine-authoritative number → file map is
 > [`adr-numbering-registry.json`](adr-numbering-registry.json), a pure projection
