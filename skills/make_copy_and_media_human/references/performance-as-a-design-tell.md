@@ -115,7 +115,7 @@ The largest image on the page is delivered as PNG at source resolution. PNG is l
 
 **Fix:** Modern format first with fallbacks, inside a picture element. Budget the LCP image at 200 KB or under. Re-export at twice the largest CSS width it will ever occupy, not at camera resolution.
 
-**False positive when:** PNG is CORRECT for screenshots, UI captures, logos, pixel art and anything with hard edges or genuine transparency — a 30 KB PNG screenshot is the right call and a lossy format may look worse. Also fine when a CDN negotiates format by Accept header and the .png URL is an alias: check the response content type, not the extension.
+**False positive when:** PNG is CORRECT for screenshots, UI captures, logos, pixel art and anything with hard edges or genuine transparency — a 30 KB PNG screenshot is the right call and a lossy format may look worse. Also fine when a CDN negotiates format by Accept header and the .png URL is an alias: check the response content type, not the extension. Does not apply to a manuscript figure. Journals want vector, and where they take a raster they set a high minimum -- PLOS states a 789px minimum figure width -- so a large file is compliance rather than waste.
 
 **Before**
 
@@ -357,7 +357,7 @@ An SVG straight out of a design tool: full float precision, every group and clip
 
 **Fix:** Run SVGO in the build at precision 2, stripping metadata and IDs. Typical saving is 40–80%. If the SVG contains a raster, extract it and treat it as an image.
 
-**False positive when:** Genuinely complex illustrations and maps are legitimately large SVGs, and rasterising them would be worse. Animated SVGs need their IDs preserved and blind stripping breaks them. Some brand-mandated logo files may not be re-exportable.
+**False positive when:** Genuinely complex illustrations and maps are legitimately large SVGs, and rasterising them would be worse. Animated SVGs need their IDs preserved and blind stripping breaks them. Some brand-mandated logo files may not be re-exportable. Does not apply to a manuscript figure. Nature asks that submitted vector art retain all editing capabilities, so SVGO-style ID stripping and precision reduction is the wrong move on a submission asset.
 
 **Before**
 
@@ -533,7 +533,7 @@ Not one AVIF or WebP on the page and no format negotiation. Every image is JPEG 
 
 **Fix:** Put an image CDN or a build step in front of every raster. Target: modern formats carry at least 80% of image bytes.
 
-**False positive when:** Genuinely all-SVG sites correctly have no AVIF. A site behind a CDN doing transparent negotiation will show .jpg URLs returning a modern content type — check the response header before flagging. One or two logos do not justify a pipeline.
+**False positive when:** Genuinely all-SVG sites correctly have no AVIF. A site behind a CDN doing transparent negotiation will show .jpg URLs returning a modern content type — check the response header before flagging. One or two logos do not justify a pipeline. Manuscript figures INVERT this: Nature rejects PNG/JPEG/TIFF for main figures and asks for AI/EPS/PDF, PLOS accepts TIFF or EPS only, and WebP and AVIF are accepted by neither. For a journal submission, having no modern web format is the correct state and this finding does not apply.
 
 **Before**
 

@@ -715,7 +715,7 @@ Not MISSING alt — alt that is present, fluent, forty words long, and describes
 
 **Fix:** Ask what the image is doing. Decorative gets an empty alt. Functional — an icon in a link — names the destination, not the glyph. Informative gets the shortest sentence carrying what the sighted reader gets. If the image is described in adjacent text, empty alt. Never start with "image of"; the screen reader already said "graphic".
 
-**False positive when:** IMPORTANT. Long alt is correct for charts, diagrams, maps, infographics and artworks, where the description IS the content — the length threshold must exempt those. Museum, archive and educational contexts have much longer conventions. And machine-generated alt is BETTER THAN NOTHING and a genuine win at scale for user-generated content: never frame its presence as a failure, only its register on authored pages.
+**False positive when:** IMPORTANT. Long alt is correct for charts, diagrams, maps, infographics and artworks, where the description IS the content — the length threshold must exempt those. Museum, archive and educational contexts have much longer conventions. And machine-generated alt is BETTER THAN NOTHING and a genuine win at scale for user-generated content: never frame its presence as a failure, only its register on authored pages. Does not transplant to a journal figure. A PDF figure has no alt attribute and its accessible description IS the caption, which is required to be long and to state the finding -- the 125-character threshold here would flag a correct caption. The figure-lane counterpart fires on the opposite failure, a caption that only restates the axes.
 
 **Before**
 

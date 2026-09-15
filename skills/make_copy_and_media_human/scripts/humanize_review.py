@@ -5489,6 +5489,644 @@ def analyze_forms(path, text):
     return out
 
 
+# Manuscript and plotting-code surfaces. .tex and .bib were previously routed to
+# analyze_prose, which read LaTeX commands as vocabulary; .R was not routed at
+# all. A figure's defects are mostly checkable in the CODE that drew it, which is
+# what makes this lane structural rather than a matter of squinting at pixels.
+TEX_EXT = {".tex", ".bib", ".cls", ".sty", ".ltx"}
+PLOT_EXT = {".py", ".r", ".rmd", ".ipynb", ".jl"}
+
+# Cabanac/Labbe tortured phrases. These are evidence of word-level machine
+# PARAPHRASING to evade text matching, not of LLM generation -- modern
+# instruction-tuned models preserve technical terms. The remedy differs, so the
+# distinction is kept in the finding text.
+TORTURED = {
+    "counterfeit consciousness": "artificial intelligence",
+    "man-made brainpower": "artificial intelligence",
+    "bosom peril": "breast cancer",
+    "kidney disappointment": "kidney failure",
+    "joined together states": "United States",
+    "irregular esteem": "random value",
+    "mean square blunder": "mean square error",
+    "profound learning": "deep learning",
+    "gullible bayes": "naive Bayes",
+    "bolster vector machine": "support vector machine",
+    "colossal information": "big data",
+    "lung malignancy": "lung cancer",
+}
+
+CHAT_RESIDUE = (
+    r"as an AI language model|I (?:do not|don't) have (?:access to|the ability)"
+    r"|my (?:knowledge )?(?:cut[- ]?off|training data)(?: date)?"
+    r"|as of my last (?:knowledge )?update|Regenerate response"
+    r"|certainly[,!]? here (?:is|are)|I hope this helps"
+    r"|as a large language model|I'm sorry,? but (?:I|as)"
+)
+
+
+def analyze_manuscript(path, text):
+    """Research-paper surfaces: the manuscript and the referee report.
+
+    A paper's sentences and its checkable commitments come out of the same
+    machinery at the same confidence, and nothing in the finished artifact marks
+    which is which. So every check here points OUTWARD at the world -- does this
+    resolve, does the body contain the abstract's number -- rather than inward at
+    style. Those cost an accused author nothing when they come back clean, which
+    matters more here than anywhere else in this skill: the population most
+    likely to leave a style marker in a manuscript is the one writing in its
+    second language, and the cost of being wrong is a career rather than an edit.
+    """
+    out = []
+    lines = mask_ignored(text.splitlines())
+    text = "\n".join(lines)
+    low = text.lower()
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+    # ---- literal chatbot residue. Academ-AI documents 768 published documents
+    # carrying this; first person 52.2%, cutoff disclaimers 43.9%.
+    m = re.search(CHAT_RESIDUE, text, re.I)
+    if m:
+        out.append(finding(
+            path, first(CHAT_RESIDUE), m.group(0)[:90],
+            "chat-preamble-in-the-manuscript", "high",
+            "Assistant scaffolding left in scholarly prose. This is machine residue with "
+            "essentially no human source -- Academ-AI documents 768 published papers, "
+            "proceedings and chapters carrying it, and fewer than one in twenty are ever "
+            "corrected. It says nothing about the quality of the work and everything about "
+            "the absence of a final read.",
+            "Delete it, then read the paragraph it was sitting in, because the sentence it "
+            "replaced may never have been written. Then check the venue's disclosure policy: "
+            "of 56 publishers with a public AI policy, 82.1% require disclosure.",
+            family="residue"))
+
+    # ---- a paper addressed to a chat user rather than a reader
+    if re.search(r"\b(?:as you\s+(?:can see|requested|mentioned)|you\s+(?:asked|wanted|said)|"
+                 r"in your\s+(?:question|prompt|request)|let me know if)\b", low) \
+       and re.search(r"\\begin\{abstract\}|\babstract\b|\bwe (?:present|propose|show)\b", low):
+        out.append(finding(
+            path, first(r"as you |you asked|in your (?:question|prompt)|let me know if"),
+            "second person addressed to a requester, in a manuscript",
+            "manuscript-addressed-to-the-user", "high",
+            "A paper addresses a reader who is not in the room. Second person aimed at a "
+            "requester is the conversational frame surviving the copy-paste; Academ-AI finds "
+            "it in 11.3% of its documented cases.",
+            "Rewrite in the register of the venue. If the sentence only makes sense as an "
+            "answer to someone, it is not a finding and should go.",
+            family="residue"))
+
+    # ---- placeholder left in a reference or a heading
+    if re.search(r"\[(?:Author|Title|Journal|Year|Citation|Reference|insert [^\]]{2,30})\]"
+                 r"|\bAuthor et al\., Title, Journal, Year\b"
+                 r"|\\cite\{(?:key|ref|citation|TODO|XXX)\}", text, re.I):
+        out.append(finding(
+            path, first(r"\[(?:Author|Title|Journal|Year|Citation)\]|\\cite\{(?:key|ref|TODO)"),
+            "a template slot left unfilled in a reference or heading",
+            "placeholder-token-left-in-a-reference-or-heading", "high",
+            "The scaffold for a citation shipped in place of the citation. Unlike a style "
+            "cue this is not an inference about anyone: the slot is empty and can be seen to "
+            "be empty.",
+            "Fill it or cut the sentence. Then verify the reference you fill it with, because "
+            "a slot nobody filled is a slot nobody checked.",
+            family="residue"))
+
+    # ---- a referee report with nothing to point at
+    # A referee report makes a recommendation to an editor. A document ABOUT
+    # peer review describes one in the third person and makes none -- and this
+    # skill's own reference files are exactly that, which is how the first
+    # version of this check came to flag its own documentation.
+    is_review = bool(re.search(r"\b(?:this (?:paper|manuscript|submission)|the authors)\b", low)) \
+        and bool(re.search(r"\b(?:weakness(?:es)?|strengths?|soundness|rebuttals?)\b", low)) \
+        and bool(re.search(r"\bI\s+(?:recommend|suggest|would\s+recommend|vote|lean)\b"
+                           r"|\bmy\s+(?:recommendation|score|rating|assessment)\b"
+                           r"|\brecommend\s+(?:major|minor|rejection|acceptance|revision)\b"
+                           r"|\b(?:overall|confidence)\s+(?:score|rating)\b", text, re.I))
+    if is_review and len(text.split()) > th("review-with-no-locator", "min_words", 150) \
+       and not re.search(r"\b(?:line|l\.|p\.|page|section|sec\.|fig(?:ure)?\.?|table|eq(?:uation)?\.?)"
+                         r"\s*\d|\bl\d+\b|§\s*\d", low):
+        out.append(finding(
+            path, 1,
+            f"{len(text.split())} words of review with no line, page, figure, table or "
+            f"section reference",
+            "review-with-no-locator", "high",
+            "A referee who read the paper points at it. A review that never cites a line, a "
+            "figure or an equation is compatible with never having opened the submission, "
+            "and it gives the authors nothing to act on. This is a property of the review's "
+            "usefulness, not a claim about how it was written.",
+            "Anchor every criticism to a locator. A weakness that cannot be pinned to a place "
+            "in the paper is either not about this paper or not yet a weakness.",
+            family="shape"))
+
+    # ---- tortured phrases: paraphrase laundering, NOT generation
+    hits = [(k, v) for k, v in TORTURED.items() if k in low]
+    if hits:
+        out.append(finding(
+            path, first(re.escape(hits[0][0])),
+            "; ".join(f'"{k}" for "{v}"' for k, v in hits[:4]),
+            "tortured-phrase", "high",
+            "A term of art replaced by a synonym-swapped near-miss. Widely repeated as an "
+            "\"AI writing\" signal and it is NOT one: Cabanac and Labbe's mechanism is "
+            "word-level machine paraphrasing used to evade text-matching plagiarism "
+            "detection, and modern instruction-tuned models preserve technical terms. Getting "
+            "this wrong gets the remedy wrong.",
+            "Treat it as a plagiarism-laundering signal, not a generation signal: find the "
+            "source text the passage was paraphrased FROM. The Problematic Paper Screener "
+            "runs this over ~130 million publications weekly.",
+            family="residue"))
+
+    # ---- a hosted model used as an instrument, with no way to reproduce it
+    if re.search(r"\b(?:gpt-?4|gpt-?3|chatgpt|claude|gemini|llama|mistral|qwen|deepseek)\b", low) \
+       and re.search(r"\bwe (?:used|prompt|queried|asked|ran)\b|\bmodel was (?:used|queried)\b", low):
+        miss = []
+        if not re.search(r"\b(?:gpt-4[o0-9.\-]*\d{4}|20\d{2}-\d{2}-\d{2}|version\s+\d|"
+                         r"-\d{4}(?:-\d{2}-\d{2})?)\b", low):
+            miss.append("no pinned version or snapshot date")
+        if not re.search(r"\btemperature\b|\btop[_\- ]?p\b|\bseed\b|\bmax[_\- ]?tokens\b", low):
+            miss.append("no inference parameters")
+        if not re.search(r"\bprompt(?:s)?\b[^.]{0,60}(?:appendix|supplement|available|verbatim|"
+                         r"listed|table)|\bfull prompt", low):
+            miss.append("no prompt text")
+        if re.search(r"latest (?:model|version|release)", low):
+            miss.append('"latest model release" instead of a version')
+        if len(miss) >= th("model-used-as-an-instrument-with-no-version-date-or-parameters",
+                           "min_gaps", 2):
+            out.append(finding(
+                path, first(r"gpt-?4|chatgpt|claude|gemini|llama|we used|we prompted"),
+                "; ".join(miss),
+                "model-used-as-an-instrument-with-no-version-date-or-parameters", "high",
+                "A hosted model used as a measuring device, reported in a way nobody can "
+                "reproduce. Not a text tell at all -- it is a methods defect, fully checkable "
+                "from the methods section, and it carries no fairness cost. Of 640 manually "
+                "coded LLM-for-software-engineering papers, 32.2% had versioning problems "
+                "including the literal phrase \"latest model release\", 199 gave no prompt "
+                "templates, 88 documented no inference parameters, and only 13.3% were clean.",
+                "Pin the snapshot, state temperature, top_p and seed, put the prompts verbatim "
+                "in an appendix, and say how many times you ran it. Temperature zero removes "
+                "deliberate sampling but not variation from silent model updates, so a date "
+                "is part of the method.",
+                family="defect"))
+
+    return out
+
+
+def analyze_plotting_code(path, text):
+    """Scientific figures, checked in the code that drew them.
+
+    The insight that makes this lane structural: a figure is produced by code,
+    and the render sits on the other side of a step the author never watched. So
+    the generator commits to savefig() without ever seeing that the legend is on
+    the data, the ticks are clipped, or 10pt became 2.9pt in an 89mm column. Most
+    of that is greppable in the .py or .R. None of it is evidence about
+    authorship: the honest word is UNREVIEWED.
+    """
+    out = []
+    lines = mask_ignored(text.splitlines())
+    text = "\n".join(lines)
+    low = text.lower()
+    plots = bool(re.search(r"matplotlib|pyplot|\bplt\.|seaborn|\bsns\.|ggplot|geom_|"
+                           r"\bggsave\b|plotly|altair", low))
+    if not plots:
+        return out
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+    # ---- savefig at the default dpi
+    if re.search(r"\b(?:plt\.|fig\.)?savefig\s*\(", low) \
+       and not re.search(r"savefig\s*\([^)]*\bdpi\s*=", low) \
+       and not re.search(r"savefig\.dpi|rcParams\[[\"']savefig\.dpi", low):
+        out.append(finding(
+            path, first(r"savefig\s*\("),
+            "savefig() with no dpi",
+            "savefig-at-the-default-dpi", "high",
+            "savefig.dpi defaults to 'figure' and figure.dpi to 100, so the default "
+            "6.4x4.8 figure is written at 640x480 pixels. That is about 183 ppi at Nature's "
+            "89mm column and falls below PLOS's stated 789px minimum figure width outright. "
+            "Nothing in the code or the notebook preview shows it; the journal's checker does.",
+            "Pass dpi=300 for raster, or save vector -- savefig('fig.pdf') -- which is what "
+            "most journals actually want for line art.",
+            family="defect"))
+
+    # ---- a figure sized for a monitor, not a column
+    for m in re.finditer(r"figsize\s*=\s*\(\s*([\d.]+)\s*,\s*([\d.]+)", low):
+        w = float(m.group(1))
+        if w > th("figsize-not-matched-to-the-column-width", "max_inches", 7.5):
+            eff = 10.0 * 3.50 / w
+            out.append(finding(
+                path, text[:m.start()].count("\n") + 1,
+                f"figsize width {w}in; 10pt type lands at about {eff:.1f}pt in an 89mm column",
+                "figsize-not-matched-to-the-column-width", "high",
+                "Type size in a figure is set by the ratio of the declared size to the "
+                "printed width, and nobody does that arithmetic. Nature's single column is "
+                "89mm (3.50in) and wants 5-7pt; PLOS caps width at 7.5in and wants 8-12pt. A "
+                "round monitor-shaped aspect ratio is the corroborating signature.",
+                "Set figsize to the actual column width and choose type in points from there. "
+                "Then print it at 100% and read it.",
+                family="defect"))
+            break
+
+    # ---- no layout manager, so the labels are cut off
+    risky = re.search(r"rotation\s*=|set_xticklabels|subplots\s*\(\s*[2-9]|colorbar\(", low)
+    if risky and not re.search(r"tight_layout|constrained_layout|bbox_inches\s*=\s*[\"']tight"
+                               r"|autolayout", low):
+        out.append(finding(
+            path, first(r"rotation\s*=|subplots\s*\(|colorbar\("),
+            "rotated or multi-panel axes with no layout manager",
+            "no-layout-manager-so-labels-are-clipped", "high",
+            "figure.constrained_layout.use and figure.autolayout both default to False, so "
+            "long tick labels, rotated categories and colourbars are written outside the "
+            "canvas and silently cropped. The notebook preview often shows them because it "
+            "saves with bbox_inches='tight'; the file on disk does not.",
+            "Pass constrained_layout=True to subplots(), or bbox_inches='tight' to savefig(). "
+            "Then open the saved file rather than the preview.",
+            family="defect"))
+
+    # ---- a perceptually non-uniform colormap chosen explicitly
+    m = re.search(r"cmap\s*=\s*[\"'](jet|rainbow|hsv|nipy_spectral|gist_rainbow)[\"']"
+                  r"|scale_(?:colour|color|fill)_gradientn", low)
+    if m:
+        out.append(finding(
+            path, first(r"cmap\s*=|gradientn"), m.group(0)[:60],
+            "rainbow-or-jet-colormap-on-continuous-data", "medium",
+            "A rainbow ramp is not perceptually uniform: it invents boundaries where the data "
+            "is smooth and hides differences where it is not, and it collapses in greyscale "
+            "and for colour-vision deficiency. Note this is about an EXPLICIT choice -- "
+            "matplotlib's default has been viridis since 2.0 and is correct.",
+            "Use a perceptually uniform map: viridis, magma, cividis. For diverging data use "
+            "a diverging map with a defined midpoint. Crameri's testable criterion is whether "
+            "the colour map distorts more than about 7% of the displayed data variation.",
+            family="defect"))
+
+    # ---- error bars whose meaning is never stated
+    if re.search(r"\byerr\s*=|\bxerr\s*=|geom_errorbar|errorbar\s*\(|capsize\s*=", low) \
+       and not re.search(r"\bs\.?d\.?\b|standard deviation|\bs\.?e\.?m\.?\b|standard error|"
+                         r"confidence interval|\bci\b|\biqr\b|interquartile", low):
+        out.append(finding(
+            path, first(r"yerr\s*=|geom_errorbar|errorbar\s*\("),
+            "error bars drawn with no statement of what they represent",
+            "error-bars-of-undeclared-type", "high",
+            "An error bar is uninterpretable until you know whether it is SD, SEM, a "
+            "confidence interval or an IQR, and the same picture supports opposite readings. "
+            "This is a join failure checkable with no image at all: the code draws them and "
+            "the caption defines nothing. Across 441 articles in three cardiovascular "
+            "journals, 64% had at least one incorrect use of SEM, and in 81% of those the "
+            "authors had explicitly said in Methods they were using it descriptively.",
+            "State it in the caption -- \"mean +/- s.d., n = 12\" -- and prefer showing the "
+            "points. SEM is not a descriptive statistic and shrinks with n, which is why it "
+            "is the one most often reached for.",
+            family="defect"))
+
+    # ---- the legend the library placed
+    if re.search(r"\blegend\s*\(\s*\)|\blegend\s*\(\s*loc\s*=\s*[\"']best[\"']", low):
+        out.append(finding(
+            path, first(r"legend\s*\("),
+            "legend left at loc='best'",
+            "legend-left-in-the-default-best-position", "medium",
+            "'best' minimises overlap for the data present when it runs, so the legend moves "
+            "when the data changes and lands on the points in the version that gets "
+            "submitted. It is the default because it is safe on average, not because it is "
+            "right for this figure.",
+            "Place it deliberately, or put it outside the axes with bbox_to_anchor, or drop "
+            "it and label the series directly on the plot, which is almost always better.",
+            family="form"))
+
+    # ---- scatter drawn at full opacity over itself
+    if re.search(r"\bscatter\s*\(|geom_point\s*\(", low) \
+       and not re.search(r"\balpha\s*=|geom_hex|geom_bin2d|rasterized\s*=|\bs\s*=\s*\d", low):
+        out.append(finding(
+            path, first(r"scatter\s*\(|geom_point\s*\("),
+            "scatter with no alpha and no density treatment",
+            "overplotted-scatter-at-full-opacity", "medium",
+            "At full opacity a dense scatter shows the outline of the data and hides its "
+            "density, so the middle of the distribution -- usually the finding -- is a solid "
+            "block. The library has no way to know how many points arrive.",
+            "Set alpha, or switch to a hexbin or 2-D density for large n. Say n in the "
+            "caption so the reader knows what the block contains.",
+            family="defect"))
+
+    # ---- the offset text nobody chose
+    if re.search(r"matplotlib|\bplt\.", low) \
+       and not re.search(r"useoffset|ticklabel_format|ScalarFormatter|set_major_formatter", low) \
+       and re.search(r"\b\d{6,}\b|e[+-]?0[5-9]|1e\d", low):
+        out.append(finding(
+            path, first(r"\d{6,}|e[+-]?0[5-9]|1e\d"),
+            "large-magnitude data with the default offset formatter left on",
+            "axis-offset-and-exponent-left-on", "medium",
+            "axes.formatter.useoffset defaults True and the limits to -5,6, so matplotlib "
+            "puts a bare '1e7' or '+1.234e3' in the corner of the axes. It is the purest "
+            "literal tool residue in this lane: nobody chose it, most readers misread the "
+            "axis without it, and a tight crop for the manuscript deletes it entirely.",
+            "plt.ticklabel_format(useOffset=False, style='plain'), or scale the data and say "
+            "so in the axis label -- \"Reads (millions)\".",
+            family="residue"))
+
+    # ---- a chart type that cannot carry the comparison
+    m = re.search(r"\.pie\s*\(|geom_bar[^)]*coord_polar|projection\s*=\s*[\"']3d[\"']"
+                  r"|mplot3d|bar3d", low)
+    if m:
+        out.append(finding(
+            path, first(r"\.pie\s*\(|coord_polar|3d"), m.group(0)[:40],
+            "pie-or-three-d-chart-for-a-quantitative-comparison", "medium",
+            "Angle and volume are the two encodings people read worst. A 3-D bar adds "
+            "perspective distortion on top, so the same bar reads differently depending where "
+            "it sits in the plot, and occlusion hides the back row entirely.",
+            "Use position on a common scale: a bar chart for parts of a whole, a dot plot for "
+            "comparisons. Keep 3-D only where the third dimension is real data the reader "
+            "must rotate.",
+            family="defect"))
+
+    # ---- stars with no test behind them
+    if re.search(r"[\"']\*{1,3}[\"']|\bn\.?s\.?[\"']|significance|stat_compare_means|"
+                 r"add_stat_annotation", low) \
+       and not re.search(r"\bt-?test|mann-?whitney|wilcoxon|anova|kruskal|chi-?squared?|"
+                         r"fisher|bonferroni|holm|tukey|dunn|benjamini", low):
+        out.append(finding(
+            path, first(r"\*{1,3}[\"']|significance|stat_compare_means"),
+            "significance annotation with no named test",
+            "significance-stars-with-no-test-named", "high",
+            "A star says a threshold was crossed and not which one, by what test, with what "
+            "correction, at what n. All four change what the star means, and with multiple "
+            "panels the correction is usually the part that was skipped.",
+            "Name the test, the correction and the n in the caption. Prefer the exact p and "
+            "an effect size over the star.",
+            family="defect"))
+
+    return out
+
+
+# Template slots that ship in real submissions. A closed literal list is
+# defensible here for the same reason it was in the UI-strings lane: the surface
+# is tiny and enumerable, and none of these strings has a legitimate use.
+TEMPLATE_RESIDUE = [
+    r"Conference acronym\s*'?XX", r"Woodstock,\s*NY", r"David S\.~?Hippocampus",
+    r"Given Name Surname", r"email address or ORCID",
+    r"Paper Title \(use style: paper title\)", r"XXXXX-XXXX",
+    r"\\author\{(?:Anonymous|Author Name|First Author|Your Name)\}",
+    r"Trovato.{0,20}Tobin", r"\\institution\{Institution\}",
+]
+
+
+def analyze_latex(path, text):
+    """LaTeX source, treated as a program nobody in the loop has run.
+
+    The tell is never that it failed to compile -- it is that it COMPILED and
+    nobody opened the PDF. That predicts the whole lane: generated .tex reaches
+    for LaTeX's VISUAL layer (\\\\, \\vspace, \\textbf, a typed-out "Figure 1")
+    over its SEMANTIC layer (\\label/\\ref, \\emph, \\cite, \\section), because
+    the visual layer is the only one verifiable from the token stream alone. A
+    counter has no value until TeX assigns one, so a generator writes the number
+    it can already see.
+
+    Ten items in this lane are `defect` and reproducible by compiling. The rest
+    are craft, and this lane makes NO claim that any of it is commoner in
+    generated than hand-written LaTeX -- the largest mined corpus of real LaTeX
+    faults is a taxonomy of human faults with the same top categories.
+    """
+    out = []
+    lines = mask_ignored(text.splitlines())
+    text = "\n".join(lines)
+    # Strip comments before counting markup, but keep them for the residue check.
+    body = re.sub(r"(?<!\\)%.*$", "", text, flags=re.M)
+    low = body.lower()
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l)), default)
+
+    # ---- a cross-reference typed as a digit
+    m = re.search(r"(?<!\\)\b(?:Figure|Fig\.|Table|Section|Sec\.|Equation|Eq\.|Algorithm)"
+                  r"\s+\d+(?![.\d])", body)
+    if m and not re.search(r"\\(?:begin\{verbatim|lstlisting)", low):
+        n = len(re.findall(r"(?<!\\)\b(?:Figure|Fig\.|Table|Section|Sec\.|Equation|Eq\.|"
+                           r"Algorithm)\s+\d+(?![.\d])", body))
+        out.append(finding(
+            path, text[:m.start()].count("\n") + 1,
+            f'{n} hardcoded cross-reference(s), e.g. "{m.group(0)}"',
+            "hardcoded-cross-reference-number", "high",
+            "The purest instance of this lane's mechanism: a counter has no value until TeX "
+            "assigns one, so the number that gets written is the one already visible in the "
+            "draft. It is correct exactly until something is inserted above it, and then it "
+            "is silently wrong everywhere.",
+            "Give the float a \\label and cite it with \\ref, tied with a non-breaking space: "
+            "Figure~\\ref{fig:waits}. TeXtidote ships this rule as sh:hcfig.",
+            family="defect"))
+
+    # ---- a font DECLARATION used as if it took an argument
+    m = re.search(r"\\(bfseries|itshape|ttfamily|sffamily|rmfamily|slshape|scshape|"
+                  r"tiny|small|large|Large|LARGE|huge|Huge)\s*\{", body)
+    if m:
+        out.append(finding(
+            path, text[:m.start()].count("\n") + 1, m.group(0),
+            "font-declaration-used-as-command", "high",
+            "A declaration takes no argument: \\bfseries{word} sets the brace group AND "
+            "everything after it until the enclosing group ends, so the rest of the section "
+            "goes bold. It is visible on the page and invisible in the source, which is "
+            "exactly the failure mode of source nobody rendered.",
+            "Use the command form: \\textbf{word}, \\textit{word}, \\texttt{word}. Keep the "
+            "declaration only where you mean it to persist, inside its own group.",
+            family="defect"))
+
+    # ---- LaTeX 2.09 markup, deprecated for thirty years
+    old = sorted(set(re.findall(r"\\(?:bf|it|rm|sl|tt|sc)\b(?!\w)", body))
+                 | set(re.findall(r"\\begin\{eqnarray\*?\}", body))
+                 | set(re.findall(r"\$\$", body)))
+    if old:
+        out.append(finding(
+            path, first(r"\\(?:bf|it|rm|sl|tt|sc)\b|eqnarray|\$\$"),
+            "; ".join(old[:5]),
+            "obsolete-two-oh-nine-markup", "medium",
+            "Markup superseded in 1994 and documented as obsolete in l2tabu. $$...$$ is plain "
+            "TeX and gives wrong vertical spacing under amsmath; eqnarray has spacing bugs "
+            "the AMS environments fixed. It persists because thirty years of examples using "
+            "it are still on the web, which is also why a model reproduces it.",
+            "\\[ ... \\] for display maths, align or gather from amsmath for multi-line, and "
+            "\\textbf / \\textit for fonts.",
+            family="form"))
+
+    # ---- negative vertical space, usually to hit a page limit
+    neg = re.findall(r"\\vspace\*?\{\s*-[\d.]+\s*(?:pt|mm|cm|in|em|ex|baselineskip)\}", body)
+    if len(neg) >= th("negative-vspace-to-hit-page-limit", "min_count", 2):
+        out.append(finding(
+            path, first(r"\\vspace\*?\{\s*-"),
+            f"{len(neg)} negative \\vspace(s), e.g. {neg[0]}",
+            "negative-vspace-to-hit-page-limit", "medium",
+            "Squeezing the page by hand. It defeats the class file's vertical rhythm, it "
+            "moves under any change to the text above it, and several venues require the "
+            "template's standard spacing -- ACL's own checker measures the resulting margins "
+            "rather than the source.",
+            "Cut words instead. Where space is genuinely needed, adjust the document's "
+            "spacing parameters once in the preamble rather than per-instance.",
+            family="form"))
+
+    # ---- every float pinned exactly here
+    h = re.findall(r"\\begin\{(?:figure|table|algorithm)\*?\}\s*\[H?h!?\]|\[H\]", body)
+    hard = [x for x in h if "H" in x or "!" in x]
+    if len(hard) >= th("every-float-pinned-here", "min_count", 3):
+        out.append(finding(
+            path, first(r"\[H\]|\[h!\]"),
+            f"{len(hard)} float(s) pinned with [H] or [h!]",
+            "every-float-pinned-here", "medium",
+            "Fighting the float algorithm rather than using it. Pinning every float produces "
+            "half-empty pages and pushes text into gaps, and [H] needs the float package "
+            "besides. The generator pins because it cannot see where the float would have "
+            "gone.",
+            "Let LaTeX place them: [tbp] is the usual answer. Reserve [H] for the rare case "
+            "where the float genuinely must interrupt the text, such as a code listing being "
+            "walked through line by line.",
+            family="form"))
+
+    # ---- a reference with no tie, so the number can start a line
+    loose = re.findall(r"(?<![~\\{])\s\\(?:ref|cite|eqref|autoref)\{", body)
+    tied = re.findall(r"~\\(?:ref|cite|eqref|autoref)\{", body)
+    if len(loose) >= th("missing-tie-before-ref-and-cite", "min_count", 3) and len(loose) > len(tied):
+        out.append(finding(
+            path, first(r"\s\\(?:ref|cite)\{"),
+            f"{len(loose)} reference(s) with a breakable space, {len(tied)} tied",
+            "missing-tie-before-ref-and-cite", "low",
+            "A plain space lets TeX break the line between the word and its number, so a page "
+            "can end with \"see Figure\" and the next begin with \"3\". It is invisible until "
+            "the text reflows, which is to say invisible to anyone who did not look at the "
+            "PDF.",
+            "Use a non-breaking space: Figure~\\ref{fig:x}, \\cite is usually preceded by one "
+            "too. TeXtidote ships this as sh:nobreak.",
+            family="form"))
+
+    # ---- tables built from rules rather than from structure
+    if re.search(r"\\begin\{tabular\}\s*\{[^}]*\|", body) \
+       and not re.search(r"\\toprule|\\midrule|\\bottomrule|booktabs", low):
+        out.append(finding(
+            path, first(r"\\begin\{tabular\}\s*\{[^}]*\|"),
+            "tabular with vertical rules and no booktabs",
+            "vertical-rules-and-full-grid-tables", "medium",
+            "The full grid is the spreadsheet's default, not the typographer's. The booktabs "
+            "manual states the rule flatly: never use vertical rules, and never use double "
+            "rules. A generator reproduces the grid because grids are what tables look like "
+            "in the corpus it learned from.",
+            "Load booktabs and use \\toprule, \\midrule, \\bottomrule with no vertical rules "
+            "at all. Let alignment and space do the separating.",
+            family="form"))
+
+    # ---- hyperref loaded too early
+    if "hyperref" in low:
+        pkgs = re.findall(r"\\usepackage(?:\[[^\]]*\])?\{([^}]*)\}", body)
+        flat = [p.strip() for g in pkgs for p in g.split(",")]
+        if "hyperref" in flat and flat.index("hyperref") < len(flat) - 1:
+            after = [p for p in flat[flat.index("hyperref") + 1:]
+                     if p not in {"cleveref", "algorithm2e", "glossaries", "bookmark"}]
+            if after:
+                out.append(finding(
+                    path, first(r"\\usepackage(?:\[[^\]]*\])?\{[^}]*hyperref"),
+                    f"hyperref loaded before {', '.join(after[:4])}",
+                    "hyperref-load-order-violation", "medium",
+                    "hyperref redefines a large number of internal commands and must load "
+                    "near-last so that it patches what is already there. Loaded early it is "
+                    "silently overwritten by later packages, and the failure is broken links "
+                    "in the PDF rather than an error at compile time.",
+                    "Load hyperref last, with cleveref the documented exception that goes "
+                    "after it.",
+                    family="defect"))
+
+    # ---- a bibliography typed out by hand
+    if re.search(r"\\begin\{thebibliography\}", body) \
+       and not re.search(r"\\bibliography\{|\\addbibresource|\\printbibliography", body):
+        n = len(re.findall(r"\\bibitem", body))
+        out.append(finding(
+            path, first(r"\\begin\{thebibliography\}"),
+            f"{n} hand-written \\bibitem entries, no .bib file",
+            "hand-rolled-bibliography", "medium",
+            "Entries typed rather than generated, so nothing checks them against a database "
+            "and nothing enforces a consistent style. This is the highest-yield place in a "
+            "manuscript to verify references, because no tool has looked at them.",
+            "Move them into a .bib and cite with \\cite. Then verify each entry resolves -- "
+            "and check the least-cited ones first, since fidelity of generated references "
+            "tracks how often the cited work is cited.",
+            family="shape"))
+
+    # ---- template slots that shipped
+    hits = [m.group(0) for pat in TEMPLATE_RESIDUE
+            for m in [re.search(pat, text, re.I)] if m]
+    if hits:
+        out.append(finding(
+            path, first("|".join(TEMPLATE_RESIDUE)),
+            "; ".join(hits[:4]),
+            "conference-template-residue", "high",
+            "The venue's own placeholder text, still in place. These strings have no "
+            "legitimate use and they reach arXiv, ResearchGate and submitted PDFs regularly. "
+            "A closed literal list is defensible here because the surface is tiny and "
+            "enumerable, unlike prose.",
+            "Replace every one. Then check the rest of the front matter, because a template "
+            "slot nobody filled usually has siblings.",
+            family="residue"))
+
+    # ---- a macro used and never defined (fatal)
+    defined = set(re.findall(r"\\(?:new|renew|provide)command\*?\{?\\(\w+)", body))
+    defined |= set(re.findall(r"\\DeclareMathOperator\*?\{?\\(\w+)", body))
+    defined |= set(re.findall(r"\\def\\(\w+)", body))
+    used = set(re.findall(r"\\([a-zA-Z]{3,})\b", body))
+    KNOWN = set("""documentclass usepackage begin end section subsection subsubsection
+        paragraph textbf textit texttt emph label ref cite eqref autoref caption
+        includegraphics centering item newpage clearpage footnote title author date
+        maketitle bibliography bibliographystyle newcommand renewcommand providecommand
+        def input include appendix tableofcontents hspace vspace textwidth linewidth
+        columnwidth frac sqrt sum prod int left right mathrm mathbf mathcal text
+        alpha beta gamma delta theta lambda sigma mu nu pi rho tau phi psi omega
+        times cdot leq geq neq approx sim infty partial nabla forall exists
+        toprule midrule bottomrule multicolumn multirow cmidrule textsc textsf
+        footnotesize scriptsize normalsize selectfont bibitem thebibliography
+        printbibliography addbibresource DeclareMathOperator operatorname
+        newtheorem theoremstyle qquad quad noindent par relax phantom hfill vfill
+        color textcolor colorbox fcolorbox href url texorpdfstring
+        institution affiliation email orcid keywords abstract acks
+        subfigure subcaption includepdf pagestyle thispagestyle setlength
+        renewcommandx mathbb mathfrak mathscr boldsymbol overline underline
+        widehat widetilde xrightarrow xleftarrow substack binom
+        qty SI si num unit ang celsius percent
+        cref Cref crefname autoref nameref pageref
+        maketitlesupplementary onecolumn twocolumn makeatletter makeatother""".split())
+    undef = sorted(u for u in used - defined - KNOWN
+                   if re.search(r"\\" + re.escape(u) + r"\b", body)
+                   and not re.search(r"\\usepackage[^}]*\b" + re.escape(u), body)
+                   and len(u) > 3 and u.islower() and "_" not in u)
+    # Only report when the file looks self-contained (it has a documentclass),
+    # because a fragment legitimately uses macros defined in its parent.
+    if undef and re.search(r"\\documentclass", body) \
+       and len(undef) >= th("macro-used-but-never-defined", "min_count", 2):
+        shown = ", ".join("\\" + u for u in undef[:5])
+        out.append(finding(
+            path, first(r"\\" + re.escape(undef[0])),
+            f"{len(undef)} command(s) used but not defined here or loaded by a package: "
+            f"{shown}",
+            "macro-used-but-never-defined", "medium",
+            "A command that resolves to nothing at all. This is a compile-reproducible defect "
+            "rather than an inference about anyone, and it is the commonest LaTeX failure in "
+            "both human and generated source -- so treat it as a build error, not a tell.",
+            "Run the file and read the log: Undefined control sequence names it. Then either "
+            "define it, load the package that provides it, or delete the call.",
+            family="defect"))
+
+    # ---- a float labelled and never referred to
+    labels = set(re.findall(r"\\label\{((?:fig|tab|alg|lst):[^}]+)\}", body))
+    refs = set(re.findall(r"\\(?:ref|autoref|cref|Cref|pageref)\{([^}]+)\}", body))
+    orphan = sorted(labels - refs)
+    if orphan:
+        out.append(finding(
+            path, first(r"\\label\{" + re.escape(orphan[0])),
+            f"{len(orphan)} float(s) never referenced in the text: {', '.join(orphan[:4])}",
+            "float-never-referenced-in-text", "medium",
+            "A figure or table the prose never points at. LaTeX places floats by reference, "
+            "so an unreferenced float drifts wherever the algorithm likes, and most venues "
+            "require every float to be discussed. A one-directional check for dangling \\ref "
+            "cannot find this; it needs the set difference the other way.",
+            "Refer to it, or cut it. If the text does not need to point at it, ask whether "
+            "the reader needs it.",
+            family="defect"))
+
+    return out
+
+
 def analyze_file(path, base=None):
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -5509,8 +6147,13 @@ def analyze_file(path, base=None):
         if suffix in CODE_EXT:
             res += analyze_code(path, text)
         return res
+    if suffix in PLOT_EXT and suffix not in CODE_EXT:
+        # .R and .Rmd are not in CODE_EXT and were unrouted entirely.
+        return analyze_plotting_code(path, text)
     if suffix in CODE_EXT:
         res = analyze_code(path, text)
+        if suffix in PLOT_EXT:
+            res += analyze_plotting_code(path, text)
         # The send call, the PDF export and the price formatter are rarely near
         # the markup, so a plain .js or .ts file needs these checks too.
         if suffix in JS_FAMILY:
@@ -5519,9 +6162,16 @@ def analyze_file(path, base=None):
             res += (analyze_app_surfaces(path, text) + analyze_ui_strings(path, text)
                     + analyze_motion(path, text) + analyze_forms(path, text))
         return res
+    if suffix in TEX_EXT:
+        # A .tex file is markup, so its prose has to be read with the commands
+        # stripped. Routing it straight at analyze_prose counted \usepackage as
+        # vocabulary and scored the paper on it.
+        res = analyze_manuscript(path, text) + analyze_latex(path, text)
+        res += analyze_prose(path, strip_markup(text), ".md", base, from_markup=True)
+        return res
     res = analyze_prose(path, text, suffix or ".txt", base)
     if suffix in {".md", ".mdx"}:
-        res += analyze_docs_markdown(path, text)
+        res += analyze_docs_markdown(path, text) + analyze_manuscript(path, text)
     return res
 
 
