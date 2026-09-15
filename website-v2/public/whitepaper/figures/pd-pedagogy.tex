@@ -291,6 +291,31 @@
     \space{\itshape (#2)}%
   \fi}
 
+% \pdmargincaption{text} -- an ordinary figure/table caption moved to the
+% margin column, per the margin-apparatus doctrine: a caption competing with
+% body text for the reading column is wasted attention. Call it in place of
+% \caption{text} inside a figure/table environment (\label after it, exactly
+% where \label follows \caption today) -- it still calls the real \caption
+% once, so the float's number and any \ref/\label to it keep working. In the
+% margin column (Book) the float keeps only its bare "Figure N"/"Table N" tag
+% (an ordinary \caption with an empty argument, labelsep suppressed so no
+% stray colon prints before nothing) and the descriptive sentence prints in
+% the margin instead, at \marginfont. Outside the margin column (standalone
+% chapters) this is exactly \caption{text} -- no content is lost, so the same
+% chapter source compiles both ways. Top-anchored like \pdmarginfigure, not
+% foot-anchored like \pdgloss: a caption can run several lines, as long as a
+% portrait's, and the doctrine here is height, not kind -- a block that tall
+% belongs on the top anchor so a stale \pagetotal cannot lift it off the page.
+\newsavebox{\pd@mcbox}
+\newcommand{\pdmargincaption}[1]{%
+  \ifpdmargincolumn
+    {\captionsetup{labelsep=none}\caption{}}%
+    \sbox{\pd@mcbox}{\begin{minipage}[t]{\marginparwidth}\marginfont#1\end{minipage}}%
+    \pd@placemargintop{\pd@mcbox}%
+  \else
+    \caption{#1}%
+  \fi}
+
 % Marginalia (Wave 12, 12.2): a duotone portrait or title page in the margin
 % column at the point where the person's idea is decisive, with a
 % one-sentence caption. Book only: the standalone chapters have no margin
