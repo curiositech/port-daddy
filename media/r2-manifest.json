@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 585,
+    "distinctObjects": 549,
+    "bytes": 274638404,
+    "distinctBytes": 271844813
   },
   "assets": [
     {
@@ -799,6 +799,20 @@
       "sha256": "4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337",
       "key": "sha256/4c/4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337.webm",
       "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/readers-map-starred/readers-map-numbering.png",
+      "bytes": 251717,
+      "sha256": "47b296b2533c9bd7079e937ac33af68ceae807be5a9deceb5f3ccb1f2c1c3742",
+      "key": "sha256/47/47b296b2533c9bd7079e937ac33af68ceae807be5a9deceb5f3ccb1f2c1c3742.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/readers-map-starred/readers-map-toc-toggle.gif",
+      "bytes": 149406,
+      "sha256": "5fa56227d7ec8975f7303795e6d5adc2cf71fcee41614e77f3ce2fba2752b1ac",
+      "key": "sha256/5f/5fa56227d7ec8975f7303795e6d5adc2cf71fcee41614e77f3ce2fba2752b1ac.gif",
+      "contentType": "image/gif"
     },
     {
       "path": "docs/pr-media/squid-hook-debug/03-hook-debug-running.png",
