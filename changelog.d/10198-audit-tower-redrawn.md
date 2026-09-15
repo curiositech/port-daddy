@@ -1,0 +1,3 @@
+type: changed
+
+- **Figure 5.8, the audit tower, is redrawn from the chapter's own recurrence instead of hand-placed.** The committed version was a single smooth curve standing in for a model that is linear while the judge pool still pays to bribe and geometric only after it stops; `figures/fig-stp-rate-the-raters.tex` now sets three small multiples on one shared log axis, one panel per clique count, computed from the parameters the chapter already states. The change is visible on page 272 of `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf`, where the caption also stops promising a result the imported theorem does not supply.
