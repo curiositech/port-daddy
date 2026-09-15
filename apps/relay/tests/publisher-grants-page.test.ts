@@ -169,6 +169,8 @@ describe('publisher grant operator surface', () => {
   });
 
   it('fails closed instead of hiding malformed stored grant authority', async () => {
+    // Simulate legacy/corrupted D1 state despite the current write trigger.
+    sqlite.exec('DROP TRIGGER publisher_grants_insert_scope');
     sqlite.prepare(`INSERT INTO publisher_grants
       (grant_id, epoch, surface, account_user_id, subject_fingerprint, subject_class,
        installation_id, repositories_json, operations_json, branch_allow_json,

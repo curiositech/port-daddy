@@ -57,6 +57,10 @@ GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 GITHUB_OWNER = "REPLACE_WITH_YOUR_GITHUB_OWNER"
 GITHUB_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO"
 DEFAULT_BRANCH = "main"
+# Public allowlist for GitHub Actions OIDC claims. There are no wildcard
+# entries: bind the immutable numeric owner id and exact protected workflow.
+# Missing or malformed JSON rejects every GitHub Actions exchange.
+OIDC_GITHUB_TRUST_POLICY_JSON = '{"repositoryOwnerIds":["REPLACE_WITH_NUMERIC_OWNER_ID"],"repositories":["REPLACE_WITH_OWNER/REPO"],"jobWorkflowRefs":["REPLACE_WITH_OWNER/REPO/.github/workflows/fleetbot-workload-smoke.yml@refs/heads/main"],"refs":["refs/heads/main"],"environments":["fleetbot-workload"],"runnerEnvironments":["github-hosted"],"eventNames":["workflow_dispatch"]}'
 # Durable numeric GitHub id for the initial account-backed Cloud Fleet operator.
 RELAY_OPERATOR_GITHUB_USER_ID = "REPLACE_WITH_YOUR_GITHUB_USER_ID"
 

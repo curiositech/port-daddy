@@ -18,7 +18,9 @@ const OPERATIONS = [
 ] as const;
 const EXPIRY_DAYS = new Set([1, 7, 30, 90]);
 const MAX_FORM_BYTES = 16_384;
-const MAX_INSTALLATIONS = 20;
+// 8 * at most 5 repository pages + metadata + installation list = 42 GitHub
+// subrequests, below Workers' lowest documented per-invocation ceiling.
+const MAX_INSTALLATIONS = 8;
 const MAX_REPOSITORIES_PER_INSTALLATION = 500;
 
 interface GithubAuthority { installationId: number; }
@@ -269,14 +271,22 @@ export async function handlePublisherGrantsPage(request: Request, env: Env): Pro
     const expiresAt = now + expiryDays * 86_400;
     const createdIp = request.headers.get('CF-Connecting-IP');
     try {
-      await env.DB.prepare(`INSERT INTO publisher_grants
+      // INSERT..SELECT closes the identity revocation/expiry race between the
+      // rendered chooser and this write. A stale identity produces zero rows.
+      const inserted = await env.DB.prepare(`INSERT INTO publisher_grants
         (grant_id, epoch, surface, account_user_id, subject_fingerprint, subject_class,
          installation_id, repositories_json, operations_json, branch_allow_json,
          base_allow_json, mutations_per_day, expires_at, created_at, created_via, created_ip)
-        VALUES (?, 1, 'publisher', ?, ?, 'ci', ?, ?, ?, ?, ?, ?, ?, ?, 'account-ui', ?)`)
-        .bind(grantId, session.user.id, fingerprint, authority.installationId, JSON.stringify([repo]),
+        SELECT ?, 1, 'publisher', ?, daemon_fingerprint, 'ci', ?, ?, ?, ?, ?, ?, ?, ?, 'account-ui', ?
+          FROM identities
+         WHERE daemon_fingerprint = ? AND proof_method = 'oidc' AND revoked = 0
+           AND (expires_at IS NULL OR expires_at > ?)
+           AND lower(json_extract(proof_metadata, '$.repository')) = ?`)
+        .bind(grantId, session.user.id, authority.installationId, JSON.stringify([repo]),
           JSON.stringify(operations), JSON.stringify(branchAllow), JSON.stringify(baseAllow), mutations,
-          expiresAt, now, createdIp && createdIp.length <= 64 ? createdIp : null).run();
+          expiresAt, now, createdIp && createdIp.length <= 64 ? createdIp : null,
+          fingerprint, now, repo).run();
+      if (inserted.meta?.changes !== 1) return html('The selected OIDC identity is no longer live for this repository.', 409);
       const readback = await env.DB.prepare(`SELECT grant_id, epoch, surface, account_user_id,
           subject_fingerprint, subject_class, installation_id, repositories_json,
           operations_json, branch_allow_json, base_allow_json, mutations_per_day,
