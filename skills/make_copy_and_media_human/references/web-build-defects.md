@@ -4,7 +4,7 @@ A different KIND of finding from the rest of this catalog. Everything here is a 
 
 Most of these are decidable from source and run in the normal structural pass. The ones marked `rendered` need `scripts/render_check.py`, the one optional script in this bundle, which opens the page at real viewports and names the elements at fault.
 
-_17 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_29 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -58,6 +58,28 @@ outline:none or outline:0 with no :focus-visible replacement anywhere.
 > button { outline: none }
 > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
 
+### `form-without-destination`  ·  high · generic-llm · web-ui · structural · family: defect
+
+A form with no action and no submit handler. It looks complete and goes nowhere.
+
+**Why it reads AI:** This one is genuinely model-flavoured rather than merely unreviewed. A generator produces a complete, convincing front end for a back end nobody asked for, and the failure is invisible until a real person types into it and presses send.
+
+**Detect:** Form elements carrying neither an action attribute nor a submit handler.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Wire it to something, then submit it yourself and confirm the message arrives. If there is no destination yet, replace the form with a mailto link so the page makes an honest promise instead of a broken one.
+
+**False positive when:** Forms whose handler is attached later in JavaScript, or bound by a framework directive the detector does not recognise. Verify by submitting it.
+
+**Before**
+
+> <form><input name='email'><button>Notify me</button></form>
+
+**After**
+
+> <form action="/api/subscribe" method="post">...</form>
+
 ### `framework-look-without-responsive`  ·  high · generic-llm · layout · structural · family: defect
 
 The page wears the visual idiom of a modern utility-CSS framework — flex rows, rounded cards, spacing scale, shadows — and contains not one responsive variant or width media query.
@@ -99,6 +121,28 @@ The page scrolls sideways at phone width. Content is literally off screen.
 **After**
 
 > .wrap { max-width: 1180px; margin-inline: auto; padding-inline: 1.5rem }
+
+### `hundred-vw-overflow`  ·  high · generic-llm · layout · structural · family: defect
+
+100vw or w-screen used for width, often with the -50vw full-bleed hack.
+
+**Why it reads AI:** 100vw is the viewport INCLUDING its scrollbar; 100% is the space actually available. On any browser that reserves scrollbar space the element is wider than its container, and paired with the -50vw trick it overflows twice. It is the most common single cause of a page scrolling sideways.
+
+**Detect:** Regex for 100vw width declarations, w-screen utilities, and margin-left:calc(-50vw...) full-bleed patterns.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Use width:100% and let the element fill its container, or 100dvw where you genuinely mean the dynamic viewport. For a full-bleed section inside a padded container the modern form is `margin-inline: calc(50% - 50vw)` with `overflow-x: clip` on a wrapper — and verify at 390px either way.
+
+**False positive when:** 100vw on a position:fixed overlay does not participate in document flow and cannot cause page overflow.
+
+**Before**
+
+> .hero { width: 100vw }
+
+**After**
+
+> .hero { width: 100% }
 
 ### `missing-viewport-meta`  ·  high · generic-llm · web-ui · structural · family: defect
 
@@ -166,6 +210,26 @@ The framework's default document title shipped: "Create Next App", "Vite + React
 
 > <title>Northwind — invoice reconciliation for finance teams</title>
 
+### `unbacked-social-proof`  ·  high · generic-llm · marketing-copy · llm-judge · family: defect
+
+Trust signals with nothing behind them: 'join 10,000+ teams', star ratings with no reviews, a 'Trusted by' bar of logos belonging to companies that are not customers, badges for certifications not held.
+
+**Why it reads AI:** The template has a social-proof slot and the generator fills it, because an empty slot looks unfinished and a populated one looks successful. It is the visual-design sibling of the fabricated statistic.
+
+**Detect:** Judge: for each trust signal, can you name the thing it counts? A number with no source, a logo with no relationship, a rating with no reviews.
+
+**Fix:** Delete anything you cannot substantiate. Real specificity beats invented scale: 'the four finance teams at Northwind run their month-end on this' is worth more than '10,000+ users' and has the advantage of being true. An empty section is better than a false one, and using a company's logo without permission is its own problem.
+
+**False positive when:** Real numbers and real customers, obviously. The tell is a claim the site's own operator could not source if asked.
+
+**Before**
+
+> Trusted by 10,000+ teams  [six logos]
+
+**After**
+
+> Used daily by the AP teams at Northwind and Calder. (Both agreed to be named.)
+
 ### `wcag-fail-from-generated-palette`  ·  high · generic-llm · color · rendered · family: defect
 
 Text below WCAG AA contrast: 4.5:1 for body, 3:1 for large text. Usually muted grey on white or on a tinted ground.
@@ -185,6 +249,28 @@ Text below WCAG AA contrast: 4.5:1 for body, 3:1 for large text. Usually muted g
 **After**
 
 > color: #595959 on #ffffff  (7.0:1)
+
+### `barrel-icon-import`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+An entire icon library imported as a namespace for the handful of icons actually used.
+
+**Why it reads AI:** The import that makes every icon available is the one a generator reaches for, because it cannot know in advance which icons the page will end up using.
+
+**Detect:** Namespace imports from the common icon packages.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Import by name: `import { Check, X } from 'lucide-react'`. Then confirm the bundle actually shrank — some of these packages need a per-icon path import before they tree-shake at all.
+
+**False positive when:** A dynamic icon picker that genuinely needs the whole set at runtime.
+
+**Before**
+
+> import * as Icons from 'lucide-react'
+
+**After**
+
+> import { Check, X } from 'lucide-react'
 
 ### `body-text-below-readable`  ·  medium · generic-llm · typography · rendered · family: defect
 
@@ -250,6 +336,92 @@ Everything is a div. No main, nav, header, footer, section or article anywhere.
 
 > <nav>...</nav> <main>...</main>
 
+### `h1-absent-or-competing`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+A page with no h1, or with several competing for the role.
+
+**Why it reads AI:** Headings get chosen for size rather than structure, because in the generation loop a heading is a type scale. The h1 is what a screen reader announces first and what search results lean on.
+
+**Detect:** Count h1 elements in a document that has a body. Anything other than exactly one is the signal.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Exactly one h1 per page, naming the page rather than the brand. Everything below steps down one level at a time without skipping. If you needed a second h1 for its size, style the h2 instead.
+
+**False positive when:** Some documented design systems permit an h1 per landmark section; and a fragment legitimately has none.
+
+**Before**
+
+> <h1>Flowstate</h1> ... <h1>Ship faster</h1>
+
+**After**
+
+> <h1>Flowstate: invoice reconciliation for finance teams</h1> ... <h2>Ship faster</h2>
+
+### `input-without-label`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+Form inputs with no label element and no aria-label, relying on a placeholder to say what the field is.
+
+**Why it reads AI:** A placeholder looks like a label in a screenshot, which is the only view the generation loop has. It disappears the moment someone types, and screen readers do not reliably announce it.
+
+**Detect:** Count real inputs (excluding hidden, submit, button, reset) against labels and aria-label attributes.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Give every input a <label for> pointing at its id, or an aria-label where a visible label genuinely does not fit. Keep the placeholder for an example of the format rather than the field name. Then fill the form out with a keyboard only.
+
+**False positive when:** A single search field with an adjacent icon and an accessible name supplied elsewhere, and inputs whose labels are composed by a wrapping component the detector cannot see.
+
+**Before**
+
+> <input type="email" placeholder="Email">
+
+**After**
+
+> <label for="email">Email</label><input id="email" type="email" placeholder="you@company.com">
+
+### `missing-html-lang`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+The root html element has no lang attribute.
+
+**Why it reads AI:** Screen readers choose a voice and pronunciation model from it; without one they guess, and often read the page in the wrong phonology. One attribute, always in the scaffold, only missing in hand-assembled markup.
+
+**Detect:** Absence of a lang attribute with a value on the html element. Binary and static.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Set it on the root: <html lang="en">. Use the real language, and a region subtag only where it changes pronunciation or formatting.
+
+**False positive when:** Fragments and partials have no html element.
+
+**Before**
+
+> <html>
+
+**After**
+
+> <html lang="en">
+
+### `missing-interaction-states`  ·  medium · generic-llm · web-ui · llm-judge · family: defect
+
+The happy path only: no empty state, no error state, no loading state, no 404.
+
+**Why it reads AI:** Generation optimises the screenshot, and the screenshot is always the full, successful, populated view. The other four states never appear in a design shot so nothing in the loop produces them.
+
+**Detect:** Judge, or probe: request a bad route, submit an invalid form, throttle the network, and view a list with no items. Four states, four checks.
+
+**Fix:** Build the four: an empty state that says what to do next, an error state that says what went wrong and what to try, a loading state that reserves the final layout, and a 404 that offers a route back. The empty state is the highest-value one, because every user sees it on day one.
+
+**False positive when:** Static marketing pages have no states to miss. This applies to anything that loads or submits.
+
+**Before**
+
+> A dashboard that renders a table. With no rows it renders headers over blank space.
+
+**After**
+
+> With no rows it says what data goes here and links to the import flow.
+
 ### `missing-or-placeholder-alt`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 Images with no alt attribute, or alt text that describes the file rather than its job: "image of a laptop", "screenshot.png".
@@ -294,6 +466,28 @@ An animated page with no prefers-reduced-motion media query.
 
 > (the same, wrapped so reduced-motion users get instant state changes)
 
+### `tailwind-play-cdn-in-production`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel-standalone, and their relatives.
+
+**Why it reads AI:** The Play CDN compiles your stylesheet in the visitor's browser on every page load, and its own documentation says it is for prototyping. Shipping it means the build step was never set up — the page was assembled to be looked at rather than deployed.
+
+**Detect:** Script src matching the known runtime-compiler CDNs.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Install the framework as a build dependency and ship a compiled stylesheet. For Tailwind that is the CLI or the Vite/PostCSS plugin; output is typically a few kilobytes against the CDN's several hundred, and it removes the flash of unstyled content.
+
+**False positive when:** Genuine prototypes, CodePen-style demos, and documentation examples, where it is the correct tool.
+
+**Before**
+
+> <script src="https://cdn.tailwindcss.com"></script>
+
+**After**
+
+> <link rel="stylesheet" href="/assets/app.css">
+
 ### `tap-target-too-small`  ·  medium · generic-llm · layout · rendered · family: defect
 
 Interactive controls smaller than about 44x44 CSS pixels at phone width.
@@ -313,6 +507,26 @@ Interactive controls smaller than about 44x44 CSS pixels at phone width.
 **After**
 
 > .nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 12px; font-size: 15px }
+
+### `duplicated-component-markup`  ·  low · generic-llm · web-ui · llm-judge · family: defect
+
+Three near-identical card or row blocks written out longhand instead of mapped over data.
+
+**Why it reads AI:** A generator emits what the page looks like. Extracting a component requires deciding what varies, which is a modelling step the visual output does not require.
+
+**Detect:** Judge, or diff sibling blocks for near-identity. Static detection is possible by normalising whitespace and text and comparing structural hashes of siblings.
+
+**Fix:** Move the varying parts into an array and map over it. The test is whether adding a fourth item is one line of data or twenty of markup.
+
+**False positive when:** Static HTML with no templating available, and blocks that only look similar while differing in ways a shared component would have to special-case.
+
+**Before**
+
+> Three <div class='card'> blocks differing only in their heading and body text.
+
+**After**
+
+> features.map(f => <Card key={f.id} {...f} />)
 
 ### `image-without-dimensions`  ·  low · generic-llm · web-ui · rendered · family: defect
 
@@ -355,6 +569,50 @@ Heavy use of !important.
 **After**
 
 > (the base rule corrected, so nothing needs to win)
+
+### `no-meta-description-or-og-image`  ·  low · generic-llm · web-ui · structural · family: defect
+
+No meta description, no og:image, or both.
+
+**Why it reads AI:** What the page looks like when shared or found, which is never visible while building it. Without an og:image a link unfurls as a grey box, which reads as abandoned.
+
+**Detect:** Absence of the meta tags in a document head.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Write a meta description that says what the page offers in about 150 characters, and set an og:image at 1200x630 showing the actual product rather than the logo on a gradient. Check it with a link-preview debugger rather than assuming.
+
+**False positive when:** Pages deliberately excluded from sharing and indexing, and documents whose meta tags are injected by a framework at build time rather than present in source.
+
+**Before**
+
+> (no description, no og:image)
+
+**After**
+
+> <meta name="description" content="..."> <meta property="og:image" content="...">
+
+### `static-vh-full-height`  ·  low · generic-llm · layout · structural · family: defect
+
+100vh or h-screen used for a full-height section.
+
+**Why it reads AI:** On mobile browsers 100vh is the viewport with the URL bar hidden, so a 100vh hero is taller than the screen until you scroll and its bottom is cut off on first paint. Visible instantly on a phone, invisible in a desktop screenshot.
+
+**Detect:** Regex for 100vh height declarations and h-screen utilities.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Use 100dvh with a 100vh fallback: `min-height: 100vh; min-height: 100dvh`. Better still, stop pinning the hero to the viewport — let the content decide the height.
+
+**False positive when:** Desktop-only applications, and any layout already using dvh/svh/lvh units alongside it.
+
+**Before**
+
+> .hero { min-height: 100vh }
+
+**After**
+
+> .hero { min-height: 100vh; min-height: 100dvh }
 
 ### `z-index-escalation`  ·  low · generic-llm · web-ui · structural · family: defect
 

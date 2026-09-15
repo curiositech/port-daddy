@@ -2,7 +2,7 @@
 
 What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.
 
-_30 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_35 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -91,6 +91,28 @@ Emoji stand in for a real icon system: rocket in 'Get started' buttons, check bu
 
 > Feature card: a 20px Lucide Rocket, ShieldCheck, Check icon in brand color above each title; CTA reads Get started with an inline ArrowRight SVG.
 
+### `hero-with-nothing-to-look-at`  ·  high · generic-llm · layout · structural · family: form
+
+A hero with no screenshot, photograph, illustration, diagram or video — only type on a gradient or a flat ground. The visual budget goes entirely to a background treatment carrying no information about the product.
+
+**Why it reads AI:** Two causes, both diagnostic. A generator cannot screenshot a product it has never run, so the visual slot resolves to the only thing it can synthesise from CSS: a gradient. And placeholder copy produces placeholder layout — the hero has no image because there is nothing real to show yet. An image-less hero is a claim that nothing is worth showing, which for a working product is always false, and the reader correctly infers that the product does not exist, is ugly, or has not been used by anyone involved.
+
+**Detect:** Within the hero region, count img, picture, video, canvas, iframe and substantial svg elements, excluding logos and small icons. Zero is the signal.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Show the product, in descending order of what it proves. A real screenshot of a real screen with real data in it, cropped to the one view that makes the value legible, shipped at 2x through a picture element. Or a five-to-fifteen second silent loop of it doing its one thing, which beats a still for anything streaming or animated. Or a diagram of the mechanism, which is the honest answer for infrastructure with no interface. If there genuinely is no product yet, say so and make the hero the argument for the waitlist — that is not a tell. Hiding pre-product status behind a gradient and a Get Started button is. Never fix this by generating an illustration.
+
+**False positive when:** Products with no visual surface (a DNS provider, a payments API, a law firm); type-led brand systems that commit fully, where the typography IS the demonstration and is doing something rather than being Inter at 64px; deliberately minimal utility pages where the working tool is the hero, which is the strongest version of this pattern rather than a fault; search-first homepages; and pre-launch pages that admit it.
+
+**Before**
+
+> <section class="bg-gradient-to-br from-indigo-500 to-violet-700"><h1>...</h1><p>...</p></section>
+
+**After**
+
+> The same hero plus a screenshot of the actual migration diff view, three real table names visible, one shadow, no device frame.
+
 ### `identical-face-different-people`  ·  high · generic-llm · web-ui · llm-judge · family: visual
 
 Across 'different' avatars or testimonial photos, the same underlying face recurs — same bone structure, eye spacing, smile — with only hair/clothes swapped, plus a shared teal-and-orange grade and creamy bokeh across all images.
@@ -150,6 +172,28 @@ A chart that looks right and is wrong: axes that do not start where they should,
 **After**
 
 > The same comparison as a bar chart, from a CSV anyone can open.
+
+### `pull-quote-that-quotes-nothing`  ·  high · generic-llm · typography · structural · family: form
+
+A styled pull-quote block containing a sentence that appears nowhere else on the page and is attributed to nobody. An aphorism in quotation marks that no one ever said.
+
+**Why it reads AI:** The pull quote is the one typographic device whose definition is a provenance relation, and a generator emitting it as visual rhythm breaks that relation invisibly. A pull quote is an excerpt; a block quotation cites something external. Generated text is neither — it is new text, from nowhere, wearing the costume of a quotation. The form makes a promise the content cannot keep, and a reader who goes looking for the speaker and finds none has learned something true about the page.
+
+**Detect:** Unusually clean, because a pull quote is DEFINED by a provenance relation: it is an excerpt of the document it sits in. So normalise the quote's text and search for a six-word window of it in the rest of the body. Flag when it appears zero times elsewhere AND carries no cite, figcaption or trailing attribution.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** In an article, replace it with the sharpest eight to fifteen words already in your body copy, and leave them in the body too: the pull quote is a trailer, not a scene. On a landing page there is no document to pull from, so it is a testimonial with a full name, role and company, or it is the founder's words attributed to the founder, or it is deleted. There is no fourth option. Mechanically: make the component require a source prop and fail the build when it is absent or does not appear in the page body.
+
+**False positive when:** Epigraphs — a quotation at the head of a chapter from an external source, correctly attributed — are legitimate and by definition do not appear in the body, so a quote carrying a cite naming an external author is never flagged. Also quote-collection pages, walls of love, Tufte-style marginalia (authorial commentary, not quotation), and lyric fragments used as section openers. The discriminator: cited-but-external is an epigraph, uncited-and-internal is a pull quote, uncited-and-external-to-everything is the tell.
+
+**Before**
+
+> <blockquote class="pullquote">"The best products don't just solve problems — they anticipate them."</blockquote>
+
+**After**
+
+> <figure><blockquote>"We cut a 40-minute maintenance window to zero."</blockquote><figcaption>Priya Raman, Staff SRE, Calder</figcaption></figure>
 
 ### `purple-blue-gradient-text-headline`  ·  high · generic-llm · color · structural · family: visual
 
@@ -521,6 +565,26 @@ A single view mixes icon vocabularies: some Lucide line icons, some Heroicons so
 
 > All three are Lucide outline icons at 24px / 1.5px stroke in brand color, optically centered on a shared baseline.
 
+### `numerology-of-three`  ·  medium · generic-llm · layout · llm-judge · family: form
+
+Three features, three tiers, three testimonials, three steps — regardless of how many real ones exist.
+
+**Why it reads AI:** Three is what you pick when the number of real things is unknown, and it happens to fill a grid. The layout chose the content rather than the other way round.
+
+**Detect:** Judge: is three the true count, or the count that fills a row? Ask what the fourth would be and whether the third earns its place.
+
+**Fix:** Count the real things and show that many. Two strong features beat three where the third is padding, and a five-item list that does not fit a grid is a reason to change the grid.
+
+**False positive when:** Plenty of products genuinely have three tiers, and the rule of three is a real compositional device. The tell is a third item that restates or pads.
+
+**Before**
+
+> Three feature cards, the third of which restates the first.
+
+**After**
+
+> Two features, each with a screenshot.
+
 ### `provenance-absent-or-stripped`  ·  medium · generic-llm · image · structural · family: residue
 
 The file's provenance record: a C2PA manifest naming a generator, a manifest naming a camera, or nothing at all, plus EXIF that is present, absent, or implausible.
@@ -601,6 +665,28 @@ The hero or full-page background is a soft multi-stop mesh gradient (pink-purple
 
 > Hero sits on a flat warm-neutral surface with a single duotone product screenshot; any gradient uses only the two brand hues at low contrast.
 
+### `undifferentiated-section-padding`  ·  medium · generic-llm · layout · structural · family: form
+
+Every section on the page padded identically. Hero, feature grid, testimonial, FAQ and footer all get the same vertical space.
+
+**Why it reads AI:** Spacing used as a constant rather than as a relationship. Nothing is grouped with anything and nothing is separated from anything, so the page becomes a stack of equally weighted slabs and the reader gets no signal about what belongs together. Choosing one value is what you do when you have not decided which sections matter.
+
+**Detect:** Collect vertical padding values across sections; flag when four or more sections share exactly one value.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_sections` = 4
+
+**Fix:** Vary it by role. Give the hero more room than it needs and the sections after it less; tighten the gap between a heading and the thing it introduces; widen it between unrelated sections. A three-step scale used deliberately reads as designed. One value everywhere reads as a default, which is what it is.
+
+**False positive when:** Documentation and long-form article templates legitimately use one rhythm throughout, and a design system with a documented spacing scale may deliberately standardise section padding.
+
+**Before**
+
+> Five sections, every one py-24.
+
+**After**
+
+> Hero py-32, feature grid py-20, and eight of those units between a heading and its own paragraph.
+
 ### `ai-image-waxy-skin-mangled-hands`  ·  low · generic-llm · web-ui · llm-judge · family: visual
 
 **Currency:** ⚠ OBSOLETE — retained as a caution, not as a test.
@@ -624,6 +710,28 @@ OBSOLETE AS A PRIMARY TEST. The 2022-2024 image giveaways — six-fingered hands
 **After**
 
 > Checking Content Credentials, running a reverse image search, and asking the designer where the file came from.
+
+### `debug-residue-in-production`  ·  low · generic-llm · web-ui · structural · family: residue
+
+console.log, console.debug and debugger statements on a shipped page.
+
+**Why it reads AI:** Working notes shipped to visitors. Harmless in itself, and a reliable sign nothing was reviewed on the way out.
+
+**Detect:** Count console and debugger calls.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 3
+
+**Fix:** Strip them, or route logging through something that compiles out in production. While you are there, check whether any of them log a request or user object.
+
+**False positive when:** Deliberate console banners (hiring messages, self-XSS warnings) are a long-standing convention, and development builds are expected to be noisy.
+
+**Before**
+
+> console.log("user", user)
+
+**After**
+
+> (removed)
 
 ### `uncanny-padding-rhythm-uniformity`  ·  low · generic-llm · layout · structural · family: visual
 

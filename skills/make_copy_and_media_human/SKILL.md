@@ -160,6 +160,26 @@ describe the same failure. It's the rubric behind `specificity-starvation`,
 `mirror-back-research-opener`, and it survives every model improvement, because
 the thing it asks for is knowledge the model doesn't have.
 
+## Placeholder copy produces placeholder layout
+
+For web pages the taste findings and the content findings are one family, and
+the arrow runs in a direction worth knowing. Underspecified input gets answered
+with the statistical average of every page on the internet, and the average page
+is mediocre. Ask for a landing page without giving it real content and it invents
+placeholder copy, and placeholder copy forces placeholder layout.
+
+That explains the tells together rather than separately. The eyebrow is empty
+because the template has an eyebrow slot and nothing true was available to fill
+it. The hero has no image because there is no product to photograph. The grid has
+three cards because three is what you pick when the number of real things is
+unknown. The pull quote quotes nothing because a quote is a provenance relation
+and there was no document to pull from.
+
+So the fix usually runs upstream of the design. Supply the real content, and most
+of the layout problems stop being layout problems. When you cannot supply it,
+that absence is the finding, and a page that admits it beats a page that fills
+the gap with a gradient.
+
 ## Ask what the reader already knows
 
 Expository writing fails in a way sentence-level review never catches: the piece
@@ -180,7 +200,7 @@ tell that a structure was announced rather than built.
 The diagnostic, when you want one question: **could a competent stranger who
 arrived from a search result follow this, and where is the first place they would
 have to stop and look something up?** That spot is the fix. The remedy is almost
-always the same shape — define a term at or before its first load-bearing use,
+always the same shape — define a term at or before its first substantive use,
 introduce one new idea at a time, and let each one earn the next.
 
 ## Scale severity by the venue's base rate
@@ -419,7 +439,7 @@ launch announcement in machine accent and then edited,
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
 **root**
-- [`CHANGELOG.md`](CHANGELOG.md) — Changelog — Rebuilt around measured evidence.
+- [`CHANGELOG.md`](CHANGELOG.md) — Changelog — <!-- humanize:ignore-start A changelog is heading-and-bullet dense by design, which is the documented false positive for heading-spam and bu
 - [`README.md`](README.md) — Make Copy and Media Human — Strip the machine accent from copy, web UI, slides, READMEs, commits, PRs, marketing pages, and generated imagery before anything outward-fa
 
 **`agents/`**
@@ -441,10 +461,12 @@ launch announcement in machine accent and then edited,
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
 - [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 - [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look and generated imagery — What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.
+- [`references/web-build-defects.md`](references/web-build-defects.md) — Web build defects — the half you can reproduce — A different KIND of finding from the rest of this catalog.
 
 **`scripts/`**
 - [`scripts/humanize_review.py`](scripts/humanize_review.py) — humanize_review.py — flag AI-isms in copy/media and emit a static HTML fix plan.
 - [`scripts/regenerate_references.py`](scripts/regenerate_references.py) — Regenerate references/*.md from references/catalog.json. Stdlib only.
+- [`scripts/render_check.py`](scripts/render_check.py) — render_check.py — open a page at real viewports and report what breaks.
 
 **`templates/`**
 - [`templates/output-template.md`](templates/output-template.md) — Judge-Pass Finding + Delivery Template — Fill this in during step 3 (judge pass) and step 4 (delivery) of the process in `SKILL.md`.
