@@ -39,8 +39,8 @@ of the Book's own architecture. The sources read to build this:
   the Book's own four-layer coordination-stack model, which names an explicit "whom" for
   each layer (substrate: the machine; coordination: the agents; legibility: the operator;
   economy: the market between operators) — see below.
-- `website-v2/public/whitepaper/figures/fig-book-reader-map.tex` on `claude/one-reader-map`
-  (PR #10222's branch) — the actual TikZ source of the proposed five-archetype figure,
+- `website-v2/public/whitepaper/figures/fig-book-reader-map.tex` <!-- cite-exempt: on claude/one-reader-map (PR #10222), not yet merged to main -->
+  — the actual TikZ source of the proposed five-archetype figure,
   including its per-archetype gloss comments (e.g. "The Practitioner (buyer, solo developer,
   founder, newcomer)").
 - Scattered persona artifacts already in the repo that are *not* a canonical product
