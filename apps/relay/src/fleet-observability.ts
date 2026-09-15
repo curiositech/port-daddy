@@ -49,23 +49,28 @@ function fleetErr(code: string, error: string, status: number): Response {
 const LEGACY_FLEET_PAUSE_KEY = 'fleet:paused';
 
 /**
- * Read the rollback-era KV projection as a deny-only signal. A legacy paused
- * value can expose a failed mirror after the canonical DO has resumed, but
- * false, absent, malformed, or unreadable KV must never authorize work or
- * contradict the canonical control state.
+ * Read the rollback-era KV projection as a deny-only witness. A readable false
+ * never authorizes work without the Durable Object; true, absent, malformed,
+ * and unreadable values keep health visibly blocked during mixed-version
+ * rollout.
  */
-async function legacyFleetPauseProjectionIsDenied(kv: KVNamespace): Promise<boolean> {
+async function readLegacyFleetPauseProjection(
+  kv: KVNamespace,
+): Promise<'paused' | 'unpaused' | 'unknown'> {
   try {
     const raw = await kv.get(LEGACY_FLEET_PAUSE_KEY);
-    if (raw === 'true') return true;
-    if (!raw || raw === 'false') return false;
+    if (raw === 'true') return 'paused';
+    if (raw === 'false') return 'unpaused';
+    if (!raw) return 'unknown';
     const parsed = JSON.parse(raw) as unknown;
-    return typeof parsed === 'object'
+    const paused = typeof parsed === 'object'
       && parsed !== null
       && !Array.isArray(parsed)
-      && (parsed as { paused?: unknown }).paused === true;
+      ? (parsed as { paused?: unknown }).paused
+      : undefined;
+    return typeof paused === 'boolean' ? (paused ? 'paused' : 'unpaused') : 'unknown';
   } catch {
-    return false;
+    return 'unknown';
   }
 }
 
@@ -205,17 +210,18 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
   if (authorization instanceof Response) return authorization;
 
   try {
-    const [control, lastAt, intentHealth, legacyPaused] = await Promise.all([
+    const [control, lastAt, intentHealth, legacyProjection] = await Promise.all([
       getFleetControl(env),
       lastFleetRunAt(env.DB),
       fleetIntentHealth(env.DB),
-      legacyFleetPauseProjectionIsDenied(env.KV),
+      readLegacyFleetPauseProjection(env.KV),
     ]);
-    // The legacy projection is deny-only. It cannot make an unknown or
-    // canonical pause look healthy, and it cannot make a false/missing/bad KV
-    // value override the Durable Object. It only surfaces the one dangerous
-    // mixed-version outcome: DO resumed, old executor projection still paused.
-    const legacyReadbackMismatch = control.status === 'unpaused' && legacyPaused;
+    // The projection is a deny-only witness. It cannot make an unknown or
+    // canonical pause look healthy, and a readable false cannot authorize
+    // without the Durable Object. Any non-ON projection keeps a canonical ON
+    // visibly blocked until the two authorities converge.
+    const legacyReadbackMismatch = control.status === 'unpaused'
+      && legacyProjection !== 'unpaused';
     const lastRunAgeSec = lastAt === null ? null : Math.floor(Date.now() / 1000) - lastAt;
     return envelope(200, {
       code: 'OK',

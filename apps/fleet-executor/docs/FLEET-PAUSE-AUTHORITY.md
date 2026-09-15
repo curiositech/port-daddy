@@ -17,11 +17,13 @@ deny new work. Existing KV pause strings cannot authorize anything.
 
 Resume requires `{ paused: false, expectedRevision, requestId }`. The revision
 must be the positive revision the operator observed; `requestId` identifies
-that logical request. The object compares and commits atomically. A replay
-returns its original receipt only while that receipt is still current; it
-never writes again. A delayed resume or a replay after a newer pause is
-refused. Emergency `{ paused: true }` remains unconditional. Fresh unknown
-state must first be explicitly paused before any resume can be authorized.
+that logical request. Relay first prepares an immutable target revision while
+the object remains paused, writes the compatibility projection for that target,
+then commits the prepared revision. Direct unpause through the object's generic
+setter is refused. A replay returns its original receipt only while that receipt
+is still current. A delayed resume or a replay after a newer pause is refused.
+Emergency `{ paused: true }` remains unconditional. Fresh unknown state must
+first be explicitly paused before any resume can be authorized.
 
 Pause prevents new automated admissions and is rechecked at each paid call and
 external-effect boundary. A provider request already in flight cannot be
@@ -60,15 +62,26 @@ A real pause/resume cycle requires a new delivery because its epoch changed.
 Queue-send failure remains explicitly retryable under the same checked epoch.
 Missing admission storage fails closed, without the former unchecked enqueue.
 
+Dead-letter repair follows the same control contract. It rechecks the global
+and repository authorities after claiming the repair and immediately before
+token minting, check lookup, every GitHub check mutation attempt, telemetry,
+and any automatic retry decision. OFF or unknown moves the intent into the same
+durable control hold and acknowledges the dead-letter message without a GitHub
+mutation or another scheduled attempt. Resume alone cannot reopen that hold.
+
 Relay also writes the existing `fleet:paused` KV record as a deny-only
 compatibility projection. Pause writes `true` to KV before the Durable Object
-transition; resume commits the Durable Object first and writes KV `false`
-afterward. Relay acknowledges only after both writes succeed, and every partial
-local outcome biases toward OFF. This is defense in depth, not mixed-version
+transition. Resume prepares while the Durable Object is still paused, writes
+KV `false` for the prepared target revision, and only then commits that exact
+Durable Object revision. A failed false projection leaves canonical authority
+paused; a failed or superseded commit restores the KV denial best-effort while
+the canonical object remains paused. Relay acknowledges only after the prepared
+projection and commit both succeed. This is defense in depth, not mixed-version
 authority: [Workers KV is eventually consistent](https://developers.cloudflare.com/kv/concepts/how-kv-works/),
 so a cached `false` can remain visible elsewhere after the write. Current executors still require the
-canonical Durable Object receipt; KV false, missing, malformed, or unreadable
-state never authorizes work, while explicit KV true can only add a denial.
+canonical Durable Object receipt; a readable KV false never authorizes work by
+itself, while true, missing, malformed, or unreadable KV state can only add a
+denial during the rollout window.
 
 The Durable-Object-aware executor is therefore the minimum safe deployment and
 rollback floor. The Relay service entrypoint and Durable Object must exist in a
@@ -123,9 +136,11 @@ or paid runs, and pre-control executor versions are not valid rollback targets
 after activation.
 
 Local tests exercise parser rejection, serialized toggle/admission ordering,
-pause/resume revisions, rollback-projection ordering and partial failure,
+pause/resume revisions, prepared-but-not-committed admission, rollback-projection ordering and partial failure,
 storage failure, stale KV isolation, exact-attempt continuation takeover, and
-attempt takeover during reducer calls.
+attempt takeover during reducer calls. Dead-letter tests cover global pause,
+unknown authority, repository OFF, post-claim pause, pre-mutation pause, and
+OFF replacing an otherwise automatic repair retry.
 The recovery lifecycle tests use real HMAC webhook admission, the actual consumer,
 the full SQLite migration chain and the control-object implementation, with mocked
 GitHub/provider boundaries. They do not invoke providers or deploy Workers.

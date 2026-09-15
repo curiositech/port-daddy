@@ -19,6 +19,7 @@ import {
   handleFleetPause,
   handleDeleteFleetRun,
 } from '../src/fleet-observability.js';
+import { fleetControlRequest } from '../src/fleet-pause-control.js';
 import { memoryFleetControl } from './fleet-control-fixture.js';
 import type { Env } from '../src/types.js';
 
@@ -448,7 +449,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
       }),
       env,
     )).status).toBe(200);
-    expect(events).toEqual(['do', 'kv:false:2']);
+    expect(events).toEqual(['do', 'kv:false:2', 'do']);
   });
 
   it('does not mutate canonical control when the legacy pause denial cannot be written', async () => {
@@ -503,7 +504,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(JSON.parse(store.get('fleet:paused')!)).toMatchObject({ paused: true });
   });
 
-  it('reports a failed resume readback as unknown while the legacy projection remains paused', async () => {
+  it('keeps canonical authority paused when the resume projection cannot be written', async () => {
     const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
     const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
     let failedResumeWrites = 0;
@@ -532,11 +533,18 @@ describe('handleFleetPause + handleFleetHealth', () => {
 
     const health = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
     expect(await health.json()).toMatchObject({
-      paused: null,
-      pauseStatus: 'unknown',
-      pauseRevision: null,
+      paused: true,
+      pauseStatus: 'paused',
+      pauseRevision: 1,
       automationBlocked: true,
     });
+    expect(await fleetControlRequest(control.namespace, '/read')).toMatchObject({
+      status: 'paused',
+      revision: 1,
+    });
+    expect(await fleetControlRequest(control.namespace, '/admit', {
+      runId: 'owner/repo/fresh-after-refused-resume',
+    })).toMatchObject({ status: 'paused', revision: 1 });
   });
 
   it('health reports unknown for absent authority despite an old KV unpaused value', async () => {
@@ -544,6 +552,22 @@ describe('handleFleetPause + handleFleetHealth', () => {
     env.FLEET_CONTROL = undefined;
     const response = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
     expect(await response.json()).toMatchObject({ paused: null, pauseStatus: 'unknown', automationBlocked: true });
+  });
+
+  it('health reports unknown when canonical ON lacks a readable rollout projection', async () => {
+    const env = makeEnv({ kv: makeKV() });
+    env.FLEET_CONTROL = memoryFleetControl({
+      paused: false,
+      revision: 7,
+      pausedAt: 1,
+    }).namespace;
+    const response = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
+    expect(await response.json()).toMatchObject({
+      paused: null,
+      pauseStatus: 'unknown',
+      pauseRevision: null,
+      automationBlocked: true,
+    });
   });
 
   it('resuming flips the flag back and health reflects paused=false + last-run age', async () => {

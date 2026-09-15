@@ -29,8 +29,9 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /**
    * Relay's KV for Mediator reinjection, secondary flags, and the temporary
    * deny-only `fleet:paused` projection used during mixed-version rollout.
-   * Global admission still requires FLEET_CONTROL; cached false/missing values
-   * grant nothing, while an explicit true can only add a denial.
+   * Global admission still requires FLEET_CONTROL. A readable false projection
+   * grants nothing by itself; true, missing, malformed, and unreadable values
+   * only add a denial while mixed-version rollback remains possible.
    */
   CONTROL_KV?: KVNamespace;
   /**

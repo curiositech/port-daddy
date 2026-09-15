@@ -27,6 +27,26 @@ function fakeDlqBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs-dlq', messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
+function withRepoMasterOff(base: D1Database): D1Database {
+  return {
+    prepare(sql: string) {
+      if (!sql.includes('FROM repo_ship_controls')) return base.prepare(sql);
+      return {
+        bind() {
+          return {
+            async all() {
+              return {
+                success: true,
+                results: [{ ship: '*', enabled: 0, revision: 1, updated_by: 'owner', updated_at: 1 }],
+              };
+            },
+          };
+        },
+      } as unknown as ReturnType<D1Database['prepare']>;
+    },
+  } as D1Database;
+}
+
 let state: GitHubState;
 
 beforeEach(() => {
@@ -87,6 +107,132 @@ describe('DLQ handler', () => {
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
     expect(state.completed[0]).toMatchObject({ id: 77, conclusion: 'failure' });
+  });
+
+  it.each([
+    ['global paused', () => makeEnv({ CONTROL_KV: memoryKV({ fleetPause: true }) })],
+    ['global unknown', () => makeEnv({ FLEET_CONTROL: undefined })],
+    ['repository master OFF', () => {
+      const d1 = memoryD1();
+      return makeEnv({ DB: withRepoMasterOff(d1.db) });
+    }],
+  ])('holds %s DLQ work without tokens, GitHub mutations, telemetry, or retries', async (_label, envFactory) => {
+    state.existingCheckRuns.push({ id: 78, name: 'Port Daddy Fleet' });
+    const env = envFactory();
+    const capture = env.DB as D1Database;
+    const msg = fakeMessage(makeJob());
+
+    await handler.queue!(fakeDlqBatch([msg]), env, {} as ExecutionContext);
+
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(state.tokenMints).toBe(0);
+    expect(state.completed).toHaveLength(0);
+    expect(state.records).toHaveLength(0);
+    // The hold itself must be durable; a second ordinary DLQ delivery is a
+    // proven no-op instead of an implicit resume.
+    const second = fakeMessage(makeJob());
+    await handler.queue!(fakeDlqBatch([second]), { ...env, DB: capture }, {} as ExecutionContext);
+    expect(second.ack).toHaveBeenCalledOnce();
+    expect(second.retry).not.toHaveBeenCalled();
+    expect(state.tokenMints).toBe(0);
+  });
+
+  it('rechecks OFF immediately before the failure-check PATCH and holds without retry', async () => {
+    state.existingCheckRuns.push({ id: 79, name: 'Port Daddy Fleet' });
+    const tokenKv = memoryKV();
+    seedToken(tokenKv, 42);
+    let reads = 0;
+    const control = {
+      admit: vi.fn(async () => {
+        reads += 1;
+        return reads >= 4
+          ? { status: 'paused' as const, paused: true, revision: 2, pausedAt: 1 }
+          : { status: 'unpaused' as const, paused: false, revision: 1, pausedAt: 1 };
+      }),
+    };
+    const d1 = memoryD1();
+    const msg = fakeMessage(makeJob());
+
+    await handler.queue!(fakeDlqBatch([msg]), makeEnv({
+      DB: d1.db,
+      FLEET_TOKENS: tokenKv,
+      FLEET_CONTROL: control,
+    }), {} as ExecutionContext);
+
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(state.completed).toHaveLength(0);
+    expect(state.records.some(record => record.method === 'PATCH')).toBe(false);
+    expect(d1.intents.get('delivery-abc')).toMatchObject({ state: 'cancelled' });
+    expect(d1.intents.get('delivery-abc')?.controlWaitingAt).not.toBeNull();
+  });
+
+  it('rechecks OFF after the DLQ claim and before minting a GitHub token', async () => {
+    state.existingCheckRuns.push({ id: 81, name: 'Port Daddy Fleet' });
+    let reads = 0;
+    const control = {
+      admit: vi.fn(async () => {
+        reads += 1;
+        return reads >= 2
+          ? { status: 'paused' as const, paused: true, revision: 2, pausedAt: 1 }
+          : { status: 'unpaused' as const, paused: false, revision: 1, pausedAt: 1 };
+      }),
+    };
+    const d1 = memoryD1();
+    const msg = fakeMessage(makeJob());
+
+    await handler.queue!(fakeDlqBatch([msg]), makeEnv({
+      DB: d1.db,
+      FLEET_CONTROL: control,
+    }), {} as ExecutionContext);
+
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(state.tokenMints).toBe(0);
+    expect(state.records).toHaveLength(0);
+    expect(d1.intents.get('delivery-abc')).toMatchObject({ state: 'cancelled' });
+    expect(d1.intents.get('delivery-abc')?.controlWaitingAt).not.toBeNull();
+  });
+
+  it('turns a failed repair into an OFF hold instead of scheduling a retry', async () => {
+    state.existingCheckRuns.push({ id: 80, name: 'Port Daddy Fleet' });
+    const tokenKv = memoryKV();
+    seedToken(tokenKv, 42);
+    let paused = false;
+    const control = {
+      admit: vi.fn(async () => ({
+        status: paused ? 'paused' as const : 'unpaused' as const,
+        paused,
+        revision: paused ? 2 : 1,
+        pausedAt: 1,
+      })),
+    };
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (/\/check-runs\/80$/.test(String(input)) && init?.method === 'PATCH') {
+          paused = true;
+          return new Response('cannot update check', { status: 422 });
+        }
+        return originalFetch(input as RequestInfo, init);
+      }) as unknown as typeof fetch,
+    );
+    const d1 = memoryD1();
+    const msg = fakeMessage(makeJob());
+
+    await handler.queue!(fakeDlqBatch([msg]), makeEnv({
+      DB: d1.db,
+      FLEET_TOKENS: tokenKv,
+      FLEET_CONTROL: control,
+    }), {} as ExecutionContext);
+
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(state.completed).toHaveLength(0);
+    expect(d1.intents.get('delivery-abc')).toMatchObject({ state: 'cancelled' });
+    expect(d1.intents.get('delivery-abc')?.controlWaitingAt).not.toBeNull();
   });
 
   it('emits an error telemetry event for the dropped run when configured', async () => {

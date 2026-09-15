@@ -38,8 +38,14 @@ import { countShipCheckpoints } from './ship-checkpoint.js';
 import {
   assertFleetIntentCurrent,
   claimFleetIntentForDlq,
+  markFleetIntentWaitingForControl,
   markFleetIntentTerminal,
 } from './run-intent.js';
+import {
+  assertFleetAutomationControl,
+  fleetAutomationControlBlockReason,
+  FleetAutomationControlError,
+} from './control-gate.js';
 
 export const DLQ_CHECK_OUTPUT_TITLE = 'Port Daddy Fleet — infrastructure failure (no verdict)';
 const DLQ_NO_VERDICT_PREAMBLE =
@@ -96,6 +102,14 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
   const runId = runIdForDelivery(job.deliveryId);
 
   try {
+    const assertDlqBoundary = async (boundary: string): Promise<void> => {
+      await assertFleetIntentCurrent(env, job, claimedAttempt);
+      await assertFleetAutomationControl(env, job, boundary);
+    };
+    // A delivery may enter the DLQ after an operator or repository owner has
+    // turned Fleet OFF. Recheck after the D1 claim and again on every external
+    // boundary; an earlier admission is never a standing repair permit.
+    await assertDlqBoundary('before DLQ evidence reads');
     const summary = `${DLQ_NO_VERDICT_PREAMBLE}\n\n${deadLetterSummary(
       owner,
       repo,
@@ -105,12 +119,14 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       await countShipCheckpoints(env, runId),
       await countDeliveryContinuations(env, runId),
     )}`;
+    await assertDlqBoundary('before GitHub token mint');
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,
       env.GITHUB_APP_PRIVATE_KEY,
       installationId,
       env.FLEET_TOKENS,
     );
+    await assertDlqBoundary('before GitHub check lookup');
     const checkRunId = await findFleetCheckRun(
       owner,
       repo,
@@ -126,7 +142,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       // details_url it publishes would always 404 ("Run not found") — the
       // DLQ variant of the same gap execute.ts's ensureRunRow closes.
       await ensureRunRow(env, runId, job.deliveryId, job.repoFullName ?? `${owner}/${repo}`, prNumber, headSha);
-      const assertDlqOwnership = () => assertFleetIntentCurrent(env, job, claimedAttempt);
+      const assertDlqOwnership = () => assertDlqBoundary('before GitHub failure-check mutation');
       const completion = await completeCheckRunDetailed(
         owner,
         repo,
@@ -157,24 +173,46 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
         `DLQ: no '${CHECK_NAME}' creator-run check found for ${owner}/${repo}@${headSha}`,
       );
     }
-    await emitCloudTelemetry(
-      {
-        deliveryId: job.deliveryId,
-        event: 'dlq',
-        action: job.action,
-        owner,
-        repo,
-        prNumber,
-        sha: headSha,
-        status: 'error',
-        conclusion: 'failure',
-        backend: 'cloudflare',
-        checkRunId: checkRunId || null,
-        metadata: { deadLettered: true },
-      },
-      env,
-    );
+    const telemetryBlocked = await fleetAutomationControlBlockReason(env, job);
+    if (telemetryBlocked) {
+      console.log(
+        `[fleet-executor] DLQ telemetry suppressed delivery=${job.deliveryId}: ${telemetryBlocked}`,
+      );
+    } else {
+      await emitCloudTelemetry(
+        {
+          deliveryId: job.deliveryId,
+          event: 'dlq',
+          action: job.action,
+          owner,
+          repo,
+          prNumber,
+          sha: headSha,
+          status: 'error',
+          conclusion: 'failure',
+          backend: 'cloudflare',
+          checkRunId: checkRunId || null,
+          metadata: { deadLettered: true },
+        },
+        env,
+      );
+    }
   } catch (err) {
+    const blocked = err instanceof FleetAutomationControlError
+      ? err.reason
+      : await fleetAutomationControlBlockReason(env, job);
+    if (blocked) {
+      await markFleetIntentWaitingForControl(
+        env,
+        job,
+        claimedAttempt,
+        `Fleet suspended: ${blocked}; DLQ repair performed no further external effects and will not retry automatically`,
+      );
+      console.log(
+        `[fleet-executor] DLQ held by OFF authority delivery=${job.deliveryId}: ${blocked}; no automatic retry`,
+      );
+      return;
+    }
     console.error(`[fleet-executor] DLQ handler failed delivery=${job.deliveryId}: ${String(err)}`);
     throw err;
   }

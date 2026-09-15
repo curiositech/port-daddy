@@ -12,7 +12,12 @@ import type {
   RelayEvent,
 } from './types.js';
 import { randomHex } from './crypto.js';
-import { fleetControlRequest, type FleetControlState } from './fleet-pause-control.js';
+import {
+  commitFleetResume,
+  fleetControlRequest,
+  prepareFleetResume,
+  type FleetControlState,
+} from './fleet-pause-control.js';
 
 // ── Identity registry ─────────────────────────────────────────────────────────
 
@@ -597,11 +602,13 @@ async function writeLegacyFleetPauseProjection(
 
 /**
  * Acknowledge only after both the canonical revision and the legacy denial
- * projection have accepted their writes. Pause writes KV first; resume writes
- * the Durable Object first, so every partial local outcome biases toward OFF.
- * KV is eventually consistent and therefore cannot prove a mixed-version
- * global stop. Release safety still requires the Durable-Object-aware executor
- * at 100% traffic and forbids rollback below that control-contract floor.
+ * projection have accepted their writes. Pause writes KV first. Resume keeps
+ * the Durable Object paused while it prepares an immutable target revision,
+ * writes the false projection, then commits that exact revision. A failed
+ * projection therefore cannot leave canonical authority ON; a failed commit
+ * leaves the Durable Object OFF and restores the legacy denial best-effort.
+ * Release safety still requires the Durable-Object-aware executor at 100%
+ * traffic and forbids rollback below that control-contract floor.
  */
 export async function setFleetPaused(
   env: Pick<Env, 'FLEET_CONTROL' | 'KV'>,
@@ -611,10 +618,48 @@ export async function setFleetPaused(
   const projectedAt = Math.floor(Date.now() / 1000);
   if (paused) {
     await writeLegacyFleetPauseProjection(env.KV, true, projectedAt);
+    const state = await fleetControlRequest(env.FLEET_CONTROL, '/set', { paused: true });
+    if (state.status === 'unknown') throw new Error(`Fleet control unavailable: ${state.reason}`);
+    await writeLegacyFleetPauseProjection(env.KV, true, state.pausedAt, state.revision);
+    return state;
   }
-  const state = await fleetControlRequest(env.FLEET_CONTROL, '/set', { paused, ...resume });
-  if (state.status === 'unknown') throw new Error(`Fleet control unavailable: ${state.reason}`);
-  await writeLegacyFleetPauseProjection(env.KV, paused, state.pausedAt, state.revision);
+  if (!resume) throw new Error('Fleet resume precondition missing');
+  const preparation = await prepareFleetResume(env.FLEET_CONTROL, resume);
+  if (preparation.status === 'unknown') {
+    throw new Error(`Fleet resume unavailable: ${preparation.reason}`);
+  }
+  if (preparation.status === 'unpaused') {
+    await writeLegacyFleetPauseProjection(
+      env.KV,
+      false,
+      preparation.pausedAt,
+      preparation.revision,
+    );
+    return preparation;
+  }
+  if (preparation.status !== 'prepared') {
+    throw new Error('Fleet resume did not produce a preparation receipt');
+  }
+  await writeLegacyFleetPauseProjection(
+    env.KV,
+    false,
+    preparation.effectiveAt,
+    preparation.targetRevision,
+  );
+  const state = await commitFleetResume(env.FLEET_CONTROL, {
+    ...resume,
+    targetRevision: preparation.targetRevision,
+  });
+  if (state.status === 'unknown') {
+    // A failed or superseded commit leaves the canonical object paused. Restore
+    // the mixed-version denial best-effort before reporting the conflict.
+    await writeLegacyFleetPauseProjection(env.KV, true, projectedAt).catch(() => undefined);
+    throw new Error(`Fleet resume commit unavailable: ${state.reason}`);
+  }
+  if (state.status !== 'unpaused' || state.revision !== preparation.targetRevision) {
+    await writeLegacyFleetPauseProjection(env.KV, true, projectedAt).catch(() => undefined);
+    throw new Error('Fleet resume commit returned an inconsistent revision');
+  }
   return state;
 }
 

@@ -43,8 +43,7 @@ import {
   runIdForDelivery,
 } from './delivery-failure.js';
 import { flushSquidEvents } from './squid-events.js';
-import { parseFleetControl } from '../../relay/src/fleet-pause-control.js';
-import { readRepoShipControls, repoShipEnabled } from '../../shared/repo-ship-controls.js';
+import { fleetAutomationControlBlockReason } from './control-gate.js';
 import {
   assertFleetContinuationPending,
   claimFleetIntentWork,
@@ -96,40 +95,6 @@ function deliveryAttemptCursor(job: FleetRunJob, platformAttempt: number): numbe
  * queue send. A cached false is never permission; the Durable Object and D1
  * repository control must both be freshly readable and ON.
  */
-async function continuationControlBlockReason(
-  env: ExecutorEnv,
-  job: FleetRunJob,
-): Promise<string | null> {
-  if (!env.FLEET_CONTROL) return 'global-control-binding-missing';
-  try {
-    const runId = `${job.repoFullName}/${runIdForDelivery(job.deliveryId)}`;
-    const raw = await env.FLEET_CONTROL.admit(undefined, runId);
-    const control = raw?.status === 'unknown' ? raw : parseFleetControl(raw);
-    if (control.status !== 'unpaused') {
-      return control.status === 'unknown' ? `global-control-${control.reason}` : 'global-control-paused';
-    }
-    if (env.CONTROL_KV) {
-      try {
-        const legacyRaw = await env.CONTROL_KV.get('fleet:paused');
-        const parsed = legacyRaw == null ? null : JSON.parse(legacyRaw) as unknown;
-        const legacyPaused = parsed === true
-          || (typeof parsed === 'object' && parsed != null
-            && (parsed as { paused?: unknown }).paused === true);
-        if (legacyPaused) return 'legacy-pause-projection';
-      } catch {
-        // KV is a deny-only mixed-version projection. It cannot grant work and
-        // its failure cannot override the fresh canonical DO response above.
-      }
-    }
-    const repo = await readRepoShipControls(env.DB, job.repoFullName ?? '');
-    return repoShipEnabled(repo, '*') ? null : repo.available
-      ? 'repository-off'
-      : 'repository-control-unavailable';
-  } catch {
-    return 'global-control-read-failed';
-  }
-}
-
 /** Send or durably hold one exact pending continuation permit. */
 async function sendPendingContinuation(
   env: ExecutorEnv,
@@ -137,7 +102,7 @@ async function sendPendingContinuation(
   sequence: number,
 ): Promise<'sent' | 'held'> {
   await assertFleetContinuationPending(env, job, sequence);
-  const blocked = await continuationControlBlockReason(env, job);
+  const blocked = await fleetAutomationControlBlockReason(env, job);
   if (blocked) {
     await holdFleetContinuationForControl(
       env,

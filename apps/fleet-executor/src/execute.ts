@@ -21,8 +21,8 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { readFleetPauseGate, type FleetPauseGate } from './control-gate.js';
 import { FLEET_WAITING_CONTROL } from '../../shared/fleet-suspension.js';
-import { parseFleetControl } from '../../relay/src/fleet-pause-control.js';
 import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
@@ -709,61 +709,6 @@ function validDeliveryId(raw: unknown): string | null {
   if (raw.trim() !== raw) return null;
   if (!DELIVERY_ID_RE.test(raw)) return null;
   return raw;
-}
-
-type FleetPauseGate = { status: 'paused' | 'unpaused' | 'unknown'; blocked: boolean; reason: string; revision?: number };
-
-/**
- * Rolling-deploy deny projection for executors that predate the Durable Object
- * control authority. Only an explicit legacy true can add a denial; false,
- * missing, malformed, or unreadable KV state can never authorize work because
- * the Durable Object admission below remains mandatory.
- */
-async function legacyFleetPauseProjected(env: ExecutorEnv): Promise<boolean> {
-  if (!env.CONTROL_KV) return false;
-  try {
-    const raw = await env.CONTROL_KV.get('fleet:paused');
-    if (raw === 'true') return true;
-    if (raw === 'false' || raw == null) return false;
-    const parsed = JSON.parse(raw) as { paused?: unknown };
-    return parsed?.paused === true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Read the global cloud kill switch. Only an explicit, valid false value admits
- * new automated work. Missing, malformed, or unreadable control state is
- * UNKNOWN and blocks just like an operator pause; it must never become implicit
- * permission to spend money or produce external effects.
- */
-async function readFleetPauseGate(env: ExecutorEnv, expectedRevision?: number, runId?: string): Promise<FleetPauseGate> {
-  if (!env.FLEET_CONTROL) return { status: 'unknown', blocked: true, reason: 'binding-missing' };
-  try {
-    // Always call the canonical authority even when the deny-only projection
-    // is true so this delivery becomes bound to the observed control epoch.
-    const [raw, legacyPaused] = await Promise.all([
-      env.FLEET_CONTROL.admit(expectedRevision, runId),
-      legacyFleetPauseProjected(env),
-    ]);
-    const parsed = raw?.status === 'unknown' ? raw : parseFleetControl(raw);
-    if (parsed.status === 'unknown') return { status: 'unknown', blocked: true, reason: parsed.reason };
-    if (legacyPaused) {
-      return {
-        status: 'paused',
-        blocked: true,
-        reason: 'legacy-pause-projection',
-        revision: parsed.revision,
-      };
-    }
-    if (expectedRevision !== undefined && parsed.revision !== expectedRevision) {
-      return { status: 'unknown', blocked: true, reason: 'revision-changed' };
-    }
-    return { status: parsed.status, blocked: parsed.paused, reason: `operator-${parsed.status}`, revision: parsed.revision };
-  } catch {
-    return { status: 'unknown', blocked: true, reason: 'read-failed' };
-  }
 }
 
 function unknownPauseSummary(reason: FleetPauseGate['reason']): string {
