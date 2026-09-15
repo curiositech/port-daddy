@@ -243,6 +243,14 @@ interface RawFallback {
 }
 
 interface RawAgent {
+  /**
+   * Admission boundary, mirroring the daemon's FleetConfig parser
+   * (lib/fleet-ast.ts). Absent means enabled, so every ship that predates this
+   * field keeps running. A present-but-malformed value fails CLOSED rather
+   * than inheriting the default: `enabled:` is how an operator takes a ship
+   * out of service, and a typo there must not quietly put it back in.
+   */
+  enabled?: unknown;
   trigger?: string | string[];
   prompt?: string;
   backend?: string;
@@ -783,6 +791,29 @@ export function fleetMediatorFromDocument(doc: unknown): FleetMediatorConfig {
  * LLM ships. Returns `null` when the document can't be parsed or yields no
  * matching ship, so callers fall back to {@link defaultPRShips} exactly once.
  */
+/**
+ * Whether a ship is in service.
+ *
+ * WHY THIS EXISTS: `enabled: false` was honoured by the daemon's FleetConfig
+ * parser (lib/fleet-ast.ts) but silently ignored here, so an operator taking a
+ * cloud PR ship out of service in pd-fleet.yml changed nothing about the
+ * comments that ship posts. Two parsers over one config file disagreed, and
+ * the one an operator would test by reading was not the one that ran.
+ *
+ * Semantics match the daemon's exactly:
+ *   - absent            -> enabled (every pre-existing ship keeps running)
+ *   - true / 'true'     -> enabled
+ *   - anything else     -> DISABLED, fail-closed
+ *
+ * Fail-closed on a malformed value is deliberate. This is an admission
+ * boundary; `enabled: flase` must leave the ship out of service, not quietly
+ * back in it.
+ */
+function shipEnabled(agent: RawAgent): boolean {
+  if (!('enabled' in agent) || agent.enabled === undefined) return true;
+  return agent.enabled === true || agent.enabled === 'true';
+}
+
 export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfig[] | null {
 
   const agents = (doc as { fleet?: { agents?: Record<string, unknown> } } | null)?.fleet?.agents;
@@ -792,6 +823,15 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
   for (const [name, rawUnknown] of Object.entries(agents)) {
     if (!rawUnknown || typeof rawUnknown !== 'object') continue;
     const agent = rawUnknown as RawAgent;
+    // A paused ship is excluded from BOTH execution and inventory, exactly like
+    // the trigger-mismatch and missing-prompt filters below it. Surfacing it in
+    // inventory instead was considered and rejected: the relay's repo ships page
+    // (apps/relay/src/repo-ships-page.ts) builds a ShipView with no notion of
+    // "paused", so a listed-but-paused ship would render as running and the page
+    // would misreport. Teaching that page the distinction is worth doing and is
+    // not this change's job. Nothing reappears via the default merge either —
+    // defaultPRShips() is code-reviewer alone.
+    if (!shipEnabled(agent)) continue;
     if (!triggerMatches(agent.trigger, trigger)) continue;
 
     const purser = agent.class === 'purser';

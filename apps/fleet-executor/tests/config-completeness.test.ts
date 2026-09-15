@@ -63,6 +63,29 @@ describe('the config type and the config parser do not drift', () => {
     const parsed = parseFleetShips(yaml, 'pull_request');
     expect(parsed, 'the fixture must parse, or this suite proves nothing').not.toBeNull();
 
+    // `enabled` is an INPUT key, never projected onto ShipConfig: a paused ship
+    // is excluded from the roster rather than listed with a flag. Assert that
+    // directly here so the completeness guard's `settable` set stays honest —
+    // there is no `enabled` field on the output to make reachable.
+    const pausedYaml = [
+      'fleet:',
+      '  agents:',
+      '    demo-paused:',
+      '      enabled: false',
+      '      trigger: pull_request',
+      '      prompt: paused ship',
+      '',
+    ].join('\n');
+    // NOTE the return is `null`, not `[]`: the projection collapses an empty
+    // roster to null, and the executor reads that as "no config" and falls back
+    // to defaultPRShips(). See the all-paused hazard pinned in fleet.test.ts.
+    for (const trig of ['pull_request', '*']) {
+      expect(
+        parseFleetShips(pausedYaml, trig),
+        `a paused ship must be excluded from the ${trig} parse`,
+      ).toBeNull();
+    }
+
     // A SECOND fixture, because some fields are only ever emitted for a purser
     // ship. One reviewer fixture cannot see them, and a field this suite cannot
     // see is a field it cannot protect -- which would make the purser's own
