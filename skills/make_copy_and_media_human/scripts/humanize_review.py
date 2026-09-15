@@ -462,8 +462,16 @@ def rhythm_finding(path, line, excerpt, ism, explanation, rewrite, dialect,
     flag most careful human text too: the gptme anti-slop detector measured its
     em-dash rule warning on ~64% of legitimate technical blog posts."""
     sev, note = "low", " (cue only — no baseline supplied, so this is not evidence of anything)"
-    if base_value is not None and base_value > 0:
-        ratio = observed / base_value
+    if base_value is not None:
+        # A baseline of zero is a real baseline, not a missing one, and it means
+        # different things in each direction. Upward: this author never does
+        # this, so any material presence is the strongest possible delta \u2014 floor
+        # the divisor so the ratio stays computable. Downward: there is nothing
+        # to decrease from, so the comparison is meaningless and must not fire.
+        # Getting this wrong made a text score findings against its own baseline.
+        if direction == "down" and base_value < 0.05:
+            return None
+        ratio = observed / max(base_value, 0.05)
         want = th(ism, ratio_key, 2.0)
         crossed = ratio >= want if direction == "up" else ratio <= want
         if crossed:
@@ -1970,7 +1978,55 @@ def run_selftest():
     if noise:
         print("FALSE POSITIVES on human prose:", " ".join(sorted(noise)))
         return 1
-    print("selftest OK (all tells caught, zero false positives on the clean sample)")
+
+    # --baseline is the load-carrying claim of this script, so it gets asserted
+    # rather than demonstrated. Three properties have to hold together:
+    #   1. a rhythm signal stays LOW with no baseline, whatever its absolute rate
+    #   2. the same signal escalates to HIGH against a baseline it far exceeds
+    #   3. an author scored against their OWN writing produces nothing
+    # Property 3 is the one that matters: it is what stops this skill flagging
+    # someone for writing the way they always write.
+    dashy = ("We shipped it on a Tuesday \u2014 a bad Tuesday \u2014 and the replicas lagged "
+             "\u2014 badly \u2014 behind the primary. Nobody lost money \u2014 we caught it early "
+             "\u2014 but the alerting never fired \u2014 not once \u2014 which is the part that "
+             "worries me. The fix was small \u2014 three lines \u2014 and finding it took "
+             "hours \u2014 most of an afternoon \u2014 because we were looking at the wrong "
+             "graph \u2014 the queue depth \u2014 the entire time. I still do not know "
+             "\u2014 genuinely \u2014 why the lag spiked when it did.\n") * 3
+    calm = ("We shipped the migration on a Tuesday and it went badly for about forty "
+            "minutes. The read replicas lagged behind the primary, so a handful of "
+            "customers saw stale invoice totals. Nobody lost money. We caught it "
+            "because Tomasz happened to be looking at the wrong dashboard, which is "
+            "not a control I want to rely on again. The fix was three lines in the "
+            "connection pool config. Finding it took most of the afternoon, and I am "
+            "still not sure we understand why the lag spiked when it did.\n") * 3
+
+    def sev_of(text, base, ism="em-dash-density"):
+        return next((f["severity"] for f in analyze_prose(Path("x.md"), text, ".md", base)
+                     if f["ism"] == ism), None)
+
+    calm_base = prose_metrics(calm, ".md")
+    base = {"files": 1, "words": calm_base["words"],
+            **{k: v for k, v in calm_base.items() if k != "words"}}
+
+    no_base = sev_of(dashy, None)
+    if no_base != "low":
+        print(f"BASELINE TEST: dash-heavy text with no baseline should be 'low', got {no_base!r}")
+        return 1
+    with_base = sev_of(dashy, base)
+    if with_base != "high":
+        print(f"BASELINE TEST: dash-heavy text against a calm baseline should be "
+              f"'high', got {with_base!r}")
+        return 1
+    own = [f["ism"] for f in analyze_prose(Path("x.md"), calm, ".md", base)
+           if f.get("family") == "rhythm"]
+    if own:
+        print("BASELINE TEST: an author scored against their own writing produced "
+              "rhythm findings:", " ".join(own))
+        return 1
+
+    print("selftest OK (all tells caught; zero false positives on the clean sample; "
+          "--baseline escalates low->high on a real delta and stays silent on self)")
     return 0
 
 
