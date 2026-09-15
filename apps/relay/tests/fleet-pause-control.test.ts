@@ -51,6 +51,26 @@ describe('transactional Fleet pause authority', () => {
     expect(await fleetControlRequest(namespace, '/admit', { runId: 'owner/repo/run:two' })).toMatchObject({ revision: 3 });
   });
 
+  it('binds a delivery whose first observation is paused and refuses to rebind it after resume', async () => {
+    const { namespace } = memoryFleetControl({ paused: true, revision: 7, pausedAt: 1 });
+    expect(await fleetControlRequest(namespace, '/admit', {
+      runId: 'owner/repo/run:first-seen-paused',
+    })).toMatchObject({ status: 'paused', revision: 7 });
+    expect(await fleetControlRequest(namespace, '/set', {
+      paused: false,
+      expectedRevision: 7,
+      requestId: 'resume-after-paused-observation',
+    })).toMatchObject({ status: 'unpaused', revision: 8 });
+    expect(await fleetControlRequest(namespace, '/admit', {
+      expectedRevision: 8,
+      runId: 'owner/repo/run:first-seen-paused',
+    })).toMatchObject({ status: 'unknown', reason: 'run-revision-changed' });
+    expect(await fleetControlRequest(namespace, '/admit', {
+      expectedRevision: 8,
+      runId: 'owner/repo/run:fresh-after-resume',
+    })).toMatchObject({ status: 'unpaused', revision: 8 });
+  });
+
   it('replayed and delayed resumes cannot override a newer emergency pause', async () => {
     const { namespace } = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
     const resume = { paused: false, expectedRevision: 1, requestId: 'resume-once' };

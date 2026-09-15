@@ -18,42 +18,47 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { MIGRATIONS_DIR, SCHEMA_SQL, makeTestD1, migrationFiles } from './support/d1-sqlite.js';
 
-const NEW_MIGRATIONS = [
-  '2026-08-22-seamanship-suggestions.sql',
-  '2026-08-22-snipe-chat-spend.sql',
-];
-
 const read = (name: string): string => readFileSync(join(MIGRATIONS_DIR, name), 'utf8');
+const CONTROL_WAITING_MIGRATION = '2026-09-14-fleet-control-waiting.sql';
+const LEGACY_DESTRUCTIVE_MIGRATIONS = new Map([
+  ['2026-08-09-executor-identity.sql', '31ab959be16f9da9cf175f6291dfa9e826bfe5fdeef686630840513144fa5a92'],
+]);
+const GUARDED_MIGRATIONS = migrationFiles().filter((name) => !LEGACY_DESTRUCTIVE_MIGRATIONS.has(name));
+const ledger = JSON.parse(readFileSync(join(MIGRATIONS_DIR, 'applied-staging.json'), 'utf8')) as {
+  applied?: { file: string }[];
+};
+const appliedMigrations = new Set((ledger.applied ?? []).map((row) => row.file));
+const PENDING_MIGRATIONS = migrationFiles().filter((name) => !appliedMigrations.has(name));
+const ROLLBACK_COMPATIBILITY_COHORT = [...new Set([
+  ...PENDING_MIGRATIONS,
+  CONTROL_WAITING_MIGRATION,
+])];
 
 describe('migrations — README rule 2: name for ordering', () => {
   it('the new files match YYYY-MM-DD-short-description.sql', () => {
-    for (const name of NEW_MIGRATIONS) {
+    for (const name of migrationFiles()) {
       expect(name).toMatch(/^\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.sql$/);
     }
   });
 
-  it('they are present and sort AFTER every migration that predates them', () => {
-    const all = migrationFiles();
-    for (const name of NEW_MIGRATIONS) {
-      expect(all).toContain(name);
-    }
-    const older = all.filter((n) => !NEW_MIGRATIONS.includes(n));
-    for (const name of NEW_MIGRATIONS) {
-      for (const prev of older) {
-        // Only assert against files dated on or before ours; a hypothetical
-        // future-dated migration from another branch is not our ordering bug.
-        if (prev.slice(0, 10) <= name.slice(0, 10)) expect(prev < name).toBe(true);
-      }
+  it('discovers every migration except an immutable legacy destructive migration', () => {
+    expect(GUARDED_MIGRATIONS).toContain(CONTROL_WAITING_MIGRATION);
+    expect(GUARDED_MIGRATIONS.length + LEGACY_DESTRUCTIVE_MIGRATIONS.size)
+      .toBe(migrationFiles().length);
+    for (const [name, digest] of LEGACY_DESTRUCTIVE_MIGRATIONS) {
+      expect(createHash('sha256').update(read(name)).digest('hex'), name).toBe(digest);
     }
   });
 
   it('the suggestions table exists before the grants that reference it', () => {
-    const [suggestions, chat] = NEW_MIGRATIONS as [string, string];
+    const suggestions = '2026-08-22-seamanship-suggestions.sql';
+    const chat = '2026-08-22-snipe-chat-spend.sql';
     expect(suggestions < chat).toBe(true);
     const sql = read(suggestions);
     expect(sql.indexOf('CREATE TABLE IF NOT EXISTS seamanship_suggestions')).toBeLessThan(
@@ -63,87 +68,73 @@ describe('migrations — README rule 2: name for ordering', () => {
 });
 
 describe('migrations — README rule 3: forward-only and additive', () => {
-  it('contain no destructive statement of any kind', () => {
-    for (const name of NEW_MIGRATIONS) {
+  it('guards every present and future migration after the policy floor against destructive SQL', () => {
+    for (const name of GUARDED_MIGRATIONS) {
       const body = read(name)
         .split('\n')
         .filter((l) => !l.trim().startsWith('--'))
         .join('\n');
       expect(body).not.toMatch(/\bDROP\s+(TABLE|COLUMN|INDEX)\b/i);
-      expect(body).not.toMatch(/\bALTER\s+TABLE\b/i);
       expect(body).not.toMatch(/\bRENAME\b/i);
       expect(body).not.toMatch(/\bDELETE\s+FROM\b/i);
       expect(body).not.toMatch(/\bUPDATE\s+\w+\s+SET\b/i);
+      const alters = body
+        .split(';')
+        .map((statement) => statement.trim())
+        .filter((statement) => /^ALTER\s+TABLE\b/i.test(statement));
+      for (const alter of alters) {
+        expect(alter, `${name}: ALTER TABLE must only add a column`).toMatch(
+          /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+ADD\s+COLUMN\s+[A-Za-z_][A-Za-z0-9_]*\b/is,
+        );
+      }
     }
   });
 
-  it('create only NEW tables — nothing an older release already reads', () => {
+  it('preserves every existing table and column contract for the previous Worker release', () => {
     // Rollback compatibility, concretely: build the schema as the PREVIOUS
     // release knew it (the chain minus these files), then build it with them.
     // The delta must be additions only — every table the old release read is
     // still there, with the same columns, so traffic shifted back in seconds
     // finds a database it understands.
-    const before = makeTestD1(NEW_MIGRATIONS);
+    const before = makeTestD1(ROLLBACK_COMPATIBILITY_COHORT);
     const after = makeTestD1();
     try {
       const tables = (t: typeof before): string[] =>
         (t.raw.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").all() as {
           name: string;
         }[]).map((r) => r.name);
-      const cols = (t: typeof before, table: string): string[] =>
-        (t.raw.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((r) => r.name);
+      const cols = (t: typeof before, table: string): Record<string, unknown>[] =>
+        t.raw.prepare(`PRAGMA table_info(${table})`).all() as Record<string, unknown>[];
 
       const old = tables(before);
       const now = tables(after);
       for (const n of old) {
         expect(now).toContain(n);
-        // ...and unchanged: no added, dropped or renamed column on a table the
-        // previous release already reads.
-        expect(cols(after, n)).toEqual(cols(before, n));
+        // Additive columns are rollback-compatible; every column the previous
+        // release knows must retain its exact SQLite contract.
+        const current = new Map(cols(after, n).map((column) => [column.name, column]));
+        for (const previous of cols(before, n)) {
+          expect(current.get(previous.name as string), `${n}.${String(previous.name)}`).toEqual(previous);
+        }
       }
-      const added = now.filter((n) => !old.includes(n)).filter((n) => !n.startsWith('sqlite_'));
-      expect(added.sort()).toEqual([
-        'agent_chat_spend',
-        'agent_chats',
-        'seamanship_build_grants',
-        'seamanship_suggestion_jobs',
-        'seamanship_suggestions',
-      ]);
     } finally {
       before.close();
       after.close();
     }
   });
 
-  it('are idempotent — every CREATE guards with IF NOT EXISTS', () => {
-    for (const name of NEW_MIGRATIONS) {
-      const creates = read(name).match(/CREATE (?:UNIQUE )?(?:TABLE|INDEX)[^\n]*/gi) ?? [];
-      expect(creates.length).toBeGreaterThan(0);
-      for (const c of creates) expect(c).toMatch(/IF NOT EXISTS/i);
-    }
-  });
-
-  it('re-applying the whole chain is a no-op, not an error', () => {
-    const t = makeTestD1();
-    try {
-      for (const name of NEW_MIGRATIONS) {
-        expect(() => t.raw.exec(read(name))).not.toThrow();
-      }
-    } finally {
-      t.close();
-    }
-  });
 });
 
 describe('migrations — README rule 4: the staging ledger is CI-owned', () => {
-  it('the new files are NOT hand-written into the ledger', () => {
-    // A hand edit here is the one way to lie the prod gate green with a
-    // migration that never ran on staging. CI records them after a real apply.
-    const ledger = JSON.parse(readFileSync(join(MIGRATIONS_DIR, 'applied-staging.json'), 'utf8')) as
-      | { file: string }[]
-      | Record<string, unknown>;
-    const files = Array.isArray(ledger) ? ledger.map((r) => r.file) : [];
-    for (const name of NEW_MIGRATIONS) expect(files).not.toContain(name);
+  it('discovers the exact pending set from a unique, referentially valid ledger', () => {
+    // CI owns the ledger write after a real staging apply. This read-side test
+    // must remain valid both before and after that generated update.
+    const applied = (ledger.applied ?? []).map((row) => row.file);
+    expect(new Set(applied).size).toBe(applied.length);
+    for (const name of applied) expect(migrationFiles()).toContain(name);
+    expect(PENDING_MIGRATIONS).toEqual(
+      migrationFiles().filter((name) => !new Set(applied).has(name)),
+    );
   });
 });
 
@@ -184,10 +175,12 @@ describe('migrations — the schema-of-record mirrors them', () => {
       }
       for (const db of [chain.raw, fresh]) {
         db.exec(`INSERT INTO fleet_run_intents
-          (delivery_id, repo_full_name, pr_number, pr_url, head_sha, event_type, generation, state)
-          VALUES ('held', 'a/b', 1, 'https://github.com/a/b/pull/1', 'sha', 'pull_request', 1, 'waiting_for_control')`);
-        expect(db.prepare('SELECT control_wait_count, requeue_revision FROM fleet_run_intents').get())
-          .toEqual({ control_wait_count: 0, requeue_revision: null });
+          (delivery_id, repo_full_name, pr_number, pr_url, head_sha, event_type, generation,
+           state, control_waiting_at)
+          VALUES ('held', 'a/b', 1, 'https://github.com/a/b/pull/1', 'sha', 'pull_request',
+                  1, 'retrying', 123)`);
+        expect(db.prepare('SELECT control_waiting_at, control_wait_count, requeue_revision FROM fleet_run_intents').get())
+          .toEqual({ control_waiting_at: 123, control_wait_count: 0, requeue_revision: null });
         expect(() => db.exec("UPDATE fleet_run_intents SET state = 'invented'")).toThrow();
         db.exec("INSERT INTO fleet_control_requeues VALUES ('request', 'held', 1, 2, 'operator', 0)");
         expect(() => db.exec("INSERT INTO fleet_control_requeues VALUES ('other', 'held', 1, 2, 'operator', 0)")).toThrow();

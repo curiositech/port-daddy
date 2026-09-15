@@ -365,22 +365,26 @@ describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', ()
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
-    const originalGet = kv.get.bind(kv);
-    let pauseReads = 0;
-    kv.get = (async (key: string) => {
-      if (key === 'fleet:paused') {
-        pauseReads += 1;
-        return pauseReads >= 2 ? 'true' : 'false';
-      }
-      return originalGet(key);
-    }) as KVNamespace['get'];
+    let controlReads = 0;
+    const fleetControl = { admit: vi.fn(async () => {
+      controlReads += 1;
+      return controlReads >= 2
+        ? { status: 'paused' as const, paused: true, revision: 2, pausedAt: 1 }
+        : { status: 'unpaused' as const, paused: false, revision: 1, pausedAt: 1 };
+    }) };
 
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
 
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
+    await executeFleet(makeJob(), makeEnv({
+      FLEET_TOKENS: kv,
+      CONTROL_KV: kv,
+      FLEET_CONTROL: fleetControl,
+      AI: ai.ai,
+      DB: d1.db,
+    }));
 
-    expect(pauseReads).toBe(2);
+    expect(controlReads).toBe(2);
     expect(ai.calls).toHaveLength(0);
     expect(state.commentPosts).toBe(0);
     expect(state.reviews).toHaveLength(0);
@@ -392,36 +396,40 @@ describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', ()
     // Ship configs are recorded once, right after the gating check is
     // established — before the per-ship loop's own (second) pause check, so
     // this run's pause-before-first-ship still carries that one config row.
-    expect(d1.steps.map(s => s.kind)).toEqual(['fleet-ship-config', 'check-completed']);
-    expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pausedBeforeShip":"code-reviewer"');
+    expect(d1.steps.map(s => s.kind)).toEqual(['fleet-ship-config', 'automation-suspended']);
+    expect(d1.steps.find(s => s.kind === 'automation-suspended')?.detail).toContain('"boundary":"before Fleet ship execution"');
+    expect(d1.steps.find(s => s.kind === 'automation-suspended')?.detail).toContain('"reason":"revision-changed"');
   });
 
   it('control read becoming unavailable before a ship denies that ship without AI or review posts', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
-    const originalGet = kv.get.bind(kv);
-    let pauseReads = 0;
-    kv.get = (async (key: string) => {
-      if (key === 'fleet:paused') {
-        pauseReads += 1;
-        if (pauseReads >= 2) throw new Error('control plane unavailable');
-      }
-      return originalGet(key);
-    }) as KVNamespace['get'];
+    let controlReads = 0;
+    const fleetControl = { admit: vi.fn(async () => {
+      controlReads += 1;
+      if (controlReads >= 2) throw new Error('control plane unavailable');
+      return { status: 'unpaused' as const, paused: false, revision: 1, pausedAt: 1 };
+    }) };
 
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
+    await executeFleet(makeJob(), makeEnv({
+      FLEET_TOKENS: kv,
+      CONTROL_KV: kv,
+      FLEET_CONTROL: fleetControl,
+      AI: ai.ai,
+      DB: d1.db,
+    }));
 
-    expect(pauseReads).toBe(2);
+    expect(controlReads).toBe(2);
     expect(ai.calls).toHaveLength(0);
     expect(state.commentPosts).toBe(0);
     expect(state.reviews).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('failure');
-    expect(state.completed[0].summary).toContain('global cloud pause state is unknown (read-failed)');
-    expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pauseReason":"read-failed"');
+    expect(state.completed[0].summary).toContain('control authority is blocked (read-failed)');
+    expect(d1.steps.find(s => s.kind === 'automation-suspended')?.detail).toContain('"reason":"read-failed"');
   });
 });
 

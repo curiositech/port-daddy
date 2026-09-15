@@ -581,20 +581,34 @@ export function buildMediatorScanIo(deps: {
     summary: string,
     token: string,
   ) => Promise<boolean>;
+  /** Revalidate exact attempt, PR input and automation controls at each effect. */
+  assertCurrent?: (boundary: string) => Promise<void>;
 }): MediatorScanIo {
   const conveneUrl = (deps.env.RELAY_PUBLISH_URL ?? '').replace(
     /\/v1\/publish$/,
     '/v1/mediator/convene',
   );
   return {
-    listOpenPrs: () => deps.listOpenPrs(deps.owner, deps.repo, deps.token),
-    fetchPatches: (prNumber) => deps.fetchPatches(deps.owner, deps.repo, prNumber, deps.token),
+    listOpenPrs: async () => {
+      await deps.assertCurrent?.('before Mediator open-PR read');
+      return deps.listOpenPrs(deps.owner, deps.repo, deps.token);
+    },
+    fetchPatches: async (prNumber) => {
+      await deps.assertCurrent?.(`before Mediator PR #${prNumber} patch read`);
+      return deps.fetchPatches(deps.owner, deps.repo, prNumber, deps.token);
+    },
     postNeutralCheck: async (headSha, summary) => {
       if (!headSha) return;
+      await deps.assertCurrent?.(`before Mediator neutral check creation on ${headSha}`);
       const id = await deps.createCheckRun(deps.owner, deps.repo, MEDIATOR_CHECK_NAME, headSha, deps.token);
-      if (id) await deps.completeCheckRun(deps.owner, deps.repo, id, 'neutral', summary, deps.token);
+      if (id) {
+        await deps.assertCurrent?.(`before Mediator neutral check completion on ${headSha}`);
+        await deps.completeCheckRun(deps.owner, deps.repo, id, 'neutral', summary, deps.token);
+      }
     },
-    publishConvene: (channelSuffix, body) =>
-      publishChainedEvent(deps.env, channelSuffix, body, conveneUrl),
+    publishConvene: async (channelSuffix, body) => {
+      await deps.assertCurrent?.('before Mediator convene publication');
+      return publishChainedEvent(deps.env, channelSuffix, body, conveneUrl);
+    },
   };
 }

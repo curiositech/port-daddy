@@ -81,7 +81,11 @@ export class FleetControl implements DurableObject {
         if (boundRevision !== undefined && boundRevision !== current.revision) {
           return Response.json(unknownFleetControl('run-revision-changed'));
         }
-        if (boundRevision === undefined && current.status === 'unpaused') {
+        // Bind the delivery to the first valid control epoch it observes,
+        // including a paused epoch. Otherwise a delivery first seen while
+        // paused could be rebound to the later resume revision and run even
+        // though the pause/resume cycle requires a fresh delivery.
+        if (boundRevision === undefined && current.status !== 'unknown') {
           await storage.put({ [runKey]: current.revision });
         }
       }

@@ -640,6 +640,11 @@ export interface D1Capture {
     action: string;
     generation: number;
     attemptCount: number;
+    controlWaitingAt: number | null;
+    lastError: string | null;
+    continuationSequence: number;
+    pendingContinuationSequence: number | null;
+    pendingContinuationAt: number | null;
   }>;
   /**
    * Seeded credit_ledger rows the circuit-breaker SELECT reads. Empty ⇒ the
@@ -656,6 +661,8 @@ export interface D1Capture {
   failAll: boolean;
   /** Set true to make the next fleet_run_steps insert throw, then reset. */
   failNextStepInsert: boolean;
+  /** Omit `meta.changes` from the next intent UPDATE to model an unverifiable D1 write. */
+  omitNextIntentUpdateMeta: boolean;
   /**
    * When true, the NEXT logical-run upsert into `fleet_runs`
    * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
@@ -666,6 +673,14 @@ export interface D1Capture {
   failNextRecordRunStartInsert: boolean;
   /** Number of `.run()` calls attempted (including the ones that threw). */
   runCalls: number;
+  /** One-shot race injector immediately before the guarded continuation INSERT evaluates ownership. */
+  beforeConditionalContinuationInsert: (() => void | Promise<void>) | null;
+  /** One-shot race injector immediately before the continuation-permit CAS. */
+  beforeContinuationPermitCas: (() => void | Promise<void>) | null;
+  /** One-shot race injector immediately before an explicit successor CAS. */
+  beforeContinuationSuccessorCas: (() => void | Promise<void>) | null;
+  /** One-shot race injector immediately before a durable continuation count is returned. */
+  beforeContinuationCountRead: (() => void | Promise<void>) | null;
 }
 
 /**
@@ -684,6 +699,11 @@ export function memoryD1(intent: Partial<{
   action: string;
   generation: number;
   attemptCount: number;
+  controlWaitingAt: number | null;
+  lastError: string | null;
+  continuationSequence: number;
+  pendingContinuationSequence: number | null;
+  pendingContinuationAt: number | null;
 }> = {}): D1Capture {
   const runsById = new Map<string, CapturedRun>();
   const deliveryId = intent.deliveryId ?? 'delivery-abc';
@@ -696,6 +716,11 @@ export function memoryD1(intent: Partial<{
     action: intent.action ?? 'opened',
     generation: intent.generation ?? 1,
     attemptCount: intent.attemptCount ?? 0,
+    controlWaitingAt: intent.controlWaitingAt ?? null,
+    lastError: intent.lastError ?? null,
+    continuationSequence: intent.continuationSequence ?? 0,
+    pendingContinuationSequence: intent.pendingContinuationSequence ?? null,
+    pendingContinuationAt: intent.pendingContinuationAt ?? null,
   }]]);
   const cap: D1Capture = {
     db: undefined as unknown as D1Database,
@@ -709,8 +734,13 @@ export function memoryD1(intent: Partial<{
     creditTableMissing: false,
     failAll: false,
     failNextStepInsert: false,
+    omitNextIntentUpdateMeta: false,
     failNextRecordRunStartInsert: false,
     runCalls: 0,
+    beforeConditionalContinuationInsert: null,
+    beforeContinuationPermitCas: null,
+    beforeContinuationSuccessorCas: null,
+    beforeContinuationCountRead: null,
   };
 
   const hasFencingNewer = (current: D1Capture['intents'] extends Map<string, infer R> ? R : never) =>
@@ -788,6 +818,30 @@ export function memoryD1(intent: Partial<{
             });
           }
         } else if (/INTO fleet_run_steps/i.test(sql)) {
+          if (/WHERE EXISTS/i.test(sql)) {
+            const injectRace = cap.beforeConditionalContinuationInsert;
+            cap.beforeConditionalContinuationInsert = null;
+            await injectRace?.();
+            const current = intents.get(String(args[7]));
+            const identityMatches = current
+              && current.repoFullName === String(args[8])
+              && current.prNumber === Number(args[9])
+              && current.headSha === String(args[10])
+              && current.eventType === String(args[11])
+              && current.action === String(args[12]);
+            const pendingEvidence = /current\.pending_continuation_sequence = \?/i.test(sql);
+            const ownershipMatches = pendingEvidence
+              ? current?.state === 'retrying'
+                && current.pendingContinuationSequence === Number(args[13])
+                && current.continuationSequence === Number(args[14])
+              : current?.state === 'running'
+                && current.attemptCount === Number(args[13])
+                && current.pendingContinuationSequence == null;
+            if (!identityMatches || !ownershipMatches
+                || current.controlWaitingAt != null || hasFencingNewer(current)) {
+              return { success: true, meta: { changes: 0 } };
+            }
+          }
           cap.steps.push({
             runId: args[0],
             seq: args[1],
@@ -797,26 +851,121 @@ export function memoryD1(intent: Partial<{
             detail: args[5],
             createdAt: Number(args[6]),
           });
+          if (/WHERE EXISTS/i.test(sql)) {
+            return { success: true, meta: { changes: 1 } };
+          }
         } else if (/UPDATE fleet_run_intents/i.test(sql)) {
-          const deliveryIndex = /SET state = \?/i.test(sql)
+          const omitUpdateMeta = cap.omitNextIntentUpdateMeta;
+          cap.omitNextIntentUpdateMeta = false;
+          const deliveryIndex = /SET state = 'running', attempt_count = \?, continuation_sequence = \?/i.test(sql)
+            || /SET state = 'retrying', pending_continuation_sequence = \?/i.test(sql)
             ? 4
-            : /SET state = 'waiting_for_control'/i.test(sql)
-              ? 2
-              : 3;
+            : /SET state = \?/i.test(sql)
+              ? 4
+              : /SET state = 'waiting_for_control'/i.test(sql)
+                ? 2
+                : 3;
           const deliveryId = String(args[deliveryIndex]);
           const current = intents.get(deliveryId);
           if (current === undefined) return { success: true, meta: { changes: 0 } };
-          if (/SET state = 'running'/i.test(sql)) {
+          if (/SET state = 'running', attempt_count = \?, continuation_sequence = \?/i.test(sql)) {
+            const injectRace = cap.beforeContinuationSuccessorCas;
+            cap.beforeContinuationSuccessorCas = null;
+            await injectRace?.();
+            const identityMatches = current.repoFullName === String(args[5])
+              && current.prNumber === Number(args[6]) && current.headSha === String(args[7])
+              && current.eventType === String(args[8]) && current.action === String(args[9]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || current.state !== 'retrying'
+              || current.controlWaitingAt != null
+              || current.pendingContinuationSequence !== Number(args[10])
+              || current.continuationSequence !== Number(args[11])
+              || current.attemptCount >= Number(args[12]) || newer) {
+              return { success: true, meta: { changes: 0 } };
+            }
+            current.state = 'running';
+            current.attemptCount = Number(args[0]);
+            current.continuationSequence = Number(args[1]);
+            current.pendingContinuationSequence = null;
+            current.pendingContinuationAt = null;
+            current.lastError = null;
+          } else if (/SET state = 'retrying', pending_continuation_sequence = \?/i.test(sql)) {
+            const injectRace = cap.beforeContinuationPermitCas;
+            cap.beforeContinuationPermitCas = null;
+            await injectRace?.();
+            const identityMatches = current.repoFullName === String(args[5])
+              && current.prNumber === Number(args[6]) && current.headSha === String(args[7])
+              && current.eventType === String(args[8]) && current.action === String(args[9]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || current.state !== 'running'
+              || current.attemptCount !== Number(args[10])
+              || current.continuationSequence !== Number(args[11])
+              || current.pendingContinuationSequence != null
+              || current.controlWaitingAt != null || newer) {
+              return { success: true, meta: { changes: 0 } };
+            }
+            current.state = 'retrying';
+            current.pendingContinuationSequence = Number(args[0]);
+            current.pendingContinuationAt = Number(args[1]);
+            current.lastError = String(args[3]);
+          } else if (/SET state = 'cancelled', control_waiting_at = \?/i.test(sql)
+            && /pending_continuation_sequence = \?/i.test(sql)) {
             const identityMatches = current.repoFullName === String(args[4])
               && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
               && current.eventType === String(args[7]) && current.action === String(args[8]);
-            const safeAttempt = Number(args[9]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || current.state !== 'retrying'
+              || current.controlWaitingAt != null
+              || current.pendingContinuationSequence !== Number(args[9])
+              || current.continuationSequence !== Number(args[10]) || newer) {
+              return { success: true, meta: { changes: 0 } };
+            }
+            current.state = 'cancelled';
+            current.controlWaitingAt = Number(args[0]);
+            current.lastError = String(args[2]);
+          } else if (/SET state = 'running', attempt_count = \?/i.test(sql)) {
+            const identityMatches = current.repoFullName === String(args[4])
+              && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
+              && current.eventType === String(args[7]) && current.action === String(args[8]);
+            const priorAttempt = Number(args[9]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || current.attemptCount !== priorAttempt
+              || current.controlWaitingAt != null || newer) {
+              return { success: true, meta: { changes: 0 } };
+            }
+            current.state = 'running';
+            current.attemptCount = Number(args[0]);
+            current.pendingContinuationSequence = null;
+            current.pendingContinuationAt = null;
+            current.lastError = String(args[2]);
+          } else if (/SET state = 'running'/i.test(sql)) {
+            const identityMatches = current.repoFullName === String(args[4])
+              && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
+              && current.eventType === String(args[7]) && current.action === String(args[8]);
+            const expectedSequence = Number(args[9]);
+            const safeAttempt = Number(args[10]);
             const stateAllows = ['admitting', 'queued', 'retrying', 'enqueue_failed'].includes(current.state)
               || (current.state === 'running' && current.attemptCount < safeAttempt);
             const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
-            if (!identityMatches || !stateAllows || newer) return { success: true, meta: { changes: 0 } };
+            if (!identityMatches || current.controlWaitingAt != null
+              || current.pendingContinuationSequence != null
+              || current.continuationSequence !== expectedSequence
+              || !stateAllows || newer) {
+              return { success: true, meta: { changes: 0 } };
+            }
             current.state = 'running';
             current.attemptCount = Math.max(current.attemptCount, safeAttempt);
+          } else if (/control_waiting_at = \?/i.test(sql)) {
+            const identityMatches = current.repoFullName === String(args[4])
+              && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
+              && current.eventType === String(args[7]) && current.action === String(args[8]);
+            if (!identityMatches || current.state !== 'running'
+              || current.attemptCount !== Number(args[9])) {
+              return { success: true, meta: { changes: 0 } };
+            }
+            current.state = 'cancelled';
+            current.controlWaitingAt = Number(args[0]);
+            current.lastError = String(args[2]);
           } else if (/SET state = 'retrying'/i.test(sql)) {
             const identityMatches = current.repoFullName === String(args[4])
               && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
@@ -828,9 +977,7 @@ export function memoryD1(intent: Partial<{
               return { success: true, meta: { changes: 0 } };
             }
             current.state = 'retrying';
-          } else if (/SET state = 'waiting_for_control'/i.test(sql)) {
-            if (current.state !== 'running') return { success: true, meta: { changes: 0 } };
-            current.state = 'waiting_for_control';
+            current.lastError = String(args[2]);
           } else if (/SET state = 'failure'/i.test(sql)) {
             const identityMatches = current.repoFullName === String(args[4])
               && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
@@ -839,10 +986,21 @@ export function memoryD1(intent: Partial<{
             if (!identityMatches || newer || !['admitting', 'queued', 'running', 'retrying', 'enqueue_failed'].includes(current.state)) return { success: true, meta: { changes: 0 } };
             current.state = 'failure';
           } else if (/SET state = \?/i.test(sql)) {
-            if (!['admitting', 'queued', 'running', 'retrying', 'enqueue_failed'].includes(current.state)) return { success: true, meta: { changes: 0 } };
+            const identityMatches = current.repoFullName === String(args[5])
+              && current.prNumber === Number(args[6]) && current.headSha === String(args[7])
+              && current.eventType === String(args[8]) && current.action === String(args[9]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || current.state !== 'running'
+              || current.attemptCount !== Number(args[10]) || newer) {
+              return { success: true, meta: { changes: 0 } };
+            }
             current.state = String(args[0]);
+            current.controlWaitingAt = null;
+            current.lastError = args[3] == null ? null : String(args[3]);
           }
-          return { success: true, meta: { changes: 1 } };
+          return omitUpdateMeta
+            ? { success: true }
+            : { success: true, meta: { changes: 1 } };
         } else if (/UPDATE fleet_runs/i.test(sql)) {
           const usesDurableStart = /created_at\s*\*\s*1000/i.test(sql);
           const row = runsById.get(String(args[usesDurableStart ? 4 : 2]));
@@ -866,7 +1024,7 @@ export function memoryD1(intent: Partial<{
         return { success: true, meta: {} };
       },
       async first() {
-        if (/SELECT (?:current\.)?state FROM fleet_run_intents/i.test(sql)) {
+        if (/SELECT (?:current\.)?state[\s\S]*FROM fleet_run_intents/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const current = intents.get(String(args[0]));
           if (!current) return null;
@@ -877,7 +1035,20 @@ export function memoryD1(intent: Partial<{
             const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
             if (!identityMatches || newer) return null;
           }
-          return { state: current.state };
+          return {
+            state: current.state,
+            attempt_count: current.attemptCount,
+            control_waiting_at: current.controlWaitingAt,
+            last_error: current.lastError,
+            continuation_sequence: current.continuationSequence,
+            pending_continuation_sequence: current.pendingContinuationSequence,
+            pending_continuation_at: current.pendingContinuationAt,
+          };
+        }
+        if (/SELECT conclusion FROM fleet_runs WHERE delivery_id = \?/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const row = [...runsById.values()].find(candidate => candidate.deliveryId === String(args[0]));
+          return row ? { conclusion: row.conclusion } : null;
         }
         if (/SELECT conclusion FROM fleet_runs WHERE id = \?/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
@@ -901,6 +1072,11 @@ export function memoryD1(intent: Partial<{
         // below, which shares the FROM clause but returns a row, not a count.
         if (/COUNT\(\*\)/i.test(sql) && /FROM fleet_run_steps/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
+          if (String(args[1]) === 'delivery-continuation') {
+            const injectRace = cap.beforeContinuationCountRead;
+            cap.beforeContinuationCountRead = null;
+            await injectRace?.();
+          }
           const [runId, kind] = args;
           const n = cap.steps.filter(st => st.runId === runId && st.kind === String(kind)).length;
           return { n } as unknown as Record<string, unknown>;

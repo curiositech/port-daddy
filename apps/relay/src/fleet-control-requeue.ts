@@ -38,7 +38,23 @@ export async function handleFleetControlRequeue(request: Request, env: Env, deli
       `INSERT OR IGNORE INTO fleet_control_requeues
        (request_id, delivery_id, control_wait_count, revision, issuer, created_at)
        SELECT ?, delivery_id, control_wait_count, ?, ?, ? FROM fleet_run_intents
-       WHERE delivery_id = ? AND state = 'waiting_for_control' AND control_wait_count = ?`,
+       WHERE delivery_id = ?
+         AND ((state = 'cancelled' AND control_waiting_at IS NOT NULL)
+           OR (state = 'retrying' AND control_waiting_at IS NULL
+             AND last_error LIKE 'Fleet suspended:%'))
+         AND control_wait_count = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM fleet_run_intents AS newer
+           WHERE newer.repo_full_name = fleet_run_intents.repo_full_name
+             AND newer.pr_number = fleet_run_intents.pr_number
+             AND newer.generation > fleet_run_intents.generation
+             AND (
+               fleet_run_intents.event_type <> 'merge_group'
+               OR (newer.event_type = 'merge_group'
+                 AND newer.head_sha = fleet_run_intents.head_sha)
+             )
+             AND newer.state NOT IN ('enqueue_failed','superseded')
+         )`,
     ).bind(body.requestId, revision, issuer, Math.floor(Date.now() / 1000), deliveryId, intent.control_wait_count).run();
     if (result.meta?.changes !== 1) return Response.json({ code: 'REQUEUE_CONFLICT' }, { status: 409 });
     return Response.json({ code: 'REDELIVERY_AUTHORIZED', enqueued: false,
