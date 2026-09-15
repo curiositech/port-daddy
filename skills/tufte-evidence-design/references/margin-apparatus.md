@@ -155,8 +155,10 @@ citations as things that happened to live in the column.
 
 Counted directly over the eight chapter sources named in
 `whitepaper/textbook.json`, TeX comments stripped first (the counting script is
-five lines of `re.finditer`; `scripts/harbor-research/captions_to_margin.py
---check --json` reports the caption and footnote halves of it):
+five lines of `re.finditer`). `scripts/harbor-research/captions_to_margin.py
+--check --json` reports the caption and footnote halves of the same count, but
+it is **not yet shipped** on `main` -- it arrives with the one-margin-system
+change -- so the table below was counted by hand, not by it.
 
 | In the margin | calls | In the text column | calls |
 |---|---:|---|---:|
@@ -181,8 +183,10 @@ lower one moves or is dropped (`\pd@placemarginopt` already implements
 you would have written `\caption{...}`; the float itself stays in the text
 column at full measure, and the caption sits beside it in the margin.
 `scripts/harbor-research/captions_to_margin.py` performs and re-checks the
-conversion mechanically, so a new float that reaches for `\caption` is a lint
-finding, not a style preference.
+conversion mechanically, so that a new float reaching for `\caption` becomes a
+lint finding rather than a style preference. That script is **not yet shipped**
+on `main`; until it lands with the one-margin-system change the rule here is
+convention, and nothing mechanical enforces it.
 
 **The anchor argument.** `\pdmargincaption` takes an optional anchor:
 
