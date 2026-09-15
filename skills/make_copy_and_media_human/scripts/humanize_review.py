@@ -155,6 +155,22 @@ DEFAULT_THRESHOLDS = {
     "agent-instruction-shipped-to-production": {"min_count": 1},
     "keywords-meta-placeholder": {"min_count": 1},
     "per-character-text-spans": {"min_runs": 6},
+    "aria-label-on-a-generic-element": {"min_count": 1},
+    "redundant-role-on-a-semantic-element": {"min_count": 1},
+    "conditionally-rendered-live-region": {"min_count": 1},
+    "aria-label-cloaks-the-text-that-was-already-there": {"min_extra_chars": 8},
+    "accessible-name-does-not-match-the-visible-label": {"min_count": 1},
+    "promised-role-with-no-behaviour": {"min_count": 1},
+    "narrating-alt-text": {"max_chars": 125},
+    "heading-levels-chosen-for-size": {"min_count": 1},
+    "landmarks-duplicated-and-unnamed": {"min_landmarks": 2},
+    "link-text-that-only-works-next-to-its-picture": {"min_repeats": 3},
+    "data-rendered-as-divs-with-no-header-association": {"min_count": 1},
+    "type-sized-in-viewport-units": {"min_count": 1},
+    "forced-colors-mode-erases-the-interface": {"min_count": 1},
+    "auto-advancing-content-with-no-pause": {"min_count": 1},
+    "instructions-live-only-in-the-placeholder": {"min_chars": 16},
+    "accessibility-overlay-installed": {"min_count": 1},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -1623,6 +1639,13 @@ def analyze_exposition(path, lines, tags, body):
         # Lease is a lease that..." defining it, is a definition and not a miss.
         stem = (re.escape(term[:-1]) + "s?") if term.endswith("s") \
             else (re.escape(term) + "e?s?")
+        # A term is often defined under a near form rather than the exact token:
+        # "ARIA is a set of attributes, all beginning `aria-`" defines `aria-`,
+        # and refusing to see that made the check fire on writing that HAD done
+        # the work. Accept the bare form with separators and case stripped.
+        bare = re.sub(r"^[-_.]+|[-_.]+$", "", term)
+        if bare and bare.lower() != term.lower():
+            stem = f"(?:{stem}|{re.escape(bare)}e?s?)"
         dm = re.search(r"\b" + stem + r"\b" + DEF_HINT, body, re.I) \
             or re.search(r"\b(?:call(?:ed)?|known as|term|what we mean by)\b[^.]{0,24}"
                          + stem, body, re.I)
@@ -2407,6 +2430,339 @@ def analyze_web_build(path, text):
             "for decorative marquees and give those aria-hidden with a plain-text sibling. If it "
             "must stay on a heading, add a visually hidden un-split copy of the same string.",
             family="defect"))
+
+
+    # =============== accessibility: the part automation cannot reach ===============
+    # Automated engines cover about 30% of WCAG criteria, so everything here is
+    # chosen because a scanner does NOT catch it. Most of it reads UNREVIEWED
+    # rather than machine-written -- a hand-built 2011 site fails it too -- and
+    # the explanations say so. The exceptions are the ones where the model
+    # produces the APPEARANCE of accessibility work, which is its own signature.
+
+    # ---- the flagship: a label on an element that cannot carry one
+    gen_label = re.findall(
+        r"<(?:div|span|p|em|strong|code)\b(?![^>]*\brole=)[^>]*\saria-label(?:ledby)?=", text, re.I)
+    if gen_label:
+        out.append(finding(
+            path, first(r"<(div|span|p|em|strong|code)\b(?![^>]*role=)[^>]*aria-label"),
+            f"{len(gen_label)} aria-label(s) on an element whose role cannot carry a name",
+            "aria-label-on-a-generic-element", "medium",
+            "The generic role is on ARIA's name-prohibited list, so depending on the screen "
+            "reader the label is ignored entirely or announced as a spurious \"group\" — "
+            "either nothing or noise. This is the flagship model-flavoured tell of the "
+            "accessibility lane: aria-label=\"hero section\" is not something a person who has "
+            "used a screen reader writes. It is what pattern completion produces when the "
+            "prompt contains the word \"accessible\".",
+            "If the region is worth naming, make it one: <section aria-label=\"Testimonials\">, "
+            "where the label turns the role from generic into a real landmark. If it is not "
+            "worth naming, delete the attribute. Never name a div in place.",
+            family="residue"))
+
+    redundant = re.findall(
+        r'<(button|nav|main|header|footer|aside|form|table|ol)\b[^>]*\brole=["\']'
+        r'(button|navigation|main|banner|contentinfo|complementary|form|table|list)["\']',
+        text, re.I)
+    redundant = [m for m in redundant if
+                 (m[0].lower(), m[1].lower()) in {
+                     ("button", "button"), ("nav", "navigation"), ("main", "main"),
+                     ("header", "banner"), ("footer", "contentinfo"),
+                     ("aside", "complementary"), ("form", "form"), ("table", "table"),
+                     ("ol", "list")}]
+    if redundant:
+        out.append(finding(
+            path, first(r'<(button|nav|main|header|footer|aside|form|table)\b[^>]*role='),
+            f"{len(redundant)} element(s) carrying their own implicit role explicitly",
+            "redundant-role-on-a-semantic-element", "low",
+            "Harmless in isolation, and as a population the clearest possible fingerprint of "
+            "ARIA added by someone who does not know what ARIA is for. It is exactly what the "
+            "First Rule of ARIA Use forbids. Weight this as a SIGNAL rather than a defect: a "
+            "page with several of these will have real ARIA bugs, and it is worth running the "
+            "expensive checks on.",
+            "Delete them all — it is one search and replace. Then look at what ARIA "
+            "remains, because that is now the interesting part. Note <ul role=\"list\"> is a "
+            "deliberate and correct workaround for a browser that strips list semantics, and is "
+            "excluded here on purpose.",
+            family="residue"))
+
+    # ---- a live region that can never announce, because it arrives with its text
+    if re.search(r"(?:&&|\?)\s*\(?\s*<[A-Za-z][^>]{0,200}?aria-live", text) \
+       or re.search(r"<[a-z][^>]*\bv-if=[^>]*aria-live|<[a-z][^>]*aria-live[^>]*\bv-if=",
+                    text, re.I) \
+       or re.search(r"\{#if[^}]{0,120}\}\s*<[^>]*aria-live", text):
+        out.append(finding(
+            path, first(r"aria-live"),
+            "a live region that is conditionally rendered, so it never announces",
+            "conditionally-rendered-live-region", "high",
+            "The container and its text arrive in the DOM in the same tick, so the screen "
+            "reader never observes a CHANGE to a region it was watching, and says nothing. The "
+            "markup is textbook-correct and the behaviour is silence — which no static and "
+            "no rendered-DOM check can see, because the attribute is present and the text is "
+            "present. The purest case in this lane of a model producing the appearance of "
+            "accessibility: conditional rendering is the idiomatic component shape, aria-live is "
+            "what gets added when you ask for accessibility, and together they do nothing.",
+            "One persistent, always-mounted, visually hidden live region per page, whose TEXT "
+            "CONTENT is updated. Clear and re-set after a short delay so repeated identical "
+            "messages still announce.",
+            family="defect"))
+
+    # ---- names that replace, or contradict, the visible text
+    cloak = mismatch = None
+    for m in re.finditer(r"<(a|button)\b([^>]*\saria-label=[\"']([^\"']+)[\"'][^>]*)>([^<]{3,200})</\1>",
+                         text, re.I):
+        label, visible = m.group(3).strip(), re.sub(r"\s+", " ", m.group(4)).strip()
+        if not visible or visible.startswith("{"):
+            continue
+        norm = lambda x: re.sub(r"[^a-z0-9 ]", "", x.lower()).strip()
+        if cloak is None and len(visible) > len(label) + 8:
+            cloak = (m.start(), label, visible)
+        if mismatch is None and norm(visible) and norm(visible) not in norm(label):
+            mismatch = (m.start(), label, visible)
+    if cloak:
+        pos, label, visible = cloak
+        out.append(finding(
+            path, text[:pos].count("\n") + 1,
+            f'aria-label "{label}" replaces longer visible text "{visible[:50]}…"',
+            "aria-label-cloaks-the-text-that-was-already-there", "medium",
+            "aria-label does not add; it REPLACES. The screen reader user now gets a shorter, "
+            "vaguer control than the sighted user, and the author believed they were helping. "
+            "The authoring practices name the mechanism: ARIA cloaks as readily as it enhances.",
+            "Delete it. If the visible text is genuinely inadequate, fix the visible text "
+            "— that helps the sighted reader who also cannot tell what it means. Reach for "
+            "aria-describedby when you want to ADD.",
+            family="defect"))
+    if mismatch and mismatch is not cloak:
+        pos, label, visible = mismatch
+        out.append(finding(
+            path, text[:pos].count("\n") + 1,
+            f'visible text "{visible[:40]}" is not contained in accessible name "{label[:40]}"',
+            "accessible-name-does-not-match-the-visible-label", "high",
+            "A voice-control user says the words on the screen and nothing happens, because the "
+            "name the machine knows is not the name on the button. WCAG 2.2 SC 2.5.3, and the "
+            "most overlooked criterion in generated code because everyone assumes aria-label can "
+            "only help. The failure is caused BY the accessibility effort.",
+            "The accessible name must contain the visible text, ideally starting with it. If you "
+            "need more context, extend rather than replace, or put it in aria-describedby.",
+            family="defect"))
+
+    # ---- a role is a promise
+    promises = []
+    if re.search(r'role=["\']tablist["\']', text, re.I) \
+       and not re.search(r"onKeyDown|keydown|ArrowRight|aria-selected", text, re.I):
+        promises.append("role=\"tablist\" with no arrow-key handling and no aria-selected")
+    if re.search(r'role=["\'](?:switch|checkbox)["\']', text, re.I) \
+       and not re.search(r"aria-checked", text, re.I):
+        promises.append("role=\"switch\"/\"checkbox\" with no aria-checked")
+    if re.search(r'role=["\']menu["\']', text, re.I) \
+       and not re.search(r"aria-haspopup|aria-expanded", text, re.I):
+        promises.append("role=\"menu\" with no aria-haspopup or aria-expanded on a trigger")
+    if re.search(r'role=["\']combobox["\']', text, re.I) \
+       and not re.search(r"aria-expanded", text, re.I):
+        promises.append("role=\"combobox\" with no aria-expanded")
+    if promises:
+        out.append(finding(
+            path, first(r'role=["\'](tablist|switch|checkbox|menu|combobox)'),
+            "; ".join(promises), "promised-role-with-no-behaviour", "high",
+            "A role is a promise to assistive technology about how the widget will behave. The "
+            "promise is broken, and the user is worse off than if it had never been made, "
+            "because their screen reader has switched them into an interaction mode the widget "
+            "does not support. This is the mechanism behind the finding that pages with more "
+            "ARIA have more errors: a generator produces the role vocabulary fluently and the "
+            "interaction code sporadically.",
+            "Delete the role, implement the full pattern, or adopt a primitive that already "
+            "has. If you are not going to do all of it, plain buttons and headings are strictly "
+            "better than a half-built widget.",
+            family="defect"))
+
+    # ---- alt that describes the picture instead of doing its job
+    for m in re.finditer(r"<img\b[^>]*\balt=[\"']([^\"']+)[\"']", text, re.I):
+        alt = m.group(1).strip()
+        narrating = (len(alt) > th("narrating-alt-text", "max_chars", 125)
+                     or re.match(r"^(?:an?\s+)?(?:image|picture|photo|graphic|screenshot|"
+                                 r"illustration)\s+of\b", alt, re.I))
+        if narrating:
+            out.append(finding(
+                path, text[:m.start()].count("\n") + 1,
+                f'alt text of {len(alt)} chars: "{alt[:60]}…"',
+                "narrating-alt-text", "medium",
+                "A vision model DESCRIBES an image; alt text NAMES ITS FUNCTION. The gap between "
+                "those two is exactly the gap between a generated description and an authored "
+                "one, and it is one of the few nearly diagnostic tells here. Starting with "
+                "\"image of\" is redundant besides — the screen reader already said "
+                "\"graphic\".",
+                "Ask what the image is doing. Decorative gets alt=\"\". Functional names the "
+                "destination, not the glyph. Informative gets the shortest sentence carrying "
+                "what the sighted reader gets. If adjacent text already describes it, alt=\"\". "
+                "Long alt IS correct for charts, diagrams and maps, where the description is the "
+                "content.",
+                family="form"))
+            break
+
+    # ---- headings picked for size
+    levels = [int(m) for m in re.findall(r"<h([1-6])\b", low)]
+    skipped = [(a, b) for a, b in zip(levels, levels[1:]) if b > a + 1]
+    if skipped:
+        out.append(finding(
+            path, first(r"<h[1-6]\b"),
+            f"heading level jumps from h{skipped[0][0]} to h{skipped[0][1]}",
+            "heading-levels-chosen-for-size", "high",
+            "Headings picked by how big they should look rather than by position in the "
+            "outline. The visual page has a structure; the NAVIGABLE page does not — and "
+            "71.6% of screen reader users navigate a long page by headings as their primary "
+            "method, against 3.7% for landmarks. Skipped levels appear on 41.8% of home pages, "
+            "so this is unreviewed rather than machine-written, but generated app interiors "
+            "produce it reliably because the visual hierarchy lives in utility classes.",
+            "Set the level by position in the outline and the size with CSS. One h1, no skipped "
+            "levels, and a real heading for every visually distinct section even if it is "
+            "visually hidden. Jumping back UP a level is fine and normal; only skipping DOWN is "
+            "the violation.",
+            family="defect"))
+
+    navs = re.findall(r"<nav\b[^>]*>", text, re.I)
+    if len(navs) >= 2:
+        named = sum(1 for n in navs if re.search(r"aria-label(?:ledby)?=", n, re.I))
+        if named < len(navs):
+            out.append(finding(
+                path, first(r"<nav\b"),
+                f"{len(navs)} <nav> landmarks, {len(navs) - named} of them unnamed",
+                "landmarks-duplicated-and-unnamed", "medium",
+                "The landmarks list reads \"navigation, navigation, navigation\" and is useless "
+                "for the thing it exists to do. Measured on generated UI code, \"all page "
+                "content must be contained by landmarks\" was violated an average of 894 times "
+                "per base-model output, so this is a quantified property of generated markup "
+                "rather than an impression.",
+                "Name each one — Main, Breadcrumb, Legal — without including the word "
+                "\"navigation\", because screen readers append the role themselves and \"Main "
+                "navigation navigation\" is what the unedited version announces. Two landmarks "
+                "with identical content should share ONE label, not two different ones.",
+                family="defect"))
+
+    link_names = {}
+    for m in re.finditer(r"<a\b[^>]*href=[\"']([^\"']+)[\"'][^>]*>([^<]{2,60})</a>", text, re.I):
+        nm = re.sub(r"\s+", " ", m.group(2)).strip().lower()
+        if nm and not nm.startswith("{"):
+            link_names.setdefault(nm, set()).add(m.group(1))
+    vague = {n: h for n, h in link_names.items()
+             if len(h) >= th("link-text-that-only-works-next-to-its-picture", "min_repeats", 3)}
+    if vague:
+        worst = max(vague, key=lambda n: len(vague[n]))
+        out.append(finding(
+            path, first(re.escape(worst)),
+            f'"{worst}" is the text of {len(vague[worst])} links going to different places',
+            "link-text-that-only-works-next-to-its-picture", "medium",
+            "Screen reader users pull up a links list to scan a page, and this page's list is "
+            "the same entry repeated. An automated engine will never flag it — the link "
+            "has text, the text is non-empty, the rule passes. Generated card grids produce the "
+            "uniform-CTA shape by construction, so the base rate is high.",
+            "Make the link text the destination. If the design demands a uniform \"Learn "
+            "more\", wrap the card HEADING in the link and make the rest of the card clickable "
+            "in CSS — do not paper over it with aria-label, which then breaks Label in "
+            "Name.",
+            family="shape"))
+
+    if re.search(r"<table\b", low) and not re.search(r"<th\b", low):
+        out.append(finding(
+            path, first(r"<table\b"), "a <table> with no header cells",
+            "data-rendered-as-divs-with-no-header-association", "medium",
+            "A screen reader user reads \"Acme, 4,200, Active\" with no idea which column is "
+            "which, and the ability to ask \"what column am I in?\" is gone. Overlaps "
+            "div-soup-no-semantics but is narrower and more consequential: a div nav is "
+            "annoying, a table with no header associations is unreadable.",
+            "Use <th scope=\"col\"> and <th scope=\"row\">. If responsive collapse is needed, "
+            "keep the table element and inject header text via CSS rather than destroying the "
+            "semantics with display:block.",
+            family="defect"))
+
+    # ---- zoom, spacing, forced colors
+    # \bvw\b does not match "5vw": there is no word boundary between a digit and a
+    # letter, so the leading boundary has to go.
+    vw_type = re.search(r"font-size\s*:\s*[^;]*[\d.]\s*vw\b|text-\[[\d.]+vw\]", low)
+    if vw_type and not re.search(r"clamp\([^)]*rem[^)]*\+", low):
+        out.append(finding(
+            path, text[:vw_type.start()].count("\n") + 1,
+            "type sized in viewport units with no rem term",
+            "type-sized-in-viewport-units", "medium",
+            "Fluid type looks sophisticated and quietly opts the user out of controlling their "
+            "own text size: at a fixed viewport, raising the browser's default font size does "
+            "nothing. The technique circulated widely as \"modern\" with the accessibility "
+            "caveat detached from it in transit.",
+            "Always include a rem term inside clamp() so user font-size preference still moves "
+            "the result — clamp(1rem, 0.9rem + 0.5vw, 1.25rem). Reserve pure viewport "
+            "sizing for display type where a user override does not matter.",
+            family="defect"))
+
+    if re.search(r"(?:linear-gradient|box-shadow)", low) \
+       and re.search(r"<svg|fill=[\"']#", text, re.I) \
+       and "forced-colors" not in low and "forced-color-adjust" not in low:
+        out.append(finding(
+            path, first(r"linear-gradient|box-shadow"),
+            "gradients and shadows carrying structure, with no forced-colors handling",
+            "forced-colors-mode-erases-the-interface", "medium",
+            "In forced-colors mode the OS reverts every non-url background-image, so gradients "
+            "vanish, shadow-only card boundaries disappear, hard-coded SVG fills go invisible "
+            "and a selected tab loses its only indicator. It is invisible unless you are on the "
+            "platform with the setting on, which nobody on the team is — and generated UI "
+            "leans entirely on shadow and gradient for structure, which is precisely what "
+            "forced colors strips.",
+            "Use currentColor on SVG fills. Convey state with something forced colors preserves "
+            "— a border, an underline, text. Add one @media (forced-colors: active) block "
+            "using system colour keywords. Use outline for focus rings, which is preserved, not "
+            "box-shadow, which is not.",
+            family="defect"))
+
+    # ---- motion and timing
+    if re.search(r"autoplay\s*[:=]\s*(?:true|\{)|autoplay\b[^,}]*delay", text, re.I) \
+       and not re.search(r">\s*(?:Pause|Stop|Play)\b|aria-label=[\"'][^\"']*(?:pause|stop)",
+                         text, re.I):
+        out.append(finding(
+            path, first(r"autoplay"),
+            "auto-advancing content with no pause control",
+            "auto-advancing-content-with-no-pause", "medium",
+            "WCAG 2.2.2 is Level A, not AA: anything moving for more than five seconds must be "
+            "pausable, stoppable or hideable. Autoplay is the library default and nobody turns "
+            "it off. Note that a reduced-motion guard does NOT satisfy this — a user who "
+            "has not set that preference still needs a control, and vestibular-safe is a "
+            "different requirement from attention-safe.",
+            "Turn autoplay off. If it must stay: a visible, keyboard-reachable Pause button "
+            "that is not hover-only, pausing on focus as well as hover, with the state "
+            "persisted.",
+            family="defect"))
+
+    # ---- placeholders doing a label's job
+    ph = re.search(r'placeholder=["\']([^"\']{16,})["\']', text)
+    if ph and re.search(r"\d|MM|YYYY|DD|/", ph.group(1)) \
+       and not re.search(r"aria-describedby", text, re.I):
+        out.append(finding(
+            path, text[:ph.start()].count("\n") + 1,
+            f'format instructions live only in a placeholder: "{ph.group(1)[:40]}"',
+            "instructions-live-only-in-the-placeholder", "medium",
+            "The rule vanishes the moment the user starts typing — exactly when they need "
+            "it. It also fails anyone returning to a half-filled form. And people with "
+            "cognitive disabilities tend to read placeholder text as pre-populated content "
+            "rather than as a hint.",
+            "A persistent hint element between label and input, wired with aria-describedby. "
+            "Keep the placeholder only for a genuine example value.",
+            family="defect"))
+
+    # ---- the receipt
+    ovl = re.search(r"acsbapp\.com|accessibe\.com|userway\.org|audioeye\.com|equalweb\.com"
+                    r"|reciteme\.com|aioa-adawidget|allinoneaccessibility|eye-able|allyable",
+                    low)
+    if ovl:
+        out.append(finding(
+            path, text[:ovl.start()].count("\n") + 1,
+            f"an accessibility overlay is installed ({ovl.group(0)})",
+            "accessibility-overlay-installed", "high",
+            "A widget added in place of fixing anything. Its presence is a receipt: the "
+            "accessibility problem was recognised and outsourced to a script. It belongs in "
+            "this catalog for the same reason unmodified design tokens do — it is evidence "
+            "about PROCESS, not authorship. And there is a specific technical reason it cannot "
+            "work here: component-based interfaces change state independently of the overlay, "
+            "so it is least effective on exactly the architecture generated sites use.",
+            "Remove it and fix the source. Be fair when you report it — the owner was often "
+            "sold this in good faith, and two class actions have been filed by exactly such "
+            "businesses after they bought a widget and were sued anyway. A preference panel you "
+            "built yourself is not an overlay and is often genuinely good.",
+            family="residue"))
 
     dbg = len(re.findall(r"\bconsole\.(?:log|debug|warn)\s*\(", text)) \
         + len(re.findall(r"\bdebugger\s*;", text))

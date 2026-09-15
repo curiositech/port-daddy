@@ -330,6 +330,21 @@ findings merge into the same report through the normal `--findings` path.
 If you cannot run it, open the page yourself at phone width. Half the findings in
 `references/web-build-defects.md` are visible in ten seconds that way.
 
+Two of its flags turn a source-level guess into a verdict, and both cover states
+the author's own browser is never in:
+
+```bash
+python3 scripts/render_check.py URL --probe-modals --probe-a11y
+```
+
+`--probe-modals` opens each plausible trigger and tests the four behaviours that
+matter — focus moves in, Escape closes, Tab stays contained, focus returns.
+`--probe-a11y` applies the WCAG 1.4.12 text-spacing values and measures what
+stops fitting, then switches to forced colors and confirms which elements lost
+their only visible boundary. Both matter because a static pass reports success on
+exactly these: the Escape handler is present in source whether or not it runs,
+and a gradient looks like a boundary right up until the OS reverts it.
+
 ### Two surfaces worth naming separately
 
 Most of this skill asks whether something reads generated. Two reference files do
@@ -393,6 +408,13 @@ Read `references/catalog.json`. For every item whose `detection_type` is
 `detection_type` is `structural` but which the script does not implement, ask it
 yourself; the script covers the countable subset, not all of them.
 
+There is a fourth `detection_type`, `assistive`, and it means what it says: a
+headless browser cannot settle it, because the finding is what a person *hears*.
+Do not write an assertion for one and treat a pass as evidence — that is how a
+manual check gets laundered into a green tick, which is the failure this whole
+skill exists to name. Report those as "not checked" unless someone actually put a
+screen reader on, and point them at `references/five-minute-manual-pass.md`.
+
 Read as a hostile editor with taste, not as a checklist executor. Then do one
 free-form pass asking what else smells generated, because the catalog is a floor
 rather than a ceiling.
@@ -443,6 +465,8 @@ already one of them.
 | `references/unopened-surfaces.md` | Navigation, i18n, docs sites, commerce, email templates, print and PDF — the surfaces a model has no way to open |
 | `references/dark-patterns-the-model-inherits.md` | Consent banners, countdowns, activity counters, cancellation and checkout: shapes the commercial web supplied, several of them unlawful |
 | `references/tool-fingerprints.md` | Asked which tool built a page, or about to report a generator string as a finding — read the first two items before the other nineteen |
+| `references/five-minute-manual-pass.md` | Reviewing any web page for accessibility — eleven keyboard and screen-reader steps, written for someone who has never used one |
+| `references/accessibility-beyond-the-checklist.md` | After the manual pass, or when an automated scan came back clean and you need the other 70% |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -551,12 +575,14 @@ launch announcement in machine accent and then edited,
 - [`examples/sample-report.html`](examples/sample-report.html)
 
 **`references/`**
+- [`references/accessibility-beyond-the-checklist.md`](references/accessibility-beyond-the-checklist.md) — Accessibility beyond the checklist — Everything in this file is in the part of accessibility that automation cannot reach.
 - [`references/catalog.json`](references/catalog.json) — catalog (data/schema)
 - [`references/claudeisms.md`](references/claudeisms.md) — Claudeisms — and the generic prose tells Claude amplifies — Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers.
 - [`references/dark-patterns-the-model-inherits.md`](references/dark-patterns-the-model-inherits.md) — Dark patterns the model inherits — A model that produces a fake countdown or an asymmetric cookie banner is not choosing to deceive.
 - [`references/engineering-artifact-tells.md`](references/engineering-artifact-tells.md) — Engineering-artifact tells — commits, PRs, reviews, code, tests, docs — What generated engineering work looks like in the artifacts maintainers actually read.
 - [`references/fairness-and-false-positives.md`](references/fairness-and-false-positives.md) — Fairness and false positives — read this before you act on any finding — Hand-written, not generated from the catalog.
 - [`references/fiction-and-narrative-tells.md`](references/fiction-and-narrative-tells.md) — Fiction and narrative tells — What generated fiction does at the level of story rather than sentence.
+- [`references/five-minute-manual-pass.md`](references/five-minute-manual-pass.md) — The five-minute manual pass — Written for someone who has never used a screen reader.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
 - [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
