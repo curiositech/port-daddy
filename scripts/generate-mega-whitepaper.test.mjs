@@ -7,7 +7,6 @@ import {
   cleanStandaloneChrome,
   collateReferences,
   compareNormalizedReferences,
-  generate,
   documentBody,
   inlineInputs,
   loadCiteShortforms,

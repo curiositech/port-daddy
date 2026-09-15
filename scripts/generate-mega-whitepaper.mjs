@@ -435,37 +435,38 @@ function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
   });
 }
 
-// True when the character at `index` sits after an unescaped % on its own
-// line, i.e. inside a TeX comment. Scanning back to the line start is enough:
-// a comment runs to end of line and cannot be reopened.
-function inComment(tex, index) {
-  const lineStart = tex.lastIndexOf('\n', index - 1) + 1;
-  for (let i = lineStart; i < index; i += 1) {
-    if (tex[i] === '\\') { i += 1; continue; }
-    if (tex[i] === '%') return true;
+/**
+ * Offsets of every occurrence of `marker` that TeX would actually execute --
+ * a match inside a `%` comment is prose about the marker, not the marker.
+ * A comment runs to the end of its line; a `%` escaped as `\%` is a literal
+ * percent sign and starts nothing.
+ */
+function uncommentedOffsets(tex, marker) {
+  const found = [];
+  let commented = false;
+  for (let i = 0; i < tex.length; i += 1) {
+    if (tex[i] === '\n') { commented = false; continue; }
+    if (tex[i] === '\\' && tex[i + 1] === '%') { i += 1; continue; }  // a literal per cent
+    if (tex[i] === '%') { commented = true; continue; }
+    if (!commented && tex.startsWith(marker, i)) found.push(i);
   }
-  return false;
+  return found;
 }
 
-// The document markers must be found in TeX, not in prose about TeX. A chapter
-// preamble that explains itself -- "the pedagogy twin's redefinition always
-// wins at \begin{document}" -- used to move the body's start up into the
-// preamble, so every \newtheorem below the comment was emitted into the
-// collated body and xelatex died 9000 lines later on "Command \definition
-// already defined". Skip commented occurrences on both ends.
+/**
+ * The chapter body is what sits between the document markers the compiler
+ * sees. Matching the raw text instead put the seam at the first line that
+ * merely *mentioned* `\begin{document}` -- a comment in the anchor-protocol
+ * preamble explaining when pd-pedagogy.tex redefines \pullquote -- which
+ * spliced that chapter's whole preamble into the Book and failed the build
+ * on `Command \theorem already defined`. A chapter must be able to write
+ * about a marker without moving it.
+ */
 function documentBody(tex, source) {
-  const BEGIN = '\\begin{document}';
-  const END = '\\end{document}';
-
-  let begin = -1;
-  for (let at = tex.indexOf(BEGIN); at >= 0; at = tex.indexOf(BEGIN, at + 1)) {
-    if (!inComment(tex, at)) { begin = at; break; }
-  }
-  let end = -1;
-  for (let at = tex.lastIndexOf(END); at >= 0; at = tex.lastIndexOf(END, at - 1)) {
-    if (!inComment(tex, at)) { end = at; break; }
-  }
-
+  const beginMarks = uncommentedOffsets(tex, '\\begin{document}');
+  const endMarks = uncommentedOffsets(tex, '\\end{document}');
+  const begin = beginMarks.length ? beginMarks[0] : -1;
+  const end = endMarks.length ? endMarks[endMarks.length - 1] : -1;
   if (begin < 0 || end < begin) throw new Error(`${source}: malformed document body`);
   return tex.slice(begin + BEGIN.length, end);
 }
