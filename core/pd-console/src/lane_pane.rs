@@ -761,6 +761,11 @@ fn is_terminal_status(status: &str) -> bool {
             | "canceled"
             | "halted"
             | "settled"
+            | "killed"
+            | "aborted"
+            | "over_budget"
+            | "timed_out"
+            | "timeout"
     )
 }
 
