@@ -207,6 +207,25 @@ DEFAULT_THRESHOLDS = {
     "text-colour-proliferation": {"max_colors": 8},
     "semantic-layer-bypassed": {"min_primitives": 5},
     "dark-mode-by-inversion": {"min_count": 1},
+    "hero-image-as-full-resolution-png": {"min_count": 1},
+    "gradient-mesh-shipped-as-raster": {"min_count": 1},
+    "no-modern-image-format-anywhere": {"min_images": 5},
+    "single-source-full-bleed-image": {"min_count": 1},
+    "lazy-loaded-lcp-image": {"min_count": 1},
+    "lcp-image-without-fetchpriority": {"min_images": 3},
+    "stock-photo-at-source-resolution": {"min_count": 1},
+    "autoplay-background-video-no-poster": {"min_count": 1},
+    "font-weights-ordered-not-used": {"min_declared": 4},
+    "google-fonts-cdn-render-blocking": {"min_count": 1},
+    "font-display-absent-or-block": {"min_count": 1},
+    "icon-webfont-for-a-handful-of-icons": {"min_count": 1},
+    "webgl-library-for-decoration": {"min_count": 1},
+    "animation-library-for-css-effects": {"min_count": 1},
+    "smooth-scroll-library-on-a-brochure": {"min_count": 1},
+    "use-client-on-a-static-page": {"min_count": 1},
+    "spa-shell-for-a-brochure-site": {"min_count": 1},
+    "render-blocking-head-stack": {"min_blocking": 3},
+    "default-third-party-stack": {"min_origins": 4},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -3202,6 +3221,343 @@ def analyze_web_build(path, text):
             "Re-decide the semantic layer for the dark theme, keeping the roles and changing the "
             "values, and declare color-scheme so form controls and scrollbars follow.",
             family="defect"))
+
+
+    # ================= performance: the source was optimised, the delivery was not =================
+    # A generator can see the markup it is writing. It cannot see a waterfall, a
+    # byte count, or which element wins LCP. So these checks look where
+    # correctness-in-source and correctness-in-delivery come apart.
+    #
+    # Say UNREVIEWED, not AI-generated. Most of this would look identical coming
+    # from a person who shipped without watching the page load once, and there is
+    # NO published measurement that generated sites are heavier -- only that the
+    # palette spread. The entries that ARE model-flavoured say so themselves.
+
+    imgs = re.findall(r"<img\b[^>]*>", text, re.I)
+    first_img = imgs[0] if imgs else ""
+
+    hero_png = re.search(r"<img\b[^>]*src=[\"'][^\"']*\.png[\"']", text[:4000], re.I) \
+        or re.search(r"rel=[\"']preload[\"'][^>]*as=[\"']image[\"'][^>]*\.png", text, re.I)
+    if hero_png:
+        out.append(finding(
+            path, text[:hero_png.start()].count("\n") + 1,
+            "the first large image on the page is a PNG",
+            "hero-image-as-full-resolution-png", "high",
+            "PNG is lossless and has no chroma subsampling, so a photographic hero lands at many "
+            "times the bytes of the same image in a modern format — and the LCP element is "
+            "an image on 85% of desktop pages. This reads UNREVIEWED rather than "
+            "model-flavoured: a designer who exported a PNG would still have watched it load "
+            "once. The narrowly model-shaped part is that a generator writing an image tag has "
+            "no way to know whether the file is 40 KB or 4 MB, so it never has the thought.",
+            "AVIF first with WebP and JPEG fallbacks inside a <picture>, budgeted at 200 KB, "
+            "re-exported at twice the largest CSS width it will occupy. PNG stays correct for "
+            "screenshots, logos, pixel art and genuine transparency — check what the image "
+            "IS before converting it.",
+            family="defect"))
+
+    grad = re.search(r"<img\b[^>]*src=[\"'][^\"']*(?:gradient|mesh|blob|aurora|glow|hero-?bg)"
+                     r"[^\"']*\.(?:png|jpe?g)[\"'][^>]*alt=[\"'][\"']", text, re.I)
+    if grad:
+        out.append(finding(
+            path, text[:grad.start()].count("\n") + 1,
+            "a decorative gradient shipped as a raster image",
+            "gradient-mesh-shipped-as-raster", "high",
+            "The blurred wash behind the hero is pure decoration, it is frequently the LCP "
+            "element, and a gradient carries no detail that a raster is needed to preserve. This "
+            "one IS model-flavoured: the indigo-violet wash is the signature ornament of a "
+            "palette whose spread has been measured — Tailwind's indigo-500 went from 0.03% "
+            "of all sites in late 2022 to 0.54% in late 2025. When it arrives as a "
+            "multi-megabyte raster you have the taste tell and the delivery tell in one element.",
+            "CSS. A radial-gradient costs zero bytes and zero requests. If the shape is genuinely "
+            "irregular, export it small, blur it in CSS and scale it up.",
+            family="defect"))
+
+    if len(imgs) >= 5 and not re.search(r"\.avif|\.webp|type=[\"']image/(?:avif|webp)", low):
+        out.append(finding(
+            path, first(r"<img"), f"{len(imgs)} images, none in a modern format",
+            "no-modern-image-format-anywhere", "medium",
+            "A site-level absence rather than a per-image mistake: nobody ever set up the "
+            "pipeline. Format negotiation is a build decision, invisible in the markup a "
+            "generator writes, and exactly the class of thing a model omits because omitting it "
+            "produces working output.",
+            "Put an image CDN or a build step in front of every raster, targeting modern formats "
+            "for at least 80% of image bytes. Check the response content type first — a CDN "
+            "negotiating by Accept header will serve AVIF from a .jpg URL.",
+            family="shape"))
+
+    fullbleed = [i for i in imgs
+                 if re.search(r"w-full|object-cover|width\s*:\s*100%", i, re.I)
+                 and "srcset" not in i.lower() and not re.search(r"\.svg", i, re.I)]
+    if fullbleed:
+        out.append(finding(
+            path, text[:text.index(fullbleed[0])].count("\n") + 1,
+            f"{len(fullbleed)} full-width image(s) with a single source",
+            "single-source-full-bleed-image", "high",
+            "Every visitor gets the desktop file, so a phone on cellular downloads a 2400px asset "
+            "to paint it 390px wide. srcset requires knowing the layout's breakpoints and the "
+            "asset's variants — two facts a generator writing a single component does not "
+            "have, so it writes the valid single-source tag.",
+            "srcset with width descriptors at the widths the layout actually uses, plus an honest "
+            "sizes. Three widths is usually enough. An image CDN doing server-side device "
+            "detection achieves the same thing without srcset.",
+            family="defect"))
+
+    # "The first image" is the wrong target twice over: a decorative background
+    # often sits above the hero in source order, and a byte window flags images
+    # that are correctly lazy simply because the document is short. The LCP
+    # candidate is the first image carrying real alt text -- if THAT one is lazy,
+    # the request cannot start until layout proves it is in view.
+    def _is_decorative(tag):
+        return bool(re.search(r'alt=["\']["\']', tag)) or "alt=" not in tag.lower()
+
+    lcp_candidate = next((i for i in imgs if not _is_decorative(i)), "")
+    lazy_first = bool(lcp_candidate and re.search(r'loading=["\']lazy', lcp_candidate, re.I))
+    lazy_all = len([i for i in imgs if re.search(r'loading=["\']lazy', i, re.I)])
+    if lazy_first or (imgs and lazy_all == len(imgs) and lazy_all >= 3):
+        out.append(finding(
+            path, first(r'loading=["\']lazy'),
+            ("the first image on the page is lazy-loaded" if lazy_first
+             else f"all {lazy_all} images are lazy-loaded, including the first"),
+            "lazy-loaded-lcp-image", "high",
+            "This unconditionally delays LCP: the browser will not even START the request until "
+            "layout proves the element is in view. PARTLY MODEL-FLAVOURED, and the uniformity is "
+            "the signature — a person applies lazy loading where they remember to, a "
+            "generator applies a rule everywhere it syntactically fits. \"Add lazy loading to "
+            "images\" is stated without its exception roughly as often as with it.",
+            "Delete loading, or set it eager, on the LCP candidate and add fetchpriority=\"high\". "
+            "Keep lazy for everything below the fold. Nothing in the first viewport is lazy.",
+            family="defect"))
+
+    if imgs and "fetchpriority" not in low and "rel=\"preload\"" not in low.replace("'", '"') \
+       and len(imgs) >= 3:
+        out.append(finding(
+            path, first(r"<img"), "no image is marked as the priority fetch",
+            "lcp-image-without-fetchpriority", "medium",
+            "The hero is discovered late and fetched at default priority, behind stylesheets and "
+            "scripts, because nothing told the browser it was the most important byte on the "
+            "page. fetchpriority requires knowing which element wins LCP — a rendered fact "
+            "a generator cannot compute.",
+            "fetchpriority=\"high\" on exactly one image, the LCP candidate; a preload link for "
+            "a CSS background. More than one or two and the signal is worthless. On a page whose "
+            "LCP is a headline, preload the font instead.",
+            family="defect"))
+
+    if re.search(r"images\.unsplash\.com/[^\"'?\s]+[\"'\s]", text) \
+       or re.search(r"images\.pexels\.com/[^\"'?\s]+[\"'\s]", text):
+        out.append(finding(
+            path, first(r"images\.(unsplash|pexels)\.com"),
+            "a stock photo referenced at source resolution with no resize parameters",
+            "stock-photo-at-source-resolution", "high",
+            "The download went in at four to six thousand pixels and got referenced directly. It "
+            "looks fine — it always looks fine, that is the trap. Combine this with the "
+            "stock-photography taste tell and you get a compound finding much stronger than "
+            "either alone: a generic stock photo, shipped at source resolution.",
+            "The stock host is itself an image CDN — add its width, quality and format "
+            "parameters. For local assets, nothing enters the public directory above twice its "
+            "largest display width.",
+            family="defect"))
+
+    vid = re.search(r"<video\b[^>]*>", text, re.I)
+    if vid and re.search(r"\bautoplay\b", vid.group(0), re.I) \
+       and not re.search(r"\bposter=", vid.group(0), re.I):
+        out.append(finding(
+            path, text[:vid.start()].count("\n") + 1,
+            "an autoplaying background video with no poster",
+            "autoplay-background-video-no-poster", "high",
+            "The most expensive decoration on the web: a ten-second 1080p loop is routinely eight "
+            "to fifteen megabytes, it downloads before anything the visitor asked for, and on "
+            "mobile it frequently does not even play. Generators reach for background video "
+            "because it is a well-represented premium-landing-page pattern, and they emit the "
+            "minimal correct element — which is the maximally expensive one, because poster "
+            "and preload are the attributes you add AFTER watching it load.",
+            "A poster image is the default and the video is the upgrade: poster set, preload "
+            "none, playback started on readiness, skipped on slow connections and under a "
+            "reduced-motion preference. Budget a decorative loop at 2 MB, ten seconds, 720p.",
+            family="defect"))
+
+    gf_url = re.search(r"fonts\.googleapis\.com/css2\?[^\"'\s>]*", text)
+    if gf_url:
+        declared = {int(w) for grp in re.findall(r"wght@([\d;.,]+)", gf_url.group(0))
+                    for w in re.split(r"[;,]", grp) if w.isdigit()
+                    for w in [w]} | {int(w) for w in
+                                     re.findall(r"(?<![\d.])([1-9]00)(?![\d.])", gf_url.group(0))}
+        used = {int(w) for w in re.findall(r"font-weight\s*:\s*([1-9]00)\b", low)}
+        used |= {700 for _ in re.findall(r"font-weight\s*:\s*bold\b", low)}
+        used |= {400 for _ in re.findall(r"font-weight\s*:\s*normal\b", low)}
+        if len(declared) >= th("font-weights-ordered-not-used", "min_declared", 4) \
+           and len(used) <= 2:
+            out.append(finding(
+                path, text[:gf_url.start()].count("\n") + 1,
+                f"{len(declared)} font weights requested, {len(used) or 'none'} used in the CSS",
+                "font-weights-ordered-not-used", "medium",
+                "Each unused weight is a separate file, and in a hosted-font URL they are all in "
+                "one render-blocking request. PARTLY MODEL-FLAVOURED: the specific weight list is "
+                "a copy-paste artefact that appears verbatim across generated pages — the "
+                "shape of a well-represented snippet, not a decision. A designer who chose six "
+                "weights would have used six.",
+                "Request only the weights the CSS uses. Two is usually right for a marketing "
+                "page. Check the WHOLE stylesheet, not the rendered page — weights used in "
+                "components absent here are a false positive of page-scoped auditing.",
+                family="residue"))
+        if "preconnect" not in low:
+            out.append(finding(
+                path, text[:gf_url.start()].count("\n") + 1,
+                "a hosted-font stylesheet with no preconnect to the font origin",
+                "google-fonts-cdn-render-blocking", "medium",
+                "A render-blocking stylesheet on a third-party origin whose font files live on a "
+                "SECOND origin — so the critical path is DNS, TCP, TLS and CSS on one host, "
+                "then DNS, TCP, TLS and the font on another, before a glyph paints. This link is "
+                "one of the highest-frequency single lines in the HTML training corpus: it is "
+                "what a model emits when asked for nice typography, without the preconnect that "
+                "makes it tolerable.",
+                "Self-host the WOFF2 subsets and the second-origin chain disappears. If the CDN "
+                "must stay, preconnect to the font origin as the FIRST element in the head. The "
+                "shared-cache argument died when browsers partitioned the cache in 2020.",
+                family="defect"))
+
+    if re.search(r"@font-face", low) and "font-display" not in low:
+        out.append(finding(
+            path, first(r"@font-face"), "@font-face with no font-display descriptor",
+            "font-display-absent-or-block", "medium",
+            "The default produces a flash of invisible text — the page is blank where the "
+            "headline should be for up to three seconds, which reads as \"the site is broken\" "
+            "rather than \"the font is loading\". A one-line descriptor that only matters on a "
+            "slow connection, and a generator is never on one.",
+            "swap for body and display faces, paired with metric overrides on the fallback so the "
+            "swap does not move the layout. ICON fonts genuinely want block, because a swapped-in "
+            "fallback renders as garbage letters.",
+            family="defect"))
+
+    if re.search(r"font-awesome|fontawesome|material-icons|glyphicons", low):
+        out.append(finding(
+            path, first(r"font-awesome|fontawesome|material-icons|glyphicons"),
+            "an icon webfont loaded",
+            "icon-webfont-for-a-handful-of-icons", "medium",
+            "The whole glyph set downloads — often a hundred kilobytes plus a "
+            "render-blocking stylesheet — and until it arrives the icons are invisible or "
+            "render as tofu. UNREVIEWED and TEMPLATE-INHERITED: icon fonts are the 2015 pattern, "
+            "and their persistence in new output signals that a template or a corpus snippet, "
+            "rather than a decision, chose the icon strategy.",
+            "Inline SVG for the icons you actually use — six sprites are a kilobyte or two "
+            "total, paint with the first HTML byte, inherit currentColor and are addressable by "
+            "assistive technology. An application with hundreds of icons is the real exception.",
+            family="shape"))
+
+    for lib, ism, sev, why, fix in (
+        (r"\bthree(?:\.min)?\.js\b|from\s+[\"']three[\"']|@react-three/fiber|babylonjs",
+         "webgl-library-for-decoration", "high",
+         "A hundred and fifty kilobytes gzipped before any scene code, plus a WebGL context and a "
+         "continuous animation loop that runs whether or not anyone is looking at it. The honest "
+         "framing is that this is an agency aesthetic generators reproduce because it is "
+         "well-represented in impressive-landing-page training data. What IS model-shaped is the "
+         "mismatch: a generator imports a 3D engine for an effect CSS can do, because the engine "
+         "version is the one it has seen more examples of.",
+         "Ask what the effect actually is — a rotating blob is CSS keyframes on a gradient, "
+         "a particle field is a canvas and forty lines. If you genuinely need WebGL, import from "
+         "the source paths, code-split behind an observer, and stop the loop when the tab is "
+         "hidden."),
+        (r"framer-motion|from\s+[\"']motion|\bgsap\b|aos\.js|animate-on-scroll",
+         "animation-library-for-css-effects", "medium",
+         "Every entrance animation is a CSS transition plus an intersection observer, under a "
+         "kilobyte. The library costs tens of kilobytes gzipped and runs its orchestration on the "
+         "main thread, where it competes with event handlers; compositor-driven CSS transforms do "
+         "not. PARTLY MODEL-FLAVOURED, and this is the payload half of "
+         "reveal-animation-on-everything — the uniformity is the tell.",
+         "A reveal class with a CSS transition behind a reduced-motion guard plus a six-line "
+         "observer. Keep the library only for layout animation, shared-element transitions, drag "
+         "or exit animations, which CSS genuinely cannot do."),
+        (r"\blenis\b|locomotive-scroll|smooth-scrollbar",
+         "smooth-scroll-library-on-a-brochure", "medium",
+         "A per-frame JavaScript interpolation layer between the visitor's input and the page's "
+         "response. UNREVIEWED and AESTHETIC-INHERITED: a portfolio convention reproduced without "
+         "the context that justified it.",
+         "Native smooth scroll behaviour is free for anchor navigation and respects a "
+         "reduced-motion preference automatically. Take the library only for a genuine "
+         "scroll-driven narrative. Note the better modern implementations keep native scroll "
+         "alive, which is a materially smaller finding."),
+    ):
+        m = re.search(lib, text, re.I)
+        if m:
+            out.append(finding(
+                path, text[:m.start()].count("\n") + 1,
+                f"{m.group(0)} loaded on a page with no matching need",
+                ism, sev, why, fix, family="shape"))
+
+    if re.search(r'^\s*[\'"]use client[\'"]', text, re.M) \
+       and not re.search(r"useState|useEffect|useReducer|useRef|onClick|onChange|onSubmit"
+                         r"|window\.|document\.|localStorage", text):
+        out.append(finding(
+            path, first(r"use client"),
+            "a client boundary on a component with no client-only API beneath it",
+            "use-client-on-a-static-page", "high",
+            "Everything below that boundary ships to the browser and is re-executed there to "
+            "produce markup the server already produced. GENUINELY MODEL-FLAVOURED: the "
+            "directive is the fastest way to make a build error go away, and generators reach "
+            "for it as an error-suppression move rather than an architecture decision. The "
+            "signature is exactly that — a fix applied to a symptom the model COULD see (a "
+            "build error) rather than a cost it could not (the shipped bundle).",
+            "Move the boundary down: keep the page a server component and mark only the "
+            "interactive leaf as a client component, interleaving through children so the "
+            "server-rendered content stays server-rendered.",
+            family="defect"))
+
+    if ext in {".html", ".htm"} and re.search(r"<body[^>]*>\s*<div id=[\"'](?:root|app)[\"']>"
+                                              r"\s*</div>\s*(?:<script)", text, re.I):
+        out.append(finding(
+            path, first(r"<div id=[\"'](root|app)"),
+            "the document body is an empty mount point",
+            "spa-shell-for-a-brochure-site", "high",
+            "Every word on the page exists only after a JavaScript bundle downloads, parses, "
+            "executes and renders. UNREVIEWED and mostly TOOL-FLAVOURED rather than "
+            "model-flavoured — it is what a default client-side scaffold produces. Worth "
+            "flagging precisely because it is invisible in the rendered page and visible only in "
+            "the delivery, which is the theme of this whole lane.",
+            "Prerender. Any static-site generator turns the same components into HTML at build "
+            "time. For a brochure site the honest answer is often that no framework was needed. "
+            "An application behind a login is correctly client-rendered and is not this finding.",
+            family="defect"))
+
+    if ext in {".html", ".htm"} and "<head" in low:
+        head = text[:low.find("</head>")] if "</head>" in low else text[:6000]
+        origins = set(re.findall(r"<script[^>]*src=[\"']https?://([^/\"']+)", head, re.I))
+        blocking = len([x for x in re.findall(r"<script\b[^>]*src=[^>]*>", head, re.I)
+                        if not re.search(r"\basync\b|\bdefer\b|type=[\"']module", x, re.I)])
+        blocking += len([x for x in re.findall(r"<link\b[^>]*rel=[\"']stylesheet[\"'][^>]*>",
+                                               head, re.I)
+                         if not re.search(r"\bmedia=", x, re.I)])
+        if blocking >= th("render-blocking-head-stack", "min_blocking", 3):
+            out.append(finding(
+                path, first(r"<head"),
+                f"{blocking} render-blocking resources in <head>"
+                + (f" across {len(origins)} third-party origin(s)" if origins else ""),
+                "render-blocking-head-stack", "high",
+                "Nothing paints until all of them arrive. Nothing about the head order is visible "
+                "in the design, and a generator assembling a head from remembered snippets has no "
+                "model of the critical path. This is the roll-up finding that several others "
+                "contribute to, and the one a reviewer can most easily act on — only "
+                "13–15% of pages pass the render-blocking audit, so \"one, same-origin\" "
+                "puts a page in the top sixth of the web.",
+                "Inline the critical CSS for the first viewport and load the rest asynchronously. "
+                "Defer every script not needed for first paint. Self-host fonts to remove the "
+                "cross-origin blocking stylesheet. A single small same-origin stylesheet is the "
+                "correct shape and is not this finding.",
+                family="defect"))
+        if len(origins) >= th("default-third-party-stack", "min_origins", 4):
+            out.append(finding(
+                path, first(r"<script[^>]*src=[\"']https?://"),
+                f"{len(origins)} third-party script origins: {', '.join(sorted(origins)[:5])}",
+                "default-third-party-stack", "high",
+                "Each is a third-party origin — DNS, TCP, TLS — most execute on the "
+                "main thread, and several load further scripts after they run. UNREVIEWED, "
+                "EXPLICITLY: this is not an AI tell at all. No generator installs six SaaS "
+                "widgets; people do. It belongs here because the audit is of the shipped "
+                "artefact, and because it is very often the largest controllable cost on a "
+                "marketing page after the hero image. Report it as an operational finding, never "
+                "an authorship one.",
+                "Budget third parties as a countable design constraint — three origins on a "
+                "marketing page. Load everything non-essential deferred, after consent, or on "
+                "interaction. Delete anything nobody has opened a dashboard for in ninety days.",
+                family="shape"))
 
     dbg = len(re.findall(r"\bconsole\.(?:log|debug|warn)\s*\(", text)) \
         + len(re.findall(r"\bdebugger\s*;", text))

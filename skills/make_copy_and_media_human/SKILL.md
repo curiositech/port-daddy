@@ -345,6 +345,32 @@ their only visible boundary. Both matter because a static pass reports success o
 exactly these: the Escape handler is present in source whether or not it runs,
 and a gradient looks like a boundary right up until the OS reverts it.
 
+### Optimised the source, never the delivery
+
+A generator can see the markup it is writing. It cannot see a network waterfall,
+a byte count, a decode time, or which element wins LCP. So the findings in
+`references/performance-as-a-design-tell.md` cluster where correctness-in-source
+and correctness-in-delivery come apart: the `<img>` is valid and the format is
+wrong; the font stack is tasteful and six weights ship; the component is correct
+React and it did not need to be React.
+
+**Say UNREVIEWED, not AI-generated, and mean it.** Three or four entries there
+are genuinely model-flavoured and say so; the rest would look identical coming
+from a person who shipped without watching the page load once. Be especially
+careful with the population-level claim, because it is the one that gets
+repeated: the mechanism is well understood and every individual tell is
+measurable on any given page, but **there is no published measurement that
+AI-generated sites are heavier**. What exists measures AI-adjacent signals —
+builder subdomains, the spread of the indigo palette — and explicitly does
+not measure page weight.
+
+Read `references/performance-budget-and-folklore.md` before reporting any of it.
+It carries eleven budget numbers a designer can check in a review without
+opening a profiler, and ten pieces of circulating folklore to drop — the
+Lighthouse score as a proxy for speed, the per-KB parse-time constant, the shared
+font cache, and the weight claim above. A score tells you where you landed; a
+budget tells a designer what they can spend before they spend it.
+
 ### One value where a function belonged
 
 `references/typographic-craft-and-tokens.md` has a single governing idea and it
@@ -529,6 +555,8 @@ already one of them.
 | `references/accessibility-beyond-the-checklist.md` | After the manual pass, or when an automated scan came back clean and you need the other 70% |
 | `references/product-ux-writing.md` | Any string a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints |
 | `references/typographic-craft-and-tokens.md` | Reviewing a stylesheet or a design system: leading, tracking, scale, weight, numerals, colour roles, tokens |
+| `references/performance-budget-and-folklore.md` | Before any performance finding — eleven budget numbers a designer can hold, and ten pieces of folklore to drop |
+| `references/performance-as-a-design-tell.md` | Images, fonts, video, libraries and the head stack: where the source is right and the delivery is not |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -647,6 +675,8 @@ launch announcement in machine accent and then edited,
 - [`references/five-minute-manual-pass.md`](references/five-minute-manual-pass.md) — The five-minute manual pass — Written for someone who has never used a screen reader.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
 - [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
+- [`references/performance-as-a-design-tell.md`](references/performance-as-a-design-tell.md) — Performance and payload as a design tell — **The organising idea.** A generator can see the markup it is writing.
+- [`references/performance-budget-and-folklore.md`](references/performance-budget-and-folklore.md) — A performance budget a designer can hold, and the folklore to drop — Two things in one file, because they are the same argument.
 - [`references/product-ux-writing.md`](references/product-ux-writing.md) — UX writing inside the product — The strings a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints.
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
 - [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
