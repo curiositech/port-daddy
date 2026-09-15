@@ -13,10 +13,71 @@ _35 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Strings a logged-in user reads mid-task"] --> B["EXTRACT first, match second"]
+    B --> C["i18n catalogs, JSX text, the render<br/>and error paths"]
+    C --> D["Closed phrase sets run ONLY over<br/>the extracted strings"]
+    D --> E{"Why is this the one lane<br/>where hard matching is allowed?"}
+    E --> F["A product's string table is small,<br/>enumerable and extractable.<br/>Prose is none of those"]
+    F --> G["Start with collapsed-empty-states:<br/>three different situations collapsing<br/>into one string is what makes users<br/>believe their data was deleted"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`apology-in-place-of-explanation`](#apology-in-place-of-explanation) | HIGH | form | yes |
+| [`are-you-sure-without-the-object`](#are-you-sure-without-the-object) | HIGH | form | yes |
+| [`assistant-register-in-product-chrome`](#assistant-register-in-product-chrome) | HIGH | form | yes |
+| [`collapsed-empty-states`](#collapsed-empty-states) | HIGH | defect | **no** |
+| [`confirmation-without-loss-inventory`](#confirmation-without-loss-inventory) | HIGH | form | n/a |
+| [`destructive-action-labelled-like-a-benign-one`](#destructive-action-labelled-like-a-benign-one) | HIGH | form | **no** |
+| [`empty-state-without-an-on-ramp`](#empty-state-without-an-on-ramp) | HIGH | form | **no** |
+| [`error-blames-the-user`](#error-blames-the-user) | HIGH | form | yes |
+| [`error-names-the-system-not-the-situation`](#error-names-the-system-not-the-situation) | HIGH | form | n/a |
+| [`error-with-no-recovery-action`](#error-with-no-recovery-action) | HIGH | form | n/a |
+| [`forced-cheer-interjection`](#forced-cheer-interjection) | HIGH | form | yes |
+| [`generic-failure-string`](#generic-failure-string) | HIGH | form | yes |
+| [`inverted-confirmation-coverage`](#inverted-confirmation-coverage) | HIGH | defect | **no** |
+| [`permission-ask-without-a-why`](#permission-ask-without-a-why) | HIGH | form | yes |
+| [`politeness-is-the-safe-completion`](#politeness-is-the-safe-completion) | HIGH | form | **no** |
+| [`raw-exception-text-in-ui`](#raw-exception-text-in-ui) | HIGH | residue | **no** |
+| [`rules-revealed-only-after-failure`](#rules-revealed-only-after-failure) | HIGH | defect | **no** |
+| [`unresolved-token-in-ui-string`](#unresolved-token-in-ui-string) | HIGH | residue | yes |
+| [`widget-named-action-label`](#widget-named-action-label) | HIGH | form | yes |
+| [`cancel-cancel-ambiguity`](#cancel-cancel-ambiguity) | med | form | **no** |
+| [`emoji-in-system-status-strings`](#emoji-in-system-status-strings) | med | form | yes |
+| [`exclamation-in-system-strings`](#exclamation-in-system-strings) | med | rhythm | yes |
+| [`helper-text-restates-the-label`](#helper-text-restates-the-label) | med | form | **no** |
+| [`http-status-as-user-prose`](#http-status-as-user-prose) | med | form | yes |
+| [`invalid-as-the-entire-diagnosis`](#invalid-as-the-entire-diagnosis) | med | form | yes |
+| [`joke-in-a-failure-state`](#joke-in-a-failure-state) | med | form | yes |
+| [`locale-ambiguous-and-unitless-values`](#locale-ambiguous-and-unitless-values) | med | defect | **no** |
+| [`no-data-available-string`](#no-data-available-string) | med | form | yes |
+| [`no-reference-for-support`](#no-reference-for-support) | med | defect | **no** |
+| [`objectless-notification`](#objectless-notification) | med | form | yes |
+| [`success-toast-for-a-visible-result`](#success-toast-for-a-visible-result) | med | defect | yes |
+| [`tour-narrates-the-obvious`](#tour-narrates-the-obvious) | med | form | n/a |
+| [`welcome-tour-boilerplate`](#welcome-tour-boilerplate) | med | form | yes |
+| [`zero-results-without-the-query`](#zero-results-without-the-query) | med | form | **no** |
+| [`gamified-setup-checklist`](#gamified-setup-checklist) | low | shape | **no** |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="apology-in-place-of-explanation"></a>
 ### `apology-in-place-of-explanation`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -39,6 +100,7 @@ The message opens with regret and never arrives at information. The apology occu
 
 > Checkout is down. Your cart is saved and no payment was taken. We'll email you when it's back. [Check status]
 
+<a id="are-you-sure-without-the-object"></a>
 ### `are-you-sure-without-the-object`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -61,6 +123,7 @@ The contentless confirmation. "Are you sure?" "This action cannot be undone. Are
 
 > “Delete 1,240 files in Q3 Archive? They won't go to Trash and can't be restored.” with [Delete 1,240 files] / [Keep files]
 
+<a id="assistant-register-in-product-chrome"></a>
 ### `assistant-register-in-product-chrome`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -83,6 +146,7 @@ The chat assistant's voice leaking into the product. “Let's get you set up!”
 
 > Connect a data source. Zenith reads from Postgres, Snowflake and BigQuery. You'll need a read-only connection string.
 
+<a id="collapsed-empty-states"></a>
 ### `collapsed-empty-states`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -105,6 +169,7 @@ The headline entry of this lane. One blank-list component serving three unrelate
 
 > never-had-data: "No invoices yet. Invoices appear here once you send your first one. [Create invoice]" · filtered-to-nothing: "No invoices match ‘acme’ with status Paid. [Clear filters]" · failed-to-load: "We couldn't load your invoices — the billing service isn't responding. Your data is safe. [Retry]"
 
+<a id="confirmation-without-loss-inventory"></a>
 ### `confirmation-without-loss-inventory`  ·  high · generic-llm · microcopy · llm-judge · family: form · lane: microcopy
 
 The dialog names the action but not the collateral. "Delete project?" without saying it takes 40 files, 3 integrations and the deploy history with it. The user consents to the headline and not to the consequences.
@@ -125,6 +190,7 @@ The dialog names the action but not the collateral. "Delete project?" without sa
 
 > Delete “Northwind”? This removes 40 files, 3 connected integrations and 6 months of deploy history. Nothing goes to Trash.
 
+<a id="destructive-action-labelled-like-a-benign-one"></a>
 ### `destructive-action-labelled-like-a-benign-one`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -147,6 +213,7 @@ The irreversible action and the harmless one wear the same label and often the s
 
 > “Delete the Northwind workspace?” with [Delete workspace and 1,240 files] / [Keep workspace]
 
+<a id="empty-state-without-an-on-ramp"></a>
 ### `empty-state-without-an-on-ramp`  ·  high · generic-llm · microcopy · rendered · family: form · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -169,6 +236,7 @@ An empty state that explains the emptiness and offers no way out of it. Prose an
 
 > No projects yet. A project holds your repos, runs and reports. [Create a project] · [Import from GitHub]
 
+<a id="error-blames-the-user"></a>
 ### `error-blames-the-user`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -191,6 +259,7 @@ The error makes the user the grammatical agent of the failure. "You entered an i
 
 > Enter a postal code in the format SW1A 1AA.
 
+<a id="error-names-the-system-not-the-situation"></a>
 ### `error-names-the-system-not-the-situation`  ·  high · generic-llm · microcopy · llm-judge · family: form · lane: microcopy
 
 The message describes what the software's internals were doing at the moment of failure rather than what the user was trying to do. The grammatical subject is a subsystem the user has never heard of.
@@ -211,6 +280,7 @@ The message describes what the software's internals were doing at the moment of 
 
 > We couldn't load your invoices. The billing service isn't responding. [Retry] · [Show technical details]
 
+<a id="error-with-no-recovery-action"></a>
 ### `error-with-no-recovery-action`  ·  high · generic-llm · microcopy · llm-judge · family: form · lane: microcopy
 
 The message correctly and specifically states the problem and then stops. No verb the user can perform, no control to press, no route onward. Diagnosis without prescription — and the failure mode that survives a naive "be specific" fix, so it is what a shallow audit leaves behind.
@@ -231,6 +301,7 @@ The message correctly and specifically states the problem and then stops. No ver
 
 > Your session expired after 30 minutes of inactivity. Sign in again — your draft is saved. [Sign in]
 
+<a id="forced-cheer-interjection"></a>
 ### `forced-cheer-interjection`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -253,6 +324,7 @@ An interjection prepended to a system message to soften it. Oops. Uh oh. Whoops.
 
 > We couldn't upload chart-q3.png — it's 18 MB and the limit is 10 MB. [Choose a smaller file]
 
+<a id="generic-failure-string"></a>
 ### `generic-failure-string`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -275,6 +347,7 @@ The contentless failure. A string announcing that something failed without namin
 
 > We couldn't save your changes — the connection dropped. Your draft is still here. [Retry save]
 
+<a id="inverted-confirmation-coverage"></a>
 ### `inverted-confirmation-coverage`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -297,6 +370,7 @@ Confirmations distributed by convenience rather than consequence. Every routine 
 
 > renaming renames with an undo strip; deleting the account opens a dialog naming what is lost plus a typed confirmation
 
+<a id="permission-ask-without-a-why"></a>
 ### `permission-ask-without-a-why`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -319,6 +393,7 @@ A request for access that states what is wanted and not why. The reason is eithe
 
 > Zenith can use your location to show job sites within 25 miles instead of making you type postcodes. You can turn this off in Settings at any time. [Use my location] / [Not now]
 
+<a id="politeness-is-the-safe-completion"></a>
 ### `politeness-is-the-safe-completion`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -341,6 +416,7 @@ The governing mechanism for this whole lane, and the reason its findings are leg
 
 > We couldn't save your changes — the connection dropped 30 seconds ago. Your edits are kept on this device and will sync when you're back online. [Retry now]
 
+<a id="raw-exception-text-in-ui"></a>
 ### `raw-exception-text-in-ui`  ·  high · generic-llm · web-ui · rendered · family: residue · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -363,6 +439,7 @@ Language-runtime error text reaching the screen: a TypeError, a traceback, an un
 
 > We couldn't load your team list. This has been logged (ref 8f2c1a). [Reload] · [Contact support]
 
+<a id="rules-revealed-only-after-failure"></a>
 ### `rules-revealed-only-after-failure`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -385,6 +462,7 @@ A constraint the user could not have known and learns only by breaking it — pa
 
 > visible from the start: “At least 12 characters · one uppercase · one number · one of ! ? $ #”, each ticking off live
 
+<a id="unresolved-token-in-ui-string"></a>
 ### `unresolved-token-in-ui-string`  ·  high · generic-llm · web-ui · structural · family: residue · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -407,6 +485,7 @@ Template or runtime scaffolding reaching the screen: “Welcome back, undefined!
 
 > Welcome back. You have no unread messages.
 
+<a id="widget-named-action-label"></a>
 ### `widget-named-action-label`  ·  high · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -429,6 +508,7 @@ A button labelled for the mechanism rather than the outcome. Submit. OK. Confirm
 
 > Dialog “Discard changes?” with buttons [Discard changes] / [Keep editing]
 
+<a id="cancel-cancel-ambiguity"></a>
 ### `cancel-cancel-ambiguity`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -451,6 +531,7 @@ A dialog about cancelling something whose dismiss button is labelled Cancel. The
 
 > “Cancel your Pro subscription?” with [Cancel subscription] / [Keep subscription]
 
+<a id="emoji-in-system-status-strings"></a>
 ### `emoji-in-system-status-strings`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -473,6 +554,7 @@ Emoji embedded in product chrome: a check in a success toast, a warning triangle
 
 > Couldn't save — you're offline. We'll retry automatically when you reconnect.
 
+<a id="exclamation-in-system-strings"></a>
 ### `exclamation-in-system-strings`  ·  medium · generic-llm · microcopy · structural · family: rhythm · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -497,6 +579,7 @@ Exclamation marks in status, error, empty and confirmation copy. The punctuation
 
 > Settings saved.
 
+<a id="helper-text-restates-the-label"></a>
 ### `helper-text-restates-the-label`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -519,6 +602,7 @@ Hint text under a field that repeats the field's own name. Label “Email addres
 
 > Label “Phone number”, hint “Include the country code, e.g. +44 7700 900123. We only use this for delivery updates.”
 
+<a id="http-status-as-user-prose"></a>
 ### `http-status-as-user-prose`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -541,6 +625,7 @@ A raw HTTP status line rendered to an end user as if it were a sentence. The num
 
 > You don't have access to this project. Ask its owner to add you. [Request access] (ref 403 / req 8f2c1a)
 
+<a id="invalid-as-the-entire-diagnosis"></a>
 ### `invalid-as-the-entire-diagnosis`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -563,6 +648,7 @@ The word "invalid" doing all the work. The string asserts that the input is wron
 
 > The postal code for the US must be five or nine digits. You entered seven (4872953).
 
+<a id="joke-in-a-failure-state"></a>
 ### `joke-in-a-failure-state`  ·  medium · generic-llm · microcopy · llm-judge · family: form · lane: microcopy
 
 Humour deployed in an error, an outage, a payment failure or a data-loss warning: the 404 with a pun, the failed upload with a quip about gremlins.
@@ -583,6 +669,7 @@ Humour deployed in an error, an outage, a payment failure or a data-loss warning
 
 > Payment didn't go through — your card was declined by the issuer. No charge was made. [Try another card] · [Contact your bank]
 
+<a id="locale-ambiguous-and-unitless-values"></a>
 ### `locale-ambiguous-and-unitless-values`  ·  medium · generic-llm · microcopy · structural · family: defect · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -605,6 +692,7 @@ Values rendered without the information needed to read them: a slashed date with
 
 > Renews 10 November 2025 · Limit: 2,048 MB per file · Total: US$1,200.00
 
+<a id="no-data-available-string"></a>
 ### `no-data-available-string`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -627,6 +715,7 @@ The empty state's contentless string, sibling of the generic failure. It reports
 
 > No saved searches yet. Save a search from the filter bar and it'll appear here. [Save current search]
 
+<a id="no-reference-for-support"></a>
 ### `no-reference-for-support`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -649,6 +738,7 @@ A failure that leaves neither the user nor the support team anything to hold: no
 
 > We couldn't complete that. We've logged it — quote ref 8F2C-1A94 if you contact support. [Copy ref] · [Retry]
 
+<a id="objectless-notification"></a>
 ### `objectless-notification`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -671,6 +761,7 @@ A notification reporting a completed event without naming what it happened to, w
 
 > Import finished: 1,204 contacts added, 12 skipped as duplicates · 4 minutes ago · [View import log]
 
+<a id="success-toast-for-a-visible-result"></a>
 ### `success-toast-for-a-visible-result`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -693,6 +784,7 @@ A confirmation toast for an action whose result is already on screen. The row di
 
 > the row vanishes, with an inline strip where it was: “Q3 forecast deleted. [Undo]”
 
+<a id="tour-narrates-the-obvious"></a>
 ### `tour-narrates-the-obvious`  ·  medium · generic-llm · microcopy · llm-judge · family: form · lane: microcopy
 
 A coach-mark sequence labelling self-evident controls: a tooltip on the search box saying “Use this to search”. The tour explains the parts of the interface that are already labelled.
@@ -713,6 +805,7 @@ A coach-mark sequence labelling self-evident controls: a tooltip on the search b
 
 > no tour; one contextual tip the first time the filter panel opens: “Filters stack. Add a second filter to narrow rather than replace.”
 
+<a id="welcome-tour-boilerplate"></a>
 ### `welcome-tour-boilerplate`  ·  medium · generic-llm · microcopy · structural · family: form · lane: microcopy
 
 **Automated here:** yes, these scripts implement it.
@@ -735,6 +828,7 @@ The modal that greets a new user with nothing in it. It consumes the first scree
 
 > no modal; the empty dashboard reads “Connect a data source to see your first report. [Connect a source] · [Use sample data]”
 
+<a id="zero-results-without-the-query"></a>
 ### `zero-results-without-the-query`  ·  medium · generic-llm · microcopy · rendered · family: form · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -757,6 +851,7 @@ A search or filter returns nothing and the message does not say WHAT returned no
 
 > Nothing matches “onbaording” with Status: Archived. [Search for “onboarding” instead] · [Clear filters]
 
+<a id="gamified-setup-checklist"></a>
 ### `gamified-setup-checklist`  ·  low · generic-llm · microcopy · structural · family: shape · lane: microcopy
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.

@@ -13,10 +13,77 @@ _36 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A site with more than one page"] --> B{"Which surface?"}
+    B -->|navigation| C["nav links over total routes.<br/>Near 1.0 means the IA is the file listing"]
+    B -->|i18n| D["Switch locale. Does lang= follow?<br/>Do dates and money change shape?"]
+    B -->|docs| E["Search for a string you KNOW is there"]
+    B -->|email| F["Open in a client, images off"]
+    B -->|print| G["Actually print it, or print-preview"]
+    C --> H["The tell is not strangeness.<br/>It is that a whole class of output<br/>was never looked at"]
+    D --> H
+    E --> H
+    F --> H
+    G --> H
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`checkout-without-guest-option`](#checkout-without-guest-option) | HIGH | defect | yes |
+| [`decorative-site-search`](#decorative-site-search) | HIGH | defect | yes |
+| [`docs-search-indexes-nothing`](#docs-search-indexes-nothing) | HIGH | defect | yes |
+| [`email-built-with-web-css`](#email-built-with-web-css) | HIGH | defect | yes |
+| [`email-unreadable-with-images-off`](#email-unreadable-with-images-off) | HIGH | defect | **no** |
+| [`hamburger-at-desktop-width`](#hamburger-at-desktop-width) | HIGH | defect | yes |
+| [`lang-frozen-on-locale-switch`](#lang-frozen-on-locale-switch) | HIGH | defect | yes |
+| [`nav-without-active-state`](#nav-without-active-state) | HIGH | defect | yes |
+| [`receipt-generated-as-screenshot`](#receipt-generated-as-screenshot) | HIGH | defect | yes |
+| [`rtl-unsupported-physical-properties`](#rtl-unsupported-physical-properties) | HIGH | defect | yes |
+| [`unsubscribe-absent-or-buried`](#unsubscribe-absent-or-buried) | HIGH | defect | **no** |
+| [`breadcrumb-without-real-hierarchy`](#breadcrumb-without-real-hierarchy) | med | defect | **no** |
+| [`chrome-sized-to-english`](#chrome-sized-to-english) | med | defect | **no** |
+| [`code-sample-not-runnable`](#code-sample-not-runnable) | med | defect | yes |
+| [`dark-mode-inverts-the-logo-away`](#dark-mode-inverts-the-logo-away) | med | defect | **no** |
+| [`docs-generator-defaults-unmodified`](#docs-generator-defaults-unmodified) | med | residue | yes |
+| [`every-page-opens-with-in-this-guide`](#every-page-opens-with-in-this-guide) | med | form | yes |
+| [`flat-nav-every-route`](#flat-nav-every-route) | med | shape | **no** |
+| [`footer-sitemap-dump`](#footer-sitemap-dump) | med | shape | yes |
+| [`hardcoded-locale-formats`](#hardcoded-locale-formats) | med | defect | yes |
+| [`ia-is-a-projection-of-the-filesystem`](#ia-is-a-projection-of-the-filesystem) | med | shape | **no** |
+| [`mega-menu-on-a-small-site`](#mega-menu-on-a-small-site) | med | shape | **no** |
+| [`name-and-address-shape-assumed`](#name-and-address-shape-assumed) | med | defect | yes |
+| [`no-plain-text-part`](#no-plain-text-part) | med | defect | yes |
+| [`no-print-stylesheet`](#no-print-stylesheet) | med | defect | yes |
+| [`no-real-product-photography`](#no-real-product-photography) | med | visual | n/a |
+| [`reviews-without-filtering-or-distribution`](#reviews-without-filtering-or-distribution) | med | defect | **no** |
+| [`sentence-assembled-from-fragments`](#sentence-assembled-from-fragments) | med | defect | yes |
+| [`sidebar-nested-past-three-levels`](#sidebar-nested-past-three-levels) | med | shape | **no** |
+| [`spec-table-as-prose`](#spec-table-as-prose) | med | shape | **no** |
+| [`text-baked-into-image`](#text-baked-into-image) | med | defect | yes |
+| [`api-reference-restates-the-type`](#api-reference-restates-the-type) | low | shape | n/a |
+| [`flag-as-language-selector`](#flag-as-language-selector) | low | shape | yes |
+| [`home-link-live-on-the-homepage`](#home-link-live-on-the-homepage) | low | defect | **no** |
+| [`no-version-selector`](#no-version-selector) | low | shape | **no** |
+| [`preheader-never-set`](#preheader-never-set) | low | defect | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="checkout-without-guest-option"></a>
 ### `checkout-without-guest-option`  ·  high · generic-llm · web-ui · structural · family: defect · lane: commerce
 
 **Automated here:** yes, these scripts implement it.
@@ -39,6 +106,7 @@ Checkout requires an account. The visitor with a full cart hits a login wall and
 
 > a guest path collecting email and address; post-purchase "Create an account to track this order" with the fields already filled
 
+<a id="decorative-site-search"></a>
 ### `decorative-site-search`  ·  high · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
 
 **Automated here:** yes, these scripts implement it.
@@ -61,6 +129,7 @@ A search input in the header that submits nowhere, or submits to a page with no 
 
 > delete it, or <form action="/search"><input type="search" name="q"></form> backed by a Pagefind index
 
+<a id="docs-search-indexes-nothing"></a>
 ### `docs-search-indexes-nothing`  ·  high · generic-llm · docs · structural · family: defect · lane: docs
 
 **Automated here:** yes, these scripts implement it.
@@ -83,6 +152,7 @@ The docs site has a search box in the navbar and no index behind it — either n
 
 > themes: [['@easyops-cn/docusaurus-search-local', { hashed: true, indexBlog: false }]]
 
+<a id="email-built-with-web-css"></a>
 ### `email-built-with-web-css`  ·  high · generic-llm · email · structural · family: defect · lane: email
 
 **Automated here:** yes, these scripts implement it.
@@ -107,6 +177,7 @@ The HTML email is built like a web page — display:flex, CSS grid, div columns,
 
 > <table role="presentation" width="100%"><tr><td style="padding:0 12px">…</td><td style="padding:0 12px">…</td></tr></table>
 
+<a id="email-unreadable-with-images-off"></a>
 ### `email-unreadable-with-images-off`  ·  high · generic-llm · email · structural · family: defect · lane: email
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -129,6 +200,7 @@ The headline, the offer, the price and the CTA are all inside images. With image
 
 > live h1, live price, a bulletproof button td; images carry atmosphere only, all with alt
 
+<a id="hamburger-at-desktop-width"></a>
 ### `hamburger-at-desktop-width`  ·  high · generic-llm · layout · structural · family: defect · lane: navigation-and-ia
 
 **Automated here:** yes, these scripts implement it.
@@ -151,6 +223,7 @@ The full nav is collapsed behind a toggle at 1280px and above — either the rev
 
 > <ul class="hidden md:flex gap-6">…</ul><button class="md:hidden" aria-label="Menu" aria-expanded="false">
 
+<a id="lang-frozen-on-locale-switch"></a>
 ### `lang-frozen-on-locale-switch`  ·  high · generic-llm · web-ui · structural · family: defect · lane: i18n
 
 **Automated here:** yes, these scripts implement it.
@@ -173,6 +246,7 @@ The site has a working language switcher, the content changes, and <html lang> s
 
 > <html lang="es" dir="ltr">
 
+<a id="nav-without-active-state"></a>
 ### `nav-without-active-state`  ·  high · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
 
 **Automated here:** yes, these scripts implement it.
@@ -195,6 +269,7 @@ No current-page indicator anywhere: no aria-current, no active class, no visual 
 
 > <a href="/pricing" aria-current="page">Pricing</a> + nav a[aria-current="page"]{font-weight:600;border-bottom:2px solid currentColor}
 
+<a id="receipt-generated-as-screenshot"></a>
 ### `receipt-generated-as-screenshot`  ·  high · generic-llm · print · structural · family: defect · lane: print
 
 **Automated here:** yes, these scripts implement it.
@@ -217,6 +292,7 @@ The invoice, receipt, ticket or report PDF is a rasterised screenshot of a web p
 
 > const pdf = await page.pdf({ format:'A4', printBackground:true, margin:{top:'15mm'} });
 
+<a id="rtl-unsupported-physical-properties"></a>
 ### `rtl-unsupported-physical-properties`  ·  high · generic-llm · layout · structural · family: defect · lane: i18n
 
 **Automated here:** yes, these scripts implement it.
@@ -241,6 +317,7 @@ Arabic, Hebrew, Persian or Urdu is offered and the layout does not mirror: dir i
 
 > .card{margin-inline-start:1rem;text-align:start;border-inline-start:2px solid}
 
+<a id="unsubscribe-absent-or-buried"></a>
 ### `unsubscribe-absent-or-buried`  ·  high · generic-llm · email · structural · family: defect · lane: email
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -265,6 +342,7 @@ A bulk or marketing send with no List-Unsubscribe header, or no in-body unsubscr
 
 > headers: { 'List-Unsubscribe': '<https://…/u/{token}>, <mailto:unsub@…>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } plus a normal-weight footer link
 
+<a id="breadcrumb-without-real-hierarchy"></a>
 ### `breadcrumb-without-real-hierarchy`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -287,6 +365,7 @@ A breadcrumb trail that does not describe the site's structure: Home > Page on a
 
 > Home > Products > Rain Jacket  at /products/rain-jacket, with /products a real page
 
+<a id="chrome-sized-to-english"></a>
 ### `chrome-sized-to-english`  ·  medium · generic-llm · layout · structural · family: defect · lane: i18n
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -309,6 +388,7 @@ Nav items, buttons, table headers, form labels and card titles sized for the Eng
 
 > .nav a{min-width:96px;white-space:normal;overflow-wrap:break-word}
 
+<a id="code-sample-not-runnable"></a>
 ### `code-sample-not-runnable`  ·  medium · generic-llm · docs · structural · family: defect · lane: docs
 
 **Automated here:** yes, these scripts implement it.
@@ -333,6 +413,7 @@ Code blocks the reader cannot use: no language tag, elisions like "// ... rest o
 
 > ```bash\nnpm install foo\nfoo init --key "$FOO_API_KEY"\n```  — plus a line saying where FOO_API_KEY comes from
 
+<a id="dark-mode-inverts-the-logo-away"></a>
 ### `dark-mode-inverts-the-logo-away`  ·  medium · generic-llm · email · structural · family: defect · lane: email
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -355,6 +436,7 @@ A dark, transparent-background logo on a #ffffff email body. The client inverts 
 
 > logo with a light plate + color-scheme meta + a prefers-color-scheme block + [data-ogsc] overrides
 
+<a id="docs-generator-defaults-unmodified"></a>
 ### `docs-generator-defaults-unmodified`  ·  medium · generic-llm · docs · structural · family: residue · lane: docs
 
 **Automated here:** yes, these scripts implement it.
@@ -379,6 +461,7 @@ The docs site is a create-docusaurus, Mintlify or Nextra starter with the conten
 
 > brand token set, real logo and favicon, footer linking to the repo, status page, changelog and support
 
+<a id="every-page-opens-with-in-this-guide"></a>
 ### `every-page-opens-with-in-this-guide`  ·  medium · generic-llm · docs · structural · family: form · lane: docs
 
 **Automated here:** yes, these scripts implement it.
@@ -403,6 +486,7 @@ Page after page opens with the same throat-clearing: "In this guide, we will…"
 
 > Configure SSO with Okta in about ten minutes. You need admin access to both accounts.
 
+<a id="flat-nav-every-route"></a>
 ### `flat-nav-every-route`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -427,6 +511,7 @@ The primary nav lists every routable page at one level, ordered by file-system o
 
 > nav: Services, Pricing, Work, About
 
+<a id="footer-sitemap-dump"></a>
 ### `footer-sitemap-dump`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
 
 **Automated here:** yes, these scripts implement it.
@@ -451,6 +536,7 @@ A four-column footer headed Company / Product / Resources / Legal containing eve
 
 > 1–2 columns, 6 links, all resolving; legal row on its own line
 
+<a id="hardcoded-locale-formats"></a>
 ### `hardcoded-locale-formats`  ·  medium · generic-llm · code · structural · family: defect · lane: i18n
 
 **Automated here:** yes, these scripts implement it.
@@ -473,6 +559,7 @@ Dates, currency and numbers written for one locale and one currency in code: '$'
 
 > <span>{new Intl.NumberFormat(locale,{style:'currency',currency}).format(price/100)}</span>
 
+<a id="ia-is-a-projection-of-the-filesystem"></a>
 ### `ia-is-a-projection-of-the-filesystem`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -495,6 +582,7 @@ The umbrella finding for this lane, and the one worth reading first. Generated n
 
 > Services · Pricing · Work · About  (Blog, FAQ, Careers, Team move to the footer; Contact becomes the button)
 
+<a id="mega-menu-on-a-small-site"></a>
 ### `mega-menu-on-a-small-site`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -519,6 +607,7 @@ A multi-column dropdown panel with section headers and descriptions, on a site w
 
 > Product · Pricing · Docs · About
 
+<a id="name-and-address-shape-assumed"></a>
 ### `name-and-address-shape-assumed`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: i18n
 
 **Automated here:** yes, these scripts implement it.
@@ -541,6 +630,7 @@ A form requiring First name plus Last name, a State dropdown of US states, a fiv
 
 > <input name="name" autocomplete="name" required> + a country-driven address block where state and postalCode are required only for countries that use them
 
+<a id="no-plain-text-part"></a>
 ### `no-plain-text-part`  ·  medium · generic-llm · email · structural · family: defect · lane: email
 
 **Automated here:** yes, these scripts implement it.
@@ -563,6 +653,7 @@ The send call supplies html only. No text/plain alternative, so text-only client
 
 > await resend.emails.send({ from, to, subject, html, text })
 
+<a id="no-print-stylesheet"></a>
 ### `no-print-stylesheet`  ·  medium · generic-llm · print · structural · family: defect · lane: print
 
 **Automated here:** yes, these scripts implement it.
@@ -585,6 +676,7 @@ The page prints as a fixed header, a hamburger button, a cookie banner and three
 
 > @media print { header, nav, footer, [role="dialog"] { display:none !important } * { position:static !important } h2, table, figure { break-inside:avoid } a[href^="http"]::after { content:" (" attr(href) ")" } @page { margin:15mm } }
 
+<a id="no-real-product-photography"></a>
 ### `no-real-product-photography`  ·  medium · generic-llm · listing · llm-judge · family: visual · lane: commerce
 
 Every product has exactly one image, all images share a single stock host or a single generated aesthetic, and there are no alternate angles, no scale reference, no variant-specific photos and no user-submitted images.
@@ -605,6 +697,7 @@ Every product has exactly one image, all images share a single stock host or a s
 
 > 4–6 real images per SKU including scale and detail; a variant-linked gallery
 
+<a id="reviews-without-filtering-or-distribution"></a>
 ### `reviews-without-filtering-or-distribution`  ·  medium · generic-llm · listing · structural · family: defect · lane: commerce
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -627,6 +720,7 @@ A star average and a list of review cards, with no rating histogram, no filter b
 
 > average + a 5→1 distribution bar chart + star filter + sort + verified badges
 
+<a id="sentence-assembled-from-fragments"></a>
 ### `sentence-assembled-from-fragments`  ·  medium · generic-llm · code · structural · family: defect · lane: i18n
 
 **Automated here:** yes, these scripts implement it.
@@ -649,6 +743,7 @@ A user-facing sentence built by concatenating translated pieces — t('you_have'
 
 > t('cart.count', { count: n })  →  "{count, plural, one {# item} other {# items}}"
 
+<a id="sidebar-nested-past-three-levels"></a>
 ### `sidebar-nested-past-three-levels`  ·  medium · generic-llm · docs · structural · family: shape · lane: docs
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -673,6 +768,7 @@ A left sidebar with four or more levels of collapsible nesting, so finding a pag
 
 > API reference → Users → createUser
 
+<a id="spec-table-as-prose"></a>
 ### `spec-table-as-prose`  ·  medium · generic-llm · listing · structural · family: shape · lane: commerce
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -697,6 +793,7 @@ Dimensions, materials, compatibility and sizing written as a paragraph instead o
 
 > a table with rows: Width 42 cm / Depth 30 cm / Height 18 cm / Material powder-coated steel, oak veneer / Max load 25 kg
 
+<a id="text-baked-into-image"></a>
 ### `text-baked-into-image`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: i18n
 
 **Automated here:** yes, these scripts implement it.
@@ -719,6 +816,7 @@ Headlines, CTAs, pricing tables, diagram labels or feature comparisons rendered 
 
 > <img src="/hero-bg.jpg" alt=""> + an <h2> and <p> positioned over it
 
+<a id="api-reference-restates-the-type"></a>
 ### `api-reference-restates-the-type`  ·  low · generic-llm · docs · llm-judge · family: shape · lane: docs
 
 Generated reference where every description is the identifier re-spelled in English: "userId: string — The user ID." No units, no ranges, no defaults, no errors, no relationship to any other field.
@@ -741,6 +839,7 @@ Generated reference where every description is the identifier re-spelled in Engl
 
 > timeout: number — "Milliseconds to wait for a response before aborting. Default 30000. Values under 1000 are clamped. Aborting raises TimeoutError, which is retryable."
 
+<a id="flag-as-language-selector"></a>
 ### `flag-as-language-selector`  ·  low · generic-llm · web-ui · structural · family: shape · lane: i18n
 
 **Automated here:** yes, these scripts implement it.
@@ -763,6 +862,7 @@ Languages chosen by national flag: a UK flag for English, a Spanish flag for Spa
 
 > <a href="/de" lang="de" hreflang="de">Deutsch</a> · <a href="/en" lang="en" hreflang="en">English</a>
 
+<a id="home-link-live-on-the-homepage"></a>
 ### `home-link-live-on-the-homepage`  ·  low · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -785,6 +885,7 @@ Languages chosen by national flag: a UK flag for English, a Spanish flag for Spa
 
 > on /: <span aria-current="page">Home</span> — or delete the item and keep the logo
 
+<a id="no-version-selector"></a>
 ### `no-version-selector`  ·  low · generic-llm · docs · structural · family: shape · lane: docs
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -807,6 +908,7 @@ Documentation for software that has shipped breaking changes, with only the curr
 
 > a version dropdown — v3 (current) / v2 / v1 — or a banner naming the version these docs describe
 
+<a id="preheader-never-set"></a>
 ### `preheader-never-set`  ·  low · generic-llm · email · structural · family: defect · lane: email
 
 **Automated here:** yes, these scripts implement it.

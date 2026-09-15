@@ -9,10 +9,74 @@ _36 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Any web page"] --> B["READ THIS FILE FIRST"]
+    B --> C["Everything here is reproducible by opening the page.<br/>No fairness caveat. No authorship claim"]
+    C --> D["Run: humanize_review.py page.html"]
+    D --> E{"Findings marked rendered?"}
+    E -->|yes| F["render_check.py page.html --viewports 390,768,1280"]
+    E -->|no| G["Static findings are enough"]
+    F --> H["Fix defects BEFORE judging style.<br/>A page that fails at 390px has a<br/>bigger problem than reading generated"]
+    G --> H
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`clickable-div-not-button`](#clickable-div-not-button) | HIGH | defect | yes |
+| [`focus-outline-removed`](#focus-outline-removed) | HIGH | defect | yes |
+| [`form-without-destination`](#form-without-destination) | HIGH | defect | yes |
+| [`framework-look-without-responsive`](#framework-look-without-responsive) | HIGH | defect | yes |
+| [`hand-rolled-div-dialog`](#hand-rolled-div-dialog) | HIGH | defect | yes |
+| [`horizontal-overflow-at-mobile`](#horizontal-overflow-at-mobile) | HIGH | defect | yes |
+| [`hundred-vw-overflow`](#hundred-vw-overflow) | HIGH | defect | yes |
+| [`missing-viewport-meta`](#missing-viewport-meta) | HIGH | defect | yes |
+| [`placeholder-copy-residue`](#placeholder-copy-residue) | HIGH | residue | yes |
+| [`scaffold-title-residue`](#scaffold-title-residue) | HIGH | residue | yes |
+| [`unbacked-social-proof`](#unbacked-social-proof) | HIGH | defect | n/a |
+| [`wcag-fail-from-generated-palette`](#wcag-fail-from-generated-palette) | HIGH | defect | yes |
+| [`barrel-icon-import`](#barrel-icon-import) | med | defect | yes |
+| [`body-text-below-readable`](#body-text-below-readable) | med | defect | yes |
+| [`dead-anchor-href`](#dead-anchor-href) | med | defect | yes |
+| [`div-soup-no-semantics`](#div-soup-no-semantics) | med | defect | yes |
+| [`escape-and-focus-declared-not-wired`](#escape-and-focus-declared-not-wired) | med | defect | yes |
+| [`h1-absent-or-competing`](#h1-absent-or-competing) | med | defect | yes |
+| [`image-without-dimensions`](#image-without-dimensions) | med | defect | yes |
+| [`input-without-label`](#input-without-label) | med | defect | yes |
+| [`kpi-card-without-comparison`](#kpi-card-without-comparison) | med | defect | n/a |
+| [`missing-html-lang`](#missing-html-lang) | med | defect | yes |
+| [`missing-interaction-states`](#missing-interaction-states) | med | defect | n/a |
+| [`missing-or-placeholder-alt`](#missing-or-placeholder-alt) | med | defect | yes |
+| [`no-reduced-motion-guard`](#no-reduced-motion-guard) | med | defect | yes |
+| [`settings-flat-toggle-wall`](#settings-flat-toggle-wall) | med | defect | yes |
+| [`sort-header-not-button-no-aria-sort`](#sort-header-not-button-no-aria-sort) | med | defect | yes |
+| [`table-without-sort-filter-paging`](#table-without-sort-filter-paging) | med | defect | yes |
+| [`tailwind-play-cdn-in-production`](#tailwind-play-cdn-in-production) | med | defect | yes |
+| [`tap-target-too-small`](#tap-target-too-small) | med | defect | yes |
+| [`unbounded-spinner-no-error-path`](#unbounded-spinner-no-error-path) | med | defect | yes |
+| [`duplicated-component-markup`](#duplicated-component-markup) | low | defect | n/a |
+| [`important-escalation`](#important-escalation) | low | defect | yes |
+| [`no-meta-description-or-og-image`](#no-meta-description-or-og-image) | low | defect | yes |
+| [`static-vh-full-height`](#static-vh-full-height) | low | defect | yes |
+| [`z-index-escalation`](#z-index-escalation) | low | defect | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="clickable-div-not-button"></a>
 ### `clickable-div-not-button`  ·  high · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -37,6 +101,7 @@ A div or span with a click handler and no button role, so it is unreachable by k
 
 > <button type="button" onClick={open} className="cta">Get started</button>
 
+<a id="focus-outline-removed"></a>
 ### `focus-outline-removed`  ·  high · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -62,6 +127,7 @@ outline:none or outline:0 with no :focus-visible replacement anywhere.
 > button { outline: none }
 > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
 
+<a id="form-without-destination"></a>
 ### `form-without-destination`  ·  high · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -86,6 +152,7 @@ A form with no action and no submit handler. It looks complete and goes nowhere.
 
 > <form action="/api/subscribe" method="post">...</form>
 
+<a id="framework-look-without-responsive"></a>
 ### `framework-look-without-responsive`  ·  high · generic-llm · layout · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -110,6 +177,7 @@ The page wears the visual idiom of a modern utility-CSS framework — flex rows,
 
 > <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))">
 
+<a id="hand-rolled-div-dialog"></a>
 ### `hand-rolled-div-dialog`  ·  high · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -136,6 +204,7 @@ A modal built as a div wearing role=dialog with a hand-written overlay, instead 
 
 > <dialog ref={ref}>...</dialog>  // opened with ref.current.showModal()
 
+<a id="horizontal-overflow-at-mobile"></a>
 ### `horizontal-overflow-at-mobile`  ·  high · generic-llm · layout · rendered · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -158,6 +227,7 @@ The page scrolls sideways at phone width. Content is literally off screen.
 
 > .wrap { max-width: 1180px; margin-inline: auto; padding-inline: 1.5rem }
 
+<a id="hundred-vw-overflow"></a>
 ### `hundred-vw-overflow`  ·  high · generic-llm · layout · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -182,6 +252,7 @@ The page scrolls sideways at phone width. Content is literally off screen.
 
 > .hero { width: 100% }
 
+<a id="missing-viewport-meta"></a>
 ### `missing-viewport-meta`  ·  high · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -206,6 +277,7 @@ No viewport meta tag, so a phone renders the page at desktop width and scales th
 
 > <head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Product</title></head>
 
+<a id="placeholder-copy-residue"></a>
 ### `placeholder-copy-residue`  ·  high · generic-llm · marketing-copy · structural · family: residue
 
 **Automated here:** yes, these scripts implement it.
@@ -230,6 +302,7 @@ Template filler reaching a reader: lorem ipsum, "Your Company", "Acme Inc", "Pro
 
 > <p>Northwind matches bank lines to invoices and flags the 2% that need a human.</p>
 
+<a id="scaffold-title-residue"></a>
 ### `scaffold-title-residue`  ·  high · generic-llm · web-ui · structural · family: residue
 
 **Automated here:** yes, these scripts implement it.
@@ -254,6 +327,7 @@ The framework's default document title shipped: "Create Next App", "Vite + React
 
 > <title>Northwind — invoice reconciliation for finance teams</title>
 
+<a id="unbacked-social-proof"></a>
 ### `unbacked-social-proof`  ·  high · generic-llm · marketing-copy · llm-judge · family: defect
 
 Trust signals with nothing behind them: 'join 10,000+ teams', star ratings with no reviews, a 'Trusted by' bar of logos belonging to companies that are not customers, badges for certifications not held.
@@ -274,6 +348,7 @@ Trust signals with nothing behind them: 'join 10,000+ teams', star ratings with 
 
 > Used daily by the AP teams at Northwind and Calder. (Both agreed to be named.)
 
+<a id="wcag-fail-from-generated-palette"></a>
 ### `wcag-fail-from-generated-palette`  ·  high · generic-llm · color · rendered · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -296,6 +371,7 @@ Text below WCAG AA contrast: 4.5:1 for body, 3:1 for large text. Usually muted g
 
 > color: #595959 on #ffffff  (7.0:1)
 
+<a id="barrel-icon-import"></a>
 ### `barrel-icon-import`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -320,6 +396,7 @@ An entire icon library imported as a namespace for the handful of icons actually
 
 > import { Check, X } from 'lucide-react'
 
+<a id="body-text-below-readable"></a>
 ### `body-text-below-readable`  ·  medium · generic-llm · typography · rendered · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -342,6 +419,7 @@ Text rendering under about 12px.
 
 > .eyebrow { font-size: 14px }
 
+<a id="dead-anchor-href"></a>
 ### `dead-anchor-href`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -366,6 +444,7 @@ Navigation links pointing at href="#" or nothing.
 
 > <a href="/docs">Docs</a>
 
+<a id="div-soup-no-semantics"></a>
 ### `div-soup-no-semantics`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -390,6 +469,7 @@ Everything is a div. No main, nav, header, footer, section or article anywhere.
 
 > <nav>...</nav> <main>...</main>
 
+<a id="escape-and-focus-declared-not-wired"></a>
 ### `escape-and-focus-declared-not-wired`  ·  medium · generic-llm · web-ui · rendered · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -416,6 +496,7 @@ Escape handling, a focus trap or focus restoration written in source and not wor
 
 > native <dialog>, plus the Playwright assertions above running in CI
 
+<a id="h1-absent-or-competing"></a>
 ### `h1-absent-or-competing`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -440,6 +521,7 @@ A page with no h1, or with several competing for the role.
 
 > <h1>Flowstate: invoice reconciliation for finance teams</h1> ... <h2>Ship faster</h2>
 
+<a id="image-without-dimensions"></a>
 ### `image-without-dimensions`  ·  medium · generic-llm · web-ui · rendered · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -462,6 +544,7 @@ Images with no width and height attributes, so the layout shifts as they load. R
 
 > <img src="hero.png" width="1200" height="720" style="height:auto" fetchpriority="high" alt="...">
 
+<a id="input-without-label"></a>
 ### `input-without-label`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -486,6 +569,7 @@ Form inputs with no label element and no aria-label, relying on a placeholder to
 
 > <label for="email">Email</label><input id="email" type="email" placeholder="you@company.com">
 
+<a id="kpi-card-without-comparison"></a>
 ### `kpi-card-without-comparison`  ·  medium · generic-llm · chart · llm-judge · family: defect
 
 A KPI tile rendering one number and a label, with no delta, no prior period, no target and no unit context. 'Revenue $48,291' answers no question, because the reader cannot tell whether it is good.
@@ -506,6 +590,7 @@ A KPI tile rendering one number and a label, with no delta, no prior period, no 
 
 > Revenue  $48,291   +12% vs last month   target $52,000
 
+<a id="missing-html-lang"></a>
 ### `missing-html-lang`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -530,6 +615,7 @@ The root html element has no lang attribute.
 
 > <html lang="en">
 
+<a id="missing-interaction-states"></a>
 ### `missing-interaction-states`  ·  medium · generic-llm · web-ui · llm-judge · family: defect
 
 The happy path only: no empty state, no error state, no loading state, no 404.
@@ -550,6 +636,7 @@ The happy path only: no empty state, no error state, no loading state, no 404.
 
 > With no rows it says what data goes here and links to the import flow.
 
+<a id="missing-or-placeholder-alt"></a>
 ### `missing-or-placeholder-alt`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -574,6 +661,7 @@ Images with no alt attribute, or alt text that describes the file rather than it
 
 > <img src="dash.png" alt="The reconciliation queue, showing 38 unmatched lines out of 1,840">
 
+<a id="no-reduced-motion-guard"></a>
 ### `no-reduced-motion-guard`  ·  medium · generic-llm · layout · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -598,6 +686,7 @@ An animated page with no prefers-reduced-motion media query.
 
 > (the same, wrapped so reduced-motion users get instant state changes)
 
+<a id="settings-flat-toggle-wall"></a>
 ### `settings-flat-toggle-wall`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -622,6 +711,7 @@ Every configuration key rendered as a switch, in schema order, with no grouping 
 
 > Three labelled groups, defaults marked, the four nobody uses removed.
 
+<a id="sort-header-not-button-no-aria-sort"></a>
 ### `sort-header-not-button-no-aria-sort`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -646,6 +736,7 @@ A sort affordance announced with aria-sort but not operable from a keyboard, or 
 
 > <th aria-sort="none"><button type="button" onClick={sortByName}>Name</button></th>
 
+<a id="table-without-sort-filter-paging"></a>
 ### `table-without-sort-filter-paging`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -670,6 +761,7 @@ A multi-column table with no sort, no filter and no pagination.
 
 > sortable headers as buttons with aria-sort, a filter on the one field people scan, a row count, and pagination
 
+<a id="tailwind-play-cdn-in-production"></a>
 ### `tailwind-play-cdn-in-production`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -694,6 +786,7 @@ A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel
 
 > <link rel="stylesheet" href="/assets/app.css">
 
+<a id="tap-target-too-small"></a>
 ### `tap-target-too-small`  ·  medium · generic-llm · layout · rendered · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -716,6 +809,7 @@ Interactive controls smaller than about 44x44 CSS pixels at phone width.
 
 > .nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 12px; font-size: 15px }
 
+<a id="unbounded-spinner-no-error-path"></a>
 ### `unbounded-spinner-no-error-path`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -740,6 +834,7 @@ A loading state with no corresponding error state, so a request that never retur
 
 > if (error) return <Failed onRetry={refetch} reason={error.message} />; if (isLoading) return <Spinner />
 
+<a id="duplicated-component-markup"></a>
 ### `duplicated-component-markup`  ·  low · generic-llm · web-ui · llm-judge · family: defect
 
 Three near-identical card or row blocks written out longhand instead of mapped over data.
@@ -760,6 +855,7 @@ Three near-identical card or row blocks written out longhand instead of mapped o
 
 > features.map(f => <Card key={f.id} {...f} />)
 
+<a id="important-escalation"></a>
 ### `important-escalation`  ·  low · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -784,6 +880,7 @@ Heavy use of !important.
 
 > (the base rule corrected, so nothing needs to win)
 
+<a id="no-meta-description-or-og-image"></a>
 ### `no-meta-description-or-og-image`  ·  low · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -808,6 +905,7 @@ No meta description, no og:image, or both.
 
 > <meta name="description" content="..."> <meta property="og:image" content="...">
 
+<a id="static-vh-full-height"></a>
 ### `static-vh-full-height`  ·  low · generic-llm · layout · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.
@@ -832,6 +930,7 @@ No meta description, no og:image, or both.
 
 > .hero { min-height: 100vh; min-height: 100dvh }
 
+<a id="z-index-escalation"></a>
 ### `z-index-escalation`  ·  low · generic-llm · web-ui · structural · family: defect
 
 **Automated here:** yes, these scripts implement it.

@@ -7,10 +7,50 @@ _14 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Output from a non-OpenAI, non-Claude model"] --> B{"Do you already KNOW<br/>which model produced it?"}
+    B -->|no| C["STOP. These are notes about model<br/>defaults, not a way to identify one"]
+    B -->|yes| D["Use the dialect section as an editing checklist"]
+    D --> E{"Register or calque item?"}
+    E -->|yes| F["Never an authorship signal.<br/>These are features of real<br/>second-language English"]
+    E -->|no| G["Edit normally"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`as-an-ai-leakage`](#as-an-ai-leakage) | HIGH | residue | yes |
+| [`gemini-important-to-note-stack`](#gemini-important-to-note-stack) | HIGH | form | **no** |
+| [`gemini-safety-caveat-boilerplate`](#gemini-safety-caveat-boilerplate) | HIGH | form | n/a |
+| [`llama-repetition-loop`](#llama-repetition-loop) | HIGH | form | **no** |
+| [`register-leveling`](#register-leveling) | HIGH | form | n/a |
+| [`deepseek-qwen-overformal-register`](#deepseek-qwen-overformal-register) | med | form | **no** |
+| [`gemini-question-restatement`](#gemini-question-restatement) | med | form | n/a |
+| [`grok-forced-irreverence`](#grok-forced-irreverence) | med | shape | n/a |
+| [`kimi-linkedin-confident-slop`](#kimi-linkedin-confident-slop) | med | shape | n/a |
+| [`qwen-deepseek-chinglish-calque`](#qwen-deepseek-chinglish-calque) | med | form | n/a |
+| [`tense-and-perspective-drift`](#tense-and-perspective-drift) | med | form | **no** |
+| [`kimi-longform-collapse`](#kimi-longform-collapse) | low | form | **no** |
+| [`low-burstiness-uniform-rhythm`](#low-burstiness-uniform-rhythm) | low | rhythm | yes |
+| [`zero-typo-zero-contraction-affect-flatness`](#zero-typo-zero-contraction-affect-flatness) | low | rhythm | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="as-an-ai-leakage"></a>
 ### `as-an-ai-leakage`  ·  high · generic-llm · prose · structural · family: residue
 
 **Automated here:** yes, these scripts implement it.
@@ -35,6 +75,7 @@ Less RLHF-polished open models leak identity/disclaimer phrases mid-answer: 'As 
 
 > For beginners, Python is the easiest entry point: readable syntax, huge ecosystem, forgiving error messages.
 
+<a id="gemini-important-to-note-stack"></a>
 ### `gemini-important-to-note-stack`  ·  high · gemini · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -57,6 +98,7 @@ Gemini compulsively front-loads or interleaves hedging meta-clauses: 'It's impor
 
 > Compound interest outpaces simple interest, and the gap widens with both the rate and the time horizon.
 
+<a id="gemini-safety-caveat-boilerplate"></a>
 ### `gemini-safety-caveat-boilerplate`  ·  high · gemini · prose · llm-judge · family: form
 
 On any topic adjacent to health, law, finance, or relationships, Gemini appends defensive boilerplate ('consult a qualified professional,' 'this is not medical/legal/financial advice,' 'individual results may vary') even when the user asked a purely factual question.
@@ -77,6 +119,7 @@ On any topic adjacent to health, law, finance, or relationships, Gemini appends 
 
 > Magnesium glycinate around 200-400mg before bed helps many people sleep; it can loosen stool at higher doses, so ramp up slowly.
 
+<a id="llama-repetition-loop"></a>
 ### `llama-repetition-loop`  ·  high · llama · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -99,6 +142,7 @@ Llama-family models loop: restating the same point in slightly reworded sentence
 
 > Exercise lowers resting heart rate, improves insulin sensitivity, and lifts mood within weeks of starting.
 
+<a id="register-leveling"></a>
 ### `register-leveling`  ·  high · generic-llm · prose · llm-judge · family: form
 
 The same voice regardless of genre: a Slack message, a postmortem and a wedding toast all arrive in the same measured explanatory register.
@@ -121,6 +165,7 @@ The same voice regardless of genre: a Slack message, a postmortem and a wedding 
 
 > yeah it's the pool config. i'll patch it after standup
 
+<a id="deepseek-qwen-overformal-register"></a>
 ### `deepseek-qwen-overformal-register`  ·  medium · deepseek · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -143,6 +188,7 @@ DeepSeek and Qwen default to a stiff, examination-essay register in English: ele
 
 > Exercise pays off, but only if you keep at it. Consistency beats intensity here.
 
+<a id="gemini-question-restatement"></a>
 ### `gemini-question-restatement`  ·  medium · gemini · prose · llm-judge · family: form
 
 Gemini opens by restating the user's question as a thesis before answering: 'The question of whether X is Y is a nuanced one' or 'Understanding how to Z requires looking at several factors.'
@@ -163,6 +209,7 @@ Gemini opens by restating the user's question as a thesis before answering: 'The
 
 > Remote work raises productivity for focused individual tasks and lowers it for fast-iteration collaboration. The split is the whole story.
 
+<a id="grok-forced-irreverence"></a>
 ### `grok-forced-irreverence`  ·  medium · grok · marketing-copy · llm-judge · family: shape
 
 Grok is prompt-tuned for an 'edgy/spicy' persona, producing try-hard irreverence: shoehorned snark, winking asides ('Buckle up, buttercup'), and contrarian 'I'm not like other AIs' posturing that doesn't fit the topic.
@@ -183,6 +230,7 @@ Grok is prompt-tuned for an 'edgy/spicy' persona, producing try-hard irreverence
 
 > Compound interest is interest earning interest. Leave $1,000 at 7% alone and it doubles in about a decade without you lifting a finger.
 
+<a id="kimi-linkedin-confident-slop"></a>
 ### `kimi-linkedin-confident-slop`  ·  medium · kimi · marketing-copy · llm-judge · family: shape
 
 Kimi K2 is RL-tuned to be confident and avoid self-qualification, producing punchy but hollow 'thought-leader' prose: short declarative power-sentences, manufactured insight, rhetorical fragments ('The result? Game-changing'), and assertion without evidence.
@@ -203,6 +251,7 @@ Kimi K2 is RL-tuned to be confident and avoid self-qualification, producing punc
 
 > I cut my task list to three items a day and finished more than when I tracked twenty, mostly because I stopped context-switching every forty minutes.
 
+<a id="qwen-deepseek-chinglish-calque"></a>
 ### `qwen-deepseek-chinglish-calque`  ·  medium · qwen · prose · llm-judge · family: form
 
 Qwen and DeepSeek occasionally surface calques and idiom mistranslations from Chinese: 'more and more X' for 'increasingly,' 'play an important role,' odd article use ('the China'), and stray untranslated tokens. Grammatical but subtly non-native.
@@ -223,6 +272,7 @@ Qwen and DeepSeek occasionally surface calques and idiom mistranslations from Ch
 
 > People increasingly care about the environment, and technology keeps making daily life more convenient.
 
+<a id="tense-and-perspective-drift"></a>
 ### `tense-and-perspective-drift`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -245,6 +295,7 @@ In longer outputs, models drift unmotivated between tenses (past to present and 
 
 > You open the terminal and run the script. You see an error, so you check the logs, fix the path, and run it again. This time it works.
 
+<a id="kimi-longform-collapse"></a>
 ### `kimi-longform-collapse`  ·  low · kimi · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -267,6 +318,7 @@ Kimi K2 holds voice well under ~300 words but degrades past ~3000: structure loo
 
 > [The same essay cut to 1,500 words with each section earning its place and a conclusion that synthesizes rather than recycles.]
 
+<a id="low-burstiness-uniform-rhythm"></a>
 ### `low-burstiness-uniform-rhythm`  ·  low · generic-llm · prose · structural · family: rhythm
 
 **Automated here:** yes, these scripts implement it.
@@ -293,6 +345,7 @@ Sentences and paragraphs of near-identical length and cadence throughout, produc
 
 > The system is fast. When a call fails it retries, backs off, and if the queue starts backing up under real load it sheds the lowest-priority work first rather than tipping over, which took three rewrites to get right. Monitoring catches the rest.
 
+<a id="zero-typo-zero-contraction-affect-flatness"></a>
 ### `zero-typo-zero-contraction-affect-flatness`  ·  low · generic-llm · prose · structural · family: rhythm
 
 **Automated here:** yes, these scripts implement it.

@@ -48,6 +48,225 @@ VISUAL_ASSET_MEDIA = {"image", "video", "audio", "chart", "brand-identity"}
 # Residue that is reproducible by opening the page, so web-build-defects.md
 # claims it by name even though its medium would otherwise route it elsewhere.
 # The visual and structure views defer, so the three rules cannot both take it.
+DIAGRAMS = {
+    "claudeisms.md": """flowchart TD
+    A["Prose: essay, reply, README, doc"] --> B{"Do you have 2-3 samples<br/>of this author's prior writing?"}
+    B -->|yes| C["--baseline glob<br/>rhythm can reach high"]
+    B -->|no| D["No baseline<br/>every rhythm finding caps at LOW"]
+    C --> E["Read form + shape items first"]
+    D --> E
+    E --> F{"Finding family?"}
+    F -->|residue| G["Report high. Machine artifact,<br/>near-zero human source"]
+    F -->|form / shape| H["Report as written. Humans do this too"]
+    F -->|rhythm| I["Cue only. Never quote as evidence"]""",
+    "gptisms-codexisms.md": """flowchart TD
+    A["ChatGPT / Codex / Copilot / Cursor output"] --> B{"Prose or code?"}
+    B -->|prose| C["Service voice: openers, signoffs,<br/>hedge stacks, FAQ tails"]
+    B -->|code| D["Comment narration, hollow tests,<br/>try/except pass, stale APIs"]
+    C --> E{"Literal assistant residue present?<br/>'As an AI', 'Certainly, here is'"}
+    D --> E
+    E -->|yes| F["HIGH, absolutely. Grep and delete,<br/>then re-read what it replaced"]
+    E -->|no| G["Editing cues only.<br/>Check engineering-artifact-tells for code"]""",
+    "other-model-dialects.md": """flowchart TD
+    A["Output from a non-OpenAI, non-Claude model"] --> B{"Do you already KNOW<br/>which model produced it?"}
+    B -->|no| C["STOP. These are notes about model<br/>defaults, not a way to identify one"]
+    B -->|yes| D["Use the dialect section as an editing checklist"]
+    D --> E{"Register or calque item?"}
+    E -->|yes| F["Never an authorship signal.<br/>These are features of real<br/>second-language English"]
+    E -->|no| G["Edit normally"]""",
+    "visual-design-tells.md": """flowchart TD
+    A["A UI, page or component"] --> B["Run: humanize_review.py page.html"]
+    B --> C{"How many defaults cluster?"}
+    C -->|one| D["Coincidence. Not a finding on its own"]
+    C -->|three or more| E["The cluster is the finding:<br/>palette + typeface + radius + layout"]
+    E --> F{"Is there a brand guideline<br/>that chose these?"}
+    F -->|yes| G["Not a finding. A choice"]
+    F -->|no / unknown| H["Report, and read the currency line:<br/>this is the fastest-ageing file here"]""",
+    "generated-media-tells.md": """flowchart TD
+    A["A generated-looking image, video or audio clip"] --> B["1. Provenance FIRST"]
+    B --> C["C2PA manifest, EXIF, reverse image search"]
+    C --> D{"Provenance answers it?"}
+    D -->|yes| E["Done. Report what the manifest says"]
+    D -->|no| F["2. Context: does the asset match<br/>what the page claims about it?"]
+    F --> G["3. Pixel forensics LAST, if at all"]
+    G --> H["Check the currency field before quoting<br/>any artifact heuristic. One entry here is<br/>already marked obsolete"]""",
+    "document-and-deck-structure.md": """flowchart TD
+    A["A long document, README or deck"] --> B["Strip the prose. Look only at the SHAPE"]
+    B --> C{"Does any section restate another?"}
+    C -->|yes| D["Summary/body/conclusion restatement"]
+    C -->|no| E{"Heading every 1-2 paragraphs?"}
+    E -->|yes| F["Check heading-spam.<br/>Reference docs are EXEMPT"]
+    E -->|no| G{"Every list item the same<br/>shape and length?"}
+    G -->|yes| H["Parallel overload. Note: style guides<br/>REQUIRE parallel lists"]
+    G -->|no| I["Shape is fine. Review the prose instead"]""",
+    "marketing-and-platform-tells.md": """flowchart TD
+    A["Landing copy, social post, cold email, listing"] --> B["Identify the venue"]
+    B --> C{"Venue base rate?"}
+    C -->|"LinkedIn long-form, ~40% generated"| D["A tell here is weak evidence.<br/>Most of the venue reads this way"]
+    C -->|"Reddit reply, ~2%"| E["Same tell is far more marked"]
+    D --> F{"Does the copy name a mechanism?"}
+    E --> F
+    F -->|no| G["Transform-verb formula: the verb is fine,<br/>the missing HOW is the finding"]
+    F -->|yes| H["Not this finding. Check structure"]""",
+    "web-build-defects.md": """flowchart TD
+    A["Any web page"] --> B["READ THIS FILE FIRST"]
+    B --> C["Everything here is reproducible by opening the page.<br/>No fairness caveat. No authorship claim"]
+    C --> D["Run: humanize_review.py page.html"]
+    D --> E{"Findings marked rendered?"}
+    E -->|yes| F["render_check.py page.html --viewports 390,768,1280"]
+    E -->|no| G["Static findings are enough"]
+    F --> H["Fix defects BEFORE judging style.<br/>A page that fails at 390px has a<br/>bigger problem than reading generated"]
+    G --> H""",
+    "fiction-and-narrative-tells.md": """flowchart TD
+    A["Fiction or anything told as a story"] --> B["Ignore sentence style entirely"]
+    B --> C["Read at the DISCOURSE level"]
+    C --> D{"Does the narration state its own theme?"}
+    D -->|yes| E["Narrated theme statement"]
+    D -->|no| F{"Is every character's voice<br/>interchangeable?"}
+    F -->|yes| G["Register levelling"]
+    F -->|no| H["Structure holds. Edit at sentence level"]
+    E --> I["Evidence note: discourse features separated<br/>human from generated fiction at 93.2% macro-F1<br/>with every stylistic cue stripped"]
+    G --> I""",
+    "engineering-artifact-tells.md": """flowchart TD
+    A["Commit, PR, review, test or source file"] --> B["Run: humanize_review.py file.py"]
+    B --> C{"Which artifact?"}
+    C -->|commit / PR| D["Compare against THIS repo's norms,<br/>not against a general style"]
+    C -->|test| E["Does any assertion actually fail<br/>when the code is wrong?"]
+    C -->|source| F["Comment narrates the next line?<br/>Abstraction with one implementation?"]
+    D --> G{"Does it restate the diff?"}
+    G -->|yes| H["The diff is already there.<br/>Say WHY, not what"]
+    E --> I["A test that cannot fail is not a test"]""",
+    "unopened-surfaces.md": """flowchart TD
+    A["A site with more than one page"] --> B{"Which surface?"}
+    B -->|navigation| C["nav links over total routes.<br/>Near 1.0 means the IA is the file listing"]
+    B -->|i18n| D["Switch locale. Does lang= follow?<br/>Do dates and money change shape?"]
+    B -->|docs| E["Search for a string you KNOW is there"]
+    B -->|email| F["Open in a client, images off"]
+    B -->|print| G["Actually print it, or print-preview"]
+    C --> H["The tell is not strangeness.<br/>It is that a whole class of output<br/>was never looked at"]
+    D --> H
+    E --> H
+    F --> H
+    G --> H""",
+    "accessibility-beyond-the-checklist.md": """flowchart TD
+    A["A web page or component"] --> B["Run an automated scan first"]
+    B --> C{"Scan came back clean?"}
+    C -->|yes| D["It covered roughly 30% of the<br/>success criteria a machine can verify.<br/>You are not done"]
+    C -->|no| E["Fix those first"]
+    D --> F["five-minute-manual-pass.md:<br/>eleven keyboard and screen-reader steps"]
+    F --> G{"Item marked assistive?"}
+    G -->|yes| H["A person must hear it.<br/>Do NOT write an assertion and<br/>call a pass evidence"]
+    G -->|no| I["render_check.py --probe-a11y<br/>settles text-spacing and forced-colors"]""",
+    "product-ux-writing.md": """flowchart TD
+    A["Strings a logged-in user reads mid-task"] --> B["EXTRACT first, match second"]
+    B --> C["i18n catalogs, JSX text, the render<br/>and error paths"]
+    C --> D["Closed phrase sets run ONLY over<br/>the extracted strings"]
+    D --> E{"Why is this the one lane<br/>where hard matching is allowed?"}
+    E --> F["A product's string table is small,<br/>enumerable and extractable.<br/>Prose is none of those"]
+    F --> G["Start with collapsed-empty-states:<br/>three different situations collapsing<br/>into one string is what makes users<br/>believe their data was deleted"]""",
+    "typographic-craft-and-tokens.md": """flowchart TD
+    A["A stylesheet or design system"] --> B["Read COMPUTED values, not declarations"]
+    B --> C["Utility frameworks bundle line-height<br/>into the size scale, so a page with no<br/>explicit rule is usually correct"]
+    C --> D{"For each property, ask one question"}
+    D --> E["Does this vary with the thing<br/>it is supposed to vary with?"]
+    E -->|no| F["One value where a function belonged"]
+    E -->|yes| G["Craft is present. Not a finding"]
+    F --> H{"Is it restraint or absence?"}
+    H -->|"declares nothing, on defaults"| I["Not the finding"]
+    H -->|"declares a scale that never varies"| J["Report"]""",
+    "performance-as-a-design-tell.md": """flowchart TD
+    A["A page whose source looks correct"] --> B["The source is not the delivery"]
+    B --> C{"Check each in turn"}
+    C --> D["Image: right format? right size for its box?"]
+    C --> E["Fonts: how many weights actually USED?"]
+    C --> F["Head: what blocks the first paint?"]
+    C --> G["JS: did this need to be a framework?"]
+    D --> H["REFUSAL: there is no published measurement<br/>that AI-generated sites are heavier.<br/>Say UNREVIEWED, not AI-generated"]
+    E --> H
+    F --> H
+    G --> H""",
+    "tool-fingerprints.md": """flowchart TD
+    A["Asked: what built this page?"] --> B["Run: humanize_review.py page.html --provenance"]
+    B --> C["Writes no report. Carries no severity"]
+    C --> D{"How many signals for one tool?"}
+    D -->|"3 or more"| E["Positive"]
+    D -->|2| F["Probable"]
+    D -->|1| G["Hint"]
+    E --> H["A fingerprint says WHAT made the page.<br/>Never who wrote it. Never whether it is good"]
+    F --> H
+    G --> H
+    H --> I{"Is the string ALSO a craft defect?"}
+    I -->|yes| J["Report it as that defect.<br/>Fix what it points at,<br/>never just delete the string"]
+    I -->|no| K["Provenance only. Stop here"]""",
+    "dark-patterns-the-model-inherits.md": """flowchart TD
+    A["Consent banner, countdown, checkout, cancellation"] --> B["A model producing one is NOT choosing to deceive"]
+    B --> C["Princeton: 1,818 instances across<br/>1,254 of 11,000 shopping sites.<br/>This is the majority pattern"]
+    C --> D{"Where does the violation live?"}
+    D --> E["Usually NOT inside either component"]
+    E --> F["It is the GAP between them"]
+    F --> G["Load in a fresh profile and watch the network:<br/>does analytics fire before consent?"]
+    G --> H["You are not telling an author they wrote<br/>something manipulative. You are telling them<br/>two innocent halves add up to a fine"]""",
+    "interaction-and-motion.md": """flowchart TD
+    A["A page with animation or hover styling"] --> B{"First: does content DEPEND on script?"}
+    B -->|"opacity 0 until JS runs"| C["STOP. This loses content, not polish.<br/>Fix before anything else"]
+    B -->|no| D{"Motion checks"}
+    D --> E["One duration for every distance?"]
+    D --> F["ease-in on an ENTRANCE?"]
+    D --> G["Reduced-motion honoured in CSS<br/>but ignored by the JS library?"]
+    D --> H{"Input device checks"}
+    H --> I["hover styled with no hover guard:<br/>the state latches on tap"]
+    H --> J["hover styled, focus-visible forgotten"]
+    G --> K["35.4% of US adults 40+ showed vestibular<br/>dysfunction. This is not a preference"]""",
+    "forms-and-input.md": """flowchart TD
+    A["Any form"] --> B{"Is submit disabled until valid?"}
+    B -->|yes| C["The headline finding. The control that would<br/>tell the user what is wrong is the one<br/>being withheld"]
+    C --> D{"Is the gate driven by a KEY event?"}
+    D -->|yes| E["Worst case: a password manager's fill<br/>fires no keypress. Complete form, dead button"]
+    B -->|no| F["Check the operating properties"]
+    D -->|no| F
+    F --> G["autocomplete tokens present?"]
+    F --> H["inputmode set on numeric fields?"]
+    F --> I["errors tied with aria-describedby?"]
+    F --> J["do values SURVIVE a failed submit?"]
+    G --> K["Three items here are WCAG failures<br/>and carry no fairness caveat at all"]
+    I --> K""",
+    "research-papers.md": """flowchart TD
+    A["A manuscript, preprint or referee report"] --> B["Point checks OUTWARD, at the world"]
+    B --> C["Does this DOI resolve to THIS paper?"]
+    B --> D["Does the body contain the abstract's number?"]
+    B --> E["Does this review cite a line or figure?"]
+    C --> F{"Which references do you check first?"}
+    F --> G["Sort the bibliography ASCENDING<br/>by citation count. Verify from the bottom"]
+    G --> H["Fidelity tracks citation count, saturating<br/>near verbatim recall above ~1,000 cites"]
+    H --> I["Corollary: checking the famous<br/>references proves nothing"]
+    E --> J["A fabricated reference does NOT mean<br/>a generated paper. 91% of affected<br/>papers had one or two"]""",
+    "latex-source.md": """flowchart TD
+    A["A .tex or .bib file"] --> B["It compiled. Nobody opened the PDF"]
+    B --> C{"Which layer did it reach for?"}
+    C -->|"VISUAL: backslash-backslash, vspace,<br/>textbf, a typed-out 'Figure 1'"| D["The tell. Only this layer is verifiable<br/>from the token stream alone"]
+    C -->|"SEMANTIC: label/ref, emph, cite"| E["Correct"]
+    D --> F{"Is the item family 'defect'?"}
+    F -->|yes| G["Reproducible by compiling.<br/>No fairness caveat. Just fix it"]
+    F -->|no| H["Craft, and contestable"]
+    H --> I["NO CLAIM that any of this is commoner in<br/>generated than hand-written LaTeX.<br/>People break LaTeX in exactly these ways"]""",
+    "scientific-figures.md": """flowchart TD
+    A["A figure in a paper or poster"] --> B{"Do you have the plotting code?"}
+    B -->|yes| C["Most of this lane is greppable there.<br/>Run: humanize_review.py plot.py"]
+    B -->|no| D["Read the caption and the axes"]
+    C --> E{"Which of three things is this?"}
+    D --> E
+    E -->|"image integrity: duplication, splicing"| F["NOT an AI question. Predates generative<br/>models. Goes to research integrity"]
+    E -->|"generated imagery"| G["Provenance and publisher policy"]
+    E -->|"unreviewed plotting"| H["The large majority. NO misconduct<br/>implication: real data, untouched defaults"]
+    H --> I["savefig with no dpi wrote 640x480.<br/>10pt in a 12in figure is 2.9pt in print"]
+    F --> J["There is NO detector for<br/>'is this figure generated'.<br/>Best zero-shot: 53.68%"]""",
+}
+
+# Generated imagery claimed by name because its medium says web-ui: these are
+# reviewed provenance-first, not as design defaults. visual-design-tells defers.
+GENERATED_MEDIA_CLAIMED = {"ai-image-waxy-skin-mangled-hands",
+                           "identical-face-different-people"}
+
 WEB_DEFECT_CLAIMED = {"scaffold-title-residue", "placeholder-copy-residue"}
 
 CROSS_MODEL_PROSE = {"zero-typo-zero-contraction-affect-flatness",
@@ -75,21 +294,38 @@ GROUPS = {
                           or i["name"] in CROSS_MODEL_PROSE,
     },
     "visual-design-tells.md": {
-        "title": "Visual design tells — the v0/Lovable look and generated imagery",
-        "intro": "What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.",
+        "title": "Visual design tells \u2014 the v0/Lovable look",
+        "intro": "What makes a UI read as generated: the defaults nobody chose, clustering together. A single default is a coincidence; the cluster is the finding, because choosing even one of them deliberately usually means choosing the others too. Read the currency line on every item \u2014 this is the fastest-ageing file in the catalog.",
         "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
                           and i["name"] not in WEB_DEFECT_CLAIMED
-                          and (i["medium"] in VISUAL_MEDIA or i["medium"] in VISUAL_ASSET_MEDIA)
-                          or (not i.get("lane") and i["name"].startswith("ai-image"))
-                          or i["name"] in {"identical-face-different-people",
-                                           "stock-mesh-gradient-background"},
+                          and i["name"] not in GENERATED_MEDIA_CLAIMED
+                          and (i["medium"] in VISUAL_MEDIA
+                               or i["name"] == "stock-mesh-gradient-background"),
     },
-    "structure-and-deck-tells.md": {
-        "title": "Structure, deck, and marketing-copy tells",
-        "intro": "Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.",
+    "generated-media-tells.md": {
+        "title": "Generated images, video and audio \u2014 provenance first",
+        "intro": "A separate file because the REVIEW ORDER is different. For a generated image, video or audio clip, provenance comes first \u2014 C2PA manifest, EXIF, reverse image search \u2014 and pixel forensics comes last if at all, because the artifact-based heuristics age in months. This catalog has already had to mark one obsolete: the mangled-hands entry was real and is now retired, and it is kept as a standing warning about how fast this file decays.",
         "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
                           and i["name"] not in WEB_DEFECT_CLAIMED
-                          and (i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA),
+                          and (i["medium"] in VISUAL_ASSET_MEDIA
+                               or (i["name"].startswith("ai-image") and not i.get("lane"))
+                               or i["name"] in GENERATED_MEDIA_CLAIMED)
+                          and i["name"] != "stock-mesh-gradient-background",
+    },
+    "document-and-deck-structure.md": {
+        "title": "Document and deck structure \u2014 how the thing was assembled",
+        "intro": "Document-shape tells: how generated long-form docs, READMEs and slide decks are put together, independent of any sentence in them. These are findings about ASSEMBLY \u2014 what order the parts arrive in, which parts restate which \u2014 so they survive a full rewrite of the prose and they are the ones a reader feels without being able to name.",
+        "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
+                          and i["name"] not in WEB_DEFECT_CLAIMED
+                          and i["medium"] in {"structure", "slide-deck"},
+    },
+    "marketing-and-platform-tells.md": {
+        "title": "Marketing copy and platform posts \u2014 written to a template",
+        "intro": "Landing-page copy, social posts, cold email, listings and r\u00e9sum\u00e9s. One thing separates this file from document structure: these are venues with a HOUSE FORM, and the tell is the form arriving complete rather than any individual sentence. Severity here should be read against the venue's base rate \u2014 measured generation runs around 40% for LinkedIn long-form and about 2% for Reddit replies, so the same finding means different things in each.",
+        "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
+                          and i["name"] not in WEB_DEFECT_CLAIMED
+                          and i["medium"] in {"marketing-copy", "social-post", "email",
+                                              "listing", "resume"},
     },
     "web-build-defects.md": {
         "title": "Web build defects \u2014 the half you can reproduce",
@@ -126,7 +362,7 @@ GROUPS = {
     },
     "typographic-craft-and-tokens.md": {
         "title": "Typographic craft and design-system structure",
-        "intro": "**The governing mechanism, and the thing to say when you report any item here.** A generator emits a stylesheet that is internally consistent and has no craft in it. Craft in typography is almost entirely per-context judgement \u2014 this heading at this size on this measure needs 1.05 leading and slightly negative tracking, and the one three sections down does not. A default is by construction context-free.\n\nSo the tell is never a WRONG VALUE. Any individual number in this file is defensible somewhere. The tell is **one value where there should have been a function of context**, and every static check here is a variant of the same computation: does this property vary with the thing it is supposed to vary with? Leading with size and measure. Tracking with size. Weight with role. Contrast with theme. Colour with surface.\n\nThat framing matters for how you say it. You are not telling an author their 1.6 line-height is wrong; you are telling them that a 64px headline and 16px body copy cannot both want it.\n\n**Two cautions that will otherwise generate noise.** Read COMPUTED values, not declaration counts \u2014 utility frameworks bundle a tightening line-height into their size scale, so a page with no explicit `line-height` anywhere is usually correct and flagging it is the error. And restraint is not absence: a deliberately single-weight, single-ratio system is a real tradition and a good one, so the tell is one value PLUS no other axis carrying the hierarchy, never a low count on its own.\n\nThe last section is the cause behind most of the rest. `value-named-tokens-no-semantic-layer` and `semantic-layer-bypassed` are where the colour and scale findings come from: a primitive ramp looks maximally systematic and encodes zero decisions, and a semantic layer that exists but is never used is one of the highest-precision structural tells available \u2014 because a person who bothered to write the token file would have used it.",
+        "intro": "**The governing mechanism, and the thing to say when you report any item here.** A generator emits a stylesheet that is internally consistent and has no craft in it. Craft in typography is almost entirely per-context judgement \u2014 this heading at this size on this measure needs 1.05 leading and slightly negative tracking, and the one three sections down does not. A default is by construction context-free.\n\nSo the tell is never a WRONG VALUE. Any individual number in this file is defensible somewhere. The tell is **one value where there should have been a function of context**, and every static check here is a variant of the same computation: does this property vary with the thing it is supposed to vary with? Leading varies with size and measure, tracking with size, weight with role, contrast with theme, and colour with surface.\n\nThat framing matters for how you say it. You are not telling an author their 1.6 line-height is wrong; you are telling them that a 64px headline and 16px body copy cannot both want it.\n\n**Two cautions that will otherwise generate noise.** Read COMPUTED values, not declaration counts \u2014 utility frameworks bundle a tightening line-height into their size scale, so a page with no explicit `line-height` anywhere is usually correct and flagging it is the error. And restraint is not absence: a deliberately single-weight, single-ratio system is a real tradition and a good one, so the tell is one value PLUS no other axis carrying the hierarchy, never a low count on its own.\n\nThe last section is the cause behind most of the rest. `value-named-tokens-no-semantic-layer` and `semantic-layer-bypassed` are where the colour and scale findings come from: a primitive ramp looks maximally systematic and encodes zero decisions, and a semantic layer that exists but is never used is one of the highest-precision structural tells available \u2014 because a person who bothered to write the token file would have used it.",
         "pick": lambda i: i.get("lane") == "typographic-craft",
     },
     "performance-as-a-design-tell.md": {
@@ -182,7 +418,9 @@ AXIS = {
     "gptisms-codexisms.md": "dialect",
     "other-model-dialects.md": "dialect",
     "visual-design-tells.md": "medium",
-    "structure-and-deck-tells.md": "medium",
+    "generated-media-tells.md": "medium",
+    "document-and-deck-structure.md": "medium",
+    "marketing-and-platform-tells.md": "medium",
     "web-build-defects.md": "medium",
     "engineering-artifact-tells.md": "medium",
     "fiction-and-narrative-tells.md": "medium",
@@ -196,8 +434,35 @@ CURRENCY_NOTE = {
 }
 
 
+SEV_MARK = {"high": "HIGH", "medium": "med", "low": "low"}
+
+
+def contents_table(picked):
+    """A scannable index of one reference file.
+
+    14,934 lines of reference across the bundle is unreadable front to back, and
+    an agent invoking this skill needs to find the three items that apply to the
+    artifact in front of it. Severity, family and whether the scripts already
+    check it are the three facts that decide whether an entry is worth opening.
+    """
+    rows = ["## What is in this file", "",
+            "Severity is how loudly the tell announces itself, never how sure you should "
+            "be about who wrote it. **Automated** means these scripts implement the check; "
+            "*no* means it is yours to ask in the judge pass.", "",
+            "| item | severity | family | automated |",
+            "| --- | --- | --- | --- |"]
+    for i in picked:
+        auto = "yes" if i["name"] in IMPLEMENTED else (
+            "n/a" if i["detection_type"] in ("llm-judge", "assistive") else "**no**")
+        rows.append(f"| [`{i['name']}`](#{i['name']}) | {SEV_MARK.get(i['severity'], i['severity'])} "
+                    f"| {i.get('family', '')} | {auto} |")
+    rows.append("")
+    return rows
+
+
 def block(i):
-    L = [(f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
+    L = [f"<a id=\"{i['name']}\"></a>",
+         (f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
           + f"{i.get('detection_type','')} · family: {i.get('family','')}"
           + (f" · lane: {i['lane']}" if i.get("lane") else "")), ""]
     if i.get("detection_type") in ("structural", "rendered"):
@@ -229,6 +494,13 @@ def block(i):
     return "\n".join(L)
 
 
+for _fname, _g in GROUPS.items():
+    if _fname in DIAGRAMS:
+        _g["diagram"] = DIAGRAMS[_fname]
+_missing_diagram = sorted(set(GROUPS) - set(DIAGRAMS) - {"sources.md"})
+if _missing_diagram:
+    print(f"note: no decision diagram for {', '.join(_missing_diagram)}", file=sys.stderr)
+
 placed = set()
 # name -> the files that claimed it. The orphan guard below catches an item that
 # lands in NO file; it cannot catch one that lands in several, which is the bug
@@ -245,8 +517,22 @@ for fname, g in GROUPS.items():
            (f"_{len(picked)} items. Generated from catalog.json — edit there, then re-run "
             + "`scripts/regenerate_references.py`. Do not hand-edit this file._"), "",
            ("_Every item carries a **False positive when** line. Read it before you act on "
-            + "the item: these are cues for an editor, not evidence about an author._"), "",
-           "<!-- humanize:ignore-start",
+            + "the item: these are cues for an editor, not evidence about an author._"), ""]
+    # The diagram and the index go INSIDE the ignore block. A decision diagram
+    # legitimately QUOTES the residue it tells you to look for -- one of them
+    # contains the literal string "Certainly, here is" -- and mermaid node labels
+    # are not sentences, so scoring them as prose reads a diagram as staccato
+    # fragments. Both were real findings against this bundle before the boundary
+    # moved. The intro above stays reviewed, which is where Law 2 has teeth.
+    doc += ["<!-- humanize:ignore-start",
+            "     The diagram and index below quote the tells they document, and a",
+            "     mermaid label is not a sentence. -->", ""]
+    if g.get("diagram"):
+        doc += ["## When this file applies", "", "```mermaid", g["diagram"].strip(),
+                "```", ""]
+    doc += contents_table(picked)
+    doc += ["<!-- humanize:ignore-end -->", "",
+            "<!-- humanize:ignore-start",
            "     Everything below is a specimen catalog. It quotes the tells it documents,",
            "     including literal machine residue, so reviewing it with humanize_review.py",
            "     would flag the exhibits rather than the writing. -->", ""]
@@ -254,6 +540,20 @@ for fname, g in GROUPS.items():
     doc += ["<!-- humanize:ignore-end -->", ""]
     (REF / fname).write_text("\n".join(doc), encoding="utf-8")
     print(f"{fname}: {len(picked)} items")
+
+HANDWRITTEN = {"fairness-and-false-positives.md", "five-minute-manual-pass.md",
+               "performance-budget-and-folklore.md", "INDEX.md"}
+_on_disk = {p.name for p in REF.glob("*.md")}
+_orphan_files = sorted(_on_disk - set(GROUPS) - HANDWRITTEN - {"sources.md"})
+if _orphan_files:
+    print("\nERROR: these reference files are on disk but no longer generated:",
+          file=sys.stderr)
+    for o in _orphan_files:
+        print(f"  references/{o}", file=sys.stderr)
+    print("A split or rename leaves the old file behind, still indexed and still "
+          "citable, with content that goes stale silently. Delete it, or add its "
+          "GROUPS entry back.", file=sys.stderr)
+    sys.exit(1)
 
 bad_homes = {}
 for n, files in homes.items():

@@ -15,10 +15,63 @@ _21 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Asked: what built this page?"] --> B["Run: humanize_review.py page.html --provenance"]
+    B --> C["Writes no report. Carries no severity"]
+    C --> D{"How many signals for one tool?"}
+    D -->|"3 or more"| E["Positive"]
+    D -->|2| F["Probable"]
+    D -->|1| G["Hint"]
+    E --> H["A fingerprint says WHAT made the page.<br/>Never who wrote it. Never whether it is good"]
+    F --> H
+    G --> H
+    H --> I{"Is the string ALSO a craft defect?"}
+    I -->|yes| J["Report it as that defect.<br/>Fix what it points at,<br/>never just delete the string"]
+    I -->|no| K["Provenance only. Stop here"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`agency-proof-gap`](#agency-proof-gap) | HIGH | shape | n/a |
+| [`ai-image-default-filenames`](#ai-image-default-filenames) | HIGH | residue | yes |
+| [`builder-default-og-image`](#builder-default-og-image) | HIGH | defect | yes |
+| [`case-study-process-without-artifacts`](#case-study-process-without-artifacts) | HIGH | shape | n/a |
+| [`invented-clients-and-generated-bylines`](#invented-clients-and-generated-bylines) | HIGH | defect | n/a |
+| [`per-character-text-spans`](#per-character-text-spans) | HIGH | defect | yes |
+| [`scaffold-title-and-favicon-residue`](#scaffold-title-and-favicon-residue) | HIGH | residue | yes |
+| [`supabase-anon-surface-unprotected`](#supabase-anon-surface-unprotected) | HIGH | defect | **no** |
+| [`unclaimed-default-subdomain`](#unclaimed-default-subdomain) | HIGH | shape | **no** |
+| [`agent-instruction-shipped-to-production`](#agent-instruction-shipped-to-production) | med | residue | yes |
+| [`builder-lockin-and-export-illusion`](#builder-lockin-and-export-illusion) | med | shape | **no** |
+| [`design-pattern-is-not-provenance`](#design-pattern-is-not-provenance) | med | shape | **no** |
+| [`fix-what-the-fingerprint-points-at`](#fix-what-the-fingerprint-points-at) | med | defect | **no** |
+| [`selected-works-of-three-and-third-person-about`](#selected-works-of-three-and-third-person-about) | med | shape | **no** |
+| [`shadcn-default-tokens-untouched`](#shadcn-default-tokens-untouched) | med | residue | yes |
+| [`single-file-cdn-tailwind-page`](#single-file-cdn-tailwind-page) | med | shape | **no** |
+| [`client-first-class-system`](#client-first-class-system) | low | shape | **no** |
+| [`fingerprint-is-not-authorship`](#fingerprint-is-not-authorship) | low | residue | **no** |
+| [`keywords-meta-placeholder`](#keywords-meta-placeholder) | low | residue | yes |
+| [`status-code-only-file-probe`](#status-code-only-file-probe) | low | defect | **no** |
+| [`template-versus-generated`](#template-versus-generated) | low | shape | n/a |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="agency-proof-gap"></a>
 ### `agency-proof-gap`  ·  high · generic-llm · marketing-copy · llm-judge · family: shape · lane: provenance
 
 An agency or freelancer site that claims capability its own build contradicts. The pitch and the page were written by the same process, so neither checked the other.
@@ -39,6 +92,7 @@ An agency or freelancer site that claims capability its own build contradicts. T
 
 > "We build marketing sites in about a week. Three recent ones, with what each cost and what it does now: [links]."
 
+<a id="ai-image-default-filenames"></a>
 ### `ai-image-default-filenames`  ·  high · generic-llm · image · structural · family: residue · lane: provenance
 
 **Automated here:** yes, these scripts implement it.
@@ -61,6 +115,7 @@ Image generators assign distinctive default download filenames and site builders
 
 > a real photograph at /team/marta-oleszek.jpg, or no photo at all
 
+<a id="builder-default-og-image"></a>
 ### `builder-default-og-image`  ·  high · generic-llm · web-ui · structural · family: defect · lane: provenance
 
 **Automated here:** yes, these scripts implement it.
@@ -83,6 +138,7 @@ The Open Graph image is the builder's property rather than the site's: Bolt's ow
 
 > <meta property="og:image" content="https://yourdomain.com/og.png">
 
+<a id="case-study-process-without-artifacts"></a>
 ### `case-study-process-without-artifacts`  ·  high · generic-llm · marketing-copy · llm-judge · family: shape · lane: provenance
 
 A portfolio case study that narrates a process and shows nothing from it. Discovery, personas, a double-diamond diagram, a journey map — then a hero mockup and a metric with no source.
@@ -103,6 +159,7 @@ A portfolio case study that narrates a process and shows nothing from it. Discov
 
 > "We shipped the one-field checkout in March. Here is the funnel before and after [screenshot]. 34% is the completed-checkout rate over six weeks; the sample is 11,200 sessions."
 
+<a id="invented-clients-and-generated-bylines"></a>
 ### `invented-clients-and-generated-bylines`  ·  high · generic-llm · marketing-copy · llm-judge · family: defect · lane: provenance
 
 The one place in this whole catalog where a finding is about honesty rather than craft: a "Trusted by" wall, a testimonial, a team grid or an author byline where the entities cannot be verified and the supporting image is generated.
@@ -123,6 +180,7 @@ The one place in this whole catalog where a finding is about honesty rather than
 
 > one real client with a linked case study; a photograph of the actual person, or no photograph
 
+<a id="per-character-text-spans"></a>
 ### `per-character-text-spans`  ·  high · generic-llm · web-ui · structural · family: defect · lane: provenance
 
 **Automated here:** yes, these scripts implement it.
@@ -147,6 +205,7 @@ Per-character text animation emits one span per glyph, often with an inline colo
 
 > the heading is one text node; the animation runs on a wrapping element, not on split children
 
+<a id="scaffold-title-and-favicon-residue"></a>
 ### `scaffold-title-and-favicon-residue`  ·  high · generic-llm · web-ui · structural · family: residue · lane: provenance
 
 **Automated here:** yes, these scripts implement it.
@@ -169,6 +228,7 @@ The scaffold's own title, favicon, description and share image shipped to produc
 
 > <title>Prolific Pours — mobile bartending in NYC</title> + a description saying what the page is for + the brand mark as favicon + a 1200x630 card on the site's own domain
 
+<a id="supabase-anon-surface-unprotected"></a>
 ### `supabase-anon-surface-unprotected`  ·  high · generic-llm · code · rendered · family: defect · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -191,6 +251,7 @@ The default data layer of several builders is Supabase called straight from the 
 
 > the same request returns []; authenticated requests return only the caller's rows
 
+<a id="unclaimed-default-subdomain"></a>
 ### `unclaimed-default-subdomain`  ·  high · generic-llm · marketing-copy · structural · family: shape · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -213,6 +274,7 @@ A commercial site whose only address is the builder's auto-assigned subdomain. I
 
 > firmname.com
 
+<a id="agent-instruction-shipped-to-production"></a>
 ### `agent-instruction-shipped-to-production`  ·  medium · generic-llm · web-ui · structural · family: residue · lane: provenance
 
 **Automated here:** yes, these scripts implement it.
@@ -235,6 +297,7 @@ A comment addressed to a language model, left in the artifact a visitor download
 
 > neither the comment nor the script in the shipped HTML
 
+<a id="builder-lockin-and-export-illusion"></a>
 ### `builder-lockin-and-export-illusion`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -257,6 +320,7 @@ The recurring complaint after the fact is not "it looks bad" but "I cannot leave
 
 > content authored in markdown or a headless store; the builder renders it
 
+<a id="design-pattern-is-not-provenance"></a>
 ### `design-pattern-is-not-provenance`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -279,6 +343,7 @@ How much to trust the public "is this AI" detectors, and which half of their met
 
 > "Three Tier-A strings put this on Lovable. Separately, the palette is unmodified, which is a craft finding whoever built it."
 
+<a id="fix-what-the-fingerprint-points-at"></a>
 ### `fix-what-the-fingerprint-points-at`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -301,6 +366,7 @@ The overlap set, and the reason this lane earns its place: a handful of fingerpr
 
 > "Your meta description is the string 'Generated by v0', so search results and every shared link describe the tool instead of the product. Here is a 155-character description."
 
+<a id="selected-works-of-three-and-third-person-about"></a>
 ### `selected-works-of-three-and-third-person-about`  ·  medium · generic-llm · marketing-copy · structural · family: shape · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -323,6 +389,7 @@ The exact skeleton portfolio generators emit, published in their own marketing: 
 
 > "Four projects I'd defend" / four cards / "I'm Maya. I design onboarding for fintech, mostly." / "I have one project slot open in March — here is what a good fit looks like."
 
+<a id="shadcn-default-tokens-untouched"></a>
 ### `shadcn-default-tokens-untouched`  ·  medium · generic-llm · color · structural · family: residue · lane: provenance
 
 **Automated here:** yes, these scripts implement it.
@@ -345,6 +412,7 @@ The mechanism behind "every AI site is the same purple", and it is measurable as
 
 > a five-value brand chart ramp, contrast-checked against the surface it draws on
 
+<a id="single-file-cdn-tailwind-page"></a>
 ### `single-file-cdn-tailwind-page`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -367,6 +435,7 @@ The shape a chat surface produces, because a chat surface can only hand you one 
 
 > <link rel="stylesheet" href="/assets/app.<hash>.css"> from a real build
 
+<a id="client-first-class-system"></a>
 ### `client-first-class-system`  ·  low · generic-llm · web-ui · structural · family: shape · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -389,6 +458,7 @@ A negative finding, included because suppressing a false positive is worth as mu
 
 > padding-global, container-large, section_hero — a system somebody chose and applied
 
+<a id="fingerprint-is-not-authorship"></a>
 ### `fingerprint-is-not-authorship`  ·  low · generic-llm · web-ui · structural · family: residue · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -411,6 +481,7 @@ The governing rule for every fingerprint in this lane, and the one most often br
 
 > "This site is published from Framer. That is a design tool used by professional teams and by Framer's own AI agent, and the markup is identical either way. Separately, here are six things about the page that are worth fixing."
 
+<a id="keywords-meta-placeholder"></a>
 ### `keywords-meta-placeholder`  ·  low · generic-llm · marketing-copy · structural · family: residue · lane: provenance
 
 **Automated here:** yes, these scripts implement it.
@@ -433,6 +504,7 @@ A meta keywords tag — an element search engines have ignored since 2009 — sh
 
 > tag removed; each section makes one claim the others do not
 
+<a id="status-code-only-file-probe"></a>
 ### `status-code-only-file-probe`  ·  low · generic-llm · web-ui · rendered · family: defect · lane: provenance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -455,6 +527,7 @@ A methodology warning, recorded because implementing the naive version makes an 
 
 > GET /.env → 200, content-type text/html, body starts <!DOCTYPE → not a finding
 
+<a id="template-versus-generated"></a>
 ### `template-versus-generated`  ·  low · generic-llm · layout · llm-judge · family: shape · lane: provenance
 
 The disambiguation rule between "somebody bought a starting point" and "a model wrote this". It matters because a template is a human choosing a starting point — often a good decision — and misreporting it as generation destroys trust in the whole audit.

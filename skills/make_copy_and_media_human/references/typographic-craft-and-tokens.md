@@ -2,7 +2,7 @@
 
 **The governing mechanism, and the thing to say when you report any item here.** A generator emits a stylesheet that is internally consistent and has no craft in it. Craft in typography is almost entirely per-context judgement — this heading at this size on this measure needs 1.05 leading and slightly negative tracking, and the one three sections down does not. A default is by construction context-free.
 
-So the tell is never a WRONG VALUE. Any individual number in this file is defensible somewhere. The tell is **one value where there should have been a function of context**, and every static check here is a variant of the same computation: does this property vary with the thing it is supposed to vary with? Leading with size and measure. Tracking with size. Weight with role. Contrast with theme. Colour with surface.
+So the tell is never a WRONG VALUE. Any individual number in this file is defensible somewhere. The tell is **one value where there should have been a function of context**, and every static check here is a variant of the same computation: does this property vary with the thing it is supposed to vary with? Leading varies with size and measure, tracking with size, weight with role, contrast with theme, and colour with surface.
 
 That framing matters for how you say it. You are not telling an author their 1.6 line-height is wrong; you are telling them that a 64px headline and 16px body copy cannot both want it.
 
@@ -15,10 +15,77 @@ _38 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A stylesheet or design system"] --> B["Read COMPUTED values, not declarations"]
+    B --> C["Utility frameworks bundle line-height<br/>into the size scale, so a page with no<br/>explicit rule is usually correct"]
+    C --> D{"For each property, ask one question"}
+    D --> E["Does this vary with the thing<br/>it is supposed to vary with?"]
+    E -->|no| F["One value where a function belonged"]
+    E -->|yes| G["Craft is present. Not a finding"]
+    F --> H{"Is it restraint or absence?"}
+    H -->|"declares nothing, on defaults"| I["Not the finding"]
+    H -->|"declares a scale that never varies"| J["Report"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`dark-mode-by-inversion`](#dark-mode-by-inversion) | HIGH | defect | yes |
+| [`faux-bold-from-missing-weight`](#faux-bold-from-missing-weight) | HIGH | defect | yes |
+| [`fluid-type-without-rem-component`](#fluid-type-without-rem-component) | HIGH | defect | **no** |
+| [`gap-flattens-type-relationships`](#gap-flattens-type-relationships) | HIGH | defect | **no** |
+| [`global-line-height-never-scaled`](#global-line-height-never-scaled) | HIGH | defect | yes |
+| [`heading-space-symmetric`](#heading-space-symmetric) | HIGH | defect | yes |
+| [`no-balance-on-headings`](#no-balance-on-headings) | HIGH | defect | yes |
+| [`one-value-where-a-function-belonged`](#one-value-where-a-function-belonged) | HIGH | shape | **no** |
+| [`opacity-as-text-hierarchy`](#opacity-as-text-hierarchy) | HIGH | defect | yes |
+| [`proportional-figures-in-data-tables`](#proportional-figures-in-data-tables) | HIGH | defect | yes |
+| [`root-font-size-locked-in-px`](#root-font-size-locked-in-px) | HIGH | defect | yes |
+| [`semantic-layer-bypassed`](#semantic-layer-bypassed) | HIGH | residue | yes |
+| [`theme-changes-hue-not-contrast`](#theme-changes-hue-not-contrast) | HIGH | defect | **no** |
+| [`type-scale-with-no-ratio`](#type-scale-with-no-ratio) | HIGH | shape | yes |
+| [`value-named-tokens-no-semantic-layer`](#value-named-tokens-no-semantic-layer) | HIGH | shape | **no** |
+| [`apostrophe-and-prime-errors`](#apostrophe-and-prime-errors) | med | residue | **no** |
+| [`body-copy-in-brand-colour`](#body-copy-in-brand-colour) | med | shape | **no** |
+| [`display-type-untracked`](#display-type-untracked) | med | defect | **no** |
+| [`heading-margin-collapse-swallowed`](#heading-margin-collapse-swallowed) | med | defect | **no** |
+| [`hyphen-where-dash-belongs`](#hyphen-where-dash-belongs) | med | form | **no** |
+| [`leading-ignores-measure`](#leading-ignores-measure) | med | defect | **no** |
+| [`line-height-in-fixed-units`](#line-height-in-fixed-units) | med | defect | yes |
+| [`live-numbers-without-tabular-nums`](#live-numbers-without-tabular-nums) | med | defect | yes |
+| [`no-hyphenation-at-narrow-measure`](#no-hyphenation-at-narrow-measure) | med | defect | **no** |
+| [`numeric-columns-left-aligned`](#numeric-columns-left-aligned) | med | defect | **no** |
+| [`off-scale-one-off-sizes`](#off-scale-one-off-sizes) | med | residue | yes |
+| [`opsz-axis-unused`](#opsz-axis-unused) | med | defect | yes |
+| [`pure-black-on-pure-white`](#pure-black-on-pure-white) | med | shape | yes |
+| [`spacing-scale-without-ratio`](#spacing-scale-without-ratio) | med | shape | **no** |
+| [`text-colour-proliferation`](#text-colour-proliferation) | med | shape | yes |
+| [`token-set-copied-never-pruned`](#token-set-copied-never-pruned) | med | shape | **no** |
+| [`two-weights-five-jobs`](#two-weights-five-jobs) | med | shape | yes |
+| [`type-scale-step-inflation`](#type-scale-step-inflation) | med | shape | yes |
+| [`variant-explosion-in-components`](#variant-explosion-in-components) | med | shape | **no** |
+| [`hanging-punctuation-absent`](#hanging-punctuation-absent) | low | shape | **no** |
+| [`no-pretty-on-body-copy`](#no-pretty-on-body-copy) | low | defect | **no** |
+| [`opentype-features-never-enabled`](#opentype-features-never-enabled) | low | shape | **no** |
+| [`paragraph-separation-signal-doubled-or-absent`](#paragraph-separation-signal-doubled-or-absent) | low | shape | **no** |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="dark-mode-by-inversion"></a>
 ### `dark-mode-by-inversion`  ·  high · generic-llm · color · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -41,6 +108,7 @@ Dark mode produced by FLIPPING the light mode rather than by deciding it — an 
 
 > a dark token map with its own lightness AND chroma decisions, and color-scheme declared
 
+<a id="faux-bold-from-missing-weight"></a>
 ### `faux-bold-from-missing-weight`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -63,6 +131,7 @@ A bold weight used where only a regular face was loaded, or italic with no itali
 
 > an import listing every weight the CSS uses, and font-synthesis: none once it does
 
+<a id="fluid-type-without-rem-component"></a>
 ### `fluid-type-without-rem-component`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -85,6 +154,7 @@ Two related defects. No fluid type at all, so the headline jumps at a breakpoint
 
 > clamp(2rem, 1.5rem + 2vw, 4rem)
 
+<a id="gap-flattens-type-relationships"></a>
 ### `gap-flattens-type-relationships`  ·  high · generic-llm · layout · structural · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -107,6 +177,7 @@ A vertical flex or grid container with a single gap holding a heading, body copy
 
 > gap for the peer paragraphs; explicit margin-block on the heading and the CTA
 
+<a id="global-line-height-never-scaled"></a>
 ### `global-line-height-never-scaled`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -129,6 +200,7 @@ One line-height set on body or :root and inherited by everything, so a 64px hero
 
 > body { line-height: 1.55 } · h1 { font-size: 4rem; line-height: 1.05; letter-spacing: -0.02em }
 
+<a id="heading-space-symmetric"></a>
 ### `heading-space-symmetric`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -153,6 +225,7 @@ Equal space above and below a heading, so it floats between the section it ends 
 
 > h2 { margin-block: 3rem 1rem }
 
+<a id="no-balance-on-headings"></a>
 ### `no-balance-on-headings`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -175,6 +248,7 @@ No text-wrap: balance anywhere, so multi-line headlines break wherever the line 
 
 > :is(h1,h2,h3) { text-wrap: balance }
 
+<a id="one-value-where-a-function-belonged"></a>
 ### `one-value-where-a-function-belonged`  ·  high · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -197,6 +271,7 @@ The governing finding for this lane, and the one to read first. A generator emit
 
 > body { line-height: 1.55 } plus :is(h1,h2,h3,h4) { line-height: calc(1em + 0.35rem) }
 
+<a id="opacity-as-text-hierarchy"></a>
 ### `opacity-as-text-hierarchy`  ·  high · generic-llm · color · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -219,6 +294,7 @@ Secondary and tertiary text produced by opacity or an alpha colour rather than b
 
 > --text-muted per surface, resolved to an opaque value and contrast-checked once
 
+<a id="proportional-figures-in-data-tables"></a>
 ### `proportional-figures-in-data-tables`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -241,6 +317,7 @@ A data table set in a proportional-figure font with no tabular figures, so the o
 
 > table { font-variant-numeric: tabular-nums }
 
+<a id="root-font-size-locked-in-px"></a>
 ### `root-font-size-locked-in-px`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -263,6 +340,7 @@ A pixel font-size on html or body cascading everywhere, which overrides the read
 
 > html { /* no font-size */ } · body { font-size: 1rem }
 
+<a id="semantic-layer-bypassed"></a>
 ### `semantic-layer-bypassed`  ·  high · generic-llm · web-ui · structural · family: residue · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -287,6 +365,7 @@ A semantic token layer exists and the components ignore it. A muted-foreground t
 
 > cards using text-muted-foreground and border-border, with the primitives lint-banned
 
+<a id="theme-changes-hue-not-contrast"></a>
 ### `theme-changes-hue-not-contrast`  ·  high · generic-llm · color · rendered · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -309,6 +388,7 @@ Multiple themes that swap colours while leaving contrast unequalised — the lig
 
 > both themes solved to the same target ratio per role, asserted in CI
 
+<a id="type-scale-with-no-ratio"></a>
 ### `type-scale-with-no-ratio`  ·  high · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -333,6 +413,7 @@ The set of font sizes has no generator behind it — 14, 16, 18, 20, 22, 28, 32,
 
 > 16, 20, 25, 31, 39, 49 — one base, one ratio, emitted as tokens
 
+<a id="value-named-tokens-no-semantic-layer"></a>
 ### `value-named-tokens-no-semantic-layer`  ·  high · generic-llm · web-ui · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -355,6 +436,7 @@ Every token is named for what it IS — a ramp position — and nothing is named
 
 > --text-muted: var(--gray-500) · --border: var(--gray-200) · --ring: var(--blue-500) — and components using only those
 
+<a id="apostrophe-and-prime-errors"></a>
 ### `apostrophe-and-prime-errors`  ·  medium · generic-llm · typography · structural · family: residue · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -377,6 +459,7 @@ Below the straight-versus-curly question: the errors that survive a naive smart-
 
 > ’90s · 5′10″ · “she said ‘no’”
 
+<a id="body-copy-in-brand-colour"></a>
 ### `body-copy-in-brand-colour`  ·  medium · generic-llm · color · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -399,6 +482,7 @@ Paragraph text set in the brand hue rather than a near-neutral. It reads as tint
 
 > p { color: var(--text-primary) } with the brand on links and the primary button
 
+<a id="display-type-untracked"></a>
 ### `display-type-untracked`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -421,6 +505,7 @@ A 64px headline set at the typeface's default tracking, which was drawn for text
 
 > h1 { font-size: 4rem; letter-spacing: -0.02em }
 
+<a id="heading-margin-collapse-swallowed"></a>
 ### `heading-margin-collapse-swallowed`  ·  medium · generic-llm · layout · structural · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -443,6 +528,7 @@ A heading's top margin is eaten by margin collapsing — the wrapper has no padd
 
 > section { display: flow-root } · or set the separation as padding on the section
 
+<a id="hyphen-where-dash-belongs"></a>
 ### `hyphen-where-dash-belongs`  ·  medium · generic-llm · typography · structural · family: form · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -465,6 +551,7 @@ A hyphen doing an en dash's or em dash's job: a year range, a page range, a comp
 
 > 2019–2024 · pages 330–39 · the New York–London flight
 
+<a id="leading-ignores-measure"></a>
 ### `leading-ignores-measure`  ·  medium · generic-llm · typography · rendered · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -487,6 +574,7 @@ The same line-height at a 68-character desktop measure and a 32-character phone 
 
 > p { line-height: 1.4 } plus @container (min-width: 34rem) { p { line-height: 1.6 } }
 
+<a id="line-height-in-fixed-units"></a>
 ### `line-height-in-fixed-units`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -509,6 +597,7 @@ line-height set as a length rather than a unitless multiplier. The value is inhe
 
 > body { font-size: 1rem; line-height: 1.5 } · .card small { font-size: .75rem; line-height: 1.4 }
 
+<a id="live-numbers-without-tabular-nums"></a>
 ### `live-numbers-without-tabular-nums`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -531,6 +620,7 @@ A counter, timer, clock, updating price or animated stat that visibly jitters le
 
 > .clock { font-variant-numeric: tabular-nums }
 
+<a id="no-hyphenation-at-narrow-measure"></a>
 ### `no-hyphenation-at-narrow-measure`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -553,6 +643,7 @@ No hyphens: auto on a column that goes below about 40 characters on a phone, so 
 
 > <html lang="en"> · p { hyphens: auto; text-align: left }
 
+<a id="numeric-columns-left-aligned"></a>
 ### `numeric-columns-left-aligned`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -575,6 +666,7 @@ Numbers left-aligned in a table, or currency aligned on the symbol rather than t
 
 > the same column right-aligned with tabular figures and two decimal places throughout
 
+<a id="off-scale-one-off-sizes"></a>
 ### `off-scale-one-off-sizes`  ·  medium · generic-llm · typography · structural · family: residue · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -597,6 +689,7 @@ Font sizes chosen per component and written as arbitrary values, coexisting with
 
 > text-sm and text-lg, with the scale adjusted once if neither fits
 
+<a id="opsz-axis-unused"></a>
 ### `opsz-axis-unused`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -619,6 +712,7 @@ A variable font with an optical-size axis is loaded and the axis is never engage
 
 > font-weight: 700 · font-optical-sizing: auto
 
+<a id="pure-black-on-pure-white"></a>
 ### `pure-black-on-pure-white`  ·  medium · generic-llm · color · structural · family: shape · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -641,6 +735,7 @@ Pure black on pure white for body copy, or the dark-mode mirror. Maximum contras
 
 > color: #1a1a1a on background: #fdfdfc
 
+<a id="spacing-scale-without-ratio"></a>
 ### `spacing-scale-without-ratio`  ·  medium · generic-llm · layout · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -663,6 +758,7 @@ A spacing set with no generator behind it — 4, 8, 12, 15, 20, 25, 32, 45, 60 �
 
 > 4, 8, 12, 16, 24, 32, 48, 64, 96 — emitted as tokens, with off-scale values forbidden
 
+<a id="text-colour-proliferation"></a>
 ### `text-colour-proliferation`  ·  medium · generic-llm · color · structural · family: shape · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -687,6 +783,7 @@ Eight to fifteen distinct text colours on one page, several within a few percept
 
 > --text-primary, --text-secondary, --text-muted — one family, three decisions
 
+<a id="token-set-copied-never-pruned"></a>
 ### `token-set-copied-never-pruned`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -709,6 +806,7 @@ A full default token set pasted in wholesale — every ramp at eleven stops, eve
 
 > a 30-entry token file, every entry used
 
+<a id="two-weights-five-jobs"></a>
 ### `two-weights-five-jobs`  ·  medium · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -733,6 +831,7 @@ The whole page runs on two weights, carrying display headings, section headings,
 
 > 400 body · 500 UI labels · 700 section headings · 800 display
 
+<a id="type-scale-step-inflation"></a>
 ### `type-scale-step-inflation`  ·  medium · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
 **Automated here:** yes, these scripts implement it.
@@ -757,6 +856,7 @@ Eleven to fifteen distinct font sizes on one page, several within a pixel or two
 
 > caption 13, body 16, lead 20, section 25, page 39, display 49
 
+<a id="variant-explosion-in-components"></a>
 ### `variant-explosion-in-components`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -779,6 +879,7 @@ A component whose API is a cartesian product — variant by size by tone by icon
 
 > <Button variant="primary" size="md"><Spinner/>Save</Button>
 
+<a id="hanging-punctuation-absent"></a>
 ### `hanging-punctuation-absent`  ·  low · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -801,6 +902,7 @@ Quotation marks, opening parentheses and bullets sitting inside the text block's
 
 > blockquote { hanging-punctuation: first; text-indent: -0.4em }
 
+<a id="no-pretty-on-body-copy"></a>
 ### `no-pretty-on-body-copy`  ·  low · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -823,6 +925,7 @@ Orphans — a single word alone on a paragraph's last line — left everywhere, 
 
 > p { text-wrap: pretty }
 
+<a id="opentype-features-never-enabled"></a>
 ### `opentype-features-never-enabled`  ·  low · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -845,6 +948,7 @@ The page loads a professional typeface with a dozen OpenType features — small 
 
 > font-variant-numeric: tabular-nums · font-feature-settings: 'ss01' 1
 
+<a id="paragraph-separation-signal-doubled-or-absent"></a>
 ### `paragraph-separation-signal-doubled-or-absent`  ·  low · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.

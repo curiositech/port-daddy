@@ -3,6 +3,32 @@
 Hand-written, not generated from the catalog. The per-item `false_positive_when`
 lines live in `catalog.json`; this file is the argument behind them.
 
+
+**The whole file argues one thing:** almost every finding in this catalog is an
+editing cue and almost none is evidence about a person. Here is that argument as
+a procedure, before the argument itself.
+
+```mermaid
+flowchart TD
+    A(["You have a finding"]) --> B{"Which family?"}
+    B -->|residue| C["Machine artifact. Near-zero human source"]
+    B -->|defect| D["Reproducible by opening it"]
+    B -->|"form / shape / code"| E["Humans do this too"]
+    B -->|rhythm| F{"Baseline supplied?"}
+    F -->|no| G["Caps at LOW. Say so in the report"]
+    F -->|yes| H["Compare against THIS author's own prior writing"]
+    C --> I["Report plainly. No hedging needed"]
+    D --> J["No fairness caveat at all. Just fix it"]
+    E --> K["Read the item's False positive when line<br/>BEFORE you act on it"]
+    G --> K
+    H --> K
+    K --> L{"Is the author a second-language writer,<br/>or writing in a register you are<br/>about to penalise?"}
+    L -->|"yes or unknown"| M["Detectors averaged a 61.3% false-positive<br/>rate on non-native TOEFL essays.<br/>This is an EDITING CUE, not evidence"]
+    L -->|no| N["Still an editing cue"]
+    M --> O["Never attach a score to a name"]
+    N --> O
+```
+
 ## The base rate is the whole problem
 
 Start here, because it reframes everything else. AI-text detectors are biased

@@ -13,10 +13,78 @@ _40 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A web page or component"] --> B["Run an automated scan first"]
+    B --> C{"Scan came back clean?"}
+    C -->|yes| D["It covered roughly 30% of the<br/>success criteria a machine can verify.<br/>You are not done"]
+    C -->|no| E["Fix those first"]
+    D --> F["five-minute-manual-pass.md:<br/>eleven keyboard and screen-reader steps"]
+    F --> G{"Item marked assistive?"}
+    G -->|yes| H["A person must hear it.<br/>Do NOT write an assertion and<br/>call a pass evidence"]
+    G -->|no| I["render_check.py --probe-a11y<br/>settles text-spacing and forced-colors"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`accessibility-overlay-installed`](#accessibility-overlay-installed) | HIGH | residue | yes |
+| [`accessible-name-does-not-match-the-visible-label`](#accessible-name-does-not-match-the-visible-label) | HIGH | defect | yes |
+| [`background-not-inert-behind-the-overlay`](#background-not-inert-behind-the-overlay) | HIGH | defect | **no** |
+| [`conditionally-rendered-live-region`](#conditionally-rendered-live-region) | HIGH | defect | yes |
+| [`focus-never-enters-the-dialog`](#focus-never-enters-the-dialog) | HIGH | defect | **no** |
+| [`focus-not-restored-on-dismiss`](#focus-not-restored-on-dismiss) | HIGH | defect | **no** |
+| [`focus-obscured-by-sticky-chrome`](#focus-obscured-by-sticky-chrome) | HIGH | defect | **no** |
+| [`focus-order-diverges-from-reading-order`](#focus-order-diverges-from-reading-order) | HIGH | defect | **no** |
+| [`form-errors-visible-but-never-spoken`](#form-errors-visible-but-never-spoken) | HIGH | defect | **no** |
+| [`heading-levels-chosen-for-size`](#heading-levels-chosen-for-size) | HIGH | defect | yes |
+| [`promised-role-with-no-behaviour`](#promised-role-with-no-behaviour) | HIGH | defect | yes |
+| [`reflow-failure-at-320-css-pixels`](#reflow-failure-at-320-css-pixels) | HIGH | defect | **no** |
+| [`spa-route-change-focus-lost`](#spa-route-change-focus-lost) | HIGH | defect | **no** |
+| [`toast-carries-a-control-a-screen-reader-cannot-reach`](#toast-carries-a-control-a-screen-reader-cannot-reach) | HIGH | defect | **no** |
+| [`accessibility-statement-without-an-audit`](#accessibility-statement-without-an-audit) | med | shape | n/a |
+| [`aria-label-cloaks-the-text-that-was-already-there`](#aria-label-cloaks-the-text-that-was-already-there) | med | defect | yes |
+| [`aria-label-on-a-generic-element`](#aria-label-on-a-generic-element) | med | residue | yes |
+| [`aria-reference-that-resolves-to-nothing-at-runtime`](#aria-reference-that-resolves-to-nothing-at-runtime) | med | defect | **no** |
+| [`auto-advancing-content-with-no-pause`](#auto-advancing-content-with-no-pause) | med | defect | yes |
+| [`automation-covers-a-third-of-this`](#automation-covers-a-third-of-this) | med | shape | **no** |
+| [`data-rendered-as-divs-with-no-header-association`](#data-rendered-as-divs-with-no-header-association) | med | defect | yes |
+| [`drag-only-interaction`](#drag-only-interaction) | med | defect | **no** |
+| [`error-message-names-the-failure-not-the-remedy`](#error-message-names-the-failure-not-the-remedy) | med | form | **no** |
+| [`escape-not-wired-on-the-inner-layer`](#escape-not-wired-on-the-inner-layer) | med | defect | **no** |
+| [`focus-lands-on-the-container-not-a-control`](#focus-lands-on-the-container-not-a-control) | med | defect | n/a |
+| [`forced-colors-mode-erases-the-interface`](#forced-colors-mode-erases-the-interface) | med | defect | yes |
+| [`infinite-scroll-with-no-announcement-and-no-reachable-end`](#infinite-scroll-with-no-announcement-and-no-reachable-end) | med | defect | **no** |
+| [`instructions-live-only-in-the-placeholder`](#instructions-live-only-in-the-placeholder) | med | defect | yes |
+| [`landmarks-duplicated-and-unnamed`](#landmarks-duplicated-and-unnamed) | med | defect | yes |
+| [`link-text-that-only-works-next-to-its-picture`](#link-text-that-only-works-next-to-its-picture) | med | shape | yes |
+| [`loading-state-with-no-status-role`](#loading-state-with-no-status-role) | med | defect | **no** |
+| [`narrating-alt-text`](#narrating-alt-text) | med | form | yes |
+| [`results-change-silently-under-a-filter`](#results-change-silently-under-a-filter) | med | defect | n/a |
+| [`skip-link-that-moves-nothing`](#skip-link-that-moves-nothing) | med | defect | **no** |
+| [`text-spacing-override-breaks-the-layout`](#text-spacing-override-breaks-the-layout) | med | defect | yes |
+| [`time-limit-with-no-warning-and-no-extension`](#time-limit-with-no-warning-and-no-extension) | med | defect | **no** |
+| [`type-sized-in-viewport-units`](#type-sized-in-viewport-units) | med | defect | yes |
+| [`validation-fires-on-every-keystroke`](#validation-fires-on-every-keystroke) | med | defect | **no** |
+| [`whole-card-wrapped-in-one-link`](#whole-card-wrapped-in-one-link) | med | defect | **no** |
+| [`redundant-role-on-a-semantic-element`](#redundant-role-on-a-semantic-element) | low | residue | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="accessibility-overlay-installed"></a>
 ### `accessibility-overlay-installed`  ·  high · generic-llm · web-ui · structural · family: residue · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -41,6 +109,7 @@ A third-party widget added in place of fixing anything: a person-in-a-circle but
 
 > the script deleted, and the findings in this file actually fixed
 
+<a id="accessible-name-does-not-match-the-visible-label"></a>
 ### `accessible-name-does-not-match-the-visible-label`  ·  high · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -63,6 +132,7 @@ The button says "Get started". Its aria-label says "Navigate to signup page". A 
 
 > <button>Create account</button> — or aria-label="Create account — free, no card required"
 
+<a id="background-not-inert-behind-the-overlay"></a>
 ### `background-not-inert-behind-the-overlay`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -85,6 +155,7 @@ The modal is open, focus is trapped correctly, and the content behind it is stil
 
 > the app root carrying inert while the dialog is open, or a native <dialog>
 
+<a id="conditionally-rendered-live-region"></a>
 ### `conditionally-rendered-live-region`  ·  high · generic-llm · web-ui · assistive · family: defect · lane: accessibility
 
 The container and its text arrive in the DOM in the same tick, so the screen reader never observes a CHANGE to a region it was watching, and says nothing. The markup is textbook-correct and the behaviour is silence. Undetectable by every static and every rendered-DOM check, because the attribute is present and the text is present.
@@ -105,6 +176,7 @@ The container and its text arrive in the DOM in the same tick, so the screen rea
 
 > a mounted <div aria-live="polite" class="sr-only"> whose text is set to "Saved" when the save completes
 
+<a id="focus-never-enters-the-dialog"></a>
 ### `focus-never-enters-the-dialog`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -127,6 +199,7 @@ A modal opens visually and focus stays behind it on the trigger, so Tab then wal
 
 > <dialog ref={ref}> opened with ref.current.showModal()
 
+<a id="focus-not-restored-on-dismiss"></a>
 ### `focus-not-restored-on-dismiss`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -149,6 +222,7 @@ The dialog, drawer, menu or command palette closes and focus is dropped to the b
 
 > const close = () => { setOpen(false); triggerRef.current?.focus(); } — with a fallback for when the trigger is gone
 
+<a id="focus-obscured-by-sticky-chrome"></a>
 ### `focus-obscured-by-sticky-chrome`  ·  high · generic-llm · layout · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -171,6 +245,7 @@ Tab down the page and the focus ring slides under the sticky header, the sticky 
 
 > :root { scroll-padding-top: 5rem } — then confirm by Tabbing, because a hard-coded value drifts when the header grows
 
+<a id="focus-order-diverges-from-reading-order"></a>
 ### `focus-order-diverges-from-reading-order`  ·  high · generic-llm · layout · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -193,6 +268,7 @@ Tab order does not follow the order things are read. Two causes, and only one is
 
 > <div class="flex flex-col lg:flex-row"><Copy/><Form/></div>, with the arrangement handled by source order
 
+<a id="form-errors-visible-but-never-spoken"></a>
 ### `form-errors-visible-but-never-spoken`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -215,6 +291,7 @@ Submit fails. Red text appears under three fields, and to a screen reader user n
 
 > a focusable error summary listing "There are 3 problems" with links to each field, plus aria-invalid and aria-describedby on the controls
 
+<a id="heading-levels-chosen-for-size"></a>
 ### `heading-levels-chosen-for-size`  ·  high · generic-llm · structure · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -237,6 +314,7 @@ Headings picked by how big they should look — an h3 for the section title beca
 
 > <h2 class="text-2xl font-semibold">Billing history</h2>
 
+<a id="promised-role-with-no-behaviour"></a>
 ### `promised-role-with-no-behaviour`  ·  high · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -259,6 +337,7 @@ role="tablist" on a div with no arrow-key handling. role="switch" with no aria-c
 
 > a maintained tabs primitive, or a disclosure pattern of <button aria-expanded> plus panels — which is simpler and often the right answer anyway
 
+<a id="reflow-failure-at-320-css-pixels"></a>
 ### `reflow-failure-at-320-css-pixels`  ·  high · generic-llm · layout · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -281,6 +360,7 @@ At 400% browser zoom on a 1280px window — equivalently a 320 CSS pixel viewpor
 
 > stack below 640px and set main { min-width: 0 } — the flex-item default of min-width: auto is the usual hidden culprit
 
+<a id="spa-route-change-focus-lost"></a>
 ### `spa-route-change-focus-lost`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -303,6 +383,7 @@ Client-side navigation swaps the view; focus stays on the link that was clicked 
 
 > a route announcer in the layout that sets document.title and focuses the main heading on pathname change
 
+<a id="toast-carries-a-control-a-screen-reader-cannot-reach"></a>
 ### `toast-carries-a-control-a-screen-reader-cannot-reach`  ·  high · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -325,6 +406,7 @@ A toast with an Undo button, in a live region, auto-dismissing after four second
 
 > no auto-dismiss; a persistent inline "Item deleted — Undo" row above the list, announced politely and reachable by Tab
 
+<a id="accessibility-statement-without-an-audit"></a>
 ### `accessibility-statement-without-an-audit`  ·  medium · generic-llm · content · llm-judge · family: shape · lane: accessibility
 
 A generated accessibility page asserting conformance — "This site conforms to WCAG 2.1 Level AA", "tested and found compliant" — on a site that fails half the items in this file. Often the only accessibility artefact present.
@@ -345,6 +427,7 @@ A generated accessibility page asserting conformance — "This site conforms to 
 
 > "We aim to meet WCAG 2.2 Level AA. We last reviewed the site on 3 March 2026 using keyboard and screen-reader testing plus an automated scan. We know these are not yet met: the data table on /reports has no header associations, and the onboarding carousel has no pause control. Email access@acme.com and we will reply within five working days."
 
+<a id="aria-label-cloaks-the-text-that-was-already-there"></a>
 ### `aria-label-cloaks-the-text-that-was-already-there`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -367,6 +450,7 @@ aria-label does not add; it REPLACES. A link whose visible text is a full, speci
 
 > <a href="/pricing">Compare all plans and find the one that fits your team</a>
 
+<a id="aria-label-on-a-generic-element"></a>
 ### `aria-label-on-a-generic-element`  ·  medium · generic-llm · web-ui · structural · family: residue · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -389,6 +473,7 @@ aria-label on a bare div or span. The generic role is on ARIA's name-prohibited 
 
 > <section aria-labelledby="hero-h"><h1 id="hero-h">… — or the attribute simply deleted
 
+<a id="aria-reference-that-resolves-to-nothing-at-runtime"></a>
 ### `aria-reference-that-resolves-to-nothing-at-runtime`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -411,6 +496,7 @@ aria-describedby pointing at a hint that is conditionally rendered and currently
 
 > <input aria-describedby={showRules ? 'pw-rules' : undefined} /><p id="pw-rules" hidden={!showRules}>8+ characters</p>
 
+<a id="auto-advancing-content-with-no-pause"></a>
 ### `auto-advancing-content-with-no-pause`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -433,6 +519,7 @@ A hero carousel rotating every four seconds. An auto-scrolling logo marquee. A t
 
 > autoplay disabled while paused, plus <button aria-pressed={paused}>Pause slideshow</button>
 
+<a id="automation-covers-a-third-of-this"></a>
 ### `automation-covers-a-third-of-this`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -457,6 +544,7 @@ The frame for this whole lane, and the reason it exists. The most generous numbe
 
 > "axe reports 0 violations, which covers about a third of the criteria. Eleven minutes of keyboard and screen-reader testing found six things it structurally cannot see."
 
+<a id="data-rendered-as-divs-with-no-header-association"></a>
 ### `data-rendered-as-divs-with-no-header-association`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -479,6 +567,7 @@ A table built from a CSS grid of divs, or a real table whose header row is data 
 
 > <table><thead><tr><th scope="col">Customer</th>…<tbody><tr><th scope="row">Acme</th><td>4,200</td>
 
+<a id="drag-only-interaction"></a>
 ### `drag-only-interaction`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -501,6 +590,7 @@ Reorder-by-drag lists, kanban columns, a slider you can only drag, an image crop
 
 > the same, plus each row exposing Move up and Move down buttons and a "Move to…" menu
 
+<a id="error-message-names-the-failure-not-the-remedy"></a>
 ### `error-message-names-the-failure-not-the-remedy`  ·  medium · generic-llm · content · structural · family: form · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -523,6 +613,7 @@ Reorder-by-drag lists, kanban columns, a slider you can only drag, an image crop
 
 > "Enter an email address in the format name@example.com"
 
+<a id="escape-not-wired-on-the-inner-layer"></a>
 ### `escape-not-wired-on-the-inner-layer`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -545,6 +636,7 @@ Escape is handled once, at the outermost layer. Open a custom dropdown inside a 
 
 > onKeyDown on each component's own root, with the inner handler stopping propagation
 
+<a id="focus-lands-on-the-container-not-a-control"></a>
 ### `focus-lands-on-the-container-not-a-control`  ·  medium · generic-llm · web-ui · assistive · family: defect · lane: accessibility
 
 Focus is moved on open — to the dialog div itself, or a wrapper carrying tabindex="-1" — rather than to the first control. The screen reader reads the dialog's name and the user is then standing on a non-interactive box. It looks correct in code review and passes an activeElement assertion, which is exactly why it survives.
@@ -565,6 +657,7 @@ Focus is moved on open — to the dialog div itself, or a wrapper carrying tabin
 
 > firstFieldRef.current.focus(), with the dialog named by aria-labelledby
 
+<a id="forced-colors-mode-erases-the-interface"></a>
 ### `forced-colors-mode-erases-the-interface`  ·  medium · generic-llm · color · rendered · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -587,6 +680,7 @@ In forced-colors mode the OS overrides colours: gradient backgrounds vanish, box
 
 > add a real border for the selected state, and a forced-colors block setting its colour to Highlight
 
+<a id="infinite-scroll-with-no-announcement-and-no-reachable-end"></a>
 ### `infinite-scroll-with-no-announcement-and-no-reachable-end`  ·  medium · generic-llm · layout · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -609,6 +703,7 @@ Content loads on scroll. Nothing announces that more arrived. And because new co
 
 > <button>Load 20 more</button> plus a visually hidden status: "20 more items loaded, 60 of 340"
 
+<a id="instructions-live-only-in-the-placeholder"></a>
 ### `instructions-live-only-in-the-placeholder`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -633,6 +728,7 @@ The format rule exists only as placeholder text, which vanishes the moment the u
 
 > <label for="exp">Expiry</label><p id="exp-h">Use the format MM/YYYY, for example 03/2028</p><input id="exp" aria-describedby="exp-h" />
 
+<a id="landmarks-duplicated-and-unnamed"></a>
 ### `landmarks-duplicated-and-unnamed`  ·  medium · generic-llm · structure · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -655,6 +751,7 @@ Three <nav> elements — primary, breadcrumb, footer — all announcing as "navi
 
 > <nav aria-label="Main">, <nav aria-label="Breadcrumb">, <nav aria-label="Legal">
 
+<a id="link-text-that-only-works-next-to-its-picture"></a>
 ### `link-text-that-only-works-next-to-its-picture`  ·  medium · generic-llm · content · structural · family: shape · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -679,6 +776,7 @@ Three <nav> elements — primary, breadcrumb, footer — all announcing as "navi
 
 > <h3><a href="/features/sso">Single sign-on</a></h3>, with the card surface made clickable in CSS
 
+<a id="loading-state-with-no-status-role"></a>
 ### `loading-state-with-no-status-role`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -701,6 +799,7 @@ A spinner, a shimmer skeleton, or a disabled button with a rotating icon. Visual
 
 > <div role="status"><span class="sr-only">Loading results</span><Spinner aria-hidden="true"/></div>
 
+<a id="narrating-alt-text"></a>
 ### `narrating-alt-text`  ·  medium · generic-llm · content · structural · family: form · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -725,6 +824,7 @@ Not MISSING alt — alt that is present, fluent, forty words long, and describes
 
 > alt="" — it is a decorative hero photograph and the h1 beside it carries the meaning
 
+<a id="results-change-silently-under-a-filter"></a>
 ### `results-change-silently-under-a-filter`  ·  medium · generic-llm · web-ui · assistive · family: defect · lane: accessibility
 
 You toggle a facet, change a sort or type in a search box and the list updates. Nothing says how many results there are now, or that anything happened. For a sighted user the change is obvious; for a screen reader user the page is identical until they go and re-read the list.
@@ -745,6 +845,7 @@ You toggle a facet, change a sort or type in a search box and the list updates. 
 
 > a visually hidden role="status" carrying the result count, plus combobox wiring for suggestions
 
+<a id="skip-link-that-moves-nothing"></a>
 ### `skip-link-that-moves-nothing`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -767,6 +868,7 @@ The skip link exists, the anchor resolves, the page scrolls — and focus stays 
 
 > <main id="main" tabindex="-1">
 
+<a id="text-spacing-override-breaks-the-layout"></a>
 ### `text-spacing-override-breaks-the-layout`  ·  medium · generic-llm · layout · rendered · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -789,6 +891,7 @@ A reader with dyslexia applies a stylesheet raising line height to 1.5, paragrap
 
 > .btn { min-height: 2.5rem; padding-block: .5rem; line-height: 1.5 }
 
+<a id="time-limit-with-no-warning-and-no-extension"></a>
 ### `time-limit-with-no-warning-and-no-extension`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -811,6 +914,7 @@ A session that expires and dumps the form. A checkout timer. A one-time-code win
 
 > a warning at 13 minutes, focus into an alertdialog, a "Stay signed in" button, and form state persisted before any redirect
 
+<a id="type-sized-in-viewport-units"></a>
 ### `type-sized-in-viewport-units`  ·  medium · generic-llm · typography · structural · family: defect · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
@@ -833,6 +937,7 @@ Body text sized in viewport units, or a clamp whose preferred term is pure vw. F
 
 > h1 { font-size: clamp(2rem, 1.5rem + 2vw, 4rem) }
 
+<a id="validation-fires-on-every-keystroke"></a>
 ### `validation-fires-on-every-keystroke`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -855,6 +960,7 @@ Validation wired to a live region on every change, so typing an email address an
 
 > useForm({ mode: 'onTouched' }) — validate on blur first, then live on subsequent edits
 
+<a id="whole-card-wrapped-in-one-link"></a>
 ### `whole-card-wrapped-in-one-link`  ·  medium · generic-llm · layout · structural · family: defect · lane: accessibility
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -877,6 +983,7 @@ An anchor wrapping the entire card — image, heading, three lines of descriptio
 
 > <article class="card relative"><img alt=""/><h3><a href="/post/1" class="after:absolute after:inset-0">…</a></h3><p>…</p></article>
 
+<a id="redundant-role-on-a-semantic-element"></a>
 ### `redundant-role-on-a-semantic-element`  ·  low · generic-llm · web-ui · structural · family: residue · lane: accessibility
 
 **Automated here:** yes, these scripts implement it.
