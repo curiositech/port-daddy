@@ -865,7 +865,7 @@ A heading every paragraph or two, labelling single paragraphs rather than organi
 
 **Why it reads AI:** It is the outline the model was given, left in place. Scaffolding that was never taken down after the building went up.
 
-**Detect:** Ratio of headings to paragraph-start lines.
+**Detect:** Static: ratio of headings to paragraph-start lines, scoped to narrative prose. Reference shape is excluded mechanically -- 60% or more of headings being short labels (five words or fewer) AND a code block present -- so an API or CLI reference does not trip it.
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_headings` = 5, `ratio` = 0.5
 
