@@ -2,7 +2,7 @@
 
 Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.
 
-_44 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_39 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -10,28 +10,6 @@ _Every item carries a **False positive when** line. Read it before you act on th
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
-
-### `as-an-ai-leakage`  ·  high · generic-llm · prose · structural · family: residue
-
-**Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
-
-Less RLHF-polished open models leak identity/disclaimer phrases mid-answer: 'As an AI language model, I...,' 'I do not have personal opinions, but...,' 'trained by [vendor]...'. Sometimes the wrong vendor is named.
-
-**Why it reads AI:** This is the most unambiguous AI signature there is. No human writes 'as an AI language model'; its presence is a near-100% tell, and a wrong vendor name additionally exposes training-data contamination.
-
-**Detect:** structural: high-precision exact/regex signature match on the leakage family ('As an AI( language model)?', 'I (do not|don't) have (personal )?(opinions|feelings|beliefs)', 'trained by (OpenAI|Google|...)'). This is a deterministic generation-artifact signature, not a fuzzy content classifier.
-
-**Fix:** Delete the disclaimer entirely and answer in the first person or impersonally. If an opinion is wanted, give a defensible take with reasons.
-
-**False positive when:** Writing about AI quotes these strings constantly, including this catalog. Quoted and fenced regions are excluded before the check runs. Note also that the phrase is close to extinct in current frontier output, so a hit usually means older text or a smaller model.
-
-**Before**
-
-> As an AI language model, I do not have personal opinions, but the best programming language for beginners is generally considered to be Python.
-
-**After**
-
-> For beginners, Python is the easiest entry point: readable syntax, huge ecosystem, forgiving error messages.
 
 ### `definition-after-use`  ·  high · generic-llm · prose · structural · family: form
 
@@ -180,28 +158,6 @@ A sentence-final present-participial clause bolted onto an already complete sent
 **After**
 
 > The library reopened in 2019. Voters had approved the bond twice.
-
-### `register-leveling`  ·  high · generic-llm · prose · llm-judge · family: form
-
-The same voice regardless of genre: a Slack message, a postmortem and a wedding toast all arrive in the same measured explanatory register.
-
-**Why it reads AI:** Instruction tuning produces a fixed, informationally dense register that models carry into every genre, even when explicitly prompted to match informal speech. The literature calls the result genre misalignment.
-
-**Detect:** Name the genre this text is written in. Then name the genre it is FOR. Do they match?
-
-**Fix:** Name the target genre out loud, then cut everything that belongs to a different one.
-
-**False positive when:** Some writers genuinely have one register and use it everywhere, and house styles enforce uniformity on purpose. Judge against the destination, not against variety for its own sake.
-
-**Evidence:** Reinhart et al., PNAS 2025; Muñoz-Ortiz et al., AI Review 57:267 (2024), on register leveling.
-
-**Before**
-
-> A Slack message reading: 'Great question. There are a few considerations worth weighing here. First,...'
-
-**After**
-
-> yeah it's the pool config. i'll patch it after standup
 
 ### `significance-puffery-testament`  ·  high · generic-llm · prose · llm-judge · family: form
 
@@ -773,26 +729,6 @@ Reflexive unconditional praise or agreement openers: 'You're absolutely right!',
 
 > Here's what I found...
 
-### `tense-and-perspective-drift`  ·  medium · generic-llm · prose · structural · family: form
-
-In longer outputs, models drift unmotivated between tenses (past to present and back within one narrative) and between perspectives ('you' to 'one' to 'we' to 'the user') without intent.
-
-**Why it reads AI:** Humans maintain tense and address consistency almost unconsciously; models track it only locally, so long outputs accumulate drift a careful reader registers as 'something's off.'
-
-**Detect:** structural: parse main-verb tense and second-person/impersonal pronoun choice across paragraphs; flag unmotivated tense switches within a single narrative thread and pronoun-of-address changes not justified by a register shift.
-
-**Fix:** Pick one tense and one mode of address up front and enforce it on a full read-through. Switch only with deliberate purpose.
-
-**False positive when:** Not yet characterized. Treat as a cue to look, never as evidence of authorship.
-
-**Before**
-
-> You open the terminal and ran the script. One sees an error, and we should then check the logs. The user fixes the path and it works now.
-
-**After**
-
-> You open the terminal and run the script. You see an error, so you check the logs, fix the path, and run it again. This time it works.
-
 ### `unattributed-floating-quote`  ·  medium · claude · prose · structural · family: form
 
 An italicized or block-quoted line dropped in as if it were a quotation or someone's words, but no one said it and it isn't a pull quote from the piece. Aphoristic filler standing alone on its own line.
@@ -909,30 +845,6 @@ The sweeping 'from X to Y' / 'whether you're a beginner or an expert' constructi
 
 > This tool is built for two-to-ten-person data teams who are tired of maintaining Airflow themselves.
 
-### `low-burstiness-uniform-rhythm`  ·  low · generic-llm · prose · structural · family: rhythm
-
-Sentences and paragraphs of near-identical length and cadence throughout, producing a metronomic evenness with no short punchy sentences against sprawling ones. The prosodic flatness humans call 'AI cadence.'
-
-**Why it reads AI:** Human texts scatter more widely across sentence lengths; models cluster in the 10-30 token band. All human-vs-model sentence-length differences in the reference study were significant at p<0.001.
-
-**Detect:** Coefficient of variation of sentence length (standard deviation over mean), not an absolute standard deviation — absolute spread is scale-dependent, so a document with a 30-word mean and a 4.5-word spread is very machine and used to pass. Never reported as a proprietary 'burstiness score'.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_sentences` = 12, `cue_cv` = 0.42, `baseline_ratio` = 0.7
-
-**Fix:** Deliberately vary length: drop a three-word sentence, then run a long stacked one, then snap back. Let one paragraph be a single line and the next be six. Read aloud and break the metronome.
-
-**False positive when:** Instructional, procedural and reference writing is legitimately uniform, because each step is one sentence. Low variance in a how-to is competence, not a machine.
-
-**Evidence:** Muñoz-Ortiz, Gómez-Rodríguez & Vilares, Artificial Intelligence Review 57:267 (2024). Note that 'perplexity and burstiness' as a paired metric is a detection product's marketing vocabulary, not a term of art from the literature.
-
-**Before**
-
-> The system processes requests quickly. It handles errors gracefully and retries failed calls. The queue manages backpressure when load increases. Monitoring alerts the team to issues.
-
-**After**
-
-> The system is fast. When a call fails it retries, backs off, and if the queue starts backing up under real load it sheds the lowest-priority work first rather than tipping over, which took three rewrites to get right. Monitoring catches the rest.
-
 ### `paragraph-length-monoculture`  ·  low · generic-llm · prose · structural · family: rhythm
 
 Every paragraph is roughly the same length, usually three to four sentences.
@@ -954,29 +866,5 @@ Every paragraph is roughly the same length, usually three to four sentences.
 **After**
 
 > Four sentences, then one, then seven, then two.
-
-### `zero-typo-zero-contraction-affect-flatness`  ·  low · generic-llm · prose · structural · family: rhythm
-
-A register with no relaxed setting: no contractions, no typos, no asides, and emotional vocabulary that is generic rather than situated.
-
-**Why it reads AI:** Directional rather than absolute. LLM editing cuts contraction density about 31% overall, but the effect concentrates where the source was most speech-like (oral history d=-1.15) and REVERSES on already-formal sources. The affect half of this entry needs care too: LLM editing raises positive sentiment 37-54% and emotion-word density 14%. What flattens is not the quantity of feeling but its situatedness — enacted experience becomes summarized experience.
-
-**Detect:** structural: combine near-zero contraction rate, zero orthographic noise, absence of first-person stance markers, and low sentiment variance across an emotionally varied topic. The conjunction signals machine authorship more than any single feature.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_words` = 250, `baseline_ratio` = 0.5
-
-**Fix:** Use contractions where a person saying the sentence aloud would. For the affect half: replace the emotion word with the thing that caused it.
-
-**False positive when:** Formal, academic, legal and encyclopedic registers have no contractions by convention, and many excellent writers simply do not use them. Zero contractions is meaningful only against this author's own baseline in this genre.
-
-**Evidence:** van Nuenen, arXiv:2604.22142 (d=-0.48, genre-dependent, reverses on formal sources); Abdulhai et al., arXiv:2603.18161 (sentiment and emotion-word increases).
-
-**Before**
-
-> I am very excited about this opportunity. It is a wonderful chance to grow. I do not have any concerns. The team is great and I am sure it will be successful.
-
-**After**
-
-> Honestly I'm thrilled about this, with one nagging worry: the timeline's tight and we've under-scoped tighter ones before. The team's strong though, so I think we pull it off.
 
 <!-- humanize:ignore-end -->

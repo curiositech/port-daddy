@@ -2,7 +2,7 @@
 
 What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.
 
-_46 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_44 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -10,26 +10,6 @@ _Every item carries a **False positive when** line. Read it before you act on th
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
-
-### `ai-image-default-filenames`  ·  high · generic-llm · image · structural · family: residue · lane: provenance
-
-Image generators assign distinctive default download filenames and site builders preserve them, so the filename in the img src names the model that made the picture. Midjourney's format contains the prompt.
-
-**Why it reads AI:** The strongest content-provenance signal available, and it survives every rebuild, migration and badge removal, because the filename travels with the file. It has already been used in published investigative reporting to establish that author headshots on a network of sites were generated, alongside credentials the named university confirmed never existed.
-
-**Detect:** Grep src, srcset and content attributes for: Gemini_Generated_Image_ (and WordPress's derived cropped-Gemini_Generated_Image); the concatenated ChatGPT form ChatGPTImage<Mon><DD><YYYY><HH>_<MM>_<SS><AM|PM>.png and the hyphenated WordPress-sanitised ChatGPT-Image-Oct-20-2025-11_57_34-AM; Midjourney's <discorduser>_<prompt_words_underscored>_<uuid>.png; and, weakly, a UUID-only filename where every other asset is descriptively named.
-
-**Fix:** Rename every image to a descriptive slug before upload — worth doing on search grounds regardless. But if the image is a person or a proof artifact, renaming is the wrong fix: replace it, or remove it.
-
-**False positive when:** Generated imagery is routine and legitimate for illustration and background art. The finding is AI imagery used WHERE A HUMAN OR A PROOF IS IMPLIED — bylines, team pages, testimonials, client work. And a descriptive filename proves nothing in the other direction: absence of this tell is not evidence the image is real.
-
-**Before**
-
-> <img src="/wp-content/uploads/cropped-Gemini_Generated_Image_h3k2l9.png" alt="Senior Editor">
-
-**After**
-
-> a real photograph at /team/marta-oleszek.jpg, or no photo at all
 
 ### `breathless-uniform-prosody`  ·  high · generic-llm · audio · llm-judge · family: visual
 
@@ -254,28 +234,6 @@ The headline (or one hero word) uses a linear-gradient clipped to text running i
 **After**
 
 > <h1>Build faster</h1> in solid near-black; a single restrained accent underline in the brand terracotta; buttons are flat brand fill.
-
-### `scaffold-title-residue`  ·  high · generic-llm · web-ui · structural · family: residue
-
-The framework's default document title shipped: "Create Next App", "Vite + React", "Untitled", "Document".
-
-**Why it reads AI:** Proof rather than inference, like an unfilled merge tag. It is what the browser tab, the search result and every shared link will say.
-
-**Detect:** Match the title text against the closed set of scaffold defaults. Static, near-zero false positive.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
-
-**Fix:** Write the title: product name, then what it is, under about 60 characters so search does not truncate it. Set a distinct one per route, and while you are in the head add a meta description and an og:image — they are missing for the same reason.
-
-**False positive when:** A scaffold that genuinely has not shipped yet. That is a reason to fix it before it does, not to ignore it.
-
-**Before**
-
-> <title>Create Next App</title>
-
-**After**
-
-> <title>Northwind — invoice reconciliation for finance teams</title>
 
 ### `tailwind-indigo-default-palette`  ·  high · generic-llm · color · structural · family: visual
 
