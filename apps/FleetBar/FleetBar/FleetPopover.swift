@@ -89,6 +89,14 @@ struct FleetPopover: View {
             .map { $0 }
     }
 
+    private var fleetToggleBlockReason: String? {
+        guard store.totalActive == 0 else { return nil }
+        return CriticalAttentionGate.blockReason(
+            for: .startFleet,
+            criticalTitle: interruptionsStore.criticalSpawnBlockTitle
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -641,6 +649,7 @@ struct FleetPopover: View {
                     // with multiple, open Fleet Control Center where the operator picks —
                     // never silently launch all fleets everywhere.
                     Button {
+                        guard fleetToggleBlockReason == nil else { return }
                         Task {
                             if store.totalActive == 0 {
                                 let runnable = store.projects.filter { !$0.isRunning }
@@ -662,13 +671,19 @@ struct FleetPopover: View {
                             }
                         }
                     } label: {
-                        Image(systemName: store.totalActive == 0 ? "play.fill" : "stop.fill")
+                        Label(
+                            store.totalActive == 0 ? "Start Fleet" : "Stop Fleet",
+                            systemImage: store.totalActive == 0 ? "play.fill" : "stop.fill"
+                        )
+                            .labelStyle(.iconOnly)
                             .fontWeight(.medium)
                             .foregroundStyle(store.totalActive == 0 ? Fleet.Color.healthy : Fleet.Color.failure)
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.borderless)
-                    .help(store.totalActive == 0 ? "Start fleet (focused project only)" : "Stop fleet (focused project only)")
+                    .disabled(fleetToggleBlockReason != nil)
+                    .opacity(fleetToggleBlockReason == nil ? 1 : 0.48)
+                    .help(fleetToggleBlockReason ?? (store.totalActive == 0 ? "Start fleet (focused project only)" : "Stop fleet (focused project only)"))
                 }
             }
         }
@@ -1185,6 +1200,10 @@ struct FleetPopover: View {
                 await costStore.refresh()
             }
         case "start_fleet":
+            guard CriticalAttentionGate.blockReason(
+                for: .startFleet,
+                criticalTitle: interruptionsStore.criticalSpawnBlockTitle
+            ) == nil else { return }
             Task { await store.startFleet(projectDir: project.projectDir) }
         case "fix_yaml":
             openControlPlane(.yaml, project: project.id)
@@ -1309,6 +1328,7 @@ struct ProjectSection: View {
             if isExpanded {
                 ProjectReadinessRow(
                     project: project,
+                    criticalBlockTitle: spawnBlockTitle,
                     onOpenProject: onOpenProject,
                     onOpenVisualTask: onOpenVisualTask,
                     onRemediateProject: onRemediateProject
@@ -1355,6 +1375,7 @@ struct ProjectSection: View {
 // borderless); pinning it via unit tests is worth the broader visibility.
 struct ProjectReadinessRow: View {
     let project: FleetProject
+    var criticalBlockTitle: String? = nil
     let onOpenProject: () -> Void
     let onOpenVisualTask: () -> Void
     let onRemediateProject: () -> Void
@@ -1372,6 +1393,14 @@ struct ProjectReadinessRow: View {
         case "run_scan":     return "magnifyingglass"
         default:             return "arrow.right.circle"
         }
+    }
+
+    private var remediationBlockReason: String? {
+        guard project.remediation?.action == "start_fleet" else { return nil }
+        return CriticalAttentionGate.blockReason(
+            for: .startFleet,
+            criticalTitle: criticalBlockTitle
+        )
     }
 
     var body: some View {
@@ -1441,7 +1470,9 @@ struct ProjectReadinessRow: View {
                     .foregroundStyle(project.statusColor)
                 }
                 .buttonStyle(.plain)
-                .help(remediation.detail.isEmpty ? remediation.title : remediation.detail)
+                .disabled(remediationBlockReason != nil)
+                .opacity(remediationBlockReason == nil ? 1 : 0.48)
+                .help(remediationBlockReason ?? (remediation.detail.isEmpty ? remediation.title : remediation.detail))
             }
         }
         .padding(.horizontal, Fleet.Space.l)

@@ -1,0 +1,3 @@
+type: added
+
+- **FleetBar now connects operator accounts and turns critical asks into visible launch gates.** Native Account Settings completes the browser device flow, verifies the new credential before an atomic owner-only account-file replacement, reports identity and relay health, and offers reconnect and sign-out without terminal instructions or credential rendering. Direct relay polling wakes immediately after account changes and preserves the last known critical gate through transient failures; Start, Assign, Propose, and Approve pause on that gate while Stop, Reject, Inspect, and recovery remain available.

@@ -16,6 +16,7 @@ import SwiftUI
 
 struct FleetControlNightshiftSection: View {
     @ObservedObject var store: DispatchStore
+    var criticalBlockTitle: String? = nil
     @Environment(\.openURL) private var openURL
 
     @State private var proposeText: String = ""
@@ -29,6 +30,9 @@ struct FleetControlNightshiftSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Fleet.Space.l) {
                 statusBanner
+                if let newWorkBlockReason {
+                    CriticalAttentionBanner(reason: newWorkBlockReason)
+                }
                 proposeComposer
                 inFlightCard
                 awaitingReviewCard
@@ -46,6 +50,13 @@ struct FleetControlNightshiftSection: View {
                 transcriptSheet = nil
             }
         }
+    }
+
+    private var newWorkBlockReason: String? {
+        CriticalAttentionGate.blockReason(
+            for: .proposeDispatch,
+            criticalTitle: criticalBlockTitle
+        )
     }
 
     // MARK: - Status banner
@@ -233,6 +244,7 @@ struct FleetControlNightshiftSection: View {
                     .disabled(proposeText.isEmpty || isProposing)
 
                     Button {
+                        guard newWorkBlockReason == nil else { return }
                         Task { await submitPropose() }
                     } label: {
                         HStack(spacing: 6) {
@@ -256,7 +268,13 @@ struct FleetControlNightshiftSection: View {
                         .foregroundStyle(.white)
                     }
                     .buttonStyle(.plain)
-                    .disabled(proposeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isProposing)
+                    .disabled(
+                        proposeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || isProposing
+                            || newWorkBlockReason != nil
+                    )
+                    .opacity(newWorkBlockReason == nil ? 1 : 0.48)
+                    .help(newWorkBlockReason ?? "")
                 }
             }
             .padding(Fleet.Space.m)
@@ -428,6 +446,10 @@ struct FleetControlNightshiftSection: View {
                 Spacer()
 
                 Button {
+                    guard CriticalAttentionGate.blockReason(
+                        for: .approveDispatch,
+                        criticalTitle: criticalBlockTitle
+                    ) == nil else { return }
                     Task { await store.approve(id: dispatch.id) }
                 } label: {
                     Label("Approve", systemImage: "checkmark.circle.fill")
@@ -445,6 +467,18 @@ struct FleetControlNightshiftSection: View {
                         .foregroundStyle(.white)
                 }
                 .buttonStyle(.plain)
+                .disabled(CriticalAttentionGate.blockReason(
+                    for: .approveDispatch,
+                    criticalTitle: criticalBlockTitle
+                ) != nil)
+                .opacity(CriticalAttentionGate.blockReason(
+                    for: .approveDispatch,
+                    criticalTitle: criticalBlockTitle
+                ) == nil ? 1 : 0.48)
+                .help(CriticalAttentionGate.blockReason(
+                    for: .approveDispatch,
+                    criticalTitle: criticalBlockTitle
+                ) ?? "")
 
                 Button {
                     if rejectingId == dispatch.id {

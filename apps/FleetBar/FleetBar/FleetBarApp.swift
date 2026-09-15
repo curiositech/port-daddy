@@ -52,6 +52,7 @@ struct FleetBarApp: App {
     @StateObject private var proposalStore = FleetProposalStore()
     @StateObject private var backendStore = BackendStore()
     @StateObject private var interruptionsStore = InterruptionsStore()
+    @StateObject private var accountStore = OperatorAccountStore()
 
     var body: some Scene {
         MenuBarExtra {
@@ -74,14 +75,27 @@ struct FleetBarApp: App {
         .menuBarExtraStyle(.window)
 
         WindowGroup("Fleet Control Center", id: Self.controlCenterWindowID) {
-            FleetControlCenter(store: store, costStore: costStore, dispatchStore: dispatchStore, proposalStore: proposalStore, backendStore: backendStore)
+            FleetControlCenter(
+                store: store,
+                costStore: costStore,
+                dispatchStore: dispatchStore,
+                proposalStore: proposalStore,
+                backendStore: backendStore,
+                interruptionsStore: interruptionsStore
+            )
         }
         .defaultSize(width: 1360, height: 860)
 
-        // Standard macOS Settings window hosts the Secrets pane. Reachable via
+        // Standard macOS Settings window hosts account and Secrets panes. Reachable via
         // the popover footer and the app menu (Cmd-,).
         Settings {
-            FleetSettingsWindow(secretsStore: secretsStore)
+            FleetSettingsWindow(
+                secretsStore: secretsStore,
+                accountStore: accountStore,
+                onAccountChanged: {
+                    interruptionsStore.accountDidChange()
+                }
+            )
         }
     }
 }
@@ -90,9 +104,15 @@ struct FleetBarApp: App {
 /// as a TabView so future panes drop in alongside it.
 struct FleetSettingsWindow: View {
     @ObservedObject var secretsStore: SecretsStore
+    @ObservedObject var accountStore: OperatorAccountStore
+    var onAccountChanged: () -> Void = {}
 
     var body: some View {
         TabView {
+            AccountSettingsView(store: accountStore, onConnectionChanged: onAccountChanged)
+                .tabItem {
+                    Label("Account", systemImage: "person.crop.circle")
+                }
             SecretsView(store: secretsStore)
                 .tabItem {
                     Label("Secrets", systemImage: "key.fill")

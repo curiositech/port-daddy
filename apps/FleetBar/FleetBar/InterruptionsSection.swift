@@ -15,6 +15,7 @@ import AppKit
 
 struct InterruptionsSection: View {
     @ObservedObject var store: InterruptionsStore
+    @Environment(\.openSettings) private var openSettings
 
     /// Injectable for tests; production opens the default browser.
     var openAnswerPage: (URL) -> Void = { NSWorkspace.shared.open($0) }
@@ -123,9 +124,16 @@ struct InterruptionsSection: View {
                 Text("Status unknown — not signed in.")
                     .font(.callout.weight(.medium))
                     .foregroundStyle(Fleet.Color.warning)
-                Text("Run pd account login so operator asks can surface here.")
+                Text("Connect your account in FleetBar so operator asks can surface here.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                Button {
+                    openSettings()
+                } label: {
+                    Label("Open Account Settings", systemImage: "person.crop.circle.badge.plus")
+                        .font(.callout.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
             }
         case .open(let items):
             if items.isEmpty {
