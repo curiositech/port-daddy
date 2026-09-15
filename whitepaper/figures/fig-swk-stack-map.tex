@@ -4,8 +4,8 @@
 \hyphenpenalty=10000\exhyphenpenalty=10000\relax
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \fill[hhink] (0,0) rectangle (10.6,.9);
-  \fill[pd neutral fill] (0,.9) rectangle (10.6,2.5);
-  \fill[pd focus fill] (0,2.5) rectangle (10.6,4.1);
+  \filldraw[pd neutral fill] (0,.9) rectangle (10.6,2.5);
+  \filldraw[pd focus fill] (0,2.5) rectangle (10.6,4.1);
   \fill[hhsand!16,draw=hhgray!55] (0,4.1) rectangle (10.6,5.7);
   \fill[hhsand!30] (0,5.7) rectangle (10.6,7.3);
   \foreach \y in {.9,2.5,4.1,5.7,7.3}

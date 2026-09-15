@@ -6,13 +6,13 @@
     \node[pd row label] at (-.25,\y) {agent \a};
     \draw[pd hairline] (0,\y)--(10.4,\y);
   }
-  \fill[pd neutral fill] (.6,5.2) rectangle (4.3,5.6);
+  \filldraw[pd neutral fill] (.6,5.2) rectangle (4.3,5.6);
   \node[pd direct label,anchor=south,text width=1.2cm,align=center] at (2.45,5.7) {claim};
-  \fill[pd neutral fill] (1.9,4.2) rectangle (6.0,4.6);
+  \filldraw[pd neutral fill] (1.9,4.2) rectangle (6.0,4.6);
   \node[pd direct label,anchor=south,text width=1.9cm,align=center] at (2.9,4.7) {loses to A};
-  \fill[pd neutral fill] (6.4,5.2) rectangle (8.0,5.6);
+  \filldraw[pd neutral fill] (6.4,5.2) rectangle (8.0,5.6);
   \node[pd direct label,anchor=south,text width=1.1cm,align=center] at (7.2,5.7) {release};
-  \fill[pd neutral fill] (8.4,3.2) rectangle (10.3,3.6);
+  \filldraw[pd neutral fill] (8.4,3.2) rectangle (10.3,3.6);
   \node[pd direct label,anchor=south,text width=.9cm,align=center] at (9.35,3.7) {wins};
 
   \foreach \x/\lbl in {4.3/{A claim},6.0/{B loses},8.0/{A release},10.3/{C claim}} {

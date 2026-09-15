@@ -6,7 +6,7 @@
 \resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[pd figure,x=10cm,y=0.05cm]
   \node[pd panel title,anchor=west] at (0,114) {where deterrence holds: re-audit probability against bond size};
-  \fill[pd focus fill] plot[domain=0.125:1,samples=80] (\x,{12.5/\x}) -- (1,100) -- (0.125,100) -- cycle;
+  \filldraw[pd focus fill] plot[domain=0.125:1,samples=80] (\x,{12.5/\x}) -- (1,100) -- (0.125,100) -- cycle;
   \draw[hhteal,line width=1.2pt] plot[domain=0.125:1,samples=80] (\x,{12.5/\x});
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (1.04,0);
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (0,106);

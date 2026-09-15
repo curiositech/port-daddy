@@ -9,10 +9,10 @@
 \begin{tikzpicture}[pd figure,x=.83cm,y=.88cm]
   \begin{scope}
     \clip (0,0) rectangle (12,6);
-    \fill[pd focus fill]
+    \filldraw[pd focus fill]
       (0,.18) -- plot[smooth] coordinates {(0.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)}
       -- (12,4.03) -- (12,0) -- (0,0) -- cycle;
-    \fill[pd neutral fill]
+    \filldraw[pd neutral fill]
       (0,.18) -- plot[smooth] coordinates {(0.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)}
       -- (12,4.03) -- (12,6) -- (0,6) -- cycle;
     \draw[pd caution rule,dashed,line width=.9pt]
