@@ -24,6 +24,7 @@ use crate::chat::{
 };
 use crate::dispatch_pane::DispatchHead;
 use crate::editor_input::{EditorInput, TextEdit};
+use crate::editor_history::InputKind;
 use crate::editor_sync::PresenceState;
 use crate::editor_view::{
     editor_hit_position, editor_text_layout, editor_visual_position_for_byte, editor_wrap_columns,
@@ -202,12 +203,16 @@ pub enum ControlMsg {
     OpenEditor {
         path: String,
         region: Option<(u32, u32)>,
+        document: crate::editor_sync::DocumentRef,
+        snapshot: Vec<u8>,
+        viewer_peer: crate::buffer::PeerId,
     },
     /// One accepted foreground keystroke as the exact incremental Loro delta,
     /// plus its resulting caret/selection. The producer imports this frame into
     /// its live-lane mirror and broadcasts it; it never recreates the edit.
     EditorLocalChange {
         path: String,
+        document: crate::editor_sync::DocumentRef,
         frame: Option<String>,
         presence: PresenceState,
     },
@@ -219,6 +224,7 @@ pub enum ControlMsg {
 #[derive(Debug, Clone)]
 pub struct EditorUpdate {
     pub path: String,
+    pub document: crate::editor_sync::DocumentRef,
     pub blocks: Vec<Block>,
     pub remote_frames: Vec<String>,
 }
@@ -2204,7 +2210,7 @@ pub struct ConsoleView {
     /// surface opens. `blocks_for_surface` prefers these (when the bound path matches)
     /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
     /// static file re-read that never saw the collaboration lanes.
-    editor_blocks: Option<(String, Vec<Block>)>,
+    editor_blocks: Option<(crate::editor_sync::DocumentRef, Vec<Block>)>,
     daemon_url: String,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
@@ -2322,6 +2328,7 @@ pub struct ConsoleView {
     /// `EditorPane` inside every render — a `pd whoami` subprocess + a full
     /// disk read + a Loro doc build PER FRAME; this map is that fix.
     editors: HashMap<String, EditorSurfaceState>,
+    input_focus_subscriptions: Vec<gpui::Subscription>,
     /// Persistent native PTY terminal. The shell process outlives drawer
     /// visibility so closing and reopening never destroys operator context.
     shell: ShellTerminal,
@@ -2673,6 +2680,7 @@ impl ConsoleView {
             galaxy_detail: None,
             galaxy_detail_error: None,
             editors: HashMap::new(),
+            input_focus_subscriptions: Vec::new(),
             shell,
             shell_open: std::env::var("PD_CONSOLE_OPEN_CLI").is_ok(),
             shell_geometry: ShellDrawerGeometry::default(),
@@ -2682,7 +2690,7 @@ impl ConsoleView {
 
     /// Ensure a persistent [`EditorSurfaceState`] exists for every Editor
     /// surface in every tab. Runs at the top of `render` (`&mut self`): opening
-    /// a file costs one `pd whoami` + one disk read ONCE, and every later frame
+    /// a file uses a local display label + one disk read ONCE, and every later frame
     /// is a map lookup. States for closed files are retained (cheap, and they
     /// keep claims/wedge state alive across a reopen within the session).
     fn ensure_editor_states(&mut self) {
@@ -2740,7 +2748,17 @@ impl ConsoleView {
         &self.tabs[self.active_tab].workspace
     }
     fn ws_mut(&mut self) -> &mut Workspace {
+        // Workspace mutations include pane focus, close and surface replacement.
+        self.end_editor_input_sessions();
         &mut self.tabs[self.active_tab].workspace
+    }
+
+    fn end_editor_input_sessions(&mut self) {
+        for state in self.editors.values_mut() {
+            state.pane.end_input_history();
+            // Keep the platform's marked replacement coordinates until its
+            // completion/cancellation callback; blur may precede that callback.
+        }
     }
     fn open_editor(
         &mut self,
@@ -2749,6 +2767,7 @@ impl ConsoleView {
         placement: EditorPlacement,
     ) -> std::result::Result<(), String> {
         let identity = crate::editor_pane::resolve_operator_identity();
+        self.end_editor_input_sessions();
         let active_tab = self.active_tab;
         open_editor_transaction(
             &mut self.tabs[active_tab].workspace,
@@ -2759,7 +2778,14 @@ impl ConsoleView {
             placement,
         )?;
         if let Some(tx) = &self.control_tx {
-            let _ = tx.send(ControlMsg::OpenEditor { path, region });
+            if let Some(state) = self.editors.get(&editor_key(&path, region)) {
+                if let Some(snapshot) = state.pane.snapshot_blob() {
+                    let _ = tx.send(ControlMsg::OpenEditor {
+                        path, region, document: state.pane.document().clone(), snapshot,
+                        viewer_peer: state.pane.buffer().expect("snapshot requires buffer").local_peer(),
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -2814,8 +2840,10 @@ impl ConsoleView {
         let live_failed = self
             .editor_blocks
             .as_ref()
-            .is_some_and(|(live_path, blocks)| {
-                live_path == path && editor_error_from_blocks(blocks).is_some()
+            .is_some_and(|(document, blocks)| {
+                self.editors.get(&editor_key(path, *region))
+                    .is_some_and(|state| state.pane.document() == document)
+                    && editor_error_from_blocks(blocks).is_some()
             });
         (local_failed || live_failed).then(|| path.clone())
     }
@@ -2879,6 +2907,7 @@ impl ConsoleView {
     }
     /// Open a fresh tab and focus it.
     fn new_tab(&mut self) {
+        self.end_editor_input_sessions();
         let n = self.tabs.len() + 1;
         self.tabs.push(Tab {
             name: format!("tab {n}"),
@@ -2892,12 +2921,14 @@ impl ConsoleView {
         if self.tabs.len() <= 1 || idx >= self.tabs.len() {
             return;
         }
+        self.end_editor_input_sessions();
         self.tabs.remove(idx);
         if self.active_tab >= self.tabs.len() {
             self.active_tab = self.tabs.len() - 1;
         }
     }
     fn switch_tab(&mut self, delta: isize) {
+        self.end_editor_input_sessions();
         let n = self.tabs.len() as isize;
         self.active_tab = (((self.active_tab as isize + delta) % n + n) % n) as usize;
     }
@@ -2953,9 +2984,10 @@ impl ConsoleView {
             // no live snapshot has landed yet — or it's for a different file — fall back
             // to the persistent `self.editors` state (opened once by
             // `ensure_editor_states`) so the surface still renders honestly.
-            if let Some((live_path, blocks)) = &self.editor_blocks {
-                if live_path == path {
-                    return blocks.clone();
+            if let Some((document, blocks)) = &self.editor_blocks {
+                if let Some(state) = self.editors.get(&editor_key(path, *region))
+                    .filter(|state| state.pane.document() == document) {
+                    return state.pane.with_local_save_status(blocks.clone());
                 }
             }
             return match self.editors.get(&editor_key(path, *region)) {
@@ -3281,7 +3313,7 @@ impl ConsoleView {
         }
     }
 
-    fn apply_focused_editor_edit<F>(&mut self, prepare: F, cx: &mut Context<Self>) -> bool
+    fn apply_focused_editor_edit<F>(&mut self, kind: InputKind, prepare: F, cx: &mut Context<Self>) -> bool
     where
         F: FnOnce(&mut EditorInput, &str) -> Option<TextEdit>,
     {
@@ -3301,7 +3333,7 @@ impl ConsoleView {
             };
             match state
                 .pane
-                .apply_local_text_edit(edit.range.clone(), &edit.text)
+                .apply_input_edit(&edit, kind, &prior_input, &state.input, std::time::Instant::now())
             {
                 Ok(frame) => {
                     let after = state.pane.text().unwrap_or_default();
@@ -3309,30 +3341,76 @@ impl ConsoleView {
                     invalidate_editor_blame(state);
                     let presence = Self::presence_for_editor(state, &after);
                     state.pane.set_local_presence(presence);
-                    Ok((state.pane.path_str().to_string(), frame, presence))
+                    Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
                 }
                 Err(reason) => {
                     state.input = prior_input;
+                    state.pane.end_input_history();
                     Err(reason)
                 }
             }
         };
 
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    fn apply_focused_editor_history(
+        &mut self,
+        direction: crate::buffer::HistoryDirection,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let Some(state) = self.editors.get_mut(&key) else {
+            return false;
+        };
+        let outcome = match state.pane.apply_history(direction, &mut state.input) {
+            Ok(Some(frame)) => {
+                let after = state.pane.text().unwrap_or_default();
+                invalidate_editor_blame(state);
+                let presence = Self::presence_for_editor(state, &after);
+                state.pane.set_local_presence(presence);
+                Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
+            }
+            Ok(None) => {
+                self.control_flash = Some(match direction {
+                    crate::buffer::HistoryDirection::Undo => "Nothing local to undo",
+                    crate::buffer::HistoryDirection::Redo => "Nothing local to redo",
+                }.into());
+                cx.notify();
+                return true;
+            }
+            Err(reason) => Err(reason),
+        };
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    /// Typing and history share one repaint/mirror path. An undo is a newly
+    /// authored CRDT operation, not a foreground-only visual rollback.
+    fn finish_editor_change(
+        &mut self,
+        outcome: Result<(String, crate::editor_sync::DocumentRef, String, PresenceState), String>,
+        cx: &mut Context<Self>,
+    ) {
         match outcome {
-            Ok((path, frame, presence)) => {
+            Ok((path, document, frame, presence)) => {
                 // The foreground buffer paints the keystroke immediately. The
                 // producer's collaboration Blocks return after importing this
                 // exact delta; until then they must not cover the newer local view.
                 if self
                     .editor_blocks
                     .as_ref()
-                    .is_some_and(|(live_path, _)| live_path == &path)
+                    .is_some_and(|(live_document, _)| live_document == &document)
                 {
                     self.editor_blocks = None;
                 }
                 if let Some(tx) = &self.control_tx {
                     let _ = tx.send(ControlMsg::EditorLocalChange {
                         path,
+                        document,
                         frame: Some(frame),
                         presence,
                     });
@@ -3344,7 +3422,6 @@ impl ConsoleView {
             }
         }
         cx.notify();
-        true
     }
 
     fn move_focused_editor<F>(&mut self, update: F, cx: &mut Context<Self>) -> bool
@@ -3361,18 +3438,54 @@ impl ConsoleView {
             let Some(text) = state.pane.text() else {
                 return false;
             };
+            state.pane.end_input_history();
             update(&mut state.input, &text);
             let presence = Self::presence_for_editor(state, &text);
             state.pane.set_local_presence(presence);
-            (state.pane.path_str().to_string(), presence)
+            (state.pane.path_str().to_string(), presence, state.pane.document().clone())
         };
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::EditorLocalChange {
                 path: change.0,
+                document: change.2,
                 frame: None,
                 presence: change.1,
             });
         }
+        cx.notify();
+        true
+    }
+
+    fn save_focused_editor(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some(key) = self.focused_editor_key() else { return false; };
+        let Some(state) = self.editors.get_mut(&key) else { return false; };
+        let task = match state.pane.prepare_local_save() {
+            Ok(task) => task,
+            Err(reason) => {
+                self.control_flash = Some(reason);
+                cx.notify();
+                return true;
+            }
+        };
+        let document = state.pane.document().clone();
+        // Local filesystem I/O belongs off the foreground executor. This path
+        // needs neither the daemon producer nor a connected/On runtime.
+        let worker = cx.background_executor().spawn(async move {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| task.run()))
+        });
+        cx.spawn(async move |this, cx| {
+            let completed = worker.await;
+            let _ = this.update(cx, |this, cx| {
+                let Some(state) = this.editors.get_mut(&key) else { return; };
+                if state.pane.document() != &document { return; }
+                match completed {
+                    Ok(completed) => { state.pane.finish_local_save(completed); }
+                    Err(_) => state.pane.local_save_worker_failed(),
+                }
+                this.control_flash = Some(state.pane.local_save_status());
+                cx.notify();
+            });
+        }).detach();
         cx.notify();
         true
     }
@@ -3384,6 +3497,18 @@ impl ConsoleView {
         cx: &mut Context<Self>,
     ) -> bool {
         let select = modifiers.shift;
+        if !modifiers.function && crate::editor_input::save_shortcut(
+            key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
+            cfg!(target_os = "macos"),
+        ) {
+            return self.save_focused_editor(cx);
+        }
+        if let Some(direction) = crate::editor_input::history_shortcut(
+            key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
+            cfg!(target_os = "macos"),
+        ) {
+            return self.apply_focused_editor_history(direction, cx);
+        }
         match key {
             "left" => self.move_focused_editor(|input, text| input.left(text, select), cx),
             "right" => self.move_focused_editor(|input, text| input.right(text, select), cx),
@@ -3392,6 +3517,7 @@ impl ConsoleView {
             "home" => self.move_focused_editor(|input, text| input.home(text, select), cx),
             "end" => self.move_focused_editor(|input, text| input.end(text, select), cx),
             "backspace" => self.apply_focused_editor_edit(
+                InputKind::Backspace,
                 |input, text| {
                     let range = input.backspace_range(text)?;
                     Some(input.replace_bytes(text, range, ""))
@@ -3399,6 +3525,7 @@ impl ConsoleView {
                 cx,
             ),
             "delete" => self.apply_focused_editor_edit(
+                InputKind::DeleteForward,
                 |input, text| {
                     let range = input.delete_range(text)?;
                     Some(input.replace_bytes(text, range, ""))
@@ -3406,10 +3533,12 @@ impl ConsoleView {
                 cx,
             ),
             "enter" => self.apply_focused_editor_edit(
+                InputKind::Isolated,
                 |input, text| Some(input.replace_bytes(text, input.selection(), "\n")),
                 cx,
             ),
             "tab" => self.apply_focused_editor_edit(
+                InputKind::Isolated,
                 |input, text| Some(input.replace_bytes(text, input.selection(), "    ")),
                 cx,
             ),
@@ -3418,7 +3547,8 @@ impl ConsoleView {
             }
             "c" if modifiers.platform => {
                 if let Some(key) = self.focused_editor_key() {
-                    if let Some(state) = self.editors.get(&key) {
+                    if let Some(state) = self.editors.get_mut(&key) {
+                        state.pane.end_input_history();
                         if let Some(text) = state.pane.text() {
                             let range = state.input.selection();
                             if !range.is_empty() {
@@ -3441,6 +3571,7 @@ impl ConsoleView {
                 if let Some(text) = copied {
                     cx.write_to_clipboard(ClipboardItem::new_string(text));
                     self.apply_focused_editor_edit(
+                        InputKind::Isolated,
                         |input, text| Some(input.replace_bytes(text, input.selection(), "")),
                         cx,
                     )
@@ -3454,6 +3585,7 @@ impl ConsoleView {
                     .and_then(|item| item.text())
                     .unwrap_or_default();
                 self.apply_focused_editor_edit(
+                    InputKind::Isolated,
                     move |input, text| Some(input.replace_bytes(text, input.selection(), &paste)),
                     cx,
                 )
@@ -4611,16 +4743,16 @@ impl ConsoleView {
     pub fn apply_editor_update(&mut self, update: EditorUpdate) {
         for frame in &update.remote_frames {
             for state in self.editors.values_mut() {
-                if state.pane.path_str() == update.path {
-                    let _ = state.pane.ingest_frame(frame);
-                    if let Some(text) = state.pane.text() {
-                        state.input.reconcile(&text);
+                if state.pane.document() == &update.document {
+                    if state.pane.ingest_preserving_selection(frame, &mut state.input) {
+                        invalidate_editor_blame(state);
                     }
-                    invalidate_editor_blame(state);
                 }
             }
         }
-        self.editor_blocks = Some((update.path, update.blocks));
+        if self.editors.values().any(|state| state.pane.document() == &update.document) {
+            self.editor_blocks = Some((update.document, update.blocks));
+        }
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
@@ -8098,6 +8230,7 @@ impl EntityInputHandler for ConsoleView {
     ) {
         let replacement = text.to_string();
         let _ = self.apply_focused_editor_edit(
+            InputKind::Typing,
             move |input, before| Some(input.replace(before, range, &replacement, false, None)),
             cx,
         );
@@ -8113,6 +8246,7 @@ impl EntityInputHandler for ConsoleView {
     ) {
         let replacement = new_text.to_string();
         let _ = self.apply_focused_editor_edit(
+            InputKind::Composition,
             move |input, before| {
                 Some(input.replace(before, range, &replacement, true, new_selected_range))
             },
@@ -9194,6 +9328,17 @@ fn render_shell_drawer(
 
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.input_focus_subscriptions.is_empty() {
+            self.input_focus_subscriptions.push(cx.observe_window_activation(window,
+                |this, window, _cx| {
+                    if !window.is_window_active() { this.end_editor_input_sessions(); }
+                }));
+            self.input_focus_subscriptions.push(cx.on_blur(&self.focus_handle.clone(), window,
+                |this, _window, _cx| this.end_editor_input_sessions()));
+        }
+        if self.command.is_some() || self.launcher_open || self.shell_open || self.leader_armed {
+            self.end_editor_input_sessions();
+        }
         // Persistent editor state for every open Editor surface — created once
         // per file here (the only `&mut self` point before the tree renders),
         // NEVER inside render_leaf (the old per-frame construct + disk read).
@@ -9294,6 +9439,12 @@ impl Render for ConsoleView {
         div()
             .key_context("console")
             .track_focus(&self.focus_handle)
+            // Capture before child controls can consume a tab/pane/modal click.
+            // Pointer interactions end typing and composition undo groups, not
+            // the platform's still-pending composition replacement coordinates.
+            .capture_any_mouse_down(cx.listener(|this, _ev, _window, _cx| {
+                this.end_editor_input_sessions();
+            }))
             .relative()
             .size_full()
             .when(shell_resizing, |root| {
@@ -9475,6 +9626,7 @@ impl Render for ConsoleView {
                     this.leader_armed = false;
                     this.leader_command(key.as_str(), ctrl, cx);
                 } else if ctrl && key == "a" {
+                    this.end_editor_input_sessions();
                     this.leader_armed = true;
                     cx.notify();
                 } else if this.shell_open {
@@ -9605,6 +9757,7 @@ impl Render for ConsoleView {
                                 })
                                 .child(name)
                                 .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                    this.end_editor_input_sessions();
                                     this.active_tab = i;
                                     cx.notify();
                                 }))

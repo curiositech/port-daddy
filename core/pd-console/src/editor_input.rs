@@ -9,6 +9,33 @@
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 
+/// Save is explicit and modifier-exact; Save As is not silently downgraded.
+pub fn save_shortcut(
+    key: &str, platform: bool, control: bool, alt: bool, shift: bool, macos: bool,
+) -> bool {
+    key == "s" && !alt && !shift
+        && if macos { platform && !control } else { control && !platform }
+}
+
+/// Platform history commands are not text input. Keep the mapping headless so
+/// Ctrl on Linux/Windows and Command on macOS are tested without a native app.
+/// Extra modifiers must not silently become a destructive history command.
+pub fn history_shortcut(
+    key: &str, platform: bool, control: bool, alt: bool, shift: bool, macos: bool,
+) -> Option<crate::buffer::HistoryDirection> {
+    use crate::buffer::HistoryDirection::{Redo, Undo};
+    let primary = if macos { platform && !control } else { control && !platform };
+    if !primary || alt {
+        return None;
+    }
+    match (key, shift) {
+        ("z", false) => Some(Undo),
+        ("z", true) => Some(Redo),
+        ("y", false) if !macos => Some(Redo),
+        _ => None,
+    }
+}
+
 /// One replacement prepared by the input model. `range` is a UTF-8 byte range
 /// in the buffer text before the replacement.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,6 +71,16 @@ impl EditorInput {
 
     pub fn selection_reversed(&self) -> bool {
         self.selection_reversed
+    }
+
+    /// Restore a selection resolved from CRDT anchors after remote changes.
+    /// Composition is cancelled because its old range was based on other text.
+    pub fn restore_selection(&mut self, text: &str, range: Range<usize>, reversed: bool) {
+        self.selected_range = range.start.min(range.end)..range.start.max(range.end);
+        self.selection_reversed = reversed;
+        self.marked_range = None;
+        self.preferred_column = None;
+        self.reconcile(text);
     }
 
     pub fn marked_range(&self) -> Option<Range<usize>> {
@@ -377,6 +414,34 @@ fn byte_for_line_column(text: &str, target_line: usize, target_column: usize) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn history_shortcuts_use_platform_conventions_and_reject_extra_modifiers() {
+        use crate::buffer::HistoryDirection::{Redo, Undo};
+        for macos in [false, true] {
+            assert_eq!(history_shortcut("z", macos, !macos, false, false, macos), Some(Undo));
+            assert_eq!(history_shortcut("z", macos, !macos, false, true, macos), Some(Redo));
+            assert_eq!(history_shortcut("z", false, false, false, false, macos), None);
+            assert_eq!(history_shortcut("z", macos, !macos, true, false, macos), None);
+            assert_eq!(history_shortcut("z", true, true, false, false, macos), None);
+            assert_eq!(history_shortcut("z", !macos, macos, false, false, macos), None);
+            assert_eq!(history_shortcut("x", macos, !macos, false, false, macos), None);
+        }
+        assert_eq!(history_shortcut("y", false, true, false, false, false), Some(Redo));
+        assert_eq!(history_shortcut("y", true, false, false, false, true), None);
+    }
+
+    #[test]
+    fn save_shortcuts_do_not_steal_save_as_or_extra_modifiers() {
+        for macos in [false, true] {
+            assert!(save_shortcut("s", macos, !macos, false, false, macos));
+            assert!(!save_shortcut("s", macos, !macos, false, true, macos));
+            assert!(!save_shortcut("s", macos, !macos, true, false, macos));
+            assert!(!save_shortcut("s", true, true, false, false, macos));
+            assert!(!save_shortcut("s", false, false, false, false, macos));
+            assert!(!save_shortcut("x", macos, !macos, false, false, macos));
+        }
+    }
 
     #[test]
     fn movement_and_delete_never_split_a_grapheme() {
