@@ -138,6 +138,47 @@ describe('DLQ handler', () => {
     expect(state.tokenMints).toBe(0);
   });
 
+  it('acks instead of retrying when OFF is known but D1 fails before the DLQ claim', async () => {
+    const d1 = memoryD1();
+    d1.failAll = true;
+    const msg = fakeMessage(makeJob());
+
+    await handler.queue!(fakeDlqBatch([msg]), makeEnv({
+      DB: d1.db,
+      CONTROL_KV: memoryKV({ fleetPause: true }),
+    }), {} as ExecutionContext);
+
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(state.tokenMints).toBe(0);
+    expect(state.records).toHaveLength(0);
+  });
+
+  it('acks instead of retrying when persisting the OFF hold fails', async () => {
+    const d1 = memoryD1();
+    const control = {
+      admit: vi.fn(async () => {
+        // The claim has completed before the first control read. Make the
+        // subsequent hold write fail, then prove the queue boundary still
+        // obeys the independently readable global OFF authority.
+        d1.failAll = true;
+        return { status: 'paused' as const, paused: true, revision: 2, pausedAt: 1 };
+      }),
+    };
+    const msg = fakeMessage(makeJob());
+
+    await handler.queue!(fakeDlqBatch([msg]), makeEnv({
+      DB: d1.db,
+      CONTROL_KV: memoryKV({ fleetPause: true }),
+      FLEET_CONTROL: control,
+    }), {} as ExecutionContext);
+
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(state.tokenMints).toBe(0);
+    expect(state.records).toHaveLength(0);
+  });
+
   it('rechecks OFF immediately before the failure-check PATCH and holds without retry', async () => {
     state.existingCheckRuns.push({ id: 79, name: 'Port Daddy Fleet' });
     const tokenKv = memoryKV();

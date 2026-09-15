@@ -90,6 +90,17 @@ export class FleetControl implements DurableObject {
             }
             return Response.json(current);
           }
+          // Distinct request IDs may prepare the same paused revision before
+          // either caller commits. If one caller has already performed that
+          // exact transition, the other preparation is convergent rather than
+          // stale. Record that fact so a response-loss retry is idempotent too.
+          if (current.status === 'unpaused' && current.revision === previous.targetRevision
+              && revision === previous.targetRevision) {
+            await storage.put({
+              [key]: { ...previous, phase: 'committed' } satisfies FleetResumeReceipt,
+            });
+            return Response.json(current);
+          }
           if (current.status !== 'paused' || current.revision !== previous.expectedRevision) {
             return Response.json(unknownFleetControl('revision-changed'));
           }
@@ -139,6 +150,13 @@ export class FleetControl implements DurableObject {
           if (current.status !== 'unpaused' || current.revision !== previous.targetRevision) {
             return Response.json(unknownFleetControl('resume-superseded'));
           }
+          return Response.json(current);
+        }
+        if (current.status === 'unpaused' && current.revision === previous.targetRevision
+            && revision === previous.targetRevision) {
+          await storage.put({
+            [key]: { ...previous, phase: 'committed' } satisfies FleetResumeReceipt,
+          });
           return Response.json(current);
         }
         if (current.status !== 'paused' || current.revision !== previous.expectedRevision

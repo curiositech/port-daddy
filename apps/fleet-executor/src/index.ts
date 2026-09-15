@@ -153,9 +153,21 @@ export default {
           message.ack();
         } catch (error) {
           console.error(
-            `[fleet-executor] DLQ repair will retry delivery=${message.body?.deliveryId}: ${String(error)}`,
+            `[fleet-executor] DLQ repair failed delivery=${message.body?.deliveryId}: ${String(error)}`,
           );
-          message.retry({ delaySeconds: 60 });
+          // This is the actual automatic-work boundary. A failure may have
+          // happened before the DLQ handler could claim the intent, or while
+          // it was trying to persist an OFF hold, so the handler alone cannot
+          // prove that retrying is still authorized. Unknown control is OFF.
+          const blocked = await fleetAutomationControlBlockReason(env, message.body);
+          if (blocked) {
+            console.log(
+              `[fleet-executor] DLQ retry suppressed delivery=${message.body?.deliveryId}: ${blocked}`,
+            );
+            message.ack();
+          } else {
+            message.retry({ delaySeconds: 60 });
+          }
         }
       }
       return;

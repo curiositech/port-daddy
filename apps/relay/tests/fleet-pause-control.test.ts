@@ -71,6 +71,17 @@ describe('transactional Fleet pause authority', () => {
       targetRevision: preparation.status === 'prepared' ? preparation.targetRevision : 0,
     })).toMatchObject({ status: 'unpaused', revision: 5 });
   });
+  it('converges distinct concurrent resume requests for the same paused epoch', async () => {
+    const { namespace } = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
+    const [first, second] = await Promise.all([
+      resume(namespace, 1, 'concurrent-resume-a'),
+      resume(namespace, 1, 'concurrent-resume-b'),
+    ]);
+    expect(first).toMatchObject({ status: 'unpaused', revision: 2 });
+    expect(second).toMatchObject({ status: 'unpaused', revision: 2 });
+    expect(await fleetControlRequest(namespace, '/read'))
+      .toMatchObject({ status: 'unpaused', revision: 2 });
+  });
   it('an emergency pause supersedes a prepared resume before commit', async () => {
     const { namespace } = memoryFleetControl({ paused: true, revision: 9, pausedAt: 1 });
     const preparation = await prepareFleetResume(namespace, {

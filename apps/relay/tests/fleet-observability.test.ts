@@ -20,6 +20,7 @@ import {
   handleDeleteFleetRun,
 } from '../src/fleet-observability.js';
 import { fleetControlRequest } from '../src/fleet-pause-control.js';
+import { setFleetPaused } from '../src/db.js';
 import { memoryFleetControl } from './fleet-control-fixture.js';
 import type { Env } from '../src/types.js';
 
@@ -450,6 +451,76 @@ describe('handleFleetPause + handleFleetHealth', () => {
       env,
     )).status).toBe(200);
     expect(events).toEqual(['do', 'kv:false:2', 'do']);
+  });
+
+  it('keeps concurrent resume callers and the rollback projection on one ON revision', async () => {
+    const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
+    const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
+    const kv = {
+      get: async (key: string) => store.get(key) ?? null,
+      put: async (key: string, value: string) => void store.set(key, value),
+    } as unknown as KVNamespace;
+    const env = { FLEET_CONTROL: control.namespace, KV: kv };
+
+    const [first, second] = await Promise.all([
+      setFleetPaused(env, false, { expectedRevision: 1, requestId: 'concurrent-a' }),
+      setFleetPaused(env, false, { expectedRevision: 1, requestId: 'concurrent-b' }),
+    ]);
+
+    expect(first).toMatchObject({ status: 'unpaused', revision: 2 });
+    expect(second).toMatchObject({ status: 'unpaused', revision: 2 });
+    expect(JSON.parse(store.get('fleet:paused')!))
+      .toMatchObject({ paused: false, revision: 2 });
+  });
+
+  it('does not let a delayed stale resume overwrite a newer acknowledged ON projection', async () => {
+    const durable = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
+    const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
+    const kv = {
+      get: async (key: string) => store.get(key) ?? null,
+      put: async (key: string, value: string) => void store.set(key, value),
+    } as unknown as KVNamespace;
+    let releaseStale!: () => void;
+    let staleCommitReached!: () => void;
+    const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
+    const reachedGate = new Promise<void>((resolve) => { staleCommitReached = resolve; });
+    const namespace = {
+      idFromName: (name: string) => durable.namespace.idFromName(name),
+      get: (id: DurableObjectId) => {
+        const stub = durable.namespace.get(id);
+        return {
+          fetch: async (request: Request) => {
+            if (new URL(request.url).pathname === '/commit-resume') {
+              const body = await request.clone().json() as { requestId?: string };
+              if (body.requestId === 'stale-resume') {
+                staleCommitReached();
+                await staleGate;
+              }
+            }
+            return stub.fetch(request);
+          },
+        };
+      },
+    } as unknown as DurableObjectNamespace;
+    const env = { FLEET_CONTROL: namespace, KV: kv };
+
+    const stale = setFleetPaused(env, false, {
+      expectedRevision: 1,
+      requestId: 'stale-resume',
+    });
+    await reachedGate;
+    expect(await setFleetPaused(env, true)).toMatchObject({ status: 'paused', revision: 2 });
+    expect(await setFleetPaused(env, false, {
+      expectedRevision: 2,
+      requestId: 'newer-resume',
+    })).toMatchObject({ status: 'unpaused', revision: 3 });
+    releaseStale();
+
+    await expect(stale).rejects.toThrow('revision-changed');
+    expect(await fleetControlRequest(namespace, '/read'))
+      .toMatchObject({ status: 'unpaused', revision: 3 });
+    expect(JSON.parse(store.get('fleet:paused')!))
+      .toMatchObject({ paused: false, revision: 3 });
   });
 
   it('does not mutate canonical control when the legacy pause denial cannot be written', async () => {

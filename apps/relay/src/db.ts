@@ -605,8 +605,9 @@ async function writeLegacyFleetPauseProjection(
  * projection have accepted their writes. Pause writes KV first. Resume keeps
  * the Durable Object paused while it prepares an immutable target revision,
  * writes the false projection, then commits that exact revision. A failed
- * projection therefore cannot leave canonical authority ON; a failed commit
- * leaves the Durable Object OFF and restores the legacy denial best-effort.
+ * projection therefore cannot leave canonical authority ON. A failed or stale
+ * commit is reconciled from a fresh canonical read; it never blindly writes an
+ * OFF projection over another caller's acknowledged ON transition.
  * Release safety still requires the Durable-Object-aware executor at 100%
  * traffic and forbids rollback below that control-contract floor.
  */
@@ -651,13 +652,33 @@ export async function setFleetPaused(
     targetRevision: preparation.targetRevision,
   });
   if (state.status === 'unknown') {
-    // A failed or superseded commit leaves the canonical object paused. Restore
-    // the mixed-version denial best-effort before reporting the conflict.
-    await writeLegacyFleetPauseProjection(env.KV, true, projectedAt).catch(() => undefined);
+    // The response can be stale even though this or another request committed.
+    // Read the serialized authority and mirror only what it actually says.
+    // If that read is unavailable, leave the prepared false projection alone:
+    // current executors still deny on unknown DO state, while guessing `true`
+    // here could overwrite a different request's acknowledged resume.
+    const canonical = await getFleetControl(env);
+    if (canonical.status !== 'unknown') {
+      await writeLegacyFleetPauseProjection(
+        env.KV,
+        canonical.paused,
+        canonical.pausedAt,
+        canonical.revision,
+      );
+      if (canonical.status === 'unpaused'
+          && canonical.revision === preparation.targetRevision) {
+        return canonical;
+      }
+    }
     throw new Error(`Fleet resume commit unavailable: ${state.reason}`);
   }
   if (state.status !== 'unpaused' || state.revision !== preparation.targetRevision) {
-    await writeLegacyFleetPauseProjection(env.KV, true, projectedAt).catch(() => undefined);
+    await writeLegacyFleetPauseProjection(
+      env.KV,
+      state.paused,
+      state.pausedAt,
+      state.revision,
+    );
     throw new Error('Fleet resume commit returned an inconsistent revision');
   }
   return state;
