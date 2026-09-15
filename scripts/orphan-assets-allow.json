@@ -1,0 +1,51 @@
+{
+  "$comment": [
+    "Allow-list for scripts/check-orphan-assets.mjs — assets that ARE unreferenced and",
+    "are supposed to be. Every entry is an object with a \"path\" and a \"reason\"; a bare",
+    "path string, or a reason shorter than five words, fails the check itself. An",
+    "allow-list nobody has to justify is how this repo's stale manifests started, and a",
+    "list of bare paths cannot be audited later by anyone who was not in the room.",
+    "",
+    "\"path\" is either an exact repo-relative file path, or a directory prefix ending in",
+    "'/'. Prefer exact paths: a directory prefix silently absolves whatever gets added",
+    "next to the file you meant.",
+    "",
+    "An entry suppresses the --check failure and annotates the report. It does NOT hide",
+    "the file: report mode still lists it, now with its reason attached, which is the",
+    "point — the next cleanup reads the reason instead of re-deriving it."
+  ],
+  "allow": [
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-anchor-phases.tex",
+      "reason": "Known orphan, already recorded in the tree twice over. The file's own line 3 carries an 'ORPHANED (2026-08)' banner saying it is not \\input by any document and is the superseded three-phase predecessor of fig-anchor-four-phases.tex, retained rather than deleted so an out-of-tree consumer is not broken silently; docs/harbor-research/critique-ledger.json records the same thing. Listed here so the gate protects the directory against NEW orphans instead of failing on this one; retiring it is its own decision."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/appendix-figures.tex",
+      "reason": "Pre-existing orphan corroborated independently: skills/harbor-chartwork/references/corpus-audit.md shows no consuming document for it, and docs/harbor-research/critique-ledger.json records it as inline duplicates drafted for an appendix figure section that was never added and has since drifted out of sync."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/diag-magic-link.tex",
+      "reason": "Pre-existing orphan named as such in docs/harbor-research/critique-ledger.json ('the orphaned diag-magic-link.tex in the same figures directory'), and shown with no consuming document in skills/harbor-chartwork/references/corpus-audit.md. It also fails to compile today, so wiring it up is a redraw, not a one-line \\input."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/diag-sybil-attack.tex",
+      "reason": "Pre-existing orphan; docs/harbor-research/critique-ledger.json records that it is not Anchor Protocol content at all and belongs to the Bonded Commons chapter, so it is unreferenced pending a decision about where it goes rather than a fragment that lost its \\input."
+    },
+    {
+      "path": "website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex",
+      "reason": "Pre-existing orphan; skills/harbor-chartwork/references/corpus-audit.md lists it with a semantic contract and a label but no consuming document. Kept out of the gate so this check can go in green over the tree as it stands, and listed so the next figure pass sees it."
+    },
+    {
+      "path": "website-v2/public/design-preview/art/library-dark.jpg",
+      "reason": "Byte-identical copy (verified with cmp) of docs/design/story-linework/art/library-dark.jpg. Both directories carry the same PROMPTS.md recipe and it writes to the docs/ path, so the public copy is never named by a recipe line; of the four renders here only art/pr-fleet-dark.jpg is used, by design-preview/og.html. Recorded as a known unreferenced copy, not a cleanup candidate, until the /design-preview proposal tree's own fate is decided."
+    },
+    {
+      "path": "website-v2/public/design-preview/art/library-light.jpg",
+      "reason": "Byte-identical copy (verified with cmp) of docs/design/story-linework/art/library-light.jpg; same reasoning as its dark twin above — the shared PROMPTS.md recipe writes to the docs/ path, so this copy has no recipe line naming it."
+    },
+    {
+      "path": "website-v2/public/design-preview/art/pr-fleet-light.jpg",
+      "reason": "Byte-identical copy (verified with cmp) of docs/design/story-linework/art/pr-fleet-light.jpg. Its dark twin in this directory IS used by design-preview/og.html, so the pair is kept together rather than splitting a light/dark set across two trees."
+    }
+  ]
+}

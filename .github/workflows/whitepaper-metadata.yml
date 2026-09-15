@@ -121,6 +121,17 @@ jobs:
         # alone. A check whose red light means "somebody must now run one
         # deterministic command" is a chore wearing a gate's clothes.
         #
+        # WHAT IT NO LONGER HAS TO CATCH. This step and the regen are two
+        # workflows on ONE event, and this one is minutes faster: on PR #10162 it
+        # healed at 10:05 and the regen pushed new PDFs at 10:10, leaving four
+        # PDFs adrift with nothing scheduled to re-run — the regen's push is made
+        # with GITHUB_TOKEN, which starts no further workflow runs. That ordering
+        # is not fixable from this side, so whitepaper-build.yml now runs --fix
+        # itself and commits the derived files together with the PDFs. After a
+        # regen this step therefore finds nothing to carry and exits at the
+        # "already describes the committed PDFs" line below. It stays because it
+        # is still the only thing that heals a PDF a PERSON committed by hand.
+        #
         # So the gate runs the command. It recomputes from the PDFs on disk, so
         # it can only ever restore the truth about what is committed; it cannot
         # invent agreement (a PDF that fails to parse still fails the check
@@ -150,7 +161,11 @@ jobs:
           # write to commit, and the drift check below recomputes from the PDFs
           # on disk -- it is the gate, and a crashed --fix cannot make it pass.
           ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts --fix ) || true
-          DERIVED="website-v2/public/whitepaper/publication-digests.json website-v2/src/data/whitePapers.ts"
+          # Every file --fix is allowed to write. researchPapers.ts was missing
+          # from this list, so a drifted research PDF was healed on disk, left
+          # uncommitted, and the drift check below passed on a worktree the branch
+          # did not have — green here, red on the next run from a clean checkout.
+          DERIVED="website-v2/public/whitepaper/publication-digests.json website-v2/src/data/whitePapers.ts website-v2/src/data/researchPapers.ts"
           if [ -z "$(git status --porcelain -- $DERIVED)" ]; then
             echo "metadata already describes the committed PDFs — nothing to carry."; exit 0
           fi
