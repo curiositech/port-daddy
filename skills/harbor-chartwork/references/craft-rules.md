@@ -133,6 +133,52 @@ the number. Then the idealisation, if any, named plainly (Feynman's "this is wro
 because…"). Provenance in square brackets at the end: `[verified, a7_experiment.py]` or
 `[internal]`. No sentence in a caption may be the figure's only readable fact.
 
+### 5.1 The caption says only what the drawing cannot
+
+> **Placement note.** This rule belongs beside §7.1 *Caption–drawing integrity* in the
+> restructured numbering that `claude/figures-that-were-missing` introduces. That branch
+> is not merged, so on `main` the caption rules live here, in §5, and the rule is written
+> so it lifts into §7.1 verbatim when the renumbering lands. Move it, do not rewrite it.
+
+Every sentence of a caption is a testable claim about ink, and there are exactly two
+ways to fail the test. Both were produced by this corpus, on the same figure, inside
+one day.
+
+- **A caption must not promise ink the drawing lacks.** The stack map's caption named a
+  "hatched band"; there was no hatching anywhere in the figure. The fragment's author
+  already knew: a comment in it recorded that `pd hatch` "does not" survive, because the
+  swiss edition flattened it — and, rather than fix the override, wrote the word
+  *hatched* into a node as the drawing's own text. **A label that narrates the drawing's
+  own appearance is a confession that the drawing is not doing its job. If you have to
+  write "hatched", hatch it.** The same goes for `dotted`, `dashed`, `shaded`, `bold`,
+  `greyed`, `filled`, `outlined`: the word is a promise, and the fragment must contain
+  the directive that keeps it. Check the *render*, not the source — a directive that
+  antialiases shut at 1.0×/150 dpi has not kept the promise either.
+- **A caption must not restate ink the drawing already carries.** The same figure's
+  redraw labelled all eight inter-rung arrows `provides` and `assumes`, and then the
+  caption said "every gap carries the dependency in both directions, the lower rung
+  *provides* and the upper rung *assumes*". Nothing there was false; all of it was
+  already on the page in those exact words. Prose that repeats a direct label is read
+  second and adds nothing, and it grows the caption until the reader stops trusting that
+  any of it is load-bearing.
+
+One rule: **the caption says only what the drawing cannot.** Its job is what kind of
+drawing this is, what claim it supports, the idealisation, and the provenance bracket.
+
+A third symptom of the same principle, and the cheapest to get wrong:
+
+- **A caption sentence that restates generated data is a second source of truth.** If a
+  drawing's margin badges read `Ch.~1--3` from `whitepaper/textbook.json`, then a caption
+  that types "Chapters 2--3 carry the rest" has put the same fact in two places, only one
+  of which a renumbering updates. **Either derive it or do not say it** — in this corpus,
+  derive it: the `\csname pdchapternumberof<prefix>\endcsname` macros work in a caption
+  exactly as they work in a node.
+
+**How to discharge the rule.** Before shipping, enumerate the caption's sentences as a
+numbered list and check each against the compiled PDF — the ink and the extracted text,
+not your memory of the source — saying for each whether the render shows it, and put the
+list in the PR. The worked ten-row example is in commit `79d9fdeb3`.
+
 ## 6. Typography on the page around a figure
 
 Bold only for the defined term and the run-in heads of claims; italic for the one

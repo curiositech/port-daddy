@@ -29,5 +29,9 @@
   pd focus fill/.append style={pattern={Dots[distance=2.4pt,radius=.35pt]},pattern color=pdamber,draw=hhink,line width=.4pt},
   pd caution fill/.append style={pattern={Lines[angle=45,distance=3pt,line width=.3pt]},pattern color=pdrust,draw=hhink,line width=.4pt},
   pd neutral fill/.append style={pattern={Dots[distance=2.4pt,radius=.3pt]},pattern color=hhgray,draw=hhink,line width=.4pt},
-  pd hatch/.append style={pattern={Lines[angle=45,distance=3pt,line width=.3pt]},pattern color=hhink},
+  % Technical already kept a pattern here; only the geometry moves, to the same
+  % spacing the base style now uses, so one hatch reads as one hatch across the
+  % three editions rather than as three strengths of the same idea.
+  pd hatch/.append style={pattern={Lines[angle=45,distance=4.2pt,line width=.45pt]},
+    pattern color=hhink},
 }

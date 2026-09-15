@@ -1,46 +1,137 @@
-% Figure 1 — architectural section through the coordination stack.
+% Figure 1 -- architectural section through the coordination stack.
+% Five rungs: the four coordination layers over the host floor they stand on.
+% Three columns of information at almost no extra ink -- a left badge column
+% naming the part and chapters that own each rung (numbers read from
+% whitepaper/textbook.json through figures/pd-textbook-map.tex, so a renumbered
+% book cannot leave a stale number here), the rung itself, and a right-hand
+% audience column naming the whom it serves. Every gap between rungs carries the
+% relation in both directions, provides up and assumes down: that relation, not
+% the stacking, is the whole content of a stack map.
+%
+% No node below sets a font. Five groups used to -- the badge column, the
+% audience column, "assumed, not built", "this chapter" and "in part" -- and a
+% local font= replaces a house role's font ENTIRELY, family included, so in the
+% Book those five never received the edition's grotesk: 158 of the drawing's 486
+% characters printed in the body serif while the other 328 printed in sans,
+% measured from the compiled PDF. Each now names a `pd *` role and lets the
+% edition decide the face. See craft-rules.md 7.9.
 \begin{figure}[H]
 \centering
 \hyphenpenalty=10000\exhyphenpenalty=10000\relax
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \fill[hhink] (0,0) rectangle (10.6,.9);
-  \fill[pd neutral fill] (0,.9) rectangle (10.6,2.5);
-  \fill[pd focus fill] (0,2.5) rectangle (10.6,4.1);
-  \fill[hhsand!16,draw=hhgray!55] (0,4.1) rectangle (10.6,5.7);
-  \fill[hhsand!30] (0,5.7) rectangle (10.6,7.3);
-  \foreach \y in {.9,2.5,4.1,5.7,7.3}
-    \draw[pd hairline] (0,\y)--(10.6,\y);
-  \draw[pd rule] (0,0) rectangle (10.6,7.3);
+  % --- column geometry -------------------------------------------------------
+  % badge centred on 0.65, its box spanning [0.03,1.27] | rung [1.50,8.60] |
+  % marker capsule [9.10,10.96].  The whole drawing must stay inside the Book's
+  % 11.43cm column: do not widen a column without re-running figcheck with
+  % --textwidth-cm 11.43.
+  \def\swkbadge{0.65}
+  \def\swkbadger{1.27}
+  \def\swkleft{1.50}
+  \def\swkright{8.60}
+  \def\swktextl{1.68}
+  % 3pt further in than the rung's right edge than it was, so the audience
+  % column has the same optical breathing room as the bold titles opposite.
+  \def\swktextr{8.32}
+  \def\swkup{3.60}
+  \def\swkdown{6.50}
+  % Rung height 1.12, gap 0.98.  The gap was 0.80; +1.8mm gives the two arrows
+  % and their labels room to sit clear of both cell borders without the rungs
+  % reading as five separate objects rather than one stack.
+  \def\swkgapc{0.49}
 
-  \node[font=\footnotesize\bfseries,text=white,anchor=west,text width=3.3cm,align=left]
-    at (.25,.45) {MACHINE FLOOR};
-  \node[font=\footnotesize,text=white,anchor=east,text width=5.1cm,align=left] at (10.35,.45)
-    {\hyphenpenalty=10000\relax file lock, clock, socket, supervisor};
+  % --- rung edges ------------------------------------------------------------
+  % A fill marks one state only: the rung this chapter builds outright.  The
+  % rung above it is drawn in the same accent but left unfilled -- this chapter
+  % specifies half of it.  The host floor is dotted: the book does not build it.
+  % One path, one stroke. \fill[pd focus fill] does NOT suppress that style's
+  % own draw=, so a following \draw[pd focus rule] over the same rectangle laid
+  % a 1.05pt hhteal edge on top of a 0.4pt hhteal!65 edge in every edition whose
+  % pd focus fill carries an outline -- two coincident strokes at two tints, and
+  % a reader of the compiled PDF cannot then say which accent the rung wears.
+  \filldraw[pd focus fill,pd focus rule] (\swkleft,2.10) rectangle (\swkright,3.22);
+  \draw[pd focus rule] (\swkleft,4.20) rectangle (\swkright,5.32);
+  \draw[pd hairline] (\swkleft,6.30) rectangle (\swkright,7.42);
+  \draw[pd hairline] (\swkleft,8.40) rectangle (\swkright,9.52);
+  \draw[pd guide] (\swkleft,0.00) rectangle (\swkright,1.12);
 
-  \node[pd row label,anchor=west] at (.25,1.7) {substrate};
-  \node[pd row label,anchor=west] at (.25,3.3) {coordination};
-  \node[pd row label,anchor=west] at (.25,4.9) {legibility};
-  \node[pd row label,anchor=west,text width=4.4cm] at (.25,6.5) {\hyphenpenalty=10000\relax economy + federation};
+  % --- rung titles -----------------------------------------------------------
+  \node[pd row label,anchor=west,align=left] at (\swktextl,9.12) {economy + federation};
+  \node[pd row label,anchor=west,align=left] at (\swktextl,7.02) {legibility};
+  \node[pd row label,anchor=west,align=left] at (\swktextl,4.92) {coordination};
+  \node[pd row label,anchor=west,align=left] at (\swktextl,2.82) {substrate};
+  \node[pd row label,anchor=west,align=left,text=hhink!72!hhgray] at (\swktextl,0.72)
+    {machine floor};
 
-  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,1.9)
-    {\hyphenpenalty=10000\relax one writer, claims, sessions, bus, memory};
-  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,3.5)
-    {\hyphenpenalty=10000\relax typed acts, commitments, delegation, policy observation};
-  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,5.1)
-    {\hyphenpenalty=10000\relax digest with zoom, review, operator surface};
-  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,6.7)
-    {\hyphenpenalty=10000\relax settlement, reputation, cross-machine federation};
+  % --- what each rung holds --------------------------------------------------
+  \node[pd axis label,anchor=west,align=left] at (\swktextl,8.72)
+    {settlement, escrow, reputation, federation};
+  \node[pd axis label,anchor=west,align=left] at (\swktextl,6.62)
+    {digest with zoom, review, operator surface};
+  \node[pd axis label,anchor=west,align=left] at (\swktextl,4.52)
+    {typed acts, commitments, delegation, policy};
+  \node[pd axis label,anchor=west,align=left] at (\swktextl,2.42)
+    {one writer, claims, sessions, bus, memory};
+  \node[pd axis label,anchor=west,align=left] at (\swktextl,0.32)
+    {file lock, clock, socket, supervisor};
 
-  \draw[pd focus rule,line width=2.0pt] (10.95,1.0)--(10.95,4.0);
-  \draw[pd focus rule] (10.7,1.0)--(11.2,1.0);
-  \draw[pd focus rule] (10.7,4.0)--(11.2,4.0);
-  \node[pd direct label,rotate=90,anchor=south,text=hhteal,text width=1.9cm,align=center]
-    at (11.35,2.5) {this chapter};
+  % --- audience column: a second dimension, direct-labelled ------------------
+  % \textsc inside the node text, not \scshape in a font=, so the role keeps the
+  % edition's family and only the case treatment is local.
+  \node[pd axis label,anchor=east,align=right] at (\swktextr,9.12) {\textsc{for the market}};
+  \node[pd axis label,anchor=east,align=right] at (\swktextr,7.02) {\textsc{for the operator}};
+  \node[pd axis label,anchor=east,align=right] at (\swktextr,4.92) {\textsc{for the agents}};
+  \node[pd axis label,anchor=east,align=right] at (\swktextr,2.82) {\textsc{for the machine}};
+  \node[pd axis label,anchor=east,align=right] at (\swktextr,0.72) {\textsc{from the host}};
+
+  % --- badge column: which part and chapters own the rung --------------------
+  \node[pd hairline,pd axis label,text=hhink,align=center,inner sep=2.4pt,
+        minimum width=1.24cm] at (\swkbadge,8.96)
+    {Part~IV\\Ch.~\csname pdchapternumberofhe\endcsname--\csname pdchapternumberoffh\endcsname};
+  \node[pd hairline,pd axis label,text=hhink,align=center,inner sep=2.4pt,
+        minimum width=1.24cm] at (\swkbadge,6.86)
+    {Part~II\\Ch.~\csname pdchapternumberofls\endcsname};
+  \node[pd hairline,pd axis label,text=hhink,align=center,inner sep=2.4pt,
+        minimum width=1.24cm] at (\swkbadge,4.76)
+    {Part~I\\Ch.~\csname pdchapternumberofswk\endcsname--\csname pdchapternumberofsealed\endcsname};
+  \node[pd hairline,pd axis label,text=hhink,align=center,inner sep=2.4pt,
+        minimum width=1.24cm] at (\swkbadge,2.66)
+    {Part~I\\Ch.~\csname pdchapternumberofswk\endcsname};
+  % Unbadged on purpose -- the book builds none of the floor -- but ranged right
+  % on the badges' own right edge, so the margin column has one vertical datum
+  % rather than a boxed stack with a loose line under it.
+  \node[pd note,anchor=east,align=right] at (\swkbadger,0.56) {assumed,\\not built};
+
+  % --- the relation, at every gap, in both directions ------------------------
+  \foreach \yb/\yt in {1.12/2.10, 3.22/4.20, 5.32/6.30, 7.42/8.40} {
+    \draw[pd arrow] ({\swkup},{\yb+0.12}) -- ({\swkup},{\yt-0.12});
+    \draw[pd arrow] ({\swkdown},{\yt-0.12}) -- ({\swkdown},{\yb+0.12});
+    \node[pd note,anchor=east,align=right] at ({\swkup-0.16},{\yb+\swkgapc}) {provides};
+    \node[pd note,anchor=west,align=left] at ({\swkdown+0.16},{\yb+\swkgapc}) {assumes};
+  }
+
+  % --- this chapter's rungs, marked outside the box --------------------------
+  % Each marker is a capsule carrying its rung's own treatment: filled for the
+  % rung this chapter builds, stroked for the one it reaches into. That gives
+  % the right-hand column the same visual mass as the boxed badges opposite,
+  % which a bare word on the end of a hairline pointer did not have.
+  \draw[pd focus arrow] (9.02,2.66) -- (8.72,2.66);
+  \node[pd focus fill,pd row label,anchor=west,align=center,rounded corners=1.5pt,
+        inner sep=3pt,minimum width=1.86cm] at (9.10,2.66) {this chapter};
+  \draw[pd focus arrow] (9.02,4.76) -- (8.72,4.76);
+  \node[pd focus rule,pd note,anchor=west,align=center,rounded corners=1.5pt,
+        inner sep=3pt,minimum width=1.86cm] at (9.10,4.76) {in part};
 \end{tikzpicture}
-\caption{An architectural section through the four-layer coordination stack.
-This chapter is the second band from the floor: the transactional substrate,
-providing the one-writer record and claims that every higher layer rests on.
-The machine floor beneath it is the narrow dependency boundary the substrate
-assumes: a file lock, a clock, a socket, and a supervisor. [internal]}
+\caption{The four-layer coordination stack, drawn over the host floor it stands
+on. Each rung names the audience it serves, and the margin names the part and
+chapters of this book that own it. The filled rung is this chapter --- the
+transactional substrate, whose one-writer record, claims, and sessions
+everything above rests on. Coordination is outlined in the same accent but left
+unfilled, because this chapter specifies only its implemented half and
+Chapters~\csname pdchapternumberofanchor\endcsname--\csname
+pdchapternumberofsealed\endcsname\ carry the rest. The floor is dotted and
+unbadged because the book builds none of it: a file lock, a clock, a socket,
+and a supervisor are assumed of the host. Chapter~\csname
+pdchapternumberofstp\endcsname\ owns no rung --- the durable identity it builds
+leans on this substrate and is priced on the market above. [internal]}
 \label{fig:swk-stack-map}
 \end{figure}

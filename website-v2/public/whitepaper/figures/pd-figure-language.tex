@@ -41,7 +41,16 @@
   pd focus fill/.style={fill=hhteal!24,draw=hhteal!65,line width=.4pt,text=hhink},
   pd caution fill/.style={fill=hhamber!26,draw=hhamber!70,line width=.4pt,text=hhink},
   pd neutral fill/.style={fill=hhsand!40,draw=hhgray!65,line width=.4pt,text=hhink},
-  pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhgray!55},
+  % A hatch is a TEXTURE, and a texture that does not arrive on the page is a
+  % lie whatever names it then tells for it.  The old geometry -- 0.28pt rules
+  % in hhgray!55 -- measured, on a 4x1cm patch at 1.0x/150dpi, a mean luminance
+  % of 248/255 with 8.7 per cent of its pixels under 200: present in the PDF,
+  % invisible on paper.  These values measure 234/255 mean with a luminance
+  % standard deviation of 40 across the patch.  Every edition override of this
+  % style MUST keep a pattern; see the note in the swiss file for what happens
+  % when one does not.
+  pd hatch/.style={pattern={Lines[angle=45,distance=4.2pt,line width=.55pt]},
+    pattern color=hhink!58},
 }
 
 % Small reusable marks.  They deliberately avoid prose-bearing boxes.
