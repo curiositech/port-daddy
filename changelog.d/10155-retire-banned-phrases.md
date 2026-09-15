@@ -1,0 +1,3 @@
+type: changed
+
+- **A few more holdouts of a retired phrase are gone.** The brand style guide's border-hierarchy bullet and two research figure scripts that draw the wording directly into a published PNG (`r1_figures.py`, `r8_figures.py`, plus the `a7_experiment.py`/`b1_experiment.py` wrong-turn write-ups that feed them) now say "critical" instead, matching the wording the Book and papers pass already landed. Both PNGs were regenerated from their sources so the shipped images match. Code identifiers, comments, tests, and Rust source/proofs that still use the old wording are intentionally out of scope for this pass.
