@@ -2093,7 +2093,7 @@ The work is done. The daemon now decides what was actually accomplished and acts
 Section~\ref{sec:discussion-limitations} (\emph{Discussion and Limitations}) and Appendix~\ref{app:mech}'s own limitations paragraph carry the substantive boundary discussion; this closing checklist exists so a reader who jumped straight to the appendices does not have to hunt through the body for the three bounding assumptions that recur most.
 
 \begin{itemize}
-    \item \textbf{Threat model exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Threat model exclusions:} Collusion across all independent subsystems (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
     \item \textbf{Performance trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
     \item \textbf{Implementation maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
 \end{itemize}
