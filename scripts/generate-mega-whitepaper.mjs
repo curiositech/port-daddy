@@ -458,9 +458,38 @@ function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
   });
 }
 
+/**
+ * Offsets of every occurrence of `marker` that TeX would actually execute --
+ * a match inside a `%` comment is prose about the marker, not the marker.
+ * A comment runs to the end of its line; a `%` escaped as `\%` is a literal
+ * percent sign and starts nothing.
+ */
+function uncommentedOffsets(tex, marker) {
+  const found = [];
+  let commented = false;
+  for (let i = 0; i < tex.length; i += 1) {
+    if (tex[i] === '\n') { commented = false; continue; }
+    if (tex[i] === '\\' && tex[i + 1] === '%') { i += 1; continue; }  // a literal per cent
+    if (tex[i] === '%') { commented = true; continue; }
+    if (!commented && tex.startsWith(marker, i)) found.push(i);
+  }
+  return found;
+}
+
+/**
+ * The chapter body is what sits between the document markers the compiler
+ * sees. Matching the raw text instead put the seam at the first line that
+ * merely *mentioned* `\begin{document}` -- a comment in the anchor-protocol
+ * preamble explaining when pd-pedagogy.tex redefines \pullquote -- which
+ * spliced that chapter's whole preamble into the Book and failed the build
+ * on `Command \theorem already defined`. A chapter must be able to write
+ * about a marker without moving it.
+ */
 function documentBody(tex, source) {
-  const begin = tex.indexOf('\\begin{document}');
-  const end = tex.lastIndexOf('\\end{document}');
+  const beginMarks = uncommentedOffsets(tex, '\\begin{document}');
+  const endMarks = uncommentedOffsets(tex, '\\end{document}');
+  const begin = beginMarks.length ? beginMarks[0] : -1;
+  const end = endMarks.length ? endMarks[endMarks.length - 1] : -1;
   if (begin < 0 || end < begin) throw new Error(`${source}: malformed document body`);
   return tex.slice(begin + '\\begin{document}'.length, end);
 }
@@ -1451,6 +1480,7 @@ export {
   stripPaperApparatus,
   collateReferences,
   compareNormalizedReferences,
+  documentBody,
   generate,
   inlineInputs,
   loadCiteShortforms,
