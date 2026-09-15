@@ -168,7 +168,7 @@
   \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
   \xdef\pd@blockpage{\thepage}%
-  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
+  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax{}}
 
 \newcommand{\pd@placemargin}[1]{%
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
@@ -212,7 +212,7 @@
   \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
   \xdef\pd@blockpage{\thepage}%
-  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
+  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax{}}
 % The same placement for a note the page can do without. A Recall block, a
 % margin figure and a gloss carry content that is nowhere else, so they are
 % always placed. A short-form citation, a provenance note and a discharge
