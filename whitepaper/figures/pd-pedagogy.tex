@@ -307,9 +307,25 @@
 % portrait's, and the doctrine here is height, not kind -- a block that tall
 % belongs on the top anchor so a stale \pagetotal cannot lift it off the page.
 \newsavebox{\pd@mcbox}
+% \caption{} is called WITHOUT an enclosing group here, on purpose: caption
+% package sets \@currentlabel to its real value (via \caption@makecurrent,
+% triggered by this \caption call) and expects that assignment to reach the
+% \label{...} the chapter source writes right after \pdmargincaption{...}.
+% An enclosing brace group around \caption{} -- the first draft of this macro
+% had one, to scope \captionsetup{labelsep=none} -- closes before that \label
+% executes, so TeX reverts \@currentlabel to the placeholder
+% \caption@undefinedlabel that \begin{table}/\begin{figure} installs. Every
+% \ref to a margin-captioned float in the Book edition then resolved to
+% \caption@xref (i.e. never resolved, no matter how many passes) while the
+% standalone chapters -- which never take the \ifpdmargincolumn branch --
+% compiled clean, so the defect was invisible until the combined volume
+% rebuilt with cross-chapter references. Restoring labelsep sequentially,
+% also ungrouped, keeps the same scoping discipline.
 \newcommand{\pdmargincaption}[1]{%
   \ifpdmargincolumn
-    {\captionsetup{labelsep=none}\caption{}}%
+    \captionsetup{labelsep=none}%
+    \caption{}%
+    \captionsetup{labelsep=colon}%
     \sbox{\pd@mcbox}{\begin{minipage}[t]{\marginparwidth}\marginfont#1\end{minipage}}%
     \pd@placemargintop{\pd@mcbox}%
   \else
