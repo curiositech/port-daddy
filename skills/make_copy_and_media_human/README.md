@@ -49,15 +49,22 @@ identifier overlap between a comment and the line beneath it. It is stdlib-only
 and carries a `--selftest` that checks both that it catches known tells and that
 it stays silent on a sample of real human prose.
 
+For web pages there is a second, optional layer. `scripts/render_check.py` opens
+the page at real viewports and reports horizontal overflow with the offending
+elements named, undersized tap targets, unreadable type, and contrast failures.
+It is the only script here with a dependency, on Playwright, and it emits the
+same findings JSON so it merges through `--findings` like any judge-pass result.
+
 It deliberately does not implement every structural item in the catalog. Several
 of them need a diff, a repo history, or a resolver that this script has no
 business owning, so they're marked structural for you to check with the tools
 that do. Thresholds live in `references/catalog.json` rather than in the code,
 which is what stopped the rubric and the implementation from drifting apart.
 
-`scripts/regenerate_references.py` rebuilds the per-dialect markdown views from
-the catalog. It refuses to write if any item would land in no file, because an
-earlier typo silently dropped an item out of every reference and nothing noticed.
+`scripts/regenerate_references.py` rebuilds the per-dialect markdown views from the catalog.
+It refuses to write if any item would land in no file. An earlier typo silently dropped an item
+out of every reference for months and nothing noticed, which is the kind of failure a generator
+should make impossible rather than merely unlikely.
 
 ## Bundle contents
 
@@ -65,10 +72,12 @@ earlier typo silently dropped an item out of every reference and nothing noticed
 | --- | --- |
 | `SKILL.md` | Three laws, five families, decision tree, process, shibboleths, failure modes |
 | `references/fairness-and-false-positives.md` | Why findings are cues and not evidence; read before your first review |
-| `references/catalog.json` | Source of truth: 157 tells with thresholds, false-positive notes, currency, and evidence |
+| `references/catalog.json` | Source of truth: 174 tells with thresholds, false-positive notes, currency, and evidence |
+| `references/web-build-defects.md` | Web pages that are broken rather than merely generic; act on these first |
 | `references/fiction-and-narrative-tells.md` | Story-level tells; the strongest in the catalog |
 | `references/*.md` | Generated per-dialect and per-medium views of the catalog |
 | `scripts/humanize_review.py` | Structural detector and report renderer |
+| `scripts/render_check.py` | Optional. Opens a page at 390/768/1280 and reports what breaks; needs Playwright |
 | `scripts/regenerate_references.py` | Regenerates `references/*.md`; fails on orphaned items |
 | `templates/rewrite-checklist.md` | Checklist to run after every humanizing pass |
 | `templates/output-template.md` | Shape of a judge-pass finding and the delivery summary |

@@ -98,7 +98,7 @@ bundle is checked by `scripts/humanize_review.py` and the checked-in state is
 clean. If this skill's own artifacts looked generated, nothing it says would
 land.
 
-## The five families
+## The six families
 
 Findings carry a `family`, and the family tells you how much to trust the
 finding. This matters more than severity.
@@ -132,8 +132,16 @@ learned not to say "delve". Phrases do not.
 relative, comparing a change against the repo's own log, idiom, and PR norms.
 A contributor who read the surrounding code passes them automatically.
 
-One more class sits outside the families and outranks all of them. Citation
-pathology is about truth rather than authorship: a dead DOI, a reference that
+`defect` is the odd one out, and the most useful. These are not inferences about
+who built something; they are things that are broken. The page scrolls sideways
+at 390px. The button is not a button. The grey text fails contrast. You reproduce
+them by opening the page, so they carry no fairness caveat at all and you act on
+them with full confidence. Work this family first: a site that does not work on a
+phone has a bigger problem than a site that reads a bit generated.
+
+`defect` findings share their standing with one more class that sits outside the
+families and outranks everything. Citation pathology is about truth rather than
+authorship: a dead DOI, a reference that
 does not support its sentence, a statistic with no study behind it. Check those
 with complete confidence, because you are verifying a claim rather than inferring
 an author. It is the highest-yield check in the skill and it has no fairness cost.
@@ -174,7 +182,7 @@ flowchart TD
     C --> E{What medium?}
     D --> E
     E -->|prose / README / blog / email| F[humanize_review.py --baseline]
-    E -->|web UI / CSS / JSX| G[Markup pass: colors, fonts, tokens, emoji in chrome]
+    E -->|web UI / CSS / JSX| G[Markup pass + build defects; then render_check at 390px]
     E -->|commit / PR / review / code| H[Code pass + compare against repo norms]
     E -->|slide deck| I[Export text and notes, review as prose, then layout]
     E -->|image / video / audio| J[Provenance first: C2PA, EXIF, reverse search]
@@ -217,6 +225,26 @@ It measures countable things only: densities, variances, ratios, codepoints, hex
 values, font names, identifier overlap. Thresholds come from
 `references/catalog.json`, so the rubric and the code cannot drift apart. Run
 `--validate` if you ever doubt that they agree.
+
+### Render the page before you judge it
+
+For anything that ships as a web page, the static pass is half the story. It can
+tell you there are no responsive variants; it cannot tell you the pricing table
+is 1180px wide inside a 390px screen, or which element is at fault.
+
+```bash
+python3 scripts/render_check.py URL_OR_FILE --json render.json
+python3 scripts/humanize_review.py page.html --findings render.json --out report.html
+```
+
+That script is the one thing in this bundle with a dependency, on Playwright, and
+it says so when it is missing rather than failing obscurely. It opens the page at
+390, 768 and 1280, and reports horizontal overflow with the offending elements
+named, tap targets under 44px, text under 12px, and contrast below AA. Those
+findings merge into the same report through the normal `--findings` path.
+
+If you cannot run it, open the page yourself at phone width. Half the findings in
+`references/web-build-defects.md` are visible in ten seconds that way.
 
 ### Run the judge pass
 
@@ -270,6 +298,7 @@ already one of them.
 | `references/visual-design-tells.md` | Web UI, landing pages, slide visuals, generated imagery, video, audio |
 | `references/structure-and-deck-tells.md` | Long docs, decks, marketing pages, social posts, email |
 | `references/fiction-and-narrative-tells.md` | Fiction, narrative, and anything told as a story; the strongest tells in the catalog live here |
+| `references/web-build-defects.md` | Any web page, before anything else: responsive, semantics, contrast, scaffold residue |
 | `references/engineering-artifact-tells.md` | Commits, PRs, code review, tests, docs, source files |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |

@@ -56,7 +56,7 @@ GROUPS = {
     "visual-design-tells.md": {
         "title": "Visual design tells — the v0/Lovable look and generated imagery",
         "intro": "What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.",
-        "pick": lambda i: i["medium"] in VISUAL_MEDIA or i["medium"] in VISUAL_ASSET_MEDIA
+        "pick": lambda i: i.get("family") != "defect" and (i["medium"] in VISUAL_MEDIA or i["medium"] in VISUAL_ASSET_MEDIA)
                           or i["name"].startswith("ai-image")
                           or i["name"] in {"identical-face-different-people",
                                            "stock-mesh-gradient-background"},
@@ -64,7 +64,14 @@ GROUPS = {
     "structure-and-deck-tells.md": {
         "title": "Structure, deck, and marketing-copy tells",
         "intro": "Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.",
-        "pick": lambda i: i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA,
+        "pick": lambda i: i.get("family") != "defect" and (i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA),
+    },
+    "web-build-defects.md": {
+        "title": "Web build defects \u2014 the half you can reproduce",
+        "intro": "A different KIND of finding from the rest of this catalog. Everything here is a defect you can reproduce by opening the page: it scrolls sideways at 390px, the button is not a button, the grey text fails contrast. So none of it is an inference about who built the page, none of it carries the fairness caveat the rest of the skill insists on, and all of it can be acted on with full confidence \u2014 the same standing as a dead citation. Act on this file FIRST: a page that does not work on a phone has a bigger problem than a page that reads a bit generated.\n\nMost of these are decidable from source and run in the normal structural pass. The ones marked `rendered` need `scripts/render_check.py`, the one optional script in this bundle, which opens the page at real viewports and names the elements at fault.",
+        "pick": lambda i: i.get("family") == "defect"
+                          or i["name"] in {"scaffold-title-residue",
+                                          "placeholder-copy-residue"},
     },
     "fiction-and-narrative-tells.md": {
         "title": "Fiction and narrative tells",

@@ -2,7 +2,7 @@
 
 What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.
 
-_29 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_30 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -170,6 +170,28 @@ The headline (or one hero word) uses a linear-gradient clipped to text running i
 **After**
 
 > <h1>Build faster</h1> in solid near-black; a single restrained accent underline in the brand terracotta; buttons are flat brand fill.
+
+### `scaffold-title-residue`  ·  high · generic-llm · web-ui · structural · family: residue
+
+The framework's default document title shipped: "Create Next App", "Vite + React", "Untitled", "Document".
+
+**Why it reads AI:** Proof rather than inference, like an unfilled merge tag. It is what the browser tab, the search result and every shared link will say.
+
+**Detect:** Match the title text against the closed set of scaffold defaults. Static, near-zero false positive.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Write the title: product name, then what it is, under about 60 characters so search does not truncate it. Set a distinct one per route, and while you are in the head add a meta description and an og:image — they are missing for the same reason.
+
+**False positive when:** A scaffold that genuinely has not shipped yet. That is a reason to fix it before it does, not to ignore it.
+
+**Before**
+
+> <title>Create Next App</title>
+
+**After**
+
+> <title>Northwind — invoice reconciliation for finance teams</title>
 
 ### `tailwind-indigo-default-palette`  ·  high · generic-llm · color · structural · family: visual
 

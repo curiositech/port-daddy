@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""render_check.py — open a page at real viewports and report what breaks.
+
+OPTIONAL, and the only script in this bundle with a dependency. Everything else
+here is stdlib-only; this needs Playwright, because the findings it produces
+cannot be derived from source text. A page that horizontally scrolls at 390px
+scrolls because of computed layout, not because of anything greppable.
+
+    pip install playwright            # the browsers are often already present
+    python3 scripts/render_check.py URL_OR_FILE --json render.json
+
+Then merge into the normal report, which is the point of emitting this schema:
+
+    python3 scripts/humanize_review.py page.html --findings render.json \
+        --out report.html
+
+WHY THIS EXISTS AS A SEPARATE LAYER. The static pass can tell you a page has no
+responsive variants and no viewport meta. It cannot tell you that the pricing
+table is 1180px wide inside a 390px screen, or which element is the culprit.
+This names the element, which is the difference between a complaint and a fix.
+
+WHAT IT REPORTS. Every finding here is a defect you can reproduce by opening the
+page, so none of it is an inference about who built it and none of it carries
+the fairness caveat the rest of this skill insists on. It is the same class as a
+dead citation: a fact about whether the thing works.
+
+  horizontal-overflow-at-mobile   the page scrolls sideways, plus the widest
+                                  offending elements by selector
+  tap-target-too-small            interactive targets under 44x44 CSS px
+  body-text-below-readable        rendered text under 12px
+  low-contrast-text               computed contrast below WCAG AA
+  image-without-dimensions        <img> with no width/height, which shifts layout
+"""
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+VIEWPORTS = [("mobile", 390, 844), ("tablet", 768, 1024), ("desktop", 1280, 900)]
+
+# Collected in one pass in the page so the DOM is walked once per viewport.
+PROBE = r"""() => {
+  const out = {overflow: [], taps: [], small: [], contrast: [], noDim: []};
+  const docW = document.documentElement.scrollWidth;
+  const winW = window.innerWidth;
+  out.scrollWidth = docW;
+  out.innerWidth = winW;
+
+  const sel = (el) => {
+    if (!el || el === document.body) return 'body';
+    if (el.id) return '#' + el.id;
+    const cls = (el.getAttribute('class') || '').trim().split(/\s+/)
+      .filter(Boolean).slice(0, 3).join('.');
+    return el.tagName.toLowerCase() + (cls ? '.' + cls : '');
+  };
+
+  // Elements wider than the viewport, or sticking out past its right edge.
+  if (docW > winW + 1) {
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      if (r.right > winW + 1 || r.width > winW + 1) {
+        // Only report the outermost offender in a chain; a wide child inside a
+        // wide parent is one bug, not two.
+        let p = el.parentElement, nested = false;
+        while (p && p !== document.body) {
+          const pr = p.getBoundingClientRect();
+          if (pr.right > winW + 1 || pr.width > winW + 1) { nested = true; break; }
+          p = p.parentElement;
+        }
+        if (!nested) out.overflow.push({sel: sel(el), width: Math.round(r.width),
+                                        right: Math.round(r.right)});
+      }
+      if (out.overflow.length >= 8) break;
+    }
+  }
+
+  const lum = (c) => {
+    const m = c.match(/[\d.]+/g); if (!m) return null;
+    const [r, g, b] = m.slice(0, 3).map(Number);
+    const a = m.length > 3 ? Number(m[3]) : 1;
+    if (a < 0.9) return null;               // translucent: not worth guessing
+    const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92
+                                 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const bgOf = (el) => {
+    let n = el;
+    while (n && n !== document.documentElement) {
+      const c = getComputedStyle(n).backgroundColor;
+      const m = c.match(/[\d.]+/g);
+      if (m && (m.length < 4 || Number(m[3]) > 0.9)) return c;
+      n = n.parentElement;
+    }
+    return 'rgb(255, 255, 255)';
+  };
+
+  const seenTap = new Set(), seenSmall = new Set(), seenContrast = new Set();
+  for (const el of document.querySelectorAll(
+        'a, button, input, select, textarea, [role="button"], p, li, span, h1, h2, h3, h4')) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    const tag = el.tagName.toLowerCase();
+    const interactive = ['a', 'button', 'input', 'select', 'textarea'].includes(tag)
+                        || el.getAttribute('role') === 'button';
+
+    if (interactive && (r.width < 44 || r.height < 44)) {
+      const k = sel(el); if (!seenTap.has(k)) { seenTap.add(k);
+        out.taps.push({sel: k, w: Math.round(r.width), h: Math.round(r.height),
+                       text: (el.innerText || '').trim().slice(0, 30)}); }
+    }
+
+    const txt = (el.innerText || '').trim();
+    if (!txt) continue;
+    const direct = Array.from(el.childNodes)
+      .some(n => n.nodeType === 3 && n.textContent.trim().length > 3);
+    if (!direct) continue;
+
+    const px = parseFloat(cs.fontSize);
+    if (px && px < 12) {
+      const k = sel(el); if (!seenSmall.has(k)) { seenSmall.add(k);
+        out.small.push({sel: k, px: Math.round(px * 10) / 10,
+                        text: txt.slice(0, 30)}); }
+    }
+
+    const lf = lum(cs.color), lb = lum(bgOf(el));
+    if (lf !== null && lb !== null) {
+      const ratio = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
+      const bold = parseInt(cs.fontWeight, 10) >= 700;
+      const large = px >= 24 || (px >= 18.66 && bold);
+      const need = large ? 3.0 : 4.5;
+      if (ratio < need) {
+        const k = sel(el); if (!seenContrast.has(k)) { seenContrast.add(k);
+          out.contrast.push({sel: k, ratio: Math.round(ratio * 100) / 100,
+                             need, color: cs.color, bg: bgOf(el),
+                             text: txt.slice(0, 30)}); }
+      }
+    }
+  }
+
+  for (const img of document.querySelectorAll('img')) {
+    if (!img.getAttribute('width') || !img.getAttribute('height')) {
+      const r = img.getBoundingClientRect();
+      if (r.width > 40 && r.height > 40)
+        out.noDim.push({sel: sel(img), src: (img.getAttribute('src') || '').slice(0, 60)});
+    }
+  }
+  out.taps = out.taps.slice(0, 10);
+  out.small = out.small.slice(0, 10);
+  out.contrast = out.contrast.slice(0, 10);
+  out.noDim = out.noDim.slice(0, 6);
+  return out;
+}"""
+
+
+def finding(file, ism, severity, excerpt, explanation, rewrite):
+    return {"file": file, "line": 0, "excerpt": excerpt[:300], "ism": ism,
+            "dialect": "generic-llm", "severity": severity,
+            "explanation": explanation, "rewrite": rewrite,
+            "layer": "render", "family": "defect"}
+
+
+def run(target, viewports, timeout_ms):
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("render_check needs Playwright, the one dependency in this bundle:\n"
+              "  pip install playwright\n"
+              "  playwright install chromium   # skip if the browsers are already present\n"
+              "The rest of the skill is stdlib-only and runs without it.",
+              file=sys.stderr)
+        return None
+
+    url = target
+    if not target.startswith(("http://", "https://")):
+        p = Path(target).resolve()
+        if not p.exists():
+            print(f"no such file: {target}", file=sys.stderr)
+            return None
+        url = p.as_uri()
+
+    # A preinstalled Chromium often does not match the build this Playwright
+    # pins, which fails at launch with a download instruction that is wrong when
+    # the browser is already on disk. Point at it explicitly instead.
+    exe = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+    if not exe:
+        for root in (os.environ.get("PLAYWRIGHT_BROWSERS_PATH"), "/opt/pw-browsers"):
+            if not root:
+                continue
+            found = sorted(Path(root).glob("chromium-*/chrome-linux/chrome")) \
+                or sorted(Path(root).glob("chromium*/*/headless_shell")) \
+                or sorted(Path(root).glob("chromium*/chrome-*/Chromium.app/Contents/MacOS/Chromium"))
+            if found:
+                exe = str(found[-1])
+                break
+
+    out = []
+    with sync_playwright() as pw:
+        try:
+            browser = pw.chromium.launch(executable_path=exe) if exe else pw.chromium.launch()
+        except Exception as e:
+            print(f"could not launch Chromium: {e}\n"
+                  "Set PLAYWRIGHT_CHROMIUM_EXECUTABLE to a Chrome/Chromium binary, or "
+                  "run `playwright install chromium`.", file=sys.stderr)
+            return None
+        for name, w, h in viewports:
+            page = browser.new_page(viewport={"width": w, "height": h})
+            try:
+                page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+            except Exception:
+                page.goto(url, timeout=timeout_ms)       # networkidle can never settle
+            page.wait_for_timeout(250)
+            r = page.evaluate(PROBE)
+            out += interpret(target, name, w, r)
+            page.close()
+        browser.close()
+    return out
+
+
+def interpret(target, vp, width, r):
+    out = []
+    over = r.get("overflow") or []
+    if r["scrollWidth"] > r["innerWidth"] + 1:
+        worst = ", ".join(f"{o['sel']} ({o['width']}px)" for o in over[:4]) or "unknown element"
+        out.append(finding(
+            target, "horizontal-overflow-at-mobile",
+            "high" if vp == "mobile" else "medium",
+            f"{vp} {width}px: page scrolls to {r['scrollWidth']}px. Widest offenders: {worst}",
+            "The page scrolls sideways at this width. This is the single most common "
+            "failure of a site that was styled to look like a framework without being "
+            "built with one, and it is not a matter of taste: content is off screen.",
+            "Fix the named elements first, outermost one first. The usual causes are a "
+            "fixed pixel width that wants max-width:100%, a grid with a hardcoded column "
+            "count that needs a single-column form below the breakpoint, 100vw where "
+            "100% was meant, and a long unbroken string that needs overflow-wrap:anywhere."))
+
+    taps = r.get("taps") or []
+    if vp == "mobile" and len(taps) >= 2:
+        ex = ", ".join(f"{t['sel']} {t['w']}x{t['h']}" for t in taps[:4])
+        out.append(finding(
+            target, "tap-target-too-small", "medium",
+            f"{len(taps)} interactive targets under 44x44 at {width}px: {ex}",
+            "Controls too small to hit reliably with a thumb. Desktop-first styling that "
+            "was never checked on a phone produces this every time.",
+            "Give interactive elements a minimum 44x44 hit area: min-height and "
+            "min-width, or padding on the control rather than on its container. Inline "
+            "text links in prose are exempt."))
+
+    small = r.get("small") or []
+    if small:
+        ex = ", ".join(f"{s['sel']} {s['px']}px" for s in small[:4])
+        out.append(finding(
+            target, "body-text-below-readable", "medium",
+            f"{len(small)} text elements rendering under 12px at {vp}: {ex}",
+            "Text below about 12px is not readable for a lot of people and triggers "
+            "zoom-on-focus on iOS for form fields.",
+            "Floor body text at 16px and secondary text at 14px. If the layout only "
+            "works at 11px, the layout is too dense, not the type too large."))
+
+    con = r.get("contrast") or []
+    if con:
+        ex = "; ".join(f"{c['sel']} {c['ratio']}:1 (needs {c['need']}:1)" for c in con[:4])
+        out.append(finding(
+            target, "wcag-fail-from-generated-palette", "high",
+            f"{len(con)} text elements below WCAG AA contrast at {vp}: {ex}",
+            "A palette chosen for how it looked in a hero screenshot rather than for "
+            "whether anyone can read it. The muted-grey-on-white default is the usual "
+            "culprit.",
+            "Darken the foreground until it passes: 4.5:1 for body text, 3:1 for text "
+            "at 24px or 18.66px bold. Fix the token once rather than each element."))
+
+    nd = r.get("noDim") or []
+    if nd:
+        out.append(finding(
+            target, "image-without-dimensions", "low",
+            f"{len(nd)} images with no width/height attributes, e.g. {nd[0]['sel']}",
+            "Images without intrinsic dimensions shift the layout as they load, which "
+            "moves what someone is reading or about to tap.",
+            "Set width and height attributes to the real pixel dimensions and let CSS "
+            "scale them. The browser reserves the space before the bytes arrive."))
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("target", help="URL, or a path to a local HTML file")
+    ap.add_argument("--json", default="render-findings.json",
+                    help="write findings here for humanize_review.py --findings")
+    ap.add_argument("--viewport", action="append", default=[],
+                    metavar="NAME:WxH", help="override viewports, repeatable")
+    ap.add_argument("--timeout", type=int, default=20000)
+    args = ap.parse_args()
+
+    vps = VIEWPORTS
+    if args.viewport:
+        vps = []
+        for v in args.viewport:
+            name, _, dims = v.partition(":")
+            w, _, h = dims.partition("x")
+            vps.append((name, int(w), int(h)))
+
+    res = run(args.target, vps, args.timeout)
+    if res is None:
+        sys.exit(2)
+
+    # Contrast and font size do not change with viewport unless a media query
+    # changes them, so reporting the same failure once per viewport is three
+    # rows for one bug. Overflow and tap targets ARE viewport-dependent and stay
+    # per-viewport, because "breaks on a phone, fine on a laptop" is the finding.
+    VIEWPORT_INDEPENDENT = {"wcag-fail-from-generated-palette",
+                            "body-text-below-readable", "image-without-dimensions"}
+    seen, deduped = set(), []
+    for f in res:
+        if f["ism"] in VIEWPORT_INDEPENDENT:
+            key = (f["ism"], f["excerpt"].split(":", 1)[-1])
+            if key in seen:
+                continue
+            seen.add(key)
+            f["excerpt"] = f["excerpt"].replace(
+                f" at {vps[0][0]}", " at every viewport tested")
+        deduped.append(f)
+    res = deduped
+    Path(args.json).write_text(json.dumps(res, indent=2), encoding="utf-8")
+    print(f"wrote {args.json} ({len(res)} findings across {len(vps)} viewport(s))")
+    for f in res:
+        print(f"  {f['severity']:6} {f['ism']:32} {f['excerpt'][:74]}")
+
+
+if __name__ == "__main__":
+    main()
