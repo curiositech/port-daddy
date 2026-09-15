@@ -1,5 +1,87 @@
 # Changelog
 
+<!-- humanize:ignore-start
+     A changelog is heading-and-bullet dense by design, which is the documented
+     false positive for heading-spam and bullet-colonization (see each item's
+     false_positive_when in catalog.json). Marked rather than padded with prose.
+     -->
+
+## 0.3.0 — 2026-09-14
+
+Rebuilt around measured evidence. The skill previously carried thresholds that
+disagreed with its own rubric, and it failed the review it sells: `SKILL.md` ran
+3.76 em dashes per 100 words against its own 1.2 threshold, and the examples
+flagged the AI-isms they exist to demonstrate. The whole bundle now passes
+`--fail-on medium` against itself.
+
+### Added
+
+- `references/fairness-and-false-positives.md`. Why findings are editing cues
+  rather than evidence, who gets hurt when they're used as evidence, and the
+  tells that do not work. Carries the base-rate argument: because detectors are
+  biased toward "human", a flag is more likely to be an unusual person than a
+  caught machine.
+- `references/fiction-and-narrative-tells.md` and
+  `references/engineering-artifact-tells.md`. Story-level tells, and tells for
+  commits, PRs, review, code, tests and docs.
+- Catalog grew from 70 items to 157. New media: fiction, social-post, email,
+  listing, resume, image, video, audio, chart, commit-message, pr-description,
+  code-review, code, docs.
+- Every item now carries `false_positive_when`, `currency`, `family`, and where
+  one exists, `evidence` with a citation. 15 new sources including the PNAS
+  grammatical-feature study, the Science Advances excess-vocabulary study, the
+  detector-bias literature, and Wikipedia's Signs of AI writing.
+- `--baseline` compares rhythm signals against the author's own prior writing.
+  `--fail-on` gates CI. `--validate` proves every emitted ism resolves to a
+  catalog item.
+- New detectors: invisible codepoints, vendor markup residue, chat tracking
+  params, unfilled merge-tag placeholders, participial tails, nominalization
+  density, copula avoidance, the deontic gap, pronoun evacuation, specificity
+  starvation, paragraph-length monoculture, horizontal-rule spam, heading-level
+  skips, title-case uniformity, markdown leaking into unrendered media, and a
+  code-comment analyzer for narrating comments, swallowed exceptions,
+  placeholder stubs and signature-restating docstrings.
+
+### Changed
+
+- Detection is restructured into five families: residue, form, rhythm, shape,
+  code. The family, not the severity, says how much to trust a finding.
+- Rhythm signals cap at low severity without `--baseline`. Em-dash rate, comma
+  rate, contraction rate and sentence variance are fluency proxies that overlap
+  badly between people and models; one anti-slop linter measured its em-dash
+  rule warning on roughly 64% of legitimate technical blog posts.
+- Thresholds moved into `catalog.json` and are read from there, so the rubric
+  and the code cannot drift apart again.
+- Burstiness now measured as coefficient of variation rather than absolute
+  standard deviation, which was scale-dependent and simply wrong.
+- Law 1 clarified: no topical keyword lists, with three narrow exceptions for
+  machine artifacts, closed grammatical classes measured as rates, and the
+  era-versioned excess-vocabulary list.
+- Ignore markers now work in the code path, not just the prose path.
+
+### Fixed
+
+- Two catalog entries were wrong and are corrected rather than deleted. The
+  mangled-hands image heuristic is marked obsolete and points at provenance
+  instead, because current models render hands and text correctly. The
+  invisible-codepoint entry is downgraded: U+202F was a real tell for about a
+  week in April 2025 before the vendor removed it, and Word, LaTeX and French
+  typography all emit it routinely.
+- The Inter/indigo entry drops its implied study, because none exists. The
+  origin is one designer's public remark, and the entry now says so.
+- HTML injection through an unescaped `line` field in the report renderer.
+- A `groq` typo that silently dropped the Grok item from every generated
+  reference. The generator now fails on any orphaned item.
+- An attribution regex containing U+2014 twice and no en dash, so an en-dashed
+  byline never counted as attribution.
+- Code fences, YAML frontmatter, blockquotes and `<style>` bodies were all
+  counted against the author's prose.
+- Report CSS shipped 13px text while the skill demanded 14px everywhere.
+- A malformed `--findings` file crashed with a raw traceback; zero input files
+  produced a report that read as "clean".
+- `examples/before-after-landing-page.md` claimed seven structural detections
+  where the script makes four, and three of its ism names no longer existed.
+
 ## 0.2.0 — 2026-07-04
 
 Upgraded to the port-daddy agentic-family bundle standard. Frontmatter-only
@@ -31,3 +113,5 @@ structure; published stylometry catalogs — 66 cited sources).
 - `skills/make_copy_and_media_human/scripts/regenerate_references.py`: references/*.md derive from catalog.json.
 - Two-layer detection honors the no-keyword-NLP rule: scripts measure,
   the model judges.
+
+<!-- humanize:ignore-end -->
