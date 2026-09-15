@@ -822,10 +822,13 @@ $t_j - t_i \le k$ over integer deadline variables, whose constraint graph is
 $(V,E)$.
 
 A policy set is \textbf{in conflict} exactly when one of four things holds:
-(i) the Horn part derives $\bot$; (ii) a fired $\mathsf{O}$ token and a fired
-$\mathsf{F}$ token name the same action with overlapping scope \emph{and}
-overlapping interval; (iii) two exclusive claims on one resource have
-overlapping intervals; or (iv) the deadline graph contains a negative cycle.
+\begin{enumerate}[label=(\roman*),leftmargin=1.8em,itemsep=1pt]
+  \item the Horn part derives $\bot$;
+  \item a fired $\mathsf{O}$ token and a fired $\mathsf{F}$ token name the
+  same action with overlapping scope \emph{and} overlapping interval;
+  \item two exclusive claims on one resource have overlapping intervals; or
+  \item the deadline graph contains a negative cycle.
+\end{enumerate}
 
 The fragment is deliberately ground and deliberately weak, and each omission is
 what buys Theorem~\ref{thm:deontic-detect}: no nested deontic operators, no
