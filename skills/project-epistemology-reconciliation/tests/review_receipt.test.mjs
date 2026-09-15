@@ -13,6 +13,7 @@ const source = Buffer.from('# Decision\n\nKeep one authority.\n', 'utf8')
 const anchor = hash(Buffer.from('Keep one authority.\n', 'utf8'))
 const attempt = 'a'.repeat(64)
 const json = (value) => Buffer.from(JSON.stringify(value), 'utf8')
+const expectedSourceIdentity = () => ({ sourceId: 'example', revision: '7', path: 'decision.md' })
 
 function contract() {
   return { schemaVersion: 1, id: 'decision-review', revision: '1', requiredFields: ['decision', 'status'] }
@@ -37,16 +38,33 @@ function fixture(expectedContract = json(contract())) {
   }
 }
 
-const audit = (receipt = fixture(), expectedContract = json(contract()), bytes = source) => auditReviewReceipt(bytes, expectedContract, json(receipt))
+const audit = (receipt = fixture(), expectedContract = json(contract()), bytes = source, identity = expectedSourceIdentity()) => auditReviewReceipt(bytes, expectedContract, json(receipt), identity)
 
 test('accepts an exact, independently quality-reviewed promotion receipt', () => {
   const receipt = fixture()
   const receiptBytes = json(receipt)
-  const result = auditReviewReceipt(source, json(contract()), receiptBytes)
+  const result = auditReviewReceipt(source, json(contract()), receiptBytes, expectedSourceIdentity())
   assert.equal(result.pass, true)
   assert.equal(result.eligibleStatus, 'agent-reviewed')
   assert.equal(result.bindings.receiptSha256, hash(receiptBytes))
   assert.equal(result.bindings.reviewContract.sha256, receipt.reviewContract.sha256)
+  assert.deepEqual(result.bindings.source.expectedIdentity, expectedSourceIdentity())
+  assert.deepEqual(result.bindings.source.receiptDeclaredIdentity, expectedSourceIdentity())
+  assert.equal(result.bindings.source.identityExactMatch, true)
+  assert.equal(result.bindings.source.suppliedBytes.sha256, hash(source))
+})
+
+test('requires a separately supplied source identity and compares every field exactly', () => {
+  assert.throws(() => auditReviewReceipt(source, json(contract()), json(fixture())), /expectedSourceIdentity/u)
+  for (const key of ['sourceId', 'revision', 'path']) {
+    const identity = expectedSourceIdentity()
+    identity[key] = `${identity[key]}-different`
+    const result = audit(fixture(), json(contract()), source, identity)
+    assert.equal(result.pass, false)
+    assert.equal(result.bindings.source.identityExactMatch, false)
+    assert.deepEqual(result.bindings.source.expectedIdentity, identity)
+    assert.equal(result.findings.some((finding) => finding.id === 'RR-SOURCE-IDENTITY' && finding.path === `source.${key}`), true)
+  }
 })
 
 test('source digest and byte drift fail closed', () => {
@@ -114,7 +132,7 @@ test('UTF-8 BOM and CRLF remain part of exact first-line anchor bytes', () => {
   receipt.source = { sourceId: 'bom', revision: '1', path: 'bom.md', sha256: hash(bytes), bytes: bytes.length }
   receipt.review.fields = [{ name: 'decision', disposition: 'present', summary: 'Decision heading.', warrant: 'source', anchors: [{ lineStart: 1, lineEnd: 1, excerptSha256: hash(Buffer.from('\ufeff# Decision\r\n', 'utf8')) }], uncertainty: 'Heading only.' }]
   receipt.quality.checkedFields = ['decision']
-  assert.equal(auditReviewReceipt(bytes, expectedContract, json(receipt)).pass, true)
+  assert.equal(auditReviewReceipt(bytes, expectedContract, json(receipt), { sourceId: 'bom', revision: '1', path: 'bom.md' }).pass, true)
 })
 
 test('unknown and missing properties are malformed rather than ignored', () => {
@@ -123,7 +141,21 @@ test('unknown and missing properties are malformed rather than ignored', () => {
   assert.throws(() => audit(receipt), /unknown or missing properties/u)
   const expectedContract = contract()
   expectedContract.optional = true
-  assert.throws(() => auditReviewReceipt(source, json(expectedContract), json(fixture())), /unknown or missing properties/u)
+  assert.throws(() => auditReviewReceipt(source, json(expectedContract), json(fixture()), expectedSourceIdentity()), /unknown or missing properties/u)
+})
+
+test('duplicate object keys in contract and receipt bytes are malformed, including nested escaped equivalents', () => {
+  const duplicateContract = Buffer.from('{"schemaVersion":1,"id":"first","id":"second","revision":"1","requiredFields":["decision","status"]}')
+  assert.throws(() => auditReviewReceipt(source, duplicateContract, json(fixture()), expectedSourceIdentity()), /contractBytes contains duplicate object key "id"/u)
+
+  const escapedContract = Buffer.from('{"schemaVersion":1,"id":"first","\\u0069d":"second","revision":"1","requiredFields":["decision","status"]}')
+  assert.throws(() => auditReviewReceipt(source, escapedContract, json(fixture()), expectedSourceIdentity()), /contractBytes contains duplicate object key "id"/u)
+
+  const nestedReceipt = Buffer.from(JSON.stringify(fixture()).replace('"sourceId":"example"', '"sourceId":"example","sourceId":"other"'))
+  assert.throws(() => auditReviewReceipt(source, json(contract()), nestedReceipt, expectedSourceIdentity()), /receiptBytes.source contains duplicate object key "sourceId"/u)
+
+  const nestedEscapedReceipt = Buffer.from(JSON.stringify(fixture()).replace('"reviewerId":"quality-c"', '"reviewerId":"quality-c","\\u0072eviewerId":"quality-d"'))
+  assert.throws(() => auditReviewReceipt(source, json(contract()), nestedEscapedReceipt, expectedSourceIdentity()), /receiptBytes.quality contains duplicate object key "reviewerId"/u)
 })
 
 test('CLI distinguishes policy failure, malformed input and non-regular files', () => {
@@ -136,8 +168,16 @@ test('CLI distinguishes policy failure, malformed input and non-regular files', 
   writeFileSync(contractPath, expectedContract)
   writeFileSync(receiptPath, json(fixture(expectedContract)))
   const cli = fileURLToPath(new URL('../scripts/review_receipt.mjs', import.meta.url))
-  const args = ['--source', sourcePath, '--contract', contractPath, '--receipt', receiptPath]
+  const identityArgs = ['--source-id', 'example', '--source-revision', '7', '--source-path', 'decision.md']
+  const args = ['--source', sourcePath, ...identityArgs, '--contract', contractPath, '--receipt', receiptPath]
   assert.equal(JSON.parse(execFileSync(process.execPath, [cli, ...args], { encoding: 'utf8' })).pass, true)
+
+  assert.equal(spawnSync(process.execPath, [cli, '--source', sourcePath, '--contract', contractPath, '--receipt', receiptPath], { encoding: 'utf8' }).status, 1)
+  assert.equal(spawnSync(process.execPath, [cli, ...args, '--source-id', 'other'], { encoding: 'utf8' }).status, 1)
+
+  const wrongIdentity = spawnSync(process.execPath, [cli, '--source', sourcePath, '--source-id', 'other', '--source-revision', '7', '--source-path', 'decision.md', '--contract', contractPath, '--receipt', receiptPath], { encoding: 'utf8' })
+  assert.equal(wrongIdentity.status, 2)
+  assert.equal(JSON.parse(wrongIdentity.stdout).findings.some((finding) => finding.id === 'RR-SOURCE-IDENTITY'), true)
 
   const rejected = fixture(expectedContract)
   rejected.quality.disposition = 'rejected'

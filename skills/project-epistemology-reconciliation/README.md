@@ -27,8 +27,8 @@ examined:
 ```sh
 npm install --ignore-scripts --offline --no-audit --no-fund /absolute/path/curiositech-harbor-inventory-0.5.0.tgz
 ./node_modules/.bin/harbor-inventory --repo /absolute/path/to/repository --source-id my-project
-./node_modules/.bin/harbor-review-audit --source /absolute/source.md --contract /absolute/review-contract.json --receipt /absolute/review.json
-./node_modules/.bin/harbor-successor-export --source /absolute/source-repo --universe /absolute/universe.jsonl --manifest /absolute/successor-manifest.jsonl --loss-audit /absolute/loss-audit.json --approval /absolute/approval.json
+./node_modules/.bin/harbor-review-audit --source /absolute/source.md --source-id my-project --source-revision COMMIT_OR_DIGEST --source-path docs/source.md --contract /absolute/review-contract.json --receipt /absolute/review.json
+./node_modules/.bin/harbor-successor-export --source /absolute/source-repo --universe /absolute/universe.jsonl --manifest /absolute/successor-manifest.jsonl --loss-audit /absolute/loss-audit.json --approval /absolute/approval.json --authority-receipts /absolute/authority-receipts.jsonl --target-profile /absolute/target-filesystem-profile.json
 ```
 
 The name is provisional. This is a locally installable tarball, not an npm
@@ -97,15 +97,17 @@ Nothing is sent elsewhere. There is no update checker or telemetry.
 
 Inventory and extraction never earn the `agent-reviewed` label by themselves.
 `harbor-review-audit` checks one JSON receipt against the exact supplied UTF-8
-source and a separately supplied review contract. The receipt must bind the
-contract identity, revision and digest; it cannot choose its own required-field
+source, a separately supplied expected source identity, and a separately supplied
+review contract. The receipt must match the caller's source ID, revision and path
+and bind the contract identity, revision and digest; it cannot choose its own required-field
 set. Promotion requires a complete-source declaration, exact required-field
 coverage, byte-true line anchors for present findings, distinct declared
 producer/reviewer/quality-reviewer identities, and an accepted quality review.
 The result binds the exact receipt, contract and source digests. Rejected prior
 attempts remain listed by digest and reason.
 
-This is a receipt-consistency gate, not an oracle. It cannot authenticate the
+This is a receipt-consistency gate, not an oracle. The expected source identity
+is independently supplied but not authenticated or derived from the bytes. It cannot authenticate the
 reviewers, prove they were independent, establish that a summary is logically
 correct, or authorize deletion. Exit 2 leaves the result at
 `machine-semantic-extracted`; malformed inputs exit 1. The command is local,
@@ -113,7 +115,7 @@ read-only and stdout-only.
 
 ## Materialize an approved successor without touching the source
 
-`harbor-successor-export` requires four independently supplied declarations:
+`harbor-successor-export` requires six independently supplied declarations:
 
 - `universe.jsonl`: every source path with exact SHA-256, byte count and
   executable mode;
@@ -121,7 +123,14 @@ read-only and stdout-only.
 - `loss-audit.json`: exact universe/manifest bindings, zero unresolved blockers,
   and an explicit export authorization flag; and
 - `approval.json`: a separate, exact approval bound to the same source revision
-  and declaration digests.
+  and declaration digests;
+- `authority-receipts.jsonl`: one exact, source-scoped authorization receipt for
+  every manifest disposition, with each raw-row digest referenced exactly once;
+  and
+- `target-filesystem-profile.json`: the exact supported
+  `portable-ascii-casefold-v1` contract. Successor paths are ASCII-only, at most
+  100 bytes per segment and 240 bytes total, with reserved basenames and
+  case-insensitive collisions rejected before writing.
 
 The only dispositions are `copy-exact`, `regenerate-alias`, and
 `omit-approved`. There is deliberately no content-transform or inferred-omit
@@ -135,18 +144,29 @@ harbor-successor-export \
   --manifest /absolute/successor-manifest.jsonl \
   --loss-audit /absolute/loss-audit.json \
   --approval /absolute/approval.json \
+  --authority-receipts /absolute/authority-receipts.jsonl \
+  --target-profile /absolute/target-filesystem-profile.json \
   --materialize --output /absolute/new-successor-repo
 ```
 
 The command re-audits immediately before writing, independently censuses every
-regular source file except top-level Git metadata, and refuses symlinks, path
-collisions, stale bytes, missing coverage, absent authority and existing output
-paths. It atomically reserves the absent output name before writing; a failed
-write remains visibly incomplete instead of deleting or replacing anything.
+regular source file except the exact top-level `.git` entry, and refuses source
+symlinks, stale bytes, incomplete coverage, missing or unreferenced authority
+receipts, unsupported target profiles, output collisions and existing output
+paths. It reserves the absent output name before writing; a failed write remains
+visibly incomplete instead of deleting or replacing anything.
 `.harbor-reconciliation/` in the successor retains the exact universe,
-manifest, loss audit, approval and materialization receipt. The original repo is
-never changed. Approval identity is declared rather than cryptographically
-authenticated, and exact copying does not prove the result is useful or builds.
+manifest, loss audit, approval, authority-receipt bundle, target profile and
+materialization receipt.
+
+Trust boundary: the source and output parent must be locally controlled and
+quiescent for the whole run. Node's path APIs are not descriptor-relative, so a
+hostile same-user concurrent ancestor rename, symlink swap or mount replacement
+is outside this v1 guarantee. Under that stated boundary the command never
+intentionally changes the source; do not use it as a sandbox against an active
+filesystem attacker. Approval and authorizer identities are declared rather
+than cryptographically authenticated, and exact copying does not prove the
+result is useful or builds.
 
 For a failed run, retain the version, exit code, selected roots, coverage state
 and a redacted error example. File a minimal reproduction in the source

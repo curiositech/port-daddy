@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 const SHA256 = /^[a-f0-9]{64}$/u
 const SOURCE_LIMIT = 16 * 1024 * 1024
 const DECLARATION_LIMIT = 1024 * 1024
-const AUDITOR = Object.freeze({ name: 'harbor-review-audit', version: '1' })
+const AUDITOR = Object.freeze({ name: 'harbor-review-audit', version: '2' })
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const nonBlank = (value) => typeof value === 'string' && /\S/u.test(value)
@@ -34,8 +34,105 @@ function strings(value, path, { allowEmpty = false } = {}) {
   if (new Set(value).size !== value.length) throw new TypeError(`${path} must contain unique values`)
 }
 
+class DuplicateJsonKeyError extends SyntaxError {
+  constructor(path, key) {
+    super(`${path} contains duplicate object key ${JSON.stringify(key)}`)
+  }
+}
+
+function assertUniqueJsonObjectKeys(text, label) {
+  let offset = 0
+  const fail = () => { throw new SyntaxError('invalid JSON') }
+  const whitespace = () => {
+    while (offset < text.length && /[\u0009\u000a\u000d\u0020]/u.test(text[offset])) offset += 1
+  }
+  const quotedString = () => {
+    if (text[offset] !== '"') fail()
+    const start = offset
+    offset += 1
+    while (offset < text.length) {
+      const character = text[offset]
+      offset += 1
+      if (character === '"') return JSON.parse(text.slice(start, offset))
+      if (character === '\\') {
+        if (offset >= text.length) fail()
+        const escape = text[offset]
+        offset += 1
+        if (escape === 'u') {
+          if (!/^[a-fA-F0-9]{4}$/u.test(text.slice(offset, offset + 4))) fail()
+          offset += 4
+        } else if (!['"', '\\', '/', 'b', 'f', 'n', 'r', 't'].includes(escape)) fail()
+      } else if (character.charCodeAt(0) <= 0x1f) fail()
+    }
+    fail()
+  }
+  const value = (path) => {
+    whitespace()
+    if (text[offset] === '{') {
+      offset += 1
+      whitespace()
+      const keys = new Set()
+      if (text[offset] === '}') { offset += 1; return }
+      while (true) {
+        whitespace()
+        const key = quotedString()
+        if (keys.has(key)) throw new DuplicateJsonKeyError(path, key)
+        keys.add(key)
+        whitespace()
+        if (text[offset] !== ':') fail()
+        offset += 1
+        value(`${path}.${key}`)
+        whitespace()
+        if (text[offset] === '}') { offset += 1; return }
+        if (text[offset] !== ',') fail()
+        offset += 1
+      }
+    }
+    if (text[offset] === '[') {
+      offset += 1
+      whitespace()
+      if (text[offset] === ']') { offset += 1; return }
+      let index = 0
+      while (true) {
+        value(`${path}[${index}]`)
+        index += 1
+        whitespace()
+        if (text[offset] === ']') { offset += 1; return }
+        if (text[offset] !== ',') fail()
+        offset += 1
+      }
+    }
+    if (text[offset] === '"') { quotedString(); return }
+    for (const literal of ['true', 'false', 'null']) {
+      if (text.startsWith(literal, offset)) { offset += literal.length; return }
+    }
+    const number = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/uy
+    number.lastIndex = offset
+    const match = number.exec(text)
+    if (!match) fail()
+    offset = number.lastIndex
+  }
+  whitespace()
+  value(label)
+  whitespace()
+  if (offset !== text.length) fail()
+}
+
 function decodeJson(bytes, path) {
-  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) } catch { throw new TypeError(`${path} must be valid UTF-8 JSON`) }
+  let text
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes) } catch { throw new TypeError(`${path} must be valid UTF-8 JSON`) }
+  try {
+    assertUniqueJsonObjectKeys(text, path)
+    return JSON.parse(text)
+  } catch (error) {
+    if (error instanceof DuplicateJsonKeyError) throw new TypeError(error.message)
+    throw new TypeError(`${path} must be valid UTF-8 JSON`)
+  }
+}
+
+function validateExpectedSourceIdentity(identity) {
+  exactKeys(identity, ['sourceId', 'revision', 'path'], 'expectedSourceIdentity')
+  for (const key of ['sourceId', 'revision', 'path']) string(identity[key], `expectedSourceIdentity.${key}`)
 }
 
 function validateContract(contract) {
@@ -121,10 +218,11 @@ function exactLines(text) {
   return text.match(/[^\n]*\n|[^\n]+$/gu) ?? []
 }
 
-export function auditReviewReceipt(sourceBytes, contractBytes, receiptBytes) {
+export function auditReviewReceipt(sourceBytes, contractBytes, receiptBytes, expectedSourceIdentity) {
   for (const [value, name] of [[sourceBytes, 'sourceBytes'], [contractBytes, 'contractBytes'], [receiptBytes, 'receiptBytes']]) {
     if (!(value instanceof Uint8Array)) throw new TypeError(`${name} must be a Uint8Array`)
   }
+  validateExpectedSourceIdentity(expectedSourceIdentity)
   const contract = decodeJson(contractBytes, 'contractBytes')
   const receipt = decodeJson(receiptBytes, 'receiptBytes')
   validateContract(contract)
@@ -135,6 +233,9 @@ export function auditReviewReceipt(sourceBytes, contractBytes, receiptBytes) {
   const findings = []
   const add = (id, path, message) => findings.push({ id, path, message })
 
+  for (const key of ['sourceId', 'revision', 'path']) {
+    if (receipt.source[key] !== expectedSourceIdentity[key]) add('RR-SOURCE-IDENTITY', `source.${key}`, `Receipt-declared ${key} does not exactly match the separately supplied expected source identity.`)
+  }
   if (receipt.source.bytes !== sourceBytes.byteLength) add('RR-SOURCE', 'source.bytes', 'Declared byte length does not match the supplied source.')
   if (receipt.source.sha256 !== digest(sourceBytes)) add('RR-SOURCE', 'source.sha256', 'Declared digest does not match the supplied source.')
   const contractSha256 = digest(contractBytes)
@@ -174,13 +275,19 @@ export function auditReviewReceipt(sourceBytes, contractBytes, receiptBytes) {
     pass: findings.length === 0,
     eligibleStatus: findings.length === 0 ? 'agent-reviewed' : 'machine-semantic-extracted',
     bindings: {
-      source: { sourceId: receipt.source.sourceId, revision: receipt.source.revision, path: receipt.source.path, sha256: digest(sourceBytes), bytes: sourceBytes.byteLength, lines: lines.length },
+      source: {
+        expectedIdentity: { sourceId: expectedSourceIdentity.sourceId, revision: expectedSourceIdentity.revision, path: expectedSourceIdentity.path },
+        receiptDeclaredIdentity: { sourceId: receipt.source.sourceId, revision: receipt.source.revision, path: receipt.source.path },
+        identityExactMatch: ['sourceId', 'revision', 'path'].every((key) => receipt.source[key] === expectedSourceIdentity[key]),
+        suppliedBytes: { sha256: digest(sourceBytes), bytes: sourceBytes.byteLength, lines: lines.length }
+      },
       reviewContract: { id: contract.id, revision: contract.revision, sha256: contractSha256 },
       receiptSha256: digest(receiptBytes)
     },
     findings,
     limitations: [
-      'Identity and independence are declared, not authenticated.',
+      'The expected source identity is separately supplied by the caller and compared exactly; the auditor does not authenticate or derive it from source bytes.',
+      'Reviewer identity and independence are declared, not authenticated.',
       'Matching anchors prove source binding, not that summaries are logically complete or correct.',
       'The independently supplied contract determines field coverage but does not prove that its field set is sufficient for every use.',
       'A passing receipt authorizes no deletion, publication, execution, or spend.'
@@ -212,22 +319,27 @@ function readBoundedRegular(path, limit, label) {
 }
 
 function usage() {
-  return 'Usage: harbor-review-audit --source /absolute/source.txt --contract /absolute/contract.json --receipt /absolute/review.json'
+  return 'Usage: harbor-review-audit --source /absolute/source.txt --source-id ID --source-revision REVISION --source-path PATH --contract /absolute/contract.json --receipt /absolute/review.json'
 }
 
 function run(argv) {
-  const paths = {}
+  const options = {}
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index]
-    if (value === '--source' || value === '--contract' || value === '--receipt') paths[value.slice(2)] = argv[++index]
+    if (['--source', '--source-id', '--source-revision', '--source-path', '--contract', '--receipt'].includes(value)) {
+      const key = value.slice(2)
+      if (Object.hasOwn(options, key)) throw new TypeError(`duplicate argument: ${value}`)
+      options[key] = argv[++index]
+    }
     else if (value === '--help' || value === '-h') { process.stdout.write(`${usage()}\n`); return 0 }
     else throw new TypeError(`unknown argument: ${value}`)
   }
-  if (!nonBlank(paths.source) || !nonBlank(paths.contract) || !nonBlank(paths.receipt)) throw new TypeError(usage())
-  const source = readBoundedRegular(paths.source, SOURCE_LIMIT, 'source')
-  const contract = readBoundedRegular(paths.contract, DECLARATION_LIMIT, 'contract')
-  const receipt = readBoundedRegular(paths.receipt, DECLARATION_LIMIT, 'receipt')
-  const result = auditReviewReceipt(source, contract, receipt)
+  if (['source', 'source-id', 'source-revision', 'source-path', 'contract', 'receipt'].some((key) => !nonBlank(options[key]))) throw new TypeError(usage())
+  const source = readBoundedRegular(options.source, SOURCE_LIMIT, 'source')
+  const contract = readBoundedRegular(options.contract, DECLARATION_LIMIT, 'contract')
+  const receipt = readBoundedRegular(options.receipt, DECLARATION_LIMIT, 'receipt')
+  const expectedSourceIdentity = { sourceId: options['source-id'], revision: options['source-revision'], path: options['source-path'] }
+  const result = auditReviewReceipt(source, contract, receipt, expectedSourceIdentity)
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
   return result.pass ? 0 : 2
 }

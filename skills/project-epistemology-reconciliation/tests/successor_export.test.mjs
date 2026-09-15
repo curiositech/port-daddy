@@ -14,6 +14,18 @@ const cli = fileURLToPath(new URL('../scripts/successor_export.mjs', import.meta
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const json = (value) => Buffer.from(`${JSON.stringify(value)}\n`)
 const jsonl = (rows) => Buffer.from(`${rows.map((row) => JSON.stringify(row)).join('\n')}\n`)
+const targetProfile = {
+  schemaVersion: 1,
+  profileId: 'portable-ascii-casefold-v1',
+  encoding: 'US-ASCII',
+  pathSyntax: 'relative POSIX slash-separated',
+  allowedSegmentPattern: '^(?!.*\\.$)[A-Za-z0-9._-]{1,100}$',
+  maxSegmentBytes: 100,
+  maxPathBytes: 240,
+  collisionKey: 'ASCII lowercase of the complete POSIX path',
+  fileAncestorCollision: 'forbidden',
+  reservedBasenames: ['aux', 'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9', 'con', 'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9', 'nul', 'prn'],
+}
 
 function fixture() {
   const work = mkdtempSync(join(target, 'case-'))
@@ -31,13 +43,28 @@ function fixture() {
     chmodSync(join(source, path), mode === '100755' ? 0o755 : 0o644)
   }
   const universe = files.map(([path, bytes, mode]) => ({ schemaVersion: 1, path, sha256: sha(bytes), bytes: bytes.length, mode }))
-  const authority = { decisionId: 'loss-audit-7', revision: '3', receiptSha256: 'a'.repeat(64) }
-  const manifest = [
-    { schemaVersion: 1, sourcePath: 'canonical.txt', disposition: 'copy-exact', successorPath: 'skills/canonical.txt', generatedFrom: null, authority },
-    { schemaVersion: 1, sourcePath: 'alias.txt', disposition: 'regenerate-alias', successorPath: null, generatedFrom: 'canonical.txt', authority },
-    { schemaVersion: 1, sourcePath: 'bin/keep.sh', disposition: 'copy-exact', successorPath: 'bin/keep.sh', generatedFrom: null, authority },
-    { schemaVersion: 1, sourcePath: 'history/old.md', disposition: 'omit-approved', successorPath: null, generatedFrom: null, authority },
+  const manifestBase = [
+    { schemaVersion: 1, sourcePath: 'canonical.txt', disposition: 'copy-exact', successorPath: 'skills/canonical.txt', generatedFrom: null },
+    { schemaVersion: 1, sourcePath: 'alias.txt', disposition: 'regenerate-alias', successorPath: null, generatedFrom: 'canonical.txt' },
+    { schemaVersion: 1, sourcePath: 'bin/keep.sh', disposition: 'copy-exact', successorPath: 'bin/keep.sh', generatedFrom: null },
+    { schemaVersion: 1, sourcePath: 'history/old.md', disposition: 'omit-approved', successorPath: null, generatedFrom: null },
   ]
+  const authorityReceipts = manifestBase.map((row, index) => ({
+    schemaVersion: 1,
+    decisionId: `loss-audit-${index + 1}`,
+    revision: '3',
+    scope: { sourceId: 'unrelated-project', revision: 'frozen-1', sourcePath: row.sourcePath },
+    disposition: row.disposition,
+    authorized: true,
+    authorizerId: 'owner-a',
+    limitations: [],
+  }))
+  const authorityRawRows = authorityReceipts.map((row) => Buffer.from(JSON.stringify(row)))
+  const fixtureTargetProfile = structuredClone(targetProfile)
+  const manifest = manifestBase.map((row, index) => ({
+    ...row,
+    authority: { decisionId: authorityReceipts[index].decisionId, revision: authorityReceipts[index].revision, receiptSha256: sha(authorityRawRows[index]) },
+  }))
   const universeBytes = jsonl(universe)
   const manifestBytes = jsonl(manifest)
   const approval = {
@@ -60,11 +87,50 @@ function fixture() {
     authorization: { exportAuthorized: true, approvalSha256: sha(approvalBytes) },
     blockers: [],
   }
-  return { work, source, universe, manifest, approval, lossAudit, universeBytes, manifestBytes, approvalBytes, lossAuditBytes: json(lossAudit) }
+  return {
+    work,
+    source,
+    universe,
+    manifest,
+    approval,
+    lossAudit,
+    authorityReceipts,
+    targetProfile: fixtureTargetProfile,
+    universeBytes,
+    manifestBytes,
+    approvalBytes,
+    lossAuditBytes: json(lossAudit),
+    authorityReceiptsBytes: Buffer.concat(authorityRawRows.flatMap((row) => [row, Buffer.from('\n')])),
+    targetProfileBytes: json(fixtureTargetProfile),
+  }
 }
 
 function audit(f) {
-  return auditSuccessor({ sourceRoot: f.source, universeBytes: f.universeBytes, manifestBytes: f.manifestBytes, lossAuditBytes: f.lossAuditBytes, approvalBytes: f.approvalBytes })
+  return auditSuccessor({ sourceRoot: f.source, universeBytes: f.universeBytes, manifestBytes: f.manifestBytes, lossAuditBytes: f.lossAuditBytes, approvalBytes: f.approvalBytes, authorityReceiptsBytes: f.authorityReceiptsBytes, targetProfileBytes: f.targetProfileBytes })
+}
+
+function materializeArgs(f, outputPath) {
+  return { sourceRoot: f.source, universeBytes: f.universeBytes, manifestBytes: f.manifestBytes, lossAuditBytes: f.lossAuditBytes, approvalBytes: f.approvalBytes, authorityReceiptsBytes: f.authorityReceiptsBytes, targetProfileBytes: f.targetProfileBytes, outputPath }
+}
+
+function rebind(f) {
+  f.universeBytes = jsonl(f.universe)
+  f.manifestBytes = jsonl(f.manifest)
+  f.approval.universeSha256 = sha(f.universeBytes)
+  f.approval.manifestSha256 = sha(f.manifestBytes)
+  f.approvalBytes = json(f.approval)
+  f.lossAudit.source = { ...f.lossAudit.source, universeSha256: sha(f.universeBytes), pathCount: f.universe.length }
+  f.lossAudit.manifest = { sha256: sha(f.manifestBytes), pathCount: f.manifest.length }
+  f.lossAudit.authorization.approvalSha256 = sha(f.approvalBytes)
+  f.lossAuditBytes = json(f.lossAudit)
+}
+
+function replaceAuthorityReceipt(f, index, update) {
+  update(f.authorityReceipts[index])
+  const rawRows = f.authorityReceipts.map((row) => Buffer.from(JSON.stringify(row)))
+  f.authorityReceiptsBytes = Buffer.concat(rawRows.flatMap((row) => [row, Buffer.from('\n')]))
+  f.manifest[index].authority.receiptSha256 = sha(rawRows[index])
+  rebind(f)
 }
 
 test('exact complete approval verifies without writing', () => {
@@ -75,12 +141,15 @@ test('exact complete approval verifies without writing', () => {
   assert.deepEqual(result.result.counts, { 'copy-exact': 2, 'omit-approved': 1, 'regenerate-alias': 1 })
   assert.deepEqual(lstatSync(f.work).isDirectory(), true)
   assert.equal(existsSync(join(f.work, 'successor')), false)
+  assert.match(result.result.limitations[0], /^TRUST BOUNDARY:.*trusted.*quiescent.*not descriptor-relative/iu)
+  assert.equal(result.result.bindings.targetFilesystem.profileId, 'portable-ascii-casefold-v1')
+  assert.equal(result.result.bindings.authorityReceipts.receipts, f.manifest.length)
 })
 
 test('materialization is a new exact tree with reverse evidence, leaving source intact', () => {
   const f = fixture()
   const output = join(f.work, 'successor')
-  const result = materializeSuccessor(audit(f), { sourceRoot: f.source, universeBytes: f.universeBytes, manifestBytes: f.manifestBytes, lossAuditBytes: f.lossAuditBytes, approvalBytes: f.approvalBytes, outputPath: output })
+  const result = materializeSuccessor(audit(f), materializeArgs(f, output))
   assert.equal(result.status, 'materialized')
   assert.equal(readFileSync(join(output, 'skills/canonical.txt'), 'utf8'), 'one canonical idea\n')
   assert.equal(readFileSync(join(output, 'bin/keep.sh'), 'utf8'), '#!/bin/sh\necho safe\n')
@@ -91,6 +160,8 @@ test('materialization is a new exact tree with reverse evidence, leaving source 
   assert.deepEqual(readFileSync(join(output, '.harbor-reconciliation/successor-manifest.jsonl')), f.manifestBytes)
   assert.deepEqual(readFileSync(join(output, '.harbor-reconciliation/universe.jsonl')), f.universeBytes)
   assert.deepEqual(readFileSync(join(output, '.harbor-reconciliation/approval.json')), f.approvalBytes)
+  assert.deepEqual(readFileSync(join(output, '.harbor-reconciliation/authority-receipts.jsonl')), f.authorityReceiptsBytes)
+  assert.deepEqual(readFileSync(join(output, '.harbor-reconciliation/target-filesystem-profile.json')), f.targetProfileBytes)
 })
 
 test('materialization re-audits exact declarations instead of trusting a mutable prior result', () => {
@@ -98,7 +169,7 @@ test('materialization re-audits exact declarations instead of trusting a mutable
   const verified = audit(f)
   verified.rows.manifest[0].sourcePath = 'history/old.md'
   const output = join(f.work, 'successor-after-mutated-result')
-  const result = materializeSuccessor(verified, { sourceRoot: f.source, universeBytes: f.universeBytes, manifestBytes: f.manifestBytes, lossAuditBytes: f.lossAuditBytes, approvalBytes: f.approvalBytes, outputPath: output })
+  const result = materializeSuccessor(verified, materializeArgs(f, output))
   assert.equal(result.status, 'materialized')
   assert.equal(readFileSync(join(output, 'skills/canonical.txt'), 'utf8'), 'one canonical idea\n')
 })
@@ -267,10 +338,10 @@ test('symlinked source files are not followed', () => {
 test('output must be absent, separate and non-nested', () => {
   const f = fixture()
   const verified = audit(f)
-  assert.throws(() => materializeSuccessor(verified, { sourceRoot: f.source, universeBytes: f.universeBytes, manifestBytes: f.manifestBytes, lossAuditBytes: f.lossAuditBytes, approvalBytes: f.approvalBytes, outputPath: join(f.source, 'nested') }), /separate/u)
+  assert.throws(() => materializeSuccessor(verified, materializeArgs(f, join(f.source, 'nested'))), /separate/u)
   const existing = join(f.work, 'existing')
   mkdirSync(existing)
-  assert.throws(() => materializeSuccessor(verified, { sourceRoot: f.source, universeBytes: f.universeBytes, manifestBytes: f.manifestBytes, lossAuditBytes: f.lossAuditBytes, approvalBytes: f.approvalBytes, outputPath: existing }), /must not already exist/u)
+  assert.throws(() => materializeSuccessor(verified, materializeArgs(f, existing)), /must not already exist/u)
 })
 
 test('CLI verifies on stdout and materializes only with the explicit paired flags', () => {
@@ -279,11 +350,15 @@ test('CLI verifies on stdout and materializes only with the explicit paired flag
   const manifest = join(f.work, 'manifest.jsonl')
   const lossAudit = join(f.work, 'loss-audit.json')
   const approval = join(f.work, 'approval.json')
+  const authorityReceipts = join(f.work, 'authority-receipts.jsonl')
+  const targetProfilePath = join(f.work, 'target-filesystem-profile.json')
   writeFileSync(universe, f.universeBytes)
   writeFileSync(manifest, f.manifestBytes)
   writeFileSync(lossAudit, f.lossAuditBytes)
   writeFileSync(approval, f.approvalBytes)
-  const args = ['--source', f.source, '--universe', universe, '--manifest', manifest, '--loss-audit', lossAudit, '--approval', approval]
+  writeFileSync(authorityReceipts, f.authorityReceiptsBytes)
+  writeFileSync(targetProfilePath, f.targetProfileBytes)
+  const args = ['--source', f.source, '--universe', universe, '--manifest', manifest, '--loss-audit', lossAudit, '--approval', approval, '--authority-receipts', authorityReceipts, '--target-profile', targetProfilePath]
   const verified = JSON.parse(execFileSync(process.execPath, [cli, ...args], { encoding: 'utf8' }))
   assert.equal(verified.pass, true)
   const bad = spawnSync(process.execPath, [cli, ...args, '--output', join(f.work, 'bad')], { encoding: 'utf8' })
@@ -299,4 +374,106 @@ test('unknown declaration properties fail instead of being ignored', () => {
   const f = fixture()
   f.manifest[0].surprise = true
   assert.throws(() => auditSuccessor({ ...f, sourceRoot: f.source, manifestBytes: jsonl(f.manifest) }), /unknown or missing properties/u)
+})
+
+test('duplicate JSON object keys are rejected at depth after escape decoding', () => {
+  const f = fixture()
+  const approvalText = f.approvalBytes.toString('utf8').replace(
+    '"scope":{"sourceId":"unrelated-project",',
+    '"scope":{"sourceId":"unrelated-project","\\u0073ourceId":"forged",',
+  )
+  assert.throws(() => auditSuccessor({ ...f, sourceRoot: f.source, approvalBytes: Buffer.from(approvalText) }), /duplicate JSON object key "sourceId"/u)
+
+  const manifestText = f.manifestBytes.toString('utf8').replace(
+    '"authority":{"decisionId":',
+    '"authority":{"decisionId":"forged","\\u0064ecisionId":',
+  )
+  assert.throws(() => auditSuccessor({ ...f, sourceRoot: f.source, manifestBytes: Buffer.from(manifestText) }), /duplicate JSON object key "decisionId"/u)
+
+  const receiptText = f.authorityReceiptsBytes.toString('utf8').replace(
+    '"scope":{"sourceId":"unrelated-project",',
+    '"scope":{"sourceId":"unrelated-project","\\u0073ourceId":"forged",',
+  )
+  assert.throws(() => auditSuccessor({ ...f, sourceRoot: f.source, authorityReceiptsBytes: Buffer.from(receiptText) }), /duplicate JSON object key "sourceId"/u)
+})
+
+test('authority receipt bundle must be complete, exact and contain no extras', () => {
+  const missing = fixture()
+  missing.authorityReceiptsBytes = jsonl(missing.authorityReceipts.slice(1))
+  let result = audit(missing).result
+  assert.equal(result.pass, false)
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /missing/u.test(entry.message)))
+
+  const extra = fixture()
+  const extraReceipt = { ...extra.authorityReceipts[0], decisionId: 'unreferenced-decision' }
+  extra.authorityReceiptsBytes = Buffer.concat([extra.authorityReceiptsBytes, Buffer.from(`${JSON.stringify(extraReceipt)}\n`)])
+  result = audit(extra).result
+  assert.equal(result.pass, false)
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /unreferenced/u.test(entry.message)))
+
+  const byteDrift = fixture()
+  byteDrift.authorityReceiptsBytes = Buffer.from(byteDrift.authorityReceiptsBytes.toString('utf8').replace('"schemaVersion":1', '"schemaVersion" : 1'))
+  result = audit(byteDrift).result
+  assert.equal(result.pass, false)
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /missing/u.test(entry.message)))
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /unreferenced/u.test(entry.message)))
+
+  const reused = fixture()
+  reused.manifest[1].authority = { ...reused.manifest[0].authority }
+  rebind(reused)
+  result = audit(reused).result
+  assert.equal(result.pass, false)
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /reuses/u.test(entry.message)))
+})
+
+test('each authority receipt is bound to decision, revision, source scope and disposition', () => {
+  const mutations = [
+    (row) => { row.decisionId = 'different-decision' },
+    (row) => { row.revision = 'different-revision' },
+    (row) => { row.scope.sourceId = 'different-source' },
+    (row) => { row.scope.revision = 'different-source-revision' },
+    (row) => { row.scope.sourcePath = 'alias.txt' },
+    (row) => { row.disposition = 'omit-approved' },
+  ]
+  for (const mutation of mutations) {
+    const f = fixture()
+    replaceAuthorityReceipt(f, 0, mutation)
+    const result = audit(f).result
+    assert.equal(result.pass, false)
+    assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && entry.path === 'canonical.txt'))
+  }
+})
+
+test('target filesystem profile is exact and enforces ASCII alphabet and byte ceilings', () => {
+  const changedProfile = fixture()
+  changedProfile.targetProfile.maxPathBytes = 4096
+  changedProfile.targetProfileBytes = json(changedProfile.targetProfile)
+  assert.throws(() => audit(changedProfile), /must exactly match supported profile/u)
+
+  for (const successorPath of ['skills/café.txt', `${'a'.repeat(101)}.txt`, `${'a'.repeat(90)}/${'b'.repeat(90)}/${'c'.repeat(90)}.txt`]) {
+    const f = fixture()
+    f.manifest[0].successorPath = successorPath
+    rebind(f)
+    assert.throws(() => audit(f), /target profile portable-ascii-casefold-v1/u)
+  }
+})
+
+test('source census skips only exact top-level .git and accounts for case variants', () => {
+  const exact = fixture()
+  mkdirSync(join(exact.source, '.git'))
+  writeFileSync(join(exact.source, '.git/ignored'), 'git metadata\n')
+  assert.equal(audit(exact).result.pass, true)
+
+  const caseVariant = fixture()
+  mkdirSync(join(caseVariant.source, '.GIT'))
+  writeFileSync(join(caseVariant.source, '.GIT/not-ignored'), 'ordinary source content\n')
+  const result = audit(caseVariant).result
+  assert.equal(result.pass, false)
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-COVERAGE' && entry.path === 'universe'))
+})
+
+test('source census uses bounded directory iteration rather than whole-directory reads', () => {
+  const implementation = readFileSync(cli, 'utf8')
+  assert.match(implementation, /opendirSync/u)
+  assert.doesNotMatch(implementation, /readdirSync/u)
 })

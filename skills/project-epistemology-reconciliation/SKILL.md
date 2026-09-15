@@ -123,12 +123,17 @@ node scripts/successor_export.mjs --source /absolute/source-repo \
   --universe /absolute/universe.jsonl \
   --manifest /absolute/successor-manifest.jsonl \
   --loss-audit /absolute/loss-audit.json \
-  --approval /absolute/approval.json
+  --approval /absolute/approval.json \
+  --authority-receipts /absolute/authority-receipts.jsonl \
+  --target-profile /absolute/target-filesystem-profile.json
 node --test tests/successor_export.test.mjs
 ```
 
 Add `--materialize --output /absolute/absent-successor-tree` only for the
-approved write. A verified manifest does not mean its semantic choices are good;
+approved write. Every disposition must bind one separately supplied exact
+source-scoped authority-receipt row, and the target profile must exactly match
+the supported `portable-ascii-casefold-v1` contract. A verified manifest does
+not mean its semantic choices are good;
 it means the supplied declarations are complete, mutually bound and consistent
 with the current source bytes.
 

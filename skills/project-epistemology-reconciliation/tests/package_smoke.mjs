@@ -60,7 +60,7 @@ writeFileSync(receiptPath, JSON.stringify({
   rejectedAttempts: []
 }))
 const reviewBin = join(tools, 'node_modules/.bin/harbor-review-audit')
-const review = JSON.parse(execFileSync(process.execPath, ['--import', guard, reviewBin, '--source', sourcePath, '--contract', contractPath, '--receipt', receiptPath], { cwd: tools, encoding: 'utf8', timeout: 30000 }))
+const review = JSON.parse(execFileSync(process.execPath, ['--import', guard, reviewBin, '--source', sourcePath, '--source-id', 'unrelated-repo', '--source-revision', '1', '--source-path', 'decision.md', '--contract', contractPath, '--receipt', receiptPath], { cwd: tools, encoding: 'utf8', timeout: 30000 }))
 assert.equal(review.pass, true)
 assert.equal(review.eligibleStatus, 'agent-reviewed')
 
@@ -75,11 +75,34 @@ const universeBytes = Buffer.from([
   JSON.stringify({ schemaVersion: 1, path: 'keep.txt', sha256: digest(retained), bytes: retained.length, mode: '100644' }),
   JSON.stringify({ schemaVersion: 1, path: 'old.txt', sha256: digest(historical), bytes: historical.length, mode: '100644' }),
 ].join('\n') + '\n')
-const authority = { decisionId: 'loss-audit-1', revision: '1', receiptSha256: 'a'.repeat(64) }
+const authorityReceiptRows = ['keep.txt', 'old.txt'].map((sourcePath, index) => ({
+  schemaVersion: 1,
+  decisionId: `loss-audit-${index + 1}`,
+  revision: '1',
+  scope: { sourceId: 'unrelated-successor', revision: 'frozen-1', sourcePath },
+  disposition: index === 0 ? 'copy-exact' : 'omit-approved',
+  authorized: true,
+  authorizerId: 'owner-a',
+  limitations: ['Offline exact-copy smoke fixture.'],
+}))
+const authorityReceiptRawRows = authorityReceiptRows.map((row) => Buffer.from(JSON.stringify(row)))
+const authorityReceiptsBytes = Buffer.concat(authorityReceiptRawRows.flatMap((row) => [row, Buffer.from('\n')]))
 const manifestBytes = Buffer.from([
-  JSON.stringify({ schemaVersion: 1, sourcePath: 'keep.txt', disposition: 'copy-exact', successorPath: 'core/keep.txt', generatedFrom: null, authority }),
-  JSON.stringify({ schemaVersion: 1, sourcePath: 'old.txt', disposition: 'omit-approved', successorPath: null, generatedFrom: null, authority }),
+  JSON.stringify({ schemaVersion: 1, sourcePath: 'keep.txt', disposition: 'copy-exact', successorPath: 'core/keep.txt', generatedFrom: null, authority: { decisionId: 'loss-audit-1', revision: '1', receiptSha256: digest(authorityReceiptRawRows[0]) } }),
+  JSON.stringify({ schemaVersion: 1, sourcePath: 'old.txt', disposition: 'omit-approved', successorPath: null, generatedFrom: null, authority: { decisionId: 'loss-audit-2', revision: '1', receiptSha256: digest(authorityReceiptRawRows[1]) } }),
 ].join('\n') + '\n')
+const targetProfileBytes = Buffer.from(`${JSON.stringify({
+  schemaVersion: 1,
+  profileId: 'portable-ascii-casefold-v1',
+  encoding: 'US-ASCII',
+  pathSyntax: 'relative POSIX slash-separated',
+  allowedSegmentPattern: '^(?!.*\\.$)[A-Za-z0-9._-]{1,100}$',
+  maxSegmentBytes: 100,
+  maxPathBytes: 240,
+  collisionKey: 'ASCII lowercase of the complete POSIX path',
+  fileAncestorCollision: 'forbidden',
+  reservedBasenames: ['aux', 'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9', 'con', 'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9', 'nul', 'prn'],
+})}\n`)
 const successorApproval = {
   schemaVersion: 1, action: 'materialize-successor', decisionId: 'owner-approval-1', revision: '1',
   manifestSha256: digest(manifestBytes), universeSha256: digest(universeBytes), granted: true,
@@ -98,19 +121,27 @@ const universePath = join(work, 'universe.jsonl')
 const manifestPath = join(work, 'manifest.jsonl')
 const lossAuditPath = join(work, 'loss-audit.json')
 const approvalPath = join(work, 'approval.json')
+const authorityReceiptsPath = join(work, 'authority-receipts.jsonl')
+const targetProfilePath = join(work, 'target-filesystem-profile.json')
 writeFileSync(universePath, universeBytes)
 writeFileSync(manifestPath, manifestBytes)
 writeFileSync(lossAuditPath, lossAuditBytes)
 writeFileSync(approvalPath, approvalBytes)
+writeFileSync(authorityReceiptsPath, authorityReceiptsBytes)
+writeFileSync(targetProfilePath, targetProfileBytes)
 const successorBin = join(tools, 'node_modules/.bin/harbor-successor-export')
 const successor = JSON.parse(execFileSync(process.execPath, ['--import', guard, successorBin,
   '--source', successorSource, '--universe', universePath, '--manifest', manifestPath,
-  '--loss-audit', lossAuditPath, '--approval', approvalPath, '--materialize', '--output', successorOutput,
+  '--loss-audit', lossAuditPath, '--approval', approvalPath,
+  '--authority-receipts', authorityReceiptsPath, '--target-profile', targetProfilePath,
+  '--materialize', '--output', successorOutput,
 ], { cwd: tools, encoding: 'utf8', timeout: 30000 }))
 assert.equal(successor.status, 'materialized')
 assert.equal(readFileSync(join(successorOutput, 'core/keep.txt'), 'utf8'), 'irreplaceable mechanism\n')
 assert.equal(readFileSync(join(successorSource, 'old.txt'), 'utf8'), 'approved historical omission\n')
 assert.equal(readFileSync(join(successorOutput, '.harbor-reconciliation/approval.json'), 'utf8'), approvalBytes.toString())
+assert.equal(readFileSync(join(successorOutput, '.harbor-reconciliation/authority-receipts.jsonl'), 'utf8'), authorityReceiptsBytes.toString())
+assert.equal(readFileSync(join(successorOutput, '.harbor-reconciliation/target-filesystem-profile.json'), 'utf8'), targetProfileBytes.toString())
 const lock = JSON.parse(readFileSync(join(tools, 'package-lock.json'), 'utf8'))
 assert.deepEqual(Object.keys(lock.packages).sort(), ['', 'node_modules/@curiositech/harbor-inventory'])
 console.log(JSON.stringify({ status: 'passed', node: process.version, tarball: join(work, packed.filename), integrity: packed.integrity, packageBytes: packed.size, unpackedBytes: packed.unpackedSize, files: expected, installedArtifacts: report.inventory.total, reviewReceiptPass: review.pass, successorStatus: successor.status, dependencyCount: 0, networkAndSubprocessGuards: 'installed CLIs only; npm invoked separately with offline and ignore-scripts' }, null, 2))

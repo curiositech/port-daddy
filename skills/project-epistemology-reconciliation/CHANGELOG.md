@@ -5,26 +5,32 @@
 - Added a dependency-free successor-tree verifier and explicitly authorized
   materializer for complete, independently enumerated source universes.
 - Required exact universe, manifest, loss-audit and separate approval byte
-  bindings; unresolved blockers and absent authorization remain held.
+  bindings plus one exact source-scoped authority receipt per disposition;
+  unresolved blockers, missing receipts and absent authorization remain held.
 - Supported only exact copies, byte-identical regenerated installation aliases
   and explicitly approved omissions. Content transformation remains out of
   scope rather than becoming an unreviewed rewrite path.
-- Refused source symlinks, Git metadata, output overwrites, nested source/output
-  trees, portable path collisions and executable-mode drift.
+- Refused source symlinks, exact top-level Git metadata, output overwrites,
+  nested source/output trees, duplicate JSON keys, executable-mode drift and
+  paths outside the explicit `portable-ascii-casefold-v1` profile.
 - Independently censused the source tree so mutually incomplete declarations
-  cannot manufacture complete coverage.
+  cannot manufacture complete coverage; streamed large directories within the
+  declared entry bound.
 - Atomically reserved an absent output name before writing and retained a
   visible incomplete marker on failure, rather than clobbering a late-created
-  destination. The original source is never changed.
+  destination. The trust boundary now explicitly requires a locally controlled,
+  quiescent source and output parent because Node lacks descriptor-relative traversal.
 
 ## 0.4.0 — 2026-09-14
 
 - Added a dependency-free semantic-review receipt auditor bound to exact local
   source bytes and line-range digests.
+- Required a separately supplied expected source ID, revision and path; receipt
+  provenance can no longer choose its own binding.
 - Required distinct declared extraction, semantic-review and quality-review
   identities before promotion to `agent-reviewed`.
 - Failed closed on incomplete field coverage, rejected quality, stale anchors,
-  partial source reads and malformed receipt shapes.
+  partial source reads, duplicate JSON keys and malformed receipt shapes.
 - Bound promotion to a separately supplied review contract and returned exact
   source, contract and receipt digests; bounded CLI reads to regular files.
 - Preserved rejected attempts and documented that the receipt does not prove

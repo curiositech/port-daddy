@@ -12,5 +12,5 @@
     "harbor-successor-export": "scripts/successor_export.mjs"
   },
   "files": ["scripts/inventory.mjs", "scripts/artifact_inventory.mjs", "scripts/review_receipt.mjs", "scripts/successor_export.mjs", "README.md", "LICENSE"],
-  "scripts": { "test": "node --test tests/artifact_inventory.test.mjs tests/review_receipt.test.mjs tests/successor_export.test.mjs" }
+  "scripts": { "test": "node --test tests/artifact_inventory.test.mjs tests/harbor_clearance.test.mjs tests/review_receipt.test.mjs tests/successor_export.test.mjs" }
 }
