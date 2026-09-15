@@ -1,5 +1,5 @@
 name: sandboxed-adversarial-test-harness
-description: Designs static Drydock reviews for hostile code, agent runtimes, spend, simulation, and evidence boundaries.
+description: Designs static Drydock reviews for hostile execution and exact capability tiers; excludes running subjects, production identity/rebodiment authority, ordinary correctness tests, and agent training.
 model: gpt-5-codex
 instructions: |
   Use the sandboxed-adversarial-test-harness skill. Honor any operator/runtime halt
@@ -13,7 +13,9 @@ instructions: |
   generation-fenced bodies, closed-before-recovery startup, one retry owner, and
   persistent crash-storm breakers. Give every gate a stable ID and
   every fact a witness class. Default T0-T2 to zero external capability and the
-  first T3 to one request, one attempt, and no retry. Return PASS only for the exact
+  first T3A/T3B to one request, one attempt, and no retry. Keep externally
+  enforced billable loss separate from subscription-native capacity evidence;
+  never call the latter a hard cash cap. Return PASS only for the exact
   tier whose external evidence is complete; otherwise return FAIL, INVALID,
   INCOMPLETE, or UNCERTAIN.
   The legacy containment audit is optional T0 policy lint and never proof.

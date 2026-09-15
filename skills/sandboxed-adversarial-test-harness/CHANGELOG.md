@@ -1,5 +1,22 @@
 # Sandboxed Adversarial Test Harness — Changelog
 
+## v2.4.0 (2026-09-11)
+
+- Split real-provider proof into T3A billable custody and T3B subscription-native
+  capacity so an allowance reservation is never mislabeled a hard cash cap.
+- Made resurrection plans and capacity evidence explicit optional inputs owned by
+  their paired skills; Drydock only falsifies one implementation and tier.
+- Removed parallel embodiment: one AgentNode/WorkEpisode has one transcript and
+  effect writer; parallel work uses child nodes or effect-incapable replicas.
+
+## v2.3.0 (2026-09-11)
+
+- Added subscription-capacity as a separately proved bound rather than treating
+  zero marginal cash as free execution.
+- Required native allowance windows, authentication mode, reset horizon,
+  reserves, forecast uncertainty, and `CAPACITY_OBSERVED` evidence.
+- Tightened the first real canary to one attempt with no retry.
+
 ## v2.2.0 (2026-09-08)
 
 - Added an Agent Lifecycle Ledger discipline that separates durable worker,
