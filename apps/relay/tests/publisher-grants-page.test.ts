@@ -93,6 +93,7 @@ describe('publisher grant operator surface', () => {
     expect(body).not.toContain(OTHER_FP.slice(0, 16));
     expect(body).not.toContain('efefefefefefefef');
     expect(body).toContain('App installation 42');
+    expect(body).toContain('name="branch_allow" required value="pd-agent/"');
   });
 
   it('creates an exact, bounded grant and confirms it by readback', async () => {
