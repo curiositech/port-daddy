@@ -12,7 +12,12 @@ import {
   type PdfFacts,
 } from '../../scripts/check-whitepaper-metadata'
 import { COLLECTED_VOLUME, TABLE_OF_CONTENTS, TEXTBOOK, WHITE_PAPERS } from './whitePapers'
-import { prunePagesOnlyAssets } from '../../scripts/prune-pages-assets.mjs'
+import {
+  PAGES_MAX_ASSET_BYTES,
+  PAGES_ONLY_EXCLUSIONS,
+  oversizedPagesAssets,
+  prunePagesOnlyAssets,
+} from '../../scripts/prune-pages-assets.mjs'
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
@@ -258,19 +263,59 @@ describe('whitepaper metadata sync', () => {
 })
 
 describe('Pages deployment boundary', () => {
-  test('only the oversized collected-volume duplicate is pruned from dist', () => {
+  /**
+   * This suite used to assert the opposite: that the collected volume was
+   * pruned from `dist`, described as "the oversized collected-volume
+   * duplicate". It is not oversized. The PDF is 9,740,631 bytes — 9.29 MiB
+   * against Cloudflare's 25 MiB per-asset limit — and the exclusion meant
+   * production answered its URL with the SPA shell (HTTP 200, `text/html`,
+   * 4,829 bytes, byte-identical to a nonexistent path). The test passed the
+   * whole time, because it only ever checked that the list did what the list
+   * said, never that the list's premise was true.
+   *
+   * The replacement measures. Nothing is excluded by name; the guard reports
+   * files that really are at or over the limit.
+   */
+  test('nothing is excluded by name — the exclusion list is empty', () => {
+    expect(PAGES_ONLY_EXCLUSIONS).toEqual([])
+  })
+
+  test('the collected volume is far below the Pages per-asset limit', () => {
+    const abs = resolvePdfPath(COLLECTED_VOLUME.pdfPath)
+    const bytes = statSync(abs).size
+    expect(bytes).toBeLessThan(PAGES_MAX_ASSET_BYTES)
+    // Not a squeaker: it is under half the limit, so no rounding or
+    // MiB-vs-MB confusion can make the old exclusion retroactively correct.
+    expect(bytes).toBeLessThan(PAGES_MAX_ASSET_BYTES / 2)
+  })
+
+  test('no shipped public asset meets the Pages per-asset limit', () => {
+    expect(oversizedPagesAssets(resolve(websiteRoot, 'public'))).toEqual([])
+  })
+
+  test('the oversize guard measures real bytes rather than trusting a list', () => {
     const fixtureRoot = resolve(websiteRoot, '.cache/pages-prune-test')
     const whitepaperDir = resolve(fixtureRoot, 'whitepaper')
-    const collected = resolve(whitepaperDir, 'coordination-papers-mega-volume.pdf')
     const chapter = resolve(whitepaperDir, 'legible-swarm-whitepaper.pdf')
+    const huge = resolve(whitepaperDir, 'pretend-huge.bin')
     try {
       mkdirSync(whitepaperDir, { recursive: true })
-      writeFileSync(collected, 'full fidelity collected volume')
       writeFileSync(chapter, 'chapter remains on Pages')
+      writeFileSync(huge, Buffer.alloc(2048))
 
-      expect(prunePagesOnlyAssets(fixtureRoot)).toEqual([collected])
-      expect(existsSync(collected)).toBe(false)
+      // With an empty exclusion list, prune removes nothing at all.
+      expect(prunePagesOnlyAssets(fixtureRoot)).toEqual([])
       expect(existsSync(chapter)).toBe(true)
+      expect(existsSync(huge)).toBe(true)
+
+      // The guard reports by size, and reports the size it measured, so the
+      // "it is too big" claim can always be checked against the number.
+      expect(oversizedPagesAssets(fixtureRoot, 1024)).toEqual([
+        { path: 'whitepaper/pretend-huge.bin', bytes: 2048 },
+      ])
+      // Raise the limit past it and the same tree is clean — the verdict
+      // tracks the bytes, not a name.
+      expect(oversizedPagesAssets(fixtureRoot, 4096)).toEqual([])
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true })
     }

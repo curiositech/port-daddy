@@ -12,14 +12,14 @@
       "sha256": "cdfe4def3663b40e0e42a224fbe918715d4a1b0b869eaac7d43a7c4be50a1bed"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
-      "pages": 566,
-      "bytes": 9863971,
-      "sha256": "f6a9b1965756803c5fce4951f7c1ebcdd794a108dbae4ccb07e67a82e3c14f27"
+      "pages": 570,
+      "bytes": 9877086,
+      "sha256": "2be14d25afa5e1cfdab39c1ba59c3e87a002eefa71ff768d0dc84778968e5c1e"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 47,
-      "bytes": 824636,
-      "sha256": "e67c0f31d5efe3845aded25ca7967763581a332d7d73a61654bf19e9ea772fa6"
+      "bytes": 835836,
+      "sha256": "c6cd629ccfab82c1331f4753858062967187a955c08fdd1ca4822f59548e901a"
     },
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 51,

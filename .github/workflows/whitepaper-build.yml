@@ -12,6 +12,17 @@ name: Whitepaper PDF Build & Deploy
 #   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
 #       protected and should only ever receive fresh PDFs via merged PRs.
 #
+# The regen commit carries its own derived metadata. publication-digests.json
+# and whitePapers.ts record the byte length, SHA-256 and page count of each
+# committed PDF, so a commit that moves a PDF and leaves them behind publishes a
+# tree that fails its own tests. whitepaper-metadata.yml can heal that, but it is
+# a SEPARATE workflow run on the SAME event: on PR #10162 its heal finished at
+# 10:05 and this job pushed new PDFs at 10:10, and nothing re-healed — the regen
+# push is made with GITHUB_TOKEN, which by design starts no further workflow
+# runs. Four PDFs sat adrift until a person ran --fix by hand. So the heal now
+# happens HERE, between the render and the commit, and the artifact and the
+# record of it move in one commit or not at all.
+#
 # Builds are reproducible WITHIN one renderer version: build-whitepapers.sh pins
 # SOURCE_DATE_EPOCH per paper, so rebuilding unchanged source in the same
 # container is byte-identical, and timestamp noise is fully excluded.
@@ -48,7 +59,18 @@ on:
   # skipped job reports success — so this healing/advisory workflow can never
   # hang the merge queue, and no 30-min TeXLive build runs inside the queue.
   merge_group:
+  # The Book's refresh valve. Ordinary runs build it and throw it away (see
+  # "Keep the Book out of the diff" below); this is how a new Book is actually
+  # published. Dispatch it on a BRANCH cut from main, not on main itself: it
+  # commits the rebuilt Book and its derived metadata to that branch, which then
+  # opens one ordinary pull request. main stays protected and receives the Book
+  # the same way it receives everything else.
   workflow_dispatch:
+    inputs:
+      refresh_book:
+        description: 'Rebuild coordination-papers-mega-volume.pdf and commit it to this branch (do not run on main)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -205,33 +227,153 @@ jobs:
           path: |
             website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
 
-      - name: Commit rebuilt PDFs (same-repo branch)
-        # Heal configured feature-branch pushes and same-repository PR heads.
-        # Fork PRs retain a read-only token and stay advisory; main is protected
-        # and receives the already-healed artifact through the merge queue.
-        if: >-
-          (github.event_name == 'push' && github.ref_name != 'main') ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository)
+      # THE BOOK IS BUILT ON EVERY RUN AND COMMITTED ON ALMOST NONE.
+      #
+      # The Book collates every chapter, so ANY chapter edit moves this one
+      # binary. While PR runs committed it, every whitepaper PR carried a diff
+      # on the same ~9 MiB file -- and this repository merges by REBASE with
+      # linear history, which replays that commit onto a base whose copy has
+      # also moved. A binary has no hunks to merge, so the replay conflicts and
+      # the PR can only be landed by hand.
+      #
+      # Measured on 2026-09-14 across the open whitepaper cluster: 23 of 23 PRs
+      # touched this PDF, 23 touched publication-digests.json and 20 touched
+      # whitePapers.ts -- the same three files, every time, because the latter
+      # two only record this PDF's size and page count. One merge therefore
+      # conflicted the other 22, and merging the cluster was strictly serial at
+      # one PR per full rebuild.
+      #
+      # So the render still happens on every run (it is the only proof the Book
+      # still compiles, and the cover-band job above judges the page this step
+      # just made), but outside a deliberate refresh the artifact is restored
+      # before anything can stage it. Freezing the PDF also freezes its derived
+      # metadata for free: the --fix step and the digests both read the file on
+      # DISK, so a restored Book reproduces exactly the values already
+      # committed, and check-whitepaper-metadata stays green because it
+      # compares the record against the artifact, never against the .tex.
+      #
+      # The cost is that main's Book lags its sources between refreshes. That
+      # is deliberate and bounded: `workflow_dispatch` with refresh_book=true
+      # (and the weekly schedule) rebuilds it and opens ONE pull request, so
+      # the Book moves in a single reviewable commit instead of in 23 racing
+      # ones. Chapter PDFs are untouched by this rule -- they are chapter-
+      # scoped, and two PRs collide on one only when they edit the same
+      # chapter, which is a real conflict a person should see.
+      - name: Keep the Book out of the diff unless this run is its refresh
         env:
-          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+          REFRESHING_BOOK: ${{ github.event_name == 'workflow_dispatch' && inputs.refresh_book }}
         run: |
           set -euo pipefail
+          book=website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
+          if [ "$REFRESHING_BOOK" = "true" ]; then
+            echo "::notice::Book refresh run — the rebuilt Book will be committed."
+            exit 0
+          fi
+          if git diff --quiet -- "$book"; then
+            echo "Book render matches the committed artifact; nothing to restore."
+            exit 0
+          fi
+          git checkout -- "$book"
+          echo "::notice::Restored $book — it compiled, and it stays out of this diff. Run this workflow with refresh_book=true to publish a new Book."
+
+      # ONE decision, read by the four steps below. The loop-breaker subject and
+      # the may-this-job-commit condition each appear exactly once in this file,
+      # so healing, staging and committing can never disagree about whether this
+      # run is a regen that owns derived output.
+      - name: Decide whether this run has derived output to own
+        id: regen
+        env:
+          # Heal configured feature-branch pushes and same-repository PR heads.
+          # Fork PRs retain a read-only token and stay advisory; main is protected
+          # and receives the already-healed artifact through the merge queue.
+          # A refresh_book dispatch commits too, on the branch it was dispatched
+          # on -- that is the one path that publishes a new Book, and it is
+          # refused on main for the same reason every other write here is.
+          COMMITTABLE: ${{ (github.event_name == 'push' && github.ref_name != 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.refresh_book && github.ref_name != 'main') }}
+        run: |
+          set -euo pipefail
+          emit() { echo "carry=$1" >> "$GITHUB_OUTPUT"; echo "$2"; exit 0; }
+          if [ "$COMMITTABLE" != "true" ]; then
+            emit false "This event cannot commit (fork PR, or main) — the render stays advisory."
+          fi
           # Loop-breaker: never stack a second build commit on our own. This
           # bounds the build->commit->build chain to a single extra commit even
           # if a render is not perfectly reproducible, so no [skip ci] is needed
           # (and the resulting commit's PR/main checks see the fresh tree).
+          # Unchanged from when it guarded the commit step alone: the subject it
+          # matches is still the subject committed below, and it is still the
+          # ONLY subject this job skips on — a heal commit from
+          # whitepaper-metadata.yml does not match it and never has.
           case "$(git log -1 --format=%s)" in
             "build(whitepaper): regenerate PDFs from source"*)
-              echo "HEAD is already a build commit — nothing to do."; exit 0;;
+              emit false "HEAD is already a build commit — nothing to do.";;
           esac
           if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
-            echo "PDFs already match source — nothing to commit."; exit 0
+            emit false "PDFs already match source — nothing to commit."
           fi
+          emit true "The render moved a committed PDF; its derived metadata travels with it."
+
+      # pdfinfo reads the page count the digests record, and the metadata script
+      # is TypeScript. Both are installed only on the path that actually commits,
+      # so the ordinary no-op run still costs this job nothing.
+      - name: Install poppler (provides pdfinfo) in the TeX container
+        if: steps.regen.outputs.carry == 'true'
+        run: |
+          set -eu
+          command -v pdfinfo >/dev/null 2>&1 || (apt-get update && apt-get install -y poppler-utils)
+          pdfinfo -v 2>&1 | head -1 || true
+
+      - name: Install website-v2 dependencies (tsx and ts-morph for the metadata script)
+        if: steps.regen.outputs.carry == 'true'
+        working-directory: website-v2
+        env:
+          # The metadata script needs tsx, ts-morph and the two data modules.
+          # Nothing here opens a browser, and the download is ~100 MB of nothing.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm ci --no-audit --no-fund
+
+      - name: Carry the derived metadata onto the PDFs this job just built
+        # THE FIX. publication-digests.json, whitePapers.ts and researchPapers.ts
+        # are derived: page count, byte size and SHA-256 of the committed PDFs and
+        # nothing else. Staging a regenerated PDF without them commits a tree whose
+        # own tests fail on `expect(pdf.length).toBe(manifest.bytes)`. Recomputing
+        # here, before the commit, is the whole point: it can only restore the truth
+        # about what this job is about to stage, and the two can no longer be
+        # separated by a workflow boundary, a scheduling gap, or a push that starts
+        # no new run.
+        if: steps.regen.outputs.carry == 'true'
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          # `|| true` for the same reason whitepaper-metadata.yml gives: --fix
+          # returns non-zero on paths that are not failures. It is safe because
+          # the very next line is the gate — a crashed or partial --fix cannot
+          # reach the commit, because the plain check recomputes from the PDFs on
+          # disk and fails this job if anything is still adrift.
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts --fix ) || true
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts )
+
+      - name: Commit rebuilt PDFs and their derived metadata (same-repo branch)
+        if: steps.regen.outputs.carry == 'true'
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add website-v2/public/whitepaper/*.pdf
-          echo "Changed PDFs:"; git diff --cached --stat
+          # Every file --fix is allowed to write, so nothing it healed above can
+          # be left behind in the worktree while the PDF it describes ships.
+          # researchPapers.ts is in the list because --fix rewrites whole
+          # registries: this job never moves a research PDF, but if that registry
+          # was already adrift the step above healed it on disk, and a healed file
+          # that is not committed is the same lag this change exists to close.
+          git add -- website-v2/public/whitepaper/publication-digests.json \
+                     website-v2/src/data/whitePapers.ts \
+                     website-v2/src/data/researchPapers.ts
+          echo "Changed PDFs and the derived metadata that describes them:"
+          git diff --cached --stat
           git commit -m "build(whitepaper): regenerate PDFs from source"
           # The branch moves while the Book compiles -- five to eight minutes in
           # which a session can push four commits -- so a bare push loses the
