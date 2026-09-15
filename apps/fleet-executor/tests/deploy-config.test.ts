@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
 function readConfig(name: string): string {
   return readFileSync(`${APP_ROOT}/${name}`, 'utf8');
@@ -23,6 +24,14 @@ function producerBlock(config: string, binding: string): string {
   expect(block, `missing ${binding} producer`).toBeDefined();
   return block!;
 }
+
+it('keeps production Fleet activation operator-started rather than merge-triggered', () => {
+  const workflow = readFileSync(`${REPO_ROOT}/.github/workflows/deploy-fleet-executor.yml`, 'utf8');
+  const triggers = workflow.match(/^on:\s*\n([\s\S]*?)^permissions:/m)?.[1];
+  expect(triggers, 'missing workflow trigger block').toBeDefined();
+  expect(triggers).toMatch(/^\s+workflow_dispatch:\s*$/m);
+  expect(triggers).not.toMatch(/^\s+push:\s*$/m);
+});
 
 describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contract', (name) => {
   it('keeps main-delivery throughput globally bounded without serializing every review', () => {

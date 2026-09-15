@@ -46,6 +46,29 @@ function fleetErr(code: string, error: string, status: number): Response {
   return envelope(status, { code, error });
 }
 
+const LEGACY_FLEET_PAUSE_KEY = 'fleet:paused';
+
+/**
+ * Read the rollback-era KV projection as a deny-only signal. A legacy paused
+ * value can expose a failed mirror after the canonical DO has resumed, but
+ * false, absent, malformed, or unreadable KV must never authorize work or
+ * contradict the canonical control state.
+ */
+async function legacyFleetPauseProjectionIsDenied(kv: KVNamespace): Promise<boolean> {
+  try {
+    const raw = await kv.get(LEGACY_FLEET_PAUSE_KEY);
+    if (raw === 'true') return true;
+    if (!raw || raw === 'false') return false;
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === 'object'
+      && parsed !== null
+      && !Array.isArray(parsed)
+      && (parsed as { paused?: unknown }).paused === true;
+  } catch {
+    return false;
+  }
+}
+
 function isSafeRunId(runId: string): boolean {
   return runId.trim() === runId && RUN_ID_RE.test(runId) && !runId.includes('..');
 }
@@ -182,19 +205,25 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
   if (authorization instanceof Response) return authorization;
 
   try {
-    const [control, lastAt, intentHealth] = await Promise.all([
+    const [control, lastAt, intentHealth, legacyPaused] = await Promise.all([
       getFleetControl(env),
       lastFleetRunAt(env.DB),
       fleetIntentHealth(env.DB),
+      legacyFleetPauseProjectionIsDenied(env.KV),
     ]);
+    // The legacy projection is deny-only. It cannot make an unknown or
+    // canonical pause look healthy, and it cannot make a false/missing/bad KV
+    // value override the Durable Object. It only surfaces the one dangerous
+    // mixed-version outcome: DO resumed, old executor projection still paused.
+    const legacyReadbackMismatch = control.status === 'unpaused' && legacyPaused;
     const lastRunAgeSec = lastAt === null ? null : Math.floor(Date.now() / 1000) - lastAt;
     return envelope(200, {
       code: 'OK',
       error: null,
-      paused: control.paused,
-      pauseStatus: control.status,
-      pauseRevision: control.revision,
-      automationBlocked: control.status !== 'unpaused',
+      paused: legacyReadbackMismatch ? null : control.paused,
+      pauseStatus: legacyReadbackMismatch ? 'unknown' : control.status,
+      pauseRevision: legacyReadbackMismatch ? null : control.revision,
+      automationBlocked: control.status !== 'unpaused' || legacyReadbackMismatch,
       lastRunAgeSec,
       // D1-known intents, not a promise of Cloudflare's exact internal queue
       // position.  The explicit estimate label prevents false precision while

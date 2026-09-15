@@ -27,8 +27,10 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   FLEET_TOKENS: KVNamespace;
   /**
-   * Relay's KV for Mediator reinjection and secondary flags. Global Fleet
-   * admission exclusively uses FLEET_CONTROL; cached false values grant nothing.
+   * Relay's KV for Mediator reinjection, secondary flags, and the temporary
+   * deny-only `fleet:paused` projection used during mixed-version rollout.
+   * Global admission still requires FLEET_CONTROL; cached false/missing values
+   * grant nothing, while an explicit true can only add a denial.
    */
   CONTROL_KV?: KVNamespace;
   /**

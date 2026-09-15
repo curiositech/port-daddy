@@ -177,7 +177,7 @@ describe('Fleet run admission ledger', () => {
     await markFleetRunIntentEnqueued(makeDb({ seen }), 'delivery-new', 1_010);
     const supersede = seen.find((entry) => entry.sql.includes("SET state = 'superseded'"));
     expect(supersede?.sql).toContain('generation <');
-    expect(supersede?.sql).toContain("state IN ('admitting', 'queued', 'running', 'retrying', 'waiting_for_control')");
+    expect(supersede?.sql).toContain("state IN ('admitting', 'queued', 'running', 'retrying')");
     expect(supersede?.bound).toContain('delivery-new');
   });
 });

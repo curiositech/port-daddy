@@ -159,7 +159,7 @@ describe('operator-authorized control recovery through actual Relay admission', 
     expect(await getFleetRunIntent(f.db, f.job.deliveryId)).toMatchObject({ state: 'queued' });
   });
 
-  it('preserves existing generations and separates old structured suspensions in the migration', () => {
+  it('preserves existing generations and retry evidence in the additive migration', () => {
     const { sqlite } = fleetLifecycleDb(database => {
       const insert = database.prepare(`INSERT INTO fleet_run_intents
         (delivery_id, repo_full_name, pr_number, pr_url, head_sha, event_type, generation, state, last_error)
@@ -168,11 +168,11 @@ describe('operator-authorized control recovery through actual Relay admission', 
       insert.run('provider', 2, 'retrying', 'provider 503');
       insert.run('review', 3, 'failure', 'model verdict');
     });
-    expect(sqlite.prepare('SELECT delivery_id, generation, state, control_wait_count FROM fleet_run_intents ORDER BY generation').all())
+    expect(sqlite.prepare('SELECT delivery_id, generation, state, control_waiting_at, control_wait_count FROM fleet_run_intents ORDER BY generation').all())
       .toEqual([
-        { delivery_id: 'suspended', generation: 1, state: 'waiting_for_control', control_wait_count: 1 },
-        { delivery_id: 'provider', generation: 2, state: 'retrying', control_wait_count: 0 },
-        { delivery_id: 'review', generation: 3, state: 'failure', control_wait_count: 0 },
+        { delivery_id: 'suspended', generation: 1, state: 'retrying', control_waiting_at: null, control_wait_count: 0 },
+        { delivery_id: 'provider', generation: 2, state: 'retrying', control_waiting_at: null, control_wait_count: 0 },
+        { delivery_id: 'review', generation: 3, state: 'failure', control_waiting_at: null, control_wait_count: 0 },
       ]);
     expect(() => sqlite.prepare("UPDATE fleet_run_intents SET state = 'invented'").run()).toThrow();
     sqlite.close();
@@ -181,6 +181,8 @@ describe('operator-authorized control recovery through actual Relay admission', 
   it('requires explicit consent, consumes it once, and resumes an acknowledged suspension', async () => {
     const f = setup();
     await f.suspend();
+    expect(f.sqlite.prepare('SELECT state, control_waiting_at FROM fleet_run_intents WHERE delivery_id = ?')
+      .get(f.job.deliveryId)).toMatchObject({ state: 'cancelled' });
     await f.webhook();
     expect(f.queued).toHaveLength(0);
     const unauthorized = await handleFleetControlRequeue(f.operatorRequest({ requestId: 'bad', expectedRevision: 2 }, 'wrong'), f.env, f.job.deliveryId);
@@ -199,6 +201,54 @@ describe('operator-authorized control recovery through actual Relay admission', 
     await f.authorize();
     await f.webhook();
     expect(f.queued).toHaveLength(0);
+    f.sqlite.close();
+  });
+
+  it('keeps legacy retrying suspension rows logically held until explicit consent', async () => {
+    const f = setup();
+    expect((await f.webhook()).status).toBe(204);
+    f.sqlite.prepare(`UPDATE fleet_run_intents
+      SET state = 'retrying', control_waiting_at = NULL,
+          last_error = 'Fleet suspended: legacy hold', control_wait_count = 1
+      WHERE delivery_id = ?`).run(f.job.deliveryId);
+    f.queued.length = 0;
+    expect((await getFleetRunIntent(f.db, f.job.deliveryId))?.state).toBe('waiting_for_control');
+    const health = await (await handleFleetHealth(f.operatorRequest(), f.env)).json() as Record<string, unknown>;
+    expect(health).toMatchObject({ waitingForControl: 1, retrying: 0, queueDepthEstimate: 0 });
+    await f.webhook();
+    expect(f.queued).toHaveLength(0);
+    expect((await f.authorize('legacy-resume')).status).toBe(200);
+    await f.webhook();
+    expect(f.queued).toHaveLength(1);
+    f.sqlite.close();
+  });
+
+  it('lets a durably queued newer generation supersede and clear an older control hold', async () => {
+    const f = setup();
+    await f.suspend();
+    expect((await f.webhook('replacement-delivery')).status).toBe(204);
+    expect(await getFleetRunIntent(f.db, f.job.deliveryId)).toMatchObject({
+      state: 'superseded', control_waiting_at: null, superseded_by: 'replacement-delivery',
+    });
+    const before = f.queued.length;
+    expect((await f.webhook()).status).toBe(204);
+    expect(f.queued).toHaveLength(before);
+    f.sqlite.close();
+  });
+
+  it('refuses to revive rollback residue after a newer generation already owns the PR', async () => {
+    const f = setup();
+    await f.suspend();
+    f.sqlite.prepare(`INSERT INTO fleet_run_intents
+      (delivery_id, repo_full_name, pr_number, pr_url, head_sha, event_type, action,
+       generation, state, queued_at, last_progress_at, finished_at)
+      VALUES ('newer-after-rollback', ?, ?, ?, 'NEWER', 'pull_request', 'synchronize',
+       2, 'success', 20, 21, 21)`)
+      .run(f.job.repoFullName, f.job.prNumber,
+        `https://github.com/${f.job.repoFullName}/pull/${f.job.prNumber}`);
+    const response = await f.authorize('stale-hold');
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'REQUEUE_CONFLICT' });
     f.sqlite.close();
   });
 

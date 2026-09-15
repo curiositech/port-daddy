@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS fleet_run_intents (
   generation         INTEGER NOT NULL,
   state              TEXT    NOT NULL DEFAULT 'admitting'
                              CHECK (state IN (
-                               'admitting', 'queued', 'running', 'retrying', 'waiting_for_control',
+                               'admitting', 'queued', 'running', 'retrying',
                                'superseded', 'enqueue_failed',
                                'success', 'failure', 'neutral', 'cancelled'
                              )),
@@ -159,8 +159,12 @@ CREATE TABLE IF NOT EXISTS fleet_run_intents (
   finished_at        INTEGER,
   superseded_by      TEXT,
   last_error         TEXT,
+  control_waiting_at INTEGER,
   control_wait_count INTEGER NOT NULL DEFAULT 0,
   requeue_revision   INTEGER,
+  continuation_sequence INTEGER NOT NULL DEFAULT 0,
+  pending_continuation_sequence INTEGER,
+  pending_continuation_at INTEGER,
   UNIQUE (repo_full_name, pr_number, generation)
 );
 CREATE INDEX IF NOT EXISTS fleet_run_intents_pr_generation_idx

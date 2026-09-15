@@ -580,14 +580,41 @@ export async function getFleetControl(env: Pick<Env, 'FLEET_CONTROL'>): Promise<
   return fleetControlRequest(env.FLEET_CONTROL, '/read');
 }
 
-/** Acknowledge only after the new monotonic revision has been committed. */
+const LEGACY_FLEET_PAUSE_KEY = 'fleet:paused';
+
+async function writeLegacyFleetPauseProjection(
+  kv: KVNamespace,
+  paused: boolean,
+  pausedAt: number,
+  revision?: number,
+): Promise<void> {
+  await kv.put(LEGACY_FLEET_PAUSE_KEY, JSON.stringify({
+    paused,
+    pausedAt,
+    ...(revision === undefined ? {} : { revision }),
+  }));
+}
+
+/**
+ * Acknowledge only after both the canonical revision and the legacy denial
+ * projection have accepted their writes. Pause writes KV first; resume writes
+ * the Durable Object first, so every partial local outcome biases toward OFF.
+ * KV is eventually consistent and therefore cannot prove a mixed-version
+ * global stop. Release safety still requires the Durable-Object-aware executor
+ * at 100% traffic and forbids rollback below that control-contract floor.
+ */
 export async function setFleetPaused(
-  env: Pick<Env, 'FLEET_CONTROL'>,
+  env: Pick<Env, 'FLEET_CONTROL' | 'KV'>,
   paused: boolean,
   resume?: { expectedRevision: number; requestId: string },
 ): Promise<FleetControlState & { paused: boolean }> {
+  const projectedAt = Math.floor(Date.now() / 1000);
+  if (paused) {
+    await writeLegacyFleetPauseProjection(env.KV, true, projectedAt);
+  }
   const state = await fleetControlRequest(env.FLEET_CONTROL, '/set', { paused, ...resume });
   if (state.status === 'unknown') throw new Error(`Fleet control unavailable: ${state.reason}`);
+  await writeLegacyFleetPauseProjection(env.KV, paused, state.pausedAt, state.revision);
   return state;
 }
 
