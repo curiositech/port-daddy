@@ -4,7 +4,7 @@
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 62,
       "bytes": 1002926,
-      "sha256": "f37d9be9c0037053b3e096e908d981beff031981f887762f64d7fcf8e9f0b460"
+      "sha256": "7e274c9fdbf36dcee5aee47894576ebe7f284cfee5b3d6415c02d46a6cb9bc9d"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
@@ -44,7 +44,7 @@
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 53,
       "bytes": 813922,
-      "sha256": "964b9c50ce4a7488964607c9faa1d00b37bce234046b92bfb61bc4e1eae54803"
+      "sha256": "a03938d1fd96ec9b142962062ef28bba362b1fb2309452deb7198772d139c76c"
     }
   }
 }
