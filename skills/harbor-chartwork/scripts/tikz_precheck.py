@@ -30,6 +30,27 @@ Checks (hard, fail the build unless noted):
                      exempt (they draw their own edge).
   - P14 row-labels  (WARN) a `\node[...anchor=east...,font=\scriptsize|\tiny]`
                      whose text is one bare word -- suggests `pd row label`.
+  - P15 caption-promise
+                    (FAIL) the caption uses a styling word from a small closed
+                     set (dotted, dashed, shaded, bold, greyed/grayed,
+                     hatched) and the drawing contains no directive that could
+                     draw it. Catches "promised and never drawn" ONLY -- not
+                     "drawn on the wrong element", not "drawn too faintly to
+                     read". See the block comment above check_caption_promise.
+  - P16 identifier-consistency
+                    (FAIL) one identifier spelled two ways inside a fragment
+                     (`card_0` and `card0`, `sk_A` and `skA`). Case-sensitive
+                     on purpose.
+  - P17 caption-vocabulary
+                    (WARN) the caption sets an identifier in `\texttt{}` that
+                     no label in the drawing contains. An all-caps token is
+                     skipped (`\texttt{OR}` is an operator, not a label).
+
+  P15 and P17 each carry one deliberate exemption, both found by running them
+  over all three corpora: P15 ignores a styling word under a negation ("filled
+  and edged, not hatched" claims an absence, not a promise), and P17 ignores
+  an all-caps token. Neither exemption is a guess; each removed the only false
+  positive its rule produced across ~100 fragments.
 
 Usage:
   tikz_precheck.py FRAGMENT.tex [FRAGMENT.tex ...]
@@ -122,7 +143,7 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # Numbered rule ids introduced alongside the original, unnumbered checks
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
-RULE_IDS = ["P10", "P11", "P12", "P13", "P14"]
+RULE_IDS = ["P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17"]
 
 
 def strip_comments(text):
@@ -521,6 +542,269 @@ def check_row_labels(text):
     return findings
 
 
+# --------------------------------------------------------------------------- #
+# P15-P17: caption/drawing integrity and identifier consistency.
+#
+# WHAT THESE THREE DO AND DO NOT PROVE -- read this before trusting them.
+#
+# P15 asks only: "the caption promised a visual property; does the source
+# contain any directive that could draw it?" That catches *promised and never
+# drawn*. It does NOT catch, and cannot catch:
+#   - drawn on the wrong element (the caption says the daemon's lifeline is
+#     dotted; the source dots the harbor's). P15 sees one dot directive and is
+#     satisfied.
+#   - drawn on the right element but over the wrong span.
+#   - drawn, correct, and invisible -- the real failure in
+#     fig-anchor-handshake-ladder, whose `pd guide` dash was 0.45pt on / 1.0pt
+#     off in a grey four percent lighter than the solid hairlines beside it,
+#     and which antialiased into a continuous line at 150 dpi. The source
+#     contained `densely dotted`, so P15 passed and would pass again.
+# Those three remain human rules (craft-rules.md 7.1): enumerate the caption's
+# claims and check each against the render. P15 removes one failure mode from
+# that list; it does not remove the list.
+#
+# P16 compares spellings *inside one fragment*. Figure-versus-chapter
+# disagreement (craft-rules.md 7.3) is out of reach here by construction: the
+# prechecker reads one file and cannot know which spelling the chapter meant.
+#
+# P17 is a warning, not an error, because a caption may legitimately name a
+# code identifier the drawing does not contain (a script in a provenance
+# bracket, an algorithm the figure illustrates but does not label).
+#
+# A fourth check was considered and rejected as unsound: "a node overlapping a
+# lifeline coordinate". A node's rendered width depends on its font, its text,
+# `text width=`, and an `inner sep` default this script cannot see without a
+# TeX run, and its anchor may put the box anywhere relative to `at (x,y)`. Any
+# source-level version would be a guess. The sound version already exists one
+# stage later: figcheck's T4 clips every stroked segment against every text
+# line's bbox on the compiled PDF and fails on a real crossing. Use that.
+# --------------------------------------------------------------------------- #
+
+# Each styling word a caption can promise, mapped to the directives and house
+# style names that could draw it. House style names are taken from
+# figures/pd-figure-language.tex's own bodies, not guessed.
+STYLE_PROMISES = {
+    "dotted": (
+        r"\bdotted\b", r"\bdensely dotted\b", r"\bloosely dotted\b",
+        r"\bdash pattern\s*=", r"\bdash dot\b", r"\bpd guide\b",
+    ),
+    "dashed": (
+        r"\bdashed\b", r"\bdensely dashed\b", r"\bloosely dashed\b",
+        r"\bdash pattern\s*=", r"\bdash dot\b",
+        r"\bpd boundary\b", r"\bpd caution arrow\b",
+    ),
+    "shaded": (
+        r"\bfill\s*=", r"\\fill\b", r"\bshade\b", r"\bshading\s*=",
+        r"\bpattern\s*=", r"\bpd focus fill\b", r"\bpd caution fill\b",
+        r"\bpd neutral fill\b", r"\bpd hatch\b", r"\bpd state\b",
+        r"\bpd artifact\b", r"\bpd terminal\b",
+    ),
+    "bold": (
+        r"\\bfseries\b", r"\\textbf\b", r"\bultra thick\b", r"\bvery thick\b",
+        r"\bpd row label\b", r"\bpd panel title\b",
+    ),
+    "greyed": (r"\bhhgray\b", r"\bgray\b", r"\bgrey\b", r"\bpd guide\b", r"\bpd hairline\b"),
+    "grayed": (r"\bhhgray\b", r"\bgray\b", r"\bgrey\b", r"\bpd guide\b", r"\bpd hairline\b"),
+    "hatched": (r"\bpattern\s*=", r"\bpd hatch\b", r"\bLines\s*\[", r"\bhatch\b"),
+}
+PROMISE_WORD_RE = re.compile(
+    r"\b(" + "|".join(sorted(STYLE_PROMISES, key=len, reverse=True)) + r")\b", re.I
+)
+# A caption may claim a styling word is ABSENT ("filled and edged, not
+# hatched"). That is not a promise, so it is not checked. The window is the
+# ~24 characters before the word, which is enough for "rather than " and
+# "instead of " without reaching back into an unrelated clause.
+NEGATION_RE = re.compile(
+    r"\b(?:not|never|no|rather\s+than|instead\s+of|without|un)\s*[\w,]*\s*$", re.I
+)
+
+
+def caption_bodies(text):
+    """Every `\\caption{...}` body in TEXT, comments already stripped."""
+    out = []
+    for m in CAPTION_RE.finditer(text):
+        body, _ = find_braced(text, m.end() - 1)
+        out.append(body)
+    return out
+
+
+def check_caption_promise(text):
+    """P15: a styling word in the caption with no directive in the fragment
+    that could draw it. See the block comment above for what this does not
+    prove."""
+    findings = []
+    stripped = strip_comments(text)
+    captions = caption_bodies(stripped)
+    if not captions:
+        return findings
+    # The drawing is everything that is not a caption body, so a caption
+    # cannot satisfy its own promise by containing the word twice.
+    drawing = stripped
+    for body in captions:
+        drawing = drawing.replace(body, " " * len(body))
+    seen = set()
+    for body in captions:
+        for m in PROMISE_WORD_RE.finditer(body):
+            word = m.group(1).lower()
+            if NEGATION_RE.search(body[max(0, m.start() - 24):m.start()]):
+                continue
+            if word in seen:
+                continue
+            seen.add(word)
+            if any(re.search(p, drawing, re.I) for p in STYLE_PROMISES[word]):
+                continue
+            findings.append(
+                {
+                    "check": "caption-promise",
+                    "id": "P15",
+                    "severity": "fail",
+                    "message": f"caption promises {word!r} but the drawing contains no "
+                    f"directive that could draw it; either draw it or stop claiming it "
+                    f"(this check cannot tell whether it is drawn on the right element -- "
+                    f"verify the caption's claims against the render)",
+                }
+            )
+    return findings
+
+
+# An identifier spelling is a run of letters/digits that may carry an
+# underscore subscript, read from text with its LaTeX markup already removed:
+# `card_0`, `card0`, `sk_A`, `skA`, `m1`.
+IDENT_SPELLING_RE = re.compile(r"[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*")
+PLAIN_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_:]*")
+TEXTTT_RE = re.compile(r"\\texttt\{")
+
+
+def visible_plain(content):
+    r"""Strip LaTeX markup from a node body or caption so that what is left is
+    what the reader sees. `\texttt{card\_0}`, `$\mathrm{card}_0$` and `card_0`
+    all reduce to `card_0`, which is what makes them comparable at all.
+
+    `\_` is protected first (it is part of an identifier, not a control
+    symbol), control words and control symbols become spaces, and braces and
+    maths delimiters are deleted rather than spaced so that a subscript stays
+    joined to its base."""
+    s = content.replace("\\_", "\x00")
+    s = re.sub(r"\\[A-Za-z]+\*?", " ", s)
+    s = re.sub(r"\\.", " ", s, flags=re.S)
+    s = s.replace("{", "").replace("}", "").replace("$", "").replace("^", "")
+    return s.replace("\x00", "_")
+
+
+def canonical_identifier(spelling):
+    """Collapse the ways one identifier can be spelled down to one key:
+    `card_0` and `card0` both become `card0`, `sk_A` and `skA` both become
+    `skA`. Case is PRESERVED on purpose -- `X_1` and `x_1` are different
+    objects in more than one figure in this corpus, and merging them would
+    manufacture findings."""
+    return spelling.replace("_", "")
+
+
+def visible_texts(stripped):
+    """(where, content) for every piece of a fragment a reader actually sees:
+    each node's braced text, and each caption body."""
+    out = [("node", content) for _style, content, _off in find_node_calls(stripped)]
+    out += [("caption", body) for body in caption_bodies(stripped)]
+    return out
+
+
+CAMEL_RE = re.compile(r"[a-z][A-Z]")
+
+
+def identifier_spellings(content):
+    r"""Spellings in CONTENT that look like identifiers rather than prose.
+
+    A run of letters and digits counts as an identifier if it carries an
+    underscore, ends in a digit, or is camelCase (`skA`) -- three signals that
+    between them admit every identifier this corpus uses and no ordinary
+    English word.
+
+    WHAT THIS DELIBERATELY DOES NOT SEE. Comparison happens after markup is
+    stripped, so `$card_0$`, `\texttt{card\_0}` and `card\_0` are one spelling
+    here even though they print in three different faces. Telling those apart
+    needs per-occurrence mode tracking (inside maths? inside `\texttt`?) that
+    the markup-stripping destroys; a cruder version that inferred the mode
+    from the surrounding node produced five false positives on this corpus and
+    was removed rather than shipped. Register mixing is therefore a human
+    rule, marked as such in craft-rules.md 7.3. What IS caught is the
+    difference that survives any face: `card0` against `card_0`, `skA` against
+    `sk_A`."""
+    found = []
+    for m in IDENT_SPELLING_RE.finditer(visible_plain(content)):
+        raw = m.group(0)
+        if "_" not in raw and not raw[-1].isdigit() and not CAMEL_RE.search(raw):
+            continue
+        found.append((raw, canonical_identifier(raw)))
+    return found
+
+
+def check_identifier_consistency(text):
+    """P16: one identifier spelled two ways inside one fragment."""
+    findings = []
+    stripped = strip_comments(text)
+    by_canon = {}
+    for _where, content in visible_texts(stripped):
+        for raw, canon in identifier_spellings(content):
+            by_canon.setdefault(canon, set()).add(raw)
+    for canon, spellings in sorted(by_canon.items()):
+        if len(spellings) < 2:
+            continue
+        shown = sorted(spellings)
+        findings.append(
+            {
+                "check": "identifier-consistency",
+                "id": "P16",
+                "severity": "fail",
+                "message": f"identifier {canon!r} is spelled {shown} in one fragment; "
+                f"pick one spelling and use it in every label and in the caption",
+            }
+        )
+    return findings
+
+
+def check_caption_vocabulary(text):
+    r"""P17: the caption sets an identifier in `\texttt{}` that no label in the
+    drawing contains. Warning, not error -- see the block comment above."""
+    findings = []
+    stripped = strip_comments(text)
+    captions = caption_bodies(stripped)
+    if not captions:
+        return findings
+    drawn = set()
+    for _style, content, _off in find_node_calls(stripped):
+        plain = visible_plain(content)
+        for tok in PLAIN_TOKEN_RE.findall(plain):
+            drawn.add(tok)
+            drawn.add(canonical_identifier(tok))
+    reported = set()
+    for body in captions:
+        for m in TEXTTT_RE.finditer(body):
+            inner, _ = find_braced(body, m.end() - 1)
+            token = visible_plain(inner).strip()
+            if not token or "." in token or "/" in token:
+                continue  # a filename in a provenance bracket, not a label
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_:]*", token):
+                continue
+            if token.isupper():
+                continue  # \texttt{OR}, \texttt{AND}: an operator, not a label
+            canon = canonical_identifier(token)
+            head = token.split(":")[0]
+            if canon in drawn or token in drawn or head in drawn or canon in reported:
+                continue
+            reported.add(canon)
+            findings.append(
+                {
+                    "check": "caption-vocabulary",
+                    "id": "P17",
+                    "severity": "warn",
+                    "message": f"caption names \\texttt{{{token}}} but no label in the "
+                    f"drawing contains it; put it in the drawing or take it out of the "
+                    f"caption",
+                }
+            )
+    return findings
+
+
 def check_colors(text, allowed_colors, known_style_names):
     findings = []
 
@@ -645,6 +929,9 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     findings += check_colors(text, base_colors, known_names)
     findings += check_node_wrapping(text, safe_styles)
     findings += check_title_numbers(text)
+    findings += check_caption_promise(text)
+    findings += check_identifier_consistency(text)
+    findings += check_caption_vocabulary(text)
 
     hard = [f for f in findings if f["severity"] == "fail"]
     warn = [f for f in findings if f["severity"] == "warn"]
