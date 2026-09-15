@@ -770,6 +770,12 @@ export function simulateSurfer(graph) {
         brokenByMap: path.brokenByMap,
         completion: path.report.readout.completion,
         expectedSecondsBeforeExit: path.report.readout.expectedSecondsBeforeExit,
+        // Regression churn is computed per route because each route is its own
+        // chain: a route that reads in a different order backtracks a different
+        // amount. A high figure here with a low one book-wide is the signature
+        // of a route whose own ordering is wrong, not the book's.
+        expectedRegressions: path.report.readout.expectedRegressions,
+        regressionsPerVisit: path.report.readout.regressionsPerVisit,
         medianExitNode: path.report.readout.medianExitNode,
         payoffReach: path.report.readout.payoffReach,
         findings: path.report.findings,
