@@ -227,11 +227,13 @@ To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}--
 \section{The Anchor Protocol Architecture}\label{sec:architecture}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Table~\ref{tab:anchor-four-phases}).
+The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Figure~\ref{fig:anchor-four-phases}; Table~\ref{tab:anchor-four-phases} tabulates the same four rows as a lookup reference).
+
+\input{figures/fig-anchor-four-phases}
 
 \begin{table}[H]
 \centering
-\caption{Threat closure is cumulative, not substitutive. Each phase closes one attack
+\caption{The four phases as a lookup table, restating Figure~\ref{fig:anchor-four-phases}'s flow in row form. Threat closure is cumulative, not substitutive. Each phase closes one attack
 surface, and the last column is why no later phase reopens it: every phase adds a check
 that a later phase changes the key or the chain of, never the party that performs it.
 [internal]}
