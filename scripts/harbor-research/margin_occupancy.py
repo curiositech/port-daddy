@@ -102,7 +102,8 @@ def main():
     }
     print(json.dumps(out, indent=2))
     if a.json:
-        json.dump(out, open(a.json, "w"), indent=2)
+        with open(a.json, "w") as fh:
+            json.dump(out, fh, indent=2)
     if a.csv:
         with open(a.csv, "w", newline="") as fh:
             w = _csv.DictWriter(fh, fieldnames=["page", "body_chars", "margin_chars", "margin_ink"])
