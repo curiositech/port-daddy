@@ -437,7 +437,7 @@ jobs:
         continue-on-error: true
         run: python3 skills/textbook-craft/scripts/readers_eye.py --strict --limit 6
 
-      - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
+      - name: Figure register and triage are well-formed, and the register's figure join resolves both ways
         run: python3 scripts/harbor-research/check_figure_register.py
 
       # Before asking whether the digest is a fresh render OF the records, ask
