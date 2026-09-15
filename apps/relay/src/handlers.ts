@@ -78,6 +78,46 @@ function err(code: string, detail: string, status = 400): Response {
   return Response.json(body, { status });
 }
 
+/**
+ * Decode one URL path segment FAIL-CLOSED. General-purpose: every place in
+ * Relay's source tree that pulls a segment out of a `pathname` uses this
+ * instead of a raw `decodeURIComponent` call.
+ *
+ * WHY: malformed percent-encoding (`%zz`) makes decodeURIComponent throw, and
+ * the global boundary would surface that as a 500 — but almost every route
+ * answers one indistinguishable 404 (or its route-specific equivalent: a 400
+ * for a badly-shaped id, or a no-op 200 for an idempotent delete) to every
+ * failure it doesn't recognize, and a malformed id must not be the single
+ * input that earns a distinguishable answer. Returning '' relies on exactly
+ * that: whatever check the caller already runs against a well-formed but
+ * unknown/invalid value (a RUN_ID_RE test, a DB lookup that misses, a
+ * length/shape guard) rejects '' the same way it rejects any other bad
+ * input, so malformed encoding collapses into the SAME answer.
+ *
+ * PRECONDITION: every call site MUST already reject '' downstream — this
+ * function does not decide what "invalid" means for a given caller, it only
+ * makes sure a malformed escape produces a value the caller's own validator
+ * was always going to reject anyway. A caller that would happily use '' (no
+ * length check, no format check, no lookup that can miss) must NOT use this
+ * helper — it would silently turn a 500 into a wrong-but-successful lookup,
+ * which is worse. Guard explicitly at that call site instead.
+ *
+ * This is the ONE sanctioned decode path Relay's source tree may use;
+ * `scripts/check-relay-decode-guard.mjs` enforces that no other file
+ * reimplements the try/catch or calls decodeURIComponent raw. Import this
+ * instead of adding a second copy of it.
+ *
+ * @param segment The raw (still-encoded) path segment from the route match.
+ * @returns The decoded segment, or '' when the encoding is malformed.
+ */
+export function safeDecodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return '';
+  }
+}
+
 function isQuotaVerdict(value: unknown): value is QuotaVerdict {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const verdict = value as Record<string, unknown>;
@@ -1029,6 +1069,13 @@ export async function handleInvalidateJwks(
 ): Promise<Response> {
   const authErr = operatorOnly(request, env);
   if (authErr) return authErr;
+
+  // A malformed percent-escape in the path decodes to '' (safeDecodeSegment,
+  // above). Every sibling route rejects that before it acts; this one did not,
+  // and an empty id here is not harmless: it busts a cache key that cannot exist
+  // AND appends an audit row whose target is the empty string, recording an
+  // operator action that never meaningfully happened. Refuse it instead.
+  if (!issuerId) return err('BAD_REQUEST', 'issuer id required', 400);
 
   await invalidateJwksCache(env, issuerId);
 
