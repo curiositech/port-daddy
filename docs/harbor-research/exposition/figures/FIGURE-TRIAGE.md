@@ -50,6 +50,7 @@ Columns: figure · page's one idea · what the drawing actually encodes · role 
 | 2.6 | fig-anchor-revocation-gossip | revocation reaches all verifiers in two rounds; partitions void the deadline | five daemon rows converging | carries | **restyle** | keep; row labels `\footnotesize`; the amber interval labelled with Δ; partition marker with words |
 | 2.7 | fig-anchor-card-lifecycle | a card is admissible on one interval; correction issues a new id | three rows with marks | supports | **restyle** | keep; label the interval endpoints t_r and t_0+τ on the axis; heavier rows |
 | 2.8 | fig-anchor-verification-stack | obligations descend, evidence ascends, gaps need a human | two rails with tiny word lists | decorates | **table** | 3 × (layer · tool · what it shows · what it cannot show) table; the "gap" rows explicit |
+| 2.9 | fig-anchor-phases | the three-phase predecessor of fig-anchor-four-phases | a `\sffamily` staircase drawn before Phase 4 (cuckoo-filter revocation) existed | decorates | **delete** | superseded by fig-anchor-four-phases (PR #10244); never `\input` by any document, never kept in sync with the current textwidth/font conventions |
 | add | — | §2 handshake: the pairing ceremony | — | — | **add** | *sequence diagram* (pgf-umlsd): operator, daemon, verifier; the four messages with what each binds |
 | add | — | §2 ProVerif: the v6 multi-hop attack | — | — | **add** | *terminal session*: the attack trace excerpt with the two hops named |
 
