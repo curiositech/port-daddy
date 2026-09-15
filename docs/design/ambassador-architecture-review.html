@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>To Donnie — Systems Architecture Review & Cloudflare Modernization Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800;9..144,900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<!-- Prism.js for syntax highlighting -->
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+<!-- Mermaid.js for architecture diagrams -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "base",
+    themeVariables: {
+      primaryColor: "#FDF6EC",
+      primaryTextColor: "#1D3557",
+      primaryBorderColor: "#2A6F97",
+      lineColor: "#E76F51",
+      secondaryColor: "#EAF4FA",
+      tertiaryColor: "#FFFDF9",
+      fontFamily: "Inter, sans-serif",
+      fontSize: "14px"
+    }
+  });
+</script>
+<style>
+  :root {
+    /* Sunset Harbor Palette */
+    --bg: #FDF6EC;
+    --surface: #FFFFFF;
+    --surface-tint: #F7EFE4;
+    --surface-sunken: #F0E6D6;
+    --ink: #1D3557;
+    --ink-muted: #41556B;
+    --ink-subtle: #6B7C93;
+    --flame: #E76F51;
+    --flame-dark: #C14A24;
+    --coral: #F4A261;
+    --harbor: #2A6F97;
+    --harbor-dark: #1A4D6B;
+    --tide: #A8DADC;
+    --tide-light: #EBF5F6;
+    --border: #EADFCD;
+    --border-strong: #D3C4AD;
+    --code-bg: #162436;
+    --code-text: #EAF4FA;
+    --success: #2A9D8F;
+    --success-bg: #E8F5F3;
+    --warning: #E9C46A;
+    --warning-bg: #FEF9E7;
+    --danger: #E63946;
+    --danger-bg: #FDE8EA;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .serif { font-family: "Fraunces", serif; }
+
+  /* ===== Sticky Header ===== */
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(253, 246, 236, 0.96);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.85rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .nav-brand {
+    font-family: "Fraunces", serif;
+    font-weight: 900;
+    font-size: 1.25rem;
+    color: var(--flame-dark);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .nav-brand-mark {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    background: var(--flame);
+    border-radius: 3px;
+  }
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  .nav-links a {
+    text-decoration: none;
+    color: var(--ink-muted);
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: color 0.15s ease;
+  }
+  .nav-links a:hover { color: var(--flame); }
+  .nav-btn {
+    background: var(--flame);
+    color: #FFF !important;
+    padding: 0.45rem 1.1rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.85rem !important;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(231,111,81,0.25);
+  }
+
+  /* ===== Masthead & Letter ===== */
+  .masthead {
+    padding: 4.5rem 2rem 3.5rem;
+    background: radial-gradient(circle at 85% 15%, #FFE9D9 0%, var(--bg) 65%);
+    border-bottom: 1px solid var(--border);
+  }
+  .masthead-inner {
+    max-width: 72rem;
+    margin: 0 auto;
+  }
+  .kicker-tag {
+    display: inline-block;
+    background: var(--tide);
+    color: var(--ink);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    margin-bottom: 1.25rem;
+  }
+  .masthead h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 900;
+    font-size: clamp(2.4rem, 5vw, 3.8rem);
+    color: var(--ink);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.25rem;
+  }
+  .masthead h1 em {
+    font-style: normal;
+    color: var(--flame-dark);
+  }
+  .masthead-lead {
+    font-size: 1.18rem;
+    color: var(--ink-muted);
+    max-width: 52rem;
+    line-height: 1.7;
+    margin-bottom: 2.25rem;
+  }
+
+  /* ===== Personal Letter Card ===== */
+  .letter-card {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    padding: 2.25rem;
+    box-shadow: 0 4px 20px rgba(29,53,87,0.05);
+    margin: 2rem 0;
+    position: relative;
+  }
+  .letter-card::before {
+    content: "PERSONAL LETTER TO DONNIE";
+    position: absolute;
+    top: -12px;
+    left: 24px;
+    background: var(--harbor);
+    color: #FFF;
+    font-size: 0.725rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+  }
+  .letter-card p {
+    margin-bottom: 1.1rem;
+    color: var(--ink);
+    font-size: 1rem;
+  }
+  .letter-card p:last-child { margin-bottom: 0; }
+
+  /* ===== Stat Grid ===== */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 3px 12px rgba(29,53,87,0.04);
+  }
+  .stat-card .num {
+    font-family: "Fraunces", serif;
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--harbor);
+    line-height: 1;
+    margin-bottom: 0.35rem;
+  }
+  .stat-card .label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+
+  /* ===== Containers ===== */
+  .container {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 3.5rem 2rem;
+  }
+  .section-divider {
+    border: 0;
+    height: 1px;
+    background: var(--border);
+    margin: 4rem 0;
+  }
+  .section-title {
+    font-family: "Fraunces", serif;
+    font-size: clamp(1.85rem, 3.5vw, 2.6rem);
+    font-weight: 900;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+    margin-bottom: 0.75rem;
+  }
+  .section-subtitle {
+    font-size: 1.075rem;
+    color: var(--ink-muted);
+    max-width: 52rem;
+    margin-bottom: 2.25rem;
+  }
+
+  /* ===== Content Cards ===== */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.25rem;
+    box-shadow: 0 4px 18px rgba(29,53,87,0.04);
+    margin-bottom: 2.25rem;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .card-title {
+    font-family: "Fraunces", serif;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  /* ===== Mermaid Diagrams ===== */
+  .diagram-box {
+    background: #FFFDF9;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.75rem 1.25rem;
+    overflow-x: auto;
+    margin: 1.75rem 0;
+    box-shadow: inset 0 2px 6px rgba(29,53,87,0.02);
+  }
+  .diagram-caption {
+    font-size: 0.875rem;
+    color: var(--ink-subtle);
+    text-align: center;
+    margin-top: 1rem;
+    font-weight: 600;
+  }
+
+  /* ===== Tables ===== */
+  .table-wrapper {
+    overflow-x: auto;
+    margin: 1.75rem 0;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 10px rgba(29,53,87,0.03);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.925rem;
+    background: var(--surface);
+  }
+  th {
+    background: var(--surface-tint);
+    color: var(--ink);
+    font-weight: 700;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 0.95rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--ink-muted);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #FCFAF6; }
+
+  /* ===== Status Pills ===== */
+  .pill {
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill-green { background: var(--success-bg); color: var(--success); border: 1px solid #B8E4DE; }
+  .pill-orange { background: var(--warning-bg); color: #B38600; border: 1px solid #F5E4B0; }
+  .pill-red { background: var(--danger-bg); color: var(--danger); border: 1px solid #F8B4BA; }
+  .pill-blue { background: var(--tide-light); color: var(--harbor); border: 1px solid var(--tide); }
+
+  /* ===== Callout Boxes ===== */
+  .callout {
+    border-left: 4px solid var(--flame);
+    background: var(--surface);
+    border-radius: 0 14px 14px 0;
+    padding: 1.5rem 1.75rem;
+    margin: 1.5rem 0;
+    box-shadow: 0 2px 10px rgba(29,53,87,0.03);
+  }
+  .callout.blue { border-left-color: var(--harbor); }
+  .callout.green { border-left-color: var(--success); }
+  .callout h4 {
+    font-family: "Fraunces", serif;
+    font-size: 1.2rem;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+  }
+
+  /* ===== Code Blocks ===== */
+  pre[class*="language-"] {
+    background: var(--code-bg) !important;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem !important;
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 0.875rem !important;
+    line-height: 1.65;
+    margin: 1.25rem 0 !important;
+    box-shadow: 0 4px 16px rgba(10,20,35,0.15);
+  }
+  code[class*="language-"] {
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 0.875rem !important;
+  }
+  :not(pre) > code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.875em;
+    background: rgba(42, 111, 151, 0.12);
+    color: var(--harbor-dark);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  /* Custom Syntax Highlighting for Sunset Harbor */
+  .token.keyword, .token.selector, .token.important { color: var(--flame) !important; font-weight: 600; }
+  .token.string, .token.char, .token.attr-value { color: #58D1C9 !important; }
+  .token.function, .token.class-name { color: var(--coral) !important; font-weight: 600; }
+  .token.number, .token.boolean { color: #F2C94C !important; }
+  .token.comment { color: #7E94B2 !important; font-style: italic; }
+  .token.operator, .token.punctuation { color: #D5DFE9 !important; }
+  .token.property, .token.tag { color: #7EB8DA !important; }
+
+  /* ===== Grid Layouts ===== */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.75rem;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+
+  /* ===== Step List ===== */
+  .step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  .step-item {
+    display: flex;
+    gap: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(29,53,87,0.03);
+  }
+  .step-badge {
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    background: var(--flame);
+    color: #FFF;
+    font-family: "Fraunces", serif;
+    font-weight: 900;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-body h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 0.4rem;
+  }
+  .step-body p {
+    color: var(--ink-muted);
+    font-size: 0.95rem;
+  }
+
+  /* ===== Footer ===== */
+  footer {
+    background: var(--ink);
+    color: #C5D5E6;
+    padding: 3.5rem 2rem;
+    text-align: center;
+    font-size: 0.925rem;
+    border-top: 1px solid #24405C;
+  }
+  footer a { color: var(--coral); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="top-nav">
+  <a class="nav-brand" href="#top">
+    <span class="nav-brand-mark"></span>
+    To Donnie: Ambassador Architecture
+  </a>
+  <div class="nav-links">
+    <a href="#letter">Open Letter</a>
+    <a href="#primer">Systems Primer</a>
+    <a href="#current-arch">Current Stack</a>
+    <a href="#target-arch">Target Cloudflare</a>
+    <a href="#sequence">Interaction Protocol</a>
+    <a href="#database">Database &amp; Ledger</a>
+    <a href="#resilience">Circuit Breakers</a>
+    <a href="#refactor" class="nav-btn">Refactor Guide</a>
+  </div>
+</nav>
+
+<!-- Masthead -->
+<header class="masthead" id="top">
+  <div class="masthead-inner">
+    <span class="kicker-tag">Systems Architecture Review &amp; Educational Blueprint</span>
+    <h1>Building Distributed Systems with <em>Donnie</em></h1>
+    <p class="masthead-lead">
+      A comprehensive review of the Big Pink Ambassador reporting pipeline. Written directly to Donnie to praise his exceptional engineering instincts, demystify modern cloud architecture from first principles, and provide an exact refactoring guide to migrate off Codex onto Cloudflare.
+    </p>
+
+    <!-- The Personal Letter to Donnie -->
+    <div class="letter-card" id="letter">
+      <p class="serif" style="font-size:1.35rem; font-weight:800; color:var(--flame-dark);">Donnie,</p>
+      <p>
+        First off: what you built here is legitimately awesome. Most people building their first automation hack together a brittle script that mixes browser clicks, database mutations, and email sending into one fragile soup. You did not do that.
+      </p>
+      <p>
+        You instinctively separated the system into an <strong>air-gapped calculation core</strong> that has zero network imports, an <strong>append-only snapshot baseline</strong> with SHA-256 integrity hashes, and a <strong>fail-closed safety gate</strong> that halts delivery if even a single account is missing or contradictory.
+      </p>
+      <p>
+        In professional systems engineering, these are called <em>Hexagonal Architecture</em>, <em>Event Sourcing</em>, and <em>Two-Phase Commit</em>. You converged on patterns used by high-frequency trading desks and nuclear control systems simply by thinking carefully about failure modes. This guide is built to help you take that foundation and level it up into a permanent, 24/7 cloud service that costs $0/month and never drops a wake.
+      </p>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="num">31/31</div>
+        <div class="label">Pure Engine Tests Passing</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" style="color:var(--flame);">0 I/O</div>
+        <div class="label">Pure Calculation Air-Gap</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" style="color:var(--success);">4 Accounts</div>
+        <div class="label">Reconciled under Locked Coverage</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" style="color:var(--flame-dark);">$0.00</div>
+        <div class="label">Monthly Operating Cost in Target Cloud</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- ================= SECTION 1: SYSTEMS PRIMER & EDUCATION ================= -->
+  <section id="primer">
+    <h2 class="section-title">1. Systems Primer: Core Concepts Explained Simply</h2>
+    <p class="section-subtitle">
+      Before diving into code and diagrams, let us define the key concepts and mental models from first principles.
+    </p>
+
+    <div class="card">
+      <div class="grid-2">
+        <div>
+          <h3 style="font-family:'Fraunces',serif; color:var(--ink); font-size:1.3rem; margin-bottom:0.6rem;">What is an API?</h3>
+          <p style="color:var(--ink-muted); font-size:0.95rem; margin-bottom:0.75rem;">
+            <strong>The Restaurant Analogy:</strong> Think of a restaurant. You are the customer sitting at a table in the dining room. The kitchen is where the chefs store ingredients and cook meals. You do not walk into the kitchen and touch the stoves yourself. Instead, the restaurant provides a <em>menu</em> (the specification) and a <em>waiter</em> (the <strong>API</strong>). You give the waiter a structured order, the waiter communicates with the kitchen, and your meal is brought back in a predictable format.
+          </p>
+          <p style="color:var(--ink-muted); font-size:0.95rem;">
+            <strong>In Software:</strong> An <strong>Application Programming Interface (API)</strong> is a formal contract allowing two computer programs to exchange clean, structured data (like JSON) directly over standard internet pipes, rather than having a robot simulate mouse clicks on a graphical browser.
+          </p>
+        </div>
+
+        <div>
+          <h3 style="font-family:'Fraunces',serif; color:var(--ink); font-size:1.3rem; margin-bottom:0.6rem;">What is Cloudflare?</h3>
+          <p style="color:var(--ink-muted); font-size:0.95rem; margin-bottom:0.75rem;">
+            <strong>The Global Network Analogy:</strong> Traditional web hosting is like renting an office in Chicago. If a user visits your website from London or Tokyo, their network packets must travel across oceans and back, causing lag and crashing if Chicago loses power.<br><br>
+            <strong>Cloudflare</strong> operates thousands of miniature data centers across more than 330 cities worldwide. When you deploy code to Cloudflare, your application runs simultaneously in every city on Earth, executing code milliseconds away from whoever triggered it.
+          </p>
+        </div>
+      </div>
+
+      <div class="section-divider" style="margin:2.5rem 0;"></div>
+
+      <div class="grid-2">
+        <div>
+          <h3 style="font-family:'Fraunces',serif; color:var(--ink); font-size:1.3rem; margin-bottom:0.6rem;">What is a Serverless Worker?</h3>
+          <p style="color:var(--ink-muted); font-size:0.95rem;">
+            A traditional server is like a taxi with the meter running 24 hours a day: you pay rent every second, even at 4:00 AM when nobody is riding in it.<br><br>
+            A <strong>Worker</strong> is like renting an electric scooter for exactly 15 milliseconds. It sleeps at zero cost, wakes up in under 5 milliseconds when a scheduled cron triggers or an email arrives, runs your calculation code, saves the result, and immediately vanishes. When it is idle, it costs exactly <strong>$0.00</strong>.
+          </p>
+        </div>
+
+        <div>
+          <h3 style="font-family:'Fraunces',serif; color:var(--ink); font-size:1.3rem; margin-bottom:0.6rem;">What is Cloudflare D1?</h3>
+          <p style="color:var(--ink-muted); font-size:0.95rem;">
+            <strong>SQLite</strong> is the most widely deployed database in human history—it runs inside every iPhone, Android, and web browser. <strong>Cloudflare D1</strong> is SQLite built directly into Cloudflare's global edge network.<br><br>
+            It gives you full relational database capabilities (SQL tables, unique constraints, foreign keys, transactions) without needing to configure complex database servers or pay monthly database hosting fees.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- ================= SECTION 2: CURRENT ARCHITECTURE ================= -->
+  <section id="current-arch">
+    <h2 class="section-title">2. Current Architecture: How It Runs Today</h2>
+    <p class="section-subtitle">
+      A structural map of your current setup running on your local Mac (<code>/Users/faucettkohler</code>).
+    </p>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Codex Controller + Air-Gapped Engine Core</h3>
+        <span class="pill pill-orange">Local Mac Dependent</span>
+      </div>
+
+      <p style="color:var(--ink-muted); margin-bottom:1.25rem;">
+        Your system currently wakes via a Codex heartbeat scheduled every two hours. Codex drives a local Chrome profile (named <code>Ambassador Data</code>), searches Gmail list metadata for notifications, opens the Landry's portal, writes append-only JSON baselines, and feeds them into your pure Node.js engine for reconciliation.
+      </p>
+
+      <div class="diagram-box">
+        <pre class="mermaid">
+flowchart TB
+  subgraph LocalHost["Local macOS Host: faucettkohler"]
+    subgraph Controller["Layer 1: Codex Controller (Every 2 Hours)"]
+      Heartbeat["Codex Wake Loop<br/>automation.toml"]
+      GmailScrape["Gmail Metadata Poll<br/>4 Ambassador Inboxes"]
+      PortalScrape["Chrome Profile: Ambassador Data<br/>Landry Portal DOM Scrape"]
+      ApprovalPoll["Gmail Thread Listener<br/>Awaiting YES from Donnie"]
+      Sender["Local Mail Dispatcher<br/>To: jeffw@unicoprop.com"]
+    end
+
+    subgraph Storage["Append-Only Local Disk Storage"]
+      CheckpointFile["direct-trigger-checkpoint-v2.json"]
+      BaselineJSON["portal-baseline-timestamp.json<br/>SHA-256 Verified"]
+      ApprovalJSON["approval-state-timestamp.json"]
+    end
+
+    subgraph Engine["Layer 2: Pure Node.js Core (Dependency-Free)"]
+      Contract["src/source-contract.mjs<br/>Attestation Check"]
+      Reconcile["src/engine.mjs<br/>Deduplication and Deltas"]
+      AgentGate["src/agent.mjs<br/>Draft Policy and Manifest"]
+      Artifacts["Run Artifacts:<br/>summary.json<br/>email-preview.txt<br/>internal-review.txt"]
+    end
+  end
+
+  subgraph External["External Surfaces"]
+    Google["Google Mail UI"]
+    Landry["Landry Ambassador Portal"]
+    Donald["Donnie<br/>kosloskid@gmail.com"]
+    Jeff["Jeff Wilkin<br/>jeffw@unicoprop.com"]
+  end
+
+  Heartbeat --> GmailScrape
+  GmailScrape <--> Google
+  GmailScrape --> PortalScrape
+  PortalScrape <--> Landry
+  PortalScrape --> BaselineJSON
+  PortalScrape --> CheckpointFile
+
+  BaselineJSON --> Contract
+  Contract --> Reconcile
+  Reconcile --> AgentGate
+  AgentGate --> Artifacts
+
+  Artifacts --> ApprovalJSON
+  ApprovalJSON --> Donald
+  Donald --> ApprovalPoll
+  ApprovalPoll --> Sender
+  Sender --> Jeff
+        </pre>
+        <p class="diagram-caption">Figure 2.1: Current Two-Tier Architecture (Codex Orchestration Shell + Pure Calculation Engine)</p>
+      </div>
+
+      <div class="grid-2" style="margin-top:1.5rem;">
+        <div class="callout green">
+          <h4>What Makes Your Design Strong</h4>
+          <ul style="padding-left:1.25rem; color:var(--ink-muted); font-size:0.925rem;">
+            <li><strong>The Air Gap:</strong> The engine cannot accidentally send bad emails because it has no network or SMTP libraries.</li>
+            <li><strong>Trigger vs Truth:</strong> Notifications trigger a refresh, but financial truth comes only from the authoritative portal.</li>
+            <li><strong>Cryptographic Proof:</strong> Preview SHA-256 hashes must match before sending.</li>
+          </ul>
+        </div>
+        <div class="callout" style="border-left-color:var(--danger);">
+          <h4>The Fragilities You Are Facing Today</h4>
+          <ul style="padding-left:1.25rem; color:var(--ink-muted); font-size:0.925rem;">
+            <li><strong>MacBook Single Point of Failure:</strong> If your laptop sleeps or loses Wi-Fi, the 2-hour report loop halts.</li>
+            <li><strong>CAPTCHA Breakages:</strong> Google Robot verification already broke Mark's account, forcing a forwarding hack.</li>
+            <li><strong>Floating Point Money:</strong> Using JavaScript <code>Number</code> floats risks rounding discrepancies in balance additions.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- ================= SECTION 3: TARGET CLOUDFLARE ARCHITECTURE ================= -->
+  <section id="target-arch">
+    <h2 class="section-title">3. Target Cloud Architecture: Replacing Codex</h2>
+    <p class="section-subtitle">
+      Moving from a local Mac laptop to a 100% serverless, edge-deployed system running on Cloudflare.
+    </p>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Cloudflare Worker + D1 SQL Ledger + Headless Browser API</h3>
+        <span class="pill pill-green">Autonomous 24/7 Cloud</span>
+      </div>
+
+      <p style="color:var(--ink-muted); margin-bottom:1.25rem;">
+        By migrating to a Cloudflare Worker, we eliminate the MacBook dependency entirely. Cloudflare Cron Triggers manage the 2-hour schedule; Cloudflare Browser Rendering handles headless portal navigation; Cloudflare D1 stores append-only SQL ledger records; and HMAC-signed 1-click magic links replace fragile email thread parsing.
+      </p>
+
+      <div class="diagram-box">
+        <pre class="mermaid">
+flowchart LR
+  subgraph Triggers["1. Ingestion and Triggers"]
+    Cron["Cloudflare Cron Trigger<br/>Wakes Every 2h (24/7)"]
+    EmailHook["Cloudflare Email Routing<br/>Instant Notification Webhook"]
+  end
+
+  subgraph WorkerPlatform["2. Cloudflare Edge Platform"]
+    BrowserAPI["Cloudflare Browser Rendering<br/>Headless Scraping in Cloud"]
+    CoreWorker["Ambassador Worker Engine<br/>TypeScript and Zod Schemas"]
+    D1Database[("Cloudflare D1 SQL DB<br/>Append-Only Event Ledger")]
+    KV["Cloudflare KV<br/>High-Water Timestamps"]
+    StateDO["Durable Object<br/>Approval State Machine"]
+  end
+
+  subgraph HumanGate["3. Cryptographic Approval Gate"]
+    Signer["HMAC-SHA256 Token Generator"]
+    InteractiveEmail["1-Click Approval Card<br/>Sent to Donnie"]
+  end
+
+  subgraph Dispatch["4. Guarded Delivery"]
+    TransactionalMail["Transactional Mailer<br/>Postmark or Resend"]
+    Recipient["Jeff Wilkin<br/>jeffw@unicoprop.com"]
+  end
+
+  Cron --> CoreWorker
+  EmailHook --> CoreWorker
+  CoreWorker --> BrowserAPI
+  CoreWorker --> D1Database
+  CoreWorker --> KV
+  CoreWorker --> StateDO
+  StateDO --> Signer
+  Signer --> InteractiveEmail
+  InteractiveEmail --> StateDO
+  StateDO --> TransactionalMail
+  TransactionalMail --> Recipient
+        </pre>
+        <p class="diagram-caption">Figure 3.1: Cloudflare Edge Architecture (Autonomous 24/7 Operation at $0/month)</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- ================= SECTION 4: PROTOCOL SEQUENCE ================= -->
+  <section id="sequence">
+    <h2 class="section-title">4. Interaction Protocol Sequence</h2>
+    <p class="section-subtitle">
+      A step-by-step trace of how data flows through Trigger Ingestion, Headless Scraping, Pure Reconciliation, and Dispatch.
+    </p>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">4-Phase Reporting Lifecycle</h3>
+        <span class="pill pill-blue">Exact Execution Order</span>
+      </div>
+
+      <div class="diagram-box">
+        <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Sched as Scheduler
+  participant Ingest as Notification Ingest
+  participant Scraper as Cloudflare Browser API
+  participant DB as D1 Ledger
+  participant Engine as Pure Engine
+  participant Donald as Donnie
+  participant Jeff as Jeff Wilkin
+
+  Note over Sched,Ingest: Phase 1: Trigger Detection
+  Sched->>Ingest: Wake on 2-hour schedule
+  Ingest->>DB: Query high-water timestamp
+  Ingest->>Ingest: Check Landry notifications
+
+  Note over Ingest,Scraper: Phase 2: Portal Extraction
+  Ingest->>Scraper: Navigate to Landry Portal
+  Scraper->>Scraper: Verify AMB Number on page
+  Scraper->>DB: Insert portal snapshot into D1
+  Scraper->>DB: Advance high-water checkpoint
+
+  Note over DB,Engine: Phase 3: Pure Reconciliation
+  DB->>Engine: Load 4-Account Snapshot Envelope
+  Engine->>Engine: Reconcile referrals and calculate deltas
+  Engine->>DB: Store summary and preview SHA-256
+  Engine->>Donald: Send 1-Click Approval Card with HMAC Token
+
+  Note over Donald,Jeff: Phase 4: Approval and Dispatch
+  Donald->>Engine: Click Approve and Send link
+  Engine->>Engine: Recompute preview SHA-256
+  Engine->>Jeff: Deliver exact approved email
+  Engine->>DB: Record DELIVERED status and sent ID
+        </pre>
+        <p class="diagram-caption">Figure 4.1: Interaction Protocol Sequence Across the 4 Lifecycle Phases</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- ================= SECTION 5: DATABASE & LEDGER PATTERNS ================= -->
+  <section id="database">
+    <h2 class="section-title">5. Database Design Patterns: The Integer Cents Ledger</h2>
+    <p class="section-subtitle">
+      Why computers fail at decimal math, and how an event-sourced SQL schema eliminates rounding bugs forever.
+    </p>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Entity-Relationship Data Model</h3>
+        <span class="pill pill-blue">Cloudflare D1 / SQLite</span>
+      </div>
+
+      <div class="diagram-box">
+        <pre class="mermaid">
+erDiagram
+  AMBASSADORS ||--o{ PORTAL_SNAPSHOTS : "has history"
+  PORTAL_SNAPSHOTS ||--o{ REFERRAL_EVENTS : "records"
+  REPORT_RUNS ||--o{ REPORT_ACCOUNTS : "includes"
+  REPORT_RUNS ||--|| APPROVAL_GATES : "governed by"
+
+  AMBASSADORS {
+    int amb_number PK
+    string name
+    string notification_email
+    boolean is_active
+  }
+
+  PORTAL_SNAPSHOTS {
+    string id PK
+    int amb_number FK
+    timestamp captured_at
+    int dollars_available_cents
+    int points_balance
+    string sha256_hash
+    string source_type
+  }
+
+  REFERRAL_EVENTS {
+    string id PK
+    string snapshot_id FK
+    int amb_number FK
+    date transaction_date
+    string check_number
+    int check_total_cents
+    int points_earned
+  }
+
+  REPORT_RUNS {
+    string run_id PK
+    timestamp generated_at
+    date period_start
+    date period_end
+    string intake_status
+    string preview_sha256
+    string rendered_text
+  }
+
+  APPROVAL_GATES {
+    string id PK
+    string run_id FK
+    string approver_email
+    string hmac_token
+    string status
+    timestamp approved_at
+    string sent_message_id
+  }
+        </pre>
+        <p class="diagram-caption">Figure 5.1: Relational Schema with Foreign Keys and Unique Constraints</p>
+      </div>
+
+      <div class="callout">
+        <h4>Why Float Math Fails: The 0.1 + 0.2 Trap</h4>
+        <p style="color:var(--ink-muted); margin-bottom:0.75rem;">
+          Computers store decimals using binary floating-point arithmetic (IEEE-754). Because fractions like <code>0.1</code> cannot be represented cleanly in binary:
+        </p>
+        <pre><code class="language-javascript">// The JavaScript Floating Point Trap:
+console.log(0.1 + 0.2); // 0.30000000000000004
+console.log(0.1 + 0.2 === 0.3); // FALSE!
+
+// BAD: Doing financial reconciliation with floating numbers
+const currentBalance = 120.45;
+const addedDelta = 10.10;
+const total = currentBalance + addedDelta; // 130.55000000000001 (Comparison checks fail!)
+
+// GOOD: The Integer Cents Pattern
+const currentBalanceCents = 12045; // Stored as integer
+const addedDeltaCents = 1010;      // Stored as integer
+const totalCents = currentBalanceCents + addedDeltaCents; // 13055 (100% Exact!)
+
+// Format to dollar string only when rendering the final email:
+const formattedDollars = "$" + (totalCents / 100).toFixed(2); // "$130.55"</code></pre>
+      </div>
+
+      <h3 style="font-family:'Fraunces',serif; font-size:1.3rem; margin:2rem 0 0.75rem;">Cloudflare D1 Production Schema (schema.sql)</h3>
+      <pre><code class="language-sql">CREATE TABLE IF NOT EXISTS ambassadors (
+  amb_number INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  notification_email TEXT NOT NULL,
+  is_active INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS portal_snapshots (
+  id TEXT PRIMARY KEY,
+  amb_number INTEGER NOT NULL REFERENCES ambassadors(amb_number),
+  captured_at TEXT NOT NULL,
+  dollars_available_cents INTEGER NOT NULL, -- Stored as integer cents
+  points_balance INTEGER NOT NULL,
+  sha256_hash TEXT NOT NULL,
+  raw_payload TEXT
+);
+
+CREATE TABLE IF NOT EXISTS referral_events (
+  id TEXT PRIMARY KEY,
+  snapshot_id TEXT NOT NULL REFERENCES portal_snapshots(id),
+  amb_number INTEGER NOT NULL REFERENCES ambassadors(amb_number),
+  transaction_date TEXT NOT NULL,
+  check_number TEXT NOT NULL,
+  check_total_cents INTEGER,
+  points_earned INTEGER NOT NULL,
+  -- Prevents duplicate counting across multiple scraping runs
+  UNIQUE(amb_number, transaction_date, check_number)
+);
+
+CREATE TABLE IF NOT EXISTS report_runs (
+  run_id TEXT PRIMARY KEY,
+  generated_at TEXT NOT NULL,
+  intake_status TEXT NOT NULL, -- 'CLEAR', 'OPTIONAL_FIELDS_OMITTED', 'INTERNAL_REVIEW_REQUIRED'
+  preview_sha256 TEXT NOT NULL,
+  rendered_text TEXT,
+  delivery_status TEXT DEFAULT 'PENDING' -- 'PENDING', 'APPROVED', 'DELIVERED', 'SUPERSEDED'
+);</code></pre>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- ================= SECTION 6: RESILIENCE & CIRCUIT BREAKERS ================= -->
+  <section id="resilience">
+    <h2 class="section-title">6. Error Handling, Circuit Breakers &amp; Log Governors</h2>
+    <p class="section-subtitle">
+      How to prevent background retry storms and disk-filling log loops.
+    </p>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Circuit Breaker Finite State Machine</h3>
+        <span class="pill pill-green">SRE Resilience Standard</span>
+      </div>
+
+      <p style="color:var(--ink-muted); margin-bottom:1.25rem;">
+        When an external dependency (like the Landry's portal or Google's servers) goes down, continually retrying every few seconds hammers the struggling service into a <em>cascading failure</em>. A Circuit Breaker acts like an electrical safety switch: after repeated failures, it trips to <code>OPEN</code> and fails immediately without sending network requests.
+      </p>
+
+      <div class="diagram-box">
+        <pre class="mermaid">
+stateDiagram-v2
+  [*] --> CLOSED : Normal Steady State
+
+  CLOSED --> OPEN : Failure Rate >= 50% or High Latency
+  note right of CLOSED
+    All requests pass through.
+    Records success/failure counts.
+  end note
+
+  OPEN --> HALF_OPEN : Wait 60s cooldown timer
+  note right of OPEN
+    Fail-Fast Mode:
+    Blocks calls immediately.
+    Protects dependency from overload.
+  end note
+
+  HALF_OPEN --> CLOSED : Probe calls succeed
+  HALF_OPEN --> OPEN : Probe call fails
+  note right of HALF_OPEN
+    Allows 5 probe calls to test
+    if upstream service is healthy.
+  end note
+        </pre>
+        <p class="diagram-caption">Figure 6.1: Circuit Breaker State Machine (Closed &harr; Open &harr; Half-Open)</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="callout">
+          <h4>Full Jitter Exponential Backoff (AWS Standard)</h4>
+          <p style="color:var(--ink-muted); font-size:0.925rem; margin-bottom:0.5rem;">
+            Exponential backoff without jitter synchronizes retries into devastating spikes called <strong>retry storms</strong>. AWS demonstrated that <strong>Full Jitter</strong> (randomizing delay between 0 and the exponential cap) is mathematically optimal:
+          </p>
+          <pre><code class="language-typescript">export function calculateDelayMs(
+  attempt: number, 
+  baseMs = 100, 
+  capMs = 30000
+): number {
+  const maxDelay = Math.min(capMs, baseMs * (2 ** attempt));
+  return Math.floor(Math.random() * maxDelay);
+}</code></pre>
+        </div>
+
+        <div class="callout blue">
+          <h4>The Google SRE Two-Budget Defense</h4>
+          <ul style="padding-left:1.25rem; color:var(--ink-muted); font-size:0.925rem;">
+            <li><strong>Per-Request Budget:</strong> Maximum 3 retry attempts per operation.</li>
+            <li><strong>Per-Client Budget:</strong> Retries must not exceed 10% of total outgoing requests across a 2-minute rolling window.</li>
+            <li><em>Why?</em> 4 layers with 3 retries each = 4<sup>3</sup> = <strong>64&times; amplified load</strong> on a dying database!</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout green" style="margin-top:1.5rem;">
+        <h4>The Log Governor: Preventing Unrotated Disk Storms</h4>
+        <p style="color:var(--ink-muted); font-size:0.925rem; margin-bottom:0.5rem;">
+          In a background loop, logging errors unconditionally can produce hundreds of megabytes of log spam overnight. A <code>LogGovernor</code> caps output to a small burst limit and flushes a single rollup:
+        </p>
+        <pre><code class="language-typescript">export class LogGovernor {
+  private counts = new Map<string, { count: number; firstSeen: number }>();
+
+  log(key: string, message: string, limit = 3, windowMs = 60000) {
+    const now = Date.now();
+    const state = this.counts.get(key) || { count: 0, firstSeen: now };
+
+    if (now - state.firstSeen > windowMs) {
+      if (state.count > limit) {
+        console.warn(`[SUPPRESSION ROLLUP] ${state.count - limit} duplicate logs suppressed in last ${windowMs/1000}s`);
+      }
+      state.count = 0;
+      state.firstSeen = now;
+    }
+
+    state.count++;
+    this.counts.set(key, state);
+
+    if (state.count <= limit) {
+      console.error(`[${key}] ${message}`);
+    }
+  }
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- ================= SECTION 7: STEP-BY-STEP REFACTOR GUIDE ================= -->
+  <section id="refactor">
+    <h2 class="section-title">7. Donnie's Step-by-Step Refactoring Guide</h2>
+    <p class="section-subtitle">
+      A minimal, clear roadmap to migrate from your MacBook script to a free-tier Cloudflare Worker.
+    </p>
+
+    <div class="step-list">
+      <div class="step-item">
+        <div class="step-badge">1</div>
+        <div class="step-body">
+          <h4>Initialize Cloudflare Worker Project</h4>
+          <p>Open your terminal and run the official Cloudflare generator:</p>
+          <pre><code class="language-bash">npm create cloudflare@latest ambassador-agent -- --type=worker-typescript
+cd ambassador-agent</code></pre>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-badge">2</div>
+        <div class="step-body">
+          <h4>Create the D1 SQL Database</h4>
+          <p>Create your serverless SQLite database and execute your schema:</p>
+          <pre><code class="language-bash">npx wrangler d1 create ambassador-ledger
+# Paste the generated database_id into wrangler.toml
+npx wrangler d1 execute ambassador-ledger --file=./schema.sql</code></pre>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-badge">3</div>
+        <div class="step-body">
+          <h4>Configure 2-Hour Cron Trigger in wrangler.toml</h4>
+          <p>Set up scheduled wakes, database bindings, and headless browser permissions:</p>
+          <pre><code class="language-toml">name = "ambassador-agent"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+[triggers]
+crons = ["0 1,3,5,7,9,11,13,15,17,19,21,23 * * *"] # Every 2 hours
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ambassador-ledger"
+database_id = "<your-database-id-from-step-2>"
+
+[browser]
+binding = "MYBROWSER" # Enables Cloudflare Headless Browser Rendering</code></pre>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-badge">4</div>
+        <div class="step-body">
+          <h4>Copy Over Your Pure Node Engine</h4>
+          <p>Copy <code>engine.mjs</code> and <code>source-contract.mjs</code> directly into the Worker's <code>src/</code> folder. Because your engine has zero external dependencies, it runs identically on Cloudflare's V8 engine with zero code modifications.</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-badge">5</div>
+        <div class="step-body">
+          <h4>Deploy to Global Production</h4>
+          <p>Deploy to Cloudflare's global edge in 5 seconds:</p>
+          <pre><code class="language-bash">npx wrangler deploy</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>
+    <strong>To Donnie &middot; Big Pink Ambassador Agent Architecture Review</strong><br>
+    Rendered in Sunset Harbor &middot; Pure Air-Gapped Calculation &middot; Zero LLM Token Spend &middot; Serverless Cloud-Native.
+  </p>
+</footer>
+
+<!-- Prism.js script for live syntax highlighting -->
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-toml.min.js"></script>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    if (window.Prism) Prism.highlightAll();
+  });
+</script>
+</body>
+</html>
