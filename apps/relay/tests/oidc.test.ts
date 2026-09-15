@@ -22,9 +22,13 @@ function makeUnsignedJwt(payload: Record<string, unknown>): string {
 }
 
 const TRUST_POLICY = JSON.stringify({
-  repositoryOwnerIds: ['12345'],
-  repositories: ['testorg/testrepo'],
-  jobWorkflowRefs: ['testorg/testrepo/.github/workflows/ci.yml@refs/heads/main'],
+  repositoryBindings: [{
+    repository: 'testorg/testrepo',
+    repositoryId: '67890',
+    repositoryOwner: 'testorg',
+    repositoryOwnerId: '12345',
+  }],
+  workflowRefs: ['testorg/testrepo/.github/workflows/ci.yml@refs/heads/main'],
   refs: ['refs/heads/main'],
   environments: [null, 'production'],
   runnerEnvironments: ['github-hosted'],
@@ -67,8 +71,9 @@ describe('OIDC claim validation', () => {
     exp: Math.floor(Date.now() / 1000) + 3600,
     iat: Math.floor(Date.now() / 1000),
     jti: 'test-jti-123',
-    sub: 'repo:testorg/testrepo:ref:refs/heads/main',
+    sub: 'repo:testorg@12345/testrepo@67890:ref:refs/heads/main',
     repository: 'testorg/testrepo',
+    repository_id: '67890',
     repository_owner: 'testorg',
     repository_owner_id: '12345',
     workflow: 'CI',
@@ -76,7 +81,7 @@ describe('OIDC claim validation', () => {
     sha: 'abc123',
     run_id: '1',
     run_number: '1',
-    job_workflow_ref: 'testorg/testrepo/.github/workflows/ci.yml@refs/heads/main',
+    workflow_ref: 'testorg/testrepo/.github/workflows/ci.yml@refs/heads/main',
     actor: 'testorg',
     event_name: 'push',
     runner_environment: 'github-hosted',
@@ -157,28 +162,86 @@ describe('OIDC claim validation', () => {
     await expectClaimError({
       ...baseClaims,
       repository: 'testorg/other',
-      sub: 'repo:testorg/other:ref:refs/heads/main',
+      sub: 'repo:testorg@12345/other@67890:ref:refs/heads/main',
     }, 'UNTRUSTED_REPOSITORY');
+  });
+
+  it('rejects a missing repository claim with a bounded validation error', async () => {
+    const { repository: _, ...missingRepository } = baseClaims;
+    await expectClaimError(missingRepository, 'MISSING_REPOSITORY');
+  });
+
+  it('rejects a non-numeric, missing, or untrusted immutable repository id', async () => {
+    await expectClaimError({ ...baseClaims, repository_id: 'testrepo' }, 'INVALID_REPOSITORY_ID');
+    const { repository_id: _, ...missingRepositoryId } = baseClaims;
+    await expectClaimError(missingRepositoryId, 'INVALID_REPOSITORY_ID');
+    await expectClaimError({ ...baseClaims, repository_id: '98765' }, 'UNTRUSTED_REPOSITORY_ID');
   });
 
   it('rejects a mutable owner login that disagrees with the repository claim', async () => {
     await expectClaimError({ ...baseClaims, repository_owner: 'renamed-org' }, 'REPOSITORY_OWNER_MISMATCH');
   });
 
+  it('rejects cross-combining individually trusted repository names and ids', async () => {
+    const { verifyOidcToken } = await import('../src/oidc.js');
+    const policy = JSON.parse(TRUST_POLICY);
+    policy.repositoryBindings = [
+      { repository: 'testorg/testrepo', repositoryId: '11111', repositoryOwner: 'testorg', repositoryOwnerId: '12345' },
+      { repository: 'testorg/other', repositoryId: '67890', repositoryOwner: 'testorg', repositoryOwnerId: '12345' },
+    ];
+    await expect(verifyOidcToken(
+      { OIDC_GITHUB_TRUST_POLICY_JSON: JSON.stringify(policy) } as never,
+      makeUnsignedJwt(baseClaims),
+      { issuer_id: baseClaims.iss, jwks_uri: `${baseClaims.iss}/.well-known/jwks`, audience: baseClaims.aud, disabled: false },
+      { keys: [] },
+    )).rejects.toMatchObject({ code: 'UNTRUSTED_REPOSITORY_ID' });
+  });
+
   it('rejects an untrusted workflow, ref, environment, runner, event, or subject', async () => {
     await expectClaimError({
       ...baseClaims,
-      job_workflow_ref: 'testorg/testrepo/.github/workflows/evil.yml@refs/heads/main',
+      workflow_ref: 'testorg/testrepo/.github/workflows/evil.yml@refs/heads/main',
     }, 'UNTRUSTED_WORKFLOW');
     await expectClaimError({ ...baseClaims, ref: 'refs/heads/feature' }, 'UNTRUSTED_REF');
     await expectClaimError({
       ...baseClaims,
       environment: 'preview',
-      sub: 'repo:testorg/testrepo:environment:preview',
+      sub: 'repo:testorg@12345/testrepo@67890:environment:preview',
     }, 'UNTRUSTED_ENVIRONMENT');
     await expectClaimError({ ...baseClaims, runner_environment: 'self-hosted' }, 'UNTRUSTED_RUNNER_ENVIRONMENT');
     await expectClaimError({ ...baseClaims, event_name: 'pull_request_target' }, 'UNTRUSTED_EVENT');
     await expectClaimError({ ...baseClaims, sub: 'repo:testorg/other:ref:refs/heads/main' }, 'SUBJECT_MISMATCH');
+  });
+
+  it('rejects the legacy name-only subject even when every side claim is trusted', async () => {
+    await expectClaimError({
+      ...baseClaims,
+      sub: 'repo:testorg/testrepo:ref:refs/heads/main',
+    }, 'SUBJECT_MISMATCH');
+  });
+
+  it('rejects reusable-workflow-only and cross-repository claim substitutions', async () => {
+    const { workflow_ref: _, ...jobWorkflowOnly } = baseClaims;
+    await expectClaimError({
+      ...jobWorkflowOnly,
+      job_workflow_ref: baseClaims.workflow_ref,
+    }, 'UNTRUSTED_WORKFLOW');
+    await expectClaimError({
+      ...baseClaims,
+      workflow_ref: 'attacker/repo/.github/workflows/ci.yml@refs/heads/main',
+    }, 'UNTRUSTED_WORKFLOW');
+  });
+
+  it('requires workflow_ref and sub to bind the exact admitted ref and environment form', async () => {
+    await expectClaimError({
+      ...baseClaims,
+      workflow_ref: 'testorg/testrepo/.github/workflows/ci.yml@refs/heads/feature',
+    }, 'UNTRUSTED_WORKFLOW');
+    await expectClaimError({
+      ...baseClaims,
+      environment: 'production',
+      sub: 'repo:testorg@12345/testrepo@67890:ref:refs/heads/main',
+    }, 'SUBJECT_MISMATCH');
   });
 
   it('rejects wildcard and unknown policy fields rather than widening trust', async () => {
@@ -190,7 +253,7 @@ describe('OIDC claim validation', () => {
       disabled: false,
     };
     for (const policy of [
-      { ...JSON.parse(TRUST_POLICY), repositories: ['testorg/*'] },
+      { ...JSON.parse(TRUST_POLICY), repositoryBindings: [{ repository: 'testorg/*', repositoryId: '67890', repositoryOwner: 'testorg', repositoryOwnerId: '12345' }] },
       { ...JSON.parse(TRUST_POLICY), permitEverything: true },
       null,
     ]) {
@@ -223,8 +286,9 @@ describe('OIDC JWKS key rotation', () => {
       exp: Math.floor(Date.now() / 1000) + 3600,
       iat: Math.floor(Date.now() / 1000),
       jti: 'rotated-key-jti',
-      sub: 'repo:testorg/testrepo:ref:refs/heads/main',
+      sub: 'repo:testorg@12345/testrepo@67890:ref:refs/heads/main',
       repository: 'testorg/testrepo',
+      repository_id: '67890',
       repository_owner: 'testorg',
       repository_owner_id: '12345',
       workflow: 'CI',
@@ -232,7 +296,7 @@ describe('OIDC JWKS key rotation', () => {
       sha: 'abc123',
       run_id: '2',
       run_number: '2',
-      job_workflow_ref: 'testorg/testrepo/.github/workflows/ci.yml@refs/heads/main',
+      workflow_ref: 'testorg/testrepo/.github/workflows/ci.yml@refs/heads/main',
       actor: 'testorg',
       event_name: 'push',
       runner_environment: 'github-hosted',

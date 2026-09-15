@@ -6,12 +6,14 @@ import {
   createPublicKey,
   randomBytes,
   sign,
+  verify,
 } from 'node:crypto'
 import { appendFileSync } from 'node:fs'
 
 export const ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1'
 export const CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2'
 export const GRANT_READ_SCHEMA = 'port-daddy.publisher-grant-read.v1'
+export const RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v2'
 export const DEFAULT_AUDIENCE = 'https://github.com/curiositech'
 
 export function stableJson(value) {
@@ -51,6 +53,45 @@ export function workloadKey(seedHex) {
 export function signDigestHex(privateKey, preimage) {
   const digest = createHash('sha256').update(preimage).digest()
   return sign(null, digest, privateKey).toString('hex')
+}
+
+function ed25519PublicKey(publicKeyHex) {
+  const raw = Buffer.from(requireHex(publicKeyHex, 32, 'Relay receipt public key'), 'hex')
+  const spkiPrefix = Buffer.from('302a300506032b6570032100', 'hex')
+  return createPublicKey({ key: Buffer.concat([spkiPrefix, raw]), format: 'der', type: 'spki' })
+}
+
+export function verifyPublisherReceiptEnvelope(body, { request, snapshot, expectedRelayPublicKey }) {
+  const trustedRelayPublicKey = requireHex(expectedRelayPublicKey, 32, 'FLEETBOT_RELAY_PUBLIC_KEY_HEX')
+  const expectedReceiptId = `github_receipt_${request.idempotencyKey.slice('pd-gh-'.length, 'pd-gh-'.length + 32)}`
+  const receipt = body && typeof body === 'object' && body.code === 'OK' ? body.receipt : null
+  if (!receipt || typeof receipt !== 'object'
+      || receipt.schema !== RECEIPT_SCHEMA
+      || receipt.authority !== 'port-daddy-relay-github-app'
+      || receipt.operation !== request.operation
+      || receipt.repository !== request.repository
+      || receipt.idempotencyKey !== request.idempotencyKey
+      || receipt.sessionId !== request.sessionId
+      || receipt.authorizedBy?.grantId !== snapshot.grantId
+      || receipt.authorizedBy?.grantEpoch !== snapshot.grantEpoch
+      || receipt.authorizedBy?.surface !== 'publisher'
+      || receipt.admission !== 'standing-publisher-grant'
+      || receipt.result !== 'observed'
+      || receipt.resourceNumber !== request.payload.pullRequestNumber
+      || receipt.githubHeadSha !== request.payload.expectedGithubHeadSha
+      || receipt.tokenCleanup !== 'confirmed'
+      || receipt.relayPublicKey !== trustedRelayPublicKey
+      || receipt.receiptId !== expectedReceiptId
+      || typeof receipt.signature !== 'string'
+      || !/^[0-9a-f]{128}$/i.test(receipt.signature)) {
+    throw new Error('Relay returned a publisher receipt outside the requested authority scope')
+  }
+  const { signature, ...unsigned } = receipt
+  const digest = Buffer.from(hashHex(stableJson(unsigned)), 'hex')
+  if (!verify(null, digest, ed25519PublicKey(receipt.relayPublicKey), Buffer.from(signature, 'hex'))) {
+    throw new Error('Relay publisher receipt signature is invalid')
+  }
+  return receipt
 }
 
 async function jsonFetch(url, options = {}, fetchImpl = fetch) {
@@ -221,10 +262,15 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     runId: env.GITHUB_RUN_ID,
     runAttempt: env.GITHUB_RUN_ATTEMPT ?? '1',
   })
-  const receipt = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
+  const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
+  })
+  const receipt = verifyPublisherReceiptEnvelope(envelope, {
+    request,
+    snapshot,
+    expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
   })
   console.log(`Publisher grant ${snapshot.grantId} epoch ${snapshot.grantEpoch} inspected PR #${prNumber}.`)
   console.log(`Relay receipt: ${receipt.receiptId}`)

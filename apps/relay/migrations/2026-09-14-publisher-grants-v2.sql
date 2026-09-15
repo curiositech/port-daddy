@@ -3,7 +3,16 @@
 -- A grant id is a public reference, never a bearer. Every use also requires a
 -- short-lived capability signed by the exact live workload identity named by
 -- the grant. The publisher re-reads this row on every request.
-CREATE TABLE publisher_grants (
+CREATE TABLE IF NOT EXISTS github_publisher_credentials (
+  account_user_id       TEXT    PRIMARY KEY REFERENCES users(id),
+  generation            INTEGER NOT NULL CHECK (generation > 0),
+  credential_enc        TEXT    NOT NULL,
+  credential_iv         TEXT    NOT NULL,
+  credential_key_version INTEGER NOT NULL CHECK (credential_key_version > 0),
+  updated_at             INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS publisher_grants (
   grant_id             TEXT    PRIMARY KEY
                                CHECK (substr(grant_id, 1, 4) = 'pdg_'
                                  AND length(grant_id) = 36
@@ -34,11 +43,11 @@ CREATE TABLE publisher_grants (
   CHECK (expires_at > created_at),
   CHECK ((revoked_at IS NULL) = (revoked_reason IS NULL))
 );
-CREATE INDEX publisher_grants_account_idx
+CREATE INDEX IF NOT EXISTS publisher_grants_account_idx
   ON publisher_grants (account_user_id, surface, revoked_at, expires_at);
-CREATE INDEX publisher_grants_subject_idx
+CREATE INDEX IF NOT EXISTS publisher_grants_subject_idx
   ON publisher_grants (subject_fingerprint, surface, revoked_at, expires_at);
-CREATE TRIGGER publisher_grants_insert_scope
+CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope
 BEFORE INSERT ON publisher_grants
 BEGIN
   SELECT CASE WHEN EXISTS (
@@ -68,60 +77,43 @@ BEGIN
     OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1)
   THEN RAISE(ABORT, 'publisher grant scope contains duplicates') END;
 END;
-CREATE TRIGGER publisher_grants_update_epoch
-BEFORE UPDATE OF subject_fingerprint, subject_class, installation_id,
-  repositories_json, operations_json, branch_allow_json, base_allow_json,
-  mutations_per_day, expires_at ON publisher_grants
+-- A grant is a signed standing authority, not a mutable policy document. Scope
+-- changes mint a new grant id; the only permitted mutation is one-way
+-- revocation. Keeping epoch immutable also makes every capability's authority
+-- stable under retry and audit.
+CREATE TRIGGER IF NOT EXISTS publisher_grants_immutable_authority
+BEFORE UPDATE OF grant_id, epoch, surface, account_user_id, subject_fingerprint,
+  subject_class, installation_id, repositories_json, operations_json,
+  branch_allow_json, base_allow_json, mutations_per_day, expires_at,
+  created_at, created_via, created_ip ON publisher_grants
 BEGIN
-  SELECT CASE WHEN NEW.epoch != OLD.epoch + 1
-    THEN RAISE(ABORT, 'publisher grant scope update must increment epoch') END;
+  SELECT RAISE(ABORT, 'publisher grant authority is immutable; create a new grant');
 END;
-CREATE TRIGGER publisher_grants_update_scope
-BEFORE UPDATE ON publisher_grants
+CREATE TRIGGER IF NOT EXISTS publisher_grants_irreversible_revocation
+BEFORE UPDATE OF revoked_at, revoked_reason ON publisher_grants
 BEGIN
-  SELECT CASE WHEN EXISTS (
-    SELECT 1 FROM json_each(NEW.repositories_json)
-     WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%'
-  ) THEN RAISE(ABORT, 'publisher grant repository scope invalid') END;
-  SELECT CASE WHEN EXISTS (
-    SELECT 1 FROM json_each(NEW.operations_json)
-     WHERE type != 'text' OR value NOT IN (
-       'pull-request.publish', 'pull-request.update', 'pull-request.ready',
-       'pull-request.request-reviewers', 'pull-request.comment',
-       'pull-request.review-reply', 'pull-request.enqueue', 'pull-request.inspect'
-     )
-  ) THEN RAISE(ABORT, 'publisher grant operation scope invalid') END;
-  SELECT CASE WHEN EXISTS (
-    SELECT 1 FROM json_each(NEW.branch_allow_json)
-     WHERE type != 'text' OR length(value) > 200 OR value = ''
-       OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
-  ) OR EXISTS (
-    SELECT 1 FROM json_each(NEW.base_allow_json)
-     WHERE type != 'text' OR length(value) > 200 OR value = '' OR value LIKE '%/'
-       OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
-  ) THEN RAISE(ABORT, 'publisher grant branch scope invalid') END;
-  SELECT CASE WHEN EXISTS (SELECT value FROM json_each(NEW.repositories_json) GROUP BY value HAVING count(*) > 1)
-    OR EXISTS (SELECT value FROM json_each(NEW.operations_json) GROUP BY value HAVING count(*) > 1)
-    OR EXISTS (SELECT value FROM json_each(NEW.branch_allow_json) GROUP BY value HAVING count(*) > 1)
-    OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1)
-  THEN RAISE(ABORT, 'publisher grant scope contains duplicates') END;
+  SELECT CASE WHEN OLD.revoked_at IS NOT NULL
+      OR NEW.revoked_at IS NULL OR NEW.revoked_reason IS NULL
+      OR length(trim(NEW.revoked_reason)) = 0
+    THEN RAISE(ABORT, 'publisher grant revocation is irreversible') END;
 END;
 
--- The first valid use permanently namespaces a session id to one workload.
-CREATE TABLE github_publisher_session_bindings (
+-- A session id belongs to a workload identity, not to any one tenant grant.
+-- The first-grant reference is nullable provenance, not ownership: the same
+-- workload session may exercise independently authorized grants for different
+-- tenants. Erasing the first tenant nulls that provenance without destroying
+-- another tenant's replay evidence or allowing the session id to be rebound.
+CREATE TABLE IF NOT EXISTS github_publisher_session_bindings (
   session_id           TEXT PRIMARY KEY,
   subject_fingerprint  TEXT NOT NULL REFERENCES identities(daemon_fingerprint),
-  first_grant_id       TEXT NOT NULL REFERENCES publisher_grants(grant_id),
+  first_grant_id       TEXT REFERENCES publisher_grants(grant_id) ON DELETE SET NULL,
   bound_at             INTEGER NOT NULL
 );
 
--- Preserve retired v1 replay evidence. There is no authored v1 client, so the
--- runtime is v2-only rather than carrying an operator-bearer compatibility path.
-ALTER TABLE github_publisher_capability_uses
-  RENAME TO github_publisher_capability_uses_v1_retired;
-DROP INDEX github_publisher_capability_account_idx;
-
-CREATE TABLE github_publisher_capability_uses (
+-- Keep the v1 table at its original name. D1 applies migrations before the new
+-- Worker is deployed, so the previous Worker and a rollback must remain able to
+-- record their already-authorized uses during the rollout. New code is v2-only.
+CREATE TABLE IF NOT EXISTS github_publisher_capability_uses_v2 (
   daemon_fingerprint     TEXT    NOT NULL,
   signing_key_generation INTEGER NOT NULL CHECK (signing_key_generation > 0),
   nonce                  TEXT    NOT NULL CHECK (length(nonce) = 64),
@@ -132,9 +124,10 @@ CREATE TABLE github_publisher_capability_uses (
   idempotency_key        TEXT    NOT NULL,
   is_mutation            INTEGER NOT NULL CHECK (is_mutation IN (0, 1)),
   consumed_at            INTEGER NOT NULL,
-  PRIMARY KEY (daemon_fingerprint, signing_key_generation, nonce)
+  PRIMARY KEY (daemon_fingerprint, signing_key_generation, nonce),
+  UNIQUE (grant_id, idempotency_key)
 );
-CREATE INDEX github_publisher_capability_grant_idx
-  ON github_publisher_capability_uses (grant_id, consumed_at DESC, is_mutation);
-CREATE INDEX github_publisher_capability_session_idx
-  ON github_publisher_capability_uses (session_id, consumed_at DESC);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_v2_grant_idx
+  ON github_publisher_capability_uses_v2 (grant_id, consumed_at DESC, is_mutation);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_v2_session_idx
+  ON github_publisher_capability_uses_v2 (session_id, consumed_at DESC);

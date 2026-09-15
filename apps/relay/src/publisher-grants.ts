@@ -226,36 +226,77 @@ export async function authorizePublisherGrant(
 
   const dayStart = input.now - (input.now % 86_400);
   await db.prepare(
-    `INSERT OR IGNORE INTO github_publisher_capability_uses
+    `INSERT OR IGNORE INTO github_publisher_capability_uses_v2
        (daemon_fingerprint, signing_key_generation, nonce, grant_id, grant_epoch,
         session_id, request_hash, idempotency_key, is_mutation, consumed_at)
-     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-      WHERE ? = 0
-         OR EXISTS (
-           SELECT 1 FROM github_publisher_capability_uses
-            WHERE daemon_fingerprint = ? AND signing_key_generation = ? AND nonce = ?
-         )
-         OR (
-           SELECT count(*) FROM github_publisher_capability_uses
-            WHERE grant_id = ? AND is_mutation = 1 AND consumed_at >= ?
-         ) < ?`,
+     SELECT ?, ?, ?, g.grant_id, g.epoch, ?, ?, ?, ?, ?
+       FROM publisher_grants g
+       JOIN identities i ON i.daemon_fingerprint = g.subject_fingerprint
+       JOIN users owner ON owner.id = g.account_user_id AND owner.deleted_at IS NULL
+      WHERE g.grant_id = ? AND g.epoch = ? AND g.surface = 'publisher'
+        AND g.account_user_id = ? AND g.subject_fingerprint = ?
+        AND g.revoked_at IS NULL AND g.expires_at > ?
+        AND i.revoked = 0 AND (i.expires_at IS NULL OR i.expires_at > ?)
+        AND i.key_generation = ? AND i.proof_method = ?
+        AND EXISTS (
+          SELECT 1 FROM github_publisher_session_bindings b
+           WHERE b.session_id = ? AND b.subject_fingerprint = g.subject_fingerprint
+        )
+        AND (
+          ? = 0
+          OR EXISTS (
+            SELECT 1 FROM github_publisher_capability_uses_v2 u
+             WHERE u.grant_id = g.grant_id AND u.idempotency_key = ?
+               AND u.request_hash = ? AND u.session_id = ? AND u.is_mutation = 1
+          )
+          OR (
+            SELECT count(DISTINCT u.idempotency_key)
+              FROM github_publisher_capability_uses_v2 u
+             WHERE u.grant_id = g.grant_id AND u.is_mutation = 1 AND u.consumed_at >= ?
+          ) < g.mutations_per_day
+        )`,
   ).bind(
     grant.subjectFingerprint, input.capability.signingKeyGeneration, input.capability.nonce,
-    grant.grantId, grant.epoch, input.sessionId, input.requestHash, input.idempotencyKey,
-    input.isMutation ? 1 : 0, input.now, input.isMutation ? 1 : 0,
-    grant.subjectFingerprint, input.capability.signingKeyGeneration, input.capability.nonce,
-    grant.grantId, dayStart, grant.mutationsPerDay,
+    input.sessionId, input.requestHash, input.idempotencyKey,
+    input.isMutation ? 1 : 0, input.now,
+    grant.grantId, grant.epoch, grant.accountUserId, grant.subjectFingerprint,
+    input.now, input.now, input.capability.signingKeyGeneration,
+    grant.subjectClass === 'ci' ? 'oidc' : 'operator-provisioned', input.sessionId,
+    input.isMutation ? 1 : 0, input.idempotencyKey, input.requestHash,
+    input.sessionId, dayStart,
   ).run();
   const use = await db.prepare(
     `SELECT grant_id, grant_epoch, session_id, request_hash, idempotency_key, is_mutation
-       FROM github_publisher_capability_uses
+       FROM github_publisher_capability_uses_v2
       WHERE daemon_fingerprint = ? AND signing_key_generation = ? AND nonce = ?`,
   ).bind(
     grant.subjectFingerprint,
     input.capability.signingKeyGeneration,
     input.capability.nonce,
   ).first<CapabilityUseRow>();
-  if (!use) fail('PUBLISHER_DAILY_MUTATION_CEILING', 429, 'the standing grant daily mutation ceiling is exhausted');
+  if (!use) {
+    // Distinguish revoked/expired/current-identity failures from quota refusal.
+    // The insert above is the authority decision; these reads only explain why
+    // it inserted no row and cannot turn a failed admission into a success.
+    const currentGrant = await readPublisherGrant(db, grant.grantId, input.now);
+    await readLiveIdentity(db, currentGrant, input.now);
+    const owner = await db.prepare(
+      'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL',
+    ).bind(currentGrant.accountUserId).first<{ id: string }>();
+    if (!owner) fail('PUBLISHER_ACCOUNT_ERASED', 403, 'the publisher grant account is no longer active');
+    if (currentGrant.epoch !== grant.epoch || currentGrant.accountUserId !== grant.accountUserId
+        || currentGrant.subjectFingerprint !== grant.subjectFingerprint) {
+      fail('PUBLISHER_GRANT_STALE', 403, 'the standing publisher grant changed before admission');
+    }
+    const idempotencyConflict = await db.prepare(
+      `SELECT request_hash FROM github_publisher_capability_uses_v2
+        WHERE grant_id = ? AND idempotency_key = ?`,
+    ).bind(grant.grantId, input.idempotencyKey).first<{ request_hash: string }>();
+    if (idempotencyConflict) {
+      fail('CAPABILITY_REPLAY', 409, 'publisher idempotency key was already consumed by another capability');
+    }
+    fail('PUBLISHER_DAILY_MUTATION_CEILING', 429, 'the standing grant daily mutation ceiling is exhausted');
+  }
   if (use.grant_id !== grant.grantId || use.grant_epoch !== grant.epoch
       || use.session_id !== input.sessionId || use.request_hash !== input.requestHash
       || use.idempotency_key !== input.idempotencyKey || use.is_mutation !== (input.isMutation ? 1 : 0)) {

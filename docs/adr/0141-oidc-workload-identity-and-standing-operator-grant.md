@@ -102,9 +102,12 @@ issuer:
 
 That is GitHub Actions OIDC with a custom audience naming Relay. The audience
 does **not** prove organization or repository authority. The implemented
-exchange separately requires a bounded server-side trust policy containing the
-numeric `repository_owner_id`, exact repository, `job_workflow_ref`, ref,
-environment presence/value, runner environment, and optional event names. It is
+exchange separately requires a bounded server-side trust policy containing one
+correlated exact repository/name/id/owner/id binding, the direct job's
+`workflow_ref`, ref, environment presence/value, runner environment, and
+optional event names. The `sub` must use GitHub's immutable
+`repo:OWNER@OWNER-ID/REPO@REPO-ID:<context>` form; name-only subjects are
+rejected even when the side claims match. It is
 managed at runtime through
 `PUT /v1/config/issuers/:issuer_id` and can be disabled or revoked wholesale
 through `POST /v1/revoke-by-issuer`. This ADR treats it as the named issuer and
@@ -113,12 +116,12 @@ designs against it.
 **The limit must be stated, not hidden.** GitHub Actions OIDC tokens are minted
 only inside a GitHub Actions job, by the runner, against
 `ACTIONS_ID_TOKEN_REQUEST_URL`. A Port Daddy daemon on the operator's laptop
-cannot obtain one. Searching this repository finds `id-token: write` in
-`.github/workflows/publish.yml`, `.github/workflows/release.yml`, and the
-Claude review workflows — but all of those consume it for npm provenance,
-GitHub attestations, or a vendor action. **No workflow in this repository calls
-`/v1/exchange`.** The trust relationship is registered and verified; it has no
-live caller here yet.
+cannot obtain one. The protected manual workflow
+`.github/workflows/fleetbot-workload-smoke.yml` now requests the token, calls
+`/v1/exchange`, and can exercise read-only inspection through a publisher grant.
+It remains deliberately unusable until the immutable-subject setting, protected
+environment, workload secrets, and pinned Relay receipt key are configured and
+read back.
 
 That leaves a real, undecided fork, recorded below as **OQ-1**: the CI workload
 class is covered by the registered issuer today; the laptop-daemon workload class
@@ -135,12 +138,12 @@ and an expiry. There is exactly one such registry and this ADR adds none.
 
 | Class | Enrolment proof | Status |
 | --- | --- | --- |
-| `ci` — a policy-admitted GitHub Actions job | GitHub Actions OIDC token exchanged at `POST /v1/exchange`; exact audience plus trusted numeric owner id, repository, workflow, ref, environment and runner claims; `jti` consumed once | Implemented; remains fail-closed until `OIDC_GITHUB_TRUST_POLICY_JSON` is configured |
+| `ci` — a policy-admitted GitHub Actions job | GitHub Actions OIDC token exchanged at `POST /v1/exchange`; immutable `sub`, exact audience, correlated repository/name/id/owner/id binding, direct `workflow_ref`, ref, environment and runner claims; `jti` consumed once | Implemented; remains fail-closed until immutable subjects, the trust policy, and the protected workflow environment are configured |
 | `host` — a daemon on an operator machine | **Undecided — see OQ-1.** The existing non-OIDC precedent is `proof_method: 'operator-provisioned'`, written by the operator-gated route in `apps/relay/src/fleet-executor-identity.ts` | Open |
 
-What changes is only *how a row gets into `identities`*. Everything downstream —
-capability signature verification, key-generation checks, revocation — is the
-code already in `verifyAndConsumeCapability`, untouched.
+What changes at enrolment is *how a row gets into `identities`*. Publisher
+admission then applies the same live identity, key-generation, and revocation
+invariants inside its grant-v2 atomic consumption boundary.
 
 ### D2 — The standing grant, and what is authoritative for what
 
@@ -149,12 +152,12 @@ decided, once, that this workload identity may perform this operation set on
 these repositories, under these branch patterns, within these ceilings, until
 this date.*
 
-Proposed table `publisher_grants` in Relay D1 (designed-not-built):
+Implemented table `publisher_grants` in Relay D1:
 
 | Column | Meaning |
 | --- | --- |
 | `grant_id` | `pdg_` + 32 hex. A **reference, not a bearer** — see D5 |
-| `epoch` | Monotone integer. Any edit to any scope column bumps it |
+| `epoch` | Immutable generation of this grant. A scope change creates a new grant id; revocation is the only allowed update |
 | `account_user_id` | The operator who granted it; FK to `users(id)` |
 | `subject_fingerprint` | The workload identity's `daemon_fingerprint`; FK to `identities` |
 | `subject_class` | `ci` or `host` |
@@ -217,8 +220,8 @@ Everything else in the capability is unchanged: `daemonFingerprint`,
 carrying it is admitted only when **all** of the following hold at request time:
 
 1. The grant exists, `revoked_at IS NULL`, and `expires_at > now`.
-2. `grant.epoch === capability.grantEpoch` — the daemon acted on the grant the
-   operator currently has, not a version they have since edited.
+2. `grant.epoch === capability.grantEpoch` — the daemon acted on the exact
+   immutable grant issuance the operator authorized, not another grant.
 3. `grant.subject_fingerprint === capability.daemonFingerprint`, **and** the
    capability signature verifies under that identity's registered `pub_key` at
    the exact `key_generation` the capability names. This is the binding that
@@ -230,8 +233,8 @@ carrying it is admitted only when **all** of the following hold at request time:
 6. `capability.baseBranch ∈ grant.base_allow_json`, and the published head
    branch matches a `grant.branch_allow_json` prefix.
 7. The session binding of D6 holds.
-8. The nonce insert into `github_publisher_capability_uses` wins, with
-   `account_token_hash` replaced by `grant_id` and `grant_epoch`.
+8. The nonce insert into `github_publisher_capability_uses_v2` wins, with
+   `grant_id`, `grant_epoch`, and a grant-scoped idempotency uniqueness check.
 
 So a stolen capability cannot be replayed against a *different workload* (3), a
 *different repository* (4, 6), or a *different session* (7), and cannot be
@@ -246,7 +249,7 @@ no issuer round-trip. Everything below follows from that.
 
 | Concern | Decision |
 | --- | --- |
-| Audience and workload scope | Exact string match against `issuers.audience`; wildcard and empty audience rejected. Audience identifies Relay only. A bounded `OIDC_GITHUB_TRUST_POLICY_JSON` separately allowlists numeric owner ids, exact repositories, workflow refs, refs, environments, runner environments, and optional events; missing or malformed policy fails closed |
+| Audience and workload scope | Exact string match against `issuers.audience`; wildcard and empty audience rejected. Audience identifies Relay only. A bounded `OIDC_GITHUB_TRUST_POLICY_JSON` separately allowlists correlated repository/name/id/owner/id bindings, direct workflow refs, refs, environments, runner environments, and optional events; missing or malformed policy fails closed. Relay accepts only GitHub's immutable ID-bearing subject form |
 | Token lifetime | GitHub Actions tokens are minutes-long; unchanged. The exchanged card stays ≤ 1h per ADR-0025. The Fleetbot capability keeps its existing `CAPABILITY_MAX_TTL_SECONDS` of 5 minutes |
 | Grant lifetime | Operator-chosen absolute `expires_at`. An enrolment can never extend a grant |
 | Clock skew | **One constant, not two.** Today the capability path allows 30s (`CAPABILITY_CLOCK_SKEW_SECONDS`) while `verifyOidcToken` allows none on `nbf`/`exp`. Hoist a single shared skew constant; apply it to `nbf` and `iat` in both directions and to `exp` in the *rejecting* direction only (a token past `exp + 0` is expired; skew must never extend a token's life) |
@@ -575,8 +578,15 @@ justification is R5 containment and the other rungs should not ship.
 
 The source tree implements Phases 0–2 and the Phase 4 bearer retirement. That is
 not deployment evidence. Production remains fail closed until the D1 migration,
-reviewed Relay version, protected workflow environment, workload key, enrolment,
-and repository-admin grant have each been applied and read back.
+reviewed Relay version, workload key, enrolment, and repository-admin grant have
+each been applied and read back. Because this repository predates GitHub's
+immutable-subject default, release also requires readback of repository OIDC
+`use_immutable_subject: true`. The `fleetbot-workload` environment must exist,
+restrict deployments to the exact `main` branch, require designated reviewers,
+and disallow administrator bypass before its two secrets and pinned
+`FLEETBOT_RELAY_PUBLIC_KEY_HEX` environment variable are provisioned. The
+workflow is intentionally unusable until those controls exist; merging source
+does not authorize creating the environment or changing its protection rules.
 
 ## Consequences
 
@@ -585,9 +595,10 @@ and repository-admin grant have each been applied and read back.
 - The operator's personal account bearer leaves the publisher path entirely, and
   the boundary `skills/github-app-actuator/SKILL.md` already declares becomes
   satisfiable rather than aspirational.
-- Revocation becomes one upstream edit with immediate effect, because the grant
-  is read per request and the `epoch` invalidates capabilities minted against a
-  superseded version. No credential rotation, no restart, no keychain surgery.
+- Revocation becomes one upstream edit with immediate effect because the grant
+  and identity are re-read at the atomic capability-consumption boundary. Scope
+  changes create a new immutable grant rather than rewriting authority in place.
+  No credential rotation, restart, or keychain surgery is required.
 - A publish stops depending on the OIDC issuer being up, which makes it possible
   to fail *closed* on enrolment and *open* on publication — two behaviours that
   are both correct and were previously coupled.

@@ -1,9 +1,10 @@
 /**
  * General, account-scoped GitHub App publisher.
  *
- * The local daemon proves the active Port Daddy session and repository before
- * it sends this request. Relay independently authenticates the operator's pdu_
- * account token, rechecks that the same GitHub App installation grants the
+ * The caller binds its signed capability to one session, repository, and exact
+ * request before sending it. Relay independently authenticates the workload and
+ * standing grant, opens the account's dedicated GitHub credential, and
+ * rechecks that the same GitHub App installation grants the
  * exact repository, reserves a durable D1 intent, and mints one short-lived
  * installation token for that repository only. No App token crosses Relay.
  *
@@ -46,7 +47,7 @@ import {
   type InstallationPermission,
 } from './github-app.js';
 import type { UserRow } from './db.js';
-import { resolveLatestAccountGitHubCredential } from './auth-github.js';
+import { resolveAccountPublisherCredential } from './auth-github.js';
 import {
   authorizePublisherGrant,
   PublisherGrantFailure,
@@ -682,7 +683,9 @@ async function reserveIntent(
         scope_sha, idempotency_key, request_hash, operation, state,
         actor_id, agent_id, session_id, identity_project, roadmap_item,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?)`,
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?
+       FROM users owner
+      WHERE owner.id = ? AND owner.deleted_at IS NULL`,
   ).bind(
     key.accountUserId,
     key.accountGithubUserId,
@@ -699,12 +702,14 @@ async function reserveIntent(
     key.authorship.roadmapItem,
     now,
     now,
+    key.accountUserId,
   ).run();
   const row = await env.DB.prepare(
-    `SELECT request_hash, state, receipt_json, updated_at, lease_fence
-       FROM github_publisher_intents
-      WHERE account_user_id = ? AND installation_id = ? AND repository = ?
-        AND scope_sha = ? AND idempotency_key = ?`,
+    `SELECT i.request_hash, i.state, i.receipt_json, i.updated_at, i.lease_fence
+       FROM github_publisher_intents i
+       JOIN users owner ON owner.id = i.account_user_id AND owner.deleted_at IS NULL
+      WHERE i.account_user_id = ? AND i.installation_id = ? AND i.repository = ?
+        AND i.scope_sha = ? AND i.idempotency_key = ?`,
   ).bind(...intentBinds(key)).first<IntentRow>();
   if (!row) failure('INTENT_RESERVATION_FAILED', 500, 'publisher intent was not durably reserved');
   if (row.request_hash !== key.requestHash) failure('IDEMPOTENCY_REPLAY_MISMATCH', 409, 'idempotency key was already used for different content');
@@ -717,6 +722,8 @@ async function reserveIntent(
         AND scope_sha = ? AND idempotency_key = ?
         AND (state IN ('reserved', 'ambiguous', 'failed')
           OR (state = 'running' AND updated_at < ?))
+        AND EXISTS (SELECT 1 FROM users owner
+                     WHERE owner.id = account_user_id AND owner.deleted_at IS NULL)
       RETURNING lease_fence`,
   ).bind(now, ...intentBinds(key), now - INTENT_LEASE_SECONDS).first<{ lease_fence: number }>();
   if (!leased || !Number.isSafeInteger(leased.lease_fence) || leased.lease_fence < 1) {
@@ -877,10 +884,13 @@ function verifyPull(
     draft?: boolean;
     title?: string;
     body?: string;
+    requirePublisherOwnership?: boolean;
   },
 ): void {
   if ((input.number !== undefined && pull.number !== input.number)
-      || pull.state !== 'open' || pull.author.toLowerCase() !== input.app.botName.toLowerCase()
+      || pull.state !== 'open'
+      || (input.requirePublisherOwnership !== false
+        && pull.author.toLowerCase() !== input.app.botName.toLowerCase())
       || pull.headRepository !== input.repository || pull.baseRepository !== input.repository
       || pull.baseRef !== input.baseBranch || pull.baseSha !== input.baseSha || pull.headSha !== input.headSha
       || (input.headRef !== undefined && pull.headRef !== input.headRef)
@@ -1162,6 +1172,27 @@ async function exactExistingPull(
   return pull;
 }
 
+async function exactInspectablePull(
+  request: FleetbotActionRequest,
+  payload: ExistingPayload,
+  owner: string,
+  repo: string,
+  token: string,
+  app: GitHubAppIdentity,
+): Promise<PullRequestWitness> {
+  const pull = await getPull(owner, repo, payload.pullRequestNumber, token);
+  verifyPull(pull, {
+    repository: request.repository,
+    app,
+    baseBranch: payload.baseBranch,
+    baseSha: payload.baseSha,
+    headSha: payload.expectedGithubHeadSha,
+    number: payload.pullRequestNumber,
+    requirePublisherOwnership: false,
+  });
+  return pull;
+}
+
 async function updatePull(
   request: FleetbotActionRequest,
   payload: UpdatePayload,
@@ -1234,7 +1265,9 @@ async function executeExisting(
   app: GitHubAppIdentity,
   mutated: () => void,
 ): Promise<ExecutionResult> {
-  let pull = await exactExistingPull(request, payload, owner, repo, token, app);
+  let pull = request.operation === 'pull-request.inspect'
+    ? await exactInspectablePull(request, payload, owner, repo, token, app)
+    : await exactExistingPull(request, payload, owner, repo, token, app);
   let result: FleetbotReceipt['result'] = 'observed';
   const receiptId = fleetbotReceiptId(request.idempotencyKey!);
   const marker = fleetbotMutationMarker(receiptId);
@@ -1485,7 +1518,7 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     const now = Math.floor(Date.now() / 1000);
     validateCapabilityScope(capability, action, payload, requestHash, now);
     const grantSnapshot = await readPublisherGrant(env.DB, capability.grantId, now);
-    const account = await resolveLatestAccountGitHubCredential(env, grantSnapshot.accountUserId, now);
+    const account = await resolveAccountPublisherCredential(env, grantSnapshot.accountUserId, now);
     if (!account) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'the granting account must reconnect GitHub');
     const [owner, repo] = action.repository.split('/') as [string, string];
     const installationId = await getRepoInstallationId(config.appId, config.privateKey, owner, repo, env.KV, true);

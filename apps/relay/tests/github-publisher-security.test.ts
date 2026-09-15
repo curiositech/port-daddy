@@ -111,7 +111,7 @@ function intentDb() {
       const statement = {
         bind(...values: unknown[]) { args = values; return statement; },
         async first() {
-          if (sql.includes('SELECT request_hash')) return intent;
+          if (sql.includes('SELECT i.request_hash')) return intent;
           if (sql.includes('RETURNING lease_fence')) {
             const now = args[0] as number;
             const staleBefore = args.at(-1) as number;
@@ -126,7 +126,7 @@ function intentDb() {
         },
         async run() {
           if (sql.includes('INSERT OR IGNORE INTO github_publisher_intents') && !intent) {
-            intent = { request_hash: args[6] as string, state: 'reserved', receipt_json: null, updated_at: args[15] as number, lease_fence: 0 };
+            intent = { request_hash: args[6] as string, state: 'reserved', receipt_json: null, updated_at: args[14] as number, lease_fence: 0 };
             return { success: true, meta: { changes: 1 } };
           }
           if (sql.includes('AND state = \'running\' AND lease_fence = ?')) {
@@ -228,6 +228,52 @@ describe('Fleetbot publisher authority hardening', () => {
     await expect(subject.publisherHeadBranch(
       { DB: rejectingDb } as never, parsedMutation.request, parsedMutation.payload, 'account-1',
     )).rejects.toMatchObject({ code: 'PULL_REQUEST_NOT_OWNED', status: 403 });
+  });
+
+  it('inspects an exact ordinary pull request without requiring App authorship or a pd-agent branch', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = action();
+    globalThis.fetch = async (input) => {
+      expect(String(input)).toContain('/repos/curiositech/port-daddy/pulls/10129');
+      return Response.json({
+        number: 10129,
+        node_id: 'PR_ordinary',
+        html_url: 'https://github.test/pull/10129',
+        state: 'open',
+        draft: false,
+        title: 'Contributor change',
+        body: '',
+        user: { login: 'ordinary-contributor' },
+        head: {
+          ref: 'feature/contributor-change',
+          sha: '2'.repeat(40),
+          repo: { full_name: request.repository },
+        },
+        base: {
+          ref: 'main',
+          sha: '1'.repeat(40),
+          repo: { full_name: request.repository },
+        },
+      });
+    };
+    try {
+      await expect(subject.executeExisting(
+        request,
+        request.payload as never,
+        'curiositech',
+        'port-daddy',
+        'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => { throw new Error('inspect must never mutate'); },
+      )).resolves.toMatchObject({
+        resourceNumber: 10129,
+        publishedBranch: 'feature/contributor-change',
+        githubHeadSha: '2'.repeat(40),
+        result: 'observed',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it('paginates past 100 GitHub records before deciding a marker is absent', async () => {

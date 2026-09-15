@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS identities (
   expires_at         INTEGER,
   revoked            INTEGER NOT NULL DEFAULT 0,
   revoked_reason     TEXT,
-  created_at         INTEGER NOT NULL DEFAULT (unixepoch())
+  created_at         INTEGER NOT NULL DEFAULT (unixepoch()),
+  key_generation     INTEGER NOT NULL DEFAULT 1 CHECK (key_generation > 0)
 );
 
 CREATE TABLE IF NOT EXISTS harbor_members (
@@ -318,7 +319,10 @@ CREATE TABLE IF NOT EXISTS user_tokens (
   created_at  INTEGER NOT NULL,
   last_used_at INTEGER,
   expires_at  INTEGER,
-  revoked_at  INTEGER
+  revoked_at  INTEGER,
+  gh_credential_enc TEXT,
+  gh_credential_iv TEXT,
+  gh_credential_key_version INTEGER
 );
 CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
 
@@ -1130,6 +1134,47 @@ END;
 
 -- Fleetbot publisher standing grants (capability v2). Grant ids are references,
 -- while the workload signature and current row are authority.
+CREATE TABLE IF NOT EXISTS github_publisher_credentials (
+  account_user_id TEXT PRIMARY KEY REFERENCES users(id),
+  generation INTEGER NOT NULL CHECK (generation > 0),
+  credential_enc TEXT NOT NULL,
+  credential_iv TEXT NOT NULL,
+  credential_key_version INTEGER NOT NULL CHECK (credential_key_version > 0),
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS github_publisher_intents (
+  account_user_id TEXT NOT NULL REFERENCES users(id),
+  account_github_user_id INTEGER NOT NULL,
+  installation_id INTEGER NOT NULL,
+  repository TEXT NOT NULL,
+  scope_sha TEXT NOT NULL CHECK (length(scope_sha) = 40),
+  idempotency_key TEXT NOT NULL,
+  request_hash TEXT NOT NULL CHECK (length(request_hash) = 64),
+  operation TEXT NOT NULL CHECK (operation IN (
+    'pull-request.publish','pull-request.update','pull-request.ready',
+    'pull-request.request-reviewers','pull-request.comment',
+    'pull-request.review-reply','pull-request.enqueue','pull-request.inspect')),
+  state TEXT NOT NULL CHECK (state IN ('reserved','running','ambiguous','succeeded','failed')),
+  actor_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  identity_project TEXT NOT NULL,
+  roadmap_item TEXT,
+  resource_number INTEGER,
+  resource_url TEXT,
+  published_branch TEXT,
+  github_head_sha TEXT,
+  receipt_json TEXT CHECK (receipt_json IS NULL OR json_valid(receipt_json)),
+  error_code TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  lease_fence INTEGER NOT NULL DEFAULT 0 CHECK (lease_fence >= 0),
+  PRIMARY KEY (account_user_id, installation_id, repository, scope_sha, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS github_publisher_session_idx
+  ON github_publisher_intents (session_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS github_publisher_resource_idx
+  ON github_publisher_intents (repository, resource_number, updated_at DESC);
 CREATE TABLE IF NOT EXISTS publisher_grants (
   grant_id TEXT PRIMARY KEY CHECK (substr(grant_id, 1, 4) = 'pdg_' AND length(grant_id) = 36
     AND substr(grant_id, 5) NOT GLOB '*[^0-9a-f]*'),
@@ -1166,26 +1211,58 @@ BEGIN
     'pull-request.publish','pull-request.update','pull-request.ready','pull-request.request-reviewers',
     'pull-request.comment','pull-request.review-reply','pull-request.enqueue','pull-request.inspect'))
     THEN RAISE(ABORT, 'publisher grant operation scope invalid') END;
+  SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM json_each(NEW.branch_allow_json)
+     WHERE type != 'text' OR length(value) > 200 OR value = ''
+       OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
+  ) OR EXISTS (
+    SELECT 1 FROM json_each(NEW.base_allow_json)
+     WHERE type != 'text' OR length(value) > 200 OR value = '' OR value LIKE '%/'
+       OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
+  ) THEN RAISE(ABORT, 'publisher grant branch scope invalid') END;
   SELECT CASE WHEN EXISTS (SELECT value FROM json_each(NEW.repositories_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.operations_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.branch_allow_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1)
     THEN RAISE(ABORT, 'publisher grant scope contains duplicates') END;
 END;
-CREATE TRIGGER IF NOT EXISTS publisher_grants_update_epoch
-BEFORE UPDATE OF subject_fingerprint, subject_class, installation_id, repositories_json,
-  operations_json, branch_allow_json, base_allow_json, mutations_per_day, expires_at ON publisher_grants
+CREATE TRIGGER IF NOT EXISTS publisher_grants_immutable_authority
+BEFORE UPDATE OF grant_id, epoch, surface, account_user_id, subject_fingerprint,
+  subject_class, installation_id, repositories_json, operations_json,
+  branch_allow_json, base_allow_json, mutations_per_day, expires_at,
+  created_at, created_via, created_ip ON publisher_grants
 BEGIN
-  SELECT CASE WHEN NEW.epoch != OLD.epoch + 1
-    THEN RAISE(ABORT, 'publisher grant scope update must increment epoch') END;
+  SELECT RAISE(ABORT, 'publisher grant authority is immutable; create a new grant');
+END;
+CREATE TRIGGER IF NOT EXISTS publisher_grants_irreversible_revocation
+BEFORE UPDATE OF revoked_at, revoked_reason ON publisher_grants
+BEGIN
+  SELECT CASE WHEN OLD.revoked_at IS NOT NULL
+      OR NEW.revoked_at IS NULL OR NEW.revoked_reason IS NULL
+      OR length(trim(NEW.revoked_reason)) = 0
+    THEN RAISE(ABORT, 'publisher grant revocation is irreversible') END;
 END;
 CREATE TABLE IF NOT EXISTS github_publisher_session_bindings (
   session_id TEXT PRIMARY KEY,
   subject_fingerprint TEXT NOT NULL REFERENCES identities(daemon_fingerprint),
-  first_grant_id TEXT NOT NULL REFERENCES publisher_grants(grant_id),
+  first_grant_id TEXT REFERENCES publisher_grants(grant_id) ON DELETE SET NULL,
   bound_at INTEGER NOT NULL
 );
+-- v1 remains for rollback compatibility during the v2 rollout.
 CREATE TABLE IF NOT EXISTS github_publisher_capability_uses (
+  daemon_fingerprint TEXT NOT NULL,
+  signing_key_generation INTEGER NOT NULL CHECK (signing_key_generation > 0),
+  nonce TEXT NOT NULL CHECK (length(nonce) = 64),
+  account_user_id TEXT NOT NULL REFERENCES users(id),
+  account_token_hash TEXT NOT NULL CHECK (length(account_token_hash) = 64),
+  request_hash TEXT NOT NULL CHECK (length(request_hash) = 64),
+  idempotency_key TEXT NOT NULL,
+  consumed_at INTEGER NOT NULL,
+  PRIMARY KEY (daemon_fingerprint, signing_key_generation, nonce)
+);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_account_idx
+  ON github_publisher_capability_uses (account_user_id, consumed_at DESC);
+CREATE TABLE IF NOT EXISTS github_publisher_capability_uses_v2 (
   daemon_fingerprint TEXT NOT NULL,
   signing_key_generation INTEGER NOT NULL CHECK (signing_key_generation > 0),
   nonce TEXT NOT NULL CHECK (length(nonce) = 64),
@@ -1196,12 +1273,13 @@ CREATE TABLE IF NOT EXISTS github_publisher_capability_uses (
   idempotency_key TEXT NOT NULL,
   is_mutation INTEGER NOT NULL CHECK (is_mutation IN (0, 1)),
   consumed_at INTEGER NOT NULL,
-  PRIMARY KEY (daemon_fingerprint, signing_key_generation, nonce)
+  PRIMARY KEY (daemon_fingerprint, signing_key_generation, nonce),
+  UNIQUE (grant_id, idempotency_key)
 );
-CREATE INDEX IF NOT EXISTS github_publisher_capability_grant_idx
-  ON github_publisher_capability_uses (grant_id, consumed_at DESC, is_mutation);
-CREATE INDEX IF NOT EXISTS github_publisher_capability_session_idx
-  ON github_publisher_capability_uses (session_id, consumed_at DESC);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_v2_grant_idx
+  ON github_publisher_capability_uses_v2 (grant_id, consumed_at DESC, is_mutation);
+CREATE INDEX IF NOT EXISTS github_publisher_capability_v2_session_idx
+  ON github_publisher_capability_uses_v2 (session_id, consumed_at DESC);
 CREATE TRIGGER IF NOT EXISTS repo_ship_controls_update_audit AFTER UPDATE ON repo_ship_controls
 BEGIN
   INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
