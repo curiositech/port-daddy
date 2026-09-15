@@ -208,10 +208,13 @@ describe('whitepaper metadata sync', () => {
     // A hypothetical 50 KB paper: 2% = 1 KB. The 4 KB floor should kick in
     // and accept up to ±4 KB. Verified by handing detectDrift a fake paper
     // entry off by exactly 3 KB (within floor) and one off by 5 KB (over).
-    const tinyPaper = { id: 't', pdfPath: COLLECTED_VOLUME.pdfPath, pages: 1, sizeKb: 50 }
-    const withinFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 53 }))
+    // `pages: 30` is incidental here — it only has to clear the (unrelated)
+    // page-count floor so that this stays a test about the sizeKb tolerance
+    // and nothing else.
+    const tinyPaper = { id: 't', pdfPath: COLLECTED_VOLUME.pdfPath, pages: 30, sizeKb: 50 }
+    const withinFloor = detectDrift([tinyPaper], () => ({ pages: 30, sizeKb: 53 }))
     expect(withinFloor).toEqual([])
-    const overFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 55 }))
+    const overFloor = detectDrift([tinyPaper], () => ({ pages: 30, sizeKb: 55 }))
     expect(overFloor.length).toBe(1)
     expect(overFloor[0].sizeDrift).toBe(true)
   })
