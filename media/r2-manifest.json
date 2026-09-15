@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 619,
-    "distinctObjects": 583,
-    "bytes": 282197123,
-    "distinctBytes": 279403532
+    "assets": 620,
+    "distinctObjects": 584,
+    "bytes": 282574157,
+    "distinctBytes": 279780566
   },
   "assets": [
     {
@@ -140,6 +140,13 @@
       "bytes": 595036,
       "sha256": "ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e",
       "key": "sha256/ee/ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/pd-pedagogy-font-fix/design-invariant-recall-smallcaps.png",
+      "bytes": 377034,
+      "sha256": "644ef6929f0a96914cf9695b24486ebb681ed070980aacd81ea3bd9eb5bc22c5",
+      "key": "sha256/64/644ef6929f0a96914cf9695b24486ebb681ed070980aacd81ea3bd9eb5bc22c5.png",
       "contentType": "image/png"
     },
     {
