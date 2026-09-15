@@ -1,0 +1,3 @@
+type: fixed
+
+- **Two Latin Modern font-shape substitutions in the Book's page grammar are fixed at the root, not silenced.** `\scshape\bfseries` in `pd-pedagogy.tex`'s claim/boundary/recitation/exercise-group heads requested `T1/lmr/bx/sc`, a shape Latin Modern Roman does not define at any weight; dropped `\bfseries` so the head renders true small caps instead of NFSS's undeclared fallback to plain bold. `\bfseries` inside monospace `pdsession`/code-listing text requested `T1/lmtt/bx/n`, which this installation's `t1lmtt.fd` only declares as a silent substitute for `b/n`; switched to `\fontseries{b}\selectfont`, the weight Latin Modern Typewriter actually ships. Verified via a clean chapter rebuild: both undefined-shape traces present before, gone after.

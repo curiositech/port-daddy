@@ -188,7 +188,7 @@
     % handles (a different mechanism -- a migrated page, not a short strut).
     \global\pd@lastheadbottom=\dimexpr\pagetotal+\pd@headshift
       +\ht\pd@headbox+\dp\pd@headbox+8pt\relax
-  \else{\scshape\bfseries #1.}\enspace\fi}
+  \else{\scshape #1.}\enspace\fi}
 % A small square in the chapter's hue, in the margin, marking a worked example
 % so a reader flipping through finds every one.
 \newlength{\pd@blockoff}
@@ -651,7 +651,7 @@
     \PackageError{pd-pedagogy}{Unknown pdclaim kind '#1'}%
       {Use one of: Theorem, Design invariant, Model-checked property, Empirical hypothesis.}%
   \fi
-  {\scshape\bfseries #1}%
+  {\scshape #1}%
 }
 \newenvironment{pdclaim}[2]{%
   \par\addvspace{10pt plus 2pt minus 1pt}%
@@ -661,7 +661,7 @@
   % counter (every chapter and the Book define `theorem` within section), so a
   % \label placed right after \begin{pdclaim} refers to the claim, prints as
   % "Theorem 3.1" in prose, and links to this head.
-  \ifcsname c@theorem\endcsname\refstepcounter{theorem}\pdkind{#1}~{\scshape\bfseries\thetheorem}\else\pdkind{#1}\fi
+  \ifcsname c@theorem\endcsname\refstepcounter{theorem}\pdkind{#1}~{\scshape\thetheorem}\else\pdkind{#1}\fi
   \enspace{\bfseries #2.}\enspace\ignorespaces
 }{%
   \par\nobreak\vspace{3pt}\noindent{\color{pdink}\rule{4em}{0.5pt}}\par
@@ -757,7 +757,7 @@
     \pd@placemargin{\pd@recallbox}%
     \global\let\pd@pendingpointer\@empty
   \else
-    \par\addvspace{6pt}\noindent{\scshape\bfseries Recall.}\par\nobreak
+    \par\addvspace{6pt}\noindent{\scshape Recall.}\par\nobreak
     \begin{enumerate}[leftmargin=1.6em,itemsep=1pt,topsep=2pt,parsep=0pt,label=\arabic*.]%
     \small\BODY\end{enumerate}\addvspace{6pt}%
   \fi}
@@ -898,7 +898,11 @@
   postbreak=\mbox{\textcolor{hhgray}{\fontsize{7}{7}\selectfont$\hookrightarrow$}\space},
   xleftmargin=0pt,aboveskip=4pt,belowskip=2pt,showstringspaces=false,
   language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={},
-  moredelim=[l][\bfseries]{\$\ }}
+  % This installation's t1lmtt.fd declares bx/n only as a silent ssub to b/n
+  % (see "bold is always bold (b)" in that file) -- \bfseries requests
+  % \bfdefault (bx) and still triggers NFSS's substitution machinery.
+  % \fontseries{b} asks directly for the shape that's actually defined.
+  moredelim=[l][\fontseries{b}\selectfont]{\$\ }}
 \newlength{\pd@sessionwidth}
 \lstnewenvironment{pdsession}[1][]{%
   \endgraf\addvspace{8pt plus 1pt}%
@@ -959,7 +963,7 @@
 %   \pdexercisepointerone{\ref{ex:only}}{\pageref{ex:only}}
 % ---------------------------------------------------------------------------
 \newcommand{\pdexercisesfor}[2]{%
-  \par\vspace{12pt}\noindent{\scshape\bfseries #1\enspace #2}\par\smallskip}
+  \par\vspace{12pt}\noindent{\scshape #1\enspace #2}\par\smallskip}
 % In the Book the pointer sits in the margin beside the paragraph it follows;
 % in a standalone chapter it is a small italic line.
 %
