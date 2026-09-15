@@ -33,8 +33,9 @@ describe('Fleetbot publisher contract', () => {
       authorship,
       payload: { z: 2, nested: { b: 2, a: 1 }, files: ['b', 'a'] },
       capability: {
-        schema: 'port-daddy.fleetbot-publisher-capability.v1',
-        accountTokenHash: '1'.repeat(64),
+        schema: 'port-daddy.fleetbot-publisher-capability.v2',
+        grantId: `pdg_${'1'.repeat(32)}`,
+        grantEpoch: 1,
         daemonFingerprint: '2'.repeat(64),
         signingKeyGeneration: 1,
         sessionId: authorship.sessionId,

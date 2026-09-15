@@ -24,6 +24,7 @@ import {
   handleAccountExport,
   handleAccountDelete,
   resolveSession,
+  resolveLatestAccountGitHubCredential,
   userCanReadRepo,
   userIsRepoAdmin,
   userOwnsInstallation,
@@ -74,7 +75,7 @@ function makeDb() {
           }
         } else if (sql.startsWith('INSERT INTO web_sessions')) {
           const [th, uid, enc, iv, ca, exp, ua] = bound;
-          sessions.set(th, { user_id: uid, gh_token_enc: enc, gh_token_iv: iv, expires_at: exp, created_at: ca, user_agent: ua });
+          sessions.set(th, { token_hash: th, user_id: uid, gh_token_enc: enc, gh_token_iv: iv, expires_at: exp, created_at: ca, user_agent: ua });
         } else if (sql.includes('DELETE FROM web_sessions WHERE user_id')) {
           const before = sessions.size;
           for (const [k, v] of sessions) if (v.user_id === bound[0]) sessions.delete(k);
@@ -88,6 +89,14 @@ function makeDb() {
       },
       // shipwright_chats export read (handleAccountExport) — none in this mock.
       async all<T>(): Promise<{ results: T[] }> {
+        if (sql.includes('FROM web_sessions') && sql.includes('ORDER BY created_at DESC')) {
+          const now = bound[1];
+          const found = [...sessions.values()]
+            .filter((row) => row.user_id === bound[0] && row.expires_at > now && row.gh_token_enc && row.gh_token_iv)
+            .sort((a, b) => b.created_at - a.created_at || b.token_hash.localeCompare(a.token_hash))
+            .slice(0, 2);
+          return { results: found as T[] };
+        }
         return { results: [] };
       },
     };
@@ -328,6 +337,32 @@ async function loginAndGetCookie(env: Env, kv: ReturnType<typeof makeKV>): Promi
 }
 
 describe('/auth/me, logout, and session resolution', () => {
+  it('resolves the newest unambiguous live account credential without a browser or pdu bearer', async () => {
+    const kv = makeKV();
+    const state = makeDb();
+    const env = makeEnv({}, kv, state.db);
+    await loginAndGetCookie(env, kv);
+    const user = [...state.users.values()][0];
+    const resolved = await resolveLatestAccountGitHubCredential(env, user.id, Math.floor(Date.now() / 1000));
+    expect(resolved).toMatchObject({ user: { id: user.id }, accessToken: 'ghu_usertoken' });
+    expect(JSON.stringify(resolved)).not.toContain('__Host-pd_session');
+  });
+
+  it('fails closed for missing, expired, or equally-new account credential rows', async () => {
+    const kv = makeKV();
+    const state = makeDb();
+    const env = makeEnv({}, kv, state.db);
+    expect(await resolveLatestAccountGitHubCredential(env, 'u_missing', 1)).toBeNull();
+    await loginAndGetCookie(env, kv);
+    const user = [...state.users.values()][0];
+    const first = [...state.sessions.values()][0];
+    first.expires_at = 1;
+    expect(await resolveLatestAccountGitHubCredential(env, user.id, 2)).toBeNull();
+    first.expires_at = 100;
+    state.sessions.set('f'.repeat(64), { ...first, token_hash: 'f'.repeat(64) });
+    expect(await resolveLatestAccountGitHubCredential(env, user.id, 2)).toBeNull();
+  });
+
   it('me: 401 without a session; the user (no gh token) with one', async () => {
     const kv = makeKV();
     const env = makeEnv({}, kv, makeDb().db);
