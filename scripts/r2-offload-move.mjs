@@ -87,6 +87,19 @@ export function rewriteProse(text, proseFile, assetPath, url) {
   ];
   let out = text;
   for (const candidate of [...new Set(candidates)].sort((a, b) => b.length - a.length)) {
+    const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // A candidate can appear as the TAIL of an absolute URL that already
+    // pins a different host and commit -- a `raw.githubusercontent.com/...`
+    // link, most often, since this repo's "two SHAs" manifests point one at
+    // the figure-source commit and one at the asset-only commit. Replacing
+    // only the trailing path there would leave the old host+commit prefix in
+    // place and splice `url` directly onto the end of it, producing one
+    // string that is two concatenated URLs with no separator. So the WHOLE
+    // enclosing URL is matched and replaced first; whatever candidate
+    // occurrences are left afterwards are bare paths, not URL tails, and the
+    // plain split/join below is correct for those.
+    const enclosingUrl = new RegExp(`https?://[^\\s\`"'()<>[\\]]*?${escaped}`, 'g');
+    out = out.replace(enclosingUrl, url);
     out = out.split(candidate).join(url);
   }
   return out;

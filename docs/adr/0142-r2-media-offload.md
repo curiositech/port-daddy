@@ -3,7 +3,7 @@
 - **Status:** Accepted, and provisioned. The bucket, the custom domain and the
   upload path now exist and were exercised against the real account; §11.1
   records what was created and what was measured doing it. Phase 2 has begun
-  for two roots (§9.1) — 108 files, 67.0 MiB, removed from git and served from
+  for two roots (§9.1) — 111 files, 67.3 MiB, removed from git and served from
   `media.portdaddy.dev`. The rest of §2's population remains Phase 1 (mirrored,
   still in git).
 - **Date:** 2026-09-14
@@ -108,6 +108,11 @@ wrote media/r2-manifest.json: 818 assets, 782 distinct objects,
 ```
 
 411.4 MiB, 46% of the repository, moved by a rule you can evaluate in your head.
+(Measured at `c92efaa5c`. §12 gives the currently-committed count — main
+absorbed an unrelated PR's deletion of stale `docs/pr-assets/pr-*` directories
+after this measurement was taken, and this PR's own Phase 2 then moved part of
+the remainder out of git entirely, so `media/r2-manifest.json` as committed
+here is smaller than this snapshot.)
 
 ### 2.1 What stays in git, and why each one
 
@@ -260,7 +265,10 @@ on any mismatch.
 
 **The bucket is append-only.** Nothing in any automated path deletes or
 overwrites an object; `If-None-Match: *` makes overwriting impossible even by
-accident.
+accident. (On the REST transport this guarantee is weaker than stated here —
+see §11.1 Difference 2, where `If-None-Match: *` is measured to be ignored and
+the append-only property rests on the tool's own skip-and-re-hash logic rather
+than on the store refusing the write.)
 
 Rollback is therefore `git revert`. The reverted commit's manifest names the
 older hashes, those objects are still in the bucket because nothing removed
@@ -310,10 +318,10 @@ is why §12's framing is corrected here rather than repeated.
 Because the benefit is narrower, the population is chosen conservatively rather
 than by sweeping §2's whole rule:
 
-- **Moved: `docs/pr-assets/` and `docs/pr-media/`.** 108 files, 67.0 MiB. Review
+- **Moved: `docs/pr-assets/` and `docs/pr-media/`.** 111 files, 67.3 MiB. Review
   evidence for merged PRs — §1.2's "a human clicking a link in a PR" case
   exactly. A scan of every tracked text file found no consumer outside prose for
-  any of them, and the 5 prose files that did cite them were rewritten to
+  any of them, and the 6 prose files that did cite them were rewritten to
   `media.portdaddy.dev` URLs in the same commit.
 - **Refused by the tool, inside those same roots: 5 files.**
   `docs/pr-assets/pr-729/wedge-editor-face.{png,webm}` are read by
@@ -488,7 +496,7 @@ than by consulting a list.
 ## 12. Consequences
 
 - **261.2 MiB across 580 files is mirrored and eligible to leave git**, and
-  67.0 MiB across 108 files has left (§9.1). The earlier "411.4 MiB (46%) of the
+  67.3 MiB across 111 files has left (§9.1). The earlier "411.4 MiB (46%) of the
   repository" figure is superseded twice over: main's `a94120c32` deleted 133 of
   those assets outright as unreferenced, and — more importantly — leaving git
   shrinks the *tip*, not the repository, because history keeps every blob.
