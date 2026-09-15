@@ -30,6 +30,7 @@ const targetProfile = {
 function fixture() {
   const work = mkdtempSync(join(target, 'case-'))
   const source = join(work, 'source')
+  const output = join(work, 'successor')
   mkdirSync(source)
   const files = [
     ['canonical.txt', Buffer.from('one canonical idea\n'), '100644'],
@@ -77,6 +78,7 @@ function fixture() {
     granted: true,
     approverId: 'owner-a',
     scope: { sourceId: 'unrelated-project', revision: 'frozen-1' },
+    destination: { outputPath: output },
     limitations: [],
   }
   const approvalBytes = json(approval)
@@ -90,6 +92,7 @@ function fixture() {
   return {
     work,
     source,
+    output,
     universe,
     manifest,
     approval,
@@ -148,7 +151,7 @@ test('exact complete approval verifies without writing', () => {
 
 test('materialization is a new exact tree with reverse evidence, leaving source intact', () => {
   const f = fixture()
-  const output = join(f.work, 'successor')
+  const output = f.output
   const result = materializeSuccessor(audit(f), materializeArgs(f, output))
   assert.equal(result.status, 'materialized')
   assert.equal(readFileSync(join(output, 'skills/canonical.txt'), 'utf8'), 'one canonical idea\n')
@@ -168,7 +171,7 @@ test('materialization re-audits exact declarations instead of trusting a mutable
   const f = fixture()
   const verified = audit(f)
   verified.rows.manifest[0].sourcePath = 'history/old.md'
-  const output = join(f.work, 'successor-after-mutated-result')
+  const output = f.output
   const result = materializeSuccessor(verified, materializeArgs(f, output))
   assert.equal(result.status, 'materialized')
   assert.equal(readFileSync(join(output, 'skills/canonical.txt'), 'utf8'), 'one canonical idea\n')
@@ -361,6 +364,14 @@ test('output must be absent, separate and non-nested', () => {
   assert.throws(() => materializeSuccessor(verified, materializeArgs(f, existing)), /must not already exist/u)
 })
 
+test('approval authorizes exactly one canonical output destination', () => {
+  const f = fixture()
+  const other = join(f.work, 'other-successor')
+  assert.throws(() => materializeSuccessor(audit(f), materializeArgs(f, other)), /exact destination authorized/u)
+  assert.equal(existsSync(other), false)
+  assert.throws(() => auditSuccessor({ ...f, sourceRoot: f.source, approvalBytes: json({ ...f.approval, destination: { outputPath: `${f.work}/nested/../successor` } }) }), /normalized absolute path/u)
+})
+
 test('CLI verifies on stdout and materializes only with the explicit paired flags', () => {
   const f = fixture()
   const universe = join(f.work, 'universe.jsonl')
@@ -381,7 +392,14 @@ test('CLI verifies on stdout and materializes only with the explicit paired flag
   const bad = spawnSync(process.execPath, [cli, ...args, '--output', join(f.work, 'bad')], { encoding: 'utf8' })
   assert.equal(bad.status, 1)
   assert.match(bad.stderr, /supplied together/u)
-  const output = join(f.work, 'cli-successor')
+  const duplicate = spawnSync(process.execPath, [cli, ...args, '--source', f.source], { encoding: 'utf8' })
+  assert.equal(duplicate.status, 1)
+  assert.match(duplicate.stderr, /duplicate argument: --source/u)
+  const duplicateOutput = spawnSync(process.execPath, [cli, ...args, '--materialize', '--output', f.output, '--output', join(f.work, 'other')], { encoding: 'utf8' })
+  assert.equal(duplicateOutput.status, 1)
+  assert.match(duplicateOutput.stderr, /duplicate argument: --output/u)
+  assert.equal(existsSync(f.output), false)
+  const output = f.output
   const created = JSON.parse(execFileSync(process.execPath, [cli, ...args, '--materialize', '--output', output], { encoding: 'utf8' }))
   assert.equal(created.status, 'materialized')
   assert.ok(existsSync(join(output, '.harbor-reconciliation/materialization-receipt.json')))
@@ -431,6 +449,13 @@ test('authority receipt bundle must be complete, exact and contain no extras', (
   const byteDrift = fixture()
   byteDrift.authorityReceiptsBytes = Buffer.from(byteDrift.authorityReceiptsBytes.toString('utf8').replace('"schemaVersion":1', '"schemaVersion" : 1'))
   result = audit(byteDrift).result
+  assert.equal(result.pass, false)
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /missing/u.test(entry.message)))
+  assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /unreferenced/u.test(entry.message)))
+
+  const bomDrift = fixture()
+  bomDrift.authorityReceiptsBytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), bomDrift.authorityReceiptsBytes])
+  result = audit(bomDrift).result
   assert.equal(result.pass, false)
   assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /missing/u.test(entry.message)))
   assert.ok(result.findings.some((entry) => entry.id === 'SE-AUTHORITY-RECEIPT' && /unreferenced/u.test(entry.message)))

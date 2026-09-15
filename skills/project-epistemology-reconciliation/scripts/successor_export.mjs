@@ -179,16 +179,23 @@ function decodeJsonl(bytes, path) {
 }
 
 function decodeJsonlWithRaw(bytes, path) {
-  const text = decodeText(bytes, path, 'JSONL')
-  const lines = text.split('\n')
-  if (lines.at(-1) === '') lines.pop()
-  if (lines.length === 0 || lines.some((line) => line.trim() === '')) throw new TypeError(`${path} must contain non-blank JSON lines`)
-  if (lines.length > ROW_LIMIT) throw new TypeError(`${path} exceeds ${ROW_LIMIT} rows`)
-  const rows = lines.map((line, index) => {
+  const rawLines = []
+  let start = 0
+  for (let index = 0; index < bytes.length; index += 1) {
+    if (bytes[index] !== 0x0a) continue
+    rawLines.push(Buffer.from(bytes.subarray(start, index)))
+    start = index + 1
+  }
+  if (start < bytes.length) rawLines.push(Buffer.from(bytes.subarray(start)))
+  if (rawLines.length === 0 || rawLines.some((line) => line.length === 0)) throw new TypeError(`${path} must contain non-blank JSON lines`)
+  if (rawLines.length > ROW_LIMIT) throw new TypeError(`${path} exceeds ${ROW_LIMIT} rows`)
+  const rows = rawLines.map((rawLine, index) => {
+    const line = decodeText(rawLine, `${path} line ${index + 1}`, 'JSON')
+    if (line.trim() === '') throw new TypeError(`${path} must contain non-blank JSON lines`)
     rejectDuplicateJsonKeys(line, `${path} line ${index + 1}`)
     try { return JSON.parse(line) } catch { throw new TypeError(`${path} line ${index + 1} must be valid JSON`) }
   })
-  return { rows, rawLines: lines.map((line) => Buffer.from(line, 'utf8')) }
+  return { rows, rawLines }
 }
 
 function relativePath(value, path, { targetProfile = null } = {}) {
@@ -302,7 +309,7 @@ function validateLossAudit(value) {
 }
 
 function validateApproval(value) {
-  exactKeys(value, ['schemaVersion', 'action', 'decisionId', 'revision', 'manifestSha256', 'universeSha256', 'granted', 'approverId', 'scope', 'limitations'], 'approval')
+  exactKeys(value, ['schemaVersion', 'action', 'decisionId', 'revision', 'manifestSha256', 'universeSha256', 'granted', 'approverId', 'scope', 'destination', 'limitations'], 'approval')
   if (value.schemaVersion !== 1) throw new TypeError('approval.schemaVersion must equal 1')
   if (value.action !== 'materialize-successor') throw new TypeError('approval.action must equal materialize-successor')
   for (const key of ['decisionId', 'revision', 'approverId']) string(value[key], `approval.${key}`)
@@ -312,6 +319,9 @@ function validateApproval(value) {
   exactKeys(value.scope, ['sourceId', 'revision'], 'approval.scope')
   string(value.scope.sourceId, 'approval.scope.sourceId')
   string(value.scope.revision, 'approval.scope.revision')
+  exactKeys(value.destination, ['outputPath'], 'approval.destination')
+  string(value.destination.outputPath, 'approval.destination.outputPath')
+  if (!isAbsolute(value.destination.outputPath) || value.destination.outputPath !== resolve(value.destination.outputPath)) throw new TypeError('approval.destination.outputPath must be a normalized absolute path')
   strings(value.limitations, 'approval.limitations', { allowEmpty: true })
 }
 
@@ -549,7 +559,7 @@ export function auditSuccessor({ sourceRoot, universeBytes, manifestBytes, lossA
         source: { sourceId: lossAudit.source.sourceId, revision: lossAudit.source.revision, root, paths: universe.length, bytes: sourceBytes, universeSha256 },
         manifest: { sha256: manifestSha256, paths: manifest.length },
         lossAuditSha256: digest(lossAuditBytes),
-        approval: { sha256: approvalSha256, decisionId: approval.decisionId, revision: approval.revision, approverId: approval.approverId },
+        approval: { sha256: approvalSha256, decisionId: approval.decisionId, revision: approval.revision, approverId: approval.approverId, outputPath: approval.destination.outputPath },
         authorityReceipts: { sha256: digest(authorityReceiptsBytes), receipts: authorityDecoded.rows.length },
         targetFilesystem: { sha256: digest(targetProfileBytes), ...targetProfile },
       },
@@ -602,6 +612,7 @@ export function materializeSuccessor(audit, { sourceRoot, universeBytes, manifes
   const verified = auditSuccessor({ sourceRoot, universeBytes, manifestBytes, lossAuditBytes, approvalBytes, authorityReceiptsBytes, targetProfileBytes })
   if (!verified.result.pass) throw new TypeError('refusing to materialize a successor whose declarations no longer pass')
   const { output } = ensureSeparateOutput(sourceRoot, outputPath)
+  if (verified.rows.approval.destination.outputPath !== output) throw new TypeError('output path is not the exact destination authorized by approval')
   const universeByPath = new Map(verified.rows.universe.map((row) => [row.path, row]))
   mkdirSync(output, { mode: 0o700 })
   const incomplete = join(output, INCOMPLETE_MARKER)
@@ -646,8 +657,14 @@ function run(argv) {
   let materialize = false
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index]
-    if (['--source', '--universe', '--manifest', '--loss-audit', '--approval', '--authority-receipts', '--target-profile', '--output'].includes(value)) paths[value.slice(2)] = argv[++index]
-    else if (value === '--materialize') materialize = true
+    if (['--source', '--universe', '--manifest', '--loss-audit', '--approval', '--authority-receipts', '--target-profile', '--output'].includes(value)) {
+      const key = value.slice(2)
+      if (Object.hasOwn(paths, key)) throw new TypeError(`duplicate argument: ${value}`)
+      paths[key] = argv[++index]
+    } else if (value === '--materialize') {
+      if (materialize) throw new TypeError('duplicate argument: --materialize')
+      materialize = true
+    }
     else if (value === '--help' || value === '-h') { process.stdout.write(`${usage()}\n`); return 0 }
     else throw new TypeError(`unknown argument: ${value}`)
   }

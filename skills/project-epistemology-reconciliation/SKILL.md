@@ -130,9 +130,11 @@ node --test tests/successor_export.test.mjs
 ```
 
 Add `--materialize --output /absolute/absent-successor-tree` only for the
-approved write. Every disposition must bind one separately supplied exact
-source-scoped authority-receipt row, and the target profile must exactly match
-the supported `portable-ascii-casefold-v1` contract. A verified manifest does
+approved write. The approval's `destination.outputPath` must be that exact
+normalized absolute path; it cannot authorize a different output. Every
+disposition must bind one separately supplied exact source-scoped
+authority-receipt row, and the target profile must exactly match the supported
+`portable-ascii-casefold-v1` contract. A verified manifest does
 not mean its semantic choices are good;
 it means the supplied declarations are complete, mutually bound and consistent
 with the current source bytes.

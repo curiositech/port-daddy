@@ -122,8 +122,8 @@ read-only and stdout-only.
 - `successor-manifest.jsonl`: exactly one disposition for every universe path;
 - `loss-audit.json`: exact universe/manifest bindings, zero unresolved blockers,
   and an explicit export authorization flag; and
-- `approval.json`: a separate, exact approval bound to the same source revision
-  and declaration digests;
+- `approval.json`: a separate, exact approval bound to the same source revision,
+  declaration digests, and one normalized absolute output path;
 - `authority-receipts.jsonl`: one exact, source-scoped authorization receipt for
   every manifest disposition, with each raw-row digest referenced exactly once;
   and
@@ -135,6 +135,9 @@ read-only and stdout-only.
 This local v1 accepts only unconditional approval and disposition receipts:
 their `limitations` arrays must be empty. Free-text conditions cannot be safely
 interpreted or enforced, so any non-empty limitation holds materialization.
+The approved output path must resolve through a regular, non-symlink parent to
+that exact destination; the approval cannot be replayed into another directory.
+Duplicate command-line flags are rejected instead of choosing the last value.
 
 The only dispositions are `copy-exact`, `regenerate-alias`, and
 `omit-approved`. There is deliberately no content-transform or inferred-omit

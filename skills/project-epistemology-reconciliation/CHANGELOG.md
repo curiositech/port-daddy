@@ -8,6 +8,8 @@
   bindings plus one exact source-scoped authority receipt per disposition;
   unresolved blockers, missing receipts, free-text limitations and absent
   authorization remain held.
+- Bound each approval to one canonical output destination, retained authority
+  row digests from original bytes, and rejected duplicate CLI flags.
 - Supported only exact copies, byte-identical regenerated installation aliases
   and explicitly approved omissions. Content transformation remains out of
   scope rather than becoming an unreviewed rewrite path.

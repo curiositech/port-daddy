@@ -107,6 +107,7 @@ const successorApproval = {
   schemaVersion: 1, action: 'materialize-successor', decisionId: 'owner-approval-1', revision: '1',
   manifestSha256: digest(manifestBytes), universeSha256: digest(universeBytes), granted: true,
   approverId: 'owner-a', scope: { sourceId: 'unrelated-successor', revision: 'frozen-1' },
+  destination: { outputPath: successorOutput },
   limitations: [],
 }
 const approvalBytes = Buffer.from(`${JSON.stringify(successorApproval)}\n`)
