@@ -7,6 +7,7 @@ import {
   cleanStandaloneChrome,
   collateReferences,
   compareNormalizedReferences,
+  documentBody,
   inlineInputs,
   loadCiteShortforms,
   loadTextbook,
@@ -392,6 +393,34 @@ test('reference ordering is locale-independent and normalized', () => {
   assert.deepEqual(refs.map((ref) => ref.body), ['\\emph{alpha}', 'Beta', '{Zulu}']);
 });
 
+test('a preamble comment about \\begin{document} does not move the body start', () => {
+  const source = [
+    '\\documentclass{article}',
+    '% the pedagogy twin always wins at \\begin{document}, so the local copy',
+    '% below is dead code.',
+    '\\newtheorem{definition}{Definition}[section]',
+    '\\begin{document}',
+    '\\section{Kept}',
+    '% a trailing note about \\end{document} is prose, not the marker',
+    '\\end{document}',
+  ].join('\n');
+
+  const body = documentBody(source, 'chapter.tex');
+  // The preamble must stay in the preamble: emitting \newtheorem into the
+  // collated body is what made xelatex die on "Command \definition already
+  // defined", 9000 lines from the comment that caused it.
+  assert.doesNotMatch(body, /\\newtheorem/);
+  assert.doesNotMatch(body, /\\documentclass/);
+  assert.match(body, /\\section\{Kept\}/);
+  // The commented \end{document} must not truncate the body before the note.
+  assert.match(body, /trailing note/);
+});
+
+test('a source with no uncommented \\begin{document} fails closed', () => {
+  const source = '% only a comment mentioning \\begin{document}\n\\end{document}';
+  assert.throws(() => documentBody(source, 'chapter.tex'), /malformed document body/);
+});
+
 test('standalone title, page style, and contents chrome is removed', () => {
   const source = [
     '\\maketitle',
@@ -532,65 +561,6 @@ test('renderSolutions lists every chapter with exercises under its own heading, 
   // texText escaping runs on the title.
   const escaped = renderSolutions([{ number: 2, prefix: 'x', title: 'A & B' }]);
   assert.match(escaped, /Chapter 2: A \\& B/);
-});
-
-// --- ported from PR #7698 suite (features main's copy lacked tests for) ---
-
-test('standalone title, page style, and contents chrome is removed', () => {
-  const source = [
-    '\\maketitle',
-    '\\thispagestyle{empty}',
-    '\\tableofcontents',
-    '\\section{Kept}',
-    '\\appendix',
-  ].join('\n');
-
-  const cleaned = cleanStandaloneChrome(source);
-  assert.doesNotMatch(cleaned, /\\maketitle|\\thispagestyle|\\tableofcontents/);
-  assert.match(cleaned, /\\section\{Kept\}/);
-  assert.match(cleaned, /\\pdchapterappendix/);
-});
-
-test('labels and references are namespaced without rewriting TikZ labels', () => {
-  const source = [
-    '\\label{sec:contract}',
-    '\\ref{sec:contract}',
-    'label={alg:admit}',
-    'label={visual caption}',
-  ].join('\n');
-
-  assert.equal(
-    namespaceLabels(source, 'stp'),
-    [
-      '\\label{stp:sec:contract}',
-      '\\ref{stp:sec:contract}',
-      'label={stp:alg:admit}',
-      'label={visual caption}',
-    ].join('\n'),
-  );
-});
-
-test('identical local citation keys stay isolated between papers', () => {
-  const firstPaper = new Map([['shared', 'mega001']]);
-  const secondPaper = new Map([['shared', 'mega002']]);
-
-  assert.equal(rewriteCitations('\\cite{shared}', firstPaper, 'first.tex'), '\\cite{mega001}');
-  assert.equal(rewriteCitations('\\cite{shared}', secondPaper, 'second.tex'), '\\cite{mega002}');
-});
-
-test('one paper cannot map a bibliography key to two references', () => {
-  const prepared = [{
-    source: 'collision.tex',
-    references: [
-      { key: 'shared', body: 'First reference', source: 'collision.tex' },
-      { key: 'shared', body: 'Second reference', source: 'collision.tex' },
-    ],
-  }];
-
-  assert.throws(
-    () => collateReferences(prepared),
-    /collision\.tex: bibliography key shared maps to two references/,
-  );
 });
 
 // ---------------------------------------------------------------------------

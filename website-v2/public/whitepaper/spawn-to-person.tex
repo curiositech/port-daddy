@@ -92,6 +92,20 @@
 \newcommand{\DESIGNED}{{\textcolor{hhgray}{\textsc{specified}}}}
 \newcommand{\VISION}{{\textcolor{hhgray}{\textit{proposed}}}}
 
+% ─── Epistemic-kind tags for plain claim environments ──────────────────────
+% \pdclaim{KIND}{...} carries its kind word inline; the plain amsthm
+% environments below (definition/property) have no such slot, but every
+% cross-reference to them elsewhere (this chapter, the market paper, the
+% standalone twins) depends on their existing numbering, so they are not
+% converted to \pdclaim here. Instead each one names its kind, one of the
+% honesty ledger's four (Theorem / Design invariant / Model-checked property /
+% Empirical hypothesis -- SKILL.md), in its own body, using one of these two
+% macros. This is a DIFFERENT axis from the \BUILT/\DESIGNED maturity scale
+% above (kind: what sort of claim this is; maturity: how much of it runs
+% today) and the two are stated independently, never conflated.
+\newcommand{\Designed}{{\scshape design invariant}}
+\newcommand{\NotGuar}{{\scshape theorem}}
+
 % Verbatim-safe inline code for use INSIDE macro arguments (callouts, captions,
 % TikZ nodes) where \verb is illegal. Detokenizes so special chars survive.
 \newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
@@ -101,43 +115,14 @@
 \newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
 \newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
 
-% Pull-quote sidebar: large quote, left-edge accent stripe.
-\newcommand{\pullquote}[1]{%
-  \par\vspace{6pt}%
-  \noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsand!22,line width=0pt,
-          inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
-          align=left] (q) {%
-      \itshape\large #1%
-    };
-    \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
-  \end{tikzpicture}\par\vspace{6pt}%
-}
+% \pullquote, \keyidea, and \pitfall are page-grammar macros owned by
+% figures/pd-pedagogy.tex, which \long\def's all three at \AtBeginDocument
+% time (a run-in or margin head with plain prose, no tinted fill --
+% SKILL.md's page-grammar table). This chapter used to shadow them with its
+% own tikz/fill=... versions; those local definitions never rendered (the
+% pedagogy twin's redefinition always wins at \begin{document}) and have
+% been removed as dead code rather than left as cosmetic leftovers.
 
-% ─── Teaching callouts (shared idiom, per Harbor Volume pedagogic spec) ───
-% Quiet: thin left rule + subtle sand fill, small-caps muted-ink label.
-% \keyidea{}: the decisive takeaway of a section.
-\newcommand{\keyidea}[1]{%
-  \par\vspace{6pt}%
-  \noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
-          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (k) {%
-      {\scshape\bfseries\color{hhgray} Key idea.}\enspace #1%
-    };
-    \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
-  \end{tikzpicture}\par\vspace{6pt}%
-}
-% \pitfall{}: the way the idea is misread or mis-sold. Accent on the LABEL only.
-\newcommand{\pitfall}[1]{%
-  \par\vspace{6pt}%
-  \noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
-          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (p) {%
-      {\scshape\bfseries\color{hhcobalt} Pitfall.}\enspace #1%
-    };
-    \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
-  \end{tikzpicture}\par\vspace{6pt}%
-}
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{pdcode}{
   language=C,
@@ -270,8 +255,12 @@ EigenTrust, LLM-as-judge, Sybil resistance, multi-armed bandits, incentive
 compatibility, witnessed outcomes
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 40 minutes end-to-end; the
-Reader's Map below offers shorter routes. \pdchapref{ls}{The Legible Swarm}
+\noindent\textit{Reading time: approximately 40 minutes end-to-end. The route
+runs \S\ref{sec:role-person}--\ref{sec:identity} (what a person is, and why it
+must be non-forgeable) into \S\ref{sec:substrate}--\ref{sec:oracle} (the
+reputation substrate and its grading-oracle hole); a reader who only needs
+``what runs today'' can skip the proofs and read \S\ref{sec:organs} and
+Appendix~\ref{app:status} alone. \pdchapref{ls}{The Legible Swarm}
 and \pdchapref{swk}{The Single-Writer Kernel} supply the legibility and
 transactional substrate; \pdchapref{anchor}{The Anchor Protocol} deepens the
 cryptographic identity ceremony; and \pdchapref{he}{The Harbor Economy}
@@ -297,6 +286,19 @@ this one is the hinge.}
 \tableofcontents
 \newpage
 
+% Paper-only, and deliberately so. The Book generator's stripPaperApparatus
+% drops a starred (unnumbered) reader's-map heading -- a numbered one counts
+% as chapter content -- so what follows has never reached a Book page; the
+% front matter carries navigation there. The standalone paper has no front
+% matter, and this is the only routing it has. Deleting the source text
+% therefore took a table out of a submission paper and changed the Book by
+% nothing, which is the regression check_standalone_figures.py exists to
+% catch. No \ifpdbook is needed: the generator already splits the twins.
+% Keep the heading starred, or the Book will start printing it.
+%
+% Do not write the starred heading out literally in a comment here. The
+% stripper matches that text anywhere, comments included, and a mention of
+% it in prose silently eats the section that follows.
 % ═════════════════════════════════════════════════════════════════════════════
 \section*{Reader's Map}\label{sec:readers-map}
 \addcontentsline{toc}{section}{Reader's Map}
@@ -441,6 +443,22 @@ We do \textbf{not} claim the reference system's restart organ is real checkpoint
 (it forwards a summary, not execution state). We do \textbf{not} claim this paper's
 identity root reaches across operators --- it does not, and \S\ref{sec:keystone}
 hands that unsolved problem to the market paper by name.
+
+\begin{pdexample}{A preview: what a sanction is actually worth}
+Before any definition, one number a reader can check by hand. Say the newcomer
+score any fresh identity gets is $r_0=50$ and a dishonest outcome costs
+$\Delta=30$. If Drake can re-mint for free, his accessible score after being
+caught is $\max(r(i)-\Delta,\,r_0)$: at a mediocre record $r(i)=50$ that is
+$\max(20,50)=50$ --- he walks away untouched, and Alice's sanction never bit.
+At a strong record $r(i)=90$ it is $\max(60,50)=60$: he loses $10$ by staying
+and re-minting saves nothing, so free minting only rescues the actors who
+were already close to the newcomer floor. This is the whole content of
+\S\ref{sec:identity}'s Theorem~\ref{thm:necessity}, worked in full there
+(Table~\ref{tab:necessity-numbers}) --- the arithmetic does not change once
+the definitions arrive; only the guarantee it proves does. \emph{Now you
+try:} at what value of $r(i)$ does re-minting stop paying? (Exactly
+$r_0+\Delta=80$; \S\ref{sec:identity} names this the indifference point.)
+\end{pdexample}
 
 \pdexercisepointer{\ref{ex:stp-spawn-vs-person}}{\ref{ex:stp-operator-as-person}}{\pageref{ex:stp-spawn-vs-person}}
 
@@ -605,7 +623,9 @@ A \textbf{role} is a bundle $R = \{O, C, A\}$ where $O$ is a set of
 \emph{capability} set (what the role-holder is technically able to do), and $A$
 is an \emph{authority} set (the normative permissions and the residual control
 rights the role carries). A role is an \emph{org-chart entry}: it is defined
-without reference to who fills it.
+without reference to who fills it. \emph{Kind:} \Designed{} --- a modeling
+choice the org-chart tooling of \S\ref{sec:role-person} is built to keep true,
+not a discovered or measured fact.
 \end{definition}
 
 \begin{definition}[Person]\label{def:person}
@@ -614,7 +634,9 @@ A \textbf{person} is a pair $(R, \kappa)$ of a role instance and a
 role-holder into one accountable thread. $\kappa$ is realized by the three
 continuity organs of \S\ref{sec:organs} (memory, checkpoint, outcome ledger) keyed
 on a non-forgeable identity (\S\ref{sec:identity}). A person is a role
-\emph{plus a self}.
+\emph{plus a self}. \emph{Kind:} \Designed{} --- intended to hold once the
+three continuity organs it names are complete; \S\ref{sec:organs} grades each
+organ individually and none is yet fully \BUILT.
 \end{definition}
 
 \noindent Figure~\ref{fig:role-person} draws the distinction. The org-chart on the
@@ -747,6 +769,24 @@ and not his thesis.
 
 \pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
+% The three lineages are drawn BEFORE the worked example that counts them, and
+% the section's Recall block closes the section after it. The order matters, and
+% not for reading alone. This figure is wider than the measure, so the Book's
+% overflow net (coordination-papers-mega-volume-preamble.tex) sets it over the
+% column AND the outer margin -- its third panel's note reaches 30pt into the
+% margin column. \pdrecitation is a margin device that measures its block and
+% RAISES it so its last line sits on the line that issues it. Issued directly
+% after this figure, as it was, the raise carried the Recall block straight up
+% into that third panel and printed five of its words on top of it (Book p.242;
+% docs/pr-assets/pr-10176/recall-box.png is a render of exactly that). Nothing
+% could have caught it: \pd@placemargin's occupancy caps know about margin heads
+% and earlier margin blocks, and a float that overruns its measure is neither.
+% Drawn here, the block's anchor is the far side of a worked example taller than
+% the block, so the raise cannot reach the figure from any page break -- which a
+% \vspace nudge would not have given, since the collision is a function of where
+% the page happens to break and not of a fixed distance.
+\input{figures/fig-stp-nomint-lineage}
+
 \begin{pdexample}{No-mint inheritance: the closure-sum refutation and the copy-fork mint}
 The branching rule of Exercise~\ref{ex:stp-fork-inheritance} now carries an
 executed no-mint theorem (research-ledger item A6). Inheritance as
@@ -782,9 +822,6 @@ direction is exactly what the richer DAG shapes above (diamonds, multi-parent
 merges, re-derivation cycles) turn on --- a single-seed flow bound has nothing
 to say about a merge.
 \end{pdexample}
-
-\input{figures/fig-stp-nomint-lineage}
-
 
 \pdexercisepointerone*{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
 
@@ -925,7 +962,8 @@ An \textbf{oracle} is a trusted source of ground truth that the agent being
 graded \emph{cannot author}. An outcome is \emph{witnessed} iff its closure
 references an oracle. The ledger is the Parfitian chain of \S\ref{sec:continuity}
 made concrete: a transitive sequence of witnessed deliveries that survives every
-respawn.
+respawn. \emph{Kind:} \Designed{} --- enforced by the commitment-and-closure
+seam of \S\ref{sec:organs}, which ships (\BUILTWEAK) today.
 \end{definition}
 
 \subsection{The canonical seam sentence (stated identically in every paper)}
@@ -973,7 +1011,9 @@ penalty $\Delta > 0$ such that whenever an actor produces a \emph{dishonest}
 witnessed outcome (a delivery later overturned by an oracle, per
 Def.~\ref{def:oracle}), the mechanism reduces the score available to that actor by
 at least $\Delta$ for some non-trivial window, relative to never having produced
-the outcome.
+the outcome. \emph{Kind:} \NotGuar{} --- a formal-model definition, not itself a
+claim about the world; it is the explicit premise Theorem~\ref{thm:necessity}
+proves a consequence of, immediately below.
 \end{definition}
 
 \begin{pdclaim}{Theorem}{Non-forgeable identity is necessary}
@@ -1051,7 +1091,7 @@ attack~\pdcite{douceur2002}, and the same positive-cost requirement defeats it. 
 record both consequences as one property.
 
 \begin{property}[Reality of Reputation and Principal Liability]\label{prop:reality}
-A reputation system carries economic force only to the extent that the accountable principal cannot costlessly discard or multiply the liability-bearing identity. If an actor can freely obtain a fresh identity whose accessible economic utility (credit, exposure ceiling, opportunity) matches or exceeds its sanctioned utility, identity-local sanctions are evadable (\textbf{whitewashing}). If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (\textbf{Sybil}~\pdcite{douceur2002}). Effective deterrence therefore requires binding all spawned actors to a durable principal with aggregated exposure limits.
+A reputation system carries economic force only to the extent that the accountable principal cannot costlessly discard or multiply the liability-bearing identity. If an actor can freely obtain a fresh identity whose accessible economic utility (credit, exposure ceiling, opportunity) matches or exceeds its sanctioned utility, identity-local sanctions are evadable (\textbf{whitewashing}). If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (\textbf{Sybil}~\pdcite{douceur2002}). Effective deterrence therefore requires binding all spawned actors to a durable principal with aggregated exposure limits. \emph{Kind:} \NotGuar{} --- an immediate corollary of Theorem~\ref{thm:necessity} and the Sybil impossibility~\pdcite{douceur2002}, recorded as one property rather than proved twice; not a separate empirical claim.
 \end{property}
 
 \noindent Most agent runtimes still accept a \emph{self-asserted string}: a
@@ -1356,6 +1396,9 @@ A \textbf{principal} is the root of a delegation chain: the durable economic
 entity (human/org) that owns a fleet, posts its bonds, and inherits the
 reputational consequence of its agents' witnessed outcomes. Each agent's
 non-forgeable identity is bound to exactly one principal at mint time.
+\emph{Kind:} \Designed{} --- an organizational definition the bonding and
+sanction machinery of \S\ref{sec:identity} is built to respect, not a proven
+or measured fact.
 \end{definition}
 
 \subsection{The body behind the name: engine swaps and resurrection}\label{sec:body-behind-name}
@@ -1600,7 +1643,8 @@ daemon-minted actor-soul and credential satisfy a bounded slice of this definiti
 full write-boundary enforcement and migration of legacy identity paths remain.
 This is exactly what the single-operator layers---every chapter up to and
 including this one---need and assume.
-\BUILTWEAK.
+\emph{Kind:} \Designed{} (\BUILTWEAK{} on the maturity scale --- kind and
+maturity are independent axes, stated separately here on purpose).
 \end{definition}
 
 \begin{definition}[Cross-operator attestation]\label{def:0040b}
@@ -1610,7 +1654,10 @@ attestation story between mutually-distrusting operators. A federated witness lo
 gives log-\emph{integrity}, not identity-\emph{binding} --- it can prove an entry
 was recorded, but not that the key behind it is who it claims to be across a trust
 boundary. This is what the market paper needs and does \emph{not} yet have.
-\VISION{} (a named gap, owed to the market paper).
+\VISION{} (a named gap, owed to the market paper). \emph{Kind:} \Designed{}
+--- what the market paper's own design intends to hold once built; nothing
+here claims it holds today, which is exactly what \VISION{} already says on
+the maturity scale.
 \end{definition}
 % SUBMISSION-SKILL: naming conflict -- a quote search for "cross-operator
 % attestation" surfaced a close adjacent term rather than an exact prior use: the
@@ -1866,7 +1913,8 @@ The axes are
 reference system already records, \BUILT). Each axis is scored by a \emph{different
 judge}, because the competent judge of accuracy (a test oracle) is not the
 competent judge of aesthetics (a senior reviewer) is not the competent judge of
-efficiency (a meter).
+efficiency (a meter). \emph{Kind:} \Designed{} --- program-level design
+synthesis, not a numbered formal result (see the honesty rider above).
 \end{definition}
 
 \noindent The buyer reads the \emph{vector} and applies their own weighting (the
@@ -1939,6 +1987,7 @@ overturned.
 
 \subsection{S3 --- a graded job, end to end}
 
+\begin{pdexample}{A graded job, end to end}
 Make Protocol~\ref{proto:judge} concrete. Bob has rented Alice's agent
 \emph{Heron} to refactor an authentication module against a fixed acceptance suite,
 under a posted bond. Heron delivers; the outcome $o$ enters Bob's harbor as a
@@ -1968,7 +2017,11 @@ $q_{\text{aes}}=0.9$. The re-auditor overturns that grade; Mara's bond on
 \emph{that} job is slashed and her judging reputation drops --- exactly the
 exposure step of Protocol~\ref{proto:judge}. Note what made every step possible:
 each grade is keyed on a non-forgeable identity, so neither Heron nor Mara can shed
-the record by respawning.
+the record by respawning. \emph{Now you try:} if Bob instead weighted
+efficiency heavily, $(0.2,\,0.2,\,0.6)$, what score would he read?
+($0.2\cdot1.0+0.2\cdot0.7+0.6\cdot0.9=0.88$ --- the same vector, a different
+buyer, a different number; nothing about Heron's work changed.)
+\end{pdexample}
 
 \subsection{Skill $\to$ agent helpfulness attribution}
 
@@ -2035,7 +2088,9 @@ Let an outcome's settlement (and thus the bond flow and the reputation update)
 depend on a grade $g$ produced by an evaluator $J$. If $J$ can be captured ---
 bribed, colluded with, or self-interested --- then the incentive-compatibility of
 \emph{every} mechanism that settles on $g$ is only as strong as $J$'s own honesty.
-Assuming $J$ honest is assuming the conclusion.
+Assuming $J$ honest is assuming the conclusion. \emph{Kind:} \NotGuar{} --- a
+direct logical consequence of what ``settlement depends on $g$'' already means,
+not an implementation or measurement claim.
 \end{property}
 
 \noindent There are two honest ways to close the hole, and a recursion to bound.
@@ -2255,7 +2310,9 @@ delivery is never silently erased by the passage of time --- \emph{but} a witnes
 outcome is itself \textbf{individually revocable via a propagating tombstone}: a
 compensating, append-only entry that retracts a specific outcome later found
 fraudulent (a colluding judge, a faked oracle). ``Never decays'' applies to honest
-outcomes \emph{only}; it is \emph{not} an anti-revocation property.
+outcomes \emph{only}; it is \emph{not} an anti-revocation property. \emph{Kind:}
+\Designed{} (\DESIGNED{}, not yet \BUILT{}, on the maturity scale) --- the
+intended ledger behavior, not yet a theorem about a shipped mechanism.
 \end{property}
 
 \noindent This is a \textbf{saga}-style compensation~\pdcite{garcia1987sagas}: you do
@@ -2294,6 +2351,7 @@ stays, and a later tombstone nullifies it without mutating the ledger.
 
 \subsection{S4 --- the fraudulent outcome retracted}
 
+\begin{pdexample}{A fraudulent outcome, retracted}
 Recall S3: the re-audit caught Mara rubber-stamping a different agent's insecure
 change as $q_{\text{aes}}=0.9$. Follow that one outcome through
 Protocol~\ref{proto:tombstone}. The graded agent --- call it \emph{Crane}, running
@@ -2309,7 +2367,12 @@ as a fraudulent outcome against \emph{its} non-forgeable identity, which it cann
 shed. The tombstone gossips to Bob's harbor within the convergence window, so by
 the time Bob next reads Crane's vector the $0.9$ is gone. The fraud was real and
 briefly spendable --- the honest claim is that the window was \emph{bounded}, not
-that it never existed.
+that it never existed. \emph{Now you try:} what does Crane's \emph{recomputed}
+vector read the instant the tombstone lands? ($(0.95,\,\bar{0.9},\,0.8)$, where
+$\bar{0.9}$ means the aesthetics axis is nullified, not replaced by a new
+number --- Exercise~\ref{ex:stp-revocation-convergence} asks what a buyer should
+read there in the meantime.)
+\end{pdexample}
 
 \subsection{Bounded memory is a design parameter, not a virtue to assert away}
 
@@ -2347,62 +2410,6 @@ tombstone --- a saga compensation, not in-place mutation; (2) bounded memory is 
 assert away.}
 
 \pdexercisepointer{\ref{ex:stp-tombstone-vs-delete}}{\ref{ex:stp-revocation-convergence}}{\pageref{ex:stp-tombstone-vs-delete}}
-
-% ═════════════════════════════════════════════════════════════════════════════
-\section{What this chapter hands the market}\label{sec:handoff}
-% ═════════════════════════════════════════════════════════════════════════════
-
-This paper is the bridge; its output is a precise hand-off to \pdchapref{he}{The
-Harbor Economy}. We summarize what is delivered, what is borrowed, and what is
-explicitly owed.
-
-{\small\renewcommand{\arraystretch}{1.35}
-\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
-\caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
-as a named, unsolved obligation --- cross-operator attestation
-(Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
-incentive-compatibility, has been \emph{paid}: the companion inspection-game paper
-closes the rate-the-raters recursion as Theorem~\ref{thm:tower-imported}, leaving
-only the tower's honest root and its measurement obligation open. The series is
-coherent precisely because these debts are named --- and retired --- in the same
-words on both sides of the seam.}\label{tab:handoff}\\
-\toprule
-\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
-\midrule
-\endfirsthead
-\multicolumn{3}{@{}l}{\small\itshape (continued)}\\
-\toprule
-\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
-\midrule
-\endhead
-\midrule
-\endfoot
-\bottomrule
-\endlastfoot
-Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
-The third side of the market is a \emph{tradeable person}, defined here. \\
-Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
-Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
-The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
-Reputation keys on organ~3 (the outcome ledger). \\
-Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
-Commitment, deadline, oracle closure, API/CLI, and overdue detection ship; neutral graded outcome events, sanctions, and reputation binding do not. \\
-Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
-The multi-dimensional score the market reads; the licensing side's signal. \\
-Neutral-judge market & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
-The ``universities and rating agencies'' that keep grades honest. \\
-Grading-oracle hole (Prop.~\ref{prop:hole}) & \DESIGNED &
-\emph{No longer owed}: the recursion is closed by Theorem~\ref{thm:tower-imported}~\pdcite{harborpaper3} ($\lambda=1-\rho d$; $27$ levels / \$1{,}350 at $C{=}8$). What is owed back is narrower --- an exogenously honest root and the audit telemetry ($d$, cross-clique correlation). \\
-Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
-\emph{Named dependency the market paper must build}; not assumed here. \\
-Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
-Reputation is revocable; convergence is the market paper's federation job. \\
-\end{xltabular}}
-
-\pdthesis{Build the harbor first. The trade comes when the ships do --- but the
-thing that makes the trade possible (continuity that turns spawns into persons) is
-the same thing that makes the single-player tool good. The bridge is not a detour;
-it is the load path.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section*{Review of the key ideas}
@@ -3005,7 +3012,103 @@ bound exists during an unbounded partition.
 \end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Open problems (the starred exercises, collected)}\label{sec:open}
+\section{History and references}\label{sec:history}
+% ═════════════════════════════════════════════════════════════════════════════
+
+Every citation used above, gathered with a locator into the original passage
+so a reader can leap to it without a search --- page/chapter for a book,
+year and venue for a paper, and script-plus-seed for an internal number.
+
+\paragraph{Personal identity (\S\ref{sec:continuity}).} Locke's memory
+criterion is \emph{An Essay Concerning Human Understanding} (1689), Book~II,
+ch.~xxvii~\pdcite{locke1689}. Reid's non-transitivity objection (the general
+who remembers the officer who remembered the boy) is the standard rebuttal to
+that chapter, cited in this paper only by name because no companion source
+key for it exists yet in the library index --- a gap worth closing before the
+next edition, not one to paper over with an invented key. Parfit's repair is
+\emph{Reasons and Persons} (1984)~\pdcite{parfit1984}. The two rivals named in
+the same section are Williams's body-swap cases~\pdcite{williams1970} (1970)
+and Olson's animalism~\pdcite{olson2007} (2007). The juristic-personhood
+analogue is \emph{Dartmouth College v.\ Woodward}, 17 U.S.\ 518
+(1819)~\pdcite{dartmouth1819}, and the actor/author split of
+\S\ref{sec:identity} is Hobbes's \emph{Leviathan}, ch.~XVI
+(1651)~\pdcite{hobbes1651}.
+
+\paragraph{Reputation and skill-rating statistics (\S\ref{sec:priorart},
+\S\ref{sec:substrate}).} Bradley--Terry's paired-comparison MLE is their 1952
+paper~\pdcite{bradleyterry1952}; Elo's online special case is his 1978
+book~\pdcite{elo1978}; TrueSkill's calibrated-uncertainty extension is
+Herbrich et al., NeurIPS 2007~\pdcite{herbrich2007trueskill}; EigenTrust's
+principal-eigenvector trust propagation is Kamvar et al., WWW
+2003~\pdcite{kamvar2003eigentrust}.
+
+\paragraph{Reputation economics and Sybil resistance (\S\ref{sec:identity},
+\S\ref{sec:substrate}).} The eBay price premium is Resnick \&
+Zeckhauser~\pdcite{resnick2006value} (2006); the platform-adverse-selection
+framing is Tadelis~\pdcite{tadelis2016} (2016), building on Akerlof's lemons
+paper~\pdcite{akerlof1970} (1970). Cheap-pseudonym whitewashing is Friedman
+\& Resnick~\pdcite{friedmanresnick2001} (2001); the Sybil attack is
+Douceur~\pdcite{douceur2002} (2002, IPTPS); the impossibility of a
+Sybil-proof \emph{symmetric} reputation function is Cheng \&
+Friedman~\pdcite{chengfriedman2005} (2005), the theorem family
+Theorem~\ref{thm:necessity} belongs to. Bounded-memory reputation bubbles are
+Liu \& Skrzypacz~\pdcite{liuskrzypacz2014} (2014). Two-sided-market pricing
+is Rochet \& Tirole~\pdcite{rochettirole2003} (2003); Ostrom's commons
+governance is \emph{Governing the Commons} (1990)~\pdcite{ostrom1990},
+applied in \S\ref{sec:revoke} to the shared memory-window resource. Levien's
+attack-resistant trust metric (Advogato, 1999) is
+\pdcite{levien-advogato}, cited in \S\ref{sec:continuity} as the same
+conservation instinct in the opposite direction from the no-mint theorem.
+
+\paragraph{Mechanism design, judging, and Goodhart (\S\ref{sec:not-bandit},
+\S\ref{sec:adr0049}, \S\ref{sec:oracle}).} General mechanism design is
+Nisan et al.'s \emph{Algorithmic Game Theory}~\pdcite{nisan2007agt} and
+Myerson~\pdcite{myerson1981} (1981); capability-based security's unforgeable
+token is Dennis \& Van~Horn~\pdcite{dennis1966programming} (1966); residual
+control rights are Grossman \& Hart~\pdcite{grossmanhart1986} (1986).
+LLM-as-judge bias is Zheng et al.~\pdcite{zheng2023judging} (2023); Goodhart's
+law is quoted from Strathern~\pdcite{strathern1997} (1997); the verifiable
+random function behind the honeypot draw is \pdcite{mrv1999}. The
+rate-the-raters recursion's closure imports Tirole's supervisor-collusion
+hierarchies~\pdcite{tirole1986} (1986) and Kofman \&
+Lawarrée~\pdcite{kofmanlawarree1993} (1993), and is convergent with TrueBit's
+bonded challenge game~\pdcite{truebit2017} (2017) and Arbitrum's dispute
+bisection~\pdcite{arbitrum-fraud-proofs}; the ``amortized verification''
+framing itself is Kreps \& Wilson~\pdcite{krepswilson1982} (1982) and
+Fudenberg \& Levine~\pdcite{fudenberglevine1989} (1989) on reputation as
+continuation value.
+
+\paragraph{Systems precedents for the continuity organs (\S\ref{sec:organs},
+\S\ref{sec:identity}).} The episodic-memory design echoes Park et al.'s
+Generative Agents, UIST 2023~\pdcite{park2023generative}. Process
+checkpoint/restore is Condor~\pdcite{litzkow1997condor} (1997); the
+identity/activation split is Orleans's virtual
+actors~\pdcite{bernstein2014orleans} (2014). Covert model substitution in
+commercial APIs is Cai et al.~\pdcite{cai2025} (2025); the reputation-vs-quality
+severing this paper calls ``the lemon wearing the plum's history'' echoes
+Mailath \& Samuelson's reputation-and-competition
+result~\pdcite{mailath-samuelson}. Append-only compensation is the
+\textbf{saga} pattern, Garcia-Molina \& Salem~\pdcite{garcia1987sagas} (1987).
+The 2026 credential envelope for cross-operator mandates is the Agent
+Payments Protocol~\pdcite{ap2mandates2026} and the Universal Commerce
+Protocol~\pdcite{ucp2026}.
+
+\begin{sloppypar}
+\paragraph{This series' own companion results, by script and seed.} The
+audit-tower theorem of \S\ref{sec:oracle} is imported from \emph{Reputation is
+Amortized Verification}~\pdcite{harborpaper3}; its numbers regenerate from
+\texttt{b2\_tower.py} (seed 20260816). The no-mint theorem of
+\S\ref{sec:continuity} regenerates from \texttt{a6\_no\_mint.py} (same seed).
+The engine-substitution and resurrection-soundness results of
+\S\ref{sec:identity} are the whitepaper statement of \emph{Continuity Without
+Metaphysics}~\pdcite{harborpaper5}; they regenerate from
+\texttt{b5\_engine\_substitution.py}. The probation-cliff theorem shares that
+paper's number and regenerates from \texttt{b6\_probation.py} (same seed
+throughout, 20260816).
+\end{sloppypar}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Open problems (the starred items, collected)}\label{sec:open}
 % ═════════════════════════════════════════════════════════════════════════════
 
 The genuinely unsolved problems this paper surfaces, gathered for the reader who
@@ -3071,6 +3174,62 @@ this chapter's own.
   for skill v1 says nothing about v2; the lemons problem reappears at every version
   bump.
 \end{enumerate}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{What this chapter hands the market}\label{sec:handoff}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This paper is the bridge; its output is a precise hand-off to \pdchapref{he}{The
+Harbor Economy}. We summarize what is delivered, what is borrowed, and what is
+explicitly owed.
+
+{\small\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
+\caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
+as a named, unsolved obligation --- cross-operator attestation
+(Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
+incentive-compatibility, has been \emph{paid}: the companion inspection-game paper
+closes the rate-the-raters recursion as Theorem~\ref{thm:tower-imported}, leaving
+only the tower's honest root and its measurement obligation open. The series is
+coherent precisely because these debts are named --- and retired --- in the same
+words on both sides of the seam.}\label{tab:handoff}\\
+\toprule
+\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape (continued)}\\
+\toprule
+\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
+The third side of the market is a \emph{tradeable person}, defined here. \\
+Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
+Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
+The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
+Reputation keys on organ~3 (the outcome ledger). \\
+Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
+Commitment, deadline, oracle closure, API/CLI, and overdue detection ship; neutral graded outcome events, sanctions, and reputation binding do not. \\
+Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+The multi-dimensional score the market reads; the licensing side's signal. \\
+Neutral-judge market & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+The ``universities and rating agencies'' that keep grades honest. \\
+Grading-oracle hole (Prop.~\ref{prop:hole}) & \DESIGNED &
+\emph{No longer owed}: the recursion is closed by Theorem~\ref{thm:tower-imported}~\pdcite{harborpaper3} ($\lambda=1-\rho d$; $27$ levels / \$1{,}350 at $C{=}8$). What is owed back is narrower --- an exogenously honest root and the audit telemetry ($d$, cross-clique correlation). \\
+Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
+\emph{Named dependency the market paper must build}; not assumed here. \\
+Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
+Reputation is revocable; convergence is the market paper's federation job. \\
+\end{xltabular}}
+
+\pdthesis{Build the harbor first. The trade comes when the ships do --- but the
+thing that makes the trade possible (continuity that turns spawns into persons) is
+the same thing that makes the single-player tool good. The bridge is not a detour;
+it is the load path.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Conclusion}\label{sec:conclusion}
