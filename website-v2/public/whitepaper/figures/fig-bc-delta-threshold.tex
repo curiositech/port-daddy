@@ -1,0 +1,115 @@
+% The deviator's net payoff from one defection, against the discount factor, for
+% the three-round graduated trigger and for grim trigger. Both curves are the
+% chapter's own closed form (d-c) - (c-p)*delta*(1-delta^k)/(1-delta) at the
+% chapter's stage-game payoffs (c,d,p) = (3,4,1): k=3 gives 1 - 2*delta*(1 +
+% delta + delta^2), k -> infinity gives 1 - 2*delta/(1-delta). The marked root
+% delta* = 0.3425 is proofs/economics/delta-threshold.expected.txt (Z3: unique
+% real root of 2x^3+2x^2+2x-1 in (0,1), delta* = 0.3425080314) [verified]; the
+% grim bound 1/3 is the closed form stated in the same section; the marked point
+% -3.878 at delta = 0.9 is the chapter's own worked arithmetic (1 - 2*2.439)
+% [verified].
+%
+% Per-claim verification, against rendered PDF geometry at 1.0x / 150 dpi under
+% BOTH preambles (chapter: agent-transactions-whitepaper.pdf p.25; Book:
+% coordination-papers-mega-volume.pdf p.371). Numbers checked against their
+% source, not against the prose that quotes them:
+%   - gap between the roots = 0.3425080314 - 1/3 = 0.0091747, i.e. 0.0092 to
+%     four places. The caption said "within 0.009", which is FALSE: 0.00917
+%     exceeds 0.009. It is only true of the 3-place values 0.342 and 0.333.
+%   - grim leaves the frame where 1 - 2*delta/(1-delta) = ymin = -4.2, i.e. at
+%     delta = 5.2/7.2 = 0.72222. At delta = 0.72 it is still inside the frame
+%     (-4.1429), so "by delta = 0.72" was wrong in the direction that matters.
+%   - the checker is NOT run at one discount factor. sweep-delta.sh sweeps
+%     delta in {0.30 ... 0.40} and claim_signaling.cfg runs at delta = 0.35 in
+%     CI. What is unique about 0.30 is that its transcript is the one committed
+%     (claim_signaling_delta30.run.log). The caption now says that instead.
+%   - the mark's height 0.166 is both the closed form at delta = 0.30 and the
+%     committed trace's own final margin: actualScore 441700000 less
+%     followScore 425100000, at the model's 1e8 scale.
+%   - SHAPE IS NOT A CHANNEL HERE. `pd caution datum` is a diamond under the
+%     chapter preamble but renders as a 5.38pt SQUARE under the Book preamble
+%     (PDF path items: `re`, not four `l` segments), where `pd focus datum`
+%     also squares off. So the caption must not name the shape; it says "the
+%     marked point". Re-check this if the datum styles change.
+%   - `pd guide` here draws two leader lines only, from a mark to its label; no
+%     caption sentence depends on them. Measured in the committed PDFs its dash
+%     array is [0.44832 0.99628] -- 0.45pt on, 1.0pt off -- which at 150 dpi
+%     antialiases into a CONTINUOUS line (100% of sampled pixels along it are
+%     darker than paper; no gap survives). The ink arrives; the dottedness does
+%     not. Nothing here claims it does. This audit is against `pd guide` as
+%     defined in figures/pd-figure-language.tex TODAY; if the in-flight
+%     figure-typography work changes that style, re-run this check.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth, height=0.62\linewidth,
+  axis lines=left,
+  axis line style={pd hairline},
+  xmin=0.17, xmax=0.93, ymin=-4.2, ymax=1.60,
+  xtick={0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9},
+  ytick={1,0,-1,-2,-3,-4},
+  tick style={pd tick},
+  tick label style={font=\footnotesize},
+  xlabel={discount factor $\delta$ (weight on the next round)},
+  ylabel={deviator's net payoff, in stage-game units},
+  label style={font=\footnotesize},
+  clip=true, axis on top,
+]
+  % the indifference line: above it a defection pays, below it a defection loses
+  \draw[pd rule] (axis cs:0.17,0) -- (axis cs:0.93,0);
+
+  % grim is drawn only to where it leaves the frame: past that the path would
+  % run metres off the page and figcheck reads unclipped path geometry (T5).
+  \addplot[pd rule,line width=1.05pt,domain=0.18:0.728,samples=120,smooth]
+    {1 - 2*x/(1-x)};
+  \addplot[pd focus rule,domain=0.18:0.92,samples=120,smooth]
+    {1 - 2*x*(1 + x + x*x)};
+
+  % the two thresholds, 0.0092 apart: one mark, both numbers
+  \node[pd focus datum] at (axis cs:0.3425,0) {};
+  \draw[pd guide] (axis cs:0.352,0.04) -- (axis cs:0.393,0.30);
+  \node[pd direct label,anchor=west] at (axis cs:0.398,0.35)
+    {both thresholds: $\delta^{\star}=0.3425$ ($k=3$), $1/3$ (grim)};
+
+  % the one discount factor whose model-checker transcript is committed
+  % (claim_signaling_delta30.run.log). TLC is also run at delta = 0.35 by
+  % claim_signaling.cfg, above the threshold, where the invariant holds; that
+  % run has no committed output, so it is named in the caption, not drawn.
+  % The height 0.166 is both the closed form at delta = 0.30 and the trace's
+  % own final margin: actualScore 441700000 - followScore 425100000, scale 1e8.
+  \node[pd caution datum] at (axis cs:0.30,0.166) {};
+  \draw[pd guide] (axis cs:0.303,0.24) -- (axis cs:0.322,1.04);
+  \node[pd direct label,anchor=south west] at (axis cs:0.315,1.08)
+    {TLC finds the deviation here, at $\delta=0.30$};
+
+  % the chapter's own worked instance
+  \node[pd focus datum] at (axis cs:0.9,-3.878) {};
+  \node[pd direct label,anchor=east,align=right] at (axis cs:0.888,-3.878)
+    {$-3.878$};
+
+  \node[pd direct label,anchor=south west,align=left] at (axis cs:0.655,-1.60)
+    {graduated trigger, $k=3$};
+  \node[pd direct label,anchor=east,align=right] at (axis cs:0.585,-1.95)
+    {grim trigger, $k\to\infty$};
+  \node[pd direct label,anchor=north east,align=right] at (axis cs:0.905,-0.05)
+    {below the line, defecting loses};
+\end{axis}
+\end{tikzpicture}
+\caption{Net payoff to a player who defects once, against the discount factor,
+under the two punishment regimes of this section. The two curves cross zero
+$0.0092$ apart --- $\delta^{\star}=0.3425$ for the three-round graduated
+trigger, $1/3$ for grim trigger --- so bounding the punishment at three rounds
+costs almost nothing in the threshold. Away from the threshold the two regimes
+are not close at all: grim trigger's punishment grows without bound and leaves
+the frame at $\delta=0.722$, where it reaches the axis floor, while the
+graduated trigger's stays finite, reaching the chapter's worked value of
+$-3.878$ at $\delta=0.9$. The marked point at $\delta=0.30$ is the one discount
+factor whose model-checker transcript is committed --- the session printed
+below --- and its height, $0.166$, is that run's own closing margin, so the
+sign there, defecting still pays, is what the run reports. Both curves are the
+section's own closed form at $(c,d,p)=(3,4,1)$, not a simulation
+[verified, \texttt{proofs/economics/delta-threshold.z3} and
+\texttt{claim\_signaling\_delta30.run.log}].}
+\label{fig:bc-delta-threshold}
+\end{figure}
