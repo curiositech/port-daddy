@@ -225,6 +225,7 @@ class TestLicenceAllowList(unittest.TestCase):
                 **VALID_SIDECAR,
                 "commons_file_page": "N/A — not sourced from Wikimedia Commons; see credit",
                 "original_url": "N/A — provided directly by the subject",
+                "credit": "Photo provided directly by the subject for this credit",
                 "licence_short": "provided by subject",
                 "licence_url": None,
             }
@@ -239,7 +240,12 @@ class TestLicenceAllowList(unittest.TestCase):
             with self.subTest(licence=licence):
                 with TemporaryDirectory() as tmp:
                     repo = make_repo(Path(tmp))
-                    sidecar = {**VALID_SIDECAR, "licence_short": licence, "licence_url": None}
+                    sidecar = {
+                        **VALID_SIDECAR,
+                        "credit": "Provided directly by the subject",
+                        "licence_short": licence,
+                        "licence_url": None,
+                    }
                     write_plate(repo, f"subject-slug{i}", sidecar)
                     result = run_checker(repo)
                     self.assertEqual(result.returncode, 0, msg=f"{licence!r}: {result.stdout}")
@@ -255,7 +261,18 @@ class TestLicenceAllowList(unittest.TestCase):
             result = run_checker(repo)
             self.assertEqual(result.returncode, 1)
             self.assertIn("is not on the allow-list", result.stdout)
-            self.assertIn("is not on the allow-list", result.stdout)
+
+    def test_provided_by_subject_without_honest_credit_fails(self) -> None:
+        # licence_short alone is not enough -- credit/usage_terms must
+        # actually say the grant is direct-from-subject, or a plate could
+        # claim this licence with no honest provenance text backing it.
+        with TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp))
+            sidecar = {**VALID_SIDECAR, "licence_short": "provided by subject", "licence_url": None}
+            write_plate(repo, "vague-credit", sidecar)
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("neither 'credit' nor 'usage_terms' states", result.stdout)
 
 
 if __name__ == "__main__":

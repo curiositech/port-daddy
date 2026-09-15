@@ -27,11 +27,13 @@ checks that:
       contributor's own headshot handed directly to the book's author for
       that one credited use (see thomas-youle.json) -- narrower and more
       certain than a bespoke permission found on someone else's upload,
-      since the depicted person is the one granting it. A bespoke
-      third-party permission (the Coase case) or any other licence still
-      fails this check -- such an image should not have a plate at all (see
-      coase.NOT-CLEARED.json for the pattern: record the rejection, don't
-      commit the plate).
+      since the depicted person is the one granting it. A "provided by
+      subject" sidecar must also carry the word "subject" or "directly" in
+      its `credit` or `usage_terms` -- the licence_short string alone is
+      not enough to claim this category. A bespoke third-party permission
+      (the Coase case) or any other licence still fails this check -- such
+      an image should not have a plate at all (see coase.NOT-CLEARED.json
+      for the pattern: record the rejection, don't commit the plate).
 
 A slug with a .json sidecar but no matching .jpg plate is not an error here
 (a sidecar may be prepared ahead of a plate, e.g. while the lead decides a
@@ -183,6 +185,21 @@ def check_sidecar(slug: str, path: str) -> list[str]:
                 f"{slug}: licence_short '{licence_short}' is not on the allow-list "
                 "(public domain / CC0 / PD-old / CC BY or CC BY-SA 2.0-4.0, any jurisdiction)"
             )
+        elif _SUBJECT_PROVIDED_RE.match(licence_short.strip()):
+            # "provided by subject" is only as honest as the credit/usage_terms
+            # prose backing it -- require one of them to actually say so,
+            # rather than trusting a bare licence_short string on its own.
+            credit = data.get("credit") if isinstance(data.get("credit"), str) else ""
+            usage_terms = (
+                data.get("usage_terms") if isinstance(data.get("usage_terms"), str) else ""
+            )
+            provenance_text = f"{credit} {usage_terms}".lower()
+            if not any(kw in provenance_text for kw in ("subject", "directly")):
+                failures.append(
+                    f"{slug}: licence_short is 'provided by subject' but neither "
+                    "'credit' nor 'usage_terms' states the grant is direct-from-subject "
+                    "(expected a word like 'subject' or 'directly' in one of them)"
+                )
 
     return failures
 
