@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 619,
-    "distinctObjects": 583,
-    "bytes": 282197123,
-    "distinctBytes": 279403532
+    "assets": 623,
+    "distinctObjects": 587,
+    "bytes": 283914938,
+    "distinctBytes": 281121347
   },
   "assets": [
     {
@@ -1037,6 +1037,34 @@
       "sha256": "4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337",
       "key": "sha256/4c/4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337.webm",
       "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/pr-organ-metaphor-fix/before-after-p07-seven-subsystems.png",
+      "bytes": 264044,
+      "sha256": "aa2d885074b8741102f9b730b0fa8696c40aa8d0a92a6cdc54899581ac048396",
+      "key": "sha256/aa/aa2d885074b8741102f9b730b0fa8696c40aa8d0a92a6cdc54899581ac048396.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-organ-metaphor-fix/before-after-p19-sovereigns-two-levers.png",
+      "bytes": 645951,
+      "sha256": "2ebef5a80aaab4512be7bcf821b2662207d405ab75e37525656bf4f897178504",
+      "key": "sha256/2e/2ebef5a80aaab4512be7bcf821b2662207d405ab75e37525656bf4f897178504.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-organ-metaphor-fix/before-after-p50-appendix-mapping.png",
+      "bytes": 492923,
+      "sha256": "53f1d24ffc46ae69e466e15648f377bca945c0c10af4ba83eb98b67cf6d76f66",
+      "key": "sha256/53/53f1d24ffc46ae69e466e15648f377bca945c0c10af4ba83eb98b67cf6d76f66.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-organ-metaphor-fix/before-after-p8.png",
+      "bytes": 314897,
+      "sha256": "9840080aca03e3f1ffe3a2367c865ad70f01558ea26e9a3400e39e81fa68673f",
+      "key": "sha256/98/9840080aca03e3f1ffe3a2367c865ad70f01558ea26e9a3400e39e81fa68673f.png",
+      "contentType": "image/png"
     },
     {
       "path": "docs/pr-assets/retire-chapter-pdfs/after-single-writer-kernel.png",
