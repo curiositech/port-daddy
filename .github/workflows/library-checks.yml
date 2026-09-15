@@ -26,6 +26,9 @@ on:
       - 'website-v2/src/data/textbook.json'
       - 'website-v2/src/styles/tokens.semantic.css'
       - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'website-v2/scripts/check-figure-palette-separation.mjs'
+      - 'website-v2/scripts/oklab-cvd.mjs'
+      - 'website-v2/scripts/tokens-css.mjs'
       - 'docs/harbor-research/**'
       - 'studies/**'
       - 'whitepaper/corpus.json'
@@ -60,6 +63,9 @@ on:
       - 'website-v2/src/data/textbook.json'
       - 'website-v2/src/styles/tokens.semantic.css'
       - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'website-v2/scripts/check-figure-palette-separation.mjs'
+      - 'website-v2/scripts/oklab-cvd.mjs'
+      - 'website-v2/scripts/tokens-css.mjs'
       - 'docs/harbor-research/**'
       - 'studies/**'
       - 'whitepaper/corpus.json'
@@ -140,6 +146,20 @@ jobs:
 
       - name: LaTeX palette matches the design tokens (pd-palette.tex lockstep)
         run: node website-v2/scripts/check-figure-palette.mjs
+
+      # The lockstep step above proves every ink is READABLE on the ground it
+      # prints on. That is a different question from whether two story colours
+      # can be told APART, and passing one says nothing about the other: two
+      # inks of equal luminance have a contrast ratio of 1.00 against each
+      # other. Nothing measured separation until now, and six of the twenty-one
+      # pairs were below the floor -- cobalt against violet collapsed to Delta E
+      # 4.8 under protanopia, which is the same colour twice for those readers.
+      # Required, not advisory: unlike the two advisory steps at the foot of
+      # this job, this one passes on the tree as it stands, so making it
+      # blocking freezes nothing and the next regression is caught on the PR
+      # that causes it rather than after it ships to a printed page.
+      - name: Story colours can be told apart (OKLab separation, CVD-simulated)
+        run: node website-v2/scripts/check-figure-palette-separation.mjs
 
       # BRAND.md:56: the maritime-gold print ink is plate trim, opener
       # ornament, and a gilt fillet under a title rule -- nothing else -- and

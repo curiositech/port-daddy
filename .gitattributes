@@ -39,3 +39,10 @@
 whitepaper-foundlings/**/*.png filter=lfs diff=lfs merge=lfs -text
 whitepaper-foundlings/**/*.pdf filter=lfs diff=lfs merge=lfs -text
 skill_candidates/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+
+# PR assets for the story-palette separation pass are LFS-backed from the start.
+# The rest of docs/pr-assets/ predates any rule here and is deliberately left
+# alone: claude/binary-hygiene is fixing that inversion wholesale, and a broad
+# pattern added here would collide with it. This one is scoped to the files
+# this change adds, so a wider rule landing later simply subsumes it.
+docs/pr-assets/figure-palette-*.png filter=lfs diff=lfs merge=lfs -text
