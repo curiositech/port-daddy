@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 619,
-    "distinctObjects": 583,
-    "bytes": 282197123,
-    "distinctBytes": 279403532
+    "assets": 635,
+    "distinctObjects": 599,
+    "bytes": 289530995,
+    "distinctBytes": 286737404
   },
   "assets": [
     {
@@ -833,6 +833,118 @@
       "bytes": 539365,
       "sha256": "0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af",
       "key": "sha256/09/0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-apparatus-chapter-tour.gif",
+      "bytes": 1370583,
+      "sha256": "c039595a339bf2bfd9a91b24d0823417d4ac1687233370a8d86eefd93101d7f6",
+      "key": "sha256/c0/c039595a339bf2bfd9a91b24d0823417d4ac1687233370a8d86eefd93101d7f6.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch1-single-writer-kernel.png",
+      "bytes": 465740,
+      "sha256": "d3e7fd829e6f09f3c7f27eb6838ce0afd4c973720a639e1917c55e57564f1810",
+      "key": "sha256/d3/d3e7fd829e6f09f3c7f27eb6838ce0afd4c973720a639e1917c55e57564f1810.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch2-anchor-protocol.png",
+      "bytes": 470032,
+      "sha256": "f99b1814b23f0f68740329fe43661f22078804ddcff658e16d4f59c0980a3627",
+      "key": "sha256/f9/f99b1814b23f0f68740329fe43661f22078804ddcff658e16d4f59c0980a3627.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch3-sealed-harbor.png",
+      "bytes": 358526,
+      "sha256": "766d52fbbe1ef66ee13c395fa5e37932697db662dfaddb0ebd6147820d5955f1",
+      "key": "sha256/76/766d52fbbe1ef66ee13c395fa5e37932697db662dfaddb0ebd6147820d5955f1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch4-legible-swarm.png",
+      "bytes": 562540,
+      "sha256": "32b0e7d1dcbe529b86016eeecb5f804f4603b836bfaa8a395bab1c0ef0676b8d",
+      "key": "sha256/32/32b0e7d1dcbe529b86016eeecb5f804f4603b836bfaa8a395bab1c0ef0676b8d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch5-spawn-to-person.png",
+      "bytes": 392634,
+      "sha256": "63cae35cf5db5e8b49e78b744f8b1ece84fec113d9570c0c2c73eb6969ad27b2",
+      "key": "sha256/63/63cae35cf5db5e8b49e78b744f8b1ece84fec113d9570c0c2c73eb6969ad27b2.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch6-harbor-economy.png",
+      "bytes": 546113,
+      "sha256": "10ef19e740da845acef6ce332154c81ea27fc95a1894ab6f70d9031800b3ee7d",
+      "key": "sha256/10/10ef19e740da845acef6ce332154c81ea27fc95a1894ab6f70d9031800b3ee7d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch7-bonded-commons.png",
+      "bytes": 304901,
+      "sha256": "b3cf3fbbc81656d35e05bda99b3348bc2c2f78ad44ec35d85d57e326a2c91101",
+      "key": "sha256/b3/b3cf3fbbc81656d35e05bda99b3348bc2c2f78ad44ec35d85d57e326a2c91101.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch8-federated-harbor.png",
+      "bytes": 226907,
+      "sha256": "5718d644a75b145452732a3ace632e83ae329fcd8335db97ebff097edf6041ff",
+      "key": "sha256/57/5718d644a75b145452732a3ace632e83ae329fcd8335db97ebff097edf6041ff.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-gloss-work-unit.png",
+      "bytes": 359816,
+      "sha256": "46cea80b02e63d696785dfbb2cdfee1c4e61e5b28ebc95c75eb148203e297bf7",
+      "key": "sha256/46/46cea80b02e63d696785dfbb2cdfee1c4e61e5b28ebc95c75eb148203e297bf7.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-capfits-fallback-p050.png",
+      "bytes": 197679,
+      "sha256": "e1f0809a846dd392c3b1ef117f0530ff07b43c568aeba29cf2a2b5e94020e678",
+      "key": "sha256/e1/e1f0809a846dd392c3b1ef117f0530ff07b43c568aeba29cf2a2b5e94020e678.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-margin-tour.gif",
+      "bytes": 812196,
+      "sha256": "d1840294a1fb6fd5c7bf358c187fe427d3c1bda28c55b2ab8677162692c3844f",
+      "key": "sha256/d1/d1840294a1fb6fd5c7bf358c187fe427d3c1bda28c55b2ab8677162692c3844f.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdgloss-p167.png",
+      "bytes": 354810,
+      "sha256": "e2c8b5949a921a54fffb49e682b8e5456183005052572d08cb8cfc410fd3394a",
+      "key": "sha256/e2/e2c8b5949a921a54fffb49e682b8e5456183005052572d08cb8cfc410fd3394a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdmargincaption-p046.png",
+      "bytes": 289195,
+      "sha256": "5b293c585e03ffc89e475f913179b17c13371d0e646451fc48d9148203b816a0",
+      "key": "sha256/5b/5b293c585e03ffc89e475f913179b17c13371d0e646451fc48d9148203b816a0.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdsession-marginhead-p018.png",
+      "bytes": 292876,
+      "sha256": "629b579ee63859946931da876c7ae2fc3402a62398afb8fb644d39cc0b00ab58",
+      "key": "sha256/62/629b579ee63859946931da876c7ae2fc3402a62398afb8fb644d39cc0b00ab58.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdsidenote-p155.png",
+      "bytes": 329324,
+      "sha256": "c97323f93d683f1a59272f93d5f4c2de02294310a0de9cfce4f42d44bd296206",
+      "key": "sha256/c9/c97323f93d683f1a59272f93d5f4c2de02294310a0de9cfce4f42d44bd296206.png",
       "contentType": "image/png"
     },
     {
