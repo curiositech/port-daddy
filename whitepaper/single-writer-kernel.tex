@@ -349,9 +349,9 @@ solved. Distribution is a cross-machine concern that belongs to the economy laye
 pushing a consensus protocol down into the local substrate would be the wrong
 layer.}
 
-This is the single most important architectural decision a local-first
-coordination layer can make, and the field is littered with systems that got it
-wrong by manufacturing a consensus problem they did not have~\pdcite{kleppmann2017}.
+Refusing to solve consensus locally is the load-bearing decision in this design;
+systems that instead manufacture a local consensus problem they don't have
+inherit its cost for nothing~\pdcite{kleppmann2017}.
 We will state the formal payoff of the choice as a conditional theorem in
 \S\ref{sec:invariants}: when every read and write is routed through the sole daemon
 connection and responses follow commit, transactions are \emph{serializable} and
@@ -628,10 +628,10 @@ the relay is today.
 \label{sec:durability}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This is the most important correction in the paper, so it gets its own section.
 The kernel's foundational promise --- ``a write that returned success survives''
 --- is true, but only for the fault class a careful reader expects and not for the
-one the pitch most invites.
+one the pitch most invites. That gap gets its own section because getting it wrong
+is the single easiest way to misread this paper's guarantees.
 
 \input{figures/fig-swk-durability-faultclass}
 
@@ -1625,8 +1625,9 @@ adding two kinds, and OP-5 stays \Open{}.
 The through-line of the whole series --- memory $\to$ checkpoint $\to$ continuity
 $\to$ durable identity $\to$ reputation $\to$ market --- \emph{bottoms out here}. If
 the substrate's continuity is weak, the cross-machine economy is built on sand.
-This is the section the personhood and market papers lean on hardest, so it carries
-the canonical statement of the layer's own softest link.
+The personhood and market papers both lean on the claim this section states: which
+of the three continuity organs below is the layer's softest link, and what breaks
+if it fails.
 
 \input{figures/fig-swk-continuity-organs}
 
