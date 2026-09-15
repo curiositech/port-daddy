@@ -1,40 +1,85 @@
 # Make Copy and Media Human
 
-Strip the machine accent from copy, web UI, slides, READMEs, marketing pages, and generated imagery before anything outward-facing ships.
+Strip the machine accent from copy, web UI, slides, READMEs, commits, PRs,
+marketing pages, and generated imagery before anything outward-facing ships.
 
-Use this skill when text or design "reads like AI," before publishing anything customer-facing, or when auditing a property for machine tells (Claudeisms, GPT-isms, Codexisms, Gemini caveat stacks, the v0/Lovable design look).
+Reach for this skill when text or design reads like AI, before you publish
+anything customer-facing, or when you're auditing a property for machine tells:
+Claudeisms, GPT-isms, Codexisms, Gemini caveat stacks, engineering-artifact slop,
+and the v0/Lovable design look.
 
-## Quick Start
+What it won't tell you whether a person used AI. That question has bad answers and
+worse consequences, and `references/fairness-and-false-positives.md` lays out
+why: detectors miss most machine text while falsely flagging around 61% of
+essays by non-native English speakers. So this is an editing tool. Every fix in
+the catalog improves writing regardless of who or what produced it, which is what
+lets you skip the authorship question entirely.
 
-1. Read `SKILL.md` for the philosophy, the two-layer detection pipeline, and the process (scope → structural pass → judge pass → merge → fix → re-run).
-2. Run the structural layer against the target file(s):
-   ```bash
-   python3 scripts/humanize_review.py FILE [FILE...] --out report.html --json structural.json
-   ```
-3. Run the judge pass yourself against `references/catalog.json` — every `detection_type: llm-judge` item needs a human-editor read, not a checklist tick. Write findings to a JSON file matching the schema in the script's docstring.
-4. Merge and render the final report:
-   ```bash
-   python3 scripts/humanize_review.py FILE... --findings judge.json --out report.html
-   ```
-5. If asked to fix, work through `templates/rewrite-checklist.md`, then re-run both layers — a clean result must come from a re-run, never a claim.
-6. Compare against `examples/before-after-prose.md`, `examples/before-after-landing-page.md`, and `examples/sample-report.html` to calibrate what "done" looks like.
+## Quick start
 
-## Why No Separate Scorer Script
+Read `SKILL.md` first for the three laws, the five finding families, and the
+process. Then collect two or three pieces of the author's own earlier writing,
+because comparing against their baseline is what turns the weakest half of the
+catalog into the strongest.
 
-`scripts/humanize_review.py` already IS this skill's deterministic auditor: it takes files, applies structural checks only (densities, variances, ratios, hex values, font names — no keyword-list NLP over free text), and renders a severity-sorted findings report. It is stdlib-only, has a `--selftest` mode, and is the merge point for the model's judge-pass findings. A second, redundant `.mjs` scorer was deliberately not added on top of it.
+```bash
+python3 scripts/humanize_review.py FILE... --baseline 'posts/*.md' \
+    --out report.html --json structural.json
+```
 
-`scripts/regenerate_references.py` is a companion helper, not the auditor: it regenerates the per-dialect `references/*.md` files from `references/catalog.json`, the source of truth for the judge-pass rubric.
+Next, run the judge pass yourself against `references/catalog.json`. Every item
+marked `llm-judge` needs an editor's read rather than a checklist tick, and so do
+the `structural` items the script doesn't implement. Write your findings to JSON
+matching `templates/output-template.md`, then merge them:
 
-## Bundle Contents
+```bash
+python3 scripts/humanize_review.py FILE... --findings judge.json --out report.html
+```
+
+If you're asked to apply fixes, work `templates/rewrite-checklist.md` top-down
+and re-run both layers afterward. A clean result has to come from a re-run and
+never from a claim. Use `--fail-on high` to gate this in CI, and `--validate` to
+confirm the script and the catalog still agree about every ism and threshold.
+
+## How the two layers split the work
+
+`scripts/humanize_review.py` is the structural layer. It measures only countable
+things: densities, variances, ratios, codepoints, hex values, font names, and
+identifier overlap between a comment and the line beneath it. It is stdlib-only
+and carries a `--selftest` that checks both that it catches known tells and that
+it stays silent on a sample of real human prose.
+
+For web pages there is a second, optional layer. `scripts/render_check.py` opens
+the page at real viewports and reports horizontal overflow with the offending
+elements named, undersized tap targets, unreadable type, and contrast failures.
+It is the only script here with a dependency, on Playwright, and it emits the
+same findings JSON so it merges through `--findings` like any judge-pass result.
+
+It deliberately does not implement every structural item in the catalog. Several
+of them need a diff, a repo history, or a resolver that this script has no
+business owning, so they're marked structural for you to check with the tools
+that do. Thresholds live in `references/catalog.json` rather than in the code,
+which is what stopped the rubric and the implementation from drifting apart.
+
+`scripts/regenerate_references.py` rebuilds the per-dialect markdown views from the catalog.
+It refuses to write if any item would land in no file. An earlier typo silently dropped an item
+out of every reference for months and nothing noticed, which is the kind of failure a generator
+should make impossible rather than merely unlikely.
+
+## Bundle contents
 
 | Path | Purpose |
 | --- | --- |
-| `SKILL.md` | Philosophy, decision tree, process, shibboleths, dos/don'ts, failure modes |
-| `scripts/humanize_review.py` | Structural detector + report renderer (the deterministic auditor) |
-| `scripts/regenerate_references.py` | Regenerates `references/*.md` from `references/catalog.json` |
-| `references/catalog.json` | Source of truth: 70 AI-isms across model dialects and media |
-| `references/*.md` | Generated, per-dialect/per-medium views of the catalog |
+| `SKILL.md` | Three laws, five families, decision tree, process, shibboleths, failure modes |
+| `references/fairness-and-false-positives.md` | Why findings are cues and not evidence; read before your first review |
+| `references/catalog.json` | Source of truth: 174 tells with thresholds, false-positive notes, currency, and evidence |
+| `references/web-build-defects.md` | Web pages that are broken rather than merely generic; act on these first |
+| `references/fiction-and-narrative-tells.md` | Story-level tells; the strongest in the catalog |
+| `references/*.md` | Generated per-dialect and per-medium views of the catalog |
+| `scripts/humanize_review.py` | Structural detector and report renderer |
+| `scripts/render_check.py` | Optional. Opens a page at 390/768/1280 and reports what breaks; needs Playwright |
+| `scripts/regenerate_references.py` | Regenerates `references/*.md`; fails on orphaned items |
 | `templates/rewrite-checklist.md` | Checklist to run after every humanizing pass |
-| `templates/output-template.md` | Template for a judge-pass finding entry and the delivery summary |
-| `examples/` | Before/after prose and landing-page pairs, plus a sample rendered report |
-| `agents/openai.yaml` | Subagent descriptor for delegated humanization review |
+| `templates/output-template.md` | Shape of a judge-pass finding and the delivery summary |
+| `examples/` | Before and after pairs for prose and a landing page, plus a rendered report |
+| `agents/openai.yaml` | Subagent descriptor for a delegated review |
