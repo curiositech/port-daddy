@@ -6,15 +6,15 @@
   \fill[hhink] (0,0) rectangle (10.6,.9);
   \fill[pd neutral fill] (0,.9) rectangle (10.6,2.5);
   \fill[pd focus fill] (0,2.5) rectangle (10.6,4.1);
-  \fill[hhsand!16,draw=hhgray!55] (0,4.1) rectangle (10.6,5.7);
-  \fill[hhsand!30] (0,5.7) rectangle (10.6,7.3);
+  \fill[pd neutral fill] (0,4.1) rectangle (10.6,5.7);
+  \fill[pd neutral fill] (0,5.7) rectangle (10.6,7.3);
   \foreach \y in {.9,2.5,4.1,5.7,7.3}
     \draw[pd hairline] (0,\y)--(10.6,\y);
   \draw[pd rule] (0,0) rectangle (10.6,7.3);
 
-  \node[font=\footnotesize\bfseries,text=white,anchor=west,text width=3.3cm,align=left]
-    at (.25,.45) {MACHINE FLOOR};
-  \node[font=\footnotesize,text=white,anchor=east,text width=5.1cm,align=left] at (10.35,.45)
+  \node[pd row label,text=hhpaper,anchor=west,text width=3.3cm,align=left]
+    at (.25,.45) {machine floor};
+  \node[pd axis label,text=hhpaper,anchor=east,text width=5.1cm,align=left] at (10.35,.45)
     {\hyphenpenalty=10000\relax file lock, clock, socket, supervisor};
 
   \node[pd row label,anchor=west] at (.25,1.7) {substrate};
