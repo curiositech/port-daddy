@@ -67,7 +67,8 @@ def env_stack_per_line(lines):
 
 
 def place(path, terms, report):
-    text = open(path).read()
+    with open(path) as f:
+        text = f.read()
     lines = text.split("\n")
     body_at = text.find("\\begin{document}")
     first_body = text[:body_at].count("\n") if body_at > 0 else 0
@@ -109,7 +110,8 @@ def place(path, terms, report):
         occupied.append(i)
         occupied.sort()
         placed.append((term, i + 1))
-    open(path, "w").write("\n".join(lines))
+    with open(path, "w") as f:
+        f.write("\n".join(lines))
     report[path] = {"placed": placed, "skipped": skipped}
     return len(placed), len(skipped)
 
