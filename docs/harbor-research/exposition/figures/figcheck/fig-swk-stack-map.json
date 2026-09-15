@@ -3,7 +3,7 @@
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
-    "textwidth_cm": 11.43
+    "textwidth_cm": 16.3
   },
   "checks": {
     "T1": {
@@ -50,12 +50,11 @@
   "ink": [
     {
       "page": 0,
-      "ink_fraction": 0.7207,
-      "edge_density": 0.1008,
-      "distinct_colors": 1218,
+      "ink_fraction": 0.5527,
+      "edge_density": 0.0681,
+      "distinct_colors": 2045,
       "flags": [
-        "ink_fraction=0.72 is high for a data graphic \u2014 check for a filled/tinted background, a colored plot-area, or a heavy border/frame that isn't carrying data (Tufte: erase non-data-ink).",
-        "edge_density=0.101 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+        "ink_fraction=0.55 is high for a data graphic \u2014 check for a filled/tinted background, a colored plot-area, or a heavy border/frame that isn't carrying data (Tufte: erase non-data-ink)."
       ]
     }
   ],

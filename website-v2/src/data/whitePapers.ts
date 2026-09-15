@@ -264,8 +264,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 550,
-  sizeKb: 9507,
+  pages: 552,
+  sizeKb: 9521,
   references: 221,
   // No `editions` while the Book publishes only its central edition. See the
   // CollectedVolumeEdition doc comment above.
@@ -1049,8 +1049,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
-    pages: 45,
-    sizeKb: 826,
+    pages: 46,
+    sizeKb: 822,
     status: 'Version 1.1 (textbook edition)',
     order: '08',
     chapter: 8,
