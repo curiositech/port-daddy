@@ -38,7 +38,8 @@ import os
 import sys
 from pathlib import Path
 
-VIEWPORTS = [("mobile", 390, 844), ("tablet", 768, 1024), ("desktop", 1280, 900)]
+VIEWPORTS = [("reflow-320", 320, 640), ("mobile", 390, 844),
+             ("tablet", 768, 1024), ("desktop", 1280, 900)]
 
 # Collected in one pass in the page so the DOM is walked once per viewport.
 PROBE = r"""() => {
@@ -142,6 +143,33 @@ PROBE = r"""() => {
     }
   }
 
+  // Measure (characters per line) on real body paragraphs. Estimating from
+  // font-size is crude, so measure a real string in the element's own computed
+  // font and divide the element's content width by the resulting advance width.
+  out.measure = [];
+  const meas = document.createElement('canvas').getContext('2d');
+  const seenMeasure = new Set();
+  for (const el of document.querySelectorAll('p, li')) {
+    const txt = (el.innerText || '').trim();
+    if (txt.length < 120) continue;                  // short blocks cannot show it
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 100) continue;
+    meas.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const sample = 'abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz';
+    const adv = meas.measureText(sample).width / sample.length;
+    if (!adv) continue;
+    const padding = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const cpl = Math.round((r.width - padding) / adv);
+    const k = sel(el);
+    if (cpl > 85 && !seenMeasure.has(k)) {
+      seenMeasure.add(k);
+      out.measure.push({sel: k, cpl, px: Math.round(r.width)});
+    }
+  }
+  out.measure = out.measure.slice(0, 6);
+
   for (const img of document.querySelectorAll('img')) {
     if (!img.getAttribute('width') || !img.getAttribute('height')) {
       const r = img.getBoundingClientRect();
@@ -228,11 +256,15 @@ def interpret(target, vp, width, r):
         worst = ", ".join(f"{o['sel']} ({o['width']}px)" for o in over[:4]) or "unknown element"
         out.append(finding(
             target, "horizontal-overflow-at-mobile",
-            "high" if vp == "mobile" else "medium",
+            # 320px is a WCAG 1.4.10 conformance failure, not a lesser version of
+            # the phone case, so it ranks with it rather than below it.
+            "high" if vp in ("mobile", "reflow-320") else "medium",
             f"{vp} {width}px: page scrolls to {r['scrollWidth']}px. Widest offenders: {worst}",
-            "The page scrolls sideways at this width. This is the single most common "
-            "failure of a site that was styled to look like a framework without being "
-            "built with one, and it is not a matter of taste: content is off screen.",
+            ("The page scrolls sideways at this width. This is the single most common "
+             "failure of a site styled to look like a framework without being built with "
+             "one, and it is not a matter of taste: content is off screen."
+             + (" At 320px this is also a WCAG 1.4.10 Reflow failure, which is the width "
+                "a 1280px screen reaches at 400% zoom." if vp == "reflow-320" else "")),
             "Fix the named elements first, outermost one first. The usual causes are a "
             "fixed pixel width that wants max-width:100%, a grid with a hardcoded column "
             "count that needs a single-column form below the breakpoint, 100vw where "
@@ -272,6 +304,21 @@ def interpret(target, vp, width, r):
             "culprit.",
             "Darken the foreground until it passes: 4.5:1 for body text, 3:1 for text "
             "at 24px or 18.66px bold. Fix the token once rather than each element."))
+
+    meas = r.get("measure") or []
+    if meas and vp == "desktop":
+        ex = ", ".join(f"{m['sel']} {m['cpl']} chars" for m in meas[:4])
+        out.append(finding(
+            target, "measure-past-75-characters", "medium",
+            f"{len(meas)} text blocks over 85 characters per line at {width}px: {ex}",
+            "Body text running the full width of a wide container. The eye loses its "
+            "place returning to the start of each line, and the reader's error rate goes "
+            "up with every extra character. Nobody decided this width; the layout's "
+            "width became the text's width.",
+            "Constrain the text column rather than the page: max-width around 65ch on "
+            "the element that holds prose, or a grid whose text column is narrower than "
+            "its media column. 45 to 75 characters is the conventional range and 66 is "
+            "the usual target."))
 
     nd = r.get("noDim") or []
     if nd:

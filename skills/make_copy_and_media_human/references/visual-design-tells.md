@@ -2,7 +2,7 @@
 
 What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.
 
-_44 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_45 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -606,6 +606,26 @@ Invisible or near-invisible codepoints in the text: U+202F narrow no-break space
 **After**
 
 > A sentence — with the residue removed.
+
+### `measure-past-75-characters`  ·  medium · generic-llm · typography · rendered · family: form
+
+Body text running the full width of a wide container: 100, 130, 160 characters per line. No constraint on the text column, so the layout's width became the text's width.
+
+**Why it reads AI:** Nobody decided the width. A generator sets a container and puts prose in it; constraining the text column is a separate decision that only matters once someone reads a full paragraph on a wide screen, which nothing in the loop does.
+
+**Detect:** Rendered: measure a sample string in each paragraph's own computed font on a canvas, divide the element's content width by the resulting advance width. scripts/render_check.py reports the actual characters-per-line rather than estimating from font size.
+
+**Fix:** Constrain the text column rather than the page: max-width around 65ch on the element holding prose, or a grid whose text column is narrower than its media column. 45 to 75 characters is the conventional range and 66 the usual target. Note ch units track the font's zero-width, so check the result rather than trusting the number.
+
+**False positive when:** Data tables, code blocks, and dashboard cells are not prose and want the width. Deliberately wide editorial layouts with large type can exceed the range legibly, which is why this measures characters rather than pixels.
+
+**Before**
+
+> .wrap { padding: 2rem }   /* measured 167 characters per line at 1280px */
+
+**After**
+
+> .wrap { padding: 2rem; max-width: 65ch; margin-inline: auto }
 
 ### `mixed-icon-sets-one-view`  ·  medium · generic-llm · iconography · structural · family: visual
 
