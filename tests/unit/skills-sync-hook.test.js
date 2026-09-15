@@ -1,8 +1,19 @@
 /**
  * Integration guard for the every-turn skills-sync hook (operator directive
- * 2026-07-04): the repo's .claude/settings.json must carry a UserPromptSubmit
- * hook that fans skills/ out to the agent runtimes via scripts/sync-skills.ts,
- * and that script must actually resolve the repo catalog end-to-end.
+ * 2026-07-04): skills/ must stay synced with the agent-available skill set,
+ * fanned out via scripts/sync-skills.ts, and that script must actually
+ * resolve the repo catalog end-to-end.
+ *
+ * The 2026-07-04 wiring ran sync-skills.ts directly from a repository
+ * UserPromptSubmit hook in .claude/settings.json. PR #10104 ("make disabled
+ * hooks truly inert") briefly removed that repository hook registration
+ * entirely while the halt directive was being worked out, because a raw
+ * `npx tsx scripts/sync-skills.ts` command in settings.json could not check
+ * the `~/.port-daddy/hooks.disabled` kill switch on its own. The hook has
+ * since been restored, wrapped with an inline halt-marker check
+ * (`[ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ] || npx tsx
+ * scripts/sync-skills.ts ...`), so the wiring is present again and this guard
+ * checks for that inline check rather than a bare invocation.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, rmSync, readdirSync, lstatSync } from 'node:fs';
@@ -13,14 +24,18 @@ import os from 'node:os';
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 describe('skills sync hook', () => {
-  test('settings.json wires sync-skills into UserPromptSubmit', () => {
+  test('settings.json wires UserPromptSubmit to sync-skills.ts, guarded by the hooks.disabled halt marker', () => {
     const settings = JSON.parse(
       readFileSync(join(REPO, '.claude', 'settings.json'), 'utf8'),
     );
     const entries = settings.hooks?.UserPromptSubmit ?? [];
     const commands = entries.flatMap((e) => e.hooks ?? []).map((h) => h.command ?? '');
     expect(
-      commands.some((c) => c.includes('scripts/sync-skills.ts') && c.includes('--scope user')),
+      commands.some(
+        (c) => c.includes('scripts/sync-skills.ts')
+          && c.includes('--scope user')
+          && c.includes('hooks.disabled'),
+      ),
     ).toBe(true);
   });
 
