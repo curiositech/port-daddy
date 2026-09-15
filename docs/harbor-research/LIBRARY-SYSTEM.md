@@ -108,6 +108,7 @@ attenuation vectors; the every-hop attenuation property is ProVerif's.
 | Publication metadata and digests | a committed PDF whose pages, size, or SHA-256 disagree with the catalog or `publication-digests.json` | `npm run test:whitepaper-metadata` (website-v2); `--fix` resyncs | whitepaper-metadata |
 | Doc citations | a repo path cited in a changed doc that does not exist | `node scripts/check-doc-citations.mjs` | doc-citation-guard |
 | Figure register/triage | a malformed row, an unknown enum value, a duplicate id, a chapter number out of step with `textbook.json`, or a `keep`/`restyle` fragment missing on disk | `python3 scripts/harbor-research/check_figure_register.py` | library-checks |
+| Figure QA corpus | a `figcheck/*.json` record describing a fragment no chapter ships, or a live fragment with no record — the corpus derived from the `\input{figures/...}` lines of the chapter sources `textbook.json` names, restricted to fragments that open a `tikzpicture` | `python3 scripts/harbor-research/check_figcheck_corpus.py` (`--list`, `--orphans` to inspect) | library-checks |
 | Figure audit render | `FIGURE-AUDIT-DIGEST.md`/`FIGURE-AUDIT-FAILURES.md` out of step with a fresh render of `figcheck/*.json` | `python3 scripts/harbor-research/render_figure_audit.py --check` (`--write` regenerates) | library-checks |
 | Figure blockers | a mechanical (T1-T5) figcheck failure with no waiver, or an expired one | `python3 scripts/harbor-research/check_figure_blockers.py` | library-checks; also gated per-PR by `figure-gates` (whitepaper-build.yml) |
 

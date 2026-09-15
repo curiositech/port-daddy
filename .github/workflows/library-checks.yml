@@ -48,6 +48,9 @@ on:
       - 'website-v2/src/**'
       - 'website-v2/public/**'
       - 'scripts/lint/**'
+      - 'scripts/check-orphan-assets.mjs'
+      - 'scripts/check-orphan-assets.test.mjs'
+      - 'scripts/orphan-assets-allow.json'
       - '.github/workflows/library-checks.yml'
   push:
     branches: [main]
@@ -79,6 +82,9 @@ on:
       - 'website-v2/src/**'
       - 'website-v2/public/**'
       - 'scripts/lint/**'
+      - 'scripts/check-orphan-assets.mjs'
+      - 'scripts/check-orphan-assets.test.mjs'
+      - 'scripts/orphan-assets-allow.json'
       - '.github/workflows/library-checks.yml'
   # Merge queue: run unconditionally so a required check context always
   # appears (a path-filtered workflow that does not match would hang the
@@ -180,13 +186,34 @@ jobs:
             exit 1
           fi
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 212 ]; then
-            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 212 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 301 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 301 it has; a module failed to import"
             exit 1
           fi
 
       - name: Every rendered plate has honest provenance and every TeX plate path resolves
         run: python3 scripts/harbor-research/check_plate_provenance.py
+
+      # The step above, and every other guard in this job, runs reference -> file:
+      # does the thing a source names exist? None of them runs file -> reference, so
+      # a plate or fragment nothing points at is invisible to all of them. That is
+      # how 147 dead asset files accumulated before a human proved each one dead with
+      # a repo-wide grep (PR #10171) -- correct, and unreproducible. This is the
+      # missing direction, gated only on the plate and figure directories where an
+      # orphan is a defect by construction; the whole-tree report is advisory and
+      # runs with `npm run report:orphan-assets`. Placed immediately after the
+      # provenance check because the two are a pair: that one fails a plate with no
+      # record, this one fails a plate nothing prints.
+      - name: No plate or figure fragment is committed with nothing referencing it
+        run: npm run check:orphan-assets
+
+      # The gate's own mutation tests, both directions: an unreferenced asset is
+      # named, and one reachable only through a template literal, a LaTeX macro
+      # parameter or a runtime-derived dark sibling is NOT. A reference checker that
+      # marks everything referenced passes "it ran green" forever, so the suite
+      # deletes the last reference to a live asset and asserts it appears.
+      - name: Orphan-asset check mutation tests (both directions)
+        run: node --test scripts/check-orphan-assets.test.mjs
 
       # The only steps here that are not stdlib-only. They have to decode a
       # plate's pixels to find where its artwork starts, and render a page to
@@ -313,6 +340,16 @@ jobs:
 
       - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
         run: python3 scripts/harbor-research/check_figure_register.py
+
+      # Before asking whether the digest is a fresh render OF the records, ask
+      # whether the records are about figures that still ship. In September 2026
+      # they were not: 79 records described a corpus of 56 drawings, 27 of them
+      # reporting geometry for fragments deleted or renamed waves earlier and 4
+      # live drawings never checked at all -- and every downstream artefact was
+      # a faithful, fresh render of a corpus that no longer existed. This is the
+      # existence half the step below cannot see.
+      - name: figcheck records and the live \input-derived figure corpus name the same fragments
+        run: python3 scripts/harbor-research/check_figcheck_corpus.py --verbose
 
       - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
         run: python3 scripts/harbor-research/render_figure_audit.py --check

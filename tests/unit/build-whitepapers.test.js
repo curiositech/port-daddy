@@ -209,6 +209,31 @@ describe('reproducible whitepaper source scoping', () => {
     expect(script).not.toContain('mktemp -d');
   });
 
+  // The other half of the byte-reproducibility contract, and the only lever in
+  // it that had no test. The stable output path above fixes the trailer /ID;
+  // SOURCE_DATE_EPOCH + FORCE_SOURCE_DATE fix the /CreationDate that xdvipdfmx
+  // (Book, xelatex) and pdfTeX (chapters) would otherwise stamp from the wall
+  // clock.
+  //
+  // Measured 2026-09-14 on TeX Live 2023, because it decides whether
+  // tests/purser/whitepaper-hashes.test.js is satisfiable at all: two xelatex
+  // runs of the same source 1.2s apart differ without these variables and are
+  // byte-identical with them, and two full builds of the Book through this
+  // script produced the same 9,739,287 bytes and the same SHA-256. Drop the
+  // pinning and every rebuild mints a new hash, so the digest manifest could
+  // never be made to match and the hash test would have to be deleted rather
+  // than fixed. That is why this is asserted and not merely commented.
+  test('builder pins the render clock so a rebuild of unchanged source is byte-identical', () => {
+    const script = readFileSync(buildScript, 'utf8');
+
+    // Both variables, exported together, inside the per-paper build subshell.
+    expect(script).toContain('export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1');
+    // The epoch comes from the paper's own commit history. A wall-clock epoch
+    // would satisfy the line above while pinning nothing.
+    expect(script).toContain('epoch="$(paper_epoch "$srcdir" "$roottex")"');
+    expect(script).not.toMatch(/SOURCE_DATE_EPOCH=["']?\$\(date/);
+  });
+
   test('builder fails clearly when neither TeX driver is installed', () => {
     const script = readFileSync(buildScript, 'utf8');
 
