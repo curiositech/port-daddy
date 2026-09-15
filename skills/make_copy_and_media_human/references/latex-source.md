@@ -609,7 +609,7 @@ Math mode asked to do things it does not mean. Multi-letter words in italic math
 
 **Why it reads AI:** Units are the place where prose and typesetting meet, and the correct output needs a thin non-breaking space that has no visual analogue in a chat window. A producer writes what a reader would type in an email.
 
-**Detect:** Static: `grep -nE '[0-9](ms|us|ns|s\b|kB|MB|GB|TB|Hz|kHz|MHz|GHz|nm|mm|cm|km|kg|mol|K\b)' *.tex` for the run-together form, and the same list preceded by a plain space for the breakable form. Exclude LaTeX length arguments first, or the pattern fires on \vspace{-0.4cm} and width=3cm: drop any hit inside the braces of \vspace|\hspace|\setlength|\addtolength or after an `=` in an optional argument. Absence of `\usepackage{siunitx}` in a document with more than a handful of measurements is the cue to look rather than the finding.
+**Detect:** Static: `grep -nE '\d(?:ms|us|ns|s\b|kB|MB|GB|TB|Hz|kHz|MHz|GHz|nm|mm|cm|km|kg|mol|K\b)' *.tex` for the run-together form, and the same list preceded by a plain space for the breakable form. Exclude LaTeX length arguments first, or the pattern fires on \vspace{-0.4cm} and width=3cm: drop any hit inside the braces of \vspace|\hspace|\setlength|\addtolength or after an `=` in an optional argument. Absence of `\usepackage{siunitx}` in a document with more than a handful of measurements is the cue to look rather than the finding.
 
 **Fix:** \usepackage{siunitx} and \qty{5}{\milli\second}, \num{123456}, \qtyrange{512}{1024}{\mebi\byte}. It gets the thin non-breaking space, the upright unit font, digit grouping and the minus sign right in one place, so a venue with a different convention becomes a one-line change.
 

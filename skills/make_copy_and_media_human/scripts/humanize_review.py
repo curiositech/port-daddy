@@ -6520,6 +6520,24 @@ def run_validate():
     # had to grep this file. Report the split so the queue is a number, not a
     # research task. This is a SPLIT, not a gap: detection_type says what kind of
     # evidence settles an item, never that this bundle automates it.
+    # A "](" anywhere in a catalog string becomes markdown link syntax the moment
+    # the generator writes it into a reference file, and the repo's doc-citation
+    # guard then reads what follows as a relative link target. `[0-9](ms|us|...)`
+    # is an ordinary regex and a broken link at the same time, and it failed CI.
+    # Mirror the repo's doc-citation guard: a URL, anchor, mailto or site-absolute
+    # target is fine and common (a badge image is `![build](https://...)`). What
+    # breaks is a RELATIVE target, which is what `[0-9](ms|us|...)` looks like.
+    _md = re.compile(r"\]\(\s*(?!https?:|mailto:|tel:|#|/)([^)\s]+)")
+    md_link = [f"{i['name']}.{k}" for i in CATALOG.get("items", [])
+               for k, v in i.items() if isinstance(v, str) and _md.search(v)]
+    if md_link:
+        print(f"MARKDOWN LINK SYNTAX IN {len(md_link)} CATALOG STRING(S): "
+              f"{' '.join(md_link)}")
+        print("`](` becomes a relative link once this is written into a reference "
+              "file. Write the regex so a character class is not immediately "
+              "followed by a group -- \\d(?:a|b) rather than [0-9](a|b).")
+        return 1
+
     rc = Path(__file__).resolve().parent / "render_check.py"
     impl_src = src + (rc.read_text(encoding="utf-8") if rc.exists() else "")
     mech = [i for i in CATALOG.get("items", [])
