@@ -3,7 +3,7 @@
  *
  * This module is deliberately read-only and filesystem-backed. The CLI,
  * daemon roster, FleetBar, and pd-console must describe the same real wiring:
- * an exact armed project root, all staged tentacles, provider-native config,
+ * an armed local repository family, all staged tentacles, provider-native config,
  * visible identity, and a fresh daemon heartbeat.
  */
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
@@ -14,6 +14,7 @@ import { PD_HOME } from '../../shared/paths.js';
 import { resolveCliBinary } from '../cli-bin-dirs.js';
 import { readDaemonReadyPid } from '../daemon-ready.js';
 import { PD_HOOK_MARKER, registeredTentaclesForProvider, TENTACLES } from './hook-shape.js';
+import { inspectSquidRepositoryFamily } from './repository-family-authority.js';
 import {
   SLASH_COMMAND_FILENAME,
   SQUID_DAEMON_HEARTBEAT_STALE_MS,
@@ -109,15 +110,6 @@ export function canonicalSquidProjectRoot(projectDir: string): string {
     return realpathSync(absolute);
   } catch {
     return absolute;
-  }
-}
-
-export function readArmedSquidProjectRoots(registryPath: string): string[] {
-  if (!existsSync(registryPath)) return [];
-  try {
-    return [...new Set(readFileSync(registryPath, 'utf8').split('\n').map((line) => line.trim()).filter(Boolean))].sort();
-  } catch {
-    return [];
   }
 }
 
@@ -223,7 +215,7 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
   const missing: string[] = [];
   if (!facts.projectRoot) missing.push('agent has no local worktree root');
   if (ephemeralProjectRoot) missing.push('worktree is under an ephemeral system temp root; resume it under ~/coding/tmp');
-  if (facts.projectRoot && !facts.projectArmed) missing.push('exact project root is not armed');
+  if (facts.projectRoot && !facts.projectArmed) missing.push('local repository family is not armed for this worktree');
   if (!facts.daemonAlive) missing.push('daemon heartbeat is not fresh');
   else if (!daemonReady) missing.push('daemon readiness lease does not match the current PID');
   if (!facts.tentaclesStaged) missing.push('prompt, pre-tool, post-tool, or stop tentacles are not fully staged');
@@ -310,6 +302,7 @@ export function readSquidConformance(
   const now = options.now ?? Date.now();
   const commandExists = options.commandExists ?? defaultCommandExists;
   const projectRoot = canonicalSquidProjectRoot(projectDir);
+  const family = inspectSquidRepositoryFamily(projectRoot, { pdHome });
   const projectClaudeSettings = join(projectRoot, '.claude', 'settings.json');
   const projectSettingsText = readText(projectClaudeSettings);
   let projectSettings: Record<string, unknown> = {};
@@ -336,9 +329,9 @@ export function readSquidConformance(
     existsSync(join(binDir, tentacle)) && existsSync(join(binDir, 'squid', tentacle))
   );
   const providers: SquidProviderConformance[] = [
-    providerStatus('Claude Code', 'claude', 'claude', 'project', projectClaudeSettings, commandExists),
+    providerStatus('Claude Code', 'claude', 'claude', 'user', join(home, '.claude', 'settings.json'), commandExists),
     providerStatus('Codex CLI', 'codex', 'codex', 'user', join(home, '.codex', 'config.toml'), commandExists),
-    providerStatus('Gemini CLI', 'gemini', 'gemini', 'project', join(projectRoot, '.gemini', 'settings.json'), commandExists),
+    providerStatus('Gemini CLI', 'gemini', 'gemini', 'user', join(home, '.gemini', 'settings.json'), commandExists),
     providerStatus('Antigravity (agy)', 'agy', 'agy', 'user', join(home, '.gemini', 'hooks.json'), commandExists),
   ];
   const readyPid = readDaemonReadyPid(join(pdHome, 'daemon.ready'));
@@ -346,7 +339,7 @@ export function readSquidConformance(
 
   return deriveSquidConformance({
     projectRoot,
-    projectArmed: readArmedSquidProjectRoots(join(pdHome, 'squid', 'projects')).includes(projectRoot),
+    projectArmed: family.armed,
     daemonAlive: heartbeatFresh(join(pdHome, 'heartbeat'), now),
     daemonReady: readyPid !== null && readyPid === daemonPid,
     tentaclesStaged,

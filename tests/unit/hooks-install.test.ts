@@ -10,19 +10,19 @@
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, writeFileSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
-import { join } from 'node:path';
+import { chmodSync, closeSync, copyFileSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import {
   stageTentacles,
   buildTargets,
   configureTarget,
   commitCodexConfigMigration,
+  inspectHookTargets,
   isHooksStatusRequest,
+  silentHooksInstall,
+  uninstallSharedProviderHooks,
   uninstallTarget,
-  clearArmedSquidProjects,
-  isSquidProjectArmed,
-  registerSquidProject,
-  unregisterSquidProject,
 } from '../../cli/commands/hooks-install.js';
 import {
   TENTACLES,
@@ -31,6 +31,7 @@ import {
   codexHooksTomlBlock,
   stripCodexHooksTomlBlock,
   CODEX_PD_MARKER,
+  PD_HOOK_MARKER,
   CODEX_TOOL_MATCHER,
   CLAUDE_TOOL_MATCHER,
   GEMINI_TOOL_MATCHER,
@@ -43,8 +44,18 @@ import {
   SQUID_HOOK_DEBUG_MAX_BYTES,
   SQUID_HOOK_DEBUG_TRIM_BYTES,
 } from '../../lib/squid/debug.js';
+import {
+  armSquidRepositoryFamily,
+  denySquidWorktree,
+  disarmSquidRepositoryFamily,
+  inspectSquidRepositoryFamily,
+  repositoryFamilyMarkerPath,
+  repositoryFamilyReasonClass,
+  repositoryFamilyVerifierPath,
+  resolveRepositoryFamilyAuthority,
+} from '../../lib/squid/repository-family-authority.js';
 
-const SANDBOX = join(process.cwd(), '.scratch', `hooks-test-${process.pid}`);
+const SANDBOX = join(homedir(), 'coding', 'tmp', `hooks-test-${process.pid}`);
 const SRC = join(SANDBOX, 'src-bin');
 const DEST = join(SANDBOX, 'pd-bin'); // stand-in for ~/.port-daddy/bin
 const HOME = join(SANDBOX, 'home');
@@ -60,6 +71,28 @@ function writeTentacleSources(): void {
   for (const name of TENTACLES) {
     writeFileSync(join(SRC, name), `#!/bin/sh\nprintf '%s\\n' '${name}'\nexit 0\n`);
   }
+}
+
+function initializeHookRepository(root: string): void {
+  mkdirSync(root, { recursive: true });
+  execFileSync('git', ['-C', root, 'init', '--initial-branch=main']);
+  execFileSync('git', ['-C', root, 'config', 'user.email', 'squid-hooks@example.invalid']);
+  execFileSync('git', ['-C', root, 'config', 'user.name', 'Squid Hook Test']);
+  writeFileSync(join(root, 'README.md'), 'fixture\n');
+  execFileSync('git', ['-C', root, 'add', 'README.md']);
+  execFileSync('git', ['-C', root, 'commit', '-m', 'fixture']);
+}
+
+function createProviderTransactionFixture(name: string) {
+  const fixture = join(SANDBOX, name);
+  const repo = join(fixture, 'repo');
+  const home = join(fixture, 'home');
+  const pdHome = join(fixture, 'pd-home');
+  initializeHookRepository(repo);
+  mkdirSync(home, { recursive: true });
+  const targets = buildTargets(home).map((target) => ({ ...target, detect: () => true }));
+  const stage = stageTentacles(SRC, join(pdHome, 'bin'));
+  return { fixture, repo, home, pdHome, targets, stage };
 }
 
 let fixtureStdinSequence = 0;
@@ -212,9 +245,22 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(wrapper).toContain('stat -f %m');
     expect(wrapper).not.toContain('kill -0');
     expect(wrapper).not.toContain('ps -p');
+    expect(wrapper).toContain('.git');
     expect(wrapper).toContain('.portdaddy');
-    expect(wrapper).toContain('squid/projects');
-    expect(wrapper).toContain('[ "$pd_registered_project" = "$project_root" ]');
+    expect(wrapper).toContain('squid/repository-families');
+    expect(wrapper).not.toContain('squid/projects');
+    expect(wrapper).toContain('pd_authority_lookup');
+    expect(wrapper).toContain('pd_worktree_deny');
+    expect(wrapper).toContain(`PD_HOME='${SANDBOX}'; export PD_HOME`);
+    expect(wrapper).toContain('pd_authority_budget_ms=250');
+    expect(wrapper).toContain('PATH=/usr/bin:/bin:/usr/sbin:/sbin; export PATH');
+    expect(wrapper).not.toContain('PD_HOME="${PD_HOME');
+    expect(wrapper).not.toContain('PD_HOOK_AUTHORITY_BUDGET_MS');
+    expect(wrapper).not.toContain('PD_HOOK_AUTHORITY_REASON_FILE');
+    expect(wrapper).not.toContain('authority-last-decision');
+    expect(wrapper).not.toContain('pd_record_file');
+    expect(wrapper).not.toMatch(/\bgit\s+-C\b/);
+    expect(wrapper).not.toContain('worktree list');
     expect(wrapper).not.toContain('grep -Fqx');
     expect(wrapper).not.toContain('dirname "$d"');
     expect(wrapper).toContain('pd_real_hook="$PD_HOME/bin/squid/${0##*/}"');
@@ -222,11 +268,373 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(wrapper).toContain('pd_health_probe_acquire');
     expect(wrapper).toContain('failure_swallowed');
     expect(wrapper).not.toContain('pd_hook_retry'); // user-critical hooks are never retried in-process
-    expect(wrapper.trim().endsWith('pd_debug_skip no_project')).toBe(true); // fail-open default
+    expect(wrapper).toContain('[ "$pd_boundary" = 1 ] || pd_authority_deny boundary');
     expect(wrapper).toContain('debug.enabled');
     expect(wrapper).toContain('hook-events.log');
     expect(wrapper).not.toContain('tool_input');
     expect(wrapper).not.toContain('tool_result');
+  });
+
+  test.each(['real-tentacle-directory', 'health-directory'])(
+    'staging rejects a symlinked %s before any write or chmod escapes the authority root',
+    (surface) => {
+      const fixture = join(SANDBOX, `stage-symlink-${surface}`);
+      const pdHome = join(fixture, 'pd-home');
+      const binDir = join(pdHome, 'bin');
+      const outside = join(fixture, 'outside');
+      const sentinel = join(outside, 'must-survive');
+      mkdirSync(pdHome, { recursive: true, mode: 0o700 });
+      mkdirSync(outside, { mode: 0o755 });
+      writeFileSync(sentinel, 'sentinel\n');
+      const outsideMode = statSync(outside).mode & 0o777;
+      if (surface === 'real-tentacle-directory') {
+        mkdirSync(binDir, { mode: 0o700 });
+        symlinkSync(outside, join(binDir, 'squid'));
+      } else {
+        mkdirSync(join(pdHome, 'squid'), { mode: 0o700 });
+        symlinkSync(outside, join(pdHome, 'squid', 'health'));
+      }
+
+      expect(() => stageTentacles(SRC, binDir)).toThrow(/symlinked squid staging destination/i);
+      expect(readFileSync(sentinel, 'utf8')).toBe('sentinel\n');
+      expect(statSync(outside).mode & 0o777).toBe(outsideMode);
+      expect(existsSync(join(outside, 'pd-hook-prompt'))).toBe(false);
+      if (surface === 'health-directory') expect(existsSync(binDir)).toBe(false);
+    },
+  );
+
+  test.each(['wrapper', 'real-tentacle'])(
+    'provider installation rejects a tampered staged %s by exact byte/digest readback',
+    (surface) => {
+      const fixture = join(SANDBOX, `stage-tamper-${surface}`);
+      const repo = join(fixture, 'repo');
+      const home = join(fixture, 'home');
+      const pdHome = join(fixture, 'pd-home');
+      initializeHookRepository(repo);
+      mkdirSync(home, { recursive: true });
+      const stage = stageTentacles(SRC, join(pdHome, 'bin'));
+      const tampered = surface === 'wrapper'
+        ? join(pdHome, 'bin', 'pd-hook-prompt')
+        : join(pdHome, 'bin', 'squid', 'pd-hook-prompt');
+      writeFileSync(tampered, `${readFileSync(tampered, 'utf8')}# tampered while retaining expected substrings\n`);
+
+      const result = silentHooksInstall(home, {
+        cwd: repo,
+        stage,
+        resetHealthOnSuccess: false,
+        targets: buildTargets(home).map((target) => ({ ...target, detect: () => true })),
+        pdHome,
+      });
+      expect(result).toMatchObject({ activated: false, configured: 0 });
+      expect(result.failures.join(' ')).toMatch(/exact byte\/digest readback/i);
+      const authority = resolveRepositoryFamilyAuthority(repo)!;
+      expect(existsSync(repositoryFamilyMarkerPath(authority))).toBe(false);
+      expect(existsSync(repositoryFamilyVerifierPath(authority, pdHome))).toBe(false);
+    },
+  );
+
+  test('a mixed staged generation stays inert until the completion manifest commits, then a clean retry repairs it', () => {
+    const fixture = join(SANDBOX, 'stage-generation-transaction');
+    const repo = join(fixture, 'repo');
+    const pdHome = join(fixture, 'pd-home');
+    const binDir = join(pdHome, 'bin');
+    initializeHookRepository(repo);
+    const first = stageTentacles(SRC, binDir);
+    armSquidRepositoryFamily(repo, { pdHome });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    const run = (name: string): string => execFileSync(join(binDir, name), [], {
+      cwd: repo,
+      env: { ...process.env, PD_HOME: pdHome },
+      input: '{}',
+      encoding: 'utf8',
+    });
+    expect(run('pd-hook-prompt')).toContain('pd-hook-prompt');
+    const committedManifest = readFileSync(first.generationManifestPath, 'utf8');
+
+    expect(() => stageTentacles(SRC, binDir, {
+      fault: (point) => {
+        if (point === 'after-wrapper:pd-hook-prompt') throw new Error('injected mixed wrapper generation');
+      },
+    })).toThrow('injected mixed wrapper generation');
+    expect(readFileSync(first.generationManifestPath, 'utf8')).toBe(committedManifest);
+    expect(run('pd-hook-prompt')).toBe('');
+    expect(run('pd-hook-pre-tool')).toContain('pd-hook-pre-tool');
+
+    const repaired = stageTentacles(SRC, binDir);
+    expect(readFileSync(repaired.generationManifestPath, 'utf8')).not.toBe(committedManifest);
+    expect(run('pd-hook-prompt')).toContain('pd-hook-prompt');
+    expect(run('pd-hook-pre-tool')).toContain('pd-hook-pre-tool');
+  });
+
+  test('an unarmed family is rejected before debug input probing or event persistence', () => {
+    const pdHome = join(SANDBOX, 'unarmed-private-home');
+    const binDir = join(pdHome, 'bin');
+    const unarmed = join(SANDBOX, 'unarmed-private-repo');
+    mkdirSync(unarmed, { recursive: true });
+    execFileSync('git', ['-C', unarmed, 'init', '--initial-branch=main']);
+    stageTentacles(SRC, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    markDaemonReady(pdHome);
+    armSquidRepositoryFamily(REPO, { pdHome });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+
+    const secretInput = '{"session_id":"must-not-be-read","prompt":"private-unarmed-text"}';
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: unarmed,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'codex' },
+      input: secretInput,
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+    expect(existsSync(join(pdHome, 'squid', 'hook-events.log'))).toBe(false);
+    expect(existsSync(join(pdHome, 'squid', 'health'))).toBe(true);
+  });
+
+  test('runtime HOME, PD_HOME, authority budget, receipt path, and PATH cannot manufacture authority', () => {
+    const trustedHome = join(SANDBOX, 'immutable-authority-home');
+    const forgedHome = join(SANDBOX, 'forged-authority-home');
+    const source = join(SANDBOX, 'immutable-authority-source');
+    const clone = join(SANDBOX, 'immutable-authority-clone');
+    const fakeBin = join(SANDBOX, 'immutable-authority-fake-bin');
+    const fakeRan = join(SANDBOX, 'immutable-authority-fake-ran');
+    const escapedReceipt = join(SANDBOX, 'immutable-authority-escaped-receipt');
+    mkdirSync(source, { recursive: true });
+    execFileSync('git', ['-C', source, 'init', '--initial-branch=main']);
+    writeFileSync(join(source, 'README.md'), 'fixture\n');
+    execFileSync('git', ['-C', source, 'add', 'README.md']);
+    execFileSync('git', ['-C', source, '-c', 'user.name=Squid Test', '-c', 'user.email=squid@example.invalid', 'commit', '-m', 'fixture']);
+    execFileSync('git', ['clone', source, clone]);
+    stageTentacles(SRC, join(trustedHome, 'bin'));
+    armSquidRepositoryFamily(source, { pdHome: trustedHome });
+    // This attacker-owned registry and marker would authorize the clone only if
+    // the wrapper trusted runtime PD_HOME/HOME instead of its staged bytes.
+    armSquidRepositoryFamily(clone, { pdHome: forgedHome });
+    mkdirSync(fakeBin, { recursive: true });
+    for (const name of ['stat', 'wc', 'tr', 'id', 'date', 'chmod', 'mv', 'rm']) {
+      writeFileSync(join(fakeBin, name), `#!/bin/sh\nprintf '%s\\n' '${name}' >> '${fakeRan}'\nexit 0\n`, { mode: 0o755 });
+    }
+
+    const output = execFileSync(join(trustedHome, 'bin', 'pd-hook-prompt'), [], {
+      cwd: clone,
+      env: {
+        ...process.env,
+        HOME: dirname(forgedHome),
+        PD_HOME: forgedHome,
+        PD_HOOK_AUTHORITY_BUDGET_MS: '999999999',
+        PD_HOOK_AUTHORITY_REASON_FILE: escapedReceipt,
+        PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+      },
+      input: '{"secret":"must-not-reach-tentacle"}',
+      encoding: 'utf8',
+    });
+
+    expect(output).toBe('');
+    expect(existsSync(fakeRan)).toBe(false);
+    expect(existsSync(escapedReceipt)).toBe(false);
+    expect(existsSync(join(trustedHome, 'squid', 'authority-last-decision.v1'))).toBe(false);
+  });
+
+  test('the filesystem-only family gate stays within its explicit cold and warm latency budgets', () => {
+    const pdHome = join(SANDBOX, 'family-latency-home');
+    const binDir = join(pdHome, 'bin');
+    const repo = join(SANDBOX, 'family-latency-repo');
+    mkdirSync(repo, { recursive: true });
+    execFileSync('git', ['-C', repo, 'init', '--initial-branch=main']);
+    stageTentacles(SRC, binDir);
+    armSquidRepositoryFamily(repo, { pdHome });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    const gate = join(binDir, 'pd-hook-prompt');
+    const run = (): number => {
+      const started = performance.now();
+      const output = execFileSync(gate, [], {
+        cwd: repo,
+        env: { ...process.env, PD_HOME: pdHome },
+        input: '{}',
+        encoding: 'utf8',
+      });
+      expect(output).toContain('pd-hook-prompt');
+      return performance.now() - started;
+    };
+    const percentile = (values: number[], quantile: number): number => {
+      const sorted = [...values].sort((a, b) => a - b);
+      return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * quantile) - 1)];
+    };
+
+    const coldMs = run();
+    const warmMs = Array.from({ length: 40 }, run);
+    const receipt = {
+      coldMs,
+      p50Ms: percentile(warmMs, 0.50),
+      p95Ms: percentile(warmMs, 0.95),
+      p99Ms: percentile(warmMs, 0.99),
+    };
+    console.log(`[squid-family-latency] ${JSON.stringify(receipt)}`);
+    // Includes process startup, repository-family verification, readiness
+    // checks, the external timer, and the real provider-neutral tentacle.
+    expect(receipt.coldMs).toBeLessThan(500);
+    expect(receipt.p50Ms).toBeLessThan(150);
+    expect(receipt.p95Ms).toBeLessThan(200);
+    expect(receipt.p99Ms).toBeLessThan(250);
+  });
+
+  test('the TypeScript resolver and staged shell verifier agree on the shared hostile authority corpus', () => {
+    type ReasonClass = 'allow' | 'boundary' | 'verifier' | 'marker' | 'deny';
+    let sequence = 0;
+    const initialize = (root: string): void => {
+      mkdirSync(root, { recursive: true });
+      execFileSync('git', ['-C', root, 'init', '--initial-branch=main']);
+      execFileSync('git', ['-C', root, 'config', 'user.email', 'squid-parity@example.invalid']);
+      execFileSync('git', ['-C', root, 'config', 'user.name', 'Squid Parity Test']);
+      writeFileSync(join(root, 'README.md'), 'fixture\n');
+      execFileSync('git', ['-C', root, 'add', 'README.md']);
+      execFileSync('git', ['-C', root, 'commit', '-m', 'fixture']);
+    };
+    const ready = (label: string): string => {
+      const pdHome = join(SANDBOX, `parity-${sequence++}-${label}-home`);
+      stageTentacles(SRC, join(pdHome, 'bin'), { authorityTrace: true });
+      writeFileSync(join(pdHome, 'heartbeat'), '{}');
+      markDaemonReady(pdHome);
+      return pdHome;
+    };
+    const assertParity = (label: string, cwd: string, pdHome: string, expected: ReasonClass): void => {
+      const tsClass = repositoryFamilyReasonClass(inspectSquidRepositoryFamily(cwd, { pdHome }).reason);
+      const shell = spawnSync(join(pdHome, 'bin', 'pd-hook-prompt'), [], {
+        cwd,
+        env: { ...process.env },
+        input: '{}',
+        encoding: 'utf8',
+      });
+      const shellClass = shell.stdout.includes('pd-hook-prompt')
+        ? 'allow'
+        : shell.stderr.trim().split('\t')[1];
+      expect({ label, tsClass, shellClass }).toEqual({ label, tsClass: expected, shellClass: expected });
+    };
+    const linkedFixture = (label: string): { main: string; linked: string; admin: string; pdHome: string } => {
+      const root = join(SANDBOX, `parity-${sequence}-${label}`);
+      const main = join(root, 'main');
+      const linked = join(root, 'linked');
+      initialize(main);
+      execFileSync('git', ['-C', main, 'worktree', 'add', '-b', `linked-${sequence}`, linked]);
+      const pdHome = ready(label);
+      armSquidRepositoryFamily(main, { pdHome });
+      const admin = readFileSync(join(linked, '.git'), 'utf8').trim().slice('gitdir: '.length);
+      return { main, linked, admin, pdHome };
+    };
+
+    {
+      const repo = join(SANDBOX, `parity-${sequence}-valid`);
+      initialize(repo);
+      const pdHome = ready('valid');
+      armSquidRepositoryFamily(repo, { pdHome });
+      assertParity('valid', repo, pdHome, 'allow');
+    }
+    {
+      const { linked, pdHome } = linkedFixture('forged-gitdir');
+      const forged = join(dirname(linked), 'forged');
+      mkdirSync(forged);
+      copyFileSync(join(linked, '.git'), join(forged, '.git'));
+      assertParity('forged-gitdir', forged, pdHome, 'boundary');
+    }
+    for (const [label, mutate] of [
+      ['missing-commondir', (admin: string) => rmSync(join(admin, 'commondir'))],
+      ['tampered-commondir', (admin: string) => writeFileSync(join(admin, 'commondir'), '..\n')],
+      ['symlinked-commondir', (admin: string) => {
+        const path = join(admin, 'commondir'); renameSync(path, `${path}.target`); symlinkSync(`${path}.target`, path);
+      }],
+      ['symlinked-commondir-ancestor', (admin: string) => {
+        const worktrees = dirname(admin);
+        const target = `${worktrees}.target`;
+        renameSync(worktrees, target);
+        symlinkSync(target, worktrees);
+      }],
+      ['missing-backpointer', (admin: string) => rmSync(join(admin, 'gitdir'))],
+      ['tampered-backpointer', (admin: string) => writeFileSync(join(admin, 'gitdir'), '/foreign/.git\n')],
+      ['symlinked-backpointer', (admin: string) => {
+        const path = join(admin, 'gitdir'); renameSync(path, `${path}.target`); symlinkSync(`${path}.target`, path);
+      }],
+    ] as Array<[string, (admin: string) => void]>) {
+      const { linked, admin, pdHome } = linkedFixture(label);
+      mutate(admin);
+      assertParity(label, linked, pdHome, 'boundary');
+    }
+    {
+      const outer = join(SANDBOX, `parity-${sequence}-nested`);
+      const nested = join(outer, 'nested');
+      initialize(outer);
+      const pdHome = ready('nested');
+      armSquidRepositoryFamily(outer, { pdHome });
+      initialize(nested);
+      assertParity('nested-foreign-project', nested, pdHome, 'verifier');
+    }
+    {
+      const root = join(SANDBOX, `parity-${sequence}-symlink-escape`);
+      const outside = join(SANDBOX, `parity-${sequence}-outside`);
+      mkdirSync(join(root, '.portdaddy'), { recursive: true });
+      mkdirSync(outside);
+      symlinkSync(outside, join(root, 'escaped'));
+      const pdHome = ready('symlink-escape');
+      armSquidRepositoryFamily(root, { pdHome });
+      assertParity('symlink-escape', join(root, 'escaped'), pdHome, 'verifier');
+    }
+    for (const boundary of ['.git', '.portdaddy']) {
+      const root = join(SANDBOX, `parity-${sequence}-dangling-${boundary.slice(1)}`);
+      const nested = join(root, 'nested');
+      initialize(root);
+      mkdirSync(nested);
+      symlinkSync(join(SANDBOX, `parity-${sequence}-missing-target`), join(nested, boundary));
+      const pdHome = ready(`dangling-${boundary.slice(1)}`);
+      armSquidRepositoryFamily(root, { pdHome });
+      assertParity(`dangling-${boundary}`, nested, pdHome, 'boundary');
+    }
+    {
+      const repo = join(SANDBOX, `parity-${sequence}-deny-parent`);
+      const outside = join(SANDBOX, `parity-${sequence}-deny-outside`);
+      initialize(repo);
+      mkdirSync(outside, { mode: 0o700 });
+      const pdHome = ready('deny-parent');
+      armSquidRepositoryFamily(repo, { pdHome });
+      symlinkSync(outside, join(pdHome, 'squid', 'repository-families', 'denies'));
+      assertParity('deny-parent-symlink', repo, pdHome, 'deny');
+    }
+    for (const [label, mutate, expected] of [
+      ['marker-hardlink', (authority: ReturnType<typeof resolveRepositoryFamilyAuthority>) => {
+        const path = repositoryFamilyMarkerPath(authority!); linkSync(path, `${path}.hardlink`);
+      }, 'marker'],
+      ['verifier-hardlink', (authority: ReturnType<typeof resolveRepositoryFamilyAuthority>, pdHome: string) => {
+        const path = repositoryFamilyVerifierPath(authority!, pdHome); linkSync(path, `${path}.hardlink`);
+      }, 'verifier'],
+      ['verifier-malformed', (authority: ReturnType<typeof resolveRepositoryFamilyAuthority>, pdHome: string) => {
+        writeFileSync(repositoryFamilyVerifierPath(authority!, pdHome), 'malformed\n');
+      }, 'verifier'],
+      ['verifier-oversize', (authority: ReturnType<typeof resolveRepositoryFamilyAuthority>, pdHome: string) => {
+        writeFileSync(repositoryFamilyVerifierPath(authority!, pdHome), `${'x'.repeat(5_000)}\n`);
+      }, 'verifier'],
+    ] as Array<[string, (authority: ReturnType<typeof resolveRepositoryFamilyAuthority>, pdHome: string) => void, ReasonClass]>) {
+      const repo = join(SANDBOX, `parity-${sequence}-${label}`);
+      initialize(repo);
+      const pdHome = ready(label);
+      armSquidRepositoryFamily(repo, { pdHome });
+      mutate(resolveRepositoryFamilyAuthority(repo), pdHome);
+      assertParity(label, repo, pdHome, expected);
+    }
+    {
+      const { linked, pdHome } = linkedFixture('worktree-deny');
+      denySquidWorktree(linked, { pdHome });
+      assertParity('worktree-deny', linked, pdHome, 'deny');
+    }
+    {
+      const source = join(SANDBOX, `parity-${sequence}-clone-source`);
+      const clone = join(SANDBOX, `parity-${sequence}-clone`);
+      initialize(source);
+      const pdHome = ready('unrelated-clone');
+      armSquidRepositoryFamily(source, { pdHome });
+      execFileSync('git', ['clone', source, clone]);
+      assertParity('unrelated-clone', clone, pdHome, 'verifier');
+    }
   });
 
   test('the global disable marker makes every staged wrapper a zero-work no-op', () => {
@@ -235,7 +643,10 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const delegated = join(pdHome, 'delegated');
     mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    // main's tests arm the project through registerSquidProject, which this
+    // branch replaced wholesale with repository-family authority; the helper no
+    // longer exists, so the call is the branch's equivalent.
+    armSquidRepositoryFamily(REPO, { pdHome });
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
     writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
     writeFileSync(join(pdHome, 'HALT'), 'SECURITE HALT\n');
@@ -269,6 +680,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
     writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
     markDaemonReady(pdHome);
+    armSquidRepositoryFamily(REPO, { pdHome });
 
     const secretInput = '{"session_id":"session-abc-123","tool_input":"prompt-secret-that-must-not-land"}';
     const secretArg = 'argv-secret-that-must-not-land';
@@ -300,6 +712,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
     writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
     markDaemonReady(pdHome);
+    armSquidRepositoryFamily(REPO, { pdHome });
 
     const wrapper = join(binDir, 'pd-hook-pre-tool');
     writeFileSync(wrapper, readFileSync(wrapper, 'utf8').replaceAll('/usr/bin/perl', '/definitely/missing/perl'));
@@ -327,6 +740,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
     writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
     markDaemonReady(pdHome);
+    armSquidRepositoryFamily(REPO, { pdHome });
     const wrapper = join(binDir, 'pd-hook-pre-tool');
 
     const run = () => new Promise<void>((resolve, reject) => {
@@ -370,6 +784,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     mkdirSync(squidDir, { recursive: true });
     writeFileSync(join(squidDir, 'debug.enabled'), new Date().toISOString());
     markDaemonReady(pdHome);
+    armSquidRepositoryFamily(REPO, { pdHome });
     writeFileSync(join(fakeBin, 'wc'), [
       '#!/bin/sh',
       'bytes=$(/usr/bin/wc -c | /usr/bin/tr -d "[:space:]")',
@@ -444,7 +859,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const heartbeat = join(pdHome, 'heartbeat');
     writeFileSync(heartbeat, '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
 
     const run = (): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
@@ -468,7 +883,10 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const binDir = join(pdHome, 'bin');
     mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    // main's tests arm the project through registerSquidProject, which this
+    // branch replaced wholesale with repository-family authority; the helper no
+    // longer exists, so the call is the branch's equivalent.
+    armSquidRepositoryFamily(REPO, { pdHome });
     const run = (hook: string, cwd = REPO): string => runWithFixtureStdin(join(binDir, hook), [], {
       cwd,
       env: { ...process.env, PD_HOME: pdHome },
@@ -539,7 +957,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     writeFileSync(join(pdHome, 'daemon.pid'), '5001');
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const run = (): string => runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
       env: { ...process.env, PD_HOME: pdHome },
@@ -567,7 +985,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(heartbeat, '{}');
     writeFileSync(pidFile, '6001');
     writeFileSync(readyFile, '6001\n');
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
 
     const out = runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
@@ -590,7 +1008,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome, 7001);
     writeFileSync(join(pdHome, 'daemon.pid'), '7002');
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
 
     const out = runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
@@ -610,7 +1028,10 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       writeFileSync(join(pdHome, 'heartbeat'), '{}');
       markDaemonReady(pdHome, 7001);
       writeFileSync(join(pdHome, 'daemon.ready'), `${generation}\n`);
-      registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+      // main's tests arm the project through registerSquidProject, which this
+    // branch replaced wholesale with repository-family authority; the helper no
+    // longer exists, so the call is the branch's equivalent.
+    armSquidRepositoryFamily(REPO, { pdHome });
 
       expect(runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
         cwd: REPO,
@@ -628,7 +1049,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       stageTentacles(SRC, binDir);
       writeFileSync(join(pdHome, 'heartbeat'), '{}');
       markDaemonReady(pdHome, 7001);
-      registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+      armSquidRepositoryFamily(REPO, { pdHome });
       const lease = join(pdHome, leaseName);
       const target = `${lease}.target`;
       renameSync(lease, target);
@@ -653,7 +1074,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), `#!/bin/sh\nprintf x >> '${count}'\nexit 127\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -692,7 +1113,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.03\nexit 127\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -727,7 +1148,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 127\n', { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -760,7 +1181,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.08\nexit 0\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -791,7 +1212,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nexit 0\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -846,7 +1267,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeHeartbeatingHook(join(binDir, 'squid', 'pd-hook-prompt'), heartbeatFile, false);
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -892,7 +1313,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeHeartbeatingHook(join(binDir, 'squid', 'pd-hook-prompt'), heartbeatFile, true);
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -951,7 +1372,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     ].join('\n'), { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -1011,7 +1432,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 2\n', { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = { ...process.env, PD_HOME: pdHome, PD_HOOK_FAILURE_THRESHOLD: '1', PD_HOOK_SLOW_MS: '10000' };
 
     for (let index = 0; index < 3; index++) {
@@ -1038,7 +1459,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     ].join('\n'), { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     const env = {
       ...process.env,
       PD_HOME: pdHome,
@@ -1075,7 +1496,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     markDaemonReady(pdHome);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    armSquidRepositoryFamily(REPO, { pdHome });
     writeFileSync(join(fakeBin, 'stat'), [
       '#!/bin/sh',
       'if [ "$1" = "-f" ]; then printf "not-a-number\\n"; exit 0; fi',
@@ -1091,17 +1512,6 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       encoding: 'utf8',
     });
     expect(out).toContain('pd-hook-prompt');
-  });
-
-  test('user-level hooks are inert until this exact project root is armed', () => {
-    const registry = join(SANDBOX, 'registry-home', 'squid', 'projects');
-    expect(isSquidProjectArmed(REPO, registry)).toBe(false);
-    expect(registerSquidProject(REPO, registry)).toBe(REPO);
-    expect(isSquidProjectArmed(REPO, registry)).toBe(true);
-    expect(isSquidProjectArmed(`${REPO}-copy`, registry)).toBe(false);
-    expect(unregisterSquidProject(REPO, registry)).toBe(true);
-    expect(isSquidProjectArmed(REPO, registry)).toBe(false);
-    clearArmedSquidProjects(registry);
   });
 
   test('fails open when the heartbeat is absent or neither stat probe can read it', () => {
@@ -1126,23 +1536,30 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(run(`${fakeBin}:${process.env.PATH ?? ''}`)).toBe('');
   });
 
-  test('an explicit remote daemon uses a bounded health probe instead of local heartbeat files', () => {
+  test('an explicit remote daemon uses a bounded system-curl health probe instead of local heartbeat files', async () => {
     const pdHome = join(SANDBOX, 'remote-daemon-home');
     const binDir = join(pdHome, 'bin');
-    const fakeBin = join(pdHome, 'fake-bin');
-    const probeCapture = join(pdHome, 'remote-probe.args');
+    const requestCapture = join(pdHome, 'remote-probe.requests');
     mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
-    mkdirSync(fakeBin, { recursive: true });
     stageTentacles(SRC, binDir);
-    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
-    writeFileSync(join(fakeBin, 'curl'), [
-      '#!/bin/sh',
-      'printf "%s\\n" "$*" > "$PD_REMOTE_PROBE_CAPTURE"',
-      'exit "${PD_REMOTE_PROBE_EXIT:-0}"',
-      '',
-    ].join('\n'), { mode: 0o755 });
-
-    const run = (remote: Record<string, string>, probeExit: string): string => execFileSync(
+    armSquidRepositoryFamily(REPO, { pdHome });
+    const server = spawn(process.execPath, ['-e', [
+      'const http = require("node:http");',
+      'const fs = require("node:fs");',
+      'const target = process.argv[1];',
+      'const server = http.createServer((request, response) => {',
+      '  fs.appendFileSync(target, `${request.url}\\n`);',
+      '  response.writeHead(200); response.end("ok");',
+      '});',
+      'server.listen(0, "127.0.0.1", () => process.stdout.write(`${server.address().port}\\n`));',
+    ].join('\n'), requestCapture], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const port = await new Promise<number>((resolvePort, reject) => {
+      server.once('error', reject);
+      server.stdout.once('data', (chunk) => resolvePort(Number(String(chunk).trim())));
+    });
+    expect(Number.isSafeInteger(port) && port > 0).toBe(true);
+    const remoteUrl = `http://127.0.0.1:${port}`;
+    const run = (remote: Record<string, string>): string => execFileSync(
       join(binDir, 'pd-hook-prompt'),
       [],
       {
@@ -1150,23 +1567,23 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
         env: {
           ...process.env,
           PD_HOME: pdHome,
-          PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
-          PD_REMOTE_PROBE_CAPTURE: probeCapture,
-          PD_REMOTE_PROBE_EXIT: probeExit,
           ...remote,
         },
         input: '{}',
         encoding: 'utf8',
       },
     );
-
-    expect(run({ PD_URL: 'https://peer.example/' }, '0')).toContain('pd-hook-prompt');
-    expect(readFileSync(probeCapture, 'utf8')).toContain(
-      '--connect-timeout 1 --max-time 1 https://peer.example/health',
-    );
-    expect(run({ PORT_DADDY_URL: 'https://compat.example' }, '0')).toContain('pd-hook-prompt');
-    expect(readFileSync(probeCapture, 'utf8')).toContain('https://compat.example/health');
-    expect(run({ PD_URL: 'https://down.example' }, '7')).toBe('');
+    try {
+      expect(run({ PD_URL: `${remoteUrl}/` })).toContain('pd-hook-prompt');
+      expect(run({ PORT_DADDY_URL: remoteUrl })).toContain('pd-hook-prompt');
+      expect(readFileSync(requestCapture, 'utf8').trim().split('\n')).toEqual(['/health', '/health']);
+      const wrapper = readFileSync(join(binDir, 'pd-hook-prompt'), 'utf8');
+      expect(wrapper).toContain('--connect-timeout 1 --max-time 1');
+    } finally {
+      server.kill('SIGTERM');
+      await new Promise<void>((resolveExit) => server.once('exit', () => resolveExit()));
+    }
+    expect(run({ PD_URL: remoteUrl })).toBe('');
   });
 
   test('reports missing tentacles when the source lacks them', () => {
@@ -1206,6 +1623,401 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     const targets = buildTargets(HOME);
     expect(targets.find((t) => t.slug === 'codex')!.projectConfigPath).toBeNull();
     expect(targets.find((t) => t.slug === 'agy')!.projectConfigPath).toBeNull();
+  });
+
+  test('provider installation rejects a staged authority-root mismatch before config or marker mutation', () => {
+    const fixture = createProviderTransactionFixture('provider-stage-root-mismatch');
+    const otherPdHome = join(fixture.fixture, 'other-pd-home');
+    mkdirSync(otherPdHome, { mode: 0o700 });
+    const result = silentHooksInstall(fixture.home, {
+      cwd: fixture.repo,
+      stage: fixture.stage,
+      resetHealthOnSuccess: false,
+      targets: fixture.targets,
+      pdHome: otherPdHome,
+    });
+
+    expect(result).toMatchObject({ activated: false, configured: 0, rolledBack: false });
+    expect(result.failures.join(' ')).toMatch(/staged authority root mismatch/i);
+    for (const target of fixture.targets) expect(existsSync(target.userConfigPath)).toBe(false);
+    const authority = resolveRepositoryFamilyAuthority(fixture.repo)!;
+    expect(existsSync(repositoryFamilyMarkerPath(authority))).toBe(false);
+    expect(existsSync(repositoryFamilyVerifierPath(authority, otherPdHome))).toBe(false);
+  });
+
+  test.each(['config-symlink', 'parent-symlink', 'unreadable-config'])(
+    'provider snapshot fails closed on %s and leaves user-owned bytes untouched',
+    (surface) => {
+      const fixture = createProviderTransactionFixture(`provider-unsafe-${surface}`);
+      const claude = fixture.targets.find((target) => target.slug === 'claude')!;
+      const outside = join(fixture.fixture, 'outside-provider-config');
+      const outsideSentinel = join(outside, 'sentinel');
+      mkdirSync(outside, { mode: 0o700 });
+      writeFileSync(outsideSentinel, 'keep\n');
+      if (surface === 'config-symlink') {
+        mkdirSync(dirname(claude.userConfigPath), { recursive: true });
+        symlinkSync(outsideSentinel, claude.userConfigPath);
+      } else if (surface === 'parent-symlink') {
+        symlinkSync(outside, dirname(claude.userConfigPath));
+      } else {
+        mkdirSync(dirname(claude.userConfigPath), { recursive: true });
+        writeFileSync(claude.userConfigPath, '{"user":"owned"}\n', { mode: 0o600 });
+        chmodSync(claude.userConfigPath, 0o000);
+      }
+
+      const result = silentHooksInstall(fixture.home, {
+        cwd: fixture.repo,
+        stage: fixture.stage,
+        resetHealthOnSuccess: false,
+        targets: fixture.targets,
+        pdHome: fixture.pdHome,
+      });
+      expect(result).toMatchObject({ activated: false, configured: 0 });
+      expect(result.failures.join(' ')).toMatch(/provider config|symlink/i);
+      expect(readFileSync(outsideSentinel, 'utf8')).toBe('keep\n');
+      const authority = resolveRepositoryFamilyAuthority(fixture.repo)!;
+      expect(existsSync(repositoryFamilyMarkerPath(authority))).toBe(false);
+      if (surface === 'config-symlink') expect(lstatSync(claude.userConfigPath).isSymbolicLink()).toBe(true);
+      if (surface === 'parent-symlink') expect(lstatSync(dirname(claude.userConfigPath)).isSymbolicLink()).toBe(true);
+      if (surface === 'unreadable-config') {
+        expect(statSync(claude.userConfigPath).mode & 0o777).toBe(0o000);
+        chmodSync(claude.userConfigPath, 0o600);
+        expect(readFileSync(claude.userConfigPath, 'utf8')).toBe('{"user":"owned"}\n');
+      }
+    },
+  );
+
+  test('rollback CAS preserves a concurrent edit to a provider path already written by this transaction', () => {
+    const fixture = createProviderTransactionFixture('provider-concurrent-edit');
+    const claude = fixture.targets.find((target) => target.slug === 'claude')!;
+    const concurrent = '{"concurrent":"user-edit"}\n';
+    const result = silentHooksInstall(fixture.home, {
+      cwd: fixture.repo,
+      stage: fixture.stage,
+      resetHealthOnSuccess: false,
+      targets: fixture.targets,
+      pdHome: fixture.pdHome,
+      fault: (point) => {
+        if (point === 'after-provider:claude') {
+          writeFileSync(claude.userConfigPath, concurrent);
+          throw new Error('injected concurrent user edit');
+        }
+      },
+    });
+
+    expect(result).toMatchObject({ activated: false, rolledBack: true, partialProviders: ['claude'] });
+    expect(result.rollbackFailures.join(' ')).toMatch(/concurrent user edit preserved; rollback CAS refused/i);
+    expect(readFileSync(claude.userConfigPath, 'utf8')).toBe(concurrent);
+    expect(existsSync(repositoryFamilyMarkerPath(resolveRepositoryFamilyAuthority(fixture.repo)!))).toBe(false);
+  });
+
+  test('rollback never removes a concurrent file created on a later untouched provider path', () => {
+    const fixture = createProviderTransactionFixture('provider-concurrent-create');
+    const agy = fixture.targets.find((target) => target.slug === 'agy')!;
+    const concurrent = '{"concurrent":"new-file"}\n';
+    const result = silentHooksInstall(fixture.home, {
+      cwd: fixture.repo,
+      stage: fixture.stage,
+      resetHealthOnSuccess: false,
+      targets: fixture.targets,
+      pdHome: fixture.pdHome,
+      fault: (point) => {
+        if (point === 'after-provider:claude') {
+          mkdirSync(dirname(agy.userConfigPath), { recursive: true });
+          writeFileSync(agy.userConfigPath, concurrent);
+          throw new Error('injected concurrent user create');
+        }
+      },
+    });
+
+    expect(result).toMatchObject({ activated: false, rolledBack: true, partialProviders: ['claude'] });
+    expect(readFileSync(agy.userConfigPath, 'utf8')).toBe(concurrent);
+    expect(existsSync(repositoryFamilyMarkerPath(resolveRepositoryFamilyAuthority(fixture.repo)!))).toBe(false);
+  });
+
+  test('a post-marker interruption returns activated only after exact marker+verifier readback', () => {
+    const fixture = createProviderTransactionFixture('provider-marker-readback');
+    const result = silentHooksInstall(fixture.home, {
+      cwd: fixture.repo,
+      stage: fixture.stage,
+      resetHealthOnSuccess: false,
+      targets: fixture.targets,
+      pdHome: fixture.pdHome,
+      authorityFault: (point) => {
+        if (point === 'after-marker-commit') throw new Error('injected post-marker interruption');
+      },
+    });
+
+    expect(result).toMatchObject({
+      activated: true,
+      configured: 4,
+      failures: [],
+      rolledBack: false,
+      commitReadBack: true,
+    });
+    expect(inspectSquidRepositoryFamily(fixture.repo, { pdHome: fixture.pdHome }).armed).toBe(true);
+  });
+
+  test('all four providers use one dormant user registration and a future linked worktree activates it through family authority', () => {
+    const fixture = join(SANDBOX, 'family-provider-fixture');
+    const main = join(fixture, 'main');
+    const future = join(fixture, 'future');
+    const unrelated = join(fixture, 'unrelated');
+    const home = join(fixture, 'home');
+    const pdHome = join(fixture, 'pd-home');
+    mkdirSync(join(main, '.portdaddy'), { recursive: true });
+    writeFileSync(join(main, '.portdaddy', 'project.json'), '{}\n');
+    writeFileSync(join(main, 'README.md'), 'fixture\n');
+    execFileSync('git', ['-C', main, 'init', '--initial-branch=main']);
+    execFileSync('git', ['-C', main, 'config', 'user.email', 'squid-hooks@example.invalid']);
+    execFileSync('git', ['-C', main, 'config', 'user.name', 'Squid Hook Test']);
+    execFileSync('git', ['-C', main, 'add', '.portdaddy/project.json', 'README.md']);
+    execFileSync('git', ['-C', main, 'commit', '-m', 'fixture']);
+    mkdirSync(home, { recursive: true });
+
+    const targets = buildTargets(home).map((target) => ({ ...target, detect: () => true }));
+    const claude = targets.find((target) => target.slug === 'claude')!;
+    const gemini = targets.find((target) => target.slug === 'gemini')!;
+    configureTarget(claude, { scope: 'project', cwd: main });
+    configureTarget(gemini, { scope: 'project', cwd: main });
+    for (const path of [claude.projectConfigPath!(main), gemini.projectConfigPath!(main)]) {
+      const config = JSON.parse(readFileSync(path, 'utf8')) as { hooks: Record<string, unknown[]> };
+      config.hooks.UserOwned = [{ hooks: [{ type: 'command', command: '/usr/local/bin/user-owned' }] }];
+      writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
+    }
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({
+      hooks: { UserOwned: [{ hooks: [{ type: 'command', command: '/usr/local/bin/claude-user-owned' }] }] },
+    }, null, 2));
+    mkdirSync(join(home, '.gemini'), { recursive: true });
+    writeFileSync(join(home, '.gemini', 'settings.json'), JSON.stringify({
+      hooks: { UserOwned: [{ hooks: [{ type: 'command', command: '/usr/local/bin/gemini-user-owned' }] }] },
+    }, null, 2));
+    writeFileSync(join(home, '.gemini', 'hooks.json'), JSON.stringify({
+      hooks: { UserOwned: [{ hooks: [{ type: 'command', command: '/usr/local/bin/agy-user-owned' }] }] },
+    }, null, 2));
+    mkdirSync(join(home, '.codex'), { recursive: true });
+    writeFileSync(join(home, '.codex', 'config.toml'), '[mcp_servers.user_owned]\ncommand = "keep"\n');
+
+    const stage = stageTentacles(SRC, join(pdHome, 'bin'));
+    const result = silentHooksInstall(home, {
+      cwd: main,
+      stage,
+      resetHealthOnSuccess: false,
+      targets,
+      pdHome,
+    });
+    expect(result).toMatchObject({ configured: 4, failures: [] });
+    const configuredOnce = new Map(
+      targets.map((target) => [target.userConfigPath, readFileSync(target.userConfigPath, 'utf8')]),
+    );
+    const repeated = silentHooksInstall(home, {
+      cwd: main,
+      stage,
+      resetHealthOnSuccess: false,
+      targets,
+      pdHome,
+    });
+    expect(repeated).toMatchObject({ configured: 4, failures: [] });
+
+    for (const target of targets) {
+      const config = readFileSync(target.userConfigPath, 'utf8');
+      expect(config).toContain(PD_HOOK_MARKER);
+      expect(config).toBe(configuredOnce.get(target.userConfigPath));
+      expect(config).toMatch(/user[-_]owned/);
+    }
+    expect(readFileSync(claude.projectConfigPath!(main), 'utf8')).not.toContain(PD_HOOK_MARKER);
+    expect(readFileSync(claude.projectConfigPath!(main), 'utf8')).toContain('/usr/local/bin/user-owned');
+    expect(readFileSync(gemini.projectConfigPath!(main), 'utf8')).not.toContain(PD_HOOK_MARKER);
+    expect(readFileSync(gemini.projectConfigPath!(main), 'utf8')).toContain('/usr/local/bin/user-owned');
+
+    const registryBefore = readdirSync(join(pdHome, 'squid', 'repository-families')).sort();
+    execFileSync('git', ['-C', main, 'worktree', 'add', '-b', 'future', future]);
+    expect(readdirSync(join(pdHome, 'squid', 'repository-families')).sort()).toEqual(registryBefore);
+    const statuses = inspectHookTargets(home, future, { pdHome, targets });
+    expect(statuses).toHaveLength(4);
+    expect(statuses.every((status) => status.expectedScope === 'user' && status.userWired && status.wired)).toBe(true);
+
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    const findPromptCommand = (value: unknown): string | null => {
+      if (typeof value === 'string') return value.includes('pd-hook-prompt') ? value : null;
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const found = findPromptCommand(item);
+          if (found) return found;
+        }
+      } else if (value && typeof value === 'object') {
+        for (const item of Object.values(value as Record<string, unknown>)) {
+          const found = findPromptCommand(item);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    for (const target of targets) {
+      const raw = readFileSync(target.userConfigPath, 'utf8');
+      const command = target.format === 'codex-toml'
+        ? raw.match(/command = "([^"]*pd-hook-prompt[^"]*)"/)?.[1] ?? null
+        : findPromptCommand(JSON.parse(raw));
+      expect(command).toContain(`PD_HOOK_PROVIDER=${target.slug}`);
+      const providerRun = spawnSync('/bin/sh', ['-c', command!], {
+        cwd: future,
+        env: { ...process.env, PD_HOME: pdHome },
+        input: '{}',
+        encoding: 'utf8',
+      });
+      expect({
+        provider: target.slug,
+        status: providerRun.status,
+        stderr: providerRun.stderr,
+        stdout: providerRun.stdout,
+      }).toEqual({
+        provider: target.slug,
+        status: 0,
+        stderr: '',
+        stdout: expect.stringContaining('pd-hook-prompt'),
+      });
+    }
+    const inherited = execFileSync(join(pdHome, 'bin', 'pd-hook-prompt'), [], {
+      cwd: future,
+      env: { ...process.env, PD_HOME: pdHome },
+      input: '{}',
+      encoding: 'utf8',
+    });
+    expect(inherited).toContain('pd-hook-prompt');
+
+    execFileSync('git', ['clone', main, unrelated]);
+    const denied = execFileSync(join(pdHome, 'bin', 'pd-hook-prompt'), [], {
+      cwd: unrelated,
+      env: { ...process.env, PD_HOME: pdHome },
+      input: '{}',
+      encoding: 'utf8',
+    });
+    expect(denied).toBe('');
+  });
+
+  test('global provider cleanup removes only Port Daddy-owned user blocks', () => {
+    const home = join(SANDBOX, 'global-cleanup-home');
+    const targets = buildTargets(home);
+    for (const target of targets) {
+      if (target.format === 'codex-toml') {
+        mkdirSync(join(home, '.codex'), { recursive: true });
+        writeFileSync(target.userConfigPath, '[mcp_servers.keep_me]\ncommand = "server"\n');
+      } else {
+        mkdirSync(join(target.userConfigPath, '..'), { recursive: true });
+        writeFileSync(target.userConfigPath, JSON.stringify({
+          hooks: { UserOwned: [{ hooks: [{ type: 'command', command: '/usr/local/bin/keep-me' }] }] },
+        }, null, 2));
+      }
+      expect(configureTarget(target, { scope: 'user' }).success).toBe(true);
+      expect(uninstallTarget(target, { scope: 'user' }).success).toBe(true);
+      const after = readFileSync(target.userConfigPath, 'utf8');
+      expect(after).not.toContain(PD_HOOK_MARKER);
+      expect(after).toMatch(/keep[_-]me/);
+    }
+  });
+
+  test.each(['after-provider:codex', 'before-marker-commit'])(
+    'provider transaction rolls back exact user bytes and stays unarmed on %s failure',
+    (failurePoint) => {
+      const suffix = failurePoint.replace(/[^a-z]/g, '-');
+      const fixture = join(SANDBOX, `provider-rollback-${suffix}`);
+      const repo = join(fixture, 'repo');
+      const home = join(fixture, 'home');
+      const pdHome = join(fixture, 'pd-home');
+      mkdirSync(join(repo, '.portdaddy'), { recursive: true });
+      writeFileSync(join(repo, '.portdaddy', 'project.json'), '{}\n');
+      writeFileSync(join(repo, 'README.md'), 'fixture\n');
+      execFileSync('git', ['-C', repo, 'init', '--initial-branch=main']);
+      execFileSync('git', ['-C', repo, 'config', 'user.email', 'squid-rollback@example.invalid']);
+      execFileSync('git', ['-C', repo, 'config', 'user.name', 'Squid Rollback Test']);
+      execFileSync('git', ['-C', repo, 'add', '.portdaddy/project.json', 'README.md']);
+      execFileSync('git', ['-C', repo, 'commit', '-m', 'fixture']);
+      const targets = buildTargets(home).map((target) => ({ ...target, detect: () => true }));
+      const claude = targets.find((target) => target.slug === 'claude')!;
+      const gemini = targets.find((target) => target.slug === 'gemini')!;
+      configureTarget(claude, { scope: 'project', cwd: repo });
+      configureTarget(gemini, { scope: 'project', cwd: repo });
+
+      mkdirSync(join(home, '.claude'), { recursive: true });
+      mkdirSync(join(home, '.gemini'), { recursive: true });
+      mkdirSync(join(home, '.codex'), { recursive: true });
+      writeFileSync(claude.userConfigPath, '{"hooks":{"UserOwned":[{"hooks":[{"command":"/keep-claude"}]}]}}\n');
+      writeFileSync(gemini.userConfigPath, '{"hooks":{"UserOwned":[{"hooks":[{"command":"/keep-gemini"}]}]}}\n');
+      writeFileSync(targets.find((target) => target.slug === 'agy')!.userConfigPath, '{"hooks":{"UserOwned":[{"hooks":[{"command":"/keep-agy"}]}]}}\n');
+      writeFileSync(targets.find((target) => target.slug === 'codex')!.userConfigPath, '[mcp_servers.keep]\ncommand = "server"\n');
+      const touchedPaths = [
+        ...targets.map((target) => target.userConfigPath),
+        claude.projectConfigPath!(repo),
+        gemini.projectConfigPath!(repo),
+      ];
+      const before = new Map(touchedPaths.map((path) => [path, readFileSync(path, 'utf8')]));
+      const stage = stageTentacles(SRC, join(pdHome, 'bin'));
+
+      const receipt = silentHooksInstall(home, {
+        cwd: repo,
+        stage,
+        resetHealthOnSuccess: false,
+        targets,
+        pdHome,
+        fault: (point) => {
+          if (point === failurePoint) throw new Error(`injected ${failurePoint}`);
+        },
+      });
+
+      expect(receipt).toMatchObject({ activated: false, rolledBack: true });
+      expect(receipt.failures.join(' ')).toContain(`injected ${failurePoint}`);
+      expect(receipt.partialProviders.length).toBeGreaterThan(0);
+      expect(receipt.rollbackFailures).toEqual([]);
+      for (const [path, content] of before) expect(readFileSync(path, 'utf8')).toBe(content);
+      const authority = resolveRepositoryFamilyAuthority(repo)!;
+      expect(existsSync(repositoryFamilyMarkerPath(authority))).toBe(false);
+      expect(inspectSquidRepositoryFamily(repo, { pdHome }).armed).toBe(false);
+    },
+  );
+
+  test('revoking one family leaves shared registration for another; explicit global cleanup is separate and idempotent', () => {
+    const fixture = join(SANDBOX, 'two-family-registration');
+    const first = join(fixture, 'first');
+    const second = join(fixture, 'second');
+    const home = join(fixture, 'home');
+    const pdHome = join(fixture, 'pd-home');
+    for (const repo of [first, second]) {
+      mkdirSync(join(repo, '.portdaddy'), { recursive: true });
+      writeFileSync(join(repo, '.portdaddy', 'project.json'), '{}\n');
+      writeFileSync(join(repo, 'README.md'), 'fixture\n');
+      execFileSync('git', ['-C', repo, 'init', '--initial-branch=main']);
+      execFileSync('git', ['-C', repo, 'config', 'user.email', 'squid-two-family@example.invalid']);
+      execFileSync('git', ['-C', repo, 'config', 'user.name', 'Squid Two Family Test']);
+      execFileSync('git', ['-C', repo, 'add', '.portdaddy/project.json', 'README.md']);
+      execFileSync('git', ['-C', repo, 'commit', '-m', 'fixture']);
+    }
+    const targets = buildTargets(home).map((target) => ({ ...target, detect: () => true }));
+    const stage = stageTentacles(SRC, join(pdHome, 'bin'));
+    expect(silentHooksInstall(home, { cwd: first, stage, targets, pdHome }).activated).toBe(true);
+    expect(silentHooksInstall(home, { cwd: second, stage, targets, pdHome }).activated).toBe(true);
+    const registered = new Map(targets.map((target) => [target.userConfigPath, readFileSync(target.userConfigPath, 'utf8')]));
+
+    expect(disarmSquidRepositoryFamily(first, { pdHome }).revoked).toBe(true);
+    expect(disarmSquidRepositoryFamily(first, { pdHome }).revoked).toBe(false);
+    expect(inspectSquidRepositoryFamily(first, { pdHome }).armed).toBe(false);
+    expect(inspectSquidRepositoryFamily(second, { pdHome }).armed).toBe(true);
+    for (const [path, content] of registered) expect(readFileSync(path, 'utf8')).toBe(content);
+
+    const refusedCleanup = uninstallSharedProviderHooks(targets, { pdHome });
+    expect(refusedCleanup.changed).toBe(0);
+    expect(refusedCleanup.failures.join(' ')).toMatch(/must be disarmed/i);
+    for (const [path, content] of registered) expect(readFileSync(path, 'utf8')).toBe(content);
+    expect(inspectSquidRepositoryFamily(second, { pdHome }).armed).toBe(true);
+
+    expect(disarmSquidRepositoryFamily(second, { pdHome }).revoked).toBe(true);
+    const completeCleanup = uninstallSharedProviderHooks(targets, { pdHome });
+    const repeatedCleanup = uninstallSharedProviderHooks(targets, { pdHome });
+    expect(completeCleanup).toMatchObject({ changed: 4, failures: [] });
+    expect(repeatedCleanup).toMatchObject({ changed: 0, failures: [] });
+    for (const target of targets) expect(readFileSync(target.userConfigPath, 'utf8')).not.toContain(PD_HOOK_MARKER);
+    expect(inspectSquidRepositoryFamily(second, { pdHome }).armed).toBe(false);
   });
 
   test('uninstall sweeps legacy project-local Codex hooks and preserves user tables', () => {

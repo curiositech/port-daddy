@@ -780,12 +780,14 @@ once and re-reads transcript detail only when `lastProgressAt` changes; a failed
 detail read opens a bounded retry circuit instead of multiplying relay traffic.
 Per-step ETAs are shown only when the executor actually publishes one.
 
-### Giant Squid — visible controls, invisible project-scoped hooks
+### Giant Squid — visible controls, repository-family-scoped hooks
 
-`pd squid on` arms the complete harness for the current project. It stages the
-three local tentacles, wires every detected agent CLI in its real interactive
-scope, registers the exact project root, and adds a visible `◆ PD` identity,
-Pilot SessionStart steering, and `/squid` control inside Claude Code:
+`pd squid on` arms the complete harness for the current local repository
+family. It stages the bounded lifecycle tentacles, installs one dormant
+Port-Daddy-owned user registration for each supported interactive provider
+(Claude, Codex, Gemini, and agy), publishes a private local-family verifier,
+and adds a visible `◆ PD` identity, Pilot SessionStart steering, and `/squid`
+control in the current worktree:
 
 ```bash
 pd squid on                 # full harness: Claude, Codex, Gemini, and agy
@@ -793,8 +795,11 @@ pd squid status             # state plus bounded recent timing and matrix window
 pd squid status --json      # stable, size-bounded FleetBar/automation contract
 pd squid tap                # exact bounded context entering the next turn
 pd squid debug status       # sanitized per-session hook timing and deadlines
-pd squid off                # disarm this project without breaking other repos
+pd squid off --this-worktree # privacy deny for this one verified worktree
+pd squid off                # revoke this family; other repositories remain armed
+pd squid off --all          # remove shared hooks; refuses if another family is armed
 pd hooks install            # hook-only repair surface
+pd hooks uninstall          # global removal after every family is off
 ```
 
 `pd squid status` and `pd squid debug status` share one diagnostic source.
@@ -807,14 +812,28 @@ is off, routine status publishes only retained counts and hides archived runtime
 session identifiers plus absolute workspace/event paths; use the explicit
 `pd squid debug status` surface to inspect the retained diagnostic window.
 
-Claude and Gemini use project config; Codex and agy require user config because
-their interactive hook engines do not honor a project-local equivalent. Those
-user-level entries are still project-scoped at runtime: the wrapper requires a
-fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
-project registry. Outside an armed root they no-op. Coordination content stays
-bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and no
-status message; the hot path reads bounded local evidence and never waits on
-the daemon or launches the full CLI. When an exact-project trace or fleet-wide
+All four provider registrations live at user scope so a worktree created after
+arming already has a hook entry. Registration is not authorization: the shared
+wrapper derives strict local repository-family authority from filesystem
+identity, verifies a private 0600 record, checks a narrower per-worktree deny,
+and only then admits the hook. Existing and future linked worktrees of that
+same local Git common directory inherit hook activation automatically;
+unrelated clones remain inert even when they share a remote URL. A non-Git
+Port Daddy project covers descendants only until the nearest nested `.git` or
+`.portdaddy` boundary. Only hook activation inherits: sessions, claims,
+repository/harbor data access, statusline, Pilot, and `/squid` stay separately
+scoped. Cursor, Cline, and Aider do not yet have live interactive-hook adapters;
+future adapters must consume this same authority rather than inventing another
+allowlist. This TypeScript foundation provides static ancestry traversal
+rejection plus concurrent-swap detection; it does not claim hostile same-uid
+race containment. A detected swap cannot publish verifier, marker, deny, or
+generation authority, but its exact empty directory residue remains for manual
+diagnosis rather than automatic cleanup. Rust dirfd-relative `openat`/`mkdirat`
+with no-follow semantics is a hard prerequisite before making a stronger
+containment claim. Coordination content stays bounded: with the SITREP dial off, a
+healthy no-op turn emits zero bytes and no status message; the hot path reads
+bounded local evidence and never waits on the daemon or launches the full CLI.
+When an exact-project trace or fleet-wide
 control alert is actionable, the coordination envelope is capped at one heading
 plus two facts and 512 bytes of context, with a one-second harness deadline.
 The end-of-turn SITREP is the deliberate exception (operator doctrine,
@@ -828,8 +847,12 @@ ends without the table incomplete. Scaffold the table with `pd sitrep
 --template`. The template labels missing session evidence unavailable; recorded
 metadata is not live capture, compliance or authorization proof. Its roadmap rows
 are an exact-session returned preview, never another session's substitute or a
-complete ownership census. Reinstalling hooks is idempotent and migrates older duplicate
-registrations while preserving user-owned hooks. The installed graph is
+complete ownership census. Reinstalling hooks is transactional and idempotent: it preserves
+user-owned hooks, installs and verifies all four shared blocks before
+publishing family authority, and removes only old Port Daddy project blocks to
+prevent duplicate firing. Family `off` leaves those shared blocks dormant for
+other families; global uninstall refuses until every family verifier is gone.
+The installed graph is
 intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
 tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
 installed; session claims and notes are the cumulative outcome record.

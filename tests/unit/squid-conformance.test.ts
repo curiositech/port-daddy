@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from '@jest/globals';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,6 +16,7 @@ import {
   TENTACLES,
   registeredTentaclesForProvider,
 } from '../../lib/squid/hook-shape.js';
+import { armSquidRepositoryFamily } from '../../lib/squid/repository-family-authority.js';
 
 const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-conformance-selftest', `jest-${process.pid}`);
 
@@ -162,16 +164,19 @@ describe('Giant Squid conformance', () => {
     expect(result.repair).toContain('linked worktree');
   });
 
-  test('filesystem reader verifies all four provider-native configs against one exact project root', () => {
+  test('filesystem reader verifies all four dormant user configs against repository-family authority', () => {
     const workspace = join(SCRATCH, 'workspace');
     const fakeHome = join(SCRATCH, 'home');
     const pdHome = join(SCRATCH, 'pd-home');
     mkdirSync(join(workspace, '.claude', 'commands'), { recursive: true });
     mkdirSync(join(workspace, '.gemini'), { recursive: true });
+    mkdirSync(join(fakeHome, '.claude'), { recursive: true });
     mkdirSync(join(fakeHome, '.codex'), { recursive: true });
     mkdirSync(join(fakeHome, '.gemini'), { recursive: true });
     mkdirSync(join(pdHome, 'bin', 'squid'), { recursive: true });
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    chmodSync(pdHome, 0o700);
+    chmodSync(join(pdHome, 'squid'), 0o700);
 
     const hookCommands = REGISTERED_TENTACLES.map((name) => ({ hooks: [{ type: 'command', command: `/gate/${name}` }] }));
     const claudeHookCommands = registeredTentaclesForProvider('claude')
@@ -190,7 +195,14 @@ describe('Giant Squid conformance', () => {
       },
     }));
     writeFileSync(join(workspace, '.gemini', 'settings.json'), JSON.stringify({ hooks: hookCommands }));
+    writeFileSync(join(fakeHome, '.claude', 'settings.json'), JSON.stringify({ hooks: {
+      UserPromptSubmit: [claudeHookCommands[0]],
+      PreToolUse: [claudeHookCommands[1]],
+      Stop: [claudeHookCommands[2]],
+      PreCompact: [claudeHookCommands[3]],
+    } }));
     writeFileSync(join(fakeHome, '.codex', 'config.toml'), `# ${CODEX_PD_MARKER}\n${REGISTERED_TENTACLES.join('\n')}\n`);
+    writeFileSync(join(fakeHome, '.gemini', 'settings.json'), JSON.stringify({ hooks: hookCommands }));
     writeFileSync(join(fakeHome, '.gemini', 'hooks.json'), JSON.stringify({ hooks: hookCommands }));
     writeFileSync(join(workspace, '.claude', 'commands', 'squid.md'), 'squid');
     writeFileSync(join(pdHome, 'heartbeat'), 'alive');
@@ -201,7 +213,8 @@ describe('Giant Squid conformance', () => {
       writeFileSync(join(pdHome, 'bin', 'squid', name), 'tentacle');
     }
     writeFileSync(join(pdHome, 'bin', 'pd-statusline'), 'status');
-    writeFileSync(join(pdHome, 'squid', 'projects'), `${workspace}\n`);
+    execFileSync('git', ['-C', workspace, 'init', '--initial-branch=main']);
+    armSquidRepositoryFamily(workspace, { pdHome });
 
     const result = readSquidConformance(workspace, {
       home: fakeHome,
