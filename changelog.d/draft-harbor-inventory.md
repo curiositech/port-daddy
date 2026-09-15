@@ -1,0 +1,3 @@
+type: added
+
+- **Harbor Inventory discovers and safely carries reconciled source into a new tree without starting Port Daddy.** The dependency-free local tarball inventories Markdown, HTML, skills and structured text, audits semantic-review receipts, and materializes a successor only from an exact complete universe, loss-audited manifest, and separate approval. It preserves a complete reverse map, never mutates the source, and refuses unresolved blockers, source drift, symlinks, output collisions, or implicit content rewrites. Semantic judgment and broad Port Daddy reduction remain unfinished.
