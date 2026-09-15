@@ -260,7 +260,15 @@ jobs:
           # header of this file. main is protected and receives the already-healed
           # artifact through the merge queue. A manual run on the lane heals it
           # too, so a human can drive the lane without inventing a commit to push.
-          COMMITTABLE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name != 'main' }}
+          #
+          # `workflow_dispatch` has no branch restriction at the trigger level --
+          # GitHub lets it be fired against ANY branch, unlike `push`, which this
+          # workflow's own `on:` block already confines to
+          # [main, release/whitepapers, claude/papers-feature-branches-hb055f].
+          # So the branch is named explicitly here too, or a manual dispatch on
+          # someone's PR branch would commit PDF bytes onto it -- reopening the
+          # exact binary-conflict hole this workflow exists to close.
+          COMMITTABLE: ${{ github.ref_name != 'main' && ((github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && (github.ref_name == 'release/whitepapers' || github.ref_name == 'claude/papers-feature-branches-hb055f'))) }}
         run: |
           set -euo pipefail
           emit() { echo "carry=$1" >> "$GITHUB_OUTPUT"; echo "$2"; exit 0; }
