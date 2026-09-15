@@ -2,7 +2,7 @@
 
 Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.
 
-_37 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_40 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -32,6 +32,28 @@ Less RLHF-polished open models leak identity/disclaimer phrases mid-answer: 'As 
 **After**
 
 > For beginners, Python is the easiest entry point: readable syntax, huge ecosystem, forgiving error messages.
+
+### `definition-after-use`  ·  high · generic-llm · prose · structural · family: form
+
+Terms of art used before they are defined, or never defined at all. The reader meets a concept with nothing to attach it to.
+
+**Why it reads AI:** The curse of knowledge with a context window behind it. The writer already holds the concept, so the sentence reads fine to them; the model holds it too, because it was in the prompt. Nothing in the loop represents a reader who does not.
+
+**Detect:** For each candidate term of art appearing three or more times, compare the line of first use against the line of the first definitional frame ('X is a', 'X refers to', 'X, which is', 'we call this X'). Flag terms defined well after first use, and terms never defined. Matching spans singular and plural, so a piece that uses 'Soft Leases' and defines 'A Soft Lease' counts as defined.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_terms` = 2, `max_gap_lines` = 12
+
+**Fix:** Define a term at or before its first load-bearing use, usually with an appositive in the same sentence. Introduce one new idea at a time and let each earn the next. If a term appears three times and is never defined, either define it or stop using it. Read the piece imagining a competent stranger: the first place you would have to stop and look something up is the place to fix.
+
+**False positive when:** Writing for a named expert audience, reference documentation with a stated prerequisite page, and terms defined in a glossary the piece links. Also common nouns that merely happen to be capitalised in a product context.
+
+**Before**
+
+> Quantum Lane sits between the Drift Broker and the Lane Coordinator.
+
+**After**
+
+> Jobs are handed out by a scheduler we call the Lane Coordinator, which takes work from a queue (the Drift Broker) and decides who may run it.
 
 ### `escalating-compliment-sycophancy`  ·  high · claude · prose · llm-judge · family: form
 
@@ -244,6 +266,28 @@ A personal story with no texture: no names, no weather, no dialogue, nothing tha
 **After**
 
 > Priya gave me exactly one piece of feedback in two years, in a stairwell, about a slide I'd already presented.
+
+### `unearned-prior-reference`  ·  high · generic-llm · prose · structural · family: form
+
+The piece points at a history the reader was never present for: 'building on our previous approach', 'unlike the v2 design', 'as we discussed', 'you'll recall'. The referent exists only in the writer's context, not on the page.
+
+**Why it reads AI:** A model writes from its context window. That window holds the previous versions, the internal thread and the repo, and nothing in the loop marks which of it the reader has seen. The sentence reads fine to everyone who was in the room and as noise to everyone who was not.
+
+**Detect:** A closed set of deictic and anaphoric frames, scoped to the opening third of the document, where by construction nothing has been established yet. Closed grammatical forms measured positionally, not a topic list.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_words` = 250
+
+**Fix:** Either establish the prior thing in one sentence before you improve on it, or cut the comparison and state what the current thing does. 'Faster than our v2 pipeline' means nothing to someone who never saw v2; 'processes forty thousand invoices an hour' means something to everyone. The test: could a reader who arrived from a search result follow this sentence?
+
+**False positive when:** Part three of a numbered series, an internal memo, release notes for existing users, and any piece that links the prior thing in the same sentence. The tell is an unlinked, unexplained back-reference in something addressed to newcomers.
+
+**Before**
+
+> Building on our previous approach, Quantum Lane is a significant step forward from the v2 pipeline.
+
+**After**
+
+> Our scheduler used to hand the same job to two workers about once every forty thousand runs. Quantum Lane is the fix.
 
 ### `vague-attribution`  ·  high · generic-llm · prose · llm-judge · family: form
 
@@ -511,28 +555,6 @@ Verbs converted into abstract nouns and propped up with a weak verb: 'the implem
 
 > We added a caching layer. Latency dropped.
 
-### `paragraph-length-monoculture`  ·  medium · generic-llm · prose · structural · family: rhythm
-
-Every paragraph is roughly the same length, usually three to four sentences.
-
-**Why it reads AI:** The model paragraphs on a rhythm rather than on a thought. People break where the idea breaks, which is irregular.
-
-**Detect:** Coefficient of variation of paragraph length in sentences. Human documents have a one-line paragraph somewhere, and a long one.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_paragraphs` = 6, `cue_cv` = 0.35
-
-**Fix:** Put a one-sentence paragraph where the argument turns. Let another run long.
-
-**False positive when:** Some house styles and most news writing enforce short even paragraphs deliberately.
-
-**Before**
-
-> Six consecutive paragraphs of exactly four sentences.
-
-**After**
-
-> Four sentences, then one, then seven, then two.
-
 ### `parallel-overload-uniform-bullets`  ·  medium · generic-llm · prose · structural · family: form
 
 Every bullet in a list has identical grammatical shape and near-identical length — all start with an imperative verb, all run 6-9 words, all end without punctuation. Reads like a generated template.
@@ -582,6 +604,28 @@ First- and second-person pronouns stripped out, so the writer disappears from th
 **After**
 
 > I postponed the launch.
+
+### `repo-context-leak`  ·  medium · generic-llm · prose · structural · family: form
+
+File paths, function names, ticket ids and branch names in prose meant for someone who does not have the repository open.
+
+**Why it reads AI:** The writer had the repo open and the model had it in context. Neither noticed that an identifier is a pointer into a workspace the reader cannot see.
+
+**Detect:** Density of repo-shaped tokens outside code fences: path/like/this.ext, snake_case(), ABC-123, feat/branch-name. Countable, and specific to prose regions.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 4, `cue_per_1000w` = 3.0
+
+**Fix:** Name the thing by what it does, and move the identifier into a code block or a link if it is genuinely needed. 'The scheduler' beats 'lib/fleet/conductor.ts' in a sentence someone reads on a phone. Ticket ids almost never belong in outward-facing prose at all.
+
+**False positive when:** Engineering blog posts written for contributors, internal docs, changelogs, and any piece whose subject IS the codebase. Scope this to outward-facing writing.
+
+**Before**
+
+> This removes the contention we saw in lib/fleet/conductor.ts, which PD-4471 tracked.
+
+**After**
+
+> This removes the contention in the scheduler, which we had been chasing since March.
 
 ### `rule-of-three-tricolon`  ·  medium · generic-llm · prose · structural · family: form
 
@@ -806,6 +850,28 @@ Sentences and paragraphs of near-identical length and cadence throughout, produc
 **After**
 
 > The system is fast. When a call fails it retries, backs off, and if the queue starts backing up under real load it sheds the lowest-priority work first rather than tipping over, which took three rewrites to get right. Monitoring catches the rest.
+
+### `paragraph-length-monoculture`  ·  low · generic-llm · prose · structural · family: rhythm
+
+Every paragraph is roughly the same length, usually three to four sentences.
+
+**Why it reads AI:** People break a paragraph where the idea breaks, which is irregular. A model breaks on a rhythm. Unlike sentence-length variation, this has no published baseline behind it, so the threshold is a judgment call and the severity is capped to match what the evidence actually supports.
+
+**Detect:** Coefficient of variation of paragraph length in sentences. Human documents have a one-line paragraph somewhere, and a long one.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_paragraphs` = 8, `cue_cv` = 0.25
+
+**Fix:** Put a one-sentence paragraph where the argument turns. Let another run long.
+
+**False positive when:** News writing, house styles that cap paragraph length, and documentation all enforce evenness deliberately. A six-paragraph document has too few samples for a variance claim at all, which is why this needs eight.
+
+**Before**
+
+> Six consecutive paragraphs of exactly four sentences.
+
+**After**
+
+> Four sentences, then one, then seven, then two.
 
 ### `zero-typo-zero-contraction-affect-flatness`  ·  low · generic-llm · prose · structural · family: rhythm
 

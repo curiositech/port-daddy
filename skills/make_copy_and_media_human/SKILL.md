@@ -160,6 +160,29 @@ describe the same failure. It's the rubric behind `specificity-starvation`,
 `mirror-back-research-opener`, and it survives every model improvement, because
 the thing it asks for is knowledge the model doesn't have.
 
+## Ask what the reader already knows
+
+Expository writing fails in a way sentence-level review never catches: the piece
+is written from the author's context rather than the reader's. A blog post touts
+improvements over a v2 nobody saw. Internal codenames arrive unglossed. A term of
+art is used three times and defined never.
+
+These are one failure, and the mechanism is worth naming. A model writes from its
+context window, and that window holds the previous versions, the internal thread
+and the repository. Nothing in the loop marks which parts the reader was present
+for. It is the curse of knowledge with a machine behind it, and it produces prose
+that reads fine to everyone who was in the room and as noise to everyone else.
+
+Four detectors cover it: `unearned-prior-reference`, `repo-context-leak`,
+`definition-after-use` and `signposting-without-structure`. The last one is the
+tell that a structure was announced rather than built.
+
+The diagnostic, when you want one question: **could a competent stranger who
+arrived from a search result follow this, and where is the first place they would
+have to stop and look something up?** That spot is the fix. The remedy is almost
+always the same shape — define a term at or before its first load-bearing use,
+introduce one new idea at a time, and let each one earn the next.
+
 ## Scale severity by the venue's base rate
 
 The same tell deserves different weight in different places, because the prior
