@@ -35,6 +35,9 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+% this chapter now carries a pgfplots figure; the Book's own preamble
+% already loads pgfplots, this keeps the standalone paper building too.
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
@@ -207,7 +210,7 @@ a daemon, a coordination protocol, a legible authority anyone would pay for toda
 and the continuity that turns an anonymous \emph{spawn} into an accountable
 \emph{person}. This paper is the rung above all of them --- the only one whose
 participants are plural and mutually distrusting. We argue that the harbor economy
-is a \textbf{three-sided market}: operators sell labor and fleet-for-hire; agents
+is a \pdgloss{three-sided market}{operators selling labor, agents renting capacity, and skill authors licensing know-how---on one escrow ledger.}: operators sell labor and fleet-for-hire; agents
 and fleets are rentable assets; skills and tools are licensed --- all settling on
 \emph{one} conserving bond ledger via float-plan escrow. We present the
 \textbf{cross-harbor capability-transfer ceremony}: a way for one operator's harbor
@@ -233,7 +236,7 @@ Every folk-theorem incentive-compatibility claim rests on a grading oracle that 
 be made strategy-proof or bonded-and-slashed. Myerson--Satterthwaite constrains a
 bilateral private-value slice only under its regularity assumptions; this paper does
 not yet prove incentive compatibility or identify which desideratum the full market
-gives up. The defensible product is \textbf{hosted trust} --- a verified ledger, a
+gives up. The defensible product is \pdgloss{hosted trust}{the defensible product under the unsolved parts: a verified ledger a buyer can check rather than a claim they must believe.} --- a verified ledger, a
 relay, and a reputation system --- not the commoditized payment rail.
 \end{abstract}
 
@@ -293,10 +296,7 @@ but it is the fourth paper for a reason: it depends on everything underneath.
 \begin{table}[H]
 \centering
 \small
-\caption{Where to enter, by who you are. Five reader types, each routed to the
-section that answers their question and to the one figure or theorem that would have
-to survive a review from someone in that role --- so nobody has to read the paper
-end to end to get their own answer out of it.}
+\pdmargincaption{Five reader types enter this chapter at five different places, each routed to the section that answers their question and to the one figure or theorem that would have to survive a review from someone in that role --- so nobody has to read the paper end to end to get their own answer out of it.}
 \label{tab:readers-map}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -373,7 +373,7 @@ Three claims follow, and the rest of the paper defends each:
     --- not two. Counting them correctly changes the pricing
     (\S\ref{sec:three-sides}).
   \item \textbf{C2 (one ledger, one escrow object).} All three sides settle on the
-    same \textbf{float plan} escrowed in the same bond ledger. Conservation of
+    same \pdgloss{float plan}{A signed declaration of intent filed before the work starts: the task, the machines it may touch, and the bond posted against it.} escrowed in the same bond ledger. Conservation of
     value across every settlement path is the invariant that holds the market
     together, and it is the one thing here that is actually \Built{}
     (\S\ref{sec:float-plan}, \S\ref{sec:conservation}).
@@ -415,7 +415,7 @@ on a non-forgeable identity --- is the gate.}
 \section{What a ``side'' is, and why there are three}\label{sec:three-sides}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-A \textbf{two-sided market} (\textbf{Rochet \& Tirole}~\pdcite{rochet2003}, the
+A \pdgloss{two-sided market}{Rochet and Tirole's platform: the split of a fee between the two sides changes the volume, not just who pays.} (\textbf{Rochet \& Tirole}~\pdcite{rochet2003}, the
 foundational reference: \emph{a platform is two-sided when the allocation of the
 total price across the two user groups --- not just its level --- affects
 transaction volume}) is the canonical frame for a marketplace: buyers on one side,
@@ -556,7 +556,7 @@ arrivals still queueing through the outage. Compare its expected wait
 $W_{\mathrm{bd}}$ against a $c$-server pool's Erlang-C wait $W_{\mathrm{pool}}$
 plus a per-task hire-and-monitor overhead $A/(w\lambda)$; call the sum $K$. The
 pool wins at \emph{every} skill premium once $\xi/\eta$ clears the
-\textbf{succession price} $D^\star=\eta K/(1-\eta K)$: no amount of $a_2$'s skill
+\pdgloss{succession price}{The mortality-to-succession ratio above which no amount of a specialist's skill is worth depending on that specialist alone.} $D^\star=\eta K/(1-\eta K)$: no amount of $a_2$'s skill
 buys back a mortality-to-succession ratio worse than $D^\star$. At the program's
 own worked instance --- $\lambda=1$, a $c{=}4$-server pool at $\mu_g=1.2$
 ($\rho=0.208$), hire/monitor cost $A=0.2$, wait-cost weight $w=1$, succession
@@ -575,6 +575,12 @@ $\lambda,c,\mu_g,w$ fixed and ask how much Alice would have to speed up her own
 succession plan --- raise $\eta$ --- to double $D^\star$ and make sole ownership
 of a slower-succeeding $a_2$ viable again.
 \end{pdexample}
+
+Figure~\ref{fig:he-succession-price} puts that worked instance on the boundary
+it sits on, so the distance between the threshold and the canary is something
+to look at rather than something to take on trust.
+
+\input{figures/fig-he-succession-price}
 
 \begin{pdboundary}
 The specialization boundary and the succession price compare mean costs only,
@@ -618,7 +624,7 @@ overclaim the market.
 
 All three sides ride one float-plan escrow, but they do not share one identity key.
 Each side keys reputation on a different entity --- the \textbf{principal} for
-labor, the \textbf{asset owner} for rental, the \textbf{content hash} (a specific
+labor, the \pdgloss{asset owner}{the entity rental reputation keys on, as against the principal for labor and the content hash for a skill.} for rental, the \textbf{content hash} (a specific
 skill version) for licensing. The shared settlement table therefore needs a tagged
 subject identifier such as $(\mathit{kind},\mathit{id},\mathit{version})$; otherwise
 non-equivalent reputation subjects collide. The dashed band in
@@ -711,7 +717,7 @@ check}) over the acceptance criteria and lands in one of four states.
 \begin{table}[H]
 \centering
 \small
-\caption{The four terminal settlement states. Closure binds to an oracle, not to a
+\pdmargincaption{The four terminal settlement states. Closure binds to an oracle, not to a
 free-text ``Result:'' note --- the Goodhart-resistant discipline that the
 commitment layer imposes: \emph{the agent picks the work; the daemon derives the
 grade}.}
@@ -779,7 +785,7 @@ allocates \emph{capability} (what the leased agent \emph{can} do at runtime). Th
 deontic layer separately governs \emph{permission} (what it \emph{may} do).
 ``Able but forbidden'' must stay expressible; the jail bounds ability, not norm.}
 
-\paragraph{The deontic layer's decision procedure.}\footnote{A standalone,
+\paragraph{The deontic layer's decision procedure.}\pdsidenote{A standalone,
 submission-form version of the results folded into this section and the
 succession price of \S\ref{sec:three-sides} is \emph{What Needs an Authority}
 (research paper~6)~\cite{paper6}; the sweeps cited here are its artifacts,
@@ -787,17 +793,56 @@ regenerated at seed 20260816.} Naming a layer is not the same as being able to
 run it. What decides whether the deontic layer is an algorithm or an office is
 what happens when two accepted norms collide. Cheap detection is a
 language-design choice, not a discovery about deontic logic in general, and the
-commitment fragment $\mathcal{L}_c$ buys it by construction. A policy set in
-$\mathcal{L}_c$ contains facts, definite Horn rules and integrity constraints;
-deontic rules $\mathrm{body}\to\mathsf{M}(\mathrm{act},s,[t_1,t_2])$ with
-$\mathsf{M}\in\{\mathsf{O},\mathsf{F}\}$, which oblige or forbid an action on
-scope $s$ over a ground interval whenever the Horn body holds; exclusive interval
-claims on resources; and difference constraints over deadline variables. A
-conflict is any of four things: a derivable $\bot$, a fired obligation and
-prohibition on the same action with overlapping scope and interval, two
-exclusive claims overlapping on one resource, or a negative cycle in the deadline
-graph. The fragment is deliberately ground: no nested deontic operators, no
-negation as failure, monotone bodies only.
+commitment fragment $\mathcal{L}_c$ buys it by construction. The syntax fits in
+one box, and it belongs in one box: a reader who wants to reimplement the
+polynomial checker should not have to assemble the grammar from four pages of
+running prose.
+
+\begin{definition}[The commitment fragment $\mathcal{L}_c$]\label{def:lc-fragment}
+A policy set $P \in \mathcal{L}_c$ is a finite set of five kinds of sentence over
+a function-free, ground signature of actions, scopes, resources and integer time
+points:
+\begin{enumerate}[leftmargin=1.8em,itemsep=1pt]
+  \item \textbf{Facts} --- ground atoms $p(\bar{c})$.
+  \item \textbf{Definite Horn rules} --- $a_1 \wedge \cdots \wedge a_n \to h$,
+  with $h$ a single positive atom and every $a_i$ positive.
+  \item \textbf{Integrity constraints} --- $a_1 \wedge \cdots \wedge a_n \to
+  \bot$.
+  \item \textbf{Deontic rules} ---
+  $\mathrm{body} \to \mathsf{M}(\mathrm{act}, s, [t_1,t_2])$ with
+  $\mathsf{M} \in \{\mathsf{O},\mathsf{F}\}$, $\mathrm{body}$ a monotone Horn
+  conjunction, $\mathrm{act}$ a ground action, $s$ a ground scope, and
+  $[t_1,t_2]$ a ground interval: when the body holds, the rule \emph{fires} a
+  token obliging or forbidding $\mathrm{act}$ on $s$ throughout $[t_1,t_2]$.
+  \item \textbf{Exclusive interval claims} --- $\mathrm{excl}(r,[t_1,t_2])$,
+  asserting sole use of resource $r$ across a ground interval.
+\end{enumerate}
+Deadlines are carried by a separate system of \pdgloss{difference constraints}{deadline relations of the form $t_j - t_i \le k$, whose constraint graph makes feasibility a shortest-path question.}
+$t_j - t_i \le k$ over integer deadline variables, whose constraint graph is
+$(V,E)$.
+
+A policy set is \textbf{in conflict} exactly when one of four things holds:
+\begin{enumerate}[label=(\roman*),leftmargin=1.8em,itemsep=1pt]
+  \item the Horn part derives $\bot$;
+  \item a fired $\mathsf{O}$ token and a fired $\mathsf{F}$ token name the
+  same action with overlapping scope \emph{and} overlapping interval;
+  \item two exclusive claims on one resource have overlapping intervals; or
+  \item the deadline graph contains a negative cycle.
+\end{enumerate}
+
+The fragment is deliberately ground and deliberately weak, and each omission is
+what buys Theorem~\ref{thm:deontic-detect}: no nested deontic operators, no
+negation as failure, monotone bodies only, and no quantification over time.
+\end{definition}
+
+\noindent Note two things the grammar carries that a one-line summary of it
+tends to drop, because both are doing real work below. The deadline system is a
+separate constraint store rather than more Horn rules --- that is what makes
+clause (iv) a negative-cycle test at $O(V\cdot E)$ instead of a satisfiability
+question. And an exclusive claim is a claim on a \emph{resource over an
+interval}, not a prohibition on an action; collapsing it into an $\mathsf{F}$
+token would change clause (iii) into clause (ii) and lose the resource
+dimension that makes it checkable by interval overlap.
 
 \begin{pdclaim}{Theorem}{In-fragment conflict detection is polynomial and witness-producing}
 \label{thm:deontic-detect}
@@ -1226,8 +1271,9 @@ layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
 
 \ifpdbook
-The four-message ceremony is drawn in \pdchapref{fh}{The Federated Harbor}, which develops
-the protocol; written out as Protocol~\ref{prot:xfer} below, it
+The four-message ceremony is drawn and stepped through in
+\pdchapref{fh}{The Federated Harbor} (\S\ref{fh:sec:fh-xfer-ceremony}), which owns
+the protocol; what the market needs from it is only this, and the ceremony
 \else
 \input{figures/fig-fh-xfer-ceremony}%
 The four-message ceremony (Figure~\ref{fig:fh-xfer}, written out as
@@ -1240,6 +1286,7 @@ bound into the envelope is the governing primitive: a revocation issued by $A$
 after epoch $e$ invalidates $C_B'$ as soon as the new root $R_A^{(e+1)}$ reaches the
 witness log that $B$ audits.
 
+\ifpdbook\else
 \begin{protocol}[Cross-harbor capability transfer]\label{prot:xfer}
 \textbf{Parties:} Alice's agent (holds card $C_A$), Harbor~$A$ (Alice's daemon),
 Harbor~$B$ (Bob's daemon), Bob's agent (verifier). \textbf{Pre:} $B$ audits a
@@ -1263,6 +1310,7 @@ witness log to which $A$ publishes epoch roots.
 $R_A^{(e)}$ is rejected; a revocation by $A$ kills $C_B'$ once $R_A^{(e+1)}$ reaches
 $B$'s witness log.
 \end{protocol}
+\fi
 
 \paragraph{The ceremony, dramatized.} Alice's specialist $a_2$ holds a card $C_A$
 that authorizes ``read and write \texttt{src/payments/}, run the test suite.'' Bob
@@ -1331,7 +1379,7 @@ misbehaving log from lying, you make lying detectable after the fact and expensi
 via a slashable bond.}
 
 The convergence and detection bounds smuggle in \emph{partial synchrony}
-(\textbf{Dwork--Lynch--Stockmeyer}~1988~\pdcite{dls1988}, the canonical escape from
+(\pdgloss{Dwork--Lynch--Stockmeyer}{partial synchrony: the canonical escape from FLP, and the assumption these convergence bounds quietly need.}~1988~\pdcite{dls1988}, the canonical escape from
 FLP): ``gossip every $\Delta$'' \emph{is} an eventual-synchrony assumption, and we
 state it as such rather than burying it.
 
@@ -1665,7 +1713,7 @@ Each round a member either \emph{colludes} (holds the agreed floor
 $q_{\mathrm{floor}}$, collecting the cartel payoff $\pi_C$) or \emph{defects}
 (undercuts the floor by $\varepsilon$ for a one-time gain $\pi_D$, after which the
 cartel unravels and everyone drops to the competitive payoff $\pi_N \approx 0$). A
-\textbf{grim-trigger} strategy is the crudest way to punish that: \emph{cooperate
+\pdgloss{grim-trigger}{cooperate until one defection is seen, then punish forever, whatever it costs the punisher.} strategy is the crudest way to punish that: \emph{cooperate
 until the first observed defection, then defect forever}. It sustains the cartel
 only while members weight the future heavily enough --- that weight is the
 \textbf{discount factor} $\delta \in (0,1)$, the value a member places on next
@@ -1749,10 +1797,7 @@ critical promise made earlier in this paper:
 \begin{table}[H]
 \centering
 \small
-\caption{Which promise each gap threatens. The two gaps that reach the
-\emph{conservation} invariant are the urgent ones, because conservation is the only
-claim in this paper graded \Built{} --- a hole there falsifies something that is
-currently true, rather than deferring something that is not yet true.}
+\pdmargincaption{Each gap threatens a named promise, and the two that reach the \emph{conservation} invariant are the urgent ones, because conservation is the only claim in this paper graded \Built{} --- a hole there falsifies something that is currently true, rather than deferring something that is not yet true.}
 \label{tab:gaps}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.32\textwidth} l >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -2456,7 +2501,7 @@ expected forfeiture must match its gain from misreporting.
 \begin{table}[H]
 \centering
 \small
-\caption{How the harbor economy sits relative to the nearest prior art on each axis.}
+\pdmargincaption{The harbor economy has a nearest prior art on every axis, and this table names it axis by axis rather than claiming the ground is new.}
 \label{tab:related}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -2514,7 +2559,7 @@ bounty plus the carry on one bond.
 
 \input{figures/fig-he-assurance}
 
-A \textbf{Becker-enforced panel} is a set of $k$ independent, conflict-free
+A \pdgloss{Becker-enforced panel}{independent, conflict-free test-writers, each bonded and each detecting a given flaw with some probability.} is a set of $k$ independent, conflict-free
 test-writing agents, each detecting a given flaw with probability
 $d \in (0,1)$, each posting a slashable bond $B$ to enter the market, and each
 facing a platform re-audit rate $\rho$ against a one-shot misreporting gain $G$.
@@ -2540,7 +2585,7 @@ priced at $k \cdot (\text{bounty} + \text{bond carry})$, which is what makes
 \label{prop:becker-deterrence}
 Truthful effort is a dominant strategy for a Becker-enforced panel's test-writers
 exactly when expected punishment at least matches the one-shot gain from
-cheating --- the \textbf{Becker deterrence condition}~\pdcite{becker1968}:
+cheating --- the \pdgloss{Becker deterrence condition}{cheating is deterred exactly when expected punishment at least matches the one-shot gain from it.}~\pdcite{becker1968}:
 \begin{equation}\label{eq:becker}
 \rho\, d\, B \;\ge\; G ,
 \end{equation}
@@ -2588,8 +2633,69 @@ priced assurance level is an overstatement of the delivered one. The same
 requirement appears in \pdcite{harbor3} as the sealed multi-clique sampling hypothesis,
 where it is likewise required rather than hygienic.}
 
+\subsection{Putting a parameter on the echo}\label{sec:assurance-correlation}
+
+``One draw and two echoes'' is the right intuition and it is not yet a number, and
+an operator buying assurance by the reviewer needs the number, because the whole
+point of Theorem~\ref{thm:assurance} is that assurance has a price. Give the echo a
+model. Let the panel's per-reviewer detection rate be a \emph{random} quantity $D$
+with mean $d$, drawn once per panel and shared by its members --- that is what a
+common blind spot is, a draw the panel makes together rather than one each. Then
+the miss probability is $\mathbb{E}\bigl[(1-D)^k\bigr]$, and the first thing to
+notice is a one-line inequality with an uncomfortable direction:
+\begin{equation}\label{eq:assurance-jensen}
+\Pr(\text{defect undetected}) \;=\; \mathbb{E}\bigl[(1-D)^k\bigr] \;\ge\; (1-d)^k ,
+\end{equation}
+by Jensen, since $x \mapsto (1-x)^k$ is convex. The independent bound is not
+conservative --- it is \emph{optimistic}, always, for every mixing distribution
+with the same mean. Correlation cannot help.
+
+To get a closed form take $D \sim \mathrm{Beta}(a,b)$, whose intra-panel
+correlation is $\theta = 1/(a+b+1)$ and whose mean is $d = a/(a+b)$, so a target
+$(d,\theta)$ pins $a = d(1/\theta - 1)$ and $b = (1-d)(1/\theta - 1)$. The
+miss probability telescopes into a product a reader can evaluate on paper --- it is
+a ratio of Beta functions, but it is easier to use and easier to check in this
+form, and it avoids colliding with the bond $B$:
+\begin{equation}\label{eq:assurance-beta}
+\Pr(\text{defect undetected})
+  \;=\; \mathbb{E}\bigl[(1-D)^k\bigr]
+  \;=\; \prod_{j=0}^{k-1}\frac{b+j}{a+b+j}.
+\end{equation}
+
+\begin{pdexample}{what correlation costs a three-reviewer panel}
+Take the chapter's running $d = 0.8$ and the pitfall's own panel of $k=3$. Under
+independence the bound is $(1-0.8)^3 = 0.008$: eight misses in a thousand.
+Now set $\theta = \tfrac12$, so $1/\theta - 1 = 1$ and $(a,b) = (0.8,\,0.2)$.
+Equation~\ref{eq:assurance-beta} is three fractions:
+$\tfrac{0.2}{1.0}\times\tfrac{1.2}{2.0}\times\tfrac{2.2}{3.0}
+= 0.2 \times 0.6 \times 0.7\overline{3} = 0.088$ [verified, closed form] --- eleven
+times the independent number, from a panel the ledger still counts as three.
+Push to the monoculture limit $\theta \to 1$ and the product tends to $1-d = 0.2$,
+which is precisely ``one draw and two echoes'' written as arithmetic: three
+reviewers deliver exactly the assurance of one, a factor of $25$ worse than the
+line item says. \emph{Now you try:} at $k=5$ and $\theta=\tfrac12$, does adding two
+more correlated reviewers buy more or less than the third one did?
+(Two more fractions, $\tfrac{3.2}{4.0}\times\tfrac{4.2}{5.0}$, multiply the miss
+probability by $0.8 \times 0.84 = 0.672$, giving $0.059$ --- against $0.2^2 = 0.04$
+for the independent case's next two, so much less: correlated panels have sharply
+diminishing returns, which is the whole argument for buying diversity instead of
+headcount.)
+\end{pdexample}
+
+Two things this does \emph{not} license. It is an empirical hypothesis rather than
+a theorem about any deployed panel, and $\theta$
+is not measured anywhere in this series --- what would measure it is disagreement
+telemetry on deployed panels, and until that exists $\theta$ is a knob for pricing
+sensitivity, not a calibrated constant. And the Beta mixture is a choice, made for
+its closed form; Eq.~\ref{eq:assurance-jensen} is the part that holds for
+\emph{every} mixing distribution and is therefore the part to quote. Note also the
+symbol: $\theta$ is intra-panel correlation, not the audit rate $\rho$ of
+Eq.~\ref{eq:becker}. \pdchapref{stp}{From Spawn to Person} runs the same model
+against its inspection tower, where the tower's clique count $C$ is the instrument
+that holds $\theta$ down.
+
 The ground-truth oracle for grading the test-writers themselves is
-\textbf{mutation-testing kill rates} against held-out syntactic mutation operators,
+\pdgloss{mutation-testing kill rates}{grading the test-writers against held-out syntactic mutations, so a vacuous test scores zero.} against held-out syntactic mutation operators,
 which stops agents from overfitting tests to a suite they can already see. This is a
 Fix~A oracle in the sense of \S\ref{sec:ic}: machine-checkable, and not authored by
 the party being graded.
@@ -2681,7 +2787,7 @@ Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls
 Cross-operator attestation & \Designed{}/\Vision{} & no spec for the critical part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
 Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
-  Protocol~\ref{prot:xfer} \\
+  \ifpdbook \pdchapref{fh}{The Federated Harbor}, \S\ref{fh:sec:fh-xfer-ceremony}\else Protocol~\ref{prot:xfer}\fi \\
 Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Designed{}/\Vision{} &
   no estimator shipped \\
 Multi-dimensional reputation, neutral judges & \Vision{} & no axis-aggregation spec \\

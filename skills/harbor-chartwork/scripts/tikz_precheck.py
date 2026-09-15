@@ -15,7 +15,7 @@ Checks (hard, fail the build unless noted):
     caption's bolded lead sentence) or inside a title-styled node/pgfplots
     axis title (heuristic, not a full parse -- see find_title_texts()).
 
-  Numbered rules (P10-P14), evaluated against the fragment with LaTeX
+  Numbered rules (P10-P25), evaluated against the fragment with LaTeX
   comments stripped (an unescaped `%` to end of line) so a `\tiny` or
   `\resizebox` mentioned only in a comment never fires:
   - P10 tiny        (FAIL) any `\tiny` in the fragment.
@@ -30,6 +30,105 @@ Checks (hard, fail the build unless noted):
                      exempt (they draw their own edge).
   - P14 row-labels  (WARN) a `\node[...anchor=east...,font=\scriptsize|\tiny]`
                      whose text is one bare word -- suggests `pd row label`.
+  - P15 caption-promise
+                    (FAIL) the caption uses a styling word from a small closed
+                     set (dotted, dashed, shaded, bold, greyed/grayed,
+                     hatched) and the drawing contains no directive that could
+                     draw it. Catches "promised and never drawn" ONLY -- not
+                     "drawn on the wrong element", not "drawn too faintly to
+                     read". See the block comment above check_caption_promise.
+  - P16 identifier-consistency
+                    (FAIL) one identifier spelled two ways inside a fragment
+                     (`card_0` and `card0`, `sk_A` and `skA`). Case-sensitive
+                     on purpose.
+  - P17 caption-vocabulary
+                    (WARN) the caption sets an identifier in `\texttt{}` that
+                     no label in the drawing contains. An all-caps token is
+                     skipped (`\texttt{OR}` is an operator, not a label).
+
+  P15 and P17 each carry one deliberate exemption, both found by running them
+  over all three corpora: P15 ignores a styling word under a negation ("filled
+  and edged, not hatched" claims an absence, not a promise), and P17 ignores
+  an all-caps token. Neither exemption is a guess; each removed the only false
+  positive its rule produced across ~100 fragments.
+
+  The typographic law (figures/pd-figure-language.tex). One size for every
+  named text role; roles separate by weight, slope, family and ink. These
+  six rules are what makes the style file binding rather than advisory --
+  before them, half the fragments in the Book opted out of the house styles
+  by restating typography locally, and the corpus had no single voice. They
+  do not apply to the style-definition files themselves (see
+  STYLE_DEFINITION_STEMS): that file IS the one place.
+  - P18 style-font  (FAIL) a `\node` carrying a `pd ...` house style AND its
+                     own `font=`. The style already fixes the font; a local
+                     one silently overrides the whole role.
+  - P19 node-size   (FAIL) any `font=` whose value names a LaTeX size command
+                     (`\footnotesize`, `\small`, `\fontsize{..}`, ...). A
+                     fragment never sets a size; it takes the role that
+                     already has the right one.
+  - P20 hard-ink    (FAIL) a `\fill`/`\draw`/`\path`/`\addplot` that paints a
+                     house ink (`hhink`, `hhteal`, `hhamber`, `hhsand`,
+                     `hhgray`, ...) through a bare `fill=`/`draw=`/colour
+                     token with NO `pd ...` style anywhere in the same option
+                     list -- a `pd ... fill` or `pd ... rule` style says the
+                     same thing and keeps the edition overrides working.
+                     `hhpaper` is exempt: it is the ground, not an ink (a
+                     knockout backing or a halo ring around a mark).
+  - P21 node-family (FAIL) a `font=` naming a type FAMILY (`\sffamily`,
+                     `\rmfamily`, `\ttfamily`, `\fontfamily{..}`). Figure
+                     type inherits the document's own face -- Palatino in the
+                     Book, Computer Modern in a standalone chapter -- so a
+                     fragment asking for sans gets Latin Modern Sans against a
+                     Computer Modern page and reads as a foreign object on it.
+                     An EDITION may substitute a face, in one command in one
+                     file; a fragment may not. The identifier face is asked
+                     for by role (`pd mono label`), not by `\ttfamily`.
+  - P25 font-handle (FAIL) a `font=` in a fragment whose value is built from
+                     anything but the house handles (`\pdfiglabel`,
+                     `\pdfiglabelbold`, `\pdfiglabelitalic`,
+                     `\pdfiglabelmono`, `\pdfigsub`, `\pdfigmath`, ...).
+                     This is the GENERAL form of P19 and P21, and it is a
+                     whitelist because the mechanism is general: `pd figure`
+                     sets the figure's family through the PICTURE-level `font=`
+                     key, and a node's own `font=` REPLACES that key's value
+                     wholesale, so `\pdfiglabelfamily` is never applied and the
+                     node falls back to the document's face. Measured: in the
+                     Book, `font=\bfseries` renders TeXGyrePagellaX-Bold and
+                     `font=\itshape` renders TeXGyrePagellaX-Italic inside
+                     drawings whose every other label is TeXGyreHeros. A
+                     `font=` naming neither a family nor a size still loses the
+                     family, which is why enumerating banned commands could
+                     never have closed this. The handles re-apply the family
+                     themselves, so they are the only safe values.
+  - P24 body-font   (FAIL) a family-selection command in a node's TEXT rather
+                     than in its `font=`: `\normalfont`, `\rmfamily`,
+                     `\sffamily`, `\ttfamily`. P21 watches `font=`; this
+                     watches the other door, and `\normalfont` is the one that
+                     matters because it resets to the DOCUMENT's family, not the
+                     figure's. Three fragments were using it to get an
+                     unemphasised second line inside a bold `pd row label`, and
+                     in the Book that set the line in Palatino inside a grotesk
+                     drawing. The role for a gloss line is `\pdfigsub`, which
+                     steps down by slope and weight and leaves the family alone.
+                     `\mathrm` and `\text` are NOT flagged: they are math, and
+                     math takes the text roman whatever the node's face is.
+  - P23 dotted      (FAIL) a `dotted` / `densely dotted` / `loosely dotted`
+                     key, in a fragment or in a style file. Those three derive
+                     their on-length from `\pgflinewidth`, read when the KEY is
+                     processed rather than when the path is stroked -- so a
+                     `line width=` set afterwards, or appended by an edition
+                     override, changes the stroke and silently leaves the dash
+                     at the old width. That is how `pd guide` shipped a 0.448pt
+                     dot on a 0.498pt stroke. Write `dash pattern=on Xpt off
+                     Ypt`, and let figcheck's T9 say whether it resolves. This
+                     is the ONE law rule that also applies to the
+                     style-definition files, because that is where the defect
+                     was. `dashed` and its relatives are absolute and are fine.
+  - P22 figmath     (FAIL) `\pdfigmath` applied to a math group with no sub-
+                     or superscript. That macro forces a size one notch ABOVE
+                     the law's, and the only thing that buys is a subscript
+                     over figcheck's 7pt floor. On plain math it is just a
+                     label set larger than its neighbours.
 
 Usage:
   tikz_precheck.py FRAGMENT.tex [FRAGMENT.tex ...]
@@ -72,11 +171,17 @@ UNIVERSAL_COLORS = {"black", "white", "none", "gray", "grey"}
 # style reference (`\node[pd actor]`) for an unrecognized color.
 CHAPTER_STYLE_NAMES = {
     "pd figure", "pd hairline", "pd rule", "pd focus rule", "pd caution rule",
-    "pd guide", "pd arrow", "pd focus arrow", "pd caution arrow",
-    "pd panel title", "pd axis label", "pd direct label", "pd note",
-    "pd tick", "pd datum", "pd focus datum", "pd caution datum",
+    "pd guide", "pd lattice", "pd arrow", "pd focus arrow", "pd caution arrow",
+    "pd row label", "pd panel title", "pd axis label", "pd direct label",
+    "pd note", "pd tick", "pd datum", "pd focus datum", "pd caution datum",
     "pd state", "pd terminal", "pd actor", "pd artifact", "pd boundary",
-    "pd focus fill", "pd caution fill", "pd neutral fill", "pd hatch",
+    "pd focus fill", "pd caution fill", "pd neutral fill", "pd ink fill",
+    "pd hatch",
+    # The roles added with the typographic law. Each is a composition of one
+    # of the above, so an edition override on the parent reaches it.
+    "pd decision", "pd mono label", "pd verdict", "pd reverse label",
+    "pd reverse row label", "pd legend", "pd axis",
+    "pd kind tag", "pd badge",
 }
 # The subset of the above whose definition already bakes in `align=` or
 # `text width=` -- so a multi-word node using one of these does not need its
@@ -85,6 +190,8 @@ CHAPTER_STYLE_NAMES = {
 CHAPTER_SAFE_STYLES = {
     "pd panel title", "pd direct label", "pd note",
     "pd state", "pd terminal", "pd actor", "pd artifact",
+    "pd decision", "pd mono label", "pd verdict", "pd reverse label",
+    "pd kind tag", "pd badge",
 }
 
 RESEARCH_STYLE_NAMES = {"relnode", "relarrow", "regimebox"}
@@ -122,7 +229,138 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # Numbered rule ids introduced alongside the original, unnumbered checks
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
-RULE_IDS = ["P10", "P11", "P12", "P13", "P14"]
+RULE_IDS = ["P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17",
+            "P18", "P19", "P20", "P21", "P22", "P23", "P24", "P25"]
+
+# Rule numbers claimed by work that is not in this file.
+#
+# P15-P17 were implemented here first, on 2026-09-14 at 12:49, as the three
+# typographic-law rules now numbered P18-P20. Thirty-three minutes later
+# `claude/figures-that-were-missing` independently landed a DIFFERENT P15, P16
+# and P17 -- caption-promise, identifier-consistency and caption-vocabulary --
+# each with a passing and a failing fixture and a clean run over all ~100
+# fragments in the three corpora. Two branches, six good rules, three numbers.
+#
+# This branch yielded the numbers rather than the other. Not because its rules
+# are worse: because renumbering HERE is something this branch can do, and
+# asking the other branch to renumber is something it can only hope for. A
+# reconciliation that depends on someone else acting is not a reconciliation.
+# The other three keep the numbers they published, and are written down here so
+# the collision cannot silently happen a third time.
+#
+# The point of this table is that it is CHECKED. TestRuleIdRegistry in
+# tests/test_tikz_precheck_typography.py asserts that RULE_IDS and
+# RESERVED_RULE_IDS are disjoint, that together they run with no gaps, and that
+# every implemented id is documented above -- so the next person claiming a
+# number has to add a line here, and finds out at once if it is taken. Delete an
+# entry only when that branch has merged and its rule lives in this file.
+# Empty, and the reason is that the reservation recorded above was DISCHARGED
+# by the merge that produced this file. P15-P17 (caption-promise, identifier-
+# consistency, caption-vocabulary, from claude/figures-that-were-missing,
+# PR #10190) now LIVE in this file beside P18-P20, which is exactly the
+# condition the comment above names for deleting an entry. They are in
+# RULE_IDS and reserved by nobody. The registry test still asserts the two
+# sets are disjoint and together run with no gaps; that is what stops the
+# next collision, not the contents of this dict.
+RESERVED_RULE_IDS = {}
+
+# The files that ARE the one place the typographic law lives. P18-P20 police
+# fragments for opting out of those files; running them against the files
+# themselves would flag the definitions. Matched on the stem, so both twins
+# and every edition override are covered.
+STYLE_DEFINITION_STEMS = (
+    "pd-figure-language",
+    "pd-palette",
+)
+
+# Every ink in the chapter house palette EXCEPT hhpaper, which is the page
+# ground rather than an ink: a `fill=hhpaper` is a knockout backing behind a
+# label and a `draw=hhpaper` is a halo ring around a mark, and neither has a
+# `pd ...` style that says it better.
+HOUSE_INKS = {
+    "hhsand", "hhsanddeep", "hhebony", "hhink", "hhcobalt", "hhamber",
+    "hhteal", "hhgray",
+}
+
+# What to reach for instead, per ink. Named in the finding so the error tells
+# the author the fix rather than only the fault.
+FILL_EQUIVALENT = {
+    "hhteal": "pd focus fill",
+    "hhcobalt": "pd focus fill",
+    "hhamber": "pd caution fill",
+    "hhsand": "pd neutral fill",
+    "hhsanddeep": "pd neutral fill",
+    "hhgray": "pd neutral fill",
+    "hhink": "pd ink fill",
+    "hhebony": "pd ink fill",
+}
+RULE_EQUIVALENT = {
+    "hhink": "pd rule",
+    "hhebony": "pd rule",
+    "hhteal": "pd focus rule",
+    "hhcobalt": "pd focus rule",
+    "hhamber": "pd caution rule",
+    "hhgray": "pd hairline (or pd lattice / pd tick)",
+    "hhsand": "pd neutral fill",
+    "hhsanddeep": "pd neutral fill",
+}
+
+# A LaTeX size command, in any of the forms a fragment has actually used.
+SIZE_COMMAND_RE = re.compile(
+    r"\\(tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge|fontsize)\b"
+)
+# A LaTeX family selection. \ttfamily is on the list: a fragment that wants the
+# identifier face takes `pd mono label`, which is the one place the mono face
+# and its side bearing are decided.
+FAMILY_COMMAND_RE = re.compile(
+    r"\\(sffamily|rmfamily|ttfamily|fontfamily|sfdefault|rmdefault|ttdefault|usefont)\b"
+)
+FONT_KEY_RE = re.compile(r"\bfont\s*=\s*")
+
+
+def is_apparatus(path):
+    """True for a file under figures/ that is NOT a drawing.
+
+    Not everything in a figures directory is a figure. The Book keeps its
+    apparatus there too -- the figure language and its per-edition overrides,
+    the palette, the pedagogy environments, the citation shortforms, the
+    chapter map -- and all of them are named `pd-*`, because that is this
+    repository's convention for "loaded by the preamble, not \input as a
+    picture". Matching the PREFIX rather than listing today's five stems is the
+    same lesson compile_fragment.sh's exit 3 encodes: a list of names is
+    defeated by the next name, and `pd-pedagogy.tex` is how this one was --
+    it uses `\normalfont` inside an environment definition, which is correct
+    there and which P24 flagged because this function had never heard of it.
+    """
+    stem = Path(path).stem
+    if stem.startswith("pd-"):
+        return True
+    return any(stem == s or stem.startswith(s + "-") for s in STYLE_DEFINITION_STEMS)
+
+
+# The old name, kept because the law rules read better with it: P18-P20 do not
+# police the one place the law lives.
+is_style_definition = is_apparatus
+
+
+def _font_value_at(text, start):
+    """Return the `font=` value beginning at START (just past the `=`), stopping
+    at the first top-level comma, `]` or `}` -- the same boundary pgfkeys uses."""
+    depth = 0
+    i = start
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c in "{[":
+            depth += 1
+        elif c in "}]":
+            if depth == 0:
+                break
+            depth -= 1
+        elif c == "," and depth == 0:
+            break
+        i += 1
+    return text[start:i].strip()
 
 
 def strip_comments(text):
@@ -521,6 +759,637 @@ def check_row_labels(text):
     return findings
 
 
+# --------------------------------------------------------------------------- #
+# P15-P17: caption/drawing integrity and identifier consistency.
+#
+# WHAT THESE THREE DO AND DO NOT PROVE -- read this before trusting them.
+#
+# P15 asks only: "the caption promised a visual property; does the source
+# contain any directive that could draw it?" That catches *promised and never
+# drawn*. It does NOT catch, and cannot catch:
+#   - drawn on the wrong element (the caption says the daemon's lifeline is
+#     dotted; the source dots the harbor's). P15 sees one dot directive and is
+#     satisfied.
+#   - drawn on the right element but over the wrong span.
+#   - drawn, correct, and invisible -- the real failure in
+#     fig-anchor-handshake-ladder, whose `pd guide` dash was 0.45pt on / 1.0pt
+#     off in a grey four percent lighter than the solid hairlines beside it,
+#     and which antialiased into a continuous line at 150 dpi. The source
+#     contained `densely dotted`, so P15 passed and would pass again.
+# Those three remain human rules (craft-rules.md 7.1): enumerate the caption's
+# claims and check each against the render. P15 removes one failure mode from
+# that list; it does not remove the list.
+#
+# P16 compares spellings *inside one fragment*. Figure-versus-chapter
+# disagreement (craft-rules.md 7.3) is out of reach here by construction: the
+# prechecker reads one file and cannot know which spelling the chapter meant.
+#
+# P17 is a warning, not an error, because a caption may legitimately name a
+# code identifier the drawing does not contain (a script in a provenance
+# bracket, an algorithm the figure illustrates but does not label).
+#
+# A fourth check was considered and rejected as unsound: "a node overlapping a
+# lifeline coordinate". A node's rendered width depends on its font, its text,
+# `text width=`, and an `inner sep` default this script cannot see without a
+# TeX run, and its anchor may put the box anywhere relative to `at (x,y)`. Any
+# source-level version would be a guess. The sound version already exists one
+# stage later: figcheck's T4 clips every stroked segment against every text
+# line's bbox on the compiled PDF and fails on a real crossing. Use that.
+# --------------------------------------------------------------------------- #
+
+# Each styling word a caption can promise, mapped to the directives and house
+# style names that could draw it. House style names are taken from
+# figures/pd-figure-language.tex's own bodies, not guessed.
+STYLE_PROMISES = {
+    "dotted": (
+        r"\bdotted\b", r"\bdensely dotted\b", r"\bloosely dotted\b",
+        r"\bdash pattern\s*=", r"\bdash dot\b", r"\bpd guide\b",
+    ),
+    "dashed": (
+        r"\bdashed\b", r"\bdensely dashed\b", r"\bloosely dashed\b",
+        r"\bdash pattern\s*=", r"\bdash dot\b",
+        r"\bpd boundary\b", r"\bpd caution arrow\b",
+    ),
+    "shaded": (
+        r"\bfill\s*=", r"\\fill\b", r"\bshade\b", r"\bshading\s*=",
+        r"\bpattern\s*=", r"\bpd focus fill\b", r"\bpd caution fill\b",
+        r"\bpd neutral fill\b", r"\bpd hatch\b", r"\bpd state\b",
+        r"\bpd artifact\b", r"\bpd terminal\b",
+    ),
+    "bold": (
+        r"\\bfseries\b", r"\\textbf\b", r"\bultra thick\b", r"\bvery thick\b",
+        r"\bpd row label\b", r"\bpd panel title\b",
+    ),
+    "greyed": (r"\bhhgray\b", r"\bgray\b", r"\bgrey\b", r"\bpd guide\b", r"\bpd hairline\b"),
+    "grayed": (r"\bhhgray\b", r"\bgray\b", r"\bgrey\b", r"\bpd guide\b", r"\bpd hairline\b"),
+    "hatched": (r"\bpattern\s*=", r"\bpd hatch\b", r"\bLines\s*\[", r"\bhatch\b"),
+}
+PROMISE_WORD_RE = re.compile(
+    r"\b(" + "|".join(sorted(STYLE_PROMISES, key=len, reverse=True)) + r")\b", re.I
+)
+# A caption may claim a styling word is ABSENT ("filled and edged, not
+# hatched"). That is not a promise, so it is not checked. The window is the
+# ~24 characters before the word, which is enough for "rather than " and
+# "instead of " without reaching back into an unrelated clause.
+NEGATION_RE = re.compile(
+    r"\b(?:not|never|no|rather\s+than|instead\s+of|without|un)\s*[\w,]*\s*$", re.I
+)
+
+
+def caption_bodies(text):
+    """Every `\\caption{...}` body in TEXT, comments already stripped."""
+    out = []
+    for m in CAPTION_RE.finditer(text):
+        body, _ = find_braced(text, m.end() - 1)
+        out.append(body)
+    return out
+
+
+def check_caption_promise(text):
+    """P15: a styling word in the caption with no directive in the fragment
+    that could draw it. See the block comment above for what this does not
+    prove."""
+    findings = []
+    stripped = strip_comments(text)
+    captions = caption_bodies(stripped)
+    if not captions:
+        return findings
+    # The drawing is everything that is not a caption body, so a caption
+    # cannot satisfy its own promise by containing the word twice.
+    drawing = stripped
+    for body in captions:
+        drawing = drawing.replace(body, " " * len(body))
+    seen = set()
+    for body in captions:
+        for m in PROMISE_WORD_RE.finditer(body):
+            word = m.group(1).lower()
+            if NEGATION_RE.search(body[max(0, m.start() - 24):m.start()]):
+                continue
+            if word in seen:
+                continue
+            seen.add(word)
+            if any(re.search(p, drawing, re.I) for p in STYLE_PROMISES[word]):
+                continue
+            findings.append(
+                {
+                    "check": "caption-promise",
+                    "id": "P15",
+                    "severity": "fail",
+                    "message": f"caption promises {word!r} but the drawing contains no "
+                    f"directive that could draw it; either draw it or stop claiming it "
+                    f"(this check cannot tell whether it is drawn on the right element -- "
+                    f"verify the caption's claims against the render)",
+                }
+            )
+    return findings
+
+
+# An identifier spelling is a run of letters/digits that may carry an
+# underscore subscript, read from text with its LaTeX markup already removed:
+# `card_0`, `card0`, `sk_A`, `skA`, `m1`.
+IDENT_SPELLING_RE = re.compile(r"[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*")
+PLAIN_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_:]*")
+TEXTTT_RE = re.compile(r"\\texttt\{")
+
+
+def visible_plain(content):
+    r"""Strip LaTeX markup from a node body or caption so that what is left is
+    what the reader sees. `\texttt{card\_0}`, `$\mathrm{card}_0$` and `card_0`
+    all reduce to `card_0`, which is what makes them comparable at all.
+
+    `\_` is protected first (it is part of an identifier, not a control
+    symbol), control words and control symbols become spaces, and braces and
+    maths delimiters are deleted rather than spaced so that a subscript stays
+    joined to its base."""
+    s = content.replace("\\_", "\x00")
+    s = re.sub(r"\\[A-Za-z]+\*?", " ", s)
+    s = re.sub(r"\\.", " ", s, flags=re.S)
+    s = s.replace("{", "").replace("}", "").replace("$", "").replace("^", "")
+    return s.replace("\x00", "_")
+
+
+def canonical_identifier(spelling):
+    """Collapse the ways one identifier can be spelled down to one key:
+    `card_0` and `card0` both become `card0`, `sk_A` and `skA` both become
+    `skA`. Case is PRESERVED on purpose -- `X_1` and `x_1` are different
+    objects in more than one figure in this corpus, and merging them would
+    manufacture findings."""
+    return spelling.replace("_", "")
+
+
+def visible_texts(stripped):
+    """(where, content) for every piece of a fragment a reader actually sees:
+    each node's braced text, and each caption body."""
+    out = [("node", content) for _style, content, _off in find_node_calls(stripped)]
+    out += [("caption", body) for body in caption_bodies(stripped)]
+    return out
+
+
+CAMEL_RE = re.compile(r"[a-z][A-Z]")
+
+
+def identifier_spellings(content):
+    r"""Spellings in CONTENT that look like identifiers rather than prose.
+
+    A run of letters and digits counts as an identifier if it carries an
+    underscore, ends in a digit, or is camelCase (`skA`) -- three signals that
+    between them admit every identifier this corpus uses and no ordinary
+    English word.
+
+    WHAT THIS DELIBERATELY DOES NOT SEE. Comparison happens after markup is
+    stripped, so `$card_0$`, `\texttt{card\_0}` and `card\_0` are one spelling
+    here even though they print in three different faces. Telling those apart
+    needs per-occurrence mode tracking (inside maths? inside `\texttt`?) that
+    the markup-stripping destroys; a cruder version that inferred the mode
+    from the surrounding node produced five false positives on this corpus and
+    was removed rather than shipped. Register mixing is therefore a human
+    rule, marked as such in craft-rules.md 7.3. What IS caught is the
+    difference that survives any face: `card0` against `card_0`, `skA` against
+    `sk_A`."""
+    found = []
+    for m in IDENT_SPELLING_RE.finditer(visible_plain(content)):
+        raw = m.group(0)
+        if "_" not in raw and not raw[-1].isdigit() and not CAMEL_RE.search(raw):
+            continue
+        found.append((raw, canonical_identifier(raw)))
+    return found
+
+
+def check_identifier_consistency(text):
+    """P16: one identifier spelled two ways inside one fragment."""
+    findings = []
+    stripped = strip_comments(text)
+    by_canon = {}
+    for _where, content in visible_texts(stripped):
+        for raw, canon in identifier_spellings(content):
+            by_canon.setdefault(canon, set()).add(raw)
+    for canon, spellings in sorted(by_canon.items()):
+        if len(spellings) < 2:
+            continue
+        shown = sorted(spellings)
+        findings.append(
+            {
+                "check": "identifier-consistency",
+                "id": "P16",
+                "severity": "fail",
+                "message": f"identifier {canon!r} is spelled {shown} in one fragment; "
+                f"pick one spelling and use it in every label and in the caption",
+            }
+        )
+    return findings
+
+
+def check_style_font_override(text, house_style_names):
+    """P18: a `\\node` that carries a `pd ...` house style AND sets its own
+    `font=`. The style already fixes size, weight and family for that role;
+    a local `font=` silently replaces all three, which is how a corpus ends
+    up with no single voice while every fragment looks locally reasonable."""
+    findings = []
+    stripped = strip_comments(text)
+    for style_text, _content, offset in find_node_calls(stripped):
+        names = {t.split("=", 1)[0].strip() for t in split_top_level(style_text)}
+        used = sorted(names & set(house_style_names))
+        if not used:
+            continue
+        m = FONT_KEY_RE.search(style_text)
+        if not m:
+            continue
+        value = _font_value_at(style_text, m.end())
+        line = stripped.count("\n", 0, offset) + 1
+        findings.append(
+            {
+                "check": "style-font",
+                "id": "P18",
+                "severity": "fail",
+                "line": line,
+                "message": f"node styled {used} also sets font={value!r} -- the house "
+                f"style already fixes the font; take the role that has the "
+                f"typography you want instead of overriding this one",
+            }
+        )
+    return findings
+
+
+def check_node_font_size(text):
+    """P19: any `font=` whose value names a LaTeX size command. This reaches
+    the places a node-only check cannot: a pgfplots `tick label style=
+    {font=\\footnotesize}`, a `\\begin{tikzpicture}[font=\\small]`, a local
+    `.style` definition inside the fragment. The size lives in
+    figures/pd-figure-language.tex and nowhere else."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in FONT_KEY_RE.finditer(stripped):
+        value = _font_value_at(stripped, m.end())
+        sm = SIZE_COMMAND_RE.search(value)
+        if not sm:
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "node-size",
+                "id": "P19",
+                "severity": "fail",
+                "line": line,
+                "message": f"font={value!r} names the size command \\{sm.group(1)} -- "
+                f"a fragment never sets a figure's type size; the named roles in "
+                f"figures/pd-figure-language.tex do",
+            }
+        )
+    return findings
+
+
+def check_node_font_family(text):
+    """P21: any `font=` naming a type family. The figure's face is the
+    document's face; an edition substitutes it in one command in one file, and
+    a fragment never does. `\\sffamily` against a Computer Modern page
+    resolves to Latin Modern Sans and reads as a foreign object on it -- the
+    exact complaint that sent this rule in."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in FONT_KEY_RE.finditer(stripped):
+        value = _font_value_at(stripped, m.end())
+        fm = FAMILY_COMMAND_RE.search(value)
+        if not fm:
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "node-family",
+                "id": "P21",
+                "severity": "fail",
+                "line": line,
+                "message": f"font={value!r} names the type family \\{fm.group(1)} -- figure "
+                f"type inherits the document's own face; for an identifier take "
+                f"'pd mono label', and leave any other substitution to an edition",
+            }
+        )
+    return findings
+
+
+FIGMATH_RE = re.compile(r"\\pdfigmath\b")
+
+
+def check_figmath(text):
+    """P22: `\\pdfigmath` is the one licensed exception to the one-size law,
+    and it is licensed for one reason -- a sub- or superscript inside a
+    `\\pdfiglabelsize` label renders under figcheck's 7pt floor (measured:
+    5.98pt in a chapter, 6.36pt in the Book). Used on math that carries
+    neither, it is not an exception; it is a label set a notch larger than the
+    ones beside it. Looks at the rest of the enclosing braced group, which is
+    how the macro is always written: `{\\pdfigmath $x_i$}`."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in FIGMATH_RE.finditer(stripped):
+        depth, i, n = 0, m.end(), len(stripped)
+        while i < n:
+            c = stripped[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                if depth == 0:
+                    break
+                depth -= 1
+            i += 1
+        scope = stripped[m.end() : i]
+        if "_" in scope or "^" in scope:
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "figmath",
+                "id": "P22",
+                "severity": "fail",
+                "line": line,
+                "message": f"\\pdfigmath governs {scope.strip()[:40]!r}, which carries no sub- or "
+                f"superscript -- it exists only to lift a subscript over the 7pt floor, "
+                f"so here it just sets one label larger than its neighbours",
+            }
+        )
+    return findings
+
+
+# The three keys whose on-length is `\pgflinewidth` rather than a length.
+# `dashed`, `densely dashed` and `loosely dashed` are NOT here: those are
+# absolute (on 3pt off 3pt and relatives) and cannot drift when a width moves.
+# A family-selection command as it appears in a node's TEXT. `\mathrm` and
+# `\text` are deliberately absent: those are math, and TeX sets math roman in
+# the text family whatever face the node carries -- flagging them would be
+# flagging the typesetter, not the author.
+# The house handles, and nothing else, may appear in a fragment's `font=`.
+# Each one re-applies \pdfiglabelfamily, so a node built from them keeps the
+# edition's face; anything else replaces the picture-level `font=` and loses it.
+FONT_HANDLE_RE = re.compile(
+    r"\\(pdfiglabelfamily|pdfiglabelsize|pdfiglabelbold|pdfiglabelitalic|"
+    r"pdfiglabelmono|pdfiglabel|pdfigbasesize|pdfigsub|pdfigmath|relax)\b"
+)
+
+
+def check_font_handle(text):
+    """P25: a `font=` built from anything but the house handles.
+
+    The mechanism, measured rather than assumed. `pd figure` sets the figure's
+    family through the PICTURE-level `font=` key:
+
+        pd figure/.style={font=\\pdfiglabelfamily\\pdfigbasesize,text=hhink}
+
+    A node's own `font=` is the SAME KEY, so its value replaces that one
+    entirely. \\pdfiglabelfamily is then never applied to the node and it falls
+    back to the document's face -- Palatino in the Book, against a drawing whose
+    every other label is in the edition's grotesk.
+
+    This is why a blacklist could never close it. `font=\\bfseries` names no
+    family and no size, and in the Book it renders TeXGyrePagellaX-Bold;
+    `font=\\itshape` renders TeXGyrePagellaX-Italic. Both were found by
+    figcheck's T10 on compiled pages of appendix-figures.tex and
+    fig-anchor-phases.tex, after P19 and P21 had passed them clean.
+
+    So: a fragment's `font=` may be built only from the handles, which re-apply
+    the family themselves. P19 (a size) and P21 (a family) stay, because they
+    name the specific fault in their message and fire first on the common cases.
+    """
+    findings = []
+    stripped = strip_comments(text)
+    for m in FONT_KEY_RE.finditer(stripped):
+        value = _font_value_at(stripped, m.end())
+        residue = FONT_HANDLE_RE.sub("", value).strip()
+        if not residue.strip("{} \t"):
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "font-handle",
+                "id": "P25",
+                "severity": "fail",
+                "line": line,
+                "message": f"font={value!r} is not built from the house handles, so it replaces "
+                f"the picture-level `font=` that carries \\pdfiglabelfamily and the node "
+                f"falls back to the DOCUMENT's face -- in the Book, Palatino inside a "
+                f"grotesk drawing. Take a `pd *` role, or build the font from "
+                f"\\pdfiglabel / \\pdfiglabelbold / \\pdfiglabelitalic / \\pdfiglabelmono.",
+            }
+        )
+    return findings
+
+
+def check_caption_vocabulary(text):
+    r"""P17: the caption sets an identifier in `\texttt{}` that no label in the
+    drawing contains. Warning, not error -- see the block comment above."""
+    findings = []
+    stripped = strip_comments(text)
+    captions = caption_bodies(stripped)
+    if not captions:
+        return findings
+    drawn = set()
+    for _style, content, _off in find_node_calls(stripped):
+        plain = visible_plain(content)
+        for tok in PLAIN_TOKEN_RE.findall(plain):
+            drawn.add(tok)
+            drawn.add(canonical_identifier(tok))
+    reported = set()
+    for body in captions:
+        for m in TEXTTT_RE.finditer(body):
+            inner, _ = find_braced(body, m.end() - 1)
+            token = visible_plain(inner).strip()
+            if not token or "." in token or "/" in token:
+                continue  # a filename in a provenance bracket, not a label
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_:]*", token):
+                continue
+            if token.isupper():
+                continue  # \texttt{OR}, \texttt{AND}: an operator, not a label
+            canon = canonical_identifier(token)
+            head = token.split(":")[0]
+            if canon in drawn or token in drawn or head in drawn or canon in reported:
+                continue
+            reported.add(canon)
+            findings.append(
+                {
+                    "check": "caption-vocabulary",
+                    "id": "P17",
+                    "severity": "warn",
+                    "message": f"caption names \\texttt{{{token}}} but no label in the "
+                    f"drawing contains it; put it in the drawing or take it out of the "
+                    f"caption",
+                }
+            )
+    return findings
+
+
+def check_colors(text, allowed_colors, known_style_names):
+    findings = []
+
+    def check_token(raw_token, line):
+        segments = [seg.strip() for seg in raw_token.split("!")]
+        for seg in segments:
+            if not seg or seg.isdigit():
+                continue
+            if seg in known_style_names:
+                continue  # a style reference caught by the color-shaped regex, not a color
+            if seg not in allowed_colors:
+                findings.append(
+                    {
+                        "check": "color",
+                        "severity": "fail",
+                        "line": line,
+                        "color": seg,
+                        "raw": raw_token,
+                        "message": f"color '{seg}' (in '{raw_token}') is outside the house palette",
+                    }
+                )
+
+    for m in COLOR_KEY_RE.finditer(text):
+        line = text.count("\n", 0, m.start()) + 1
+        check_token(m.group(2), line)
+    for m in TEXTCOLOR_RE.finditer(text):
+        line = text.count("\n", 0, m.start()) + 1
+        check_token(m.group(1), line)
+    for m in COLOR_CMD_RE.finditer(text):
+        line = text.count("\n", 0, m.start()) + 1
+        check_token(m.group(1), line)
+    return findings
+
+
+BODY_FONT_RE = re.compile(r"\\(normalfont|rmfamily|sffamily|ttfamily)\b")
+
+
+def check_body_font(text):
+    """P24: a family-selection command inside node text.
+
+    P21 watches `font=`. This watches the other door, and it is the one that was
+    actually open: three fragments wrote
+    `{the 6-cycle\\\\\\normalfont the disagreement closes a cycle}` inside a
+    `pd row label` to get an unemphasised second line. `\\normalfont` resets to
+    the DOCUMENT's family -- Palatino in the Book -- so the second line printed
+    in the body serif inside a grotesk drawing, and the figure disagreed with
+    itself. No `font=` rule could see it, and figcheck T10 can see it on the page
+    but cannot always separate it from math's own use of the text roman. Here it
+    is unambiguous.
+
+    The role for a gloss line is `\\pdfigsub`: it steps down by slope and weight
+    and touches neither family nor ink, which is what lets it sit on a reversed
+    node without vanishing.
+    """
+    findings = []
+    stripped = strip_comments(text)
+    for m in BODY_FONT_RE.finditer(stripped):
+        line = stripped.count("\n", 0, m.start()) + 1
+        cmd = m.group(1)
+        findings.append(
+            {
+                "check": "body-font",
+                "id": "P24",
+                "severity": "fail",
+                "line": line,
+                "message": f"`\\{cmd}` in node text selects a family directly. "
+                + ("`\\normalfont` resets to the DOCUMENT's family, so in the Book this "
+                   "line prints in the body serif inside a grotesk drawing. "
+                   if cmd == "normalfont" else
+                   "The figure's face is the edition's, set in one command in one file. ")
+                + "For an unemphasised gloss line inside a node take `\\pdfigsub`; for an "
+                  "identifier take `pd mono label`.",
+            }
+        )
+    return findings
+
+
+DOTTED_KEY_RE = re.compile(r"\b(densely\s+dotted|loosely\s+dotted|dotted)\b")
+
+
+def check_dotted(text):
+    """P23: a dash whose on-length is derived from the line width.
+
+    pgf defines `dotted` as `dash pattern=on \\pgflinewidth off 2pt`, and the
+    densely/loosely variants the same way with a different gap. \\pgflinewidth is
+    read when the KEY is processed, not when the path is stroked -- so the
+    on-length is frozen at whatever the width happened to be at that moment, and
+    any `line width=` arriving afterwards moves the stroke and leaves the dash.
+
+    Not a theoretical hazard. `pd guide` was defined
+    `draw=hhgray!62,line width=.45pt,densely dotted`; the Swiss edition appended
+    `draw=hhink!40,line width=.5pt`; the canonical Book therefore shipped a
+    0.448pt dot on a 0.498pt stroke -- 0.93 device pixels at 150 dpi, under one
+    pixel, with its rendered weight swinging 1.6x on sub-pixel phase alone.
+    Nothing in the source showed it and nothing in the caption showed it.
+
+    Unlike the rest of the typographic-law rules, this one DOES apply to the
+    style-definition files. Those rules police fragments for opting out of the
+    one place the law lives; this one is about a defect that was IN that place.
+    """
+    findings = []
+    stripped = strip_comments(text)
+    for m in DOTTED_KEY_RE.finditer(stripped):
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "dotted",
+                "id": "P23",
+                "severity": "fail",
+                "line": line,
+                "message": f"`{m.group(1)}` takes its on-length from \\pgflinewidth, read when the "
+                f"key is processed -- a `line width=` set after it, or appended by an "
+                f"edition override, moves the stroke and leaves the dash at the old "
+                f"width. Write `dash pattern=on Xpt off Ypt`; figcheck T9 measures "
+                f"whether it resolves at 150 dpi.",
+            }
+        )
+    return findings
+
+
+PAINT_CMD_RE = re.compile(r"\\(fill|draw|path|addplot)\b")
+
+
+def check_hard_ink(text):
+    """P20: a path that paints a house ink through a bare colour token or a
+    `fill=`/`draw=` key with no `pd ...` style anywhere in the same option
+    list. Every such case has a house style that says the same thing, and
+    going through the style is what lets the Book's edition overrides
+    (swiss, technical) restyle the same drawing."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in PAINT_CMD_RE.finditer(stripped):
+        cmd = m.group(1)
+        i = m.end()
+        while i < len(stripped) and stripped[i].isspace():
+            i += 1
+        if i >= len(stripped) or stripped[i] != "[":
+            continue
+        opts, _ = find_braced_bracket(stripped, i)
+        tokens = split_top_level(opts)
+        if any(t.split("=", 1)[0].strip().startswith("pd ") for t in tokens):
+            continue  # already goes through a house style
+        line = stripped.count("\n", 0, m.start()) + 1
+        for tok in tokens:
+            if "=" in tok:
+                key, value = tok.split("=", 1)
+                key, value = key.strip(), value.strip()
+                if key not in ("fill", "draw"):
+                    continue
+                table = FILL_EQUIVALENT if key == "fill" else RULE_EQUIVALENT
+            else:
+                # A bare colour token means "fill" on \fill and on a \path
+                # whose options say fill, and "draw" everywhere else. Getting
+                # this backwards sends the author to `pd focus rule` for what
+                # is plainly an area, so the command decides the table.
+                fills = cmd == "fill" or (cmd == "path" and re.search(r"\bfill\b", opts))
+                key = "fill" if fills else "draw"
+                value = tok.strip()
+                table = FILL_EQUIVALENT if fills else RULE_EQUIVALENT
+            base = value.split("!", 1)[0].strip()
+            if base not in HOUSE_INKS:
+                continue
+            findings.append(
+                {
+                    "check": "hard-ink",
+                    "id": "P20",
+                    "severity": "fail",
+                    "line": line,
+                    "message": f"\\{cmd}[...] paints {key}={value} with no pd style in the "
+                    f"option list -- use '{table[base]}'",
+                }
+            )
+            break
+    return findings
+
+
 def check_colors(text, allowed_colors, known_style_names):
     findings = []
 
@@ -642,9 +1511,31 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     findings += check_resizebox(text)
     findings += check_bare_fill(text)
     findings += check_row_labels(text)
+    # The typographic law polices fragments, never the file that defines it,
+    # and only the corpus that has one: the research papers under
+    # docs/harbor-research/ have their own preamble, their own palette, and no
+    # figures/pd-figure-language.tex, so there is no single place their sizes
+    # and inks could be moved to yet. Extending P18-P20 there means giving
+    # that corpus a style file first.
+    if resolved_corpus != "research":
+        # P23 is the one law rule that also applies to the style-definition
+        # files: the others police fragments for opting OUT of the one place the
+        # law lives, and this one is about a defect that was IN it.
+        findings += check_dotted(text)
+    if resolved_corpus != "research" and not is_style_definition(path):
+        findings += check_style_font_override(text, base_names)
+        findings += check_node_font_size(text)
+        findings += check_node_font_family(text)
+        findings += check_body_font(text)
+        findings += check_font_handle(text)
+        findings += check_figmath(text)
+        findings += check_hard_ink(text)
     findings += check_colors(text, base_colors, known_names)
     findings += check_node_wrapping(text, safe_styles)
     findings += check_title_numbers(text)
+    findings += check_caption_promise(text)
+    findings += check_identifier_consistency(text)
+    findings += check_caption_vocabulary(text)
 
     hard = [f for f in findings if f["severity"] == "fail"]
     warn = [f for f in findings if f["severity"] == "warn"]

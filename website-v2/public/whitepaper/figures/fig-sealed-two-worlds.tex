@@ -2,11 +2,11 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  lane/.style={pd state,minimum width=1.9cm,minimum height=0.72cm,font=\footnotesize,align=center},
-  worldlabel/.style={font=\footnotesize\bfseries,text=hhink,align=left},
+  lane/.style={pd state,minimum width=1.9cm,minimum height=0.72cm,align=center},
+  worldlabel/.style={pd panel title},
   tie/.style={draw=hhteal,line width=0.9pt,densely dashed},
-  tiemark/.style={font=\footnotesize,text=hhteal,align=center},
-  outlab/.style={font=\footnotesize,text=hhink,align=left}]
+  tiemark/.style={pd direct label,text=hhteal,align=center,fill=none},
+  outlab/.style={pd direct label,fill=none}]
   % --- the two worlds, identical except Derek's secret ---
   \node[worldlabel,text width=1.8cm] (LA) at (-2.2,7.2) {World A\\$s=0$};
   \node[worldlabel,text width=1.8cm] (LB) at (-2.2,4.6) {World B\\$s=2$};
@@ -29,17 +29,23 @@
   \node[outlab,text width=6.2cm,align=center] at (2.8,3.55) {Erin's observed trace is identical here, under every interleaving to depth 7};
   % --- the slot: the one declared release step ---
   \draw[pd boundary] (7.3,3.85) rectangle (9.9,7.95);
-  \node[pd note,anchor=south west,font=\footnotesize\itshape] at (7.35,7.98) {the slot};
+  \node[pd note,anchor=south west] at (7.35,7.98) {the slot};
   \node[lane,pd terminal] (A4) at (8.6,7.2) {release\\$g=0$};
   \node[lane,pd terminal] (B4) at (8.6,4.6) {release\\$g=0$};
   \draw[pd arrow] (A3) -- (A4); \draw[pd arrow] (B3) -- (B4);
-  \draw[tie] (8.6,6.84) -- (8.6,6.30);
-  \draw[tie] (8.6,5.50) -- (8.6,4.96);
+  % Started lower than the ties at x=0/2.8/5.6, and for a reason those do not
+  % have: A4 and B4 are `pd terminal`, whose double border puts a second rule
+  % 1.2pt inside the box, so their two-line text sits lower in the node than a
+  % plain `lane`'s single line does. At 6.84 this tie ran 1.0pt into the font
+  % box of `$g=0$` -- which figcheck T4 reports and which is pre-existing, not
+  % introduced by the typography pass.
+  \draw[tie] (8.6,6.66) -- (8.6,6.30);
+  \draw[tie] (8.6,5.50) -- (8.6,5.14);
   \node[tiemark] at (8.6,5.9) {$\equiv$};
   % --- the mutation: honest gate replaced by one that leaks the raw secret ---
   \draw[pd caution arrow] (8.6,3.85) -- (8.6,3.42);
-  \node[pd note,anchor=north,font=\footnotesize\itshape,text=hhamber!80!black,text width=8.0cm,align=center] at (8.6,3.40) {mutation: a gate that leaks the raw secret would emit leak $0$ from World A and leak $2$ from World B -- now distinguishable, caught at this same 4-step witness};
-  \node[pd note,anchor=north west,text width=14.7cm,font=\footnotesize\itshape] at (-3.0,1.15) {Model check on the finite clean-room transition system, secrets $s\in\{0,1,2,3\}$, $g(s)=s\bmod 2$: exhaustive over all interleavings to depth 7 and all secret pairs, zero distinguishing observations in the honest model. Both mutations caught: the leaked-secret gate above (4 steps), and a worker that bypasses the gate entirely (3 steps) [internal, \texttt{c1\_noninterference.py}].};
+  \node[pd note,anchor=north,text=hhamber!80!black,text width=8.0cm,align=center] at (8.6,3.40) {mutation: a gate that leaks the raw secret would emit leak $0$ from World A and leak $2$ from World B -- now distinguishable, caught at this same 4-step witness};
+  \node[pd note,anchor=north west,text width=14.7cm] at (-3.0,1.15) {Model check on the finite clean-room transition system, secrets $s\in\{0,1,2,3\}$, $g(s)=s\bmod 2$: exhaustive over all interleavings to depth 7 and all secret pairs, zero distinguishing observations in the honest model. Both mutations caught: the leaked-secret gate above (4 steps), and a worker that bypasses the gate entirely (3 steps) [internal, \texttt{c1\_noninterference.py}].};
 \end{tikzpicture}
 \caption{Two runs of the clean room, identical except Derek's secret, driven in lockstep through the action sequence \texttt{load}$\to$\texttt{read}$\to$\texttt{submit}$\to$\texttt{release}. Erin's observable state is tied ($\equiv$) at every step; the release step is boxed as ``the slot'' because it is the only step the theorem lets differ at all, and here it still does not, since the two secrets share a parity. Below the slot, the leaky-gate mutation shows what a difference at that step actually looks like once caught.}
 \label{fig:sealed-two-worlds}

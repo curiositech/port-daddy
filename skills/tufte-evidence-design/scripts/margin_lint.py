@@ -103,24 +103,81 @@ Rules, and why each is enforced or advisory:
                               carrying the argument) is not something this script can
                               make.
 
-  no-footnote-in-body        ADVISORY, not enforced. The task that added this
-                              checker asked for "no \\footnote in a chapter
-                              body (the Book carries provenance as
-                              sidenotes)," but margin-apparatus.md's own Net
-                              comparison table records that a numbered,
-                              inline sidenote equivalent to tufte-latex's
-                              \\sidenote is "not implemented" in this repo.
-                              Every \\footnote found in the eight chapters as
-                              of this pass is a substantive provenance note
-                              pointing at a companion research paper, not a
-                              drive-by citation -- rewriting one into a
-                              sidenote is an editorial call about where that
-                              provenance note should live and how it should
-                              read, not a mechanical rename, so this checker
-                              reports every \\footnote it finds but does not
-                              fail the build on them. Fixing the chapters
-                              themselves, or building the missing sidenote
-                              macro, is the author's editorial pass.
+  caption-in-column          ENFORCED. margin-apparatus.md section 3.1: a
+                              float caption goes in the MARGIN, as
+                              \\pdmargincaption, and that is the default rather
+                              than the exception. The two carve-outs are a
+                              longtable/xltabular caption (longtable's own,
+                              heading a table that spans pages) and a
+                              full-bleed plate (no margin beside it). Which
+                              captions are eligible is not re-derived here: the
+                              check imports
+                              scripts/harbor-research/captions_to_margin.py and
+                              asks it, so the converter and the lint can never
+                              disagree about what counts.
+
+  caption-states-a-claim     ENFORCED. SKILL.md's own checklist: "Every caption
+                              states the figure's CLAIM as a sentence, not a
+                              label." A script cannot parse English, but one
+                              shape of label is mechanically unmistakable -- a
+                              caption whose first sentence opens with an
+                              interrogative or relative word (How, What, Where,
+                              Which, Why, Whether, Whose, When) is naming its
+                              subject, not asserting anything about it: "How
+                              the harbor economy sits relative to the nearest
+                              prior art on each axis." No claim is made, so
+                              nothing in it can be checked or disagreed with.
+                              Eight of the Book's 54 margin captions opened
+                              this way when the rule was written. Captions that
+                              are labels in some other way are NOT caught; this
+                              rule is a floor, not a grammar checker.
+
+  margin-graphic-fits        ENFORCED. margin-apparatus.md section 3.4 gives a
+                              size envelope: the margin column is 1.3in, and a
+                              graphic wider than that is not a margin graphic.
+                              "Redraw it smaller with fewer marks, or leave it
+                              in the column" -- never scale a column figure
+                              down, which is legible at 4.5in and not at 1.3in
+                              (critiques-and-limits.md, Accessibility). This
+                              reads the declared width of any \\includegraphics
+                              or tikzpicture inside a margin device's argument
+                              and compares it to \\marginparwidth, resolving a
+                              \\textwidth / \\linewidth fraction against the
+                              Book's 4.5in measure. It checks what the SOURCE
+                              declares; a graphic whose natural size exceeds
+                              its declared width is the rendered-figure
+                              checkers' business, not this one's.
+
+  margin-carries-the-caption ENFORCED. The defect this whole file exists to
+                              catch, stated as a check: a chapter whose margin
+                              carries portraits and nothing else has an empty
+                              margin apparatus with decoration in it. Fires
+                              when a chapter has at least one \\pdmarginfigure
+                              and no \\pdmargincaption, no \\pdsidenote and no
+                              \\pdgloss -- i.e. the margin is being used for the
+                              sixth-priority device while the first five are
+                              all absent. Measured before the re-specification:
+                              10 portraits and 0 glosses in the margin against
+                              61 captions, 9 footnotes and 519 point-of-use
+                              citations in the column.
+
+  no-footnote-in-body        ENFORCED (was advisory). \\pdsidenote now exists in
+                              figures/pd-pedagogy.tex, so converting a footnote
+                              IS a mechanical rename and the reason this rule
+                              was advisory -- "a numbered inline sidenote is not
+                              implemented here" -- no longer holds. The one
+                              exception is a footnote with no line of running
+                              prose to sit beside: inside a float, a longtable,
+                              a tabular, a listing/verbatim block, inside
+                              another margin device's argument, or inside a
+                              section-family heading's title. A heading title is
+                              a moving argument, written to the .toc and .aux,
+                              and a margin device expanded there does not merely
+                              look wrong -- it ends the build (100 "Missing
+                              \\endcsname inserted" errors and a 360-page torso
+                              of the 549-page Book). Eligibility is delegated to
+                              captions_to_margin.py for the same reason
+                              caption-in-column is.
 
 Usage:
     python3 margin_lint.py [FILE.tex ...] [--json] [--repo-root PATH]
@@ -130,8 +187,8 @@ With no FILE arguments, reads the Book's eight chapter sources from the
 to --repo-root, default: three levels up from this script).
 
 Exit status: 0 if no ENFORCED rule was violated (advisory findings, such as
-every no-footnote-in-body hit, do not affect this); 1 if any ENFORCED rule
-was violated; 2 on a usage error (a named file does not exist, or
+every margin-figures-may-collide hit, do not affect this); 1 if any ENFORCED
+rule was violated; 2 on a usage error (a named file does not exist, or
 textbook.json cannot be read/parsed for the no-argument default).
 """
 from __future__ import annotations
@@ -176,9 +233,23 @@ RULES = {
     "gloss-not-repeated": "enforced",
     "gloss-term-in-prior-prose": "enforced",
     "gloss-in-running-prose": "enforced",
-    "no-footnote-in-body": "advisory",
+    "caption-in-column": "enforced",
+    "caption-states-a-claim": "enforced",
+    "margin-graphic-fits": "enforced",
+    "margin-carries-the-caption": "enforced",
+    "no-footnote-in-body": "enforced",
     "provedon-resolves": "enforced",
 }
+
+# margin-apparatus.md section 3.4: the Book's margin column is 1.3in and its
+# text measure is 4.5in (the geometry in
+# coordination-papers-mega-volume-preamble.tex).
+MARGINPARWIDTH_IN = 1.3
+TEXTWIDTH_IN = 4.5
+
+# caption-states-a-claim: a first word that turns the caption into the name of
+# a subject rather than an assertion about it.
+LABEL_OPENERS = ("how", "what", "where", "which", "why", "whether", "whose", "when")
 
 
 def strip_tex_markup(s: str) -> str:
@@ -197,6 +268,20 @@ def strip_tex_markup(s: str) -> str:
 
 def normalize_term(s: str) -> str:
     return strip_tex_markup(s).casefold()
+
+
+def _load_converter():
+    """Import scripts/harbor-research/captions_to_margin.py by path, so
+    caption-in-column and no-footnote-in-body ask the CONVERTER what is
+    eligible instead of re-deriving it. Two implementations of "which captions
+    belong in the margin" would drift, and the one that fails the build must be
+    the one that does the conversion."""
+    path = REPO_ROOT / "scripts" / "harbor-research" / "captions_to_margin.py"
+    spec = importlib.util.spec_from_file_location("captions_to_margin", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 def _load_marginalia_checker():
@@ -496,19 +581,159 @@ def check_gloss_in_running_prose(path: str, text: str, findings: list):
             })
 
 
-def check_no_footnote_in_body(path: str, text: str, findings: list):
-    for m in re.finditer(r'\\footnote\s*\{', text):
+
+def check_caption_in_column(path: str, text: str, findings: list, converter):
+    """Every eligible float caption belongs in the margin."""
+    mask = converter.mask_comments(text)
+    for cap in converter.scan_captions(text, mask):
+        if cap["action"] != "convert":
+            continue
         findings.append({
             "file": path,
-            "line": line_of(text, m.start()),
-            "rule": "no-footnote-in-body",
-            "severity": "advisory",
+            "line": cap["line"],
+            "rule": "caption-in-column",
+            "severity": "enforced",
             "message": (
-                "\\footnote in a chapter body -- the task's own rule is \"the Book carries "
-                "provenance as sidenotes,\" but margin-apparatus.md's Net comparison table "
-                "records a numbered inline sidenote (tufte-latex's \\sidenote) as \"not "
-                "implemented\" here, so converting this call is an editorial rewrite, not a "
-                "mechanical one; reported, not failed"
+                f"\\caption in a {cap['env']} float is still set in the text column -- "
+                "margin-apparatus.md section 3.1 makes a margin caption the default. Run "
+                "`python3 scripts/harbor-research/captions_to_margin.py --fix`, which will "
+                + ("rename it in place" if cap["at_top"] else
+                   "move it to the float's top and rename it")
+            ),
+        })
+
+
+def check_no_footnote_in_body(path: str, text: str, findings: list, converter):
+    """Every footnote with a line of prose beside it belongs in the margin."""
+    mask = converter.mask_comments(text)
+    for fn in converter.scan_footnotes(text, mask):
+        if fn["action"] != "convert":
+            continue
+        findings.append({
+            "file": path,
+            "line": fn["line"],
+            "rule": "no-footnote-in-body",
+            "severity": "enforced",
+            "message": (
+                "\\footnote in a chapter body -- the Book carries its notes as sidenotes "
+                "(margin-apparatus.md section 3.2). \\pdsidenote now exists, so this is a "
+                "mechanical rename: run "
+                "`python3 scripts/harbor-research/captions_to_margin.py --fix`. A footnote "
+                "with no line of running prose beside it (inside a float, a longtable, a "
+                "tabular, a listing, or a heading's title) is exempt and is not reported here."
+            ),
+        })
+
+
+def check_caption_states_a_claim(path: str, text: str, findings: list):
+    """A caption names its subject instead of asserting anything about it."""
+    for call in find_macro_calls(text, "pdmargincaption", 1):
+        body = re.sub(r"\s+", " ", call["args"][0]).strip()
+        first = re.split(r"(?<=[.!?])\s", body, maxsplit=1)[0]
+        word = re.sub(r"[^A-Za-z]", "", first.split(" ")[0] if first else "")
+        if word.lower() in LABEL_OPENERS:
+            findings.append({
+                "file": path,
+                "line": call["line"],
+                "rule": "caption-states-a-claim",
+                "severity": "enforced",
+                "message": (
+                    f"caption opens with {word!r}, which names the figure's subject rather "
+                    f"than stating its claim: {first[:70]!r}... SKILL.md's checklist wants the "
+                    "claim as a sentence -- \"X stays flat until Y crosses Z, then rises "
+                    "linearly\" beats \"Figure 3: X vs Y\". Rewrite the first sentence as the "
+                    "assertion the reader should walk away with; the subject can follow it."
+                ),
+            })
+
+
+GRAPHIC_WIDTH_RE = re.compile(
+    r"width\s*=\s*([0-9.]*)\s*\\?(textwidth|linewidth|columnwidth|marginparwidth|in|cm|mm|pt)?")
+
+
+def _declared_width_in(spec: str):
+    """Declared width in inches, or None when it cannot be read from source."""
+    m = GRAPHIC_WIDTH_RE.search(spec)
+    if not m:
+        return None
+    raw, unit = m.group(1), m.group(2)
+    try:
+        value = float(raw) if raw else 1.0
+    except ValueError:
+        return None
+    if unit in ("textwidth", "linewidth", "columnwidth"):
+        return value * TEXTWIDTH_IN
+    if unit == "marginparwidth":
+        return value * MARGINPARWIDTH_IN
+    if unit == "in":
+        return value
+    if unit == "cm":
+        return value / 2.54
+    if unit == "mm":
+        return value / 25.4
+    if unit == "pt":
+        return value / 72.27
+    return None
+
+
+def check_margin_graphic_fits(path: str, text: str, findings: list):
+    """A graphic in a margin device must be drawn to the 1.3in column."""
+    for macro, nargs, argidx in (("pdmarginfigure", 2, 1), ("pdgloss", 2, 1),
+                                 ("pdmargincaption", 1, 0), ("pdsidenote", 1, 0)):
+        for call in find_macro_calls(text, macro, nargs):
+            arg = call["args"][argidx]
+            for m in re.finditer(r"\\includegraphics\s*\[([^\]]*)\]", arg):
+                width = _declared_width_in(m.group(1))
+                if width is not None and width > MARGINPARWIDTH_IN + 1e-6:
+                    findings.append({
+                        "file": path,
+                        "line": call["line"],
+                        "rule": "margin-graphic-fits",
+                        "severity": "enforced",
+                        "message": (
+                            f"\\includegraphics in \\{macro} declares a width of "
+                            f"{width:.2f}in, wider than the {MARGINPARWIDTH_IN}in margin "
+                            "column -- margin-apparatus.md section 3.4. Redraw it smaller "
+                            "with fewer marks, or leave it in the text column; do not scale "
+                            "a column figure down, which is legible at 4.5in and not at 1.3in."
+                        ),
+                    })
+            for m in re.finditer(r"\\begin\{tikzpicture\}\s*\[([^\]]*)\]", arg):
+                width = _declared_width_in(m.group(1))
+                if width is not None and width > MARGINPARWIDTH_IN + 1e-6:
+                    findings.append({
+                        "file": path,
+                        "line": call["line"],
+                        "rule": "margin-graphic-fits",
+                        "severity": "enforced",
+                        "message": (
+                            f"tikzpicture in \\{macro} declares a width of {width:.2f}in, "
+                            f"wider than the {MARGINPARWIDTH_IN}in margin column -- "
+                            "margin-apparatus.md section 3.4."
+                        ),
+                    })
+
+
+def check_margin_carries_the_caption(path: str, text: str, findings: list):
+    """A margin with portraits in it and nothing else is not an apparatus."""
+    portraits = find_macro_calls(text, "pdmarginfigure", 2)
+    if not portraits:
+        return
+    carried = (len(find_macro_calls(text, "pdmargincaption", 1))
+               + len(find_macro_calls(text, "pdsidenote", 1))
+               + len(find_macro_calls(text, "pdgloss", 2)))
+    if carried == 0:
+        findings.append({
+            "file": path,
+            "line": portraits[0]["line"],
+            "rule": "margin-carries-the-caption",
+            "severity": "enforced",
+            "message": (
+                f"this chapter's margin carries {len(portraits)} \\pdmarginfigure call(s) and "
+                "no \\pdmargincaption, \\pdsidenote or \\pdgloss -- an empty margin apparatus "
+                "with decoration in it. margin-apparatus.md section 3 orders the margin's "
+                "claims: captions, sidenotes, short-form citations, small explanatory "
+                "graphics, glosses, and portraits LAST."
             ),
         })
 
@@ -553,7 +778,7 @@ def check_provedon_resolves(path: str, text: str, findings: list, entry_labels: 
             })
 
 
-def lint_file(path: str, repo_root: str, sidecar_mod) -> list:
+def lint_file(path: str, repo_root: str, sidecar_mod, converter) -> list:
     raw = Path(path).read_text(encoding="utf-8")
     text = strip_comments(raw)
     findings: list = []
@@ -564,7 +789,11 @@ def lint_file(path: str, repo_root: str, sidecar_mod) -> list:
     check_gloss_not_repeated(path, text, findings)
     check_gloss_term_in_prior_prose(path, text, findings)
     check_gloss_in_running_prose(path, text, findings)
-    check_no_footnote_in_body(path, text, findings)
+    check_caption_in_column(path, text, findings, converter)
+    check_caption_states_a_claim(path, text, findings)
+    check_margin_graphic_fits(path, text, findings)
+    check_margin_carries_the_caption(path, text, findings)
+    check_no_footnote_in_body(path, text, findings, converter)
     check_provedon_resolves(path, text, findings, discharge_entry_labels(repo_root))
     findings.sort(key=lambda f: (f["line"], f["rule"]))
     return findings
@@ -600,10 +829,11 @@ def main(argv=None) -> int:
             return 2
 
     sidecar_mod = _load_marginalia_checker()
+    converter = _load_converter()
 
     all_findings: list = []
     for f in files:
-        all_findings.extend(lint_file(f, repo_root, sidecar_mod))
+        all_findings.extend(lint_file(f, repo_root, sidecar_mod, converter))
 
     if args.json:
         print(json.dumps(all_findings, indent=2))

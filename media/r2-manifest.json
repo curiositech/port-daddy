@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 633,
+    "distinctObjects": 597,
+    "bytes": 298388865,
+    "distinctBytes": 295595274
   },
   "assets": [
     {
@@ -140,6 +140,27 @@
       "bytes": 595036,
       "sha256": "ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e",
       "key": "sha256/ee/ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/after-redraw.png",
+      "bytes": 163547,
+      "sha256": "9bca0c2c34e7032ffeac829cb8d5e0ac9a4dc2e96fca5e9bdc980cdfa99447ca",
+      "key": "sha256/9b/9bca0c2c34e7032ffeac829cb8d5e0ac9a4dc2e96fca5e9bdc980cdfa99447ca.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/before-current-head.png",
+      "bytes": 86388,
+      "sha256": "a5d3bb6bf6e96f95d0896043038338aac7a8e5ecc8fc9c5d741664ea8d514ebc",
+      "key": "sha256/a5/a5d3bb6bf6e96f95d0896043038338aac7a8e5ecc8fc9c5d741664ea8d514ebc.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/reference-2026-old-form.png",
+      "bytes": 234685,
+      "sha256": "f6637914054e1f33cbd2d06dd68772c5c0574242c32dea4d5fa590d4b16ab221",
+      "key": "sha256/f6/f6637914054e1f33cbd2d06dd68772c5c0574242c32dea4d5fa590d4b16ab221.png",
       "contentType": "image/png"
     },
     {
@@ -766,6 +787,202 @@
       "contentType": "image/gif"
     },
     {
+      "path": "docs/pr-assets/book-maximal-margin-contact-sheet.jpg",
+      "bytes": 3362515,
+      "sha256": "fc823e42277b7076f7cf04f1761c33d7a24c8c4583460bfbc7fc3a2ce4b1e813",
+      "key": "sha256/fc/fc823e42277b7076f7cf04f1761c33d7a24c8c4583460bfbc7fc3a2ce4b1e813.jpg",
+      "contentType": "image/jpeg"
+    },
+    {
+      "path": "docs/pr-assets/book-maximal-margin-tour.gif",
+      "bytes": 1881186,
+      "sha256": "e177428b19962a370ccad3791c1fa569f4ee8bf03f54eb47df605b53840cae68",
+      "key": "sha256/e1/e177428b19962a370ccad3791c1fa569f4ee8bf03f54eb47df605b53840cae68.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/before-after-fig-5-8-audit-tower.png",
+      "bytes": 325112,
+      "sha256": "76c728781ec5d91be8115cc8737e147d2e00c1ea32cfbe9fef60d5af9f51cfed",
+      "key": "sha256/76/76c728781ec5d91be8115cc8737e147d2e00c1ea32cfbe9fef60d5af9f51cfed.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-1-figures.png",
+      "bytes": 508572,
+      "sha256": "ee5b541a97e1d93dbe027a360acf260f04c2a19c4ed2cd971f78c79eefc7fdfc",
+      "key": "sha256/ee/ee5b541a97e1d93dbe027a360acf260f04c2a19c4ed2cd971f78c79eefc7fdfc.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-2-figures.png",
+      "bytes": 270062,
+      "sha256": "e07f8309da163281e732f99fcaa926b2055df131e4b22d10b88236ff9a875853",
+      "key": "sha256/e0/e07f8309da163281e732f99fcaa926b2055df131e4b22d10b88236ff9a875853.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-3-figures.png",
+      "bytes": 198387,
+      "sha256": "583a027a3f6e2bf8be0aec3531f13290fae8d7f087cf38b7fdd0221e95e6fd25",
+      "key": "sha256/58/583a027a3f6e2bf8be0aec3531f13290fae8d7f087cf38b7fdd0221e95e6fd25.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-4-figures.png",
+      "bytes": 248126,
+      "sha256": "75f4ef1163e7c8e5bd66ab4bad4927dfb7ea16658c40604f37af65d437e6c60e",
+      "key": "sha256/75/75f4ef1163e7c8e5bd66ab4bad4927dfb7ea16658c40604f37af65d437e6c60e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-5-figures.png",
+      "bytes": 427947,
+      "sha256": "8c074f38916be1210b79d88084447f0cb64a19d4bb3df5e8d569b502d62c9d01",
+      "key": "sha256/8c/8c074f38916be1210b79d88084447f0cb64a19d4bb3df5e8d569b502d62c9d01.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-6-figures.png",
+      "bytes": 200022,
+      "sha256": "30d742b4ecfeda62e8ed5af6c8df9c4fe0dd7b3d7c66c62182d2cbb6e32ad132",
+      "key": "sha256/30/30d742b4ecfeda62e8ed5af6c8df9c4fe0dd7b3d7c66c62182d2cbb6e32ad132.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-7-figures.png",
+      "bytes": 421264,
+      "sha256": "f9e3a693ff36ce873cbcf7e4d392dc1706893e4612b8cc408261499d298b551c",
+      "key": "sha256/f9/f9e3a693ff36ce873cbcf7e4d392dc1706893e4612b8cc408261499d298b551c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/chapter-8-figures.png",
+      "bytes": 285269,
+      "sha256": "62d33543cde16dcfe57c4e96384f2aefae633b25edd899f954ee3a9686840942",
+      "key": "sha256/62/62d33543cde16dcfe57c4e96384f2aefae633b25edd899f954ee3a9686840942.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/new-figures-chapter-7.png",
+      "bytes": 539365,
+      "sha256": "0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af",
+      "key": "sha256/09/0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-apparatus-chapter-tour.gif",
+      "bytes": 1370583,
+      "sha256": "c039595a339bf2bfd9a91b24d0823417d4ac1687233370a8d86eefd93101d7f6",
+      "key": "sha256/c0/c039595a339bf2bfd9a91b24d0823417d4ac1687233370a8d86eefd93101d7f6.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch1-single-writer-kernel.png",
+      "bytes": 465740,
+      "sha256": "d3e7fd829e6f09f3c7f27eb6838ce0afd4c973720a639e1917c55e57564f1810",
+      "key": "sha256/d3/d3e7fd829e6f09f3c7f27eb6838ce0afd4c973720a639e1917c55e57564f1810.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch2-anchor-protocol.png",
+      "bytes": 470032,
+      "sha256": "f99b1814b23f0f68740329fe43661f22078804ddcff658e16d4f59c0980a3627",
+      "key": "sha256/f9/f99b1814b23f0f68740329fe43661f22078804ddcff658e16d4f59c0980a3627.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch3-sealed-harbor.png",
+      "bytes": 358526,
+      "sha256": "766d52fbbe1ef66ee13c395fa5e37932697db662dfaddb0ebd6147820d5955f1",
+      "key": "sha256/76/766d52fbbe1ef66ee13c395fa5e37932697db662dfaddb0ebd6147820d5955f1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch4-legible-swarm.png",
+      "bytes": 562540,
+      "sha256": "32b0e7d1dcbe529b86016eeecb5f804f4603b836bfaa8a395bab1c0ef0676b8d",
+      "key": "sha256/32/32b0e7d1dcbe529b86016eeecb5f804f4603b836bfaa8a395bab1c0ef0676b8d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch5-spawn-to-person.png",
+      "bytes": 392634,
+      "sha256": "63cae35cf5db5e8b49e78b744f8b1ece84fec113d9570c0c2c73eb6969ad27b2",
+      "key": "sha256/63/63cae35cf5db5e8b49e78b744f8b1ece84fec113d9570c0c2c73eb6969ad27b2.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch6-harbor-economy.png",
+      "bytes": 546113,
+      "sha256": "10ef19e740da845acef6ce332154c81ea27fc95a1894ab6f70d9031800b3ee7d",
+      "key": "sha256/10/10ef19e740da845acef6ce332154c81ea27fc95a1894ab6f70d9031800b3ee7d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch7-bonded-commons.png",
+      "bytes": 304901,
+      "sha256": "b3cf3fbbc81656d35e05bda99b3348bc2c2f78ad44ec35d85d57e326a2c91101",
+      "key": "sha256/b3/b3cf3fbbc81656d35e05bda99b3348bc2c2f78ad44ec35d85d57e326a2c91101.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-caption-ch8-federated-harbor.png",
+      "bytes": 226907,
+      "sha256": "5718d644a75b145452732a3ace632e83ae329fcd8335db97ebff097edf6041ff",
+      "key": "sha256/57/5718d644a75b145452732a3ace632e83ae329fcd8335db97ebff097edf6041ff.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/margin-gloss-work-unit.png",
+      "bytes": 359816,
+      "sha256": "46cea80b02e63d696785dfbb2cdfee1c4e61e5b28ebc95c75eb148203e297bf7",
+      "key": "sha256/46/46cea80b02e63d696785dfbb2cdfee1c4e61e5b28ebc95c75eb148203e297bf7.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-capfits-fallback-p050.png",
+      "bytes": 197679,
+      "sha256": "e1f0809a846dd392c3b1ef117f0530ff07b43c568aeba29cf2a2b5e94020e678",
+      "key": "sha256/e1/e1f0809a846dd392c3b1ef117f0530ff07b43c568aeba29cf2a2b5e94020e678.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-margin-tour.gif",
+      "bytes": 812196,
+      "sha256": "d1840294a1fb6fd5c7bf358c187fe427d3c1bda28c55b2ab8677162692c3844f",
+      "key": "sha256/d1/d1840294a1fb6fd5c7bf358c187fe427d3c1bda28c55b2ab8677162692c3844f.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdgloss-p167.png",
+      "bytes": 354810,
+      "sha256": "e2c8b5949a921a54fffb49e682b8e5456183005052572d08cb8cfc410fd3394a",
+      "key": "sha256/e2/e2c8b5949a921a54fffb49e682b8e5456183005052572d08cb8cfc410fd3394a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdmargincaption-p046.png",
+      "bytes": 289195,
+      "sha256": "5b293c585e03ffc89e475f913179b17c13371d0e646451fc48d9148203b816a0",
+      "key": "sha256/5b/5b293c585e03ffc89e475f913179b17c13371d0e646451fc48d9148203b816a0.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdsession-marginhead-p018.png",
+      "bytes": 292876,
+      "sha256": "629b579ee63859946931da876c7ae2fc3402a62398afb8fb644d39cc0b00ab58",
+      "key": "sha256/62/629b579ee63859946931da876c7ae2fc3402a62398afb8fb644d39cc0b00ab58.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/one-margin-system/one-margin-system-pdsidenote-p155.png",
+      "bytes": 329324,
+      "sha256": "c97323f93d683f1a59272f93d5f4c2de02294310a0de9cfce4f42d44bd296206",
+      "key": "sha256/c9/c97323f93d683f1a59272f93d5f4c2de02294310a0de9cfce4f42d44bd296206.png",
+      "contentType": "image/png"
+    },
+    {
       "path": "docs/pr-assets/pr-10178/fh-xfer-ceremony-record-vs-render-1x-150dpi.png",
       "bytes": 169365,
       "sha256": "157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3",
@@ -784,6 +1001,139 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10184/swk-stack-map-book-1x-150dpi.png",
+      "bytes": 300697,
+      "sha256": "b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b",
+      "key": "sha256/b6/b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10184/swk-stack-map-chapter-1x-150dpi.png",
+      "bytes": 285320,
+      "sha256": "4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631",
+      "key": "sha256/4f/4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-book-1x-150dpi.png",
+      "bytes": 257046,
+      "sha256": "af283018c53f10b03d0d3194e1a968c21c6dc8d387ba0550cb401673ad0e051a",
+      "key": "sha256/af/af283018c53f10b03d0d3194e1a968c21c6dc8d387ba0550cb401673ad0e051a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-chapter-1x-150dpi.png",
+      "bytes": 260643,
+      "sha256": "d526ed50363ae296152bd9f82f034791fca9530e1b73ef12912cd6bd8d3e6e74",
+      "key": "sha256/d5/d526ed50363ae296152bd9f82f034791fca9530e1b73ef12912cd6bd8d3e6e74.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/bc-delta-threshold-book-vs-chapter-1x-150dpi.png",
+      "bytes": 392884,
+      "sha256": "4e9606cb8017d2fd8a7f39bdd6034754591e3cfbbaf710138bf9ebafe9c473e6",
+      "key": "sha256/4e/4e9606cb8017d2fd8a7f39bdd6034754591e3cfbbaf710138bf9ebafe9c473e6.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/he-succession-price-book-vs-chapter-1x-150dpi.png",
+      "bytes": 324658,
+      "sha256": "d661a0419acc271a7ecd32d49b9b3f4375314a79c76d9cc359f3b2db94da3e11",
+      "key": "sha256/d6/d661a0419acc271a7ecd32d49b9b3f4375314a79c76d9cc359f3b2db94da3e11.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/anchor-phases-gloss-lines-book-1x-150dpi.png",
+      "bytes": 226263,
+      "sha256": "48ed13bc9141e1cd6670b8ca48787160b271898cade2ed15e33a8b5377ef295e",
+      "key": "sha256/48/48ed13bc9141e1cd6670b8ca48787160b271898cade2ed15e33a8b5377ef295e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/bonded-key-custody-size-floor-book-1x-150dpi.png",
+      "bytes": 170104,
+      "sha256": "df8f7d63c26b4298ad41dcd068d69f984596e0d8c42b8643f732f0b765356dcb",
+      "key": "sha256/df/df8f7d63c26b4298ad41dcd068d69f984596e0d8c42b8643f732f0b765356dcb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/bonded-key-custody-size-floor-chapter-1x-150dpi.png",
+      "bytes": 252872,
+      "sha256": "7d3da562b13fab6fb21cebf16a08ce06d35124bfb7ff192363d77b74c87a8f2e",
+      "key": "sha256/7d/7d3da562b13fab6fb21cebf16a08ce06d35124bfb7ff192363d77b74c87a8f2e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/sealed-operating-curve-guide-dash-book-1x-150dpi.png",
+      "bytes": 259515,
+      "sha256": "c37394f0159edcb5d353477568abdb46e7077f24a1c4f446c40778759a6287fb",
+      "key": "sha256/c3/c37394f0159edcb5d353477568abdb46e7077f24a1c4f446c40778759a6287fb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/sealed-pillar-pipeline-mono-and-reverse-book-1x-150dpi.png",
+      "bytes": 291595,
+      "sha256": "135782ee276c626390719a4cfe758f7f94ec9e9ac28142a813c9ede72155bd9b",
+      "key": "sha256/13/135782ee276c626390719a4cfe758f7f94ec9e9ac28142a813c9ede72155bd9b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10191/stp-rate-the-raters-gloss-and-math-book-1x-150dpi.png",
+      "bytes": 279449,
+      "sha256": "33ad4d08501d7567637fc6c78527baf35fcf03bf381f1da24787b8b2629e9444",
+      "key": "sha256/33/33ad4d08501d7567637fc6c78527baf35fcf03bf381f1da24787b8b2629e9444.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch2-withdrawn-section-title.png",
+      "bytes": 639874,
+      "sha256": "13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c",
+      "key": "sha256/13/13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch5-why-not-stake.png",
+      "bytes": 534543,
+      "sha256": "e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a",
+      "key": "sha256/e9/e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch7-perfect-public-monitoring.png",
+      "bytes": 749486,
+      "sha256": "32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb",
+      "key": "sha256/32/32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-1-equation-over-measure.png",
+      "bytes": 621051,
+      "sha256": "245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1",
+      "key": "sha256/24/245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-2-ownership-table-columns.png",
+      "bytes": 373635,
+      "sha256": "3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6",
+      "key": "sha256/32/3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-3-chapref-dead-link.png",
+      "bytes": 496423,
+      "sha256": "1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa",
+      "key": "sha256/19/1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-4-margin-plate-off-paper.png",
+      "bytes": 949207,
+      "sha256": "015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4",
+      "key": "sha256/01/015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4.png",
       "contentType": "image/png"
     },
     {

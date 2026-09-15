@@ -29,6 +29,7 @@
         "fig-anchor-card-lifecycle",
         "fig-anchor-cuckoo-inline",
         "fig-anchor-delegation-inline",
+        "fig-anchor-handshake-ladder",
         "fig-anchor-revocation-gossip",
         "session-anchor-v6-attack"
       ],
@@ -77,7 +78,7 @@
         "tab-keystone-split"
       ],
       "inline_figures": 0,
-      "inline_tables": 7
+      "inline_tables": 8
     },
     "harbor-economy": {
       "source": "website-v2/public/whitepaper/harbor-economy.tex",
@@ -91,6 +92,7 @@
         "fig-he-cold-start",
         "fig-he-conservation-functor",
         "fig-he-float-plan",
+        "fig-he-succession-price",
         "fig-he-three-sided",
         "tab-fh-topology",
         "tab-keystone-split"
@@ -101,13 +103,17 @@
     "bonded-commons": {
       "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
       "inputs": [
+        "fig-bc-delta-threshold",
+        "fig-bc-graduated-trigger",
+        "fig-bc-oracle-audit-rate",
         "fig-bonded-key-custody",
         "fig-cartel-game-inline",
         "fig-governance-flow",
         "fig-magic-link-inline",
         "fig-sybil-inline",
         "fig-worked-example",
-        "session-bc-delta30"
+        "session-bc-delta30",
+        "tab-bc-settlement-rule"
       ],
       "inline_figures": 3,
       "inline_tables": 8

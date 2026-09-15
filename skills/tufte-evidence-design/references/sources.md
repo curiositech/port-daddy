@@ -128,8 +128,9 @@ quote.
   automatically. `[verified — read directly, this repo]`
 - `website-v2/public/whitepaper/figures/pd-pedagogy.tex` (byte-identical twin of
   `whitepaper/figures/pd-pedagogy.tex`) — defines `\pdmarginfigure{slug}{caption}`
-  (a duotone portrait keyed to `plates/marginalia/<slug>.jpg`, Book-only, silently
-  a no-op when `\ifpdmargincolumn` is false) and the whole pedagogic apparatus
+  (a duotone portrait keyed to `plates/marginalia/<slug>.jpg`, placed into the
+  margin unconditionally — there is one margin system and no artifact switch in
+  front of it) and the whole pedagogic apparatus
   (`pdclaim`, `pdboundary`, `pdexample`, `pdrecitation`, `pdexercise`,
   `pdsession`). `[verified — read directly, this repo]`
 - `\pdgloss` does **not exist yet** in this repository. `docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md`
