@@ -1,7 +1,7 @@
 //! `HarborBuffer` — the Loro CRDT substrate behind the Harbor Editor (battle-plan
 //! §3, P1 row). This is the slice that proves **agents and humans are co-equal
 //! replicas**: every editing actor — operator or dispatched agent — is a first-class
-//! Loro replica keyed to its Port Daddy identity, and two such replicas' edits
+//! Loro replica with its own incarnation, and two such replicas' edits
 //! merge byte-conflict-free with per-line authorship preserved.
 //!
 //! ## Honest scope (read before extending)
@@ -14,16 +14,15 @@
 //! Nothing here touches gpui. The buffer compiles and unit-tests on Linux with the
 //! default (no-`gpui`) feature set, so the co-equal-replica proof runs in CI.
 //!
-//! ## Identity → PeerID mapping
-//! A Loro `PeerID` is a `u64`. We mint one deterministically from the actor's PD
-//! identity string (`project:stack:context` for an agent, the OS user for a human,
-//! whatever `pd whoami` reports) by hashing it with FNV-1a. The same identity
-//! therefore always maps to the same replica across reconnects. This mapping is a
-//! necessary authorship primitive, not P3.5 recovery authority: it does not let a
-//! successor assume a dead actor's verified identity. We mask off `u64::MAX`
-//! because Loro reserves it.
+//! ## Principal is not replica identity
+//! Each new buffer gets Loro's fresh replica incarnation, independent of its
+//! display label. Concurrent devices and successors never restart one principal's
+//! operation counter. Importing history preserves predecessor-authored operations;
+//! it does not adopt the predecessor's writing identity. A label and PeerID are
+//! not authenticated admission: the Harbor authority must separately bind the
+//! principal, device, session and current grant before shared writes are admitted.
 
-use loro::{ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap};
+use loro::{ContainerTrait, ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap, UndoManager};
 use std::ops::Range;
 
 /// Loro container name for the file's text. One file = one `LoroDoc` holding one
@@ -40,15 +39,17 @@ const AUTHOR_MARK: &str = "author";
 /// public surface does not force callers to depend on the loro crate directly.
 pub type PeerId = u64;
 
-/// Mint a stable Loro `PeerId` from a PD identity string.
-///
-/// FNV-1a over the identity's bytes — deterministic, dependency-free, and stable
-/// across process restarts so a reconnecting actor lands on the *same* replica id.
-/// P3.5 recovery must separately prove the abandoned actor and complete typed
-/// operation ledger through canonical Rust; callers may not self-assert a dead
-/// actor's identity. We clear the top bit's all-ones edge by masking `u64::MAX`,
-/// which Loro reserves internally.
-pub fn peer_id_for_identity(identity: &str) -> PeerId {
+/// Local editing history, never global rollback or a recovery authority.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryDirection {
+    Undo,
+    Redo,
+}
+
+/// Deterministic IDs for isolated codec/claim fixtures ONLY. Production replicas
+/// use Loro's fresh IDs, never a hash of an asserted principal or label.
+#[cfg(test)]
+pub fn fixture_peer_id(identity: &str) -> PeerId {
     // FNV-1a 64-bit.
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for b in identity.as_bytes() {
@@ -82,6 +83,9 @@ pub struct HarborBuffer {
     local_peer: PeerId,
     /// The PD identity string this replica was opened under (for audit/debug).
     identity: String,
+    /// Bound to this incarnation for its lifetime. Imported history is not a
+    /// local undo item; reopening starts a new editing history, not a recovery.
+    history: UndoManager,
 }
 
 impl HarborBuffer {
@@ -106,18 +110,17 @@ impl HarborBuffer {
     /// (e.g. a second "agent" replica). Use [`open`] to load a real file.
     pub fn empty(identity: impl Into<String>) -> Self {
         let identity = identity.into();
-        let local_peer = peer_id_for_identity(&identity);
         let doc = LoroDoc::new();
-        // PeerID set must precede any op so the first edit is attributed correctly.
-        doc.set_peer_id(local_peer)
-            .expect("set_peer_id on a fresh doc");
+        let local_peer = doc.peer_id();
         doc.config_text_style(Self::author_styles());
         let text = doc.get_text(TEXT_CONTAINER);
+        let history = UndoManager::new(&doc);
         Self {
             doc,
             text,
             local_peer,
             identity,
+            history,
         }
     }
 
@@ -143,6 +146,9 @@ impl HarborBuffer {
                 .expect("mark seed content with opener's peer");
             buf.doc.commit();
         }
+        // Loading a file is a baseline, not a user edit. In particular, Cmd-Z
+        // immediately after opening must not erase the file's seed content.
+        buf.history.clear();
         Ok(buf)
     }
 
@@ -202,6 +208,32 @@ impl HarborBuffer {
             .expect("export authored replacement delta")
     }
 
+    pub fn can_step_history(&self, direction: HistoryDirection) -> bool {
+        match direction {
+            HistoryDirection::Undo => self.history.can_undo(),
+            HistoryDirection::Redo => self.history.can_redo(),
+        }
+    }
+
+    /// Undo/redo only this replica's local operations, emitting the exact new
+    /// CRDT delta for the existing mirror/transport pipeline. This is deliberately
+    /// not a string snapshot replacement: remote edits and authorship survive.
+    /// Each accepted replacement is one history item (no timed grouping yet).
+    /// The pane must check claims BEFORE calling this mutating substrate method.
+    pub fn step_history(&mut self, direction: HistoryDirection) -> Result<Option<Vec<u8>>, String> {
+        let before = self.doc.oplog_vv();
+        let changed = match direction {
+            HistoryDirection::Undo => self.history.undo(),
+            HistoryDirection::Redo => self.history.redo(),
+        }.map_err(|error| format!("editor history failed: {error}"))?;
+        if !changed {
+            return Ok(None);
+        }
+        self.doc.export(ExportMode::updates(&before))
+            .map(Some)
+            .map_err(|error| format!("editor history export failed: {error}"))
+    }
+
     /// Append `line` (a single logical line WITHOUT a trailing newline) at the end
     /// of the buffer, authored to this replica. A newline is added so the next
     /// append starts a fresh line. Convenience over `insert_authored` for the
@@ -251,6 +283,35 @@ impl HarborBuffer {
     /// The full text content (all lines, newlines intact).
     pub fn to_string(&self) -> String {
         self.text.to_string()
+    }
+
+    /// Anchor a UTF-8 boundary to CRDT history, not a line or byte number.
+    /// The caller binds serialized anchors to the exact DocumentRef before use.
+    pub fn anchor_at_byte(&self, byte: usize) -> Option<loro::cursor::Cursor> {
+        let text = self.to_string();
+        if byte > text.len() || !text.is_char_boundary(byte) {
+            return None;
+        }
+        self.doc.commit();
+        self.text.get_cursor(text[..byte].chars().count(), Default::default())
+    }
+
+    /// Resolve against the current text, updating deleted-element anchors with
+    /// Loro's replacement cursor. Missing history stays unresolved, not guessed.
+    pub fn resolve_anchor_byte(&self, anchor: &mut loro::cursor::Cursor) -> Option<usize> {
+        if anchor.container != self.text.id() {
+            return None;
+        }
+        let result = self.doc.get_cursor_pos(anchor).ok()?;
+        if let Some(updated) = result.update {
+            *anchor = updated;
+        }
+        let text = self.to_string();
+        if result.current.pos == text.chars().count() {
+            Some(text.len())
+        } else {
+            text.char_indices().nth(result.current.pos).map(|(byte, _)| byte)
+        }
     }
 
     /// A cheap, comparable stamp of the buffer's current CRDT state (the
@@ -351,28 +412,167 @@ impl HarborBuffer {
 mod tests {
     use super::*;
 
-    /// A stable PD identity → PeerId mapping: same identity, same id; different
-    /// identities, (overwhelmingly) different ids. This underpins the
-    /// replica↔identity binding that stable authorship and reconnect depend on.
     #[test]
-    fn peer_id_is_stable_and_identity_specific() {
-        let human = "port-daddy:console:erich";
-        let agent = "port-daddy:editor:refactor-agent";
-        assert_eq!(
-            peer_id_for_identity(human),
-            peer_id_for_identity(human),
-            "same identity must mint the same replica id across reconnects"
-        );
-        assert_ne!(
-            peer_id_for_identity(human),
-            peer_id_for_identity(agent),
-            "distinct actors must be distinct replicas"
-        );
-        assert_ne!(
-            peer_id_for_identity(human),
-            u64::MAX,
-            "must dodge the reserved sentinel"
-        );
+    fn history_never_undoes_disk_seed_or_imported_baseline() {
+        let path = scratch_dir().join("history-seed.txt");
+        std::fs::write(&path, "baseline 😀\n").unwrap();
+        let mut opener = HarborBuffer::open(path.to_str().unwrap(), "Abe").unwrap();
+        let mut successor = HarborBuffer::empty("Abe");
+        successor.apply_remote_ops(&opener.export_snapshot()).unwrap();
+        for buffer in [&mut opener, &mut successor] {
+            let stamp = buffer.change_stamp();
+            assert!(!buffer.can_step_history(HistoryDirection::Undo));
+            assert_eq!(buffer.step_history(HistoryDirection::Undo).unwrap(), None);
+            assert_eq!(buffer.step_history(HistoryDirection::Redo).unwrap(), None);
+            assert_eq!(buffer.change_stamp(), stamp);
+            assert_eq!(buffer.to_string(), "baseline 😀\n");
+        }
+    }
+
+    #[test]
+    fn history_only_reverts_local_edits_and_emits_convergent_authored_deltas() {
+        let seed = HarborBuffer::empty("Becky");
+        seed.insert_authored(0, "field notes\n");
+        let mut local = HarborBuffer::empty("Abe");
+        local.apply_remote_ops(&seed.export_snapshot()).unwrap();
+        let remote = HarborBuffer::empty("Charli");
+        remote.apply_remote_ops(&local.export_snapshot()).unwrap();
+        // Concurrent edits in one line, not just disjoint appended lines.
+        let local_delta = local.replace_authored(0..0, "😀 ");
+        let remote_delta = remote.replace_authored(0..0, "研究 ");
+        local.apply_remote_ops(&remote_delta).unwrap();
+        remote.apply_remote_ops(&local_delta).unwrap();
+        let edited = local.to_string();
+        let authored = local.richtext_spans();
+        assert_eq!(remote.to_string(), edited);
+
+        let undo = local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        assert_eq!(local.to_string(), "研究 field notes\n");
+        remote.apply_remote_ops(&undo).unwrap();
+        remote.apply_remote_ops(&undo).unwrap();
+        assert_eq!(remote.richtext_spans(), local.richtext_spans());
+        assert_eq!(local.richtext_spans(), vec![
+            ("研究 ".into(), Some(remote.local_peer())),
+            ("field notes\n".into(), Some(seed.local_peer())),
+        ]);
+        assert!(!local.can_step_history(HistoryDirection::Undo));
+
+        let redo = local.step_history(HistoryDirection::Redo).unwrap().unwrap();
+        remote.apply_remote_ops(&redo).unwrap();
+        assert_eq!(local.to_string(), edited);
+        assert_eq!(local.richtext_spans(), authored);
+        assert_eq!(remote.richtext_spans(), authored);
+    }
+
+    #[test]
+    fn undo_replacement_restores_original_authorship_not_the_undoing_replica() {
+        let seed = HarborBuffer::empty("Becky");
+        seed.insert_authored(0, "é😀\n");
+        let mut local = HarborBuffer::empty("Charli");
+        local.apply_remote_ops(&seed.export_snapshot()).unwrap();
+        local.replace_authored(0..2, "replacement");
+        local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        assert_eq!(local.richtext_spans(), seed.richtext_spans());
+        local.step_history(HistoryDirection::Redo).unwrap().unwrap();
+        assert_eq!(local.richtext_spans(), vec![
+            ("replacement".into(), Some(local.local_peer())),
+            ("\n".into(), Some(seed.local_peer())),
+        ]);
+    }
+
+    #[test]
+    fn remote_edit_after_undo_survives_redo_but_new_local_edit_clears_redo() {
+        let mut local = HarborBuffer::empty("Abe");
+        local.insert_authored(0, "local");
+        local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        let remote = HarborBuffer::empty("Becky");
+        remote.apply_remote_ops(&local.export_snapshot()).unwrap();
+        remote.insert_authored(0, "remote");
+        local.apply_remote_ops(&remote.export_ops()).unwrap();
+        assert!(local.can_step_history(HistoryDirection::Redo));
+        local.step_history(HistoryDirection::Redo).unwrap().unwrap();
+        assert!(local.to_string().contains("remote"));
+        assert!(local.to_string().contains("local"));
+        local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        local.insert_authored(0, "different");
+        let stamp = local.change_stamp();
+        assert!(!local.can_step_history(HistoryDirection::Redo));
+        assert_eq!(local.step_history(HistoryDirection::Redo).unwrap(), None);
+        assert_eq!(local.change_stamp(), stamp);
+    }
+
+    #[test]
+    fn history_is_bounded_and_each_replacement_is_one_step() {
+        let mut local = HarborBuffer::empty("Abe");
+        for _ in 0..105 {
+            local.insert_authored(0, "😀");
+        }
+        for expected in (5..105).rev() {
+            assert!(local.step_history(HistoryDirection::Undo).unwrap().is_some());
+            assert_eq!(local.to_string().chars().count(), expected);
+        }
+        assert_eq!(local.step_history(HistoryDirection::Undo).unwrap(), None);
+        for _ in 0..100 {
+            assert!(local.step_history(HistoryDirection::Redo).unwrap().is_some());
+        }
+        assert_eq!(local.to_string().chars().count(), 105);
+        assert_eq!(local.step_history(HistoryDirection::Redo).unwrap(), None);
+    }
+
+    #[test]
+    fn stable_cursor_tracks_unicode_insertions_and_deletions() {
+        let local = HarborBuffer::empty("Becky");
+        local.insert_authored(0, "a😀target");
+        let mut cursor = local.anchor_at_byte("a😀".len()).unwrap();
+        assert!(local.anchor_at_byte(2).is_none(), "inside an emoji is not a boundary");
+        let remote = HarborBuffer::empty("Charli");
+        remote.apply_remote_ops(&local.export_ops()).unwrap();
+        remote.insert_authored(0, "研究\n");
+        local.apply_remote_ops(&remote.export_ops()).unwrap();
+        assert_eq!(local.resolve_anchor_byte(&mut cursor), Some("研究\na😀".len()));
+        local.replace_authored(0..5, "");
+        assert_eq!(local.resolve_anchor_byte(&mut cursor), Some(0));
+    }
+
+    #[test]
+    fn unrelated_document_history_cannot_resolve_an_anchor() {
+        let a = HarborBuffer::empty("Abe");
+        let b = HarborBuffer::empty("Abe");
+        a.append_line("same text");
+        b.append_line("same text");
+        let mut cursor = a.anchor_at_byte(3).unwrap();
+        assert!(b.resolve_anchor_byte(&mut cursor).is_none());
+    }
+
+    #[test]
+    fn concurrent_devices_for_one_principal_have_distinct_operation_counters() {
+        let laptop = HarborBuffer::empty("Abe");
+        let phone = HarborBuffer::empty("Abe");
+        assert_ne!(laptop.local_peer(), phone.local_peer());
+        laptop.append_line("laptop draft");
+        phone.append_line("phone draft");
+        let laptop_ops = laptop.export_ops();
+        laptop.apply_remote_ops(&phone.export_ops()).unwrap();
+        phone.apply_remote_ops(&laptop_ops).unwrap();
+        assert_eq!(laptop.to_string(), phone.to_string());
+        assert_eq!(laptop.lines().len(), 2);
+        let authors: std::collections::BTreeSet<_> = laptop.lines().iter()
+            .filter_map(|line| line.author_peer).collect();
+        assert_eq!(authors, [laptop.local_peer(), phone.local_peer()].into());
+    }
+
+    #[test]
+    fn successor_preserves_predecessor_authorship_without_adopting_its_replica() {
+        let predecessor = HarborBuffer::empty("Abe");
+        predecessor.append_line("acknowledged history");
+        let successor = HarborBuffer::empty("Abe");
+        let peer = successor.local_peer();
+        successor.apply_remote_ops(&predecessor.export_snapshot()).unwrap();
+        assert_eq!(successor.local_peer(), peer);
+        assert_ne!(peer, predecessor.local_peer());
+        successor.append_line("successor draft");
+        assert_eq!(successor.lines()[0].author_peer, Some(predecessor.local_peer()));
+        assert_eq!(successor.lines()[1].author_peer, Some(peer));
     }
 
     /// Opening a real file seeds the buffer and attributes every initial line to
@@ -385,7 +585,7 @@ mod tests {
         let id = "port-daddy:console:operator";
         let buf = HarborBuffer::open(path.to_str().unwrap(), id).unwrap();
 
-        let opener = peer_id_for_identity(id);
+        let opener = buf.local_peer();
         let lines = buf.lines();
         assert_eq!(lines.len(), 3, "three seeded lines");
         assert_eq!(lines[0].text, "alpha");
@@ -434,18 +634,15 @@ mod tests {
 
         let human_id = "port-daddy:console:human";
         let agent_id = "port-daddy:editor:agent-A";
-        let human_peer = peer_id_for_identity(human_id);
-        let agent_peer = peer_id_for_identity(agent_id);
-        assert_ne!(
-            human_peer, agent_peer,
-            "the two actors are distinct replicas"
-        );
 
         // Replica A — the operator opens the file.
         let replica_a = HarborBuffer::open(path.to_str().unwrap(), human_id).unwrap();
 
         // Replica B — the agent. It joins by importing A's state, then edits.
         let replica_b = HarborBuffer::empty(agent_id);
+        let human_peer = replica_a.local_peer();
+        let agent_peer = replica_b.local_peer();
+        assert_ne!(human_peer, agent_peer);
         replica_b
             .apply_remote_ops(&replica_a.export_ops())
             .expect("agent imports operator's state");
@@ -514,13 +711,13 @@ mod tests {
     fn snapshot_reconstructs_content_and_authorship() {
         let human_id = "port-daddy:console:human";
         let agent_id = "port-daddy:editor:agent-A";
-        let human_peer = peer_id_for_identity(human_id);
-        let agent_peer = peer_id_for_identity(agent_id);
 
         // A two-replica doc: the operator's seed line + an agent's merged line.
         let a = HarborBuffer::empty(human_id);
         a.append_line("human line");
         let agent = HarborBuffer::empty(agent_id);
+        let human_peer = a.local_peer();
+        let agent_peer = agent.local_peer();
         agent.apply_remote_ops(&a.export_ops()).unwrap();
         agent.append_line("agent line");
         a.apply_remote_ops(&agent.export_ops()).unwrap();

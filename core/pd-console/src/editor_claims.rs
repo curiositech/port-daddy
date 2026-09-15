@@ -2,7 +2,7 @@
 //!
 //! ## What this slice is (honest scope)
 //! P2 proved doc-ops + presence ride the tube and split the **coordination control
-//! plane** (`coordination_channel_for_path`) off the high-frequency edit lane. This
+//! plane** (`coordination_channel_for_document`) off the high-frequency edit lane. This
 //! slice adds the first citizen of that control plane: a **region-scoped claim** —
 //! "agent A is working on `parse_header`, lines 12–40" — that rides the coordination
 //! channel as a **Loro awareness range** (build-coop-ide-gpui ref 03 §2:
@@ -259,7 +259,7 @@ impl ClaimLedger {
 // ── The claim-awareness frame codec (rides the COORDINATION lane) ─────────────
 //
 // A claim is published as a Loro `EphemeralStore` update — exactly the presence
-// substrate, but on `coordination_channel_for_path` (NOT the edit lane) and under a
+// substrate, but on `coordination_channel_for_document` (NOT the edit lane) and under a
 // distinct frame `kind` so a coordination receiver routes claim awareness → the
 // ledger without it ever crossing an op / presence / snapshot / coord-signal frame.
 
@@ -294,7 +294,7 @@ struct WireClaim {
 
 /// Encode a peer's claim `EphemeralStore` update blob into a claim frame string for
 /// [`crate::agent::DaemonClient::broadcast_claim`] on the file's
-/// [`coordination_channel_for_path`](crate::editor_sync::coordination_channel_for_path).
+/// [`coordination_channel_for_document`](crate::editor_sync::coordination_channel_for_document).
 pub fn encode_claim_frame(peer: PeerId, eph_bytes: &[u8]) -> String {
     let frame = WireClaim {
         v: FRAME_V,
@@ -530,11 +530,11 @@ impl ClaimMirror {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::peer_id_for_identity;
+    use crate::buffer::fixture_peer_id;
 
     #[test]
     fn claim_key_store_key_round_trips_including_near_u64_max() {
-        let key = ClaimKey::new(peer_id_for_identity("port-daddy:editor:agent-A"), 7);
+        let key = ClaimKey::new(fixture_peer_id("port-daddy:editor:agent-A"), 7);
         let s = key.store_key();
         assert_eq!(ClaimKey::parse_store_key(&s), Some(key), "a (peer, id) key round-trips");
 
@@ -550,7 +550,7 @@ mod tests {
 
     #[test]
     fn region_claim_normalizes_span_and_answers_coverage() {
-        let peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let peer = fixture_peer_id("port-daddy:editor:agent-A");
         // Constructed low←high (end < start): the span is stored ordered.
         let c = RegionClaim::new(peer, 0, 40, 12, "parse_header", 100);
         assert_eq!(c.line_span(), (12, 40), "span is stored low→high regardless of arg order");
@@ -563,7 +563,7 @@ mod tests {
 
     #[test]
     fn region_claims_overlap_only_when_spans_intersect() {
-        let p = peer_id_for_identity("port-daddy:editor:agent-A");
+        let p = fixture_peer_id("port-daddy:editor:agent-A");
         let header = RegionClaim::new(p, 0, 12, 40, "parse_header", 1);
         let footer = RegionClaim::new(p, 1, 200, 260, "write_footer", 2);
         let straddle = RegionClaim::new(p, 2, 38, 45, "rename", 3);
@@ -574,7 +574,7 @@ mod tests {
 
     #[test]
     fn claim_frame_round_trips_and_stays_off_every_other_lane() {
-        let peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let peer = fixture_peer_id("port-daddy:editor:agent-A");
         let eph = vec![1u8, 2, 3, 250, 255, 0, 9];
         let text = encode_claim_frame(peer, &eph);
         let decoded = decode_claim_frame(&text).expect("a well-formed claim frame decodes");
@@ -602,8 +602,8 @@ mod tests {
     /// keyed by the authoring peer's `ClaimKey`.
     #[test]
     fn claim_rides_awareness_and_lands_in_a_remote_ledger() {
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b_peer = peer_id_for_identity("port-daddy:console:human-B");
+        let a_peer = fixture_peer_id("port-daddy:editor:agent-A");
+        let b_peer = fixture_peer_id("port-daddy:console:human-B");
         let store_a = ClaimStore::new(a_peer);
         let store_b = ClaimStore::new(b_peer);
 
@@ -631,8 +631,8 @@ mod tests {
     /// a file-path-granularity claim would fail this test.
     #[test]
     fn region_claim_does_not_lock_the_rest_of_the_file() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
         let store_a = ClaimStore::new(a);
         let store_b = ClaimStore::new(b);
 
@@ -673,8 +673,8 @@ mod tests {
     /// → a None-valued fresh-timestamp record that [`ClaimLedger`] rebuilds without).
     #[test]
     fn releasing_a_claim_tombstones_it_out_of_a_remote_ledger() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:console:human-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:console:human-B");
         let store_a = ClaimStore::new(a);
         let store_b = ClaimStore::new(b);
 
@@ -699,8 +699,8 @@ mod tests {
     /// the race.
     #[test]
     fn acquire_then_release_in_the_same_instant_nets_to_unclaimed() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:console:human-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:console:human-B");
         for id in 0..50u32 {
             let store_a = ClaimStore::new(a);
             let store_b = ClaimStore::new(b);
@@ -720,7 +720,7 @@ mod tests {
     /// exclude self) — a replica renders its own reservation bands and mirrors them.
     #[test]
     fn ledger_includes_the_local_peers_own_claims() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
         let store_a = ClaimStore::new(a);
         store_a.publish(&RegionClaim::new(a, 0, 3, 8, "own_work", 1));
         let ledger = store_a.ledger();
@@ -732,7 +732,7 @@ mod tests {
     /// leaves the others — the per-claim keying (`<peer>:<id>`), not one-blob-per-peer.
     #[test]
     fn same_peer_holds_multiple_disjoint_region_claims() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
         let store = ClaimStore::new(a);
         store.publish(&RegionClaim::new(a, 0, 12, 40, "parse_header", 1));
         store.publish(&RegionClaim::new(a, 1, 200, 260, "write_footer", 2));
@@ -750,7 +750,7 @@ mod tests {
     /// carries distinct claims together, and stays silent inside the debounce window.
     #[test]
     fn claim_mirror_debounce_coalesces_and_flushes_per_claim() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
         let mut mirror = ClaimMirror::new(100); // ≤ 1 flush / 100ms
 
         // Idle: nothing pending → nothing due.
@@ -785,8 +785,8 @@ mod tests {
     /// enforces no guard on this — it only proves the ledger answers "who owns it".
     #[test]
     fn first_granted_owner_wins_on_contention() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
         let mut ledger = ClaimLedger::new();
         // B granted later (seq 9) than A (seq 3) over an overlapping span.
         ledger.upsert(RegionClaim::new(b, 0, 10, 30, "b_work", 9));
@@ -803,8 +803,8 @@ mod tests {
     /// Engaged (reusing the presence coloring precedent; no Conflicted/Gated in slice 1).
     #[test]
     fn claim_tone_colors_by_peer() {
-        let opener = peer_id_for_identity("port-daddy:console:operator");
-        let agent = peer_id_for_identity("port-daddy:editor:agent-Z");
+        let opener = fixture_peer_id("port-daddy:console:operator");
+        let agent = fixture_peer_id("port-daddy:editor:agent-Z");
         assert!(matches!(claim_tone(opener, opener), crate::pane::Tone::Resting));
         assert!(matches!(claim_tone(agent, opener), crate::pane::Tone::Engaged));
     }
