@@ -372,6 +372,29 @@ jobs:
         continue-on-error: true
         run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
 
+      - name: readers_eye unit tests
+        run: python3 -m unittest discover -s tests/harbor-research -p 'test_readers_eye.py' -v
+
+      # The clean-vs-bad fixture pair, as a gate. This one IS required: it
+      # does not read the Book at all, it only asserts that the check still
+      # separates a paragraph a reader can follow from one they cannot. If
+      # that stops holding, every advisory number below is noise.
+      - name: The reader's-eye check still separates clean prose from bad
+        run: python3 skills/textbook-craft/scripts/readers_eye.py --selftest
+
+      # Advisory, for exactly the reason the chapter_lint step above is: the
+      # corpus is not clean for these rules yet (149 findings across the eight
+      # chapters at the time of landing, 92 of them the single systemic
+      # "this paper" register issue), and a check nobody has cleaned up after
+      # must not freeze the merge queue on the day it lands. Promote one rule
+      # at a time to a required step -- `--rule caption-carries-the-fact
+      # --strict` first, it has the highest precision -- as the corpus clears.
+      # The baseline table it is measured against is
+      # skills/textbook-craft/references/readers-eye.md section 6.
+      - name: Book prose is followable by a reader who lacks the vocabulary (advisory)
+        continue-on-error: true
+        run: python3 skills/textbook-craft/scripts/readers_eye.py --strict --limit 6
+
       - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
         run: python3 scripts/harbor-research/check_figure_register.py
 
