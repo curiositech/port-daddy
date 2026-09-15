@@ -155,15 +155,6 @@
 
 \vspace{1cm}
 
-\begin{abstract}\noindent
-\emph{Agents sharing one machine cannot be trusted to behave, so the Anchor Protocol makes every agent prove cryptographically which capabilities it holds and for how long --- a claim proved symbolically about the protocol, and checked mechanically against the Rust code that actually runs. Express lane: that sentence is the claim; the model-checked properties \ref{thm:injective} and \ref{thm:attn-sound} are the formal statements, and \S\ref{sec:limitations} is where they stop. A reader in a hurry needs nothing else.}
-
-\medskip\noindent
-As AI agents transition from isolated copilots to collaborative, autonomous swarms, local development environments face a crisis of coordination and trust. Existing tools designed for human-driven, static infrastructures lack the primitives required to prevent dynamic agents from corrupting shared state or squatting on ephemeral ports.
-
-This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to Ed25519 signatures and multi-hop delegation chains inspired by Macaroons~\pdcite{birgisson2014macaroons}. ProVerif~\pdcite{blanchet2016modeling} checks symbolic authentication and attenuation properties of the protocol models; Kani checks that the Rust core's parsing and comparison paths cannot panic on bounded symbolic inputs, with the cryptography stubbed; runtime conformance tests cover the deployed bridge. These layers do not amount to a proof of the entire implementation or of hardware-level constant time, and the multi-hop proof is structurally bounded rather than session-unbounded --- Section~\ref{sec:limitations} records those boundaries explicitly.
-\end{abstract}
-
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} distributed systems security, formal verification, capability-based security, multi-agent coordination, symbolic protocol analysis, ProVerif, JWT security, Ed25519
 

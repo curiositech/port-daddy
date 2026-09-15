@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 619,
-    "distinctObjects": 583,
-    "bytes": 282197123,
-    "distinctBytes": 279403532
+    "assets": 621,
+    "distinctObjects": 585,
+    "bytes": 282476592,
+    "distinctBytes": 279683001
   },
   "assets": [
     {
@@ -1022,6 +1022,20 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10222/reader-map-spread-page1-parts-i-ii.png",
+      "bytes": 63679,
+      "sha256": "e2de6c2a995130cf1cfa3dc1a6a9982a9f830b2ae9c22225eae71498367611a8",
+      "key": "sha256/e2/e2de6c2a995130cf1cfa3dc1a6a9982a9f830b2ae9c22225eae71498367611a8.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10222/reader-map-spread-page2-parts-iii-iv.png",
+      "bytes": 215790,
+      "sha256": "efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739",
+      "key": "sha256/ef/efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739.png",
       "contentType": "image/png"
     },
     {

@@ -201,42 +201,6 @@
 
 \vspace{0.6cm}
 
-\begin{abstract}\noindent
-The first three chapters build a harbor for a \emph{single} operator:
-a daemon, a coordination protocol, a legible authority anyone would pay for today,
-and the continuity that turns an anonymous \emph{spawn} into an accountable
-\emph{person}. This paper is the rung above all of them --- the only one whose
-participants are plural and mutually distrusting. We argue that the harbor economy
-is a \textbf{three-sided market}: operators sell labor and fleet-for-hire; agents
-and fleets are rentable assets; skills and tools are licensed --- all settling on
-\emph{one} conserving bond ledger via float-plan escrow. We present the
-\textbf{cross-harbor capability-transfer ceremony}: a way for one operator's harbor
-to hand another's a narrowed, time-boxed authorization for one of its agents, so the
-two can trade without sharing a chain or a root of trust. The mechanics --- a public
-log both sides can audit, an escrow that can only ever pay out to a named recipient,
-and a gossip protocol that spreads a revocation in expected logarithmic time --- are
-stated formally in \S\ref{sec:federation}, each with its conditions named rather than
-assumed: the extraction bound holds only under non-bypassable custody, and the
-convergence result only under a connected, reliable-round model.
-We carry the series' heaviest reconciliations formally rather than papering over
-them. The keystone the market leans on is \textbf{local non-forgeable identity}
---- an identity no agent can edit \emph{within a single trusted daemon} --- which
-covers a single-operator threat model, \emph{not} the cross-operator adversary this
-market is defined by; the missing, blocking keystone is \textbf{cross-operator
-attestation}, specified-to-proposed, not built.
-Conservation composes under sequential ledger operations because balance change is
-additive; cross-currency accounting needs a named valuation instant and explicit
-fee/slippage accounts, and ``lax functor'' does not repair an undefined unit
-conversion. The later sheaf language is a research analogy, not a theorem.
-Reputation is monotone in honest outcomes but revocable by a propagating tombstone.
-Every folk-theorem incentive-compatibility claim rests on a grading oracle that must
-be made strategy-proof or bonded-and-slashed. Myerson--Satterthwaite constrains a
-bilateral private-value slice only under its regularity assumptions; this paper does
-not yet prove incentive compatibility or identify which desideratum the full market
-gives up. The defensible product is \textbf{hosted trust} --- a verified ledger, a
-relay, and a reputation system --- not the commoditized payment rail.
-\end{abstract}
-
 \vspace{0.4cm}
 \noindent\textbf{Keywords:} mechanism design, multi-sided markets, incentive
 compatibility, reputation systems, capability-based security, cross-chain
@@ -277,57 +241,18 @@ cryptographic hop-bound authorization chain is analyzed in
 };
 \end{tikzpicture}
 
+\vspace{0.5cm}
+\noindent\textbf{Volume Context.} \pdchapref{swk}{The Single-Writer Kernel} is
+the local transactional floor and \pdchapref{anchor}{The Anchor Protocol}
+proves how its authority delegates; \pdchapref{ls}{The Legible Swarm} is the
+operator's front door; \pdchapref{stp}{From Spawn to Person} supplies
+continuity and reputation. \emph{This} chapter is the market.
+\pdchapref{bonded}{The Bonded Commons} and \pdchapref{fh}{The Federated
+Harbor} then prove what the market assumes about settlement and federation.
+
 \newpage
 \tableofcontents
 \newpage
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Reader's map}\label{sec:readers-map}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-This paper is the top rung of a ladder. It assumes
-the rungs below it and cites the papers that build them. Read it cold if you must,
-but it is the fourth paper for a reason: it depends on everything underneath.
-
-
-\begin{table}[H]
-\centering
-\small
-\caption{Where to enter, by who you are. Five reader types, each routed to the
-section that answers their question and to the one figure or theorem that would have
-to survive a review from someone in that role --- so nobody has to read the paper
-end to end to get their own answer out of it.}
-\label{tab:readers-map}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{If you are\dots} & \textbf{\dots start here} & \textbf{\dots critical artifact} \\
-\midrule
-A founder asking ``what is the product'' &
-  \S\ref{sec:thesis} (thesis) $\to$ \S\ref{sec:hosted-trust} (hosted trust) &
-  Fig.~\ref{fig:he-three-sided}; the three claims C1--C3 \\
-A mechanism designer &
-  \S\ref{sec:three-sides} $\to$ \S\ref{sec:ic} (the formal model) &
-  Thm.~\ref{thm:ms} \\
-A cryptographer / distributed-systems reviewer &
-  \S\ref{sec:keystone} (the keystone) $\to$ \S\ref{sec:federation} &
-  \S\ref{sec:keystone}; \ifpdbook the transfer ceremony in \pdchapref{fh}{The Federated Harbor}\else Table~\ref{tab:keystone-split}, Fig.~\ref{fig:fh-xfer}\fi \\
-A category theorist &
-  \S\ref{sec:conservation} $\to$ \S\ref{sec:sheaf} &
-  Fig.~\ref{fig:he-conservation-functor}, Conj.~\ref{conj:sheaf} \\
-An implementer &
-  \S\ref{sec:float-plan} (the built floor) $\to$ Appendix~\ref{app:impl} (status) &
-  Table~\ref{tab:honest-state} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\noindent\textbf{Where this chapter sits.} \pdchapref{swk}{The Single-Writer
-Kernel} is the local transactional floor and \pdchapref{anchor}{The Anchor
-Protocol} proves how its authority delegates; \pdchapref{ls}{The Legible Swarm}
-is the operator's front door; \pdchapref{stp}{From Spawn to Person} supplies
-continuity and reputation. \emph{This} chapter is the market.
-\pdchapref{bonded}{The Bonded Commons} and \pdchapref{fh}{The Federated Harbor}
-then prove what the market assumes about settlement and federation.
 
 \xrefbox{\textbf{Dramatis personae.} Every mechanism in this paper is dramatized
 end-to-end with the same cast, so an abstraction is never introduced without a
