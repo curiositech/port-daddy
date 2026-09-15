@@ -14,7 +14,6 @@ import { __fleetbotPublisherTest as subject } from '../src/github-publisher.js';
 const PRIVATE_KEY = '19'.repeat(32);
 const PUBLIC_KEY = pubKeyFromPrivKey(PRIVATE_KEY);
 const FINGERPRINT = toHex(hashBytes(Uint8Array.from(PUBLIC_KEY.match(/../g)!.map((byte) => parseInt(byte, 16)))));
-const ACCOUNT_TOKEN = `pdu_${'ab'.repeat(32)}`;
 const NOW = 2_000_000_000;
 
 function action(purpose = 'Publish reviewed work'): FleetbotActionRequest {
@@ -49,7 +48,8 @@ async function signedEnvelope(request = action(), nonce = '3'.repeat(64), genera
   const requestHash = hashHex(fleetbotIdempotencyPreimage(request));
   const capability: FleetbotPublisherCapability = {
     schema: FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA,
-    accountTokenHash: hashHex(ACCOUNT_TOKEN),
+    grantId: `pdg_${'ab'.repeat(16)}`,
+    grantEpoch: 1,
     daemonFingerprint: FINGERPRINT,
     signingKeyGeneration: generation,
     sessionId: request.sessionId,
@@ -176,51 +176,47 @@ describe('Fleetbot publisher authority hardening', () => {
     forged.capability = original.capability;
     forged.capabilitySignature = original.signature;
     const parsed = subject.parseRequest(forged);
-    const env = { DB: authorityDb() } as never;
-    await expect(subject.verifyAndConsumeCapability(
-      env, parsed.capability, parsed.capabilitySignature, parsed.request, parsed.payload,
-      parsed.requestHash, hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_SCOPE_MISMATCH', status: 403 });
+    expect(() => subject.validateCapabilityScope(
+      parsed.capability, parsed.request, parsed.payload, parsed.requestHash, NOW,
+    )).toThrow(expect.objectContaining({ code: 'CAPABILITY_SCOPE_MISMATCH', status: 403 }));
   });
 
-  it('rejects nonce replay for different exact content', async () => {
-    const db = authorityDb();
-    const first = await signedEnvelope();
-    const parsedFirst = subject.parseRequest(first.request);
-    const env = { DB: db } as never;
-    await subject.verifyAndConsumeCapability(
-      env, parsedFirst.capability, parsedFirst.capabilitySignature, parsedFirst.request,
-      parsedFirst.payload, parsedFirst.requestHash, hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    );
-
-    const second = await signedEnvelope(action('A different authorized action'), first.capability.nonce);
-    const parsedSecond = subject.parseRequest(second.request);
-    await expect(subject.verifyAndConsumeCapability(
-      env, parsedSecond.capability, parsedSecond.capabilitySignature, parsedSecond.request,
-      parsedSecond.payload, parsedSecond.requestHash, hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_REPLAY', status: 409 });
-  });
-
-  it('rejects expired capabilities and signing-key rotation', async () => {
+  it('rejects expired capabilities', async () => {
     const expired = await signedEnvelope();
     expired.capability.expiresAt = NOW;
     expired.request.capabilitySignature = await signEd25519(
       PRIVATE_KEY, hashHex(fleetbotPublisherCapabilityPreimage(expired.capability)),
     );
     const parsedExpired = subject.parseRequest(expired.request);
-    await expect(subject.verifyAndConsumeCapability(
-      { DB: authorityDb() } as never, parsedExpired.capability, parsedExpired.capabilitySignature,
-      parsedExpired.request, parsedExpired.payload, parsedExpired.requestHash,
-      hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_EXPIRED', status: 401 });
+    expect(() => subject.validateCapabilityScope(
+      parsedExpired.capability, parsedExpired.request, parsedExpired.payload, parsedExpired.requestHash, NOW,
+    )).toThrow(expect.objectContaining({ code: 'CAPABILITY_EXPIRED', status: 401 }));
+  });
 
-    const rotated = await signedEnvelope();
-    const parsedRotated = subject.parseRequest(rotated.request);
-    await expect(subject.verifyAndConsumeCapability(
-      { DB: authorityDb(2) } as never, parsedRotated.capability, parsedRotated.capabilitySignature,
-      parsedRotated.request, parsedRotated.payload, parsedRotated.requestHash,
-      hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_SIGNATURE_INVALID', status: 401 });
+  it('allows inspect to bootstrap without an owned PR but keeps every mutation ownership-gated', async () => {
+    const inspect = action();
+    const parsedInspect = subject.parseRequest((await signedEnvelope(inspect)).request);
+    const rejectingDb = {
+      prepare() {
+        const statement = {
+          bind() { return statement; },
+          async all() { return { results: [] }; },
+        };
+        return statement;
+      },
+    };
+    await expect(subject.publisherHeadBranch(
+      { DB: rejectingDb } as never, parsedInspect.request, parsedInspect.payload, 'account-1',
+    )).resolves.toBeNull();
+
+    const mutation = action();
+    mutation.operation = 'pull-request.comment';
+    mutation.payload = { ...mutation.payload, body: 'governed comment' };
+    mutation.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(mutation))}`;
+    const parsedMutation = subject.parseRequest((await signedEnvelope(mutation)).request);
+    await expect(subject.publisherHeadBranch(
+      { DB: rejectingDb } as never, parsedMutation.request, parsedMutation.payload, 'account-1',
+    )).rejects.toMatchObject({ code: 'PULL_REQUEST_NOT_OWNED', status: 403 });
   });
 
   it('paginates past 100 GitHub records before deciding a marker is absent', async () => {

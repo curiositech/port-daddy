@@ -8,8 +8,8 @@
  */
 
 export const FLEETBOT_ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1' as const;
-export const FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v1' as const;
-export const FLEETBOT_RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v1' as const;
+export const FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2' as const;
+export const FLEETBOT_RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v2' as const;
 
 export type FleetbotOperation =
   | 'pull-request.publish'
@@ -51,7 +51,10 @@ export interface FleetbotAuthorship {
  */
 export interface FleetbotPublisherCapability {
   schema: typeof FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA;
-  accountTokenHash: string;
+  /** A Relay-side standing grant reference. It is not a bearer credential. */
+  grantId: string;
+  /** Exact monotone version read by the workload before it signed this request. */
+  grantEpoch: number;
   daemonFingerprint: string;
   signingKeyGeneration: number;
   sessionId: string;
@@ -94,6 +97,13 @@ export interface FleetbotReceipt {
   /** Relay-authenticated account scope; never supplied by the daemon. */
   accountUserId: string;
   accountGithubUserId: number;
+  /** Durable answer to both "why was this allowed?" and "which grant changed GitHub?". */
+  authorizedBy: {
+    grantId: string;
+    grantEpoch: number;
+    surface: 'publisher';
+  };
+  admission: 'standing-publisher-grant';
   actorId: string;
   agentId: string;
   sessionId: string;

@@ -25,19 +25,32 @@ const ctx = {
 } as unknown as ExecutionContext;
 
 describe('Fleetbot publisher route', () => {
-  it('is reachable at the governed endpoint and rejects missing account credentials', async () => {
+  it('is reachable at the governed endpoint and rejects malformed capability-v2 input', async () => {
     const response = await worker.fetch(new Request('https://relay.example/v1/fleetbot/publish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
     }), env(), ctx);
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
-      code: 'UNAUTHENTICATED',
-      error: 'a Port Daddy account login is required',
+      code: 'INVALID_REQUEST',
+      error: 'publisher request envelope is invalid',
     });
     expect(response.headers.get('X-Request-Id')).toMatch(/^req_[0-9a-f]{16}$/);
+  });
+
+  it('does not restore the retired operator bearer path', async () => {
+    const response = await worker.fetch(new Request('https://relay.example/v1/fleetbot/publish', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer pdu_${'ab'.repeat(32)}`,
+      },
+      body: '{}',
+    }), env(), ctx);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: 'INVALID_REQUEST' });
   });
 
   it('does not expose non-POST methods as publisher operations', async () => {
@@ -47,5 +60,15 @@ describe('Fleetbot publisher route', () => {
       ctx,
     );
     expect(response.status).toBe(404);
+  });
+
+  it('routes exact grant snapshot reads through signed workload authentication', async () => {
+    const response = await worker.fetch(
+      new Request(`https://relay.example/v1/fleetbot/publisher-grants/pdg_${'ab'.repeat(16)}`),
+      env(),
+      ctx,
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: 'WORKLOAD_PROOF_INVALID' });
   });
 });
