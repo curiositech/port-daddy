@@ -738,9 +738,51 @@ jobs:
           # Retried: a third-party release host blipping should not red a
           # build. Already lands in a file, so a retry replaces the download
           # rather than appending to a half-consumed one.
-          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
-            -o "$HOME/.local/bin/agg" \
-            "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"
+          #
+          # `curl --retry 5 --retry-delay 3` is six attempts at a FIXED 3s
+          # spacing -- ~15s of total coverage. That redded the whole ci-gate
+          # aggregate on an unrelated PR during a brief GitHub release-CDN
+          # outage (PR #10192, run 34859200846, job 104026683362): six
+          # `curl: (22) ... 504` lines 3s apart, then exit 22, while a plain
+          # re-run passed in 4s -- confirming it was purely an external blip,
+          # not anything this repo broke.
+          #
+          # So the download itself is retried in a loop with a widening
+          # backoff (5s, 10s, 20s, 30s -- 65s of coverage, well past the CDN's
+          # observed ~15s blip), `if` rather than a bare call because errexit
+          # is suspended inside a condition, and the final failure says
+          # plainly this is a network failure and not a recorder/test finding
+          # so the next person reading a red gate doesn't go looking at the
+          # recordings instead.
+          delays="5 10 20 30"
+          attempt=1
+          ok=0
+          for delay in $delays 0; do
+            if curl -fsSL --max-time 600 \
+              -o "$HOME/.local/bin/agg" \
+              "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"; then
+              ok=1
+              break
+            fi
+            if [ "$delay" -eq 0 ]; then
+              break
+            fi
+            echo "agg download attempt $attempt failed; retrying in ${delay}s"
+            sleep "$delay"
+            attempt=$((attempt + 1))
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::agg could not be downloaded after 5 attempts over 65s of backoff. This is a network failure on GitHub's release CDN, NOT a recorder or test finding -- no GIFs were regenerated in this run."
+            exit 1
+          fi
+          # A partial/corrupt download is worse than a failed one: it would
+          # leave this step green and every step below failing for a reason
+          # that looks like a recorder or test bug. Assert the binary is
+          # actually there, executable, and really runs before moving on.
+          if [ ! -s "$HOME/.local/bin/agg" ]; then
+            echo "::error::agg download reported success but left no (or an empty) file at $HOME/.local/bin/agg"
+            exit 1
+          fi
           chmod +x "$HOME/.local/bin/agg"
           "$HOME/.local/bin/agg" --version
 
