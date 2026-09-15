@@ -9,7 +9,7 @@
     ],
     "first_seen": "2026-09-15",
     "waiver": {
-      "reason": "condemned by Wave 11 triage (FIGURE-TRIAGE.md 2.7, restyle: \"label the interval endpoints t_r and t_0+tau on the axis; heavier rows\") and scheduled for that restyle; the mechanical failure -- the t0+tau tick label and the k18 gloss beneath it already overlapping on main, before #10191 -- is the condition the restyle exists to end. #10191 only renamed this fragment's bare hhink/hhamber draw colours to pd rule/pd caution rule (unrelated to this geometry) and pulled it into the figure-gate's compile scope for the first time; confirmed pre-existing by compiling this same fragment against pre-#10191 main under the identical Book preamble, where T2/T3 already fail with the same two spans (t0+tau vs. the k18 gloss), 49.6% overlap vs. 62.3% after -- the same defect, not a new one.",
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
       "expires": "2026-10-31"
     }
   },
@@ -281,7 +281,7 @@
     ],
     "first_seen": "2026-09-15",
     "waiver": {
-      "reason": "condemned by Wave 11 triage (FIGURE-TRIAGE.md 1.10, redraw: \"2 x 2 grid, tiny text, weak contrast\") and scheduled for that redraw; the mechanical failure -- the rotated row-axis 'yes'/'no' labels already crossing the quadrant's left border rule on main -- is the condition the redraw exists to end. #10191 only routed this fragment's `cell` style through `pd direct label` instead of a bare `font=\\footnotesize` (P16 compliance, unrelated to the row-axis labels) and pulled it into the figure-gate's compile scope for the first time; confirmed pre-existing by compiling this same fragment against pre-#10191 main under the identical Book preamble, where T4 already fires on the same two spans ('yes', 'no') crossing the same rule, within a point of the same coordinates.",
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
       "expires": "2026-10-31"
     }
   },
