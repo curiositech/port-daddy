@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 589,
+    "distinctObjects": 553,
+    "bytes": 276228303,
+    "distinctBytes": 273434712
   },
   "assets": [
     {
@@ -784,6 +784,48 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10239/digest-catches-lie-after-p15.png",
+      "bytes": 303413,
+      "sha256": "f550420d3d52583913b5635dca651b6824f44dfe5af2e0a215a5347bd39d8759",
+      "key": "sha256/f5/f550420d3d52583913b5635dca651b6824f44dfe5af2e0a215a5347bd39d8759.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10239/digest-catches-lie-before-p14.png",
+      "bytes": 272352,
+      "sha256": "dc95ecdf714f921d323626ed317fb986a1cd09481727ff9bf1c72ba27e15fa8e",
+      "key": "sha256/dc/dc95ecdf714f921d323626ed317fb986a1cd09481727ff9bf1c72ba27e15fa8e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10239/honesty-ledger-count-after-p66.png",
+      "bytes": 355192,
+      "sha256": "47cfb1cfcc8387dd239609e86b7357fbefd94cebec60050cac257ac977387524",
+      "key": "sha256/47/47cfb1cfcc8387dd239609e86b7357fbefd94cebec60050cac257ac977387524.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10239/honesty-ledger-count-before-p64.png",
+      "bytes": 264368,
+      "sha256": "e287e100ae59be98fe193aeae2654e266f13b2e562580396df3a409bb51fd4dd",
+      "key": "sha256/e2/e287e100ae59be98fe193aeae2654e266f13b2e562580396df3a409bb51fd4dd.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10239/worked-afternoon-after-p8.png",
+      "bytes": 376003,
+      "sha256": "7eb9d598655aaeeaaecf8e0494a970bfc6ddf6e1ddcfedfdaca87cd1e1c85d99",
+      "key": "sha256/7e/7eb9d598655aaeeaaecf8e0494a970bfc6ddf6e1ddcfedfdaca87cd1e1c85d99.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10239/worked-afternoon-before-p8.png",
+      "bytes": 419694,
+      "sha256": "d2100ceba9d651682c7c2463f2557efc27a70b870f2c0e853f5c7877fae423fd",
+      "key": "sha256/d2/d2100ceba9d651682c7c2463f2557efc27a70b870f2c0e853f5c7877fae423fd.png",
       "contentType": "image/png"
     },
     {
