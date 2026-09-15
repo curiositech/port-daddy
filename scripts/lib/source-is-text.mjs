@@ -101,6 +101,7 @@ export const ALLOWED_NON_TEXT_PATTERNS = new Set([
   'whitepaper-foundlings/**/*.pdf', // LFS-tracked archival PDFs, PR #10105
   'skill_candidates/**/*.pdf', // LFS-tracked archival PDF, PR #10105
   'docs/harbor-research/exposition/figures/page-context/**/*.webp', // LFS-tracked generated figure-context crops, commit 4b6d04bc2 ("feat(figures): render in-situ page context for every figure in the Book")
+  'docs/pr-assets/figure-rivals/**/*.webp', // LFS-tracked rendered rival figure variants, PR #10216
 ]);
 
 /**
