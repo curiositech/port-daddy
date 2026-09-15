@@ -3347,6 +3347,61 @@ impl ConsoleView {
         true
     }
 
+    fn apply_focused_editor_history(&mut self, redo: bool, cx: &mut Context<Self>) -> bool {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let outcome = {
+            let Some(state) = self.editors.get_mut(&key) else {
+                return false;
+            };
+            let history = if redo {
+                state.pane.redo_local_text_edit()
+            } else {
+                state.pane.undo_local_text_edit()
+            };
+            match history {
+                Ok(Some(frame)) => {
+                    let after = state.pane.text().unwrap_or_default();
+                    state.input.unmark();
+                    state.input.reconcile(&after);
+                    invalidate_editor_blame(state);
+                    let presence = Self::presence_for_editor(state, &after);
+                    state.pane.set_local_presence(presence);
+                    Ok(Some((state.pane.path_str().to_string(), frame, presence)))
+                }
+                Ok(None) => Ok(None),
+                Err(reason) => Err(reason),
+            }
+        };
+
+        match outcome {
+            Ok(Some((path, frame, presence))) => {
+                if self
+                    .editor_blocks
+                    .as_ref()
+                    .is_some_and(|(live_path, _)| live_path == &path)
+                {
+                    self.editor_blocks = None;
+                }
+                if let Some(tx) = &self.control_tx {
+                    let _ = tx.send(ControlMsg::EditorLocalChange {
+                        path,
+                        frame: Some(frame),
+                        presence,
+                    });
+                }
+            }
+            Ok(None) => {}
+            Err(reason) => {
+                self.control_flash = Some(reason);
+                crate::audio::play(crate::audio::Cue::Gate);
+            }
+        }
+        cx.notify();
+        true
+    }
+
     fn move_focused_editor<F>(&mut self, update: F, cx: &mut Context<Self>) -> bool
     where
         F: FnOnce(&mut EditorInput, &str),
@@ -3385,6 +3440,11 @@ impl ConsoleView {
     ) -> bool {
         let select = modifiers.shift;
         match key {
+            "z" if modifiers.platform && modifiers.shift => {
+                self.apply_focused_editor_history(true, cx)
+            }
+            "z" if modifiers.platform => self.apply_focused_editor_history(false, cx),
+            "y" if modifiers.platform => self.apply_focused_editor_history(true, cx),
             "left" => self.move_focused_editor(|input, text| input.left(text, select), cx),
             "right" => self.move_focused_editor(|input, text| input.right(text, select), cx),
             "up" => self.move_focused_editor(|input, text| input.vertical(text, -1, select), cx),
