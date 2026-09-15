@@ -211,7 +211,10 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
         # Name what is missing rather than failing later with a bare KeyError.
         # A key commented out or renamed in the preamble still fails this test --
         # it cannot pass having read nothing -- but it should say which key.
-        for required in ("paperwidth", "paperheight", "left", "right"):
+        # The Book is twoside (see the two-sided recut): \geometry names the
+        # gutter and the outer trim as `inner`/`outer`, not `left`/`right`, and
+        # `textwidth` is given explicitly rather than left to be derived.
+        for required in ("paperwidth", "paperheight", "inner", "outer", "textwidth"):
             self.assertIn(required, out, f"{required} is not set in \\geometry{{}} in {self.GEOMETRY}")
         return out
 
@@ -222,12 +225,14 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
 
     def test_the_text_block_matches(self):
         geometry = self.geometry()
-        self.assertAlmostEqual(po.INNER, geometry["left"], places=3)
-        # The measure is what the trim leaves after both margins; the preamble
-        # sets the margins and never names the width, so derive it the same way.
-        self.assertAlmostEqual(
-            po.TEXTW, geometry["paperwidth"] - geometry["left"] - geometry["right"], places=3,
-        )
+        self.assertAlmostEqual(po.INNER, geometry["inner"], places=3)
+        # The preamble names the measure directly now (`textwidth=`), so check
+        # against it rather than deriving it from paperwidth minus the margins:
+        # for a twoside book, paperwidth = inner + textwidth + outer, where
+        # `outer` is itself the margin column plus the trim white, and
+        # deriving the measure from paperwidth - inner - outer would just be
+        # re-deriving `textwidth` from itself.
+        self.assertAlmostEqual(po.TEXTW, geometry["textwidth"], places=3)
 
 
 class ImageOffThePaperTests(unittest.TestCase):

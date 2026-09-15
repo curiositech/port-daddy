@@ -122,8 +122,8 @@ quote.
 ## This repository's own margin apparatus (primary source, read directly)
 
 - `website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex`
-  — the Book's 7×10 trim geometry: 4.5in text column, 1.3in `marginparwidth`,
-  0.2in `marginparsep`; `\pdfullwidth` macro and the `pgfsys@typesetpicturebox`
+  — the Book's two-sided 7×10 trim geometry: 4.25in text column, 1.12in
+  `marginparwidth`, 0.18in `marginparsep`, 0.95in gutter, 0.5in trim white; `\pdfullwidth` macro and the `pgfsys@typesetpicturebox`
   hook that promotes an over-wide TikZ picture to a full-width figure
   automatically. `[verified — read directly, this repo]`
 - `website-v2/public/whitepaper/figures/pd-pedagogy.tex` (byte-identical twin of

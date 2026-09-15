@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 586,
+    "distinctObjects": 550,
+    "bytes": 276248935,
+    "distinctBytes": 273455344
   },
   "assets": [
     {
@@ -763,6 +763,27 @@
       "bytes": 1351677,
       "sha256": "fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f",
       "key": "sha256/fd/fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/book-geometry-spread-after.png",
+      "bytes": 681769,
+      "sha256": "6a975906a554d51fa41acc548e2194c2036dc90d7b73922a9fb51a3e6d97d138",
+      "key": "sha256/6a/6a975906a554d51fa41acc548e2194c2036dc90d7b73922a9fb51a3e6d97d138.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-geometry-spread-before.png",
+      "bytes": 671055,
+      "sha256": "0334d2cbbb95b46484cdb996c818ba338cb8febc3185de7981bfd6455832b7f0",
+      "key": "sha256/03/0334d2cbbb95b46484cdb996c818ba338cb8febc3185de7981bfd6455832b7f0.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-geometry-spread-flip.gif",
+      "bytes": 658830,
+      "sha256": "babda4a9451b6021ab6892fbbee775287c668a7071c7aea46d65edbf439fa894",
+      "key": "sha256/ba/babda4a9451b6021ab6892fbbee775287c668a7071c7aea46d65edbf439fa894.gif",
       "contentType": "image/gif"
     },
     {

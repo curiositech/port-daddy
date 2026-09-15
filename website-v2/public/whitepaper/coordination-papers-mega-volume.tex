@@ -1,4 +1,12 @@
-\documentclass[11pt,a4paper]{article}
+% twoside is what makes this a book rather than a stack of rectos. The Book's
+% apparatus -- sidenotes, margin heads, margin figures, \pdcite marginalia --
+% lives in a margin column, and \marginnote only knows to put that column on
+% the OUTER edge of each leaf when \if@twoside is true. Without it the column
+% sat on the right of every page, so on every verso (even) page it sat against
+% the spine and the gutter of a 551-page perfect-bound block swallowed it.
+% The trim is set by \geometry in the preamble; a4paper is only the class
+% default that geometry then overrides.
+\documentclass[11pt,a4paper,twoside]{article}
 % The Book: the textbook edition of the coordination papers. Chapter order,
 % numbering, parts, and edition metadata come from whitepaper/textbook.json;
 % scripts/generate-mega-whitepaper.mjs renders the body, the front-matter map,
@@ -115,6 +123,10 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \fi\fi
 \nopagecolor\color{hhink}
 
+% The roman front matter has to OPEN on a recto: restarting the page counter on
+% a verso would invert recto and verso for every leaf after it. See
+% \pdcleartorecto in the preamble.
+\pdcleartorecto
 \pagenumbering{roman}
 \begin{abstract}\noindent
 Agentic development fails in a predictable way when concurrency grows faster
@@ -355,7 +367,9 @@ claims the research killed rather than conclusions it merely failed to prove.
 result's source, status, conditions, boundary, chapter home, and verification
 artifact. The chapters stand alone; the book's claim is the chain they make.
 
-\clearpage
+% Same rule as the roman restart above, and the body of a book opens on a
+% recto in any case.
+\pdcleartorecto
 \pagenumbering{arabic}
 \hypersetup{pageanchor=true}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}

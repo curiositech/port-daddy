@@ -6,9 +6,17 @@ r"""Find ink that leaves the Book's text column: drawings, images or text past
 the page edge, or drawings/images that run into the margin column.
 
 The Book's geometry (coordination-papers-mega-volume-preamble.tex) is 7 x 10 in,
-twoside, inner 0.8 in, textwidth 4.5 in, marginparsep 0.2 in, marginparwidth
-1.3 in. Marginal notes are text and are allowed in the margin column; drawn
-figures and images are not (the 1.5 pt boundary bar is the one exception).
+twoside, inner 0.95 in, textwidth 4.25 in, marginparsep 0.18 in, marginparwidth
+1.12 in, leaving 0.5 in of trim white outside the margin column. Marginal notes
+are text and are allowed in the margin column; drawn figures and images are not
+(the 1.5 pt boundary bar is the one exception).
+
+These five numbers are a SECOND COPY of the geometry and have to equal the
+\geometry line in the preamble. Until 2026-09-14 they did not describe the
+built book at all: this docstring and the parity fallback in column() below
+were written for a twoside book, and the document class said oneside, so the
+margin column sat on the right of every leaf and the fallback's "L" branch
+never described a real page. If you change the preamble, change these.
 
 It also finds two pieces of text printed on top of each other in the margin
 column (a Recall block over an Exercises pointer, an axis label over a tick
@@ -22,8 +30,8 @@ import argparse, json, sys
 import fitz  # pymupdf
 
 PAPER_W, PAPER_H = 7 * 72, 10 * 72
-INNER, TEXTW = 0.8 * 72, 4.5 * 72
-FULLW_EXTRA = (0.2 + 1.3) * 72  # marginparsep + marginparwidth: the full-width overhang the Book allows a picture
+INNER, TEXTW = 0.95 * 72, 4.25 * 72
+FULLW_EXTRA = (0.18 + 1.12) * 72  # marginparsep + marginparwidth: the full-width overhang the Book allows a picture
 
 def column(page, page_no):
     """The text column of this page. The head rule (a hairline the width of
@@ -37,7 +45,7 @@ def column(page, page_no):
         return INNER, INNER + TEXTW, "R"
     return PAPER_W - INNER - TEXTW, PAPER_W - INNER, "L"
 
-MARGIN_SEP, MARGIN_W = 0.2 * 72, 1.3 * 72
+MARGIN_SEP, MARGIN_W = 0.18 * 72, 1.12 * 72
 
 OFFPAGE_PAD = 200.0
 
