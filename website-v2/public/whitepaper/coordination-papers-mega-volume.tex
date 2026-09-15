@@ -1,4 +1,10 @@
-\documentclass[11pt,a4paper]{article}
+% twoside: the Book is printed and read as a bound, two-sided volume. Without
+% this option article.cls never sets \@twosidetrue, so the margin column
+% (geometry's inner/outer keys below, and marginnote's own \if@twoside check)
+% would sit on the same physical side of every page instead of mirroring to
+% the outer edge on verso vs. recto, and \cleardoublepage would silently
+% degrade to \clearpage everywhere it is used to force a recto start.
+\documentclass[11pt,a4paper,twoside]{article}
 % The Book: the textbook edition of the coordination papers. Chapter order,
 % numbering, parts, and edition metadata come from whitepaper/textbook.json;
 % scripts/generate-mega-whitepaper.mjs renders the body, the front-matter map,
