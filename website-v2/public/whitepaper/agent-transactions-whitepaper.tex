@@ -362,7 +362,7 @@ Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameter
 
 Return to Agent~A and Agent~B from the introduction's opening scene---the two agents who corrupted the same middleware because neither knew the other existed. Nothing about that failure required malice, and nothing about it would have been fixed by making either agent more careful. What was missing was a third party that both agents were already talking to: something that knew A had the file, could tell B so at claim time, and would still remember the whole episode after both processes exited.
 
-That third party has to be settled \emph{before} any interaction, not improvised transaction by transaction---otherwise establishing it is just the $O(n^2)$ trust negotiation of \S1.1 under a new name. We call it the \emph{commons authority}: one always-on service that every agent already trusts, precisely because it was there before any of them showed up. Five capabilities make it that, and the definition below names them.
+That third party has to be settled \emph{before} any interaction, not improvised transaction by transaction---otherwise establishing it is just the $O(n^2)$ trust negotiation of \S1.1 under a new name. We call it the \pdgloss{commons authority}{the one always-on, pre-trusted service that gives agents identity, capability bounds, shared knowledge, an immutable history, and settlement --- without deciding who is right.}: one always-on service that every agent already trusts, precisely because it was there before any of them showed up. Five capabilities make it that, and the definition below names them.
 
 \begin{definition}[Commons Authority]\label{def:commons}
 A commons authority $\mathcal{D}$ for a multi-agent system is a persistent service that provides:
@@ -532,7 +532,7 @@ By code inspection of the session module: the note insertion API performs only \
 
 \subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
 
-For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \textbf{Merkle Forest}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
+For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \pdgloss{Merkle Forest}{one Merkle tree per settlement epoch, each root signed by its own daemon, so an auditor can verify inclusion across daemons with a short proof instead of database access.}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
 
 \begin{definition}[Merkle Forest]\label{def:merkle-forest}
 The evidence structure has three levels:

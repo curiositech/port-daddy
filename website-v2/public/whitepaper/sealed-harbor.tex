@@ -605,7 +605,7 @@ property of the workroom, not a theorem.
 \noindent Rogers, Roth, Ullman and Vadhan coined two names for a ledger like
 this one, tracking cumulative differential-privacy expenditure across
 adaptively chosen queries \pdcite{rruv16}: a \textbf{privacy odometer} reads the
-running total with no pre-specified ceiling, and a \textbf{privacy filter}
+running total with no pre-specified ceiling, and a \pdgloss{privacy filter}{a running differential-privacy ledger that refuses any release which would push cumulative spend past a pre-set ceiling.}
 halts before a pre-specified budget is exceeded. Because $\varepsilon_{\max}$
 below is fixed in advance and every over-budget release is refused, this
 ledger is their filter; the odometer is the same conservation discipline
