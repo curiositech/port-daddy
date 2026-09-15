@@ -14,6 +14,6 @@
   "retrieved": "2026-09-07",
   "solo_portrait": false,
   "framing": "GROUP PHOTO, confirmed — the file's own description reads 'Professor Wonham with students'; a restaurant dinner with five people. File:Wonham.jpg on Commons is only an 82x79 px extract of Wonham's face already cropped by a prior editor from this same source; original_url above points instead at the un-cropped parent (File:Nonoficial.jpg, 604x340) to allow a fresh, slightly wider crop",
-  "background_clutter": "high in the source (restaurant, other diners, table) — cropped out below, but the crop is small and the resulting print is a 4.3x upsample of a 90x180 px source region: soft, low detail",
-  "crop": "cropped Nonoficial.jpg (604x340) to box (240,40)-(330,220), isolating Wonham (third of five people) from the other four diners; flagged as low resolution for print — the lead may want a better-sourced Wonham photo if one turns up"
+  "background_clutter": "high in the source (restaurant, other diners, table) — cropped out below, but the crop is small and the resulting print is a 4.3x upsample of a 90x136 px source region: soft, low detail",
+  "crop": "cropped Nonoficial.jpg (604x340) to box (240,40)-(330,176), isolating Wonham's head and shoulders (third of five people) from the other four diners; re-cropped 2026-09-15 to trim the torso -- the original box (240,40)-(330,220) gave a 2:1 height:width print plate, roughly 60% taller than every other marginalia portrait (0.88-1.5x), which overran the physical page when \\pdmarginfigure placed it late on a page (single-writer-kernel.tex, PDF p.43 in the Book); this box's 1.25x ratio matches the rest of the set. Flagged as low resolution for print -- the lead may want a better-sourced Wonham photo if one turns up"
 }

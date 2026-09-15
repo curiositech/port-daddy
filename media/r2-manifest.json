@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 599,
+    "distinctObjects": 563,
+    "bytes": 281029850,
+    "distinctBytes": 278236259
   },
   "assets": [
     {
@@ -799,6 +799,118 @@
       "sha256": "4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337",
       "key": "sha256/4c/4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337.webm",
       "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-atomicity-39.png",
+      "bytes": 369784,
+      "sha256": "28557a3fb7795e94b0edfb5e3f3e724547c4dd3007b780cb480d906412cf761d",
+      "key": "sha256/28/28557a3fb7795e94b0edfb5e3f3e724547c4dd3007b780cb480d906412cf761d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-attest-31.png",
+      "bytes": 375067,
+      "sha256": "bf47e0eaccbd4498d91297f0509e46e43aded49d3482f288c8df8df8bda07eb1",
+      "key": "sha256/bf/bf47e0eaccbd4498d91297f0509e46e43aded49d3482f288c8df8df8bda07eb1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-attest-32.png",
+      "bytes": 421521,
+      "sha256": "b0c2249d8e389af8b6b4a0e27625d71454635c797db9eb6f4a609f00676ad405",
+      "key": "sha256/b0/b0c2249d8e389af8b6b4a0e27625d71454635c797db9eb6f4a609f00676ad405.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-escapes-41.png",
+      "bytes": 531084,
+      "sha256": "2d00fe6a2a0b8ba14a36002e72010a9b4342c165c5eb7921a7f551df393a5565",
+      "key": "sha256/2d/2d00fe6a2a0b8ba14a36002e72010a9b4342c165c5eb7921a7f551df393a5565.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-opener-05.png",
+      "bytes": 452742,
+      "sha256": "9b84aa53f4ba89e57b5f50cea871e3bfa526ff35997a4bfad0dfdf0215b9a17b",
+      "key": "sha256/9b/9b84aa53f4ba89e57b5f50cea871e3bfa526ff35997a4bfad0dfdf0215b9a17b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-p10-10.png",
+      "bytes": 479963,
+      "sha256": "05647b58b2b2c40ae48da0a92f34e1f14fd4b30ddb5f34388b5857408f212e3a",
+      "key": "sha256/05/05647b58b2b2c40ae48da0a92f34e1f14fd4b30ddb5f34388b5857408f212e3a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-p15-15.png",
+      "bytes": 501251,
+      "sha256": "460ab746bd2d7aec5626c89ae51f92d893e58521016b4b32aae12226262bcf64",
+      "key": "sha256/46/460ab746bd2d7aec5626c89ae51f92d893e58521016b4b32aae12226262bcf64.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/after-p9-09.png",
+      "bytes": 374169,
+      "sha256": "885fe5fc8822da66b305b0d36c9c95c9596c5269e9da0b34eab05d52728a43c1",
+      "key": "sha256/88/885fe5fc8822da66b305b0d36c9c95c9596c5269e9da0b34eab05d52728a43c1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-atomicity-37.png",
+      "bytes": 360666,
+      "sha256": "f917e488487a2e575491d2c6c934f190b4dc21726bb58a0bf29fdac953384c12",
+      "key": "sha256/f9/f917e488487a2e575491d2c6c934f190b4dc21726bb58a0bf29fdac953384c12.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-attest-31.png",
+      "bytes": 385137,
+      "sha256": "2c6451a8e60d6bdaebc4c819ca72f77e84bc1817a4bb209e2b521e132f15fe9a",
+      "key": "sha256/2c/2c6451a8e60d6bdaebc4c819ca72f77e84bc1817a4bb209e2b521e132f15fe9a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-attest-32.png",
+      "bytes": 379257,
+      "sha256": "9bf27592a055210a42fa137882f763a4ebd1d71f2cf8e22fd5b19a69751d67fc",
+      "key": "sha256/9b/9bf27592a055210a42fa137882f763a4ebd1d71f2cf8e22fd5b19a69751d67fc.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-escapes-39.png",
+      "bytes": 537914,
+      "sha256": "503991f5f07f48331e5fe052dd56c86f464e29b839eab613bfee1e2b4e023f06",
+      "key": "sha256/50/503991f5f07f48331e5fe052dd56c86f464e29b839eab613bfee1e2b4e023f06.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-opener-05.png",
+      "bytes": 429921,
+      "sha256": "63af1c163bd0c1ca1e69992775c29fbade5800734994bed3db023d63af2fd94a",
+      "key": "sha256/63/63af1c163bd0c1ca1e69992775c29fbade5800734994bed3db023d63af2fd94a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-p10-10.png",
+      "bytes": 478803,
+      "sha256": "ee87d93c2f6d54660cf5a82bf327d6bac8bf6186b5d8827eee12a7a236c20084",
+      "key": "sha256/ee/ee87d93c2f6d54660cf5a82bf327d6bac8bf6186b5d8827eee12a7a236c20084.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-p15-15.png",
+      "bytes": 351354,
+      "sha256": "9b3f3cf7433eb3f8e6d1a83bc06bc1c0db726c718432a1f07e2b9c3f78baf327",
+      "key": "sha256/9b/9b3f3cf7433eb3f8e6d1a83bc06bc1c0db726c718432a1f07e2b9c3f78baf327.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-single-writer-kernel-lint/before-p9-09.png",
+      "bytes": 363936,
+      "sha256": "19a8169975e75c3fb9b51997db230f0e89118bc03be2c6651a875883cc011a72",
+      "key": "sha256/19/19a8169975e75c3fb9b51997db230f0e89118bc03be2c6651a875883cc011a72.png",
+      "contentType": "image/png"
     },
     {
       "path": "docs/pr-media/squid-hook-debug/03-hook-debug-running.png",
