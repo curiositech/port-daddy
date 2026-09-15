@@ -16,7 +16,8 @@
         "fig-swk-stack-map",
         "fig-swk-workunit-machine",
         "session-swk-lock-demo",
-        "session-swk-workunit-check"
+        "session-swk-workunit-check",
+        "tab-swk-mediation-boundary"
       ],
       "inline_figures": 2,
       "inline_tables": 11
