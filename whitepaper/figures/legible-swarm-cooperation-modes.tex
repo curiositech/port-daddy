@@ -1,0 +1,80 @@
+% Figure --- five modes of cooperation as small multiples, ordered by how much
+% write authority has left the person. Each panel shows who holds write
+% authority (filled circle) versus who only observes (hollow circle) and
+% names what the person must see to remain the operator rather than the
+% audience. Second pass: every panel now shares one baseline grid (title,
+% icons, sees-text, rank bar all at the same y across panels) so nothing
+% collides -- the first pass staggered per-panel heights and let a rank
+% digit sit under a two-line caption.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,font=\footnotesize]
+  \def\dx{3.15}
+  \node[pd panel title,anchor=south,align=center,text width=14.4cm] at (2*\dx,3.05)
+    {write authority moves from person to agent, left to right, and the rank below moves with it};
+
+  % --- panel 0: Solo with staff ------------------------------------------------
+  \node[pd panel title,anchor=south,align=center,text width=2.9cm] at (0,2.35) {Solo with staff};
+  \node[circle,draw=hhteal,line width=1pt,fill=hhteal,minimum size=6mm] at (-.55,1.55) {};
+  \node[circle,draw=hhgray,line width=.8pt,fill=hhpaper,minimum size=4.6mm] at (.15,1.75) {};
+  \node[circle,draw=hhgray,line width=.8pt,fill=hhpaper,minimum size=4.6mm] at (.15,1.15) {};
+  \node[pd direct label,anchor=north,align=center,text width=2.9cm] at (0,.85)
+    {sees: everything ---\\nothing they did not type};
+  \draw[pd caution rule,line width=1.6pt] (-1.15,-1.1) -- (-.75,-1.1);
+  \node[pd axis label,anchor=west] at (-.6,-1.1) {1};
+
+  % --- panel 1: Pair with agent ------------------------------------------------
+  \node[pd panel title,anchor=south,align=center,text width=2.9cm] at (\dx,2.35) {Pair with agent};
+  \node[circle,draw=hhteal,line width=1pt,fill=hhteal,minimum size=6mm] at (\dx-.5,1.55) {};
+  \node[circle,draw=hhink,line width=1pt,fill=hhink,minimum size=6mm] at (\dx+.5,1.55) {};
+  \node[pd direct label,anchor=north,align=center,text width=2.9cm] at (\dx,.85)
+    {sees: every patch,\\before it lands};
+  \draw[pd caution rule,line width=1.6pt] (\dx-1.15,-1.1) -- (\dx-.45,-1.1);
+  \node[pd axis label,anchor=west] at (\dx-.3,-1.1) {2};
+
+  % --- panel 2: Ensemble -------------------------------------------------------
+  \node[pd panel title,anchor=south,align=center,text width=2.9cm] at (2*\dx,2.35) {Ensemble};
+  \foreach \k/\xo in {0/-.75,1/0,2/.75}
+    \node[circle,draw=hhink,line width=1pt,fill=hhink,minimum size=5.4mm] at (2*\dx+\xo,1.75) {};
+  \node[circle,draw=hhteal,line width=1pt,fill=hhpaper,minimum size=5.4mm] at (2*\dx,1.05) {};
+  \node[pd direct label,anchor=north,align=center,text width=2.9cm] at (2*\dx,.55)
+    {sees: the partitions,\\not each diff inside one};
+  \draw[pd caution rule,line width=1.6pt] (2*\dx-1.15,-1.1) -- (2*\dx-.15,-1.1);
+  \node[pd axis label,anchor=west] at (2*\dx,-1.1) {3};
+
+  % --- panel 3: Nightshift -----------------------------------------------------
+  \node[pd panel title,anchor=south,align=center,text width=2.9cm] at (3*\dx,2.35) {Nightshift};
+  \node[circle,draw=hhink,line width=1pt,fill=hhink,minimum size=6mm] at (3*\dx-.45,1.75) {};
+  \node[circle,draw=hhink,line width=1pt,fill=hhink,minimum size=6mm] at (3*\dx+.45,1.75) {};
+  \node[pd artifact,text width=1.9cm,align=center,inner sep=2pt] at (3*\dx,1.05) {pull request};
+  \draw[pd caution arrow] (3*\dx,1.4) -- (3*\dx,1.32);
+  \node[pd direct label,anchor=north,align=center,text width=2.9cm] at (3*\dx,.55)
+    {sees: the artifact,\\not the acts};
+  \draw[pd caution rule,line width=1.6pt] (3*\dx-1.15,-1.1) -- (3*\dx+.15,-1.1);
+  \node[pd axis label,anchor=west] at (3*\dx+.3,-1.1) {4};
+
+  % --- panel 4: Harbor co-edit --------------------------------------------------
+  \node[pd panel title,anchor=south,align=center,text width=2.9cm] at (4*\dx,2.35) {Harbor co-edit};
+  \node[pd state,fill=hhamber!22,draw=hhamber,minimum height=5mm,inner xsep=3pt] at (4*\dx,1.9) {claim gate};
+  \node[circle,draw=hhteal,line width=1pt,fill=hhteal,minimum size=6mm] at (4*\dx-.5,1.15) {};
+  \node[circle,draw=hhink,line width=1pt,fill=hhink,minimum size=6mm] at (4*\dx+.5,1.15) {};
+  \node[pd direct label,anchor=north,align=center,text width=2.9cm] at (4*\dx,.75)
+    {sees: claims and\\conflicts, live};
+  \draw[pd caution rule,line width=1.6pt] (4*\dx-1.15,-1.1) -- (4*\dx+.85,-1.1);
+  \node[pd axis label,anchor=west] at (4*\dx+1.0,-1.1) {5};
+
+  \node[pd note,anchor=north,text width=13cm,align=center] at (2*\dx,-1.55)
+    {digest cost the person pays, ordinal rank 1--5 (not yet measured)};
+\end{tikzpicture}
+\caption{The chapter's five modes of cooperation, ordered by how much write
+authority has left the person: a filled circle holds write authority, a
+hollow circle only observes. Solo with staff changes nothing the person did
+not type; Pair with agent splits authority turn by turn; Ensemble
+distributes it by partition, so the tracking person sees the partitions
+rather than every diff; Nightshift hands agents unattended write authority
+inside a budget and shows the person only the resulting artifact; Harbor
+co-edit restores co-equal authority but gates same-symbol writes through a
+claim lock. The bar under each panel is an ordinal rank, not a measured
+cost --- the front matter names the study that would measure it. [internal]}
+\label{fig:ls-cooperation-modes}
+\end{figure}

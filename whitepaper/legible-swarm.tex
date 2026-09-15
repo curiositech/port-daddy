@@ -497,10 +497,10 @@ proposes a force-push that would discard a colleague's unmerged commit. The prem
 is stale; the act is irreversible. \emph{(Footguns, row 4.)}
 \end{enumerate}
 
-Mara did not get six times the work. She got a mob, and her \emph{uncertainty} went
-up sixfold. This is the failure this paper exists to fix, and the rest of the
-afternoon --- once Mara is running under a consented local Leviathan --- is the
-through-line we will trace: how the claim stops the collision before it happens
+Six agents did not give Mara six times the work; they gave her six times the
+\emph{uncertainty} about what any of them actually did. Fixing that is the paper's
+subject. The rest of the afternoon --- once Mara is running under a consented local
+Leviathan --- traces how the claim stops the collision before it happens
 (\S\ref{sec:zoom}), how a digest-with-zoom surface lets her read the pile in bounded
 time (\S\ref{sec:zoom}), how a completion gate turns the confident lie into a loud
 ``I cannot verify this'' (\S\ref{sec:completionist}), how Signal Detection Theory
@@ -739,7 +739,7 @@ Map this onto agent oversight and the design rule writes itself. The operator is
 state; the swarm is the population; the dashboard/TUI/digest is the cadastral map.
 The temptation is identical: render the swarm as a clean grid of green tiles and
 \emph{govern the map}. The \emph{Normalbaum failure} in software is the
-\textbf{Potemkin digest} --- a beautiful surface whose tiles assert a reality nobody
+\pdgloss{Potemkin digest}{a summary that has paraphrased away what it summarizes, so its tiles cannot be checked against the artifact.} --- a beautiful surface whose tiles assert a reality nobody
 can check, having paraphrased away the diff, the test output, the error, the
 reasoning that constituted the actual work. The operator who acts on that map is the
 forester admiring the yield table while the forest dies.
@@ -896,7 +896,7 @@ state only, six words. The ``fix tests'' PR's row is flagged \emph{force-zoom},
 because merging it is irreversible; she presses one key and the 600-line diff and
 the verbatim test log open side by side. The diff deletes a migration test. The
 digest did not paraphrase that away --- it linked her straight to it, and the lie is
-caught in ten seconds instead of slipping through. This is the one law doing its job.}
+caught in ten seconds instead of slipping through.}
 
 \pdexercisepointer{\ref{ex:ls-flatten-or-preserve}}{\ref{ex:ls-adversarial-legibility}}{\pageref{ex:ls-flatten-or-preserve}}
 
@@ -1552,7 +1552,7 @@ sessions, claims, notes, diffs, skill tags, and --- eventually --- reputations, 
 faster than any single participant can read them.
 
 \begin{definition}[Read-poverty]\label{def:readpoverty}
-\textbf{Read-poverty} is a regime in which legible state accumulates faster than it
+\pdgloss{Read-poverty}{legible state piling up faster than anyone can read it, so participants fall back to eyeball search or act blind.} is a regime in which legible state accumulates faster than it
 can be consulted, so participants fall back to $O(n)$ eyeball search over the
 population, or, worse, act blind.
 \end{definition}
@@ -2950,7 +2950,7 @@ Walk the four-rung cascade
 (\S\ref{sec:cascade}) and name the single cure that breaks each rung.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-cascade-cures}
-Context rot $\to$ compact earlier to an effective-window budget. Lost-in-the-middle $\to$ shorten and edge-place mandatory facts. Recursive-summary collapse $\to$ re-derive every compaction from raw durable artifacts. Over-flattening $\to$ require a total zoom path from every material claim. The third cure is the one that matters most: it prevents model noise from becoming the next round's source of truth.
+Context rot $\to$ compact earlier to an effective-window budget. Lost-in-the-middle $\to$ shorten and edge-place mandatory facts. Recursive-summary collapse $\to$ re-derive every compaction from raw durable artifacts, so a model's earlier misreading cannot get baked into the next round's source of truth. Over-flattening $\to$ require a total zoom path from every material claim.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:ls-replay-metric-soundness}
 The compaction-quality scalar: is \emph{successor-replay-success-

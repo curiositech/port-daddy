@@ -412,6 +412,8 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 
 \paragraph{Table~\ref{tab:anchor-verification-stack} is this section's map.} Read down the rows for what each layer hands the next as an obligation it cannot discharge itself; read the third column for what has actually been checked about the running code. The last column holds the only two places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are listed as assumption gaps rather than as inferences.
 
+\input{figures/fig-anchor-assurance-chain}
+
 \subsection{Symbolic Analysis with ProVerif}
 
 To prove the protocol's logical soundness against a Dolev-Yao adversary~\pdcite{dolev1983security} (an attacker who controls the entire network), we modeled the Anchor Protocol in \textbf{ProVerif}~\pdcite{blanchet2016modeling}. ProVerif represents protocols as Horn clauses and uses resolution to prove security properties for an unbounded number of sessions.
