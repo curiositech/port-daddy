@@ -37,8 +37,8 @@
 % row's archetype label so a reader opening straight to the second page still
 % knows which lane is which, and carries the one \caption and \label for the
 % pair. Note for anyone tightening the page model later: this book is a plain
-% (oneside) article-class document with fixed left/right margins, not
-% \documentclass[twoside]{book} with inner/outer margins -- so "verso" and
+% (oneside) article-class document with fixed left/right margins, not a
+% genuine twoside book class with inner/outer margins -- so "verso" and
 % "recto" below are used loosely, for the reading convention, not a binding
 % guarantee that these two pages will fall on an actual left/right facing
 % pair when printed. A \cleardoublepage plus true twoside geometry would be
@@ -63,7 +63,7 @@
 % redrawn once that lands. This one does not depend on it either way.
 
 % ---- shared lane geometry (both pages use the same row and rule spec) -----
-\def\yTop{10.55}\def\yHead{10.30}\def\ySub{9.75}\def\yBase{0.55}
+\def\yTop{10.55}\def\yHead{10.15}\def\ySub{9.60}\def\yBase{0.55}
 \def\yPrac{8.55}\def\yEng{6.90}\def\ySec{5.25}\def\yEcon{3.60}\def\yPhil{1.95}
 \def\wFat{9.0}\def\wMed{5.0}\def\wThin{2.0}
 % A river segment: #1 x start, #2 x end, #3 y, #4 line width, #5 extra style.
