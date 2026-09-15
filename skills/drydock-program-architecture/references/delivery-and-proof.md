@@ -18,7 +18,10 @@ reviewable artifacts before any more authority exists.
 | D8 | One fixture-repository worker | End-to-end operator journey and reviewed quarantined diff | Touch production repo |
 | D9 | Cooperative crew/federation | Global conservation, identity, ordering, remote custody | Infer from single-worker proof |
 
-An active runtime halt caps work at D0 regardless of source completeness.
+An active runtime halt caps **promotion and dynamic proof** at T0. It does not
+forbid ordinary source implementation of later stages in dedicated worktrees;
+those implementations remain source-present and unpromoted until their required
+external witnesses can legally run.
 
 ## Promotion tiers
 

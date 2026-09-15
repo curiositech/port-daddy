@@ -11,6 +11,7 @@ draws boundaries.
 | Operator surface | Intent and bounded approvals | Raw provider credentials, VM handles, direct ledger writes | Rust/GPUI console plus bounded web/iOS projections | TARGET |
 | Command verifier | Nonce, expiry, scope, signer verification | Launch policy, long-lived bearer, semantic judgment | Small host TCB, Rust | TARGET |
 | Drydock controller | VM lifecycle, clock, fencing, run transitions, kill | Work authorship, success judgment, provider secret | Rust service | TARGET |
+| Hypertree execution reducer | Admit typed lifecycle events and derive one canonical projection | I/O, process launch, credentials, client commands | Pure controller-local TypeScript product plane | SOURCE-PRESENT / T0 |
 | macOS VM adapter | Narrow Virtualization.framework calls and VM handle | Ledger, policy, credential, agent context | Tiny out-of-process Swift adapter | TARGET |
 | Linux VM adapter | Firecracker API and process handle | Reimplemented VMM, ledger, policy | Upstream Firecracker plus narrow Rust adapter | TARGET |
 | Lifecycle ledger | Agent/run/body generations, leases, witnesses, breakers | Prompt text as identity, hidden process discovery | Single-writer SQLite initially | TARGET |
@@ -23,10 +24,13 @@ draws boundaries.
 | Evidence log | Append-only host/broker observations and digests | Mutation authority, inferred causation | Host-owned durable writer | TARGET |
 | Porthole/Scout projection | Capture, replay, navigation, visual proof | Authorization, containment judgment | Read-only product projection | PARTIAL/TARGET |
 
-Rust is chosen for the authority-bearing nucleus because memory-safe systems code,
-explicit types, and releaseable static components shrink risk. Rust is not an
-isolation boundary. A hypervisor/kernel supplies the boundary; process separation
-keeps a native adapter from inheriting the whole TCB.
+Rust is chosen for the stable authority-bearing nucleus because memory-safe
+systems code, explicit types, and releaseable static components shrink risk.
+Fast-changing execution-product policy remains TypeScript under ADR-0120; moving
+that policy into Rust would create another semantic implementation without
+creating isolation. Rust is not an isolation boundary. A hypervisor/kernel
+supplies the boundary; process separation keeps a native adapter from inheriting
+the whole TCB.
 
 ## Five planes that must not collapse
 

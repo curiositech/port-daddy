@@ -42,6 +42,8 @@ const required = [
   "examples/hypertree-execution.review-loop.json",
   "schemas/drydock-resurrection-hypertree.schema.json",
   "schemas/hypertree-execution.schema.json",
+  "schemas/hypertree-execution-projection.schema.json",
+  "schemas/hypertree-execution-projection-update.schema.json",
   "scripts/INDEX.md",
   "scripts/audit-drydock-program-skill.mjs",
   "scripts/validate-drydock-resurrection-hypertree.mjs",

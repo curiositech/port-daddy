@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+  "title": "Drydock hypertree execution projection",
+  "description": "A controller-produced read projection. It conveys no command or raw-event admission authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "reducerVersion",
+    "executionId",
+    "planId",
+    "planDigest",
+    "definitionDigest",
+    "asOfSequence",
+    "asOfEventId",
+    "runState",
+    "topology",
+    "nodes",
+    "capacity",
+    "staleAfter",
+    "truthState",
+    "terminalEvidenceRoot"
+  ],
+  "properties": {
+    "schema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json" },
+    "reducerVersion": { "const": "drydock-hypertree-reducer.v1" },
+    "executionId": { "$ref": "#/$defs/slug" },
+    "planId": { "$ref": "#/$defs/slug" },
+    "planDigest": { "$ref": "#/$defs/digest" },
+    "definitionDigest": { "$ref": "#/$defs/digest" },
+    "asOfSequence": { "type": "integer", "minimum": 0 },
+    "asOfEventId": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/eventId" }
+      ]
+    },
+    "runState": { "enum": ["OPEN", "RUNNING", "COMPLETED", "HALTED", "FAILED", "UNKNOWN"] },
+    "topology": { "$ref": "#/$defs/topology" },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 500,
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "capacity": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/capacity" }
+    },
+    "staleAfter": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/canonicalTimestamp" }
+      ]
+    },
+    "truthState": { "enum": ["FIXTURE", "LIVE", "STALE", "OFFLINE", "UNKNOWN"] },
+    "terminalEvidenceRoot": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/digest" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "asOfSequence": { "const": 0 } }, "required": ["asOfSequence"] },
+      "then": {
+        "properties": {
+          "asOfEventId": { "type": "null" },
+          "staleAfter": { "type": "null" }
+        }
+      },
+      "else": {
+        "properties": {
+          "asOfEventId": { "$ref": "#/$defs/eventId" },
+          "staleAfter": { "$ref": "#/$defs/canonicalTimestamp" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "runState": { "const": "COMPLETED" } }, "required": ["runState"] },
+      "then": { "properties": { "terminalEvidenceRoot": { "$ref": "#/$defs/digest" } } },
+      "else": { "properties": { "terminalEvidenceRoot": { "type": "null" } } }
+    }
+  ],
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:[-:/][a-z0-9]+)*$" },
+    "nodeId": { "type": "string", "pattern": "^DD-[0-9]{3}[A-Z]?$" },
+    "eventId": { "type": "string", "pattern": "^[a-z0-9]+(?:[-:/][a-z0-9]+)*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "canonicalTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligibility", "qualityRouting", "staffing", "observation"],
+      "properties": {
+        "eligibility": { "const": "dag" },
+        "qualityRouting": { "const": "bounded-workflow" },
+        "staffing": { "const": "manager-driven-rounds" },
+        "observation": { "const": "append-only-event-projection" }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budgetId", "providerId", "accountRef", "unit", "maxReservedUnits", "reservedUnits", "heldUnits", "usedUnits", "reservationCount"],
+      "properties": {
+        "budgetId": { "$ref": "#/$defs/slug" },
+        "providerId": { "$ref": "#/$defs/slug" },
+        "accountRef": { "$ref": "#/$defs/eventId" },
+        "unit": { "$ref": "#/$defs/slug" },
+        "maxReservedUnits": { "type": "integer", "minimum": 1 },
+        "reservedUnits": { "type": "integer", "minimum": 0 },
+        "heldUnits": { "type": "integer", "minimum": 0 },
+        "usedUnits": { "type": "integer", "minimum": 0 },
+        "reservationCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "dependsOnNodeIds", "state", "attempt", "reworkRounds", "latestEventId", "checkStatus", "reviewVerdict", "managerDecision", "artifactIds"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "dependsOnNodeIds": { "type": "array", "maxItems": 499, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
+        "state": { "enum": ["BLOCKED", "ELIGIBLE", "RUNNING", "AWAITING_CHECKS", "AWAITING_REVIEW", "REWORK_REQUIRED", "AWAITING_MANAGER", "APPROVED", "FAILED", "ESCALATED", "CANCELLED", "QUARANTINED"] },
+        "attempt": { "type": "integer", "minimum": 0 },
+        "reworkRounds": { "type": "integer", "minimum": 0 },
+        "latestEventId": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/eventId" }
+          ]
+        },
+        "checkStatus": { "enum": ["PASS", "FAIL", "UNKNOWN"] },
+        "reviewVerdict": {
+          "anyOf": [
+            { "type": "null" },
+            { "enum": ["APPROVE", "REWORK", "ESCALATE"] }
+          ]
+        },
+        "managerDecision": {
+          "anyOf": [
+            { "type": "null" },
+            { "enum": ["APPROVE_NODE", "CONTINUE", "ADD_ROLE", "ESCALATE", "HALT"] }
+          ]
+        },
+        "artifactIds": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slug" }
+        }
+      }
+    }
+  }
+}
