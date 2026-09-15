@@ -7,6 +7,8 @@ import {
   cleanStandaloneChrome,
   collateReferences,
   compareNormalizedReferences,
+  documentBody,
+  generate,
   inlineInputs,
   loadCiteShortforms,
   loadTextbook,
@@ -21,6 +23,7 @@ import {
   sharedMapTargets,
   sourceDeclaresExercises,
   stripPaperApparatus,
+  uncommentedOffsets,
   validateTextbook,
 } from './generate-mega-whitepaper.mjs';
 
@@ -735,5 +738,329 @@ test('loadCiteShortforms parses the generated \\pdciteshort table', () => {
     assert.equal(map.get('lampson1974'), 'Lampson 1974, \\textit{Protection}');
   } finally {
     rmSync(path, { force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The Reader's Map: kept in the standalone paper, stripped from the Book.
+//
+// The front matter promises that "standalone editions of the chapters keep
+// their abstracts and reader maps; here each chapter opens on the question it
+// answers". stripPaperApparatus keeps that promise by removing a STARRED
+// reader's-map section only, on the reasoning that a numbered one is chapter
+// content. So a chapter that writes \section{Reader's Map} instead of
+// \section*{...} leaks its map into the Book, silently, and the Book prints a
+// page it told the reader it would not. That has now happened twice and been
+// repaired by hand twice (the kernel's map and the economy's), which is what a
+// missing check looks like. This is the check.
+// ---------------------------------------------------------------------------
+
+// Any sectioning command whose title names a reader's map, starred or not.
+// Deliberately LOOSER than the generator's own strip pattern: its job is to
+// notice a heading the generator would fail to recognise, so it has to see more
+// than the generator sees.
+const READERS_MAP_HEADING = /\\(?:sub)*section(\*?)\s*\{([^}]*[Rr]eader'?s?\s+[Mm]ap[^}]*)\}/g;
+// The phrase itself, anywhere. What the reader would actually see on the page.
+//
+// `(?![a-z])` is what keeps this off ordinary prose. Without it the pattern also
+// matches "the reader's MAPPING of the territory" and "each reader MAPS the
+// claim onto their own stack" -- sentences with nothing to do with the section
+// this guards, which would fail the leak assertion below and make a green Book
+// look red. That is not hypothetical phrasing: coordination-papers-mega-volume
+// .tex already says "standalone editions of the chapters keep their abstracts
+// and reader maps", and it is only out of range because the assertion reads the
+// generated body rather than the driver.
+//
+// Singular on purpose, and checked against the corpus rather than assumed: every
+// real heading is singular, including harbor-economy.tex's lowercase
+// \section*{Reader's map} -- which is also why this cannot simply require a
+// capitalised "Map". Allowing "maps" here would readmit the verb. A plural
+// heading would still be caught on the source side by READERS_MAP_HEADING,
+// whose title part is `[Mm]ap[^}]*`.
+const READERS_MAP_PHRASE = /[Rr]eader'?s?\s+[Mm]ap(?![a-z])/;
+
+// What may sit between the heading and its \addcontentsline without being
+// "content": whitespace, the section's own label, a \phantomsection anchor, and
+// full-line comments (the sources draw a rule of box characters under a
+// heading). Anything else means the heading is not being routed to the Contents
+// by the very next instruction, which is what a reader has to be able to see.
+const BETWEEN_HEADING_AND_TOC = /^(?:\s|%[^\n]*\n|\\label\{[^}]*\}|\\phantomsection\b)*/;
+// \addcontentsline{toc}{section}{TITLE}, tolerating one level of nesting in the
+// title so a \texorpdfstring or a braced group does not read as absent.
+const ADDCONTENTSLINE = /^\\addcontentsline\s*\{toc\}\s*\{section\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/;
+
+test("every chapter's Reader's Map is starred, and no chapter's reaches the Book", () => {
+  const textbook = loadTextbook();
+
+  // --- the source side: a diagnostic, chapter by chapter -------------------
+  // Chapters come from textbook.json, never from a list kept here: a ninth
+  // chapter is covered the day it is added, and a renamed source cannot quietly
+  // fall out of the sweep.
+  const unstarred = [];
+  const unlisted = [];
+  const chaptersWithAMap = [];
+  for (const chapter of textbook.chapters) {
+    const source = readFileSync(resolve(chapter.source), 'utf8');
+    for (const heading of source.matchAll(READERS_MAP_HEADING)) {
+      chaptersWithAMap.push(chapter.id);
+      if (heading[1] !== '*') {
+        unstarred.push(
+          `${chapter.source}: \\section{${heading[2]}} is numbered; the Book strips only \\section*{...}`,
+        );
+      }
+      // The other half of the same bargain. Starring the heading is what keeps
+      // the map OUT of the Book; \addcontentsline is what keeps it IN the
+      // standalone paper's Contents. A star with no \addcontentsline leaks
+      // nothing and so passes every assertion above, while the paper silently
+      // prints a section its own Contents does not list.
+      const after = source.slice(heading.index + heading[0].length);
+      const gap = after.match(BETWEEN_HEADING_AND_TOC)[0];
+      const listed = after.slice(gap.length).match(ADDCONTENTSLINE);
+      if (!listed) {
+        unlisted.push(
+          `${chapter.source}: \\section*{${heading[2]}} is not followed by \\addcontentsline{toc}{section}{...}; `
+          + "the standalone paper prints the map but omits it from Contents",
+        );
+      } else if (listed[1] !== heading[2]) {
+        unlisted.push(
+          `${chapter.source}: \\addcontentsline title ${JSON.stringify(listed[1])} does not match the heading `
+          + `${JSON.stringify(heading[2])}; Contents would name a section that is not on the page`,
+        );
+      }
+    }
+  }
+  assert.deepEqual(
+    unstarred,
+    [],
+    "a Reader's Map heading must be starred (and carry \\addcontentsline so the standalone paper still lists it)",
+  );
+  assert.deepEqual(
+    unlisted,
+    [],
+    "a starred Reader's Map must carry a matching \\addcontentsline{toc}{section}{...}: the star removes it "
+    + "from the Book, and only the \\addcontentsline keeps it in the standalone paper's Contents",
+  );
+  // Without this the sweep above would pass vacuously the day the heading is
+  // reworded past the pattern -- the same "two lists that must agree" failure
+  // the check exists to remove.
+  assert.ok(chaptersWithAMap.length > 0, "no chapter source matched the Reader's Map heading pattern at all");
+
+  // --- the output side: the assertion that actually decides ----------------
+  // Against the generated Book, not against a regex over the sources. A source
+  // sweep alone would only prove that the sources match a pattern this file
+  // believes in; running the generator proves what the Book prints.
+  const out = resolve('.cache/mega-generator-readers-map-test');
+  rmSync(out, { recursive: true, force: true });
+  try {
+    generate({ textbook, out });
+    const leaked = readFileSync(resolve(out, 'mega-volume-body.tex'), 'utf8')
+      .split('\n')
+      .map((line, index) => `${index + 1}: ${line.trim()}`)
+      .filter((line) => READERS_MAP_PHRASE.test(line));
+    assert.deepEqual(
+      leaked,
+      [],
+      'the Book body must contain no reader\'s map; these lines reached mega-volume-body.tex',
+    );
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// documentBody: the real \begin{document}...\end{document} extent.
+//
+// Chapters carry commented-out markers -- a disabled draft opening, an
+// \end{document} parked above an appendix while it is being cut. Picking the
+// first \begin{document} and the last \end{document} by text position alone
+// splices the wrong extent and says nothing about it: the result is still a
+// plausible-looking body, just missing a preamble's worth of content or
+// carrying one.
+// ---------------------------------------------------------------------------
+
+// One fixture, three hazards: a commented-out opening marker, a real opening
+// marker sharing its line with an escaped percent sign, and a commented-out
+// closing marker inside the body.
+const COMMENTED_MARKER_FIXTURE = [
+  '\\documentclass{pd-chapter}',
+  '%\\begin{document} <- a draft opening, disabled',
+  '\\newcommand{\\pdshare}{5\\% of the settled fee} \\begin{document}',
+  'REAL BODY',
+  '% \\end{document} <- parked while the appendix is cut',
+  '\\end{document}',
+  '\\typeout{after the real end}',
+].join('\n');
+
+test('documentBody opens at the real \\begin{document}, not at a commented-out one', () => {
+  const body = documentBody(COMMENTED_MARKER_FIXTURE, 'fixture.tex');
+  assert.doesNotMatch(body, /a draft opening, disabled/, 'the commented-out opening marker moved the extent');
+  assert.doesNotMatch(body, /\\documentclass/, 'the preamble leaked into the body');
+  assert.match(body, /REAL BODY/);
+
+  // And it fails closed rather than silently returning the whole file: a
+  // source whose ONLY \begin{document} is commented out has no body.
+  assert.throws(
+    () => documentBody('%\\begin{document}\nstuff\n\\end{document}\n', 'only-commented.tex'),
+    /only-commented\.tex: malformed document body/,
+  );
+});
+
+test('documentBody closes at the real \\end{document}, not at a commented-out one', () => {
+  const body = documentBody(COMMENTED_MARKER_FIXTURE, 'fixture.tex');
+  assert.match(
+    body,
+    /parked while the appendix is cut/,
+    'the extent stopped at a commented-out closing marker, truncating the chapter',
+  );
+  assert.doesNotMatch(body, /after the real end/, 'content past \\end{document} leaked into the body');
+  assert.equal(
+    body,
+    [
+      '',
+      'REAL BODY',
+      '% \\end{document} <- parked while the appendix is cut',
+      '',
+    ].join('\n'),
+  );
+});
+
+test('an escaped \\% is a percent sign, not the start of a comment', () => {
+  // Stated on the scanner first, with documentBody out of the way, so a
+  // failure here names the rule that broke rather than a downstream symptom:
+  // the marker after `\%` is live, and the one after a bare `%` is not.
+  assert.deepEqual(
+    uncommentedOffsets('50\\% \\end{document}', '\\end{document}'),
+    [5],
+    '`\\%` is a literal percent sign and must not comment out the rest of its line',
+  );
+  assert.deepEqual(uncommentedOffsets('50% \\end{document}', '\\end{document}'), []);
+  // `\\` is a line break, so the `%` after it still opens a comment.
+  assert.deepEqual(uncommentedOffsets('x\\\\% \\end{document}', '\\end{document}'), []);
+
+  // And end to end: the real \begin{document} in the fixture sits AFTER a
+  // `5\%` on the same line. Read `\%` as a comment start and the rest of that
+  // line disappears, taking the only real opening marker with it.
+  const body = documentBody(COMMENTED_MARKER_FIXTURE, 'fixture.tex');
+  assert.match(body, /REAL BODY/, "the line's escaped percent swallowed the real \\begin{document}");
+});
+
+test('a \\\\ line break is consumed as a pair, so a marker touching it is still found', () => {
+  // The scanner's backslash branch skips the NEXT character, which is what makes
+  // `\%` a literal percent. The same branch has to get `\\` right: the pair is
+  // one token, so a marker that begins the moment it ends is live. Off-by-one
+  // here -- consuming one backslash instead of two -- would eat the marker's own
+  // leading backslash and lose it silently, which is the failure this pins.
+  const END = '\\end{document}';
+  assert.deepEqual(
+    uncommentedOffsets(`x\\\\${END}`, END),
+    [3],
+    'the marker immediately after a `\\\\` line break was swallowed by the escape skip',
+  );
+  assert.deepEqual(uncommentedOffsets(`x\\\\\\\\${END}`, END), [5], 'two `\\\\` pairs in a row');
+  assert.deepEqual(uncommentedOffsets(`\\\\${END}`, END), [2], '`\\\\` at offset 0');
+  // And the pair does not make the NEXT character inert: after `\\` a bare `%`
+  // still opens a comment, while `\%` is still a literal percent.
+  assert.deepEqual(uncommentedOffsets(`x\\\\% ${END}`, END), []);
+  assert.deepEqual(uncommentedOffsets(`x\\\\\\% ${END}`, END), [6]);
+});
+
+// ---------------------------------------------------------------------------
+// The verbatim boundary, pinned rather than fixed.
+//
+// `%` is not a comment character inside verbatim/lstlisting, but the scanner
+// treats it as one everywhere. That is a real difference from TeX, and it is
+// deliberate: see the "Known boundary" note on uncommentedOffsets. Making the
+// scanner environment-aware means tracking nesting and every verbatim-like
+// environment the corpus defines (\lstnewenvironment{pdsession} among them) --
+// a state machine with its own bug surface -- to change the answer for a
+// construction that cannot occur for the only two markers it is asked about.
+//
+// So the boundary stays, and these two tests hold it honest: the first states
+// the divergence outright so nobody discovers it by surprise, and the second
+// checks that it does not actually bite on the real corpus. If a listing ever
+// does move a marker, the second test fails on the chapter that did it.
+// ---------------------------------------------------------------------------
+
+test('KNOWN BOUNDARY: a % inside a listing is treated as a comment (TeX would not)', () => {
+  const END = '\\end{document}';
+  // Harmless and by far the common shape: the `%` and the marker are on
+  // different lines, so commenting to end-of-line costs nothing.
+  const ownLine = [
+    '\\begin{document}', 'A', '\\begin{lstlisting}', 'printf("100%%");', '\\end{lstlisting}', 'B', END,
+  ].join('\n');
+  assert.match(documentBody(ownLine, 'listing.tex'), /printf/, 'a listing % must not truncate the body');
+
+  // The divergence itself, which needs the marker to share a line with a
+  // listing's `%`. TeX prints the percent and closes the document; the scanner
+  // reads the percent as a comment and finds no closing marker at all.
+  const sameLine = `\\begin{document}\nA\n\\begin{lstlisting}\nx = a % b \\end{lstlisting} B ${END}\n`;
+  assert.deepEqual(
+    uncommentedOffsets(sameLine, END),
+    [],
+    'if this now finds the marker the scanner became verbatim-aware -- delete this test and the '
+    + '"Known boundary" note on uncommentedOffsets, do not update the expectation',
+  );
+});
+
+// Every verbatim-like environment the corpus can open. lstlisting is the one in
+// use today; pdsession is an \lstnewenvironment defined in the figures preamble
+// and is listed here so it is covered the day a chapter uses it.
+const VERBATIMISH = /\\begin\{(verbatim|lstlisting|pdsession|minted|alltt|Verbatim)\*?\}/g;
+
+test('every verbatim-like block sits strictly inside the document body', () => {
+  // This is the precondition that makes the boundary above free, checked
+  // instead of assumed. The argument is: mis-reading a `%` inside a listing can
+  // only hide text to the end of that line, so it can only matter if a listing
+  // could hide the FIRST \begin{document} or the LAST \end{document} -- and it
+  // cannot, because every listing opens after the one and closes before the
+  // other. Comparing the scanner against a verbatim-aware one would prove
+  // nothing here: for these two markers the two agree by construction, so such
+  // a test could never fail. This one can. If a listing ever escapes the body
+  // -- a preamble example, an unclosed block swallowing the end of the file --
+  // the argument collapses and this names the chapter that broke it.
+  const textbook = loadTextbook();
+  const escaped = [];
+  for (const chapter of textbook.chapters) {
+    const tex = readFileSync(resolve(chapter.source), 'utf8');
+    const bodyStart = tex.indexOf(documentBody(tex, chapter.source));
+    const bodyEnd = bodyStart + documentBody(tex, chapter.source).length;
+    for (const open of tex.matchAll(VERBATIMISH)) {
+      const close = tex.indexOf(`\\end{${open[1]}`, open.index);
+      if (close < 0) {
+        escaped.push(`${chapter.source}: \\begin{${open[1]}} at ${open.index} is never closed`);
+      } else if (open.index < bodyStart || close > bodyEnd) {
+        escaped.push(
+          `${chapter.source}: a ${open[1]} block at ${open.index} lies outside \\begin{document}...\\end{document}; `
+          + 'a % inside it can now hide a document marker from the scanner',
+        );
+      }
+    }
+  }
+  assert.deepEqual(escaped, [], 'a verbatim-like block outside the body invalidates the known boundary');
+  assert.ok(textbook.chapters.length > 0, 'no chapters to check');
+});
+
+// The leak pattern above decides a merge-blocking assertion over every line of
+// the generated Book, so it has to be right in BOTH directions: it must catch a
+// map that reached the body, and it must not fire on a sentence that merely uses
+// the same words. A false positive here is a green Book reported red, which is
+// how a gate gets weakened or switched off.
+test("the Reader's Map leak pattern catches the section without catching prose", () => {
+  for (const leak of [
+    "\\section*{Reader's Map}",
+    "\\section*{Reader's map}",          // harbor-economy.tex's actual heading
+    "\\caption{Reader's Map. Find your row; read those sections first.}",
+    "The Reader's Map below provides shorter routes for specific audiences.",
+    'a reader map is not an index',
+  ]) {
+    assert.ok(READERS_MAP_PHRASE.test(leak), `must be caught as a leak: ${leak}`);
+  }
+
+  for (const prose of [
+    "the reader's mapping of the territory",
+    'each reader maps the claim onto their own stack',
+    'standalone editions of the chapters keep their abstracts and reader maps; here',
+  ]) {
+    assert.ok(!READERS_MAP_PHRASE.test(prose), `must NOT be caught, it is ordinary prose: ${prose}`);
   }
 });

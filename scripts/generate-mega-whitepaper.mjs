@@ -458,10 +458,60 @@ function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
   });
 }
 
+/**
+ * Every offset at which `marker` occurs in `tex` OUTSIDE a TeX comment.
+ *
+ * A plain `indexOf` cannot tell the preamble's real `\begin{document}` from a
+ * commented-out one, and chapters do carry commented-out markers: a disabled
+ * draft opening, a `% \end{document}` parked above an appendix while it is
+ * being cut. Taking the first `\begin{document}` or the last `\end{document}`
+ * by text position alone would then splice the wrong extent — silently, since
+ * the result is still a plausible-looking body.
+ *
+ * TeX's own comment rule is the whole rule here: an unescaped `%` comments out
+ * the rest of its line, and `\%` is a literal percent sign that starts nothing.
+ * The backslash branch consumes the character after it, which handles `\%` and
+ * `\\` alike (in `\\%` the pair is the line break, so the `%` that follows does
+ * open a comment — and it does here too).
+ *
+ * The marker is tested BEFORE the backslash branch, because every marker this
+ * generator looks for begins with a backslash and would otherwise be skipped as
+ * an escape.
+ *
+ * Known boundary: `%` inside `verbatim`/`lstlisting` is not a comment to TeX,
+ * and is treated as one here. It does not matter for the two markers this is
+ * used for — a `\begin{document}` inside a verbatim block would have to sit
+ * before the real one, and an `\end{document}` inside one already breaks the
+ * standalone build — so the simpler scan is the honest trade.
+ */
+function uncommentedOffsets(tex, marker) {
+  const offsets = [];
+  let inComment = false;
+  for (let i = 0; i < tex.length; i += 1) {
+    const ch = tex[i];
+    if (inComment) {
+      if (ch === '\n') inComment = false;
+      continue;
+    }
+    if (tex.startsWith(marker, i)) {
+      offsets.push(i);
+      i += marker.length - 1;
+      continue;
+    }
+    if (ch === '\\') { i += 1; continue; }
+    if (ch === '%') inComment = true;
+  }
+  return offsets;
+}
+
 function documentBody(tex, source) {
-  const begin = tex.indexOf('\\begin{document}');
-  const end = tex.lastIndexOf('\\end{document}');
-  if (begin < 0 || end < begin) throw new Error(`${source}: malformed document body`);
+  const begins = uncommentedOffsets(tex, '\\begin{document}');
+  const ends = uncommentedOffsets(tex, '\\end{document}');
+  const begin = begins[0];
+  const end = ends[ends.length - 1];
+  if (begin === undefined || end === undefined || end < begin) {
+    throw new Error(`${source}: malformed document body`);
+  }
   return tex.slice(begin + '\\begin{document}'.length, end);
 }
 
@@ -1444,6 +1494,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export {
   cleanStandaloneChrome,
+  documentBody,
   firstAuthorSurname,
   referenceFingerprint,
   referenceParts,
@@ -1470,6 +1521,13 @@ export {
   sourceDeclaresExercises,
   syncSharedMap,
   texText,
+  // Not dead code, and not called anywhere else on purpose: documentBody is its
+  // only production caller. It is exported so the comment rule can be asserted
+  // on its own, one input and one answer, instead of only through the body
+  // documentBody happens to splice -- a failure then names the rule that broke
+  // rather than a downstream symptom. See the `\%`, `\\` and known-boundary
+  // tests in scripts/generate-mega-whitepaper.test.mjs. Keep the export.
+  uncommentedOffsets,
   validateCorpus,
   validateTextbook,
 };
