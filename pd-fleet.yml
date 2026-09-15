@@ -372,23 +372,42 @@ fleet:
     # visible to config tooling but is omitted from executable FleetConfig
     # while `enabled: false` (same mechanism as dispatch-runner below).
     #
-    # WHY: proposed 6 items on PR #10231; 2 restated features shipped in that very diff, 1 targeted the wrong layer.
+    # WHY: proposed 6 items on PR #10231; 2 restated features shipped in that
+    # very diff, 1 targeted the wrong layer. Its #5 — an introduction-ladder
+    # L3+ gate — is the single best proposal any ideation ship made that
+    # night, and is still unbuilt. Pausing spark defers it; it does not
+    # refute it.
     #
-    # Across one PR the four ideation ships produced 23 proposals, of which 0
-    # were actionable. The two real findings that night came from `qa` and from
-    # a human reading the diff. An advisory proposal is cheap to emit and
-    # expensive to disprove, and that asymmetry lands on the reviewer.
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
     #
     # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
     # evidence path that EXISTS, and must be rejected when the identifier it
-    # claims is missing already appears in the diff under review. That single
-    # check would have suppressed every one of the 23. Until it exists,
-    # re-enabling reproduces the same output.
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
     #
     # Gating nothing: all four are `class: ideation`, advisory, and never gate
-    # a merge. Pausing them removes proposals, not review. The blocking review
-    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
-    # untouched and still runs on every PR.
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
     #
     # DO NOT pause EVERY ship matching a trigger. The projection collapses an
     # empty roster to null and the executor reads null as "no config", falling
@@ -592,23 +611,42 @@ fleet:
     # visible to config tooling but is omitted from executable FleetConfig
     # while `enabled: false` (same mechanism as dispatch-runner below).
     #
-    # WHY: proposed 10 items across two rounds on PR #10231; 9 already existed in the diff under review. Its second round cited phrases from the PR review comments as evidence the capability was missing — a feedback loop, not a finding.
+    # WHY: proposed 10 items across two rounds on PR #10231; 9 already existed
+    # in the diff under review. Its second round cited phrases from the PR
+    # review comments as evidence the capability was missing — a feedback
+    # loop, not a finding. The tenth was correct and shipped as `21c847c`
+    # (per-route regression churn), which is the one measured hit on record.
     #
-    # Across one PR the four ideation ships produced 23 proposals, of which 0
-    # were actionable. The two real findings that night came from `qa` and from
-    # a human reading the diff. An advisory proposal is cheap to emit and
-    # expensive to disprove, and that asymmetry lands on the reviewer.
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
     #
     # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
     # evidence path that EXISTS, and must be rejected when the identifier it
-    # claims is missing already appears in the diff under review. That single
-    # check would have suppressed every one of the 23. Until it exists,
-    # re-enabling reproduces the same output.
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
     #
     # Gating nothing: all four are `class: ideation`, advisory, and never gate
-    # a merge. Pausing them removes proposals, not review. The blocking review
-    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
-    # untouched and still runs on every PR.
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
     #
     # DO NOT pause EVERY ship matching a trigger. The projection collapses an
     # empty roster to null and the executor reads null as "no config", falling
@@ -676,21 +714,36 @@ fleet:
     #
     # WHY: proposed 3 items on PR #10231; 2 restated shipped code, and the third inverted what the PR it cited actually argued.
     #
-    # Across one PR the four ideation ships produced 23 proposals, of which 0
-    # were actionable. The two real findings that night came from `qa` and from
-    # a human reading the diff. An advisory proposal is cheap to emit and
-    # expensive to disprove, and that asymmetry lands on the reviewer.
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
     #
     # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
     # evidence path that EXISTS, and must be rejected when the identifier it
-    # claims is missing already appears in the diff under review. That single
-    # check would have suppressed every one of the 23. Until it exists,
-    # re-enabling reproduces the same output.
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
     #
     # Gating nothing: all four are `class: ideation`, advisory, and never gate
-    # a merge. Pausing them removes proposals, not review. The blocking review
-    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
-    # untouched and still runs on every PR.
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
     #
     # DO NOT pause EVERY ship matching a trigger. The projection collapses an
     # empty roster to null and the executor reads null as "no config", falling
@@ -747,23 +800,41 @@ fleet:
     # visible to config tooling but is omitted from executable FleetConfig
     # while `enabled: false` (same mechanism as dispatch-runner below).
     #
-    # WHY: proposed 4 items on PR #10231; all 4 asked for a skill that rebuilds that PR, each citing the implementing file as evidence it was missing.
+    # WHY: proposed 4 items on PR #10231; 3 asked for a skill that rebuilds
+    # that PR, each citing the implementing file as evidence it was missing.
+    # The fourth re-raised the wireframe-constraint gap three other ships had
+    # already raised — real, but not new by the time snipe filed it.
     #
-    # Across one PR the four ideation ships produced 23 proposals, of which 0
-    # were actionable. The two real findings that night came from `qa` and from
-    # a human reading the diff. An advisory proposal is cheap to emit and
-    # expensive to disprove, and that asymmetry lands on the reviewer.
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
     #
     # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
     # evidence path that EXISTS, and must be rejected when the identifier it
-    # claims is missing already appears in the diff under review. That single
-    # check would have suppressed every one of the 23. Until it exists,
-    # re-enabling reproduces the same output.
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
     #
     # Gating nothing: all four are `class: ideation`, advisory, and never gate
-    # a merge. Pausing them removes proposals, not review. The blocking review
-    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
-    # untouched and still runs on every PR.
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
     #
     # DO NOT pause EVERY ship matching a trigger. The projection collapses an
     # empty roster to null and the executor reads null as "no config", falling
