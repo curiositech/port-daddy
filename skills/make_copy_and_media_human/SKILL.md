@@ -534,6 +534,60 @@ famous ones: one provider's em-dash rate fell from 10.62 per thousand words to
 cautions rather than tests. The entry on mangled hands in generated images is
 already one of them.
 
+### The property a generator cannot watch
+
+Motion is the one design property whose entire quality lives in *time*, and a
+generator emits it as a static string it can never watch run. That single fact
+predicts most of `references/interaction-and-motion.md`. Duration, easing and
+stagger are judgements made by watching, so what arrives is the corpus median
+applied uniformly — 300ms for a 2px hover tint and for a full-height sheet
+alike. And uniform motion is decoration by definition, because decoration is the
+only use of motion that needs no knowledge of what is happening on the page. The
+computation behind most of the lane is the same one the typography lane uses:
+does this property vary with the thing it is supposed to vary with?
+
+The other half is input devices. Hover is the state the author sees while
+building; focus only exists if you put the mouse down, and on a touchscreen
+hover latches on tap and never releases. None of that is visible in the source.
+
+Two items here carry evidence rather than taste. Scroll capture: Nielsen Norman
+Group's usability testing found most participants at least mildly disoriented,
+several reading it as a bug rather than a design. And reduced motion: 35.4% of
+US adults aged 40 and over showed vestibular dysfunction in the 2001-2004 NHANES
+data, about 69 million people. Note the specific failure
+`reduced-motion-honoured-in-css-ignored-in-script` names — the media query is
+satisfied while the parallax keeps running, because the query and the animation
+are two separately correct answers to two separately given instructions. That
+seam, not the missing query, is the model-flavoured part.
+
+Read `initial-state-hidden-so-content-depends-on-script` first. It is the only
+item in the lane that loses content rather than polish.
+
+### A form is the start of the user's work, not the end of yours
+
+Everything else a generator produces is read. A form is *operated* — on a phone
+keyboard, through a password manager, after an error, under time pressure. None
+of those conditions exist in the markup, so the tells in
+`references/forms-and-input.md` cluster exactly at the properties that only come
+into being while somebody is using it: the keyboard that opens, the value
+autofill puts in, what survives a failed submit.
+
+`submit-disabled-until-valid` is the headline. It comes from a clean, testable
+sentence — "disable submit until the form is valid" — and it produces an
+interface where the control that would tell the user what is wrong is the
+control being withheld. Fix one of three errors and the button stays dead.
+Practitioners have argued against it for over a decade and it remains the most
+reproduced form pattern in generated code. Its worst instance is
+`validity-gate-misses-the-password-manager`: the gate listens for `keyup`, a
+password manager's fill does not produce one, and the user is left with a
+visibly complete form and a dead button having done everything right.
+
+Three items in the lane are WCAG failures in their own right and carry no
+fairness caveat at all: missing autocomplete tokens (1.3.5 Identify Input
+Purpose, Level AA), errors not programmatically tied to their fields, and paste
+blocked on a password field (3.3.8 Accessible Authentication). Act on those with
+the same confidence as a dead link.
+
 ## The references
 
 | Reference | Load when |
@@ -557,6 +611,8 @@ already one of them.
 | `references/typographic-craft-and-tokens.md` | Reviewing a stylesheet or a design system: leading, tracking, scale, weight, numerals, colour roles, tokens |
 | `references/performance-budget-and-folklore.md` | Before any performance finding — eleven budget numbers a designer can hold, and ten pieces of folklore to drop |
 | `references/performance-as-a-design-tell.md` | Images, fonts, video, libraries and the head stack: where the source is right and the delivery is not |
+| `references/interaction-and-motion.md` | Any page with animation, scroll effects or hover styling: duration, easing, reduced motion, and what a touchscreen does with a hover state |
+| `references/forms-and-input.md` | Any form: the disabled submit, autocomplete tokens, mobile keyboards, error handling and what survives a failed submit |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -673,7 +729,9 @@ launch announcement in machine accent and then edited,
 - [`references/fairness-and-false-positives.md`](references/fairness-and-false-positives.md) — Fairness and false positives — read this before you act on any finding — Hand-written, not generated from the catalog.
 - [`references/fiction-and-narrative-tells.md`](references/fiction-and-narrative-tells.md) — Fiction and narrative tells — What generated fiction does at the level of story rather than sentence.
 - [`references/five-minute-manual-pass.md`](references/five-minute-manual-pass.md) — The five-minute manual pass — Written for someone who has never used a screen reader.
+- [`references/forms-and-input.md`](references/forms-and-input.md) — Forms and input — where the output is the start of the user's work — A form is the one surface where the model's output is the BEGINNING of the user's work rather than the end of it.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
+- [`references/interaction-and-motion.md`](references/interaction-and-motion.md) — Interaction and motion — the property a generator cannot watch — Motion is the one design property whose entire quality lives in TIME, and a generator emits it as a static string it can never watch run.
 - [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
 - [`references/performance-as-a-design-tell.md`](references/performance-as-a-design-tell.md) — Performance and payload as a design tell — **The organising idea.** A generator can see the markup it is writing.
 - [`references/performance-budget-and-folklore.md`](references/performance-budget-and-folklore.md) — A performance budget a designer can hold, and the folklore to drop — Two things in one file, because they are the same argument.

@@ -485,7 +485,7 @@ A form requiring First name plus Last name, a State dropdown of US states, a fiv
 
 **Fix:** One Full name field (autocomplete="name") unless you have a concrete reason to split; add a separate "What should we call you?" if you need a greeting. Make the address field set depend on the selected country, and make state and postcode optional where the country does not use them. Never validate phone numbers with a country-specific regex — use libphonenumber or accept free text.
 
-**False positive when:** Domestic-only services legally restricted to one country. Systems integrating with a payment processor or carrier whose API requires the split — flag the form, not the transport. KYC flows with a statutory field set.
+**False positive when:** Domestic-only services legally restricted to one country. Systems integrating with a payment processor or carrier whose API requires the split — flag the form, not the transport. KYC flows with a statutory field set. A service that genuinely only ships to one country is correct to assume it -- and should say so before the address step rather than at validation.
 
 **Before**
 

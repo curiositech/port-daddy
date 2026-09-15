@@ -4,7 +4,7 @@ A different KIND of finding from the rest of this catalog. Everything here is a 
 
 Most of these are decidable from source and run in the normal structural pass. The ones marked `rendered` need `scripts/render_check.py`, the one optional script in this bundle, which opens the page at real viewports and names the elements at fault.
 
-_37 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_36 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -467,28 +467,6 @@ A KPI tile rendering one number and a label, with no delta, no prior period, no 
 **After**
 
 > Revenue  $48,291   +12% vs last month   target $52,000
-
-### `missing-autofill-attributes`  ·  medium · generic-llm · web-ui · structural · family: defect
-
-Form inputs with no autocomplete tokens, so the browser cannot fill a form it could otherwise complete in one tap.
-
-**Why it reads AI:** Invisible in a screenshot, which is where the generation loop looks. The field renders identically with and without it.
-
-**Detect:** Ratio of typed inputs carrying an autocomplete attribute to those without.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_inputs` = 3
-
-**Fix:** Add the standard tokens: autocomplete="email", "given-name", "family-name", "street-address", "postal-code", "tel", "current-password", "new-password", "one-time-code". Pair with inputmode and the right type so mobile keyboards match the field. This costs everyone and costs people with motor and cognitive disabilities most.
-
-**False positive when:** Search fields, one-off inputs with no autofill meaning, and forms deliberately opting out for security reasons such as a passphrase confirmation.
-
-**Before**
-
-> <input type="text" placeholder="Email">
-
-**After**
-
-> <input type="email" autocomplete="email" inputmode="email" id="email">
 
 ### `missing-html-lang`  ·  medium · generic-llm · web-ui · structural · family: defect
 

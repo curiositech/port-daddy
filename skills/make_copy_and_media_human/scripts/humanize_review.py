@@ -1311,7 +1311,14 @@ def analyze_markup(path, text):
     inputs_all = re.findall(r"<input\b[^>]*>", text, re.I)
     typed = [i for i in inputs_all
              if not re.search(r'type=["\'](?:hidden|submit|button|checkbox|radio|reset)', i, re.I)]
-    if len(typed) >= th("missing-autofill-attributes", "min_inputs", 3):
+    # analyze_forms runs a purpose-matching version of this check that names the
+    # token each field wanted. This broader count-based one is the fallback for
+    # fields whose purpose it could not identify; it defers so that a single
+    # file never reports the same gap under the same id twice.
+    named_purpose = any(re.search(pat, " ".join(typed), re.I)
+                        for pat, _ in AUTOFILL_PURPOSE)
+    if len(typed) >= th("missing-autofill-attributes", "min_inputs", 3) \
+       and not named_purpose:
         with_ac = [i for i in typed if re.search(r"\bautocomplete=", i, re.I)]
         if len(with_ac) * 2 < len(typed):
             out.append(finding(
@@ -4489,6 +4496,980 @@ def analyze_ui_strings(path, text):
     return out
 
 
+def _has_form(text, low):
+    """Is there a form surface here at all?
+
+    Every check below costs a false positive if it fires on an article that
+    merely mentions an input, so the whole pass is gated on markup that
+    actually collects something.
+    """
+    return bool(re.search(r"<input\b|<select\b|<textarea\b|<form\b|useForm\(|"
+                          r"register\(|<Field\b|formState", text, re.I))
+
+
+def analyze_motion(path, text):
+    """Interaction and motion.
+
+    Motion is the one design property whose entire quality lives in time, and a
+    generator emits it as a static string it can never watch run. So the timing
+    decisions are made from whatever value was commonest in the corpus and then
+    applied uniformly — and uniform motion is decoration by definition, because
+    decoration is the only use of motion that needs no knowledge of what is
+    actually happening on the page.
+    """
+    out = []
+    lines = mask_ignored(text.splitlines())
+    text = "\n".join(lines)
+    low = text.lower()
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+    reduce_guard = bool(re.search(r"prefers-reduced-motion", low))
+    js_reduce = bool(re.search(r"matchMedia\(\s*[\"'`]\(?prefers-reduced-motion"
+                               r"|useReducedMotion|reducedMotion\s*[:=]", text, re.I))
+
+    # ---- reveal-on-scroll applied to the whole document
+    reveal_pat = (r'data-aos=|whileInView|useInView|\bAOS\.init|'
+                  r'class(?:Name)?="[^"]*\b(?:animate-on-scroll|reveal|fade-up|'
+                  r'scroll-reveal|aos-init)\b|IntersectionObserver')
+    reveals = len(re.findall(reveal_pat, text, re.I))
+    sections = len(re.findall(r"<section\b|<Section\b", text, re.I))
+    if sections >= th("motion-on-everything-so-nothing-is-emphasised", "min_sections", 3) \
+       and reveals >= sections * th("motion-on-everything-so-nothing-is-emphasised",
+                                    "ratio", 0.8):
+        out.append(finding(
+            path, first(reveal_pat),
+            f"{reveals} scroll-reveal trigger(s) across {sections} section(s)",
+            "motion-on-everything-so-nothing-is-emphasised", "medium",
+            "Motion is a contrast channel like size or weight, so spending it on all content "
+            "spends it on none: if every section reveals, the reveal tells the reader nothing "
+            "about what matters. Reviewers in one six-site teardown reported the same thing "
+            "each time — the animation held their attention while the messaging went unread.",
+            "Pick the one or two moments that deserve emphasis and let the rest be present on "
+            "arrival. A reveal on the headline figure means something; a reveal on the footer "
+            "means the page is slow.",
+            family="shape"))
+
+    # ---- scroll capture
+    jack = []
+    if re.search(r"addEventListener\(\s*[\"'`](?:wheel|mousewheel|touchmove)[\"'`][\s\S]{0,200}?"
+                 r"preventDefault", text):
+        jack.append("a wheel or touchmove listener calling preventDefault")
+    if re.search(r"locomotive-scroll|fullpage\.js|new\s+fullpage|\bLenis\b|"
+                 r"ScrollTrigger[\s\S]{0,120}?pin\s*:\s*true", text, re.I):
+        jack.append("a scroll-hijacking library")
+    if re.search(r"scroll-snap-type\s*:\s*[xy]\s+mandatory", low):
+        jack.append("scroll-snap-type: mandatory")
+    if jack:
+        out.append(finding(
+            path, first(r"wheel|locomotive|fullpage|Lenis|ScrollTrigger|scroll-snap-type"),
+            "; ".join(jack),
+            "scroll-jacking", "high",
+            "Nielsen Norman Group's usability testing found most participants at least mildly "
+            "disoriented by scroll capture, several reading it as a bug rather than a design, "
+            "and task-focused visitors dropping off. Users have a strong mental model that a "
+            "wheel notch moves the page a fixed distance; overriding it contradicts the one "
+            "control they are certain of.",
+            "Let the page scroll. Where a section must hold position use scroll-snap with "
+            "proximity rather than mandatory, keep every keyboard route working, and never "
+            "call preventDefault on wheel.",
+            family="defect"))
+
+    # ---- transition: all
+    t_all = len(re.findall(r"transition\s*:\s*all\b|transition-property\s*:\s*all\b"
+                           r"|\btransition-all\b", low))
+    if t_all >= th("transition-all-as-the-default", "min_count", 2):
+        out.append(finding(
+            path, first(r"transition\s*:\s*all|transition-all"),
+            f"{t_all} × transition: all",
+            "transition-all-as-the-default", "medium",
+            "`all` animates every property that ever changes, including ones nobody intended — "
+            "a class swap that also changes height now animates layout, and the browser cannot "
+            "composite it. It is also a statement that no one decided what was changing.",
+            "Name the properties: transition: background-color 120ms ease-out, transform 160ms "
+            "ease-out. If you cannot name them, the element does not need a transition.",
+            family="form"))
+
+    # ---- one duration for every distance
+    durs = re.findall(r"(?:transition-duration|animation-duration)\s*:\s*([\d.]+m?s)", low)
+    durs += re.findall(r"transition\s*:\s*[a-z-]+\s+([\d.]+m?s)", low)
+    durs += [f"{m}ms" for m in re.findall(r"\bduration-(\d{2,4})\b", low)]
+    if len(durs) >= th("one-duration-for-every-distance", "min_contexts", 3) \
+       and len(set(durs)) == 1 and not re.search(r"--(?:dur|duration|motion)[\w-]*\s*:", low):
+        out.append(finding(
+            path, first(r"duration|transition\s*:"),
+            f"{len(durs)} animated context(s), all at {durs[0]}",
+            "one-duration-for-every-distance", "medium",
+            "Perceived speed is distance over time, so one duration makes small moves feel "
+            "sluggish and large ones feel abrupt. Duration is a judgement made by watching, "
+            "which is exactly what a generator cannot do — so the corpus median is emitted for "
+            "a 2px hover tint and a full-height sheet alike.",
+            "Two or three durations tied to distance: ~120ms for a hover or tint, ~220ms for a "
+            "popover, ~360ms for a full-height surface. Put them in tokens so the choice is "
+            "visible in the code.",
+            family="shape"))
+
+    # ---- ease-in on an entrance
+    if re.search(r"(?:fade-?in|slide-?up|slide-?in|reveal|enter|appear)[^;{}]{0,80}"
+                 r"\bease-in\b(?!-out)|\bease-in\b(?!-out)[^;{}]{0,60}"
+                 r"(?:fade-?in|slide-?up|reveal|enter)", low):
+        out.append(finding(
+            path, first(r"ease-in\b"),
+            "an entrance animation easing in",
+            "ease-in-on-an-entrance", "medium",
+            "ease-in starts slow and accelerates, so the element loiters exactly while the "
+            "reader waits for it and then snaps. Entrances want ease-out; exits want ease-in. "
+            "The naming collision is a fact about English rather than about motion, which is "
+            "the kind of error a text model makes and a person watching the screen does not.",
+            "ease-out on entrances, ease-in on exits, ease-in-out only for a move that both "
+            "starts and ends on screen. Keep entrances at or under 200ms.",
+            family="form"))
+
+    # ---- content that only exists if the script runs
+    if re.search(r"\.(?:reveal|fade-?in|animate-on-scroll|scroll-reveal)[^{}]*\{[^}]*"
+                 r"opacity\s*:\s*0", low) and not re.search(r"\.no-js|html\.js|@starting-style", low):
+        out.append(finding(
+            path, first(r"opacity\s*:\s*0"),
+            "reveal content starts at opacity: 0 and is cleared only by script",
+            "initial-state-hidden-so-content-depends-on-script", "high",
+            "If the script does not run, does not run in time, or the element never enters the "
+            "viewport, the content is permanently invisible — and invisible to in-page search "
+            "and to print. The CSS half and the JS half are each correct; nothing in either "
+            "encodes what happens when only one of them runs.",
+            "Animate from a visible state, or gate the hidden initial state behind a class the "
+            "script sets on <html> first, so the no-script path renders everything. "
+            "@starting-style does this natively now.",
+            family="defect"))
+
+    # ---- animating a layout property
+    lay = re.findall(r"transition(?:-property)?\s*:\s*[^;]*\b(height|width|top|left|right|"
+                     r"bottom|margin|padding)\b", low)
+    if lay:
+        out.append(finding(
+            path, first(r"transition[^;]*\b(?:height|width|top|left|margin|padding)\b"),
+            f"animating {', '.join(sorted(set(lay)))}",
+            "animating-a-layout-property", "medium",
+            "These force layout on every frame for the whole subtree, so the animation janks on "
+            "exactly the hardware already struggling. It is the commonest cause of motion that "
+            "feels cheap without looking wrong in a screenshot.",
+            "Animate transform and opacity. For a height change use a grid-template-rows "
+            "0fr-to-1fr transition, or interpolate-size / calc-size — both stay off the layout "
+            "path in current browsers.",
+            family="defect"))
+
+    # ---- hover without a hover guard
+    hovers = re.findall(r"[^\s{,]+:hover\b", low)
+    if len(hovers) >= th("hover-styles-without-a-hover-guard", "min_count", 2) \
+       and not re.search(r"\(\s*hover\s*:\s*hover\s*\)|\(\s*pointer\s*:\s*fine\s*\)", low):
+        out.append(finding(
+            path, first(r":hover"),
+            f"{len(hovers)} :hover rule(s), no (hover: hover) guard anywhere",
+            "hover-styles-without-a-hover-guard", "medium",
+            "On a touchscreen the hover state latches on tap and stays until the user taps "
+            "elsewhere, so the card they just tapped stays lit. The behaviour does not exist on "
+            "the machine the code was written for and cannot be seen in the source.",
+            "Wrap hover styling in @media (hover: hover) and (pointer: fine). Known limit: a "
+            "touchscreen laptop answers yes to both, so keep :active and :focus-visible "
+            "carrying their own weight.",
+            family="defect"))
+
+    # ---- hover is the only route
+    if re.search(r":hover\s+[^{]*\{[^}]*(?:opacity\s*:\s*1|display\s*:\s*(?:block|flex)|"
+                 r"visibility\s*:\s*visible)", low) \
+       and not re.search(r":focus-within|:focus-visible", low):
+        out.append(finding(
+            path, first(r":hover\s+[^{]*\{"),
+            "content revealed on hover with no :focus-within equivalent",
+            "hover-is-the-only-route-to-the-information", "high",
+            "On a touchscreen the content cannot be reached at all, and with a keyboard only if "
+            "the same styles are bound to focus. Hover-reveal is a heavily represented desktop "
+            "pattern whose failure is a property of the device, which the source does not "
+            "describe.",
+            "Bind the same reveal to :focus-within. Better, stop hiding it: if the action "
+            "matters it can be visible, and if it does not it belongs in a menu with a real "
+            "trigger.",
+            family="defect"))
+
+    # ---- hover styled, focus forgotten
+    fvis = len(re.findall(r":focus-visible|:focus\b", low))
+    if len(hovers) >= th("hover-styled-focus-forgotten", "min_hovers", 3) \
+       and fvis * th("hover-styled-focus-forgotten", "ratio", 3) < len(hovers):
+        out.append(finding(
+            path, first(r":hover"),
+            f"{len(hovers)} :hover rule(s) against {fvis} focus rule(s)",
+            "hover-styled-focus-forgotten", "high",
+            "Every interactive element in the file is styled for exactly one input device. "
+            "Hover is the state the author sees while building; focus only appears if you put "
+            "the mouse down.",
+            "Every :hover gets a :focus-visible. If you remove the default outline, replace it "
+            "with an indicator of at least equal visibility — WCAG 2.2's 2.4.11 makes its size "
+            "and contrast testable.",
+            family="defect"))
+    if re.search(r"outline\s*:\s*(?:none|0)\b", low) \
+       and not re.search(r":focus-visible[^{]*\{[^}]*(?:outline|box-shadow|border)", low):
+        out.append(finding(
+            path, first(r"outline\s*:\s*(?:none|0)"),
+            "outline removed with no replacement focus indicator",
+            "hover-styled-focus-forgotten", "high",
+            "outline: none with nothing in its place deletes the only indication a keyboard "
+            "user has of where they are on the page.",
+            "Replace it in the same rule: :focus-visible { outline: 2px solid currentColor; "
+            "outline-offset: 2px }.",
+            family="defect"))
+
+    # ---- reduced motion honoured in CSS, ignored in script
+    lib = re.search(r"\bgsap\b|framer-motion|locomotive|\bLenis\b|animejs|anime\(|"
+                    r"lottie|AOS\.init|ScrollTrigger", text, re.I)
+    if lib and reduce_guard and not js_reduce:
+        out.append(finding(
+            path, first(r"gsap|framer-motion|locomotive|Lenis|animejs|lottie|AOS\.init"),
+            f"{lib.group(0)} initialised with no reduced-motion check",
+            "reduced-motion-honoured-in-css-ignored-in-script", "high",
+            "The media query silences the CSS transitions and leaves the parallax, the "
+            "scroll-triggered timeline and the spring physics running — which is the motion "
+            "that actually causes trouble. 35.4% of US adults aged 40 and over showed "
+            "vestibular dysfunction in the 2001-2004 NHANES data, about 69 million people.",
+            "Read the query in JS and branch: skip the timeline, or set duration to 0. Bind the "
+            "change event too, so toggling the OS setting takes effect without a reload.",
+            family="defect"))
+    elif lib and not reduce_guard and not js_reduce:
+        out.append(finding(
+            path, first(r"gsap|framer-motion|locomotive|Lenis|animejs|lottie|AOS\.init"),
+            f"{lib.group(0)} with no reduced-motion handling anywhere",
+            "no-reduced-motion-guard", "high",
+            "A motion library is running with the user's stated preference never consulted, in "
+            "CSS or in script.",
+            "Add @media (prefers-reduced-motion: reduce) for the CSS and a matchMedia check "
+            "before building any timeline.",
+            family="defect"))
+
+    # ---- the reduced-motion block that only resets durations
+    # The universal reset is usually pasted as a single line, so the block body
+    # is matched by brace-counting rather than by requiring a newline -- the
+    # first version of this check silently never fired on the commonest form.
+    reduce_body = ""
+    mstart = re.search(r"@media[^{]*prefers-reduced-motion[^{]*\{", low)
+    if mstart:
+        depth, i = 0, mstart.end() - 1
+        while i < len(low):
+            if low[i] == "{":
+                depth += 1
+            elif low[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        reduce_body = low[mstart.end():i]
+    if reduce_body:
+        body = reduce_body
+        only_time = re.search(r"animation-duration|transition-duration|animation-delay", body) \
+            and not re.search(r"transform|background-attachment|animation-play-state|"
+                              r"scroll-behavior|display|autoplay", body)
+        risky = re.search(r"background-attachment\s*:\s*fixed|parallax|autoplay|"
+                          r"\binfinite\b", low)
+        if only_time and risky:
+            out.append(finding(
+                path, first(r"prefers-reduced-motion"),
+                "reduced-motion block resets durations only, on a page with parallax, "
+                "autoplay or infinite animation",
+                "reduced-motion-block-only-shortens-duration", "low",
+                "The universal duration reset is a reasonable floor and is not a motion design. "
+                "It leaves parallax offsets, auto-advancing content and large translate "
+                "distances in place, because none of those are durations.",
+                "Keep the reset as a backstop, then handle what it cannot: background-attachment: "
+                "scroll, autoplay paused, and large translations replaced with a cross-fade.",
+                family="shape"))
+
+    # ---- parallax
+    if re.search(r"background-attachment\s*:\s*fixed", low) \
+       or re.search(r"(?:scrollY|pageYOffset|scrollTop)[\s\S]{0,120}?"
+                    r"translate(?:3d|Y)?\(", text):
+        # A reduced-motion block that only resets durations does not guard
+        # this: parallax is a transform and an attachment, neither of which is
+        # a duration. Require the block to address the motion it claims to.
+        guards_parallax = js_reduce or bool(
+            re.search(r"background-attachment|transform|translate|scroll", reduce_body))
+        if not guards_parallax:
+            out.append(finding(
+                path, first(r"background-attachment\s*:\s*fixed|scrollY|pageYOffset"),
+                "scroll-linked background movement, unguarded",
+                "parallax-with-no-reduced-motion-path", "high",
+                "Background and foreground moving at different rates is the example WCAG 2.3.3 "
+                "names directly, and the one most cited for vestibular reactions — dizziness, "
+                "nausea, headache.",
+                "Guard it: @media (prefers-reduced-motion: reduce) { background-attachment: "
+                "scroll }, and skip the scroll handler when the query matches.",
+                family="defect"))
+
+    # ---- stagger that outlasts the reader
+    for mm in re.finditer(r"(?:animation-)?delay[^;\n]{0,40}?(?:index|i|idx)\s*\*\s*(\d{2,4})"
+                          r"|(?:index|i|idx)\s*\*\s*(\d{2,4})\s*\)?\s*(?:\+\s*)?[\"'`]?ms",
+                          text, re.I):
+        step = int(mm.group(1) or mm.group(2))
+        items = max(len(re.findall(r"\.map\(", text)) and 10, 10)
+        budget = th("stagger-delay-outlasts-the-reader", "max_total_ms", 600)
+        if step * items > budget:
+            out.append(finding(
+                path, text[:mm.start()].count("\n") + 1,
+                f"{step}ms per item — about {step * items}ms before the last one exists",
+                "stagger-delay-outlasts-the-reader", "medium",
+                "Nobody multiplied it out. The per-item delay is written once and the count "
+                "arrives from data, so the total is never a number anyone saw.",
+                "Cap the total: stagger only the first few items and bring the rest in together, "
+                "keeping the whole sequence inside about 400ms.",
+                family="shape"))
+            break
+
+    # ---- global smooth scroll
+    if re.search(r"(?:html|:root|body)[^{}]*\{[^}]*scroll-behavior\s*:\s*smooth", low) \
+       and not re.search(r"prefers-reduced-motion\s*:\s*no-preference", low):
+        out.append(finding(
+            path, first(r"scroll-behavior\s*:\s*smooth"),
+            "scroll-behavior: smooth applied globally and unguarded",
+            "smooth-scroll-forced-globally", "medium",
+            "Every programmatic jump now animates, including ones the user did not ask to "
+            "watch: skip links, an anchor into a long document, a scroll restore on back. A "
+            "screen-reader user following a skip link has to wait for it.",
+            "Guard it with @media (prefers-reduced-motion: no-preference), or apply it to the "
+            "specific interactions that want it. Skip links should always jump.",
+            family="form"))
+
+    # ---- hover-scale on every card
+    sc = len(re.findall(r"hover:scale-\d|whileHover=\{\{\s*scale|:hover[^{}]*\{[^}]*"
+                        r"transform\s*:\s*scale\(", low))
+    if sc >= th("hover-scale-on-every-card", "min_count", 3):
+        out.append(finding(
+            path, first(r"hover:scale-|whileHover|transform\s*:\s*scale"),
+            f"{sc} elements lifting or scaling on hover by the same amount",
+            "hover-scale-on-every-card", "low",
+            "The framer-motion whileHover default and the hover:scale-105 idiom applied to a "
+            "grid, so nothing is more interactive than anything else. On text, a scale "
+            "transform resamples the glyphs and they go soft.",
+            "Use hover to signal what is clickable, not to decorate. A background or border "
+            "shift says the same thing without resampling text.",
+            family="form"))
+
+    # ---- infinite animation with no off switch
+    inf = re.findall(r"animation\s*:[^;]*\binfinite\b|animation-iteration-count\s*:\s*infinite",
+                     low)
+    if inf and not re.search(r"animation-play-state|spinner|loading|\bloader\b|progressbar", low):
+        out.append(finding(
+            path, first(r"\binfinite\b"),
+            f"{len(inf)} infinite animation(s), no pause control",
+            "infinite-animation-with-no-off", "medium",
+            "Beyond five seconds of unattended motion WCAG 2.2.2 requires a mechanism to pause, "
+            "stop or hide it, and an infinite CSS animation has none. It also keeps a "
+            "compositor layer awake, which is a battery cost on a page doing nothing.",
+            "Stop it after a few cycles, bind it to a control, or guard it with reduced-motion. "
+            "A busy indicator is exempt because it ends when the load does.",
+            family="defect"))
+
+    # ---- counting up a number that never changed
+    if re.search(r"(?:textContent|innerText|setCount|setValue)\s*=?\s*\(?[^;\n]{0,60}"
+                 r"(?:Math\.(?:round|floor)|toFixed)\([^;\n]{0,80}progress|countUp|CountUp",
+                 text, re.I):
+        out.append(finding(
+            path, first(r"countUp|CountUp|progress"),
+            "a statistic animated up from zero",
+            "counter-animation-on-a-static-number", "low",
+            "The number did not change. For a few hundred milliseconds the page displays values "
+            "that are not true, and with a screen reader or in-page search the animated value is "
+            "unreadable or wrong.",
+            "Render the number. If you keep the effect, put the true value in the DOM and mark "
+            "the animating node aria-hidden with the real figure in a visually hidden sibling.",
+            family="form"))
+
+    # ---- toast that times out too fast
+    for mm in re.finditer(r"(?:toast|snackbar|notification|alert)[\s\S]{0,160}?"
+                          r"setTimeout\([^,]{0,60},\s*(\d{3,5})\s*\)", text, re.I):
+        ms = int(mm.group(1))
+        if ms < th("toast-timeout-shorter-than-its-reading-time", "min_ms", 5000):
+            out.append(finding(
+                path, text[:mm.start()].count("\n") + 1,
+                f"toast auto-dismisses after {ms}ms regardless of message length",
+                "toast-timeout-shorter-than-its-reading-time", "medium",
+                "WCAG 2.2.1 requires time limits to be adjustable or extendable. A screen "
+                "reader or a slower reader cannot get through a two-line message in three "
+                "seconds, and if the message carried the only copy of an error it is now gone.",
+                "Scale the timeout with the text, pause on hover and on focus, and never "
+                "auto-dismiss anything carrying an error or an undo. Give every toast a close "
+                "button.",
+                family="defect"))
+            break
+
+    # ---- the primary action with no pending state
+    if re.search(r"(?:onClick|onSubmit)\s*=\s*\{?\s*async|await\s+(?:fetch|post|save|submit|"
+                 r"mutate)\(", text) \
+       and not re.search(r"isPending|isLoading|isSubmitting|loading\s*&&|pending|aria-busy|"
+                         r"setSubmitting", text, re.I):
+        out.append(finding(
+            path, first(r"async|await"),
+            "an async primary action with no pending state",
+            "no-pending-state-on-the-primary-action", "high",
+            "The button looks identical during the request, so the user gets no acknowledgement "
+            "that the click registered and clicks again — and with no re-entry guard the second "
+            "click is a second request. The pending state has no duration on localhost, so "
+            "nothing about building the page surfaces it.",
+            "Set a pending state on click: change the label, show a spinner in the button, set "
+            "aria-busy, and guard the handler against re-entry. Keep the button focusable so "
+            "the state is announced.",
+            family="defect"))
+
+    # ---- focus moved only once the dialog has finished animating
+    if re.search(r"(?:onAnimationComplete|transitionend|onTransitionEnd)[\s\S]{0,120}?\.focus\(\)"
+                 r"|setTimeout\([^,]{0,80}\.focus\(\)[^,]{0,20},\s*([2-9]\d{2,})", text):
+        out.append(finding(
+            path, first(r"onAnimationComplete|transitionend|onTransitionEnd|\.focus\(\)"),
+            "focus moved in an animation-complete callback",
+            "modal-animation-delays-the-focus-move", "medium",
+            "For the length of the animation the keyboard is still on the page behind and a "
+            "screen reader is still reading it — and tabbing during that window lands in "
+            "background content the dialog now covers. \"Animate the dialog\" and \"move focus "
+            "into the dialog\" are separately correct; their ordering is what nobody specified.",
+            "Move focus on open, before or during the animation. The animation is decoration; "
+            "the focus move is the state change.",
+            family="defect"))
+
+    # ---- a swipe that plays a canned animation instead of following the finger
+    if re.search(r"(?:onTouchStart|onPointerDown|addEventListener\(\s*[\"\'`](?:touchstart|"
+                 r"pointerdown)[\"\'`])", text) \
+       and not re.search(r"(?:touchmove|pointermove|onTouchMove|onPointerMove|deltaX|deltaY|"
+                         r"clientX\s*-|movementX)", text):
+        out.append(finding(
+            path, first(r"onTouchStart|onPointerDown|touchstart|pointerdown"),
+            "a gesture start handler with no move handler",
+            "motion-does-not-track-the-gesture", "low",
+            "The surface does not move with the finger, so there is no direct manipulation and "
+            "no way to abort halfway — the gesture is a trigger for a canned animation rather "
+            "than a manipulation of an object. Gesture-tracked motion needs the pointer stream "
+            "and interruption handling; a timed animation is one call and satisfies the same "
+            "sentence.",
+            "Bind position to the pointer delta while the gesture is live, and hand the "
+            "remainder to a spring on release with the gesture's velocity. Let the user drag it "
+            "back.",
+            family="shape"))
+
+    # ---- a reading-progress bar on something nobody needs to be oriented in
+    if re.search(r"(?:scrollY|scrollTop|pageYOffset)[\s\S]{0,160}?"
+                 r"(?:progress|\.style\.width|scaleX)", text, re.I) \
+       and len(strip_markup(text)) < th("scroll-progress-bar-on-a-short-page",
+                                        "min_chars", 6000):
+        out.append(finding(
+            path, first(r"progress|scaleX|\.style\.width"),
+            f"a scroll-progress indicator on about {len(strip_markup(text))} characters of text",
+            "scroll-progress-bar-on-a-short-page", "low",
+            "A reading-progress indicator on a document short enough to need no orientation is a "
+            "scroll listener, a fixed element and a repaint per frame, spent telling the reader "
+            "what the scrollbar already told them.",
+            "Keep it for long-form reading where it orients, and drive it with a CSS "
+            "scroll-driven animation rather than a scroll listener where you keep it.",
+            family="shape"))
+
+    # ---- will-change everywhere
+    wc = len(re.findall(r"will-change\s*:", low))
+    if wc >= th("will-change-left-on-everywhere", "min_count", 3) \
+       or re.search(r"(?:^|\n)\s*\*\s*\{[^}]*will-change", low):
+        out.append(finding(
+            path, first(r"will-change"),
+            f"{wc} will-change declaration(s)",
+            "will-change-left-on-everywhere", "low",
+            "It promotes elements to their own compositor layer and holds the memory for as "
+            "long as the declaration applies, so as a blanket optimisation it costs more than "
+            "the jank it was meant to remove.",
+            "Set it immediately before the animation and remove it after, or leave it out — "
+            "transform and opacity animations are already composited without it.",
+            family="shape"))
+
+    return out
+
+
+# The fields a browser can fill, mapped to the token it needs. Matching is on
+# the field's NAME, not on free text, which is what keeps this list from
+# behaving like the phrase lists the rest of this skill argues against.
+AUTOFILL_PURPOSE = [
+    (r"\b(?:e-?mail)\b", "email"),
+    (r"\b(?:phone|tel|mobile)\b", "tel"),
+    (r"\bfirst-?name|given-?name\b", "given-name"),
+    (r"\blast-?name|surname|family-?name\b", "family-name"),
+    (r"\b(?:full-?name|fullname)\b", "name"),
+    (r"\b(?:address|street|addr)\b", "street-address"),
+    (r"\b(?:city|town|locality)\b", "address-level2"),
+    (r"\b(?:zip|postal|postcode)\b", "postal-code"),
+    (r"\b(?:country)\b", "country-name"),
+    (r"\b(?:cc-?num|card-?number|cardnum)\b", "cc-number"),
+    (r"\b(?:org|company|organisation|organization)\b", "organization"),
+]
+
+NUMERIC_FIELD = (r"\b(?:zip|postal|postcode|phone|tel|otp|verification|"
+                 r"code|pin|amount|quantity|qty|cvv|cvc|account)\b")
+
+# type=number is for values you would do arithmetic on. These are identifiers.
+IDENTIFIER_FIELD = (r"\b(?:cc|card|credit|phone|tel|zip|postal|postcode|otp|"
+                    r"verification|pin|account|ssn|iban|routing)\b")
+
+
+def _inputs(text):
+    """Every input-ish tag, as (tag_source, line_number)."""
+    return [(m.group(0), text[:m.start()].count("\n") + 1)
+            for m in re.finditer(r"<(?:input|Input)\b[^>]*>", text)]
+
+
+def analyze_forms(path, text):
+    """Forms and input.
+
+    A form is the one surface where the model's output is the BEGINNING of the
+    user's work rather than the end of it. Everything else it produces is read;
+    a form is operated — on a phone keyboard, through a password manager, after
+    an error, under time pressure. None of those conditions exist in the markup,
+    so the tells cluster exactly at the properties that only come into being
+    while somebody is using it.
+    """
+    out = []
+    lines = mask_ignored(text.splitlines())
+    text = "\n".join(lines)
+    low = text.lower()
+    if not _has_form(text, low):
+        return out
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+    tags = _inputs(text)
+
+    # ---- the disabled submit
+    m = re.search(r"<(?:button|Button)\b[^>]*\bdisabled\s*=\s*\{\s*!?\s*"
+                  r"(?:isValid|formState\.isValid|valid|canSubmit|isFormValid)"
+                  r"|disabled=\{!\s*\w*[Vv]alid", text)
+    if m:
+        out.append(finding(
+            path, text[:m.start()].count("\n") + 1,
+            m.group(0)[:120],
+            "submit-disabled-until-valid", "high",
+            "The control that would tell the user what is wrong is the control being withheld. "
+            "Fix one of three errors and the button stays dead with no indication anything "
+            "improved, so the interface reads as broken rather than as strict. It is the most "
+            "reproduced form pattern in generated code and practitioners have argued against "
+            "it for over a decade.",
+            "Leave the button enabled. Validate on submit, render an error summary, move focus "
+            "to it, and link each message to its field. If you must show an unready state use "
+            "aria-disabled, which stays focusable and announceable.",
+            family="defect"))
+
+    # ---- validity gated on keyup, which autofill does not fire
+    if re.search(r"addEventListener\(\s*[\"'`]key(?:up|press|down)[\"'`]|onKey(?:Up|Press)\s*=",
+                 text) and re.search(r"valid|disabled|canSubmit|checkForm", text, re.I):
+        out.append(finding(
+            path, first(r"key(?:up|press|down)"),
+            "form validity driven by a key event",
+            "validity-gate-misses-the-password-manager", "high",
+            "A password manager's fill does not produce a key event. The fields are visibly "
+            "populated, the form is visibly complete, and the button is still dead with nothing "
+            "on screen explaining why — the user has done everything right. Blocking password "
+            "managers also puts WCAG 2.2's 3.3.8 in play.",
+            "Listen for `input`, not keyup — it fires for autofill, paste and speech. Better, "
+            "stop gating the button at all.",
+            family="defect"))
+
+    # ---- autocomplete
+    missing = []
+    for tag, ln in tags:
+        tl = tag.lower()
+        if "autocomplete" in tl or re.search(r'type=["\'](?:hidden|submit|button)', tl):
+            continue
+        ident = " ".join(re.findall(r'(?:name|id|placeholder)=["\']([^"\']+)', tl))
+        for pat, token in AUTOFILL_PURPOSE:
+            if re.search(pat, ident, re.I) or re.search(pat, tl, re.I):
+                missing.append((ln, token))
+                break
+    if missing:
+        out.append(finding(
+            path, missing[0][0],
+            f"{len(missing)} personal-data field(s) with no autocomplete token "
+            f"(wanted: {', '.join(sorted({t for _, t in missing})[:5])})",
+            "missing-autofill-attributes", "high",
+            "The browser cannot fill them and assistive tooling cannot identify their purpose. "
+            "This is a WCAG 2.1 failure in its own right — 1.3.5 Identify Input Purpose, Level "
+            "AA — and Google reports correct autocomplete cutting checkout time by up to about "
+            "30%. The attribute changes nothing the author can see, which is why it is missing.",
+            "Add the specific token, not the generic one: autocomplete=\"given-name\", "
+            "\"email\", \"tel\", \"street-address\", \"postal-code\", \"cc-number\". The token "
+            "list is fixed; invented values do nothing.",
+            family="defect"))
+
+    if re.search(r'autocomplete\s*=\s*["\']?\{?\s*["\']?off', low) \
+       and re.search(NUMERIC_FIELD + r"|email|name|address", low):
+        out.append(finding(
+            path, first(r"autocomplete\s*=\s*[\"']?\{?\s*[\"']?off"),
+            "autocomplete=\"off\" on a form collecting personal data",
+            "autocomplete-off-on-personal-fields", "medium",
+            "Its effect is to make every user type by hand what their browser already knows. "
+            "Browsers now ignore it for passwords precisely because sites overused it; for "
+            "names, addresses and payment fields it still works.",
+            "Remove it and set the real token. If a value genuinely must not persist — a "
+            "one-time code — use autocomplete=\"one-time-code\", which expresses that intent.",
+            family="defect"))
+
+    # ---- type=number on an identifier
+    for tag, ln in tags:
+        tl = tag.lower()
+        if re.search(r'type=["\']number', tl) and re.search(IDENTIFIER_FIELD, tl):
+            out.append(finding(
+                path, ln, tag[:120],
+                "number-input-for-a-non-number", "medium",
+                "The spec says this type is for numbers you would do arithmetic on. For an "
+                "identifier it drops leading zeros, silently rejects the spaces and dashes "
+                "people type, changes value when a focused field is scrolled over, and adds "
+                "spinner arrows. \"It contains digits, so it is a number\" is a reasonable "
+                "inference from the type's name and wrong about what the type means.",
+                "type=\"text\" with inputmode=\"numeric\", a pattern and the right autocomplete "
+                "token. type=\"tel\" for phone numbers. Keep type=\"number\" for quantities.",
+                family="defect"))
+            break
+
+    # ---- inputmode absent on a numeric field
+    for tag, ln in tags:
+        tl = tag.lower()
+        if re.search(r'type=["\']text', tl) and re.search(NUMERIC_FIELD, tl) \
+           and "inputmode" not in tl:
+            out.append(finding(
+                path, ln, tag[:120],
+                "inputmode-absent-on-a-numeric-field", "medium",
+                "A phone user gets the full QWERTY keyboard and has to find the number layer to "
+                "type a postcode or a verification code. The keyboard is a property of a device "
+                "the page was never opened on.",
+                "inputmode=\"numeric\" for digit strings, \"decimal\" for amounts, \"tel\" for "
+                "phone numbers — plus enterkeyhint to label the return key.",
+                family="defect"))
+            break
+
+    # ---- error summary on a long form
+    field_count = len(tags) + len(re.findall(r"<(?:select|textarea|Select|Textarea)\b", text))
+    has_inline_err = re.search(r"errors?\.\w+|error\s*&&|className=[\"'][^\"']*\berror\b", text)
+    has_summary = re.search(r"error-summary|errorSummary|role=[\"']alert[\"'][^>]*>[\s\S]{0,200}"
+                            r"<(?:ul|ol)\b|There (?:is|are) \d+ (?:problem|error)", text, re.I)
+    if field_count > th("no-error-summary-on-a-long-form", "min_fields", 5) \
+       and has_inline_err and not has_summary:
+        out.append(finding(
+            path, first(r"errors?\.|error"),
+            f"{field_count} fields, per-field errors only, no summary",
+            "no-error-summary-on-a-long-form", "medium",
+            "The user gets no count, no list and no route to the first problem — they scroll "
+            "hunting for red, and some of it is off screen. In-line errors are the visible half "
+            "and they look complete when the whole form fits on the reviewer's screen.",
+            "On failure render a summary at the top: a count, a heading, and a link per error "
+            "whose text is the message and whose target is the field. Move focus to it. The "
+            "GOV.UK pattern was built for people completing services under stress.",
+            family="defect"))
+
+    # ---- error not tied to its field
+    if has_inline_err and not re.search(r"aria-describedby", low):
+        out.append(finding(
+            path, first(r"errors?\.|error"),
+            "in-line error messages with no aria-describedby",
+            "error-not-tied-to-its-field", "high",
+            "Visually the message is beside the field; programmatically it is an unrelated piece "
+            "of text, so a screen-reader user focused on the input hears the label and nothing "
+            "about what went wrong. Proximity in the markup reads as association, and the "
+            "association is an attribute nobody looked for.",
+            "Give the error an id, point aria-describedby at it, and set aria-invalid=\"true\" "
+            "while the field is in error. Both are conditional on the error, not permanent.",
+            family="defect"))
+    elif has_inline_err and not re.search(r"aria-invalid", low):
+        out.append(finding(
+            path, first(r"aria-describedby"),
+            "fields described by an error but never marked invalid",
+            "error-not-tied-to-its-field", "medium",
+            "aria-describedby carries the text; aria-invalid carries the state. Without it the "
+            "field is not announced as being in error, only as having extra description.",
+            "Add aria-invalid=\"true\" for the duration of the error.",
+            family="defect"))
+
+    # ---- focus not moved after a failed submit
+    if re.search(r"setErrors?\(|setFormErrors?\(|set\w*Error\(", text) \
+       and not re.search(r"\.focus\(\)|focusRef|autoFocus|setFocus\(", text):
+        out.append(finding(
+            path, first(r"setErrors?\(|set\w*Error\("),
+            "errors set on failed submit with no focus move",
+            "focus-not-moved-after-a-failed-submit", "high",
+            "Focus stays on the submit button at the bottom and nothing announces the failure. "
+            "For a keyboard or screen-reader user the submit appeared to do nothing. A sighted "
+            "mouse user sees the red appear; the failure only exists for someone whose "
+            "attention is where the focus is.",
+            "Move focus to the error summary if you have one, or to the first invalid field. "
+            "Give the summary tabindex=\"-1\" so it can take focus.",
+            family="defect"))
+
+    # ---- the form clears on failure
+    if re.search(r"catch\s*\([^)]*\)\s*\{[^}]{0,200}?\b(?:reset\(\)|setValues\(initial|"
+                 r"setForm\(initial|clearForm\()", text):
+        out.append(finding(
+            path, first(r"catch"),
+            "the error path resets the form",
+            "form-clears-on-validation-failure", "high",
+            "Everything the user typed is gone and they start again — and the longer the form, "
+            "the more likely they abandon. Baymard puts abandonment attributable to a long or "
+            "complicated checkout at 18%, against a tracked ~70% overall rate. The error path "
+            "is the branch least likely to be exercised while building, and clearing is what a "
+            "naive re-render does for free.",
+            "Preserve every value across a failed submit, including passwords. Re-render the "
+            "same state with errors attached. A SUCCESSFUL submit should clear.",
+            family="defect"))
+
+    # ---- paste blocked
+    if re.search(r"onPaste\s*=\s*\{?[^}]{0,80}preventDefault|"
+                 r"addEventListener\(\s*[\"'`]paste[\"'`][\s\S]{0,120}?preventDefault", text):
+        out.append(finding(
+            path, first(r"onPaste|[\"'`]paste[\"'`]"),
+            "paste blocked on an input",
+            "paste-blocked-on-a-password-or-code-field", "high",
+            "It stops password managers and it stops copying a one-time code out of a message. "
+            "The security rationale it is offered under is the reverse of the truth — blocking "
+            "paste pushes people toward passwords short enough to type. The UK NCSC has advised "
+            "against it for years, and WCAG 2.2's 3.3.8 treats obstructing password managers as "
+            "an authentication barrier.",
+            "Delete the handler. If you need to catch a mis-paste, validate the value instead "
+            "of refusing it.",
+            family="defect"))
+
+    # ---- password without a reveal
+    if re.search(r'type=["\']password', low) \
+       and not re.search(r"showPassword|show-password|togglePassword|reveal-password|"
+                         r"type=\{\s*show", text, re.I):
+        out.append(finding(
+            path, first(r'type=["\']password'),
+            "password field with no reveal control",
+            "no-show-password-control", "low",
+            "The user cannot check what they typed, which on a phone keyboard is where most "
+            "password entry failures come from, and the cost is an error message that cannot "
+            "tell them which character was wrong.",
+            "Add a real <button type=\"button\"> whose accessible name changes with state. Keep "
+            "focus in place when it is pressed.",
+            family="form"))
+
+    # ---- required asterisk with no legend
+    has_legend = re.search(r"\*[^<>]{0,60}\b(?:required|optional|mandatory)\b"
+                           r"|\b(?:required|optional|mandatory)\b[^<>]{0,60}\*", low)
+    if re.search(r">\s*[^<>]{1,60}\*\s*<|\*\s*</label>", text) and not has_legend:
+        out.append(finding(
+            path, first(r"\*\s*</label>|\*\s*<"),
+            "asterisks marking required fields with no legend",
+            "required-marking-with-no-key", "low",
+            "The convention is widespread and it is still a convention — nothing on the page "
+            "says what the asterisk means, and it is not usefully announced.",
+            "State it once at the top of the form and put `required` on the input so it is "
+            "announced. Where most fields are required, mark the optional ones instead.",
+            family="form"))
+
+    # ---- multi-step with no way back
+    if re.search(r"set(?:Step|CurrentStep|Page|Index)\(\s*(?:\w+\s*\+\s*1|prev\s*=>\s*prev\s*\+)",
+                 text) and not re.search(r"-\s*1\)|prev\s*-\s*1|goBack|onBack|Previous|\bBack\b",
+                                         text):
+        out.append(finding(
+            path, first(r"set(?:Step|CurrentStep|Page|Index)\("),
+            "a step advances with no decrement path",
+            "multi-step-form-with-no-back-or-progress", "medium",
+            "The user cannot tell how many steps there are or get back to correct something. "
+            "Forward is the path the happy demo takes; back is a branch that only matters once "
+            "somebody makes a mistake.",
+            "Show \"Step 2 of 4\", give a real Back control that preserves entered values, and "
+            "put the step in the URL so the browser's own back button works.",
+            family="defect"))
+
+    # ---- date as three selects
+    sels = re.findall(r"<(?:select|Select)\b[^>]*>", text, re.I)
+    if len(sels) >= 3:
+        joined = " ".join(sels).lower()
+        if re.search(r"\bday\b", joined) and re.search(r"\bmonth\b", joined) \
+           and re.search(r"\byear\b", joined):
+            out.append(finding(
+                path, first(r"<select"),
+                "a date collected as three dropdowns",
+                "date-entered-as-three-selects", "low",
+                "Selecting a year from a list of ninety is slow with a mouse and worse on a "
+                "phone. The pattern tests consistently badly against three short text inputs, "
+                "which is why GOV.UK ships the text-input version for dates people know.",
+                "Three labelled numeric text inputs in a fieldset for a remembered date. Keep a "
+                "calendar picker for choosing a date — booking, scheduling — where the calendar "
+                "is the point.",
+                family="form"))
+
+    # ---- a select for two options
+    for mm in re.finditer(r"<select\b[^>]*>([\s\S]{0,400}?)</select>", text, re.I):
+        opts = re.findall(r"<option\b", mm.group(1), re.I)
+        if 0 < len(opts) <= th("select-for-a-two-option-choice", "max_options", 2):
+            out.append(finding(
+                path, text[:mm.start()].count("\n") + 1,
+                f"a dropdown with {len(opts)} option(s)",
+                "select-for-a-two-option-choice", "low",
+                "Two interactions to reveal one bit of information, and on a phone it opens a "
+                "full-height wheel to pick between yes and no. `select` is the general-purpose "
+                "answer to \"a choice\" and generalises without regard to how many there are.",
+                "Radio buttons for two to about five options — all visible, one tap each. A "
+                "checkbox where the choice is genuinely binary and the default is off.",
+                family="form"))
+            break
+
+    # ---- an email pattern that rejects real addresses
+    m = re.search(r"[\"'/\[]([^\"'/]{0,80}@[^\"'/]{0,80}\\?\.\[?a-z[^\"'/]{0,30}\{2,[34]\})",
+                  text, re.I)
+    if m or re.search(r"\[a-z\]\{2,4\}\$?[\"'/]", low):
+        out.append(finding(
+            path, first(r"@[^\"'/]{0,60}\{2,[34]\}|\[a-z\]\{2,4\}"),
+            "an email pattern with a restrictive top-level-domain class",
+            "email-regex-rejects-valid-addresses", "medium",
+            "{2,4} rejects .museum, .software and every longer TLD, and most hand-rolled "
+            "patterns also reject plus-addressing. The user has a working address the form "
+            "insists is invalid, with no route past it. Email regexes are abundant in the "
+            "corpus, most are wrong in the same ways, and the wrongness is invisible against "
+            "the addresses a developer tests with.",
+            "Use type=\"email\" and let the browser do the syntactic check, then verify by "
+            "sending mail. If you must pattern-match, require an @ with something either side "
+            "and stop there.",
+            family="defect"))
+
+    # ---- autofocus
+    if re.search(r"\bautofocus\b|autoFocus(?:=\{true\}|\s|/?>)", text, re.I) \
+       and len(re.findall(r"<(?:p|h2|h3|article|section)\b", text, re.I)) > 3:
+        out.append(finding(
+            path, first(r"autofocus"),
+            "autofocus on a page with other content above it",
+            "autofocus-on-page-load", "low",
+            "It moves the viewport on a phone and opens the keyboard over the content, skips "
+            "past everything above the field including the heading, and for a screen-reader "
+            "user starts the page partway through with no announcement of what was skipped.",
+            "Keep it for a page whose only purpose is that one field. Drop it anywhere the user "
+            "needs to read something first.",
+            family="form"))
+
+    # ---- character counter nobody hears
+    m = re.search(r"\{?\s*\w*(?:value|text|content)\w*\.length\s*\}?\s*(?:/|of|\bof\b)\s*\{?\s*"
+                  r"\d{2,4}", text, re.I)
+    if m and not re.search(r"aria-live", low):
+        out.append(finding(
+            path, text[:m.start()].count("\n") + 1,
+            "a live character count with no live region",
+            "character-counter-that-is-never-announced", "low",
+            "A sighted user watches it approach the limit; everyone else types past it and finds "
+            "out at submit. The counter is visual by construction and the announcement is a "
+            "separate consideration.",
+            "Put it in a polite live region, debounce it, and only announce near the limit — the "
+            "remaining count at the last twenty characters, not every character. Tie it to the "
+            "field with aria-describedby.",
+            family="defect"))
+    elif m and re.search(r'aria-live=["\']assertive', low):
+        out.append(finding(
+            path, first(r"aria-live"),
+            "a character counter in an assertive live region",
+            "character-counter-that-is-never-announced", "medium",
+            "Assertive interrupts whatever is being spoken, so the count is announced over the "
+            "user's own typing. This is the over-correction of the silent counter and is "
+            "arguably worse.",
+            "aria-live=\"polite\", debounced, announcing only near the limit.",
+            family="defect"))
+
+    # ---- native and custom validation both live
+    if re.search(r"\brequired\b|pattern=", low) \
+       and re.search(r"onSubmit=\{|handleSubmit\(|validate\(", text) \
+       and not re.search(r"noValidate|novalidate", text, re.I):
+        out.append(finding(
+            path, first(r"onSubmit=\{|handleSubmit\("),
+            "native constraints and a custom validator, with no noValidate",
+            "native-and-custom-validation-both-firing", "medium",
+            "The browser's bubble appears on some paths and the styled in-line messages on "
+            "others, they disagree about what is wrong, and which one the user sees depends on "
+            "how they submitted. Two separately correct answers to \"validate this form\", with "
+            "nothing making one defer.",
+            "Pick one. Keep the attributes for semantics and set noValidate so your messages are "
+            "the only ones shown, or drop the custom layer and style :user-invalid.",
+            family="defect"))
+
+    # ---- the search box that is a text box
+    for tag, ln in tags:
+        tl = tag.lower()
+        if re.search(r'type=["\']text', tl) and re.search(r"search|query\b", tl):
+            if not re.search(r'role=["\']search|type=["\']search', low):
+                out.append(finding(
+                    path, ln, tag[:120],
+                    "search-field-with-no-clear-and-no-search-type", "low",
+                    "The user clears a query by holding backspace, and the field gets none of "
+                    "the platform behaviour — no clear affordance, no search keyboard, no "
+                    "history. type=\"text\" works, so nothing about the page failing surfaces "
+                    "the gap.",
+                    "type=\"search\" inside a role=\"search\" landmark, with an explicit clear "
+                    "button that returns focus to the field.",
+                    family="form"))
+            break
+
+    # ---- enterkeyhint
+    if field_count > th("no-enterkeyhint-on-a-multi-field-form", "min_fields", 3) \
+       and "enterkeyhint" not in low:
+        out.append(finding(
+            path, first(r"<input|<Input"),
+            f"{field_count} fields, no enterkeyhint on any of them",
+            "no-enterkeyhint-on-a-multi-field-form", "low",
+            "Every field's on-screen return key says the same thing, so on a phone the user "
+            "cannot tell whether return will move on or submit. The key's label is a "
+            "phone-keyboard property invisible in the markup and on the desktop it was built on.",
+            "enterkeyhint=\"next\" on every field but the last, \"done\" or \"send\" on the "
+            "last. One attribute per input.",
+            family="form"))
+
+    # ---- password rules that only appear once you have broken them
+    if re.search(r'type=["\']password', low) \
+       and re.search(r"(?:minLength|min_length|\.length\s*[<>]=?\s*\d|"
+                     r"(?:pattern|regex)[^\n]{0,60}(?:A-Z|a-z|0-9|\\d))", text) \
+       and not re.search(r"at least \d|must (?:contain|include|be)|requirements?|"
+                         r"characters? long|uppercase|lowercase", low):
+        out.append(finding(
+            path, first(r'type=["\']password'),
+            "password constraints live only in the validator",
+            "password-rules-revealed-after-failure", "medium",
+            "The user guesses, fails, guesses again, and each round is an error message that "
+            "reads as a reprimand for not knowing a rule that was never stated. The rule lives "
+            "where the generator was asked to put it, and stating it in the interface is a "
+            "second, separate instruction.",
+            "Show the requirements next to the field before anyone types, and tick them off as "
+            "they are met. Tie the list to the field with aria-describedby.",
+            family="form"))
+
+    # ---- a visual challenge as the only way through
+    if re.search(r"recaptcha|hcaptcha|turnstile|g-recaptcha|grecaptcha", low) \
+       and not re.search(r"audio|accessib|alternative|mailto:|tel:", low):
+        out.append(finding(
+            path, first(r"recaptcha|hcaptcha|turnstile"),
+            "a visual challenge with no alternative and no bypass route",
+            "captcha-as-the-only-route-past-the-form", "medium",
+            "A WCAG 1.1.1 problem and a hard stop: the user cannot contact anyone about being "
+            "unable to contact anyone. Spam handling is a real requirement answered with the "
+            "corpus-standard widget, and the alternative path is a separate requirement nobody "
+            "stated.",
+            "Prefer an invisible or token-based check. Where a challenge is needed, offer an "
+            "audio alternative and publish a second contact route — an email address, a phone "
+            "number — that does not pass through it.",
+            family="defect"))
+
+    # ---- the label that only exists while the field is empty
+    float_label = re.search(r":not\(:placeholder-shown\)[^{]*\{[^}]*(?:font-size|transform|"
+                            r"opacity|top)|\.(?:filled|has-value|floating)[^{]*label[^{]*\{[^}]*"
+                            r"font-size\s*:\s*(?:0?\.[0-5]\d*rem|[0-9]px|1[01]px)", low)
+    if float_label:
+        out.append(finding(
+            path, first(r":not\(:placeholder-shown\)|floating|has-value"),
+            "a label that shrinks or moves once the field has a value",
+            "label-that-only-exists-while-empty", "medium",
+            "Once there is a value the field's name is gone. A user reviewing a completed form, "
+            "or returning to fix one error, cannot tell what any field is. The empty form is the "
+            "only state a generator renders.",
+            "Keep a persistent visible label above the field. If you keep a floating label, "
+            "check its shrunken size and contrast against the same thresholds as any other text.",
+            family="defect"))
+
+    return out
+
+
 def analyze_file(path, base=None):
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -4501,7 +5482,8 @@ def analyze_file(path, base=None):
         return analyze_ui_strings(path, text)
     if suffix in MARKUP_EXT:
         res = (analyze_markup(path, text) + analyze_web_build(path, text)
-               + analyze_app_surfaces(path, text) + analyze_ui_strings(path, text))
+               + analyze_app_surfaces(path, text) + analyze_ui_strings(path, text)
+               + analyze_motion(path, text) + analyze_forms(path, text))
         if suffix in {".html", ".htm"}:
             res += analyze_prose(path, strip_markup(text), suffix, base,
                                  from_markup=True)
@@ -4513,7 +5495,10 @@ def analyze_file(path, base=None):
         # The send call, the PDF export and the price formatter are rarely near
         # the markup, so a plain .js or .ts file needs these checks too.
         if suffix in JS_FAMILY:
-            res += analyze_app_surfaces(path, text) + analyze_ui_strings(path, text)
+            # A motion timeline and a form's validity logic are as likely to sit
+            # in a plain .ts module as in the component that renders the markup.
+            res += (analyze_app_surfaces(path, text) + analyze_ui_strings(path, text)
+                    + analyze_motion(path, text) + analyze_forms(path, text))
         return res
     res = analyze_prose(path, text, suffix or ".txt", base)
     if suffix in {".md", ".mdx"}:
