@@ -21,7 +21,18 @@ in the eight Book chapters (whitepaper/textbook.json's chapters[].source) to
     margin note issued from inside another margin note's own content would
     double up two independent boxes at the same source line and risk them
     colliding on the page -- the same reasoning pd-pedagogy.tex documents for
-    why \\pdgloss builds one combined \\marginnote rather than two).
+    why \\pdgloss builds one combined \\marginnote rather than two);
+  - \\pdsidenote{...} and \\pdmargincaption{...} (the margin forms of the two
+    devices already protected above -- \\pdsidenote IS the footnote, set in
+    the column instead of at the foot, and \\pdmargincaption IS the caption.
+    Moving a note or a caption into the margin does not make a citation
+    inside it eligible; it makes it LESS so, because the content now sits in
+    a \\pd@place... box, and a \\pdcite fired from inside one would be the
+    nested-margin-material case the \\pdgloss rule above already forbids.
+    This list carried only the in-column names while the margin twins did
+    not exist; when the apparatus moved every eligible footnote to
+    \\pdsidenote, four citations that had been protected inside \\footnote
+    for as long as the check had existed came loose in one commit).
 
 A \\cite[note]{key} with an optional citation note (bracket argument) is also
 left alone -- \\pdcite's signature is \\pdcite{key[,key...]}, with no room for
@@ -52,6 +63,12 @@ TEXTBOOK_REL = "whitepaper/textbook.json"
 
 CITE_RE = re.compile(r"\\cite(\[[^\]]*\])?\{([^}]*)\}")
 HEADING_COMMANDS = ("section", "subsection", "subsubsection", "paragraph", "subparagraph")
+# One mandatory argument, and a \cite inside that argument is not eligible.
+# \pdsidenote and \pdmargincaption are the margin twins of \footnote and
+# \caption: same note, same caption, set in the column instead of at the foot
+# or under the float, so they protect for the same reason -- and additionally
+# as margin material, which cannot nest.
+SINGLE_ARG_PROTECTED = ("caption", "footnote", "pdsidenote", "pdmargincaption")
 
 
 def load_textbook() -> dict:
@@ -102,7 +119,7 @@ def protected_spans(text: str, label: str = "<source>") -> list[tuple[int, int]]
                 f"fix the source before promoting citations")
         spans.append((m.start(), m.start() + end_m.end()))
 
-    for name in ("caption", "footnote", *HEADING_COMMANDS):
+    for name in (*SINGLE_ARG_PROTECTED, *HEADING_COMMANDS):
         for m in re.finditer(r"\\" + name + r"\*?\s*(\[[^\]]*\])?\{", text):
             brace = m.end() - 1
             spans.append((m.start(), balanced_group_end(text, brace)))

@@ -169,9 +169,7 @@ state. A looping, tool-calling agent cannot pay that price, which is why this
 chapter needs a budget and a detector where Ryoan needed neither. Table~\ref{tab:sealed-ryoan} is the whole difference in one place.
 
 \begin{table}[H]\centering\footnotesize
-\caption{How the sealed room differs from Ryoan. Ryoan confines a stateless
-module that sees its input once; the sealed room confines a looping agent, so it
-needs a priced exit and a detector where Ryoan needed neither.}
+\pdmargincaption{Ryoan confines a stateless module that sees its input once; the sealed room confines a looping agent, so it needs a priced exit and a detector where Ryoan needed neither.}
 \label{tab:sealed-ryoan}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -320,7 +318,7 @@ one.
 The four claims are not four independent guarantees stacked for redundancy;
 they are four links in one pipeline, each closing a gap the others leave open.
 Enforceability fixes \emph{where} a boundary can exist at all: gate the channel,
-or nothing about the design is provably enforceable. Noninterference proves
+or nothing about the design is provably enforceable. \pdgloss{Noninterference}{The room's silence: nothing about the data inside changes anything an observer outside can see, except through the one declared release.} proves
 that boundary, once installed, is silent except through its declared release.
 Conservation meters the cumulative cost of everything that legitimately crosses
 it, because a gate honest on every single release can still bankrupt the
@@ -334,7 +332,7 @@ evidence schedule: each link names its claim, how the claim was verified, and
 the script that regenerates the verification.
 
 \begin{table}[H]\centering\footnotesize
-\caption{The four links of the sealed room and the evidence behind each. The
+\pdmargincaption{The four links of the sealed room and the evidence behind each. The
 four-pillar claim is an evidence schedule, not a slogan: every row names a
 regenerable check.}
 \label{tab:sealed-four-links}
@@ -522,7 +520,7 @@ uncontrollable trigger, the model reading, thinking, or emitting, would be
 unregimentable; gating the controllable effect is not.\par}
 
 \begin{table}[H]\centering\footnotesize
-\caption{Five policies over the room's alphabet, classified by the
+\pdmargincaption{Five policies over the room's alphabet, classified by the
 controllability theorem. A policy is regimentable exactly when the events it
 forbids are events the mediation layer can veto; the compound clean-room rule
 is regimentable because it forbids only the egress.}
@@ -808,7 +806,7 @@ the move has a precedent worth naming: Jung, Paxson, Berger and Balakrishnan's
 threshold random walk did the same thing to portscan detection in 2004,
 modelling the benign-or-malicious question as a random walk between two
 hypotheses and reading a guaranteed false-positive-against-latency trade-off
-straight off Wald's test \pdcite{jpbb04}. The canary is that detector with the
+straight off Wald's test \pdcite{jpbb04}. The \pdgloss{canary}{A planted, known-bad item whose appearance outside the room proves a leak, and whose continued absence bounds the leak rate.} is that detector with the
 network swapped for a gate.
 
 \paragraph{Proof idea.}\pdmarginfigure{wald}{Wald's sequential probability ratio test, made for wartime quality control, is still the fastest way to decide that a canary has tripped at a guaranteed error rate.}%
