@@ -406,6 +406,26 @@ A page with no h1, or with several competing for the role.
 
 > <h1>Flowstate: invoice reconciliation for finance teams</h1> ... <h2>Ship faster</h2>
 
+### `image-without-dimensions`  ·  medium · generic-llm · web-ui · rendered · family: defect
+
+Images with no width and height attributes, so the layout shifts as they load. Raised from low to medium: it is the single most-cited cause of layout shift and the fix is one attribute pair.
+
+**Why it reads AI:** The attributes matter only while the page is loading, which nothing in the generation loop observes.
+
+**Detect:** Rendered or static: images over about 40px in either dimension with no width/height attributes.
+
+**Fix:** Set width and height to the real intrinsic pixel dimensions and let CSS scale with `height: auto`. The browser then reserves the space from the aspect ratio before the bytes arrive. Add loading="lazy" to anything below the fold and fetchpriority="high" to the hero image.
+
+**False positive when:** Images in a fixed aspect-ratio container, or with an explicit aspect-ratio CSS property, already reserve their space.
+
+**Before**
+
+> <img src="hero.png">
+
+**After**
+
+> <img src="hero.png" width="1200" height="720" style="height:auto" fetchpriority="high" alt="...">
+
 ### `input-without-label`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 Form inputs with no label element and no aria-label, relying on a placeholder to say what the field is.
@@ -624,7 +644,7 @@ A multi-column table with no sort, no filter and no pagination.
 
 ### `tailwind-play-cdn-in-production`  ·  medium · generic-llm · web-ui · structural · family: defect
 
-A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel-standalone, and their relatives.
+A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel-standalone, and their relatives. The measured cost: over 350 KB of JavaScript plus an in-browser compiler running on a DOM mutation observer, all of it before first paint.
 
 **Why it reads AI:** The Play CDN compiles your stylesheet in the visitor's browser on every page load, and its own documentation says it is for prototyping. Shipping it means the build step was never set up — the page was assembled to be looked at rather than deployed.
 
@@ -705,26 +725,6 @@ Three near-identical card or row blocks written out longhand instead of mapped o
 **After**
 
 > features.map(f => <Card key={f.id} {...f} />)
-
-### `image-without-dimensions`  ·  low · generic-llm · web-ui · rendered · family: defect
-
-Images with no width and height attributes, so the layout shifts as they load.
-
-**Why it reads AI:** The attributes matter only while the page is loading, which nothing in the generation loop observes.
-
-**Detect:** Rendered or static: images over about 40px in either dimension with no width/height attributes.
-
-**Fix:** Set width and height to the real intrinsic pixel dimensions and let CSS scale with `height: auto`. The browser then reserves the space from the aspect ratio before the bytes arrive. Add loading="lazy" to anything below the fold and fetchpriority="high" to the hero image.
-
-**False positive when:** Images in a fixed aspect-ratio container, or with an explicit aspect-ratio CSS property, already reserve their space.
-
-**Before**
-
-> <img src="hero.png">
-
-**After**
-
-> <img src="hero.png" width="1200" height="720" style="height:auto" fetchpriority="high" alt="...">
 
 ### `important-escalation`  ·  low · generic-llm · web-ui · structural · family: defect
 
