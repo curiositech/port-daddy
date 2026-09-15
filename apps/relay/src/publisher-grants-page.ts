@@ -222,7 +222,7 @@ function page(repo: string, authority: GithubAuthority | null, identities: Ident
     ${identityOptions ? `<form class="panel" method="post" action="/account/publisher-grants/create"><h2>Create a bounded grant</h2>
       <input type="hidden" name="repo" value="${esc(repo)}"><label>Live OIDC identity<select name="subject_fingerprint" required>${identityOptions}</select></label>
       <fieldset class="ops"><legend>Allowed operations</legend>${operationChecks}</fieldset>
-      <label>Head branch prefixes, comma separated<input name="branch_allow" required value="codex/"></label>
+      <label>Head branch prefixes, comma separated<input name="branch_allow" required value="pd-agent/"></label>
       <label>Exact base branches, comma separated<input name="base_allow" required value="main"></label>
       <label>Mutations per UTC day<input name="mutations_per_day" type="number" min="1" max="100" value="20" required></label>
       <label>Expires after<select name="expires_days"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></label>
