@@ -50,27 +50,38 @@ def run(root: Path, *extra: str) -> subprocess.CompletedProcess:
 
 
 class TestCheckFigureBlockers(unittest.TestCase):
-    def test_committed_blockers_json_is_fully_waived_by_its_triage(self) -> None:
-        """This repo's real blockers.json is EXPECTED to fail today -- that
-        is the whole point of turning figcheck into a release blocker (see
-        this directory's README.md, "Waivers" section). This test pins the current,
-        known count so a change in it is a deliberate, reviewed act (a new
-        waiver seeded, or a figure actually fixed), not silent drift.
+    def test_committed_blockers_json_matches_its_triage(self) -> None:
+        """This repo's real blockers.json is EXPECTED to carry entries today --
+        that is the whole point of turning figcheck into a release blocker (see
+        this directory's README.md, "Waivers" section). This test pins the
+        current, known counts so a change in them is a deliberate, reviewed act
+        (a new waiver seeded, or a figure actually fixed), not silent drift.
 
-        Every one of the 61 is waived today, and by which rule matters: 23 are
-        figures the triage is deleting or turning into tables, so their defects
-        will never be fixed and must not block; 38 are figures the triage
-        condemned and scheduled, so their defects are a dated backlog. The
-        negative controls for both live in the tests below, on fixtures --
-        this one only records what the real register says. All 61 expire on
-        one date, so the whole backlog comes up for review together."""
+        The counts moved on 2026-09-14, when the records were re-derived
+        against the live \\input-derived corpus instead of the corpus of an
+        earlier wave: 61 entries became 21. Twenty-seven records described
+        fragments no chapter ships any more and were deleted outright, and of
+        the 52 that survived, 22 figures had been redrawn clean since their
+        record was written -- their entries went with them.
+
+        Of the 21 that remain, 20 are waived as figures the Wave 11 triage
+        condemned and scheduled, so their defects are a dated backlog rather
+        than news, and all 20 expire on one date so the backlog comes up for
+        review together. One is NOT waived and must stay that way:
+        fig-stp-deterrence-regime is triaged `keep` on a note that reads
+        "figcheck clean", and the fresh compile finds a drawn line through a
+        label (T4). A `keep` that is no longer clean is exactly the thing this
+        gate exists to surface, so it blocks until the figure or the triage row
+        is corrected -- which is a chapter-source edit, and a later wave's work.
+        The negative controls for both waiver rules live in the tests below, on
+        fixtures; this one only records what the real register says."""
         result = subprocess.run(
             [sys.executable, str(SCRIPT), "--verbose"],
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
-        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
-        self.assertIn("61 waived", result.stdout)
-        self.assertIn("0 failure(s)", result.stdout)
+        self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+        self.assertIn("21 total, 20 waived, 1 failure(s)", result.stdout)
+        self.assertIn("fig-stp-deterrence-regime", result.stdout)
 
     def test_all_waived_and_unexpired_passes(self) -> None:
         with TemporaryDirectory() as tmp:

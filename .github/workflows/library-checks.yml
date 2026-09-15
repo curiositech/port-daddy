@@ -190,8 +190,8 @@ jobs:
           # floor that would no longer have caught the missing-import case it
           # was written for.
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 346 ]; then
-            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 346 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 356 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 356 it has; a module failed to import"
             exit 1
           fi
 
@@ -387,6 +387,16 @@ jobs:
 
       - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
         run: python3 scripts/harbor-research/check_figure_register.py
+
+      # Before asking whether the digest is a fresh render OF the records, ask
+      # whether the records are about figures that still ship. In September 2026
+      # they were not: 79 records described a corpus of 56 drawings, 27 of them
+      # reporting geometry for fragments deleted or renamed waves earlier and 4
+      # live drawings never checked at all -- and every downstream artefact was
+      # a faithful, fresh render of a corpus that no longer existed. This is the
+      # existence half the step below cannot see.
+      - name: figcheck records and the live \input-derived figure corpus name the same fragments
+        run: python3 scripts/harbor-research/check_figcheck_corpus.py --verbose
 
       - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
         run: python3 scripts/harbor-research/render_figure_audit.py --check
