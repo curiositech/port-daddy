@@ -588,6 +588,75 @@ Purpose, Level AA), errors not programmatically tied to their fields, and paste
 blocked on a password field (3.3.8 Accessible Authentication). Act on those with
 the same confidence as a dead link.
 
+### Research papers: check outward, never inward
+
+A paper's sentences and its checkable commitments come out of the same machinery
+at the same confidence, and nothing in the finished artifact marks which is
+which. So the characteristic failure is not that the writing sounds wrong — it is
+that the paper's verifiable claims were never verified by anyone, the author
+included. Every honest check in `references/research-papers.md` therefore points
+*outward*: does this DOI resolve to this paper, does the body contain the
+abstract's number, does this review's objection match anything in the submission.
+
+Those checks are about truth rather than authorship. They cost an accused author
+nothing when they come back clean, and that matters more here than anywhere else
+in this skill, because the population most likely to leave a style marker in a
+manuscript is the population writing in its second language — and the cost of
+being wrong is a career rather than an edit.
+
+The most useful item in the lane is a triage rule rather than a defect. Fidelity
+of model-generated citations tracks the cited paper's citation count, saturating
+near verbatim recall above roughly a thousand citations, because citation count
+proxies training-corpus redundancy. So sort the bibliography ascending and verify
+from the bottom — and note the corollary, that checking the famous references
+proves nothing.
+
+**Three claims the lane refuses.** A p-value without an effect size is not a
+tell: 98.06% of 310 papers in Science, Nature and Nature Neuroscience gave no
+confidence intervals. An abstract overstating results is not one either; measured
+spin in human RCT abstracts runs 49.1% to 85.7% by field. And a fabricated
+reference does not mean a generated paper — 91% of affected papers had one or
+two. The modal case is a researcher who did not check one citation.
+
+### LaTeX: it compiled, and nobody opened the PDF
+
+The tell is never that the source failed to build. It is that it *built* and
+nobody looked at the result. That predicts the whole of
+`references/latex-source.md`: generated `.tex` reaches for LaTeX's **visual**
+layer — `\\`, `\vspace`, `\textbf`, a typed-out "Figure 1" — over its
+**semantic** layer — `\label`/`\ref`, `\emph`, `\cite`, `\section` — because
+the visual layer is the only one verifiable from the token stream alone. A
+counter has no value until TeX assigns one, so the number that gets written is
+the one already visible in the draft.
+
+Ten items there are `defect` and reproducible by compiling, so they carry no
+fairness caveat at all. The lane makes **no claim** that any of it is commoner in
+generated than hand-written LaTeX, and the reason is uncomfortable: the largest
+mined corpus of real LaTeX faults is a taxonomy of *human* faults with the same
+top categories. People break LaTeX in exactly these ways.
+
+### Scientific figures: the defect is in the code, not the pixels
+
+A figure is produced by code, and the render sits on the other side of a step the
+author never watched — so the generator commits to `savefig(...)` without ever
+seeing that the legend landed on the data, that 10pt became 2.9pt in an 89mm
+column, or that the two series print as the same grey. That is why most of
+`references/scientific-figures.md` is greppable in the `.py` or `.R`, and why the
+honest word is UNREVIEWED rather than AI-generated.
+
+Keep three things apart, because they are conflated constantly. *Image
+integrity* — duplication, splicing — is a research-integrity matter with its own
+process that predates generative models entirely. *Generated imagery* is three
+items. *Unreviewed plotting* is the other twenty-four and carries no misconduct
+implication at all: the data is real and the defaults were never adjusted.
+
+**There is no detector for "is this figure generated", and the file says so.**
+Benchmarked against 72,965 real and 150,807 synthetic figures, the best zero-shot
+method reached 53.68% and most sat at chance, failing at near-100% on real images
+and 0–3% on synthetic. Note also that four entries elsewhere in this catalog
+*invert* for a manuscript figure — journals want vector and reject PNG for main
+figures — and have been scoped accordingly.
+
 ## The references
 
 | Reference | Load when |
@@ -613,6 +682,9 @@ the same confidence as a dead link.
 | `references/performance-as-a-design-tell.md` | Images, fonts, video, libraries and the head stack: where the source is right and the delivery is not |
 | `references/interaction-and-motion.md` | Any page with animation, scroll effects or hover styling: duration, easing, reduced motion, and what a touchscreen does with a hover state |
 | `references/forms-and-input.md` | Any form: the disabled submit, autocomplete tokens, mobile keyboards, error handling and what survives a failed submit |
+| `references/research-papers.md` | A manuscript, preprint, abstract or referee report — checks that point outward at the world rather than inward at style |
+| `references/latex-source.md` | A `.tex` or `.bib` file — it compiled, and nobody opened the PDF |
+| `references/scientific-figures.md` | A plot, chart or panel, and the `.py`/`.R` that drew it — most of it is checkable in the code |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -732,10 +804,13 @@ launch announcement in machine accent and then edited,
 - [`references/forms-and-input.md`](references/forms-and-input.md) — Forms and input — where the output is the start of the user's work — A form is the one surface where the model's output is the BEGINNING of the user's work rather than the end of it.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
 - [`references/interaction-and-motion.md`](references/interaction-and-motion.md) — Interaction and motion — the property a generator cannot watch — Motion is the one design property whose entire quality lives in TIME, and a generator emits it as a static string it can never watch run.
+- [`references/latex-source.md`](references/latex-source.md) — LaTeX source — it compiled, and nobody opened the PDF — LaTeX source is a program nobody in the loop has run — and the tell is never that it failed to compile.
 - [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
 - [`references/performance-as-a-design-tell.md`](references/performance-as-a-design-tell.md) — Performance and payload as a design tell — **The organising idea.** A generator can see the markup it is writing.
 - [`references/performance-budget-and-folklore.md`](references/performance-budget-and-folklore.md) — A performance budget a designer can hold, and the folklore to drop — Two things in one file, because they are the same argument.
 - [`references/product-ux-writing.md`](references/product-ux-writing.md) — UX writing inside the product — The strings a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints.
+- [`references/research-papers.md`](references/research-papers.md) — Research papers — checks that point outward, at the world — A paper's sentences and its checkable commitments come out of the same machinery at the same confidence, and nothing in the finished artifac
+- [`references/scientific-figures.md`](references/scientific-figures.md) — Scientific figures — checked in the code that drew them — A figure is produced by code, and the render sits on the other side of a step the author never watched.
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
 - [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 - [`references/tool-fingerprints.md`](references/tool-fingerprints.md) — Tool fingerprints — provenance, and the few that are also defects — Read the first two items in this file before the other nineteen, because they are the rules the rest depends on.
