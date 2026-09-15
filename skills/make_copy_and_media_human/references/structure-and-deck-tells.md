@@ -2,7 +2,7 @@
 
 Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 
-_48 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_49 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -367,6 +367,28 @@ Vendor scaffolding tokens leaking into shipped text: oaicite, contentReference, 
 **After**
 
 > Kobak et al. found a 40% reduction.
+
+### `placeholder-copy-residue`  ·  high · generic-llm · marketing-copy · structural · family: residue
+
+Template filler reaching a reader: lorem ipsum, "Your Company", "Acme Inc", "Product Name", "Your logo here".
+
+**Why it reads AI:** Nobody read the page end to end. This is the visual-design sibling of the unfilled merge tag.
+
+**Detect:** Closed-set literal match. Static, and proof rather than inference.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Replace with real copy, or delete the section until you have some. An honest three-section page beats a seven-section one with two sections of filler.
+
+**False positive when:** Design-system documentation, component galleries and Storybook stories use lorem deliberately to avoid implying real content.
+
+**Before**
+
+> <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+
+**After**
+
+> <p>Northwind matches bank lines to invoices and flags the 2% that need a human.</p>
 
 ### `substitutable-reply`  ·  high · generic-llm · social-post · llm-judge · family: shape
 

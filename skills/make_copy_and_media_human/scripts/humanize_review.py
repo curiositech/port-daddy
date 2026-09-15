@@ -96,6 +96,18 @@ DEFAULT_THRESHOLDS = {
     "unfilled-placeholder-residue": {"min_count": 1},
     "model-markup-residue": {"min_count": 1},
     "ai-default-token-repetition": {"min_count": 3},
+    "framework-look-without-responsive": {"min_idiom": 25},
+    "missing-viewport-meta": {"min_count": 1},
+    "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
+    "clickable-div-not-button": {"min_count": 1},
+    "dead-anchor-href": {"min_count": 3},
+    "scaffold-title-residue": {"min_count": 1},
+    "placeholder-copy-residue": {"min_count": 1},
+    "missing-or-placeholder-alt": {"min_count": 2},
+    "focus-outline-removed": {"min_count": 1},
+    "no-reduced-motion-guard": {"min_animations": 6},
+    "important-escalation": {"min_count": 8},
+    "z-index-escalation": {"max_z": 100},
     "comment-narrates-next-line": {"min_count": 2, "overlap": 0.6},
     "docstring-restates-signature": {"min_count": 1},
     "swallow-exception-pass": {"min_count": 1},
@@ -448,7 +460,10 @@ def rhythm_finding(path, line, excerpt, ism, explanation, rewrite, dialect,
 
 # ------------------------------------------------------------ prose signals
 
-def analyze_prose(path, text, suffix=".md", base=None):
+def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
+    """from_markup: text came from strip_markup(). Line structure is then an
+    artifact of tag removal rather than an authoring choice, so the detectors
+    that read line and paragraph shape are meaningless and were firing on it."""
     out = []
     lines, tags = classify_lines(text, suffix)
     prose_lines = [l for l, t in zip(lines, tags) if t == "prose"]
@@ -690,19 +705,23 @@ def analyze_prose(path, text, suffix=".md", base=None):
     # ------------------------------------------------------- DOCUMENT SHAPE
     # paragraph-length monoculture: people break where the idea breaks, which is
     # irregular. A model paragraphs on a rhythm.
-    paras_sent = []
-    cur = 0
+    # Join each paragraph's lines BEFORE counting sentences. Counting per line
+    # measures the author's hard-wrap width, not their rhythm: a README wrapped
+    # at 80 characters then reads as perfectly uniform, which is how this
+    # detector first fired on this skill's own README.
+    paras_sent, buf = [], []
     for l, t in zip(lines, tags):
         if t != "prose":
             continue
         if l.strip():
             if not re.match(r"\s*([-*+#>|]|\d+\.)", l):
-                cur += len(split_sentences(l))
-        elif cur:
-            paras_sent.append(cur); cur = 0
-    if cur:
-        paras_sent.append(cur)
-    if len(paras_sent) >= th("paragraph-length-monoculture", "min_paragraphs", 6):
+                buf.append(l.strip())
+        elif buf:
+            paras_sent.append(len(split_sentences(" ".join(buf)))); buf = []
+    if buf:
+        paras_sent.append(len(split_sentences(" ".join(buf))))
+    if len(paras_sent) >= th("paragraph-length-monoculture", "min_paragraphs", 6) \
+       and not from_markup:
         mu = statistics.mean(paras_sent)
         cv = statistics.pstdev(paras_sent) / mu if mu else 1.0
         if cv < th("paragraph-length-monoculture", "cue_cv", 0.35):
@@ -726,7 +745,7 @@ def analyze_prose(path, text, suffix=".md", base=None):
                 best_run, run_line = run, i + 1
         elif s:
             run = 0
-    if best_run >= th("linkedin-broetry-one-line-runs", "min_run", 4):
+    if best_run >= th("linkedin-broetry-one-line-runs", "min_run", 4) and not from_markup:
         out.append(finding(
             path, run_line, f"run of {best_run} consecutive one-line paragraphs",
             "linkedin-broetry-one-line-runs", "medium",
@@ -777,7 +796,7 @@ def analyze_prose(path, text, suffix=".md", base=None):
 
     rules = [i + 1 for i, (l, t) in enumerate(zip(lines, tags))
              if t == "prose" and re.match(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$", l)]
-    if len(rules) >= th("horizontal-rule-spam", "min_count", 3):
+    if len(rules) >= th("horizontal-rule-spam", "min_count", 3) and not from_markup:
         out.append(finding(
             path, rules[0], f"{len(rules)} horizontal rules",
             "horizontal-rule-spam", "medium",
@@ -785,7 +804,7 @@ def analyze_prose(path, text, suffix=".md", base=None):
             "trust the prose to signal.",
             "Delete them. If two sections need separating, the heading does it."))
 
-    if len(heads) >= th("title-case-heading-uniformity", "min_headings", 4):
+    if len(heads) >= th("title-case-heading-uniformity", "min_headings", 4) and not from_markup:
         def title_cased(h):
             b = re.sub(r"[^\w\s]", "", re.sub(r"^\s*#{1,6}\s*", "", h).strip())
             ws = [w for w in b.split() if len(w) > 3]
@@ -799,7 +818,7 @@ def analyze_prose(path, text, suffix=".md", base=None):
                 "between sentence and title case; generators do not.",
                 "Pick sentence case and use it. It reads faster and dates less."))
 
-    if len(heads) >= th("heading-level-skip", "min_headings", 3):
+    if len(heads) >= th("heading-level-skip", "min_headings", 3) and not from_markup:
         levels = [len(re.match(r"\s*(#+)", h).group(1)) for _, h in heads]
         skips = sum(1 for a, b in zip(levels, levels[1:]) if b - a >= 2)
         if skips:
@@ -961,6 +980,198 @@ def analyze_markup(path, text):
     return out
 
 
+
+# --------------------------------------------------------- web build signals
+
+# Utility-class prefixes that mark the modern-framework idiom. Their PRESENCE is
+# not a tell; their presence WITHOUT any responsive variant is, because it means
+# the page wears the look of a framework without using the part that does work.
+UTILITY_IDIOM = re.compile(
+    r"\b(?:flex|grid|items-center|justify-between|rounded-\w+|px-\d|py-\d|"
+    r"gap-\d|text-(?:xs|sm|base|lg|xl|\dxl)|bg-\w+-\d{2,3}|shadow-\w+)\b")
+RESPONSIVE_VARIANT = re.compile(r"\b(?:sm|md|lg|xl|2xl):[a-z]", re.I)
+SEMANTIC_TAGS = ("main", "nav", "header", "footer", "section", "article",
+                 "aside", "figure", "figcaption")
+SCAFFOLD_TITLES = ("create next app", "vite + react", "vite app", "react app",
+                   "untitled", "document", "my app", "next.js app", "svelte app")
+PLACEHOLDER_COPY = ("lorem ipsum", "your company", "acme inc", "acme corp",
+                    "company name here", "your logo here", "product name")
+
+
+def analyze_web_build(path, text):
+    """Static build-quality checks over HTML/JSX/CSS.
+
+    These are a different KIND of finding from the rest of this skill. They are
+    not inferences about who wrote the page; they are defects you can reproduce
+    by opening it. A page that horizontally scrolls at 390px scrolls for
+    everyone, whoever built it. So they carry no fairness caveat and no dialect,
+    and they are reported at the severity the defect deserves rather than the
+    severity the suspicion deserves.
+    """
+    out = []
+    lines = text.splitlines()
+    low = text.lower()
+    ext = path.suffix.lower()
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+    # ---- the headline defect: framework look, no responsive implementation
+    idiom = len(UTILITY_IDIOM.findall(text))
+    variants = len(RESPONSIVE_VARIANT.findall(text))
+    media = len(re.findall(r"@media[^{]*\((?:min|max)-width", low))
+    if idiom >= th("framework-look-without-responsive", "min_idiom", 25) \
+       and variants + media == 0:
+        out.append(finding(
+            path, first(r"class(?:Name)?="),
+            f"{idiom} utility-class tokens, 0 responsive variants, 0 width media queries",
+            "framework-look-without-responsive", "high",
+            "The page wears the idiom of a modern framework and uses none of the part "
+            "that does the work. Utility classes were copied for their look; the "
+            "breakpoint prefixes that make the layout survive a phone were not.",
+            "Pick the three widths that matter (about 390, 768, 1200) and make the page "
+            "correct at each. Every multi-column grid needs a single-column form; every "
+            "fixed width needs a max-width; horizontal padding belongs on a container, "
+            "not on each child.", family="defect"))
+
+    if ext in {".html", ".htm"} and "<head" in low and "name=\"viewport\"" not in low.replace("'", '"'):
+        out.append(finding(
+            path, first(r"<head"), "no viewport meta tag", "missing-viewport-meta", "high",
+            "Without a viewport meta, a phone renders the page at desktop width and "
+            "scales it down, so every text size and tap target is wrong. This is one "
+            "line, and its absence means nobody opened the page on a phone.",
+            'Add <meta name="viewport" content="width=device-width, initial-scale=1"> '
+            "to <head>, then actually look at the result on a phone.", family="defect"))
+
+    # ---- div soup
+    divs = len(re.findall(r"<div\b", low))
+    sem = sum(len(re.findall(r"<" + t + r"\b", low)) for t in SEMANTIC_TAGS)
+    if divs >= th("div-soup-no-semantics", "min_divs", 20) \
+       and sem <= divs * th("div-soup-no-semantics", "max_semantic_share", 0.08):
+        out.append(finding(
+            path, first(r"<div"), f"{divs} <div> vs {sem} semantic elements",
+            "div-soup-no-semantics", "medium",
+            "Everything is a div. Screen readers navigate by landmark and heading, so a "
+            "page with no main, nav, header or footer has no structure to navigate by, "
+            "however clear it looks on screen.",
+            "Name the regions: one <main>, a <nav> for the nav, <header>/<footer>, and "
+            "<section> where a heading introduces a region. It is a rename, not a "
+            "rewrite, and it is usually twenty minutes.", family="defect"))
+
+    clickable = [i + 1 for i, l in enumerate(lines)
+                 if re.search(r"<(?:div|span)\b[^>]*\bon[Cc]lick", l)
+                 and not re.search(r'role=["\']button|tabIndex|tabindex', l)]
+    if clickable:
+        out.append(finding(
+            path, clickable[0], f"{len(clickable)} clickable <div>/<span> with no button role",
+            "clickable-div-not-button", "high",
+            "A div with a click handler is not reachable by keyboard, not announced as "
+            "a control, and does not fire on Enter or Space. It looks identical and "
+            "works for a subset of people.",
+            "Use <button type=\"button\">. If it must stay a div, it needs role=\"button\", "
+            "tabIndex={0}, and key handlers for Enter and Space — which is why you "
+            "should use a button.", family="defect"))
+
+    dead = len(re.findall(r'href=["\']#["\']', low)) + len(re.findall(r'href=["\']["\']', low))
+    if dead >= th("dead-anchor-href", "min_count", 3):
+        out.append(finding(
+            path, first(r'href=["\']#?["\']'), f"{dead} anchors with href=\"#\" or empty",
+            "dead-anchor-href", "medium",
+            "Navigation that goes nowhere. On a real site these are the links a visitor "
+            "tries first, and the generator emitted the shape of a nav without any "
+            "destinations behind it.",
+            "Point each link at a real destination, or remove it. A nav with three real "
+            "links beats one with eight dead ones.", family="defect"))
+
+    # ---- scaffold residue
+    tm = re.search(r"<title[^>]*>([^<]{0,80})</title>", low)
+    if tm and any(t in tm.group(1).strip() for t in SCAFFOLD_TITLES):
+        out.append(finding(
+            path, first(r"<title"), f"<title>{tm.group(1).strip()}</title>",
+            "scaffold-title-residue", "high",
+            "The framework's default title shipped. It is what a browser tab, a search "
+            "result, and every shared link will say.",
+            "Write the title: the product name, then what it is, under about 60 "
+            "characters.", family="defect"))
+
+    ph = [w for w in PLACEHOLDER_COPY if w in low]
+    if ph:
+        out.append(finding(
+            path, first(re.escape(ph[0])), f"placeholder copy: {', '.join(ph)}",
+            "placeholder-copy-residue", "high",
+            "Template filler that reached a reader. Like an unfilled merge tag, this is "
+            "proof rather than inference.",
+            "Replace with real copy, or delete the section until you have some.",
+            family="defect"))
+
+    # ---- accessibility
+    imgs = re.findall(r"<img\b[^>]*>", text, re.I)
+    bad_alt = [g for g in imgs
+               if not re.search(r"\balt=", g, re.I)
+               or re.search(r'alt=["\'](?:image|photo|picture|screenshot)[^"\']*["\']', g, re.I)
+               or re.search(r'alt=["\'][^"\']*\.(?:png|jpe?g|svg|webp)["\']', g, re.I)]
+    if imgs and len(bad_alt) >= th("missing-or-placeholder-alt", "min_count", 2):
+        out.append(finding(
+            path, first(r"<img"), f"{len(bad_alt)} of {len(imgs)} <img> with missing or "
+                                  f"placeholder alt text",
+            "missing-or-placeholder-alt", "medium",
+            "Alt text that says 'image of a person using a laptop' describes the file "
+            "rather than its job on the page. Decorative images want alt=\"\"; "
+            "informative ones want the information.",
+            "For each image ask what a reader loses if it does not load. Write that. If "
+            "nothing is lost, use alt=\"\" so it is skipped.", family="defect"))
+
+    if re.search(r"outline\s*:\s*(?:none|0)", low) and ":focus-visible" not in low:
+        out.append(finding(
+            path, first(r"outline\s*:\s*(?:none|0)"),
+            "outline removed with no :focus-visible replacement",
+            "focus-outline-removed", "high",
+            "Keyboard users navigate by the focus ring. Removing it without a "
+            "replacement makes the page unusable without a mouse while looking tidier "
+            "in a screenshot.",
+            "Replace it rather than remove it: :focus-visible { outline: 2px solid "
+            "<accent>; outline-offset: 2px }. Tab through the page and confirm you can "
+            "always see where you are.", family="defect"))
+
+    anim = len(re.findall(r"@keyframes|animation\s*:|transition\s*:|framer-motion|"
+                          r"animate-\w+", low))
+    if anim >= th("no-reduced-motion-guard", "min_animations", 6) \
+       and "prefers-reduced-motion" not in low:
+        out.append(finding(
+            path, first(r"@keyframes|animation\s*:|animate-"),
+            f"{anim} animation/transition declarations, no prefers-reduced-motion guard",
+            "no-reduced-motion-guard", "medium",
+            "Motion that cannot be turned off. For people with vestibular disorders "
+            "this is not a preference, and the guard is four lines.",
+            "@media (prefers-reduced-motion: reduce) { *, *::before, *::after { "
+            "animation-duration: .01ms !important; transition-duration: .01ms "
+            "!important } }", family="defect"))
+
+    # ---- CSS hygiene
+    bangs = low.count("!important")
+    if bangs >= th("important-escalation", "min_count", 8):
+        out.append(finding(
+            path, first(r"!important"), f"{bangs} uses of !important",
+            "important-escalation", "low",
+            "Specificity fought rather than designed. It is what happens when styles are "
+            "added without reading the ones already there.",
+            "Find the rule being overridden and change it. Keep !important for utility "
+            "overrides and print styles.", family="defect"))
+
+    zs = [int(m) for m in re.findall(r"z-index\s*:\s*(\d{3,})", low)]
+    zs += [int(m) for m in re.findall(r"\bz-\[(\d{3,})\]", low)]
+    if zs and max(zs) >= th("z-index-escalation", "max_z", 100):
+        out.append(finding(
+            path, first(r"z-index|z-\["), f"z-index up to {max(zs)}",
+            "z-index-escalation", "low",
+            "Stacking resolved by bidding. A z-index of 9999 means nobody knows what it "
+            "is competing with.",
+            "Define a small scale (base 0, sticky 10, overlay 20, modal 30, toast 40) as "
+            "tokens and use only those.", family="defect"))
+
+    return out
+
 # ------------------------------------------------------------- code signals
 
 def analyze_code(path, text):
@@ -1079,9 +1290,10 @@ def analyze_file(path, base=None):
         return [finding(path, 0, str(e), "unreadable", "low", f"Could not read {path}.")]
     suffix = path.suffix.lower()
     if suffix in MARKUP_EXT:
-        res = analyze_markup(path, text)
+        res = analyze_markup(path, text) + analyze_web_build(path, text)
         if suffix in {".html", ".htm"}:
-            res += analyze_prose(path, strip_markup(text), suffix, base)
+            res += analyze_prose(path, strip_markup(text), suffix, base,
+                                 from_markup=True)
         if suffix in CODE_EXT:
             res += analyze_code(path, text)
         return res
