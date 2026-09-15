@@ -488,7 +488,6 @@ function documentBody(tex, source) {
   for (let at = tex.lastIndexOf(END); at >= 0; at = tex.lastIndexOf(END, at - 1)) {
     if (!inComment(tex, at)) { end = at; break; }
   }
-
   if (begin < 0 || end < begin) throw new Error(`${source}: malformed document body`);
   return tex.slice(begin + BEGIN.length, end);
 }

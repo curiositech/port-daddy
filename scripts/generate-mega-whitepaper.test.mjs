@@ -46,6 +46,33 @@ test('the Book generator inserts prefix-keyed prose seams and no editorial plate
   assert.doesNotMatch(generatorSource, /pdchapterplate|paper\.plate|editorial plate/i);
 });
 
+// A preamble comment that merely names \begin{document} used to move the seam
+// to that comment's line, splicing the chapter's whole preamble -- its
+// \newtheorem lines included -- into the Book, which then failed to compile on
+// `Command \theorem already defined`. A chapter must be able to write about a
+// marker without relocating it.
+test('the body seam is the marker the compiler sees, not one named in a comment', () => {
+  const tex = [
+    '\\documentclass{article}',
+    '% pd-pedagogy.tex redefines \\pullquote at \\begin{document}, so this is dead.',
+    '\\newtheorem{theorem}{Theorem}[section]',
+    '\\begin{document}',
+    'REAL BODY',
+    '% a commented \\end{document} is prose too',
+    '\\end{document}',
+  ].join('\n');
+  const body = documentBody(tex, 'fixture.tex');
+  assert.match(body, /REAL BODY/);
+  assert.doesNotMatch(body, /\\newtheorem/);
+  assert.doesNotMatch(body, /\\documentclass/);
+  // An escaped per cent is a character, not the start of a comment.
+  assert.match(
+    documentBody('\\begin{document}100\\% sure\n\\end{document}', 'fixture.tex'),
+    /100\\% sure/,
+  );
+  assert.throws(() => documentBody('% \\begin{document}\n', 'fixture.tex'), /malformed/);
+});
+
 test('every chapter in textbook.json has exactly one opening and one handoff seam', () => {
   assert.match(
     collectedVolumeSource,
