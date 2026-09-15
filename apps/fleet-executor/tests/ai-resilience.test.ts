@@ -168,6 +168,44 @@ describe('per-run Workers AI circuit', () => {
     expect(circuit.isOpen).toBe(false);
   });
 
+  it('requires a managed-call budget before authorization or provider work', async () => {
+    const authorize = vi.fn(async () => 'authorization');
+    const reconcile = vi.fn(async () => undefined);
+    const provider = vi.fn(async () => 'result');
+    const circuit = new FleetAiCircuit(1_000, { authorize, reconcile });
+
+    await expect(circuit.run(provider)).rejects.toThrow('missing a preauthorization budget');
+    expect(authorize).not.toHaveBeenCalled();
+    expect(provider).not.toHaveBeenCalled();
+    expect(reconcile).not.toHaveBeenCalled();
+  });
+
+  it('authorizes and reconciles a successful managed call exactly once', async () => {
+    const budget = { ship: 'lookout', model: 'review-model', maxInputTokens: 200, maxOutputTokens: 50 };
+    const authorize = vi.fn(async () => 'authorization');
+    const reconcile = vi.fn(async () => undefined);
+    const circuit = new FleetAiCircuit(1_000, { authorize, reconcile });
+
+    await expect(circuit.run(async () => 'result', budget)).resolves.toBe('result');
+    expect(authorize).toHaveBeenCalledOnce();
+    expect(authorize).toHaveBeenCalledWith(budget);
+    expect(reconcile).toHaveBeenCalledOnce();
+    expect(reconcile).toHaveBeenCalledWith('authorization', 'result', null);
+  });
+
+  it('reconciles a failed managed call exactly once with the original error', async () => {
+    const budget = { ship: 'lookout', model: 'review-model', maxInputTokens: 200, maxOutputTokens: 50 };
+    const providerError = Object.assign(new Error('provider failed'), { status: 500 });
+    const authorize = vi.fn(async () => 'authorization');
+    const reconcile = vi.fn(async () => undefined);
+    const circuit = new FleetAiCircuit(1_000, { authorize, reconcile });
+
+    await expect(circuit.run(async () => { throw providerError; }, budget)).rejects.toBeInstanceOf(FleetAiDependencyError);
+    expect(authorize).toHaveBeenCalledOnce();
+    expect(reconcile).toHaveBeenCalledOnce();
+    expect(reconcile).toHaveBeenCalledWith('authorization', null, providerError);
+  });
+
   it('settles in-flight lanes without claiming queued work after the first failure', async () => {
     const started: number[] = [];
     let markSecondStarted!: () => void;

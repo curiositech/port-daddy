@@ -17,17 +17,28 @@ const workflow = name => parse(readFileSync(resolve('.github/workflows', name), 
 // ship wrangler.toml.example (config deliberately out-of-band), so they are
 // exempt by construction.
 const DEPLOYED_WORKERS = [
-  { app: 'fleet-executor', file: 'deploy-fleet-executor.yml' },
-  { app: 'steward', file: 'deploy-steward.yml' },
+  { app: 'fleet-executor', file: 'deploy-fleet-executor.yml', trigger: 'managed-manual' },
+  { app: 'steward', file: 'deploy-steward.yml', trigger: 'push' },
 ];
 
 describe('worker deploy workflows', () => {
-  test.each(DEPLOYED_WORKERS)('$app: paths filter, concurrency, fork guard, wrangler deploy', ({ app, file }) => {
+  test.each(DEPLOYED_WORKERS)('$app: authorized trigger, concurrency, fork guard, wrangler deploy', ({ app, file, trigger }) => {
     const wf = workflow(file);
     const push = wf.on?.push ?? wf[true]?.push; // yaml parses bare `on:` as boolean true
-    expect(push.branches).toEqual(['main']);
-    expect(push.paths).toContain(`apps/${app}/**`);
-    expect(push.paths).toContain(`.github/workflows/${file}`);
+    const dispatch = wf.on?.workflow_dispatch ?? wf[true]?.workflow_dispatch;
+    if (trigger === 'push') {
+      expect(push.branches).toEqual(['main']);
+      expect(push.paths).toContain(`apps/${app}/**`);
+      expect(push.paths).toContain(`.github/workflows/${file}`);
+    } else {
+      expect(push).toBeUndefined();
+      expect(Object.keys(dispatch.inputs).sort()).toEqual([
+        'price_tariff_digest',
+        'price_tariff_verified_at',
+        'served_installation_ids',
+      ]);
+      for (const input of Object.values(dispatch.inputs)) expect(input.required).toBe(true);
+    }
 
     expect(wf.concurrency.group).toBe(file.replace('.yml', ''));
     expect(wf.concurrency['cancel-in-progress']).toBe(false);

@@ -153,6 +153,7 @@ import {
   costUsdForModel,
   isPricedModel,
   MODEL_CONTEXT_TOKENS,
+  WORKERS_AI_RATES,
   hasKnownContextWindow,
 } from './spend.js';
 import {
@@ -161,6 +162,22 @@ import {
   requireContextAdmission,
   utf8ByteLength,
 } from './context-admission.js';
+import {
+  ManagedBillingError,
+  acquireManagedRunLease,
+  authorizeManagedAiCall,
+  MICROUSD_PER_USD,
+  recordManagedShipSpend,
+  reconcileManagedAiCall,
+  releaseManagedRun,
+  reserveManagedRun,
+  resolveManagedEntitlement,
+  settleManagedRun,
+  yieldManagedRunLease,
+  finalizeUnleasedManagedRun,
+  type ManagedRunReservation,
+  type ManagedRunLease,
+} from './managed-billing.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
@@ -1128,38 +1145,6 @@ async function reconcileTerminalRunProjection(
 }
 
 /**
- * Per-installation SPEND CIRCUIT-BREAKER (ADR-0116/0117). Returns true ONLY when
- * the `credit_ledger` table exists, this installation HAS ledger rows, and its
- * balance (SUM(delta_usd)) is <= 0 — i.e. billing is configured for them and
- * they are out of credit. FAIL-OPEN everywhere else:
- *   - DB binding absent               ⇒ false (allow)
- *   - `credit_ledger` table absent    ⇒ query throws ⇒ false (allow)
- *   - installation has NO ledger rows ⇒ false (allow: trial / billing not live)
- *   - any read error                  ⇒ false (allow)
- * Inert until the relay starts writing credit_ledger; then it is the
- * per-installation abuse gate once billing is live.
- */
-async function creditsExhausted(env: ExecutorEnv, installationId: number): Promise<boolean> {
-  if (!env.DB) return false;
-  try {
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS n, COALESCE(SUM(delta_usd), 0) AS bal
-         FROM credit_ledger
-        WHERE installation_id = ?`,
-    )
-      .bind(installationId)
-      .first<{ n: number; bal: number }>();
-    if (!row) return false;
-    const n = Number(row.n) || 0;
-    if (n <= 0) return false; // no ledger rows ⇒ billing not configured ⇒ allow
-    return Number(row.bal) <= 0; // rows exist AND balance spent ⇒ skip
-  } catch {
-    // Table absent (billing not deployed) or any read error ⇒ fail-open.
-    return false;
-  }
-}
-
-/**
  * Record the ship's token spend into the RUN TRANSCRIPT, so the human-facing
  * run page can report it.
  *
@@ -1219,50 +1204,8 @@ async function recordShipTokensInTranscript(
 }
 
 /**
- * Record ONE `fleet_run_spend` row for a completed ship (best-effort). The
- * per-ship input/output tokens come from the ship's {@link ShipMetrics}; cost is
- * derived from {@link costUsdForModel} at the ship's model rate. A failed insert
- * (missing table / D1 down) is swallowed and NEVER changes the run — the same
- * best-effort contract the transcript writes hold to.
- */
-async function recordShipSpend(
-  env: ExecutorEnv,
-  runId: string,
-  ship: ShipConfig,
-  installationId: number | null,
-  metrics: ShipMetrics,
-): Promise<void> {
-  if (!env.DB) return;
-  // Per-call sum (see ShipMetrics.costUsd), NOT a single rate applied to the
-  // ship's totals -- MAP and REDUCE may have run on different models.
-  const cost = metrics.costUsd;
-  try {
-    await env.DB.prepare(
-      `INSERT INTO fleet_run_spend
-         (run_id, ship, installation_id, model, input_tokens, output_tokens, cost_usd, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        runId,
-        ship.name,
-        installationId,
-        ship.cfModel,
-        metrics.inputTokens,
-        metrics.outputTokens,
-        cost,
-        nowSec(),
-      )
-      .run();
-  } catch (err) {
-    console.error(
-      `[fleet-executor] fleet_run_spend insert failed run=${runId} ship=${ship.name}: ${String(err)}`,
-    );
-  }
-}
-
-/**
  * Record ONE `fleet_ai_call_stats` row for a completed ship's Workers AI
- * calls (best-effort, same contract as {@link recordShipSpend}). Called with
+ * calls (best-effort telemetry, unlike authoritative managed billing). Called with
  * whatever {@link FleetAiCircuit.snapshotShipStats} has accumulated for this
  * ship by the time it finishes — a no-op when the ship made no AI calls
  * through `runForShip` (e.g. it errored before reaching one, or ideation-only
@@ -1548,6 +1491,9 @@ export async function executeFleet(
   // Deterministic run id from the delivery id so a retried delivery rewrites its
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
+  let managedReservation: ManagedRunReservation | null = null;
+  let managedLease: ManagedRunLease | null = null;
+  let settledPublicationReplay = false;
   // Capability URL for the human-facing run page (ADR-0101 Phase 0). Null when
   // RUN_DETAILS_BASE_URL / RUN_PAGE_SECRET are unconfigured; never throws.
   const detailsUrl = await runDetailsUrl(env, runId);
@@ -1592,6 +1538,7 @@ export async function executeFleet(
   const initialShipControls = await readRepoShipControls(env.DB, job.repoFullName);
   const repositoryStopped = !repoShipEnabled(initialShipControls, '*');
   if (await isFleetPaused(env) || repositoryStopped) {
+    if (env.DB) await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     console.log(`[fleet-executor] delivery=${deliveryId} paused; posting neutral check (no AI spend, no posts)`);
     const head = prPayload.head as { sha?: unknown } | undefined;
     const headSha = typeof head?.sha === 'string' ? head.sha : null;
@@ -1784,6 +1731,7 @@ export async function executeFleet(
     console.log(
       `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
     );
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     return { kind: 'stale-head' };
   }
 
@@ -1838,7 +1786,10 @@ export async function executeFleet(
 
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
-  if (cloudShips.length === 0) return { kind: 'no-cloud-ships' };
+  if (cloudShips.length === 0) {
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
+    return { kind: 'no-cloud-ships' };
+  }
 
   // Freeze the complete model/checkpoint input before deciding whether an
   // existing check may be reused. The digest includes exact files and diff;
@@ -2095,6 +2046,7 @@ export async function executeFleet(
   // call instead of spending until the three-hour wall-clock deadline.
   const continuationLivelock = await readDeliveryContinuationLivelock(env, runId);
   if (continuationLivelock) {
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     const remaining = continuationLivelock.remainingShips.map(ship => `pd-${ship}`).join(', ');
     const summary =
       `Fleet stopped because ${continuationLivelock.repeats} consecutive checkpoint continuations ` +
@@ -2201,6 +2153,14 @@ export async function executeFleet(
         checkNeutralized,
       },
     );
+    if (managedReservation?.state === 'reserved') {
+      // A cancellation before inference returns the retail reservation. Once a
+      // ship has incurred provider cost, the run must settle instead: releasing
+      // spent work would push the platform below its margin floor.
+      managedReservation = modelSpendPossible
+        ? await settleManagedRun(env.DB, runId, nowSec())
+        : await releaseManagedRun(env.DB, runId, nowSec());
+    }
     await recordRunEnd(env, runId, 'cancelled', startMs);
     return {
       kind: 'stale-head',
@@ -2267,6 +2227,7 @@ export async function executeFleet(
 
   const lifecycle = classifyPrLifecycle(prCtx);
   if (lifecycle.over) {
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     // HUMAN-FACING: this is the entire explanation an author gets for a neutral
     // required check, so it has to read like a sentence AND claim only what we
     // actually observed. The earlier draft ended "…it has since ${state}",
@@ -2337,26 +2298,71 @@ export async function executeFleet(
   // pd-fleet.yml). Signed zero-trust publish — see src/squid-events.ts.
   emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId }, squidConsent);
 
-  // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
-  // The per-installation abuse gate: if this installation has a credit_ledger and
-  // its balance is spent (SUM(delta_usd) <= 0), skip ALL AI spend and complete
-  // the gating check NEUTRAL (never falsely-green, never blocking) so the PR is
-  // not gated by an unpaid bill. FAIL-OPEN: absent table / no ledger rows / trial
-  // installs run normally (see creditsExhausted). Runs after the check is
-  // established so we can complete it, but BEFORE any ship inference.
-  if (job.installationId != null && (await creditsExhausted(env, job.installationId))) {
+  // --- MANAGED BILLING ADMISSION (pre-spend, before any ship runs) ----------
+  // Managed inference is deny-by-default. Missing D1/schema/entitlement, read
+  // errors, and insufficient prepaid retail all produce ZERO AI calls. The
+  // atomic reservation fixes a provider-cost ceiling at 25% of retail.
+  try {
+    await resolveManagedEntitlement(env.DB, job.installationId);
+    managedReservation = await reserveManagedRun(env.DB, runId, job.installationId, nowSec());
+    settledPublicationReplay = managedReservation.state === 'settled';
+    const leaseOwner = `${deliveryId}:${providerAttempt}:${crypto.randomUUID()}`;
+    if (!settledPublicationReplay) managedLease = await acquireManagedRunLease(
+      env.DB, runId, leaseOwner, nowSec(), nowSec() + Math.ceil((RUN_ABSOLUTE_DEADLINE_MS + aiCallDeadlineMs + 60_000) / 1000),
+    );
+    if (!settledPublicationReplay) aiCircuit.setAuthorizer({
+      authorize: async request => {
+        const rate = WORKERS_AI_RATES[request.model];
+        const context = MODEL_CONTEXT_TOKENS[request.model];
+        if (!rate || !context || request.maxInputTokens > context || request.maxOutputTokens < 0) {
+          throw new ManagedBillingError('margin-exceeded', `model ${request.model} is not safely priced`);
+        }
+        const worst = Math.ceil(
+          request.maxInputTokens * rate.input + request.maxOutputTokens * rate.output,
+        );
+        return { authorization: await authorizeManagedAiCall(env.DB, managedLease!, leaseOwner, request, worst, nowSec()), request };
+      },
+      reconcile: async (token, result, error) => {
+        const { authorization, request } = token as {
+          authorization: Awaited<ReturnType<typeof authorizeManagedAiCall>>;
+          request: { model: string };
+        };
+        const usage = result == null ? { inputTokens: null, outputTokens: null } : extractWorkersAiUsage(result);
+        const reported = usage.inputTokens != null && usage.outputTokens != null;
+        const rate = WORKERS_AI_RATES[request.model];
+        const actual = reported && rate
+          ? Math.ceil(usage.inputTokens! * rate.input + usage.outputTokens! * rate.output)
+          : null;
+        await reconcileManagedAiCall(env.DB, authorization, actual,
+          error ? 'failed' : reported ? 'reported' : 'unreported', nowSec());
+        if (error && describeAiFailure(error).retryable) {
+          await yieldManagedRunLease(env.DB, managedLease!, nowSec());
+        }
+      },
+    });
+  } catch (error) {
+    if (error instanceof ManagedBillingError && error.code === 'reservation-conflict') {
+      // Another delivery owns the live fence. Defer without neutralizing its
+      // check or publishing anything under the duplicate delivery.
+      throw error;
+    }
+    const billingCode = error instanceof ManagedBillingError ? error.code : 'accounting-failed';
     const summary =
-      'Fleet skipped: this installation is out of credits. Top up credits to resume automated reviews.';
-    await transcript.step('check-completed', null, 'Check concluded: neutral (credits exhausted)', {
+      'Fleet skipped: managed inference could not reserve prepaid credit. ' +
+      'No AI was run. Activate or top up this installation to resume automated reviews.';
+    await transcript.step('check-completed', null, 'Check concluded: neutral (billing admission denied)', {
       checkRunId,
       conclusion: 'neutral',
-      reason: 'credits-exhausted',
+      reason: 'managed-billing-denied',
+      billingCode,
       installationId: job.installationId,
     });
-    await completeOwnedCheck('neutral', summary, 'before credits neutral completion');
+    await completeOwnedCheck('neutral', summary, 'before billing neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
+
+  try {
 
   // --- Run ships sequentially (Workers AI rate limits) ---------------------
   // Each ship is a map-reduce over the diff: MAP one call per diff chunk, then
@@ -2491,6 +2497,12 @@ export async function executeFleet(
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
     const shipStartMs = Date.now();
+    const resumed = resumedShips.get(ship.name);
+    if (settledPublicationReplay) {
+      if (!resumed) throw new ManagedBillingError('reservation-terminal', `settled run ${runId} lacks checkpoint ${ship.name}; refusing AI replay`);
+      results.push(withIncompletePrSourceCoverage(resumed, sourceCoverageReason));
+      continue;
+    }
     try {
       await assertCurrentHead(`before pd-${ship.name} model work`);
     } catch (error) {
@@ -2511,6 +2523,7 @@ export async function executeFleet(
         pausedBeforeShip: ship.name,
       });
       await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
+      managedReservation = await settleManagedRun(env.DB, runId, nowSec());
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
@@ -2532,7 +2545,6 @@ export async function executeFleet(
     // telemetry/spend rows are already written; re-running would produce the
     // identical result and pay for it again. Reuse the recorded verdict —
     // findings included, so the final review and conclusion see the full run.
-    const resumed = resumedShips.get(ship.name);
     if (resumed) {
       await transcript.step(
         'ship-resumed',
@@ -2597,6 +2609,7 @@ export async function executeFleet(
           },
         );
         await completeOwnedCheck('neutral', summary, `before pd-${ship.name} deadline neutral completion`);
+        managedReservation = await settleManagedRun(env.DB, runId, nowSec());
         await recordRunEnd(env, runId, 'neutral', startMs);
         return;
       }
@@ -2681,9 +2694,18 @@ export async function executeFleet(
       verdict: result.errored ? 'ERROR' : result.verdict,
     }, squidConsent);
     await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
-    // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
-    // relay can bill per installation. Best-effort — never changes the run.
-    await recordShipSpend(env, runId, ship, job.installationId, metrics);
+    // Billing-critical spend identity. This is deliberately not best-effort:
+    // a run cannot checkpoint or conclude when its exact integer accounting is
+    // missing or disagrees with an earlier retry.
+    await recordManagedShipSpend(env.DB, {
+      runId,
+      ship: ship.name,
+      installationId: job.installationId,
+      model: ship.cfModel,
+      inputTokens: metrics.inputTokens,
+      outputTokens: metrics.outputTokens,
+      providerCostMicrousd: Math.round(metrics.costUsd * MICROUSD_PER_USD),
+    }, nowSec());
     // Aggregate (not per-call) Workers AI stats for this ship — see
     // FleetAiCircuit.runForShip for why per-call D1 rows were rejected.
     await recordShipAiCallStats(env, runId, ship, aiCircuit.snapshotShipStats(ship.name), aiCallDeadlineMs);
@@ -2746,6 +2768,7 @@ export async function executeFleet(
         )
         .map(candidate => candidate.name);
       if (remainingShips.length > 0) {
+        await yieldManagedRunLease(env.DB, managedLease!, nowSec());
         return { kind: 'continuation', completedShip: ship.name, remainingShips };
       }
     }
@@ -2864,6 +2887,10 @@ export async function executeFleet(
   } catch (error) {
     return stopSupersededRun(error, true);
   }
+  // Settlement is the durable money boundary and therefore precedes the
+  // public terminal check. It is idempotent on retry and rejects any provider
+  // total above 25% of the reserved retail amount.
+  managedReservation = await settleManagedRun(env.DB, runId, nowSec());
   const checkCompletion = await completeCheckRunDetailed(
     owner,
     repo,
@@ -2961,6 +2988,9 @@ export async function executeFleet(
     }
   } catch {
     // The concluded run stands; a mediator failure is a mediator failure.
+  }
+  } finally {
+    if (managedLease) await yieldManagedRunLease(env.DB, managedLease, nowSec());
   }
 }
 
@@ -3228,14 +3258,13 @@ async function runShip(
         capture,
         { phase: 'map', model: mapModel, chunk: { index: i, count: chunks.length } },
         request,
-        () =>
-          aiCircuit.runForShip(ship.name, () =>
-            env.AI.run(
-              mapModel as Parameters<typeof env.AI.run>[0],
-              request,
-              aiOptions(env, ship.name, capture),
-            ),
+        () => aiCircuit.runForShip(
+          ship.name,
+          () => env.AI.run(
+            mapModel as Parameters<typeof env.AI.run>[0], request, aiOptions(env, ship.name, capture),
           ),
+          { model: mapModel, maxInputTokens: MODEL_CONTEXT_TOKENS[mapModel] - MAX_OUTPUT_TOKENS, maxOutputTokens: MAX_OUTPUT_TOKENS },
+        ),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, mapModel, res, text);
@@ -3865,8 +3894,9 @@ async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promi
   // forensic value, high volume; see the RFC's call-site inventory)
   // context-admission: exempt (embedding input has a distinct vector contract,
   // not chat messages plus a requested completion to reserve)
-  const res = await aiCircuit.run(() =>
-    ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
+  const res = await aiCircuit.run(
+    () => ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
+    { ship: 'embedding', model: EMBED_MODEL, maxInputTokens: MODEL_CONTEXT_TOKENS[EMBED_MODEL], maxOutputTokens: 0 },
   );
   const data = (res as { data?: unknown }).data;
   if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
@@ -4136,7 +4166,7 @@ async function runReduceGroup(
           model as Parameters<typeof env.AI.run>[0],
           request,
           aiOptions(env, ship.name, capture),
-        ),
+        ), { model, maxInputTokens: MODEL_CONTEXT_TOKENS[model] - MAX_OUTPUT_TOKENS, maxOutputTokens: MAX_OUTPUT_TOKENS },
       ),
   );
   const { text } = extractAiText(res);
@@ -4247,7 +4277,7 @@ async function shipRepairCall(
         model as Parameters<typeof env.AI.run>[0],
         request,
         aiOptions(env, ship.name, capture),
-      ),
+      ), { model, maxInputTokens: MODEL_CONTEXT_TOKENS[model] - MAX_OUTPUT_TOKENS, maxOutputTokens: MAX_OUTPUT_TOKENS },
     ),
   );
   const { text } = extractAiText(res);

@@ -592,7 +592,7 @@ export interface CapturedStep {
   createdAt?: number;
 }
 
-/** Captured fleet_run_spend row (one per ship that ran). */
+/** Captured authoritative fleet_run_spend_v2 row (one per ship that ran). */
 export interface CapturedSpend {
   runId: unknown;
   ship: unknown;
@@ -601,12 +601,24 @@ export interface CapturedSpend {
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
+  providerCostMicrousd: number;
 }
 
-/** A seeded credit_ledger row (the relay writes these; the executor only reads). */
-export interface LedgerRow {
+export interface CapturedEntitlement {
   installationId: number;
-  deltaUsd: number;
+  state: 'active' | 'paused' | 'revoked';
+  retailBalanceMicrousd: number;
+  runRetailMicrousd: number;
+}
+
+export interface CapturedReservation {
+  runId: string;
+  installationId: number;
+  retailMicrousd: number;
+  providerCostCapMicrousd: number;
+  providerCostMicrousd: number | null;
+  state: 'reserved' | 'settled' | 'released';
+  leaseOwner?: string; leaseFence?: number; leaseExpiresAt?: number;
 }
 
 export interface D1Capture {
@@ -615,19 +627,17 @@ export interface D1Capture {
   runs: CapturedRun[];
   /** fleet_run_steps rows, in insertion order. */
   steps: CapturedStep[];
-  /** fleet_run_spend rows, in insertion order. */
+  /** fleet_run_spend_v2 rows, in insertion order. */
   spend: CapturedSpend[];
-  /**
-   * Seeded credit_ledger rows the circuit-breaker SELECT reads. Empty ⇒ the
-   * installation has no ledger rows (fail-open, run proceeds). Populate to
-   * simulate a configured / negative balance.
-   */
-  ledger: LedgerRow[];
-  /**
-   * When true, any `credit_ledger` read throws (simulates the table not existing
-   * yet — billing not deployed). The breaker must fail-OPEN and run anyway.
-   */
-  creditTableMissing: boolean;
+  /** Explicit managed-inference entitlements. Tests default installation 42 active. */
+  entitlements: CapturedEntitlement[];
+  /** Deterministic run reservations, including terminal settlement state. */
+  reservations: CapturedReservation[];
+  callAuthorizations: Array<{ authorizationId:string; runId:string; cost:number; actual:number|null; state:string }>;
+  /** Simulates a missing v2 schema or any billing read failure. */
+  managedBillingUnavailable: boolean;
+  /** Makes authoritative v2 spend writes fail after admission succeeds. */
+  failManagedSpendWrites: boolean;
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
   /** Set true to make the next fleet_run_steps insert throw, then reset. */
@@ -659,8 +669,16 @@ export function memoryD1(): D1Capture {
     },
     steps: [],
     spend: [],
-    ledger: [],
-    creditTableMissing: false,
+    entitlements: [{
+      installationId: 42,
+      state: 'active',
+      retailBalanceMicrousd: 1_000_000_000,
+      runRetailMicrousd: 100_000_000,
+    }],
+    reservations: [],
+    callAuthorizations: [],
+    managedBillingUnavailable: false,
+    failManagedSpendWrites: false,
     failAll: false,
     failNextStepInsert: false,
     failNextRecordRunStartInsert: false,
@@ -684,7 +702,27 @@ export function memoryD1(): D1Capture {
           cap.failNextRecordRunStartInsert = false;
           throw new Error('D1 unavailable (simulated recordRunStart failure)');
         }
-        if (/INTO fleet_run_spend/i.test(sql)) {
+        if (/UPDATE fleet_run_reservations/i.test(sql) && /lease_owner=NULL/i.test(sql)) {
+          const reservation=cap.reservations.find(r=>r.runId===String(args[1]));
+          if (reservation && reservation.leaseOwner===String(args[2]) && reservation.leaseFence===Number(args[3])) { reservation.leaseOwner=undefined; reservation.leaseExpiresAt=undefined; }
+        } else if (/UPDATE fleet_run_call_authorizations/i.test(sql)) {
+          const row = cap.callAuthorizations.find(a => a.authorizationId === String(args[3]));
+          if (row && row.state === 'authorized') { row.actual = Number(args[0]); row.state = String(args[1]); }
+        } else if (/INTO fleet_run_spend_v2/i.test(sql)) {
+          if (cap.managedBillingUnavailable) throw new Error('no such table: fleet_run_spend_v2');
+          if (cap.failManagedSpendWrites) throw new Error('managed spend write unavailable');
+          const reservation = cap.reservations.find(r => r.runId === String(args[8]));
+          const key = `${String(args[0])}\0${String(args[1])}`;
+          const exists = cap.spend.some(s => `${String(s.runId)}\0${String(s.ship)}` === key);
+          if (reservation && reservation.installationId === Number(args[9])
+            && reservation.state === 'reserved' && !exists) {
+            cap.spend.push({
+              runId: args[0], ship: args[1], installationId: args[2], model: args[3],
+              inputTokens: Number(args[4]), outputTokens: Number(args[5]),
+              providerCostMicrousd: Number(args[6]), costUsd: Number(args[6]) / 1_000_000,
+            });
+          }
+        } else if (/INTO fleet_run_spend/i.test(sql)) {
           cap.spend.push({
             runId: args[0],
             ship: args[1],
@@ -693,6 +731,7 @@ export function memoryD1(): D1Capture {
             inputTokens: Number(args[4]),
             outputTokens: Number(args[5]),
             costUsd: Number(args[6]),
+            providerCostMicrousd: Math.round(Number(args[6]) * 1_000_000),
           });
         } else if (/INTO fleet_runs/i.test(sql)) {
           // Real SQLite/D1 honors OR IGNORE, OR REPLACE, and recordRunStart's
@@ -767,6 +806,114 @@ export function memoryD1(): D1Capture {
         return { success: true, meta: {} };
       },
       async first() {
+        if (cap.failAll) throw new Error('D1 unavailable');
+        if (cap.managedBillingUnavailable && /fleet_(managed_entitlements|run_reservations|run_spend_v2)/i.test(sql)) {
+          throw new Error('managed billing schema unavailable');
+        }
+        if (/FROM fleet_managed_entitlements/i.test(sql) && !/INSERT INTO fleet_run_reservations/i.test(sql)) {
+          const row = cap.entitlements.find(e => e.installationId === Number(args[0]) && e.state === 'active');
+          return row ? {
+            installation_id: row.installationId,
+            retail_balance_microusd: row.retailBalanceMicrousd,
+            run_retail_microusd: row.runRetailMicrousd,
+          } as unknown as Record<string, unknown> : null;
+        }
+        if (/INSERT INTO fleet_run_reservations/i.test(sql)) {
+          const [runId, , , installationId] = args;
+          const existing = cap.reservations.find(r => r.runId === String(runId));
+          if (existing) return null;
+          const entitlement = cap.entitlements.find(e => e.installationId === Number(installationId) && e.state === 'active');
+          const consumed = cap.reservations
+            .filter(r => r.installationId === Number(installationId) && (r.state === 'reserved' || r.state === 'settled'))
+            .reduce((sum, r) => sum + r.retailMicrousd, 0);
+          if (!entitlement || entitlement.retailBalanceMicrousd < consumed + entitlement.runRetailMicrousd) return null;
+          const reservation: CapturedReservation = {
+            runId: String(runId), installationId: Number(installationId),
+            retailMicrousd: entitlement.runRetailMicrousd,
+            providerCostCapMicrousd: Math.floor(entitlement.runRetailMicrousd / 4),
+            providerCostMicrousd: null, state: 'reserved',
+          };
+          cap.reservations.push(reservation);
+          return {
+            run_id: reservation.runId, installation_id: reservation.installationId,
+            retail_microusd: reservation.retailMicrousd,
+            provider_cost_cap_microusd: reservation.providerCostCapMicrousd,
+            provider_cost_microusd: null, state: reservation.state,
+          } as unknown as Record<string, unknown>;
+        }
+        if (/UPDATE fleet_run_reservations/i.test(sql) && /lease_fence = lease_fence \+ 1/i.test(sql)) {
+          const reservation = cap.reservations.find(r => r.runId === String(args[3]));
+          if (!reservation || reservation.state !== 'reserved' || (reservation.leaseOwner && (reservation.leaseExpiresAt ?? 0) > Number(args[4]))) return null;
+          reservation.leaseOwner = String(args[0]); reservation.leaseFence = (reservation.leaseFence ?? 0) + 1; reservation.leaseExpiresAt = Number(args[1]);
+          return { run_id: reservation.runId, lease_owner: reservation.leaseOwner, lease_fence: reservation.leaseFence, lease_expires_at: reservation.leaseExpiresAt } as Record<string,unknown>;
+        }
+        if (/INSERT INTO fleet_run_call_authorizations/i.test(sql)) {
+          const runId=String(args[2]); const reservation=cap.reservations.find(r=>r.runId===runId);
+          const used=cap.callAuthorizations.filter(a=>a.runId===runId).reduce((s,a)=>s+(a.actual??a.cost),0);
+          if (!reservation || reservation.leaseOwner!==String(args[12]) || reservation.leaseFence!==Number(args[13]) || used+Number(args[9])>reservation.providerCostCapMicrousd) return null;
+          const seq=cap.callAuthorizations.filter(a=>a.runId===runId).length+1;
+          const row={authorizationId:`${runId}:${args[3]}:${seq}`,runId,cost:Number(args[9]),actual:null,state:'authorized'}; cap.callAuthorizations.push(row);
+          return {authorization_id:row.authorizationId,authorized_cost_microusd:row.cost} as Record<string,unknown>;
+        }
+        if (/SELECT actual_cost_microusd,state FROM fleet_run_call_authorizations/i.test(sql)) {
+          const row=cap.callAuthorizations.find(a=>a.authorizationId===String(args[0]));
+          return row ? {actual_cost_microusd:row.actual,state:row.state} as Record<string,unknown> : null;
+        }
+        if (/UPDATE fleet_run_reservations/i.test(sql) && /state = 'settled'/i.test(sql)) {
+          const runId = String(args[3]);
+          const reservation = cap.reservations.find(r => r.runId === runId);
+          const providerCost = cap.callAuthorizations.filter(s => s.runId === runId)
+            .reduce((sum, s) => sum + (s.actual ?? s.cost), 0);
+          if (!reservation || reservation.state !== 'reserved' || providerCost > reservation.providerCostCapMicrousd) return null;
+          reservation.state = 'settled';
+          reservation.providerCostMicrousd = providerCost;
+          return {
+            run_id: reservation.runId, installation_id: reservation.installationId,
+            retail_microusd: reservation.retailMicrousd,
+            provider_cost_cap_microusd: reservation.providerCostCapMicrousd,
+            provider_cost_microusd: reservation.providerCostMicrousd,
+            state: reservation.state,
+          } as unknown as Record<string, unknown>;
+        }
+        if (/UPDATE fleet_run_reservations/i.test(sql) && /state = 'released'/i.test(sql)) {
+          const runId = String(args[2]);
+          const reservation = cap.reservations.find(r => r.runId === runId);
+          if (!reservation || reservation.state !== 'reserved' || cap.spend.some(s => s.runId === runId)) return null;
+          reservation.state = 'released';
+          return {
+            run_id: reservation.runId, installation_id: reservation.installationId,
+            retail_microusd: reservation.retailMicrousd,
+            provider_cost_cap_microusd: reservation.providerCostCapMicrousd,
+            provider_cost_microusd: null, state: reservation.state,
+          } as unknown as Record<string, unknown>;
+        }
+        if (/FROM fleet_run_reservations/i.test(sql) && /LEFT JOIN fleet_run_spend_v2/i.test(sql)) {
+          const reservation = cap.reservations.find(r => r.runId === String(args[0]));
+          if (!reservation) return null;
+          return {
+            provider_cost_cap_microusd: reservation.providerCostCapMicrousd,
+            provider_cost_microusd: cap.spend.filter(s => s.runId === reservation.runId)
+              .reduce((sum, s) => sum + s.providerCostMicrousd, 0),
+          } as unknown as Record<string, unknown>;
+        }
+        if (/FROM fleet_run_reservations/i.test(sql)) {
+          const reservation = cap.reservations.find(r => r.runId === String(args[0]));
+          return reservation ? {
+            run_id: reservation.runId, installation_id: reservation.installationId,
+            retail_microusd: reservation.retailMicrousd,
+            provider_cost_cap_microusd: reservation.providerCostCapMicrousd,
+            provider_cost_microusd: reservation.providerCostMicrousd,
+            state: reservation.state,
+          } as unknown as Record<string, unknown> : null;
+        }
+        if (/FROM fleet_run_spend_v2/i.test(sql)) {
+          const row = cap.spend.find(s => s.runId === args[0] && s.ship === args[1]);
+          return row ? {
+            installation_id: row.installationId, model: row.model,
+            input_tokens: row.inputTokens, output_tokens: row.outputTokens,
+            provider_cost_microusd: row.providerCostMicrousd,
+          } as unknown as Record<string, unknown> : null;
+        }
         if (/SELECT conclusion FROM fleet_runs WHERE id = \?/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const row = runsById.get(String(args[0]));
@@ -807,14 +954,6 @@ export function memoryD1(): D1Capture {
           return row
             ? ({ seq: row.seq, title: row.title, detail: row.detail } as unknown as Record<string, unknown>)
             : null;
-        }
-        // Circuit-breaker balance read: COUNT(*) + SUM(delta_usd) for one install.
-        if (/FROM credit_ledger/i.test(sql)) {
-          if (cap.creditTableMissing) throw new Error('no such table: credit_ledger');
-          const installId = args[0];
-          const rows = cap.ledger.filter(r => r.installationId === installId);
-          const bal = rows.reduce((acc, r) => acc + r.deltaUsd, 0);
-          return { n: rows.length, bal } as unknown as Record<string, unknown>;
         }
         // Adjudicator epidemic evidence: DISTINCT other PRs with broken-marker
         // steps for one ship. Bind order mirrors countOtherBrokenPrs:
