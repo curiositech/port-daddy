@@ -274,7 +274,7 @@ Table~\ref{tab:ls-stack-map} shows how they interlock.}
 \vspace{0.3cm}
 \begin{table}[H]
 \centering
-\caption{The system as four strata rather than four products. A mark is a capability the layer provides to the layer above; reading down a column shows where each capability is born. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
+\pdmargincaption{The system as four strata rather than four products. A mark is a capability the layer provides to the layer above; reading down a column shows where each capability is born. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
 \label{tab:ls-stack-map}
 \footnotesize
 % 2pt, not the table's earlier 3.5pt: the seven rotated capability headers
@@ -348,7 +348,7 @@ Appendix~\ref{app:honest} (implementation \& status) &
 Every mechanism mapped to built\,/\,designed\,/\,vision, every theorem to verified\,/\,proved\,/\,proposed \\
 \bottomrule
 \end{tabular}
-\caption{Reader's Map. The spine is \S\ref{sec:intro}$\to$\S\ref{sec:zoom}$\to$\S\ref{sec:authority};
+\pdmargincaption{Reader's Map. The spine is \S\ref{sec:intro}$\to$\S\ref{sec:zoom}$\to$\S\ref{sec:authority};
 the read-poverty and discovery chapters (\S\ref{sec:readpoverty}--\ref{sec:discovery})
 and the token-economics chapter (\S\ref{sec:tokens}) are the two deep dives; the
 operator chapter (\S\ref{sec:operator}) is where the human-factors weight sits.}
@@ -422,7 +422,7 @@ The \emph{legible-sovereign rule} (\S\ref{sec:authority}): every act of authorit
 a logged, named, zoomable event. \\
 \bottomrule
 \end{tabular}
-\caption{The state-of-nature failure taxonomy, the concrete coding-swarm form of
+\pdmargincaption{The state-of-nature failure taxonomy, the concrete coding-swarm form of
 each, and the class of primitive that answers it. The fifth row --- \emph{illegible
 authority} --- is the one Hobbes himself got wrong for software, and it is the crux
 of this paper (\S\ref{sec:authority}).}
@@ -603,7 +603,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 Third retry of the same failing test & $0.58$ & de-duplicated into the first occurrence & a fourth retry, or a different failure mode \\
 \bottomrule
 \end{tabularx}
-\caption{A mockup of the ``what did the queue not show me, and why'' counter-surface.
+\pdmargincaption{A mockup of the ``what did the queue not show me, and why'' counter-surface.
 Each row names the item, its score, the \emph{rule} that suppressed it, and the
 condition that would bring it back. The regress does not vanish --- this surface is
 itself ranked, and rows below its own fold are invisible --- but it changes shape: the
@@ -854,7 +854,7 @@ carries a named reason (Prop.~\ref{prop:legible-sovereign}).
 
 \begin{table}[H]
 \centering
-\caption{A read-surface earns release through four independent proofs, in order. The rail is conjunctive: one missing proof holds the surface. [internal]}
+\pdmargincaption{A read-surface earns release through four independent proofs, in order. The rail is conjunctive: one missing proof holds the surface. [internal]}
 \label{tab:ls-four-questions}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -913,7 +913,7 @@ each is in Appendix~\ref{app:honest}.
 
 \begin{table}[H]
 \centering
-\caption{Six authority mechanisms as distinct instruments crossing one consent boundary. Their inputs and outcomes differ; what they share is the recorded grant $g$: scope, named reason, audit identity, override, and an addressable return artifact. The engineering status of each is in Appendix~\ref{app:honest}. [internal]}
+\pdmargincaption{Six authority mechanisms as distinct instruments crossing one consent boundary. Their inputs and outcomes differ; what they share is the recorded grant $g$: scope, named reason, audit identity, override, and an addressable return artifact. The engineering status of each is in Appendix~\ref{app:honest}. [internal]}
 \label{tab:ls-authority-organs}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -1322,7 +1322,7 @@ Refactor touching a public interface & $0.03$ & $40$ & $1.20$ & $1.17$ & zoom, b
 Migration dropping a foreign key & $0.2$ & $500$ & $100.0$ & $1.00$ & forced zoom \\
 \bottomrule
 \end{tabularx}
-\caption{Equation~\ref{eq:sdt} on three action classes at $C_{\text{fa}}=1$,
+\pdmargincaption{Equation~\ref{eq:sdt} on three action classes at $C_{\text{fa}}=1$,
 $c_{\mathrm{att}}=0.2$. The first row is Mara's auto-land grant (\S\ref{sec:consent}) falling out of
 the arithmetic rather than being granted by taste. The third is decided by the
 miss term alone --- $0.2\times500=100$ swamps a hundred false-alarm zooms --- so the
@@ -1524,6 +1524,8 @@ has left the person and, in the same order, by how many bits of digest the
 person must read to remain the operator rather than the audience. The modes
 are a design invariant; the costs per mode are an empirical hypothesis, and
 the study named in the front matter is where they will be measured.
+
+\input{figures/legible-swarm-cooperation-modes}
 
 \pdexercisepointer*{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
@@ -1938,7 +1940,7 @@ $\mathrm{skill}$ & Declared/embedded capability, nearest-neighbor in the skill i
 $\mathrm{load}$  & How busy the candidate already is (penalty, $-w_\ell$) & \emph{Pull} --- observed occupancy \\
 \bottomrule
 \end{tabular}
-\caption{The six sub-scores of Eq.~\ref{eq:fit}, sorted by whether the candidate
+\pdmargincaption{The six sub-scores of Eq.~\ref{eq:fit}, sorted by whether the candidate
 \emph{told} the ranker or the ranker \emph{observed} it. Four of the six are pull
 signals, and that is deliberate: push signals are the ones an agent can inflate at no
 cost.}
@@ -1958,7 +1960,7 @@ ranked-retrieval scorer (BM25, character-bigram TF--IDF, or learned embeddings).
 
 \begin{table}[H]
 \centering
-\caption{Push and pull evidence for the same capability claim. $\circ$ is a self-declaration, $\bullet$ is residue produced while doing work for another purpose, $\times$ is a declared item that does not resolve, and a dash is nothing on record. A and B make the same identity and skill claims; only B leaves the complete file, note, episode and current-load trail, so the ranker, following independently addressable evidence rather than confidence in self-report, ranks B first. [internal]}
+\pdmargincaption{Push and pull evidence for the same capability claim. $\circ$ is a self-declaration, $\bullet$ is residue produced while doing work for another purpose, $\times$ is a declared item that does not resolve, and a dash is nothing on record. A and B make the same identity and skill claims; only B leaves the complete file, note, episode and current-load trail, so the ranker, following independently addressable evidence rather than confidence in self-report, ranks B first. [internal]}
 \label{tab:ls-pushpull}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -2371,7 +2373,7 @@ document specifies one; the row is carried in Appendix~\ref{app:honest} with the
 
 \begin{table}[H]
 \centering
-\caption{Five reader-specific projections over one durable event spine. Compaction changes the selection mask, not the addressability of the underlying claims, notes, diffs, episodes and events: every selected mark keeps its ledger address. [internal]}
+\pdmargincaption{Five reader-specific projections over one durable event spine. Compaction changes the selection mask, not the addressability of the underlying claims, notes, diffs, episodes and events: every selected mark keeps its ledger address. [internal]}
 \label{tab:ls-read-surfaces}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -2485,7 +2487,7 @@ Decay / forgetting & Stale coordination traces, continuously & Live signal aged 
 Eviction + pointer & The artifact body; keep an address & Dangling pointer if the artifact moves & Reconstructable artifacts (a diff, a log) addressable on demand \\
 \bottomrule
 \end{tabular}
-\caption{The compaction strategies and their trade-offs. The unifying rule is
+\pdmargincaption{The compaction strategies and their trade-offs. The unifying rule is
 Thm.~\ref{thm:lowerbound}: a strategy may drop inert detail freely but must retain
 enough to point at every critical artifact. Recursive summary is the only
 strategy that can cross that floor irreversibly, which is why it must always compact
@@ -3130,7 +3132,7 @@ Discovery \& trust & FIPA DF/AMS; ANS; EigenTrust & Split ranker: fit vs.\ regre
 Queueing \& staffing & Erlang-C; Kendall; the formal siblings~\pdcite{paper6} & Sole-responsibility roles priced at an exact boundary, not asserted as a principle \\
 \bottomrule
 \end{tabular}
-\caption{Where this paper sits relative to the nearest prior art in each of its
+\pdmargincaption{Where this paper sits relative to the nearest prior art in each of its
 contributing literatures. The sixth row is the one whose nearest prior art is
 internal: the companion formal papers, cited throughout rather than silently
 re-derived.}
@@ -3224,7 +3226,7 @@ The ranker-as-political-organ regress (Ex.~\ref{ex:ls-ranker-political-organ}) &
 The succession corner of the specialization boundary (Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & Thm.~\ref{thm:specialization} \\
 \bottomrule
 \end{tabular}
-\caption{The paper's open problems, consolidated from the starred exercises, with
+\pdmargincaption{The paper's open problems, consolidated from the starred exercises, with
 difficulty and the mechanism each couples to. Several couple this layer forward to the
 identity-and-reputation layer, which is the seam the accompanying chapters carry.}
 \label{tab:open}
