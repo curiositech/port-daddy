@@ -33,6 +33,8 @@ Synthetic narration with even stress, no breath, and emphasis landing on functio
 
 ### `centered-hero-three-card-skeleton`  ·  high · generic-llm · layout · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The whole-page template: centered badge pill ('Now in beta'), giant centered headline with one gradient word, one-line subhead, two buttons (solid + ghost), then a 3-column grid of icon-title-blurb cards (icons often emoji). Section order and centering are near-identical across generated sites.
 
 **Why it reads AI:** This is the statistical mean of every landing page in the training set; generators reproduce the skeleton verbatim. The giveaway is that the structure, not just the styling, is interchangeable with a thousand other AI sites.
@@ -52,6 +54,8 @@ The whole-page template: centered badge pill ('Now in beta'), giant centered hea
 > Left-aligned hero with a live product canvas on the right, one CTA (Start building), then an alternating sequence: a wide demo, a 2x2 bento of differentiated capabilities, a metric strip.
 
 ### `cream-serif-sage-tasteful-default`  ·  high · generic-llm · color · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The SECOND-generation default: what models produce when you ask them not to look AI-generated. A warm off-white ground (#faf8f5, #f5f1e8, bg-stone-50, bg-amber-50), a display serif (Instrument Serif, Fraunces, Playfair Display, Spectral, Cormorant, DM Serif), and a deep sage or forest primary (#15573a, #1a4d3a, emerald-800).
 
@@ -73,6 +77,8 @@ The SECOND-generation default: what models produce when you ask them not to look
 
 ### `emoji-as-ui-icons`  ·  high · generic-llm · iconography · structural · family: visual
 
+**Automated here:** yes, these scripts implement it.
+
 Emoji stand in for a real icon system: rocket in 'Get started' buttons, check bullets in feature lists, lock next to 'Secure,' lightning for 'Fast.' Rendered as OS emoji glyphs rather than SVG icons.
 
 **Why it reads AI:** Emoji as UI elements vary per OS, don't inherit color, and can't be sized to the grid; no design system ships them as iconography. It's the fastest visual giveaway of zero design investment.
@@ -92,6 +98,8 @@ Emoji stand in for a real icon system: rocket in 'Get started' buttons, check bu
 > Feature card: a 20px Lucide Rocket, ShieldCheck, Check icon in brand color above each title; CTA reads Get started with an inline ArrowRight SVG.
 
 ### `hero-with-nothing-to-look-at`  ·  high · generic-llm · layout · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 A hero with no screenshot, photograph, illustration, diagram or video — only type on a gradient or a flat ground. The visual budget goes entirely to a background treatment carrying no information about the product.
 
@@ -195,6 +203,8 @@ A chart that looks right and is wrong: axes that do not start where they should,
 
 ### `pull-quote-that-quotes-nothing`  ·  high · generic-llm · typography · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 A styled pull-quote block containing a sentence that appears nowhere else on the page and is attributed to nobody. An aphorism in quotation marks that no one ever said.
 
 **Why it reads AI:** The pull quote is the one typographic device whose definition is a provenance relation, and a generator emitting it as visual rhythm breaks that relation invisibly. A pull quote is an excerpt; a block quotation cites something external. Generated text is neither — it is new text, from nowhere, wearing the costume of a quotation. The form makes a promise the content cannot keep, and a reader who goes looking for the speaker and finds none has learned something true about the page.
@@ -217,6 +227,8 @@ A styled pull-quote block containing a sentence that appears nowhere else on the
 
 ### `purple-blue-gradient-text-headline`  ·  high · generic-llm · color · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The headline (or one hero word) uses a linear-gradient clipped to text running indigo-to-violet or violet-to-cyan, with the same gradient on hero buttons and blobs. The 'gradient word' in an otherwise solid headline is a signature move.
 
 **Why it reads AI:** Gradient text was a 2021-2023 SaaS trend the models over-learned; combined with indigo-violet stops it screams template. Real brands use gradient text sparingly with custom stops.
@@ -236,6 +248,8 @@ The headline (or one hero word) uses a linear-gradient clipped to text running i
 > <h1>Build faster</h1> in solid near-black; a single restrained accent underline in the brand terracotta; buttons are flat brand fill.
 
 ### `tailwind-indigo-default-palette`  ·  high · generic-llm · color · structural · family: visual
+
+**Automated here:** yes, these scripts implement it.
 
 The most reliable web AI-ism: the brand/primary color is Tailwind's default indigo-500 #6366F1 (or violet-500 #8B5CF6, blue-500 #3B82F6). Buttons, links, focus rings, and accents land on the unmodified Tailwind palette.
 
@@ -283,6 +297,8 @@ Detail distributed evenly rather than optically: everything equally sharp regard
 
 ### `ai-default-token-repetition`  ·  medium · generic-llm · web-ui · structural · family: visual
 
+**Automated here:** yes, these scripts implement it.
+
 Utility-class tokens repeated across every surface: backdrop-blur, rounded-2xl, bg-gradient-to-r, bg-clip-text, from-indigo, bg-grid-, animate-pulse.
 
 **Why it reads AI:** The unstyled style of generated UI: the treatment was applied everywhere rather than designed once. Defaults cluster, and the cluster is the tell, not any single token.
@@ -307,6 +323,8 @@ Utility-class tokens repeated across every surface: backdrop-blur, rounded-2xl, 
 
 ### `allcaps-letterspaced-eyebrow`  ·  medium · generic-llm · typography · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A small all-caps, wide-tracked, often monospace label above the H1, repeated above every section on the page.
 
 **Why it reads AI:** Free-looking hierarchy. It adds a level above the headline without requiring a decision, and because it costs nothing it appears above every section, destroying the hierarchy it was meant to create.
@@ -329,6 +347,8 @@ A small all-caps, wide-tracked, often monospace label above the H1, repeated abo
 
 ### `amber-white-balance-cast`  ·  medium · chatgpt · image · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A global warm cast across generated images: whites drifting to cream, shadows muddy brown, skin pushed slightly yellow. It compounds, adding a layer with each edit round.
 
 **Why it reads AI:** No camera and no photographer produces the same white balance across a kitchen, a beach and an office. A cast invariant to the scene implies a single rendering stage.
@@ -348,6 +368,8 @@ A global warm cast across generated images: whites drifting to cream, shadows mu
 > Same shot with the seamless corrected to #FAFAFA.
 
 ### `ambient-background-stack`  ·  medium · generic-llm · color · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Two or more decorative background layers stacked behind the hero: a dot or line grid, a noise overlay, an aurora or spotlight wash, a blurred gradient orb.
 
@@ -371,6 +393,8 @@ Two or more decorative background layers stacked behind the hero: a dot or line 
 
 ### `badge-pill-now-in-beta`  ·  medium · generic-llm · web-ui · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A small rounded-full pill above the headline with a tiny dot or sparkle and text like 'Now in beta,' 'Introducing X,' or 'New.' Subtle border, muted background, centered — the reflexive hero garnish.
 
 **Why it reads AI:** The announcement pill is a Linear/Vercel-ism every generator prepends to heroes automatically, whether or not there's anything to announce. Its presence as default garnish signals templated output.
@@ -390,6 +414,8 @@ A small rounded-full pill above the headline with a tiny dot or sparkle and text
 > Either no pill, or a real link pill at 14px to a dated launch post: 'Read: v2 is live ->' — and only when that post exists.
 
 ### `centred-body-copy`  ·  medium · generic-llm · typography · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Centring applied to paragraphs and not just headings, so every block has a ragged left edge.
 
@@ -412,6 +438,8 @@ Centring applied to paragraphs and not just headings, so every block has a ragge
 > Headings centred, bodies left-aligned.
 
 ### `curly-straight-quote-mixing`  ·  medium · generic-llm · typography · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 Straight and curly quotation marks or apostrophes both used within one document.
 
@@ -437,6 +465,8 @@ Straight and curly quotation marks or apostrophes both used within one document.
 
 ### `eight-second-shot-ceiling`  ·  medium · generic-llm · video · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
 
 Every shot runs five to ten seconds, because that is the generation window, and the piece is assembled entirely from cuts at that interval.
@@ -458,6 +488,8 @@ Every shot runs five to ten seconds, because that is the generation window, and 
 > A piece with a twenty-second hold in it.
 
 ### `fade-up-on-scroll-everything`  ·  medium · generic-llm · layout · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Every section, card and heading enters with the same fade-and-rise animation on scroll, usually staggered.
 
@@ -499,6 +531,8 @@ Hero, logo bar, three features, testimonial, pricing, CTA, in that order, regard
 
 ### `glassmorphism-card-stack`  ·  medium · generic-llm · web-ui · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Cards use the identical recipe: semi-transparent fill, backdrop-blur, rounded-2xl/3xl corners, soft drop shadow, and a 1px white-at-10%-opacity inset border. Every card shares the exact token combo.
 
 **Why it reads AI:** It's the default 'premium' card generators emit, copy-pasted across v0/Lovable output. Real systems vary radius, elevation, and surface treatment by component role.
@@ -518,6 +552,8 @@ Cards use the identical recipe: semi-transparent fill, backdrop-blur, rounded-2x
 > Feature cards flat with a 1px solid neutral-200 border and 8px radius; the 'popular' pricing card steps up to a real elevation-3 shadow and solid surface; no backdrop-blur except the pinned header.
 
 ### `inter-geist-default-typeface`  ·  medium · generic-llm · typography · structural · family: visual
+
+**Automated here:** yes, these scripts implement it.
 
 AI site builders default to Inter (or Vercel's Geist) for every text role with no contrasting display or serif face. Sora, Manrope, and Space Grotesk are the secondary fallbacks that signal the same generator.
 
@@ -540,6 +576,8 @@ AI site builders default to Inter (or Vercel's Geist) for every text role with n
 > Headlines in a high-contrast serif (e.g. GT Sectra) at 600; body in Inter at 400 with -0.011em tracking; clear hierarchy between display and text.
 
 ### `invisible-unicode-artifacts`  ·  medium · chatgpt · typography · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
 
@@ -567,6 +605,8 @@ Invisible or near-invisible codepoints in the text: U+202F narrow no-break space
 
 ### `measure-past-75-characters`  ·  medium · generic-llm · typography · rendered · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 Body text running the full width of a wide container: 100, 130, 160 characters per line. No constraint on the text column, so the layout's width became the text's width.
 
 **Why it reads AI:** Nobody decided the width. A generator sets a container and puts prose in it; constraining the text column is a separate decision that only matters once someone reads a full paragraph on a wide screen, which nothing in the loop does.
@@ -586,6 +626,8 @@ Body text running the full width of a wide container: 100, 130, 160 characters p
 > .wrap { padding: 2rem; max-width: 65ch; margin-inline: auto }
 
 ### `mixed-icon-sets-one-view`  ·  medium · generic-llm · iconography · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A single view mixes icon vocabularies: some Lucide line icons, some Heroicons solid, a couple of emoji, maybe a Font Awesome glyph — different stroke weights, corner radii, and fill styles side by side.
 
@@ -627,6 +669,8 @@ Three features, three tiers, three testimonials, three steps — regardless of h
 
 ### `provenance-absent-or-stripped`  ·  medium · generic-llm · image · structural · family: residue
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The file's provenance record: a C2PA manifest naming a generator, a manifest naming a camera, or nothing at all, plus EXIF that is present, absent, or implausible.
 
 **Why it reads AI:** A signed manifest from a generator is a positive fact about the file. Most 2026 guidance goes wrong by reading the converse.
@@ -646,6 +690,8 @@ The file's provenance record: a C2PA manifest naming a generator, a manifest nam
 > Signed at capture or export, with the manifest preserved through the build pipeline.
 
 ### `reveal-animation-on-everything`  ·  medium · generic-llm · web-ui · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Every element fades and rises into view on scroll, so the motion marks nothing and delays everything.
 
@@ -669,6 +715,8 @@ Every element fades and rises into view on scroll, so the motion marks nothing a
 
 ### `shadcn-defaults-unmodified`  ·  medium · generic-llm · web-ui · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 shadcn/ui shipped exactly as generated: default radius, default zinc neutrals, default hairline borders, lucide as the only icon set, no token overrides.
 
 **Why it reads AI:** The library is excellent and the defaults are fine, which is why nobody changes them. A site that has not overridden one token has not made one decision.
@@ -688,6 +736,8 @@ shadcn/ui shipped exactly as generated: default radius, default zinc neutrals, d
 > Custom radius scale, a neutral ramp mixed toward the brand hue, one real accent.
 
 ### `sparkle-motif-for-ai`  ·  medium · generic-llm · iconography · structural · family: visual
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The four-point sparkle (Lucide Sparkles, Material's AI sparkle) slapped on anything AI-related: 'AI' badges, generate buttons, magic-wand affordances, and decorative confetti around headlines.
 
@@ -729,6 +779,8 @@ The diverse team around a laptop, mid-laugh, pointing at a screen that is not th
 
 ### `triplicate-grid`  ·  medium · generic-llm · layout · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 The same three-column card grid used for features, then benefits, then testimonials, then pricing. One layout answering every content shape.
 
 **Why it reads AI:** The grid was chosen once and reused, because choosing per section requires knowing what each section contains. It is the layout equivalent of one register for every genre.
@@ -750,6 +802,8 @@ The same three-column card grid used for features, then benefits, then testimoni
 > Features as two wide rows with screenshots; testimonials as a single quote; pricing as a table.
 
 ### `undifferentiated-section-padding`  ·  medium · generic-llm · layout · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Every section on the page padded identically. Hero, feature grid, testimonial, FAQ and footer all get the same vertical space.
 
@@ -797,6 +851,8 @@ OBSOLETE AS A PRIMARY TEST. The 2022-2024 image giveaways — six-fingered hands
 
 ### `dark-mode-radial-glow-blobs`  ·  low · generic-llm · color · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Dark-mode-by-default near-black background (#0A0A0A / slate-950) decorated with large blurred radial-gradient glow blobs in indigo/violet/cyan bleeding from the corners, plus a faint grid or dot overlay.
 
 **Why it reads AI:** Linear/Vercel-style dark hero with ambient purple glows is the default 'looks expensive' move. When every AI site has the same two violet smudges on near-black, it reads as templated.
@@ -816,6 +872,8 @@ Dark-mode-by-default near-black background (#0A0A0A / slate-950) decorated with 
 > Warm off-white (#F7F5F2) light theme with a single hand-made hero illustration; or a deliberate deep-green dark theme with one structural light source and no ambient glow blobs.
 
 ### `debug-residue-in-production`  ·  low · generic-llm · web-ui · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 console.log, console.debug and debugger statements on a shipped page.
 
@@ -839,6 +897,8 @@ console.log, console.debug and debugger statements on a shipped page.
 
 ### `obligatory-dual-cta`  ·  low · generic-llm · web-ui · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 The hero always carries exactly two buttons side by side, one solid and one ghost: 'Get Started Free' plus 'Learn More'.
 
 **Why it reads AI:** The hero component has two button slots, so two buttons appear. It is not two audiences with two next steps; the secondary almost always points at the section immediately below it, which the reader would have reached by scrolling.
@@ -860,6 +920,8 @@ The hero always carries exactly two buttons side by side, one solid and one ghos
 > <a class="btn">Start a 14-day trial — no card</a>
 
 ### `one-family-no-contrast`  ·  low · generic-llm · typography · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Display and body set in the same typeface, differentiated only by size and weight. Headlines are body text made large.
 
@@ -883,6 +945,8 @@ Display and body set in the same typeface, differentiated only by size and weigh
 
 ### `stock-mesh-gradient-background`  ·  low · generic-llm · color · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The hero or full-page background is a soft multi-stop mesh gradient (pink-purple-blue-teal blend), often the literal default from a mesh-gradient generator, used as decoration unrelated to the brand.
 
 **Why it reads AI:** Mesh gradients had a moment, so models emit them as instant 'modern' backdrop. A pastel mesh that doesn't echo any brand color is decoration-by-default.
@@ -903,6 +967,8 @@ The hero or full-page background is a soft multi-stop mesh gradient (pink-purple
 
 ### `uncanny-padding-rhythm-uniformity`  ·  low · generic-llm · layout · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Every section uses the exact same vertical padding, every card the same internal padding and gap, every element the same radius token — mechanically uniform rhythm with no focal emphasis or intentional density change.
 
 **Why it reads AI:** Generators apply one spacing scale uniformly because they have no editorial sense of pacing. Designed pages breathe — heroes get more air, dense data less. Perfect evenness feels machine-laid.
@@ -922,6 +988,8 @@ Every section uses the exact same vertical padding, every card the same internal
 > Hero py-32, feature bento py-24, dense pricing table py-16; a full-bleed quote section breaks the column grid; card radii and padding step with hierarchy.
 
 ### `untouched-default-icon-set`  ·  low · generic-llm · iconography · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 The default icon library at default stroke width, with the worn glyph set: Sparkles beside anything AI, Zap beside anything fast, ArrowRight on every button.
 

@@ -15,6 +15,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `clickable-div-not-button`  ·  high · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 A div or span with a click handler and no button role, so it is unreachable by keyboard and unannounced by assistive tech.
 
 **Why it reads AI:** It looks identical on screen and works for a subset of people, which is exactly the class of defect that survives a visual review.
@@ -36,6 +38,8 @@ A div or span with a click handler and no button role, so it is unreachable by k
 > <button type="button" onClick={open} className="cta">Get started</button>
 
 ### `focus-outline-removed`  ·  high · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 outline:none or outline:0 with no :focus-visible replacement anywhere.
 
@@ -60,6 +64,8 @@ outline:none or outline:0 with no :focus-visible replacement anywhere.
 
 ### `form-without-destination`  ·  high · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 A form with no action and no submit handler. It looks complete and goes nowhere.
 
 **Why it reads AI:** This one is genuinely model-flavoured rather than merely unreviewed. A generator produces a complete, convincing front end for a back end nobody asked for, and the failure is invisible until a real person types into it and presses send.
@@ -82,6 +88,8 @@ A form with no action and no submit handler. It looks complete and goes nowhere.
 
 ### `framework-look-without-responsive`  ·  high · generic-llm · layout · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 The page wears the visual idiom of a modern utility-CSS framework — flex rows, rounded cards, spacing scale, shadows — and contains not one responsive variant or width media query.
 
 **Why it reads AI:** The look was copied; the part that does work was not. A generator produces the class names that make a screenshot look right, and responsive behaviour only shows up if someone resizes the window, which nothing in the generation loop does.
@@ -103,6 +111,8 @@ The page wears the visual idiom of a modern utility-CSS framework — flex rows,
 > <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))">
 
 ### `hand-rolled-div-dialog`  ·  high · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 A modal built as a div wearing role=dialog with a hand-written overlay, instead of the native dialog element or a maintained primitive.
 
@@ -128,6 +138,8 @@ A modal built as a div wearing role=dialog with a hand-written overlay, instead 
 
 ### `horizontal-overflow-at-mobile`  ·  high · generic-llm · layout · rendered · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 The page scrolls sideways at phone width. Content is literally off screen.
 
 **Why it reads AI:** This is the lived form of the previous entry. It is also the single most common failure of a site styled to look like a framework without being built with one.
@@ -147,6 +159,8 @@ The page scrolls sideways at phone width. Content is literally off screen.
 > .wrap { max-width: 1180px; margin-inline: auto; padding-inline: 1.5rem }
 
 ### `hundred-vw-overflow`  ·  high · generic-llm · layout · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 100vw or w-screen used for width, often with the -50vw full-bleed hack.
 
@@ -170,6 +184,8 @@ The page scrolls sideways at phone width. Content is literally off screen.
 
 ### `missing-viewport-meta`  ·  high · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 No viewport meta tag, so a phone renders the page at desktop width and scales the whole thing down.
 
 **Why it reads AI:** It is one line that every framework scaffold includes and that only goes missing in hand-assembled markup. Its absence is close to proof nobody opened the page on a phone.
@@ -192,6 +208,8 @@ No viewport meta tag, so a phone renders the page at desktop width and scales th
 
 ### `placeholder-copy-residue`  ·  high · generic-llm · marketing-copy · structural · family: residue
 
+**Automated here:** yes, these scripts implement it.
+
 Template filler reaching a reader: lorem ipsum, "Your Company", "Acme Inc", "Product Name", "Your logo here".
 
 **Why it reads AI:** Nobody read the page end to end. This is the visual-design sibling of the unfilled merge tag.
@@ -213,6 +231,8 @@ Template filler reaching a reader: lorem ipsum, "Your Company", "Acme Inc", "Pro
 > <p>Northwind matches bank lines to invoices and flags the 2% that need a human.</p>
 
 ### `scaffold-title-residue`  ·  high · generic-llm · web-ui · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 The framework's default document title shipped: "Create Next App", "Vite + React", "Untitled", "Document".
 
@@ -256,6 +276,8 @@ Trust signals with nothing behind them: 'join 10,000+ teams', star ratings with 
 
 ### `wcag-fail-from-generated-palette`  ·  high · generic-llm · color · rendered · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Text below WCAG AA contrast: 4.5:1 for body, 3:1 for large text. Usually muted grey on white or on a tinted ground.
 
 **Why it reads AI:** A palette chosen for how it photographed in a hero mock rather than for whether anyone can read it. Muted grey secondary text is the default because it looks calm in a screenshot.
@@ -275,6 +297,8 @@ Text below WCAG AA contrast: 4.5:1 for body, 3:1 for large text. Usually muted g
 > color: #595959 on #ffffff  (7.0:1)
 
 ### `barrel-icon-import`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 An entire icon library imported as a namespace for the handful of icons actually used.
 
@@ -298,6 +322,8 @@ An entire icon library imported as a namespace for the handful of icons actually
 
 ### `body-text-below-readable`  ·  medium · generic-llm · typography · rendered · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Text rendering under about 12px.
 
 **Why it reads AI:** Small type reads as refined in a zoomed-out mock and is unreadable at arm's length. Generated pages inherit the look of a design shot rather than of a page someone reads.
@@ -317,6 +343,8 @@ Text rendering under about 12px.
 > .eyebrow { font-size: 14px }
 
 ### `dead-anchor-href`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 Navigation links pointing at href="#" or nothing.
 
@@ -340,6 +368,8 @@ Navigation links pointing at href="#" or nothing.
 
 ### `div-soup-no-semantics`  ·  medium · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Everything is a div. No main, nav, header, footer, section or article anywhere.
 
 **Why it reads AI:** A generator emits the box it needs to style. Semantic elements pay off only for people using a screen reader or reader mode, and nothing in the loop represents them.
@@ -361,6 +391,8 @@ Everything is a div. No main, nav, header, footer, section or article anywhere.
 > <nav>...</nav> <main>...</main>
 
 ### `escape-and-focus-declared-not-wired`  ·  medium · generic-llm · web-ui · rendered · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 Escape handling, a focus trap or focus restoration written in source and not working at runtime.
 
@@ -386,6 +418,8 @@ Escape handling, a focus trap or focus restoration written in source and not wor
 
 ### `h1-absent-or-competing`  ·  medium · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 A page with no h1, or with several competing for the role.
 
 **Why it reads AI:** Headings get chosen for size rather than structure, because in the generation loop a heading is a type scale. The h1 is what a screen reader announces first and what search results lean on.
@@ -408,6 +442,8 @@ A page with no h1, or with several competing for the role.
 
 ### `image-without-dimensions`  ·  medium · generic-llm · web-ui · rendered · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Images with no width and height attributes, so the layout shifts as they load. Raised from low to medium: it is the single most-cited cause of layout shift and the fix is one attribute pair.
 
 **Why it reads AI:** The attributes matter only while the page is loading, which nothing in the generation loop observes.
@@ -427,6 +463,8 @@ Images with no width and height attributes, so the layout shifts as they load. R
 > <img src="hero.png" width="1200" height="720" style="height:auto" fetchpriority="high" alt="...">
 
 ### `input-without-label`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 Form inputs with no label element and no aria-label, relying on a placeholder to say what the field is.
 
@@ -470,6 +508,8 @@ A KPI tile rendering one number and a label, with no delta, no prior period, no 
 
 ### `missing-html-lang`  ·  medium · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 The root html element has no lang attribute.
 
 **Why it reads AI:** Screen readers choose a voice and pronunciation model from it; without one they guess, and often read the page in the wrong phonology. One attribute, always in the scaffold, only missing in hand-assembled markup.
@@ -512,6 +552,8 @@ The happy path only: no empty state, no error state, no loading state, no 404.
 
 ### `missing-or-placeholder-alt`  ·  medium · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Images with no alt attribute, or alt text that describes the file rather than its job: "image of a laptop", "screenshot.png".
 
 **Why it reads AI:** Generated alt text describes the picture because that is what the model can see. Useful alt text describes what a reader would lose, which requires knowing why the image is on the page.
@@ -533,6 +575,8 @@ Images with no alt attribute, or alt text that describes the file rather than it
 > <img src="dash.png" alt="The reconciliation queue, showing 38 unmatched lines out of 1,840">
 
 ### `no-reduced-motion-guard`  ·  medium · generic-llm · layout · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 An animated page with no prefers-reduced-motion media query.
 
@@ -556,6 +600,8 @@ An animated page with no prefers-reduced-motion media query.
 
 ### `settings-flat-toggle-wall`  ·  medium · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Every configuration key rendered as a switch, in schema order, with no grouping and no indication of which values are defaults.
 
 **Why it reads AI:** The screen is a faithful rendering of the data model rather than a designed view, which is what you get when the model is the only thing available to design from. One of the three recurring app-interior signatures, alongside declared-but-unwired and content whose cardinality matches a layout constant.
@@ -577,6 +623,8 @@ Every configuration key rendered as a switch, in schema order, with no grouping 
 > Three labelled groups, defaults marked, the four nobody uses removed.
 
 ### `sort-header-not-button-no-aria-sort`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 A sort affordance announced with aria-sort but not operable from a keyboard, or a sort caret with no aria-sort at all.
 
@@ -600,6 +648,8 @@ A sort affordance announced with aria-sort but not operable from a keyboard, or 
 
 ### `table-without-sort-filter-paging`  ·  medium · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 A multi-column table with no sort, no filter and no pagination.
 
 **Why it reads AI:** A table's usefulness depends almost entirely on behaviour, and a generated one arrives with the markup and none of it. It renders correctly with the eight rows in the mock and becomes unusable at eight hundred, which is a state no mock contains.
@@ -621,6 +671,8 @@ A multi-column table with no sort, no filter and no pagination.
 > sortable headers as buttons with aria-sort, a filter on the one field people scan, a row count, and pagination
 
 ### `tailwind-play-cdn-in-production`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel-standalone, and their relatives. The measured cost: over 350 KB of JavaScript plus an in-browser compiler running on a DOM mutation observer, all of it before first paint.
 
@@ -644,6 +696,8 @@ A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel
 
 ### `tap-target-too-small`  ·  medium · generic-llm · layout · rendered · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Interactive controls smaller than about 44x44 CSS pixels at phone width.
 
 **Why it reads AI:** Desktop-first styling that was never checked with a thumb. Padding tuned for a cursor is too small for a finger.
@@ -663,6 +717,8 @@ Interactive controls smaller than about 44x44 CSS pixels at phone width.
 > .nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 12px; font-size: 15px }
 
 ### `unbounded-spinner-no-error-path`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 A loading state with no corresponding error state, so a request that never returns spins forever.
 
@@ -706,6 +762,8 @@ Three near-identical card or row blocks written out longhand instead of mapped o
 
 ### `important-escalation`  ·  low · generic-llm · web-ui · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 Heavy use of !important.
 
 **Why it reads AI:** Specificity fought rather than designed — what happens when rules are added without reading the ones already there.
@@ -727,6 +785,8 @@ Heavy use of !important.
 > (the base rule corrected, so nothing needs to win)
 
 ### `no-meta-description-or-og-image`  ·  low · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 No meta description, no og:image, or both.
 
@@ -750,6 +810,8 @@ No meta description, no og:image, or both.
 
 ### `static-vh-full-height`  ·  low · generic-llm · layout · structural · family: defect
 
+**Automated here:** yes, these scripts implement it.
+
 100vh or h-screen used for a full-height section.
 
 **Why it reads AI:** On mobile browsers 100vh is the viewport with the URL bar hidden, so a 100vh hero is taller than the screen until you scroll and its bottom is cut off on first paint. Visible instantly on a phone, invisible in a desktop screenshot.
@@ -771,6 +833,8 @@ No meta description, no og:image, or both.
 > .hero { min-height: 100vh; min-height: 100dvh }
 
 ### `z-index-escalation`  ·  low · generic-llm · web-ui · structural · family: defect
+
+**Automated here:** yes, these scripts implement it.
 
 z-index values in the hundreds or thousands.
 

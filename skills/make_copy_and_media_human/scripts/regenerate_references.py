@@ -24,6 +24,16 @@ REF = ROOT / "references"
 cat = json.loads((REF / "catalog.json").read_text(encoding="utf-8"))
 items, sources = cat["items"], cat["sources"]
 
+# Which items these scripts actually implement, read from the scripts themselves
+# so it cannot drift. detection_type says what KIND of evidence settles an item,
+# never that this bundle automates it -- SKILL.md already tells the judge pass to
+# ask the unimplemented ones by hand, and this is what makes that instruction
+# actionable instead of a grep exercise.
+_SCRIPTS = "".join(
+    p.read_text(encoding="utf-8")
+    for p in sorted((ROOT / "scripts").glob("*.py")) if p.name != Path(__file__).name)
+IMPLEMENTED = {i["name"] for i in items if f'"{i["name"]}"' in _SCRIPTS}
+
 PROSE_GENERIC = {"prose"}
 VISUAL_MEDIA = {"web-ui", "typography", "color", "iconography", "layout"}
 STRUCT_MEDIA = {"structure", "slide-deck", "marketing-copy"}
@@ -175,6 +185,11 @@ def block(i):
     L = [(f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
           + f"{i.get('detection_type','')} · family: {i.get('family','')}"
           + (f" · lane: {i['lane']}" if i.get("lane") else "")), ""]
+    if i.get("detection_type") in ("structural", "rendered"):
+        L += [("**Automated here:** yes, these scripts implement it."
+               if i["name"] in IMPLEMENTED else
+               "**Automated here:** no \u2014 decidable mechanically, but this bundle "
+               "does not implement it. Ask it yourself in the judge pass."), ""]
     note = CURRENCY_NOTE.get(i.get("currency", "current"), "")
     if note:
         L += [f"**Currency:** {note}", ""]

@@ -21,6 +21,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `dark-mode-by-inversion`  ·  high · generic-llm · color · structural · family: defect · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 Dark mode produced by FLIPPING the light mode rather than by deciding it — an invert filter, or a token map that swaps every light value for its mirror in the ramp. Photographs go negative, shadows stop expressing elevation, saturated hues vibrate, and the brand colour that was readable on white is unreadable on near-black.
 
 **Why it reads AI:** Inversion is an ALGORITHM, which is precisely what a generator can do and a designer cannot accept. Dark mode is a second design, not a transform of the first: elevation reverses — in dark mode raised surfaces get LIGHTER, they do not get a bigger shadow — saturated colours must be desaturated and lightened, and pure black is avoided specifically because shadows become invisible against it.
@@ -40,6 +42,8 @@ Dark mode produced by FLIPPING the light mode rather than by deciding it — an 
 > a dark token map with its own lightness AND chroma decisions, and color-scheme declared
 
 ### `faux-bold-from-missing-weight`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 A bold weight used where only a regular face was loaded, or italic with no italic file. The browser silently smears the regular weight wider and shears the upright glyphs to fake a slant — letterfit widens, counters fill in, and the type looks blurry without anyone being able to say why.
 
@@ -61,6 +65,8 @@ A bold weight used where only a regular face was loaded, or italic with no itali
 
 ### `fluid-type-without-rem-component`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Two related defects. No fluid type at all, so the headline jumps at a breakpoint. Or fluid type whose preferred value is pure viewport units, which do not respond to browser zoom.
 
 **Why it reads AI:** The pure-viewport clamp is the most-copied CSS snippet of recent years and it is subtly wrong. It has the SHAPE of the correct answer — min, fluid, max — which is exactly why a generator reproduces it. The rem term that makes it zoomable is the part you only add if you have tested with zoom.
@@ -80,6 +86,8 @@ Two related defects. No fluid type at all, so the headline jumps at a breakpoint
 > clamp(2rem, 1.5rem + 2vw, 4rem)
 
 ### `gap-flattens-type-relationships`  ·  high · generic-llm · layout · structural · family: defect · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A vertical flex or grid container with a single gap holding a heading, body copy, a list and a button. One number now expresses four different semantic relationships, all of which should differ.
 
@@ -101,6 +109,8 @@ A vertical flex or grid container with a single gap holding a heading, body copy
 
 ### `global-line-height-never-scaled`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 One line-height set on body or :root and inherited by everything, so a 64px hero headline and 16px body copy share the same ratio. Display type gets body leading and the headline's lines float apart — the reader sees two headlines where there is one.
 
 **Why it reads AI:** Leading is a function of typeface, size AND measure. A generator has one line-height because it made one decision. The mechanism is visible in the render: at 16px, 1.6 is the gap that lets the eye find the next line across a 68-character measure; at 64px with four words per line it is 102px of air between two halves of one sentence.
@@ -120,6 +130,8 @@ One line-height set on body or :root and inherited by everything, so a 64px hero
 > body { line-height: 1.55 } · h1 { font-size: 4rem; line-height: 1.05; letter-spacing: -0.02em }
 
 ### `heading-space-symmetric`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 Equal space above and below a heading, so it floats between the section it ends and the section it starts, belonging to neither. The commonest spacing error in generated prose layout.
 
@@ -143,6 +155,8 @@ Equal space above and below a heading, so it floats between the section it ends 
 
 ### `no-balance-on-headings`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 No text-wrap: balance anywhere, so multi-line headlines break wherever the line box runs out — one word alone on line two, an article separated from its noun — and they break somewhere different at every viewport width.
 
 **Why it reads AI:** A headline is the one piece of type on a page a person always hand-breaks. Generated CSS never touches line breaking, because breaking is a rendered-output concern and the generator only ever produced source.
@@ -162,6 +176,8 @@ No text-wrap: balance anywhere, so multi-line headlines break wherever the line 
 > :is(h1,h2,h3) { text-wrap: balance }
 
 ### `one-value-where-a-function-belonged`  ·  high · generic-llm · typography · structural · family: shape · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The governing finding for this lane, and the one to read first. A generator emits a stylesheet that is internally consistent and has no craft in it. Craft in typography is almost entirely per-context judgement — this heading at this size on this measure needs 1.05 leading and slightly negative tracking, and the one three sections down does not. A default is by construction context-free.
 
@@ -183,6 +199,8 @@ The governing finding for this lane, and the one to read first. A generator emit
 
 ### `opacity-as-text-hierarchy`  ·  high · generic-llm · color · structural · family: defect · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 Secondary and tertiary text produced by opacity or an alpha colour rather than by a colour token. Three consequences: the value means something different on every surface it lands on, contrast is uncheckable without resolving the stack, and opacity on a container fades the borders, icons and focus rings inside it too.
 
 **Why it reads AI:** The alpha utility is one token shorter than defining a real muted colour, so a generator prefers it. It produces a stylesheet that is internally consistent and whose actual rendered contrast is a function of everything underneath it — which is to say, a stylesheet with no colour system in it. This is the structural cause behind a large share of contrast failures on generated pages, and patching them element by element never fixes it.
@@ -202,6 +220,8 @@ Secondary and tertiary text produced by opacity or an alpha colour rather than b
 > --text-muted per surface, resolved to an opaque value and contrast-checked once
 
 ### `proportional-figures-in-data-tables`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 A data table set in a proportional-figure font with no tabular figures, so the ones are narrow and the zeros are wide and no column of numbers aligns. Columns of currency and percentages visibly wander.
 
@@ -223,6 +243,8 @@ A data table set in a proportional-figure font with no tabular figures, so the o
 
 ### `root-font-size-locked-in-px`  ·  high · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 A pixel font-size on html or body cascading everywhere, which overrides the reader's browser font-size preference. Every rem on the page is now anchored to a number the author chose instead of the one the reader chose.
 
 **Why it reads AI:** Pixel font sizes are what a generator emits because a design tool reports px and the value is unambiguous. The cost is invisible to anyone with default settings — which is everyone who builds the page, and not the substantial share of readers who have raised their browser's default.
@@ -242,6 +264,8 @@ A pixel font-size on html or body cascading everywhere, which overrides the read
 > html { /* no font-size */ } · body { font-size: 1rem }
 
 ### `semantic-layer-bypassed`  ·  high · generic-llm · web-ui · structural · family: residue · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 A semantic token layer exists and the components ignore it. A muted-foreground token is defined while half the components reach for a raw grey utility. Two colour systems, neither authoritative, drifting apart.
 
@@ -265,6 +289,8 @@ A semantic token layer exists and the components ignore it. A muted-foreground t
 
 ### `theme-changes-hue-not-contrast`  ·  high · generic-llm · color · rendered · family: defect · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Multiple themes that swap colours while leaving contrast unequalised — the light theme's secondary text passes and the dark theme's does not. The theme was designed once and recoloured.
 
 **Why it reads AI:** Role names are portable; the PERCEPTUAL relationships they encode are not. A generator maps a mid-grey in light to a lighter grey in dark because those are mirror positions in the ramp — an operation on names, not on appearance. Contrast is a property of the PAIR, so the only way to get it right is to compute it per theme, which is the kind of per-context verification that never happens. This is why a page can have a spotless semantic layer and fail accessibility in exactly one theme.
@@ -284,6 +310,8 @@ Multiple themes that swap colours while leaving contrast unequalised — the lig
 > both themes solved to the same target ratio per role, asserted in CI
 
 ### `type-scale-with-no-ratio`  ·  high · generic-llm · typography · structural · family: shape · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 The set of font sizes has no generator behind it — 14, 16, 18, 20, 22, 28, 32, 36, 48, 52. Adjacent steps differ by different amounts, so there is no consistent sense of one step up and no visual grammar for hierarchy.
 
@@ -307,6 +335,8 @@ The set of font sizes has no generator behind it — 14, 16, 18, 20, 22, 28, 32,
 
 ### `value-named-tokens-no-semantic-layer`  ·  high · generic-llm · web-ui · structural · family: shape · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Every token is named for what it IS — a ramp position — and nothing is named for what it is FOR. There is no semantic layer, so components reach straight into the primitive ramp and every design decision is spelled as a hex ramp position.
 
 **Why it reads AI:** A primitive ramp looks maximally systematic and encodes zero decisions. The moment a value token becomes the NAME OF A DECISION the system is stuck: links, buttons and focus rings all pick the same mid-blue because it is there, and a rebrand that should move buttons and leave links alone cannot be expressed. Dark mode is worse, because the same ramp position is not “the same blue” at all on a dark surface. The generator produced the ramp because ramps are what training data is full of, and no semantic layer because a semantic layer is a list of decisions somebody made.
@@ -326,6 +356,8 @@ Every token is named for what it IS — a ramp position — and nothing is named
 > --text-muted: var(--gray-500) · --border: var(--gray-200) · --ring: var(--blue-500) — and components using only those
 
 ### `apostrophe-and-prime-errors`  ·  medium · generic-llm · typography · structural · family: residue · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Below the straight-versus-curly question: the errors that survive a naive smart-quotes pass. A left single quote where an elided apostrophe belongs, curly quotes standing in for prime and double-prime in feet and inches, and nested quotation levels set with the same mark.
 
@@ -347,6 +379,8 @@ Below the straight-versus-curly question: the errors that survive a naive smart-
 
 ### `body-copy-in-brand-colour`  ·  medium · generic-llm · color · structural · family: shape · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Paragraph text set in the brand hue rather than a near-neutral. It reads as tinted rather than as text, fights every other coloured element for attention, and usually costs contrast.
 
 **Why it reads AI:** A generator told the brand colour is X applies X to every colour slot it can find. Brand colour belongs on the things that carry the brand's ACTION — the primary button, the link, the focus ring — not on the substrate. Body copy in the brand hue is the visual equivalent of saying the company's name in every sentence.
@@ -366,6 +400,8 @@ Paragraph text set in the brand hue rather than a near-neutral. It reads as tint
 > p { color: var(--text-primary) } with the brand on links and the primary button
 
 ### `display-type-untracked`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A 64px headline set at the typeface's default tracking, which was drawn for text sizes. At display sizes the sidebearings are proportionally too wide and the headline reads loose and unset. The inverse — positive tracking on body copy — appears in the same stylesheets.
 
@@ -387,6 +423,8 @@ A 64px headline set at the typeface's default tracking, which was drawn for text
 
 ### `heading-margin-collapse-swallowed`  ·  medium · generic-llm · layout · structural · family: defect · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A heading's top margin is eaten by margin collapsing — the wrapper has no padding, border or formatting context, so the margin collapses out through the parent and pushes the SECTION down instead of separating the heading from the text above. Or the reverse: display flex silently disables collapsing a reset was relying on, and adjacent margins that used to merge now stack to double.
 
 **Why it reads AI:** Margin collapsing is invisible in the source and only shows in the render, which is exactly the class of bug a generator cannot see.
@@ -406,6 +444,8 @@ A heading's top margin is eaten by margin collapsing — the wrapper has no padd
 > section { display: flow-root } · or set the separation as padding on the section
 
 ### `hyphen-where-dash-belongs`  ·  medium · generic-llm · typography · structural · family: form · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A hyphen doing an en dash's or em dash's job: a year range, a page range, a compound of two proper nouns, or a spaced hyphen standing in for an em dash in an aside.
 
@@ -427,6 +467,8 @@ A hyphen doing an en dash's or em dash's job: a year range, a page range, a comp
 
 ### `leading-ignores-measure`  ·  medium · generic-llm · typography · rendered · family: defect · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The same line-height at a 68-character desktop measure and a 32-character phone measure. Long lines need more leading to help the eye return; short lines need less or they fall apart into a stack.
 
 **Why it reads AI:** Responsive CSS in generated pages adjusts SIZE and LAYOUT and never adjusts RHYTHM, because rhythm is the part you only notice by reading the page on a phone. The generator never read the page on a phone.
@@ -446,6 +488,8 @@ The same line-height at a 68-character desktop measure and a 32-character phone 
 > p { line-height: 1.4 } plus @container (min-width: 34rem) { p { line-height: 1.6 } }
 
 ### `line-height-in-fixed-units`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 line-height set as a length rather than a unitless multiplier. The value is inherited as a computed LENGTH, so every descendant with a different font-size inherits the parent's absolute leading instead of a proportional one.
 
@@ -467,6 +511,8 @@ line-height set as a length rather than a unitless multiplier. The value is inhe
 
 ### `live-numbers-without-tabular-nums`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 A counter, timer, clock, updating price or animated stat that visibly jitters left and right as digits change width. The most physically obvious typographic defect on a page, and nobody notices it in a screenshot.
 
 **Why it reads AI:** It only manifests in MOTION. Everything a generator verifies is static, so the entire class of motion-visible typographic defects survives to production. Finding one predicts the rest of the class.
@@ -486,6 +532,8 @@ A counter, timer, clock, updating price or animated stat that visibly jitters le
 > .clock { font-variant-numeric: tabular-nums }
 
 ### `no-hyphenation-at-narrow-measure`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 No hyphens: auto on a column that goes below about 40 characters on a phone, so long words produce a violently ragged edge — or, with justification, rivers of white running down the paragraph. The related defect: hyphens: auto set with no lang attribute, so it silently does nothing.
 
@@ -507,6 +555,8 @@ No hyphens: auto on a column that goes below about 40 characters on a phone, so 
 
 ### `numeric-columns-left-aligned`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Numbers left-aligned in a table, or currency aligned on the symbol rather than the decimal, or a column with inconsistent significant figures so the decimals do not line up even when the alignment is right.
 
 **Why it reads AI:** Left alignment is the browser default and the generator did not override it. The consequence is specific: you compare numbers FROM THE RIGHT, so a left-aligned numeric column defeats the only reason to put numbers in a column at all.
@@ -526,6 +576,8 @@ Numbers left-aligned in a table, or currency aligned on the symbol rather than t
 > the same column right-aligned with tabular figures and two decimal places throughout
 
 ### `off-scale-one-off-sizes`  ·  medium · generic-llm · typography · structural · family: residue · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 Font sizes chosen per component and written as arbitrary values, coexisting with a token set or utility scale that already has a nearby step.
 
@@ -547,6 +599,8 @@ Font sizes chosen per component and written as arbitrary values, coexisting with
 
 ### `opsz-axis-unused`  ·  medium · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 A variable font with an optical-size axis is loaded and the axis is never engaged, so the 14px caption and the 96px hero are drawn with identical stem weights, apertures and contrast — the one thing variable fonts are uniquely good at, unused.
 
 **Why it reads AI:** That is the precise failure: a generator sets weight through the wrong property and silently disables optical sizing as a side effect.
@@ -566,6 +620,8 @@ A variable font with an optical-size axis is loaded and the axis is never engage
 > font-weight: 700 · font-optical-sizing: auto
 
 ### `pure-black-on-pure-white`  ·  medium · generic-llm · color · structural · family: shape · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 Pure black on pure white for body copy, or the dark-mode mirror. Maximum contrast, which is not the same as maximum readability — the halation makes the type appear to glow and long-form reading is measurably harder.
 
@@ -587,6 +643,8 @@ Pure black on pure white for body copy, or the dark-mode mirror. Maximum contras
 
 ### `spacing-scale-without-ratio`  ·  medium · generic-llm · layout · structural · family: shape · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A spacing set with no generator behind it — 4, 8, 12, 15, 20, 25, 32, 45, 60 — or one mixing a 4px base with 5px and 6px steps. Also its cousin: dozens of distinct arbitrary values.
 
 **Why it reads AI:** A spacing scale is a GENERATOR — a base and a rule. Generated CSS produces spacing OUTCOMES: each value was picked to make one screenshot look right, and the set has no rule you can state. The tell is not any value; it is that you cannot write down the function that produced the set.
@@ -606,6 +664,8 @@ A spacing set with no generator behind it — 4, 8, 12, 15, 20, 25, 32, 45, 60 �
 > 4, 8, 12, 16, 24, 32, 48, 64, 96 — emitted as tokens, with off-scale values forbidden
 
 ### `text-colour-proliferation`  ·  medium · generic-llm · color · structural · family: shape · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 Eight to fifteen distinct text colours on one page, several within a few perceptual units of each other — the grey ramps of four different neutral families, mixed.
 
@@ -629,6 +689,8 @@ Eight to fifteen distinct text colours on one page, several within a few percept
 
 ### `token-set-copied-never-pruned`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A full default token set pasted in wholesale — every ramp at eleven stops, every spacing step, every radius, every shadow — of which the page uses perhaps fifteen percent. The rest is a list of options nobody chose.
 
 **Why it reads AI:** Completeness is cheap and curation is not. A generator emits the whole ramp because emitting the whole ramp is one paste, and pruning requires knowing which decisions the design actually made. The result reads as a system to a scanner and as a warehouse to a maintainer — and the practical harm is that the next component picks an unused stop and the page acquires a colour no one designed.
@@ -648,6 +710,8 @@ A full default token set pasted in wholesale — every ramp at eleven stops, eve
 > a 30-entry token file, every entry used
 
 ### `two-weights-five-jobs`  ·  medium · generic-llm · typography · structural · family: shape · lane: typographic-craft
+
+**Automated here:** yes, these scripts implement it.
 
 The whole page runs on two weights, carrying display headings, section headings, card titles, button labels, table headers, eyebrows and emphasis. Nothing is distinguishable from anything else except by size.
 
@@ -671,6 +735,8 @@ The whole page runs on two weights, carrying display headings, section headings,
 
 ### `type-scale-step-inflation`  ·  medium · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
+**Automated here:** yes, these scripts implement it.
+
 Eleven to fifteen distinct font sizes on one page, several within a pixel or two of each other, so half the scale is invisible as a distinction and the whole scale is unmemorable.
 
 **Why it reads AI:** Each component was sized in isolation, so the page ACCUMULATES sizes rather than choosing them. Two sizes a pixel apart carry no information and cost the reader a comparison. A designed page usually runs five to seven sizes and can name what each is FOR.
@@ -693,6 +759,8 @@ Eleven to fifteen distinct font sizes on one page, several within a pixel or two
 
 ### `variant-explosion-in-components`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A component whose API is a cartesian product — variant by size by tone by icon by loading by width by radius — most of whose cells have never been rendered, several of which are visually identical, and some of which are contradictory.
 
 **Why it reads AI:** Adding a variant is cheap; deciding that a variant should not exist is expensive and requires knowing the product. A generator asked for a flexible component ENUMERATES the space, because enumeration is what it can do. The result carries no point of view — and downstream it is the mechanism by which colour proliferation and scale inflation happen, because every extra cell is a new place for an off-scale value to live.
@@ -712,6 +780,8 @@ A component whose API is a cartesian product — variant by size by tone by icon
 > <Button variant="primary" size="md"><Spinner/>Save</Button>
 
 ### `hanging-punctuation-absent`  ·  low · generic-llm · typography · structural · family: shape · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Quotation marks, opening parentheses and bullets sitting inside the text block's left edge, so a pull quote has a visibly indented first line while every other line is flush. Optical alignment never considered.
 
@@ -733,6 +803,8 @@ Quotation marks, opening parentheses and bullets sitting inside the text block's
 
 ### `no-pretty-on-body-copy`  ·  low · generic-llm · typography · structural · family: defect · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Orphans — a single word alone on a paragraph's last line — left everywhere, because text-wrap: pretty is never set and nobody read the rendered page.
 
 **Why it reads AI:** Same mechanism as the heading case, one level quieter. Orphans are the thing a typesetter fixes last and a generator never fixes, because fixing requires seeing the render.
@@ -753,6 +825,8 @@ Orphans — a single word alone on a paragraph's last line — left everywhere, 
 
 ### `opentype-features-never-enabled`  ·  low · generic-llm · typography · structural · family: shape · lane: typographic-craft
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The page loads a professional typeface with a dozen OpenType features — small caps, contextual alternates, fractions, slashed zero — and touches none of them. Where a feature IS set, it is set through the low-level property rather than the high-level one, which breaks inheritance.
 
 **Why it reads AI:** Features are per-context decisions with no default answer — you enable small caps HERE because this is an abbreviation in running text, and a slashed zero THERE because this is an API key. A generator has no per-context judgement, so the count is zero. The low-level-property form is the more interesting tell: the shape of the fix applied through the property a snippet used rather than the one the spec recommends.
@@ -772,6 +846,8 @@ The page loads a professional typeface with a dozen OpenType features — small 
 > font-variant-numeric: tabular-nums · font-feature-settings: 'ss01' 1
 
 ### `paragraph-separation-signal-doubled-or-absent`  ·  low · generic-llm · typography · structural · family: shape · lane: typographic-craft
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Both a first-line indent and inter-paragraph space — two signals for one boundary — or neither, or an inter-paragraph space so large the paragraphs stop reading as one argument.
 

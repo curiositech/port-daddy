@@ -13,6 +13,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `comment-narrates-next-line`  ·  high · codex · code-comments · structural · family: code
 
+**Automated here:** yes, these scripts implement it.
+
 Inline comments that restate exactly what the following statement does in English: `// increment counter`, `# loop through items`, `// return the result`. The comment adds zero information beyond reading the line.
 
 **Why it reads AI:** Codex/Copilot learned the comment-then-code pattern from tutorials and emits narration by default. Experienced devs comment the why, not the what.
@@ -38,6 +40,8 @@ Inline comments that restate exactly what the following statement does in Englis
 > if retries > MAX:  # give up; upstream 503s have been seen to last ~30s
 
 ### `commit-body-restates-diff`  ·  high · generic-llm · commit-message · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A commit body enumerating, file by file, what the diff already shows, instead of explaining why the change exists.
 
@@ -87,6 +91,8 @@ A security or correctness finding, stated with full confidence and correct-sound
 
 ### `convention-drift-in-commit-style`  ·  high · generic-llm · commit-message · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Conventional Commits appearing in a repo whose history does not use them — or a bare sentence subject in a repo that enforces them. The mismatch is the tell, never the format.
 
 **Why it reads AI:** Conventional Commits dominate training data, so it is the model's default whatever the repo does. A human reads git log before their first commit; a model does not unless told.
@@ -110,6 +116,8 @@ Conventional Commits appearing in a repo whose history does not use them — or 
 > Add per-profile override scripts
 
 ### `dead-internal-cross-reference`  ·  high · generic-llm · docs · structural · family: residue
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 'See the section on X' where there is no section on X; a link to an anchor that does not exist; a reference to a page that was never written.
 
@@ -159,6 +167,8 @@ Documentation describing an architecture the code does not have, platforms nobod
 
 ### `hallucinated-import-or-api`  ·  high · codex · code · structural · family: residue
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Calls to functions, flags, endpoints or packages that do not exist — including imports of packages never published, which is the attack surface behind slopsquatting.
 
 **Why it reads AI:** The model generates the API it expects to exist. Plausible names are exactly what it is good at.
@@ -180,6 +190,8 @@ Calls to functions, flags, endpoints or packages that do not exist — including
 > from urllib3.util.retry import Retry
 
 ### `hollow-assertion`  ·  high · codex · code · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Assertions that cannot fail: assert True, assert result == result, assert x is not None as the only check, tests with no assertion at all.
 
@@ -228,6 +240,8 @@ A 'How it works' section that describes what the system does rather than how or 
 
 ### `idiom-drift-within-file`  ·  high · generic-llm · code · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A block of code whose idiom does not match the file around it: different naming convention, different error handling, different import style, different comment density.
 
 **Why it reads AI:** The model writes its own idiom rather than the file's, because it optimizes the snippet rather than the codebase. A human who reads the surrounding code passes this automatically.
@@ -250,6 +264,8 @@ A block of code whose idiom does not match the file around it: different naming 
 
 ### `mock-assertion-test`  ·  high · codex · code · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Tests that assert a mock was called rather than that behavior happened.
 
 **Why it reads AI:** The model can see the implementation and mirrors it. The test then passes for any refactor that keeps the call and breaks the behavior — which is the exact inverse of what a test is for.
@@ -271,6 +287,8 @@ Tests that assert a mock was called rather than that behavior happened.
 > assert outbox[0].to == 'sam@example.com'
 
 ### `placeholder-stub-residue`  ·  high · codex · code-comments · structural · family: code
+
+**Automated here:** yes, these scripts implement it.
 
 Generated scaffolding left in place: placeholder identifiers (foo, bar, MyComponent, doSomething, example_function), `# TODO: implement` / `throw new Error('Not implemented')` bodies, and dummy return values never filled in.
 
@@ -298,6 +316,8 @@ Generated scaffolding left in place: placeholder identifiers (foo, bar, MyCompon
 > }
 
 ### `pr-scaffold-without-template`  ·  high · generic-llm · pr-description · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The Summary / Changes / Test Plan scaffold appearing in a repo with no pull-request template asking for it, often where the repo's other PRs are two sentences.
 
@@ -342,6 +362,8 @@ A review comment that describes back what the diff does, or praises it, without 
 > This drops the retry on 429. Was that deliberate? The upstream rate-limits us at 50rps.
 
 ### `swallow-exception-pass`  ·  high · codex · code-comments · structural · family: code
+
+**Automated here:** yes, these scripts implement it.
 
 Error handling that catches broadly and discards: `try: ... except Exception: pass`, or catches only to print and continue with no rethrow, no context. Often paired with an over-apologetic comment.
 
@@ -394,6 +416,8 @@ A Test Plan of ticked checkboxes where nothing was run, or where the 'tests' res
 
 ### `agent-attribution-trailer`  ·  medium · generic-llm · commit-message · structural · family: residue
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Agent signature footers left in commits and PR bodies: 'Generated with <tool>', 'Co-Authored-By: <agent>', 'Assisted-by:', 'Codex Task'.
 
 **Why it reads AI:** It is a literal signature. It also injects a non-person into git shortlog and the repository's contributor graph.
@@ -417,6 +441,8 @@ Agent signature footers left in commits and PR bodies: 'Generated with <tool>', 
 > (removed, or replaced with the repo's mandated form, e.g. Assisted-by: <tool>:<model>)
 
 ### `commit-subject-scale-adjective`  ·  medium · generic-llm · commit-message · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A commit subject reaching for scale words the diff does not earn: comprehensive, robust, enhanced, complete, production-ready, streamlined, optimal.
 
@@ -490,6 +516,8 @@ Code written against an API version that was current in the training data and ha
 
 ### `trailing-example-usage-block`  ·  medium · codex · code-comments · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A library module ends with a tacked-on demonstration: an `if __name__ == '__main__':` block or a `// Example usage:` comment with sample calls that print a canned result, added reflexively even when the module is imported elsewhere.
 
 **Why it reads AI:** Codex appends a runnable demo because training examples (tutorials, gists) ended that way. In a real codebase the example belongs in tests or docs.
@@ -512,6 +540,8 @@ A library module ends with a tacked-on demonstration: an `if __name__ == '__main
 > # (module ends after its definitions; an example lives in tests/test_add.py)
 
 ### `try-catch-just-in-case`  ·  medium · codex · code · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Defensive exception handling wrapped around code that cannot meaningfully fail, or that should fail loudly.
 
@@ -540,6 +570,8 @@ Defensive exception handling wrapped around code that cannot meaningfully fail, 
 
 ### `unwired-badge-row`  ·  medium · generic-llm · docs · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A README badge row advertising CI, coverage, npm version or a license that is not wired up, points at a different repo, or renders broken.
 
 **Why it reads AI:** Badges are the most-represented README ornament in training data, so they generate whether or not the services exist.
@@ -559,6 +591,8 @@ A README badge row advertising CI, coverage, npm version or a license that is no
 > (removed until CI exists)
 
 ### `verbosity-disproportionate-to-diff`  ·  medium · generic-llm · pr-description · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A PR description whose length bears no relation to the size or subtlety of the change.
 
@@ -581,6 +615,8 @@ A PR description whose length bears no relation to the size or subtlety of the c
 > Bumps the pool size from 5 to 20. We were queueing at 12 concurrent requests.
 
 ### `decorative-section-divider`  ·  low · codex · code-comments · structural · family: code
+
+**Automated here:** yes, these scripts implement it.
 
 ASCII-art banner comments partitioning a source file into labelled sections.
 
@@ -606,6 +642,8 @@ ASCII-art banner comments partitioning a source file into labelled sections.
 
 ### `emoji-in-code`  ·  low · codex · code-comments · structural · family: code
 
+**Automated here:** yes, these scripts implement it.
+
 Emoji in source files — log strings, comments, commit-adjacent scaffolding.
 
 **Why it reads AI:** Generated code decorates its own output. A human adds an emoji to a log line when the team already does; a generator adds one because the training data did.
@@ -629,6 +667,8 @@ Emoji in source files — log strings, comments, commit-adjacent scaffolding.
 > print("migration complete: 412 rows, 2.1s")
 
 ### `single-impl-abstraction`  ·  low · codex · code · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 An interface, abstract base class or strategy pattern with exactly one implementation and no named second one coming.
 

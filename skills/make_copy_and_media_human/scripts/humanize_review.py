@@ -5780,6 +5780,22 @@ def run_validate():
         print("Every item needs a real answer to 'who legitimately writes this way?'. "
               "That field is what keeps a finding from becoming an accusation.")
         return 1
+
+    # SKILL.md tells the judge pass to handle "every item whose detection_type is
+    # structural but which the script does not implement". That instruction was
+    # unactionable, because nothing said which those are -- the agent would have
+    # had to grep this file. Report the split so the queue is a number, not a
+    # research task. This is a SPLIT, not a gap: detection_type says what kind of
+    # evidence settles an item, never that this bundle automates it.
+    rc = Path(__file__).resolve().parent / "render_check.py"
+    impl_src = src + (rc.read_text(encoding="utf-8") if rc.exists() else "")
+    mech = [i for i in CATALOG.get("items", [])
+            if i.get("detection_type") in ("structural", "rendered")]
+    todo = [i["name"] for i in mech if f'"{i["name"]}"' not in impl_src]
+    print(f"of {len(mech)} mechanically-decidable item(s), "
+          f"{len(mech) - len(todo)} are implemented by these scripts and "
+          f"{len(todo)} are for the judge pass to ask by hand "
+          f"(each is marked in the generated references)")
     print("validate OK")
     return 0
 

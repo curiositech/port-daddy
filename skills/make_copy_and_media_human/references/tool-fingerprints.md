@@ -41,6 +41,8 @@ An agency or freelancer site that claims capability its own build contradicts. T
 
 ### `ai-image-default-filenames`  ·  high · generic-llm · image · structural · family: residue · lane: provenance
 
+**Automated here:** yes, these scripts implement it.
+
 Image generators assign distinctive default download filenames and site builders preserve them, so the filename in the img src names the model that made the picture. Midjourney's format contains the prompt.
 
 **Why it reads AI:** The strongest content-provenance signal available, and it survives every rebuild, migration and badge removal, because the filename travels with the file. It has already been used in published investigative reporting to establish that author headshots on a network of sites were generated, alongside credentials the named university confirmed never existed.
@@ -60,6 +62,8 @@ Image generators assign distinctive default download filenames and site builders
 > a real photograph at /team/marta-oleszek.jpg, or no photo at all
 
 ### `builder-default-og-image`  ·  high · generic-llm · web-ui · structural · family: defect · lane: provenance
+
+**Automated here:** yes, these scripts implement it.
 
 The Open Graph image is the builder's property rather than the site's: Bolt's own logo, or a Cloudflare-hosted screenshot of a Lovable preview build. Every share of the business's site posts somebody else's picture.
 
@@ -121,6 +125,8 @@ The one place in this whole catalog where a finding is about honesty rather than
 
 ### `per-character-text-spans`  ·  high · generic-llm · web-ui · structural · family: defect · lane: provenance
 
+**Automated here:** yes, these scripts implement it.
+
 Per-character text animation emits one span per glyph, often with an inline colour on each. The result is visually fine and semantically shredded: screen readers, copy-paste, text extraction and search engines all see letter-spaced garbage.
 
 **Why it reads AI:** It reads effect-first: the animation was chosen before the content was considered, which is the hallmark of a page assembled from motion presets rather than written. Note this is a DEFECT fingerprint rather than a TOOL fingerprint — GSAP SplitText, Webflow text-split interactions and several React libraries produce the same shape, so pair it with a generator string before naming a tool.
@@ -143,6 +149,8 @@ Per-character text animation emits one span per glyph, often with an inline colo
 
 ### `scaffold-title-and-favicon-residue`  ·  high · generic-llm · web-ui · structural · family: residue · lane: provenance
 
+**Automated here:** yes, these scripts implement it.
+
 The scaffold's own title, favicon, description and share image shipped to production. A law firm with the Vite logo in the browser tab; a business whose social card is the builder's own logo.
 
 **Why it reads AI:** The favicon and the share card are the two most-seen bytes of any site and the two nobody looks at during a chat-driven build, because the preview pane renders neither. The title that restates the prompt is the same failure one level up: the page is named after the request that produced it.
@@ -162,6 +170,8 @@ The scaffold's own title, favicon, description and share image shipped to produc
 > <title>Prolific Pours — mobile bartending in NYC</title> + a description saying what the page is for + the brand mark as favicon + a 1200x630 card on the site's own domain
 
 ### `supabase-anon-surface-unprotected`  ·  high · generic-llm · code · rendered · family: defect · lane: provenance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The default data layer of several builders is Supabase called straight from the browser with an anon key, and scaffold-created tables land with Row Level Security disabled unless somebody turns it on.
 
@@ -183,6 +193,8 @@ The default data layer of several builders is Supabase called straight from the 
 
 ### `unclaimed-default-subdomain`  ·  high · generic-llm · marketing-copy · structural · family: shape · lane: provenance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A commercial site whose only address is the builder's auto-assigned subdomain. In v0's case the URL publishes the prompt: v0-ai-powered-crm-for-dentists.vercel.app tells a visitor exactly what was typed to make their vendor's website.
 
 **Why it reads AI:** Nobody decided the address; the builder assigned it. It is the cheapest credibility problem to describe and the cheapest to fix.
@@ -202,6 +214,8 @@ A commercial site whose only address is the builder's auto-assigned subdomain. I
 > firmname.com
 
 ### `agent-instruction-shipped-to-production`  ·  medium · generic-llm · web-ui · structural · family: residue · lane: provenance
+
+**Automated here:** yes, these scripts implement it.
 
 A comment addressed to a language model, left in the artifact a visitor downloads. Lovable ships one telling the model not to delete a script tag; Replit ships one explaining a dev-only banner to a reader who was never supposed to exist.
 
@@ -223,6 +237,8 @@ A comment addressed to a language model, left in the artifact a visitor download
 
 ### `builder-lockin-and-export-illusion`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: provenance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The recurring complaint after the fact is not "it looks bad" but "I cannot leave, and the export is not what I thought". Worth naming because it is a real cost of the category that the sales page does not mention.
 
 **Why it reads AI:** Not a machine tell at all. It is the structural cost of hosted builders, and a skill that reviews these sites should be able to name it honestly rather than only critiquing the pixels.
@@ -242,6 +258,8 @@ The recurring complaint after the fact is not "it looks bad" but "I cannot leave
 > content authored in markdown or a headless store; the builder renders it
 
 ### `design-pattern-is-not-provenance`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: provenance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 How much to trust the public "is this AI" detectors, and which half of their method to steal. The string layer is sound; the aesthetic layer is not.
 
@@ -263,6 +281,8 @@ How much to trust the public "is this AI" detectors, and which half of their met
 
 ### `fix-what-the-fingerprint-points-at`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: provenance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The overlap set, and the reason this lane earns its place: a handful of fingerprints are ALSO defects, where the provenance string and the craft problem are the same bytes. These are the only ones worth editing, and the fix is never to hide the string.
 
 **Why it reads AI:** In each case the string survived because the surface it sits on is one nobody looks at during a chat-driven build: the browser tab, the share card, the meta description, the chart palette. The preview pane shows none of them.
@@ -282,6 +302,8 @@ The overlap set, and the reason this lane earns its place: a handful of fingerpr
 > "Your meta description is the string 'Generated by v0', so search results and every shared link describe the tool instead of the product. Here is a 155-character description."
 
 ### `selected-works-of-three-and-third-person-about`  ·  medium · generic-llm · marketing-copy · structural · family: shape · lane: provenance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The exact skeleton portfolio generators emit, published in their own marketing: a Selected Works grid of exactly three projects, an About written in the third person about a first-person subject, and a "Let's work together" close.
 
@@ -303,6 +325,8 @@ The exact skeleton portfolio generators emit, published in their own marketing: 
 
 ### `shadcn-default-tokens-untouched`  ·  medium · generic-llm · color · structural · family: residue · lane: provenance
 
+**Automated here:** yes, these scripts implement it.
+
 The mechanism behind "every AI site is the same purple", and it is measurable as exact constants. shadcn/ui's default theme ships specific oklch values; finding them unmodified proves the palette was never chosen.
 
 **Why it reads AI:** The tokens are identical across thousands of sites because nobody replaced them. Note that swapping the hue does not change the system — practitioners report newer models reaching for orange instead of violet, with the same gradient and the same card, which is the point: the palette is a default whichever colour it defaults to.
@@ -322,6 +346,8 @@ The mechanism behind "every AI site is the same purple", and it is measurable as
 > a five-value brand chart ramp, contrast-checked against the surface it draws on
 
 ### `single-file-cdn-tailwind-page`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: provenance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The shape a chat surface produces, because a chat surface can only hand you one file: everything inlined, Tailwind loaded from the Play CDN, React from a UMD build with Babel in the browser, no build artifacts, no favicon. Recorded here as an honest negative result — ChatGPT Canvas leaves NO provenance marker at all, and this catalog will not invent one.
 
@@ -343,6 +369,8 @@ The shape a chat surface produces, because a chat surface can only hand you one 
 
 ### `client-first-class-system`  ·  low · generic-llm · web-ui · structural · family: shape · lane: provenance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A negative finding, included because suppressing a false positive is worth as much as raising a true one. Finsweet's Client-First is a human naming convention for Webflow. Generated output does not produce it and neither do code generators, so finding it is positive evidence of a human starting point.
 
 **Why it reads AI:** It does not — that is the entire point. Use it to lower confidence in other signals on the same page.
@@ -362,6 +390,8 @@ A negative finding, included because suppressing a false positive is worth as mu
 > padding-global, container-large, section_hero — a system somebody chose and applied
 
 ### `fingerprint-is-not-authorship`  ·  low · generic-llm · web-ui · structural · family: residue · lane: provenance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The governing rule for every fingerprint in this lane, and the one most often broken. A generator meta, a CDN host or a scaffold dependency tells you WHAT MADE the page. It does not tell you who wrote it, and it does not tell you whether the page is any good.
 
@@ -383,6 +413,8 @@ The governing rule for every fingerprint in this lane, and the one most often br
 
 ### `keywords-meta-placeholder`  ·  low · generic-llm · marketing-copy · structural · family: residue · lane: provenance
 
+**Automated here:** yes, these scripts implement it.
+
 A meta keywords tag — an element search engines have ignored since 2009 — shipped with the literal placeholder value "keyword", or stuffed with a comma-salad of service-plus-location phrases that are four restatements of one idea.
 
 **Why it reads AI:** The keyword list is a fossil of the generation prompt. Repetition without variation is the same pattern that shows up in the visible body copy, which is why this tag is worth reading even though it does nothing.
@@ -402,6 +434,8 @@ A meta keywords tag — an element search engines have ignored since 2009 — sh
 > tag removed; each section makes one claim the others do not
 
 ### `status-code-only-file-probe`  ·  low · generic-llm · web-ui · rendered · family: defect · lane: provenance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A methodology warning, recorded because implementing the naive version makes an audit wrong in public. Probing for leaked agent files by HTTP status alone returns a false positive on every single-page-app host, because they serve index.html for all unknown paths.
 

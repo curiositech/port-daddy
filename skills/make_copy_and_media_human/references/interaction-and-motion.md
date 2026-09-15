@@ -19,6 +19,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `hover-is-the-only-route-to-the-information`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 Content or a control exists only in a hover state -- the tooltip with the real label, the row action that appears on hover, the definition behind a dotted underline. On a touchscreen it cannot be reached at all, and with a keyboard it can be reached only if the same styles are bound to :focus-visible, which they usually are not.
 
 **Why it reads AI:** Unreviewed. Hover-reveal is a heavily represented desktop pattern and the failure mode is a property of the device, which the source does not describe.
@@ -38,6 +40,8 @@ Content or a control exists only in a hover state -- the tooltip with the real l
 > .row:hover .actions, .row:focus-within .actions { opacity: 1 }
 
 ### `hover-styled-focus-forgotten`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 The stylesheet has a considered :hover state and no :focus-visible, so a keyboard user gets the browser's default ring where the ring was suppressed, or nothing at all where outline: none was set. Every interactive element in the file is styled for exactly one input device.
 
@@ -59,6 +63,8 @@ The stylesheet has a considered :hover state and no :focus-visible, so a keyboar
 
 ### `initial-state-hidden-so-content-depends-on-script`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 Reveal-on-scroll is implemented as opacity: 0 in CSS with a class added by script. If the script does not run, or does not run in time, or the element never enters the viewport, the content is permanently invisible -- and it is invisible to in-page search, to print, and to anything reading the rendered page. It is the one animation bug that loses content rather than polish.
 
 **Why it reads AI:** Unreviewed with a model-flavoured seam. The CSS half and the JS half are each correct, and nothing in either half encodes what happens when only one of them runs.
@@ -78,6 +84,8 @@ Reveal-on-scroll is implemented as opacity: 0 in CSS with a class added by scrip
 > html.js .reveal { opacity: 0 } -- the hidden state exists only once script is running
 
 ### `no-pending-state-on-the-primary-action`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 The submit button looks identical during the request. The user gets no acknowledgement that the click registered, so they click again -- and with no disabled-on-pending or idempotency the second click is a second request. It is the most common cause of duplicate submissions and it is invisible on a fast local machine.
 
@@ -99,6 +107,8 @@ The submit button looks identical during the request. The user gets no acknowled
 
 ### `parallax-with-no-reduced-motion-path`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 A background moves at a different rate from the foreground, which is the example WCAG 2.3.3 names directly and the one most cited for vestibular reactions -- dizziness, nausea, headache. Implemented with background-attachment: fixed or a scroll-linked transform, and with no query guarding it.
 
 **Why it reads AI:** Unreviewed. Parallax is well represented in the corpus of sites that look expensive, and the harm is a fact about bodies rather than about markup.
@@ -118,6 +128,8 @@ A background moves at a different rate from the foreground, which is the example
 > the same, plus a reduce block setting background-attachment: scroll
 
 ### `reduced-motion-honoured-in-css-ignored-in-script`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 The stylesheet has a prefers-reduced-motion block and the JavaScript animation library does not consult the query at all. The user's setting silences the CSS transitions and leaves the parallax, the scroll-triggered timeline and the spring physics running -- which is the motion that actually causes trouble. 35.4% of US adults aged 40 and over showed vestibular dysfunction in the 2001-2004 NHANES data, about 69 million people.
 
@@ -139,6 +151,8 @@ The stylesheet has a prefers-reduced-motion block and the JavaScript animation l
 
 ### `scroll-jacking`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 The page overrides native scrolling to drive its own sequence, so a wheel notch or a trackpad flick no longer moves the page the distance the user asked for. Nielsen Norman Group usability testing found most participants became at least mildly disoriented, some reading the altered behaviour as a bug rather than a design, and task-focused visitors dropping off.
 
 **Why it reads AI:** Unreviewed. Scroll-driven sequencing is heavily represented in award-site training data and reads as sophistication in source form; the cost only exists in the hand.
@@ -158,6 +172,8 @@ The page overrides native scrolling to drive its own sequence, so a wheel notch 
 > scroll-snap-type: y proximity, and the wheel event left alone
 
 ### `animating-a-layout-property`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 height, width, top, left, margin or padding are animated instead of transform and opacity. Those properties force layout on every frame for the whole subtree, so the animation janks on exactly the hardware that is already struggling, and it is the most common cause of a motion that feels cheap without looking wrong in a screenshot.
 
@@ -179,6 +195,8 @@ height, width, top, left, margin or padding are animated instead of transform an
 
 ### `ease-in-on-an-entrance`  ·  medium · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 Content arriving uses ease-in, which starts slow and accelerates -- so the element loiters exactly when the reader is waiting for it and then snaps. Entrances want ease-out (fast, then settling); exits want ease-in. A practitioner thread naming what makes scroll animation tiring landed on precisely this pair: a fade or translate lasting more than 0.2s and using ease-in.
 
 **Why it reads AI:** Model-flavoured. `ease-in` reads like the right word for coming in, and the naming collision is a language fact rather than a motion fact -- exactly the kind of error a text model makes and a person watching the screen does not.
@@ -198,6 +216,8 @@ Content arriving uses ease-in, which starts slow and accelerates -- so the eleme
 > animation: fade-in 180ms ease-out;
 
 ### `fast-scroll-strands-the-reveal`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: interaction-and-motion
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The reveal fires from an IntersectionObserver with no fallback, so a user who flings to the bottom of the page, follows an anchor link, or restores a scroll position passes the trigger without it firing -- and lands on blank sections. The faster the user, the more broken the page.
 
@@ -219,6 +239,8 @@ The reveal fires from an IntersectionObserver with no fallback, so a user who fl
 
 ### `hover-styles-without-a-hover-guard`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 Hover styles are declared with no @media (hover: hover) guard, so on a touchscreen the state latches on tap and stays until the user taps elsewhere. The card the user just tapped stays lit while they read the page they navigated to and come back.
 
 **Why it reads AI:** Unreviewed. The behaviour does not exist on the machine the code was written for, and there is no way to notice it from the source.
@@ -238,6 +260,8 @@ Hover styles are declared with no @media (hover: hover) guard, so on a touchscre
 > @media (hover: hover) and (pointer: fine) { .card:hover { ... } }
 
 ### `infinite-animation-with-no-off`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 Something moves forever -- a pulsing dot, a marquee, a floating blob, an animated gradient. Beyond five seconds of unattended motion WCAG 2.2.2 requires a mechanism to pause, stop or hide it, and an infinite CSS animation has none. It also keeps a compositor layer awake, which is a battery cost on a page doing nothing.
 
@@ -259,6 +283,8 @@ Something moves forever -- a pulsing dot, a marquee, a floating blob, an animate
 
 ### `modal-animation-delays-the-focus-move`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 The dialog animates open over 300ms and focus is moved in an animation-complete callback, so for the length of the animation the keyboard is still on the page behind and a screen reader is still reading it. Tab during that window and you are in the background content, which the dialog now covers.
 
 **Why it reads AI:** Unreviewed with a model-flavoured seam. "Animate the dialog" and "move focus into the dialog" are separately correct and their ordering is the part nobody specified.
@@ -278,6 +304,8 @@ The dialog animates open over 300ms and focus is moved in an animation-complete 
 > focus on open; let the animation run underneath it
 
 ### `motion-on-everything-so-nothing-is-emphasised`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 Every section, card and heading reveals on scroll. Motion is a contrast channel like size or weight, and spending it on all content spends it on none: if everything animates, the animation tells the reader nothing about what matters. Reviewers in one six-site teardown said the same thing each time -- the animation captured their attention while the product messaging went unread.
 
@@ -299,6 +327,8 @@ Every section, card and heading reveals on scroll. Motion is a contrast channel 
 
 ### `one-duration-for-every-distance`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 The same duration is used for a 2px hover tint and a full-height sheet sliding in. Perceived speed is distance over time, so a constant duration makes small moves feel sluggish and large moves feel abrupt. Real motion systems scale duration with the distance travelled and the size of the surface.
 
 **Why it reads AI:** Model-flavoured, and the clearest case of the lane's mechanism: duration is a judgement made by watching, and a generator cannot watch. 300ms is the corpus median and it is emitted for everything.
@@ -318,6 +348,8 @@ The same duration is used for a 2px hover tint and a full-height sheet sliding i
 > --dur-quick: 120ms; --dur-panel: 220ms; --dur-sheet: 360ms;
 
 ### `skeleton-that-does-not-match-what-arrives`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: interaction-and-motion
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The loading skeleton is three grey bars and the content that lands is a heading, an image and a table. Because the shapes do not match, the skeleton does not reserve the right space and the page shifts when it resolves -- so the skeleton has done the opposite of its job, which is to make the layout stable before the data exists.
 
@@ -339,6 +371,8 @@ The loading skeleton is three grey bars and the content that lands is a heading,
 
 ### `smooth-scroll-forced-globally`  ·  medium · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 scroll-behavior: smooth on html or :root makes every programmatic jump animate, including ones the user did not ask to watch: skip links, an anchor into a long document, a scroll restore on back. A long page becomes a long animation, and a screen-reader user following a skip link has to wait for it.
 
 **Why it reads AI:** Model-flavoured. It is a one-line global improvement in appearance and its cost only appears on the paths a generator does not exercise.
@@ -358,6 +392,8 @@ scroll-behavior: smooth on html or :root makes every programmatic jump animate, 
 > @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth } }
 
 ### `stagger-delay-outlasts-the-reader`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 A list animates in with a per-item delay, and nobody multiplied it out. 120ms across fourteen items is 1.7 seconds before the last one exists, during which the page is measurably incomplete and the reader is waiting on an effect rather than reading.
 
@@ -379,6 +415,8 @@ A list animates in with a per-item delay, and nobody multiplied it out. 120ms ac
 
 ### `toast-timeout-shorter-than-its-reading-time`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 A notification dismisses itself on a fixed timer -- usually three seconds -- regardless of how much text it carries. WCAG 2.2.1 requires that time limits be adjustable or extendable, and a screen reader or a slower reader cannot get through a two-line message before it goes. If the message carried the only copy of an error, the information is now gone.
 
 **Why it reads AI:** Unreviewed. Three seconds is the corpus default, and the mismatch only exists once real message text arrives.
@@ -398,6 +436,8 @@ A notification dismisses itself on a fixed timer -- usually three seconds -- reg
 > duration scaled to length, paused on hover/focus, errors persistent
 
 ### `transition-all-as-the-default`  ·  medium · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 transition: all applied broadly. It animates every property that ever changes, including ones that were never meant to -- a class swap that also changes height or padding now animates layout, and the browser cannot compositor-accelerate it. It is also a declaration that no one chose which property was changing.
 
@@ -419,6 +459,8 @@ transition: all applied broadly. It animates every property that ever changes, i
 
 ### `counter-animation-on-a-static-number`  ·  low · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 A statistic counts up from zero when it scrolls into view. The number did not change -- it is the same number it was before the animation, and for a few hundred milliseconds the page displays values that are not true. With a screen reader or in-page search the animated value is either unreadable or wrong.
 
 **Why it reads AI:** Model-flavoured. It is a recognisable marketing-site flourish with an easy implementation, and it is emitted whenever a page has statistics on it.
@@ -438,6 +480,8 @@ A statistic counts up from zero when it scrolls into view. The number did not ch
 > the real figure in the DOM, the animation decorating it and aria-hidden
 
 ### `hover-scale-on-every-card`  ·  low · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 Every card lifts and scales on hover by the same amount. It is the framer-motion whileHover default and the Tailwind hover:scale-105 idiom, applied to a grid, and it makes a page where nothing is more interactive than anything else -- plus, on text, a transform scale resamples the glyphs and they go soft.
 
@@ -459,6 +503,8 @@ Every card lifts and scales on hover by the same amount. It is the framer-motion
 
 ### `motion-does-not-track-the-gesture`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 A swipe, drag or pull-to-refresh runs a fixed-duration animation instead of following the pointer. The surface does not move with the finger, so there is no sense of direct manipulation and no way to abort halfway -- the gesture is a trigger for a canned animation rather than a manipulation of an object.
 
 **Why it reads AI:** Model-flavoured. Gesture-tracked motion needs the pointer stream and interruption handling; a timed animation is a single call and satisfies the same sentence.
@@ -478,6 +524,8 @@ A swipe, drag or pull-to-refresh runs a fixed-duration animation instead of foll
 > position follows pointer delta; release hands velocity to a spring
 
 ### `reduced-motion-block-only-shortens-duration`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 The reduced-motion block is the copy-pasted nuclear reset -- animation-duration: 0.01ms on everything -- which is a reasonable floor and is not a motion design. It leaves parallax offsets, auto-advancing carousels and large translate distances in place, because those are not durations, and it strips motion that was communicating state, like a focus move or an expanding row.
 
@@ -499,6 +547,8 @@ The reduced-motion block is the copy-pasted nuclear reset -- animation-duration:
 
 ### `scroll-progress-bar-on-a-short-page`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
+**Automated here:** yes, these scripts implement it.
+
 A reading-progress indicator sits at the top of a document short enough to need no orientation, or of a page whose real content is one screen of marketing. It is a scroll listener, a fixed element and a repaint per frame, spent telling the reader something the scrollbar already told them.
 
 **Why it reads AI:** Model-flavoured. It is a small self-contained feature that demonstrates competence and is emitted whenever the word "blog" appears.
@@ -518,6 +568,8 @@ A reading-progress indicator sits at the top of a document short enough to need 
 > no bar; or animation-timeline: scroll() on a genuinely long article
 
 ### `will-change-left-on-everywhere`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
+
+**Automated here:** yes, these scripts implement it.
 
 will-change is declared broadly or permanently. It promotes elements to their own compositor layer and holds the memory for as long as the declaration applies, so used as a blanket optimisation it costs more than the jank it was meant to remove -- and on a long list it is the thing that makes a mid-range phone stutter.
 

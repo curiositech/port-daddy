@@ -13,6 +13,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `bold-label-colon-bullet`  ·  high · generic-llm · structure · structural · family: shape
 
+**Automated here:** yes, these scripts implement it.
+
 The most recognizable AI list shape: every bullet is '**Bold Label:** explanation sentence,' uniform across the whole list. On some models (Gemini) each bullet is also separated by a blank line, producing a tall double-spaced wall.
 
 **Why it reads AI:** Real human lists vary item structure; the rigidly uniform 'bold term: gloss' across every bullet is the single most identifiable AI list fingerprint and is never typed by hand for casual answers.
@@ -37,6 +39,8 @@ The most recognizable AI list shape: every bullet is '**Bold Label:** explanatio
 > It's fast and almost never falls over. We've pushed it to 40k concurrent users without tuning anything, and the security review came back clean.
 
 ### `challenges-and-future-directions`  ·  high · generic-llm · structure · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 The obligatory penultimate move: a 'Challenges and Future Directions' / 'Future Outlook' section whose body runs 'Despite its X, it faces challenges... Despite these challenges, it continues to...'.
 
@@ -86,6 +90,8 @@ References that exist but do not do their job: DOIs resolving to an unrelated pa
 
 ### `conclusion-recap-tag`  ·  high · generic-llm · structure · structural · family: shape
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A closing paragraph flagged with 'In conclusion,' 'In short,' 'Ultimately,' 'Overall,' or 'At the end of the day' that re-states the body without adding anything.
 
 **Why it reads AI:** Five-paragraph-essay scaffolding makes the model ring a bell to announce the wrap-up and repeat itself, even in short pieces. Real writing ends when the argument is done.
@@ -105,6 +111,8 @@ A closing paragraph flagged with 'In conclusion,' 'In short,' 'Ultimately,' 'Ove
 > The trap is stale reads after a write; if you can't tolerate them, skip the cache on that path rather than tuning a TTL you'll forget.
 
 ### `emoji-section-headers`  ·  high · chatgpt · structure · structural · family: shape
+
+**Automated here:** yes, these scripts implement it.
 
 Headings and list items prefixed with a decorative emoji mapped to topic: rocket Getting Started, sparkles Features, wrench Configuration, package Installation, bulb Tips. Especially common in READMEs and release notes.
 
@@ -192,6 +200,8 @@ The headline is a value proposition or a category description rather than a stat
 
 ### `h2-spam-full-sentence-headings`  ·  high · chatgpt · structure · structural · family: shape
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A heading appears every one to two paragraphs, and the headings are full title-case sentences ('How To Structure Your Onboarding For Maximum Retention') rather than short labels. Heading density approaches paragraph density.
 
 **Why it reads AI:** SEO/AEO scaffolding pushes the model to chunk everything under semantic headers. Humans write multi-paragraph sections under terse labels.
@@ -215,6 +225,8 @@ A heading appears every one to two paragraphs, and the headings are full title-c
 > A CRM keeps customer data in one place, which matters more than the feature checklist most vendors push. Start with pricing: per-seat costs balloon once your team crosses ten people, so model the 18-month bill, not the sticker.
 
 ### `headline-then-bullets-disease`  ·  high · generic-llm · slide-deck · structural · family: shape
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Every slide is a declarative claim followed by 3-5 bullets, with no connective narrative or prose. The deck becomes a stack of identically-shaped claim+list units; nothing argues, everything asserts and enumerates.
 
@@ -269,6 +281,8 @@ The LinkedIn macro-frame, distinct from broetry: a standalone hook line, a blank
 
 ### `key-takeaways-box-everywhere`  ·  high · chatgpt · structure · structural · family: shape
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A 'Key Takeaways,' 'TL;DR,' or 'In Summary' box bolted onto every section, not just the document top, often restating the heading and the paragraph just above it.
 
 **Why it reads AI:** Answer-engine-optimization advice trains models to front-load standalone bullets after every heading, producing a document that summarizes itself at every level, which no human does mid-flow.
@@ -293,6 +307,8 @@ A 'Key Takeaways,' 'TL;DR,' or 'In Summary' box bolted onto every section, not j
 > We moved to usage-based billing in March. Every plan now meters API calls instead of seats, which is why your invoice line items changed shape.
 
 ### `linkedin-broetry-one-line-runs`  ·  high · chatgpt · marketing-copy · structural · family: shape
+
+**Automated here:** yes, these scripts implement it.
 
 A post built as a vertical stack of one-line paragraphs separated by blank lines, opening with a contrarian hook and building to a 'here's what it taught me' payoff. Each line is a fragment; no paragraph exceeds one sentence.
 
@@ -322,6 +338,8 @@ A post built as a vertical stack of one-line paragraphs separated by blank lines
 
 ### `magnitudes-without-a-baseline`  ·  high · generic-llm · marketing-copy · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 '10x faster.' 'Cut costs by 40%.' A comparative claim with no comparand, no method and no source.
 
 **Why it reads AI:** The figure does the rhetorical work of evidence while carrying none of the risk, which is exactly what a generator reaches for when it has no measurement to report. It is the visual-design sibling of the fabricated statistic.
@@ -343,6 +361,8 @@ A post built as a vertical stack of one-line paragraphs separated by blank lines
 > Median build time fell from 4m12s to 1m50s, measured across our own CI over March.
 
 ### `markdown-leak-in-unrendered-medium`  ·  high · chatgpt · structure · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Markdown syntax pasted into a medium that does not render it — a LinkedIn post, an email body, a Slack message, a YouTube description — so the reader sees literal asterisks and hashes.
 
@@ -407,6 +427,8 @@ An opener that personalizes by reciting the recipient's own public information b
 > Your changelog says you moved off Elasticsearch in March. How did the reindex go?
 
 ### `model-markup-residue`  ·  high · chatgpt · structure · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 Vendor scaffolding tokens leaking into shipped text: oaicite, contentReference, turn0search0, attributableIndex (ChatGPT); [cite_start] and (start_span) (Gemini); grok_render_citation_card_json (Grok); ppl-ai-file-upload (Perplexity); lenticular brackets in DeepSeek output.
 
@@ -535,6 +557,8 @@ The generated review arc plus its content signature. Skeptic-conversion opener, 
 
 ### `testimonial-with-no-traceable-source`  ·  high · generic-llm · marketing-copy · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 A quote attributed to 'Sarah C., Product Manager' with a generated face. A first name, a job title, no company, no link.
 
 **Why it reads AI:** Nothing in the attribution can be checked, which is the design rather than an oversight. The template has a testimonial slot and a testimonial needs a face, so a face is fetched from wherever faces come from.
@@ -556,6 +580,8 @@ A quote attributed to 'Sarah C., Product Manager' with a generated face. A first
 > <img src="/customers/priya.jpg"> Priya Raman, Staff SRE at Calder — <a href="/customers/calder">read the write-up</a>
 
 ### `tracking-param-residue`  ·  high · chatgpt · structure · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 URLs carrying utm_source=chatgpt.com, utm_source=perplexity, or a sibling attribution parameter, pasted straight out of a chat UI.
 
@@ -600,6 +626,8 @@ Copy leans on aspirational hollow verbs — Unlock, Elevate, Transform, Supercha
 > Cut your weekly status meeting from 60 minutes to 10. Standups post themselves from your commits, so nobody narrates their week out loud.
 
 ### `unfilled-placeholder-residue`  ·  high · generic-llm · email · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 Template scaffolding shipped live. Two mechanically identical families: merge tags that never resolved ('Hi {{first_name}}', 'Hi FNAME', 'Dear Customer Name', 'Hi null,') and model bracket placeholders nobody replaced ('the [Job Title] position at [Company Name]', '[insert metric here]').
 
@@ -670,6 +698,8 @@ Causal or process logic compressed into an arrow chain (Data -> AI -> Insights -
 
 ### `bullet-colonization-of-prose`  ·  medium · generic-llm · structure · structural · family: shape
 
+**Automated here:** yes, these scripts implement it.
+
 Breaking flowing argument or narrative into headline-plus-bullet lists, including forcing a simple connected answer into a numbered listicle. Causal and temporal relationships get flattened into co-equal bullets.
 
 **Why it reads AI:** RLHF rewarded scannable structure, so the model enumerates everything because lists are easy to generate and look organized, even when ideas are connected and need prose.
@@ -715,6 +745,8 @@ Each feature card has a two-word title and a body that is the title again as a s
 > **Real-time sync** — Changes land in about 200ms; we stream the WAL rather than polling.
 
 ### `checkmark-bullet-grid`  ·  medium · chatgpt · structure · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 List items led by status glyphs — checkmarks, crosses, warning triangles, target and lightbulb emoji — turning every claim into a satisfied requirement.
 
@@ -782,6 +814,8 @@ The closing line that asks for interaction rather than ending the thought: 'What
 
 ### `eyebrow-with-no-information`  ·  medium · generic-llm · marketing-copy · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 The small uppercase label above a headline carrying no fact: INTRODUCING, FOR MODERN TEAMS, AI-POWERED, THE FUTURE OF WORK.
 
 **Why it reads AI:** An eyebrow is an editorial device that presumes a hierarchy: a publication, a section, an issue. A landing page with one section has nothing for it to be above. The slot exists in the template, so the generator fills it, and the filling has to come from somewhere when no fact is available. It is among the most-cited visual giveaways in practitioner threads for exactly this reason.
@@ -825,6 +859,8 @@ Grok is prompt-tuned for an 'edgy/spicy' persona, producing try-hard irreverence
 
 ### `heading-spam`  ·  medium · generic-llm · structure · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 A heading every paragraph or two, labelling single paragraphs rather than organizing sections.
 
 **Why it reads AI:** It is the outline the model was given, left in place. Scaffolding that was never taken down after the building went up.
@@ -854,6 +890,8 @@ A heading every paragraph or two, labelling single paragraphs rather than organi
 > Speed matters because users leave; reliability matters because they come back. Both are the same argument about attention.
 
 ### `horizontal-rule-spam`  ·  medium · generic-llm · structure · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 A thematic break inserted between every section of a document.
 
@@ -905,6 +943,8 @@ Kimi K2 is RL-tuned to be confident and avoid self-qualification, producing punc
 
 ### `markdown-bold-title-case-scaffold`  ·  medium · chatgpt · structure · structural · family: shape
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Structural over-formatting carried into contexts that don't call for it: bolded **key terms** mid-sentence, Title Case On Every Heading, and a recurring intro/numbered-points/'In conclusion' skeleton. Raw markdown (** and #) leaking into plain-text or wiki fields is a hard tell.
 
 **Why it reads AI:** The bold-and-bullet scaffold is the visual signature of a chat response pasted into a document. Humans writing prose rarely bold individual terms or title-case every heading.
@@ -928,6 +968,8 @@ Structural over-formatting carried into contexts that don't call for it: bolded 
 > It's fast and it rarely falls over. That's the whole pitch.
 
 ### `markdown-scaffolding-in-casual-comment`  ·  medium · generic-llm · social-post · structural · family: shape
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Bold headers, numbered sections and horizontal rules inside a threaded comment, where the surrounding replies are two sentences of lowercase.
 
@@ -1094,6 +1136,8 @@ Support and advice replies opening with acknowledgement boilerplate: 'I complete
 
 ### `signposting-without-structure`  ·  medium · generic-llm · structure · structural · family: shape
 
+**Automated here:** yes, these scripts implement it.
+
 Meta-navigation substituted for structure: 'First we'll explore... Next we'll examine... Finally we'll conclude.' The outline is read aloud instead of being enacted.
 
 **Why it reads AI:** The model was given an outline and emits it as prose, because announcing a structure is cheaper than building one. It costs the reader a paragraph before anything is said, and it promises a shape the piece often does not deliver.
@@ -1176,6 +1220,8 @@ A comment asserting what 'most people' or 'the community' thinks, in a thread wh
 
 ### `tables-for-non-tabular-content`  ·  medium · chatgpt · structure · structural · family: shape
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A two-column markdown table used for things that aren't comparative data: a single concept's pros against a one-item cons, a three-row Term/Definition gloss, or prose forced into 'Aspect | Description' cells.
 
 **Why it reads AI:** Models learned that tables 'win' in AI readability guidance, so they reach for a grid even when the content has no second axis to compare. A one-column table betrays the reflex.
@@ -1220,6 +1266,8 @@ A full-bleed slide carries a generic inspirational quote in large type, unattrib
 
 ### `agent-namespaced-branch`  ·  low · generic-llm · structure · structural · family: residue
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Branch names prefixed with an agent namespace (claude/, codex/, copilot/, cursor/, ai/, bot/) or suffixed with a session hash or timestamp.
 
 **Why it reads AI:** Tool defaults, not human naming. They survive into the merge commit and the PR URL, so they outlive the diff.
@@ -1262,6 +1310,8 @@ Branch names prefixed with an agent namespace (claude/, codex/, copilot/, cursor
 
 ### `heading-level-skip`  ·  low · generic-llm · structure · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 Heading levels jumped rather than nested — H1 straight to H3, or H1s used where H2s belong.
 
 **Why it reads AI:** The outline was emitted, not read back. A person writing an outline notices the gap because they see the document as a shape.
@@ -1287,6 +1337,8 @@ Heading levels jumped rather than nested — H1 straight to H3, or H1s used wher
 > ## Installation
 
 ### `title-case-heading-uniformity`  ·  low · chatgpt · structure · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Every heading in the document set in Title Case, with no drift.
 

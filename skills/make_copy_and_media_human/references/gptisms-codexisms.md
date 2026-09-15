@@ -13,6 +13,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `comment-narrates-next-line`  ·  high · codex · code-comments · structural · family: code
 
+**Automated here:** yes, these scripts implement it.
+
 Inline comments that restate exactly what the following statement does in English: `// increment counter`, `# loop through items`, `// return the result`. The comment adds zero information beyond reading the line.
 
 **Why it reads AI:** Codex/Copilot learned the comment-then-code pattern from tutorials and emits narration by default. Experienced devs comment the why, not the what.
@@ -38,6 +40,8 @@ Inline comments that restate exactly what the following statement does in Englis
 > if retries > MAX:  # give up; upstream 503s have been seen to last ~30s
 
 ### `emoji-section-headers`  ·  high · chatgpt · structure · structural · family: shape
+
+**Automated here:** yes, these scripts implement it.
 
 Headings and list items prefixed with a decorative emoji mapped to topic: rocket Getting Started, sparkles Features, wrench Configuration, package Installation, bulb Tips. Especially common in READMEs and release notes.
 
@@ -65,6 +69,8 @@ Headings and list items prefixed with a decorative emoji mapped to topic: rocket
 
 ### `h2-spam-full-sentence-headings`  ·  high · chatgpt · structure · structural · family: shape
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A heading appears every one to two paragraphs, and the headings are full title-case sentences ('How To Structure Your Onboarding For Maximum Retention') rather than short labels. Heading density approaches paragraph density.
 
 **Why it reads AI:** SEO/AEO scaffolding pushes the model to chunk everything under semantic headers. Humans write multi-paragraph sections under terse labels.
@@ -89,6 +95,8 @@ A heading appears every one to two paragraphs, and the headings are full title-c
 
 ### `hallucinated-import-or-api`  ·  high · codex · code · structural · family: residue
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Calls to functions, flags, endpoints or packages that do not exist — including imports of packages never published, which is the attack surface behind slopsquatting.
 
 **Why it reads AI:** The model generates the API it expects to exist. Plausible names are exactly what it is good at.
@@ -110,6 +118,8 @@ Calls to functions, flags, endpoints or packages that do not exist — including
 > from urllib3.util.retry import Retry
 
 ### `hollow-assertion`  ·  high · codex · code · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Assertions that cannot fail: assert True, assert result == result, assert x is not None as the only check, tests with no assertion at all.
 
@@ -133,6 +143,8 @@ Assertions that cannot fail: assert True, assert result == result, assert x is n
 > assert parse(payload).currency == 'EUR'
 
 ### `key-takeaways-box-everywhere`  ·  high · chatgpt · structure · structural · family: shape
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A 'Key Takeaways,' 'TL;DR,' or 'In Summary' box bolted onto every section, not just the document top, often restating the heading and the paragraph just above it.
 
@@ -158,6 +170,8 @@ A 'Key Takeaways,' 'TL;DR,' or 'In Summary' box bolted onto every section, not j
 > We moved to usage-based billing in March. Every plan now meters API calls instead of seats, which is why your invoice line items changed shape.
 
 ### `linkedin-broetry-one-line-runs`  ·  high · chatgpt · marketing-copy · structural · family: shape
+
+**Automated here:** yes, these scripts implement it.
 
 A post built as a vertical stack of one-line paragraphs separated by blank lines, opening with a contrarian hook and building to a 'here's what it taught me' payoff. Each line is a fragment; no paragraph exceeds one sentence.
 
@@ -187,6 +201,8 @@ A post built as a vertical stack of one-line paragraphs separated by blank lines
 
 ### `markdown-leak-in-unrendered-medium`  ·  high · chatgpt · structure · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 Markdown syntax pasted into a medium that does not render it — a LinkedIn post, an email body, a Slack message, a YouTube description — so the reader sees literal asterisks and hashes.
 
 **Why it reads AI:** Nobody typing into that box would produce them. The syntax is a fossil of the interface the text was generated in, and it survives only because no one previewed the result.
@@ -211,6 +227,8 @@ Markdown syntax pasted into a medium that does not render it — a LinkedIn post
 
 ### `mock-assertion-test`  ·  high · codex · code · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Tests that assert a mock was called rather than that behavior happened.
 
 **Why it reads AI:** The model can see the implementation and mirrors it. The test then passes for any refactor that keeps the call and breaks the behavior — which is the exact inverse of what a test is for.
@@ -232,6 +250,8 @@ Tests that assert a mock was called rather than that behavior happened.
 > assert outbox[0].to == 'sam@example.com'
 
 ### `model-markup-residue`  ·  high · chatgpt · structure · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 Vendor scaffolding tokens leaking into shipped text: oaicite, contentReference, turn0search0, attributableIndex (ChatGPT); [cite_start] and (start_span) (Gemini); grok_render_citation_card_json (Grok); ppl-ai-file-upload (Perplexity); lenticular brackets in DeepSeek output.
 
@@ -256,6 +276,8 @@ Vendor scaffolding tokens leaking into shipped text: oaicite, contentReference, 
 > Kobak et al. found a 40% reduction.
 
 ### `placeholder-stub-residue`  ·  high · codex · code-comments · structural · family: code
+
+**Automated here:** yes, these scripts implement it.
 
 Generated scaffolding left in place: placeholder identifiers (foo, bar, MyComponent, doSomething, example_function), `# TODO: implement` / `throw new Error('Not implemented')` bodies, and dummy return values never filled in.
 
@@ -284,6 +306,8 @@ Generated scaffolding left in place: placeholder identifiers (foo, bar, MyCompon
 
 ### `service-voice-bookends`  ·  high · chatgpt · prose · structural · family: form
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Replies open with an eager exclamatory affirmation ('Certainly!', 'Great question!', 'Absolutely!') and close with a customer-service signoff ('I hope this helps!', 'Let me know if you have any questions!'). The substance is sandwiched between concierge phrases.
 
 **Why it reads AI:** The relentless upbeat helpfulness is RLHF assistant-persona residue; humans answering a colleague don't preface with praise for the question or sign off like a support ticket.
@@ -303,6 +327,8 @@ Replies open with an eager exclamatory affirmation ('Certainly!', 'Great questio
 > Cache config lives in two places, and the second one usually bites people: the per-route TTL silently overrides the global default.
 
 ### `swallow-exception-pass`  ·  high · codex · code-comments · structural · family: code
+
+**Automated here:** yes, these scripts implement it.
 
 Error handling that catches broadly and discards: `try: ... except Exception: pass`, or catches only to print and continue with no rethrow, no context. Often paired with an over-apologetic comment.
 
@@ -331,6 +357,8 @@ Error handling that catches broadly and discards: `try: ... except Exception: pa
 >     raise UpstreamUnavailable(url) from None  # caller retries with backoff
 
 ### `tracking-param-residue`  ·  high · chatgpt · structure · structural · family: residue
+
+**Automated here:** yes, these scripts implement it.
 
 URLs carrying utm_source=chatgpt.com, utm_source=perplexity, or a sibling attribution parameter, pasted straight out of a chat UI.
 
@@ -379,6 +407,8 @@ A document, email, or landing page ends with an 'FAQ' section no actual user ask
 
 ### `amber-white-balance-cast`  ·  medium · chatgpt · image · structural · family: visual
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A global warm cast across generated images: whites drifting to cream, shadows muddy brown, skin pushed slightly yellow. It compounds, adding a layer with each edit round.
 
 **Why it reads AI:** No camera and no photographer produces the same white balance across a kitchen, a beach and an office. A cast invariant to the scene implies a single rendering stage.
@@ -398,6 +428,8 @@ A global warm cast across generated images: whites drifting to cream, shadows mu
 > Same shot with the seamless corrected to #FAFAFA.
 
 ### `checkmark-bullet-grid`  ·  medium · chatgpt · structure · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 List items led by status glyphs — checkmarks, crosses, warning triangles, target and lightbulb emoji — turning every claim into a satisfied requirement.
 
@@ -516,6 +548,8 @@ Closes with a defensive caveat hedging that the answer might not fit: 'Note that
 
 ### `invisible-unicode-artifacts`  ·  medium · chatgpt · typography · structural · family: residue
 
+**Automated here:** yes, these scripts implement it.
+
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
 
 Invisible or near-invisible codepoints in the text: U+202F narrow no-break space, zero-width space, word joiner, byte-order mark, soft hyphen. Treat this as evidence the text was PASTED from somewhere, which is not the same as evidence about who wrote it.
@@ -541,6 +575,8 @@ Invisible or near-invisible codepoints in the text: U+202F narrow no-break space
 > A sentence — with the residue removed.
 
 ### `markdown-bold-title-case-scaffold`  ·  medium · chatgpt · structure · structural · family: shape
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Structural over-formatting carried into contexts that don't call for it: bolded **key terms** mid-sentence, Title Case On Every Heading, and a recurring intro/numbered-points/'In conclusion' skeleton. Raw markdown (** and #) leaking into plain-text or wiki fields is a hard tell.
 
@@ -686,6 +722,8 @@ Code written against an API version that was current in the training data and ha
 
 ### `tables-for-non-tabular-content`  ·  medium · chatgpt · structure · structural · family: shape
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A two-column markdown table used for things that aren't comparative data: a single concept's pros against a one-item cons, a three-row Term/Definition gloss, or prose forced into 'Aspect | Description' cells.
 
 **Why it reads AI:** Models learned that tables 'win' in AI readability guidance, so they reach for a grid even when the content has no second axis to compare. A one-column table betrays the reflex.
@@ -710,6 +748,8 @@ A two-column markdown table used for things that aren't comparative data: a sing
 
 ### `trailing-example-usage-block`  ·  medium · codex · code-comments · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A library module ends with a tacked-on demonstration: an `if __name__ == '__main__':` block or a `// Example usage:` comment with sample calls that print a canned result, added reflexively even when the module is imported elsewhere.
 
 **Why it reads AI:** Codex appends a runnable demo because training examples (tutorials, gists) ended that way. In a real codebase the example belongs in tests or docs.
@@ -732,6 +772,8 @@ A library module ends with a tacked-on demonstration: an `if __name__ == '__main
 > # (module ends after its definitions; an example lives in tests/test_add.py)
 
 ### `try-catch-just-in-case`  ·  medium · codex · code · structural · family: code
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Defensive exception handling wrapped around code that cannot meaningfully fail, or that should fail loudly.
 
@@ -760,6 +802,8 @@ Defensive exception handling wrapped around code that cannot meaningfully fail, 
 
 ### `decorative-section-divider`  ·  low · codex · code-comments · structural · family: code
 
+**Automated here:** yes, these scripts implement it.
+
 ASCII-art banner comments partitioning a source file into labelled sections.
 
 **Why it reads AI:** The generated outline made visible. The model organizes a file the way it organizes a document, with signposting rather than structure.
@@ -783,6 +827,8 @@ ASCII-art banner comments partitioning a source file into labelled sections.
 > (no banner; the helpers live in their own module)
 
 ### `emoji-in-code`  ·  low · codex · code-comments · structural · family: code
+
+**Automated here:** yes, these scripts implement it.
 
 Emoji in source files — log strings, comments, commit-adjacent scaffolding.
 
@@ -808,6 +854,8 @@ Emoji in source files — log strings, comments, commit-adjacent scaffolding.
 
 ### `single-impl-abstraction`  ·  low · codex · code · structural · family: code
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 An interface, abstract base class or strategy pattern with exactly one implementation and no named second one coming.
 
 **Why it reads AI:** Generated code performs architecture. The abstraction is a pattern the model has seen rather than a seam the problem has.
@@ -829,6 +877,8 @@ An interface, abstract base class or strategy pattern with exactly one implement
 > class LocalStorage: ...
 
 ### `title-case-heading-uniformity`  ·  low · chatgpt · structure · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Every heading in the document set in Title Case, with no drift.
 
