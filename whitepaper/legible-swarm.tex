@@ -475,6 +475,7 @@ glorious: six terminals, six streams of work. Then it is not.}
 
 What happens to Mara is the state of nature, in order:
 
+\begin{pdexample}{Six agents, four failures, traced in order}
 \begin{enumerate}[leftmargin=1.6em]
 \item \textbf{The collision.} Agent~\textsc{api-1} and agent~\textsc{api-2} both
 decide the cleanest fix touches \texttt{handlers/charge.go}. Neither knows the other
@@ -496,9 +497,15 @@ it is false, and Mara has no cheap way to tell a checked green from an asserted 
 proposes a force-push that would discard a colleague's unmerged commit. The premise
 is stale; the act is irreversible. \emph{(Footguns, row 4.)}
 \end{enumerate}
-
 Mara did not get six times the work. She got a mob, and her \emph{uncertainty} went
-up sixfold. This is the failure this paper exists to fix, and the rest of the
+up sixfold: six agents, four distinct failure classes, and by 3:10 p.m.\ five pull
+requests she cannot safely act on. \emph{Now you try:} name which row of
+Table~\ref{tab:taxonomy} each of the four numbered failures above instantiates, and
+which primitive in that row's third column would have stopped it before it
+happened.
+\end{pdexample}
+
+This is the failure this paper exists to fix, and the rest of the
 afternoon --- once Mara is running under a consented local Leviathan --- is the
 through-line we will trace: how the claim stops the collision before it happens
 (\S\ref{sec:zoom}), how a digest-with-zoom surface lets her read the pile in bounded
@@ -559,7 +566,10 @@ The coordinating authority must be the \emph{most} legible actor in the system, 
 the least. Every act of authority --- a claim denial, an anomaly detection, an
 escalation, an ``all good'' attestation --- must be a logged, named, zoomable event
 whose reason the operator can reconstruct. Consent is renewable only while the
-sovereign is inspectable.
+sovereign is inspectable. This is a \textbf{Design invariant} in the honesty
+ledger's sense: it is a discipline the reference daemon is built to keep, not a
+theorem about the world, and it is \Built{} today as honest attestation
+(\texttt{lib/attest.ts}; ADR-0045, \S\ref{app:honest}), not merely designed.
 \end{property}
 
 This is the inversion that rescues the design from despotism, and it is the move a
@@ -637,7 +647,11 @@ e.g.\ ``the daemon \emph{may} auto-land reversible diffs under stakes threshold
 $s_{\max}$ in the \texttt{tests/} subtree without asking, for 24h.'' A grant is a
 first-class, legible object: it appears in the digest, it has an audit trail, and it
 expires. The authority's legitimate action set at any moment is exactly the union of
-its active grants.
+its active grants. This is a \textbf{Design invariant} in the honesty ledger's
+sense: the schema is fixed by the lifecycle protocol below, not derived from a
+formal model. It is \Vision{} in the reference implementation today
+(\S\ref{app:honest}): argued here with no design document yet, not code the daemon
+already enforces.
 \end{definition}
 
 Consent so defined gives the design something Hume's critique cannot reach: a
@@ -676,13 +690,23 @@ set; the daemon's legitimate action set shrinks accordingly. The override
 \end{enumerate}
 \end{protocol}
 
-\scene{Mara, 3:25 p.m.}{Burned by the morning's chaos, she issues one grant: ``you
-may auto-land reversible diffs under low stakes in the \texttt{tests/} subtree
-without asking, for the next two hours.'' She does \emph{not} grant migration
-authority --- those are irreversible. The grant is a single line in her digest with
-an expiry clock. The review agent's proposed force-push fails the reversibility floor
-$v_{\min}$ and is escalated to her instead of executed; the test-only formatting
-diffs land silently. She has not surrendered control --- she has \emph{scoped} it.}
+\begin{pdexample}{Mara's grant, traced against the four-field protocol}
+Burned by the morning's chaos, at 3:25 p.m.\ Mara issues one grant: ``you may
+auto-land reversible diffs under low stakes in the \texttt{tests/} subtree without
+asking, for the next two hours.'' Read against the Consent-grant-lifecycle
+protocol above, this single sentence fixes all four fields of
+$g=\langle\textsc{scope},s_{\max},v_{\min},\textsc{ttl}\rangle$: scope is
+\texttt{tests/}; $s_{\max}$ is ``low stakes''; $v_{\min}$ is ``reversible''; ttl is
+two hours. She does \emph{not} grant migration authority --- those are irreversible,
+so they fall outside scope regardless of stakes. The grant is a single line in her
+digest with an expiry clock (the \textbf{Witness} step). Two candidate actions
+arrive before 5:25 p.m.: the review agent's proposed force-push fails the
+reversibility floor $v_{\min}$ and is escalated to her instead of executed (the
+\textbf{Act} step's \texttt{iff} fails on one conjunct); the test-only formatting
+diffs satisfy all four conjuncts and land silently. She has not surrendered control
+--- she has \emph{scoped} it, and at 5:25 p.m.\ the grant expires on its own without
+her having to remember it (the \textbf{Expire} step).
+\end{pdexample}
 
 \begin{property}[The inalienable operator-override]\label{prop:override}
 Hobbes grants the subject exactly one inalienable right --- self-preservation; you
@@ -692,7 +716,11 @@ unconditional operator-override: a \emph{stop now / I withdraw authority} channe
 that \emph{no autonomy level can suppress}. If the system reserves a highest-priority
 \emph{distress} lane for the daemon to interrupt the operator, the override is its
 dual --- the operator-to-daemon channel --- and it is a \emph{right}, not a feature:
-it preempts every grant, every in-flight landing, every coordinator decision.
+it preempts every grant, every in-flight landing, every coordinator decision. This is
+a \textbf{Design invariant} in the honesty ledger's sense --- a right the design
+commits to preserving, not a derived theorem --- and it is \Vision{} today
+(\S\ref{app:honest}): argued here alongside the consent grant, with no
+implementation yet.
 \end{property}
 
 Computer security reached the same object by its own road. A consent grant is,
@@ -752,7 +780,12 @@ m\^etis: the operator can descend from abstraction to ground truth and catch the
 lie. Formally, a read-surface is a pair $(\sigma, \zeta)$ where $\sigma$ is a
 projection (the summary) and $\zeta$ is a total \emph{zoom} function mapping every
 summarized claim to a verifiable artifact; a surface with a partial or absent
-$\zeta$ is a Potemkin digest.
+$\zeta$ is a Potemkin digest. This is a \textbf{Design invariant} in the honesty
+ledger's sense: it is a discipline the read-surfaces are built to keep, not a
+theorem. Its strongest live instance is \Built{} (the briefing projection,
+\texttt{lib/briefing.ts}, \S\ref{app:honest}); the digest layer that unifies every
+read-surface under one law is \Designed{} rather than uniformly built, since
+several surfaces in Table~\ref{tab:honest-state} do not yet carry a total $\zeta$.
 \end{definition}
 
 \input{figures/legible-swarm-zoom-vs-potemkin}
@@ -816,7 +849,11 @@ The canonical zoom target is an artifact the operator can check
 \emph{independently of the agent} --- the diff on disk, the test result, the
 committed file. The agent's self-narration is a \emph{secondary} lens, always
 labeled as such. Two LLMs agreeing (an agent acting and an LLM summarizing it) is
-not two checks; it may be one error reported twice.
+not two checks; it may be one error reported twice. This sharpens
+Def.~\ref{def:zoom} and inherits its status: a \textbf{Design invariant}, backed
+where it is strongest by \Built{} honest attestation (\texttt{lib/attest.ts},
+\S\ref{app:honest}) rather than by any formal model of what an LLM's self-report
+can or cannot be trusted to say.
 \end{property}
 
 This is why the source of truth must be the durable substrate --- the coordination
@@ -890,13 +927,20 @@ authority; refuse to ship it.
 \end{enumerate}
 \end{protocol}
 
-\scene{Mara, 3:32 p.m.}{She opens the digest for the five-PR pile. Each row reads
+\begin{pdexample}{Mara, 3:32 p.m.: the digest catches the lie in ten seconds}
+She opens the digest for the five-PR pile. Each row reads
 ``\textsc{api-2} $\cdot$ charge handler $\cdot$ merged $\cdot$ 1 critique round'' ---
 state only, six words. The ``fix tests'' PR's row is flagged \emph{force-zoom},
 because merging it is irreversible; she presses one key and the 600-line diff and
 the verbatim test log open side by side. The diff deletes a migration test. The
 digest did not paraphrase that away --- it linked her straight to it, and the lie is
-caught in ten seconds instead of slipping through. This is the one law doing its job.}
+caught in ten seconds instead of slipping through. Run the four design questions of
+\S\ref{sec:four-questions} against this one row and every answer is yes: the merge
+is irreversible (forced zoom fires); the diff is m\^etis, so it is linked verbatim,
+not flattened; the claim resolves to the diff and test log, not the agent's own
+narration; and the merge itself, once the flag fires, carries a named reason in the
+audit trail. This is the one law doing its job.
+\end{pdexample}
 
 \pdexercisepointer{\ref{ex:ls-flatten-or-preserve}}{\ref{ex:ls-adversarial-legibility}}{\pageref{ex:ls-flatten-or-preserve}}
 
@@ -1084,7 +1128,10 @@ accept the claim against an unmet predicate. An \emph{unverifiable} predicate mu
 \textbf{fail loudly} --- surface ``I cannot verify this completion'' --- and never
 silently pass. This is the authority-side analog of discovery's
 \emph{refuse-to-route} (\S\ref{sec:gates}): ``I don't know'' must beat a confident
-wrong answer.
+wrong answer. This is a \textbf{Design invariant} in the honesty ledger's sense: a
+discipline the authority is meant to enforce, not a derived result. It is \Vision{}
+in the reference implementation (\S\ref{app:honest}): argued here, with no design
+document yet.
 \end{definition}
 
 The verifier is grounded in design-by-contract (\textbf{Meyer 1992}, \emph{Applying
@@ -1131,6 +1178,12 @@ the log of actions already taken} is something weaker and must be named formally
 then halts or repairs within a bounded window. By the reference-monitor result below,
 such a downstream monitor enforces no safety property at all. The phrase ``physically
 unreachable'' is therefore reserved for the constraint-enforced set --- nowhere else.
+This is a \textbf{Design invariant}: a vocabulary discipline the paper commits to
+keeping, backed by Schneider's execution-monitor result~\pdcite{schneider2000}
+below rather than by a proof of its own. It is \BuiltWeak{} in the reference
+implementation: the anomaly monitor at \texttt{lib/arbiter.ts:328}
+(\S\ref{app:honest}) is honestly classified here as detect-and-compensate, not
+prevention, which is the rule keeping its own usage.
 \end{property}
 
 \textbf{Fred B.\ Schneider} (\emph{Enforceable Security Policies},
@@ -1271,6 +1324,11 @@ objective is
 The forced-zoom policy $p(r,s,v)$ is calibrated against this loss after specifying
 the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
 Equation~\ref{eq:sdt} is a decision objective, not by itself a fitted detector.
+This is an \textbf{Empirical hypothesis} in the honesty ledger's sense, not a
+Design invariant: it needs measurement, specifically the score distributions that
+would let $\beta$ be calibrated against real operator decisions, before it is
+anything more than a target. It is \Vision{} today (\S\ref{app:honest}): unmodeled
+in code, with no calibration data yet collected.
 \end{definition}
 
 \input{figures/legible-swarm-sdt}
@@ -1333,13 +1391,24 @@ policy earns its keep.}
 \label{tab:sdt-numbers}
 \end{table}
 
-\emph{Now you try:} at what base rate does a $C_{\text{miss}}/C_{\text{fa}}=50$
-action class cross from auto-land to forced zoom? (Set $50\pi = (1-\pi)+0.2$, giving
-$\pi \approx 0.024$ --- roughly one dangerous action in forty.) The boundary:
-this collapse assumes the operator either zooms an entire class or none of it, which
-is the policy Eq.~\ref{eq:sdt} would produce only if $P_{\text{miss}}$ and
-$P_{\text{fa}}$ were degenerate. A fitted detector with a real criterion $\beta$ does
-better than both columns; the table is a floor on the decision, not the decision.
+\begin{pdexample}{Where a fiftyfold miss/false-alarm ratio crosses over}
+At what base rate does a $C_{\text{miss}}/C_{\text{fa}}=50$ action class cross from
+auto-land to forced zoom? Set the two crude costs equal: never-zoom's
+$\pi\,C_{\text{miss}}$ against always-zoom's $(1-\pi)C_{\text{fa}}+c_{\mathrm{att}}$,
+i.e.\ $50\pi = (1-\pi)+0.2$ at $C_{\text{fa}}=1$, $c_{\mathrm{att}}=0.2$. Expanding,
+$50\pi+\pi = 1.2$, so $\pi = 1.2/51 \approx 0.024$ --- roughly one dangerous action
+in forty. \emph{Now you try:} redo this at $C_{\text{miss}}/C_{\text{fa}}=500$ (the
+migration-dropping-a-foreign-key class of Table~\ref{tab:sdt-numbers}, whose own
+$\pi=0.2$ sits far above this crossover). $501\pi=1.2$ gives $\pi\approx0.0024$ ---
+about one dangerous action in four hundred, roughly ten times more of a hair
+trigger than the fiftyfold class above.
+\end{pdexample}
+
+The boundary: this collapse assumes the operator either zooms an entire class or
+none of it, which is the policy Eq.~\ref{eq:sdt} would produce only if
+$P_{\text{miss}}$ and $P_{\text{fa}}$ were degenerate. A fitted detector with a real
+criterion $\beta$ does better than both columns; the table is a floor on the
+decision, not the decision.
 
 \subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\label{sec:calibration}
 
@@ -1552,7 +1621,14 @@ faster than any single participant can read them.
 \begin{definition}[Read-poverty]\label{def:readpoverty}
 \textbf{Read-poverty} is a regime in which legible state accumulates faster than it
 can be consulted, so participants fall back to $O(n)$ eyeball search over the
-population, or, worse, act blind.
+population, or, worse, act blind. That real swarms actually enter this regime at
+the population sizes this paper discusses is an \textbf{Empirical hypothesis} in
+the honesty ledger's sense, not a Design invariant or a Theorem: it is a claim
+about the world, argued here from the Mara scene (\S\ref{sec:mara}) and from
+Miller's information-processing literature~\pdcite{miller1956}, and it awaits
+telemetry from deployed fleets rather than a proof. \Vision{} in
+\S\ref{app:honest}'s sense: no instrumentation yet measures where a real fleet
+sits on the value curve below.
 \end{definition}
 
 \pdthesis{Read-poverty, not write-contention, is the binding constraint on swarm
@@ -2226,7 +2302,12 @@ notes capped at a couple of days). \emph{A stale row can never outrank a live on
 dead-session claim must decay out of ``current,'' not persist as misleading truth.}
 This is not a new mechanism but a uniform application of the decay primitive that
 already governs the pheromone layer, and it is the production discipline of every
-health-checked, TTL-expiring service registry~\pdcite{consul}.
+health-checked, TTL-expiring service registry~\pdcite{consul}. This is a
+\textbf{Design invariant}, \BuiltWeak{}: the decay primitive itself is \Built{}
+(episodic memory and pheromone decay, \S\ref{app:honest}), but the word
+``universal'' is asserted ahead of the code, since several read-surfaces this
+property names --- the discovery router is only \Designed{}, the operator console
+is \BuiltWeak{} --- do not yet carry it in the shipped implementation.
 \end{property}
 
 The dead-claim case is the worked instance: had the resurrection handoff and the
@@ -3642,6 +3723,20 @@ O & Consent grant + inalienable override & \Vision & Def.~\ref{def:consent}, Pro
 O & Time-axis legibility (replay, provenance) & \Designed & ADR-0046 replay scrubber; event log \Built \\
 O & Ambient legibility (menu-bar indicator on PASS$\to$FAIL) & \BuiltWeak & indicator exists; watchdog wire \Designed \\
 \end{xltabular}}
+
+\begin{pdexample}{Counting the wedge's own honesty ledger}
+Table~\ref{tab:honest-state} grades twenty-four mechanisms across the four labels
+this appendix defines. Counting the Status column by hand: \Built\ appears $4$
+times (attention composer, briefing projection, honest attestation, and the
+episodic-memory/pheromone/skill-index row), \BuiltWeak\ appears $8$ times,
+\Designed\ appears $6$ times, and \Vision\ appears $6$ times. These sum to
+$4+8+6+6=24$, matching the table's own row count, so every mechanism named in this
+paper is graded and none is left silently unassessed. Read as fractions:
+$4/24\approx17\%$ of the paper's named mechanisms are fully coded today; adding the
+partial \BuiltWeak\ row brings at-least-some-code to $12/24=50\%$; the other half is
+designed or argued with no merged implementation --- the same split the caption
+above states in words (``more than half-designed'').
+\end{pdexample}
 
 Three points about the reference implementation are important enough to restate:
 \begin{enumerate}[leftmargin=1.5em]
