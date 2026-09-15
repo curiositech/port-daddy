@@ -32,8 +32,8 @@ concept). It was not used: this chapter's own appendix ("Implementation &
 status") already uses "module" as a specific, different term — the concrete
 TypeScript source-file unit each organ's contract is realized by, in a
 many-modules-per-organ mapping (see the appendix's own mechanism-to-artifact
-table). Renaming "organ" to "module" would have collided with that existing,
-load-bearing usage throughout the appendix, most visibly in the appendix's own
+table). Renaming "organ" to "module" would have collided with that existing
+usage throughout the appendix, most visibly in the appendix's own
 summary sentence ("The seven organs of §1.3 correspond to distinct modules
 that each self-initialize..."), which would otherwise become "The seven
 modules... correspond to distinct modules" — meaningless. `subsystem` was used

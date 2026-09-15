@@ -154,14 +154,14 @@ describe('Spawn-to-Person publication contract', () => {
     const source = text(paths.source);
     const keystone = text(paths.keystone);
 
-    // The maturity words are set by macro so no organ can round itself up.
+    // The maturity words are set by macro so no subsystem can round itself up.
     expect(source).toMatch(/\\newcommand\{\\BUILTWEAK\}.*\\textsc\{partial\}/);
-    // Checkpoint and outcome ledger are the two organs marked partial; memory is built.
-    expect(source).toContain('Organ 1 --- Memory: the episodic record \\quad\\BUILT}');
-    expect(source).toContain('Organ 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
-    expect(source).toContain('Organ 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
-    // The continuity-organs table (which replaced the three-organs figure) says
-    // what each partial organ does not carry across a restart.
+    // Checkpoint and outcome ledger are the two subsystems marked partial; memory is built.
+    expect(source).toContain('Subsystem 1 --- Memory: the episodic record \\quad\\BUILT}');
+    expect(source).toContain('Subsystem 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
+    expect(source).toContain('Subsystem 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
+    // The continuity-subsystems table (which replaced the three-subsystems figure) says
+    // what each partial subsystem does not carry across a restart.
     expect(source).toContain('\\label{tab:stp-organs}');
     expect(source).toContain('recovery restores notes, not execution');
     expect(source).toContain('an outcome nobody witnessed; a closure no oracle checked');
