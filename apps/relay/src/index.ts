@@ -10,6 +10,10 @@
  *   POST /v1/publish
  *   POST /v1/github/webhook                  (GitHub webhook ingress; HMAC-gated)
  *   POST /v1/fleetbot/publish                (account bearer; governed GitHub App actions)
+ *   GET  /account/publisher-grants            (browser session; exact-repo standing grants)
+ *   POST /account/publisher-grants/create     (same-origin browser; fresh GitHub authority)
+ *   POST /account/publisher-grants/revoke     (same-origin browser; immediate revocation)
+ *   GET  /v1/fleetbot/publisher-grants/:id    (signed workload; current grant snapshot)
  *   GET  /v1/fleet/config                     (operator; fleet control-plane read)
  *   POST /v1/fleet/validate                   (operator; deterministic YAML validate)
  *   POST /v1/fleet/smoke-test                 (operator; run one ship on Workers AI)
@@ -163,6 +167,8 @@ import {
 import { handleGithubWebhook } from './github-webhook.js';
 import { handleFleetbotPublisher } from './github-publisher.js';
 import { handleRepoShips } from './repo-ships-page.js';
+import { handlePublisherGrantsPage } from './publisher-grants-page.js';
+import { handlePublisherGrantSnapshot } from './publisher-grants.js';
 import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
 import { handleRunReport } from './run-report.js';
 import { recordSloSample } from './mercy-hooks.js';
@@ -496,6 +502,9 @@ export default {
     else if (pathname === '/v1/fleetbot/publish' && method === 'POST') {
       response = await handleFleetbotPublisher(request, env);
     }
+    else if (method === 'GET' && /^\/v1\/fleetbot\/publisher-grants\/pdg_[0-9a-f]{32}$/.test(pathname)) {
+      response = await handlePublisherGrantSnapshot(request, env.DB, pathname.slice(pathname.lastIndexOf('/') + 1));
+    }
 
     // ── Fleet control-plane (operator-gated) ─────────────────────────────────
     else if (pathname === '/v1/fleet/config' && method === 'GET') {
@@ -681,6 +690,13 @@ export default {
     // dial lives here; src/repo-settings-page.ts).
     else if ((pathname === '/account/ships' && method === 'GET') || (pathname === '/account/ships/set' && method === 'POST')) {
       response = await handleRepoShips(request, env);
+    }
+    // Human-only standing publisher grants. These routes deliberately accept
+    // browser sessions, never pdu_ bearers or workload credentials.
+    else if ((pathname === '/account/publisher-grants' && method === 'GET')
+      || (pathname === '/account/publisher-grants/create' && method === 'POST')
+      || (pathname === '/account/publisher-grants/revoke' && method === 'POST')) {
+      response = await handlePublisherGrantsPage(request, env);
     }
     else if (pathname === '/account/repos' && method === 'GET') {
       response = await handleRepoSettingsPage(request, env);

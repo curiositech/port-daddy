@@ -24,6 +24,7 @@ import {
   handleAccountExport,
   handleAccountDelete,
   resolveSession,
+  resolveAccountPublisherCredential,
   userCanReadRepo,
   userIsRepoAdmin,
   userOwnsInstallation,
@@ -40,6 +41,7 @@ function makeDb() {
   const users = new Map<string, any>();          // id → row
   const usersByGh = new Map<number, string>();    // github_user_id → id
   const sessions = new Map<string, any>();        // token_hash → row
+  const publisherCredentials = new Map<string, any>(); // account user id → row
 
   const stmt = (sql: string) => {
     let bound: any[] = [];
@@ -54,6 +56,9 @@ function makeDb() {
         }
         if (sql.startsWith('SELECT user_id, gh_token_enc')) {
           return (sessions.get(bound[0]) ?? null) as T | null;
+        }
+        if (sql.includes('FROM github_publisher_credentials')) {
+          return (publisherCredentials.get(bound[0]) ?? null) as T | null;
         }
         if (sql.includes('COUNT(*) AS n FROM web_sessions')) {
           const n = [...sessions.values()].filter((s) => s.user_id === bound[0]).length;
@@ -74,13 +79,45 @@ function makeDb() {
           }
         } else if (sql.startsWith('INSERT INTO web_sessions')) {
           const [th, uid, enc, iv, ca, exp, ua] = bound;
-          sessions.set(th, { user_id: uid, gh_token_enc: enc, gh_token_iv: iv, expires_at: exp, created_at: ca, user_agent: ua });
+          sessions.set(th, { token_hash: th, user_id: uid, gh_token_enc: enc, gh_token_iv: iv, expires_at: exp, created_at: ca, user_agent: ua });
+        } else if (sql.includes('INSERT INTO github_publisher_credentials')) {
+          const [uid, generation, enc, iv, keyVersion, updatedAt] = bound;
+          const current = publisherCredentials.get(uid);
+          if (!current) {
+            publisherCredentials.set(uid, {
+              account_user_id: uid,
+              generation,
+              credential_enc: enc,
+              credential_iv: iv,
+              credential_key_version: keyVersion,
+              updated_at: updatedAt,
+            });
+          } else {
+            changes = 0;
+          }
+        } else if (sql.startsWith('UPDATE github_publisher_credentials')) {
+          const [generation, enc, iv, keyVersion, updatedAt, uid, expectedGeneration] = bound;
+          const current = publisherCredentials.get(uid);
+          if (current?.generation === expectedGeneration) {
+            publisherCredentials.set(uid, {
+              account_user_id: uid,
+              generation,
+              credential_enc: enc,
+              credential_iv: iv,
+              credential_key_version: keyVersion,
+              updated_at: updatedAt,
+            });
+          } else {
+            changes = 0;
+          }
         } else if (sql.includes('DELETE FROM web_sessions WHERE user_id')) {
           const before = sessions.size;
           for (const [k, v] of sessions) if (v.user_id === bound[0]) sessions.delete(k);
           changes = before - sessions.size;
         } else if (sql.startsWith('DELETE FROM web_sessions')) {
           sessions.delete(bound[0]);
+        } else if (sql.includes('DELETE FROM github_publisher_credentials')) {
+          publisherCredentials.delete(bound[0]);
         } else if (sql.startsWith('UPDATE users SET deleted_at')) {
           const u = users.get(bound[1]); if (u) { u.deleted_at = bound[0]; u.primary_email = null; u.avatar_url = null; }
         }
@@ -88,6 +125,14 @@ function makeDb() {
       },
       // shipwright_chats export read (handleAccountExport) — none in this mock.
       async all<T>(): Promise<{ results: T[] }> {
+        if (sql.includes('FROM web_sessions') && sql.includes('ORDER BY created_at DESC')) {
+          const now = bound[1];
+          const found = [...sessions.values()]
+            .filter((row) => row.user_id === bound[0] && row.expires_at > now && row.gh_token_enc && row.gh_token_iv)
+            .sort((a, b) => b.created_at - a.created_at || b.token_hash.localeCompare(a.token_hash))
+            .slice(0, 2);
+          return { results: found as T[] };
+        }
         return { results: [] };
       },
     };
@@ -97,7 +142,7 @@ function makeDb() {
     prepare: stmt,
     batch: async (statements: D1PreparedStatement[]) => Promise.all(statements.map(statement => statement.run())),
   } as unknown as D1Database;
-  return { db, users, sessions };
+  return { db, users, sessions, publisherCredentials };
 }
 
 function makeKV(): KVNamespace & { store: Map<string, string> } {
@@ -328,6 +373,102 @@ async function loginAndGetCookie(env: Env, kv: ReturnType<typeof makeKV>): Promi
 }
 
 describe('/auth/me, logout, and session resolution', () => {
+  it('resolves the explicit per-account publisher credential without a browser or pdu bearer', async () => {
+    const kv = makeKV();
+    const state = makeDb();
+    const env = makeEnv({}, kv, state.db);
+    await loginAndGetCookie(env, kv);
+    const user = [...state.users.values()][0];
+    const resolved = await resolveAccountPublisherCredential(env, user.id, Math.floor(Date.now() / 1000));
+    expect(resolved).toMatchObject({ user: { id: user.id }, accessToken: 'ghu_usertoken', generation: 1 });
+    expect(JSON.stringify(resolved)).not.toContain('__Host-pd_session');
+  });
+
+  it('does not infer publisher authority from browser session ordering and fails closed on a missing row', async () => {
+    const kv = makeKV();
+    const state = makeDb();
+    const env = makeEnv({}, kv, state.db);
+    expect(await resolveAccountPublisherCredential(env, 'u_missing', 1)).toBeNull();
+    await loginAndGetCookie(env, kv);
+    const user = [...state.users.values()][0];
+    const first = [...state.sessions.values()][0];
+    first.expires_at = 1;
+    state.sessions.set('f'.repeat(64), { ...first, token_hash: 'f'.repeat(64), created_at: first.created_at + 10 });
+    expect(await resolveAccountPublisherCredential(env, user.id, 2)).toMatchObject({ accessToken: 'ghu_usertoken' });
+    state.publisherCredentials.delete(user.id);
+    expect(await resolveAccountPublisherCredential(env, user.id, 2)).toBeNull();
+  });
+
+  it('refreshes an expiring publisher credential with CAS and advances its generation', async () => {
+    const kv = makeKV();
+    const state = makeDb();
+    const env = makeEnv({}, kv, state.db);
+    const login = await beginLogin(env);
+    vi.stubGlobal('fetch', vi.fn(async (input: any) => {
+      const url = String(input);
+      if (url.includes('login/oauth/access_token')) return Response.json({
+        access_token: 'ghu_expiring_1',
+        expires_in: 60,
+        refresh_token: 'ghr_refresh_1',
+        refresh_token_expires_in: 3_600,
+        scope: '',
+        token_type: 'bearer',
+      });
+      if (url.endsWith('/user')) return Response.json({ id: 4242, login: 'octocat', name: null, avatar_url: null, email: null });
+      if (url.endsWith('/user/emails')) return Response.json([]);
+      return new Response('unexpected', { status: 500 });
+    }));
+    expect((await handleGithubCallback(callbackRequest(login.state, login.transactionCookie), env)).status).toBe(302);
+    const user = [...state.users.values()][0];
+    expect(state.publisherCredentials.get(user.id)?.generation).toBe(1);
+
+    vi.stubGlobal('fetch', vi.fn(async (input: any, init?: RequestInit) => {
+      expect(String(input)).toContain('login/oauth/access_token');
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        grant_type: 'refresh_token',
+        refresh_token: 'ghr_refresh_1',
+        client_secret: 'ghsecret',
+      });
+      return Response.json({
+        access_token: 'ghu_expiring_2',
+        expires_in: 28_800,
+        refresh_token: 'ghr_refresh_2',
+        refresh_token_expires_in: 3_600,
+        scope: '',
+        token_type: 'bearer',
+      });
+    }));
+    const resolved = await resolveAccountPublisherCredential(env, user.id, Math.floor(Date.now() / 1000));
+    expect(resolved).toMatchObject({ accessToken: 'ghu_expiring_2', generation: 2 });
+    expect(state.publisherCredentials.get(user.id)?.generation).toBe(2);
+  });
+
+  it('reseals a standing publisher credential under the current wrapping-key generation', async () => {
+    const kv = makeKV();
+    const state = makeDb();
+    const oldKey = '11'.repeat(32);
+    const env = makeEnv({
+      USER_TOKEN_WRAPPING_KEY: oldKey,
+      USER_TOKEN_WRAPPING_KEY_VERSION: '1',
+    }, kv, state.db);
+    await loginAndGetCookie(env, kv);
+    const user = [...state.users.values()][0];
+
+    const rotated = makeEnv({
+      USER_TOKEN_WRAPPING_KEY: '22'.repeat(32),
+      USER_TOKEN_WRAPPING_KEY_VERSION: '2',
+      USER_TOKEN_WRAPPING_PREVIOUS_KEYS: JSON.stringify({ 1: oldKey }),
+    }, kv, state.db);
+    expect(await resolveAccountPublisherCredential(rotated, user.id, Math.floor(Date.now() / 1000))).toMatchObject({
+      accessToken: 'ghu_usertoken',
+      generation: 2,
+    });
+    expect(state.publisherCredentials.get(user.id)).toMatchObject({
+      generation: 2,
+      credential_key_version: 2,
+    });
+  });
+
   it('me: 401 without a session; the user (no gh token) with one', async () => {
     const kv = makeKV();
     const env = makeEnv({}, kv, makeDb().db);

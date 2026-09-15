@@ -29,6 +29,8 @@ import {
   getWebSession,
   upsertUser,
   replaceWebSession,
+  getGitHubPublisherCredential,
+  replaceGitHubPublisherCredential,
   deleteWebSession,
   countUserSessions,
   eraseUser,
@@ -36,6 +38,15 @@ import {
   type UserRow,
 } from './db.js';
 import type { Env } from './types.js';
+import {
+  githubCredentialNeedsRefresh,
+  githubTokenKeyring,
+  openGitHubUserCredential,
+  parseGitHubUserCredential,
+  refreshGitHubUserCredential,
+  sealGitHubUserCredential,
+  type GitHubUserCredential,
+} from './github-user-token.js';
 // Import cycle note: roadmap-mirror.ts imports isSameOrigin from this module
 // and this module imports exportRoadmapMirrors back. Both bindings are hoisted
 // function declarations used only at request time, so the ESM cycle is inert
@@ -48,10 +59,6 @@ import { exportRoadmapMirrors } from './roadmap-mirror.js';
 // each response is run through a parse-guard that validates every consumed
 // field and returns null (or []) on any mismatch — the same tri-state parse
 // idiom the executor uses for model output (parseShipFindings). Fail-closed.
-interface GitHubTokenResponse {
-  access_token?: string;
-  error?: string;
-}
 interface GitHubUser {
   id: number;
   login: string;
@@ -69,15 +76,6 @@ function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null;
 }
 const orNull = (v: unknown): string | null => (typeof v === 'string' ? v : null);
-
-function parseGitHubToken(x: unknown): GitHubTokenResponse | null {
-  if (!isRecord(x)) return null;
-  if (x.access_token !== undefined && typeof x.access_token !== 'string') return null;
-  return {
-    access_token: typeof x.access_token === 'string' ? x.access_token : undefined,
-    error: typeof x.error === 'string' ? x.error : undefined,
-  };
-}
 
 function parseGitHubUser(x: unknown): GitHubUser | null {
   if (!isRecord(x)) return null;
@@ -188,6 +186,122 @@ async function openToken(wrappingKeyHex: string, enc: string, iv: string): Promi
   } catch {
     return null;
   }
+}
+
+export interface AccountGitHubCredential {
+  user: UserRow;
+  accessToken: string;
+  /** Monotonic publisher credential generation opened for this request. */
+  generation: number;
+}
+
+/**
+ * Resolve the explicit standing GitHub publisher credential for an account.
+ *
+ * Browser sessions authenticate the account UI; they are never searched for
+ * background authority. The callback maintains one generation-numbered row per
+ * account. Refresh and key rotation replace only the generation that was
+ * opened, so concurrent reconnects cannot be overwritten by an older token.
+ */
+export async function resolveAccountPublisherCredential(
+  env: Env,
+  accountUserId: string,
+  now: number,
+): Promise<AccountGitHubCredential | null> {
+  if (!env.USER_TOKEN_WRAPPING_KEY || !env.GITHUB_OAUTH_CLIENT_ID) return null;
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL')
+    .bind(accountUserId).first<UserRow>();
+  if (!user) return null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const row = await getGitHubPublisherCredential(env.DB, accountUserId);
+    if (!row || !Number.isSafeInteger(row.generation) || row.generation <= 0) return null;
+    let opened;
+    try {
+      opened = await openGitHubUserCredential(githubTokenKeyring(env), {
+        kind: 'publisher-account',
+        rowId: publisherCredentialRowId(accountUserId, row.generation),
+        userId: accountUserId,
+      }, {
+        enc: row.credential_enc,
+        iv: row.credential_iv,
+        keyVersion: row.credential_key_version,
+      });
+    } catch {
+      return null;
+    }
+    if (!opened) return null;
+
+    let credential = opened.credential;
+    const shouldRefresh = githubCredentialNeedsRefresh(credential, now);
+    if (shouldRefresh) {
+      try {
+        credential = await refreshGitHubUserCredential(credential, {
+          clientId: env.GITHUB_OAUTH_CLIENT_ID,
+          clientSecret: env.GITHUB_OAUTH_CLIENT_SECRET,
+          now,
+        });
+      } catch {
+        return null;
+      }
+    }
+    if (!shouldRefresh && !opened.needsReseal) {
+      return { user, accessToken: credential.accessToken, generation: row.generation };
+    }
+
+    const nextGeneration = row.generation + 1;
+    let wrapped;
+    try {
+      wrapped = await sealGitHubUserCredential(githubTokenKeyring(env), {
+        kind: 'publisher-account',
+        rowId: publisherCredentialRowId(accountUserId, nextGeneration),
+        userId: accountUserId,
+      }, credential);
+    } catch {
+      return null;
+    }
+    if (await replaceGitHubPublisherCredential(env.DB, {
+      accountUserId,
+      generation: nextGeneration,
+      credential_enc: wrapped.enc,
+      credential_iv: wrapped.iv,
+      credential_key_version: wrapped.keyVersion,
+      updated_at: now,
+    }, row.generation)) {
+      return { user, accessToken: credential.accessToken, generation: nextGeneration };
+    }
+  }
+  return null;
+}
+
+function publisherCredentialRowId(accountUserId: string, generation: number): string {
+  return hashHex(`publisher-account:${accountUserId}:${generation}`);
+}
+
+async function storeAccountPublisherCredential(
+  env: ConfiguredLoginEnv,
+  accountUserId: string,
+  credential: GitHubUserCredential,
+  now: number,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await getGitHubPublisherCredential(env.DB, accountUserId);
+    const expectedGeneration = current?.generation ?? 0;
+    const generation = expectedGeneration + 1;
+    const wrapped = await sealGitHubUserCredential(githubTokenKeyring(env), {
+      kind: 'publisher-account',
+      rowId: publisherCredentialRowId(accountUserId, generation),
+      userId: accountUserId,
+    }, credential);
+    if (await replaceGitHubPublisherCredential(env.DB, {
+      accountUserId,
+      generation,
+      credential_enc: wrapped.enc,
+      credential_iv: wrapped.iv,
+      credential_key_version: wrapped.keyVersion,
+      updated_at: now,
+    }, expectedGeneration)) return true;
+  }
+  return false;
 }
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
@@ -315,9 +429,13 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     }),
   });
   if (!tokRes.ok) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: 'GitHub token exchange failed' });
-  const tok = parseGitHubToken(await tokRes.json());
-  if (!tok?.access_token) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: tok?.error ?? 'no access_token' });
-  const accessToken = tok.access_token;
+  let credential: GitHubUserCredential;
+  try {
+    credential = parseGitHubUserCredential(await tokRes.json(), 'web', Math.floor(Date.now() / 1000));
+  } catch {
+    return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: 'GitHub did not return a valid App user credential' });
+  }
+  const accessToken = credential.accessToken;
 
   // Identity from GET /user (+ verified primary email). GitHub is OAuth2, not
   // OIDC: there is no id_token to validate.
@@ -348,6 +466,13 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     emailVerified,
     now,
   });
+
+  // A browser login explicitly replaces the account's standing publisher
+  // credential. It is separate from the browser session and remains bound to
+  // this account and a monotonic generation in the authenticated envelope.
+  if (!await storeAccountPublisherCredential(env, user.id, credential, now)) {
+    return json(503, { code: 'CREDENTIAL_RACE', error: 'GitHub reconnect raced another credential update; retry' });
+  }
 
   // Opaque session id; only its SHA-256 is stored. The gh token is sealed.
   const sessionValue = randomHex(32);

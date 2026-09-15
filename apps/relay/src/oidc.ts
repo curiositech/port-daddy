@@ -36,7 +36,8 @@ const KV_JWKS_FETCHED_PREFIX = 'jwks-fetched:';
 
 export async function fetchJwks(
   env: Env,
-  issuer: IssuerConfig
+  issuer: IssuerConfig,
+  options: { forceRefresh?: boolean } = {},
 ): Promise<JwkSet> {
   const kvKey = KV_JWKS_PREFIX + issuer.issuer_id;
   const fetchedKey = KV_JWKS_FETCHED_PREFIX + issuer.issuer_id;
@@ -49,7 +50,7 @@ export async function fetchJwks(
   const lastFetchStr = await env.KV.get(fetchedKey);
   const lastFetch = lastFetchStr ? parseInt(lastFetchStr, 10) : 0;
 
-  if (now - lastFetch < ttl) {
+  if (!options.forceRefresh && now - lastFetch < ttl) {
     const cached = await env.KV.get(kvKey);
     if (cached) return JSON.parse(cached) as JwkSet;
   }
@@ -107,6 +108,7 @@ interface GithubActionsJwtClaims {
   jti: string;
   sub: string;
   repository: string;
+  repository_id: string;
   repository_owner: string;
   repository_owner_id: string;
   workflow: string;
@@ -114,10 +116,184 @@ interface GithubActionsJwtClaims {
   sha: string;
   run_id: string;
   run_number: string;
-  job_workflow_ref: string;
+  workflow_ref: string;
   actor: string;
   event_name: string;
   runner_environment: string;
+  environment?: string;
+}
+
+interface GithubActionsTrustPolicy {
+  repositoryBindings: Array<{
+    repository: string;
+    repositoryId: string;
+    repositoryOwner: string;
+    repositoryOwnerId: string;
+  }>;
+  workflowRefs: string[];
+  refs: string[];
+  environments: Array<string | null>;
+  runnerEnvironments: string[];
+  eventNames?: string[];
+}
+
+const MAX_POLICY_ENTRIES = 64;
+const MAX_POLICY_VALUE_LENGTH = 512;
+
+function exactRepositoryBindings(value: unknown): GithubActionsTrustPolicy['repositoryBindings'] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_POLICY_ENTRIES) {
+    throw new OidcError('OIDC_POLICY_INVALID', `repositoryBindings must contain 1-${MAX_POLICY_ENTRIES} entries`);
+  }
+  const seen = new Set<string>();
+  return value.map((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new OidcError('OIDC_POLICY_INVALID', 'repositoryBindings contains an invalid value');
+    }
+    const binding = entry as Record<string, unknown>;
+    const allowed = new Set(['repository', 'repositoryId', 'repositoryOwner', 'repositoryOwnerId']);
+    if (Object.keys(binding).some((key) => !allowed.has(key))) {
+      throw new OidcError('OIDC_POLICY_INVALID', 'repositoryBindings contains unknown fields');
+    }
+    const repository = exactPolicyValues([binding.repository], 'repositoryBindings.repository')[0] as string;
+    const repositoryId = exactPolicyValues([binding.repositoryId], 'repositoryBindings.repositoryId', { numeric: true })[0] as string;
+    const repositoryOwner = exactPolicyValues([binding.repositoryOwner], 'repositoryBindings.repositoryOwner')[0] as string;
+    const repositoryOwnerId = exactPolicyValues([binding.repositoryOwnerId], 'repositoryBindings.repositoryOwnerId', { numeric: true })[0] as string;
+    if (!repository.startsWith(`${repositoryOwner}/`) || repository.split('/').length !== 2) {
+      throw new OidcError('OIDC_POLICY_INVALID', 'repository binding owner and repository disagree');
+    }
+    const key = `${repository}\0${repositoryId}\0${repositoryOwner}\0${repositoryOwnerId}`;
+    if (seen.has(key)) throw new OidcError('OIDC_POLICY_INVALID', 'repositoryBindings contains a duplicate');
+    seen.add(key);
+    return { repository, repositoryId, repositoryOwner, repositoryOwnerId };
+  });
+}
+
+function exactPolicyValues(
+  value: unknown,
+  field: string,
+  options: { allowNull?: boolean; numeric?: boolean } = {},
+): Array<string | null> {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_POLICY_ENTRIES) {
+    throw new OidcError('OIDC_POLICY_INVALID', `${field} must contain 1-${MAX_POLICY_ENTRIES} entries`);
+  }
+  const result: Array<string | null> = [];
+  for (const entry of value) {
+    if (entry === null && options.allowNull) {
+      result.push(null);
+      continue;
+    }
+    if (typeof entry !== 'string' || entry.length === 0 || entry.length > MAX_POLICY_VALUE_LENGTH) {
+      throw new OidcError('OIDC_POLICY_INVALID', `${field} contains an invalid value`);
+    }
+    if (entry.includes('*')) {
+      throw new OidcError('OIDC_POLICY_INVALID', `${field} does not permit wildcards`);
+    }
+    if (options.numeric && !/^[1-9][0-9]*$/.test(entry)) {
+      throw new OidcError('OIDC_POLICY_INVALID', `${field} must contain numeric GitHub ids`);
+    }
+    result.push(entry);
+  }
+  return [...new Set(result)];
+}
+
+function githubActionsTrustPolicy(env: Env): GithubActionsTrustPolicy {
+  const raw = (env as Env & { OIDC_GITHUB_TRUST_POLICY_JSON?: string })
+    .OIDC_GITHUB_TRUST_POLICY_JSON;
+  if (!raw) {
+    throw new OidcError(
+      'OIDC_POLICY_UNCONFIGURED',
+      'GitHub Actions OIDC trust policy is not configured',
+    );
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    const value = JSON.parse(raw) as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('not an object');
+    parsed = value as Record<string, unknown>;
+  } catch {
+    throw new OidcError('OIDC_POLICY_INVALID', 'GitHub Actions OIDC trust policy is not valid JSON');
+  }
+
+  const allowedKeys = new Set([
+    'repositoryBindings', 'workflowRefs', 'refs',
+    'environments', 'runnerEnvironments', 'eventNames',
+  ]);
+  if (Object.keys(parsed).some((key) => !allowedKeys.has(key))) {
+    throw new OidcError('OIDC_POLICY_INVALID', 'GitHub Actions OIDC trust policy has unknown fields');
+  }
+
+  return {
+    repositoryBindings: exactRepositoryBindings(parsed.repositoryBindings),
+    workflowRefs: exactPolicyValues(parsed.workflowRefs, 'workflowRefs') as string[],
+    refs: exactPolicyValues(parsed.refs, 'refs') as string[],
+    environments: exactPolicyValues(parsed.environments, 'environments', { allowNull: true }),
+    runnerEnvironments: exactPolicyValues(parsed.runnerEnvironments, 'runnerEnvironments') as string[],
+    ...(parsed.eventNames === undefined
+      ? {}
+      : { eventNames: exactPolicyValues(parsed.eventNames, 'eventNames') as string[] }),
+  };
+}
+
+function assertGithubActionsClaims(env: Env, claims: GithubActionsJwtClaims): void {
+  const policy = githubActionsTrustPolicy(env);
+  if (typeof claims.repository !== 'string' || claims.repository.length === 0) {
+    throw new OidcError('MISSING_REPOSITORY', 'repository claim is required');
+  }
+  if (!/^[1-9][0-9]*$/.test(claims.repository_owner_id ?? '')) {
+    throw new OidcError('INVALID_OWNER_ID', 'repository_owner_id must be a numeric GitHub id');
+  }
+  if (!/^[1-9][0-9]*$/.test(claims.repository_id ?? '')) {
+    throw new OidcError('INVALID_REPOSITORY_ID', 'repository_id must be a numeric GitHub id');
+  }
+
+  const repositoryParts = claims.repository.split('/');
+  if (repositoryParts.length !== 2 || !repositoryParts[0] || !repositoryParts[1]
+      || repositoryParts[0] !== claims.repository_owner) {
+    throw new OidcError('REPOSITORY_OWNER_MISMATCH', 'repository and repository_owner claims disagree');
+  }
+  const binding = policy.repositoryBindings.find((candidate) => candidate.repository === claims.repository);
+  if (!binding) throw new OidcError('UNTRUSTED_REPOSITORY', 'repository is not trusted');
+  if (binding.repositoryOwner !== claims.repository_owner) {
+    throw new OidcError('REPOSITORY_OWNER_MISMATCH', 'repository binding and repository_owner claim disagree');
+  }
+  if (binding.repositoryOwnerId !== claims.repository_owner_id) {
+    throw new OidcError('UNTRUSTED_OWNER_ID', 'repository_owner_id does not match the trusted repository binding');
+  }
+  if (binding.repositoryId !== claims.repository_id) {
+    throw new OidcError('UNTRUSTED_REPOSITORY_ID', 'repository_id does not match the trusted repository binding');
+  }
+  if (!policy.workflowRefs.includes(claims.workflow_ref)) {
+    throw new OidcError('UNTRUSTED_WORKFLOW', 'workflow_ref is not trusted');
+  }
+  const workflowPrefix = `${claims.repository}/.github/workflows/`;
+  if (!claims.workflow_ref.startsWith(workflowPrefix)) {
+    throw new OidcError('WORKFLOW_REPOSITORY_MISMATCH', 'workflow_ref belongs to another repository');
+  }
+  if (!policy.refs.includes(claims.ref)) {
+    throw new OidcError('UNTRUSTED_REF', 'ref is not trusted');
+  }
+  const workflowAt = claims.workflow_ref.lastIndexOf('@');
+  if (workflowAt <= workflowPrefix.length || claims.workflow_ref.slice(workflowAt + 1) !== claims.ref) {
+    throw new OidcError('WORKFLOW_REF_MISMATCH', 'workflow_ref is not pinned to the admitted ref');
+  }
+  if (!policy.environments.includes(claims.environment ?? null)) {
+    throw new OidcError('UNTRUSTED_ENVIRONMENT', 'environment is not trusted');
+  }
+  if (!policy.runnerEnvironments.includes(claims.runner_environment)) {
+    throw new OidcError('UNTRUSTED_RUNNER_ENVIRONMENT', 'runner_environment is not trusted');
+  }
+  if (policy.eventNames && !policy.eventNames.includes(claims.event_name)) {
+    throw new OidcError('UNTRUSTED_EVENT', 'event_name is not trusted');
+  }
+
+  const immutableRepository = `${repositoryParts[0]}@${claims.repository_owner_id}/${repositoryParts[1]}@${claims.repository_id}`;
+  const expectedSubject = claims.environment
+    ? `repo:${immutableRepository}:environment:${claims.environment.replaceAll(':', '%3A')}`
+    : `repo:${immutableRepository}:ref:${claims.ref}`;
+  if (claims.sub !== expectedSubject) {
+    throw new OidcError('SUBJECT_MISMATCH', 'sub is not bound to the immutable repository identity and trusted context');
+  }
 }
 
 export interface OidcVerifyResult {
@@ -158,7 +334,7 @@ export async function verifyOidcToken(
     throw new OidcError('WILDCARD_AUDIENCE', 'Wildcard or empty audience rejected');
   }
   const expectedAud = issuerRow.audience;
-  if (!audList.includes(expectedAud)) {
+  if (audList.length !== 1 || audList[0] !== expectedAud) {
     throw new OidcError('WRONG_AUDIENCE', `Expected audience ${expectedAud}`);
   }
 
@@ -180,9 +356,22 @@ export async function verifyOidcToken(
     throw new OidcError('UNKNOWN_OWNER', 'repository_owner claim is required');
   }
 
+  // A custom audience identifies Relay, not the repository/job that may enroll.
+  // Bind GitHub's immutable owner id and exact workflow context to an explicit,
+  // bounded server-side policy before accepting the workload identity.
+  assertGithubActionsClaims(env, payload);
+
   // ── Signature verification ──────────────────────────────────────────────
   const signingInput = `${headerB64}.${payloadB64}`;
-  await verifyJwtSignature(header, signingInput, sigB64, jwks);
+  try {
+    await verifyJwtSignature(header, signingInput, sigB64, jwks);
+  } catch (error) {
+    if (!(error instanceof OidcError) || error.code !== 'KEY_NOT_FOUND') throw error;
+    // Key rotation may make an otherwise-fresh cache stale. Refresh exactly
+    // once for an unknown kid, then verify against that fetched set.
+    const refreshedJwks = await fetchJwks(env, issuerRow, { forceRefresh: true });
+    await verifyJwtSignature(header, signingInput, sigB64, refreshedJwks);
+  }
 
   return payload;
 }

@@ -14,7 +14,6 @@ import { __fleetbotPublisherTest as subject } from '../src/github-publisher.js';
 const PRIVATE_KEY = '19'.repeat(32);
 const PUBLIC_KEY = pubKeyFromPrivKey(PRIVATE_KEY);
 const FINGERPRINT = toHex(hashBytes(Uint8Array.from(PUBLIC_KEY.match(/../g)!.map((byte) => parseInt(byte, 16)))));
-const ACCOUNT_TOKEN = `pdu_${'ab'.repeat(32)}`;
 const NOW = 2_000_000_000;
 
 function action(purpose = 'Publish reviewed work'): FleetbotActionRequest {
@@ -49,7 +48,8 @@ async function signedEnvelope(request = action(), nonce = '3'.repeat(64), genera
   const requestHash = hashHex(fleetbotIdempotencyPreimage(request));
   const capability: FleetbotPublisherCapability = {
     schema: FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA,
-    accountTokenHash: hashHex(ACCOUNT_TOKEN),
+    grantId: `pdg_${'ab'.repeat(16)}`,
+    grantEpoch: 1,
     daemonFingerprint: FINGERPRINT,
     signingKeyGeneration: generation,
     sessionId: request.sessionId,
@@ -111,7 +111,7 @@ function intentDb() {
       const statement = {
         bind(...values: unknown[]) { args = values; return statement; },
         async first() {
-          if (sql.includes('SELECT request_hash')) return intent;
+          if (sql.includes('SELECT i.request_hash')) return intent;
           if (sql.includes('RETURNING lease_fence')) {
             const now = args[0] as number;
             const staleBefore = args.at(-1) as number;
@@ -126,7 +126,7 @@ function intentDb() {
         },
         async run() {
           if (sql.includes('INSERT OR IGNORE INTO github_publisher_intents') && !intent) {
-            intent = { request_hash: args[6] as string, state: 'reserved', receipt_json: null, updated_at: args[15] as number, lease_fence: 0 };
+            intent = { request_hash: args[6] as string, state: 'reserved', receipt_json: null, updated_at: args[14] as number, lease_fence: 0 };
             return { success: true, meta: { changes: 1 } };
           }
           if (sql.includes('AND state = \'running\' AND lease_fence = ?')) {
@@ -176,51 +176,93 @@ describe('Fleetbot publisher authority hardening', () => {
     forged.capability = original.capability;
     forged.capabilitySignature = original.signature;
     const parsed = subject.parseRequest(forged);
-    const env = { DB: authorityDb() } as never;
-    await expect(subject.verifyAndConsumeCapability(
-      env, parsed.capability, parsed.capabilitySignature, parsed.request, parsed.payload,
-      parsed.requestHash, hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_SCOPE_MISMATCH', status: 403 });
+    expect(() => subject.validateCapabilityScope(
+      parsed.capability, parsed.request, parsed.payload, parsed.requestHash, NOW,
+    )).toThrow(expect.objectContaining({ code: 'CAPABILITY_SCOPE_MISMATCH', status: 403 }));
   });
 
-  it('rejects nonce replay for different exact content', async () => {
-    const db = authorityDb();
-    const first = await signedEnvelope();
-    const parsedFirst = subject.parseRequest(first.request);
-    const env = { DB: db } as never;
-    await subject.verifyAndConsumeCapability(
-      env, parsedFirst.capability, parsedFirst.capabilitySignature, parsedFirst.request,
-      parsedFirst.payload, parsedFirst.requestHash, hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    );
-
-    const second = await signedEnvelope(action('A different authorized action'), first.capability.nonce);
-    const parsedSecond = subject.parseRequest(second.request);
-    await expect(subject.verifyAndConsumeCapability(
-      env, parsedSecond.capability, parsedSecond.capabilitySignature, parsedSecond.request,
-      parsedSecond.payload, parsedSecond.requestHash, hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_REPLAY', status: 409 });
-  });
-
-  it('rejects expired capabilities and signing-key rotation', async () => {
+  it('rejects expired capabilities', async () => {
     const expired = await signedEnvelope();
     expired.capability.expiresAt = NOW;
     expired.request.capabilitySignature = await signEd25519(
       PRIVATE_KEY, hashHex(fleetbotPublisherCapabilityPreimage(expired.capability)),
     );
     const parsedExpired = subject.parseRequest(expired.request);
-    await expect(subject.verifyAndConsumeCapability(
-      { DB: authorityDb() } as never, parsedExpired.capability, parsedExpired.capabilitySignature,
-      parsedExpired.request, parsedExpired.payload, parsedExpired.requestHash,
-      hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_EXPIRED', status: 401 });
+    expect(() => subject.validateCapabilityScope(
+      parsedExpired.capability, parsedExpired.request, parsedExpired.payload, parsedExpired.requestHash, NOW,
+    )).toThrow(expect.objectContaining({ code: 'CAPABILITY_EXPIRED', status: 401 }));
+  });
 
-    const rotated = await signedEnvelope();
-    const parsedRotated = subject.parseRequest(rotated.request);
-    await expect(subject.verifyAndConsumeCapability(
-      { DB: authorityDb(2) } as never, parsedRotated.capability, parsedRotated.capabilitySignature,
-      parsedRotated.request, parsedRotated.payload, parsedRotated.requestHash,
-      hashHex(ACCOUNT_TOKEN), 'account-1', NOW,
-    )).rejects.toMatchObject({ code: 'CAPABILITY_SIGNATURE_INVALID', status: 401 });
+  it('allows inspect to bootstrap without an owned PR but keeps every mutation ownership-gated', async () => {
+    const inspect = action();
+    const parsedInspect = subject.parseRequest((await signedEnvelope(inspect)).request);
+    const rejectingDb = {
+      prepare() {
+        const statement = {
+          bind() { return statement; },
+          async all() { return { results: [] }; },
+        };
+        return statement;
+      },
+    };
+    await expect(subject.publisherHeadBranch(
+      { DB: rejectingDb } as never, parsedInspect.request, parsedInspect.payload, 'account-1',
+    )).resolves.toBeNull();
+
+    const mutation = action();
+    mutation.operation = 'pull-request.comment';
+    mutation.payload = { ...mutation.payload, body: 'governed comment' };
+    mutation.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(mutation))}`;
+    const parsedMutation = subject.parseRequest((await signedEnvelope(mutation)).request);
+    await expect(subject.publisherHeadBranch(
+      { DB: rejectingDb } as never, parsedMutation.request, parsedMutation.payload, 'account-1',
+    )).rejects.toMatchObject({ code: 'PULL_REQUEST_NOT_OWNED', status: 403 });
+  });
+
+  it('inspects an exact ordinary pull request without requiring App authorship or a pd-agent branch', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = action();
+    globalThis.fetch = async (input) => {
+      expect(String(input)).toContain('/repos/curiositech/port-daddy/pulls/10129');
+      return Response.json({
+        number: 10129,
+        node_id: 'PR_ordinary',
+        html_url: 'https://github.test/pull/10129',
+        state: 'open',
+        draft: false,
+        title: 'Contributor change',
+        body: '',
+        user: { login: 'ordinary-contributor' },
+        head: {
+          ref: 'feature/contributor-change',
+          sha: '2'.repeat(40),
+          repo: { full_name: request.repository },
+        },
+        base: {
+          ref: 'main',
+          sha: '1'.repeat(40),
+          repo: { full_name: request.repository },
+        },
+      });
+    };
+    try {
+      await expect(subject.executeExisting(
+        request,
+        request.payload as never,
+        'curiositech',
+        'port-daddy',
+        'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => { throw new Error('inspect must never mutate'); },
+      )).resolves.toMatchObject({
+        resourceNumber: 10129,
+        publishedBranch: 'feature/contributor-change',
+        githubHeadSha: '2'.repeat(40),
+        result: 'observed',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it('paginates past 100 GitHub records before deciding a marker is absent', async () => {
