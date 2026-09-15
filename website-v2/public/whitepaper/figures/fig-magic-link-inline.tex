@@ -57,6 +57,6 @@
   \node[pd note,anchor=west] at (.65,-1.62) {the rejected consumer creates no second state transition};
 \end{tikzpicture}%
 }
-\caption{Single-use redemption is a concurrency property, not a two-arrow icon. Two consumers present the same account-bound token during one overlap window. Both requests reach the same serialized SQL update, but the token row has only one falling edge: the first transaction changes \texttt{consumed\_at} from \texttt{NULL} and returns a row; the second observes the durable state and returns none. The audit rail records the winning consumer without creating another success path.}
+\pdmargincaption{Single-use redemption is a concurrency property, not a two-arrow icon. Two consumers present the same account-bound token during one overlap window. Both requests reach the same serialized SQL update, but the token row has only one falling edge: the first transaction changes \texttt{consumed\_at} from \texttt{NULL} and returns a row; the second observes the durable state and returns none. The audit rail records the winning consumer without creating another success path.}
 \label{fig:magic-link-inline}
 \end{figure}

@@ -78,7 +78,7 @@
 \draw[->,>=Latex,thick,draw=hhteal,dotted] (issuer.south) -- (eIssue.north);
 \draw[->,>=Latex,thick,draw=hhteal,dotted] (consumer.south) -- (eConsume.north);
 \end{tikzpicture}
-\caption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}
+\pdmargincaption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}
 \label{fig:magic-link-diag}
 \end{figure}
 
@@ -120,7 +120,7 @@
    \\\quad$\bullet$ $n_k$ already present in the freshness table \quad(replay)
    \\\quad$\bullet$ message hash $h$ disagrees across hops \quad(substitute)};
 \end{tikzpicture}
-\caption{Multi-hop delegation walker. Each hop $k$ signs a binding tuple $(n_k, \mathrm{id}_{k-1}, \mathrm{id}_k, h)$ under Ed25519, where $h$ is the message hash that must remain constant across the chain. The walker verifies depth-$N$ chains with a nonce-freshness table and rejects splices, replays, hop-swaps, and substitution.}
+\pdmargincaption{Multi-hop delegation walker. Each hop $k$ signs a binding tuple $(n_k, \mathrm{id}_{k-1}, \mathrm{id}_k, h)$ under Ed25519, where $h$ is the message hash that must remain constant across the chain. The walker verifies depth-$N$ chains with a nonce-freshness table and rejects splices, replays, hop-swaps, and substitution.}
 \label{fig:delegation-diag}
 \end{figure}
 
@@ -184,7 +184,7 @@
   {{\bfseries Insert rejection at load $0.95$}\\
    (cap holds FP bound under adversarial fill).};
 \end{tikzpicture}
-\caption{Cuckoo filter (Fan et al.~\cite{fan2014cuckoo}). 8-bit fingerprints, 4 entries per bucket, partial-key cuckoo hashing. Insert lands at either of two candidate buckets $i_1, i_2 = i_1 \oplus h(\mathrm{fp})$; on full, evict and re-insert at the kicked fingerprint's alternate. The runtime caps load factor at $0.95$ to keep occupancy inside the regime where the false-positive bound holds.}
+\pdmargincaption{Cuckoo filter (Fan et al.~\cite{fan2014cuckoo}). 8-bit fingerprints, 4 entries per bucket, partial-key cuckoo hashing. Insert lands at either of two candidate buckets $i_1, i_2 = i_1 \oplus h(\mathrm{fp})$; on full, evict and re-insert at the kicked fingerprint's alternate. The runtime caps load factor at $0.95$ to keep occupancy inside the regime where the false-positive bound holds.}
 \label{fig:cuckoo-diag}
 \end{figure}
 
@@ -243,7 +243,7 @@
   {{\bfseries Principal cost} \\ $= q^*$ (no idle capital)};
 \end{scope}
 \end{tikzpicture}
-\caption{(SUPPRESSED — see inline Figure~\ref{fig:auction-inline}.)}
+\pdmargincaption{(SUPPRESSED — see inline Figure~\ref{fig:auction-inline}.)}
 \label{fig:auction-diag-suppressed}
 \end{figure}
 \fi
@@ -293,7 +293,7 @@
    \quad
    $\dfrac{\delta \cdot \pi_C}{1 - \delta(1 - p_d)} \;\geq\; \pi_D$};
 \end{tikzpicture}
-\caption{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm{floor}}$ or undercutting it by $\varepsilon$. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi_D$ gain once and forfeits future $\pi_C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star$ used in Figure~\ref{fig:cartel-folk}.}
+\pdmargincaption{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm{floor}}$ or undercutting it by $\varepsilon$. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi_D$ gain once and forfeits future $\pi_C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star$ used in Figure~\ref{fig:cartel-folk}.}
 \label{fig:cartel-game-diag}
 \end{figure}
 
@@ -368,7 +368,7 @@
    mechanism: $\mathbf{C_{\mathrm{kyc}} + \text{reputation gating} +
    \text{per-class}\;B_{\mathrm{dep}}}$.};
 \end{tikzpicture}
-\caption{(SUPPRESSED — see inline Figure~\ref{fig:sybil-inline}.)}
+\pdmargincaption{(SUPPRESSED — see inline Figure~\ref{fig:sybil-inline}.)}
 \label{fig:sybil-diag-suppressed}
 \end{figure}
 \fi

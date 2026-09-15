@@ -66,7 +66,7 @@
   \node[pd note,align=center,text width=8.6cm,anchor=north] at (2.5,-1.95)
     {c1 occupies one bucket once: one valid local projection};
 \end{tikzpicture}
-\caption{Two six-bucket cuckoo filters compared before and after the design
+\pdmargincaption{Two six-bucket cuckoo filters compared before and after the design
 change. Top: peer $A$ inserts \texttt{c1} into bucket 2 and peer $B$ inserts
 the same \texttt{c1} into bucket 5, an artifact of each peer's own insertion
 and eviction history; bitwise \texttt{OR} keeps both placements, which is a

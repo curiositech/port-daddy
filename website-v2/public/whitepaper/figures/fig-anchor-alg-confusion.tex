@@ -46,7 +46,7 @@
   \draw[pd rule,-{Stealth[length=1.6mm,width=1.0mm]}] (cB.south) -- (oB.north);
   \draw[pd rule] (tokB.south) -- (0,-1.35);
 \end{tikzpicture}
-\caption{Two verifier ladders for the same wire bytes: \textbf{token} sends
+\pdmargincaption{Two verifier ladders for the same wire bytes: \textbf{token} sends
 \texttt{alg=none} with a tampered payload to \textbf{verifier} in both panels.
 Panel A lets the token's own header choose the algorithm and message 2
 accepts the forgery; panel B pins the algorithm to Ed25519 from issuer policy,
