@@ -117,8 +117,10 @@ def place(path, terms, report):
 
 
 def main():
-    corpus = json.load(open(sys.argv[1]))
-    paths = json.load(open(sys.argv[2]))
+    with open(sys.argv[1]) as f:
+        corpus = json.load(f)
+    with open(sys.argv[2]) as f:
+        paths = json.load(f)
     report, tp, ts = {}, 0, 0
     for chapter, terms in corpus.items():
         if chapter.startswith("_"):
@@ -131,7 +133,8 @@ def main():
         for term, why in report[p]["skipped"]:
             print("      SKIP %-42s %s" % (term, why))
     print("TOTAL placed %d, skipped %d" % (tp, ts))
-    json.dump(report, open(sys.argv[3], "w"), indent=1)
+    with open(sys.argv[3], "w") as f:
+        json.dump(report, f, indent=1)
 
 
 if __name__ == "__main__":
