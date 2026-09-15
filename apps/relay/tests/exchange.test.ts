@@ -170,6 +170,15 @@ function makeEnv(db: D1Database, kv: KVNamespace): Env {
     SESSION_TTL_SECONDS: '3600',
     JWKS_CACHE_TTL_SECONDS: '600',
     JWKS_FAIL_SOFT_SECONDS: '3600',
+    OIDC_GITHUB_TRUST_POLICY_JSON: JSON.stringify({
+      repositoryOwnerIds: ['99'],
+      repositories: [`${REPO_OWNER}/repo`],
+      jobWorkflowRefs: [`${REPO_OWNER}/repo/.github/workflows/ci.yml@refs/heads/main`],
+      refs: ['refs/heads/main'],
+      environments: [null],
+      runnerEnvironments: ['github-hosted'],
+      eventNames: ['push'],
+    }),
     REVOCATION_BROADCAST_TIMEOUT_MS: '5000',
     RATE_LIMIT_WINDOW_MS: '60000',
   } as unknown as Env;

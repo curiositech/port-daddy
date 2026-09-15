@@ -99,8 +99,12 @@ issuer:
 | `jwks_uri` | `https://token.actions.githubusercontent.com/.well-known/jwks` |
 | `audience` | `https://github.com/curiositech` |
 
-That is GitHub Actions OIDC, audience-bound to the `curiositech` organization —
-the organization that owns this repository. It is managed at runtime through
+That is GitHub Actions OIDC with a custom audience naming Relay. The audience
+does **not** prove organization or repository authority. The implemented
+exchange separately requires a bounded server-side trust policy containing the
+numeric `repository_owner_id`, exact repository, `job_workflow_ref`, ref,
+environment presence/value, runner environment, and optional event names. It is
+managed at runtime through
 `PUT /v1/config/issuers/:issuer_id` and can be disabled or revoked wholesale
 through `POST /v1/revoke-by-issuer`. This ADR treats it as the named issuer and
 designs against it.
@@ -130,7 +134,7 @@ and an expiry. There is exactly one such registry and this ADR adds none.
 
 | Class | Enrolment proof | Status |
 | --- | --- | --- |
-| `ci` — a GitHub Actions job in `curiositech/*` | GitHub Actions OIDC token exchanged at `POST /v1/exchange`, audience `https://github.com/curiositech`, `jti` consumed once | Available today; `apps/relay/src/oidc.ts` and `handleExchange` already implement it |
+| `ci` — a policy-admitted GitHub Actions job | GitHub Actions OIDC token exchanged at `POST /v1/exchange`; exact audience plus trusted numeric owner id, repository, workflow, ref, environment and runner claims; `jti` consumed once | Implemented; remains fail-closed until `OIDC_GITHUB_TRUST_POLICY_JSON` is configured |
 | `host` — a daemon on an operator machine | **Undecided — see OQ-1.** The existing non-OIDC precedent is `proof_method: 'operator-provisioned'`, written by the operator-gated route in `apps/relay/src/fleet-executor-identity.ts` | Open |
 
 What changes is only *how a row gets into `identities`*. Everything downstream —
@@ -241,12 +245,12 @@ no issuer round-trip. Everything below follows from that.
 
 | Concern | Decision |
 | --- | --- |
-| Audience | Exact string match against `issuers.audience`; wildcard and empty audience rejected before the "wrong audience" check. This is already `apps/relay/src/oidc.ts` behaviour and is kept |
+| Audience and workload scope | Exact string match against `issuers.audience`; wildcard and empty audience rejected. Audience identifies Relay only. A bounded `OIDC_GITHUB_TRUST_POLICY_JSON` separately allowlists numeric owner ids, exact repositories, workflow refs, refs, environments, runner environments, and optional events; missing or malformed policy fails closed |
 | Token lifetime | GitHub Actions tokens are minutes-long; unchanged. The exchanged card stays ≤ 1h per ADR-0025. The Fleetbot capability keeps its existing `CAPABILITY_MAX_TTL_SECONDS` of 5 minutes |
 | Grant lifetime | Operator-chosen absolute `expires_at`. An enrolment can never extend a grant |
 | Clock skew | **One constant, not two.** Today the capability path allows 30s (`CAPABILITY_CLOCK_SKEW_SECONDS`) while `verifyOidcToken` allows none on `nbf`/`exp`. Hoist a single shared skew constant; apply it to `nbf` and `iat` in both directions and to `exp` in the *rejecting* direction only (a token past `exp + 0` is expired; skew must never extend a token's life) |
 | JWKS cache | Unchanged: normal TTL `JWKS_CACHE_TTL_SECONDS`, fail-soft window `JWKS_FAIL_SOFT_SECONDS`, manual eviction at `DELETE /v1/cache/jwks/:issuer_id` |
-| Key rotation | `kid`-directed lookup with an algorithm-matched fallback, already implemented; a cache miss on an unknown `kid` forces a fetch rather than a rejection |
+| Key rotation | `kid`-directed lookup; an unknown `kid` forces exactly one JWKS refresh and one retry. A missing `kid` uses the first algorithm-compatible key |
 | **Issuer unreachable** | **Enrolment fails closed. Publication continues.** No new `identities` row and no new grant may be created while JWKS is unavailable past the fail-soft window. Existing grants keep publishing, because a publish never consults the issuer |
 
 This is a deliberate **departure from the prior research**.
