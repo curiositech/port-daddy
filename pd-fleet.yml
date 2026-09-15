@@ -368,7 +368,29 @@ fleet:
       identity: "{project}:fleet:cartographer"
       telos: "Keep the roadmap, recovery queue, and live work map aligned."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 6 items on PR #10231; 2 restated features shipped in that very diff, 1 targeted the wrong layer.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 0
+    # were actionable. The two real findings that night came from `qa` and from
+    # a human reading the diff. An advisory proposal is cheap to emit and
+    # expensive to disprove, and that asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. That single
+    # check would have suppressed every one of the 23. Until it exists,
+    # re-enabling reproduces the same output.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review. The blocking review
+    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
+    # untouched and still runs on every PR.
     spark:
+      enabled: false
       # High-temperature product imagination. Spark comments buildable
       # ideas on PRs as validated Proposals; the cloud executor renders each
       # into REAL actionable Port Daddy syntax (see fleet/ships/spark.md and
@@ -560,7 +582,29 @@ fleet:
     # #   identity: "{project}:fleet:purser"
     # #   telos: "Steel-man the PR, then demand it satisfy its own contract."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 10 items across two rounds on PR #10231; 9 already existed in the diff under review. Its second round cited phrases from the PR review comments as evidence the capability was missing — a feedback loop, not a finding.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 0
+    # were actionable. The two real findings that night came from `qa` and from
+    # a human reading the diff. An advisory proposal is cheap to emit and
+    # expensive to disprove, and that asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. That single
+    # check would have suppressed every one of the 23. Until it exists,
+    # re-enabling reproduces the same output.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review. The blocking review
+    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
+    # untouched and still runs on every PR.
     spider:
+      enabled: false
       # Syllogism engine. Spider combines two existing facts/capabilities
       # and proposes the new product or workflow that follows from them, as
       # validated Proposals rendered into actionable syntax by the executor.
@@ -614,7 +658,29 @@ fleet:
       identity: "{project}:fleet:spider"
       telos: "Comment new products implied by connections between existing capabilities."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 3 items on PR #10231; 2 restated shipped code, and the third inverted what the PR it cited actually argued.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 0
+    # were actionable. The two real findings that night came from `qa` and from
+    # a human reading the diff. An advisory proposal is cheap to emit and
+    # expensive to disprove, and that asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. That single
+    # check would have suppressed every one of the 23. Until it exists,
+    # re-enabling reproduces the same output.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review. The blocking review
+    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
+    # untouched and still runs on every PR.
     lookout:
+      enabled: false
       # Trouble-ahead watch. The PR-commenting embodiment of the Lookout actor:
       # spots contradictions, architectural trouble, duplication, and newly
       # broken user experiences — especially ACROSS other open PRs and feature
@@ -659,7 +725,29 @@ fleet:
       identity: "{project}:fleet:lookout-pr"
       telos: "Spot contradictions, architectural trouble, and broken UX before they land — and alert the operator."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 4 items on PR #10231; all 4 asked for a skill that rebuilds that PR, each citing the implementing file as evidence it was missing.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 0
+    # were actionable. The two real findings that night came from `qa` and from
+    # a human reading the diff. An advisory proposal is cheap to emit and
+    # expensive to disprove, and that asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. That single
+    # check would have suppressed every one of the 23. Until it exists,
+    # re-enabling reproduces the same output.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review. The blocking review
+    # path (qa, code-reviewer, red-team, test-author, tautology-sniffer) is
+    # untouched and still runs on every PR.
     snipe:
+      enabled: false
       # Engineman. Looks at the code/ideas a PR introduces and, when a reusable
       # capability would remove recurring friction, proposes ONE skill to author
       # via the skill-architect skill — with a ready-to-run dispatch command.
