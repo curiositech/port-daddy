@@ -52,10 +52,10 @@ only ink added is the grey caption band naming each panel.
 
 ---
 
-## Artefact 1 — `https://media.portdaddy.dev/sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png`
+## Artefact 1 — `swk-durability-faultclass-record-vs-render-1x-150dpi.png`
 
-- File: `https://media.portdaddy.dev/sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png` (105 KiB)
-  - raw: `https://media.portdaddy.dev/sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png`
+- File: `docs/pr-assets/pr-10178/swk-durability-faultclass-record-vs-render-1x-150dpi.png` (105 KiB)
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/91fe9ef95ba0c6c00cc989505e3bbf486fadb2a4/docs/pr-assets/pr-10178/swk-durability-faultclass-record-vs-render-1x-150dpi.png`
 - What it shows: The OLD record's 29 finding boxes (left) and the NEW record's 0 (right), over the same untouched render of `fig-swk-durability-faultclass`. The old boxes land on blank paper and on 8.97 pt text; one is at y=843 pt on an 842 pt page.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -64,10 +64,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `02553929ff99f26b142643e55d16e1cfa64e2f24` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 2 — `https://media.portdaddy.dev/sha256/bb/bb76f507e4f31b81d5198cefced8272a96be8a0758579d17edf5236eafded0c2.png`
+## Artefact 2 — `stp-parfit-chain-record-vs-render-1x-150dpi.png`
 
-- File: `https://media.portdaddy.dev/sha256/bb/bb76f507e4f31b81d5198cefced8272a96be8a0758579d17edf5236eafded0c2.png` (112 KiB)
-  - raw: `https://media.portdaddy.dev/sha256/bb/bb76f507e4f31b81d5198cefced8272a96be8a0758579d17edf5236eafded0c2.png`
+- File: `docs/pr-assets/pr-10178/stp-parfit-chain-record-vs-render-1x-150dpi.png` (112 KiB)
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/91fe9ef95ba0c6c00cc989505e3bbf486fadb2a4/docs/pr-assets/pr-10178/stp-parfit-chain-record-vs-render-1x-150dpi.png`
 - What it shows: `fig-stp-parfit-chain`: 23 old findings vs 15 new. Four old T1 boxes sit in the CAPTION, outside the drawing; the new ones land on the sub-7 pt math subscripts on the transitive ledger rail.
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git
@@ -76,10 +76,10 @@ only ink added is the grey caption band naming each panel.
 - Commit: `02553929ff99f26b142643e55d16e1cfa64e2f24` (figure source under review)
 - Source: `live` — the real committed fragment compiled by the real house preamble; nothing mocked, seeded or hand-drawn
 
-## Artefact 3 — `https://media.portdaddy.dev/sha256/15/157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3.png`
+## Artefact 3 — `fh-xfer-ceremony-record-vs-render-1x-150dpi.png`
 
-- File: `https://media.portdaddy.dev/sha256/15/157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3.png` (165 KiB)
-  - raw: `https://media.portdaddy.dev/sha256/15/157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3.png`
+- File: `docs/pr-assets/pr-10178/fh-xfer-ceremony-record-vs-render-1x-150dpi.png` (165 KiB)
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/91fe9ef95ba0c6c00cc989505e3bbf486fadb2a4/docs/pr-assets/pr-10178/fh-xfer-ceremony-record-vs-render-1x-150dpi.png`
 - What it shows: `fig-fh-xfer-ceremony`: T1 goes 16 -> 0 and T4 goes 5 -> 6. The new T4 boxes each enclose a real label collision ("+ attenuated card" against "destination verifies locally"; the revocation note against the rail below it).
 - Daemon port: `none` — a `tectonic` fragment compile opens no socket and starts no daemon
 - Run id: `n/a (print render)` — no agent run; the input is a `.tex` blob in git

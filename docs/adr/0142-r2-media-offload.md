@@ -3,7 +3,7 @@
 - **Status:** Accepted, and provisioned. The bucket, the custom domain and the
   upload path now exist and were exercised against the real account; §11.1
   records what was created and what was measured doing it. Phase 2 has begun
-  for two roots (§9.1) — 111 files, 67.3 MiB, removed from git and served from
+  for two roots (§9.1) — 108 files, 67.0 MiB, removed from git and served from
   `media.portdaddy.dev`. The rest of §2's population remains Phase 1 (mirrored,
   still in git).
 - **Date:** 2026-09-14
@@ -318,11 +318,16 @@ is why §12's framing is corrected here rather than repeated.
 Because the benefit is narrower, the population is chosen conservatively rather
 than by sweeping §2's whole rule:
 
-- **Moved: `docs/pr-assets/` and `docs/pr-media/`.** 111 files, 67.3 MiB. Review
+- **Moved: `docs/pr-assets/` and `docs/pr-media/`.** 108 files, 67.0 MiB. Review
   evidence for merged PRs — §1.2's "a human clicking a link in a PR" case
   exactly. A scan of every tracked text file found no consumer outside prose for
-  any of them, and the 6 prose files that did cite them were rewritten to
-  `media.portdaddy.dev` URLs in the same commit.
+  any of them, and the 5 prose files that did cite them were rewritten to
+  `media.portdaddy.dev` URLs in the same commit. (Three more files matching
+  the same rule landed on `main` under `docs/pr-assets/pr-10178/` after this
+  move ran; they stay in git as ordinary Phase 1 mirrored assets rather than
+  being moved here too, since moving them would need their bytes uploaded to
+  the real bucket first and this environment holds no R2 credentials to do
+  that — see §11 on what still needs provisioning.)
 - **Refused by the tool, inside those same roots: 5 files.**
   `docs/pr-assets/pr-729/wedge-editor-face.{png,webm}` are read by
   `docs/pr-assets/pr-729/proof.tape`, and three under
@@ -495,8 +500,8 @@ than by consulting a list.
 
 ## 12. Consequences
 
-- **261.2 MiB across 580 files is mirrored and eligible to leave git**, and
-  67.3 MiB across 111 files has left (§9.1). The earlier "411.4 MiB (46%) of the
+- **261.5 MiB across 583 files is mirrored and eligible to leave git**, and
+  67.0 MiB across 108 files has left (§9.1). The earlier "411.4 MiB (46%) of the
   repository" figure is superseded twice over: main's `a94120c32` deleted 133 of
   those assets outright as unreferenced, and — more importantly — leaving git
   shrinks the *tip*, not the repository, because history keeps every blob.
