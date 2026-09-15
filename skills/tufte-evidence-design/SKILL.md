@@ -104,19 +104,43 @@ rule, so the rule is applied with its known objection already in view rather tha
 - [ ] The one number that matters (current/last value) is direct-labeled as text, not read off the pixels.
 - [ ] Placed inline in the sentence or table cell it describes, at first use.
 
-### Margin apparatus (Book chapters — see `references/margin-apparatus.md` for the full state)
+### Margin apparatus (Book chapters — see `references/margin-apparatus.md` §3 for the full specification)
 
-- [ ] The idea, not just the name, carries the sentence before you add a `\pdmarginfigure`.
-- [ ] At most one PORTRAIT per section (a `\pdmarginfigure` slug that resolves under `plates/marginalia/`, checked
-      against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) — a small multiple, sparkline, or regime
-      strip in the margin faces no such quota; the Book's margin column is meant to be used generously.
-- [ ] The plate is cleared (no `.NOT-CLEARED.json` sidecar) before writing a portrait's macro call.
+The margin's claims are ordered. When two kinds want the same vertical band, the one higher in this list wins.
+
+- [ ] **Captions first.** Every float caption is `\pdmargincaption`, not `\caption` — the float keeps the text
+      column, the caption rides the margin beside it. Only two exceptions: a full-bleed plate (no margin beside it)
+      and a `longtable`/`xltabular` caption (longtable's own, heads a table that spans pages).
+      `scripts/harbor-research/captions_to_margin.py --check` enforces it; `scripts/margin_lint.py`'s
+      `caption-in-column` rule fails a chapter that reaches for `\caption` again.
+- [ ] The caption states the figure's *claim* as a sentence, not a label — this is the same rule as in "Words,
+      numbers, images" below, and at 1.3in it is also a length discipline: a caption comfortable at 4.5in is
+      visibly long in the margin, and the answer is to cut the caption, never to widen the margin or move it back.
+- [ ] **Sidenotes second.** Every `\footnote` in a chapter body is `\pdsidenote`. The one exception is a note with
+      no line of running prose beside it: inside a float, a `longtable`, a `tabular`, a listing/verbatim block, or
+      a section-family heading's title argument (a moving argument — a margin device expanded there ends the build).
+      `margin_lint.py`'s `no-footnote-in-body` is now ENFORCED, not advisory.
+- [ ] **Short-form citations third.** A point-of-use citation is `\pdcite{key}`, never a bare `\cite{key}`, with the
+      full entry in the back matter (`scripts/harbor-research/promote_cites.py`). Note that `\pdcite`'s margin copy
+      is currently suppressed for a documented allocator reason — see `references/margin-apparatus.md` §3.3 before
+      concluding the margin short-forms are simply missing.
+- [ ] **Small explanatory graphics fourth.** Sparkline (~1.3in × one line), regime strip (~1.3in × 0.25–0.4in),
+      2×2 or 2×3 small-multiple grid (~1.3in × up to 1.5in), single explanatory plot (~1.3in × 0.8in). Anything
+      wider than 1.3in is not a margin graphic — redraw it smaller with fewer marks or leave it in the column;
+      never scale a column figure down to fit.
+- [ ] **Glosses fifth.** Every house term gets its own `\pdgloss{Term}{one-line definition}` at its first use — a
+      chapter may (and should) carry many glosses, one per term — not `\pd@marginhead{Term}` by hand, and never the
+      SAME term glossed twice (`scripts/margin_lint.py` checks both this and that the term actually appears in the
+      chapter's own prose).
+- [ ] **Portraits last.** At most one PORTRAIT per section (a `\pdmarginfigure` slug that resolves under
+      `plates/marginalia/`, checked against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`); the plate is
+      cleared (no `.NOT-CLEARED.json` sidecar); the idea, not just the name, carries the sentence. A portrait is a
+      garnish on an apparatus, not the apparatus — a chapter whose margin carries portraits and nothing else has an
+      empty margin apparatus with decoration in it (`margin_lint.py`'s `margin-carries-the-caption`).
 - [ ] Two margin figures of any kind are not placed within about a dozen source lines of each other, or they will
-      likely collide on the printed page (`scripts/margin_lint.py` warns advisory; the real gate is the build log's
-      "Marginpar on page" count).
-- [ ] Every house term gets its own `\pdgloss{Term}{one-line definition}` at its first use — a chapter may (and
-      should) carry many glosses, one per term — not `\pd@marginhead{Term}` by hand, and never the SAME term glossed
-      twice (`scripts/margin_lint.py` checks both this and that the term actually appears in the chapter's own prose).
+      likely collide on the printed page (`scripts/margin_lint.py` warns advisory). The build log's "Marginpar on
+      page" count is a necessary gate but NOT a sufficient one: `\marginnote` blocks never warn, so the authority on
+      a real overlap is `scripts/harbor-research/page_overflow.py`'s margin-column collision count.
 - [ ] A "wall of text" finding (no figure/table/session for 4+ pages) is fixed with `pdsession`/`pdexample`/a redrawn
       figure, not a margin portrait — those are different failure modes.
 

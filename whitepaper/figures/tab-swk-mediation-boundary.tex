@@ -1,0 +1,59 @@
+% Table -- the five mediation-boundary claims of Sec.~\ref{sec:threatmodel}--\ref{sec:ifc-airlock},
+% collected at one lookup point. Added per the tufte-evidence-design decision tree
+% ("reader needs to look up an exact value, <=20 facts -> table") to close a
+% measured wall-of-text run: pages after the threat-model table (Sec.
+% \ref{sec:threatmodel}) through the end of \S\ref{sec:ifc-airlock} carried five
+% consecutive boundary claims in pure prose with no figure, table, or worked
+% example -- a run this project's own textbook-craft skill calls finding F5. Every
+% cell below quotes a grade or mechanism the surrounding prose already states; the
+% table adds no fact the chapter does not already carry, only a place to look it
+% up without re-reading five subsections.
+\renewcommand{\arraystretch}{1.2}
+\begin{table}[H]
+\centering
+\caption{The chapter's five mediation-boundary claims, graded once. Each row is a
+subsection of \S\ref{sec:threatmodel}--\S\ref{sec:ifc-airlock}; the grade is the
+one that subsection's own prose states, on the scale of Table~\ref{tab:honestkey}.
+This is a boundary summary, not a substitute for the open-problem ledger:
+open-problem numbers still resolve against Table~\ref{tab:op-status} alone.}
+\label{tab:swk-mediation-boundary}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
+\toprule
+\textbf{Boundary claim} & \textbf{What exists today} & \textbf{Grade} & \textbf{What would close it} \\
+\midrule
+Advisory claims are not sandboxing (\S\ref{sec:enforcement}) &
+No syscall filter, \texttt{pledge}/\texttt{unveil}, Landlock, or Seatbelt; a
+malicious agent can ignore a claim row outright. &
+\Vision &
+A separate-user (or separate-VM) kernel process with forced egress. \\
+The enforcement gate proves; it does not yet compel (\S\ref{sec:enforcement-gap}) &
+A machine-checked macaroon discharge (\Built{} as cryptography) plus the
+in-band Coordination Guard, git shim, and hook harness -- all three advisory
+against a non-cooperating same-user agent. &
+\NotGuar &
+The same separate-user boundary; until it exists the gate is a transcript,
+not a wall. \\
+Partial actor-soul identity (I12) &
+Daemon-minted actor souls and lookup credentials cover the budget-guarded
+newcomer pool; legacy session paths remain impersonable. &
+\BuiltWeak &
+Universal write-boundary enforcement over every session path, not only new
+ones. \\
+Hash-chain tamper-evidence, re-scoped (\S\ref{sec:merkle}, OP-9) &
+I9's hash chain now defends only the cross-machine case; the same-machine
+adversary needs a kernel-verified peer credential plus an ephemeral-UID
+sandbox, both \Designed{} but unbuilt. &
+\Open &
+OS-level ephemeral namespaces (\texttt{bwrap}/\texttt{unshare}) binding each
+request to its spawn's ephemeral UID. \\
+Information-flow control (\S\ref{sec:ifc-airlock}) &
+The substrate exposes a taint marker and controllable egress/write events
+(Thm.~\ref{thm:regimentation-controllability}); nothing here propagates
+taint or enforces a declassification budget. &
+\Vision &
+The cross-operator airlock construction, owned by \emph{The Harbor Economy},
+not this chapter. \\
+\bottomrule
+\end{tabularx}
+\end{table}

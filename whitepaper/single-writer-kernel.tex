@@ -372,7 +372,7 @@ Appendix~\ref{app:status}; the body argues at the level of mechanisms.
 
 \begin{table}[H]
 \centering
-\caption{The research-maturity scale used throughout. The last two rows are
+\pdmargincaption{The research-maturity scale used throughout. The last two rows are
 refinements this paper introduces (see \S\ref{sec:durability} and
 \S\ref{sec:enforcement}).}
 \label{tab:honestkey}
@@ -408,7 +408,7 @@ paper and a brochure.}
 
 \begin{table}[H]
 \centering
-\caption{Reader's Map. Find your row; read those sections first.}
+\pdmargincaption{Reader's Map. Find your row; read those sections first.}
 \label{tab:readers-map}
 \small
 \renewcommand{\arraystretch}{1.3}
@@ -1307,7 +1307,7 @@ after \texttt{spawn\_child}'' and ``forbid \texttt{internal\_plan} after \texttt
 
 \begin{table}[H]
 \centering
-\caption{Nine governance rules classified by the product-automaton checker. The verdicts are
+\pdmargincaption{Nine governance rules classified by the product-automaton checker. The verdicts are
 the checker's output; the eight single-event rows also follow by hand from
 Theorem~\ref{thm:regimentation-controllability} [internal, \texttt{b3\_controllability.py}].}
 \label{tab:policy-classification}
@@ -1733,7 +1733,7 @@ theorems themselves.
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
+\pdmargincaption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
 \S\ref{sec:durability}; I7--I9 carry the regimentation/detection correction per
 \S\ref{sec:enforcement}.}
 \label{tab:invariants}
@@ -1864,7 +1864,7 @@ which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
 
 \begin{table}[H]
 \centering
-\caption{Every guard is essential. Disabling one guard at a time, the checker's shortest
+\pdmargincaption{Every guard is essential. Disabling one guard at a time, the checker's shortest
 violating trace, in transitions from the initial state [internal, \texttt{c0\_workunit.py}].}
 \label{tab:workunit-crimes}
 \small
@@ -2232,6 +2232,8 @@ ordering, and side channels stay out of model --- but that every flow out passes
 named gate whose releases are logged, budgeted, and attributable.
 
 \pdexercisepointer{\ref{ex:swk-hash-chain-adversary}}{\ref{ex:swk-op9-hardening}}{\pageref{ex:swk-hash-chain-adversary}}
+
+\input{figures/tab-swk-mediation-boundary}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Adjacency contract: what the kernel assumes and provides}
@@ -2872,7 +2874,7 @@ pragma set: \texttt{journal\_mode=WAL}, \texttt{synchronous=NORMAL},
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{Mechanism-to-artifact map for the reference implementation. Module names
+\pdmargincaption{Mechanism-to-artifact map for the reference implementation. Module names
 are illustrative of the organization, not a stable public interface.}
 \label{tab:appendix-map}
 \small

@@ -327,6 +327,59 @@
     }{}%
   \fi}
 
+% \pdmargincaption{text} -- a caption for a SHORT, single-purpose figure/table
+% TITLE (a label, not a mini-essay) that belongs beside its float in the
+% margin column rather than under it in the main column. This is deliberately
+% a near-drop-in replacement for the plain \caption at a figure/table call
+% site, not a rework of \pdmarginfigure: that macro carries a portrait/plate
+% under a one-per-section quota (see margin-apparatus.md); this one carries
+% no such quota and is not about portraits at all.
+%
+% It is NOT the right macro for most of this Book's captions. Read directly
+% this pass, all 43 captions in the Book's two present chapters run 9-105
+% words and most are 2-5 sentences -- Tufte-style mini-essays that state the
+% figure's own reading, an exception, or a caveat, not a bare label (doctrine
+% 14, "words, numbers, images together": the caption IS part of the argument,
+% not a title above it). Moving an argument-carrying caption into a 1.3in
+% margin column (this Book's margin is ~29% of its text column, vs.
+% tufte-latex's own ~46%) does not make it more Tufte-like; it force-fits a
+% paragraph into a column too narrow to hold it and crowds the citation
+% short-forms, provenance notes, and glosses already living there ("several
+% hundred short notes in the column" -- see \pdcite above). Only a caption
+% that is purely a navigational label -- "Reader's Map", a scale key, a
+% module-to-artifact index -- gains anything by moving out of the reader's
+% way, because nothing about its content depends on sitting beside the table
+% cell it is glossing. That is the ONLY class this macro is for.
+%
+% It steps the SAME counter \caption does (\@captype, set by the enclosing
+% figure/table environment) via the same \refstepcounter, so a \label placed
+% right after it, exactly where it sits after \caption today, resolves
+% \ref/\pageref identically -- converting a call site is a one-line swap of
+% \caption{...} for \pdmargincaption{...} with nothing else to change.
+%
+% Outside the margin column (\ifpdmargincolumn false -- a standalone chapter
+% build) this is exactly \caption, so a standalone PDF renders identically to
+% before this macro existed: the same degrade-to-plain-form contract every
+% other device in this file (\pdgloss, \pdcite, \pdmarginfigure) already
+% keeps.
+%
+% Top-anchored like \pdmarginfigure, not foot-anchored like \pdgloss: the
+% caption sits beside a table that can run many lines, so a raise computed
+% from a possibly-stale \pagetotal is exactly the failure mode
+% \pd@placemargintop exists to avoid (see \pdmarginfigure's own comment above
+% and margin-apparatus.md's "Where a margin block is anchored, and why it
+% differs by kind").
+\newsavebox{\pd@captionbox}
+\newcommand{\pdmargincaption}[1]{%
+  \ifpdmargincolumn
+    \refstepcounter{\@captype}%
+    \sbox{\pd@captionbox}{\begin{minipage}[t]{\marginparwidth}\marginfont
+      \textbf{\csname fnum@\@captype\endcsname.}~\ignorespaces#1\end{minipage}}%
+    \pd@placemargintop{\pd@captionbox}%
+  \else
+    \caption{#1}%
+  \fi}
+
 % ---------------------------------------------------------------------------
 % Marginalia (Wave 16): citations, provenance, and proved-on pointers at the
 % point of use. Three GENERATED data tables carry the per-chapter content
