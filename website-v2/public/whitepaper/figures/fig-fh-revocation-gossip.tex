@@ -33,7 +33,14 @@
   \node[pd focus datum] at (-1.20,2.35) {};
   \node[pd focus datum] at (1.95,2.35) {};
   \draw[pd focus rule] (-4.80,2.35)--(1.95,2.35);
-  \node[pd note,text=hhteal,anchor=west] at (2.20,2.35)
+  % text width, not a bare single-line anchor=west run-on: "signed epoch
+  % roots make the illustrated history auditable" set on one line ran well
+  % past this panel's own right edge (~x=6.3) and into the margin column,
+  % where it collided with the Recall block's item 3 -- built and measured
+  % overlapping ("...section closes the[[signed epoch roots...]]deferred
+  % one." printing as one run of ink), PDF p. 406. Wrapping to two lines
+  % keeps the note inside the figure's own width.
+  \node[pd note,text=hhteal,anchor=west,text width=3.9cm,align=left] at (2.20,2.35)
     {signed epoch roots make the illustrated history auditable};
   \draw[pd caution rule,<->] (-4.65,-2.45)--(1.80,-2.45);
   \node[pd note,text=pdinkmuted] at (-1.42,-2.72)

@@ -6,7 +6,20 @@
 % undistorted scale shared by both rows. [internal; analytic]
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+% x=0.8cm (not the drawn-content default 1cm): the x-axis label "dismissal
+% debit delta" at (8.55,0), anchor=west, is wide enough that at x=1cm its
+% true right edge lands at local x~=13.6cm -- past the 11.43cm (4.5in) text
+% column, invisibly, because pgf's own bounding box does not count a `pd
+% axis label' node's overlay-style extent, so the wide-picture safety net in
+% the Book preamble never sees it and never promotes or rescales this
+% figure. It bled unclipped into the margin column with nothing else there
+% to show it; measured colliding with a Recall block once the margin
+% apparatus started centering on this figure's real span (built Book,
+% 2026-09). Scaling the picture's own x coordinate is the fix, not a
+% \resizebox: \resizebox cannot reach this, because pgf hands the finished,
+% unscaled box straight to the preamble's \pgfsys@typesetpicturebox hook
+% before \resizebox's argument ever gets control.
+\begin{tikzpicture}[pd figure,x=0.8cm,y=1cm]
   % --- row 1 (top): A = 3.3, band exists ---
   \node[pd row label,anchor=east,text width=2.4cm,align=right] at (-.25,3.6) {attention\\budget $A=3.3$};
   \draw[pd hairline] (0,3.6) -- (8.4,3.6);
