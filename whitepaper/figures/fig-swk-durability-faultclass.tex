@@ -22,7 +22,7 @@
   \node[pd note,align=center,text width=8.0cm] at (4.75,-.05)
     {the default trades the power-loss cell for one fsync per commit};
 \end{tikzpicture}
-\caption{Durability by fault class under the two synchronization levels. The
+\pdmargincaption{Durability by fault class under the two synchronization levels. The
 reference implementation ships \texttt{synchronous=NORMAL}: a process crash
 never loses a returned write, but an OS crash or power loss can roll back the
 most recent commits. \texttt{synchronous=FULL} buys the power-loss cell too,
