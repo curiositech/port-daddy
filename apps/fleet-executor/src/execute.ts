@@ -2231,10 +2231,10 @@ export async function executeFleet(
   // this repo, several hallucinated, against code the fleet had just written
   // minutes earlier. That is pure cost and pure noise.
   //
-  // IDENTITY, NOT BRANCH NAME: `classifyPrAuthorship` requires the author to be
-  // a Bot, and prefers matching this App's own resolved login over the
-  // attacker-controllable head ref (see src/fleet-identity.ts). A human on a
-  // branch called `purser/anything` is still reviewed normally.
+  // IDENTITY AND BRANCH PROVENANCE: `classifyPrAuthorship` requires this App's
+  // own resolved login AND a namespace Fleet itself creates. A human can spoof
+  // a branch name, while the App can publish a human-authored `codex/` branch;
+  // neither fact alone suppresses independent review (see fleet-identity.ts).
   //
   // ZERO-TRUST UNCHANGED: config still came from the trusted default branch
   // above; this guard reads only authorship, and adds no new trust in PR head.

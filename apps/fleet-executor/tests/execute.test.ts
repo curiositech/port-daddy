@@ -427,6 +427,19 @@ describe('self-review guard — the fleet does not review its own branches', () 
     expect(state.completed[0].conclusion).toBe('neutral');
   });
 
+  it('an App-published `codex/` branch is reviewed because publication transport is not authorship', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
+    state.prHeadRef = 'codex/fleet-pause-fail-closed-20260914';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.reviews.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toContain('not self-reviewed');
+  });
+
   it("a HUMAN's PR is still reviewed normally — ships run, review posted", async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     state.prAuthor = { login: 'erichowens', type: 'User' };
