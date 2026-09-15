@@ -2,7 +2,7 @@
 
 Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 
-_49 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_50 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -966,6 +966,28 @@ Support and advice replies opening with acknowledgement boilerplate: 'I complete
 **After**
 
 > Your invoice ran twice on the 3rd because the retry fired after the first charge settled. I've refunded the duplicate.
+
+### `signposting-without-structure`  ·  medium · generic-llm · structure · structural · family: shape
+
+Meta-navigation substituted for structure: 'First we'll explore... Next we'll examine... Finally we'll conclude.' The outline is read aloud instead of being enacted.
+
+**Why it reads AI:** The model was given an outline and emits it as prose, because announcing a structure is cheaper than building one. It costs the reader a paragraph before anything is said, and it promises a shape the piece often does not deliver.
+
+**Detect:** Count sentences matching an ordinal plus a first-person-plural intention verb plus an exploration verb. A closed frame set, not a topic list.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 3
+
+**Fix:** Delete the announcements and let headings and prose do the work. Where a transition is genuinely needed, make it carry information: say what changed or what the last section established, not that a new section is beginning.
+
+**False positive when:** Tutorials and long reference documents legitimately tell the reader what the path looks like, and a single roadmap paragraph in a long piece is a kindness. Three or more is the signal.
+
+**Before**
+
+> First, we'll explore the architecture. Next, we will examine performance. Finally, we'll look at what comes next.
+
+**After**
+
+> The fix had two halves, and the second one is the interesting part.
 
 ### `subreddit-register-mismatch`  ·  medium · generic-llm · social-post · llm-judge · family: shape
 

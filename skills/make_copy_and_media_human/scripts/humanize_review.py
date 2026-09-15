@@ -77,8 +77,12 @@ DEFAULT_THRESHOLDS = {
     "copula-avoidance": {"min_copular": 6, "cue_share": 0.35},
     "pronoun-evacuation": {"min_words": 250, "cue_per_100w": 0.8},
     "specificity-starvation": {"min_words": 300, "cue_per_100w": 2.0},
+    "unearned-prior-reference": {"min_words": 250},
+    "repo-context-leak": {"min_count": 4, "cue_per_1000w": 3.0},
+    "definition-after-use": {"min_terms": 2, "max_gap_lines": 12},
+    "signposting-without-structure": {"min_count": 3},
     "linkedin-broetry-one-line-runs": {"min_run": 4, "max_words_per_line": 14},
-    "paragraph-length-monoculture": {"min_paragraphs": 6, "cue_cv": 0.35},
+    "paragraph-length-monoculture": {"min_paragraphs": 8, "cue_cv": 0.25},
     "heading-spam": {"min_headings": 5, "ratio": 0.5},
     "bullet-colonization-of-prose": {"min_bullets": 10, "cue_share": 0.45},
     "bold-label-colon-bullet": {"min_count": 4},
@@ -689,6 +693,13 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
     if words > th("specificity-starvation", "min_words", 300):
         mid_caps = len(re.findall(r"(?<![.!?]\s)(?<!^)\b[A-Z][a-z]{2,}", body, flags=re.M))
         numbers = len(re.findall(r"\b\d[\d,.]*\b", body))
+        # Spelled-out quantities are specifics too. Counting only digits marked
+        # "forty thousand jobs a week" as vague, which is backwards.
+        numbers += len(re.findall(
+            r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+            r"fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|"
+            r"thousand|million|billion|half|third|quarter|dozen|once|twice)\b",
+            body, re.I))
         rate = (mid_caps + numbers) / words * 100
         if rate < th("specificity-starvation", "cue_per_100w", 2.0):
             out.append(finding(
@@ -728,9 +739,11 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
             out.append(finding(
                 path, 1, f"paragraph-length CV {cv:.2f} over {len(paras_sent)} paragraphs "
                          f"(mean {mu:.1f} sentences)",
-                "paragraph-length-monoculture", "medium",
+                "paragraph-length-monoculture", "low",
                 "Every paragraph the same length. People break where the idea breaks, "
-                "which is irregular; a model breaks on a rhythm.",
+                "which is irregular; a model breaks on a rhythm. Unlike sentence-length "
+                "variation this has no published baseline behind it, so the threshold is "
+                "a judgment call and the severity is capped accordingly.",
                 "Put a one-sentence paragraph where the argument turns, and let another "
                 "run long.", family="rhythm"))
 
@@ -911,6 +924,9 @@ def analyze_prose(path, text, suffix=".md", base=None, from_markup=False):
             "Use a plain list, or a real table if the items genuinely compare.",
             "chatgpt"))
 
+    if not from_markup:
+        out += analyze_exposition(path, lines, tags, body)
+
     if suffix not in RENDERS_MARKDOWN and suffix not in MARKUP_EXT and suffix not in CODE_EXT:
         leaks = len(re.findall(r"\*\*[^*\n]{2,60}\*\*", body)) \
             + len(re.findall(r"(?m)^\s*#{1,6}\s+\S", body))
@@ -980,6 +996,189 @@ def analyze_markup(path, text):
     return out
 
 
+
+
+# ------------------------------------------------------- exposition signals
+
+# Deictic frames that point at shared history. A closed set of GRAMMATICAL
+# forms, not a topic list, so this sits inside the Law 1 carve-out. The tell is
+# not the phrase; it is the phrase pointing at nothing the reader has seen.
+PRIOR_REFERENCE = (
+    "our previous", "our earlier", "our original", "our old", "the previous version",
+    "the earlier version", "as we discussed", "as discussed", "as we saw",
+    "as mentioned above", "as noted above", "as we mentioned", "you'll recall",
+    "you will recall", "as you know", "recall that", "last time", "previously we",
+    "building on our", "unlike our", "compared to our", "improves on our",
+    "in the last post", "in our last", "as covered",
+)
+VERSION_REFERENCE = re.compile(
+    r"\b(?:our|the)\s+(?:v\d+(?:\.\d+)?|version\s+\d+)(?![\w/-])"
+    r"\s+(?:approach|design|system|pipeline|implementation|release|version|"
+    r"architecture|model|api|schema|format|engine|stack)\b", re.I)
+
+# Meta-navigation: the shape of structure, announced instead of enacted.
+SIGNPOST = re.compile(
+    r"\b(?:first|next|then|finally|lastly|now)\b[^.!?\n]{0,40}\b"
+    r"(?:we(?:'ll| will| are going to)?|let's|I'll|this (?:post|article|section))\b"
+    r"[^.!?\n]{0,40}\b(?:explore|examine|look at|dive into|discuss|cover|"
+    r"walk through|review|consider|see|understand)\b", re.I)
+
+# Artifacts of the repo the writer had open, in prose meant for someone who
+# does not have it open.
+REPO_TOKEN = re.compile(
+    r"(?:(?<![\w/])[\w.-]+/[\w.-]+/[\w.-]+\.\w{1,5}\b)"          # a/b/c.ext
+    r"|(?:\b[a-z_][a-z0-9_]{3,}\(\))"                                 # snake_case()
+    r"|(?:\b[A-Z]{2,6}-\d{1,6}\b)"                                    # ABC-123
+    r"|(?:\b(?:feat|fix|chore|refactor)/[\w.-]+\b)")                   # branch names
+
+DEF_HINT = r"(?:\s*\(|,\s*(?:which|a|an|the)\b|\s*:\s|\s+is\s+(?:a|an|the|our|" \
+           r"what|how|when)\b|\s+are\s+(?:a|an|the|our)\b|\s+refers?\s+to\b|" \
+           r"\s+means\b|\s+stands\s+for\b|\s+covers?\b|\s+denotes?\b|" \
+           r"\s+describes?\b)"
+
+
+def candidate_terms(body):
+    """Terms of art a reader would need defined: backticked identifiers and
+    Capitalised Multi-Word Phrases. Ordinary nouns are excluded by requiring
+    either the backticks or the capitalisation pattern."""
+    terms = {}
+    for m in re.finditer(r"`([A-Za-z][\w .-]{2,30})`", body):
+        t = m.group(1).strip()
+        if re.search(r"[(){}=;/]", t):
+            continue
+        # An ordinary lowercase word in backticks is a label, not a term of art.
+        # Require an identifier shape: a separator, an internal capital, or more
+        # than one word.
+        if not (re.search(r"[_.\-]", t) or re.search(r"[a-z][A-Z]", t)
+                or " " in t or t[0].isupper()):
+            continue
+        terms.setdefault(t, 0)
+    for m in re.finditer(r"(?<![.!?]\s)(?<!^)\b((?:[A-Z][a-z]{2,}\s){1,3}[A-Z][a-z]{2,})\b",
+                         body, flags=re.M):
+        terms.setdefault(m.group(1).strip(), 0)
+    for t in list(terms):
+        terms[t] = len(re.findall(r"\b" + re.escape(t) + r"\b", body))
+        if terms[t] < 3:
+            del terms[t]
+    return terms
+
+
+def analyze_exposition(path, lines, tags, body):
+    """Does the piece model what its reader knows?
+
+    These findings are about the gap between the writer's context and the
+    reader's. A model writes from its context window, which holds the repo, the
+    prior conversation and the internal docs, and nothing in that loop marks
+    which parts the reader was present for.
+    """
+    out = []
+    words = word_count(body)
+    if words < th("unearned-prior-reference", "min_words", 250):
+        return out
+
+    prose_idx = [i for i, t in enumerate(tags) if t == "prose" and lines[i].strip()]
+    if not prose_idx:
+        return out
+    early_cut = prose_idx[max(0, int(len(prose_idx) * 0.3)) - 1] if prose_idx else 0
+
+    # ---- prior reference with nothing prior. Scoped to the opening third,
+    # where by construction the document has not yet established anything.
+    hits = []
+    for i in prose_idx:
+        if i > early_cut:
+            break
+        low_l = lines[i].lower()
+        if any(f in low_l for f in PRIOR_REFERENCE) or VERSION_REFERENCE.search(lines[i]):
+            hits.append((i + 1, lines[i].strip()[:90]))
+    if hits:
+        out.append(finding(
+            path, hits[0][0], f"{len(hits)} back-reference(s) in the opening third, "
+                              f"e.g. \"{hits[0][1]}\"",
+            "unearned-prior-reference", "high",
+            "The piece points at a history the reader was not present for. A model "
+            "writes from its context window, which holds the previous versions, the "
+            "internal thread and the repo, and nothing in that loop marks which of it "
+            "the reader has seen.",
+            "Either establish the prior thing in one sentence before you improve on it, "
+            "or cut the comparison and state what the current thing does. \"Faster than "
+            "our v2 pipeline\" means nothing to someone who never saw v2; \"processes "
+            "40k invoices an hour\" means something to everyone.",
+            family="form"))
+
+    # ---- repo artifacts in outward prose
+    toks = REPO_TOKEN.findall(body)
+    rate = len(toks) / words * 1000
+    if len(toks) >= th("repo-context-leak", "min_count", 4) \
+       and rate > th("repo-context-leak", "cue_per_1000w", 3.0):
+        ex = ", ".join(sorted(set(toks))[:4])
+        out.append(finding(
+            path, next((i + 1 for i in prose_idx if REPO_TOKEN.search(lines[i])), 1),
+            f"{len(toks)} repo artifacts in prose ({rate:.1f}/1000w): {ex}",
+            "repo-context-leak", "medium",
+            "File paths, function names, ticket ids and branch names outside a code "
+            "block, addressed to someone who does not have the repo open. The writer "
+            "had it open; the reader does not.",
+            "Name the thing by what it does, and put the identifier in a code block or "
+            "a link if it is genuinely needed. \"The scheduler\" beats "
+            "\"lib/fleet/conductor.ts\" in a sentence someone reads on a phone.",
+            family="form"))
+
+    # ---- terms used long before they are defined, or never defined
+    undefined = []
+    for term, n in sorted(candidate_terms(body).items(), key=lambda kv: -kv[1])[:12]:
+        uses = [m.start() for m in re.finditer(r"\b" + re.escape(term) + r"\b", body)]
+        if not uses:
+            continue
+        # Match across singular and plural: "Soft Leases" used, then "A Soft
+        # Lease is a lease that..." defining it, is a definition and not a miss.
+        stem = (re.escape(term[:-1]) + "s?") if term.endswith("s") \
+            else (re.escape(term) + "e?s?")
+        dm = re.search(r"\b" + stem + r"\b" + DEF_HINT, body, re.I) \
+            or re.search(r"\b(?:call(?:ed)?|known as|term|what we mean by)\b[^.]{0,24}"
+                         + stem, body, re.I)
+        first_use = body[:uses[0]].count("\n")
+        if dm is None:
+            undefined.append((term, n, first_use, None))
+        else:
+            first_def = body[:dm.start()].count("\n")
+            gap = first_def - first_use
+            if gap > th("definition-after-use", "max_gap_lines", 12):
+                undefined.append((term, n, first_use, gap))
+    never = [u for u in undefined if u[3] is None]
+    late = [u for u in undefined if u[3] is not None]
+    if len(undefined) >= th("definition-after-use", "min_terms", 2):
+        detail = "; ".join(
+            f"{t} ({n}x, never defined)" if g is None else f"{t} ({n}x, defined {g} lines late)"
+            for t, n, _, g in undefined[:4])
+        out.append(finding(
+            path, 1, f"{len(never)} term(s) never defined, {len(late)} defined after "
+                     f"first use: {detail}",
+            "definition-after-use", "high" if never else "medium",
+            "Terms of art arriving before the reader has anything to attach them to. "
+            "The writer already holds the concept, so the sentence reads fine to them "
+            "and reads as noise to everyone else. This is the curse of knowledge with a "
+            "context window behind it.",
+            "Define a term at or before its first load-bearing use, in the sentence that "
+            "uses it: an appositive is usually enough. Introduce one new idea at a time "
+            "and let each one earn the next. If a term appears three times and you never "
+            "define it, either define it or stop using it.",
+            family="form"))
+
+    # ---- announced structure
+    sign = [(i + 1, lines[i].strip()[:80]) for i in prose_idx if SIGNPOST.search(lines[i])]
+    if len(sign) >= th("signposting-without-structure", "min_count", 3):
+        out.append(finding(
+            path, sign[0][0], f"{len(sign)} meta-navigation sentences, e.g. "
+                              f"\"{sign[0][1]}\"",
+            "signposting-without-structure", "medium",
+            "The shape of an argument announced rather than enacted. \"First we'll "
+            "explore, then we'll examine, finally we'll conclude\" is an outline read "
+            "aloud, and it costs the reader a paragraph before anything is said.",
+            "Delete the announcements and let the headings and the prose do the work. If "
+            "a transition is genuinely needed, make it carry information: say what "
+            "changed, not that a section is beginning.",
+            family="shape"))
+    return out
 
 # --------------------------------------------------------- web build signals
 

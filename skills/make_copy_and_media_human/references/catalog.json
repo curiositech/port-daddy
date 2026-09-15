@@ -2330,18 +2330,18 @@
       "medium": "prose",
       "family": "rhythm",
       "detection_type": "structural",
-      "severity": "medium",
+      "severity": "low",
       "thresholds": {
-        "min_paragraphs": 6,
-        "cue_cv": 0.35
+        "min_paragraphs": 8,
+        "cue_cv": 0.25
       },
       "description": "Every paragraph is roughly the same length, usually three to four sentences.",
       "detection": "Coefficient of variation of paragraph length in sentences. Human documents have a one-line paragraph somewhere, and a long one.",
-      "why_it_reads_ai": "The model paragraphs on a rhythm rather than on a thought. People break where the idea breaks, which is irregular.",
+      "why_it_reads_ai": "People break a paragraph where the idea breaks, which is irregular. A model breaks on a rhythm. Unlike sentence-length variation, this has no published baseline behind it, so the threshold is a judgment call and the severity is capped to match what the evidence actually supports.",
       "fix": "Put a one-sentence paragraph where the argument turns. Let another run long.",
       "before": "Six consecutive paragraphs of exactly four sentences.",
       "after": "Four sentences, then one, then seven, then two.",
-      "false_positive_when": "Some house styles and most news writing enforce short even paragraphs deliberately.",
+      "false_positive_when": "News writing, house styles that cap paragraph length, and documentation all enforce evenness deliberately. A six-paragraph document has too few samples for a variance claim at all, which is why this needs eight.",
       "currency": "current"
     },
     {
@@ -3029,6 +3029,84 @@
       "false_positive_when": "Third-party widgets sometimes require a high value to sit above host content, and a documented single high value is not escalation.",
       "currency": "current",
       "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "unearned-prior-reference",
+      "medium": "prose",
+      "severity": "high",
+      "thresholds": {
+        "min_words": 250
+      },
+      "description": "The piece points at a history the reader was never present for: 'building on our previous approach', 'unlike the v2 design', 'as we discussed', 'you'll recall'. The referent exists only in the writer's context, not on the page.",
+      "detection": "A closed set of deictic and anaphoric frames, scoped to the opening third of the document, where by construction nothing has been established yet. Closed grammatical forms measured positionally, not a topic list.",
+      "why_it_reads_ai": "A model writes from its context window. That window holds the previous versions, the internal thread and the repo, and nothing in the loop marks which of it the reader has seen. The sentence reads fine to everyone who was in the room and as noise to everyone who was not.",
+      "fix": "Either establish the prior thing in one sentence before you improve on it, or cut the comparison and state what the current thing does. 'Faster than our v2 pipeline' means nothing to someone who never saw v2; 'processes forty thousand invoices an hour' means something to everyone. The test: could a reader who arrived from a search result follow this sentence?",
+      "before": "Building on our previous approach, Quantum Lane is a significant step forward from the v2 pipeline.",
+      "after": "Our scheduler used to hand the same job to two workers about once every forty thousand runs. Quantum Lane is the fix.",
+      "false_positive_when": "Part three of a numbered series, an internal memo, release notes for existing users, and any piece that links the prior thing in the same sentence. The tell is an unlinked, unexplained back-reference in something addressed to newcomers.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "family": "form"
+    },
+    {
+      "name": "repo-context-leak",
+      "medium": "prose",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 4,
+        "cue_per_1000w": 3.0
+      },
+      "description": "File paths, function names, ticket ids and branch names in prose meant for someone who does not have the repository open.",
+      "detection": "Density of repo-shaped tokens outside code fences: path/like/this.ext, snake_case(), ABC-123, feat/branch-name. Countable, and specific to prose regions.",
+      "why_it_reads_ai": "The writer had the repo open and the model had it in context. Neither noticed that an identifier is a pointer into a workspace the reader cannot see.",
+      "fix": "Name the thing by what it does, and move the identifier into a code block or a link if it is genuinely needed. 'The scheduler' beats 'lib/fleet/conductor.ts' in a sentence someone reads on a phone. Ticket ids almost never belong in outward-facing prose at all.",
+      "before": "This removes the contention we saw in lib/fleet/conductor.ts, which PD-4471 tracked.",
+      "after": "This removes the contention in the scheduler, which we had been chasing since March.",
+      "false_positive_when": "Engineering blog posts written for contributors, internal docs, changelogs, and any piece whose subject IS the codebase. Scope this to outward-facing writing.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "family": "form"
+    },
+    {
+      "name": "definition-after-use",
+      "medium": "prose",
+      "severity": "high",
+      "thresholds": {
+        "min_terms": 2,
+        "max_gap_lines": 12
+      },
+      "description": "Terms of art used before they are defined, or never defined at all. The reader meets a concept with nothing to attach it to.",
+      "detection": "For each candidate term of art appearing three or more times, compare the line of first use against the line of the first definitional frame ('X is a', 'X refers to', 'X, which is', 'we call this X'). Flag terms defined well after first use, and terms never defined. Matching spans singular and plural, so a piece that uses 'Soft Leases' and defines 'A Soft Lease' counts as defined.",
+      "why_it_reads_ai": "The curse of knowledge with a context window behind it. The writer already holds the concept, so the sentence reads fine to them; the model holds it too, because it was in the prompt. Nothing in the loop represents a reader who does not.",
+      "fix": "Define a term at or before its first load-bearing use, usually with an appositive in the same sentence. Introduce one new idea at a time and let each earn the next. If a term appears three times and is never defined, either define it or stop using it. Read the piece imagining a competent stranger: the first place you would have to stop and look something up is the place to fix.",
+      "before": "Quantum Lane sits between the Drift Broker and the Lane Coordinator.",
+      "after": "Jobs are handed out by a scheduler we call the Lane Coordinator, which takes work from a queue (the Drift Broker) and decides who may run it.",
+      "false_positive_when": "Writing for a named expert audience, reference documentation with a stated prerequisite page, and terms defined in a glossary the piece links. Also common nouns that merely happen to be capitalised in a product context.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "family": "form"
+    },
+    {
+      "name": "signposting-without-structure",
+      "medium": "structure",
+      "severity": "medium",
+      "family": "shape",
+      "thresholds": {
+        "min_count": 3
+      },
+      "description": "Meta-navigation substituted for structure: 'First we'll explore... Next we'll examine... Finally we'll conclude.' The outline is read aloud instead of being enacted.",
+      "detection": "Count sentences matching an ordinal plus a first-person-plural intention verb plus an exploration verb. A closed frame set, not a topic list.",
+      "why_it_reads_ai": "The model was given an outline and emits it as prose, because announcing a structure is cheaper than building one. It costs the reader a paragraph before anything is said, and it promises a shape the piece often does not deliver.",
+      "fix": "Delete the announcements and let headings and prose do the work. Where a transition is genuinely needed, make it carry information: say what changed or what the last section established, not that a new section is beginning.",
+      "before": "First, we'll explore the architecture. Next, we will examine performance. Finally, we'll look at what comes next.",
+      "after": "The fix had two halves, and the second one is the interesting part.",
+      "false_positive_when": "Tutorials and long reference documents legitimately tell the reader what the path looks like, and a single roadmap paragraph in a long piece is a kindness. Three or more is the signal.",
+      "currency": "current",
       "dialect": "generic-llm",
       "detection_type": "structural"
     }
