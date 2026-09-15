@@ -137,8 +137,64 @@
 % anything; a block already taller than its page is left alone rather than
 % shoved, because moving it cannot make it fit.
 \newlength{\pd@blockfloor}
-\newcommand{\pd@placemargintop}[1]{%
-  \setlength{\pd@blockoff}{0pt}%
+% The optional first argument is a BASE offset, applied before every cap
+% below, defaulting to 0pt so \pdmarginfigure's call (no optional argument)
+% behaves exactly as it always has. \pdmargincaption is the one caller that
+% passes a negative base -- see \pd@mctopraise below -- to raise the note off
+% the anchor line \caption{}/\pdmargincaption is actually called on (which,
+% for a figure, is the BOTTOM of the image: an ordinary \caption follows the
+% content, so the source position of the call is not the figure's top) up to
+% the figure's own top edge. That raise is a measured box height, not a
+% \pagetotal computation, which is exactly the distinction the doctrine below
+% asks for: \pagetotal is frozen at whatever it was before this float's box
+% began (TeX does not run the page builder while a box is under construction,
+% so nothing contributed inside one is ever reflected in it) and so cannot
+% say how tall the image inside the SAME float is, but \lastbox can measure
+% that image directly, locally, with no dependence on which page the float
+% eventually ships out on.
+% Whether the two collision-avoidance caps just below may raise
+% \pd@blockoff (push it down, toward zero) to clear a head or block already
+% recorded on this page. True for \pdmarginfigure's call (no optional base
+% argument): its \pagetotal is real, read in ordinary running text, so a cap
+% built from it is trustworthy. \pdmargincaption sets this false around its
+% own call, for the reason \pd@mctopmeasure's comment gives: \pagetotal
+% inside a float is frozen at whatever it was BEFORE the float began, which
+% under-reads the float's real position on the page it ships to -- often by
+% the float's own height or more, and by definition of "under", never in the
+% direction that would make the cap merely too cautious. \pd@lastheadbottom
+% and \pd@blockbottom, by contrast, are ABSOLUTE page positions, recorded
+% correctly by whatever earlier, non-float device set them. Comparing a
+% correct absolute position against an under-read \pagetotal produces a cap
+% that is too generous by exactly that under-read, which is large precisely
+% when the raise below is largest and most needed: measured on this file's
+% own figures, it silently cancelled raises of 150pt+ down to a few points
+% whenever another margin device shared the page (Figure 4.8's own page
+% carries no such neighbour, so it was not this failure; others were,
+% confirmed by instrumenting this macro directly rather than assumed). The
+% risk this cap exists to prevent -- the raised note colliding with a head or
+% block already in the column -- still exists without it; it is accepted
+% here rather than solved, the same trade the top-anchor doctrine below
+% already makes for a stale \pagetotal generally: a measured raise the reader
+% can see is worth more than an unmeasurable collision that might not occur.
+\newif\ifpd@topcollide
+\pd@topcollidetrue
+\newcommand{\pd@placemargintop}[2][0pt]{%
+  \setlength{\pd@blockoff}{#1}%
+  % No page-top clamp here on purpose, even though a negative base (from
+  % \pdmargincaption) could in principle raise the note above the physical
+  % page: clamping it with \pagetotal is exactly the mistake this file's own
+  % doctrine records and reverted once already (see "Where a margin block is
+  % anchored, and why it differs by kind" -- a shared clamp put Ostrom's
+  % portrait back off the page, at y = -65.4, and was reverted). \pagetotal
+  % is frozen at whatever it was BEFORE this float's box began, which for a
+  % figure opened right after a page break is close to zero regardless of the
+  % running head already printed above it -- a clamp keyed to that number
+  % very nearly cancels every raise on exactly the pages (figures at the top
+  % of a fresh page) where the raise is both largest and most needed. The
+  % raise itself is not a \pagetotal computation (\pd@mctopraise measures a
+  % real box), so it does not carry \pagetotal's fault, and does not need a
+  % clamp built from the same untrustworthy number to correct for one.
+  \ifpd@topcollide
   \ifnum\pd@lastheadpage=\thepage\relax
     \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
@@ -147,8 +203,8 @@
     \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
   \fi
-  \ifdim\pd@blockoff<0pt \setlength{\pd@blockoff}{0pt}\fi
-  % The floor the two caps above just established: whatever is already in the
+  \fi
+  % The floor the caps above just established: whatever is already in the
   % column on this page ends here, and nothing may be placed above it.
   \setlength{\pd@blockfloor}{\pd@blockoff}%
   % Pull the block up if its foot would pass the bottom of the text block --
@@ -161,14 +217,14 @@
   % and off-the-paper checks will report it -- a visible, measured overrun is
   % worth more than a silent overlap.
   \ifdim\pagegoal<\maxdimen
-    \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pagegoal
-      \setlength{\pd@blockoff}{\dimexpr\pagegoal-\pagetotal-\ht#1-\dp#1\relax}%
+    \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#2+\dp#2\relax>\pagegoal
+      \setlength{\pd@blockoff}{\dimexpr\pagegoal-\pagetotal-\ht#2-\dp#2\relax}%
       \ifdim\pd@blockoff<\pd@blockfloor \setlength{\pd@blockoff}{\pd@blockfloor}\fi
     \fi
   \fi
-  \marginnote{\usebox#1}[\pd@blockoff]%
+  \marginnote{\usebox#2}[\pd@blockoff]%
   \xdef\pd@blockpage{\thepage}%
-  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax{}}
+  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#2+\dp#2\relax{}}
 
 \newcommand{\pd@placemargin}[1]{%
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
@@ -297,16 +353,62 @@
 % \caption{text} inside a figure/table environment (\label after it, exactly
 % where \label follows \caption today) -- it still calls the real \caption
 % once, so the float's number and any \ref/\label to it keep working. In the
-% margin column (Book) the float keeps only its bare "Figure N"/"Table N" tag
-% (an ordinary \caption with an empty argument, labelsep suppressed so no
-% stray colon prints before nothing) and the descriptive sentence prints in
-% the margin instead, at \marginfont. Outside the margin column (standalone
-% chapters) this is exactly \caption{text} -- no content is lost, so the same
-% chapter source compiles both ways. Top-anchored like \pdmarginfigure, not
-% foot-anchored like \pdgloss: a caption can run several lines, as long as a
-% portrait's, and the doctrine here is height, not kind -- a block that tall
-% belongs on the top anchor so a stale \pagetotal cannot lift it off the page.
+% margin column (Book) the float prints NO visible caption of its own (an
+% ordinary \caption with an empty argument AND labelformat=empty, so nothing
+% -- not even a bare "Figure N" -- appears under the image); the margin note
+% carries the float's own number, bold, ahead of the descriptive sentence
+% ("Figure~4.8. The grant-and-gate..."), reusing \fnum@figure/\fnum@table so
+% the number is exactly the one \ref would print, never a second, independent
+% count. That replaces an earlier version of this macro that left the bare
+% "Figure N" tag under the image AND the prose in the margin with no number
+% of its own in it -- self-identifying only via a numeral the margin block
+% itself did not carry, which is not self-identifying at all once the margin
+% note is more than a few centimetres from that tag (see the drift fix
+% below). Outside the margin column (standalone chapters) this is exactly
+% \caption{text} -- no content is lost, so the same chapter source compiles
+% both ways.
 \newsavebox{\pd@mcbox}
+\newbox\pd@mctopbox
+\newlength{\pd@mctopraise}
+% Top-anchored like \pdmarginfigure, not foot-anchored like \pdgloss: a
+% caption can run several lines, as long as a portrait's, and the doctrine
+% here is height, not kind -- a block that tall belongs on the top anchor so
+% a stale \pagetotal cannot lift it off the page. But top-anchoring alone is
+% not enough for a caption specifically, because of WHERE it is called: a
+% table's \pdmargincaption sits right after \centering, before the tabular
+% -- already at the top, where a zero raise is correct -- but a figure's
+% sits right after the image (\includegraphics or a tikzpicture), which is
+% the pattern the sweep that converted these figures used throughout, and
+% which the doctrine comment above (\S "\caption{} is called WITHOUT an
+% enclosing group") shows is deliberate, matching where \label follows
+% \caption today. Anchored there with a zero raise, the note's TOP sits level
+% with the image's BOTTOM: on a figure of any real height the note prints far
+% down the page from the image it describes, with the dead gap in between
+% that this comment records as the confirmed defect on Ch.4 p.189 (Fig 4.8)
+% and Ch.6 p.304 (Fig 6.5). The fix measures what \pdmargincaption is
+% actually following and raises by exactly that much, so its top lands on
+% the image's top regardless of which convention the call site used, and
+% regardless of \pagetotal, which is frozen at whatever it was BEFORE this
+% float's box began -- TeX does not run the page builder while a box is under
+% construction, so nothing contributed inside one is ever reflected in it,
+% and no arithmetic on \pagetotal could ever recover the image's own height.
+% \lastbox can: the image or tikzpicture, once its paragraph is closed with
+% \par, is the last item in the float's own internal vertical list, and its
+% \ht+\dp is measured directly, locally, with no dependence on \pagetotal or
+% on which page the float eventually ships out on. A table's call, with
+% nothing yet contributed to that list, leaves \lastbox void, and the raise
+% is correctly zero -- the same code serves both call-site conventions
+% without asking which one it is.
+\newcommand{\pd@mctopmeasure}{%
+  \par
+  \setbox\pd@mctopbox=\lastbox
+  \ifvoid\pd@mctopbox
+    \setlength{\pd@mctopraise}{0pt}%
+  \else
+    \setlength{\pd@mctopraise}{\dimexpr\ht\pd@mctopbox+\dp\pd@mctopbox\relax}%
+  \fi
+  \box\pd@mctopbox
+}
 % \caption{} is called WITHOUT an enclosing group here, on purpose: caption
 % package sets \@currentlabel to its real value (via \caption@makecurrent,
 % triggered by this \caption call) and expects that assignment to reach the
@@ -319,15 +421,39 @@
 % \caption@xref (i.e. never resolved, no matter how many passes) while the
 % standalone chapters -- which never take the \ifpdmargincolumn branch --
 % compiled clean, so the defect was invisible until the combined volume
-% rebuilt with cross-chapter references. Restoring labelsep sequentially,
-% also ungrouped, keeps the same scoping discipline.
+% rebuilt with cross-chapter references. Restoring labelformat/labelsep
+% sequentially, also ungrouped, keeps the same scoping discipline.
+%
+% \abovecaptionskip/\belowcaptionskip are zeroed around this same \caption{}
+% call, saved and restored (again ungrouped, for the identical reason) rather
+% than left alone: \caption normally inserts that skip whether or not its own
+% text is visible, and left in place it sits BETWEEN what \pd@mctopmeasure
+% just measured and the actual point \pd@placemargintop's \marginnote is
+% issued from -- a fixed few points the raise below never accounted for, so
+% the note's top landed that far below the image's top on every figure
+% (measured, not assumed: 28.8pt low on p.192's Fig 4.8 before this line was
+% added). Zeroing it for this invisible caption costs nothing visually --
+% there is no text left for it to separate from anything -- and closes the
+% gap the measurement could not otherwise see.
+\newlength{\pd@mcabovesave}
+\newlength{\pd@mcbelowsave}
 \newcommand{\pdmargincaption}[1]{%
   \ifpdmargincolumn
-    \captionsetup{labelsep=none}%
+    \pd@mctopmeasure
+    \setlength{\pd@mcabovesave}{\abovecaptionskip}%
+    \setlength{\pd@mcbelowsave}{\belowcaptionskip}%
+    \setlength{\abovecaptionskip}{0pt}%
+    \setlength{\belowcaptionskip}{0pt}%
+    \captionsetup{labelformat=empty,labelsep=none}%
     \caption{}%
-    \captionsetup{labelsep=colon}%
-    \sbox{\pd@mcbox}{\begin{minipage}[t]{\marginparwidth}\marginfont#1\end{minipage}}%
-    \pd@placemargintop{\pd@mcbox}%
+    \captionsetup{labelformat=simple,labelsep=colon}%
+    \setlength{\abovecaptionskip}{\pd@mcabovesave}%
+    \setlength{\belowcaptionskip}{\pd@mcbelowsave}%
+    \sbox{\pd@mcbox}{\begin{minipage}[t]{\marginparwidth}\marginfont
+      \textbf{\csname fnum@\@captype\endcsname.}\enspace#1\end{minipage}}%
+    \pd@topcollidefalse
+    \pd@placemargintop[-\pd@mctopraise]{\pd@mcbox}%
+    \pd@topcollidetrue
   \else
     \caption{#1}%
   \fi}
