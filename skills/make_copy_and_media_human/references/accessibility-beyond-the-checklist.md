@@ -19,6 +19,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `accessibility-overlay-installed`  ·  high · generic-llm · web-ui · structural · family: residue · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 A third-party widget added in place of fixing anything: a person-in-a-circle button in the corner offering font size, contrast and "screen reader mode" controls that the user's actual assistive technology already provides better. Its presence is a RECEIPT — the accessibility problem was recognised and then outsourced to a script rather than fixed.
 
 **Why it reads AI:** Not model-generated, but strongly correlated with the same posture, and it belongs here for the same reason unmodified design tokens do: it is evidence about PROCESS, not about authorship. An overlay is what "make this site accessible" looks like when the answer is procurement rather than engineering — the same substitution a generated aria-label on a div makes at the code level. On a generated site the pairing is common and diagnostic: cargo-culted ARIA in the markup, an overlay in the head.
@@ -41,6 +43,8 @@ A third-party widget added in place of fixing anything: a person-in-a-circle but
 
 ### `accessible-name-does-not-match-the-visible-label`  ·  high · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 The button says "Get started". Its aria-label says "Navigate to signup page". A voice-control user says "click Get started" and nothing happens, because the name the machine knows is not the name on the screen. WCAG 2.2 SC 2.5.3, and the single most overlooked criterion in generated code because everyone assumes aria-label can only help.
 
 **Why it reads AI:** Partly model-flavoured. A model asked to improve accessibility adds descriptive labels that read beautifully in source and silently break speech input. The failure is caused BY the accessibility effort, which is this lane's signature shape.
@@ -60,6 +64,8 @@ The button says "Get started". Its aria-label says "Navigate to signup page". A 
 > <button>Create account</button> — or aria-label="Create account — free, no card required"
 
 ### `background-not-inert-behind-the-overlay`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The modal is open, focus is trapped correctly, and the content behind it is still in the accessibility tree. A screen reader user in browse mode — arrow keys, not Tab — walks straight out of the dialog into the page underneath with no indication they have left.
 
@@ -101,6 +107,8 @@ The container and its text arrive in the DOM in the same tick, so the screen rea
 
 ### `focus-never-enters-the-dialog`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A modal opens visually and focus stays behind it on the trigger, so Tab then walks the page UNDERNEATH the overlay. Distinct from escape-and-focus-declared-not-wired, which is declared behaviour failing at runtime; this is behaviour that was never declared.
 
 **Why it reads AI:** Model-flavoured enough to say so, on a clean panel design: across roughly three thousand driven trials, 24% of generated modals put focus inside on a bare prompt, rising to 66% with explicit guidance; only 12% fully held focus, rising to 64% guided. Per-model leak rates on bare prompts ran from 7% to 33%.
@@ -120,6 +128,8 @@ A modal opens visually and focus stays behind it on the trigger, so Tab then wal
 > <dialog ref={ref}> opened with ref.current.showModal()
 
 ### `focus-not-restored-on-dismiss`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The dialog, drawer, menu or command palette closes and focus is dropped to the body. The keyboard user is teleported to the top of the page and has to Tab back. Sighted keyboard users describe this as the most disorienting bug in modern web apps, and it is invisible in a screenshot.
 
@@ -141,6 +151,8 @@ The dialog, drawer, menu or command palette closes and focus is dropped to the b
 
 ### `focus-obscured-by-sticky-chrome`  ·  high · generic-llm · layout · rendered · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Tab down the page and the focus ring slides under the sticky header, the sticky footer CTA or the consent banner. The focused control is entirely hidden and the keyboard user is operating something they cannot see. WCAG 2.2 SC 2.4.11 exists for exactly this, it is new enough that almost nothing implements it, and no automated engine can measure it.
 
 **Why it reads AI:** Unreviewed. Sticky headers are the default generated page furniture and nobody Tabs past them. Worth noting the compound: sticky header plus smooth scrolling plus in-page anchors is the standard generated one-pager, and all three interact badly here.
@@ -160,6 +172,8 @@ Tab down the page and the focus ring slides under the sticky header, the sticky 
 > :root { scroll-padding-top: 5rem } — then confirm by Tabbing, because a hard-coded value drifts when the header grows
 
 ### `focus-order-diverges-from-reading-order`  ·  high · generic-llm · layout · rendered · family: defect · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Tab order does not follow the order things are read. Two causes, and only one is greppable: a positive tabindex, or — far more common in generated code — CSS that visually reorders content while DOM order stays as written.
 
@@ -181,6 +195,8 @@ Tab order does not follow the order things are read. Two causes, and only one is
 
 ### `form-errors-visible-but-never-spoken`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Submit fails. Red text appears under three fields, and to a screen reader user nothing happened — the button just did not work. No error summary, no focus move, no live region, no aria-invalid.
 
 **Why it reads AI:** Unreviewed. Generated validation reliably produces a conditional red span: visually complete, semantically inert. Note the compound — this plus conditionally-rendered-live-region is the standard generated form, and each makes the other invisible.
@@ -200,6 +216,8 @@ Submit fails. Red text appears under three fields, and to a screen reader user n
 > a focusable error summary listing "There are 3 problems" with links to each field, plus aria-invalid and aria-describedby on the controls
 
 ### `heading-levels-chosen-for-size`  ·  high · generic-llm · structure · structural · family: defect · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 Headings picked by how big they should look — an h3 for the section title because h2 was too large, a bold div where a heading belonged. The visual page has a structure; the NAVIGABLE page does not. This matters more than almost anything else here, because 71.6% of screen reader users navigate long pages by headings as their primary method, against 3.7% for landmarks.
 
@@ -221,6 +239,8 @@ Headings picked by how big they should look — an h3 for the section title beca
 
 ### `promised-role-with-no-behaviour`  ·  high · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 role="tablist" on a div with no arrow-key handling. role="switch" with no aria-checked that ever changes. role="menu" on a list of plain links. The role is a PROMISE to assistive technology about how the widget will behave; the promise is broken, and the user is worse off than if it had never been made, because their screen reader has switched them into an interaction mode the widget does not support.
 
 **Why it reads AI:** Model-flavoured, and the mechanism behind the ARIA-correlates-with-errors finding. A generator that has read the authoring practices produces the role vocabulary fluently and the interaction code sporadically. The APG's own framing: unlike HTML elements, ARIA roles do not cause browsers to provide keyboard behaviour, and failing the promise is like making a "Place Order" button that empties the cart.
@@ -240,6 +260,8 @@ role="tablist" on a div with no arrow-key handling. role="switch" with no aria-c
 > a maintained tabs primitive, or a disclosure pattern of <button aria-expanded> plus panels — which is simpler and often the right answer anyway
 
 ### `reflow-failure-at-320-css-pixels`  ·  high · generic-llm · layout · rendered · family: defect · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 At 400% browser zoom on a 1280px window — equivalently a 320 CSS pixel viewport — the page needs scrolling in two directions to read a line of text. The catalog's framework-look-without-responsive covers the no-responsive-CSS-at-all case; this is the case where breakpoints exist and stop at 375px.
 
@@ -261,6 +283,8 @@ At 400% browser zoom on a 1280px window — equivalently a 320 CSS pixel viewpor
 
 ### `spa-route-change-focus-lost`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Client-side navigation swaps the view; focus stays on the link that was clicked or is dumped to the body, the document title does not change, and nothing is announced. To a screen reader user the page did not navigate — it went quiet.
 
 **Why it reads AI:** Unreviewed, and a framework gap rather than a model one — client-side routing has had this hole since 2014. It earns its place because generated apps are overwhelmingly SPAs by default, so the BASE RATE in generated work is near total while hand-built work at least sometimes noticed.
@@ -280,6 +304,8 @@ Client-side navigation swaps the view; focus stays on the link that was clicked 
 > a route announcer in the layout that sets document.title and focuses the main heading on pathname change
 
 ### `toast-carries-a-control-a-screen-reader-cannot-reach`  ·  high · generic-llm · web-ui · structural · family: defect · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A toast with an Undo button, in a live region, auto-dismissing after four seconds. The screen reader announces the text as one flat string — the button's semantics are stripped and focus never goes there — and by the time the user has worked out what happened it is gone. The Undo is real for mouse users and imaginary for everyone else.
 
@@ -321,6 +347,8 @@ A generated accessibility page asserting conformance — "This site conforms to 
 
 ### `aria-label-cloaks-the-text-that-was-already-there`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 aria-label does not add; it REPLACES. A link whose visible text is a full, specific sentence given a short generic label means the screen reader user now gets a worse, vaguer link than the sighted user — and the author believed they were helping.
 
 **Why it reads AI:** Model-flavoured. The APG names the mechanism precisely — ARIA cloaks as readily as it enhances — and cloaking is what a generator does when it treats aria-label as a universal accessibility additive.
@@ -340,6 +368,8 @@ aria-label does not add; it REPLACES. A link whose visible text is a full, speci
 > <a href="/pricing">Compare all plans and find the one that fits your team</a>
 
 ### `aria-label-on-a-generic-element`  ·  medium · generic-llm · web-ui · structural · family: residue · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 aria-label on a bare div or span. The generic role is on ARIA's name-prohibited list, so depending on the screen reader the label is ignored entirely or announced as a spurious "group" — either nothing or noise. It never does the thing it looks like it does.
 
@@ -361,6 +391,8 @@ aria-label on a bare div or span. The generic role is on ARIA's name-prohibited 
 
 ### `aria-reference-that-resolves-to-nothing-at-runtime`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 aria-describedby pointing at a hint that is conditionally rendered and currently unmounted; aria-labelledby pointing at an id that was renamed; aria-controls pointing at a panel that only exists when open. The attribute is present, the audit tool sees it, and the reference dangles.
 
 **Why it reads AI:** Unreviewed, with a framework seam: conditional rendering plus id-based ARIA references is a structural mismatch that component frameworks make easy to write and impossible to verify by reading.
@@ -381,6 +413,8 @@ aria-describedby pointing at a hint that is conditionally rendered and currently
 
 ### `auto-advancing-content-with-no-pause`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 A hero carousel rotating every four seconds. An auto-scrolling logo marquee. A testimonial slider that moves while you are reading it. WCAG 2.2.2 is Level A, not AA: anything moving for more than five seconds must be pausable, stoppable or hideable. The pause control is missing far more often than the carousel is.
 
 **Why it reads AI:** Unreviewed. Autoplay is the library default and nobody turns it off. Note that a reduced-motion guard does NOT satisfy this — a user who has not set that preference still needs a control, and vestibular-safe is not the same requirement as attention-safe.
@@ -400,6 +434,8 @@ A hero carousel rotating every four seconds. An auto-scrolling logo marquee. A t
 > autoplay disabled while paused, plus <button aria-pressed={paused}>Pause slideshow</button>
 
 ### `automation-covers-a-third-of-this`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The frame for this whole lane, and the reason it exists. The most generous number any vendor publishes is Deque's own: axe-core surfaces 57.38% of issues BY VOLUME — high precisely because the things automation catches (missing alt, low contrast, unlabelled fields) are the most numerous. Measured by distinct success criteria a machine can fully verify, coverage is about 30%, roughly 15 of WCAG 2.1 AA's 50. Everything in this file sits in the other 70%.
 
@@ -423,6 +459,8 @@ The frame for this whole lane, and the reason it exists. The most generous numbe
 
 ### `data-rendered-as-divs-with-no-header-association`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 A table built from a CSS grid of divs, or a real table whose header row is data cells, or headers with no scope. A screen reader user reads "Acme, 4,200, Active" with no idea which column is which, and the ability to ask "what column am I in?" is gone. Also the CSS variant: a real table given display:grid or display:block for responsiveness, which strips its semantics in most browsers.
 
 **Why it reads AI:** Unreviewed. Utility-class grid is the path of least resistance, and a generator asked for "a clean data table" produces divs. Overlaps div-soup-no-semantics but is narrower and more consequential: a div nav is annoying, a div table is unreadable.
@@ -442,6 +480,8 @@ A table built from a CSS grid of divs, or a real table whose header row is data 
 > <table><thead><tr><th scope="col">Customer</th>…<tbody><tr><th scope="row">Acme</th><td>4,200</td>
 
 ### `drag-only-interaction`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Reorder-by-drag lists, kanban columns, a slider you can only drag, an image cropper, a slide-to-confirm. WCAG 2.2 SC 2.5.7 requires a single-pointer alternative — and note the trap: KEYBOARD ACCESS DOES NOT SATISFY IT. The criterion is about pointer users: someone with a head pointer, an eye tracker, a trackball, or one hand with a tremor, who can click but cannot drag. Teams that add keyboard support believe they are done and are not.
 
@@ -463,6 +503,8 @@ Reorder-by-drag lists, kanban columns, a slider you can only drag, an image crop
 
 ### `error-message-names-the-failure-not-the-remedy`  ·  medium · generic-llm · content · structural · family: form · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 "Invalid input." "Something went wrong." "Error: 422." The user is told they failed and not told what would succeed. WCAG 3.3.3 requires a suggestion when one is known. The highest-frequency cognitive-accessibility failure on the web, and entirely invisible to automated tooling, which can only confirm that SOME text appeared.
 
 **Why it reads AI:** Unreviewed, plus a library default: "Invalid input" is what schema validators emit unmodified, and generated forms ship the defaults. Worth flagging alongside the copy entries because it is a CONTENT failure disguised as an engineering one.
@@ -482,6 +524,8 @@ Reorder-by-drag lists, kanban columns, a slider you can only drag, an image crop
 > "Enter an email address in the format name@example.com"
 
 ### `escape-not-wired-on-the-inner-layer`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: accessibility
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Escape is handled once, at the outermost layer. Open a custom dropdown inside a modal, press Escape to close the dropdown, and the whole modal closes and the form is lost. The inverse also occurs: the inner layer swallows Escape and the modal can never be dismissed.
 
@@ -523,6 +567,8 @@ Focus is moved on open — to the dialog div itself, or a wrapper carrying tabin
 
 ### `forced-colors-mode-erases-the-interface`  ·  medium · generic-llm · color · rendered · family: defect · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 In forced-colors mode the OS overrides colours: gradient backgrounds vanish, box-shadow-only card boundaries disappear, SVG icons with hard-coded fills become invisible, a selected tab loses its only indicator, and focus rings drawn with box-shadow stop existing. The page becomes a wall of undifferentiated text.
 
 **Why it reads AI:** Unreviewed. Forced colors is invisible unless you are on the platform with the setting on, which nobody on the team is. Generated UI leans entirely on shadow and gradient for structure, which is precisely what forced colors strips.
@@ -543,6 +589,8 @@ In forced-colors mode the OS overrides colours: gradient backgrounds vanish, box
 
 ### `infinite-scroll-with-no-announcement-and-no-reachable-end`  ·  medium · generic-llm · layout · rendered · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Content loads on scroll. Nothing announces that more arrived. And because new content appends faster than a keyboard user can Tab, the footer — with the contact link, the privacy policy, the account settings — becomes permanently unreachable.
 
 **Why it reads AI:** Unreviewed. Infinite scroll is a product decision rather than a model one, but generated feeds default to it and never ship the load-more fallback.
@@ -562,6 +610,8 @@ Content loads on scroll. Nothing announces that more arrived. And because new co
 > <button>Load 20 more</button> plus a visually hidden status: "20 more items loaded, 60 of 340"
 
 ### `instructions-live-only-in-the-placeholder`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 The format rule exists only as placeholder text, which vanishes the moment the user starts typing — exactly when they need it. Distinct from input-without-label: here a real label DOES exist and the INSTRUCTIONS are the thing that disappears.
 
@@ -585,6 +635,8 @@ The format rule exists only as placeholder text, which vanishes the moment the u
 
 ### `landmarks-duplicated-and-unnamed`  ·  medium · generic-llm · structure · structural · family: defect · lane: accessibility
 
+**Automated here:** yes, these scripts implement it.
+
 Three <nav> elements — primary, breadcrumb, footer — all announcing as "navigation" with no name, so the landmarks list reads "navigation, navigation, navigation" and is useless. Adjacent and worse: content that sits outside every landmark and therefore cannot be reached by landmark navigation at all.
 
 **Why it reads AI:** Unreviewed — but there is a hard number. Measuring LLM-generated UI code, "all page content must be contained by landmarks" was violated an average of 894 times per base-model output, and "document should have one main landmark" 164 times. A documented, quantified property of generated markup.
@@ -604,6 +656,8 @@ Three <nav> elements — primary, breadcrumb, footer — all announcing as "navi
 > <nav aria-label="Main">, <nav aria-label="Breadcrumb">, <nav aria-label="Legal">
 
 ### `link-text-that-only-works-next-to-its-picture`  ·  medium · generic-llm · content · structural · family: shape · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 "Learn more" twelve times. "Read more" on every card. Screen reader users pull up a links list to scan a page; this page's links list is twelve identical entries. An automated engine will never flag it — the link has text, the text is non-empty, the rule passes.
 
@@ -627,6 +681,8 @@ Three <nav> elements — primary, breadcrumb, footer — all announcing as "navi
 
 ### `loading-state-with-no-status-role`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A spinner, a shimmer skeleton, or a disabled button with a rotating icon. Visually the page is obviously working; to a screen reader user they pressed a button and the page went silent for as long as the request takes. They will press it again.
 
 **Why it reads AI:** Unreviewed. Skeleton loaders are a visual-design convention that arrived with no accessibility convention attached, and generated code inherits the gap wholesale. Skeletons are the worst case: to a screen reader they are either nothing at all or a burst of meaningless empty list items.
@@ -646,6 +702,8 @@ A spinner, a shimmer skeleton, or a disabled button with a rotating icon. Visual
 > <div role="status"><span class="sr-only">Loading results</span><Spinner aria-hidden="true"/></div>
 
 ### `narrating-alt-text`  ·  medium · generic-llm · content · structural · family: form · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 Not MISSING alt — alt that is present, fluent, forty words long, and describes the picture instead of doing its job. Also the decorative variant: every image gets a lovingly generated description including the ones that are background texture and should carry an empty alt.
 
@@ -689,6 +747,8 @@ You toggle a facet, change a sort or type in a search box and the list updates. 
 
 ### `skip-link-that-moves-nothing`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The skip link exists, the anchor resolves, the page scrolls — and focus stays on the link. Press Tab and you are in the header nav you were trying to skip. The community name is the phantom jump.
 
 **Why it reads AI:** Unreviewed. Skip links are copied from templates more than any other accessibility construct, and the tabindex="-1" half gets lost in the copy.
@@ -708,6 +768,8 @@ The skip link exists, the anchor resolves, the page scrolls — and focus stays 
 > <main id="main" tabindex="-1">
 
 ### `text-spacing-override-breaks-the-layout`  ·  medium · generic-llm · layout · rendered · family: defect · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 A reader with dyslexia applies a stylesheet raising line height to 1.5, paragraph spacing to 2, letter spacing to 0.12em and word spacing to 0.16em — the WCAG 1.4.12 values. Buttons clip their own labels, card titles overlap the body, nav items collide. Nobody tests this, and it is a sixty-second check.
 
@@ -729,6 +791,8 @@ A reader with dyslexia applies a stylesheet raising line height to 1.5, paragrap
 
 ### `time-limit-with-no-warning-and-no-extension`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A session that expires and dumps the form. A checkout timer. A one-time-code window. WCAG 2.2.1 requires the user be able to turn off, adjust or extend the limit, with a warning of at least twenty seconds and a simple way to extend. A screen reader user, a switch user, or anyone reading slowly needs several times the design's assumed duration.
 
 **Why it reads AI:** Unreviewed. Session timeout is a security requirement implemented on a backend, and the warning UI is a frontend requirement nobody assigns.
@@ -748,6 +812,8 @@ A session that expires and dumps the form. A checkout timer. A one-time-code win
 > a warning at 13 minutes, focus into an alertdialog, a "Stay signed in" button, and form state persisted before any redirect
 
 ### `type-sized-in-viewport-units`  ·  medium · generic-llm · typography · structural · family: defect · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 Body text sized in viewport units, or a clamp whose preferred term is pure vw. Fluid type looks sophisticated and quietly opts the user out of controlling their own text size: at a fixed viewport, raising the browser's default font size does nothing.
 
@@ -769,6 +835,8 @@ Body text sized in viewport units, or a clamp whose preferred term is pure vw. F
 
 ### `validation-fires-on-every-keystroke`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Validation wired to a live region on every change, so typing an email address announces "Please enter a valid email address" after every character. The user cannot hear their own typing. This is the OVER-correction of silent errors and it is arguably worse, because it looks like the accessibility work was done.
 
 **Why it reads AI:** Unreviewed, with a model-flavoured seam: "validate as the user types" and "announce errors to screen readers" are two separately good instructions a generator satisfies independently and never reconciles.
@@ -789,6 +857,8 @@ Validation wired to a live region on every change, so typing an email address an
 
 ### `whole-card-wrapped-in-one-link`  ·  medium · generic-llm · layout · structural · family: defect · lane: accessibility
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 An anchor wrapping the entire card — image, heading, three lines of description, a tag list, a date and a "Learn more". The screen reader reads the whole lot as a single link name, then says "link". Multiply by twelve cards. The variant with a nested button inside the wrapping anchor is invalid HTML and behaves unpredictably.
 
 **Why it reads AI:** Unreviewed. Wrapping the card is the one-line way to make the whole thing clickable and it is what every generated card grid does.
@@ -808,6 +878,8 @@ An anchor wrapping the entire card — image, heading, three lines of descriptio
 > <article class="card relative"><img alt=""/><h3><a href="/post/1" class="after:absolute after:inset-0">…</a></h3><p>…</p></article>
 
 ### `redundant-role-on-a-semantic-element`  ·  low · generic-llm · web-ui · structural · family: residue · lane: accessibility
+
+**Automated here:** yes, these scripts implement it.
 
 <button role="button">, <nav role="navigation">, <main role="main">, <header role="banner">. Harmless in isolation and, as a population, the clearest possible fingerprint of ARIA added by someone who does not know what ARIA is for.
 

@@ -19,6 +19,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `checkout-without-guest-option`  ·  high · generic-llm · web-ui · structural · family: defect · lane: commerce
 
+**Automated here:** yes, these scripts implement it.
+
 Checkout requires an account. The visitor with a full cart hits a login wall and a "create password" field before they can give you money.
 
 **Why it reads AI:** Auth-gating a route is the default generated pattern for anything involving an order record, and guest checkout is an explicit exception someone has to ask for. The model optimises for a clean data model; Baymard measures the cost at roughly a fifth to a quarter of buyers.
@@ -38,6 +40,8 @@ Checkout requires an account. The visitor with a full cart hits a login wall and
 > a guest path collecting email and address; post-purchase "Create an account to track this order" with the fields already filled
 
 ### `decorative-site-search`  ·  high · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
+
+**Automated here:** yes, these scripts implement it.
 
 A search input in the header that submits nowhere, or submits to a page with no index behind it, so every query returns no results — including queries for text visible on the current page.
 
@@ -59,6 +63,8 @@ A search input in the header that submits nowhere, or submits to a page with no 
 
 ### `docs-search-indexes-nothing`  ·  high · generic-llm · docs · structural · family: defect · lane: docs
 
+**Automated here:** yes, these scripts implement it.
+
 The docs site has a search box in the navbar and no index behind it — either no search plugin is configured at all, or the Algolia block still contains placeholder credentials.
 
 **Why it reads AI:** Same family as decorative-site-search, and specific to docs because the theme ships the search UI whether or not you supply an index — so the generator gets a search box for free and never discovers it is hollow. Search is the primary navigation mode for docs; a hollow one is worse than none.
@@ -78,6 +84,8 @@ The docs site has a search box in the navbar and no index behind it — either n
 > themes: [['@easyops-cn/docusaurus-search-local', { hashed: true, indexBlog: false }]]
 
 ### `email-built-with-web-css`  ·  high · generic-llm · email · structural · family: defect · lane: email
+
+**Automated here:** yes, these scripts implement it.
 
 The HTML email is built like a web page — display:flex, CSS grid, div columns, padding on div and p, a style block rather than inline styles, border-radius, position — and collapses in Outlook's Word rendering engine.
 
@@ -101,6 +109,8 @@ The HTML email is built like a web page — display:flex, CSS grid, div columns,
 
 ### `email-unreadable-with-images-off`  ·  high · generic-llm · email · structural · family: defect · lane: email
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The headline, the offer, the price and the CTA are all inside images. With images blocked — the default in several clients and common in corporate environments — the email is a stack of empty boxes.
 
 **Why it reads AI:** Compounds with text-baked-into-image: the same instinct in a harsher medium, because email clients block images by default far more often than browsers do.
@@ -120,6 +130,8 @@ The headline, the offer, the price and the CTA are all inside images. With image
 > live h1, live price, a bulletproof button td; images carry atmosphere only, all with alt
 
 ### `hamburger-at-desktop-width`  ·  high · generic-llm · layout · structural · family: defect · lane: navigation-and-ia
+
+**Automated here:** yes, these scripts implement it.
 
 The full nav is collapsed behind a toggle at 1280px and above — either the reveal breakpoint was set too high, or only the mobile nav was ever built.
 
@@ -141,6 +153,8 @@ The full nav is collapsed behind a toggle at 1280px and above — either the rev
 
 ### `lang-frozen-on-locale-switch`  ·  high · generic-llm · web-ui · structural · family: defect · lane: i18n
 
+**Automated here:** yes, these scripts implement it.
+
 The site has a working language switcher, the content changes, and <html lang> stays "en" forever. Screen readers read Spanish with an English voice; the browser offers to translate Spanish into Spanish.
 
 **Why it reads AI:** Distinct from missing-html-lang: here the attribute is PRESENT AND WRONG, which no "is it there" check catches. The generator wires the visible half of i18n — the switcher, the strings — and not the half only assistive technology observes.
@@ -160,6 +174,8 @@ The site has a working language switcher, the content changes, and <html lang> s
 > <html lang="es" dir="ltr">
 
 ### `nav-without-active-state`  ·  high · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
+
+**Automated here:** yes, these scripts implement it.
 
 No current-page indicator anywhere: no aria-current, no active class, no visual difference between the page you are on and the nine you are not.
 
@@ -181,6 +197,8 @@ No current-page indicator anywhere: no aria-current, no active class, no visual 
 
 ### `receipt-generated-as-screenshot`  ·  high · generic-llm · print · structural · family: defect · lane: print
 
+**Automated here:** yes, these scripts implement it.
+
 The invoice, receipt, ticket or report PDF is a rasterised screenshot of a web page. No selectable text, no search, no copyable amount or reference number, unreadable to a screen reader, and two megabytes.
 
 **Why it reads AI:** "Generate a PDF of this page" retrieves a Puppeteer snippet, and screenshot() is the more prominent method. The output looks right in a viewer and is functionally dead — it cannot be pasted into accounting software, searched for an invoice number, or read aloud.
@@ -200,6 +218,8 @@ The invoice, receipt, ticket or report PDF is a rasterised screenshot of a web p
 > const pdf = await page.pdf({ format:'A4', printBackground:true, margin:{top:'15mm'} });
 
 ### `rtl-unsupported-physical-properties`  ·  high · generic-llm · layout · structural · family: defect · lane: i18n
+
+**Automated here:** yes, these scripts implement it.
 
 Arabic, Hebrew, Persian or Urdu is offered and the layout does not mirror: dir is never set, every spacing rule is physical (margin-left, padding-right, left:, text-align:left), and directional icons point the wrong way.
 
@@ -223,6 +243,8 @@ Arabic, Hebrew, Persian or Urdu is offered and the layout does not mirror: dir i
 
 ### `unsubscribe-absent-or-buried`  ·  high · generic-llm · email · structural · family: defect · lane: email
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A bulk or marketing send with no List-Unsubscribe header, or no in-body unsubscribe link, or one rendered at 8px in the same colour as the background under three paragraphs of legal text.
 
 **Why it reads AI:** Headers are a layer above the template that nothing in a visual loop touches, and provider quickstarts do not include them. Since June 2024 this is a deliverability failure as much as a legal one — Gmail and Yahoo made one-click unsubscribe a condition of bulk delivery.
@@ -245,6 +267,8 @@ A bulk or marketing send with no List-Unsubscribe header, or no in-body unsubscr
 
 ### `breadcrumb-without-real-hierarchy`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A breadcrumb trail that does not describe the site's structure: Home > Page on a flat site, or a fabricated Home > Products > Category > Item where the URL is /p/sku-1234 and no category page exists.
 
 **Why it reads AI:** Breadcrumbs are a recognisable professional-site component, and the generator emits the component plus plausible-looking ancestors without a hierarchy to read them from. Fabricating a middle crumb that resolves to nothing is the same failure as a fabricated citation.
@@ -265,6 +289,8 @@ A breadcrumb trail that does not describe the site's structure: Home > Page on a
 
 ### `chrome-sized-to-english`  ·  medium · generic-llm · layout · structural · family: defect · lane: i18n
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Nav items, buttons, table headers, form labels and card titles sized for the English string. German (30–40% longer), Finnish or Russian arrives and the text clips, wraps into the element below, or triggers an ellipsis that eats the meaning.
 
 **Why it reads AI:** Every layout is tuned against exactly one string set. This is also a WCAG 1.4.10 Reflow risk independent of translation, because 400% zoom produces the same overflow — so it fails for a monolingual low-vision user too.
@@ -284,6 +310,8 @@ Nav items, buttons, table headers, form labels and card titles sized for the Eng
 > .nav a{min-width:96px;white-space:normal;overflow-wrap:break-word}
 
 ### `code-sample-not-runnable`  ·  medium · generic-llm · docs · structural · family: defect · lane: docs
+
+**Automated here:** yes, these scripts implement it.
 
 Code blocks the reader cannot use: no language tag, elisions like "// ... rest of your code", unexplained <YOUR_API_KEY>, shell blocks with a leading $ on every line that the copy button then copies, and no complete example anywhere.
 
@@ -307,6 +335,8 @@ Code blocks the reader cannot use: no language tag, elisions like "// ... rest o
 
 ### `dark-mode-inverts-the-logo-away`  ·  medium · generic-llm · email · structural · family: defect · lane: email
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A dark, transparent-background logo on a #ffffff email body. The client inverts the background to near-black, the logo does not invert, and the brand mark disappears — or a dark-mode override turns the whole template into an unreadable mid-grey.
 
 **Why it reads AI:** Dark mode in email is client-specific, partially undocumented and impossible to observe without opening the message in each client. It is the most "you had to be there" defect in this lane.
@@ -326,6 +356,8 @@ A dark, transparent-background logo on a #ffffff email body. The client inverts 
 > logo with a light plate + color-scheme meta + a prefers-color-scheme block + [data-ogsc] overrides
 
 ### `docs-generator-defaults-unmodified`  ·  medium · generic-llm · docs · structural · family: residue · lane: docs
+
+**Automated here:** yes, these scripts implement it.
 
 The docs site is a create-docusaurus, Mintlify or Nextra starter with the content swapped and nothing else: scaffold primary colour, scaffold logo and favicon, scaffold footer columns, scaffold sidebar labels, and the generator's own name still in the footer.
 
@@ -349,6 +381,8 @@ The docs site is a create-docusaurus, Mintlify or Nextra starter with the conten
 
 ### `every-page-opens-with-in-this-guide`  ·  medium · generic-llm · docs · structural · family: form · lane: docs
 
+**Automated here:** yes, these scripts implement it.
+
 Page after page opens with the same throat-clearing: "In this guide, we will…", "By the end of this article, you'll…", "Let's dive in." The reader scrolls past a paragraph of table-of-contents-in-prose on every page.
 
 **Why it reads AI:** A human writing twenty pages varies the opening, because writing the same sentence twenty times is unbearable. A generator writing twenty pages independently produces the highest-probability opening twenty times.
@@ -370,6 +404,8 @@ Page after page opens with the same throat-clearing: "In this guide, we will…"
 > Configure SSO with Okta in about ten minutes. You need admin access to both accounts.
 
 ### `flat-nav-every-route`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The primary nav lists every routable page at one level, ordered by file-system order, with no grouping and no submenu. Six to twelve items, all equal weight.
 
@@ -393,6 +429,8 @@ The primary nav lists every routable page at one level, ordered by file-system o
 
 ### `footer-sitemap-dump`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
 
+**Automated here:** yes, these scripts implement it.
+
 A four-column footer headed Company / Product / Resources / Legal containing every page on the site plus links that do not resolve — Careers, Press, Status, Changelog — several of them duplicating nav items under a different label.
 
 **Why it reads AI:** The footer is where the generator puts the IDEA of a company: a real company has a Press page, so the link appears. The dead href itself is caught mechanically by dead-anchor-href; this entry is about the SHAPE — the four-column corporate footer on a site with one product and no company.
@@ -415,6 +453,8 @@ A four-column footer headed Company / Product / Resources / Legal containing eve
 
 ### `hardcoded-locale-formats`  ·  medium · generic-llm · code · structural · family: defect · lane: i18n
 
+**Automated here:** yes, these scripts implement it.
+
 Dates, currency and numbers written for one locale and one currency in code: '$' + n.toFixed(2), MM/DD/YYYY, comma thousands separators, two decimal places assumed for every currency.
 
 **Why it reads AI:** toFixed(2) is the single commonest price-rendering idiom in the training data. It is not wrong so much as monolingual: JPY has zero decimals, KWD has three, Germany writes 1.234,56 € with the symbol trailing.
@@ -435,6 +475,8 @@ Dates, currency and numbers written for one locale and one currency in code: '$'
 
 ### `ia-is-a-projection-of-the-filesystem`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The umbrella finding for this lane, and the one worth reading first. Generated navigation is rarely WRONG; it is unfiltered. The nav lists every route, the footer lists every page, the mega-menu has nothing in it, the docs sidebar is four deep because it mirrors the source tree. Four separate symptoms, one cause: nobody decided what mattered, so the information architecture became a rendering of the directory listing.
 
 **Why it reads AI:** Enumeration is free and prioritisation is not. Deciding that Careers does not belong in the primary nav requires knowing what the business wants a visitor to do, which is exactly the input a generator does not have. So it ships the complete list, which is the only answer available without that knowledge.
@@ -454,6 +496,8 @@ The umbrella finding for this lane, and the one worth reading first. Generated n
 > Services · Pricing · Work · About  (Blog, FAQ, Careers, Team move to the footer; Contact becomes the button)
 
 ### `mega-menu-on-a-small-site`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: navigation-and-ia
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A multi-column dropdown panel with section headers and descriptions, on a site with under fifteen pages. The panel is mostly whitespace and duplicate links.
 
@@ -477,6 +521,8 @@ A multi-column dropdown panel with section headers and descriptions, on a site w
 
 ### `name-and-address-shape-assumed`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: i18n
 
+**Automated here:** yes, these scripts implement it.
+
 A form requiring First name plus Last name, a State dropdown of US states, a five-digit ZIP with pattern="\d{5}", and a phone mask of (###) ###-#### — none of which describes most of the world, and several of which describe nobody in Ireland, Hong Kong or Iceland.
 
 **Why it reads AI:** The US address form is the overwhelming majority shape in the training data, so it is the default produced — including for a product whose stated market is the EU. The W3C's position is stronger than "support more formats": ask whether the split is needed at all.
@@ -497,6 +543,8 @@ A form requiring First name plus Last name, a State dropdown of US states, a fiv
 
 ### `no-plain-text-part`  ·  medium · generic-llm · email · structural · family: defect · lane: email
 
+**Automated here:** yes, these scripts implement it.
+
 The send call supplies html only. No text/plain alternative, so text-only clients, accessibility tooling, smart-watch previews and several spam filters get nothing or an auto-generated mangle.
 
 **Why it reads AI:** html: is the documented minimum in every provider's quickstart, so it is what gets generated; the multipart alternative is the step the quickstart omits.
@@ -516,6 +564,8 @@ The send call supplies html only. No text/plain alternative, so text-only client
 > await resend.emails.send({ from, to, subject, html, text })
 
 ### `no-print-stylesheet`  ·  medium · generic-llm · print · structural · family: defect · lane: print
+
+**Automated here:** yes, these scripts implement it.
 
 The page prints as a fixed header, a hamburger button, a cookie banner and three blank sheets, with link destinations invisible and content broken mid-element. Nobody ever pressed Ctrl-P.
 
@@ -557,6 +607,8 @@ Every product has exactly one image, all images share a single stock host or a s
 
 ### `reviews-without-filtering-or-distribution`  ·  medium · generic-llm · listing · structural · family: defect · lane: commerce
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 A star average and a list of review cards, with no rating histogram, no filter by star or attribute, no sort, no verified-purchase marker, and no way to find the one-star reviews — which is what the reader came for.
 
 **Why it reads AI:** The average and the card list are the visible parts; the filtering apparatus is what makes reviews USABLE and is invisible in a screenshot. This is the apparatus, not the text — synthetic-review-shape covers fabricated review copy, and the two co-occur often enough to be worth checking together.
@@ -577,6 +629,8 @@ A star average and a list of review cards, with no rating histogram, no filter b
 
 ### `sentence-assembled-from-fragments`  ·  medium · generic-llm · code · structural · family: defect · lane: i18n
 
+**Automated here:** yes, these scripts implement it.
+
 A user-facing sentence built by concatenating translated pieces — t('you_have') + count + t('items_in_cart') — so translators receive word-order-locked fragments they cannot reorder, and no language with grammatical gender, case or non-binary plurals can be rendered correctly.
 
 **Why it reads AI:** Fragment assembly reads perfectly in English, which is the only language the generator renders. It is invisible until a translator opens the string file and finds three words with no sentence around them.
@@ -596,6 +650,8 @@ A user-facing sentence built by concatenating translated pieces — t('you_have'
 > t('cart.count', { count: n })  →  "{count, plural, one {# item} other {# items}}"
 
 ### `sidebar-nested-past-three-levels`  ·  medium · generic-llm · docs · structural · family: shape · lane: docs
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A left sidebar with four or more levels of collapsible nesting, so finding a page requires guessing three parent categories correctly, and the whole tree is collapsed on arrival.
 
@@ -619,6 +675,8 @@ A left sidebar with four or more levels of collapsible nesting, so finding a pag
 
 ### `spec-table-as-prose`  ·  medium · generic-llm · listing · structural · family: shape · lane: commerce
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Dimensions, materials, compatibility and sizing written as a paragraph instead of a table the reader can scan or compare.
 
 **Why it reads AI:** Generators write prose by default; a table requires deciding the schema. The prose reads fluently and destroys the one thing the reader came for, which is comparison. Baymard finds half of sites get spec-sheet scannability wrong.
@@ -640,6 +698,8 @@ Dimensions, materials, compatibility and sizing written as a paragraph instead o
 > a table with rows: Width 42 cm / Depth 30 cm / Height 18 cm / Material powder-coated steel, oak veneer / Max load 25 kg
 
 ### `text-baked-into-image`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: i18n
+
+**Automated here:** yes, these scripts implement it.
 
 Headlines, CTAs, pricing tables, diagram labels or feature comparisons rendered as pixels inside a PNG, JPEG or WebP, so they cannot be translated, selected, searched, resized, restyled for high contrast, or reflowed.
 
@@ -683,6 +743,8 @@ Generated reference where every description is the identifier re-spelled in Engl
 
 ### `flag-as-language-selector`  ·  low · generic-llm · web-ui · structural · family: shape · lane: i18n
 
+**Automated here:** yes, these scripts implement it.
+
 Languages chosen by national flag: a UK flag for English, a Spanish flag for Spanish, a Saudi flag for Arabic. Languages are not countries; the mapping is many-to-many and politically loaded.
 
 **Why it reads AI:** Flags are the most visually available representation of "language" in the corpus and are cheap to emit as emoji. The compounding failure is the second one: the control is often labelled only in the CURRENT language, so a visitor who landed on the wrong locale cannot read the way out.
@@ -702,6 +764,8 @@ Languages chosen by national flag: a UK flag for English, a Spanish flag for Spa
 > <a href="/de" lang="de" hreflang="de">Deutsch</a> · <a href="/en" lang="en" hreflang="en">English</a>
 
 ### `home-link-live-on-the-homepage`  ·  low · generic-llm · web-ui · structural · family: defect · lane: navigation-and-ia
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 "Home" is the first nav item and, on the homepage itself, is still a live link to / with no current-page marking — a control that does nothing, in the most valuable slot in the nav.
 
@@ -723,6 +787,8 @@ Languages chosen by national flag: a UK flag for English, a Spanish flag for Spa
 
 ### `no-version-selector`  ·  low · generic-llm · docs · structural · family: shape · lane: docs
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Documentation for software that has shipped breaking changes, with only the current version published and no way to read the docs for the version the reader is actually running.
 
 **Why it reads AI:** UNREVIEWED, and genuinely contested. Versioning is an ongoing maintenance commitment and experienced maintainers argue both sides — which is why this is low. The narrow, uncontested case is: breaking changes shipped, old majors still supported, no way to read their docs.
@@ -742,6 +808,8 @@ Documentation for software that has shipped breaking changes, with only the curr
 > a version dropdown — v3 (current) / v2 / v1 — or a banner naming the version these docs describe
 
 ### `preheader-never-set`  ·  low · generic-llm · email · structural · family: defect · lane: email
+
+**Automated here:** yes, these scripts implement it.
 
 No preheader was authored, so the inbox preview shows whatever text comes first in the HTML — "View this email in your browser", an unsubscribe line, or a mailing address. Prime inbox real estate spent on boilerplate.
 

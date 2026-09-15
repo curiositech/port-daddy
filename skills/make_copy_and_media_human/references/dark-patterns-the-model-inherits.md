@@ -17,6 +17,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `cancellation-has-no-path`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
+**Automated here:** yes, these scripts implement it.
+
 Signup is two clicks and a hosted checkout; cancellation is an email address. No route, no handler, no button — the subscription can be started by the app and only ended by a human reading a mailbox.
 
 **Why it reads AI:** The happy path is what gets specified and what the corpus is full of; the exit path is specified by nobody. This reads UNREVIEWED more than deceptive — but the effect is a roach motel and the exposure is the same either way. The FTC's Negative Option Rule was vacated in July 2025 on procedural grounds; ROSCA still requires a simple mechanism to stop recurring charges.
@@ -36,6 +38,8 @@ Signup is two clicks and a hosted checkout; cancellation is an email address. No
 > POST /api/billing/portal → stripe.billingPortal.sessions.create({customer}), linked from account settings
 
 ### `consent-choice-asymmetry`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
+
+**Automated here:** yes, these scripts implement it.
 
 The cookie banner's first layer has a prominent "Accept all" and no equivalent reject — only "Manage preferences", a link, a smaller or greyer control, or nothing at all.
 
@@ -59,6 +63,8 @@ The cookie banner's first layer has a prominent "Accept all" and no equivalent r
 
 ### `cost-revealed-at-last-step`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: dark-patterns
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The price shown on the product page and in the cart excludes shipping, service fees or mandatory taxes, which first appear on the final checkout screen after the address and card have been entered.
 
 **Why it reads AI:** The generated cart computes what it can compute locally — line items — and defers anything needing an address or a rate table. The result is textbook drip pricing produced by arithmetic convenience rather than intent, landing precisely on the UK DMCC Act's total-price requirement, in force since April 2025.
@@ -78,6 +84,8 @@ The price shown on the product page and in the cart excludes shipping, service f
 > Cart: Subtotal £49.00 · Shipping from £3.95 · Estimated total £52.95, with a postcode estimator
 
 ### `countdown-that-resets`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
+
+**Automated here:** yes, these scripts implement it.
 
 An offer timer whose deadline is computed client-side from "now", so it restarts on every load, in every tab, forever. The urgency is manufactured and the claim is false.
 
@@ -99,6 +107,8 @@ An offer timer whose deadline is computed client-side from "now", so it restarts
 
 ### `fabricated-live-activity-counter`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
+**Automated here:** yes, these scripts implement it.
+
 "23 people are viewing this right now", "14 sold in the last hour", "Only 3 left!" — generated from Math.random(), a hash of the clock, or a hardcoded integer, with no data source.
 
 **Why it reads AI:** Near-universal on the commercial web — Princeton counted 313 activity messages and 632 low-stock messages. Adjacent to unbacked-social-proof, which covers COPY claims; this is the narrower and more serious case of a live-data widget with no live data, asserting a present-tense fact that is verifiably false.
@@ -118,6 +128,8 @@ An offer timer whose deadline is computed client-side from "now", so it restarts
 > const viewers = await getActiveSessions(productId); if (viewers < 5) return null;
 
 ### `prechecked-optin`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
+
+**Automated here:** yes, these scripts implement it.
 
 A marketing, newsletter or data-sharing checkbox that ships already ticked, so consent is obtained by inattention.
 
@@ -139,6 +151,8 @@ A marketing, newsletter or data-sharing checkbox that ships already ticked, so c
 
 ### `tracking-before-consent`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
+**Automated here:** yes, these scripts implement it.
+
 The banner is present and correct-looking, and GA4, Meta Pixel, Hotjar or Clarity have already fired and set cookies by the time it renders. The banner is decoration over a fait accompli.
 
 **Why it reads AI:** The purest declared-but-not-wired defect in this lane, and the clearest case of two correct halves that add up to a violation. Each vendor documents a paste-into-head snippet; the banner is a separate component; both are generated correctly in isolation and nothing connects them.
@@ -159,6 +173,8 @@ The banner is present and correct-looking, and GA4, Meta Pixel, Hotjar or Clarit
 
 ### `confirmshaming-decline-label`  ·  medium · generic-llm · marketing-copy · structural · family: form · lane: dark-patterns
 
+**Automated here:** yes, these scripts implement it.
+
 The decline control is written as a first-person confession of stupidity: "No thanks, I hate saving money", "I'd rather pay full price", "No, I don't want to grow my business".
 
 **Why it reads AI:** This is a COPYWRITING CONVENTION in the corpus — the model has read thousands of these and produces them as the house style for a dismiss link. It is the most easily removed entry in this lane and the one most likely to be there by pure imitation.
@@ -178,6 +194,8 @@ The decline control is written as a first-person confession of stupidity: "No th
 > No thanks
 
 ### `modal-on-first-paint`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
+
+**Automated here:** yes, these scripts implement it.
 
 A newsletter, discount or app-download overlay that opens in the first render, before the visitor has read a word, with no scroll, delay, exit-intent or suppression condition — and often stacked on top of the cookie banner.
 

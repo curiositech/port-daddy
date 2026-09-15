@@ -17,6 +17,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `autoplay-background-video-no-poster`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 A looping muted video behind the hero copy with no poster and no preload discipline. The most expensive decoration on the web: a ten-second 1080p loop is routinely eight to fifteen megabytes, it downloads before anything the visitor asked for, and on mobile it frequently does not even play.
 
 **Why it reads AI:** UNREVIEWED, with a specific texture: generators reach for background video because it is a well-represented “premium landing page” pattern, and they emit the minimal correct element — which is the maximally expensive one, because poster and preload are the attributes you add AFTER watching it load.
@@ -36,6 +38,8 @@ A looping muted video behind the hero copy with no poster and no preload discipl
 > <video poster="/hero-poster.avif" preload="none" …> with playback started on canplaythrough
 
 ### `consent-manager-is-the-lcp`  ·  high · generic-llm · performance · rendered · family: defect · lane: performance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The cookie banner is the largest painted element in the viewport, so LCP measures when the BANNER appears rather than when the page content does. The cause is a design decision: the banner's size and position.
 
@@ -57,6 +61,8 @@ The cookie banner is the largest painted element in the viewport, so LCP measure
 
 ### `default-third-party-stack`  ·  high · generic-llm · performance · structural · family: shape · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 A one-page marketing site shipping analytics, a tag manager, a consent manager, a chat widget, a session recorder and a pixel — each added by a different person for a different reason, none ever removed. Each is a third-party origin, most execute on the main thread, and several load further scripts after they run.
 
 **Why it reads AI:** UNREVIEWED, EXPLICITLY — THIS IS NOT AN AI TELL AT ALL AND THE REPORT SHOULD SAY SO PLAINLY. No generator installs six SaaS widgets; people do. It belongs here because the audit is of the shipped artefact, and because it is very often the single largest controllable cost on a marketing page after the hero image. Flag it as an operational finding, never an authorship one.
@@ -76,6 +82,8 @@ A one-page marketing site shipping analytics, a tag manager, a consent manager, 
 > two origins, with chat loaded on click
 
 ### `gradient-mesh-shipped-as-raster`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 The decorative blurred blob or mesh gradient behind the hero — the commonest ornament on a generated marketing page — is a multi-megabyte raster rather than a CSS gradient. It is pure decoration and it is frequently the LCP element.
 
@@ -97,6 +105,8 @@ The decorative blurred blob or mesh gradient behind the hero — the commonest o
 
 ### `hero-image-as-full-resolution-png`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 The largest image on the page is delivered as PNG at source resolution. PNG is lossless and has no chroma subsampling, so a photographic hero lands at many times the bytes of the same image in a modern format.
 
 **Why it reads AI:** UNREVIEWED rather than model-flavoured. A designer who exported a PNG would still have watched it load once, and the tell is the absence of that single moment. The genuinely model-shaped part is narrower: a generator writing an image tag has no way to know whether that file is 40 KB or 4 MB, so it never has the thought.
@@ -116,6 +126,8 @@ The largest image on the page is delivered as PNG at source resolution. PNG is l
 > <picture> with AVIF and WebP sources at real widths, an honest sizes, and width/height plus fetchpriority="high" on the img
 
 ### `late-injected-bar-shifts-content`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 An announcement bar, promo strip or newsletter ribbon injected at the top of the DOM after first paint, pushing everything below it down. Layout shift with a purely editorial cause: someone wanted a bar, and the bar was added to the page rather than designed into it.
 
@@ -137,6 +149,8 @@ An announcement bar, promo strip or newsletter ribbon injected at the top of the
 
 ### `lazy-loaded-lcp-image`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 loading="lazy" applied uniformly to every image including the hero. The rule was applied without its exception, and this unconditionally delays LCP: the browser will not even START the request until layout proves the element is in view.
 
 **Why it reads AI:** PARTLY MODEL-FLAVOURED, and the uniformity is the signature. A person applies lazy loading where they remember to; a generator applies a rule everywhere it syntactically fits. “Add lazy loading to images” is one of the most repeated pieces of web-performance advice in the training corpus, and it is stated without its exception roughly as often as with it.
@@ -156,6 +170,8 @@ loading="lazy" applied uniformly to every image including the hero. The rule was
 > the hero with fetchpriority="high" and no loading attribute; everything below it lazy
 
 ### `optimised-the-source-never-the-delivery`  ·  high · generic-llm · performance · structural · family: shape · lane: performance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 The organising idea for this lane. A generator can see the markup it is writing. It cannot see a network waterfall, a byte count, a decode time, or which element wins LCP. So the tells cluster precisely where correctness-in-source and correctness-in-delivery come apart: the img tag is valid and the format is wrong; the font stack is tasteful and six weights ship; the component is correct React and it did not need to be React.
 
@@ -177,6 +193,8 @@ The organising idea for this lane. A generator can see the markup it is writing.
 
 ### `render-blocking-head-stack`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 Every stylesheet and several scripts sitting synchronously in the head, so nothing paints until all of them arrive — typically a font stylesheet, an icon-font stylesheet, a framework CSS bundle, a tag manager and a consent script. Five origins, five blocking resources, one blank screen.
 
 **Why it reads AI:** UNREVIEWED. Nothing about the head order is visible in the design, and a generator assembling a head from remembered snippets has no model of the critical path. This is the roll-up finding that several others contribute to, and the one a reviewer can most easily act on.
@@ -196,6 +214,8 @@ Every stylesheet and several scripts sitting synchronously in the head, so nothi
 > inlined critical CSS, one deferred stylesheet, every script deferred
 
 ### `single-source-full-bleed-image`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 An image styled full-width with exactly one source. Every visitor gets the desktop file, so the phone on cellular downloads a 2400px asset to paint it 390px wide. The design decision was made; its delivery consequence was not.
 
@@ -217,6 +237,8 @@ An image styled full-width with exactly one source. Every visitor gets the deskt
 
 ### `spa-shell-for-a-brochure-site`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 View source and the body is a single empty mount point. Every word on the page — the headline, the pricing, the FAQ — exists only after a JavaScript bundle downloads, parses, executes and renders.
 
 **Why it reads AI:** UNREVIEWED, and mostly TOOL-FLAVOURED rather than model-flavoured — it is what a default client-side scaffold produces and what several site builders export. Worth flagging precisely because it is invisible in the rendered page and visible only in the delivery, which is the theme of this whole lane.
@@ -236,6 +258,8 @@ View source and the body is a single empty mount point. Every word on the page �
 > the same page prerendered to HTML, hydrating only where it needs to
 
 ### `stock-photo-at-source-resolution`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 The stock download went into the public directory at four to six thousand pixels and got referenced directly. It looks fine — it always looks fine, that is the trap — and it is several megabytes.
 
@@ -257,6 +281,8 @@ The stock download went into the public directory at four to six thousand pixels
 
 ### `use-client-on-a-static-page`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 A client directive at the top of a page or layout that renders text, images and links and holds no state. Everything below that boundary ships to the browser and is re-executed there to produce markup the server already produced.
 
 **Why it reads AI:** GENUINELY MODEL-FLAVOURED. The directive is the fastest way to make a build error go away, and generators reach for it as an error-suppression move rather than an architecture decision. The signature is exactly that: a fix applied to a symptom the model COULD see (a build error) rather than a cost it could not (the shipped bundle).
@@ -276,6 +302,8 @@ A client directive at the top of a page or layout that renders text, images and 
 > the page left as a server component, with only the mobile nav marked client
 
 ### `webgl-library-for-decoration`  ·  high · generic-llm · performance · structural · family: shape · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 A 3D library loaded so that a shape can rotate slowly behind the headline — a hundred and fifty kilobytes gzipped before any scene code, plus a WebGL context, plus a continuous animation loop that runs whether or not anyone is looking at it.
 
@@ -297,6 +325,8 @@ A 3D library loaded so that a shape can rotate slowly behind the headline — a 
 
 ### `animation-library-for-css-effects`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 An animation library imported so that cards fade up on scroll. Every one of those effects is a CSS transition plus an intersection observer, under a kilobyte. The library version costs tens of kilobytes gzipped and runs its orchestration on the main thread, where it competes with event handlers — compositor-driven CSS transforms do not.
 
 **Why it reads AI:** PARTLY MODEL-FLAVOURED, and this is the payload half of reveal-animation-on-everything. The uniformity is the tell: the same in-view animation applied to EVERY section, with the same half-second duration, is a template being filled rather than a motion design being made.
@@ -316,6 +346,8 @@ An animation library imported so that cards fade up on scroll. Every one of thos
 > a reveal class with a CSS transition and one observer
 
 ### `figma-export-svg-unoptimised`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 An SVG straight out of a design tool: full float precision, every group and clip path preserved, editor metadata, hidden layers, and sometimes an embedded base64 raster. A 12 KB icon becomes 340 KB.
 
@@ -337,6 +369,8 @@ An SVG straight out of a design tool: full float precision, every group and clip
 
 ### `font-display-absent-or-block`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 No font-display, or font-display: block. Both produce a flash of invisible text — the page is blank where the headline should be, which reads as “the site is broken” rather than “the font is loading”.
 
 **Why it reads AI:** UNREVIEWED. font-display is a one-line descriptor that only matters on a slow connection, and a generator is never on one.
@@ -356,6 +390,8 @@ No font-display, or font-display: block. Both produce a flash of invisible text 
 > @font-face { font-display: swap; size-adjust: 104% }
 
 ### `font-weights-ordered-not-used`  ·  medium · generic-llm · performance · structural · family: residue · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 The font request asks for six or eight weights; the stylesheet uses two. Each unused weight is a separate file, and on a hosted-font URL they are all in one render-blocking request.
 
@@ -377,6 +413,8 @@ The font request asks for six or eight weights; the stylesheet uses two. Each un
 
 ### `google-fonts-cdn-render-blocking`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 A hosted-font stylesheet link in the head. It is a render-blocking stylesheet on a third-party origin, and the font files it names live on a SECOND origin — so the critical path is DNS, TCP, TLS and CSS on one host, then DNS, TCP, TLS and the font on another, before a single glyph paints.
 
 **Why it reads AI:** UNREVIEWED, with a real model-shaped component: this link is one of the highest-frequency single lines in the HTML training corpus. It is what a model emits when asked for “nice typography”, and it is emitted without the preconnect that makes it tolerable.
@@ -396,6 +434,8 @@ A hosted-font stylesheet link in the head. It is a render-blocking stylesheet on
 > self-hosted WOFF2 with a preload, or at minimum a preconnect first in the head
 
 ### `icon-webfont-for-a-handful-of-icons`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 An icon font loaded to draw six icons. The whole glyph set downloads — often a hundred kilobytes plus a render-blocking stylesheet — and until it arrives the icons are invisible or render as tofu.
 
@@ -417,6 +457,8 @@ An icon font loaded to draw six icons. The whole glyph set downloads — often a
 
 ### `lcp-font-not-preloaded`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 On a page whose LCP element is a headline, the font that renders it is discovered at the end of a chain — HTML, then CSS, then the font-face rule, then the file. Three round trips before the most important text on the page can paint in its intended face.
 
 **Why it reads AI:** UNREVIEWED. Preload requires knowing which font the LCP element uses — a rendered fact, again.
@@ -436,6 +478,8 @@ On a page whose LCP element is a headline, the font that renders it is discovere
 > <link rel="preload" as="font" type="font/woff2" href="/f/display.woff2" crossorigin>
 
 ### `lcp-image-without-fetchpriority`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 The hero image is discovered late and fetched at default priority, behind stylesheets and scripts, because nothing told the browser it was the most important byte on the page.
 
@@ -457,6 +501,8 @@ The hero image is discovered late and fetched at default priority, behind styles
 
 ### `multiple-display-families-one-page`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Three or more families loaded — a serif display face, a sans body face, and a mono for the code block or the “technical” accent — on a page with maybe four hundred words. Each family is its own set of files and its own connection cost, and the third is usually decoration.
 
 **Why it reads AI:** Partly model-flavoured, and it complements the existing default-typeface tells. The failure mode differs by generator: some ship one family with no contrast, some ship three to MANUFACTURE contrast. Three families on a short page is a taste tell with a byte cost.
@@ -476,6 +522,8 @@ Three or more families loaded — a serif display face, a sans body face, and a 
 > one family with real contrast, plus the system mono stack for code
 
 ### `no-modern-image-format-anywhere`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
+
+**Automated here:** yes, these scripts implement it.
 
 Not one AVIF or WebP on the page and no format negotiation. Every image is JPEG or PNG. A site-level absence rather than a per-image mistake: nobody ever set up the pipeline.
 
@@ -497,6 +545,8 @@ Not one AVIF or WebP on the page and no format negotiation. Every image is JPEG 
 
 ### `same-video-to-every-device`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 One source, one encode, one resolution — the desktop file — served to phones on cellular. The single-source disease in the medium where it costs the most.
 
 **Why it reads AI:** UNREVIEWED. Same mechanism as srcset: responsive media requires knowing the variants exist.
@@ -516,6 +566,8 @@ One source, one encode, one resolution — the desktop file — served to phones
 > a 720p modern encode and a 480p fallback, selected by media query
 
 ### `sizes-attribute-that-lies`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 srcset is present and sizes is wrong — nearly always a full-viewport value on an image occupying a third of a grid. The browser trusts sizes over the layout, picks the largest candidate, and the srcset work is thrown away.
 
@@ -537,6 +589,8 @@ srcset is present and sizes is wrong — nearly always a full-viewport value on 
 
 ### `smooth-scroll-library-on-a-brochure`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
+**Automated here:** yes, these scripts implement it.
+
 A scroll-momentum library installed so the page scrolls with easing — a per-frame JavaScript interpolation layer between the visitor's input and the page's response, on a page with five sections.
 
 **Why it reads AI:** UNREVIEWED and AESTHETIC-INHERITED. Same family as the 3D case: a portfolio convention reproduced without the context that justified it.
@@ -557,6 +611,8 @@ A scroll-momentum library installed so the page scrolls with easing — a per-fr
 
 ### `icon-library-dependency-for-six-icons`  ·  low · generic-llm · performance · structural · family: shape · lane: performance
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 The design half of barrel-icon-import. That entry catches the import and says to import the leaf instead; this one asks the prior question — the page uses six icons, and a dependency was added rather than six SVGs being pasted.
 
 **Why it reads AI:** UNREVIEWED. Even correctly tree-shaken, the library brings a runtime wrapper, a prop API and a build-graph cost; and where the barrel is not shaken, it brings everything.
@@ -576,6 +632,8 @@ The design half of barrel-icon-import. That entry catches the import and says to
 > six inline SVG components in the repo
 
 ### `variable-font-single-static-weight`  ·  low · generic-llm · performance · structural · family: defect · lane: performance
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 A variable font is loaded — paying for the whole weight axis — and then used at exactly one weight. All the axis data is downloaded and discarded. The inverse mistake to over-ordering weights, and increasingly common as variable fonts become the default download.
 

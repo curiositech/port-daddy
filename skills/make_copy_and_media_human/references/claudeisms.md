@@ -13,6 +13,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `definition-after-use`  ·  high · generic-llm · prose · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 Terms of art used before they are defined, or never defined at all. The reader meets a concept with nothing to attach it to.
 
 **Why it reads AI:** The curse of knowledge with a context window behind it. The writer already holds the concept, so the sentence reads fine to them; the model holds it too, because it was in the prompt. Nothing in the loop represents a reader who does not.
@@ -137,6 +139,8 @@ The whole-document version of the complaint. Nothing in the piece could be wrong
 
 ### `participial-tail`  ·  high · generic-llm · prose · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 A sentence-final present-participial clause bolted onto an already complete sentence, adding commentary instead of information: '..., underscoring its importance', '..., reflecting broader industry trends'.
 
 **Why it reads AI:** Measured at 5.3x the human rate with a paired effect size of d=1.38, the top-ranked discriminating feature across a 66-feature grammatical tagset. Wikipedia's editors independently named the same pattern 'superficial analysis': significance asserted without a fact behind it.
@@ -180,6 +184,8 @@ Unearned emphasis on importance and legacy: 'stands as a testament to,' 'plays a
 > The 1923 bridge carries 40,000 vehicles a day and was the longest steel span in the state when it opened.
 
 ### `staccato-fragment-triplet`  ·  high · generic-llm · prose · structural · family: rhythm
+
+**Automated here:** yes, these scripts implement it.
 
 A burst of ultra-short sentence fragments in sequence, usually three, used for false emphasis. Each is one to three words and ends in a period ('Tight. Controlled. Deliberate.'). Common in both prose gravitas and marketing copy ('Powerful. Intuitive. Built for scale.').
 
@@ -244,6 +250,8 @@ A personal story with no texture: no names, no weather, no dialogue, nothing tha
 > Priya gave me exactly one piece of feedback in two years, in a stairwell, about a slide I'd already presented.
 
 ### `unearned-prior-reference`  ·  high · generic-llm · prose · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 The piece points at a history the reader was never present for: 'building on our previous approach', 'unlike the v2 design', 'as we discussed', 'you'll recall'. The referent exists only in the writer's context, not on the page.
 
@@ -373,6 +381,8 @@ Reflexive softening and self-undercutting: 'I could be wrong, but...,' 'This is 
 
 ### `copula-avoidance`  ·  medium · generic-llm · prose · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 Systematic replacement of 'is' and 'are' with inflated substitutes: serves as, stands as, functions as, represents, boasts, features, maintains, offers.
 
 **Why it reads AI:** Grammatical rather than lexical, so it survives the synonym-swapping that defeats word lists. Wikipedia's cleanup project lists copula avoidance as a top-level sign.
@@ -417,6 +427,8 @@ Systematic replacement of 'is' and 'are' with inflated substitutes: serves as, s
 
 ### `delve-excess-vocabulary`  ·  medium · generic-llm · prose · structural · family: form
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
 
 Marker vocabulary whose frequency spiked after 2022. The list is ERA-VERSIONED and decays: 2023-mid-2024 (delve, tapestry, testament, intricate, meticulous, pivotal, underscore, garner, interplay, vibrant); mid-2024-mid-2025 (align with, bolstered, emphasizing, enhance, fostering, highlighting, showcasing); mid-2025 onward (emphasizing, enhance, highlighting, showcasing). Checking only for 'delve' is checking for 2023.
@@ -440,6 +452,8 @@ Marker vocabulary whose frequency spiked after 2022. The list is ERA-VERSIONED a
 > This report looks at how supply chains shape global trade.
 
 ### `deontic-softening`  ·  medium · generic-llm · prose · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Obligation expressed in procedural modals rather than interpersonal ones: 'cannot' where a person writes 'can't', 'need to' where a person writes 'have to', and a general shortfall of 'should'.
 
@@ -571,6 +585,8 @@ Meta-announcements of candor before saying anything: 'Let me be clear.' 'I'll be
 
 ### `nominalization-density`  ·  medium · generic-llm · prose · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 Verbs converted into abstract nouns and propped up with a weak verb: 'the implementation of', 'provides an enhancement to', 'the utilization of'.
 
 **Why it reads AI:** Measured at roughly twice the human rate. Instruction tuning specifically rewards an informationally dense, noun-heavy register, and the model carries it into genres where it misfits.
@@ -594,6 +610,8 @@ Verbs converted into abstract nouns and propped up with a weak verb: 'the implem
 > We added a caching layer. Latency dropped.
 
 ### `parallel-overload-uniform-bullets`  ·  medium · generic-llm · prose · structural · family: form
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Every bullet in a list has identical grammatical shape and near-identical length — all start with an imperative verb, all run 6-9 words, all end without punctuation. Reads like a generated template.
 
@@ -621,6 +639,8 @@ Every bullet in a list has identical grammatical shape and near-identical length
 
 ### `pronoun-evacuation`  ·  medium · generic-llm · prose · structural · family: rhythm
 
+**Automated here:** yes, these scripts implement it.
+
 First- and second-person pronouns stripped out, so the writer disappears from their own sentences.
 
 **Why it reads AI:** LLM editing removes 40-61% of pronouns, and voice-preserving prompts recover only 10-15% of that. Users have far more leverage over what a model adds than over what it removes.
@@ -645,6 +665,8 @@ First- and second-person pronouns stripped out, so the writer disappears from th
 
 ### `repo-context-leak`  ·  medium · generic-llm · prose · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 File paths, function names, ticket ids and branch names in prose meant for someone who does not have the repository open.
 
 **Why it reads AI:** The writer had the repo open and the model had it in context. Neither noticed that an identifier is a pointer into a workspace the reader cannot see.
@@ -667,6 +689,8 @@ File paths, function names, ticket ids and branch names in prose meant for someo
 
 ### `rule-of-three-tricolon`  ·  medium · generic-llm · prose · structural · family: form
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Compulsive triplets: three adjectives, three nouns, three parallel clauses or list items, used far beyond what the content warrants ('fast, reliable, and scalable'; 'plan, build, ship').
 
 **Why it reads AI:** The tricolon is a real device, but models default to three for everything, including cases where the true count is two or five. The uniform landing on three signals a template, not a thought.
@@ -686,6 +710,8 @@ Compulsive triplets: three adjectives, three nouns, three parallel clauses or li
 > The platform is fast, and flexible enough that teams stop fighting it. Mostly they just ship sooner.
 
 ### `specificity-starvation`  ·  medium · generic-llm · prose · structural · family: form
+
+**Automated here:** yes, these scripts implement it.
 
 Confident copy about nothing: no proper nouns, no numbers, no dates, nothing a reader could check, date, or attribute.
 
@@ -731,6 +757,8 @@ Reflexive unconditional praise or agreement openers: 'You're absolutely right!',
 
 ### `unattributed-floating-quote`  ·  medium · claude · prose · structural · family: form
 
+**Automated here:** yes, these scripts implement it.
+
 An italicized or block-quoted line dropped in as if it were a quotation or someone's words, but no one said it and it isn't a pull quote from the piece. Aphoristic filler standing alone on its own line.
 
 **Why it reads AI:** It borrows the visual authority of a quotation without any source, creating fake profundity. Human editors attribute quotes or write the line as plain prose.
@@ -754,6 +782,8 @@ An italicized or block-quoted line dropped in as if it were a quotation or someo
 > The team shipped the feature even though no one could prove it would matter, which was the bravest call of the quarter.
 
 ### `comma-inflation`  ·  low · generic-llm · prose · structural · family: rhythm
+
+**Automated here:** yes, these scripts implement it.
 
 Parenthetical smoothing: every clause acquires an appositive, every sentence a mid-sentence aside.
 
@@ -801,6 +831,8 @@ Relationships stated indirectly rather than claimed: 'in connection with', 'asso
 
 ### `em-dash-density`  ·  low · generic-llm · prose · structural · family: rhythm
 
+**Automated here:** yes, these scripts implement it.
+
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
 
 Em dashes used at a rate well above the author's own habit — typically as a substitute for commas, colons, parentheses and full stops all at once.
@@ -846,6 +878,8 @@ The sweeping 'from X to Y' / 'whether you're a beginner or an expert' constructi
 > This tool is built for two-to-ten-person data teams who are tired of maintaining Airflow themselves.
 
 ### `paragraph-length-monoculture`  ·  low · generic-llm · prose · structural · family: rhythm
+
+**Automated here:** yes, these scripts implement it.
 
 Every paragraph is roughly the same length, usually three to four sentences.
 

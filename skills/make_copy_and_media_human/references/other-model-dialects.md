@@ -13,6 +13,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `as-an-ai-leakage`  ·  high · generic-llm · prose · structural · family: residue
 
+**Automated here:** yes, these scripts implement it.
+
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
 
 Less RLHF-polished open models leak identity/disclaimer phrases mid-answer: 'As an AI language model, I...,' 'I do not have personal opinions, but...,' 'trained by [vendor]...'. Sometimes the wrong vendor is named.
@@ -34,6 +36,8 @@ Less RLHF-polished open models leak identity/disclaimer phrases mid-answer: 'As 
 > For beginners, Python is the easiest entry point: readable syntax, huge ecosystem, forgiving error messages.
 
 ### `gemini-important-to-note-stack`  ·  high · gemini · prose · structural · family: form
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Gemini compulsively front-loads or interleaves hedging meta-clauses: 'It's important to note that...,' 'It's worth remembering that...,' 'Keep in mind that...,' often two or three stacked across a short answer.
 
@@ -74,6 +78,8 @@ On any topic adjacent to health, law, finance, or relationships, Gemini appends 
 > Magnesium glycinate around 200-400mg before bed helps many people sleep; it can loosen stool at higher doses, so ramp up slowly.
 
 ### `llama-repetition-loop`  ·  high · llama · prose · structural · family: form
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 Llama-family models loop: restating the same point in slightly reworded sentences, recycling a transition ('In conclusion'), or circling a list back to its first item. Documented as higher repetition than Mixtral or OLMo.
 
@@ -116,6 +122,8 @@ The same voice regardless of genre: a Slack message, a postmortem and a wedding 
 > yeah it's the pool config. i'll patch it after standup
 
 ### `deepseek-qwen-overformal-register`  ·  medium · deepseek · prose · structural · family: form
+
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
 
 DeepSeek and Qwen default to a stiff, examination-essay register in English: elevated connectives, zero contractions, and an earnest formality mismatched to casual prompts. Tone reads as a translated academic abstract.
 
@@ -217,6 +225,8 @@ Qwen and DeepSeek occasionally surface calques and idiom mistranslations from Ch
 
 ### `tense-and-perspective-drift`  ·  medium · generic-llm · prose · structural · family: form
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 In longer outputs, models drift unmotivated between tenses (past to present and back within one narrative) and between perspectives ('you' to 'one' to 'we' to 'the user') without intent.
 
 **Why it reads AI:** Humans maintain tense and address consistency almost unconsciously; models track it only locally, so long outputs accumulate drift a careful reader registers as 'something's off.'
@@ -237,6 +247,8 @@ In longer outputs, models drift unmotivated between tenses (past to present and 
 
 ### `kimi-longform-collapse`  ·  low · kimi · prose · structural · family: form
 
+**Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
+
 Kimi K2 holds voice well under ~300 words but degrades past ~3000: structure loosens, the assertive register flattens into repetition, and it loses the thread it opened with.
 
 **Why it reads AI:** The quality cliff at length is a generation artifact (context drift, repetition pressure). A human writer's last third is usually their tightest after revision; the model's is its weakest, inverting the normal signal.
@@ -256,6 +268,8 @@ Kimi K2 holds voice well under ~300 words but degrades past ~3000: structure loo
 > [The same essay cut to 1,500 words with each section earning its place and a conclusion that synthesizes rather than recycles.]
 
 ### `low-burstiness-uniform-rhythm`  ·  low · generic-llm · prose · structural · family: rhythm
+
+**Automated here:** yes, these scripts implement it.
 
 Sentences and paragraphs of near-identical length and cadence throughout, producing a metronomic evenness with no short punchy sentences against sprawling ones. The prosodic flatness humans call 'AI cadence.'
 
@@ -280,6 +294,8 @@ Sentences and paragraphs of near-identical length and cadence throughout, produc
 > The system is fast. When a call fails it retries, backs off, and if the queue starts backing up under real load it sheds the lowest-priority work first rather than tipping over, which took three rewrites to get right. Monitoring catches the rest.
 
 ### `zero-typo-zero-contraction-affect-flatness`  ·  low · generic-llm · prose · structural · family: rhythm
+
+**Automated here:** yes, these scripts implement it.
 
 A register with no relaxed setting: no contractions, no typos, no asides, and emotional vocabulary that is generic rather than situated.
 

@@ -19,6 +19,8 @@ _Every item carries a **False positive when** line. Read it before you act on th
 
 ### `error-not-tied-to-its-field`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 The message is rendered next to the input and not connected to it -- no aria-describedby, no aria-invalid. Visually it is beside the field; programmatically it is an unrelated piece of text, so a screen-reader user focused on the input hears the label and nothing about what went wrong.
 
 **Why it reads AI:** Unreviewed with a model-flavoured seam. Proximity in the markup reads as association, and the association is an attribute nobody looked for.
@@ -38,6 +40,8 @@ The message is rendered next to the input and not connected to it -- no aria-des
 > <input id="email" aria-invalid="true" aria-describedby="email-err" /><span id="email-err">...
 
 ### `focus-not-moved-after-a-failed-submit`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 The form fails validation and focus stays on the submit button at the bottom. Nothing announces the failure, and the user has to go looking for what changed above them. For a keyboard or screen-reader user the submit appeared to do nothing.
 
@@ -59,6 +63,8 @@ The form fails validation and focus stays on the submit button at the bottom. No
 
 ### `form-clears-on-validation-failure`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 One field is wrong and the form comes back empty, or the password fields do. Everything the user typed is gone and they start again -- and the longer the form, the more likely they abandon rather than retype. Baymard puts checkout abandonment attributable to a long or complicated process at 18%, against a 70% overall rate.
 
 **Why it reads AI:** Unreviewed. The error path is the branch least likely to be exercised while building, and clearing is what a naive re-render does for free.
@@ -78,6 +84,8 @@ One field is wrong and the form comes back empty, or the password fields do. Eve
 > catch { setErrors(e) } -- values untouched
 
 ### `missing-autofill-attributes`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 Fields collecting a name, email, phone, address or payment detail carry no autocomplete attribute, so the browser cannot fill them and assistive tooling cannot identify their purpose. It is a WCAG 2.1 failure in its own right -- 1.3.5 Identify Input Purpose, Level AA -- and Google reports correct autocomplete cutting checkout time by up to about 30%.
 
@@ -101,6 +109,8 @@ Fields collecting a name, email, phone, address or payment detail carry no autoc
 
 ### `paste-blocked-on-a-password-or-code-field`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 onPaste is blocked, usually with a preventDefault. It stops password managers, it stops copying a one-time code out of a message, and the security rationale it is offered under is the reverse of the truth -- blocking paste pushes people toward passwords short enough to type. The UK NCSC has advised against it for years, and WCAG 2.2's 3.3.8 treats obstructing password managers as an authentication barrier.
 
 **Why it reads AI:** Model-flavoured. It is copied from a large body of security folklore in the corpus and the folklore is stated with confidence.
@@ -120,6 +130,8 @@ onPaste is blocked, usually with a preventDefault. It stops password managers, i
 > paste allowed; validate the resulting value
 
 ### `submit-disabled-until-valid`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 The submit button is disabled until every field validates. It is the most reproduced form pattern in generated code and practitioners have argued against it for over a decade: the control that would tell the user what is wrong is the control being withheld. Fix one of three errors and the button stays dead with no indication that anything improved, so the interface reads as broken rather than as strict.
 
@@ -141,6 +153,8 @@ The submit button is disabled until every field validates. It is the most reprod
 
 ### `validity-gate-misses-the-password-manager`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 The enable-on-valid logic listens for keyup, and a password manager's fill does not produce one. The fields are visibly populated, the form is visibly complete, and the button is still dead -- with nothing on screen explaining why. It is the disabled-submit pattern's worst instance because the user has done everything right.
 
 **Why it reads AI:** Model-flavoured. keyup is the corpus-typical way to say "as the user types", and it encodes an assumption that all input comes from a keyboard.
@@ -160,6 +174,8 @@ The enable-on-valid logic listens for keyup, and a password manager's fill does 
 > input.addEventListener('input', checkValidity)
 
 ### `autocomplete-off-on-personal-fields`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 autocomplete="off" is set on fields the browser should be filling. Browsers now ignore it for passwords precisely because sites overused it, but for names, addresses and payment fields it still works, and its effect is to make every user type by hand what their browser already knows.
 
@@ -181,6 +197,8 @@ autocomplete="off" is set on fields the browser should be filling. Browsers now 
 
 ### `captcha-as-the-only-route-past-the-form`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 A visual challenge with no audio alternative, no token-based fallback, and no path for a user who fails it. It is a WCAG 1.1.1 problem and a hard stop: the user cannot contact anyone about being unable to contact anyone.
 
 **Why it reads AI:** Unreviewed. Spam handling is a real requirement answered with the corpus-standard widget, and the alternative path is a separate requirement nobody stated.
@@ -200,6 +218,8 @@ A visual challenge with no audio alternative, no token-based fallback, and no pa
 > a token-based check, plus a published address that bypasses it
 
 ### `email-regex-rejects-valid-addresses`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 A hand-rolled email pattern that rejects plus-addressing, apostrophes, long or new top-level domains, or anything but a two-to-four-letter TLD. The user has a working address the form insists is invalid, and there is no route past it.
 
@@ -221,6 +241,8 @@ A hand-rolled email pattern that rejects plus-addressing, apostrophes, long or n
 
 ### `inputmode-absent-on-a-numeric-field`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 A numeric field is type="text" with no inputmode, so a phone user gets the full QWERTY keyboard and has to find the number layer to type a postcode or a verification code. The attribute is one word and it changes the keyboard that opens.
 
 **Why it reads AI:** Unreviewed. The keyboard is a property of a device the page was never opened on.
@@ -240,6 +262,8 @@ A numeric field is type="text" with no inputmode, so a phone user gets the full 
 > <input type="text" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="done">
 
 ### `label-that-only-exists-while-empty`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 A floating label that animates into the border, or a placeholder acting as the label, so once there is a value the field's name is gone or is four-point type in a gap. The user reviewing a completed form cannot tell what any field is, and neither can anyone returning to fix one error.
 
@@ -261,6 +285,8 @@ A floating label that animates into the border, or a placeholder acting as the l
 
 ### `multi-step-form-with-no-back-or-progress`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 A wizard that shows one step at a time with no indication of how many there are and no way back. The user cannot tell whether they are near the end, and correcting something from two steps ago means starting over or losing the session.
 
 **Why it reads AI:** Unreviewed. Forward is the path the happy demo takes, and back is a branch that only matters once someone makes a mistake.
@@ -280,6 +306,8 @@ A wizard that shows one step at a time with no indication of how many there are 
 > step in the URL, a Back control, and a visible step count
 
 ### `native-and-custom-validation-both-firing`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 The form has required and pattern attributes and a JavaScript validator, with no novalidate. The browser's bubble appears on some paths and the styled in-line messages on others, they disagree about what is wrong, and which one the user sees depends on how they submitted.
 
@@ -301,6 +329,8 @@ The form has required and pattern attributes and a JavaScript validator, with no
 
 ### `no-error-summary-on-a-long-form`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 Submission fails and the errors are only in-line beside their fields, some of them off screen. The user gets no count, no list and no route to the first problem -- they scroll hunting for red. The GOV.UK pattern, built for people completing services under stress, pairs an in-line message with a summary at the top of the page that links to each field.
 
 **Why it reads AI:** Unreviewed. In-line errors are the visible half and they look complete when the whole form fits on the reviewer's screen.
@@ -320,6 +350,8 @@ Submission fails and the errors are only in-line beside their fields, some of th
 > an error summary listing and linking each failure, focused on submit
 
 ### `number-input-for-a-non-number`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 type="number" is used for a credit card, phone number, postcode, OTP or account number. The spec says this type is for numbers you would do arithmetic on, and for identifiers it actively breaks things: leading zeros are dropped, the field silently rejects spaces and dashes people type, a scroll over a focused field changes the value, and the spinner arrows are a hazard on desktop.
 
@@ -341,6 +373,8 @@ type="number" is used for a credit card, phone number, postcode, OTP or account 
 
 ### `password-rules-revealed-after-failure`  ·  medium · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 The password requirements appear only once the user has submitted something that broke them. They guess, fail, guess again -- and each round is an error message that reads as a reprimand for not knowing a rule that was never stated.
 
 **Why it reads AI:** Unreviewed. The rule lives in the validator, which is where the generator was asked to put it, and stating it in the interface is a second, separate instruction.
@@ -360,6 +394,8 @@ The password requirements appear only once the user has submitted something that
 > a visible checklist, described-by the field, updating as the user types
 
 ### `autofocus-on-page-load`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 autofocus on the first field. It moves the viewport on a phone and opens the keyboard over the content, it skips past anything above the field including the page heading, and for a screen-reader user it starts the page partway through with no announcement of what was skipped.
 
@@ -381,6 +417,8 @@ autofocus on the first field. It moves the viewport on a phone and opens the key
 
 ### `character-counter-that-is-never-announced`  ·  low · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 A live character count rendered as plain text. A sighted user watches it approach the limit; everyone else types past it and finds out at submit. Or the reverse failure: it is wired to an assertive live region and interrupts every keystroke.
 
 **Why it reads AI:** Unreviewed. The counter is visual by construction and the announcement is a separate consideration.
@@ -400,6 +438,8 @@ A live character count rendered as plain text. A sighted user watches it approac
 > <span aria-live="polite" id="c">20 characters remaining</span>, debounced, described-by
 
 ### `date-entered-as-three-selects`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 A date of birth collected as three dropdowns. Selecting a year from a list of ninety is slow with a mouse, worse on a phone, and the pattern consistently tests badly against three short text inputs, which is why GOV.UK ships the text-input version for dates people know.
 
@@ -421,6 +461,8 @@ A date of birth collected as three dropdowns. Selecting a year from a list of ni
 
 ### `no-enterkeyhint-on-a-multi-field-form`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 Every field's on-screen return key says the same thing. On a phone the user cannot tell whether return will move to the next field or submit the form, so they submit halfway through or tap Next on the last field and nothing happens.
 
 **Why it reads AI:** Unreviewed. The key's label is a phone-keyboard property invisible in the markup and on the desktop it was built on.
@@ -440,6 +482,8 @@ Every field's on-screen return key says the same thing. On a phone the user cann
 > enterkeyhint="next" through the form, "done" on the final field
 
 ### `no-show-password-control`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 A password field with no reveal toggle. The user cannot check what they typed, which on a phone keyboard is where most password entry failures come from, and the cost of the mistake is an error message that cannot tell them which character was wrong.
 
@@ -461,6 +505,8 @@ A password field with no reveal toggle. The user cannot check what they typed, w
 
 ### `required-marking-with-no-key`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 Asterisks mark required fields and nothing says so. The convention is widespread and it is still a convention -- it is not announced usefully, and on a form where most fields are required it marks the wrong set.
 
 **Why it reads AI:** Unreviewed. The asterisk is the corpus-standard visual and the sentence explaining it is a separate element nobody asked for.
@@ -481,6 +527,8 @@ Asterisks mark required fields and nothing says so. The convention is widespread
 
 ### `search-field-with-no-clear-and-no-search-type`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
+**Automated here:** yes, these scripts implement it.
+
 A search box built as type="text" with no way to empty it in one action. The user clears a query by holding backspace, and the field gets none of the platform behaviour -- no clear affordance, no search keyboard, no history.
 
 **Why it reads AI:** Unreviewed. type="text" works, so nothing about the page failing surfaces the gap.
@@ -500,6 +548,8 @@ A search box built as type="text" with no way to empty it in one action. The use
 > <form role="search"><input type="search" aria-label="Search"> + a clear button
 
 ### `select-for-a-two-option-choice`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
+
+**Automated here:** yes, these scripts implement it.
 
 A dropdown with two options. It takes two interactions to reveal one bit of information, hides the choice until opened, and on a phone opens a full-height wheel to pick between yes and no.
 
