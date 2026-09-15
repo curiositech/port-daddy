@@ -21,12 +21,17 @@ checks that:
         usage_terms, retrieved, crop
   (c) sha1 looks like a sha1 (40 hex chars);
   (d) width and height are positive integers;
-  (e) licence_short is on the allow-list: public domain, CC0, PD-old, or
-      CC BY / CC BY-SA 2.0 through 4.0 in any jurisdiction (e.g. "CC BY-SA
-      2.5 si", "CC BY-SA 2.0 de", "CC BY 3.0"). A bespoke permission (the
-      Coase case) or any other licence fails this check -- such an image
-      should not have a plate at all (see coase.NOT-CLEARED.json for the
-      pattern: record the rejection, don't commit the plate).
+  (e) licence_short is on the allow-list: public domain, CC0, PD-old, CC BY
+      / CC BY-SA 2.0 through 4.0 in any jurisdiction (e.g. "CC BY-SA 2.5 si",
+      "CC BY-SA 2.0 de", "CC BY 3.0"), or "provided by subject" for a living
+      contributor's own headshot handed directly to the book's author for
+      that one credited use (see thomas-youle.json) -- narrower and more
+      certain than a bespoke permission found on someone else's upload,
+      since the depicted person is the one granting it. A bespoke
+      third-party permission (the Coase case) or any other licence still
+      fails this check -- such an image should not have a plate at all (see
+      coase.NOT-CLEARED.json for the pattern: record the rejection, don't
+      commit the plate).
 
 A slug with a .json sidecar but no matching .jpg plate is not an error here
 (a sidecar may be prepared ahead of a plate, e.g. while the lead decides a
@@ -83,7 +88,21 @@ def plates_dir(repo_root: str) -> str:
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 
 # Allow-list: public domain / CC0 / PD-old / CC BY or CC BY-SA 2.0-4.0 in any
-# jurisdiction suffix (e.g. "2.0 de", "2.5 si", "3.0 Unported", "4.0").
+# jurisdiction suffix (e.g. "2.0 de", "2.5 si", "3.0 Unported", "4.0"), plus
+# "provided by subject" for a living contributor's own headshot handed
+# directly to the book's author for this specific credit.
+#
+# "provided by subject" is deliberately NOT the same case as a bespoke
+# third-party permission found attached to someone else's upload (see
+# coase.NOT-CLEARED.json: a University of Chicago-attributed grant on a
+# Commons-hosted photo of Ronald Coase, rejected because the chain of
+# custody and scope of that grant were both unclear). Here the depicted
+# person is the one making the grant, first-party and unambiguous, scoped
+# to this one credited use — a strictly narrower and more certain case than
+# the bespoke-permission-on-a-found-photo pattern the Coase rejection
+# guards against. A sidecar claiming this licence must still carry an
+# honest `credit`/`usage_terms` stating the grant is direct-from-subject
+# and not a general reuse licence (see thomas-youle.json for the pattern).
 _PD_PATTERNS = [
     re.compile(r"^public domain$", re.IGNORECASE),
     re.compile(r"^cc0", re.IGNORECASE),
@@ -92,6 +111,7 @@ _PD_PATTERNS = [
 _CC_BY_RE = re.compile(
     r"^cc\s*by(-sa)?\s*(2\.0|2\.5|3\.0|4\.0)\b", re.IGNORECASE
 )
+_SUBJECT_PROVIDED_RE = re.compile(r"^provided by subject$", re.IGNORECASE)
 
 
 def licence_allowed(licence_short: str) -> bool:
@@ -99,6 +119,8 @@ def licence_allowed(licence_short: str) -> bool:
     if any(p.match(s) for p in _PD_PATTERNS):
         return True
     if _CC_BY_RE.match(s):
+        return True
+    if _SUBJECT_PROVIDED_RE.match(s):
         return True
     return False
 
