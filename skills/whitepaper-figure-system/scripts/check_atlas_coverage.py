@@ -452,11 +452,17 @@ def canonical_root_drift(
 ) -> list[str]:
     expected = set(expected_roots.values())
     failures: list[str] = []
+    # The build table is no longer a chapter registry: the eight chapters are
+    # not built into standalone PDFs any more, so the table lists only the
+    # Book and its edition drivers and names no chapter root at all. Absence
+    # is therefore expected and is not drift. What the table must never do is
+    # build a chapter root the atlas does not declare canonical — that would
+    # mean a ninth chapter, or a renamed source the atlas has not followed —
+    # so the extra direction stays a failure. Chapter-root truth itself is
+    # checked against whitepaper/textbook.json below, which is where the Book
+    # now gets its chapter list.
     build_roots = canonical_roots_from_build_script(repo_root)
-    build_missing = sorted(expected - build_roots)
     build_extra = sorted(build_roots - expected)
-    if build_missing:
-        failures.append(f"build-whitepapers:missing={','.join(build_missing)}")
     if build_extra:
         failures.append(f"build-whitepapers:extra={','.join(build_extra)}")
 

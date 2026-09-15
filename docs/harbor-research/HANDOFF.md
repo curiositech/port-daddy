@@ -330,7 +330,12 @@ round trip:
 
 The generalisable check, which does not exist yet and should:
 **no edit to a twin source may change the standalone paper's figure count.**
-Both failures would have been caught at the desk instead of in CI. Until it
-exists, the manual version is: after editing any file that appears in
-`scripts/build-whitepapers.sh` as both a chapter and a paper root, rebuild the
-paper and count its figures.
+Both failures would have been caught at the desk instead of in CI.
+
+**Superseded — do not build that check.** It was built
+(`check_standalone_figures.py`), and it has since been retired along with the
+thing it protected: the eight per-chapter PDFs are gone and the Book is the one
+document, so no chapter source is a twin any more and there is no second figure
+count to preserve. The half-fix lesson stands as a habit; this particular
+instance of it does not. The Book-side half — a drawing must not print twice —
+is still enforced, by `check_duplicate_figures.py`.

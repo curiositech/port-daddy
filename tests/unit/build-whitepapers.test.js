@@ -251,18 +251,12 @@ describe('reproducible whitepaper source scoping', () => {
   // whatever `--list-unchanged-since` names, so the list must be right in BOTH
   // directions: miss a drifted paper and the churn returns, name a genuinely
   // rebuilt one and its real render is silently thrown away.
+  //
+  // The eight chapters used to have a row each here; they are retired (an A4
+  // render of the same words with no margin column, a worse layout of the
+  // Book's 7x10in trim) and PAPERS now builds only the Book.
   test('with no source change since the ref, every paper is restorable', () => {
-    // Order follows the PAPERS table, so this also pins that the CLI walks the
-    // whole table rather than stopping at the first match.
     expect(listUnchangedSince(git('rev-parse', 'HEAD'))).toEqual([
-      'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf',
-      'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
-      'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
-      'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
-      'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
-      'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
-      'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
-      'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
       'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
     ]);
   });

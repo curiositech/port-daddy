@@ -12,16 +12,13 @@ const DIGESTS = 'website-v2/public/whitepaper/publication-digests.json';
 // today), so the canonical artifact below carries the central edition. The
 // maritime and technical drivers stay in the tree, build on demand, and
 // publish nothing — so they are not pinned here and have no digest entry.
+//
+// The eight chapters used to publish a standalone PDF of their own (retired:
+// an A4 render of the same words with no margin column, a worse layout of
+// the Book's 7x10in trim) and had a row each here. A chapter is chapter N of
+// one book now; there is nothing left to pin.
 const EXPECTED_PUBLICATIONS = [
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
-  'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
-  'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
-  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
-  'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
-  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
-  'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf',
-  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
 ];
 
 const digests = JSON.parse(fs.readFileSync(DIGESTS, 'utf8')).pdfs;

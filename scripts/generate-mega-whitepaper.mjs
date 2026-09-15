@@ -79,7 +79,7 @@ function validateTextbook(raw, source = 'whitepaper/textbook.json') {
   const prefixes = new Set();
   sorted.forEach((chapter, index) => {
     const where = `chapter ${chapter?.id ?? `#${index + 1}`}`;
-    for (const key of ['id', 'prefix', 'title', 'source', 'pdf', 'role', 'oneLine', 'question']) {
+    for (const key of ['id', 'prefix', 'title', 'source', 'role', 'oneLine', 'question']) {
       requireString(chapter, key, where, fail);
     }
     // formerNumeral is a string field but, uniquely, '' is a legal value (a
@@ -675,12 +675,22 @@ function firstSectionIndex(body) {
 }
 
 /**
- * Remove the paper apparatus a standalone chapter carries at its head — the
+ * Remove the paper apparatus a chapter source still carries at its head — the
  * abstract, keyword list, reading-time note, series locator and context boxes,
  * and the unnumbered reader's-map section — so a Book chapter opens on its
- * opener page and then its first section: exposition first. The standalone
- * PDFs keep all of it; those are papers. Labels defined inside a removed
- * region are re-emitted as stubs so nothing else breaks.
+ * opener page and then its first section: exposition first. Labels defined
+ * inside a removed region are re-emitted as stubs so nothing else breaks.
+ *
+ * THIS COMMENT USED TO SAY "the standalone PDFs keep all of it; those are
+ * papers." It does not say that any more, and the difference matters: that
+ * sentence was cited almost verbatim in three separate changelogs as the
+ * reason to preserve or restore apparatus in a chapter source. There are no
+ * standalone PDFs. Nothing downstream of this function renders what it cuts.
+ *
+ * So the apparatus is stripped because the Book's front matter does the
+ * routing an abstract and a reader's map used to do, once, for all eight
+ * chapters — not because a second document is keeping a copy. Apparatus left
+ * in a chapter source is now dead text, and adding more is dead work.
  */
 function stripPaperApparatus(body) {
   let next = body;
@@ -726,7 +736,12 @@ function stripPaperApparatus(body) {
   for (let m; (m = next.match(/\\noindent\\textbf\{Volume Context\.\}[\s\S]*?(?=\n\n|$)/));) cut(m.index, m.index + m[0].length, 'volume-context');
   // (an uncentered TikZ box carrying the same context — the Anchor chapter's)
   for (let m; (m = next.match(/(?:\\noindent\s*)?\\begin\{tikzpicture\}(?:(?!\\end\{tikzpicture\})[\s\S])*?Volume Context\.[\s\S]*?\\end\{tikzpicture\}\s*/));) cut(m.index, m.index + m[0].length, 'volume-context');
-  // 4. the unnumbered reader's map that precedes the body (numbered ones are chapter content)
+  // 4. the unnumbered reader's map that precedes the body. The carve-out for
+  //    numbered ones ("those are chapter content") existed because a numbered
+  //    map still printed in the standalone paper. There is no standalone
+  //    paper; a numbered reader's map now prints in the Book, which is the one
+  //    place it was never meant to be. Left as-is deliberately: converting one
+  //    is a per-chapter editorial call, not something to do silently here.
   for (let m; (m = next.match(/\\section\*\{[^}]*Reader'?s? [Mm]ap[^}]*\}[\s\S]*?(?=\\section\*?\{|\\tableofcontents|$)/));) {
     cut(m.index, m.index + m[0].length, 'readers-map');
   }

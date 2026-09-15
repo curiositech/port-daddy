@@ -12,6 +12,7 @@ import {
   type PdfFacts,
 } from '../../scripts/check-whitepaper-metadata'
 import { COLLECTED_VOLUME, TABLE_OF_CONTENTS, TEXTBOOK, WHITE_PAPERS } from './whitePapers'
+import { RESEARCH_PAPERS } from './researchPapers'
 import {
   PAGES_MAX_ASSET_BYTES,
   PAGES_ONLY_EXCLUSIONS,
@@ -20,7 +21,7 @@ import {
 } from '../../scripts/prune-pages-assets.mjs'
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
+const researchPapersSrc = resolve(websiteRoot, 'src/data/researchPapers.ts')
 
 /**
  * COPY HYGIENE IS ENFORCED AT THE TYPE LEVEL.
@@ -70,7 +71,6 @@ describe('whitepaper metadata sync', () => {
       expect(paper.role).toBe(record!.role)
       expect(paper.formerNumeral).toBe(record!.formerNumeral)
       expect(paper.discharges).toBe(record!.discharges)
-      expect(paper.pdfPath).toBe(`/whitepaper/${record!.pdf}`)
       const part = TEXTBOOK.parts.find((candidate) => candidate.chapters.includes(paper.id))
       expect(part?.id, `${paper.id} belongs to a part`).toBe(paper.part)
       if (paper.discharges) {
@@ -114,64 +114,45 @@ describe('whitepaper metadata sync', () => {
     expect(detectDrift([COLLECTED_VOLUME], pdfFactsFromDisk)).toEqual([])
   })
 
-  test('collected pagination is composed independently from standalone PDFs', () => {
-    if (!pdfinfoAvailable()) return
-    const standalonePages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
-    const actualPages = pdfFactsFromDisk(resolvePdfPath(COLLECTED_VOLUME.pdfPath)).pages
-
-    // The collected edition strips standalone front matter and inserts its own
-    // front matter, chapter openings and handoffs, result atlas, and collated
-    // references. The built PDF is authoritative; summing the seven separately
-    // typeset editions or copying a page-count literal into this test is not.
-    expect(COLLECTED_VOLUME.pages).toBe(actualPages)
-    expect(standalonePages).not.toBe(actualPages)
-  })
-
-  test('every paper declares an on-disk PDF', () => {
+  test('chapters do not declare a standalone PDF of their own', () => {
+    // Retired: the eight chapters used to publish an A4 render of themselves,
+    // with no margin column, alongside the Book's 7x10in trim — a second,
+    // worse layout of the same words. A chapter is chapter N of one book now;
+    // it carries no `pdfPath` / `filename` / `pages` / `sizeKb`, and
+    // textbook.json carries no per-chapter `pdf`. This is a regression guard,
+    // not a metadata-sync check: there is no file left to sync against.
     for (const paper of WHITE_PAPERS) {
-      const abs = resolvePdfPath(paper.pdfPath)
-      expect(existsSync(abs), `${paper.id} PDF missing at ${abs}`).toBe(true)
+      expect(paper).not.toHaveProperty('pdfPath')
+      expect(paper).not.toHaveProperty('filename')
+      expect(paper).not.toHaveProperty('pages')
+      expect(paper).not.toHaveProperty('sizeKb')
     }
-  })
-
-  test('metadata pages and sizeKb match the actual PDFs (requires pdfinfo)', () => {
-    if (!pdfinfoAvailable()) {
-      // Per the script contract: pdfinfo missing is a CI runner defect, not
-      // a test failure. Surface it loudly without breaking the suite.
-      console.warn(
-        'pdfinfo not on PATH; whitepaper metadata sync test skipped. Fix the runner: brew install poppler.',
-      )
-      return
+    for (const record of TEXTBOOK.chapters) {
+      expect(record).not.toHaveProperty('pdf')
     }
-
-    const drift = detectDrift(WHITE_PAPERS, pdfFactsFromDisk)
-    expect(
-      drift,
-      drift.length
-        ? `Whitepaper metadata drift detected: ${JSON.stringify(drift, null, 2)}`
-        : 'no drift',
-    ).toEqual([])
   })
 
   test('drift detection trips when metadata is wrong (fixture)', () => {
     // Lie to detectDrift via the injected getFacts callback. Proves the
     // detector actually catches a mismatch — guards against the check
-    // silently passing because of a logic regression.
+    // silently passing because of a logic regression. Exercised against the
+    // seven research papers (still individually published PDFs) rather than
+    // WHITE_PAPERS, which no longer declare one.
     const fakeFacts: PdfFacts = { pages: 9999, sizeKb: 9999 }
-    const drift = detectDrift(WHITE_PAPERS, () => fakeFacts)
-    expect(drift.length).toBe(WHITE_PAPERS.length)
+    const drift = detectDrift(RESEARCH_PAPERS, () => fakeFacts)
+    expect(drift.length).toBe(RESEARCH_PAPERS.length)
     expect(drift[0].pagesDrift).toBe(true)
     expect(drift[0].sizeDrift).toBe(true)
   })
 
   test('size tolerance allows sub-2% wobble on large PDFs', () => {
     // sizeKb off by 1% — under 2% tolerance, should NOT report drift.
-    const slightlyOff = (paper: (typeof WHITE_PAPERS)[number]): PdfFacts => ({
+    const slightlyOff = (paper: (typeof RESEARCH_PAPERS)[number]): PdfFacts => ({
       pages: paper.pages,
       sizeKb: Math.round(paper.sizeKb * 1.01),
     })
-    const facts = new Map(WHITE_PAPERS.map((p) => [resolvePdfPath(p.pdfPath), slightlyOff(p)]))
-    const drift = detectDrift(WHITE_PAPERS, (abs) => {
+    const facts = new Map(RESEARCH_PAPERS.map((p) => [resolvePdfPath(p.pdfPath), slightlyOff(p)]))
+    const drift = detectDrift(RESEARCH_PAPERS, (abs) => {
       const f = facts.get(abs)
       if (!f) throw new Error(`unexpected path: ${abs}`)
       return f
@@ -180,18 +161,18 @@ describe('whitepaper metadata sync', () => {
   })
 
   test('size tolerance rejects > 2% wobble (large PDFs)', () => {
-    // 5% on the 863 KB paper is ~43 KB — well over both 2% and 4 KB.
-    const wayOff = (paper: (typeof WHITE_PAPERS)[number]): PdfFacts => ({
+    // 5% on a 400+ KB paper is well over both 2% and 4 KB.
+    const wayOff = (paper: (typeof RESEARCH_PAPERS)[number]): PdfFacts => ({
       pages: paper.pages,
       sizeKb: Math.round(paper.sizeKb * 1.05),
     })
-    const facts = new Map(WHITE_PAPERS.map((p) => [resolvePdfPath(p.pdfPath), wayOff(p)]))
-    const drift = detectDrift(WHITE_PAPERS, (abs) => {
+    const facts = new Map(RESEARCH_PAPERS.map((p) => [resolvePdfPath(p.pdfPath), wayOff(p)]))
+    const drift = detectDrift(RESEARCH_PAPERS, (abs) => {
       const f = facts.get(abs)
       if (!f) throw new Error(`unexpected path: ${abs}`)
       return f
     })
-    expect(drift.length).toBe(WHITE_PAPERS.length)
+    expect(drift.length).toBe(RESEARCH_PAPERS.length)
     for (const r of drift) {
       expect(r.sizeDrift).toBe(true)
       expect(r.pagesDrift).toBe(false)
@@ -202,7 +183,7 @@ describe('whitepaper metadata sync', () => {
     // A hypothetical 50 KB paper: 2% = 1 KB. The 4 KB floor should kick in
     // and accept up to ±4 KB. Verified by handing detectDrift a fake paper
     // entry off by exactly 3 KB (within floor) and one off by 5 KB (over).
-    const tinyPaper = { id: 't', pdfPath: WHITE_PAPERS[0].pdfPath, pages: 1, sizeKb: 50 }
+    const tinyPaper = { id: 't', pdfPath: COLLECTED_VOLUME.pdfPath, pages: 1, sizeKb: 50 }
     const withinFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 53 }))
     expect(withinFloor).toEqual([])
     const overFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 55 }))
@@ -211,27 +192,32 @@ describe('whitepaper metadata sync', () => {
   })
 
   test('rewriteMetadata patches pages/sizeKb in place without touching prose', () => {
-    const original = readFileSync(whitePapersSrc, 'utf8')
+    // Exercised against the research-papers registry: WHITE_PAPERS entries no
+    // longer carry a `pages`/`sizeKb` pair for the rewriter to find (chapters
+    // do not publish a standalone PDF), so this now proves the same in-place
+    // AST patch on the registry that still does.
+    const original = readFileSync(researchPapersSrc, 'utf8')
     const updates = new Map<string, { pages: number; sizeKb: number }>([
-      ['anchor-protocol', { pages: 99, sizeKb: 1234 }],
+      ['price-of-a-summary', { pages: 99, sizeKb: 1234 }],
     ])
     const next = rewriteMetadata(original, updates)
     expect(next).not.toBe(original)
     expect(next).toContain('pages: 99')
     expect(next).toContain('sizeKb: 1234')
     // Other paper's metadata untouched.
-    const bondedExpected = WHITE_PAPERS.find((p) => p.id === 'bonded-commons')!
-    expect(next).toContain(`pages: ${bondedExpected.pages}`)
-    expect(next).toContain(`sizeKb: ${bondedExpected.sizeKb}`)
+    const untouchedExpected = RESEARCH_PAPERS.find((p) => p.id === 'regimented-or-enforced')!
+    expect(next).toContain(`pages: ${untouchedExpected.pages}`)
+    expect(next).toContain(`sizeKb: ${untouchedExpected.sizeKb}`)
     // Prose-bearing fields untouched.
-    expect(next).toContain('The Anchor Protocol')
-    expect(next).toContain('Bonded Commons')
+    expect(next).toContain('The Price of a Summary')
+    expect(next).toContain('Regimented or Enforced')
   })
 
   test('on-disk PDF byte sizes are reasonable (sanity, no pdfinfo needed)', () => {
     // Cheap belt-and-braces check that runs even without poppler. Catches
-    // the case where someone replaced a PDF with a 0-byte placeholder.
-    for (const paper of WHITE_PAPERS) {
+    // the case where someone replaced a PDF with a 0-byte placeholder. Only
+    // the Book and the research papers are individually published PDFs now.
+    for (const paper of [COLLECTED_VOLUME, ...RESEARCH_PAPERS]) {
       const abs = resolvePdfPath(paper.pdfPath)
       const bytes = statSync(abs).size
       expect(bytes, `${paper.id} PDF should be > 10 KB`).toBeGreaterThan(10_000)
@@ -240,25 +226,17 @@ describe('whitepaper metadata sync', () => {
 
   test('audited Harbor metadata names the textbook edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
-    // Page counts grow with every fold and are guarded by the drift check
-    // against the PDF on disk; the audit pins the edition string only.
     expect(byId.get('harbor-economy')).toMatchObject({ status: 'Version 1.3 (textbook edition)' })
-    expect(byId.get('harbor-economy')?.pages).toBeGreaterThan(0)
   })
 
   test('audited Legible metadata names the textbook edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
     expect(byId.get('legible-swarm')).toMatchObject({ status: 'Version 1.2 (textbook edition)' })
-    expect(byId.get('legible-swarm')?.pages).toBeGreaterThan(0)
   })
 
   test('audited Single-Writer Kernel metadata names its textbook edition', () => {
     const kernel = WHITE_PAPERS.find((paper) => paper.id === 'single-writer-kernel')
-    // The page count itself is guarded by the drift check against the PDF on
-    // disk (and grows with every fold), so this audit pins only the edition
-    // string and sanity-checks the count.
     expect(kernel).toMatchObject({ status: 'Version 1.2 (textbook edition)' })
-    expect(kernel?.pages).toBeGreaterThan(0)
   })
 })
 

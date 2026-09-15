@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Cpu, Download, FileText } from 'lucide-react'
+import { ArrowLeft, BookOpen, Cpu, FileText } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import {
   BracketLabel,
@@ -9,13 +9,7 @@ import {
   PanelEyebrow,
   PanelTitle,
 } from '@/components/site/primitives'
-import {
-  COLLECTED_VOLUME,
-  findWhitePaperBySlug,
-  formatPaperSize,
-  paperPdfUrl,
-  WHITE_PAPERS,
-} from '@/data/whitePapers'
+import { COLLECTED_VOLUME, findWhitePaperBySlug, formatPaperSize, WHITE_PAPERS } from '@/data/whitePapers'
 
 export default function PaperDetailPage() {
   const { paperSlug } = useParams()
@@ -58,12 +52,15 @@ export default function PaperDetailPage() {
               </div>
 
               <aside className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]">
-                <PanelEyebrow>The PDF</PanelEyebrow>
+                <PanelEyebrow>The Book</PanelEyebrow>
+                <PanelBody size="compact" className="text-[var(--text-secondary)]">
+                  This chapter is chapter {paper.chapter} of one book — it does not publish a PDF of its own.
+                </PanelBody>
                 <div className="grid gap-[var(--space-2)]">
                   {[
-                    ['Date', paper.date],
-                    ['Pages', String(paper.pages)],
-                    ['Size', formatPaperSize(paper.sizeKb)],
+                    ['Date', COLLECTED_VOLUME.date],
+                    ['Pages', String(COLLECTED_VOLUME.pages)],
+                    ['Size', formatPaperSize(COLLECTED_VOLUME.sizeKb)],
                     ['Format', 'PDF'],
                   ].map(([label, value]) => (
                     <div
@@ -79,22 +76,28 @@ export default function PaperDetailPage() {
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-wrap gap-[var(--space-2)] pt-[var(--space-2)]">
+                {/* One affordance, and it says what it does. This is a chapter
+                    page, but the only PDF is the Book, so a button here hands
+                    the reader the whole Book or nothing — it must never read as
+                    "get this chapter". It also must not force a book-sized file
+                    onto the disk on a single click: no `download` attribute, so
+                    the browser's own viewer opens it and the reader decides
+                    whether to save it. New tab, because navigating away to load
+                    a PDF this large loses the chapter page you were reading. */}
+                <div className="grid gap-[var(--space-2)] pt-[var(--space-2)]">
                   <a
-                    href={paperPdfUrl(paper)}
-                    download
+                    href={COLLECTED_VOLUME.pdfPath}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
                   >
-                    <Download aria-hidden="true" size={14} />
-                    Download
-                  </a>
-                  <a
-                    href={paperPdfUrl(paper)}
-                    className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
-                  >
                     <FileText aria-hidden="true" size={14} />
-                    Open in tab
+                    Open the whole Book
                   </a>
+                  <PanelBody size="compact" className="text-[var(--text-muted)]">
+                    All {COLLECTED_VOLUME.pages} pages of it, in a new tab. Chapter {paper.chapter} is
+                    inside, under its own bookmark.
+                  </PanelBody>
                 </div>
               </aside>
             </div>

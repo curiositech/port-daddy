@@ -1,9 +1,14 @@
 import { describe, expect, test } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { APP_SURFACES } from './data/product'
 import { docsFamilyOrder, docsOverviewRoute, docsFamilyRoutes, findDocsRouteByPath, findDocsRouteBySlug } from './data/docs-routes'
 import { docsFamilies, findDocsFamily } from './data/publicSite'
 import { docsContentSections, findDocsContentPage, findDocsContentSection } from './docs-content'
+import { composeRedirects } from '../scripts/compose-redirects.mjs'
+
+const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 function read(relativePath: string) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -218,11 +223,14 @@ describe('public shell contracts', () => {
     expect(paperData).toContain('The Bonded Commons')
     expect(cta).toContain('Read inline')
     expect(cta).toContain('paper.readerHref')
-    expect(cta).toContain('paper.pdfPath')
+    // A chapter does not publish a PDF of its own (retired: an A4 render of
+    // the same words with no margin column) — the CTA's PDF link goes to the
+    // Book, the one PDF, not to a per-chapter path.
+    expect(cta).toContain('COLLECTED_VOLUME.pdfPath')
     expect(paperData).toContain('/whitepaper/anchor-protocol')
     expect(paperData).toContain('/whitepaper/bonded-commons')
-    expect(paperData).toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
-    expect(paperData).toContain('/whitepaper/agent-transactions-whitepaper.pdf')
+    expect(paperData).not.toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
+    expect(paperData).not.toContain('/whitepaper/agent-transactions-whitepaper.pdf')
     expect(cta).toContain('Read the papers')
     // The "Coordination feedback" / "Dogfood restore" sub-panel was
     // stripped intentionally per the 2026-05-20 IA audit — it was
@@ -258,6 +266,9 @@ describe('public shell contracts', () => {
     expect(detailPage).toContain('Read the paper')
     expect(detailPage).toContain('COLLECTED_VOLUME.pdfPath')
     expect(detailPage).toContain('to="/whitepaper"')
+    // Every download/open link on this page points at the Book
+    // (COLLECTED_VOLUME) — a chapter does not publish a PDF of its own.
+    expect(detailPage).not.toContain('paperPdfUrl')
 
     // And the embedded viewer stays gone. An 82vh frame holding all 551 pages
     // of the Book, under a heading about chapter N, was the last structural
@@ -276,6 +287,67 @@ describe('public shell contracts', () => {
     expect(seo).toContain('WHITE_PAPERS.map((paper) => paper.readerHref)')
     expect(seo).not.toContain("'/whitepaper/anchor-protocol'")
     expect(seo).not.toContain("'/whitepaper/bonded-commons'")
+  })
+
+  test('every retired per-chapter PDF URL redirects to the Book', () => {
+    // The eight filenames the site published until the chapter PDFs were
+    // retired. Frozen on purpose: nothing in the repository derives them any
+    // more, which is exactly why they need a written record — an address a
+    // reader, a citation manager or a crawler may still hold is not something
+    // the site gets to forget just because it stopped generating it.
+    const retired = [
+      'agent-transactions-whitepaper.pdf',
+      'anchor-protocol-whitepaper.pdf',
+      'federated-harbor-whitepaper.pdf',
+      'harbor-economy-whitepaper.pdf',
+      'legible-swarm-whitepaper.pdf',
+      'sealed-harbor-whitepaper.pdf',
+      'single-writer-kernel-whitepaper.pdf',
+      'spawn-to-person-whitepaper.pdf',
+    ]
+    // The DEPLOYED file, not the source one. `public/_redirects` is only half
+    // of it: postbuild composes the route rewrites with it, and before this
+    // retirement that step overwrote the file outright — so asserting the
+    // source would have passed while the deploy shipped something else.
+    const deployed = composeRedirects(
+      [{ path: '/whitepaper' }, { path: '/' }],
+      read('../public/_redirects'),
+    )
+    const rules = deployed
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'))
+      .map((line) => line.split(/\s+/))
+
+    // Without these the `/*` catch-all answers each dead path 200 with the SPA
+    // shell, so the bad URL looks healthy to every monitor and every crawler.
+    for (const filename of retired) {
+      expect(rules, `no redirect for /whitepaper/${filename}`).toContainEqual([
+        `/whitepaper/${filename}`,
+        '/whitepaper/coordination-papers-mega-volume.pdf',
+        '301',
+      ])
+    }
+
+    // Cloudflare Pages takes the first match, so the catch-all must come last
+    // and appear exactly once, or it swallows every rule under it.
+    expect(rules.at(-1)).toEqual(['/*', '/index.html', '200'])
+    expect(rules.filter(([from]) => from === '/*')).toHaveLength(1)
+
+    // And the route rewrites still get composed in, rather than one source
+    // silently replacing the other.
+    expect(rules).toContainEqual(['/whitepaper', '/whitepaper/index.html', '200'])
+
+    // And the redirect target has to be a file, not another dead path.
+    expect(
+      existsSync(resolve(websiteRoot, 'public/whitepaper/coordination-papers-mega-volume.pdf')),
+    ).toBe(true)
+    for (const filename of retired) {
+      expect(
+        existsSync(resolve(websiteRoot, 'public/whitepaper', filename)),
+        `${filename} is retired but still committed`,
+      ).toBe(false)
+    }
   })
 
   test('docs shell copy points to the public whitepaper without replacement-brand framing', () => {
