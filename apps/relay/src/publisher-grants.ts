@@ -1,5 +1,4 @@
 import {
-  FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA,
   isRepository,
   isSafePublisherIdentifier,
   stableJson,
