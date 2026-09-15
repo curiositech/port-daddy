@@ -380,6 +380,53 @@ CREATE INDEX IF NOT EXISTS credit_ledger_installation_idx ON credit_ledger (inst
 
 -- Per-run token spend metering. cost_usd is what the run consumed; a matching
 -- negative credit_ledger row (reason='fleet:spend') decrements the balance.
+CREATE TABLE IF NOT EXISTS fleet_managed_entitlements (
+  installation_id INTEGER PRIMARY KEY,
+  state TEXT NOT NULL CHECK (state IN ('active','paused','revoked')),
+  retail_balance_microusd INTEGER NOT NULL CHECK (typeof(retail_balance_microusd)='integer' AND retail_balance_microusd >= 0),
+  run_retail_microusd INTEGER NOT NULL CHECK (typeof(run_retail_microusd)='integer' AND run_retail_microusd > 0),
+  source_ref TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS fleet_run_reservations (
+  run_id TEXT PRIMARY KEY, installation_id INTEGER NOT NULL,
+  retail_microusd INTEGER NOT NULL CHECK (typeof(retail_microusd)='integer' AND retail_microusd > 0),
+  provider_cost_cap_microusd INTEGER NOT NULL CHECK (typeof(provider_cost_cap_microusd)='integer' AND provider_cost_cap_microusd >= 0 AND provider_cost_cap_microusd * 4 <= retail_microusd),
+  provider_cost_microusd INTEGER CHECK(provider_cost_microusd IS NULL OR (typeof(provider_cost_microusd)='integer' AND provider_cost_microusd>=0 AND provider_cost_microusd<=provider_cost_cap_microusd)),
+  state TEXT NOT NULL CHECK (state IN ('reserved','settled','released')),
+  lease_owner TEXT, lease_fence INTEGER NOT NULL DEFAULT 0 CHECK(typeof(lease_fence)='integer' AND lease_fence>=0), lease_expires_at INTEGER CHECK(lease_expires_at IS NULL OR typeof(lease_expires_at)='integer'),
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER, released_at INTEGER,
+  FOREIGN KEY (installation_id) REFERENCES fleet_managed_entitlements(installation_id),
+  CHECK((state='reserved' AND settled_at IS NULL AND released_at IS NULL AND provider_cost_microusd IS NULL) OR (state='settled' AND settled_at IS NOT NULL AND released_at IS NULL AND provider_cost_microusd IS NOT NULL) OR (state='released' AND released_at IS NOT NULL AND settled_at IS NULL AND provider_cost_microusd IS NULL))
+);
+CREATE INDEX IF NOT EXISTS fleet_run_reservations_installation_state_idx ON fleet_run_reservations(installation_id,state,created_at);
+CREATE TABLE IF NOT EXISTS fleet_served_installations (
+ installation_id INTEGER PRIMARY KEY,
+ state TEXT NOT NULL CHECK(state IN ('served','retired')),
+ source_ref TEXT NOT NULL CHECK(length(source_ref)>0),
+ created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+ FOREIGN KEY(installation_id) REFERENCES fleet_managed_entitlements(installation_id)
+);
+-- Non-authoritative reported per-ship telemetry. Billing settlement derives
+-- charged cost from fleet_run_call_authorizations (actual or reserved worst case).
+CREATE TABLE IF NOT EXISTS fleet_run_spend_v2 (
+  run_id TEXT NOT NULL, ship TEXT NOT NULL, installation_id INTEGER NOT NULL, model TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL CHECK(typeof(input_tokens)='integer' AND input_tokens >= 0), output_tokens INTEGER NOT NULL CHECK(typeof(output_tokens)='integer' AND output_tokens >= 0),
+  provider_cost_microusd INTEGER NOT NULL CHECK(typeof(provider_cost_microusd)='integer' AND provider_cost_microusd >= 0), created_at INTEGER NOT NULL,
+  PRIMARY KEY(run_id,ship), FOREIGN KEY(run_id) REFERENCES fleet_run_reservations(run_id),
+  FOREIGN KEY(installation_id) REFERENCES fleet_managed_entitlements(installation_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_v2_installation_created_idx ON fleet_run_spend_v2(installation_id,created_at);
+CREATE TABLE IF NOT EXISTS fleet_run_call_authorizations (
+  authorization_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, lease_fence INTEGER NOT NULL CHECK(typeof(lease_fence)='integer' AND lease_fence>=0),
+  call_sequence INTEGER NOT NULL CHECK(typeof(call_sequence)='integer' AND call_sequence>0), attempt_id TEXT NOT NULL, ship TEXT NOT NULL, model TEXT NOT NULL,
+  max_input_tokens INTEGER NOT NULL CHECK(typeof(max_input_tokens)='integer' AND max_input_tokens >= 0), max_output_tokens INTEGER NOT NULL CHECK(typeof(max_output_tokens)='integer' AND max_output_tokens >= 0),
+  authorized_cost_microusd INTEGER NOT NULL CHECK(typeof(authorized_cost_microusd)='integer' AND authorized_cost_microusd >= 0), actual_cost_microusd INTEGER CHECK(actual_cost_microusd IS NULL OR (typeof(actual_cost_microusd)='integer' AND actual_cost_microusd>=0)),
+  state TEXT NOT NULL CHECK(state IN ('authorized','reported','unreported','failed')),
+  created_at INTEGER NOT NULL, reconciled_at INTEGER, UNIQUE(run_id,lease_fence,call_sequence),
+  FOREIGN KEY(run_id) REFERENCES fleet_run_reservations(run_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_call_authorizations_run_idx ON fleet_run_call_authorizations(run_id,state,created_at);
+
 CREATE TABLE IF NOT EXISTS fleet_run_spend (
   run_id          TEXT    NOT NULL,
   ship            TEXT,
@@ -1085,3 +1132,186 @@ BEGIN
   INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
   VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
 END;
+
+-- Fleet tenant identity spine. There is deliberately no backfill from legacy
+-- name-scoped rows: only explicit active bindings can authorize queue work.
+CREATE TABLE IF NOT EXISTS fleet_accounts (
+  id TEXT PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 128),
+  display_name TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'closed')),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0)
+);
+CREATE TABLE IF NOT EXISTS fleet_account_members (
+  tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  PRIMARY KEY (tenant_account_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_account_members_user_idx
+  ON fleet_account_members (user_id, tenant_account_id);
+CREATE TABLE IF NOT EXISTS fleet_tenant_installations (
+  installation_id INTEGER PRIMARY KEY CHECK (typeof(installation_id) = 'integer' AND installation_id > 0),
+  tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
+  github_account_id INTEGER NOT NULL CHECK (typeof(github_account_id) = 'integer' AND github_account_id > 0),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  UNIQUE (tenant_account_id, installation_id, github_account_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_tenant_installations_account_idx
+  ON fleet_tenant_installations (tenant_account_id, installation_id);
+CREATE TABLE IF NOT EXISTS fleet_tenant_repositories (
+  tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
+  installation_id INTEGER NOT NULL CHECK (typeof(installation_id) = 'integer' AND installation_id > 0),
+  repository_id INTEGER NOT NULL CHECK (typeof(repository_id) = 'integer' AND repository_id > 0),
+  github_account_id INTEGER NOT NULL CHECK (typeof(github_account_id) = 'integer' AND github_account_id > 0),
+  repository_full_name TEXT NOT NULL CHECK (length(repository_full_name) BETWEEN 3 AND 201),
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  PRIMARY KEY (tenant_account_id, installation_id, repository_id),
+  FOREIGN KEY (tenant_account_id, installation_id, github_account_id)
+    REFERENCES fleet_tenant_installations (tenant_account_id, installation_id, github_account_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS fleet_tenant_repositories_active_identity_idx
+  ON fleet_tenant_repositories (installation_id, repository_id) WHERE active = 1;
+CREATE INDEX IF NOT EXISTS fleet_tenant_repositories_account_idx
+  ON fleet_tenant_repositories (tenant_account_id, active, repository_id);
+CREATE TRIGGER IF NOT EXISTS fleet_accounts_immutable_id BEFORE UPDATE OF id ON fleet_accounts
+BEGIN
+  SELECT RAISE(ABORT, 'fleet account id is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_account_members_immutable_ids
+BEFORE UPDATE OF tenant_account_id, user_id ON fleet_account_members
+BEGIN
+  SELECT RAISE(ABORT, 'fleet account member identity is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_tenant_installations_immutable_ids
+BEFORE UPDATE OF installation_id, tenant_account_id, github_account_id ON fleet_tenant_installations
+BEGIN
+  SELECT RAISE(ABORT, 'fleet tenant installation identity is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_tenant_repositories_immutable_ids
+BEFORE UPDATE OF tenant_account_id, installation_id, repository_id, github_account_id
+ON fleet_tenant_repositories
+BEGIN
+  SELECT RAISE(ABORT, 'fleet tenant repository identity is immutable');
+END;
+CREATE TABLE IF NOT EXISTS fleet_repository_onboarding (
+  tenant_account_id TEXT NOT NULL,
+  installation_id INTEGER NOT NULL,
+  repository_id INTEGER NOT NULL,
+  requested_by_user_id TEXT NOT NULL,
+  desired_outcomes_json TEXT NOT NULL CHECK (json_valid(desired_outcomes_json) AND json_type(desired_outcomes_json) = 'array'),
+  customer_budget_microusd INTEGER NOT NULL CHECK (typeof(customer_budget_microusd) = 'integer' AND customer_budget_microusd BETWEEN 0 AND 1000000000000),
+  provider_cost_cap_microusd INTEGER NOT NULL CHECK (typeof(provider_cost_cap_microusd) = 'integer' AND provider_cost_cap_microusd BETWEEN 0 AND 1000000000000),
+  margin_floor_bps INTEGER NOT NULL DEFAULT 7500 CHECK (typeof(margin_floor_bps) = 'integer' AND margin_floor_bps BETWEEN 7500 AND 10000),
+  config_status TEXT NOT NULL DEFAULT 'discovery' CHECK (config_status IN ('discovery', 'proposed', 'accepted', 'rejected')),
+  execution_status TEXT NOT NULL DEFAULT 'blocked_pending_executor' CHECK (execution_status = 'blocked_pending_executor'),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  PRIMARY KEY (tenant_account_id, installation_id, repository_id, requested_by_user_id),
+  FOREIGN KEY (tenant_account_id, installation_id, repository_id)
+    REFERENCES fleet_tenant_repositories (tenant_account_id, installation_id, repository_id),
+  FOREIGN KEY (tenant_account_id, requested_by_user_id)
+    REFERENCES fleet_account_members (tenant_account_id, user_id),
+  CHECK (provider_cost_cap_microusd * 10000 <= customer_budget_microusd * (10000 - margin_floor_bps))
+);
+CREATE INDEX IF NOT EXISTS fleet_repository_onboarding_requester_idx
+  ON fleet_repository_onboarding (requested_by_user_id, tenant_account_id, repository_id);
+CREATE TABLE IF NOT EXISTS fleet_configuration_proposals (
+  id TEXT PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 128),
+  tenant_account_id TEXT NOT NULL,
+  installation_id INTEGER NOT NULL,
+  repository_id INTEGER NOT NULL,
+  proposed_by_user_id TEXT NOT NULL,
+  proposal_json TEXT NOT NULL CHECK (json_valid(proposal_json) AND json_type(proposal_json) = 'object'),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'proposed', 'accepted', 'rejected', 'superseded')),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  FOREIGN KEY (tenant_account_id, installation_id, repository_id)
+    REFERENCES fleet_tenant_repositories (tenant_account_id, installation_id, repository_id),
+  FOREIGN KEY (tenant_account_id, proposed_by_user_id)
+    REFERENCES fleet_account_members (tenant_account_id, user_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS fleet_configuration_proposals_one_accepted_idx
+  ON fleet_configuration_proposals (tenant_account_id, installation_id, repository_id) WHERE status = 'accepted';
+CREATE INDEX IF NOT EXISTS fleet_configuration_proposals_repo_idx
+  ON fleet_configuration_proposals (tenant_account_id, repository_id, updated_at DESC);
+CREATE TRIGGER IF NOT EXISTS fleet_repository_onboarding_immutable_scope
+BEFORE UPDATE OF tenant_account_id, installation_id, repository_id, requested_by_user_id
+ON fleet_repository_onboarding
+BEGIN
+  SELECT RAISE(ABORT, 'fleet onboarding user/repository scope is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_configuration_proposals_immutable_scope
+BEFORE UPDATE OF id, tenant_account_id, installation_id, repository_id, proposed_by_user_id
+ON fleet_configuration_proposals
+BEGIN
+  SELECT RAISE(ABORT, 'fleet proposal user/repository scope is immutable');
+END;
+-- Repository-scoped Shipwright context (migration 2026-09-14).
+CREATE TABLE IF NOT EXISTS shipwright_threads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_threads_scope_idx
+  ON shipwright_threads (user_id, installation_id, repo_full_name, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS shipwright_threads_one_repo_idx
+  ON shipwright_threads (user_id, installation_id, repo_full_name);
+CREATE TRIGGER IF NOT EXISTS shipwright_threads_quota_guard
+BEFORE INSERT ON shipwright_threads
+WHEN (SELECT COUNT(*) FROM shipwright_threads WHERE user_id = NEW.user_id) >= 100
+ AND NOT EXISTS (
+   SELECT 1 FROM shipwright_threads
+    WHERE user_id = NEW.user_id AND installation_id = NEW.installation_id
+      AND repo_full_name = NEW.repo_full_name
+ )
+BEGIN
+  SELECT RAISE(ABORT, 'shipwright thread quota exceeded');
+END;
+CREATE TABLE IF NOT EXISTS shipwright_thread_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  thread_id TEXT NOT NULL REFERENCES shipwright_threads(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_thread_messages_scope_idx
+  ON shipwright_thread_messages (user_id, thread_id, id);
+CREATE INDEX IF NOT EXISTS shipwright_thread_messages_created_idx
+  ON shipwright_thread_messages (created_at);
+CREATE TABLE IF NOT EXISTS shipwright_repo_memory (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  kind TEXT NOT NULL,
+  body_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (user_id, installation_id, repo_full_name, kind)
+);
+CREATE INDEX IF NOT EXISTS shipwright_repo_memory_scope_idx
+  ON shipwright_repo_memory (user_id, installation_id, repo_full_name, updated_at DESC);
+CREATE TABLE IF NOT EXISTS shipwright_proposals (
+  id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL REFERENCES shipwright_threads(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  yaml TEXT NOT NULL,
+  origin TEXT NOT NULL DEFAULT 'assistant_conversation'
+    CHECK (origin IN ('assistant_conversation', 'deterministic_onboarding')),
+  created_at INTEGER NOT NULL,
+  UNIQUE (thread_id, yaml)
+);
+CREATE INDEX IF NOT EXISTS shipwright_proposals_scope_idx
+  ON shipwright_proposals (user_id, installation_id, repo_full_name, thread_id, created_at DESC);

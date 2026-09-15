@@ -59,7 +59,7 @@ function makeSteward(calls: WakeCall[], status = 202) {
 
 const audits: Array<{ action: string; detail: string }> = [];
 
-function makeDb(): D1Database {
+function makeDb(activationReady = true): D1Database {
   const stmtFor = (query: string) => {
     let bound: unknown[] = [];
     const stmt = {
@@ -71,6 +71,15 @@ function makeDb(): D1Database {
         return null;
       },
       async all() {
+        if (query.includes('FROM fleet_tenant_repositories r')) {
+          return { results: [{
+            tenant_account_id: 'fta_test', installation_id: 777,
+            repository_id: 42, github_account_id: 9001,
+          }] };
+        }
+        if (query.includes('FROM fleet_repository_onboarding o')) {
+          return { results: activationReady ? [{ ready: 1 }] : [] };
+        }
         return { results: [] };
       },
       async run() {
@@ -86,13 +95,13 @@ function makeDb(): D1Database {
   return { prepare: stmtFor, batch: async () => [], exec: async () => ({ count: 0, duration: 0 }) } as unknown as D1Database;
 }
 
-function makeEnv(steward?: DurableObjectNamespace): Env {
+function makeEnv(steward?: DurableObjectNamespace, activationReady = true): Env {
   const noopChannel = {
     idFromName: (name: string) => ({ name }),
     get: () => ({ async fetch() { return new Response(null, { status: 204 }); } }),
   };
   return {
-    DB: makeDb(),
+    DB: makeDb(activationReady),
     HARBOR_CHANNEL: noopChannel as unknown as DurableObjectNamespace,
     ...(steward ? { STEWARD: steward } : {}),
     KV: {} as KVNamespace,
@@ -108,7 +117,11 @@ function sign(body: string): string {
 }
 
 function deliver(env: Env, event: string, body: unknown, delivery = 'd-1'): Promise<Response> {
-  const raw = JSON.stringify(body);
+  const record = body && typeof body === 'object' ? body as Record<string, unknown> : null;
+  const payload = record?.repository && !record.installation
+    ? { ...record, installation: { id: 777 } }
+    : body;
+  const raw = JSON.stringify(payload);
   return handleGithubWebhook(
     new Request('https://relay.example.com/v1/github/webhook', {
       method: 'POST',
@@ -124,7 +137,7 @@ function deliver(env: Env, event: string, body: unknown, delivery = 'd-1'): Prom
   );
 }
 
-const REPOSITORY = { full_name: REPO };
+const REPOSITORY = { id: 42, full_name: REPO, owner: { id: 9001 } };
 
 describe('the filter — signal in, description-churn out', () => {
   it('wakes on a completed check suite', () => {
@@ -167,6 +180,17 @@ describe('the filter — signal in, description-churn out', () => {
 });
 
 describe('the knock actually happens on the real handler path', () => {
+  it('does not wake a tenant-bound repository whose onboarding is only proposed', async () => {
+    const calls: WakeCall[] = [];
+    const res = await deliver(makeEnv(makeSteward(calls), false), 'check_suite', {
+      action: 'completed', repository: REPOSITORY,
+      check_suite: { conclusion: 'success', pull_requests: [{ number: 9807 }] },
+    });
+    expect(res.status).toBe(204);
+    expect(calls).toHaveLength(0);
+    expect(audits.some(a => a.action === 'steward_wake_not_admitted')).toBe(true);
+  });
+
   it('a verified check_suite delivery reaches the seat for that repo', async () => {
     // This is the assertion whose absence caused the incident. It runs the
     // real handleGithubWebhook — signature, gates and all — and asserts the

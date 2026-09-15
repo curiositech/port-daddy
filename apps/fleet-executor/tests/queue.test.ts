@@ -69,6 +69,13 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('runs stale reservation cleanup from the scheduled trigger', async () => {
+    const db=memoryD1();
+    const ctx=capturingCtx();
+    await handler.scheduled!({} as ScheduledController, makeEnv({DB:db.db}), ctx);
+    await Promise.all(ctx.waited);
+    expect(db.staleSweepQueries).toBe(1);
+  });
   it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {
     // A GitHub 5xx from the raw-diff endpoint used to become an empty diff and
     // let a clean, zero-source review complete. It is infrastructure failure:
@@ -452,12 +459,25 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
@@ -504,18 +524,33 @@ describe('queue consumer', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const intent = { state: 'queued', error: null as string | null };
+    const billingD1 = memoryD1();
     const db = {
       prepare(sql: string) {
+        if (!sql.includes('fleet_run_intents')) return billingD1.db.prepare(sql);
         let bound: unknown[] = [];
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
@@ -573,13 +608,26 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
             if (sql.includes('SELECT conclusion FROM fleet_runs')) return null;
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {

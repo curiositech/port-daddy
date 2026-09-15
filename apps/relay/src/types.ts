@@ -152,11 +152,15 @@ export interface Env {
  * Shape MUST match apps/fleet-executor/src/env.ts FleetRunJob.
  */
 export interface FleetRunJob {
+  schemaVersion: 2;
+  tenantAccountId: string;
   deliveryId: string;
   eventType: string;
   action: string | null;
   repoFullName: string | null;
-  installationId: number | null;
+  installationId: number;
+  repositoryId: number;
+  githubAccountId: number;
   prNumber: number | null;
   payloadMinimal: {
     sender?: Record<string, unknown>;

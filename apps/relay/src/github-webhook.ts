@@ -40,7 +40,7 @@ import {
   ENVELOPE_SCHEMA_ID,
 } from './envelope.js';
 import type { RelayReadableEnvelope } from './envelope.js';
-import { maybeWakeSteward } from './steward-wake.js';
+import { maybeWakeSteward, stewardWakeKind } from './steward-wake.js';
 import {
   getLastEventSeq,
   insertEvent,
@@ -56,6 +56,12 @@ import {
   type FleetIntentReservation,
 } from './fleet-run-intents.js';
 import type { Env, RelayEvent, ChainHead, RelayError, FleetRunJob } from './types.js';
+import {
+  buildFleetRunJobV2,
+  isPositiveGithubId,
+  resolveFleetTenantBinding,
+  type FleetTenantBinding,
+} from '../../shared/fleet-tenant.js';
 
 /**
  * Build one `RelayError` response.
@@ -341,8 +347,10 @@ async function maybeEnqueueFleetRun(
   deliveryId: string,
   repoFullName: string | null,
   payload: Record<string, unknown>,
+  tenantBinding: FleetTenantBinding | null,
 ): Promise<void> {
   if (!shouldEnqueueFleetRun(eventType, action)) return;
+  if (!tenantBinding) return;
   // Preserve the relay's optional-queue boot contract: when neither producer
   // exists, webhook ingestion remains a quiet no-op exactly as before.
   if (!env.FLEET_RUNS && !env.FLEET_GATES) return;
@@ -360,10 +368,6 @@ async function maybeEnqueueFleetRun(
     }).catch(() => {});
     return;
   }
-  const installation =
-    payload.installation && typeof payload.installation === 'object'
-      ? (payload.installation as Record<string, unknown>)
-      : null;
   const pull =
     payload.pull_request && typeof payload.pull_request === 'object'
       ? (payload.pull_request as Record<string, unknown>)
@@ -412,12 +416,11 @@ async function maybeEnqueueFleetRun(
       }).catch(() => {});
     }
   }
-  const job: FleetRunJob = {
+  const job: FleetRunJob = buildFleetRunJobV2(tenantBinding, {
     deliveryId,
     eventType,
     action,
     repoFullName,
-    installationId: installation && typeof installation.id === 'number' ? installation.id : null,
     prNumber,
     payloadMinimal: {
       sender: (payload.sender as Record<string, unknown>) ?? undefined,
@@ -430,7 +433,7 @@ async function maybeEnqueueFleetRun(
       // the executor would have nothing to attach a check run to.
       merge_group: (payload.merge_group as Record<string, unknown>) ?? undefined,
     },
-  };
+  });
   try {
     await queue.send(job);
   } catch (queueError) {
@@ -483,6 +486,30 @@ async function maybeEnqueueFleetRun(
     // The queue already owns the message.  An audit write must never turn a
     // successful admission into a webhook failure/retry and duplicate spend.
   }
+}
+
+/** Steward is executable automation, so a tenant binding alone is not enough. */
+async function isStewardActivationReady(
+  db: D1Database,
+  binding: FleetTenantBinding,
+): Promise<boolean> {
+  const result = await db.prepare(`SELECT 1 AS ready
+    FROM fleet_repository_onboarding o
+    JOIN fleet_configuration_proposals p
+      ON p.tenant_account_id=o.tenant_account_id
+     AND p.installation_id=o.installation_id AND p.repository_id=o.repository_id
+    JOIN fleet_managed_entitlements e ON e.installation_id=o.installation_id
+    JOIN fleet_served_installations s ON s.installation_id=o.installation_id
+    WHERE o.tenant_account_id=? AND o.installation_id=? AND o.repository_id=?
+      AND o.config_status='accepted' AND p.status='accepted'
+      AND e.state='active' AND s.state='served'
+    LIMIT 1`)
+    .bind(binding.tenantAccountId, binding.installationId, binding.repositoryId)
+    .all<{ ready: number }>();
+  if (!Array.isArray(result.results)) {
+    throw new Error('Fleet activation readiness lookup failed');
+  }
+  return result.results.length === 1;
 }
 
 /**
@@ -567,6 +594,64 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   const repoFullName =
     repository && typeof repository.full_name === 'string' ? repository.full_name : null;
 
+  // Immediate fail-closed Fleet admission. Repository names remain display
+  // metadata; only the HMAC-verified immutable GitHub tuple may resolve the
+  // server-owned tenant. Infrastructure failure returns 503 before persistence
+  // or queue side effects so GitHub can safely redeliver. Invalid or unbound
+  // tuples are permanent non-work acknowledgements, not legacy fallbacks.
+  let fleetTenantBinding: FleetTenantBinding | null = null;
+  let stewardActivationReady = false;
+  if (shouldEnqueueFleetRun(eventType, action) || stewardWakeKind(eventType, action) !== null) {
+    const installation = payload.installation && typeof payload.installation === 'object'
+      ? payload.installation as Record<string, unknown> : null;
+    const owner = repository?.owner && typeof repository.owner === 'object'
+      ? repository.owner as Record<string, unknown> : null;
+    const witness = {
+      installationId: installation?.id,
+      repositoryId: repository?.id,
+      githubAccountId: owner?.id,
+    };
+    if (isPositiveGithubId(witness.installationId)
+        && isPositiveGithubId(witness.repositoryId)
+        && isPositiveGithubId(witness.githubAccountId)) {
+      const resolution = await resolveFleetTenantBinding(env.DB, {
+        installationId: witness.installationId,
+        repositoryId: witness.repositoryId,
+        githubAccountId: witness.githubAccountId,
+      });
+      if (!resolution.ok && resolution.disposition === 'retryable') {
+        return err('FLEET_TENANT_LOOKUP_FAILED', 'Fleet tenant admission is temporarily unavailable', 503);
+      }
+      if (resolution.ok) {
+        fleetTenantBinding = resolution.binding;
+        if (env.STEWARD && stewardWakeKind(eventType, action) !== null) {
+          try {
+            stewardActivationReady = await isStewardActivationReady(env.DB, resolution.binding);
+          } catch {
+            return err('FLEET_ACTIVATION_LOOKUP_FAILED', 'Fleet activation admission is temporarily unavailable', 503);
+          }
+          if (!stewardActivationReady) {
+            await appendAudit(env.DB, {
+              action: 'steward_wake_not_admitted', target: repoFullName ?? '',
+              detail: `event=${eventType} delivery=${deliveryId} reason=activation-not-ready`,
+            }).catch(() => {});
+          }
+        }
+      }
+      else {
+        await appendAudit(env.DB, {
+          action: 'fleet_run_not_admitted', target: repoFullName ?? '',
+          detail: `event=${eventType} delivery=${deliveryId} reason=${resolution.reason}`,
+        }).catch(() => {});
+      }
+    } else {
+      await appendAudit(env.DB, {
+        action: 'fleet_run_not_admitted', target: repoFullName ?? '',
+        detail: `event=${eventType} delivery=${deliveryId} reason=invalid-identity`,
+      }).catch(() => {});
+    }
+  }
+
   const channels = channelsForWebhook(eventType, action, repoFullName);
 
   // Structured relay-readable payload. Per-channel envelope construction (seq
@@ -592,13 +677,15 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
     }).catch(() => {});
     // NOT persisted, but merge_group still needs its fleet run: this gate
     // withholds the D1 row and the channel fan-out, not the merge-queue gate.
-    await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload);
+    await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload, fleetTenantBinding);
     // Nor does it withhold the Steward's wake, and this is the path that
     // matters most for it: `check_suite:completed` and `pull_request_review`
     // are both "not a PR event" by the persistence gate's reckoning, yet a
     // suite going green is the single most merge-relevant thing that happens
     // to a PR. Ambient *noise* is what that gate withholds — this is signal.
-    await maybeWakeSteward(env, eventType, action, deliveryId, repoFullName, payload);
+    if (fleetTenantBinding && stewardActivationReady) {
+      await maybeWakeSteward(env, eventType, action, deliveryId, repoFullName, payload);
+    }
     return new Response(null, { status: 204 });
   }
 
@@ -626,13 +713,15 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   //    we've already published to channels. The executor's own retry/DLQ owns
   //    durability from here. installation.id / pull_request.number are read
   //    from the verified payload (no GitHub API call from the relay).
-  await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload);
+  await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload, fleetTenantBinding);
 
   // 9. Wake the repo's Steward seat (P1 PR 8). Same guarded contract as the
   //    queue hand-off above and for the same reason: the seat is an
   //    accelerant, not a dependency. Losing a wake costs latency until the
   //    next heartbeat; failing the delivery would cost a duplicate fleet run.
-  await maybeWakeSteward(env, eventType, action, deliveryId, repoFullName, payload);
+  if (fleetTenantBinding && stewardActivationReady) {
+    await maybeWakeSteward(env, eventType, action, deliveryId, repoFullName, payload);
+  }
 
   return new Response(null, { status: 204 });
 }

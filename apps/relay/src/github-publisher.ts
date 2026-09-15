@@ -718,19 +718,45 @@ async function graphql<T>(
   return response.body.data;
 }
 
-async function authorizeExactRepository(
+export interface AuthorizedRepositoryIdentity {
+  repositoryId: number | null;
+  githubAccountId: number | null;
+  fullName: string;
+}
+
+export async function authorizeExactRepository(
   installationId: number,
   repository: string,
   userToken: string,
-): Promise<void> {
+  requiredAccess: 'read' | 'write' = 'read',
+): Promise<AuthorizedRepositoryIdentity> {
   for (let page = 1; page <= MAX_REPOSITORY_PAGES; page += 1) {
     const result = await fetchJson<{
       total_count?: number;
-      repositories?: Array<{ full_name?: string }>;
+      repositories?: Array<{
+        id?: number;
+        full_name?: string;
+        owner?: { id?: number };
+        permissions?: { admin?: boolean; maintain?: boolean; push?: boolean; pull?: boolean };
+      }>;
     }>(`${GH_API}/user/installations/${installationId}/repositories?per_page=100&page=${page}`, userToken);
     const repositories = result.body?.repositories;
     if (!Array.isArray(repositories)) failure('GITHUB_GRANT_INVALID', 502, 'GitHub installation repository response is invalid');
-    if (repositories.some((entry) => entry.full_name?.toLowerCase() === repository)) return;
+    const exact = repositories.find((entry) => entry.full_name?.toLowerCase() === repository);
+    if (exact) {
+      if (typeof exact.full_name !== 'string') {
+        failure('GITHUB_GRANT_INVALID', 502, 'GitHub repository identity response is invalid');
+      }
+      const permission = exact.permissions;
+      if (requiredAccess === 'write' && !(permission?.push || permission?.maintain || permission?.admin)) {
+        failure('REPOSITORY_WRITE_NOT_AUTHORIZED', 403, 'the signed-in user does not have write access to this repository');
+      }
+      return {
+        repositoryId: Number.isSafeInteger(exact.id) && (exact.id ?? 0) > 0 ? exact.id! : null,
+        githubAccountId: Number.isSafeInteger(exact.owner?.id) && (exact.owner?.id ?? 0) > 0 ? exact.owner!.id! : null,
+        fullName: exact.full_name.toLowerCase(),
+      };
+    }
     if (repositories.length < 100 || (Number.isSafeInteger(result.body?.total_count)
       && page * 100 >= (result.body?.total_count ?? 0))) {
       failure('REPOSITORY_NOT_AUTHORIZED', 403, 'the signed-in user has not granted this repository to Port Daddy');
@@ -860,6 +886,10 @@ function permissionsFor(operation: FleetbotOperation): Readonly<Record<string, I
     : operation === 'pull-request.inspect'
       ? { pull_requests: 'read' }
       : { pull_requests: 'write' };
+}
+
+function repositoryAccessFor(operation: FleetbotOperation): 'read' | 'write' {
+  return operation === 'pull-request.inspect' ? 'read' : 'write';
 }
 
 function expectedBranch(request: FleetbotActionRequest, accountUserId: string): string {
@@ -1570,7 +1600,12 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     }
     const [owner, repo] = action.repository.split('/') as [string, string];
     const installationId = await getRepoInstallationId(config.appId, config.privateKey, owner, repo, env.KV, true);
-    await authorizeExactRepository(installationId, action.repository, account.credential.accessToken);
+    await authorizeExactRepository(
+      installationId,
+      action.repository,
+      account.credential.accessToken,
+      repositoryAccessFor(action.operation),
+    );
     key = {
       accountUserId: account.user.id,
       accountGithubUserId: account.user.github_user_id,
@@ -1654,5 +1689,6 @@ export const __fleetbotPublisherTest = {
   executeExisting,
   gitObjectSha,
   expectedCommitSha,
+  repositoryAccessFor,
   maxOuterRequestBytes: MAX_OUTER_REQUEST_BYTES,
 };
