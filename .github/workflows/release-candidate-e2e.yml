@@ -1,0 +1,136 @@
+name: Release Candidate E2E
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-staged-release:
+    name: rc-e2e / build staged release
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Use Bun 1.2.21
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Use Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate the matrix and runner contract
+        run: npm test -- --runInBand tests/unit/release-candidate-e2e.test.js
+
+      - name: Build, stage, and test the exact release artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$HOME/coding/tmp/pd-rc-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          run_root="$base/artifact-run"
+          stage="$base/stage/Cellar/port-daddy/rc"
+          results="$base/artifact-results.json"
+          mkdir -p "$base"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "archive=$base/pd-rc-stage.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "results=$results" >> "$GITHUB_OUTPUT"
+          node scripts/e2e-release-candidate.mjs \
+            --build \
+            --target bun-linux-x64 \
+            --root "$run_root" \
+            --staged-dir "$stage" \
+            --shard artifact \
+            --results "$results"
+          tar -C "$stage" -czf "$base/pd-rc-stage.tar.gz" .
+
+      - name: Upload the exact staged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-rc-stage
+          path: ${{ steps.artifact.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload sanitized artifact-build result
+        if: always() && steps.artifact.outputs.results != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-rc-artifact-result
+          path: ${{ steps.artifact.outputs.results }}
+          if-no-files-found: warn
+          retention-days: 7
+
+  product-journeys:
+    name: rc-e2e / ${{ matrix.shard }}
+    needs: build-staged-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PD_RC_DOWNLOAD: /home/runner/coding/tmp/pd-rc-download-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [runtime, hostile, existing]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download the exact staged release
+        uses: actions/download-artifact@v4
+        with:
+          name: pd-rc-stage
+          path: ${{ env.PD_RC_DOWNLOAD }}
+
+      - name: Run artifact-bound product journeys
+        id: journeys
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$HOME/coding/tmp/pd-rc-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ matrix.shard }}"
+          stage="$base/stage/Cellar/port-daddy/rc"
+          results="$base/${{ matrix.shard }}-results.json"
+          mkdir -p "$stage"
+          tar -C "$stage" -xzf "$PD_RC_DOWNLOAD/pd-rc-stage.tar.gz"
+          chmod +x "$stage/pd" "$stage/port-daddy" "$stage"/bin/*
+          echo "results=$results" >> "$GITHUB_OUTPUT"
+          node scripts/e2e-release-candidate.mjs \
+            --root "$base/run" \
+            --staged-dir "$stage" \
+            --shard "${{ matrix.shard }}" \
+            --results "$results"
+
+      - name: Upload sanitized shard result
+        if: always() && steps.journeys.outputs.results != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-rc-${{ matrix.shard }}-result
+          path: ${{ steps.journeys.outputs.results }}
+          if-no-files-found: warn
+          retention-days: 7
