@@ -345,6 +345,35 @@ their only visible boundary. Both matter because a static pass reports success o
 exactly these: the Escape handler is present in source whether or not it runs,
 and a gradient looks like a boundary right up until the OS reverts it.
 
+### One value where a function belonged
+
+`references/typographic-craft-and-tokens.md` has a single governing idea and it
+is worth carrying into any stylesheet review. A generator emits CSS that is
+internally consistent and has no craft in it, because craft in typography is
+almost entirely per-context judgement: this heading at this size on this measure
+needs 1.05 leading — `line-height`, the distance from one baseline to the
+next, expressed as a multiple of the font size — and slightly negative
+tracking, while the one three sections down does not. A default is by construction context-free.
+
+So the tell is never a **wrong value** — any individual number in that file
+is defensible somewhere. The tell is **one value where there should have been a
+function of context**, and every check there is the same computation: does this
+property vary with the thing it is supposed to vary with? Leading with size and
+measure. Tracking with size. Weight with role. Contrast with theme. Colour with
+surface.
+
+That changes how you report it. You are not telling an author their 1.6
+line-height is wrong; you are telling them a 64px headline and 16px body copy
+cannot both want it.
+
+Two cautions, or this lane generates noise. Read **computed** values rather than
+declaration counts — utility frameworks bundle a tightening line-height into
+their size scale, so a page with no explicit `line-height` anywhere is usually
+correct and flagging it is the error. And restraint is not absence: a
+deliberately single-weight, single-ratio system is a real tradition, so the tell
+is one value **plus no other axis carrying the hierarchy**, never a low count on
+its own.
+
 ### Where hard string matching is allowed
 
 Everywhere else in this skill, a closed phrase list is a bad detector: the words
@@ -434,8 +463,13 @@ Read `references/catalog.json`. For every item whose `detection_type` is
 `detection_type` is `structural` but which the script does not implement, ask it
 yourself; the script covers the countable subset, not all of them.
 
-There is a fourth `detection_type`, `assistive`, and it means what it says: a
-headless browser cannot settle it, because the finding is what a person *hears*.
+Each catalog item carries a `detection_type` — the kind of evidence that
+settles it. Three of the four are mechanical: `structural` (decidable from the
+source text), `rendered` (needs a real browser at a real viewport), and
+`llm-judge` (needs you to read it and answer the item's rubric question).
+
+The fourth is `assistive`, and it means what it says: a headless browser cannot
+settle it, because the finding is what a person *hears*.
 Do not write an assertion for one and treat a pass as evidence — that is how a
 manual check gets laundered into a green tick, which is the failure this whole
 skill exists to name. Report those as "not checked" unless someone actually put a
@@ -494,6 +528,7 @@ already one of them.
 | `references/five-minute-manual-pass.md` | Reviewing any web page for accessibility — eleven keyboard and screen-reader steps, written for someone who has never used one |
 | `references/accessibility-beyond-the-checklist.md` | After the manual pass, or when an automated scan came back clean and you need the other 70% |
 | `references/product-ux-writing.md` | Any string a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints |
+| `references/typographic-craft-and-tokens.md` | Reviewing a stylesheet or a design system: leading, tracking, scale, weight, numerals, colour roles, tokens |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -616,6 +651,7 @@ launch announcement in machine accent and then edited,
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
 - [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 - [`references/tool-fingerprints.md`](references/tool-fingerprints.md) — Tool fingerprints — provenance, and the few that are also defects — Read the first two items in this file before the other nineteen, because they are the rules the rest depends on.
+- [`references/typographic-craft-and-tokens.md`](references/typographic-craft-and-tokens.md) — Typographic craft and design-system structure — **The governing mechanism, and the thing to say when you report any item here.** A generator emits a stylesheet that is internally consisten
 - [`references/unopened-surfaces.md`](references/unopened-surfaces.md) — Unopened surfaces — navigation, i18n, docs, commerce, email, print — Everything in this file is about a surface that was never opened.
 - [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look and generated imagery — What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.
 - [`references/web-build-defects.md`](references/web-build-defects.md) — Web build defects — the half you can reproduce — A different KIND of finding from the rest of this catalog.

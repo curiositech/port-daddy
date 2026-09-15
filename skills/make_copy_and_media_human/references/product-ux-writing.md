@@ -445,6 +445,8 @@ Exclamation marks in status, error, empty and confirmation copy. The punctuation
 
 **Detect:** Static and threshold-based. Two findings: any exclamation in an ERROR or WARNING string is a hard match; and an exclamation rate above roughly one in twelve strings across the whole corpus, or more than one in a single string. The threshold matters, because one celebratory “Welcome!” is a choice and forty is a default.
 
+**Thresholds** (read by `scripts/humanize_review.py`): `max_rate` = 0.083
+
 **Fix:** Remove all of them from errors and warnings. Keep at most one or two in the whole product, at genuine milestones.
 
 **False positive when:** Consumer and social products with a deliberately animated voice use exclamations by design. Localised strings may carry punctuation conventions from the source language. Genuine celebrations earn one. Judge by rate and by slot, never by a single instance.
