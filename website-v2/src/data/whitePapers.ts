@@ -350,7 +350,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 64,
+    pages: 66,
     sizeKb: 924,
     status: 'Version 1.2 (textbook edition)',
     order: '04',
