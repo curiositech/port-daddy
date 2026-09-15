@@ -2,7 +2,7 @@
 
 Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 
-_54 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_55 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -409,6 +409,26 @@ Template filler reaching a reader: lorem ipsum, "Your Company", "Acme Inc", "Pro
 **After**
 
 > <p>Northwind matches bank lines to invoices and flags the 2% that need a human.</p>
+
+### `promised-idea-never-delivered`  ·  high · generic-llm · structure · llm-judge · family: shape
+
+The piece sets up an idea it never returns to. A question posed in the opening, a tension introduced, a 'we will come back to this' that never comes back.
+
+**Why it reads AI:** Template completion. An opening that raises a question is a learned move; closing it requires holding the promise across the whole document, which nothing in the generation loop enforces.
+
+**Detect:** Judge: list every promise the opening makes, then check each against the body. An unclosed loop is the finding.
+
+**Fix:** Close the loop or cut the setup. Usually cutting is right, because the setup was rhetorical furniture rather than a real question. If it was a real question, answering it is probably the best part of the piece.
+
+**False positive when:** Part one of a stated series, and pieces that explicitly defer to a linked follow-up.
+
+**Before**
+
+> The interesting part is what happens when the clock skews — more on that below. [no more on that below]
+
+**After**
+
+> The interesting part is what happens when the clock skews. [three paragraphs on clock skew]
 
 ### `substitutable-reply`  ·  high · generic-llm · social-post · llm-judge · family: shape
 
