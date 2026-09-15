@@ -766,6 +766,7 @@
       "contentType": "image/gif"
     },
     {
+<<<<<<< HEAD
       "path": "docs/pr-assets/figures-pixel-judgment/before-after-fig-5-8-audit-tower.png",
       "bytes": 325112,
       "sha256": "76c728781ec5d91be8115cc8737e147d2e00c1ea32cfbe9fef60d5af9f51cfed",
@@ -1001,6 +1002,13 @@
       "bytes": 198686,
       "sha256": "9f7525081a430fcdded50a7a9c2f26696a33331a820b0cd50486337f222834fd",
       "key": "sha256/9f/9f7525081a430fcdded50a7a9c2f26696a33331a820b0cd50486337f222834fd.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-anchor-four-phases-figure/anchor-four-phases-before-after-1x-150dpi.png",
+      "bytes": 679935,
+      "sha256": "acb2d893154fbb7f52d491654d740f1427d63db465720f2c92e6bf3daabda9e1",
+      "key": "sha256/ac/acb2d893154fbb7f52d491654d740f1427d63db465720f2c92e6bf3daabda9e1.png",
       "contentType": "image/png"
     },
     {
