@@ -220,7 +220,7 @@ every mutation. There is one decider, so there is no agreement to reach.
 This paper presents that kernel --- the \textbf{substrate layer} of a four-layer
 coordination stack --- together with the implemented half of the coordination
 protocol that rides directly on it (a durable message bus, decaying stigmergic
-markers, violable commitments, a cryptographic delegation chain, and a policy
+markers, violable commitments, a cryptographic authorization chain, and a policy
 monitor) as a \textbf{single-writer transactional reference monitor} in the sense
 of Anderson and Lampson: a small, tamper-evident mediator of every
 security-relevant operation, realized locally rather than as an abstract security
@@ -290,7 +290,7 @@ claims, bus, and policy monitor to render the swarm; the personhood argument lea
 the entire notion of a \emph{durable agent identity} on the kernel's continuity
 machinery; the economy's settlement ledger is, mechanically, another set of tables
 under the same single writer, and its cross-machine capability transfer rides the
-kernel's cryptographic delegation chain. If this floor is unsound, everything above
+kernel's authorization chain. If this floor is unsound, everything above
 it inherits the fault. So the discipline of this paper is to state each promise
 precisely and, where the promise has an edge, to draw the edge in ink.
 
@@ -1209,7 +1209,9 @@ everything is not a solution.
 
 \begin{pdclaim}{Theorem}{Regimentation is controllability}\label{thm:regimentation-controllability}\pdprovedon{thm:regimentation-controllability}
 Let $L \subseteq \Sigma^{*}$ be a prefix-closed plant over $\Sigma = \Sigma_c \uplus \Sigma_u$
-and let $K \subseteq L$ be a nonempty prefix-closed safety policy. There exists a
+and let $K \subseteq L$ be a nonempty prefix-closed safety policy. Assume \emph{full
+observation}: the supervisor sees every event it does not disable, so the observable
+subalphabet $\Sigma_o$ is all of $\Sigma$. There exists a
 regimentation mechanism for $K$, a supervisor disabling only controllable events whose closed
 loop is exactly $\overline{K}$, if and only if $K$ is \emph{controllable} with respect to $L$
 and $\Sigma_u$:
@@ -1222,6 +1224,8 @@ violation; the best achievable enforcement is detect-and-compensate, and the lar
 preventable weakening of the policy is the supremal controllable sublanguage
 $\sup\mathcal{C}(K)$, which exists and is computable for regular $K$ and $L$
 [verified framework: Ramadge and Wonham~\pdcite{rw87}].
+Relaxing full observation does not weaken this conclusion, it adds a second and independent
+condition: see Theorem~\ref{thm:observability-regimentation}.
 \end{pdclaim}
 
 \paragraph{Proof idea.}
@@ -1414,13 +1418,45 @@ event, even the ones it cannot disable: the daemon logs tokens after emission an
 completion. Realistic deployments break this in a second place. Some events are not only
 unrefusable but unobservable: activations never surfaced, state internal to a third-party
 tool, another principal's context. Supervisory control under partial observation is also
-solved territory. Lin and Wonham~\pdcite{lw88} characterize enforceability as controllability
-\emph{plus observability}: the supervisor's decisions must be constant on
-observation-equivalence classes of histories, so the policy may not demand different gate
-decisions after histories the runtime cannot tell apart. Observability strictly shrinks the
-regimentable set. ``No egress after the model \emph{considered} exfiltration'' has a
+solved territory, and the refinement is worth stating with the same precision as the theorem
+it refines --- this is a \emph{local} correction in Lakatos's sense, a hypothesis that was
+doing work without being named, so the classification survives once the hypothesis is written
+down, and nothing the chapter concluded under full observation is withdrawn.
+
+\begin{pdclaim}{Theorem}{Regimentation under partial observation}\label{thm:observability-regimentation}
+Let $L$, $K$, $\Sigma_c$ and $\Sigma_u$ be as in
+Theorem~\ref{thm:regimentation-controllability}, but let the supervisor observe only
+$\Sigma_o \subseteq \Sigma$, through the projection $P : \Sigma^{*} \to \Sigma_o^{*}$ that
+erases every unobservable event. A regimentation mechanism for $K$ whose decisions depend
+only on what it observed --- a supervisor that factors through $P$ --- exists if and only if
+$K$ is controllable with respect to $L$ and $\Sigma_u$ \emph{and} $K$ is
+\emph{observable} with respect to $L$, $P$ and $\Sigma_c$: for all $s, s' \in \overline{K}$
+with $P(s) = P(s')$ and every $\sigma \in \Sigma_c$,
+\[
+  s\sigma \in \overline{K} \;\wedge\; s'\sigma \in \overline{L}
+  \;\Longrightarrow\; s'\sigma \in \overline{K},
+\]
+that is, no two histories the runtime cannot tell apart may demand opposite decisions about
+the same controllable event
+[verified framework: Lin and Wonham~\pdcite{lw88}].
+\end{pdclaim}
+
+\paragraph{Proof idea.}
+A supervisor that only sees $P(s)$ has one decision to spend on the whole class of histories
+that share a projection. If the policy ever wants $\sigma$ enabled after $s$ and disabled
+after an indistinguishable $s'$, no such supervisor can serve both, and the failure is not a
+matter of trying harder: it is a counting argument about how many decisions the observation
+map leaves available. If the policy never asks for that, the laziest supervisor of
+Theorem~\ref{thm:regimentation-controllability} can be defined on projections instead of
+histories, and the same closed-loop argument goes through unchanged.
+
+Observability strictly shrinks the regimentable set, and $\Sigma_o = \Sigma$ collapses the
+condition to a tautology, which is why the first theorem never had to mention it.
+``No egress after the model \emph{considered} exfiltration'' has a
 controllable prohibition and an unwitnessed trigger, so no supervisor can implement its gate
-condition. The practical reading: a compound policy is deployable only if its trigger is
+condition --- two runs, identical in everything the daemon logged, differing only in a
+deliberation nobody saw, are exactly the $s$ and $s'$ the condition forbids. The practical
+reading: a compound policy is deployable only if its trigger is
 witnessed at the mediation boundary. Taint must be an event the daemon sees, not a state it
 infers. Figure~\ref{fig:swk-controllability-quadrant} puts both boundaries on one grid.
 
@@ -1614,6 +1650,19 @@ a proxy for a structural intent, which is the shape of every target that has eve
 been gamed. \emph{Oracle completeness} --- the claim that some finite vocabulary
 captures the ``done'' conditions agents actually need --- is not established by
 adding two kinds, and OP-5 stays \Open{}.
+
+A reader who has got this far usually asks a different question --- not ``is the
+vocabulary complete?'' but ``who keeps the oracle honest?'' --- and that one has an
+answer, in another chapter. \pdchapref{stp}{From Spawn to Person} builds an
+inspection tower over graders and proves a contraction: escalation through $C$
+disjoint cliques drives the probability that a bad verdict survives down
+geometrically, so no single grader is trusted and none has to be. Note what that
+does and does not settle, because the two are easy to run together. It is a result
+about the oracle's \emph{incentives} --- whether a grader who would rather lie can
+profit by it --- and OP-5 is a question about the oracle's \emph{expressiveness},
+whether the vocabulary can state the closure condition at all. A perfectly
+incentivised grader still cannot close a commitment the vocabulary cannot phrase,
+which is why the tower does not move this status and OP-5 stays where it is.
 
 \pdexercisepointer{\ref{ex:swk-monitor-rules-precommit}}{\ref{ex:swk-op5-oracle}}{\pageref{ex:swk-monitor-rules-precommit}}
 
@@ -1890,7 +1939,7 @@ production, which is the point of asking a machine rather than an author to find
 Every earlier theorem in this chapter now has a substrate to be a property \emph{of}.
 Table~\ref{tab:invariants} states the kernel's invariants as claims about organs; the work
 unit is where they meet: I2 and I3 of the machine are the resource organ's fenced leases and
-idempotent re-claim, I4 is the delegation chain's monotone narrowing that the Anchor chapter
+idempotent re-claim, I4 is the authorization chain's monotone narrowing that the Anchor chapter
 mechanizes across principals, I3 and I6 are the obligation organ's oracle-bound closure
 carried through to settlement. The continuity chapter's checkpoint and the market chapters'
 settlement inherit the same object, which is why the book can name the work unit as its
@@ -1921,13 +1970,13 @@ The strongest words a single-writer design earns are ``serializable'' and
 ``linearizable.'' They are the formal payoff of the architecture, and they are what
 make the coordination layer's typed ownership trustworthy.
 
-Figure~\ref{fig:swk-consistency-model} lays out the four assumptions and the two
-guarantees they buy.
+Figure~\ref{fig:swk-consistency-model} makes the two guarantees concrete on one
+history; the five assumptions that buy them are the theorem's own hypotheses.
 
 \input{figures/fig-swk-consistency-model}
 
 \begin{theorem}[Conditional consistency model]\label{thm:consistency}
-Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), transactions never enable \texttt{read\_uncommitted}, each successful response is sent only after commit, and no out-of-band writer mutates the tables.
+Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), transactions never enable \texttt{read\_uncommitted}, each successful response is sent only after commit, no out-of-band writer mutates the tables, and --- the fifth assumption, which the first four were quietly leaning on --- the execution is crash-free, or else every operation in it was routed at \texttt{synchronous=FULL}.
 Then committed transactions admit a serial order, and the externally observed
 claim/lock operations are linearizable with commit as the linearization point.
 \end{theorem}
@@ -1945,6 +1994,26 @@ later invocation occurs after the earlier response and therefore after its commi
 overlapping operations may be ordered by commit. Hence the observable history is
 linearizable.
 \end{proof}
+
+\begin{pdboundary}
+The fifth assumption is where this theorem and
+Property~\ref{prop:durability} finally meet, and until now they sat in two
+sections that never spoke. A history that spans a power loss is not merely a
+history with a gap in it: under \texttt{synchronous=NORMAL} the operating system
+may not have flushed the write-ahead log when the daemon answered, so the
+crash can take back a commit whose response a client already holds and
+acted on. That is not a reordering and the proof above does not break ---
+every step of it is still valid for the operations that survive --- it is a
+\emph{durability} failure, and the property that rules it out is
+\emph{durable linearizability} (Izraelevitz, Mendes and
+Scott~\pdcite{izraelevitz2016}), which asks that the operations persisting
+across a crash themselves form a linearizable history. The kernel claims it
+only on the \texttt{synchronous=FULL} path, which is exactly the scope of
+I1b and the reason OP-10 (\S\ref{sec:durability}) is still \Open{}: ordinary
+claim writes ride \texttt{NORMAL} and buy latency with a guarantee they do
+not make. Naming the hypothesis re-scopes the theorem; it withdraws nothing
+the theorem proved.
+\end{pdboundary}
 
 \keyidea{This is why the kernel needs no agreement protocol inside one fault domain.
 Linearizability follows from the routing, transaction, and response-order conditions
@@ -2652,7 +2721,18 @@ applies. Linearizability, the external guarantee we claim for claims and locks, 
 Herlihy and Wing's~\pdcite{herlihywing1990}. Cross-organ atomicity, where we decline
 the distributed solution, is exactly the setting Garcia-Molina and Salem's
 Sagas~\pdcite{garciamolina1987} were designed for --- and exactly the setting where,
-because every step is local, a single transaction dominates a saga.
+because every step is local, a single transaction dominates a saga.%
+\footnote{Engineering precedent, named because a reader who builds systems will
+already have thought of it and should not have to wonder whether we had. The
+single-threaded serialization this chapter formalizes is the same shape as
+TigerBeetle's accounting loop, which runs debits and credits through one
+deterministic state machine precisely so that conservation is a property of the
+loop rather than of a lock discipline; and the WAL that
+Property~\ref{prop:durability} types by fault class is the artifact Litestream and
+LiteFS replicate page by page to get durability and read replicas out of SQLite
+without a second writer. These are production systems rather than results, so they
+are cited here as practice and not as canon --- nothing in this chapter's formal
+spine rests on them, and the resemblance is convergent rather than derived.}
 
 \subsection{Coordination, stigmergy, and deontic control}
 
@@ -2730,7 +2810,8 @@ problem, on the scale of Table~\ref{tab:honestkey}.}
 OP-1 & Fair exclusion without a scheduler & \Open & Stigmergic ticket-lock, \Designed{} (\S\ref{sec:resource}) \\
 OP-2 & Regimentation vs.\ enforcement & \Closed & Theorem~\ref{thm:decidability} + Theorem~\ref{thm:regimentation-controllability} \\
 OP-3 & Cross-runtime soundness (I11) & \Open & Differential fuzzing, \Designed{} (\S\ref{sec:invariants}) \\
-OP-4 & Checkpoint with teeth & \Open & Event-sourced rehydration, \Designed{} (\S\ref{sec:continuity}) \\
+OP-4a & Checkpoint with teeth: durable lineage replay & \Open & Event-sourced rehydration, \Designed{} (\S\ref{sec:continuity}) \\
+OP-4b & Checkpoint with teeth: inference-state recovery & \Open & --- \\
 OP-5 & Oracle completeness & \Open & State-machine assertions, \Designed{} (\S\ref{sec:enforcement}) \\
 OP-6 & Tamper-evidence on the read path & \Open & --- \\
 OP-7 & Schema evolution without a sequencer & \Partial & Ordered boot ledger \BuiltWeak; \texttt{user\_version} sequencer \Designed{} (\S\ref{sec:substrate}) \\
@@ -2764,12 +2845,22 @@ bindings, asserting hash-equivalence of the resulting state --- is specified
 (\S\ref{sec:invariants}) and does not run in the pipeline today. Even once it does
 it is a test, not a proof: name the divergence class it would miss.
 \item[$\bigstar$ OP-4 --- Checkpoint with teeth.] Status: \Open, and still the most
-important unbuilt thing at this layer. Event-sourced rehydration
+important unbuilt thing at this layer. It is two problems wearing one number, and
+they have different difficulties, different owners and --- this is the part that
+matters for anyone reading the table to decide what to build --- different odds of
+ever being closed, so the table names them separately.
+\textbf{OP-4a, durable lineage replay}: \Open. Event-sourced rehydration
 (\S\ref{sec:continuity}, \Designed) would replay a pinned commit and a truncated
 message log into a successor, which restores the \emph{durable inputs} to an agent's
-context. Whether that amounts to restoring the model's inference state --- which is
-bound to a particular model and session and is not a portable artifact --- is
-exactly the open question, and no formal result in this series establishes it.
+context. The design is specified and nothing ships it, which is what \Designed{}
+means and why this half is not \Closed{} however tractable it looks.
+\textbf{OP-4b, inference-state recovery}: \Open, with no design in this chapter.
+A model's inference state is bound to a particular model, sampler and session and is
+not a portable artifact; replaying the inputs reconstructs what was fed to that
+state, never the state. Whether the reconstruction is close enough to count as
+restoring work, and against what test, is the question, and no formal result in
+this series establishes it. Closing 4a would not close 4b, and a reader who sees
+event-sourced rehydration ship should not read it as OP-4 discharged.
 \item[$\bigstar$ OP-5 --- Oracle completeness.] Status: \Open. State-machine assertions
 (\S\ref{sec:enforcement}, \Designed) would add delta oracles and AST assertions to
 Listing~\ref{alg:close}'s four shipped kinds. Two kinds are not a completeness
@@ -2792,7 +2883,13 @@ under ephemeral UIDs, plus the kernel-verified peer credential
 none of it ships. Today's peer-credential check is a software handshake over an
 owner-only socket, exactly as Table~\ref{tab:threat-model} states. Even built, the
 hardening would move the adversary from the same-uid row to the different-uid row,
-not out of the model.
+not out of the model. State the dependency the other way round as well, because it
+is the sentence an operator needs: OP-9 is the \emph{precondition} for any
+\pdassurance{Confined} claim on a machine that more than one principal can log into.
+Until the sandbox and the kernel-verified peer credential ship, a confinement claim
+on a shared host is a claim about a cooperating co-tenant, and the honest grade for
+it is \pdassurance{Observed} --- which is not a hedge, it is the difference between
+a boundary the kernel enforces and one the other tenant is choosing to respect.
 \item[$\bigstar$ OP-10 --- Per-write-path durability.] Status: \Open. Selective
 checkpointing (\S\ref{sec:durability}, \Designed) would let a settlement-ledger
 write force \texttt{wal\_checkpoint(FULL)} on its commit path; no path opts in
@@ -3020,6 +3117,11 @@ Martin Kleppmann.
 Maurice P. Herlihy and Jeannette M. Wing.
 \newblock Linearizability: A Correctness Condition for Concurrent Objects.
 \newblock \textit{ACM Transactions on Programming Languages and Systems}, 12(3):463--492, 1990.
+
+\bibitem{izraelevitz2016}
+Joseph Izraelevitz, Hammurabi Mendes, and Michael L. Scott.
+\newblock Linearizability of Persistent Memory Objects under a Full-System-Crash Failure Model.
+\newblock In \textit{Proceedings of the 30th International Symposium on Distributed Computing (DISC)}, pages 313--327, 2016.
 
 \bibitem{flp1985}
 Michael J. Fischer, Nancy A. Lynch, and Michael S. Paterson.

@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 590,
+    "distinctObjects": 554,
+    "bytes": 278601500,
+    "distinctBytes": 275807909
   },
   "assets": [
     {
@@ -784,6 +784,55 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch2-withdrawn-section-title.png",
+      "bytes": 639874,
+      "sha256": "13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c",
+      "key": "sha256/13/13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch5-why-not-stake.png",
+      "bytes": 534543,
+      "sha256": "e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a",
+      "key": "sha256/e9/e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch7-perfect-public-monitoring.png",
+      "bytes": 749486,
+      "sha256": "32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb",
+      "key": "sha256/32/32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-1-equation-over-measure.png",
+      "bytes": 621051,
+      "sha256": "245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1",
+      "key": "sha256/24/245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-2-ownership-table-columns.png",
+      "bytes": 373635,
+      "sha256": "3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6",
+      "key": "sha256/32/3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-3-chapref-dead-link.png",
+      "bytes": 496423,
+      "sha256": "1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa",
+      "key": "sha256/19/1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-4-margin-plate-off-paper.png",
+      "bytes": 949207,
+      "sha256": "015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4",
+      "key": "sha256/01/015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4.png",
       "contentType": "image/png"
     },
     {
