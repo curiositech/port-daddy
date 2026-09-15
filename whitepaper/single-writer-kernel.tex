@@ -420,7 +420,7 @@ short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durab
 a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
 a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Fig.~\ref{fig:swk-reference-monitor}, Table~\ref{tab:swk-deontic-split}; Table~\ref{tab:threat-model} \\
 a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Fig.~\ref{fig:swk-claim-lifecycle}, Table~\ref{tab:swk-comm-organ}; \S\ref{sec:adjacency} \\
-here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
+here for the economy & \S\ref{sec:continuity} (continuity subsystems), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
 an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-11 and their status table (\S\ref{sec:openproblems}) & the starred exercises; Table~\ref{tab:op-status} \\
 \bottomrule
 \end{tabularx}
@@ -432,21 +432,21 @@ and market papers build upward. If you only read one paper to decide whether the
 foundation is sound, read this one.
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The kernel as seven organs}
+\section{The kernel as seven subsystems}
 \label{sec:organs}
 % ═════════════════════════════════════════════════════════════════════════════
 
-We organize the kernel into seven \emph{organs}, each a contract the daemon must
+We organize the kernel into seven \emph{subsystems}, each a contract the daemon must
 hold for the layers above to be coherent (Table~\ref{tab:swk-seven-organs}). The
 temptation is to describe such a kernel as a flat noun-list of features --- ports,
 claims, sessions, a bus, markers, commitments, a monitor, a memory store --- which
 is the symptom of treating the kernel as a database. It is not a database. It is a
-system of record \emph{plus} a mediator, and naming the organs surfaces the
-connective tissue a noun-list hides.
+system of record \emph{plus} a mediator, and naming the subsystems surfaces the
+dependencies a noun-list hides.
 
 \begin{table}[H]
 \centering
-\pdmargincaption{The seven organs, each the contract the daemon holds for the layer above it,
+\pdmargincaption{The seven subsystems, each the contract the daemon holds for the layer above it,
 with the table that is its home where the chapter names one and its maturity grade.
 All seven are disciplines over one SQLite/WAL file: one commit history, not seven
 stores. The grades come from the chapter's own status table (\S\ref{app:status}).}
@@ -455,9 +455,9 @@ stores. The grades come from the chapter's own status table (\S\ref{app:status})
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
 \toprule
-\textbf{Organ} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
+\textbf{Subsystem} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
 \midrule
-transactional substrate & one writer, one durable file; every other organ is a table with discipline over the same commit history & \Built \\
+transactional substrate & one writer, one durable file; every other subsystem is a table with discipline over the same commit history & \Built \\
 resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built \\
 actor continuity & a stable actor identity across sessions, mechanically present but asserted by the actor, not proven & \BuiltWeak\ self-asserted \\
 message carriage & an ordered, cursor-addressable, durable envelope delivered at least once (home: \texttt{messages}) & \Built \\
@@ -468,16 +468,16 @@ self-attestation & the daemon reports its own coverage as enforced, degraded or 
 \end{tabularx}
 \end{table}
 
-The \pdgloss{substrate organ}{what the other six organs are tables with discipline over: one writer, one file.} underlies the other six; mechanically, they are
+The \pdgloss{substrate subsystem}{what the other six subsystems are tables with discipline over: one writer, one file.} underlies the other six; mechanically, they are
 tables \emph{with discipline} over the same file. We treat the substrate and the
-two organs that carry the paper's sharpest corrections (resource/exclusion and
+two subsystems that carry the paper's sharpest corrections (resource/exclusion and
 obligation/enforcement) in full, and the rest with the depth their novelty
 warrants.
 
 \pdexercisepointer{\ref{ex:swk-organs-inmemory}}{\ref{ex:swk-organs-cut}}{\pageref{ex:swk-organs-inmemory}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The substrate organ: one writer, one file}
+\section{The substrate subsystem: one writer, one file}
 \label{sec:substrate}
 % ═════════════════════════════════════════════════════════════════════════════
 
@@ -542,7 +542,7 @@ and column sentinels rather than trusting that the statements ran without raisin
 the reason a half-applied migration cannot quietly become coordination truth.
 
 What does \emph{not} yet ship is the sequencer that would make that order
-authoritative. Organ modules still self-initialize their own tables over the shared
+authoritative. Subsystem modules still self-initialize their own tables over the shared
 database handle (Appendix~\ref{app:status}), so the schema is still, in part, a
 union. A strict linear ledger managed exclusively by the daemon via SQLite's
 \texttt{pragma user\_version}, in which modules \emph{declare} migrations rather
@@ -717,7 +717,7 @@ path from silently defaulting into the fast lane exist.
 Durability is about what survives; recovery is about what happens next. On daemon
 restart with a dirty WAL, SQLite replays the log to a consistent state (I1a's
 mechanism). But the kernel-level questions are larger: who validates the audit
-chain on boot, and what becomes of a half-applied cross-organ operation
+chain on boot, and what becomes of a half-applied cross-subsystem operation
 (\S\ref{sec:atomicity}) after a crash? The hook exists --- the boot-admission gate
 that refuses to serve when a critical self-check fails (\S\ref{sec:attest}) ---
 but boot-time WAL recovery plus integrity check plus chain verification should be a
@@ -726,13 +726,13 @@ single named invariant, and today it is closer to \BuiltWeak{} than \Built.
 \pdexercisepointer{\ref{ex:swk-fault-classes}}{\ref{ex:swk-op10-interface}}{\pageref{ex:swk-fault-classes}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The resource organ: claims, locks, and fair exclusion}
+\section{The resource subsystem: claims, locks, and fair exclusion}
 \label{sec:resource}
 % ═════════════════════════════════════════════════════════════════════════════
 
 Network ports are the namesake and the original sin: two agents that each start a
 development server on the same port collide, and one silently fails. The resource
-organ generalizes that problem into a single exclusion primitive --- over network
+subsystem generalizes that problem into a single exclusion primitive --- over network
 ports, over named mutex locks, and over edit-surface claims on regions of source
 files --- to which every higher layer's notion of ownership reduces.
 
@@ -894,13 +894,13 @@ the queue are the same code path, and until the ticket table exists at all.
 \pdexercisepointer{\ref{ex:swk-release-idempotent}}{\ref{ex:swk-op1-ticket}}{\pageref{ex:swk-release-idempotent}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The communication organ: the bus, stigmergy, and two delegation chains}
+\section{The communication subsystem: the bus, stigmergy, and two delegation chains}
 \label{sec:comm}
 % ═════════════════════════════════════════════════════════════════════════════
 
 \begin{table}[H]
 \centering
-\pdmargincaption{The communication organ: one durable carrier and two provenance traces that
+\pdmargincaption{The communication subsystem: one durable carrier and two provenance traces that
 must never be merged. The envelope fields are what the bus stores; the two traces
 answer two different questions and are checked by two different mechanisms.}
 \label{tab:swk-comm-organ}
@@ -917,7 +917,7 @@ coordination lineage & the coordination object: what work is already in flight, 
 \end{tabularx}
 \end{table}
 
-The communication organ (Table~\ref{tab:swk-comm-organ}) is where the substrate
+The communication subsystem (Table~\ref{tab:swk-comm-organ}) is where the substrate
 stops being a lockbox and becomes a medium for conversation. The carrier is
 \Built; the \emph{semantics} that ride on top of it (typed speech acts, protocol
 state machines) belong to the coordination layer. Three pieces matter here.
@@ -972,7 +972,7 @@ the same at every answer.
 
 \subsection{Two delegation chains, one dangerous name}
 
-A dangerous naming collision lives in this organ. The phrase ``delegation chain''
+A dangerous naming collision lives in this subsystem. The phrase ``delegation chain''
 names \emph{two different objects}, which we keep rigorously distinct:
 
 \begin{itemize}[leftmargin=1.4em]
@@ -1015,15 +1015,15 @@ hardening design of \S\ref{sec:merkle}.
 \pdexercisepointer{\ref{ex:swk-decay-honest}}{\ref{ex:swk-op8-decay}}{\pageref{ex:swk-decay-honest}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The obligation \& enforcement organ: the sovereign's two arms}
+\section{The obligation \& enforcement subsystem: the sovereign's two levers}
 \label{sec:enforcement}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This organ is the deontic core, and it is genuinely two distinct mechanisms ---
+This subsystem is the deontic core, and it is genuinely two distinct mechanisms ---
 in the vocabulary of deontic logic for computer systems (Jones and
 Sergot~\pdcite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
-about how strong each arm actually is --- is the security heart of the paper.
+about how strong each lever actually is --- is the security core of the paper.
 
 Table~\ref{tab:swk-deontic-split} lays out the three modalities and the mechanism
 behind each.
@@ -1553,7 +1553,7 @@ property: it reports each rule as \emph{enforced}, \emph{degraded}, or
 \emph{stubbed}, so a reader can never mistake a stubbed rule for an active one. We
 note in \S\ref{sec:threatmodel} that one rule's enforcement (capability escalation)
 is backed by a separate native component whose evidence is the weakest in the
-organ, carrying a time-of-check-to-time-of-use surface.
+subsystem, carrying a time-of-check-to-time-of-use surface.
 
 \subsection{Commitments: obligation with oracle-bound closure}
 
@@ -1667,7 +1667,7 @@ which is why the tower does not move this status and OP-5 stays where it is.
 \pdexercisepointer{\ref{ex:swk-monitor-rules-precommit}}{\ref{ex:swk-op5-oracle}}{\pageref{ex:swk-monitor-rules-precommit}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The continuity organ: memory, checkpoint, and the foundation of the economy}
+\section{The continuity subsystem: memory, checkpoint, and the foundation of the economy}
 \label{sec:continuity}
 % ═════════════════════════════════════════════════════════════════════════════
 
@@ -1679,16 +1679,16 @@ the canonical statement of the layer's own softest link.
 
 \input{figures/fig-swk-continuity-organs}
 
-\subsection{Three organs, one weak link}
+\subsection{Three subsystems, one weak link}
 
-Figure~\ref{fig:swk-continuity-organs} names the three continuity organs and states
+Figure~\ref{fig:swk-continuity-organs} names the three continuity subsystems and states
 the canonical sentence the rest of the series depends on:
 
-\pdthesis{The economy rests on three continuity organs --- memory
+\pdthesis{The economy rests on three continuity subsystems --- memory
 (\textsc{implemented}), checkpoint (\textsc{partial}: notes, not execution state),
 and a witnessed-outcome ledger (\textsc{partial}: commitments and oracle-bound closure,
-not neutral graded outcomes) --- and reputation keys on the richer third organ,
-which does not yet exist; the checkpoint organ is the weakest continuity link,
+not neutral graded outcomes) --- and reputation keys on the richer third subsystem,
+which does not yet exist; the checkpoint subsystem is the weakest continuity link,
 and a checkpoint with teeth (a real execution-state snapshot) is the literal
 foundation of the cross-machine economy.}
 
@@ -1723,7 +1723,7 @@ the identity side: a continuity witness attests that the ledger followed the rig
 body, never that the successor inherited the predecessor's experience.
 
 \textbf{The witnessed-outcome ledger} --- the durable record of what an agent
-actually delivered --- is the organ on which reputation keys. A \BuiltWeak{}
+actually delivered --- is the subsystem on which reputation keys. A \BuiltWeak{}
 substrate now ships: durable commitments, daemon-derived deadlines, oracle-bound
 closure, API/CLI surfaces, and overdue detection. Neutral graded outcome events,
 sanctions, identity binding, and reputation updates remain absent. OP-4 (here) and
@@ -1732,7 +1732,7 @@ viewed from two ends.
 
 \subsection{The operation log and tamper-evidence}
 
-The append-only operation log is the kernel's audit organ --- the stream the policy
+The append-only operation log is the kernel's audit subsystem --- the stream the policy
 monitor subscribes to and the thing that makes ``what actually happened''
 answerable. Hash-chained tamper-evidence over it --- the digital-timestamping
 pattern of Haber and Stornetta~\pdcite{haberstornetta1991} that predates blockchains,
@@ -1742,7 +1742,7 @@ re-scoped (see \S\ref{sec:merkle}).
 \pdexercisepointer{\ref{ex:swk-notes-vs-work}}{\ref{ex:swk-op4-capsule}}{\pageref{ex:swk-notes-vs-work}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The self-attestation organ: honest green}
+\section{The self-attestation subsystem: honest green}
 \label{sec:attest}
 % ═════════════════════════════════════════════════════════════════════════════
 
@@ -1826,7 +1826,7 @@ Table~\ref{tab:workunit-crimes}.}
 An agent dies mid-task. Its successor, possibly a different model from a different vendor,
 picks up the work and later says ``done.'' Who checks the paperwork? Where is the record
 that the port it held was released, that the payment moved once and not twice, that
-``verified'' meant an inspection actually happened rather than a mood? Every organ in this
+``verified'' meant an inspection actually happened rather than a mood? Every subsystem in this
 chapter answers a piece of that question. The \pdgloss{work unit}{The evidence-bearing case file one task leaves behind: its claim, its evidence and its receipt, with the invariants that say which of those must exist before it may be called done.} is the object that holds the
 pieces together: a case file that outlives every clerk who touches it.
 
@@ -1937,10 +1937,10 @@ production, which is the point of asking a machine rather than an author to find
 
 \paragraph{What it buys.}
 Every earlier theorem in this chapter now has a substrate to be a property \emph{of}.
-Table~\ref{tab:invariants} states the kernel's invariants as claims about organs; the work
-unit is where they meet: I2 and I3 of the machine are the resource organ's fenced leases and
+Table~\ref{tab:invariants} states the kernel's invariants as claims about subsystems; the work
+unit is where they meet: I2 and I3 of the machine are the resource subsystem's fenced leases and
 idempotent re-claim, I4 is the authorization chain's monotone narrowing that the Anchor chapter
-mechanizes across principals, I3 and I6 are the obligation organ's oracle-bound closure
+mechanizes across principals, I3 and I6 are the obligation subsystem's oracle-bound closure
 carried through to settlement. The continuity chapter's checkpoint and the market chapters'
 settlement inherit the same object, which is why the book can name the work unit as its
 primitive in the front matter without a definition per chapter.
@@ -2048,23 +2048,23 @@ Table~\ref{tab:invariants}, and OP-3 stays \Open{}.
 \pdexercisepointer{\ref{ex:swk-linearizability-assumptions}}{\ref{ex:swk-op3-differential}}{\pageref{ex:swk-linearizability-assumptions}}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Cross-organ atomicity: a buildable defect, not a frontier}
+\section{Cross-subsystem atomicity: a buildable defect, not a frontier}
 \label{sec:atomicity}
 % ═════════════════════════════════════════════════════════════════════════════
 
 ``Claim this port \emph{and} open this session \emph{and} record this commitment''
 is three writes. Nothing at the kernel's interface boundary wraps them in one
-transaction, so partial-failure semantics across organs are undefined. It is
+transaction, so partial-failure semantics across subsystems are undefined. It is
 tempting to file this under ``research''; that is wrong, and the correction matters
 because it changes the engineering posture from ``research'' to ``do it.''
 
 \keyidea{This is the Saga problem (Garcia-Molina \& Salem~\pdcite{garciamolina1987})
 --- but with a \emph{cheap local fix}. These are all local writes to one file, and
 the database already provides a transaction primitive (used elsewhere in the
-system). Wrapping a multi-organ operation in one local transaction (begun in
+system). Wrapping a multi-subsystem operation in one local transaction (begun in
 immediate mode) gives all-or-nothing for free. Filing this under ``research''
 understates how cheap the correct answer is. It is a \textbf{buildable defect}: the
-durable primitive is present; what is missing is the wrapping of the multi-organ
+durable primitive is present; what is missing is the wrapping of the multi-subsystem
 endpoints in it.}
 
 This is the kind of finding the maturity discipline exists to surface: a gap
@@ -2089,7 +2089,7 @@ and the honest move is to draw the boundary, not gesture at it.
 \begin{table}[H]
 \centering
 \pdmargincaption{The substrate-layer threat model. The same-user adversary is \emph{out of
-scope} by design; several ``security'' organs become necessary only against the
+scope} by design; several ``security'' subsystems become necessary only against the
 cross-machine adversary, which belongs to the economy layer.}
 \label{tab:threat-model}
 \small
@@ -2213,7 +2213,7 @@ weight of I7, I8, and I9: lock-owner validity, capability escalation, note
 monotonicity, and owner-scoped release are only as strong as their least-protected
 identity path. This dependency --- complete I12 enforcement gates the soundness of
 I7, I8, and I9 --- is a hard precondition, stated here so the reader does not
-over-trust the enforcement organ. It is also the central reason the cross-machine
+over-trust the enforcement subsystem. It is also the central reason the cross-machine
 layer, where identities genuinely conflict, must make identity cryptographic.
 
 \subsection{Hash-chain tamper-evidence, and the hardening OP-9 would need}
@@ -2367,7 +2367,7 @@ over-assume.
   yet. I12 is \BuiltWeak: daemon-minted actor souls, lookup credentials, and a
   bounded newcomer pool enforced by the budget guard ship; universal
   write-boundary enforcement does not.
-  \item It does \emph{not} provide fair/queued exclusion (OP-1), cross-organ
+  \item It does \emph{not} provide fair/queued exclusion (OP-1), cross-subsystem
   transactional atomicity by default (\S\ref{sec:atomicity}), a real
   execution-checkpoint (OP-4), power-loss durability on any write path (I1b,
   Property~\ref{prop:durability}; the per-path selector of OP-10 is specified, not
@@ -2423,28 +2423,28 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \label{sec:swk-exercises}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\pdexercisesfor{\S\ref{sec:organs}}{The kernel as seven organs}
+\pdexercisesfor{\S\ref{sec:organs}}{The kernel as seven subsystems}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-organs-inmemory}
-Which of the seven organs would still be meaningful if the daemon ran over an in-memory database with no disk at all? Which become vacuous?
+Which of the seven subsystems would still be meaningful if the daemon ran over an in-memory database with no disk at all? Which become vacuous?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-organs-inmemory}
-In memory the substrate still serializes, so resource exclusion, identity and presence, communication, obligation checks, policy checks, and self-attestation keep their transient meaning while the process lives. Everything the organs promise across a crash becomes vacuous: durable continuity, crash recovery, historical audit, and outcome evidence; durable identity collapses to an ephemeral handle. The decomposition survives; the cross-crash guarantees do not.
+In memory the substrate still serializes, so resource exclusion, identity and presence, communication, obligation checks, policy checks, and self-attestation keep their transient meaning while the process lives. Everything the subsystems promise across a crash becomes vacuous: durable continuity, crash recovery, historical audit, and outcome evidence; durable identity collapses to an ephemeral handle. The decomposition survives; the cross-crash guarantees do not.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-organs-home-table}
-Pick any one organ and name the single SQLite table that is its ``home'' table. Then name one invariant that organ owes the layer above it.
+Pick any one subsystem and name the single SQLite table that is its ``home'' table. Then name one invariant that subsystem owes the layer above it.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-organs-home-table}
-The communication organ's home table is \texttt{messages}; it owes the layer above an ordered, cursor-addressable, durable envelope with explicit at-least-once semantics. Equally valid: \texttt{claims} for the resource organ (one compatible holder per conflict domain), or \texttt{commitments} for the obligation organ (no \emph{done} without a current structured oracle receipt).
+The communication subsystem's home table is \texttt{messages}; it owes the layer above an ordered, cursor-addressable, durable envelope with explicit at-least-once semantics. Equally valid: \texttt{claims} for the resource subsystem (one compatible holder per conflict domain), or \texttt{commitments} for the obligation subsystem (no \emph{done} without a current structured oracle receipt).
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-organs-cut}
-The seven-organ decomposition is a \emph{choice}. Is there a more natural cut, five organs, or nine? Argue for an alternative and show what it makes easier to reason about and what it hides.
+The seven-subsystem decomposition is a \emph{choice}. Is there a more natural cut, five subsystems, or nine? Argue for an alternative and show what it makes easier to reason about and what it hides.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-organs-cut}
 A defensible nine-way cut: storage and durability; transaction serialization; identity and presence; resources and leases; message transport; stigmergy and projections; policy and capability; commitments and outcomes; attestation and recovery. It separates proof obligations that leak across the seven, above all transport semantics from message semantics and policy prevention from post-commit detection. It hides the simplifying fact that all local state shares one transaction boundary, so any such cut must retain a cross-cutting invariant: one ledger, one effect mediator.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:substrate}}{The substrate organ: one writer, one file}
+\pdexercisesfor{\S\ref{sec:substrate}}{The substrate subsystem: one writer, one file}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-schema-rename}
 The schema-by-union design lets any module create its tables in any order. Give a concrete two-module example where a lazy column-rename migration would be unsafe under this design.
@@ -2486,7 +2486,7 @@ Section~\ref{sec:durability} sketches Selective Checkpointing (OP-10), but nothi
 Make durability a typed argument of the transaction, \texttt{PROCESS\_CRASH} or \texttt{POWER\_LOSS}, never an adjective in prose. Route \texttt{POWER\_LOSS} operations through a connection configured \texttt{synchronous=FULL} before the transaction opens and verify the commit before returning; if SQLite settings are connection-scoped, a separate fully-synced financial ledger is the cleanest isolation. Ordinary claims stay on \texttt{NORMAL}. Hard-reset fault tests must exercise the stronger path. The guard against silent defaulting is the type: a write path that names no durability class does not compile, and a forced checkpoint bounds recovery and log size but is not the per-write primitive.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:resource}}{The resource organ: claims, locks, and fair exclusion}
+\pdexercisesfor{\S\ref{sec:resource}}{The resource subsystem: claims, locks, and fair exclusion}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-release-idempotent}
 Why does releasing a lock you do not hold return success rather than an error? Which property (I2 to I4) is this, and what would break if it raised?
@@ -2507,7 +2507,7 @@ The Stigmergic Ticket-Lock buys bounded wait on the cooperative-release path onl
 Add a durable FIFO ticket queue per conflict domain, a maximum lease $L$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No background scheduler is required for safety, but liveness requires some live caller or tick to trigger the transitions. Under daemon availability, eventual requests, and non-renewable bounded leases, a requester with $q$ predecessors waits at most about $(q+1)L$ plus processing delay; without those assumptions no bounded wait exists. Every external effect must validate the fencing epoch, or an expired holder can still act.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:comm}}{The communication organ: the bus, stigmergy, and two delegation chains}
+\pdexercisesfor{\S\ref{sec:comm}}{The communication subsystem: the bus, stigmergy, and two delegation chains}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-decay-honest}
 Why does read-time marker decay make the system more honest than a background tick alone? Give a scenario where tick-only decay would report a stale signal as fresh.
@@ -2528,7 +2528,7 @@ What per-kind marker decay rate keeps stigmergic signals neither rotten nor prem
 For each marker kind, log creation, reads, the actions it influenced, its supersession, and the time at which operators label it stale. Fit a survival curve and choose the half-life that minimizes $C_{\text{stale}}\cdot\text{false-live} + C_{\text{lost}}\cdot\text{false-expired}$, validated on held-out projects. Claims and presence should decay far faster than decisions or learned skills. Publish the confidence and re-estimate under drift.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:enforcement}}{The obligation \& enforcement organ: the sovereign's two arms}
+\pdexercisesfor{\S\ref{sec:enforcement}}{The obligation \& enforcement subsystem: the sovereign's two levers}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-monitor-rules-precommit}
 For each monitor rule in Theorem~\ref{thm:schneider}, say whether it \emph{could in principle} be moved to a pre-commit check (a before-insert trigger). Which genuinely cannot, and why? (Hint: heartbeat freshness is a failure detector, and Chandra and Toueg~\pdcite{chandratoueg1996} show failure detection cannot be made perfectly synchronous.)
@@ -2567,7 +2567,7 @@ Extend the Law-2 oracle vocabulary to capture a ``done'' condition it currently 
 A protected-run receipt: tree hash, a suite hash the principal controls, runner or image hash, command, timestamp and nonce, exit code, and a signed result. Closure verifies every binding and the freshness. This resists free-text and stale-result manipulation; it is not universally Goodhart-proof, because the suite may be incomplete or poisoned. The honest theorem is syntactic provenance and non-replay, not semantic correctness.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:continuity}}{The continuity organ: memory, checkpoint, and the foundation of the economy}
+\pdexercisesfor{\S\ref{sec:continuity}}{The continuity subsystem: memory, checkpoint, and the foundation of the economy}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-notes-vs-work}
 Why is ``recovery passes notes'' fundamentally weaker than ``recovery restores work'' for a language-model agent that died mid-edit? Name one thing notes preserve and one thing they cannot.
@@ -2622,7 +2622,7 @@ Specify the minimal differential-test suite that turns I11 from an assumption in
 Generate identical state-machine traces against both bindings: schema initialization and migrations, acquire, reclaim, release, and expiry, overlapping calls, transactions and rollback, busy and lock behavior, encodings, pragmas, crash and reopen, fault injection. After every step compare returned values, errors, serialized rows, schema, and recovery state, including the deployed binary in CI. A seeded fuzz misses divergences that depend on wall-clock timing, on a pragma the fuzz never sets, or on a crash at a point the fuzz never interrupts; targeted fault injection and pragma sweeps catch those. No finite suite makes I11 a theorem: that needs a formal refinement or equivalence proof, or the same verified binding on both sides. Label the suite conformance evidence.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:atomicity}}{Cross-organ atomicity: a buildable defect, not a frontier}
+\pdexercisesfor{\S\ref{sec:atomicity}}{Cross-subsystem atomicity: a buildable defect, not a frontier}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:swk-partial-failure}
 Give a concrete partial failure: port claimed, session opened, then the commitment write fails. What inconsistent state is left, and which agent sees it?
@@ -2631,7 +2631,7 @@ Give a concrete partial failure: port claimed, session opened, then the commitme
 The port stays claimed and a live or ghost session row exists, but no commitment says what work owns them. Other agents see a busy port and a presence they cannot reconcile; the failed starter may retry into its own leftovers.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op11-begin-work}
-Sketch the interface change that wraps the three-organ ``begin'' operation in one local transaction (OP-11). What is the compensating action if you instead chose Sagas~\pdcite{garciamolina1987}, and why is the transaction strictly simpler here?
+Sketch the interface change that wraps the three-subsystem ``begin'' operation in one local transaction (OP-11). What is the compensating action if you instead chose Sagas~\pdcite{garciamolina1987}, and why is the transaction strictly simpler here?
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-op11-begin-work}
 Expose one \texttt{begin\_work} endpoint that opens \texttt{BEGIN IMMEDIATE}, validates every input, inserts the claim, session, commitment, and outbox rows, and commits once; on any error it rolls back all of them. A saga would release the claim and mark or delete the session when the commitment insert failed, and each compensation can itself fail or crash between steps. All three rows live in one SQLite file, so the local transaction is both simpler and stronger.
@@ -2718,7 +2718,7 @@ consensus only when the problem genuinely forces it. We make that argument forma
 via the consensus impossibility of Fischer, Lynch, and
 Paterson~\pdcite{flp1985}: there is no agreement to reach, so the impossibility never
 applies. Linearizability, the external guarantee we claim for claims and locks, is
-Herlihy and Wing's~\pdcite{herlihywing1990}. Cross-organ atomicity, where we decline
+Herlihy and Wing's~\pdcite{herlihywing1990}. Cross-subsystem atomicity, where we decline
 the distributed solution, is exactly the setting Garcia-Molina and Salem's
 Sagas~\pdcite{garciamolina1987} were designed for --- and exactly the setting where,
 because every step is local, a single transaction dominates a saga.%
@@ -2736,18 +2736,18 @@ spine rests on them, and the resemblance is convergent rather than derived.}
 
 \subsection{Coordination, stigmergy, and deontic control}
 
-The communication organ draws on two coordination traditions. Stigmergic markers
+The communication subsystem draws on two coordination traditions. Stigmergic markers
 with decay descend from Grass\'e's stigmergy~\pdcite{grasse1959} and its
 computational realizations in ant-colony optimization~\pdcite{dorigo1999}; the shared
 associative store is Gelernter's Linda tuple space~\pdcite{gelernter1985}. The
-obligation arm models commitments as Cohen and Levesque's persistent
+obligation lever models commitments as Cohen and Levesque's persistent
 goals~\pdcite{cohenlevesque1990} --- intentions an agent may rationally drop --- and
-the prohibition arm uses the normative-systems framing of Jones and
+the prohibition lever uses the normative-systems framing of Jones and
 Sergot~\pdcite{jonessergot1993} to keep prohibition, obligation, and permission
 distinct modalities rather than one undifferentiated ``policy.'' The failure
 detector underlying heartbeat-based liveness is Chandra and Toueg's~\pdcite{chandratoueg1996},
 which is why heartbeat freshness can never be a perfectly synchronous pre-commit
-check. The self-attestation organ, which denies service when its own integrity is
+check. The self-attestation subsystem, which denies service when its own integrity is
 unknown, is in the spirit of autonomic computing's self-management
 properties~\pdcite{kephartchess2003}, and the bounded busy-wait under contention is
 the timeout-budget bulkhead that Nygard catalogs as a stability
@@ -2818,7 +2818,7 @@ OP-7 & Schema evolution without a sequencer & \Partial & Ordered boot ledger \Bu
 OP-8 & Stigmergic decay calibration & \Open & --- \\
 OP-9 & Same-machine adversary & \Open & Ephemeral-UID sandbox + kernel-verified peer credential, \Designed{} (\S\ref{sec:merkle}) \\
 OP-10 & Per-write-path durability & \Open & Selective checkpointing, \Designed{} (\S\ref{sec:durability}) \\
-OP-11 & Cross-organ atomicity by default & \Open & One local transaction (\S\ref{sec:atomicity}) --- a buildable defect \\
+OP-11 & Cross-subsystem atomicity by default & \Open & One local transaction (\S\ref{sec:atomicity}) --- a buildable defect \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -2896,8 +2896,8 @@ write force \texttt{wal\_checkpoint(FULL)} on its commit path; no path opts in
 today, and I1b remains \NotGuar{} kernel-wide per Property~\ref{prop:durability}.
 The harder half is the interface that stops a new write path from defaulting into
 the fast lane silently.
-\item[$\bigstar$ OP-11 --- Cross-organ atomicity by default.] Status: \Open{} but cheap ---
-a buildable defect, not a frontier. Wrap multi-organ operations in one local
+\item[$\bigstar$ OP-11 --- Cross-subsystem atomicity by default.] Status: \Open{} but cheap ---
+a buildable defect, not a frontier. Wrap multi-subsystem operations in one local
 transaction at the interface boundary, eliminating the undefined partial-failure
 semantics of \S\ref{sec:atomicity}.
 \end{description}
@@ -2916,7 +2916,7 @@ one decider, no consensus.
 Where it stops, it stops formally. Durability is split: process-crash durable
 (I1a), \emph{not} guaranteed against power loss (I1b). The policy monitor detects
 and compensates; it does not regiment, and we credit the only genuine pre-commit
-regimentation to the uniqueness constraint and the boot-admission gate. Cross-organ
+regimentation to the uniqueness constraint and the boot-admission gate. Cross-subsystem
 atomicity is a buildable defect, not a frontier. Hash-chain tamper-evidence is
 re-scoped to cross-machine provisioning, where it actually defends someone. And the
 two genuinely soft spots --- partial local identity enforcement (I12) and a
@@ -2954,7 +2954,7 @@ TypeScript, run under a compiled JavaScript runtime, persisting to one SQLite
 database file in WAL mode. Clients --- a command-line tool, agents over a
 tool-protocol bridge, and a binary inter-process transport --- reach it over Unix
 domain sockets. The daemon is kept alive by the host operating system's service
-supervisor. The seven organs of \S\ref{sec:organs} correspond to distinct modules
+supervisor. The seven subsystems of \S\ref{sec:organs} correspond to distinct modules
 that each self-initialize their own tables over the shared database handle, in the
 factory style \texttt{createModule(db)}.
 
@@ -3011,9 +3011,9 @@ last writes can roll back. The honest statement is the I1a/I1b split.
 as a subscriber to the already-committed operation log, so it cannot prevent the
 bad prefix that triggers it; ``physically unreachable'' is reserved for the
 uniqueness-constraint and boot-gate states.
-\item \textbf{Cross-organ atomicity is a buildable defect, not a research frontier}
+\item \textbf{Cross-subsystem atomicity is a buildable defect, not a research frontier}
 (\S\ref{sec:atomicity}). The database transaction primitive is already used
-elsewhere in the implementation; the only missing work is wrapping the multi-organ
+elsewhere in the implementation; the only missing work is wrapping the multi-subsystem
 endpoints in it.
 \item \textbf{A specified design is not a solved problem}
 (Table~\ref{tab:op-status}). An earlier revision of this chapter reported several
