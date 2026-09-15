@@ -109,7 +109,19 @@ chapters that introduce the concepts it needs.
 `readout.readerPaths[]` carries, for each route: the prescribed `nodes`, the
 `skipped` ones, `brokenByMap` with the concept, where it is needed and which
 node introduces it, plus that route's own `completion`, `medianExitNode`,
-`payoffReach` (including time to first insight), and its complete finding list.
+`payoffReach` (including time to first insight), `regressionsPerVisit` and
+`expectedRegressions`, and its complete finding list.
+
+**Read regression churn per route, never book-wide.** Each route is its own
+chain, so a route that reads in a different order backtracks a different
+amount, and one number for the whole book averages experiences that have
+nothing to do with each other. In the shipped example the theorist route churns
+at 0.27 backward jumps per node visited — close to the 0.25 threshold — while
+the practitioner route churns at 0.06 and the book-wide figure reads 0.07. The
+book-wide number makes the book look fine and hides that the route it
+recommends to its most committed readers is the one that makes them re-read. A
+high per-route figure against a low book-wide one is the signature of a route
+whose own ordering is wrong, rather than the book's.
 
 High and critical findings from each route are also re-surfaced at the top
 level, prefixed with the route and persona and carrying a `path` field, so a

@@ -454,6 +454,28 @@ describe('surfer_model: reader maps', () => {
     expect(paths.practitioner.completion).toBeGreaterThan(paths.theorist.completion);
   });
 
+  test('each route reports its own regression churn, not the book-wide figure', async () => {
+    const { simulateSurfer } = await load(join(frictionScripts, 'surfer_model.mjs'));
+    const run = simulateSurfer(await readJson(join(frictionExamples, 'surfer-latex-book.json')));
+    const paths = Object.fromEntries(run.readout.readerPaths.map((p) => [p.id, p]));
+
+    for (const path of Object.values(paths)) {
+      expect(Number.isFinite(path.regressionsPerVisit)).toBe(true);
+      expect(Number.isFinite(path.expectedRegressions)).toBe(true);
+    }
+
+    // The theorist route reads every chapter in study mode and backtracks for
+    // definitions; the practitioner route skims and skips the chapters it would
+    // have gone back to, so it has nothing to return to. A single book-wide
+    // number averages these two very different experiences into neither.
+    expect(paths.theorist.regressionsPerVisit).toBeGreaterThan(
+      paths.practitioner.regressionsPerVisit
+    );
+    expect(paths.theorist.regressionsPerVisit).toBeGreaterThan(
+      run.readout.regressionsPerVisit
+    );
+  });
+
   test('malformed reader paths are rejected', async () => {
     const { simulateSurfer } = await load(join(frictionScripts, 'surfer_model.mjs'));
     const graph = book();
