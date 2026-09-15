@@ -160,7 +160,7 @@ one day.
   *provides* and the upper rung *assumes*". Nothing there was false; all of it was
   already on the page in those exact words. Prose that repeats a direct label is read
   second and adds nothing, and it grows the caption until the reader stops trusting that
-  any of it is load-bearing.
+  any of it is doing work.
 
 One rule: **the caption says only what the drawing cannot.** Its job is what kind of
 drawing this is, what claim it supports, the idealisation, and the provenance bracket.

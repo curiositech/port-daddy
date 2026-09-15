@@ -430,9 +430,42 @@ jobs:
           # \inputs sees the first level and misses the second. Follow the
           # edges to a fixed point instead; five rounds is far more than the
           # two the tree has, and the loop exits as soon as nothing is added.
-          apparatus="$(grep -oE '\\input\{figures/[a-z0-9-]+\}' \
+          #
+          # AND NOT ALWAYS BY A LITERAL NAME. The figure language loads its
+          # per-edition override as `\input{figures/pd-figure-language-\pdedition}`,
+          # where \pdedition expands at compile time to the edition being
+          # built. A literal [a-z0-9-]+ grep cannot see past the macro, so
+          # pd-figure-language-swiss and pd-figure-language-technical were
+          # never on the apparatus list. They sat there harmlessly until a PR
+          # edited one: it then entered scope as a "changed fragment", was
+          # compiled as a drawing, and produced "No pages of output" -- because
+          # a style file has no picture in it. Same second-level miss the walk
+          # above was written to stop, one macro further on.
+          #
+          # A macro-parameterised \input names a FAMILY, not a file, so take
+          # its literal prefix and admit every file on disk that matches: an
+          # edition added later is classified correctly without anyone
+          # remembering to come back and edit this.
+          pd_inputs_of() {
+            local src="$1" prefix d member
+            grep -oE '\\input\{figures/[a-z0-9-]+\}' "$src" \
+              | sed 's|.*figures/||; s|}||' || true
+            for prefix in $(grep -oE '\\input\{figures/[a-z0-9-]+\\[a-zA-Z@]+\}' "$src" \
+              | sed 's|.*figures/||; s|\\.*||' || true); do
+              for d in website-v2/public/whitepaper/figures whitepaper/figures; do
+                for member in "$d/$prefix"*.tex; do
+                  if [ -f "$member" ]; then basename "$member" .tex; fi
+                done
+              done
+            done
+            # An unmatched glob, or a grep with no hits, must not take the whole
+            # step down under errexit: the caller reads this function's stdout,
+            # not its status.
+            return 0
+          }
+          apparatus="$(pd_inputs_of \
             website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex \
-            | sed 's|.*figures/||; s|}||' | sort -u)"
+            | sort -u)"
           # `if`, not `[ -f ... ] && grep`, and `|| true` on the grep: this step
           # runs under `set -euo pipefail`, where a test that fails on the last
           # iteration, or a grep that matches nothing, takes the whole step down
@@ -443,8 +476,7 @@ jobs:
             more="$(for f in $apparatus; do
               for d in website-v2/public/whitepaper/figures whitepaper/figures; do
                 if [ -f "$d/$f.tex" ]; then
-                  grep -oE '\\input\{figures/[a-z0-9-]+\}' "$d/$f.tex" \
-                    | sed 's|.*figures/||; s|}||' || true
+                  pd_inputs_of "$d/$f.tex"
                 fi
               done
             done | sort -u)"
