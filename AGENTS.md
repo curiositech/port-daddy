@@ -409,6 +409,41 @@ Two rules learned the hard way when touching it:
   `merge_group` (always-run, or skip = pass). `proofs`, `whitepaper-build`, and
   `whitepaper-metadata` are now `merge_group`-safe for exactly this reason.
 
+### Never commit a collated artifact from a PR run
+
+`main` merges by **REBASE** with linear history. A rebase replays each commit
+onto the moving base, and a binary has no hunks — so a commit that rewrites a
+binary every PR also touches can only ever land on ONE PR before it conflicts
+every other. A collated artifact (one built from *all* the sources, like the
+Book) is the worst case, because every PR in the area moves it.
+
+Measured 2026-09-14 across the open whitepaper cluster: **23 of 23 PRs** carried
+a diff on `coordination-papers-mega-volume.pdf`, 23 on `publication-digests.json`
+and 20 on `whitePapers.ts` — the latter two only *record* that PDF's size and
+page count, so they moved with it. Landing any one PR conflicted the other 22,
+and the cluster could only be drained by hand at one PR per full rebuild.
+
+So: **render a collated artifact on every run, commit it on almost none.**
+`whitepaper-build` builds the Book, hands it to the cover-band check, then
+restores it — an uncompilable Book still fails at exactly the same step. A new
+Book is published by dispatching `whitepaper-build` on a branch with
+`refresh_book=true`, which commits it there and opens one reviewable PR.
+Freezing the artifact freezes its derived metadata for free: `--fix` and the
+digests read the file on **disk**, so a restored Book reproduces the committed
+values and `check-whitepaper-metadata` stays green (it compares the record
+against the artifact, never against the `.tex`).
+
+Per-chapter PDFs are deliberately still committed per PR: they are chapter-
+scoped, so two PRs collide on one only by editing the same chapter — a real
+conflict a person should see, not a derived-artifact race.
+
+Two corollaries when you hit a stuck whitepaper PR:
+- **`mergeable: true` does not mean it will land.** That field reports a
+  *merge* test; this repo lands by *rebase*. A branch can merge cleanly and
+  still fail `405 This branch can't be rebased`.
+- **Do not fix it with "Update branch".** That records a merge commit, which
+  a rebase-merge then has to replay, and the PR gets *harder* to land.
+
 ### GitHub mutations use the Fleetbot actuator only
 
 Agents must not use the operator's GitHub identity or credentials for any
