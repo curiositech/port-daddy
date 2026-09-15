@@ -112,6 +112,13 @@ DEFAULT_THRESHOLDS = {
     "centred-body-copy": {"min_count": 6},
     "untouched-default-icon-set": {"min_count": 1},
     "reveal-animation-on-everything": {"min_count": 8},
+    "hand-rolled-div-dialog": {"min_count": 1},
+    "escape-and-focus-declared-not-wired": {"min_count": 1},
+    "missing-autofill-attributes": {"min_inputs": 3},
+    "table-without-sort-filter-paging": {"min_columns": 4},
+    "sort-header-not-button-no-aria-sort": {"min_count": 1},
+    "unbounded-spinner-no-error-path": {"min_count": 1},
+    "settings-flat-toggle-wall": {"min_toggles": 8},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -1135,10 +1142,148 @@ def analyze_markup(path, text):
             family="form"))
 
 
-    # analyze_markup names the comment-stripped lowercase text `scan`; the taste
-    # checks below were written against `low`, which is the web-build analyzer's
-    # name for the same thing. Alias rather than diverge.
+    # analyze_markup names the comment-stripped lowercase text `scan`; the checks
+    # below were written against `low`, the web-build analyzer's name for the same
+    # thing. Alias, and carry the same first-matching-line helper, rather than
+    # letting the two analyzers drift apart.
     low = scan
+
+    def first(pat, default=1):
+        return next((i + 1 for i, l in enumerate(lines)
+                     if re.search(pat, l, re.I)), default)
+
+
+    # ================= app interiors: declared-but-unwired =================
+    # The signature the empirical work isolates: a model emits the recognisable,
+    # visible half of a pattern and drops the half that only matters under
+    # failure or assistive technology. Escape handlers were present in 79% of
+    # generated modals and worked in 59%, and 1,031 of 1,032 failures threw no
+    # console error. So these checks hunt for a label without its behaviour.
+
+    # ---- the hand-rolled dialog. 673 of 720 generated modals used a div with
+    # role="dialog"; about 2% used native <dialog>. Near-deterministic.
+    if re.search(r'role=["\'](?:dialog|alertdialog)["\']', text, re.I) \
+       and not re.search(r"<dialog\b", low) \
+       and not re.search(r"@radix-ui/react-dialog|react-aria|headlessui", low):
+        out.append(finding(
+            path, first(r'role=["\'](?:dialog|alertdialog)'),
+            'role="dialog" with no native <dialog> and no dialog primitive',
+            "hand-rolled-div-dialog", "high",
+            "A modal built as a div wearing a dialog role. It looks correct and behaves "
+            "wrongly: no free focus trap, no free Escape, no top layer, no background "
+            "inertness. The web's modal corpus is overwhelmingly pre-<dialog> overlays, "
+            "so a model reproduces the majority pattern; measured, native dialogs closed "
+            "on Escape 98% of the time against 31% for hand-rolled ones.",
+            "Use native <dialog> opened with showModal(), or a maintained primitive "
+            "(Radix Dialog, React Aria). Both give focus trap, Escape, top-layer stacking "
+            "and background inertness with no hand-written code, so delete the overlay, "
+            "the keydown listener and the tab-cycling logic. Note that with native "
+            "<dialog> you should NOT hand-trap focus \u2014 absent trap code there is correct.",
+            family="defect"))
+
+    # ---- the behaviour is declared; only a browser can say whether it runs.
+    if re.search(r'\bkey(?:down|up)\b[^)\n]{0,60}Escape|e\.key\s*===\s*["\']Escape', text):
+        out.append(finding(
+            path, first(r"Escape"),
+            "Escape handling is declared in source; presence does not mean it runs",
+            "escape-and-focus-declared-not-wired", "medium",
+            "Source review provably does not settle this one. Across roughly three "
+            "thousand driven trials, Escape handlers were written in 79% of generated "
+            "modals and actually closed the dialog in 59%, and 1,031 of 1,032 failures "
+            "threw no console error \u2014 so every non-interactive check, including this "
+            "one, reports success.",
+            "Drive it in a browser: open by keyboard, press Escape, assert closed; "
+            "reopen, Tab past the last control, assert focus never leaves the dialog; "
+            "close, assert focus returned to the trigger. Better, stop hand-writing it "
+            "and use <dialog> or a primitive. Counterintuitively, asking a model for "
+            "accessibility can reduce basic function: 'make it accessible using <dialog>' "
+            "scored 80% working opens against 98% for the plainer instruction.",
+            family="defect"))
+
+    # ---- forms the browser cannot help with
+    inputs_all = re.findall(r"<input\b[^>]*>", text, re.I)
+    typed = [i for i in inputs_all
+             if not re.search(r'type=["\'](?:hidden|submit|button|checkbox|radio|reset)', i, re.I)]
+    if len(typed) >= th("missing-autofill-attributes", "min_inputs", 3):
+        with_ac = [i for i in typed if re.search(r"\bautocomplete=", i, re.I)]
+        if len(with_ac) * 2 < len(typed):
+            out.append(finding(
+                path, first(r"<input"),
+                f"{len(typed) - len(with_ac)} of {len(typed)} inputs have no autocomplete attribute",
+                "missing-autofill-attributes", "medium",
+                "Without autocomplete tokens the browser cannot fill a form it could "
+                "otherwise complete in one tap. This costs everyone and costs people with "
+                "motor and cognitive disabilities most, and it is invisible in a "
+                "screenshot, which is where the generation loop looks.",
+                "Add the standard tokens: autocomplete=\"email\", \"given-name\", "
+                "\"family-name\", \"street-address\", \"postal-code\", \"tel\", "
+                "\"current-password\", \"new-password\", \"one-time-code\". Pair with "
+                "inputmode and the right type so mobile keyboards match the field.",
+                family="defect"))
+
+    # ---- tables that render the schema rather than a view
+    if re.search(r"<table\b", low) or re.search(r'role=["\']table["\']', low):
+        ths = len(re.findall(r"<th\b", low))
+        has_sort = bool(re.search(r"aria-sort|onSort|sortBy|sortable", text, re.I))
+        has_page = bool(re.search(r"pagination|page-?size|nextPage|aria-label=[\"']Pagination", text, re.I))
+        if ths >= th("table-without-sort-filter-paging", "min_columns", 4) \
+           and not has_sort and not has_page:
+            out.append(finding(
+                path, first(r"<table|role=[\"']table"),
+                f"table with {ths} columns, no sort and no pagination",
+                "table-without-sort-filter-paging", "medium",
+                "A table is the one component whose usefulness depends entirely on "
+                "behaviour, and a generated one arrives with the markup and none of it. "
+                "It renders correctly with the eight rows in the mock and becomes unusable "
+                "at eight hundred.",
+                "Decide what a user does with this table and build that: sort on the "
+                "columns people actually order by, a filter for the field they scan, and "
+                "pagination or virtualisation past a few hundred rows. Show the row count "
+                "so people know what they are looking at.",
+                family="defect"))
+        if re.search(r"aria-sort", text, re.I) and not re.search(r"<th[^>]*>\s*<button", text, re.I):
+            out.append(finding(
+                path, first(r"aria-sort"),
+                "aria-sort present but the header is not a button",
+                "sort-header-not-button-no-aria-sort", "medium",
+                "The sort affordance is announced and cannot be operated from a keyboard. "
+                "The visible half of the pattern shipped and the interactive half did not.",
+                "Put a real <button> inside the <th> and keep aria-sort on the th, "
+                "updating it between ascending, descending and none as the state changes.",
+                family="defect"))
+
+    # ---- states that only exist on the happy path
+    if re.search(r"\bisLoading\b|\bloading\b|<Spinner|animate-spin", text) \
+       and not re.search(r"\bisError\b|onError|catch\s*\(|errorMessage|\berror\b", text, re.I):
+        out.append(finding(
+            path, first(r"isLoading|animate-spin|<Spinner"),
+            "a loading state with no error path",
+            "unbounded-spinner-no-error-path", "medium",
+            "A spinner that can spin forever. The request that never returns is the "
+            "commonest real-world failure and the one a mock never shows, so the "
+            "generated component has a state for waiting and none for having waited too "
+            "long.",
+            "Give every async surface three states, not two: loading, loaded, and failed "
+            "with a message naming what failed and a control to retry. Add a timeout so "
+            "the failed state is reachable without a server error.",
+            family="defect"))
+
+    # ---- settings as a rendering of the config schema
+    toggles = len(re.findall(r'type=["\']checkbox["\']|role=["\']switch["\']|<Switch\b', text, re.I))
+    if toggles >= th("settings-flat-toggle-wall", "min_toggles", 8) \
+       and not re.search(r"<fieldset|<legend|role=[\"']group", text, re.I):
+        out.append(finding(
+            path, first(r'type=["\']checkbox|role=["\']switch|<Switch'),
+            f"{toggles} toggles with no grouping",
+            "settings-flat-toggle-wall", "medium",
+            "Every configuration key became a switch, in schema order, with no grouping "
+            "and no indication of defaults. The screen is a faithful rendering of the "
+            "data model rather than a designed view, which is what you get when the model "
+            "is the only thing available to design from.",
+            "Group by what a person came to change, label each group, and say which "
+            "values are defaults. Most settings screens shrink by half once you ask which "
+            "of these anyone has ever needed to touch.",
+            family="defect"))
 
     # ---- the two-button hero. Not two audiences with two next steps; two slots.
     hero_src = hero_m.group(1) if (hero_m and re.search(r"<h1\b", hero_m.group(1), re.I)) else ""

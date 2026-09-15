@@ -132,6 +132,32 @@ learned not to say "delve". Phrases do not.
 relative, comparing a change against the repo's own log, idiom, and PR norms.
 A contributor who read the surrounding code passes them automatically.
 
+### Declared but not wired
+
+One signature inside `defect` deserves naming on its own, because it is the most
+genuinely model-flavoured thing in this catalog and it tells you where to look.
+
+A model reliably emits the recognisable, visible half of a pattern and drops the
+half that only matters under failure or assistive technology. Across roughly
+three thousand browser-driven trials, generated modals carried an Escape handler
+79% of the time and Escape actually closed the dialog 59% of the time. The gap is
+not the interesting part. This is: **1,031 of the 1,032 failures threw no console
+error.** Every non-interactive check reports success, including this skill's
+static pass.
+
+So when auditing anything interactive, ask of each affordance whether its label
+is present without its behaviour. A sort caret with no `aria-sort`. A disabled
+button with no reason. A `<dialog>` written but opened with `.show()` rather than
+`.showModal()`. An `onMutate` with no `onError`. A "Last 30 days" label with no
+range control. Two related shapes travel with it: the interface that is a
+one-to-one rendering of the data model rather than a designed view (every column
+a column, every config key a switch), and the content whose cardinality exactly
+equals a layout constant (four cards because the grid has four columns).
+
+These three are what separate "a model wrote this" from "nobody polished this".
+Most of the `defect` family is the second thing, which is worth fixing and not
+worth attributing. This one is the first.
+
 `defect` is the odd one out, and the most useful. These are not inferences about
 who built something; they are things that are broken. The page scrolls sideways
 at 390px. The button is not a button. The grey text fails contrast. You reproduce

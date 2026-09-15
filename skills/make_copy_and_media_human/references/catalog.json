@@ -3851,6 +3851,157 @@
       "before": ".wrap { padding: 2rem }   /* measured 167 characters per line at 1280px */",
       "after": ".wrap { padding: 2rem; max-width: 65ch; margin-inline: auto }",
       "false_positive_when": "Data tables, code blocks, and dashboard cells are not prose and want the width. Deliberately wide editorial layouts with large type can exceed the range legibly, which is why this measures characters rather than pixels."
+    },
+    {
+      "name": "hand-rolled-div-dialog",
+      "severity": "high",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A modal built as a div wearing role=dialog with a hand-written overlay, instead of the native dialog element or a maintained primitive.",
+      "detection": "Flag role=\"dialog\" or role=\"alertdialog\" in a file containing no <dialog> tag and no dialog primitive import. The highest-confidence static check in the app-interior lane.",
+      "why_it_reads_ai": "The most empirically model-flavoured tell available. In a 720-trial baseline, 673 generated modals hand-rolled role=dialog on a div and about 2% used native <dialog>, with native use essentially confined to one model family. The mechanism is training distribution: the web's modal corpus is overwhelmingly pre-<dialog> overlays. The consequence is measurable, because native dialogs closed on Escape 98% of the time against 31% for hand-rolled ones.",
+      "fix": "Use native <dialog> opened with showModal(), or a maintained primitive such as Radix Dialog or React Aria. Both supply focus trap, Escape, top-layer stacking and background inertness with no hand-written code, so delete the overlay, the keydown listener and the tab-cycling logic. With native <dialog> you should NOT hand-trap focus: absent trap code there is correct, not a finding.",
+      "before": "<div className=\"fixed inset-0\" onClick={close}><div role=\"dialog\" aria-modal=\"true\">...</div></div>",
+      "after": "<dialog ref={ref}>...</dialog>  // opened with ref.current.showModal()",
+      "evidence": "Featherstone, ~720-trial markup baseline and ~3,000-trial operability study, six-model panel.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "medium": "web-ui",
+      "false_positive_when": "Rare. This is a defect you can reproduce by opening the page, not an inference about who built it — but check whether the file is a fragment, a template, or a generated artifact before filing it against an author."
+    },
+    {
+      "name": "escape-and-focus-declared-not-wired",
+      "severity": "medium",
+      "detection_type": "rendered",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "Escape handling, a focus trap or focus restoration written in source and not working at runtime.",
+      "detection": "Static detection can only find the DECLARATION and say so. Settling it needs a browser: open by keyboard, press Escape, assert closed; reopen, Tab past the last control, assert focus never leaves the dialog; close, assert focus returned to the trigger.",
+      "why_it_reads_ai": "The canonical model signature, with the cleanest numbers anywhere in this catalog. Escape handlers were present in 79% of generated modals and worked in 59%, and 1,031 of 1,032 failures threw no console error, so the failure is invisible to every non-interactive check. Focus containment was worse: only 12% held focus on a bare prompt.",
+      "fix": "Stop hand-writing it: native <dialog> with showModal(), or Radix or React Aria with their defaults left alone. If custom code must stay, the required set is focus in on open, Tab and Shift+Tab contained, Escape closes, focus restored to the trigger, background scroll locked and background content inert. Then drive it in a browser, because this is the one entry where source review provably does not suffice. Note that asking a model for accessibility can reduce basic function: 'make it accessible using <dialog>' scored 80% working opens against 98% for the plainer instruction.",
+      "before": "a useEffect adding keydown on document, registered on the wrong element or shadowed by a stopPropagation in the overlay",
+      "after": "native <dialog>, plus the Playwright assertions above running in CI",
+      "false_positive_when": "Non-modal dialogs and popovers have a different keyboard contract, and stacked dialogs move focus to the topmost layer on purpose. Crucially: with native <dialog> you do not need to hand-trap focus, so ABSENCE of trap code there is correct. Only ever flag on driven behaviour, never on missing trap code.",
+      "evidence": "Featherstone operability study: handlers present 79% / working 59%; 1,031 of 1,032 failures silent; focus fully held 12% bare, 64% guided.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "medium": "web-ui"
+    },
+    {
+      "name": "missing-autofill-attributes",
+      "severity": "medium",
+      "thresholds": {
+        "min_inputs": 3
+      },
+      "description": "Form inputs with no autocomplete tokens, so the browser cannot fill a form it could otherwise complete in one tap.",
+      "detection": "Ratio of typed inputs carrying an autocomplete attribute to those without.",
+      "why_it_reads_ai": "Invisible in a screenshot, which is where the generation loop looks. The field renders identically with and without it.",
+      "fix": "Add the standard tokens: autocomplete=\"email\", \"given-name\", \"family-name\", \"street-address\", \"postal-code\", \"tel\", \"current-password\", \"new-password\", \"one-time-code\". Pair with inputmode and the right type so mobile keyboards match the field. This costs everyone and costs people with motor and cognitive disabilities most.",
+      "before": "<input type=\"text\" placeholder=\"Email\">",
+      "after": "<input type=\"email\" autocomplete=\"email\" inputmode=\"email\" id=\"email\">",
+      "false_positive_when": "Search fields, one-off inputs with no autofill meaning, and forms deliberately opting out for security reasons such as a passphrase confirmation.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "medium": "web-ui"
+    },
+    {
+      "name": "table-without-sort-filter-paging",
+      "severity": "medium",
+      "thresholds": {
+        "min_columns": 4
+      },
+      "description": "A multi-column table with no sort, no filter and no pagination.",
+      "detection": "Column count against the presence of sort, filter or pagination affordances.",
+      "why_it_reads_ai": "A table's usefulness depends almost entirely on behaviour, and a generated one arrives with the markup and none of it. It renders correctly with the eight rows in the mock and becomes unusable at eight hundred, which is a state no mock contains.",
+      "fix": "Decide what a user does with this table and build that: sort on the columns people order by, a filter for the field they scan, and pagination or virtualisation past a few hundred rows. Show the row count so people know what they are looking at, and keep the sort control a real button.",
+      "before": "<table> with eight columns and no controls",
+      "after": "sortable headers as buttons with aria-sort, a filter on the one field people scan, a row count, and pagination",
+      "false_positive_when": "Small fixed tables (a pricing comparison, a spec sheet) neither need nor want controls. This keys on column count as a proxy for a data table; a four-column spec table is a false positive worth ignoring.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "medium": "web-ui"
+    },
+    {
+      "name": "sort-header-not-button-no-aria-sort",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A sort affordance announced with aria-sort but not operable from a keyboard, or a sort caret with no aria-sort at all.",
+      "detection": "aria-sort present on a header containing no button element.",
+      "why_it_reads_ai": "A pure declared-but-unwired case: the visible and announced half of the pattern shipped and the interactive half did not.",
+      "fix": "Put a real button inside the th and keep aria-sort on the th itself, updating it between ascending, descending and none as the state changes. Announce the change in a live region if the sort happens without a page transition.",
+      "before": "<th aria-sort=\"none\">Name</th>",
+      "after": "<th aria-sort=\"none\"><button type=\"button\" onClick={sortByName}>Name</button></th>",
+      "false_positive_when": "Header cells made interactive by a table library that injects the control at runtime rather than in source.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "medium": "web-ui"
+    },
+    {
+      "name": "unbounded-spinner-no-error-path",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A loading state with no corresponding error state, so a request that never returns spins forever.",
+      "detection": "Presence of loading indicators with no error handling in the same component.",
+      "why_it_reads_ai": "The request that never returns is the commonest real-world failure and the one a mock never shows. The generated component has a state for waiting and none for having waited too long.",
+      "fix": "Give every async surface three states rather than two: loading, loaded, and failed with a message naming what failed and a control to retry. Add a timeout so the failed state is reachable without needing a server error to produce it.",
+      "before": "if (isLoading) return <Spinner />",
+      "after": "if (error) return <Failed onRetry={refetch} reason={error.message} />; if (isLoading) return <Spinner />",
+      "false_positive_when": "Error handling supplied by a parent boundary, a framework-level error route, or a data library's global handler.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "medium": "web-ui"
+    },
+    {
+      "name": "settings-flat-toggle-wall",
+      "severity": "medium",
+      "thresholds": {
+        "min_toggles": 8
+      },
+      "description": "Every configuration key rendered as a switch, in schema order, with no grouping and no indication of which values are defaults.",
+      "detection": "Toggle count against the presence of fieldset, legend or group roles.",
+      "why_it_reads_ai": "The screen is a faithful rendering of the data model rather than a designed view, which is what you get when the model is the only thing available to design from. One of the three recurring app-interior signatures, alongside declared-but-unwired and content whose cardinality matches a layout constant.",
+      "fix": "Group by what a person came to change, label each group with a legend, and mark defaults. Most settings screens halve once you ask which of these anyone has ever needed to touch, and the ones that survive deserve an explanation of what changes when they do.",
+      "before": "Nine switches in a column, in the order the config object declares them.",
+      "after": "Three labelled groups, defaults marked, the four nobody uses removed.",
+      "false_positive_when": "Advanced or developer settings panels are legitimately exhaustive and flat, and power users often prefer them that way.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural",
+      "medium": "web-ui"
+    },
+    {
+      "name": "kpi-card-without-comparison",
+      "medium": "chart",
+      "detection_type": "llm-judge",
+      "severity": "medium",
+      "description": "A KPI tile rendering one number and a label, with no delta, no prior period, no target and no unit context. 'Revenue $48,291' answers no question, because the reader cannot tell whether it is good.",
+      "detection": "Judge, or count: a stat card whose content is exactly one interpolated value plus a static label, with no comparison affordance. Ratio form: comparison-carrying cards over total cards in a KPI row.",
+      "why_it_reads_ai": "A number is renderable from a single query; a comparison requires deciding what it should be compared against, which is a judgment about the business rather than the data. The generated dashboard shows what is easy to fetch.",
+      "fix": "Every metric needs a comparand: the prior period, the target, or the distribution. If you cannot say what good looks like for a number, it does not belong on a dashboard, because nobody can act on it.",
+      "before": "Revenue  $48,291",
+      "after": "Revenue  $48,291   +12% vs last month   target $52,000",
+      "false_positive_when": "A live counter or a status readout where the current value genuinely is the whole answer, and dashboards whose comparison lives in an adjacent chart.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm"
     }
   ],
   "sources": [
@@ -4293,6 +4444,21 @@
       "title": "The Curse of Knowledge: Pinker Describes a Key Cause of Bad Writing - APS",
       "url": "https://www.psychologicalscience.org/observer/the-curse-of-knowledge-pinker-describes-a-key-cause-of-bad-writing",
       "note": "The human mechanism the context-leakage family is the machine analogue of: 'It simply doesn't occur to the writer that readers haven't learned their jargon, don't seem to know the intermediate steps that seem to them to be too obvious to mention.' Underlying literature: Camerer, Loewenstein & Weber 1989; Nickerson 1999."
+    },
+    {
+      "title": "Featherstone, AI UI accessibility: operability under browser-driven testing",
+      "url": "https://feather.ca/experiments/ai-ui-accessibility-operability/",
+      "note": "The evidence behind the declared-but-not-wired signature, and the best numbers in the whole catalog: ~3,000 browser-driven trials across a six-model panel. Escape handlers present in 79% of generated modals and working in 59%; 1,031 of 1,032 failures threw NO console error; focus fully held in 12% of bare prompts. Also the counterintuitive finding that asking for accessibility can reduce basic function."
+    },
+    {
+      "title": "Featherstone, AI UI accessibility: the markup baseline",
+      "url": "https://feather.ca/experiments/ai-ui-accessibility-baseline/",
+      "note": "720 trials. 673 generated modals hand-rolled role=dialog on a div; about 2% used native <dialog>, essentially all from one model family. Native dialogs closed on Escape 98% of the time against 31% for hand-rolled ones."
+    },
+    {
+      "title": "A11yN and the systematic review of LLM-generated accessibility",
+      "url": "https://arxiv.org/html/2510.13914v1",
+      "note": "LLMs replicate accessibility flaws from their training data rather than inventing new ones, which is why the fix is changing what they reach for (native elements, maintained primitives) rather than prompting harder."
     }
   ]
 }

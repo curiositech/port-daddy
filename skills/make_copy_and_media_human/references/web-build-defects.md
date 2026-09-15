@@ -4,7 +4,7 @@ A different KIND of finding from the rest of this catalog. Everything here is a 
 
 Most of these are decidable from source and run in the normal structural pass. The ones marked `rendered` need `scripts/render_check.py`, the one optional script in this bundle, which opens the page at real viewports and names the elements at fault.
 
-_29 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_37 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -101,6 +101,30 @@ The page wears the visual idiom of a modern utility-CSS framework — flex rows,
 **After**
 
 > <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))">
+
+### `hand-rolled-div-dialog`  ·  high · generic-llm · web-ui · structural · family: defect
+
+A modal built as a div wearing role=dialog with a hand-written overlay, instead of the native dialog element or a maintained primitive.
+
+**Why it reads AI:** The most empirically model-flavoured tell available. In a 720-trial baseline, 673 generated modals hand-rolled role=dialog on a div and about 2% used native <dialog>, with native use essentially confined to one model family. The mechanism is training distribution: the web's modal corpus is overwhelmingly pre-<dialog> overlays. The consequence is measurable, because native dialogs closed on Escape 98% of the time against 31% for hand-rolled ones.
+
+**Detect:** Flag role="dialog" or role="alertdialog" in a file containing no <dialog> tag and no dialog primitive import. The highest-confidence static check in the app-interior lane.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Use native <dialog> opened with showModal(), or a maintained primitive such as Radix Dialog or React Aria. Both supply focus trap, Escape, top-layer stacking and background inertness with no hand-written code, so delete the overlay, the keydown listener and the tab-cycling logic. With native <dialog> you should NOT hand-trap focus: absent trap code there is correct, not a finding.
+
+**False positive when:** Rare. This is a defect you can reproduce by opening the page, not an inference about who built it — but check whether the file is a fragment, a template, or a generated artifact before filing it against an author.
+
+**Evidence:** Featherstone, ~720-trial markup baseline and ~3,000-trial operability study, six-model panel.
+
+**Before**
+
+> <div className="fixed inset-0" onClick={close}><div role="dialog" aria-modal="true">...</div></div>
+
+**After**
+
+> <dialog ref={ref}>...</dialog>  // opened with ref.current.showModal()
 
 ### `horizontal-overflow-at-mobile`  ·  high · generic-llm · layout · rendered · family: defect
 
@@ -336,6 +360,30 @@ Everything is a div. No main, nav, header, footer, section or article anywhere.
 
 > <nav>...</nav> <main>...</main>
 
+### `escape-and-focus-declared-not-wired`  ·  medium · generic-llm · web-ui · rendered · family: defect
+
+Escape handling, a focus trap or focus restoration written in source and not working at runtime.
+
+**Why it reads AI:** The canonical model signature, with the cleanest numbers anywhere in this catalog. Escape handlers were present in 79% of generated modals and worked in 59%, and 1,031 of 1,032 failures threw no console error, so the failure is invisible to every non-interactive check. Focus containment was worse: only 12% held focus on a bare prompt.
+
+**Detect:** Static detection can only find the DECLARATION and say so. Settling it needs a browser: open by keyboard, press Escape, assert closed; reopen, Tab past the last control, assert focus never leaves the dialog; close, assert focus returned to the trigger.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Stop hand-writing it: native <dialog> with showModal(), or Radix or React Aria with their defaults left alone. If custom code must stay, the required set is focus in on open, Tab and Shift+Tab contained, Escape closes, focus restored to the trigger, background scroll locked and background content inert. Then drive it in a browser, because this is the one entry where source review provably does not suffice. Note that asking a model for accessibility can reduce basic function: 'make it accessible using <dialog>' scored 80% working opens against 98% for the plainer instruction.
+
+**False positive when:** Non-modal dialogs and popovers have a different keyboard contract, and stacked dialogs move focus to the topmost layer on purpose. Crucially: with native <dialog> you do not need to hand-trap focus, so ABSENCE of trap code there is correct. Only ever flag on driven behaviour, never on missing trap code.
+
+**Evidence:** Featherstone operability study: handlers present 79% / working 59%; 1,031 of 1,032 failures silent; focus fully held 12% bare, 64% guided.
+
+**Before**
+
+> a useEffect adding keydown on document, registered on the wrong element or shadowed by a stopPropagation in the overlay
+
+**After**
+
+> native <dialog>, plus the Playwright assertions above running in CI
+
 ### `h1-absent-or-competing`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 A page with no h1, or with several competing for the role.
@@ -379,6 +427,48 @@ Form inputs with no label element and no aria-label, relying on a placeholder to
 **After**
 
 > <label for="email">Email</label><input id="email" type="email" placeholder="you@company.com">
+
+### `kpi-card-without-comparison`  ·  medium · generic-llm · chart · llm-judge · family: defect
+
+A KPI tile rendering one number and a label, with no delta, no prior period, no target and no unit context. 'Revenue $48,291' answers no question, because the reader cannot tell whether it is good.
+
+**Why it reads AI:** A number is renderable from a single query; a comparison requires deciding what it should be compared against, which is a judgment about the business rather than the data. The generated dashboard shows what is easy to fetch.
+
+**Detect:** Judge, or count: a stat card whose content is exactly one interpolated value plus a static label, with no comparison affordance. Ratio form: comparison-carrying cards over total cards in a KPI row.
+
+**Fix:** Every metric needs a comparand: the prior period, the target, or the distribution. If you cannot say what good looks like for a number, it does not belong on a dashboard, because nobody can act on it.
+
+**False positive when:** A live counter or a status readout where the current value genuinely is the whole answer, and dashboards whose comparison lives in an adjacent chart.
+
+**Before**
+
+> Revenue  $48,291
+
+**After**
+
+> Revenue  $48,291   +12% vs last month   target $52,000
+
+### `missing-autofill-attributes`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+Form inputs with no autocomplete tokens, so the browser cannot fill a form it could otherwise complete in one tap.
+
+**Why it reads AI:** Invisible in a screenshot, which is where the generation loop looks. The field renders identically with and without it.
+
+**Detect:** Ratio of typed inputs carrying an autocomplete attribute to those without.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_inputs` = 3
+
+**Fix:** Add the standard tokens: autocomplete="email", "given-name", "family-name", "street-address", "postal-code", "tel", "current-password", "new-password", "one-time-code". Pair with inputmode and the right type so mobile keyboards match the field. This costs everyone and costs people with motor and cognitive disabilities most.
+
+**False positive when:** Search fields, one-off inputs with no autofill meaning, and forms deliberately opting out for security reasons such as a passphrase confirmation.
+
+**Before**
+
+> <input type="text" placeholder="Email">
+
+**After**
+
+> <input type="email" autocomplete="email" inputmode="email" id="email">
 
 ### `missing-html-lang`  ·  medium · generic-llm · web-ui · structural · family: defect
 
@@ -466,6 +556,72 @@ An animated page with no prefers-reduced-motion media query.
 
 > (the same, wrapped so reduced-motion users get instant state changes)
 
+### `settings-flat-toggle-wall`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+Every configuration key rendered as a switch, in schema order, with no grouping and no indication of which values are defaults.
+
+**Why it reads AI:** The screen is a faithful rendering of the data model rather than a designed view, which is what you get when the model is the only thing available to design from. One of the three recurring app-interior signatures, alongside declared-but-unwired and content whose cardinality matches a layout constant.
+
+**Detect:** Toggle count against the presence of fieldset, legend or group roles.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_toggles` = 8
+
+**Fix:** Group by what a person came to change, label each group with a legend, and mark defaults. Most settings screens halve once you ask which of these anyone has ever needed to touch, and the ones that survive deserve an explanation of what changes when they do.
+
+**False positive when:** Advanced or developer settings panels are legitimately exhaustive and flat, and power users often prefer them that way.
+
+**Before**
+
+> Nine switches in a column, in the order the config object declares them.
+
+**After**
+
+> Three labelled groups, defaults marked, the four nobody uses removed.
+
+### `sort-header-not-button-no-aria-sort`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+A sort affordance announced with aria-sort but not operable from a keyboard, or a sort caret with no aria-sort at all.
+
+**Why it reads AI:** A pure declared-but-unwired case: the visible and announced half of the pattern shipped and the interactive half did not.
+
+**Detect:** aria-sort present on a header containing no button element.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Put a real button inside the th and keep aria-sort on the th itself, updating it between ascending, descending and none as the state changes. Announce the change in a live region if the sort happens without a page transition.
+
+**False positive when:** Header cells made interactive by a table library that injects the control at runtime rather than in source.
+
+**Before**
+
+> <th aria-sort="none">Name</th>
+
+**After**
+
+> <th aria-sort="none"><button type="button" onClick={sortByName}>Name</button></th>
+
+### `table-without-sort-filter-paging`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+A multi-column table with no sort, no filter and no pagination.
+
+**Why it reads AI:** A table's usefulness depends almost entirely on behaviour, and a generated one arrives with the markup and none of it. It renders correctly with the eight rows in the mock and becomes unusable at eight hundred, which is a state no mock contains.
+
+**Detect:** Column count against the presence of sort, filter or pagination affordances.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_columns` = 4
+
+**Fix:** Decide what a user does with this table and build that: sort on the columns people order by, a filter for the field they scan, and pagination or virtualisation past a few hundred rows. Show the row count so people know what they are looking at, and keep the sort control a real button.
+
+**False positive when:** Small fixed tables (a pricing comparison, a spec sheet) neither need nor want controls. This keys on column count as a proxy for a data table; a four-column spec table is a false positive worth ignoring.
+
+**Before**
+
+> <table> with eight columns and no controls
+
+**After**
+
+> sortable headers as buttons with aria-sort, a filter on the one field people scan, a row count, and pagination
+
 ### `tailwind-play-cdn-in-production`  ·  medium · generic-llm · web-ui · structural · family: defect
 
 A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel-standalone, and their relatives.
@@ -507,6 +663,28 @@ Interactive controls smaller than about 44x44 CSS pixels at phone width.
 **After**
 
 > .nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 12px; font-size: 15px }
+
+### `unbounded-spinner-no-error-path`  ·  medium · generic-llm · web-ui · structural · family: defect
+
+A loading state with no corresponding error state, so a request that never returns spins forever.
+
+**Why it reads AI:** The request that never returns is the commonest real-world failure and the one a mock never shows. The generated component has a state for waiting and none for having waited too long.
+
+**Detect:** Presence of loading indicators with no error handling in the same component.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Give every async surface three states rather than two: loading, loaded, and failed with a message naming what failed and a control to retry. Add a timeout so the failed state is reachable without needing a server error to produce it.
+
+**False positive when:** Error handling supplied by a parent boundary, a framework-level error route, or a data library's global handler.
+
+**Before**
+
+> if (isLoading) return <Spinner />
+
+**After**
+
+> if (error) return <Failed onRetry={refetch} reason={error.message} />; if (isLoading) return <Spinner />
 
 ### `duplicated-component-markup`  ·  low · generic-llm · web-ui · llm-judge · family: defect
 
