@@ -138,7 +138,7 @@ describe('DLQ handler', () => {
     expect(state.tokenMints).toBe(0);
   });
 
-  it('acks instead of retrying when OFF is known but D1 fails before the DLQ claim', async () => {
+  it('retains the control-only repair when OFF is known but D1 fails before the DLQ claim', async () => {
     const d1 = memoryD1();
     d1.failAll = true;
     const msg = fakeMessage(makeJob());
@@ -148,13 +148,14 @@ describe('DLQ handler', () => {
       CONTROL_KV: memoryKV({ fleetPause: true }),
     }), {} as ExecutionContext);
 
-    expect(msg.ack).toHaveBeenCalledOnce();
-    expect(msg.retry).not.toHaveBeenCalled();
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(msg.retry).toHaveBeenCalledOnce();
+    expect(msg.retry).toHaveBeenCalledWith({ delaySeconds: 60 });
     expect(state.tokenMints).toBe(0);
     expect(state.records).toHaveLength(0);
   });
 
-  it('acks instead of retrying when persisting the OFF hold fails', async () => {
+  it('retains the control-only repair when persisting the OFF hold fails', async () => {
     const d1 = memoryD1();
     const control = {
       admit: vi.fn(async () => {
@@ -173,8 +174,9 @@ describe('DLQ handler', () => {
       FLEET_CONTROL: control,
     }), {} as ExecutionContext);
 
-    expect(msg.ack).toHaveBeenCalledOnce();
-    expect(msg.retry).not.toHaveBeenCalled();
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(msg.retry).toHaveBeenCalledOnce();
+    expect(msg.retry).toHaveBeenCalledWith({ delaySeconds: 60 });
     expect(state.tokenMints).toBe(0);
     expect(state.records).toHaveLength(0);
   });

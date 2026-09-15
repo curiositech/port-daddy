@@ -19,7 +19,7 @@ export type FleetIntentWorkDecision =
   | { kind: 'skip' };
 export type FleetIntentDlqClaim =
   | { kind: 'claimed'; attempt: number }
-  | { kind: 'skip'; reason: 'terminal' | 'superseded' | 'control-waiting' };
+  | { kind: 'skip'; reason: 'terminal' | 'superseded' | 'control-waiting' | 'continuation-stale' };
 
 interface IntentStateRow {
   state: string;
@@ -74,6 +74,16 @@ function pendingContinuationSequence(row: IntentStateRow): number | null {
   return Number.isSafeInteger(row.pending_continuation_sequence)
     ? row.pending_continuation_sequence
     : null;
+}
+
+function messageContinuationSequence(job: FleetRunJob): number {
+  if (job.continuationSequence === undefined) return 0;
+  if (Number.isSafeInteger(job.continuationSequence)
+      && (job.continuationSequence ?? 0) > 0
+      && (job.continuationSequence ?? 0) < 10_000) {
+    return job.continuationSequence as number;
+  }
+  throw new FleetIntentOwnershipError(job.deliveryId ?? '<missing>', 'continuation-sequence-invalid');
 }
 
 // Pull-request generations share one scope per PR. Merge-group deliveries do
@@ -168,6 +178,12 @@ export async function claimFleetIntentForDlq(
   if (TERMINAL_OR_SUPERSEDED.has(exact.state)) {
     return { kind: 'skip', reason: exact.state === 'superseded' ? 'superseded' : 'terminal' };
   }
+  const messageSequence = messageContinuationSequence(job);
+  const exactPending = pendingContinuationSequence(exact);
+  const exactSequence = exactPending ?? activeContinuationSequence(exact);
+  if (exactSequence !== messageSequence) {
+    return { kind: 'skip', reason: 'continuation-stale' };
+  }
   const current = await readCurrentIntent(env, job);
   if (!current) return { kind: 'skip', reason: 'superseded' };
   const claimedAttempt = current.attempt_count + 1;
@@ -175,13 +191,17 @@ export async function claimFleetIntentForDlq(
   const updated = await env.DB
     .prepare(
       `UPDATE fleet_run_intents
-         SET state = 'running', attempt_count = ?, finished_at = NULL,
+         SET state = 'running', attempt_count = ?, continuation_sequence = ?, finished_at = NULL,
              pending_continuation_sequence = NULL, pending_continuation_at = NULL,
              last_progress_at = ?, last_error = ?
        WHERE delivery_id = ? AND repo_full_name = ? AND pr_number = ?
          AND head_sha = ? AND event_type = ? AND COALESCE(action, '') = ?
          AND attempt_count = ?
          AND control_waiting_at IS NULL
+         AND (
+           (pending_continuation_sequence IS NULL AND continuation_sequence = ?)
+           OR (pending_continuation_sequence = ? AND continuation_sequence = ?)
+         )
          AND NOT (state = 'retrying' AND last_error LIKE 'Fleet suspended:%')
          AND state IN ('admitting','queued','running','retrying','enqueue_failed')
          AND NOT EXISTS (
@@ -193,8 +213,10 @@ export async function claimFleetIntentForDlq(
              AND newer.state NOT IN (${NON_FENCING_GENERATION_STATES})
          )`,
     )
-    .bind(claimedAttempt, now, error.slice(0, 600), identity.deliveryId, identity.repoFullName,
-      identity.prNumber, identity.headSha, identity.eventType, identity.action, current.attempt_count)
+    .bind(claimedAttempt, messageSequence, now, error.slice(0, 600),
+      identity.deliveryId, identity.repoFullName,
+      identity.prNumber, identity.headSha, identity.eventType, identity.action,
+      current.attempt_count, messageSequence, messageSequence, messageSequence - 1)
     .run();
   if (updated.meta?.changes === 1) return { kind: 'claimed', attempt: claimedAttempt };
   if (typeof updated.meta?.changes !== 'number') {
@@ -205,6 +227,10 @@ export async function claimFleetIntentForDlq(
   if (isControlWaiting(afterExact)) return { kind: 'skip', reason: 'control-waiting' };
   if (TERMINAL_OR_SUPERSEDED.has(afterExact.state)) {
     return { kind: 'skip', reason: afterExact.state === 'superseded' ? 'superseded' : 'terminal' };
+  }
+  const afterPending = pendingContinuationSequence(afterExact);
+  if ((afterPending ?? activeContinuationSequence(afterExact)) !== messageSequence) {
+    return { kind: 'skip', reason: 'continuation-stale' };
   }
   if (!await readCurrentIntent(env, job)) return { kind: 'skip', reason: 'superseded' };
   throw new FleetIntentOwnershipError(job.deliveryId, 'claim-raced');
@@ -290,9 +316,14 @@ export async function claimFleetIntentWork(
            finished_at = NULL, last_error = NULL
      WHERE delivery_id = ? AND repo_full_name = ? AND pr_number = ?
        AND head_sha = ? AND event_type = ? AND COALESCE(action, '') = ?
-       AND state = 'retrying' AND control_waiting_at IS NULL
-       AND pending_continuation_sequence = ?
-       AND continuation_sequence = ? AND attempt_count < ?
+       AND control_waiting_at IS NULL
+       AND (
+         (state IN ('retrying','admitting','queued')
+           AND pending_continuation_sequence = ? AND continuation_sequence = ?)
+         OR (state IN ('admitting','queued')
+           AND pending_continuation_sequence IS NULL AND continuation_sequence = ?)
+       )
+       AND attempt_count < ?
        AND NOT EXISTS (
          SELECT 1 FROM fleet_run_intents AS newer
          WHERE newer.repo_full_name = fleet_run_intents.repo_full_name
@@ -303,7 +334,8 @@ export async function claimFleetIntentWork(
        )`,
   ).bind(safeAttempt, explicitContinuation, now, now, identity.deliveryId,
     identity.repoFullName, identity.prNumber, identity.headSha, identity.eventType,
-    identity.action, explicitContinuation, explicitContinuation - 1, safeAttempt).run();
+    identity.action, explicitContinuation, explicitContinuation - 1,
+    explicitContinuation, safeAttempt).run();
   if (claimed.meta?.changes === 1) return { kind: 'run' };
   if (typeof claimed.meta?.changes !== 'number') {
     throw new FleetIntentOwnershipError(job.deliveryId, 'continuation-claim-unverified');

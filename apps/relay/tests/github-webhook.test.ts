@@ -565,17 +565,36 @@ describe('fleet enqueue — durable PR generation admission', () => {
     delivery_id: string;
     repo_full_name: string;
     pr_number: number;
+    pr_url: string;
+    head_sha: string;
+    event_type: string;
+    action: string | null;
     generation: number;
     state: string;
     superseded_by: string | null;
+    attempt_count: number;
+    queued_at: number;
+    started_at: number | null;
+    last_progress_at: number;
+    finished_at: number | null;
+    last_error: string | null;
+    control_waiting_at: number | null;
+    control_wait_count: number;
+    requeue_revision: number | null;
+    continuation_sequence: number;
+    pending_continuation_sequence: number | null;
+    pending_continuation_at: number | null;
   }
 
   function envWithIntentLedger(sent: unknown[]) {
     const cap: Captured = { events: [], audits: [] };
     const base = makeMockD1(cap);
     const intents = new Map<string, IntentRow>();
+    const requeues = new Map<string, { revision: number; controlWaitCount: number }>();
     const prepare = (sql: string) => {
-      if (!sql.includes('fleet_run_intents')) return base.prepare(sql);
+      if (!sql.includes('fleet_run_intents') && !sql.includes('fleet_control_requeues')) {
+        return base.prepare(sql);
+      }
       let bound: unknown[] = [];
       const stmt = {
         bind(...values: unknown[]) {
@@ -583,6 +602,12 @@ describe('fleet enqueue — durable PR generation admission', () => {
           return stmt;
         },
         async first<T>() {
+          if (sql.includes('fleet_control_requeues')) {
+            const permit = requeues.get(String(bound[0]));
+            return (permit && permit.controlWaitCount === Number(bound[1])
+              ? { revision: permit.revision }
+              : null) as T | null;
+          }
           if (sql.includes('delivery_id = ?')) {
             return (intents.get(String(bound[0])) ?? null) as T | null;
           }
@@ -607,13 +632,41 @@ describe('fleet enqueue — durable PR generation admission', () => {
               delivery_id: deliveryId,
               repo_full_name: repo,
               pr_number: pr,
+              pr_url: String(bound[3]),
+              head_sha: String(bound[4]),
+              event_type: String(bound[5]),
+              action: bound[6] == null ? null : String(bound[6]),
               generation,
               state: 'admitting',
               superseded_by: null,
+              attempt_count: 0,
+              queued_at: Number(bound[7]),
+              started_at: null,
+              last_progress_at: Number(bound[8]),
+              finished_at: null,
+              last_error: null,
+              control_waiting_at: null,
+              control_wait_count: 0,
+              requeue_revision: null,
+              continuation_sequence: 0,
+              pending_continuation_sequence: null,
+              pending_continuation_at: null,
             });
             return { success: true, meta: { changes: 1 } };
           }
-          if (sql.includes("SET state = 'queued'")) {
+          if (sql.includes("SET state = 'admitting'")) {
+            const row = intents.get(String(bound[2]));
+            if (!row || row.control_wait_count !== Number(bound[3])
+                || row.control_waiting_at == null || row.state !== 'cancelled') {
+              return { success: true, meta: { changes: 0 } };
+            }
+            row.state = 'admitting';
+            row.control_waiting_at = null;
+            row.attempt_count = 0;
+            row.requeue_revision = Number(bound[0]);
+            row.last_progress_at = Number(bound[1]);
+            row.last_error = null;
+          } else if (sql.includes("SET state = 'queued'")) {
             const row = intents.get(String(bound[2]));
             if (row) row.state = 'queued';
           } else if (sql.includes("SET state = 'superseded'")) {
@@ -649,7 +702,7 @@ describe('fleet enqueue — durable PR generation admission', () => {
     const env = makeEnv(cap, []);
     env.DB = db;
     env.FLEET_RUNS = { async send(job: unknown) { sent.push(job); } } as Queue;
-    return { env, intents, cap };
+    return { env, intents, requeues, cap };
   }
 
   function prBody(sha: string): string {
@@ -707,6 +760,59 @@ describe('fleet enqueue — durable PR generation admission', () => {
     expect((await handleGithubWebhook(request(), env)).status).toBe(204);
     expect((await handleGithubWebhook(request(), env)).status).toBe(204);
     expect(sent).toHaveLength(1);
+  });
+
+  it('re-enqueues an authorized held successor with its exact continuation identity', async () => {
+    const sent: unknown[] = [];
+    const { env, intents, requeues } = envWithIntentLedger(sent);
+    const deliveryId = 'delivery-held-continuation';
+    const sha = 'd'.repeat(40);
+    intents.set(deliveryId, {
+      delivery_id: deliveryId,
+      repo_full_name: 'curiositech/port-daddy',
+      pr_number: 8889,
+      pr_url: 'https://github.com/curiositech/port-daddy/pull/8889',
+      head_sha: sha,
+      event_type: 'pull_request',
+      action: 'synchronize',
+      generation: 1,
+      state: 'cancelled',
+      superseded_by: null,
+      attempt_count: 205,
+      queued_at: 1_000,
+      started_at: 1_001,
+      last_progress_at: 1_002,
+      finished_at: null,
+      last_error: 'Fleet suspended: control was unavailable',
+      control_waiting_at: 1_002,
+      control_wait_count: 2,
+      requeue_revision: null,
+      continuation_sequence: 2,
+      pending_continuation_sequence: 3,
+      pending_continuation_at: 1_002,
+    });
+    requeues.set(deliveryId, { revision: 12, controlWaitCount: 2 });
+    env.FLEET_CONTROL = {
+      idFromName: (name: string) => name as unknown as DurableObjectId,
+      get: () => ({ fetch: async () => Response.json({
+        status: 'unpaused', paused: false, revision: 12, pausedAt: 1_003,
+      }) }),
+    } as unknown as DurableObjectNamespace;
+    const body = prBody(sha);
+
+    expect((await handleGithubWebhook(webhookReq({
+      body,
+      signature: sign(SECRET, body),
+      event: 'pull_request',
+      delivery: deliveryId,
+    }), env)).status).toBe(204);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ deliveryId, continuationSequence: 3 });
+    expect(intents.get(deliveryId)).toMatchObject({
+      state: 'queued',
+      continuation_sequence: 2,
+      pending_continuation_sequence: 3,
+    });
   });
 });
 

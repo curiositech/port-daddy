@@ -56,21 +56,28 @@ const LEGACY_FLEET_PAUSE_KEY = 'fleet:paused';
  */
 async function readLegacyFleetPauseProjection(
   kv: KVNamespace,
-): Promise<'paused' | 'unpaused' | 'unknown'> {
+): Promise<{ status: 'paused' | 'unpaused' | 'unknown'; revision: number | null }> {
   try {
     const raw = await kv.get(LEGACY_FLEET_PAUSE_KEY);
-    if (raw === 'true') return 'paused';
-    if (raw === 'false') return 'unpaused';
-    if (!raw) return 'unknown';
+    if (raw === 'true') return { status: 'paused', revision: null };
+    if (raw === 'false') return { status: 'unpaused', revision: null };
+    if (!raw) return { status: 'unknown', revision: null };
     const parsed = JSON.parse(raw) as unknown;
-    const paused = typeof parsed === 'object'
-      && parsed !== null
-      && !Array.isArray(parsed)
-      ? (parsed as { paused?: unknown }).paused
-      : undefined;
-    return typeof paused === 'boolean' ? (paused ? 'paused' : 'unpaused') : 'unknown';
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { status: 'unknown', revision: null };
+    }
+    const projection = parsed as { paused?: unknown; revision?: unknown };
+    if (typeof projection.paused !== 'boolean'
+        || !Number.isSafeInteger(projection.revision)
+        || Number(projection.revision) < 1) {
+      return { status: 'unknown', revision: null };
+    }
+    return {
+      status: projection.paused ? 'paused' : 'unpaused',
+      revision: Number(projection.revision),
+    };
   } catch {
-    return 'unknown';
+    return { status: 'unknown', revision: null };
   }
 }
 
@@ -216,12 +223,13 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
       fleetIntentHealth(env.DB),
       readLegacyFleetPauseProjection(env.KV),
     ]);
-    // The projection is a deny-only witness. It cannot make an unknown or
-    // canonical pause look healthy, and a readable false cannot authorize
-    // without the Durable Object. Any non-ON projection keeps a canonical ON
-    // visibly blocked until the two authorities converge.
-    const legacyReadbackMismatch = control.status === 'unpaused'
-      && legacyProjection !== 'unpaused';
+    // The projection is a deny-only witness. It cannot authorize work, and it
+    // is healthy only when both value and revision exactly match canonical
+    // control. Report drift in either direction: an apparently newer/staler
+    // KV value must never hide a partial control mutation or mixed rollout.
+    const legacyReadbackMismatch = control.status !== 'unknown'
+      && (legacyProjection.status !== control.status
+        || legacyProjection.revision !== control.revision);
     const lastRunAgeSec = lastAt === null ? null : Math.floor(Date.now() / 1000) - lastAt;
     return envelope(200, {
       code: 'OK',

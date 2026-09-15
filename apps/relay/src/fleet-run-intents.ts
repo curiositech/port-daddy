@@ -53,6 +53,9 @@ export interface FleetRunIntentRow {
   control_waiting_at?: number | null;
   control_wait_count?: number;
   requeue_revision?: number | null;
+  continuation_sequence?: number;
+  pending_continuation_sequence?: number | null;
+  pending_continuation_at?: number | null;
 }
 
 export interface FleetRunProjection extends FleetRunRow {
@@ -87,6 +90,8 @@ export interface FleetIntentReservation {
   shouldEnqueue: boolean;
   duplicate: boolean;
   state: FleetIntentState;
+  /** Exact successor incarnation to reconstruct for an authorized replay. */
+  continuationSequence?: number;
 }
 
 const ACTIVE_STATES = new Set<FleetIntentState>(['admitting', 'queued', 'running', 'retrying']);
@@ -112,6 +117,14 @@ function projectIntentState(row: FleetRunIntentRow): FleetRunIntentRow {
     return { ...row, state: FLEET_WAITING_CONTROL };
   }
   return row;
+}
+
+/** Preserve continuation identity when control recovery re-enqueues one held delivery. */
+function continuationSequenceForReplay(row: FleetRunIntentRow): number | undefined {
+  const pending = row.pending_continuation_sequence;
+  if (Number.isSafeInteger(pending) && (pending ?? 0) > 0) return pending as number;
+  const active = row.continuation_sequence;
+  return Number.isSafeInteger(active) && (active ?? 0) > 0 ? active as number : undefined;
 }
 
 /**
@@ -165,7 +178,16 @@ export async function reserveFleetRunIntent(
                AND newer.state NOT IN ('enqueue_failed','superseded')
            )`,
       ).bind(permit.revision, input.now, input.deliveryId, existing.control_wait_count).run();
-      return { shouldEnqueue: claimed.meta?.changes === 1, duplicate: true, state: 'admitting' };
+      const wonReplay = claimed.meta?.changes === 1;
+      const continuationSequence = continuationSequenceForReplay(existing);
+      return {
+        shouldEnqueue: wonReplay,
+        duplicate: true,
+        state: 'admitting',
+        ...(wonReplay && continuationSequence != null
+          ? { continuationSequence }
+          : {}),
+      };
     }
     if (existing.state === 'enqueue_failed') {
       if (existing.requeue_revision != null && !await input.authorizeReplay?.(existing.requeue_revision)) {
@@ -179,8 +201,20 @@ export async function reserveFleetRunIntent(
         )
         .bind(input.now, input.deliveryId)
         .run();
-      const wonRetry = (retried.meta?.changes ?? 1) > 0;
-      return { shouldEnqueue: wonRetry, duplicate: true, state: 'admitting' };
+      const retryChanges = retried.meta?.changes;
+      if (retryChanges !== 0 && retryChanges !== 1) {
+        throw new Error(`Fleet enqueue retry CAS was not verifiable for ${input.deliveryId}`);
+      }
+      const wonRetry = retryChanges === 1;
+      const continuationSequence = continuationSequenceForReplay(existing);
+      return {
+        shouldEnqueue: wonRetry,
+        duplicate: true,
+        state: 'admitting',
+        ...(wonRetry && continuationSequence != null
+          ? { continuationSequence }
+          : {}),
+      };
     }
     return { shouldEnqueue: false, duplicate: true, state: existing.state };
   }
@@ -211,12 +245,15 @@ export async function reserveFleetRunIntent(
       )
       .run();
 
-    // Real D1 always reports meta.changes. The default-to-one keeps lightweight
-    // compatibility adapters working. A zero can be either same-delivery
-    // idempotency or a concurrent generation collision; read back and retry only
-    // the latter so a valid newer head is never silently dropped.
-    if ((inserted.meta?.changes ?? 1) > 0) {
+    // Queue admission needs a proved one-row INSERT. A missing write count is
+    // unavailable ownership, never permission to enqueue. A proved zero can be
+    // either same-delivery idempotency or a concurrent generation collision;
+    // read back and retry only the latter.
+    if (inserted.meta?.changes === 1) {
       return { shouldEnqueue: true, duplicate: false, state: 'admitting' };
+    }
+    if (inserted.meta?.changes !== 0) {
+      throw new Error(`Fleet reservation INSERT was not verifiable for ${input.deliveryId}`);
     }
     const duplicate = await getFleetRunIntent(db, input.deliveryId);
     if (duplicate) {
@@ -287,22 +324,26 @@ export async function markFleetRunIntentEnqueued(
  * @param deliveryId - Webhook delivery whose queue send failed.
  * @param error - Bounded operator-facing failure detail.
  * @param now - Injected unix timestamp for the failure.
- * @returns Completion after the failure receipt is durable.
+ * @returns True when this producer recorded the failure; false when ownership already advanced.
+ * @throws When the adapter cannot prove the conditional write result.
  */
 export async function markFleetRunIntentEnqueueFailed(
   db: D1Database,
   deliveryId: string,
   error: string,
   now: number,
-): Promise<void> {
-  await db
+): Promise<boolean> {
+  const updated = await db
     .prepare(
       `UPDATE fleet_run_intents
          SET state = 'enqueue_failed', last_error = ?, last_progress_at = ?, finished_at = ?
-       WHERE delivery_id = ?`,
+       WHERE delivery_id = ? AND state = 'admitting'`,
     )
     .bind(error.slice(0, 600), now, now, deliveryId)
     .run();
+  if (updated.meta?.changes === 1) return true;
+  if (updated.meta?.changes === 0) return false;
+  throw new Error(`Fleet enqueue-failure CAS was not verifiable for ${deliveryId}`);
 }
 
 /**

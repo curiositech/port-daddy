@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ExecutorEnv, FleetRunJob } from '../src/env.js';
 import { memoryD1 } from './harness.js';
+import { fleetLifecycleDb } from '../../relay/tests/fleet-lifecycle-db.js';
 import {
   assertFleetIntentCurrent,
   beginFleetIntentAttempt,
   claimFleetIntentForDlq,
+  claimFleetIntentWork,
   finishFleetIntentFromRun,
   markFleetIntentTerminal,
   markFleetIntentRetrying,
@@ -138,7 +140,7 @@ describe('executor Fleet intent preflight', () => {
     });
   });
 
-  it('lets the DLQ terminalize a pending continuation without inheriting its send permit', async () => {
+  it('does not let a stale predecessor DLQ clear or steal a pending continuation permit', async () => {
     const db = memoryD1({
       deliveryId: JOB.deliveryId,
       state: 'retrying',
@@ -155,19 +157,188 @@ describe('executor Fleet intent preflight', () => {
 
     const env = { DB: db.db } as ExecutorEnv;
     await expect(claimFleetIntentForDlq(env, JOB, 'send failed')).resolves.toEqual({
-      kind: 'claimed',
-      attempt: 5,
+      kind: 'skip',
+      reason: 'continuation-stale',
     });
     expect(db.intents.get(JOB.deliveryId)).toMatchObject({
-      state: 'running',
+      state: 'retrying',
       continuationSequence: 0,
+      pendingContinuationSequence: 1,
+      pendingContinuationAt: 123,
+    });
+  });
+
+  it('lets the exact pending successor DLQ claim and promote its own incarnation', async () => {
+    const db = memoryD1({
+      deliveryId: JOB.deliveryId,
+      state: 'retrying',
+      repoFullName: JOB.repoFullName ?? 'erichowens/port-daddy',
+      prNumber: JOB.prNumber as number,
+      headSha: 'head-8889',
+      eventType: JOB.eventType ?? 'pull_request',
+      action: JOB.action ?? 'opened',
+      attemptCount: 4,
+      continuationSequence: 0,
+      pendingContinuationSequence: 1,
+      pendingContinuationAt: 123,
+    });
+    const env = { DB: db.db } as ExecutorEnv;
+
+    await expect(claimFleetIntentForDlq(
+      env,
+      { ...JOB, continuationSequence: 1 },
+      'successor exhausted retries',
+    )).resolves.toEqual({ kind: 'claimed', attempt: 5 });
+    expect(db.intents.get(JOB.deliveryId)).toMatchObject({
+      state: 'running',
+      attemptCount: 5,
+      continuationSequence: 1,
       pendingContinuationSequence: null,
       pendingContinuationAt: null,
     });
-    await expect(assertFleetIntentCurrent(env, JOB, 5)).resolves.toBeUndefined();
-    await expect(markFleetIntentTerminal(env, JOB, 5, 'failure', 'dead-lettered'))
-      .resolves.toBeUndefined();
-    expect(db.intents.get(JOB.deliveryId)?.state).toBe('failure');
+  });
+
+  it('claims only the DLQ message matching the active continuation incarnation', async () => {
+    const db = memoryD1({
+      deliveryId: JOB.deliveryId,
+      state: 'retrying',
+      repoFullName: JOB.repoFullName ?? 'erichowens/port-daddy',
+      prNumber: JOB.prNumber as number,
+      headSha: 'head-8889',
+      eventType: JOB.eventType ?? 'pull_request',
+      action: JOB.action ?? 'opened',
+      attemptCount: 104,
+      continuationSequence: 1,
+      pendingContinuationSequence: null,
+    });
+    const env = { DB: db.db } as ExecutorEnv;
+
+    await expect(claimFleetIntentForDlq(env, JOB, 'stale predecessor'))
+      .resolves.toEqual({ kind: 'skip', reason: 'continuation-stale' });
+    expect(db.intents.get(JOB.deliveryId)).toMatchObject({
+      state: 'retrying', attemptCount: 104, continuationSequence: 1,
+    });
+
+    const successor = { ...JOB, continuationSequence: 1 };
+    await expect(claimFleetIntentForDlq(env, successor, 'successor failed')).resolves.toEqual({
+      kind: 'claimed',
+      attempt: 105,
+    });
+    expect(db.intents.get(JOB.deliveryId)).toMatchObject({
+      state: 'running', attemptCount: 105, continuationSequence: 1,
+    });
+  });
+
+  it.each([
+    {
+      label: 'pending successor replay before producer projection',
+      state: 'admitting',
+      sequence: 3,
+      active: 2,
+      pending: 3,
+    },
+    {
+      label: 'pending successor replay after producer projection',
+      state: 'queued',
+      sequence: 3,
+      active: 2,
+      pending: 3,
+    },
+    {
+      label: 'active continuation replay before producer projection',
+      state: 'admitting',
+      sequence: 3,
+      active: 3,
+      pending: null,
+    },
+    {
+      label: 'active continuation replay after producer projection',
+      state: 'queued',
+      sequence: 3,
+      active: 3,
+      pending: null,
+    },
+  ])('claims an authorized $label', async ({ state, sequence, active, pending }) => {
+    const db = memoryD1({
+      deliveryId: JOB.deliveryId,
+      state,
+      repoFullName: JOB.repoFullName ?? 'erichowens/port-daddy',
+      prNumber: JOB.prNumber as number,
+      headSha: 'head-8889',
+      eventType: JOB.eventType ?? 'pull_request',
+      action: JOB.action ?? 'opened',
+      attemptCount: 0,
+      continuationSequence: active,
+      pendingContinuationSequence: pending,
+      pendingContinuationAt: pending == null ? null : 123,
+    });
+    const env = { DB: db.db } as ExecutorEnv;
+    const replay = { ...JOB, continuationSequence: sequence };
+
+    await expect(claimFleetIntentWork(env, replay, sequence * 100 + 1, sequence))
+      .resolves.toEqual({ kind: 'run' });
+    expect(db.intents.get(JOB.deliveryId)).toMatchObject({
+      state: 'running',
+      attemptCount: sequence * 100 + 1,
+      continuationSequence: sequence,
+      pendingContinuationSequence: null,
+    });
+  });
+
+  it('enforces continuation DLQ and replay fencing through the real SQLite migration schema', async () => {
+    const { db, sqlite } = fleetLifecycleDb();
+    sqlite.prepare(`INSERT INTO fleet_run_intents
+      (delivery_id, repo_full_name, pr_number, pr_url, head_sha, event_type, action,
+       generation, state, attempt_count, continuation_sequence,
+       pending_continuation_sequence, pending_continuation_at, last_error)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'retrying', 4, 0, 1, 123,
+        'Continuation 1 pending queue handoff')`)
+      .run(
+        JOB.deliveryId,
+        JOB.repoFullName,
+        JOB.prNumber,
+        `https://github.com/${JOB.repoFullName}/pull/${JOB.prNumber}`,
+        'head-8889',
+        JOB.eventType,
+        JOB.action,
+      );
+    const env = { DB: db } as ExecutorEnv;
+
+    await expect(claimFleetIntentForDlq(env, JOB, 'stale predecessor'))
+      .resolves.toEqual({ kind: 'skip', reason: 'continuation-stale' });
+    await expect(claimFleetIntentForDlq(
+      env,
+      { ...JOB, continuationSequence: 1 },
+      'exact successor',
+    )).resolves.toEqual({ kind: 'claimed', attempt: 5 });
+    expect(sqlite.prepare(`SELECT state, attempt_count, continuation_sequence,
+      pending_continuation_sequence FROM fleet_run_intents WHERE delivery_id = ?`)
+      .get(JOB.deliveryId)).toEqual({
+      state: 'running',
+      attempt_count: 5,
+      continuation_sequence: 1,
+      pending_continuation_sequence: null,
+    });
+
+    sqlite.prepare(`UPDATE fleet_run_intents
+      SET state = 'queued', attempt_count = 0, continuation_sequence = 2,
+          pending_continuation_sequence = 3, pending_continuation_at = 124
+      WHERE delivery_id = ?`).run(JOB.deliveryId);
+    await expect(claimFleetIntentWork(
+      env,
+      { ...JOB, continuationSequence: 3 },
+      301,
+      3,
+    )).resolves.toEqual({ kind: 'run' });
+    expect(sqlite.prepare(`SELECT state, attempt_count, continuation_sequence,
+      pending_continuation_sequence FROM fleet_run_intents WHERE delivery_id = ?`)
+      .get(JOB.deliveryId)).toEqual({
+      state: 'running',
+      attempt_count: 301,
+      continuation_sequence: 3,
+      pending_continuation_sequence: null,
+    });
+    sqlite.close();
   });
 
   it('skips only a proven terminal, superseded, or control-waiting DLQ intent', async () => {

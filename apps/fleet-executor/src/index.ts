@@ -62,6 +62,15 @@ export { executeFleet } from './execute.js';
 /** The dead-letter queue name (must match `dead_letter_queue` in wrangler.toml). */
 const DLQ_QUEUE_NAME = 'fleet-runs-dlq';
 
+const DURABLY_SETTLED_FLEET_INTENT_STATES = new Set([
+  FLEET_WAITING_CONTROL,
+  'superseded',
+  'success',
+  'failure',
+  'neutral',
+  'cancelled',
+]);
+
 /**
  * One provider-heavy ship per isolate. Checkpoints make the logical Fleet run
  * cumulative across these successful queue slices without depending on an OOM
@@ -161,10 +170,32 @@ export default {
           // prove that retrying is still authorized. Unknown control is OFF.
           const blocked = await fleetAutomationControlBlockReason(env, message.body);
           if (blocked) {
-            console.log(
-              `[fleet-executor] DLQ retry suppressed delivery=${message.body?.deliveryId}: ${blocked}`,
-            );
-            message.ack();
+            let durableState: string | null = null;
+            try {
+              durableState = await readFleetIntentState(env, message.body);
+            } catch (stateError) {
+              console.error(
+                `[fleet-executor] DLQ control hold could not be verified ` +
+                  `delivery=${message.body?.deliveryId}: ${String(stateError)}`,
+              );
+            }
+            if (durableState && DURABLY_SETTLED_FLEET_INTENT_STATES.has(durableState)) {
+              console.log(
+                `[fleet-executor] DLQ retry suppressed delivery=${message.body?.deliveryId}: ` +
+                  `${blocked}; durableState=${durableState}`,
+              );
+              message.ack();
+            } else {
+              // Retain only the repair delivery. Every later attempt repeats
+              // the OFF/unknown gate before token minting, GitHub mutation, or
+              // model work. Losing the message here would strand an ordinary
+              // retrying row with no operator-visible recovery handle.
+              console.log(
+                `[fleet-executor] DLQ repair retained delivery=${message.body?.deliveryId}: ` +
+                  `${blocked}; durableState=${durableState ?? 'unavailable'}`,
+              );
+              message.retry({ delaySeconds: 60 });
+            }
           } else {
             message.retry({ delaySeconds: 60 });
           }

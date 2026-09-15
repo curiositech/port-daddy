@@ -438,6 +438,9 @@ async function maybeEnqueueFleetRun(
     repoFullName,
     installationId: installation && typeof installation.id === 'number' ? installation.id : null,
     prNumber,
+    ...(reservation?.continuationSequence != null
+      ? { continuationSequence: reservation.continuationSequence }
+      : {}),
     payloadMinimal: {
       sender: (payload.sender as Record<string, unknown>) ?? undefined,
       repository: (payload.repository as Record<string, unknown>) ?? undefined,

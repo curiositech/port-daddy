@@ -857,7 +857,9 @@ export function memoryD1(intent: Partial<{
         } else if (/UPDATE fleet_run_intents/i.test(sql)) {
           const omitUpdateMeta = cap.omitNextIntentUpdateMeta;
           cap.omitNextIntentUpdateMeta = false;
-          const deliveryIndex = /SET state = 'running', attempt_count = \?, continuation_sequence = \?/i.test(sql)
+          const runningWithContinuation = /SET state = 'running', attempt_count = \?, continuation_sequence = \?/i.test(sql);
+          const continuationClaim = runningWithContinuation && /started_at = COALESCE/i.test(sql);
+          const deliveryIndex = runningWithContinuation
             || /SET state = 'retrying', pending_continuation_sequence = \?/i.test(sql)
             ? 4
             : /SET state = \?/i.test(sql)
@@ -868,7 +870,7 @@ export function memoryD1(intent: Partial<{
           const deliveryId = String(args[deliveryIndex]);
           const current = intents.get(deliveryId);
           if (current === undefined) return { success: true, meta: { changes: 0 } };
-          if (/SET state = 'running', attempt_count = \?, continuation_sequence = \?/i.test(sql)) {
+          if (continuationClaim) {
             const injectRace = cap.beforeContinuationSuccessorCas;
             cap.beforeContinuationSuccessorCas = null;
             await injectRace?.();
@@ -876,11 +878,15 @@ export function memoryD1(intent: Partial<{
               && current.prNumber === Number(args[6]) && current.headSha === String(args[7])
               && current.eventType === String(args[8]) && current.action === String(args[9]);
             const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
-            if (!identityMatches || current.state !== 'retrying'
+            const pendingSuccessor = ['retrying', 'admitting', 'queued'].includes(current.state)
+              && current.pendingContinuationSequence === Number(args[10])
+              && current.continuationSequence === Number(args[11]);
+            const activeReplay = ['admitting', 'queued'].includes(current.state)
+              && current.pendingContinuationSequence == null
+              && current.continuationSequence === Number(args[12]);
+            if (!identityMatches || (!pendingSuccessor && !activeReplay)
               || current.controlWaitingAt != null
-              || current.pendingContinuationSequence !== Number(args[10])
-              || current.continuationSequence !== Number(args[11])
-              || current.attemptCount >= Number(args[12]) || newer) {
+              || current.attemptCount >= Number(args[13]) || newer) {
               return { success: true, meta: { changes: 0 } };
             }
             current.state = 'running';
@@ -924,20 +930,28 @@ export function memoryD1(intent: Partial<{
             current.controlWaitingAt = Number(args[0]);
             current.lastError = String(args[2]);
           } else if (/SET state = 'running', attempt_count = \?/i.test(sql)) {
-            const identityMatches = current.repoFullName === String(args[4])
-              && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
-              && current.eventType === String(args[7]) && current.action === String(args[8]);
-            const priorAttempt = Number(args[9]);
+            const identityMatches = current.repoFullName === String(args[5])
+              && current.prNumber === Number(args[6]) && current.headSha === String(args[7])
+              && current.eventType === String(args[8]) && current.action === String(args[9]);
+            const priorAttempt = Number(args[10]);
+            const messageSequence = Number(args[11]);
+            const activeSequenceMatches = current.pendingContinuationSequence == null
+              && current.continuationSequence === messageSequence;
+            const pendingSequenceMatches = current.pendingContinuationSequence === Number(args[12])
+              && current.continuationSequence === Number(args[13]);
             const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
             if (!identityMatches || current.attemptCount !== priorAttempt
-              || current.controlWaitingAt != null || newer) {
+              || current.controlWaitingAt != null
+              || (!activeSequenceMatches && !pendingSequenceMatches)
+              || newer) {
               return { success: true, meta: { changes: 0 } };
             }
             current.state = 'running';
             current.attemptCount = Number(args[0]);
+            current.continuationSequence = Number(args[1]);
             current.pendingContinuationSequence = null;
             current.pendingContinuationAt = null;
-            current.lastError = String(args[2]);
+            current.lastError = String(args[3]);
           } else if (/SET state = 'running'/i.test(sql)) {
             const identityMatches = current.repoFullName === String(args[4])
               && current.prNumber === Number(args[5]) && current.headSha === String(args[6])

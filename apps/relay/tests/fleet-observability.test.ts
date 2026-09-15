@@ -75,11 +75,12 @@ function makeEnv(o: {
   operatorToken?: string;
   operatorGithubUserId?: string;
 } = {}): Env {
+  const kv = o.kv ?? makeKV();
   return {
     DB: o.db ?? makeMockD1({}),
     HARBOR_CHANNEL: {} as unknown as DurableObjectNamespace,
-    FLEET_CONTROL: memoryFleetControl().namespace,
-    KV: o.kv ?? makeKV(),
+    FLEET_CONTROL: memoryFleetControl(undefined, kv).namespace,
+    KV: kv,
     RELAY_OPERATOR_TOKEN: o.operatorToken ?? OPERATOR,
     RELAY_OPERATOR_GITHUB_USER_ID: o.operatorGithubUserId,
     RELAY_ED25519_PRIVATE_KEY_HEX: '00'.repeat(32),
@@ -419,7 +420,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
       },
       delete: async (key: string) => void store.delete(key),
     } as unknown as KVNamespace;
-    const durable = memoryFleetControl();
+    const durable = memoryFleetControl(undefined, kv);
     const control = {
       idFromName: (name: string) => durable.namespace.idFromName(name),
       get: (id: DurableObjectId) => {
@@ -439,7 +440,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
       req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }),
       env,
     )).status).toBe(200);
-    expect(events).toEqual(['kv:true:pending', 'do', 'kv:true:1']);
+    expect(events).toEqual(['do', 'kv:true:1']);
 
     events.length = 0;
     expect((await handleFleetPause(
@@ -450,16 +451,16 @@ describe('handleFleetPause + handleFleetHealth', () => {
       }),
       env,
     )).status).toBe(200);
-    expect(events).toEqual(['do', 'kv:false:2', 'do']);
+    expect(events).toEqual(['do', 'kv:false:2']);
   });
 
   it('keeps concurrent resume callers and the rollback projection on one ON revision', async () => {
-    const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
     const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
     const kv = {
       get: async (key: string) => store.get(key) ?? null,
       put: async (key: string, value: string) => void store.set(key, value),
     } as unknown as KVNamespace;
+    const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 }, kv);
     const env = { FLEET_CONTROL: control.namespace, KV: kv };
 
     const [first, second] = await Promise.all([
@@ -473,13 +474,54 @@ describe('handleFleetPause + handleFleetHealth', () => {
       .toMatchObject({ paused: false, revision: 2 });
   });
 
+  it('serializes a newer control write behind the in-flight projection mutation', async () => {
+    const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
+    let releaseProjection!: () => void;
+    let projectionReached!: () => void;
+    const projectionGate = new Promise<void>((resolve) => { releaseProjection = resolve; });
+    const reachedGate = new Promise<void>((resolve) => { projectionReached = resolve; });
+    const kv = {
+      get: async (key: string) => store.get(key) ?? null,
+      put: async (key: string, value: string) => {
+        const projection = JSON.parse(value) as { paused: boolean; revision: number };
+        if (!projection.paused && projection.revision === 2) {
+          projectionReached();
+          await projectionGate;
+        }
+        store.set(key, value);
+      },
+    } as unknown as KVNamespace;
+    const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 }, kv);
+    const env = { FLEET_CONTROL: control.namespace, KV: kv };
+
+    const firstResume = setFleetPaused(env, false, {
+      expectedRevision: 1,
+      requestId: 'blocked-projection-resume',
+    });
+    await reachedGate;
+    let pauseSettled = false;
+    const newerPause = setFleetPaused(env, true).finally(() => { pauseSettled = true; });
+    await Promise.resolve();
+    expect(pauseSettled).toBe(false);
+
+    releaseProjection();
+    expect(await firstResume).toMatchObject({ status: 'unpaused', revision: 2 });
+    expect(await newerPause).toMatchObject({ status: 'paused', revision: 3 });
+    expect(await setFleetPaused(env, false, {
+      expectedRevision: 3,
+      requestId: 'newer-serialized-resume',
+    })).toMatchObject({ status: 'unpaused', revision: 4 });
+    expect(JSON.parse(store.get('fleet:paused')!))
+      .toMatchObject({ paused: false, revision: 4 });
+  });
+
   it('does not let a delayed stale resume overwrite a newer acknowledged ON projection', async () => {
-    const durable = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
     const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
     const kv = {
       get: async (key: string) => store.get(key) ?? null,
       put: async (key: string, value: string) => void store.set(key, value),
     } as unknown as KVNamespace;
+    const durable = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 }, kv);
     let releaseStale!: () => void;
     let staleCommitReached!: () => void;
     const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
@@ -490,7 +532,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
         const stub = durable.namespace.get(id);
         return {
           fetch: async (request: Request) => {
-            if (new URL(request.url).pathname === '/commit-resume') {
+            if (new URL(request.url).pathname === '/mutate') {
               const body = await request.clone().json() as { requestId?: string };
               if (body.requestId === 'stale-resume') {
                 staleCommitReached();
@@ -524,29 +566,21 @@ describe('handleFleetPause + handleFleetHealth', () => {
   });
 
   it('does not mutate canonical control when the legacy pause denial cannot be written', async () => {
-    let durableCalls = 0;
-    const env = makeEnv({
-      kv: {
-        get: async () => null,
-        put: async () => { throw new Error('KV unavailable'); },
-      } as unknown as KVNamespace,
-    });
-    env.FLEET_CONTROL = {
-      idFromName: (name: string) => name as unknown as DurableObjectId,
-      get: () => ({
-        fetch: async () => {
-          durableCalls += 1;
-          return Response.json({ paused: true, status: 'paused', revision: 1, pausedAt: 1 });
-        },
-      }),
-    } as unknown as DurableObjectNamespace;
+    const kv = {
+      get: async () => null,
+      put: async () => { throw new Error('KV unavailable'); },
+    } as unknown as KVNamespace;
+    const control = memoryFleetControl(undefined, kv);
+    const env = makeEnv({ kv });
+    env.FLEET_CONTROL = control.namespace;
 
     const response = await handleFleetPause(
       req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }),
       env,
     );
     expect(response.status).toBe(500);
-    expect(durableCalls).toBe(0);
+    expect(await fleetControlRequest(control.namespace, '/read'))
+      .toMatchObject({ status: 'unknown' });
   });
 
   it('preserves the local deny projection when canonical pause mutation fails afterward', async () => {
@@ -561,10 +595,9 @@ describe('handleFleetPause + handleFleetHealth', () => {
         },
       } as unknown as KVNamespace,
     });
-    env.FLEET_CONTROL = {
-      idFromName: (name: string) => name as unknown as DurableObjectId,
-      get: () => ({ fetch: async () => { throw new Error('DO unavailable'); } }),
-    } as unknown as DurableObjectNamespace;
+    const control = memoryFleetControl(undefined, env.KV);
+    control.faults.failControlPut = true;
+    env.FLEET_CONTROL = control.namespace;
 
     const response = await handleFleetPause(
       req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }),
@@ -575,16 +608,16 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(JSON.parse(store.get('fleet:paused')!)).toMatchObject({ paused: true });
   });
 
-  it('keeps canonical authority paused when the resume projection cannot be written', async () => {
-    const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
+  it('keeps execution blocked and makes the same resume repairable when its projection write fails', async () => {
     const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
     let failedResumeWrites = 0;
+    let rejectResumeProjection = true;
     const env = makeEnv({
       kv: {
         get: async (key: string) => store.get(key) ?? null,
         put: async (key: string, value: string) => {
           const projection = JSON.parse(value) as { paused?: unknown };
-          if (projection.paused === false) {
+          if (projection.paused === false && rejectResumeProjection) {
             failedResumeWrites += 1;
             throw new Error('legacy projection unavailable');
           }
@@ -592,6 +625,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
         },
       } as unknown as KVNamespace,
     });
+    const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 }, env.KV);
     env.FLEET_CONTROL = control.namespace;
 
     const resume = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, {
@@ -604,18 +638,27 @@ describe('handleFleetPause + handleFleetHealth', () => {
 
     const health = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
     expect(await health.json()).toMatchObject({
-      paused: true,
-      pauseStatus: 'paused',
-      pauseRevision: 1,
+      paused: null,
+      pauseStatus: 'unknown',
+      pauseRevision: null,
       automationBlocked: true,
     });
     expect(await fleetControlRequest(control.namespace, '/read')).toMatchObject({
-      status: 'paused',
-      revision: 1,
+      status: 'unpaused',
+      revision: 2,
     });
-    expect(await fleetControlRequest(control.namespace, '/admit', {
-      runId: 'owner/repo/fresh-after-refused-resume',
-    })).toMatchObject({ status: 'paused', revision: 1 });
+
+    const blockedProjection = JSON.parse(store.get('fleet:paused')!) as {
+      paused: boolean; revision: number;
+    };
+    expect(blockedProjection).toMatchObject({ paused: true, revision: 1 });
+
+    rejectResumeProjection = false;
+    expect(await setFleetPaused(env, false, {
+      expectedRevision: 1,
+      requestId: 'failed-resume-readback',
+    })).toMatchObject({ status: 'unpaused', revision: 2 });
+    expect(JSON.parse(store.get('fleet:paused')!)).toMatchObject({ paused: false, revision: 2 });
   });
 
   it('health reports unknown for absent authority despite an old KV unpaused value', async () => {
@@ -632,6 +675,46 @@ describe('handleFleetPause + handleFleetHealth', () => {
       revision: 7,
       pausedAt: 1,
     }).namespace;
+    const response = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
+    expect(await response.json()).toMatchObject({
+      paused: null,
+      pauseStatus: 'unknown',
+      pauseRevision: null,
+      automationBlocked: true,
+    });
+  });
+
+  it('health reports unknown when canonical OFF disagrees with an unpaused projection', async () => {
+    const kv = makeKV({
+      'fleet:paused': JSON.stringify({ paused: false, revision: 6, pausedAt: 1 }),
+    });
+    const env = makeEnv({ kv });
+    env.FLEET_CONTROL = memoryFleetControl({
+      paused: true,
+      revision: 7,
+      pausedAt: 2,
+    }, kv).namespace;
+
+    const response = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
+    expect(await response.json()).toMatchObject({
+      paused: null,
+      pauseStatus: 'unknown',
+      pauseRevision: null,
+      automationBlocked: true,
+    });
+  });
+
+  it('health reports unknown when projection value matches but its revision is stale', async () => {
+    const kv = makeKV({
+      'fleet:paused': JSON.stringify({ paused: true, revision: 6, pausedAt: 1 }),
+    });
+    const env = makeEnv({ kv });
+    env.FLEET_CONTROL = memoryFleetControl({
+      paused: true,
+      revision: 7,
+      pausedAt: 2,
+    }, kv).namespace;
+
     const response = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
     expect(await response.json()).toMatchObject({
       paused: null,

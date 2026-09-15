@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { handleGithubWebhook } from '../src/github-webhook.js';
 import { handleFleetControlRequeue } from '../src/fleet-control-requeue.js';
 import { handleFleetActivity, handleFleetHealth } from '../src/fleet-observability.js';
-import { fleetControlRequest } from '../src/fleet-pause-control.js';
+import { fleetControlRequest, mutateFleetControl } from '../src/fleet-pause-control.js';
 import { setFleetPaused } from '../src/db.js';
 import { getFleetRunProjectionWithSteps, getFleetRunIntent, reserveFleetRunIntent } from '../src/fleet-run-intents.js';
 import { renderFleetRunReceiptPage } from '../src/fleet-run-page.js';
@@ -22,7 +22,11 @@ afterEach(() => vi.unstubAllGlobals());
 
 function setup() {
   const { db, sqlite } = fleetLifecycleDb();
-  const control = memoryFleetControl({ paused: false, revision: 2, pausedAt: 0 });
+  const controlProjection = memoryKV();
+  const control = memoryFleetControl(
+    { paused: false, revision: 2, pausedAt: 0 },
+    controlProjection,
+  );
   const queued: FleetRunJob[] = [];
   const job = makeJob();
   const state = freshState();
@@ -31,10 +35,10 @@ function setup() {
   const tokens = memoryKV();
   void tokens.put('github_inst_42', JSON.stringify({ token: 'seeded-tok', expiresAt: Date.now() + 3600000 }));
   const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
-  const executor = makeEnv({ DB: db, FLEET_TOKENS: tokens, AI: ai.ai,
+  const executor = makeEnv({ DB: db, FLEET_TOKENS: tokens, CONTROL_KV: controlProjection, AI: ai.ai,
     FLEET_CONTROL: { admit: (expectedRevision, runId) => fleetControlRequest(control.namespace, '/admit', { expectedRevision, runId }) } });
   const env = {
-    DB: db, KV: memoryKV(), FLEET_CONTROL: control.namespace,
+    DB: db, KV: controlProjection, FLEET_CONTROL: control.namespace,
     FLEET_RUNS: { send: async (message: FleetRunJob) => { queued.push(message); } },
     RELAY_OPERATOR_TOKEN: OPERATOR, GITHUB_WEBHOOK_SECRET: 'test-webhook-secret',
     RELAY_ED25519_PRIVATE_KEY_HEX: '00'.repeat(32),
@@ -340,7 +344,7 @@ describe('operator-authorized control recovery through actual Relay admission', 
     f.env.FLEET_RUNS = { send: async () => { throw new Error('queue unavailable'); } } as unknown as Queue<FleetRunJob>;
     await f.webhook();
     expect((await getFleetRunIntent(f.db, f.job.deliveryId))?.state).toBe('enqueue_failed');
-    await fleetControlRequest(f.control.namespace, '/set', { paused: true });
+    await mutateFleetControl(f.control.namespace, true);
     f.env.FLEET_RUNS = queue;
     await f.webhook();
     expect(f.queued).toHaveLength(0);
@@ -353,7 +357,7 @@ describe('operator-authorized control recovery through actual Relay admission', 
     await f.authorize();
     await f.webhook();
     expect(f.queued).toHaveLength(1);
-    await fleetControlRequest(f.control.namespace, '/set', { paused: true });
+    await mutateFleetControl(f.control.namespace, true);
     const message = await f.consume();
     expect(message.ack).toHaveBeenCalledOnce();
     expect(message.retry).not.toHaveBeenCalled();

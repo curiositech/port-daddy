@@ -29,7 +29,7 @@ import {
 } from './harness.js';
 import type { FleetRunJob } from '../src/env.js';
 import { memoryFleetControl } from '../../relay/tests/fleet-control-fixture.js';
-import { fleetControlRequest } from '../../relay/src/fleet-pause-control.js';
+import { fleetControlRequest, mutateFleetControl } from '../../relay/src/fleet-pause-control.js';
 
 /** Build a well-formed pd-fleet.yml the deterministic parser reads directly. */
 function fleetYaml(
@@ -111,8 +111,8 @@ describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', ()
     const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, FLEET_CONTROL: service });
     expect(await executeFleet(makeJob(), env, { maxNewShipsPerInvocation: 1 })).toMatchObject({ kind: 'continuation' });
     const paidCalls = ai.calls.length;
-    await fleetControlRequest(namespace, '/set', { paused: true });
-    await fleetControlRequest(namespace, '/set', { paused: false, expectedRevision: 2, requestId: 'resume-run' });
+    await mutateFleetControl(namespace, true);
+    await mutateFleetControl(namespace, false, { expectedRevision: 2, requestId: 'resume-run' });
     expect(await executeFleet(makeJob({ continuationSequence: 1 }), { ...env })).toMatchObject({
       kind: 'suspended', reason: 'run-revision-changed',
     });

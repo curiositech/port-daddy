@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  commitFleetResume,
   fleetControlRequest,
+  mutateFleetControl,
   parseFleetControl,
-  prepareFleetResume,
 } from '../src/fleet-pause-control.js';
 import { memoryFleetControl } from './fleet-control-fixture.js';
 
@@ -12,13 +11,7 @@ async function resume(
   expectedRevision: number,
   requestId: string,
 ) {
-  const preparation = await prepareFleetResume(namespace, { expectedRevision, requestId });
-  if (preparation.status !== 'prepared') return preparation;
-  return commitFleetResume(namespace, {
-    expectedRevision,
-    requestId,
-    targetRevision: preparation.targetRevision,
-  });
+  return mutateFleetControl(namespace, false, { expectedRevision, requestId });
 }
 
 describe('transactional Fleet pause authority', () => {
@@ -30,11 +23,11 @@ describe('transactional Fleet pause authority', () => {
   it('starts unknown, commits revisions, and fences an old unpaused admission after pause/resume', async () => {
     const { namespace } = memoryFleetControl();
     expect(await fleetControlRequest(namespace, '/read')).toMatchObject({ status: 'unknown' });
-    expect(await fleetControlRequest(namespace, '/set', { paused: false, expectedRevision: 0, requestId: 'initial-resume' })).toMatchObject({ status: 'unknown' });
-    expect(await fleetControlRequest(namespace, '/set', { paused: true })).toMatchObject({ status: 'paused', revision: 1 });
+    expect(await mutateFleetControl(namespace, false, { expectedRevision: 0, requestId: 'initial-resume' })).toMatchObject({ status: 'unknown' });
+    expect(await mutateFleetControl(namespace, true)).toMatchObject({ status: 'paused', revision: 1 });
     expect(await resume(namespace, 1, 'initial-resume')).toMatchObject({ status: 'unpaused', revision: 2 });
     expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 2 })).toMatchObject({ status: 'unpaused' });
-    expect(await fleetControlRequest(namespace, '/set', { paused: true })).toMatchObject({ status: 'paused', revision: 3 });
+    expect(await mutateFleetControl(namespace, true)).toMatchObject({ status: 'paused', revision: 3 });
     expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 2 })).toMatchObject({ status: 'unknown' });
     expect(await resume(namespace, 3, 'resume-two')).toMatchObject({ revision: 4 });
     expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 2 })).toMatchObject({ status: 'unknown' });
@@ -42,34 +35,38 @@ describe('transactional Fleet pause authority', () => {
   });
   it('serializes a concurrent pause before a subsequent admission', async () => {
     const { namespace } = memoryFleetControl({ paused: false, revision: 1, pausedAt: 1 });
-    const paused = fleetControlRequest(namespace, '/set', { paused: true });
+    const paused = mutateFleetControl(namespace, true);
     const admission = fleetControlRequest(namespace, '/admit', { expectedRevision: 1 });
     expect(await paused).toMatchObject({ status: 'paused', revision: 2 });
     expect(await admission).toMatchObject({ status: 'unknown' });
   });
-  it('keeps the canonical object paused until an exact prepared resume commits', async () => {
-    const { namespace } = memoryFleetControl({ paused: true, revision: 4, pausedAt: 1 });
-    const preparation = await prepareFleetResume(namespace, {
-      expectedRevision: 4,
-      requestId: 'prepared-not-on',
-    });
-    expect(preparation).toMatchObject({
-      status: 'prepared',
-      revision: 4,
-      targetRevision: 5,
-    });
+  it('keeps the prior denial projection until the exact resume repairs it', async () => {
+    let rejectProjection = true;
+    const projection = new Map([[
+      'fleet:paused',
+      JSON.stringify({ paused: true, revision: 4, pausedAt: 1 }),
+    ]]);
+    const kv = {
+      get: async (key: string) => projection.get(key) ?? null,
+      put: async (key: string, value: string) => {
+        if (rejectProjection) throw new Error('projection unavailable');
+        projection.set(key, value);
+      },
+    } as unknown as KVNamespace;
+    const { namespace } = memoryFleetControl({ paused: true, revision: 4, pausedAt: 1 }, kv);
+    expect(await resume(namespace, 4, 'projection-not-on'))
+      .toMatchObject({ status: 'unknown', reason: 'projection-write-failed' });
     expect(await fleetControlRequest(namespace, '/read')).toMatchObject({
-      status: 'paused',
-      revision: 4,
+      status: 'unpaused',
+      revision: 5,
     });
-    expect(await fleetControlRequest(namespace, '/admit', {
-      runId: 'owner/repo/prepared-not-on',
-    })).toMatchObject({ status: 'paused', revision: 4 });
-    expect(await commitFleetResume(namespace, {
-      expectedRevision: 4,
-      requestId: 'prepared-not-on',
-      targetRevision: preparation.status === 'prepared' ? preparation.targetRevision : 0,
-    })).toMatchObject({ status: 'unpaused', revision: 5 });
+    expect(JSON.parse(projection.get('fleet:paused')!))
+      .toMatchObject({ paused: true, revision: 4 });
+    rejectProjection = false;
+    expect(await resume(namespace, 4, 'projection-not-on'))
+      .toMatchObject({ status: 'unpaused', revision: 5 });
+    expect(JSON.parse(projection.get('fleet:paused')!))
+      .toMatchObject({ paused: false, revision: 5 });
   });
   it('converges distinct concurrent resume requests for the same paused epoch', async () => {
     const { namespace } = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
@@ -82,39 +79,31 @@ describe('transactional Fleet pause authority', () => {
     expect(await fleetControlRequest(namespace, '/read'))
       .toMatchObject({ status: 'unpaused', revision: 2 });
   });
-  it('an emergency pause supersedes a prepared resume before commit', async () => {
+  it('an emergency pause supersedes a stale resume revision', async () => {
     const { namespace } = memoryFleetControl({ paused: true, revision: 9, pausedAt: 1 });
-    const preparation = await prepareFleetResume(namespace, {
-      expectedRevision: 9,
-      requestId: 'pause-wins',
-    });
-    expect(preparation.status).toBe('prepared');
-    expect(await fleetControlRequest(namespace, '/set', { paused: true }))
+    expect(await mutateFleetControl(namespace, true))
       .toMatchObject({ status: 'paused', revision: 10 });
-    expect(await commitFleetResume(namespace, {
-      expectedRevision: 9,
-      requestId: 'pause-wins',
-      targetRevision: preparation.status === 'prepared' ? preparation.targetRevision : 0,
-    })).toMatchObject({ status: 'unknown', reason: 'revision-changed' });
+    expect(await resume(namespace, 9, 'pause-wins'))
+      .toMatchObject({ status: 'unknown', reason: 'revision-changed' });
     expect(await fleetControlRequest(namespace, '/read'))
       .toMatchObject({ status: 'paused', revision: 10 });
   });
   it('never acknowledges a write that failed durable storage', async () => {
     const broken = { idFromName: () => 'global', get: () => ({ fetch: () => { throw new Error('storage unavailable'); } }) } as unknown as DurableObjectNamespace;
-    expect(await fleetControlRequest(broken, '/set', { paused: false })).toMatchObject({ status: 'unknown' });
+    expect(await mutateFleetControl(broken, true)).toMatchObject({ status: 'unknown' });
     expect(await fleetControlRequest(undefined, '/read')).toMatchObject({ status: 'unknown', reason: 'binding-missing' });
   });
   it('fences corrupt revision state rather than resetting it', async () => {
     const { namespace, values } = memoryFleetControl({ paused: false, revision: 4, pausedAt: 1 });
     values.delete('revision');
     expect(await fleetControlRequest(namespace, '/admit')).toMatchObject({ status: 'unknown' });
-    expect(await fleetControlRequest(namespace, '/set', { paused: false })).toMatchObject({ status: 'unknown' });
+    expect(await mutateFleetControl(namespace, false, { expectedRevision: 4, requestId: 'corrupt' })).toMatchObject({ status: 'unknown' });
   });
 
   it('persists a run epoch across fresh admission callers and all continuation messages', async () => {
     const { namespace } = memoryFleetControl({ paused: false, revision: 1, pausedAt: 1 });
     expect(await fleetControlRequest(namespace, '/admit', { runId: 'owner/repo/run:one' })).toMatchObject({ revision: 1 });
-    await fleetControlRequest(namespace, '/set', { paused: true });
+    await mutateFleetControl(namespace, true);
     await resume(namespace, 2, 'resume');
     expect(await fleetControlRequest(namespace, '/admit', { runId: 'owner/repo/run:one' })).toMatchObject({
       status: 'unknown', reason: 'run-revision-changed',
@@ -143,10 +132,10 @@ describe('transactional Fleet pause authority', () => {
     const { namespace } = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
     expect(await resume(namespace, 1, 'resume-once')).toMatchObject({ revision: 2, status: 'unpaused' });
     expect(await resume(namespace, 1, 'resume-once')).toMatchObject({ revision: 2, status: 'unpaused' });
-    await fleetControlRequest(namespace, '/set', { paused: true });
-    expect(await resume(namespace, 1, 'resume-once')).toMatchObject({ status: 'unknown', reason: 'resume-superseded' });
+    await mutateFleetControl(namespace, true);
+    expect(await resume(namespace, 1, 'resume-once')).toMatchObject({ status: 'unknown', reason: 'revision-changed' });
     expect(await resume(namespace, 1, 'delayed-resume')).toMatchObject({ status: 'unknown', reason: 'revision-changed' });
     expect(await fleetControlRequest(namespace, '/read')).toMatchObject({ status: 'paused', revision: 3 });
-    expect(await fleetControlRequest(namespace, '/set', { paused: false })).toMatchObject({ status: 'unknown' });
+    expect(await mutateFleetControl(namespace, false)).toMatchObject({ status: 'unknown', reason: 'resume-precondition-required' });
   });
 });
