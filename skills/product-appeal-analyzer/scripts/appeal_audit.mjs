@@ -310,7 +310,7 @@ export function auditDesirability(spec) {
         'prerequisites-dishonest',
         'high',
         'Stated prerequisites understate what the document actually assumes.',
-        'Correct the stated background to what the hardest load-bearing section really needs. A broken promise on page 40 costs trust as well as readers.',
+        'Correct the stated background to what the hardest section the reader must actually follow really needs. A broken promise on page 40 costs trust as well as readers.',
         { gating: true }
       );
     }

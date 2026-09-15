@@ -267,7 +267,7 @@
         },
         "prerequisitesHonest": {
           "type": "boolean",
-          "description": "False if the stated prerequisites understate what the hardest load-bearing section actually assumes."
+          "description": "False if the stated prerequisites understate what the hardest section the reader must actually follow assumes."
         },
         "resultStatedInAbstract": {
           "type": "boolean",

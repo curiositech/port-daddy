@@ -31,7 +31,7 @@ land.**
 ## The introduction ladder
 
 "Introduced" is not binary. A term can be introduced at six different
-strengths, and the right strength depends on how load-bearing the term is.
+strengths, and the right strength depends on how much weight the term carries.
 
 | Level | What the document did | Sufficient for |
 | --- | --- | --- |
