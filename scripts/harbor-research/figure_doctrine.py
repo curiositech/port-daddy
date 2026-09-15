@@ -332,6 +332,13 @@ def readers_eye_findings(root: str, textbook: dict, label_to_id: dict) -> tuple[
             try:
                 os.unlink(p)
             except OSError:
+                # Best-effort cleanup of our own temp files, deliberately
+                # silent. This runs in a `finally`, so it also runs on the
+                # error paths above; letting an unlink failure raise here
+                # would replace the real diagnostic (the readers_eye.py exit
+                # status or exception) with an OSError about a scratch file
+                # nobody is waiting on. A leftover temp file is the lesser
+                # harm than a swallowed root cause.
                 pass
 
     out = {}

@@ -471,8 +471,6 @@ def parse_triage(text: str) -> tuple[dict, list[dict], dict]:
     return triage, adds, shared
 
 
-_ADD_SECTION = re.compile(r"^§?([\d.]+|\d)\s+(.*)$")
-
 
 def add_row_key(ch: int, section: str, idea: str) -> str:
     """A stable natural key for a triage add-row.
