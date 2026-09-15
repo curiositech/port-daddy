@@ -1,0 +1,48 @@
+% Figure --- resurrection soundness as three gates on one migration; each
+% dropped gate names its own shortest-trace attack. Second pass: the first
+% draft put a "migration" label and a full-width note both at the same
+% height as the gate row, and ran the gate-to-attack arrows straight through
+% that note's text -- everything now sits on its own row, with nothing
+% crossing another row's text.
+\usetikzlibrary{positioning}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=south,text width=11.4cm,align=center] at (5.7,4.55)
+    {sanction-respecting reputation survives the move only if all three gates hold};
+
+  \node[pd actor] (pred) at (0,3.6) {predecessor\\[1pt]\footnotesize $\theta_H$, provider A};
+  \node[pd actor] (succ) at (11.4,3.6) {successor\\[1pt]\footnotesize provider B};
+
+  \draw[pd focus rule,line width=1.4pt] (pred.east) -- (succ.west);
+
+  \foreach \x/\lab/\tag in {2.85/{(i)\\lineage witness}/i,5.7/{(ii)\\engine attestation}/ii,8.55/{(iii)\\escrow closure}/iii}{
+    \node[pd state,fill=hhsand!45,minimum height=8mm,inner xsep=4pt,align=center] (gate\tag) at (\x,3.6) {\lab};
+  }
+
+  \foreach \x/\tag/\attack/\steps in {
+    2.85/i/{whitewash-by-\\resurrection}/{2 steps},
+    5.7/ii/{engine-history\\shedding}/{2 steps},
+    8.55/iii/{liability\\stranding}/{2 steps}
+  }{
+    \node[pd state,draw=hhamber,fill=hhamber!14,align=center,text width=2.5cm] (bad\tag) at (\x,1.35)
+      {\textcolor{hhamber}{\textbf{drop it:}}\\\attack\\{\footnotesize\steps}};
+    \draw[pd caution arrow] (gate\tag.south) -- (bad\tag.north);
+  }
+
+  \node[pd note,anchor=north,text width=11.4cm,align=center] at (5.7,.45)
+    {prices key on (principal, engine); sanctions key on the principal alone ---
+     collapsing that split reopens a fourth, one-step attack};
+\end{tikzpicture}
+\pdmargincaption{Resurrection soundness (Theorem~\ref{thm:resurrection-soundness}) as
+three gates the migrating score must clear. Dropping the lineage witness (i)
+lets a sanctioned identity re-enter clean through migration
+(whitewash-by-resurrection, two steps); dropping engine attestation (ii) lets
+the successor run the cheap engine while billed on the strong engine's key
+(engine-history shedding, two steps); dropping escrow closure (iii) leaves
+in-flight obligations bound to nobody (liability stranding, two steps). A
+model check to depth 7 over 747 reachable states confirms each shortest
+crime and finds no shorter one [internal, \texttt{b5\_engine\_substitution.py}].
+[internal]}
+\label{fig:stp-resurrection-gates}
+\end{figure}

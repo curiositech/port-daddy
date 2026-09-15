@@ -1,0 +1,40 @@
+% Figure --- the two-state taint automaton (Schneider's Fig. 1, relabelled):
+% the uncontrollable read is never refused; the supervisor gates only the
+% controllable egress once tainted.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state] (ok) at (1.2,1.6) {\texttt{ok}};
+  \node[pd state,draw=hhamber,line width=1pt] (tainted) at (7.2,1.6) {\texttt{tainted}};
+
+  \draw[pd caution arrow] (ok) -- (tainted)
+    node[midway,above,pd direct label,text=hhamber,align=center,text width=3.4cm]
+    {\texttt{in\_context\_read}\\[-1pt]uncontrollable --- never refused};
+
+  \draw[pd arrow] (ok.155) to[out=110,in=70,looseness=2.6] (ok.25);
+  \node[pd direct label,anchor=south,align=center,text width=2.6cm] at (1.2,2.65)
+    {\texttt{net\_egress} --- allowed};
+
+  \draw[pd focus arrow] (tainted.155) to[out=110,in=70,looseness=2.6] (tainted.25);
+  \node[pd direct label,anchor=south,text=hhteal,align=center,text width=2.6cm] at (7.2,2.65)
+    {\texttt{net\_egress} --- disabled};
+
+  \node[pd note,anchor=north,align=center,text width=4.6cm] at (7.2,.05)
+    {the gate: controllable, so it can refuse};
+  \node[pd note,anchor=north,align=center,text width=4.6cm] at (1.2,.05)
+    {every trigger is admitted; nothing is ever refused here};
+
+  \node[pd panel title,anchor=south,text width=9.5cm,align=center] at (4.2,3.75)
+    {the policy never forbids the read; it forbids only the controllable egress once tainted};
+\end{tikzpicture}
+\pdmargincaption{The compound policy's supervisor as a two-state automaton, Schneider's
+own Figure~1 for ``no \texttt{Send} after a \texttt{FileRead}''~\pdcite{schneider2000}
+with the states relabelled to this kernel's alphabet. The uncontrollable
+trigger \texttt{in\_context\_read} is enabled --- and never disabled --- in
+both states, so the controllability criterion never has to refuse it; only
+the controllable effect event \texttt{net\_egress} is disabled, and only
+after the taint transition fires. This is the
+constructive witness behind \S\ref{sec:gate-the-channel}'s design rule: gate
+the channel, never the token. [internal]}
+\label{fig:swk-taint-automaton}
+\end{figure}

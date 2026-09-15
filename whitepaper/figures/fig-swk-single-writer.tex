@@ -41,7 +41,7 @@
   \node[pd note,align=center,text width=2.6cm] at (11.075,4.7)
     {second daemon on the same file: outside this model};
 \end{tikzpicture}
-\caption{Four concurrent callers and one writer. Each band is a request in
+\pdmargincaption{Four concurrent callers and one writer. Each band is a request in
 flight; its right edge is where the daemon commits it, and the rail shows
 the resulting order 1--4. A reply is sent only after the commit. A second
 daemon opening the same file is outside the model, not another lane.

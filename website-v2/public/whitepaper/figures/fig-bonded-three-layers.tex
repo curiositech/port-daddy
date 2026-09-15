@@ -1,0 +1,57 @@
+% Figure --- the three layers of trust as a defense-in-depth stack, each
+% catching what the layer above cannot. A map for the section that follows.
+% Third pass: fixed absolute y-gaps between boxes assumed a box height that
+% did not match what three lines of body text plus a stops-line actually
+% rendered to, so the connecting arrow between layers 1-2 and 2-3 overlapped
+% the box below. Boxes are now chained with `below=of`, so each gap is
+% measured from the real height of the box above it, not guessed in advance.
+\usetikzlibrary{positioning}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state,align=left,text width=11.6cm] (l1)
+    {\textbf{Layer 1 --- Structural Prevention}\\[2pt]
+     Harbor Cards bound capabilities; isolation domains bound the filesystem.
+     A wall, not a law: an out-of-scope operation is not representable.\\[4pt]
+     \textcolor{hhteal}{\textbf{stops:}~accidental scope violations}};
+
+  \node[pd state,align=left,text width=11.6cm,below=1.55cm of l1] (l2)
+    {\textbf{Layer 2 --- Immutable Attribution}\\[2pt]
+     Every action appends to an evidence trail, sealed into a Merkle Forest;
+     the delegation chain survives the acting identity's disposal.\\[4pt]
+     \textcolor{hhteal}{\textbf{stops:}~anonymous harm to shared state}};
+
+  \node[pd state,align=left,text width=11.6cm,below=1.55cm of l2] (l3)
+    {\textbf{Layer 3 --- Economic Alignment}\\[2pt]
+     Every action is bonded against a Float Plan; settlement prices the
+     evidence, so honest work is the dominant strategy.\\[4pt]
+     \textcolor{hhteal}{\textbf{stops:}~profitable misbehavior}};
+
+  \node[pd panel title,text width=11.6cm,align=center,above=6pt of l1]
+    {each layer catches what the layer above cannot prevent};
+
+  \draw[pd caution arrow] (l1.south) -- (l2.north)
+    node[midway,right,pd note,align=left,text width=5.4cm]
+    {an agent \emph{with} legitimate access can still write garbage};
+
+  \draw[pd caution arrow] (l2.south) -- (l3.north)
+    node[midway,right,pd note,align=left,text width=5.4cm]
+    {attribution does not by itself make misbehavior costly};
+
+  \node[pd note,below=8pt of l3,align=center,text width=11.6cm]
+    {a walled operation an agent should never reach; an attributed one it
+     should never deny; a bonded one it should never profit from};
+\end{tikzpicture}
+\pdmargincaption{The commons authority's three layers of trust, read top to bottom
+as a defense-in-depth stack: each layer catches exactly what the layer
+above it structurally cannot. Structural prevention (\S\ref{sec:structural})
+makes an out-of-scope operation unrepresentable, but an agent with
+legitimate access can still write garbage; immutable attribution
+(\S\ref{sec:attribution}) makes every action traceable to a bonded
+principal even after the acting identity is discarded, but a traceable
+action is not thereby a costly one; economic alignment (\S\ref{sec:economic})
+closes that gap by pricing the evidence the first two layers produce. No
+single layer is complete on its own --- the guarantee is the composition.
+[internal]}
+\label{fig:bonded-three-layers}
+\end{figure}

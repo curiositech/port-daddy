@@ -1,0 +1,50 @@
+% Figure --- the three-layer assurance case as a chain: obligations descend,
+% evidence ascends, and two gaps are asserted by a human, not a tool.
+\usetikzlibrary{positioning}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state,align=left,text width=10.4cm] (top)
+    {\textbf{protocol model} --- tool: ProVerif\\[2pt]
+     shows: secrecy, authentication correspondence in the modeled phase,
+     attenuation soundness on the multi-hop model};
+
+  \node[pd state,align=left,text width=10.4cm,below=2.05cm of top] (mid)
+    {\textbf{Rust source} --- tool: Kani and tests\\[2pt]
+     shows: the subset logic on two concrete vectors, bounded absence of
+     panic with cryptography stubbed, branch-freedom at source level};
+
+  \node[pd state,align=left,text width=10.4cm,below=2.05cm of mid] (bot)
+    {\textbf{running binary} --- tool: conformance suite\\[2pt]
+     shows: the selected attacks are refused at the FFI boundary};
+
+  \draw[pd caution arrow] ($(top.south)+(-2.6,0)$) -- ($(mid.north)+(-2.6,0)$);
+  \node[pd direct label,text=hhamber,anchor=west,align=left,text width=4.4cm]
+    at ($(top.south)!.5!(mid.north)+(-2.35,0)$)
+    {the specification gap:\\a human asserts the model is this source};
+
+  \draw[pd caution arrow] ($(mid.south)+(-2.6,0)$) -- ($(bot.north)+(-2.6,0)$);
+  \node[pd direct label,text=hhamber,anchor=west,align=left,text width=4.4cm]
+    at ($(mid.south)!.5!(bot.north)+(-2.35,0)$)
+    {the deployment gap:\\a human asserts this source is this binary};
+
+  \draw[pd focus arrow] ($(bot.north)+(3.5,0)$) -- ($(mid.south)+(3.5,0)$);
+  \node[pd note,text=hhteal,anchor=west,align=left,text width=3.0cm]
+    at ($(mid.south)!.5!(bot.north)+(3.75,0)$) {evidence narrows what the source must assume};
+
+  \draw[pd focus arrow] ($(mid.north)+(3.5,0)$) -- ($(top.south)+(3.5,0)$);
+  \node[pd note,text=hhteal,anchor=west,align=left,text width=3.0cm]
+    at ($(top.south)!.5!(mid.north)+(3.75,0)$) {evidence narrows what the model must assume};
+
+  \node[pd panel title,above=6pt of top,text width=10.4cm,align=center]
+    {the stack is sound only if both bridges hold, and no tool closes either one};
+\end{tikzpicture}
+\pdmargincaption{The assurance case of Table~\ref{tab:anchor-verification-stack} as a
+chain. Obligations descend: each layer hands the next a claim it cannot
+discharge itself. Evidence ascends: each tool's output narrows what the
+layer above must assume. The two amber gaps are the only places in the
+whole case where a human, not a tool, asserts that one layer's claim carries
+over to the next --- that the modeled protocol is this source, and that the
+inspected source is this running binary. [internal]}
+\label{fig:anchor-assurance-chain}
+\end{figure}

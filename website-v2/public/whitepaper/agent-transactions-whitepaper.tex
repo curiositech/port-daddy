@@ -319,7 +319,7 @@ Table~\ref{tab:related-borrow} compresses the four paragraphs above into what is
 
 \begin{table}[H]
 \centering
-\caption{Every borrowed result is re-used at a smaller scale than its origin assumed: the adversary is co-located rather than networked, the bonded act is coordination rather than validation, and the record is evidence rather than law. Nothing in the four lineages is discarded --- each is narrowed by one assumption, and the narrowing is what makes the composition deployable on one machine.}
+\pdmargincaption{Every borrowed result is re-used at a smaller scale than its origin assumed: the adversary is co-located rather than networked, the bonded act is coordination rather than validation, and the record is evidence rather than law. Nothing in the four lineages is discarded --- each is narrowed by one assumption, and the narrowing is what makes the composition deployable on one machine.}
 \label{tab:related-borrow}
 \small
 \setlength{\tabcolsep}{2pt}
@@ -341,7 +341,7 @@ Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameter
 
 \begin{table}[H]
 \centering
-\caption{Three layers answer three different questions about the same attempted act. An out-of-grant act ends at Layer 1 before shared state changes; every admitted act crosses Layer 2 and acquires durable attribution, so admission creates an attribution duty; a harmful admitted act reaches Layer 3, where only bound evidence can reach settlement. [internal]}
+\pdmargincaption{Three layers answer three different questions about the same attempted act. An out-of-grant act ends at Layer 1 before shared state changes; every admitted act crosses Layer 2 and acquires durable attribution, so admission creates an attribution duty; a harmful admitted act reaches Layer 3, where only bound evidence can reach settlement. [internal]}
 \label{tab:bonded-three-layer}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -362,7 +362,7 @@ Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameter
 
 Return to Agent~A and Agent~B from the introduction's opening scene---the two agents who corrupted the same middleware because neither knew the other existed. Nothing about that failure required malice, and nothing about it would have been fixed by making either agent more careful. What was missing was a third party that both agents were already talking to: something that knew A had the file, could tell B so at claim time, and would still remember the whole episode after both processes exited.
 
-That third party has to be settled \emph{before} any interaction, not improvised transaction by transaction---otherwise establishing it is just the $O(n^2)$ trust negotiation of \S1.1 under a new name. We call it the \emph{commons authority}: one always-on service that every agent already trusts, precisely because it was there before any of them showed up. Five capabilities make it that, and the definition below names them.
+That third party has to be settled \emph{before} any interaction, not improvised transaction by transaction---otherwise establishing it is just the $O(n^2)$ trust negotiation of \S1.1 under a new name. We call it the \pdgloss{commons authority}{the one always-on, pre-trusted service that gives agents identity, capability bounds, shared knowledge, an immutable history, and settlement --- without deciding who is right.}: one always-on service that every agent already trusts, precisely because it was there before any of them showed up. Five capabilities make it that, and the definition below names them.
 
 \begin{definition}[Commons Authority]\label{def:commons}
 A commons authority $\mathcal{D}$ for a multi-agent system is a persistent service that provides:
@@ -418,7 +418,7 @@ In Hobbes, consent to the sovereign is rational because the alternative---the st
 
 \begin{table}[H]
 \centering
-\caption{The commons authority converts six failure modes from ad hoc and manual to deterministic and automatic --- without forbidding anything an agent could already do. Every row is a service the agent gains, not a permission it loses, which is why consent is rational rather than coerced.}
+\pdmargincaption{The commons authority converts six failure modes from ad hoc and manual to deterministic and automatic --- without forbidding anything an agent could already do. Every row is a service the agent gains, not a permission it loses, which is why consent is rational rather than coerced.}
 \label{tab:consent}
 \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -441,6 +441,8 @@ The daemon does not need to threaten agents. It provides services that make coor
 % ═══════════════════════════════════════════════════════════════════════════════
 
 The first layer of trust does not depend on agent reputation or economic incentives. It depends on \emph{walls}: structural authorization checks that reject out-of-scope operations wherever the runtime actually interposes them.
+
+\input{figures/fig-bonded-three-layers}
 
 \subsection{Capability Attenuation}
 
@@ -532,7 +534,7 @@ By code inspection of the session module: the note insertion API performs only \
 
 \subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
 
-For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \textbf{Merkle Forest}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
+For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \pdgloss{Merkle Forest}{one Merkle tree per settlement epoch, each root signed by its own daemon, so an auditor can verify inclusion across daemons with a short proof instead of database access.}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
 
 \begin{definition}[Merkle Forest]\label{def:merkle-forest}
 The evidence structure has three levels:
@@ -745,7 +747,7 @@ This raises a question: if death carries no permanent consequence, what is the L
 
 \begin{table}[H]
 \centering
-\caption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. Severity climbs from a crash (none, because salvage recovers the context) to a daemon failure (catastrophic), with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
+\pdmargincaption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. Severity climbs from a crash (none, because salvage recovers the context) to a daemon failure (catastrophic), with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
 \label{tab:moral}
 \begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -843,7 +845,7 @@ The stage-game payoffs, in expected-utility units calibrated to the cleanup cost
 
 \begin{table}[H]
 \centering
-\caption{One-shot file-claim signaling: a classical Prisoner's Dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player ($4>3$ and $1>0$). The unique one-shot Nash equilibrium is $(F,F)$ yielding $(1,1)$, destroying the coordination signal.}
+\pdmargincaption{One-shot file-claim signaling: a classical Prisoner's Dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player ($4>3$ and $1>0$). The unique one-shot Nash equilibrium is $(F,F)$ yielding $(1,1)$, destroying the coordination signal.}
 \label{tab:claim-stage-game}
 \begin{tabular}{@{}rcc@{}}
 \toprule
@@ -990,7 +992,7 @@ Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, the
 
 \begin{table}[H]
 \centering
-\caption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
+\pdmargincaption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
 \label{tab:threat-bonds}
 \setlength{\tabcolsep}{3pt}
 % Threat column widened 2.3cm -> 2.6cm: "Abandonment" (11 letters)
@@ -1110,7 +1112,7 @@ An independent model specification and a Monte Carlo sweep over 36 parameter con
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figures/fig-pareto-dominance.pdf}
-  \caption{The competitive auction's Pareto-dominance advantage is real but narrow: it survives moderate reputation noise and a modest cartel, then collapses once noise crosses roughly $\sigma_r=0.1$, and it shrinks as more insurers are added rather than growing. Left: fraction of trials satisfying the code's Pareto criterion versus reputation noise $\sigma_r$ at $n=5$, split by cartel size. Right: the same criterion versus insurer count at $\sigma_r=0$ with no cartel. Error bars and seeds are recorded in the accompanying artifact; the curves are not analytical welfare bounds.}
+  \pdmargincaption{The competitive auction's Pareto-dominance advantage is real but narrow: it survives moderate reputation noise and a modest cartel, then collapses once noise crosses roughly $\sigma_r=0.1$, and it shrinks as more insurers are added rather than growing. Left: fraction of trials satisfying the code's Pareto criterion versus reputation noise $\sigma_r$ at $n=5$, split by cartel size. Right: the same criterion versus insurer count at $\sigma_r=0$ with no cartel. Error bars and seeds are recorded in the accompanying artifact; the curves are not analytical welfare bounds.}
   \label{fig:pareto-mc-inline}
 \end{figure}
 
@@ -1133,7 +1135,7 @@ $B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figures/fig-sybil-deposit-floor.pdf}
-  \caption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm{dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm{dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu(1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm{kyc}}$ + reputation gating + per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably insufficient.}
+  \pdmargincaption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm{dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm{dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu(1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm{kyc}}$ + reputation gating + per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably insufficient.}
   \label{fig:sybil-mc-inline}
 \end{figure}
 
@@ -1160,7 +1162,7 @@ At $\delta=0.95$ this gives $p_d^\star\approx0.0478$, and the tested grid first 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figures/fig-cartel-folk-theorem.pdf}
-  \caption{Cartel sustainability collapses sharply once per-round detection crosses a narrow threshold: at $\delta=0.95$ the closed-form $p_d^\star\approx0.0478$ and the simulated grid first flips to ``collapses'' at $p_d=0.05$, a near-exact match. Left: the tested $(p_d,\delta)$ grid under the supplied grim-trigger payoff model; amber cells marked S are sustainable, teal cells marked C collapse, and the dashed curve is the analytical boundary $p_d^\star(\delta)$. Right: simulated mean rounds to first detection, the truncated-geometric expectation, and its model-derived 95\% interval for the sample mean. Neither value transfers to a different payoff, event timing, or monitoring model without re-derivation.}
+  \pdmargincaption{Cartel sustainability collapses sharply once per-round detection crosses a narrow threshold: at $\delta=0.95$ the closed-form $p_d^\star\approx0.0478$ and the simulated grid first flips to ``collapses'' at $p_d=0.05$, a near-exact match. Left: the tested $(p_d,\delta)$ grid under the supplied grim-trigger payoff model; amber cells marked S are sustainable, teal cells marked C collapse, and the dashed curve is the analytical boundary $p_d^\star(\delta)$. Right: simulated mean rounds to first detection, the truncated-geometric expectation, and its model-derived 95\% interval for the sample mean. Neither value transfers to a different payoff, event timing, or monitoring model without re-derivation.}
   \label{fig:cartel-folk}
 \end{figure}
 
@@ -1215,7 +1217,7 @@ where $\mathrm{causal\_density}$ aggregates token-emission rates strictly weight
 
 \begin{table}[H]
 \centering
-\caption{Causal density separates the two agents that a wall-clock or token-rate meter cannot tell apart: the psychotic agent is the \emph{highest} token spender in the table and the only one stopped, while the healthy agent spends a third as much and is nominal. Token rate alone would rank these three in exactly the wrong order.}
+\pdmargincaption{Causal density separates the two agents that a wall-clock or token-rate meter cannot tell apart: the psychotic agent is the \emph{highest} token spender in the table and the only one stopped, while the healthy agent spends a third as much and is nominal. Token rate alone would rank these three in exactly the wrong order.}
 \label{tab:cadence-verdicts}
 \begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -1465,7 +1467,7 @@ Instantiate Theorem~\ref{thm:conservation}'s proof sketch with round numbers. Be
 
 \begin{table}[H]
 \centering\small
-\caption{What the commons borrows from each prior body of work, where it departs, and why.}
+\pdmargincaption{What the commons borrows from each prior body of work, where it departs, and why.}
 \label{tab:related-borrow-depart}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule

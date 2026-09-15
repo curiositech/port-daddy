@@ -349,9 +349,9 @@ solved. Distribution is a cross-machine concern that belongs to the economy laye
 pushing a consensus protocol down into the local substrate would be the wrong
 layer.}
 
-This is the single most important architectural decision a local-first
-coordination layer can make, and the field is littered with systems that got it
-wrong by manufacturing a consensus problem they did not have~\pdcite{kleppmann2017}.
+Refusing to solve consensus locally is the load-bearing decision in this design;
+systems that instead manufacture a local consensus problem they don't have
+inherit its cost for nothing~\pdcite{kleppmann2017}.
 We will state the formal payoff of the choice as a conditional theorem in
 \S\ref{sec:invariants}: when every read and write is routed through the sole daemon
 connection and responses follow commit, transactions are \emph{serializable} and
@@ -372,7 +372,7 @@ Appendix~\ref{app:status}; the body argues at the level of mechanisms.
 
 \begin{table}[H]
 \centering
-\caption{The research-maturity scale used throughout. The last two rows are
+\pdmargincaption{The research-maturity scale used throughout. The last two rows are
 refinements this paper introduces (see \S\ref{sec:durability} and
 \S\ref{sec:enforcement}).}
 \label{tab:honestkey}
@@ -408,7 +408,7 @@ paper and a brochure.}
 
 \begin{table}[H]
 \centering
-\caption{Reader's Map. Find your row; read those sections first.}
+\pdmargincaption{Reader's Map. Find your row; read those sections first.}
 \label{tab:readers-map}
 \small
 \renewcommand{\arraystretch}{1.3}
@@ -446,7 +446,7 @@ connective tissue a noun-list hides.
 
 \begin{table}[H]
 \centering
-\caption{The seven organs, each the contract the daemon holds for the layer above it,
+\pdmargincaption{The seven organs, each the contract the daemon holds for the layer above it,
 with the table that is its home where the chapter names one and its maturity grade.
 All seven are disciplines over one SQLite/WAL file: one commit history, not seven
 stores. The grades come from the chapter's own status table (\S\ref{app:status}).}
@@ -628,10 +628,10 @@ the relay is today.
 \label{sec:durability}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This is the most important correction in the paper, so it gets its own section.
 The kernel's foundational promise --- ``a write that returned success survives''
 --- is true, but only for the fault class a careful reader expects and not for the
-one the pitch most invites.
+one the pitch most invites. That gap gets its own section because getting it wrong
+is the single easiest way to misread this paper's guarantees.
 
 \input{figures/fig-swk-durability-faultclass}
 
@@ -698,7 +698,7 @@ heartbeats resume. What is \emph{not} defensible is letting the prose imply the
 stronger guarantee --- and for the few paths that genuinely need I1b, the right fix
 is a per-write-path selector rather than a global change of synchronization level.
 
-The design, \textbf{Selective Checkpointing} (\Designed, OP-10), is small: a
+The design, \pdgloss{Selective Checkpointing}{a per-write-path opt-in that forces a synchronous WAL flush on a high-stakes write while every other path keeps the fast default.} (\Designed, OP-10), is small: a
 high-stakes, money-bearing write path --- a settlement-ledger entry, say --- appends
 \texttt{PRAGMA wal\_checkpoint(FULL);} to its commit path, forcing a synchronous
 flush to disk, while claim, marker, and note writes keep the fast default. Two
@@ -856,7 +856,7 @@ racy first-come, so a fast agent churning a hot file can starve a slow agent
 indefinitely.
 
 The design that would close OP-1 without dragging a background scheduler into the
-kernel is a \textbf{Stigmergic Ticket-Lock}. It is \Designed{} --- specified here in
+kernel is a \pdgloss{Stigmergic Ticket-Lock}{a starved agent leaves a queued-claim marker in the shared store instead of retrying blind, so fairness emerges from traces other agents read rather than from a scheduler.}. It is \Designed{} --- specified here in
 enough detail to build and to attack, but not realized: no \texttt{claim\_tickets}
 table exists in the reference implementation, and the lifecycle above is still the
 one the kernel runs. It would introduce a \texttt{claim\_tickets} table:
@@ -900,7 +900,7 @@ the queue are the same code path, and until the ticket table exists at all.
 
 \begin{table}[H]
 \centering
-\caption{The communication organ: one durable carrier and two provenance traces that
+\pdmargincaption{The communication organ: one durable carrier and two provenance traces that
 must never be merged. The envelope fields are what the bus stores; the two traces
 answer two different questions and are checked by two different mechanisms.}
 \label{tab:swk-comm-organ}
@@ -1030,7 +1030,7 @@ behind each.
 
 \begin{table}[H]
 \centering
-\caption{The deontic split: three modalities, three mechanisms. Capability (what the
+\pdmargincaption{The deontic split: three modalities, three mechanisms. Capability (what the
 sandbox makes possible) is kept apart from permission (what the deontic layer
 allows) so that ``able but forbidden'' stays expressible.}
 \label{tab:swk-deontic-split}
@@ -1307,7 +1307,7 @@ after \texttt{spawn\_child}'' and ``forbid \texttt{internal\_plan} after \texttt
 
 \begin{table}[H]
 \centering
-\caption{Nine governance rules classified by the product-automaton checker. The verdicts are
+\pdmargincaption{Nine governance rules classified by the product-automaton checker. The verdicts are
 the checker's output; the eight single-event rows also follow by hand from
 Theorem~\ref{thm:regimentation-controllability} [internal, \texttt{b3\_controllability.py}].}
 \label{tab:policy-classification}
@@ -1348,6 +1348,8 @@ with his states relabelled. What the alphabet split adds is not the construction
 grading: under complete mediation the figure is one more enforceable safety policy; once
 $\Sigma_u \neq \emptyset$ the same two states become the canonical witness that a policy may
 reference an unrefusable event freely so long as it never tries to refuse it.
+
+\input{figures/fig-swk-taint-automaton}
 
 Three consequences, in increasing order of consequence.
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
@@ -1596,7 +1598,7 @@ that free-text closure would.}
 
 The obvious way to widen what a commitment can close against is to widen the
 vocabulary, and there is a concrete design for doing so without re-admitting the
-Goodhart hole. \textbf{State-Machine Assertions} (\Designed) would add two kinds to
+Goodhart hole. \pdgloss{State-Machine Assertions}{an oracle-vocabulary kind closed against a machine-checkable delta or an AST structural property, not a general finite-state-machine verification method.} (\Designed) would add two kinds to
 Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
@@ -1625,8 +1627,9 @@ adding two kinds, and OP-5 stays \Open{}.
 The through-line of the whole series --- memory $\to$ checkpoint $\to$ continuity
 $\to$ durable identity $\to$ reputation $\to$ market --- \emph{bottoms out here}. If
 the substrate's continuity is weak, the cross-machine economy is built on sand.
-This is the section the personhood and market papers lean on hardest, so it carries
-the canonical statement of the layer's own softest link.
+The personhood and market papers both lean on the claim this section states: which
+of the three continuity organs below is the layer's softest link, and what breaks
+if it fails.
 
 \input{figures/fig-swk-continuity-organs}
 
@@ -1733,7 +1736,7 @@ theorems themselves.
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
+\pdmargincaption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
 \S\ref{sec:durability}; I7--I9 carry the regimentation/detection correction per
 \S\ref{sec:enforcement}.}
 \label{tab:invariants}
@@ -1864,7 +1867,7 @@ which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
 
 \begin{table}[H]
 \centering
-\caption{Every guard is essential. Disabling one guard at a time, the checker's shortest
+\pdmargincaption{Every guard is essential. Disabling one guard at a time, the checker's shortest
 violating trace, in transitions from the initial state [internal, \texttt{c0\_workunit.py}].}
 \label{tab:workunit-crimes}
 \small
@@ -2019,7 +2022,7 @@ and the honest move is to draw the boundary, not gesture at it.
 \renewcommand{\arraystretch}{1.25}
 \begin{table}[H]
 \centering
-\caption{The substrate-layer threat model. The same-user adversary is \emph{out of
+\pdmargincaption{The substrate-layer threat model. The same-user adversary is \emph{out of
 scope} by design; several ``security'' organs become necessary only against the
 cross-machine adversary, which belongs to the economy layer.}
 \label{tab:threat-model}
@@ -2717,7 +2720,7 @@ to agree with it. Where they ever disagree, this table is the one to trust.
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{Open-problem status, stated once. \Closed{} = settled in this chapter;
+\pdmargincaption{Open-problem status, stated once. \Closed{} = settled in this chapter;
 \Partial{} = something ships but not the property as posed; \Open{} = not solved,
 whether or not a design exists. The last column grades the \emph{design}, not the
 problem, on the scale of Table~\ref{tab:honestkey}.}
@@ -2872,7 +2875,7 @@ pragma set: \texttt{journal\_mode=WAL}, \texttt{synchronous=NORMAL},
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{Mechanism-to-artifact map for the reference implementation. Module names
+\pdmargincaption{Mechanism-to-artifact map for the reference implementation. Module names
 are illustrative of the organization, not a stable public interface.}
 \label{tab:appendix-map}
 \small

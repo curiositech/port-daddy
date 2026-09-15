@@ -31,7 +31,7 @@
   \node[pd direct label,text=hhamber,anchor=south] at (1.30,2.48)
     {atomic commit boundary};
 \end{tikzpicture}}
-\caption{\textbf{No-spawn-without-bond is a synchronized state transition.}
+\pdmargincaption{\textbf{No-spawn-without-bond is a synchronized state transition.}
 The wallet debit and escrow-row creation occur at the same commit. Only after the
 committed row is observable does the worker move from nonexistent to running. A
 signed plan or an attempted debit is insufficient: the dashed abort branch leaves

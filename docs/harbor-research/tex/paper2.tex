@@ -52,8 +52,8 @@ The operations lead asks the obvious question: which of these does the runtime \
 \emph{watch for}? The first three feel different from the last two, and every practitioner senses it. The force-push rule is
 airtight --- the daemon owns the git remote credentials, and a push that never happens needs no forgiveness. The
 confident-lie rule is not airtight and never will be: the lie is composed inside the model's forward pass, and by the time
-any mediator sees tokens, the lie already exists. The practitioner's instinct is correct. This paper proves it is not an
-instinct but an instance of a thirty-nine-year-old theorem, and extracts the exact boundary.
+any mediator sees tokens, the lie already exists. This paper proves the practitioner's instinct is a thirty-nine-year-old
+theorem in disguise, and extracts the exact boundary it draws.
 
 \paragraph{The idea in one breath.} \onebreath{Split the agent's event alphabet into what the runtime can refuse (mediated
 effects) and what it cannot (model-internal steps); a safety policy is preventable iff no uncontrollable event can carry a

@@ -160,7 +160,16 @@
 \makeatother
 % The technical edition's accents are the brand's own Seventies trio: amber
 % (mustard), rust (brown) and gold (avocado); no colour outside the palette.
-\geometry{paperwidth=7in,paperheight=10in,left=0.8in,right=1.7in,%
+% inner/outer, not left/right: the Book is twoside (see the documentclass
+% option), so a fixed left=/right= pinned the wide margin column to the same
+% physical side of every page -- recto AND verso -- instead of the outer
+% edge each page actually has. inner is the narrow, spine-side margin (what
+% was "left"); outer is the wide margin carrying the column (what was
+% "right"). geometry mirrors inner/outer per page automatically once twoside
+% is active, and marginnote's own \if@twoside/\ifodd\c@page check (see
+% figures/pd-pedagogy.tex) then places each \marginnote on whichever side
+% \marginparwidth actually landed on for that page.
+\geometry{paperwidth=7in,paperheight=10in,twoside,inner=0.8in,outer=1.7in,%
   top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
 \captionsetup{font=small,labelfont=bf}
 \setlength{\emergencystretch}{3em}\tolerance=1500
@@ -575,8 +584,25 @@
 \makeatother
 \newsavebox{\pdqbox}\newsavebox{\pdpartbox}\newlength{\pdplateh}
 \makeatletter
-\newcommand{\pdchapter}[4]{%
+% Force the next page to a recto (odd-numbered, right-hand) start, the
+% standard book convention for a chapter or part opener -- inserting a
+% genuinely blank verso page when needed rather than leaving one half-empty.
+% This is the kernel's own \cleardoublepage (\if@twoside\ifodd\c@page...),
+% not a from-scratch reimplementation, with one addition: the kernel's
+% version does not touch the inserted blank page's style, so on a page that
+% has a running head/foot (any \pagestyle other than empty) the blank verso
+% page would still print a header -- \thispagestyle{empty} on it here is
+% what makes the forced page actually blank, the way this Book's own
+% \pdchapter/\pdpart already do for the opener page itself.
+\newcommand{\pdcleartorecto}{%
   \clearpage
+  \if@twoside
+    \ifodd\c@page\else
+      \hbox{}\thispagestyle{empty}\newpage
+    \fi
+  \fi}
+\newcommand{\pdchapter}[4]{%
+  \pdcleartorecto
   \renewcommand{\pdcurrentchapter}{#1}%
   \renewcommand{\pdchapterprefix}{#3}%
   \renewcommand{\pdcurrentchaptercolor}{#4}%
@@ -792,7 +818,7 @@
       \vspace*{2.4cm}
       \end{adjustwidth}}}
 \newcommand{\pdpart}[5]{%
-  \clearpage
+  \pdcleartorecto
   \thispagestyle{empty}%
   \refstepcounter{part}\label{part:#1}%
   \addcontentsline{toc}{part}{\textbf{\scshape Part #1}\quad #2}%

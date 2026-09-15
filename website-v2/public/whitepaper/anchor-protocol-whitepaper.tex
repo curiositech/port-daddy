@@ -231,7 +231,7 @@ The Anchor Protocol defines how agents authenticate to a Harbor and to each othe
 
 \begin{table}[H]
 \centering
-\caption{Threat closure is cumulative, not substitutive. Each phase closes one attack
+\pdmargincaption{Threat closure is cumulative, not substitutive. Each phase closes one attack
 surface, and the last column is why no later phase reopens it: every phase adds a check
 that a later phase changes the key or the chain of, never the party that performs it.
 [internal]}
@@ -290,7 +290,7 @@ The Port Daddy Daemon acts as the Root Certificate Authority (CA). Each Harbor i
 % SUBMISSION-SKILL: naming conflict — "Biscuit" is the name of an existing, well-known capability-security authorization-token format (Eclipse Biscuit / biscuitsec.org, Couprie et al., presented at Pass the SALT 2021): public-key-signed tokens with offline attenuation, directly descended from Macaroons, structurally very close to what Phase 3 describes. This subsection uses "Biscuit" only as an informal nickname and cites neither the project nor a disambiguation. Recommend either citing the Biscuit project and stating how this protocol differs (datalog policies vs. flat capability sets; JWT envelope vs. Biscuit's own block format), or dropping the nickname in favor of the already-used "Macaroon"/"offline attenuation" vocabulary, which is unambiguous and already cited. Left as-is per submission-readiness scope (flag, not silent rename).
 \subsection{Phase 3: Stigmergic Delegation (The ``Biscuit'' Pattern)}
 
-Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \textbf{Offline Attenuation}, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
+Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \pdgloss{Offline Attenuation}{a child signs a strictly narrower capability set onto its parent's existing card, with no round trip to the Daemon --- the delegation move this protocol borrows from Macaroons.}, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
 
 \begin{definition}[Offline Attenuation]\label{def:offline-attn}
 Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., \texttt{["db:read"]} reduced from \texttt{["db:read", "db:write"]}), and signs the \textit{entire chain} with its own ephemeral private key.
@@ -391,7 +391,7 @@ Following the industry standard set by AWS (s2n-tls~\pdcite{aws2022s2n}) and Mic
 
 \begin{table}[H]
 \centering
-\caption{The assurance case, layer by layer. Obligations descend the rows: each layer
+\pdmargincaption{The assurance case, layer by layer. Obligations descend the rows: each layer
 hands the next a claim it cannot discharge itself. Evidence ascends them: each tool's
 output narrows what the layer above must assume. The last column names the two gaps
 that no tool closes; only a human asserts that the modeled protocol is this source, and
@@ -412,6 +412,8 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 
 \paragraph{Table~\ref{tab:anchor-verification-stack} is this section's map.} Read down the rows for what each layer hands the next as an obligation it cannot discharge itself; read the third column for what has actually been checked about the running code. The last column holds the only two places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are listed as assumption gaps rather than as inferences.
 
+\input{figures/fig-anchor-assurance-chain}
+
 \subsection{Symbolic Analysis with ProVerif}
 
 To prove the protocol's logical soundness against a Dolev-Yao adversary~\pdcite{dolev1983security} (an attacker who controls the entire network), we modeled the Anchor Protocol in \textbf{ProVerif}~\pdcite{blanchet2016modeling}. ProVerif represents protocols as Horn clauses and uses resolution to prove security properties for an unbounded number of sessions.
@@ -430,7 +432,7 @@ All three protocol phases were independently verified in ProVerif 2.05. Table~\r
 
 \begin{table}[H]
 \centering
-\caption{All five listed ProVerif queries return \textbf{TRUE} across the three modeled protocol phases. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
+\pdmargincaption{All five listed ProVerif queries return \textbf{TRUE} across the three modeled protocol phases. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
 \label{tab:proverif-results}
 % Model column recut from plain l (which never wraps, so its widest
 % \texttt{} path forced the column to that path's full unbroken width and
@@ -749,7 +751,7 @@ Table~\ref{tab:threat-closure} closes the loop on the three failure modes of \S\
 
 \begin{table}[H]
 \centering
-\caption{No mechanism in this chapter closes its threat completely: each of the three failure modes of \S\ref{sec:problem} is closed somewhere below, but every row's residual-risk column is deliberately non-empty.}
+\pdmargincaption{No mechanism in this chapter closes its threat completely: each of the three failure modes of \S\ref{sec:problem} is closed somewhere below, but every row's residual-risk column is deliberately non-empty.}
 \label{tab:threat-closure}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
@@ -778,7 +780,7 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 
 \begin{table}[H]
 \centering
-\caption{The four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. The three Kani rows are bounded harnesses over the deployed crate: a no-panic check of the parser on 32-byte inputs with the cryptography stubbed, a no-panic check of the comparator on 16-byte pairs, and two concrete vectors for the subset check. ``Deployed'' indicates the Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
+\pdmargincaption{The four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. The three Kani rows are bounded harnesses over the deployed crate: a no-panic check of the parser on 32-byte inputs with the cryptography stubbed, a no-panic check of the comparator on 16-byte pairs, and two concrete vectors for the subset check. ``Deployed'' indicates the Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
 \label{tab:properties}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lll l@{}}
 \toprule
