@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 619,
-    "distinctObjects": 583,
-    "bytes": 282197123,
-    "distinctBytes": 279403532
+    "assets": 624,
+    "distinctObjects": 588,
+    "bytes": 283267760,
+    "distinctBytes": 280474169
   },
   "assets": [
     {
@@ -140,6 +140,27 @@
       "bytes": 595036,
       "sha256": "ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e",
       "key": "sha256/ee/ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/after-redraw.png",
+      "bytes": 163547,
+      "sha256": "9bca0c2c34e7032ffeac829cb8d5e0ac9a4dc2e96fca5e9bdc980cdfa99447ca",
+      "key": "sha256/9b/9bca0c2c34e7032ffeac829cb8d5e0ac9a4dc2e96fca5e9bdc980cdfa99447ca.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/before-current-head.png",
+      "bytes": 86388,
+      "sha256": "a5d3bb6bf6e96f95d0896043038338aac7a8e5ecc8fc9c5d741664ea8d514ebc",
+      "key": "sha256/a5/a5d3bb6bf6e96f95d0896043038338aac7a8e5ecc8fc9c5d741664ea8d514ebc.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/reference-2026-old-form.png",
+      "bytes": 234685,
+      "sha256": "f6637914054e1f33cbd2d06dd68772c5c0574242c32dea4d5fa590d4b16ab221",
+      "key": "sha256/f6/f6637914054e1f33cbd2d06dd68772c5c0574242c32dea4d5fa590d4b16ab221.png",
       "contentType": "image/png"
     },
     {
@@ -1022,6 +1043,20 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10184/swk-stack-map-book-1x-150dpi.png",
+      "bytes": 300697,
+      "sha256": "b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b",
+      "key": "sha256/b6/b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10184/swk-stack-map-chapter-1x-150dpi.png",
+      "bytes": 285320,
+      "sha256": "4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631",
+      "key": "sha256/4f/4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631.png",
       "contentType": "image/png"
     },
     {
