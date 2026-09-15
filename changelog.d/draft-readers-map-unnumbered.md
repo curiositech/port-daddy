@@ -1,0 +1,3 @@
+type: changed
+
+- **The Harbor Economy's "Reader's map" is no longer numbered, and every section after it shifts down by one.** `website-v2/public/whitepaper/harbor-economy.tex` now sets that heading with `\section*` plus an explicit `\addcontentsline`, so the map keeps its Contents entry and its page number but stops claiming to be §1 of the argument — it is apparatus that routes a reader to a section, not a section. The thesis becomes §1, and the paper's own `\ref`-driven cross-references (the Table 1 entry routes) follow automatically. The published `harbor-economy-whitepaper.pdf` is regenerated from source by `.github/workflows/whitepaper-build.yml`.
