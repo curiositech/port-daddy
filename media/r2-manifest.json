@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 583,
-    "distinctObjects": 547,
-    "bytes": 274237281,
-    "distinctBytes": 271443690
+    "assets": 586,
+    "distinctObjects": 550,
+    "bytes": 276459150,
+    "distinctBytes": 273665559
   },
   "assets": [
     {
@@ -784,6 +784,27 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10181/algorithm-confusion-cves.png",
+      "bytes": 711332,
+      "sha256": "ecaf56733c31b5698777dcbbe22e4a0830c984f74f02bd5eeeb651cd6436dc3b",
+      "key": "sha256/ec/ecaf56733c31b5698777dcbbe22e4a0830c984f74f02bd5eeeb651cd6436dc3b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10181/why-cuckoo-not-bloom.png",
+      "bytes": 820008,
+      "sha256": "3562283462fcb5f9ab72cc1c6b1ac72f967dc5d8fdfbd697ce11a697b5247a0f",
+      "key": "sha256/35/3562283462fcb5f9ab72cc1c6b1ac72f967dc5d8fdfbd697ce11a697b5247a0f.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10181/worked-example-capability-order.png",
+      "bytes": 690529,
+      "sha256": "adc54d40a9c45e6fe370fb0c57105f71dac7e8b04f22244527d9e2d1097657ad",
+      "key": "sha256/ad/adc54d40a9c45e6fe370fb0c57105f71dac7e8b04f22244527d9e2d1097657ad.png",
       "contentType": "image/png"
     },
     {
