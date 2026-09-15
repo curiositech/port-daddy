@@ -48,11 +48,18 @@ describe('Whitepaper PDF hash verification', () => {
       expect(hash).toBe(digests[path].sha256);
       expect(file.length).toBe(digests[path].bytes);
       // `> 0` accepted a one-page LaTeX error render. The floor does not.
-      expect(
-        digests[path].pages,
-        `${path} is recorded at ${digests[path].pages} pages, under its floor of ` +
-          `${pageFloorForArtifact(path)} — that is a broken artifact, not a short one.`,
-      ).toBeGreaterThanOrEqual(pageFloorForArtifact(path));
+      // This file runs under jest (tests/purser/ROUTING.json), and jest's
+      // expect() takes exactly one argument -- the second-argument message
+      // form is vitest's. So the explanation rides in a thrown Error.
+      const floor = pageFloorForArtifact(path);
+      const pages = digests[path].pages;
+      if (pages < floor) {
+        throw new Error(
+          `${path} is recorded at ${pages} pages, under its floor of ${floor} — ` +
+            'that is a broken artifact, not a short one.',
+        );
+      }
+      expect(pages).toBeGreaterThanOrEqual(floor);
     });
   });
 });
