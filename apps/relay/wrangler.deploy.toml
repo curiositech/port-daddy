@@ -73,7 +73,7 @@ RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
 # GitHub Actions OIDC is admitted only for this protected, manually dispatched
 # workflow on main. The custom audience identifies Relay; this separate policy
 # proves the exact owner, repository, workflow, ref, environment and runner.
-OIDC_GITHUB_TRUST_POLICY_JSON = '{"repositoryOwnerIds":["262144387"],"repositories":["curiositech/port-daddy"],"jobWorkflowRefs":["curiositech/port-daddy/.github/workflows/fleetbot-workload-smoke.yml@refs/heads/main"],"refs":["refs/heads/main"],"environments":["fleetbot-workload"],"runnerEnvironments":["github-hosted"],"eventNames":["workflow_dispatch"]}'
+OIDC_GITHUB_TRUST_POLICY_JSON = '{"repositoryBindings":[{"repository":"curiositech/port-daddy","repositoryId":"1155574485","repositoryOwner":"curiositech","repositoryOwnerId":"262144387"}],"workflowRefs":["curiositech/port-daddy/.github/workflows/fleetbot-workload-smoke.yml@refs/heads/main"],"refs":["refs/heads/main"],"environments":["fleetbot-workload"],"runnerEnvironments":["github-hosted"],"eventNames":["workflow_dispatch"]}'
 # Workers AI model for the Shipwright chat (src/shipwright.ts). A plain var so
 # operators can retarget without a code deploy; unknown ids fail the AI call
 # with an honest AI_ERROR, they never remap silently. Unset, the default is
@@ -254,7 +254,7 @@ PUBLIC_BASE_URL = "https://relay-latest.erich-owens.workers.dev"
 # SHIPWRIGHT_MODEL / PARLEY_MEDIATOR_MODEL: unset here too — see the base env's
 # note. The committed defaults are cloud-plane roles in config/models.yaml.
 RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
-OIDC_GITHUB_TRUST_POLICY_JSON = '{"repositoryOwnerIds":["262144387"],"repositories":["curiositech/port-daddy"],"jobWorkflowRefs":["curiositech/port-daddy/.github/workflows/fleetbot-workload-smoke.yml@refs/heads/main"],"refs":["refs/heads/main"],"environments":["fleetbot-workload"],"runnerEnvironments":["github-hosted"],"eventNames":["workflow_dispatch"]}'
+OIDC_GITHUB_TRUST_POLICY_JSON = '{"repositoryBindings":[{"repository":"curiositech/port-daddy","repositoryId":"1155574485","repositoryOwner":"curiositech","repositoryOwnerId":"262144387"}],"workflowRefs":["curiositech/port-daddy/.github/workflows/fleetbot-workload-smoke.yml@refs/heads/main"],"refs":["refs/heads/main"],"environments":["fleetbot-workload"],"runnerEnvironments":["github-hosted"],"eventNames":["workflow_dispatch"]}'
 # Daily per-user chat budget (src/chat-spend.ts), shared by EVERY conversational
 # surface the relay hosts. Plain vars, never caller input. Unset or unparsable
 # values fall back to the committed defaults — never to "unlimited", never to

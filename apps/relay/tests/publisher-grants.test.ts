@@ -7,6 +7,7 @@ import {
   type FleetbotPublisherCapability,
 } from '../../../lib/github-publisher-contract.js';
 import { hashBytes, hashHex, pubKeyFromPrivKey, signEd25519, toHex } from '../src/crypto.js';
+import { eraseUser } from '../src/db.js';
 import {
   authorizePublisherGrant,
   handlePublisherGrantSnapshot,
@@ -30,6 +31,8 @@ function fixture(overrides: Partial<{
   installation: number;
   revokedAt: number | null;
   subject: string;
+  createdAt: number;
+  expiresAt: number;
 }> = {}): TestDb {
   const db = makeDb(applyAllMigrations());
   db.raw.prepare(`INSERT INTO users (id, github_user_id, login, created_at) VALUES (?, ?, ?, ?)`).run('u_grant', 42, 'operator', NOW - 100);
@@ -53,8 +56,8 @@ function fixture(overrides: Partial<{
       JSON.stringify(overrides.branches ?? ['pd-agent/']),
       JSON.stringify(overrides.bases ?? ['main']),
       overrides.mutations ?? 2,
-      NOW + 3_600,
-      NOW - 100,
+      overrides.expiresAt ?? NOW + 3_600,
+      overrides.createdAt ?? NOW - 100,
       revokedAt,
       revokedAt === null ? null : 'operator revoked',
     );
@@ -106,16 +109,26 @@ async function authorize(
 }
 
 describe('standing publisher grants', () => {
-  it('enforces grant id, exact operation scope, uniqueness, and epoch bumps in storage', () => {
+  it('enforces grant shape and makes every authority field immutable', () => {
     const db = fixture();
-    expect(() => db.raw.prepare("UPDATE publisher_grants SET operations_json = '[\"not-an-operation\"]', epoch = epoch + 1 WHERE grant_id = ?")
-      .run(GRANT_ID)).toThrow(/operation scope invalid/);
-    expect(() => db.raw.prepare("UPDATE publisher_grants SET repositories_json = '[\"curiositech\/port-daddy\",\"curiositech\/port-daddy\"]', epoch = epoch + 1 WHERE grant_id = ?")
-      .run(GRANT_ID)).toThrow(/duplicates/);
-    expect(() => db.raw.prepare("UPDATE publisher_grants SET base_allow_json = '[\"release\"]' WHERE grant_id = ?")
-      .run(GRANT_ID)).toThrow(/increment epoch/);
+    expect(() => db.raw.prepare("UPDATE publisher_grants SET operations_json = '[\"pull-request.inspect\"]' WHERE grant_id = ?")
+      .run(GRANT_ID)).toThrow(/authority is immutable/);
+    expect(() => db.raw.prepare("UPDATE publisher_grants SET account_user_id = 'someone-else' WHERE grant_id = ?")
+      .run(GRANT_ID)).toThrow(/authority is immutable/);
+    expect(() => db.raw.prepare('UPDATE publisher_grants SET epoch = epoch + 1 WHERE grant_id = ?')
+      .run(GRANT_ID)).toThrow(/authority is immutable/);
     expect(() => db.raw.prepare('UPDATE publisher_grants SET grant_id = ? WHERE grant_id = ?')
-      .run(`pdg_${'g'.repeat(32)}`, GRANT_ID)).toThrow(/CHECK constraint/);
+      .run(`pdg_${'b2'.repeat(16)}`, GRANT_ID)).toThrow(/authority is immutable/);
+  });
+
+  it('allows exactly one irreversible revocation transition', () => {
+    const db = fixture();
+    db.raw.prepare('UPDATE publisher_grants SET revoked_at = ?, revoked_reason = ? WHERE grant_id = ?')
+      .run(NOW, 'operator stop', GRANT_ID);
+    expect(() => db.raw.prepare('UPDATE publisher_grants SET revoked_at = NULL, revoked_reason = NULL WHERE grant_id = ?')
+      .run(GRANT_ID)).toThrow(/revocation is irreversible/);
+    expect(() => db.raw.prepare('UPDATE publisher_grants SET revoked_at = ?, revoked_reason = ? WHERE grant_id = ?')
+      .run(NOW + 1, 'rewritten', GRANT_ID)).toThrow(/revocation is irreversible/);
   });
 
   it('authorizes exact v2 scope, binds the session, and makes an exact retry idempotent', async () => {
@@ -125,7 +138,7 @@ describe('standing publisher grants', () => {
     await expect(authorize(db, capability)).resolves.toMatchObject({ grantId: GRANT_ID, epoch: 3 });
     expect(db.raw.prepare('SELECT subject_fingerprint FROM github_publisher_session_bindings').get())
       .toMatchObject({ subject_fingerprint: FINGERPRINT });
-    expect(db.raw.prepare('SELECT count(*) AS n FROM github_publisher_capability_uses').get()).toMatchObject({ n: 1 });
+    expect(db.raw.prepare('SELECT count(*) AS n FROM github_publisher_capability_uses_v2').get()).toMatchObject({ n: 1 });
   });
 
   it.each([
@@ -203,11 +216,52 @@ describe('standing publisher grants', () => {
     await expect(authorize(db, inspect, { headBranch: null, isMutation: false })).resolves.toBeTruthy();
   });
 
-  it('returns a signed-workload-only current snapshot with live key generation', async () => {
+  it('counts one logical idempotency key once and rejects a fresh-nonce alias', async () => {
+    const db = fixture({ mutations: 1 });
+    const first = await signedCapability();
+    await authorize(db, first);
+    await expect(authorize(db, first)).resolves.toBeTruthy();
+    expect(db.raw.prepare(
+      'SELECT count(*) AS rows, count(DISTINCT idempotency_key) AS logical FROM github_publisher_capability_uses_v2',
+    ).get()).toMatchObject({ rows: 1, logical: 1 });
+    await expect(authorize(db, { ...first, nonce: '5'.repeat(64) }))
+      .rejects.toMatchObject({ code: 'CAPABILITY_REPLAY' });
+    await expect(authorize(db, await signedCapability({ nonce: '6'.repeat(64), requestHash: '6'.repeat(64) })))
+      .rejects.toMatchObject({ code: 'PUBLISHER_DAILY_MUTATION_CEILING' });
+  });
+
+  it('fails final admission after the owning account is erased', async () => {
     const db = fixture();
+    db.raw.prepare('UPDATE users SET deleted_at = ? WHERE id = ?').run(NOW, 'u_grant');
+    await expect(authorize(db, await signedCapability()))
+      .rejects.toMatchObject({ code: 'PUBLISHER_ACCOUNT_ERASED', status: 403 });
+    expect(db.raw.prepare('SELECT count(*) AS n FROM github_publisher_capability_uses_v2').get())
+      .toMatchObject({ n: 0 });
+  });
+
+  it('fails closed after an interrupted erasure marks the owner deleted', async () => {
+    const db = fixture();
+    const failingDb = {
+      prepare(sql: string) {
+        if (sql.includes('DELETE FROM github_publisher_capability_uses_v2')) {
+          throw new Error('injected cleanup failure');
+        }
+        return (db.DB as D1Database).prepare(sql);
+      },
+    } as D1Database;
+
+    await expect(eraseUser(failingDb, 'u_grant', NOW)).rejects.toThrow('injected cleanup failure');
+    expect(db.raw.prepare('SELECT deleted_at FROM users WHERE id = ?').get('u_grant'))
+      .toEqual({ deleted_at: NOW });
+    await expect(authorize(db, await signedCapability()))
+      .rejects.toMatchObject({ code: 'PUBLISHER_ACCOUNT_ERASED', status: 403 });
+    expect(db.raw.prepare('SELECT count(*) AS n FROM github_publisher_capability_uses_v2').get())
+      .toMatchObject({ n: 0 });
+  });
+
+  it('returns a signed-workload-only current snapshot with live key generation', async () => {
     const now = Math.floor(Date.now() / 1000);
-    db.raw.prepare('UPDATE publisher_grants SET created_at = ?, expires_at = ?, epoch = epoch + 1 WHERE grant_id = ?')
-      .run(now - 100, now + 3_600, GRANT_ID);
+    const db = fixture({ createdAt: now - 100, expiresAt: now + 3_600 });
     db.raw.prepare('UPDATE identities SET expires_at = ? WHERE daemon_fingerprint = ?').run(now + 3_600, FINGERPRINT);
     const path = `/v1/fleetbot/publisher-grants/${GRANT_ID}`;
     const nonce = '7'.repeat(64);
@@ -227,7 +281,7 @@ describe('standing publisher grants', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       grantId: GRANT_ID,
-      grantEpoch: 4,
+      grantEpoch: 3,
       signingKeyGeneration: 4,
       surface: 'publisher',
       repositories: ['curiositech/port-daddy'],

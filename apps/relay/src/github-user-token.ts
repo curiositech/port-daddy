@@ -16,7 +16,7 @@ const GITHUB_TIMEOUT_MS = 15_000;
 const REFRESH_EARLY_SECONDS = 5 * 60;
 
 export type GitHubCredentialSource = 'web' | 'device';
-export type GitHubCredentialKind = 'web-session' | 'device-token';
+export type GitHubCredentialKind = 'web-session' | 'device-token' | 'publisher-account';
 
 export interface GitHubUserCredential {
   schema: typeof CREDENTIAL_SCHEMA;
@@ -107,7 +107,9 @@ export function githubTokenKeyring(env: GitHubTokenWrappingEnvironment): GitHubT
 function validateBinding(binding: GitHubCredentialBinding): void {
   if (!/^[0-9a-f]{64}$/i.test(binding.rowId)) throw new Error('credential row id must be one SHA-256 hex digest');
   if (!/^u_[0-9a-f]{32}$/i.test(binding.userId)) throw new Error('credential user id is invalid');
-  if (binding.kind !== 'web-session' && binding.kind !== 'device-token') throw new Error('credential kind is invalid');
+  if (binding.kind !== 'web-session' && binding.kind !== 'device-token' && binding.kind !== 'publisher-account') {
+    throw new Error('credential kind is invalid');
+  }
 }
 
 function aad(binding: GitHubCredentialBinding, keyVersion: number): Uint8Array {
