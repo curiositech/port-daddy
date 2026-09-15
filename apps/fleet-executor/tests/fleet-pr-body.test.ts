@@ -12,7 +12,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runPurser, type TranscriptLike, type PurserMetrics } from '../src/purser.js';
@@ -24,7 +23,7 @@ import {
   REQUIREMENTS_EXEMPT_MARKER,
   COMMENTS_EXEMPT_MARKER,
 } from '../src/fleet-pr-body.js';
-import { freshState, installGitHubFetch, makeEnv, type GitHubState } from './harness.js';
+import { freshState, installGitHubFetch, makeEnv, makePurserSandbox, type GitHubState } from './harness.js';
 
 // The repo root, three levels up from apps/fleet-executor/tests/.
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -35,7 +34,7 @@ const REQUIREMENTS_GUARD = join(REPO_ROOT, 'scripts/check-pr-requirements.mjs');
  * Returns the exit code and combined output.
  */
 function runRequirementsGuard(body: string): { code: number; output: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'pd-prbody-'));
+  const dir = mkdtempSync(join(REPO_ROOT, '.purser-prbody-'));
   const file = join(dir, 'body.md');
   writeFileSync(file, body, 'utf8');
   try {
@@ -163,7 +162,7 @@ describe('fleet-authored PR bodies clear the real gates', () => {
     await runPurser(
       mkShip(),
       mkCtx(),
-      makeEnv({ AI: seqAi([STEELMAN_JSON, TESTS_JSON]) }),
+      makeEnv({ AI: seqAi([STEELMAN_JSON, TESTS_JSON]), SANDBOX: makePurserSandbox() }),
       'tok',
       noopTranscript(),
       freshMetrics(),

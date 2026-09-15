@@ -17,6 +17,7 @@ import { extractJestTestMatch, matchesAnyTestMatch } from '../src/purser-executa
 import { encodeFingerprint, fingerprintDiff, withAuthoredTests } from '../src/purser-rerun.js';
 import { FleetAiCircuit, FleetAiDependencyError } from '../src/ai-resilience.js';
 import { assessContextAdmission } from '../src/context-admission.js';
+import * as sourceWorkspace from '../src/purser-workspace.js';
 import {
   freshState,
   installGitHubFetch,
@@ -150,7 +151,8 @@ function sandboxStub(exitCode: number, output = 'test run output'): unknown {
     output,
     `__PD_PURSER_JEST_SUMMARY__:${btoa(JSON.stringify(summary))}`,
   ].join('\n');
-  return { exec: async () => ({ exitCode, stdout, stderr: '' }) };
+  return { exec: async (command: string) => command.includes('__PD_PURSER_TEST_STARTED__')
+    ? ({ exitCode, stdout, stderr: '' }) : ({ exitCode: 0, stdout: '', stderr: '' }) };
 }
 
 function sandboxHarnessFailure(output = 'Test suite failed to run'): unknown {
@@ -167,7 +169,15 @@ function sandboxHarnessFailure(output = 'Test suite failed to run'): unknown {
     output,
     `__PD_PURSER_JEST_SUMMARY__:${btoa(JSON.stringify(summary))}`,
   ].join('\n');
-  return { exec: async () => ({ exitCode: 1, stdout, stderr: '' }) };
+  return { exec: async (command: string) => command.includes('__PD_PURSER_TEST_STARTED__')
+    ? ({ exitCode: 1, stdout, stderr: '' }) : ({ exitCode: 0, stdout: '', stderr: '' }) };
+}
+
+function withoutExecutionBinding() {
+  vi.mocked(sourceWorkspace.preparePurserWorkspace).mockResolvedValueOnce({
+    binding: undefined, readFiles: async () => 'verified source fixture',
+    listFiles: async () => '', close: async () => {},
+  });
 }
 
 function purserCommentBodies(state: GitHubState): string[] {
@@ -183,9 +193,19 @@ let state: GitHubState;
 beforeEach(() => {
   state = freshState();
   installGitHubFetch(state);
+  // These pipeline tests isolate the workspace boundary. Exact checkout,
+  // source bytes, tool limits, and cleanup are exercised without this mock in
+  // purser-workspace.test.ts and purser-workflow.test.ts.
+  vi.spyOn(sourceWorkspace, 'preparePurserWorkspace').mockImplementation(async binding => ({
+    binding: binding ?? sandboxStub(0),
+    readFiles: async paths => JSON.stringify({ paths, source: 'export const inspected = true;' }),
+    listFiles: async () => 'src/widget.ts',
+    close: async () => {},
+  }));
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -510,14 +530,12 @@ describe('runPurser — steel-man failure modes', () => {
       freshMetrics(),
     );
 
-    expect(result).toMatchObject({ errored: false });
+    expect(result).toMatchObject({ errored: true });
     expect(result.reviewCoverage).toBeUndefined();
     expect(run).toHaveBeenCalledTimes(2);
-    expect(state.refUpdates).toBe(1);
-    expect(state.prPatches).toContainEqual(expect.objectContaining({
-      number: 8_669,
-      body: expect.stringContaining('purser-source-coverage: {"version":1,"status":"complete"}'),
-    }));
+    expect(state.refUpdates).toBe(0);
+    expect(state.prPatches.filter(patch => patch.number === 8_669)).toEqual([]);
+    expect(purserCommentBodies(state)[0]).toContain('possible human edits');
   });
 
   it.each([
@@ -562,14 +580,11 @@ describe('runPurser — steel-man failure modes', () => {
       freshMetrics(),
     );
 
-    expect(result).toMatchObject({ errored: false });
+    expect(result).toMatchObject({ errored: true });
     expect(result.reviewCoverage).toBeUndefined();
     expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(2);
-    expect(state.refUpdates).toBe(1);
-    expect(state.prPatches).toContainEqual(expect.objectContaining({
-      number: 8_670,
-      body: expect.stringContaining('purser-source-coverage: {"version":1,"status":"complete"}'),
-    }));
+    expect(state.refUpdates).toBe(0);
+    expect(state.prPatches.filter(patch => patch.number === 8_670)).toEqual([]);
   });
 
   it('reuses a complete receipted suite with zero AI calls even when the current model would project source', async () => {
@@ -636,8 +651,8 @@ describe('runPurser — steel-man failure modes', () => {
       makeEnv({
         AI: { run } as unknown as Ai,
         SANDBOX: {
-          exec: async () => ({
-            exitCode: 1,
+          exec: async (command: string) => ({
+            exitCode: command.includes('git fetch') ? 0 : 1,
             stdout: 'npm ci failed before Jest started',
             stderr: '',
           }),
@@ -735,13 +750,10 @@ describe('runPurser — steel-man failure modes', () => {
 
     expect(run).toHaveBeenCalledTimes(2);
     expect(run.mock.calls.map(call => call[0])).toEqual([planModel, planModel]);
-    expect(result).toMatchObject({ errored: false });
+    expect(result).toMatchObject({ errored: true });
     expect(result.reviewCoverage).toBeUndefined();
-    expect(state.refUpdates).toBe(1);
-    expect(state.prPatches).toContainEqual(expect.objectContaining({
-      number: 8_672,
-      body: expect.stringContaining('purser-source-coverage: {"version":1,"status":"complete"}'),
-    }));
+    expect(state.refUpdates).toBe(0);
+    expect(state.prPatches.filter(patch => patch.number === 8_672)).toEqual([]);
   });
 
   it('does not reuse a prefix-only Purser fingerprint after GitHub truncates the raw diff', async () => {
@@ -760,9 +772,9 @@ describe('runPurser — steel-man failure modes', () => {
     );
 
     expect(second.calls).toBeGreaterThan(0);
-    expect(truncated).toMatchObject({ errored: false, reviewCoverage: 'partial' });
+    expect(truncated).toMatchObject({ errored: true, reviewCoverage: 'partial' });
     expect(truncated.reviewCoverageReason).toContain('GitHub stopped the raw diff read');
-    expect(aggregateConclusion([truncated])).toBe('neutral');
+    expect(aggregateConclusion([truncated])).toBe('failure');
   });
 
   it('marks an incomplete GitHub changed-file inventory as partial coverage', async () => {
@@ -1081,7 +1093,7 @@ describe('runPurser — authored-test validation', () => {
 });
 
 describe('runPurser — stacking', () => {
-  it('same-repo PR, tests EXECUTED and PASSED: branch from BASE sha, stacked test PR opened, original PR retargeted onto the tests', async () => {
+  it('same-repo PR, verified tests descend from HEAD and target the implementation branch', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
 
@@ -1089,58 +1101,54 @@ describe('runPurser — stacking', () => {
       mkShip(), mkCtx(), makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }), 'tok', rec.transcript, freshMetrics(),
     );
 
-    // Branch cut from the PR's BASE sha (never head): the commit parents on BASESHA.
+    // Test commit descends from exactly the implementation that was executed.
     const commitPost = state.records.find(r => r.method === 'POST' && /\/git\/commits$/.test(r.url));
-    expect((commitPost!.body as { parents: string[] }).parents).toEqual(['BASESHA']);
+    expect((commitPost!.body as { parents: string[] }).parents).toEqual(['HEADSHA']);
     expect(state.gitRefs.has('purser/pr-7-tests')).toBe(true);
 
     // Stacked PR: head = purser branch, base = the PR's base branch.
     expect(state.stackedPrs).toHaveLength(1);
     expect(state.stackedPrs[0]).toMatchObject({
       head: 'purser/pr-7-tests',
-      base: 'main',
+      base: 'feat/widget',
       title: 'purser: adversarial tests for #7',
     });
     expect(state.stackedPrs[0].body).toContain('Obligations under test');
 
-    // The reviewed PR was retargeted ONTO the test branch (stacked on top) —
-    // only because sandbox.executed is true (the tests actually ran).
-    expect(state.prPatches).toContainEqual(
-      expect.objectContaining({ number: 7, base: 'purser/pr-7-tests' }),
-    );
+    expect(state.prPatches.filter(p => p.number === 7)).toEqual([]);
 
     const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
-    expect(step.detail).toMatchObject({ testPrNumber: 8001, retargeted: true, sandboxExecuted: true });
+    expect(step.detail).toMatchObject({ testPrNumber: 8001, retargeted: false, sandboxExecuted: true });
 
     // The demand comment is posted, firm and referenced.
     const bodies = purserCommentBodies(state);
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain('steel-manned');
-    expect(bodies[0]).toContain('retargeted onto that test branch');
+    expect(bodies[0]).toContain('implementation base is unchanged');
   });
 
-  it('same-repo PR, tests NOT EXECUTED (no SANDBOX binding): stacked test PR opened, but the reviewed PR is NOT retargeted', async () => {
+  it('same-repo PR, tests NOT EXECUTED: no test PR is published and implementation base is unchanged', async () => {
     // Reproduces the root cause of #5860: a purser retargeted the reviewed PR
     // onto a test branch whose tests had never been executed ("the body
     // admitted they were not run"). Retargeting must never happen on faith.
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
 
+    withoutExecutionBinding();
+
     await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
 
-    // The test PR is still opened (advisory evidence of the contract)...
-    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.stackedPrs).toHaveLength(0);
     // ...but the implementation PR's base is explicitly left UNCHANGED.
     expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
 
-    const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
-    expect(step.detail).toMatchObject({ retargeted: false, sandboxExecuted: false });
-    expect((step.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(/not executed/);
+    const step = rec.steps.find(s => s.kind === 'purser-publication-held')!;
+    expect(step.detail).toMatchObject({ executed: false });
 
     const bodies = purserCommentBodies(state);
     expect(bodies).toHaveLength(1);
-    expect(bodies[0]).toContain('NOT been retargeted');
-    expect(bodies[0]).toContain('not executed');
+    expect(bodies[0]).toContain('base is unchanged');
+    expect(bodies[0]).toContain('NOT RUN');
   });
 
   it('same-repo PR, generated assertions FAIL: the reviewed PR is blocked but never retargeted', async () => {
@@ -1162,7 +1170,7 @@ describe('runPurser — stacking', () => {
     expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
     const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
     expect((step.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(
-      /did not pass/,
+      /stacked above reviewed head/,
     );
   });
 
@@ -1180,19 +1188,16 @@ describe('runPurser — stacking', () => {
     );
 
     expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
-    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.stackedPrs).toHaveLength(0);
     expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
     const sandboxStep = rec.steps.find(s => s.kind === 'purser-sandbox')!;
     expect(sandboxStep.title).toContain('RUNNER ERROR');
     expect(sandboxStep.detail).toMatchObject({ outcomeKind: 'harness-failure' });
-    const stackedStep = rec.steps.find(s => s.kind === 'purser-stacked')!;
-    expect((stackedStep.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(
-      /broken for this run/,
-    );
+    expect(rec.steps.some(s => s.kind === 'purser-publication-held')).toBe(true);
     expect(purserCommentBodies(state)[0]).toContain('NO AUTHOR FAILURE CLAIMED');
   });
 
-  it('fork PR: the test PR is opened + comment posted, but NO retarget', async () => {
+  it('fork PR: hold publication until an authorized fork-aware target exists', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
 
@@ -1200,14 +1205,12 @@ describe('runPurser — stacking', () => {
       mkShip(), mkCtx({ isFork: true }), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
     );
 
-    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.stackedPrs).toHaveLength(0);
     // No base-retarget PATCH ever hit PR #7.
     expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
-    const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
-    expect(step.detail).toMatchObject({ retargeted: false });
+    expect(rec.steps.some(s => s.kind === 'purser-publication-held')).toBe(true);
     const bodies = purserCommentBodies(state);
-    expect(bodies[0]).toContain('comes from a fork');
-    expect(bodies[0]).toContain('must satisfy those tests');
+    expect(bodies[0]).toContain('fork-aware target');
   });
 
   it('403 (App lacks contents:write): degrades honestly — tests inline in the comment, permission named, broken ship fails the run', async () => {
@@ -1238,7 +1241,7 @@ describe('runPurser — stacking', () => {
     expect(bodies[0]).toContain('it("frobs empty input", () => {});');
   });
 
-  it('re-run is idempotent: same branch force-updated, same test PR reused, no duplicates', async () => {
+  it('a repeated fresh publication preserves the existing branch and opens no duplicate', async () => {
     const mk = () => seqAi([STEELMAN_JSON, TESTS_JSON]).ai;
     const rec = recorder();
 
@@ -1246,7 +1249,7 @@ describe('runPurser — stacking', () => {
     await runPurser(mkShip(), mkCtx(), makeEnv({ AI: mk() }), 'tok', rec.transcript, freshMetrics());
 
     expect(state.refCreates).toBe(1);
-    expect(state.refUpdates).toBe(1); // second run force-moved the ref
+    expect(state.refUpdates).toBe(0); // Existing branch is preserved, not overwritten.
     expect(state.stackedPrs).toHaveLength(1); // no duplicate test PR
   });
 });
@@ -1454,7 +1457,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
 
   it('#8335 exact shape: one nested import is repaired deterministically without touching a valid sibling, then stacks', async () => {
     seedRealJestConfig();
-    state.treeFiles.set('BASESHA', ['scripts/check-pr-comments-answered.mjs']);
+    state.treeFiles.set('HEADSHA', ['scripts/check-pr-comments-answered.mjs']);
     const plan = [
       '```json',
       JSON.stringify({
@@ -1606,7 +1609,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
   it('a path-valid file with an unresolved relative import is rejected on import resolution alone', async () => {
     seedRealJestConfig();
     // Seed a tree WITHOUT tests/unit/support.* — the import must not resolve.
-    state.treeFiles.set('BASESHA', ['tests/unit/other.test.js']);
+    state.treeFiles.set('HEADSHA', ['tests/unit/other.test.js']);
     const badImportTests = [
       '```json',
       JSON.stringify({
@@ -1721,13 +1724,13 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(secondRepairRequest.messages[1].content).toContain('Target path: tests/unit/release-token-fallback.test.js');
     expect(secondRepairRequest.messages[1].content).toContain('- src/widget.ts');
     expect(secondRepairRequest.messages[1].content).not.toContain('## Diff');
-    expect(sandboxExec).toHaveBeenCalledTimes(1);
+    expect(sandboxExec).toHaveBeenCalledTimes(3);
     expect(state.stackedPrs).toHaveLength(1);
   });
 
   it('#9893: deterministically heals an import introduced by the first model rewrite without spending the second call', async () => {
     seedRealJestConfig();
-    state.treeFiles.set('BASESHA', ['scripts/release-workflow-state.mjs']);
+    state.treeFiles.set('HEADSHA', ['scripts/release-workflow-state.mjs']);
     const testPath = 'tests/unit/purser/prerelease-exclusion.test.js';
     const plan = [
       '```json',
@@ -1908,7 +1911,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
   it('reapplies trusted zero-model repair after the global model budget drops an exhausted sibling', async () => {
     seedRealJestConfig();
     const target = 'apps/fleet-executor/src/purser-executability.ts';
-    state.treeFiles.set('BASESHA', [target]);
+    state.treeFiles.set('HEADSHA', [target]);
     const brokenPaths = [
       'tests/unit/purser/exhaust-budget-a.test.ts',
       'tests/unit/purser/exhaust-budget-b.test.ts',
@@ -2356,7 +2359,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
-  it('re-authors an incompatible reused suite in place instead of preserving a broken runner loop', async () => {
+  it('proposes a repair for an incompatible reused suite without overwriting its existing branch', async () => {
     seedRealJestConfig();
     state.files.set('BASESHA:package.json', '{"type":"module"}');
     const testPath = 'tests/unit/purser/reused-runner.test.ts';
@@ -2402,26 +2405,23 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       freshMetrics(),
     );
 
-    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
     expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
     expect(rec.steps.find(s => s.kind === 'purser-rerun')).toMatchObject({
       title: expect.stringContaining('REJECTED non-executable reused tests'),
       detail: expect.objectContaining({ action: 'author-fresh' }),
     });
-    expect(state.refUpdates).toBe(1);
+    expect(state.refUpdates).toBe(0);
     expect(state.refCreates).toBe(0);
     expect(state.stackedPrs).toHaveLength(0);
-    expect(state.prPatches).toContainEqual(expect.objectContaining({
-      number: 8669,
-      body: expect.stringContaining('purser-contract-fingerprint'),
-    }));
+    expect(state.prPatches.filter(patch => patch.number === 8669)).toEqual([]);
   });
 
   it('positive control: a path-valid file whose relative import DOES resolve passes the gate and stacks normally', async () => {
     seedRealJestConfig();
     // '../support' from tests/unit/widget.contract.test.js resolves to
     // tests/support.js — see the "unresolved" test above for the negative case.
-    state.treeFiles.set('BASESHA', ['tests/support.js']);
+    state.treeFiles.set('HEADSHA', ['tests/support.js']);
     const goodImportTests = [
       '```json',
       JSON.stringify({
@@ -2444,9 +2444,8 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     const rejected = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
     expect(rejected).toBeUndefined();
     expect(state.stackedPrs).toHaveLength(1);
-    expect(state.prPatches).toContainEqual(
-      expect.objectContaining({ number: 7, base: 'purser/pr-7-tests' }),
-    );
+    expect(state.stackedPrs[0].base).toBe('feat/widget');
+    expect(state.prPatches.filter(p => p.number === 7)).toEqual([]);
   });
 
   it('missing/unparseable jest config (no evidence) fails closed, even for an otherwise well-formed file', async () => {
@@ -2471,6 +2470,7 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
   }) => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
+    if (opts.sandbox === 'absent') withoutExecutionBinding();
     const env = makeEnv({
       AI: ai,
       ...(opts.sandbox === 'absent'
@@ -2478,8 +2478,8 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
         : {
             SANDBOX: opts.sandbox === 'setup-fail'
               ? {
-                  exec: async () => ({
-                    exitCode: 1,
+                  exec: async (command: string) => ({
+                    exitCode: command.includes('git fetch') ? 0 : 1,
                     stdout: 'npm ci failed before Jest started',
                     stderr: '',
                   }),
@@ -2539,9 +2539,9 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
     });
   });
 
-  it('sandbox ABSENT + blocking + blockWithoutSandbox:false ⇒ advisory BLOCK, never PASS', async () => {
+  it('sandbox ABSENT cannot bypass execution with blockWithoutSandbox:false', async () => {
     const { result, rec } = await run({ sandbox: 'absent', blocking: true });
-    expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK', errored: false });
+    expect(result).toMatchObject({ blocking: true, verdict: 'BLOCK', errored: true });
     const step = rec.steps.find(s => s.kind === 'purser-sandbox')!;
     expect(step.detail).toMatchObject({
       executed: false,
@@ -2556,12 +2556,12 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
 
   it('sandbox ABSENT + blocking + blockWithoutSandbox:true ⇒ BLOCK (explicit fail-closed opt-in)', async () => {
     const { result } = await run({ sandbox: 'absent', blocking: true, blockWithoutSandbox: true });
-    expect(result).toMatchObject({ blocking: true, verdict: 'BLOCK', errored: false });
+    expect(result).toMatchObject({ blocking: true, verdict: 'BLOCK', errored: true });
   });
 
   it('sandbox ABSENT + non-blocking + blockWithoutSandbox:true ⇒ advisory BLOCK', async () => {
     const { result } = await run({ sandbox: 'absent', blocking: false, blockWithoutSandbox: true });
-    expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK', errored: false });
+    expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK', errored: true });
   });
 });
 
@@ -2740,6 +2740,7 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
   it('sandbox ABSENT + blockWithoutSandbox ⇒ CRITICAL interruption; the BLOCK verdict stands', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
+    withoutExecutionBinding();
 
     const result = await runPurser(
       mkShip({ blocking: true, blockWithoutSandbox: true }),
@@ -2752,8 +2753,8 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
     expect(posts).toHaveLength(1);
     const body = posts[0].body as { title: string; urgency: string; body: string };
     expect(body.urgency).toBe('critical');
-    expect(body.title).toContain('blockWithoutSandbox');
-    expect(body.body).toContain('blockWithoutSandbox');
+    expect(body.title).toContain('publication held');
+    expect(body.body).toContain('SANDBOX');
   });
 
   it('feature-gated: without INTERRUPTIONS_URL/TOKEN no escalation fetch ever happens', async () => {

@@ -21,6 +21,7 @@ import {
   aiStub,
   makeEnv,
   makeJob,
+  makePurserSandbox,
   type GitHubState,
 } from './harness.js';
 
@@ -224,7 +225,7 @@ describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR',
 
     await executeFleet(
       makeJob(),
-      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db, SANDBOX: makePurserSandbox() }),
     );
 
     // The two bounded author repairs exhaust and the Purser never claims a
