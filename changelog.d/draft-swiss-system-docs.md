@@ -1,0 +1,3 @@
+type: added
+
+- **The Swiss design system has a spec you can open, and a conversion roadmap that defines "done" as a number.** `docs/design/swiss-system/system.html` is the normative page — six dot states, all eight fractional-border patterns drawn live with the two-at-most rule shown working and failing, four motion durations, the maritime signal faces, and type that changes colour where it crosses a colour slab. `ROADMAP.md` pairs each of those rules with the CI rule that fails when it breaks, and defines the site as converted when the normalization ratchet is empty rather than when it looks right. The FleetBar research report the system was distilled from comes back alongside it, re-cut off Inter / Geist Mono / Fraunces onto Archivo and IBM Plex Mono.
