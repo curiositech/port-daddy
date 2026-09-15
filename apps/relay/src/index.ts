@@ -198,8 +198,10 @@ import { runRetentionSweep } from './retention-sweep.js';
 import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
   runInterruptionNagSweep,
+  handleInterruptionGrant,
   handleCreateInterruption,
   handleListInterruptions,
+  handleGetInterruption,
   handleAnswerInterruption,
   handleAckInterruption,
   handleInterruptionsPage,
@@ -556,11 +558,18 @@ export default {
     }
 
     // ── Operator interruptions — HITL blocking asks (src/interruptions.ts) ──
+    else if (pathname === '/v1/interruptions/grant' && method === 'POST') {
+      response = await handleInterruptionGrant(request, env);
+    }
     else if (pathname === '/v1/interruptions' && method === 'POST') {
       response = await handleCreateInterruption(request, env);
     }
     else if (pathname === '/v1/interruptions' && method === 'GET') {
       response = await handleListInterruptions(request, env);
+    }
+    else if (pathname.startsWith('/v1/interruptions/') && method === 'GET') {
+      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length));
+      response = await handleGetInterruption(request, env, id);
     }
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/answer') && method === 'POST') {
       const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/answer'.length));
