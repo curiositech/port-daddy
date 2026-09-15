@@ -36,8 +36,8 @@ GROUPS = {
     "claudeisms.md": {
         "title": "Claudeisms — and the generic prose tells Claude amplifies",
         "intro": "Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.",
-        "pick": lambda i: i["dialect"] == "claude"
-                          or (i["dialect"] == "generic-llm" and i["medium"] in PROSE_GENERIC),
+        "pick": lambda i: not i.get("lane") and (i["dialect"] == "claude"
+                          or (i["dialect"] == "generic-llm" and i["medium"] in PROSE_GENERIC)),
     },
     "gptisms-codexisms.md": {
         "title": "GPT-isms and Codexisms",
@@ -56,7 +56,8 @@ GROUPS = {
     "visual-design-tells.md": {
         "title": "Visual design tells — the v0/Lovable look and generated imagery",
         "intro": "What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.",
-        "pick": lambda i: i.get("family") != "defect" and (i["medium"] in VISUAL_MEDIA or i["medium"] in VISUAL_ASSET_MEDIA)
+        "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
+                          and (i["medium"] in VISUAL_MEDIA or i["medium"] in VISUAL_ASSET_MEDIA)
                           or i["name"].startswith("ai-image")
                           or i["name"] in {"identical-face-different-people",
                                            "stock-mesh-gradient-background"},
@@ -64,7 +65,8 @@ GROUPS = {
     "structure-and-deck-tells.md": {
         "title": "Structure, deck, and marketing-copy tells",
         "intro": "Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.",
-        "pick": lambda i: i.get("family") != "defect" and (i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA),
+        "pick": lambda i: not i.get("lane") and i.get("family") != "defect"
+                          and (i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA),
     },
     "web-build-defects.md": {
         "title": "Web build defects \u2014 the half you can reproduce",
@@ -82,13 +84,18 @@ GROUPS = {
     "engineering-artifact-tells.md": {
         "title": "Engineering-artifact tells — commits, PRs, reviews, code, tests, docs",
         "intro": "What generated engineering work looks like in the artifacts maintainers actually read. The highest-precision checks in this file are all RELATIVE — drift from the repo's own log, idiom, or PR norm — because those need no word list, do not age as models change, and a contributor who read the surrounding code passes them automatically.",
-        "pick": lambda i: i["medium"] in ENG_MEDIA,
+        "pick": lambda i: not i.get("lane") and i["medium"] in ENG_MEDIA,
     },
     "unopened-surfaces.md": {
         "title": "Unopened surfaces \u2014 navigation, i18n, docs, commerce, email, print",
         "intro": "Everything in this file is about a surface that was never opened. The model has no printer, no Outlook, no German tester, no screen reader, and no second page to navigate to \u2014 so the tell is rarely that it wrote something strange. The tell is that a whole class of output was never looked at, and the defect sat there because looking is the only thing that would have found it.\n\nThat makes this file read UNREVIEWED rather than AI, and the distinction matters when you report a finding: you are telling an author what they have not yet checked, not making a claim about who wrote it. The handful of genuinely model-flavoured entries say so in their own **Why it reads AI** line.\n\nOne structural finding runs through the navigation entries and is worth reading first: `ia-is-a-projection-of-the-filesystem`. The flat nav, the fat footer, the empty mega-menu and the four-deep docs sidebar are four symptoms of one cause \u2014 the information architecture is a rendering of the directory listing, because enumeration is free and prioritisation needs knowledge the generator does not have.\n\nTwo entries here share a fix, which is unusual enough to name: switching a PDF export from `screenshot()` to `page.pdf()` makes the invoice text-selectable AND makes it honour a print stylesheet, so twelve lines of `@media print` repair browser printing and turn a dead raster receipt into a real document at the same time.",
         "pick": lambda i: i.get("lane") in {"navigation-and-ia", "i18n", "docs",
                                             "commerce", "email", "print"},
+    },
+    "tool-fingerprints.md": {
+        "title": "Tool fingerprints \u2014 provenance, and the few that are also defects",
+        "intro": "Read the first two items in this file before the other nineteen, because they are the rules the rest depends on.\n\n**A fingerprint tells you what made the page. It never tells you who wrote it, and it never tells you whether the page is any good.** Three collapses to refuse. Provenance is not authorship: a scaffold dependency in a repo proves where a project STARTED and says nothing about six months of commits since. Provenance is not defect: a CDN host and a server header are infrastructure, and stripping them is either impossible or pointless. And absence proves nothing, because every badge in the table below is removable by paying, so \"no badge\" is never evidence of hand-building. Wix and Squarespace are the sharpest case \u2014 their AI flows now seed the ordinary editor, so AI-built and hand-built output are provably identical in markup, and any finding of the form \"this is AI-generated because it is on Wix\" is simply false.\n\nSo most of this file is NOT findings. `scripts/humanize_review.py --provenance` reports it as a separate mode that writes no report and carries no severity, and that separation is deliberate.\n\n**What earns this file its place is the overlap set**: a handful of cases where the provenance string and a craft problem are the same bytes. An unwritten meta description that reads `Generated by v0`. A share card that is the builder's logo, or an auto-screenshot of a preview build. A favicon that is a build tool's logo. A palette nobody chose, still at the library's exact default oklch values. A generated headshot on an author byline. For those, the fix is never to hide the string \u2014 it is to do the work the string is pointing at, after which the string disappears as a side effect. That is the only removal that is honest, and it is the only advice that survives contact with someone who has to defend the site to their boss.\n\nOne entry in this file is about honesty rather than craft: invented clients, unverifiable testimonials and generated headshots on team pages. Everything else here is a quality judgement where reasonable people differ and \"I used a tool\" is a complete defence. That one is different \u2014 not because you should accuse anyone, but because being specific about what is unverifiable is an edit, and \"an empty Trusted by section is better than a fabricated one\" happens to be true.",
+        "pick": lambda i: i.get("lane") == "provenance",
     },
     "dark-patterns-the-model-inherits.md": {
         "title": "Dark patterns the model inherits",
@@ -161,6 +168,43 @@ if orphans:
     print("Add a GROUPS rule that covers them, or fix the item's dialect/medium.",
           file=sys.stderr)
     sys.exit(1)
+
+# The fingerprint table is the script's, not a copy of it: importing it means a
+# string added to one is in the other, and neither can quietly go stale.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from humanize_review import FINGERPRINTS                      # noqa: E402
+
+fp_rows = {}
+for tool, tier, pat, what in FINGERPRINTS:
+    fp_rows.setdefault((tool, tier), []).append((what, pat))
+fp_doc = ["", "---", "", "## The greppable table",
+          "",
+          ("Every literal below was verified against a live production page or by code search "
+           "with a hit count. This table is generated from `FINGERPRINTS` in "
+           "`scripts/humanize_review.py`, which is what `--provenance` scans, so the two cannot "
+           "drift apart."),
+          "",
+          ("Tier A is a near-unique literal. Tier B is strong but shared or removable. Band your "
+           "confidence: three or more signals for one tool is a positive, two is probable, one "
+           "is a hint."),
+          "",
+          "| Tool | Tier | What it marks | Pattern |", "|---|---|---|---|"]
+for (tool, tier), rows in sorted(fp_rows.items(), key=lambda kv: (kv[0][1], kv[0][0].lower())):
+    for what, pat in rows:
+        esc = pat.replace("|", "\\|")
+        fp_doc.append(f"| {tool} | {tier} | {what} | `{esc}` |")
+fp_doc += ["",
+           ("**Two implementation warnings.** Attribute order is not stable \u2014 Webflow "
+            "ships `<meta content=\"Webflow\" name=\"generator\"/>` while others put `name` "
+            "first, so parse the tag rather than matching it whole. And never probe for leaked "
+            "agent files by HTTP status alone: `/CLAUDE.md`, `/AGENTS.md`, `/.cursorrules`, "
+            "`/.env` and `/package.json` all return 200 on single-page-app hosts, because they "
+            "serve `index.html` for every unknown path."),
+           ""]
+fp_path = REF / "tool-fingerprints.md"
+fp_path.write_text(fp_path.read_text(encoding="utf-8").rstrip("\n")
+                   + "\n" + "\n".join(fp_doc), encoding="utf-8")
+print(f"tool-fingerprints.md: + greppable table ({len(FINGERPRINTS)} patterns)")
 
 src_doc = ["# Sources", "",
            "Published catalogs, stylometry research, and essays the catalog draws on.",
