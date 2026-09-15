@@ -191,6 +191,50 @@ async function openToken(wrappingKeyHex: string, enc: string, iv: string): Promi
   }
 }
 
+export interface AccountGitHubCredential {
+  user: UserRow;
+  accessToken: string;
+  /** Browser-session row whose sealed credential was selected. */
+  sessionTokenHash: string;
+}
+
+/**
+ * Resolve the newest live browser-authorized GitHub credential for an account.
+ *
+ * This is the background half of a standing publisher grant: the workload
+ * names an operator-authored grant, Relay follows that row to the account, and
+ * only Relay opens the browser-sealed GitHub token. No browser cookie or pdu_
+ * bearer is accepted as workload authority. Equal newest timestamps are
+ * refused because Relay cannot prove which operator reconnect superseded which.
+ */
+export async function resolveLatestAccountGitHubCredential(
+  env: Env,
+  accountUserId: string,
+  now: number,
+): Promise<AccountGitHubCredential | null> {
+  if (!env.USER_TOKEN_WRAPPING_KEY) return null;
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL')
+    .bind(accountUserId).first<UserRow>();
+  if (!user) return null;
+  const rows = await env.DB.prepare(
+    `SELECT token_hash, gh_token_enc, gh_token_iv, created_at
+       FROM web_sessions
+      WHERE user_id = ? AND expires_at > ?
+        AND gh_token_enc IS NOT NULL AND gh_token_iv IS NOT NULL
+      ORDER BY created_at DESC, token_hash DESC LIMIT 2`,
+  ).bind(accountUserId, now).all<{
+    token_hash: string;
+    gh_token_enc: string;
+    gh_token_iv: string;
+    created_at: number;
+  }>();
+  const newest = rows.results[0];
+  if (!newest || (rows.results[1] && rows.results[1].created_at === newest.created_at)) return null;
+  const accessToken = await openToken(env.USER_TOKEN_WRAPPING_KEY, newest.gh_token_enc, newest.gh_token_iv);
+  if (!accessToken) return null;
+  return { user, accessToken, sessionTokenHash: newest.token_hash };
+}
+
 // ── Cookie helpers ────────────────────────────────────────────────────────────
 
 /** __Host- prefix REQUIRES Secure + Path=/ + no Domain; browsers reject otherwise. */

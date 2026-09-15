@@ -19,7 +19,6 @@ import {
   FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA,
   FLEETBOT_RECEIPT_SCHEMA,
   fleetbotIdempotencyPreimage,
-  fleetbotPublisherCapabilityPreimage,
   fleetbotMutationMarker,
   fleetbotReceiptId,
   fleetbotReceiptPreimage,
@@ -37,7 +36,7 @@ import {
   type FleetbotReceipt,
   type FleetbotTreeChange,
 } from '../../../lib/github-publisher-contract.js';
-import { fromHex, hashBytes, hashHex, pubKeyFromPrivKey, signEd25519, toHex, verifyEd25519 } from './crypto.js';
+import { hashHex, pubKeyFromPrivKey, signEd25519, toHex, verifyEd25519 } from './crypto.js';
 import {
   getGitHubAppIdentity,
   getRepoInstallationId,
@@ -46,21 +45,14 @@ import {
   type GitHubAppIdentity,
   type InstallationPermission,
 } from './github-app.js';
+import type { UserRow } from './db.js';
+import { resolveLatestAccountGitHubCredential } from './auth-github.js';
 import {
-  replaceUserTokenGitHubCredential,
-  resolveUserTokenReadOnly,
-  resolveUserTokenWithGitHubCredential,
-  type UserRow,
-} from './db.js';
-import {
-  githubCredentialNeedsRefresh,
-  githubTokenKeyring,
-  openGitHubUserCredential,
-  refreshGitHubUserCredential,
-  sealGitHubUserCredential,
-  type GitHubTokenWrappingEnvironment,
-  type GitHubUserCredential,
-} from './github-user-token.js';
+  authorizePublisherGrant,
+  PublisherGrantFailure,
+  readPublisherGrant,
+  type PublisherGrant,
+} from './publisher-grants.js';
 
 const GH_API = 'https://api.github.com';
 const GH_GRAPHQL = 'https://api.github.com/graphql';
@@ -77,9 +69,8 @@ const MAX_GITHUB_LIST_PAGES = 100;
 const CAPABILITY_MAX_TTL_SECONDS = 5 * 60;
 const CAPABILITY_CLOCK_SKEW_SECONDS = 30;
 const REF_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
-const PDU_RE = /^pdu_[0-9a-f]{64}$/i;
 
-type PublisherEnv = Env & GitHubTokenWrappingEnvironment;
+type PublisherEnv = Env;
 
 class PublisherFailure extends Error {
   constructor(
@@ -149,6 +140,8 @@ interface IntentKey {
   requestHash: string;
   operation: FleetbotOperation;
   authorship: FleetbotAuthorship;
+  grantId: string;
+  grantEpoch: number;
 }
 
 interface IntentRow {
@@ -157,20 +150,6 @@ interface IntentRow {
   receipt_json: string | null;
   updated_at: number;
   lease_fence: number;
-}
-
-interface IdentityAuthorityRow {
-  pub_key: string;
-  expires_at: number | null;
-  revoked: number;
-  key_generation: number;
-}
-
-interface CapabilityUseRow {
-  account_user_id: string;
-  account_token_hash: string;
-  request_hash: string;
-  idempotency_key: string;
 }
 
 interface PullRequestWitness {
@@ -403,13 +382,14 @@ function parseCapability(value: unknown, signature: unknown): {
   const row = record(value);
   const keys = row ? Object.keys(row).sort() : [];
   const expected = [
-    'accountTokenHash', 'baseBranch', 'baseSha', 'daemonFingerprint', 'expiresAt',
-    'headSha', 'issuedAt', 'nonce', 'operation', 'repository', 'requestHash',
-    'schema', 'sessionId', 'signingKeyGeneration',
+    'baseBranch', 'baseSha', 'daemonFingerprint', 'expiresAt', 'grantEpoch',
+    'grantId', 'headSha', 'issuedAt', 'nonce', 'operation', 'repository',
+    'requestHash', 'schema', 'sessionId', 'signingKeyGeneration',
   ].sort();
   if (!row || JSON.stringify(keys) !== JSON.stringify(expected)
       || row.schema !== FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA
-      || !/^[0-9a-f]{64}$/i.test(String(row.accountTokenHash))
+      || !/^pdg_[0-9a-f]{32}$/.test(String(row.grantId))
+      || !Number.isSafeInteger(row.grantEpoch) || (row.grantEpoch as number) < 1
       || !/^[0-9a-f]{64}$/i.test(String(row.daemonFingerprint))
       || !Number.isSafeInteger(row.signingKeyGeneration) || (row.signingKeyGeneration as number) < 1
       || !isSafePublisherIdentifier(row.sessionId)
@@ -504,12 +484,6 @@ async function readBoundedJson(request: Request): Promise<unknown> {
   }
 }
 
-function bearer(request: Request): string {
-  const match = request.headers.get('Authorization')?.match(/^Bearer\s+(pdu_[0-9a-f]{64})$/i);
-  if (!match || !PDU_RE.test(match[1]!)) failure('UNAUTHENTICATED', 401, 'a Port Daddy account login is required');
-  return match[1]!;
-}
-
 function configured(env: PublisherEnv): { appId: string; privateKey: string } {
   const appId = env.GITHUB_APP_ID?.trim();
   const privateKey = env.GITHUB_APP_PRIVATE_KEY;
@@ -519,69 +493,20 @@ function configured(env: PublisherEnv): { appId: string; privateKey: string } {
   return { appId, privateKey };
 }
 
-async function credentialForAccount(
-  env: PublisherEnv,
-  tokenHash: string,
-  now: number,
-): Promise<{ user: UserRow; credential: GitHubUserCredential }> {
-  const row = await resolveUserTokenWithGitHubCredential(env.DB, tokenHash, now);
-  if (!row) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'sign in again to authorize App publication');
-  const keyring = githubTokenKeyring(env);
-  const binding = { kind: 'device-token' as const, rowId: tokenHash, userId: row.user.id };
-  const opened = await openGitHubUserCredential(keyring, binding, {
-    enc: row.ghCredentialEnc,
-    iv: row.ghCredentialIv,
-    keyVersion: row.ghCredentialKeyVersion,
-  });
-  if (!opened) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'sign in again to authorize App publication');
-  let credential = opened.credential;
-  let needsReseal = opened.needsReseal;
-  if (githubCredentialNeedsRefresh(credential, now)) {
-    try {
-      credential = await refreshGitHubUserCredential(credential, {
-        clientId: env.GITHUB_OAUTH_CLIENT_ID ?? '',
-        clientSecret: env.GITHUB_OAUTH_CLIENT_SECRET,
-        now,
-      });
-      needsReseal = true;
-    } catch {
-      failure('PUBLISHER_REAUTH_REQUIRED', 401, 'GitHub authorization expired; sign in again');
-    }
-  }
-  if (needsReseal) {
-    const sealed = await sealGitHubUserCredential(keyring, binding, credential);
-    const replaced = await replaceUserTokenGitHubCredential(env.DB, {
-      tokenHash,
-      userId: row.user.id,
-      expectedEnc: row.ghCredentialEnc,
-      ghCredentialEnc: sealed.enc,
-      ghCredentialIv: sealed.iv,
-      ghCredentialKeyVersion: sealed.keyVersion,
-    });
-    if (!replaced) failure('CREDENTIAL_RACE', 409, 'GitHub authorization changed concurrently; retry from current account state');
-  }
-  return { user: row.user, credential };
-}
-
 function capabilityHead(operation: FleetbotOperation, payload: ParsedPayload): string {
   return operation === 'pull-request.publish'
     ? (payload as PublishPayload).sourceHeadSha
     : (payload as ExistingPayload).expectedGithubHeadSha;
 }
 
-async function verifyAndConsumeCapability(
-  env: PublisherEnv,
+function validateCapabilityScope(
   capability: FleetbotPublisherCapability,
-  signature: string,
   request: FleetbotActionRequest,
   payload: ParsedPayload,
   requestHash: string,
-  tokenHash: string,
-  accountUserId: string,
   now: number,
-): Promise<void> {
-  if (capability.accountTokenHash.toLowerCase() !== tokenHash
-      || capability.sessionId !== request.sessionId
+): void {
+  if (capability.sessionId !== request.sessionId
       || capability.sessionId !== request.authorship!.sessionId
       || capability.repository !== request.repository
       || capability.operation !== request.operation
@@ -596,53 +521,6 @@ async function verifyAndConsumeCapability(
       || capability.expiresAt <= capability.issuedAt
       || capability.expiresAt - capability.issuedAt > CAPABILITY_MAX_TTL_SECONDS) {
     failure('CAPABILITY_EXPIRED', 401, 'publisher capability is expired or outside its bounded lifetime');
-  }
-  const identity = await env.DB.prepare(
-    `SELECT pub_key, expires_at, revoked, key_generation
-       FROM identities WHERE daemon_fingerprint = ?`,
-  ).bind(capability.daemonFingerprint).first<IdentityAuthorityRow>();
-  const registeredFingerprint = identity && /^[0-9a-f]{64}$/i.test(identity.pub_key)
-    ? toHex(hashBytes(fromHex(identity.pub_key)))
-    : null;
-  if (!identity || identity.revoked !== 0
-      || (identity.expires_at !== null && identity.expires_at <= now)
-      || identity.key_generation !== capability.signingKeyGeneration
-      || registeredFingerprint !== capability.daemonFingerprint.toLowerCase()
-      || !(await verifyEd25519(
-        identity.pub_key,
-        hashHex(fleetbotPublisherCapabilityPreimage(capability)),
-        signature,
-      ))) {
-    failure('CAPABILITY_SIGNATURE_INVALID', 401, 'publisher capability is not signed by the live daemon identity');
-  }
-
-  await env.DB.prepare(
-    `INSERT OR IGNORE INTO github_publisher_capability_uses
-       (daemon_fingerprint, signing_key_generation, nonce, account_user_id,
-        account_token_hash, request_hash, idempotency_key, consumed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(
-    capability.daemonFingerprint,
-    capability.signingKeyGeneration,
-    capability.nonce,
-    accountUserId,
-    tokenHash,
-    requestHash,
-    request.idempotencyKey,
-    now,
-  ).run();
-  const use = await env.DB.prepare(
-    `SELECT account_user_id, account_token_hash, request_hash, idempotency_key
-       FROM github_publisher_capability_uses
-      WHERE daemon_fingerprint = ? AND signing_key_generation = ? AND nonce = ?`,
-  ).bind(
-    capability.daemonFingerprint,
-    capability.signingKeyGeneration,
-    capability.nonce,
-  ).first<CapabilityUseRow>();
-  if (!use || use.account_user_id !== accountUserId || use.account_token_hash !== tokenHash
-      || use.request_hash !== requestHash || use.idempotency_key !== request.idempotencyKey) {
-    failure('CAPABILITY_REPLAY', 409, 'publisher capability nonce was already consumed by another action');
   }
 }
 
@@ -776,6 +654,10 @@ async function parseStoredReceipt(env: PublisherEnv, raw: string | null, key: In
       || receipt.repository !== key.repository || receipt.accountUserId !== key.accountUserId
       || receipt.accountGithubUserId !== key.accountGithubUserId
       || receipt.operation !== key.operation || receipt.sessionId !== key.authorship.sessionId
+      || receipt.authorizedBy?.grantId !== key.grantId
+      || receipt.authorizedBy?.grantEpoch !== key.grantEpoch
+      || receipt.authorizedBy?.surface !== 'publisher'
+      || receipt.admission !== 'standing-publisher-grant'
       || receipt.tokenCleanup !== 'confirmed'
       || receipt.relayPublicKey !== pubKeyFromPrivKey(env.RELAY_ED25519_PRIVATE_KEY_HEX)
       || !/^[0-9a-f]{128}$/i.test(receipt.signature)
@@ -1505,17 +1387,35 @@ async function requireOwnedPullRequest(
   accountUserId: string,
   repository: string,
   pullRequestNumber: number,
-): Promise<void> {
+): Promise<string> {
   const rows = await env.DB.prepare(
-    `SELECT account_user_id
+    `SELECT account_user_id, published_branch
        FROM github_publisher_intents
       WHERE repository = ? AND resource_number = ? AND state = 'succeeded'
         AND operation = 'pull-request.publish'
       ORDER BY updated_at ASC LIMIT 2`,
-  ).bind(repository, pullRequestNumber).all<{ account_user_id: string }>();
-  if (rows.results.length !== 1 || rows.results[0]?.account_user_id !== accountUserId) {
+  ).bind(repository, pullRequestNumber).all<{ account_user_id: string; published_branch: string | null }>();
+  if (rows.results.length !== 1 || rows.results[0]?.account_user_id !== accountUserId
+      || !rows.results[0]?.published_branch) {
     failure('PULL_REQUEST_NOT_OWNED', 403, 'this account has no unique governed publication receipt for the pull request');
   }
+  return rows.results[0].published_branch;
+}
+
+async function publisherHeadBranch(
+  env: PublisherEnv,
+  action: FleetbotActionRequest,
+  payload: ParsedPayload,
+  accountUserId: string,
+): Promise<string | null> {
+  if (action.operation === 'pull-request.publish') return expectedBranch(action, accountUserId);
+  if (action.operation === 'pull-request.inspect') return null;
+  return requireOwnedPullRequest(
+    env,
+    accountUserId,
+    action.repository,
+    (payload as ExistingPayload).pullRequestNumber,
+  );
 }
 
 async function signedReceipt(
@@ -1526,6 +1426,7 @@ async function signedReceipt(
   cleanup: FleetbotReceipt['tokenCleanup'],
   now: number,
   app: GitHubAppIdentity,
+  grant: PublisherGrant,
 ): Promise<FleetbotReceipt> {
   const unsigned: Omit<FleetbotReceipt, 'signature'> = {
     schema: FLEETBOT_RECEIPT_SCHEMA,
@@ -1537,6 +1438,8 @@ async function signedReceipt(
     idempotencyKey: request.idempotencyKey!,
     accountUserId: user.id,
     accountGithubUserId: user.github_user_id,
+    authorizedBy: { grantId: grant.grantId, grantEpoch: grant.epoch, surface: 'publisher' },
+    admission: 'standing-publisher-grant',
     actorId: request.authorship!.actorId,
     agentId: request.authorship!.agentId,
     sessionId: request.authorship!.sessionId,
@@ -1567,9 +1470,9 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
   let appToken: string | null = null;
   let mutationAttempted = false;
   let executionResult: ExecutionResult | undefined;
+  let admittedGrant: PublisherGrant | null = null;
   try {
     if (request.method !== 'POST') failure('METHOD_NOT_ALLOWED', 405, 'publisher accepts POST only');
-    const rawToken = bearer(request);
     const parsedBody = await readBoundedJson(request);
     const {
       request: action,
@@ -1580,24 +1483,10 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     } = parseRequest(parsedBody);
     const config = configured(env);
     const now = Math.floor(Date.now() / 1000);
-    const tokenHash = hashHex(rawToken);
-    const accountAuthority = await resolveUserTokenReadOnly(env.DB, tokenHash, now);
-    if (!accountAuthority) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'sign in again to authorize App publication');
-    await verifyAndConsumeCapability(
-      env,
-      capability,
-      capabilitySignature,
-      action,
-      payload,
-      requestHash,
-      tokenHash,
-      accountAuthority.id,
-      now,
-    );
-    const account = await credentialForAccount(env, tokenHash, now);
-    if (account.user.id !== accountAuthority.id) {
-      failure('CREDENTIAL_RACE', 409, 'account authority changed during publisher admission');
-    }
+    validateCapabilityScope(capability, action, payload, requestHash, now);
+    const grantSnapshot = await readPublisherGrant(env.DB, capability.grantId, now);
+    const account = await resolveLatestAccountGitHubCredential(env, grantSnapshot.accountUserId, now);
+    if (!account) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'the granting account must reconnect GitHub');
     const [owner, repo] = action.repository.split('/') as [string, string];
     const installationId = await getRepoInstallationId(config.appId, config.privateKey, owner, repo, env.KV, true);
     await authorizeExactRepository(
@@ -1606,6 +1495,21 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
       account.credential.accessToken,
       repositoryAccessFor(action.operation),
     );
+    const headBranch = await publisherHeadBranch(env, action, payload, account.user.id);
+    admittedGrant = await authorizePublisherGrant(env.DB, {
+      capability,
+      capabilitySignature,
+      requestHash,
+      idempotencyKey: action.idempotencyKey!,
+      repository: action.repository,
+      operation: action.operation,
+      baseBranch: (payload as CommonPayload).baseBranch,
+      headBranch,
+      sessionId: action.sessionId,
+      installationId,
+      isMutation: action.operation !== 'pull-request.inspect',
+      now,
+    });
     key = {
       accountUserId: account.user.id,
       accountGithubUserId: account.user.github_user_id,
@@ -1616,15 +1520,9 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
       requestHash,
       operation: action.operation,
       authorship: action.authorship!,
+      grantId: admittedGrant.grantId,
+      grantEpoch: admittedGrant.epoch,
     };
-    if (action.operation !== 'pull-request.publish') {
-      await requireOwnedPullRequest(
-        env,
-        account.user.id,
-        action.repository,
-        (payload as ExistingPayload).pullRequestNumber,
-      );
-    }
     const reservation = await reserveIntent(env, key, now);
     if ('reused' in reservation) return json(200, { code: 'OK', receipt: reservation.reused });
     leaseFence = reservation.fence;
@@ -1642,7 +1540,9 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     executionResult = await execute(action, payload, appToken, app, account.user.id, () => { mutationAttempted = true; });
     const cleanup = await revokeInstallationToken(appToken);
     appToken = null;
-    const receipt = await signedReceipt(env, action, account.user, executionResult, cleanup ? 'confirmed' : 'unconfirmed', now, app);
+    const receipt = await signedReceipt(
+      env, action, account.user, executionResult, cleanup ? 'confirmed' : 'unconfirmed', now, app, admittedGrant,
+    );
     if (!cleanup) {
       await finishIntent(env, key, leaseFence, 'ambiguous', now, {
         result: executionResult,
@@ -1661,7 +1561,9 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     const cleanupConfirmed = appToken ? await revokeInstallationToken(appToken) : true;
     const known = error instanceof PublisherFailure
       ? error
-      : new PublisherFailure('PUBLISHER_FAILED', 500, 'publisher failed without exposing credential or transport details');
+      : error instanceof PublisherGrantFailure
+        ? new PublisherFailure(error.code, error.status, error.message)
+        : new PublisherFailure('PUBLISHER_FAILED', 500, 'publisher failed without exposing credential or transport details');
     if (key && leaseFence !== null) {
       try {
         await finishIntent(
@@ -1682,7 +1584,8 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
 export const __fleetbotPublisherTest = {
   parseRequest,
   readBoundedJson,
-  verifyAndConsumeCapability,
+  validateCapabilityScope,
+  publisherHeadBranch,
   reserveIntent,
   finishIntent,
   listAllPages,
