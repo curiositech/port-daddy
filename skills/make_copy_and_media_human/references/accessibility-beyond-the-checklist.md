@@ -569,6 +569,8 @@ The format rule exists only as placeholder text, which vanishes the moment the u
 
 **Detect:** Static: flag placeholders longer than about fifteen characters, or containing format tokens or digits, where the input has no aria-describedby and no sibling hint element. Also flag placeholders identical to the label — pure redundancy, and a low-contrast grey duplicate.
 
+**Thresholds** (read by `scripts/humanize_review.py`): `min_chars` = 16
+
 **Fix:** A persistent hint element between label and input, wired with aria-describedby. Keep the placeholder only for a genuine example value, and accept that it may still be invisible to low-vision users at typical placeholder contrast.
 
 **False positive when:** Search fields whose placeholder duplicates a visually hidden label and carries no instruction are conventional and fine. Single-character placeholders and pure example values alongside a real hint are fine. And the reverse over-correction is real: a hint repeating the label verbatim adds announcement noise without adding information.
@@ -609,6 +611,8 @@ Three <nav> elements — primary, breadcrumb, footer — all announcing as "navi
 
 **Detect:** Static, cheap, and genuinely uncatchable by automation: normalise every link's accessible name, count duplicates, and flag any name appearing three or more times with DIFFERENT destinations, plus a stoplist (learn more, read more, click here, more, details, here, see more, view). Judge for the harder half: read the link texts with no other context — for each, can you tell where it goes?
 
+**Thresholds** (read by `scripts/humanize_review.py`): `min_repeats` = 3
+
 **Fix:** Make the link text the destination. If the design demands a uniform "Learn more", wrap the card HEADING in the link and make the rest of the card clickable with a pseudo-element overlay — do not paper over it with aria-label, which then breaks Label in Name.
 
 **False positive when:** Repeated identical links that genuinely go to the SAME place — a logo in header and footer — are fine and are excluded by the differing-destination condition. Pagination and breadcrumbs are correct as-is. Icon links with aria-label are a different finding.
@@ -648,6 +652,8 @@ Not MISSING alt — alt that is present, fluent, forty words long, and describes
 **Why it reads AI:** Genuinely model-flavoured, and one of the few tells here that is nearly diagnostic. A vision model DESCRIBES an image; alt text NAMES ITS FUNCTION. The gap between those is exactly the gap between a generated description and an authored one, and the "diverse team collaborating in a bright modern office" register is unmistakable.
 
 **Detect:** Static thresholds plus judge. Static: flag alt over about 125 characters; flag alt beginning "image of", "picture of", "photo of", "graphic of", "screenshot of", "an illustration of"; flag alt inside a link that duplicates the adjacent link text. Judge: does the alt convey what the image is FOR in this context, or does it describe the pixels — and should the image be decorative instead?
+
+**Thresholds** (read by `scripts/humanize_review.py`): `max_chars` = 125
 
 **Fix:** Ask what the image is doing. Decorative gets an empty alt. Functional — an icon in a link — names the destination, not the glyph. Informative gets the shortest sentence carrying what the sighted reader gets. If the image is described in adjacent text, empty alt. Never start with "image of"; the screen reader already said "graphic".
 

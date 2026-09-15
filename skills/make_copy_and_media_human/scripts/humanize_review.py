@@ -189,6 +189,24 @@ DEFAULT_THRESHOLDS = {
     "exclamation-in-system-strings": {"max_rate": 0.083},
     "emoji-in-system-status-strings": {"min_count": 1},
     "unresolved-token-in-ui-string": {"min_count": 1},
+    "global-line-height-never-scaled": {"min_display_rem": 2.0},
+    "line-height-in-fixed-units": {"min_count": 1},
+    "heading-space-symmetric": {"tolerance": 0.2},
+    "no-balance-on-headings": {"min_display_rem": 2.0},
+    "proportional-figures-in-data-tables": {"min_count": 1},
+    "live-numbers-without-tabular-nums": {"min_count": 1},
+    "type-scale-step-inflation": {"max_sizes": 9},
+    "type-scale-with-no-ratio": {"max_ratio_spread": 1.4},
+    "off-scale-one-off-sizes": {"min_count": 1},
+    "root-font-size-locked-in-px": {"min_count": 1},
+    "opsz-axis-unused": {"min_count": 1},
+    "faux-bold-from-missing-weight": {"min_count": 1},
+    "two-weights-five-jobs": {"min_roles": 5},
+    "pure-black-on-pure-white": {"min_count": 1},
+    "opacity-as-text-hierarchy": {"min_count": 1},
+    "text-colour-proliferation": {"max_colors": 8},
+    "semantic-layer-bypassed": {"min_primitives": 5},
+    "dark-mode-by-inversion": {"min_count": 1},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -1555,7 +1573,14 @@ REPO_TOKEN = re.compile(
     r"|(?:\b[A-Z]{2,6}-\d{1,6}\b)"                                    # ABC-123
     r"|(?:\b(?:feat|fix|chore|refactor)/[\w.-]+\b)")                   # branch names
 
-DEF_HINT = r"(?:\s*\(|,\s*(?:which|a|an|the)\b|\s*:\s|\s+is\s+(?:a|an|the|our|" \
+# The leading `?` matters more than it looks: a term of art is almost always
+# code-formatted, so the definition that follows it is separated from it by a
+# closing backtick. Without that, this check reported "never defined" on writing
+# that had defined the term in the very next clause. The dash alternative is the
+# other common appositive form and was missing outright.
+DEF_HINT = r"`?(?:\s*\(|,\s*(?:which|a|an|the)\b|\s*:\s" \
+           r"|\s*[\u2014\u2013]\s*(?:which|a|an|the|one|it|and|but)\b" \
+           r"|\s+is\s+(?:a|an|the|our|" \
            r"what|how|when)\b|\s+are\s+(?:a|an|the|our)\b|\s+refers?\s+to\b|" \
            r"\s+means\b|\s+stands\s+for\b|\s+covers?\b|\s+denotes?\b|" \
            r"\s+describes?\b)"
@@ -2677,7 +2702,11 @@ def analyze_web_build(path, text):
             "Name.",
             family="shape"))
 
-    if re.search(r"<table\b", low) and not re.search(r"<th\b", low):
+    # A layout table marked role="presentation" is explicitly NOT a data table
+    # -- it is the correct shape for an email template, and demanding headers of
+    # it is the opposite of the advice.
+    if re.search(r"<table\b", low) and not re.search(r"<th\b", low) \
+       and not re.search(r'<table\b[^>]*role=["\']presentation', low):
         out.append(finding(
             path, first(r"<table\b"), "a <table> with no header cells",
             "data-rendered-as-divs-with-no-header-association", "medium",
@@ -2781,6 +2810,398 @@ def analyze_web_build(path, text):
             "businesses after they bought a widget and were sued anyway. A preference panel you "
             "built yourself is not an overlay and is often genuinely good.",
             family="residue"))
+
+
+    # ================ typographic craft: one value, no function ================
+    # Every check here is the same computation: does this property vary with the
+    # thing it is supposed to vary with? The tell is never a wrong value -- any
+    # number here is defensible somewhere -- it is ONE VALUE WHERE THERE SHOULD
+    # HAVE BEEN A FUNCTION OF CONTEXT.
+    #
+    # The standing caution: utility frameworks bundle a tightening line-height
+    # into their size scale, so a page with no explicit line-height anywhere is
+    # usually CORRECT. These checks fire on explicit declarations only.
+
+    lh_all = re.findall(r"line-height\s*:\s*([^;}\s]+)", low)
+    lh_root = re.search(r"(?:^|[,{}\s])(?:body|:root|html|\*)\s*\{[^}]*line-height\s*:"
+                        r"\s*([\d.]+(?:px|rem|em|%)?)\s*[;}]", low)
+    head_sizes = [float(m) for m in
+                  re.findall(r"h[1-3][^{}]*\{[^}]*font-size\s*:\s*([\d.]+)rem", low)]
+    head_sizes += [float(m) / 16 for m in
+                   re.findall(r"h[1-3][^{}]*\{[^}]*font-size\s*:\s*([\d.]+)px", low)]
+    head_lh = re.search(r"h[1-6][^{}]*\{[^}]*line-height", low) \
+        or re.search(r"\.(?:display|hero|headline)[^{}]*\{[^}]*line-height", low)
+    if lh_root and head_sizes and max(head_sizes) >= 2.0 and not head_lh:
+        out.append(finding(
+            path, first(r"line-height"),
+            f"one line-height ({lh_root.group(1)}) inherited by a "
+            f"{max(head_sizes):.1f}rem heading",
+            "global-line-height-never-scaled", "high",
+            "Leading is a function of typeface, size AND measure, and this sheet made one "
+            "decision. At 16px, 1.6 is the gap that lets the eye find the next line across a "
+            "68-character measure; at 64px with four words per line it is a hundred pixels of "
+            "air between two halves of one sentence, and the headline reads as two unrelated "
+            "lines.",
+            "Tighten with size. The compact answer is one calc — :is(h1,h2,h3,h4) "
+            "{ line-height: calc(1em + 0.35rem) } — because absolute leading grows while "
+            "the RATIO shrinks, which is what the tradition describes and what the utility "
+            "frameworks already implement.",
+            family="defect"))
+
+    lh_len = re.search(r"(?:body|:root|html|\*)\s*\{[^}]*line-height\s*:\s*[\d.]+(?:px|rem|em|pt|%)",
+                       low)
+    if lh_len:
+        out.append(finding(
+            path, first(r"line-height\s*:\s*[\d.]+(px|rem|em|pt|%)"),
+            "line-height set as a length on an inherited selector",
+            "line-height-in-fixed-units", "medium",
+            "A length inherits as a COMPUTED LENGTH, so every descendant with a different "
+            "font-size gets the parent's absolute leading rather than a proportional one "
+            "— 12px small print inside a card inherits 24px leading, a ratio of 2.0. This "
+            "is what you get when a generator transcribes a design tool's inspect panel, which "
+            "reports line-height in px. Note em and % carry the same bug; only unitless "
+            "inherits as a ratio.",
+            "Use a unitless multiplier. Lengths only where you are deliberately pinning to a "
+            "baseline grid and have set font-size on the same rule.",
+            family="defect"))
+
+    def _vertical_margins(decl):
+        """Top and bottom from a margin declaration, or None.
+
+        The shorthand is the trap: `margin: A B` is VERTICAL then HORIZONTAL, so
+        it sets top and bottom to the same value -- it is the symmetric case, not
+        an asymmetric one. Three and four values put bottom third. `margin-block`
+        is start then end, which really is top then bottom.
+        """
+        m = re.search(r"margin-block\s*:\s*([^;}]+)", decl)
+        if m:
+            parts = m.group(1).split()
+            if len(parts) == 1:
+                return parts[0], parts[0]
+            if len(parts) >= 2:
+                return parts[0], parts[1]
+        mt = re.search(r"margin-top\s*:\s*([^;}\s]+)", decl)
+        mb = re.search(r"margin-bottom\s*:\s*([^;}\s]+)", decl)
+        if mt and mb:
+            return mt.group(1), mb.group(1)
+        m = re.search(r"(?<!-)\bmargin\s*:\s*([^;}]+)", decl)
+        if m:
+            parts = m.group(1).split()
+            if len(parts) in (1, 2):
+                return parts[0], parts[0]          # top == bottom
+            if len(parts) in (3, 4):
+                return parts[0], parts[2]
+        return None
+
+    def _px(v):
+        m = re.match(r"([\d.]+)(rem|em|px)?$", v)
+        if not m:
+            return None
+        n = float(m.group(1))
+        return n * 16 if m.group(2) in ("rem", "em") else n
+
+    for m in re.finditer(r"\bh[1-6][^{}]*\{([^}]*)\}", low):
+        vm = _vertical_margins(m.group(1))
+        if not vm:
+            continue
+        top, bot = _px(vm[0]), _px(vm[1])
+        if top is None or bot is None or top <= 0:
+            continue
+        if abs(top - bot) <= top * th("heading-space-symmetric", "tolerance", 0.2):
+            out.append(finding(
+                path, text[:m.start()].count("\n") + 1,
+                f"heading with symmetric vertical space ({vm[0]} above, {vm[1]} below)",
+                "heading-space-symmetric", "high",
+                "The heading floats between the section it ends and the section it starts, "
+                "belonging to neither. Proximity is the only grouping cue prose has: a heading "
+                "is a LABEL FOR WHAT FOLLOWS, so the gap below must be visibly smaller than the "
+                "gap above. Symmetry is what looks even when you are not reading, and what looks "
+                "wrong the moment you are.",
+                "Roughly twice the space above as below, set on the heading so it travels with "
+                "the element: margin-block: 3rem 1rem. Note margin: 2rem 0 is NOT the fix "
+                "— the two-value shorthand is vertical then horizontal, so it sets top and "
+                "bottom to the same value.",
+                family="defect"))
+            break
+
+    # ---- line breaking: the thing a person always hand-fixes and a generator never sees
+    if head_sizes and max(head_sizes) >= 2.0 and "text-wrap" not in low \
+       and not re.search(r"<br\s*/?>|&nbsp;", text, re.I):
+        out.append(finding(
+            path, first(r"h1|font-size"),
+            f"no text-wrap handling on a {max(head_sizes):.1f}rem heading",
+            "no-balance-on-headings", "high",
+            "Multi-line headlines break wherever the line box runs out — one word alone on "
+            "line two, an article separated from its noun — and somewhere different at "
+            "every viewport width. A headline is the one piece of type a person always "
+            "hand-breaks; generated CSS never touches line breaking, because breaking is a "
+            "rendered-output concern and the generator only ever produced source.",
+            "text-wrap: balance on headings. One declaration, degrades to nothing where "
+            "unsupported, and capped at a few lines by design, which is why it belongs on "
+            "headings rather than paragraphs. Hand-breaking with explicit markup is the stronger "
+            "answer and is not this finding.",
+            family="defect"))
+
+    # ---- numerals
+    if re.search(r"<t[dh]\b[^>]*>\s*[\$£€]?[\d,]+(?:\.\d+)?\s*%?\s*</t[dh]>", text) \
+       and "tabular-nums" not in low and "monospace" not in low:
+        out.append(finding(
+            path, first(r"<table|<td"),
+            "a table of numbers with no tabular figures",
+            "proportional-figures-in-data-tables", "high",
+            "In a proportional-figure face the ones are narrow and the zeros are wide, so no "
+            "column of numbers aligns and currency visibly wanders. Tabular figures are the "
+            "single most consequential OpenType feature on the web and cost one declaration; a "
+            "generator does not use them because it has never compared two rows. Invisible in a "
+            "one-row example and glaring in a twelve-row table — the shape of a thing "
+            "verified against a stub.",
+            "font-variant-numeric: tabular-nums on the table, or on a numeric-cell class. Note "
+            "it is correctly a no-op on faces with no tabular set, and that proportional figures "
+            "are RIGHT for numbers in running prose.",
+            family="defect"))
+
+    if re.search(r"counter|timer|clock|countdown|elapsed|\bstat\b", low) \
+       and re.search(r"setInterval|requestAnimationFrame", text) \
+       and "tabular-nums" not in low and "monospace" not in low:
+        out.append(finding(
+            path, first(r"setInterval|counter|timer|clock"),
+            "a live-updating number with no tabular figures",
+            "live-numbers-without-tabular-nums", "medium",
+            "The digits change width as they change, so the element jitters left and right every "
+            "tick. It only manifests in MOTION, and everything a generator verifies is static "
+            "— so the whole class of motion-visible typographic defects survives to "
+            "production. Finding one predicts the rest of the class.",
+            "font-variant-numeric: tabular-nums on the element, or a monospace face for the "
+            "digits.",
+            family="defect"))
+
+    # ---- the scale
+    sizes = set()
+    for m in re.finditer(r"font-size\s*:\s*([\d.]+)(px|rem)", low):
+        v = float(m.group(1)) * (16 if m.group(2) == "rem" else 1)
+        if 8 <= v <= 200:
+            sizes.add(round(v, 1))
+    for m in re.finditer(r"\btext-\[([\d.]+)(px|rem)\]", low):
+        v = float(m.group(1)) * (16 if m.group(2) == "rem" else 1)
+        if 8 <= v <= 200:
+            sizes.add(round(v, 1))
+    if len(sizes) >= th("type-scale-step-inflation", "max_sizes", 9):
+        ss = sorted(sizes)
+        close = [(a, b) for a, b in zip(ss, ss[1:]) if b - a <= 1.5]
+        out.append(finding(
+            path, first(r"font-size"),
+            f"{len(sizes)} distinct font sizes"
+            + (f", {len(close)} pair(s) under 1.5px apart" if close else ""),
+            "type-scale-step-inflation", "medium",
+            "Each component was sized in isolation, so the page ACCUMULATES sizes rather than "
+            "choosing them. Two sizes a pixel apart carry no information and cost the reader a "
+            "comparison. A designed page usually runs five to seven sizes and can name what each "
+            "one is FOR.",
+            "Collapse to five to seven steps and give each a role rather than a number: caption, "
+            "body, lead, section, page, display.",
+            family="shape"))
+    elif len(sizes) >= 4:
+        ss = sorted(sizes)
+        ratios = [b / a for a, b in zip(ss, ss[1:]) if a]
+        if ratios and max(ratios) / min(ratios) >= th("type-scale-with-no-ratio",
+                                                      "max_ratio_spread", 2.0):
+            out.append(finding(
+                path, first(r"font-size"),
+                f"{len(sizes)} font sizes with no consistent step "
+                f"(ratios {min(ratios):.2f}–{max(ratios):.2f})",
+                "type-scale-with-no-ratio", "high",
+                "A type scale is a RULE; what this page has is a LIST. Each size was chosen to "
+                "make one component look right, so the set encodes no relationship and hierarchy "
+                "degrades into bigger and biggest.",
+                "Pick a base and a ratio, generate the scale, emit it as tokens, and forbid "
+                "off-scale sizes. Analyse a dense UI scale and an editorial display scale "
+                "separately — a mixed set fails a check it should pass.",
+                family="shape"))
+
+    arb = re.findall(r"\btext-\[[\d.]+(?:px|rem)\]", low)
+    if arb and re.search(r"--text-|\btext-(?:xs|sm|base|lg|xl|2xl)\b", low):
+        out.append(finding(
+            path, first(r"text-\[[\d.]+(px|rem)\]"),
+            f"{len(arb)} arbitrary font size(s) beside a declared scale",
+            "off-scale-one-off-sizes", "medium",
+            "The CO-OCCURRENCE is the diagnostic pair: a scale exists in the stylesheet and is "
+            "not what the page is using. The generator builds each component as a self-contained "
+            "unit and sizes its text by eye against that unit — the same shape as a "
+            "semantic token layer being bypassed.",
+            "Delete every arbitrary size and snap to the nearest step. If a component genuinely "
+            "needs a size between two steps, that is evidence THE SCALE IS WRONG — fix the "
+            "scale once, not the component.",
+            family="residue"))
+
+    if re.search(r"(?:^|[,{}\s])(?:html|:root)\s*\{[^}]*font-size\s*:\s*\d+px", low):
+        out.append(finding(
+            path, first(r"(html|:root)[^{]*\{[^}]*font-size"),
+            "a pixel font-size on the root element",
+            "root-font-size-locked-in-px", "high",
+            "This overrides the reader's browser font-size preference, so every rem on the page "
+            "is anchored to a number the author chose instead of the one the reader chose. The "
+            "cost is invisible to anyone with default settings — which is everyone who "
+            "builds the page, and not the substantial share of readers who have raised theirs.",
+            "Leave the root alone and size everything in rem. If you want the 10px convenience, "
+            "use a percentage, which is a proportion of the READER'S size. Note modern browsers "
+            "do still zoom px text — this is a preference-override finding, not a zoom "
+            "one.",
+            family="defect"))
+
+    # ---- weight and optical size
+    if re.search(r"font-variation-settings\s*:\s*[\"'][^\"']*wght", low) \
+       and "font-optical-sizing" not in low:
+        out.append(finding(
+            path, first(r"font-variation-settings"),
+            "weight set through font-variation-settings, which disables optical sizing",
+            "opsz-axis-unused", "medium",
+            "An unusually crisp static check. font-optical-sizing: auto is the INITIAL value, so "
+            "the axis normally works by default — but font-variation-settings is the "
+            "low-level property and resets it to have no effect. So a generator sets weight "
+            "through the wrong property and silently disables optical sizing as a side effect, "
+            "and the 14px caption and the 96px hero are drawn with identical stems and "
+            "apertures.",
+            "Set weight with font-weight and leave optical sizing on. Reach for "
+            "font-variation-settings only for axes with no high-level equivalent.",
+            family="defect"))
+
+    gf = re.search(r"fonts\.googleapis\.com/css2\?[^\"'\s>]*", text)
+    if gf:
+        declared = {int(w) for w in re.findall(r"wght@([\d;.,]+)", gf.group(0))
+                    for w in re.split(r"[;,]", w) if w.isdigit()}
+        declared |= {int(w) for w in re.findall(r"(?<![\d.])([1-9]00)(?![\d.])", gf.group(0))}
+        used = {int(w) for w in re.findall(r"font-weight\s*:\s*([1-9]00)\b", low)}
+        used |= {700 if b == "bold" else 400
+                 for b in re.findall(r"font-weight\s*:\s*(bold|normal)\b", low)}
+        missing = sorted(w for w in used if declared and w not in declared)
+        if missing:
+            out.append(finding(
+                path, text[:gf.start()].count("\n") + 1,
+                f"CSS uses font-weight {', '.join(map(str, missing))}; the font request declares "
+                f"only {', '.join(map(str, sorted(declared)))}",
+                "faux-bold-from-missing-weight", "high",
+                "The browser smears the loaded weight wider to fake the missing one. Letterfit "
+                "widens, counters fill in, and the type looks blurry without anyone being able "
+                "to say why. The font loader and the stylesheet were produced by different "
+                "passes and nothing reconciles them — and it renders \"fine\", which is the "
+                "whole problem.",
+                "Load the weights you use. Adding font-synthesis: none WITHOUT first loading the "
+                "missing weights makes the page look worse, so fix the loading first.",
+                family="defect"))
+
+    weights = {m for m in re.findall(r"font-weight\s*:\s*([1-9]00|bold|normal)\b", low)}
+    weights |= {m for m in re.findall(r"\bfont-(?:thin|light|normal|medium|semibold|bold|"
+                                      r"extrabold|black)\b", low)}
+    text_roles = len(re.findall(r"<h[1-6]\b|<button\b|<label\b|<th\b|<caption\b", low))
+    # Zero declared weights is not this finding: the page is on framework or
+    # browser defaults and the check has nothing to say about it. The defect is
+    # having made a weight decision and made only one or two of them.
+    if 1 <= len(weights) <= 2 and text_roles >= th("two-weights-five-jobs", "min_roles", 5) \
+       and "font-variation-settings" not in low:
+        out.append(finding(
+            path, first(r"font-weight|font-(semibold|bold|medium)"),
+            f"{len(weights)} font weight(s) carrying {text_roles} distinct text roles",
+            "two-weights-five-jobs", "medium",
+            "The semibold utility is the default \"this is important\", so it gets applied to "
+            "everything important — which means nothing is. Weight is one of the four axes "
+            "of hierarchy (size, weight, colour, space), and a page using two values of it has "
+            "thrown away most of an axis and compensates with size, which is why scale inflation "
+            "usually travels with this.",
+            "Assign weights to roles and skip a step so the contrast reads as intentional: 400 "
+            "body, 500 UI labels, 700 section headings, 800 display. Restraint is not the "
+            "finding — two weights PLUS no other axis carrying the hierarchy is.",
+            family="shape"))
+
+    # ---- colour of type
+    if re.search(r"color\s*:\s*(?:#000(?:000)?|black|rgb\(0,\s*0,\s*0\))\b", low) \
+       and re.search(r"background(?:-color)?\s*:\s*(?:#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))",
+                     low):
+        out.append(finding(
+            path, first(r"color\s*:\s*(#000|black)"),
+            "pure black on pure white",
+            "pure-black-on-pure-white", "medium",
+            "Maximum contrast, which is not the same as maximum readability — the halation "
+            "makes the type appear to glow and long-form reading is measurably harder. These are "
+            "the two values you reach for when you have not thought about colour at all, and "
+            "they are also what a contrast checker rewards, so the defect survives an automated "
+            "accessibility pass with a perfect score. A check passed, a judgement skipped.",
+            "Back off a little at both ends — a very dark grey on a very slightly warm "
+            "white — staying well above the contrast minimum. This is a TASTE finding: "
+            "never report it as a contrast failure, and never apply it to high-contrast modes, "
+            "e-ink or print.",
+            family="shape"))
+
+    alpha_text = re.findall(r"\btext-(?:white|black|gray-\d+|slate-\d+|zinc-\d+)/\d{1,2}\b", low)
+    alpha_text += re.findall(r"color\s*:\s*rgba\([^)]*,\s*0?\.\d+\s*\)", low)
+    if alpha_text and not re.search(r"--(?:text-)?muted|--muted-foreground|--text-secondary", low):
+        out.append(finding(
+            path, first(r"text-\w+/\d|color\s*:\s*rgba"),
+            f"{len(alpha_text)} text colour(s) expressed as alpha, with no muted token defined",
+            "opacity-as-text-hierarchy", "high",
+            "The alpha utility is one token shorter than defining a real muted colour, so it is "
+            "what gets reached for. Three consequences: the value means something different on "
+            "every surface it lands on, contrast is uncheckable without resolving the stack, and "
+            "opacity on a container fades the borders, icons and focus rings inside it too. This "
+            "is the structural cause behind a large share of contrast failures on generated "
+            "pages, and patching them element by element never fixes it.",
+            "Resolve alpha at authoring time into solid role tokens, one per surface, and "
+            "contrast-check each once. Transitions and decorative scrims are correctly alpha and "
+            "are not this finding.",
+            family="defect"))
+
+    text_colors = set(re.findall(r"color\s*:\s*(#[0-9a-f]{6}|#[0-9a-f]{3})\b", low))
+    if len(text_colors) >= th("text-colour-proliferation", "max_colors", 8) \
+       and not re.search(r"<pre\b|hljs|shiki|prism", low):
+        out.append(finding(
+            path, first(r"color\s*:\s*#"),
+            f"{len(text_colors)} distinct text colours",
+            "text-colour-proliferation", "medium",
+            "Each component chose its own grey, and the greys came from whichever example was "
+            "nearest to hand. A designed page has three or four text colours and can say what "
+            "each one is FOR. The near-duplicate pairs are the signature — nobody picks two "
+            "greys that close for two different things on purpose.",
+            "Three or four roles on one ramp: primary, secondary, muted, and one for links. "
+            "Count status colours separately, because those are roles rather than "
+            "proliferation, and measure each theme on its own.",
+            family="shape"))
+
+    # ---- design-system structure
+    semantic = re.findall(r"--(?:background|foreground|muted|border|ring|destructive|accent|"
+                          r"card|popover|primary|secondary)(?:-foreground)?\s*:", low)
+    primitives = re.findall(r"\b(?:text|bg|border)-(?:gray|zinc|slate|neutral|stone)-\d{2,3}\b",
+                            low)
+    if semantic and len(primitives) >= th("semantic-layer-bypassed", "min_primitives", 5):
+        out.append(finding(
+            path, first(r"\b(text|bg|border)-(gray|zinc|slate|neutral|stone)-\d"),
+            f"{len(semantic)} semantic token(s) defined and {len(primitives)} raw primitive "
+            f"utilities used alongside them",
+            "semantic-layer-bypassed", "high",
+            "Two colour systems, neither authoritative, drifting apart. Components are generated "
+            "one at a time, each self-contained, each reaching for whatever utility is nearest "
+            "— and the token file was generated in a different pass. A scaffold gives you "
+            "the semantic layer for free, so its PRESENCE proves nothing; only its USE does. "
+            "That mismatch is one of the highest-precision structural tells available, because "
+            "a person who bothered to write the token file would have used it.",
+            "Map every primitive utility to its role, replace, and forbid the primitives at lint "
+            "time. Data-visualisation and syntax-highlighting palettes legitimately use "
+            "primitives and are not this finding.",
+            family="residue"))
+
+    if re.search(r"filter\s*:\s*invert\(\s*1|filter\s*:\s*invert\(\s*100%", low) \
+       and re.search(r"\bdark\b|prefers-color-scheme", low):
+        out.append(finding(
+            path, first(r"filter\s*:\s*invert"),
+            "dark mode produced by inverting the light theme",
+            "dark-mode-by-inversion", "high",
+            "Inversion is an ALGORITHM, which is precisely what a generator can do and a "
+            "designer cannot accept. Photographs go negative, shadows stop expressing elevation, "
+            "saturated hues vibrate, and the brand colour that was readable on white is "
+            "unreadable on near-black. Dark mode is a second design: elevation reverses — "
+            "raised surfaces get LIGHTER, not more shadowed — and saturated colours must be "
+            "desaturated and lightened.",
+            "Re-decide the semantic layer for the dark theme, keeping the roles and changing the "
+            "values, and declare color-scheme so form controls and scrollbars follow.",
+            family="defect"))
 
     dbg = len(re.findall(r"\bconsole\.(?:log|debug|warn)\s*\(", text)) \
         + len(re.findall(r"\bdebugger\s*;", text))
