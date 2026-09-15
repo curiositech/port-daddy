@@ -32,9 +32,9 @@
       "sha256": "c0d848b088e2f45ae1976d0df7901d07f260b83622cb73d6693e5cdd437691a2"
     },
     "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
-      "pages": 21,
-      "bytes": 569564,
-      "sha256": "b5eeae7b9f5cf71fc47ce6d9e965ee86cc2872de57c48ec02d336737d5b7fce9"
+      "pages": 24,
+      "bytes": 589042,
+      "sha256": "3643f6cc421b4b0547aaf900659c9c5ee8df9a7c4d7132f740fc0ceebc05f813"
     },
     "website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf": {
       "pages": 58,
