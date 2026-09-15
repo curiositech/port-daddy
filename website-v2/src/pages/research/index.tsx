@@ -227,9 +227,9 @@ export default function ResearchProgramPage() {
         meaning: 'Papa — about to proceed to sea',
         color: 'var(--brand-primary)',
         onColor: 'var(--brand-primary-foreground)',
-        headline: 'Seven papers, in the form a referee would want them.',
+        headline: 'Seven papers, 101 pages.',
         standfirst:
-          'Every one of these results is also in the Book, folded into a chapter with the worked examples a reader needs — these are the same results with the pedagogy taken out and the apparatus left in.',
+          'These are the same results as the Book\'s, written for a referee instead of a student: no worked examples, full proofs, the related work in the usual place.',
         render: () => <PapersPanel />,
       },
       {
@@ -239,9 +239,9 @@ export default function ResearchProgramPage() {
         meaning: 'Kilo — I wish to communicate with you',
         color: 'var(--brand-accent)',
         onColor: 'var(--brand-accent-foreground)',
-        headline: 'Four moves, and the third one is the expensive one.',
+        headline: 'Pre-register the attack before you run it.',
         standfirst:
-          'Pre-register the attack, run it, mechanise what a machine can hold, and publish the review that found the hole — in that order, because doing them out of order is how you end up believing your own abstract.',
+          'We write down what would falsify a result before running it, so a run can come back negative and still count. R1\'s information floor survived that; the 8/14 bound did not, and the chapter says so.',
         render: () => <MethodPanel />,
       },
       {
@@ -251,9 +251,9 @@ export default function ResearchProgramPage() {
         meaning: 'Uniform — you are running into danger',
         color: 'var(--story-rust)',
         onColor: 'var(--story-rust-foreground)',
-        headline: 'Somebody probably proved it first. Go and look.',
+        headline: 'Prior art, checked before we claimed anything.',
         standfirst:
-          'A dive that comes back SUBSUMED costs a claim and buys a citation, which is a trade worth making every time — and the ones we have not run yet are named rather than left for you to spot.',
+          'Each dive comes back SUBSUMED, ADJACENT or NOVEL. A SUBSUMED result loses us the claim and gains us a citation. The dives we have not run are listed here too.',
         render: () => <DivesPanel />,
       },
       {
@@ -263,9 +263,9 @@ export default function ResearchProgramPage() {
         meaning: 'Charlie — affirmative',
         color: 'var(--story-indigo)',
         onColor: 'var(--story-indigo-foreground)',
-        headline: 'Wired, or retired. There is no third state.',
+        headline: 'Every model either runs in CI or is marked retired.',
         standfirst:
-          'A model checked into a repository and never run again is decoration; the manifest exists so that every artifact has to be one thing or the other, on the record.',
+          'The manifest lists every model with the job that runs it. A model with no job is marked retired, which is the only way to have one nobody runs.',
         render: () => <EstatePanel />,
       },
     ],

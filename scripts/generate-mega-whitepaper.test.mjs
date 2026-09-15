@@ -14,9 +14,11 @@ import {
   renderChapter,
   renderCiteShortformAliases,
   renderContents,
+  renderPartRoleTokens,
   renderSolutions,
   renderTextbookMap,
   rewriteCitations,
+  roleTokensTarget,
   sharedMapDrift,
   sharedMapTargets,
   sourceDeclaresExercises,
@@ -185,6 +187,33 @@ test('the committed shared textbook map matches textbook.json in both copies', (
   assert.match(rendered, /pdchapternumberofswk\\endcsname\{1\}/);
   assert.match(rendered, /pdchapternumberofls\\endcsname\{4\}/);
   assert.match(rendered, /\\pdtextbookmap/);
+});
+
+test('the generated part-role region is derived from textbook.json and nothing else is touched', () => {
+  const textbook = loadTextbook();
+  const block = renderPartRoleTokens(textbook);
+  for (const part of textbook.parts) {
+    assert.match(block, new RegExp(`^  --part-${part.slug}: var\\(${part.webRoleAlias.bg}\\);$`, 'm'));
+    assert.match(block, new RegExp(`^  --part-${part.slug}-on: var\\(${part.webRoleAlias.on}\\);$`, 'm'));
+  }
+  // Two lines per part and the two markers: nothing else may be in the region.
+  assert.equal(block.split('\n').length, textbook.parts.length * 2 + 2);
+  // The alias is emitted as a var() reference, never as a colour. A literal
+  // here would put a source-layer value in the role layer.
+  assert.doesNotMatch(block, /#[0-9a-fA-F]{3,8}\b|\brgb|\boklch/);
+
+  // The region is spliced into a HAND-AUTHORED file. Everything outside the
+  // markers is a person's work and must survive regeneration untouched, so
+  // assert on the committed file rather than trusting the splice.
+  const roles = readFileSync(resolve(roleTokensTarget), 'utf8');
+  const [before, rest] = roles.split('  /* GENERATED:BEGIN part-role-tokens -- do not edit by hand. */');
+  const after = rest.split('  /* GENERATED:END part-role-tokens */')[1];
+  assert.match(before, /--codeblock-dot-green: var\(--code-dot-green\);/);
+  // No --part-* DECLARATION outside the region (the prose above it names the
+  // pattern, which is why this looks for a declaration and not the substring):
+  // a hand-written pair would shadow or be shadowed by a generated one.
+  assert.doesNotMatch(before + after, /^\s*--part-[\w-]*\s*:/m);
+  assert.ok(before.length > 1000, 'the hand-authored roles above the region are still there');
 });
 
 test('the shared palette and hyperlink files are byte-identical in both source trees', () => {

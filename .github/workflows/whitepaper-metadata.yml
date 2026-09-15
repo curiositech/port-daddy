@@ -21,6 +21,15 @@ on:
       - 'website-v2/src/data/researchPapers.ts'
       - 'website-v2/src/data/whitePapers.test.ts'
       - 'website-v2/scripts/check-whitepaper-metadata.ts'
+      # The part role layer: textbook.json's slugs and webRoleAlias, the
+      # generated --part-* block, and the Slab that consumes both.
+      - 'whitepaper/textbook.json'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.source.css'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/src/styles/tokens.roles.css'
+      - 'website-v2/src/components/swiss/**'
+      - 'website-v2/scripts/check-part-role-tokens.mjs'
       - 'website-v2/package.json'
       - '.github/workflows/whitepaper-metadata.yml'
   push:
@@ -32,6 +41,15 @@ on:
       - 'website-v2/src/data/researchPapers.ts'
       - 'website-v2/src/data/whitePapers.test.ts'
       - 'website-v2/scripts/check-whitepaper-metadata.ts'
+      # The part role layer: textbook.json's slugs and webRoleAlias, the
+      # generated --part-* block, and the Slab that consumes both.
+      - 'whitepaper/textbook.json'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.source.css'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/src/styles/tokens.roles.css'
+      - 'website-v2/src/components/swiss/**'
+      - 'website-v2/scripts/check-part-role-tokens.mjs'
       - 'website-v2/package.json'
       - '.github/workflows/whitepaper-metadata.yml'
   # Merge queue: run UNCONDITIONALLY on the queued group (no path filter).
@@ -84,6 +102,13 @@ jobs:
 
       - name: Run figure-palette brand guard (no cinnabar/brass/patina; AAA accents only)
         run: npm run test:figure-palette
+
+      - name: Resolve the part role layer end to end (textbook.json -> --part-* -> Slab)
+        # generate-mega-whitepaper.mjs validates webRoleAlias's SHAPE but not
+        # that the token it names exists, so a typo spelled like a custom
+        # property generates var(--story-golld): the slab paints nothing and
+        # nothing goes red. This walks the whole indirection instead.
+        run: npm run test:part-roles
 
       - name: Carry the metadata its PDFs already moved past
         # WHY THIS EXISTS. publication-digests.json and whitePapers.ts are

@@ -365,6 +365,11 @@ function shouldHaveDarkPair(value: string) {
     '/img/generated/scout-extension-icon.png': 'shipped product mark',
     // A capture of the extension's own surface, which has its own theme.
     '/img/generated/scout-extension-preview.png': 'product UI capture',
+    // Page 1 of the committed Book PDF, rendered by
+    // scripts/render-book-cover.mjs. The Book is printed on cream, so its
+    // cover in dark mode is still that same cover -- a "dark variant" would
+    // be a jacket the printed object does not have.
+    '/whitepaper/book-cover.jpg': 'reproduction of the printed Book cover',
   }
   if (assetPath in REPRODUCTIONS) return false
   if (/-dark(?=\.[a-z0-9]+$)/i.test(assetPath)) return false

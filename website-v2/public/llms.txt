@@ -79,7 +79,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd doctor - Port Daddy](https://portdaddy.dev/docs/cli/doctor): Reference for pd doctor, including Port Daddy syntax, what the command does, and when to use it.
 - [pd done "summary" - Port Daddy](https://portdaddy.dev/docs/cli/done): Reference for pd done "summary", including Port Daddy syntax, what the command does, and when to use it.
 - [pd down - Port Daddy](https://portdaddy.dev/docs/cli/down): Reference for pd down, including Port Daddy syntax, what the command does, and when to use it.
-- [pd embed <text> - Port Daddy](https://portdaddy.dev/docs/cli/embed-text): Reference for pd embed <text>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd embed <subcommand> - Port Daddy](https://portdaddy.dev/docs/cli/embed-subcommand): Reference for pd embed <subcommand>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd env [pattern] - Port Daddy](https://portdaddy.dev/docs/cli/env): Reference for pd env [pattern], including Port Daddy syntax, what the command does, and when to use it.
 - [pd f - Port Daddy](https://portdaddy.dev/docs/cli/f): Reference for pd f, including Port Daddy syntax, what the command does, and when to use it.
 - [pd feedback <command> - Port Daddy](https://portdaddy.dev/docs/cli/feedback): Reference for pd feedback <command>, including Port Daddy syntax, what the command does, and when to use it.

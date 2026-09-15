@@ -44,6 +44,7 @@
     "check:doc-citations": "node scripts/check-doc-citations.mjs",
     "check:orphan-assets": "node scripts/check-orphan-assets.mjs --check",
     "report:orphan-assets": "node scripts/check-orphan-assets.mjs",
+    "check:textbook-schema": "node scripts/check-textbook-schema.mjs",
     "lint:banned-phrases": "node scripts/lint/check-banned-phrases.mjs",
     "check:pr-requirements": "node scripts/check-pr-requirements.mjs",
     "check:pr-comments": "node scripts/check-pr-comments-answered.mjs",

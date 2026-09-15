@@ -1,0 +1,5 @@
+export { Slab } from './Slab'
+export type { SlabProps } from './Slab'
+export { PartNumeral } from './PartNumeral'
+export type { PartNumeralProps } from './PartNumeral'
+export { Eyebrow } from './Eyebrow'

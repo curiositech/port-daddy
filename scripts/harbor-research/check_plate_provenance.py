@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """check_plate_provenance.py -- every rendered Book plate has honest
-provenance, and every plate path the TeX sources reach for actually exists.
+provenance, and every plate path the Book's TeX sources *and the website*
+reach for actually exists.
 
-Two review-bot asks, one module (stdlib only, no Pillow, no LaTeX engine):
+Three review-bot asks, one module (stdlib only, no Pillow, no LaTeX engine):
 
   A. PROVENANCE.json completeness/accuracy for each rendered-plate directory
      under website-v2/public/whitepaper/plates/ (everything except
@@ -14,6 +15,18 @@ Two review-bot asks, one module (stdlib only, no Pillow, no LaTeX engine):
      into a pdflatex run raising \\PackageError (see commit c342a85fc, which
      made the Swiss plate macros fail closed instead of drawing TikZ
      fallback art).
+
+  C. The same resolution for the plate paths the *website* constructs, which
+     had no gate at all until PR #10154's review. The site builds its `src`
+     attributes by template literal from whitepaper/textbook.json -- e.g.
+     `/whitepaper/plates/swiss/chapter-${record.prefix}.jpg` -- and a missing
+     file there does not raise anything: the browser requests it, gets a 404
+     and paints an empty box, and every build stays green. (B) already proves
+     the Book's copies of these paths resolve; (C) proves the site's do, in
+     the same script, from the same single source of chapter prefixes and
+     part numerals, so there is one plate-existence convention and not two.
+     See section C below for why this is an existence check and not a
+     defaulting guard.
 
 -------------------------------------------------------------------------
 A. Provenance schema (derived from scripts/whitepaper-plates/plates_pipeline.py
@@ -111,7 +124,54 @@ B. TeX path resolution.
    order and prefixes the book generator itself trusts -- to get the
    concrete paths the real build will ask for.
 
-Exit status: 0 if both (A) and (B) are clean, 1 otherwise (each problem
+-------------------------------------------------------------------------
+C. Website path resolution.
+
+   The site never writes a plate path out in full. It builds one per
+   chapter and one per part by template literal, from the same
+   whitepaper/textbook.json the Book generator reads:
+
+       src={`/whitepaper/plates/swiss/chapter-${record.prefix}.jpg`}
+       src={`/whitepaper/plates/swiss/part-${part.numeral}.jpg`}
+
+   THE FIX IS THE CHECK, NOT A GUARD. The tempting reading of "this
+   template literal could produce a path to nothing" is to default or guard
+   the interpolated value. That is the wrong repair twice over: a default
+   prints a *wrong* plate where a missing one should have stopped the line,
+   and a guard prints nothing while the build stays green -- both degrade
+   silently, and this repository's rule is that a missing plate fails the
+   build. What was actually missing is any proof the eight prefixes and four
+   numerals still name files, and that is what this section is.
+
+   It is deliberately the same shape as (B): don't hardcode the paths --
+   read the *template* out of the source, so editing a template is picked up
+   automatically -- and substitute the real axis values from textbook.json.
+
+   Mechanics. Every .ts/.tsx under website-v2/src that is not a test file is
+   scanned for string and template literals containing a path under
+   `/whitepaper/plates/` that ends in an image extension. (Requiring the
+   extension is what keeps a test's `toContain('/whitepaper/plates/swiss/
+   part-')` fragment from being read as a path; test files are skipped
+   anyway, belt and braces.) For each such literal:
+
+     - no `${...}` placeholder: the path is checked as written.
+     - one or more placeholders, all naming the same textbook.json axis:
+       the template is resolved once per value of that axis. The axis comes
+       from the property the placeholder expression ends in, via
+       SITE_PLACEHOLDER_AXES -- `.prefix` is a chapter prefix, `.numeral`
+       and `.slug` are part fields.
+     - a placeholder whose expression matches no known axis, or a literal
+       mixing two axes: reported as a failure, not skipped. A shape this
+       script cannot resolve is exactly the silence the section exists to
+       end, so it fails closed and says to extend SITE_PLACEHOLDER_AXES.
+
+   Site paths are absolute from website-v2/public (that is the served root),
+   so `/whitepaper/plates/x.jpg` resolves to
+   website-v2/public/whitepaper/plates/x.jpg -- the same files (B) checks,
+   reached by a different root.
+
+-------------------------------------------------------------------------
+Exit status: 0 if (A), (B) and (C) are all clean, 1 otherwise (each problem
 printed as one line, then a summary line).
 
 Usage:
@@ -570,6 +630,160 @@ def check_tex_plate_paths(repo_root: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# (C) website plate-path resolution
+
+SITE_SRC_SUBDIR = os.path.join("website-v2", "src")
+SITE_PUBLIC_SUBDIR = os.path.join("website-v2", "public")
+SITE_SRC_EXTS = (".ts", ".tsx")
+SITE_PLATE_PREFIX = "/whitepaper/plates/"
+
+# The property a `${...}` placeholder expression ends in -> which
+# textbook.json axis fills it. `record.prefix` and `chapter.prefix` both end
+# in "prefix"; `part.numeral` ends in "numeral". Add to this map when the
+# site starts interpolating a new field, rather than letting the new shape
+# fall through unchecked -- an unmapped placeholder is a failure below.
+SITE_PLACEHOLDER_AXES = {
+    "prefix": ("chapters", "prefix"),
+    "numeral": ("parts", "numeral"),
+    "slug": ("parts", "slug"),
+}
+
+# A string, or a template literal, whose contents reach under
+# /whitepaper/plates/ and end in an image extension. Backtick, single- and
+# double-quoted forms; no escapes, because no plate path contains one.
+_SITE_PLATE_LITERAL_RE = re.compile(
+    r"[`'\"]([^`'\"\n]*"
+    + re.escape(SITE_PLATE_PREFIX)
+    + r"[^`'\"\n]*?\.(?:jpg|jpeg|png))[`'\"]",
+    re.IGNORECASE,
+)
+_SITE_PLACEHOLDER_RE = re.compile(r"\$\{([^}]*)\}")
+# The trailing identifier of a placeholder expression: `record.prefix` ->
+# "prefix", `part?.numeral` -> "numeral", `slug` -> "slug".
+_TRAILING_IDENT_RE = re.compile(r"([A-Za-z_$][\w$]*)\s*$")
+
+
+def _is_site_test_file(path: str) -> bool:
+    base = os.path.basename(path)
+    return ".test." in base or ".spec." in base or f"{os.sep}__tests__{os.sep}" in path
+
+
+def iter_site_source_files(repo_root: str) -> list[str]:
+    """Every non-test .ts/.tsx under website-v2/src, sorted for stable output."""
+    root = os.path.join(repo_root, SITE_SRC_SUBDIR)
+    out: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d != "node_modules")
+        for name in sorted(filenames):
+            if not name.endswith(SITE_SRC_EXTS):
+                continue
+            full = os.path.join(dirpath, name)
+            if _is_site_test_file(full):
+                continue
+            out.append(full)
+    return out
+
+
+def collect_expected_site_paths(repo_root: str) -> tuple[list[tuple[str, str]], list[str]]:
+    """Return (expected, problems) for the website, mirroring
+    collect_expected_tex_paths: `expected` is (site-absolute plate path,
+    label) pairs; `problems` are templates this script could not resolve,
+    which are failures in their own right rather than things to skip."""
+    expected: list[tuple[str, str]] = []
+    problems: list[str] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(path: str, label: str) -> None:
+        key = (path, label)
+        if key not in seen:
+            seen.add(key)
+            expected.append((path, label))
+
+    try:
+        textbook = load_textbook(repo_root)
+    except (OSError, json.JSONDecodeError) as e:
+        return [], [f"could not load {TEXTBOOK_JSON}: {e}"]
+    axis_values: dict[tuple[str, str], list[str]] = {}
+    for axis in set(SITE_PLACEHOLDER_AXES.values()):
+        collection, field = axis
+        axis_values[axis] = [
+            str(item[field])
+            for item in textbook.get(collection, [])
+            if isinstance(item, dict) and field in item
+        ]
+
+    for full_path in iter_site_source_files(repo_root):
+        rel_src = os.path.relpath(full_path, repo_root)
+        try:
+            with open(full_path, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError as e:
+            problems.append(f"could not read {rel_src}: {e}")
+            continue
+        if SITE_PLATE_PREFIX not in text:
+            continue
+        for m in _SITE_PLATE_LITERAL_RE.finditer(text):
+            template = m.group(1)
+            line = text.count("\n", 0, m.start()) + 1
+            label = f"{rel_src}:{line}"
+            placeholders = _SITE_PLACEHOLDER_RE.findall(template)
+            if not placeholders:
+                add(template, f"literal reference in {label}")
+                continue
+            axes = set()
+            unmapped = []
+            for expr in placeholders:
+                ident_match = _TRAILING_IDENT_RE.search(expr.strip())
+                ident = ident_match.group(1) if ident_match else None
+                axis = SITE_PLACEHOLDER_AXES.get(ident) if ident else None
+                if axis is None:
+                    unmapped.append(expr.strip())
+                else:
+                    axes.add(axis)
+            if unmapped:
+                problems.append(
+                    f"{label}: plate path `{template}` interpolates "
+                    + ", ".join(f"${{{u}}}" for u in unmapped)
+                    + ", which names no textbook.json axis this script knows "
+                    "(extend SITE_PLACEHOLDER_AXES in "
+                    "scripts/harbor-research/check_plate_provenance.py rather "
+                    "than leaving the path unchecked)"
+                )
+                continue
+            if len(axes) > 1:
+                problems.append(
+                    f"{label}: plate path `{template}` mixes "
+                    + " and ".join(f"{c}.{f}" for c, f in sorted(axes))
+                    + "; this script resolves one axis per path (extend it "
+                    "if the site really needs both)"
+                )
+                continue
+            axis = axes.pop()
+            values = axis_values.get(axis, [])
+            if not values:
+                problems.append(
+                    f"{label}: plate path `{template}` is driven by "
+                    f"{axis[0]}.{axis[1]} in {TEXTBOOK_JSON}, which yields no values"
+                )
+                continue
+            for value in values:
+                resolved = _SITE_PLACEHOLDER_RE.sub(lambda _m, v=value: v, template)
+                add(resolved, f"{label} ({axis[0][:-1]} {value})")
+
+    return expected, problems
+
+
+def check_site_plate_paths(repo_root: str) -> list[str]:
+    expected, failures = collect_expected_site_paths(repo_root)
+    public_root = os.path.join(repo_root, SITE_PUBLIC_SUBDIR)
+    for site_path, label in expected:
+        full_path = os.path.join(public_root, site_path.lstrip("/"))
+        if not os.path.exists(full_path):
+            failures.append(f"{label} references missing plate: {site_path}")
+    return failures
+
+
+# ---------------------------------------------------------------------------
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -583,15 +797,17 @@ def main() -> int:
 
     provenance_failures = check_all_provenance(repo_root)
     tex_failures = check_tex_plate_paths(repo_root)
-    all_failures = provenance_failures + tex_failures
+    site_failures = check_site_plate_paths(repo_root)
+    all_failures = provenance_failures + tex_failures + site_failures
 
     for failure in all_failures:
         print(f"FAIL: {failure}")
 
     print(
-        f"checked plate provenance and TeX plate paths: "
+        f"checked plate provenance, TeX plate paths and site plate paths: "
         f"{len(provenance_failures)} provenance failure(s), "
-        f"{len(tex_failures)} TeX path failure(s)"
+        f"{len(tex_failures)} TeX path failure(s), "
+        f"{len(site_failures)} site path failure(s)"
     )
     return 1 if all_failures else 0
 
