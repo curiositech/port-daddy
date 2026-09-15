@@ -21,7 +21,7 @@
   \draw[pd focus rule,line width=1.4pt]
     (-4.80,1.00)--(-4.80,.65)--(-1.20,.65)--(-1.20,-.60)--(1.95,-.60)--(1.95,-1.50);
   \node[pd direct label,text=hhteal,anchor=west] at (2.20,-1.05) {refuse locally};
-  \node[pd direct label,text=hhamber,anchor=west] at (-4.45,-1.05) {stale verifier};
+  \node[pd direct label,text=pdinkmuted,anchor=west] at (-4.45,-1.05) {stale verifier};
 
   \foreach \x/\lab in {-4.80/$0$,-1.20/$\Delta$,1.95/$2\Delta$,5.20/$3\Delta$}
     {\draw[pd guide] (\x,-1.72)--(\x,2.15);
@@ -36,13 +36,13 @@
   \node[pd note,text=hhteal,anchor=west] at (2.20,2.35)
     {signed epoch roots make the illustrated history auditable};
   \draw[pd caution rule,<->] (-4.65,-2.45)--(1.80,-2.45);
-  \node[pd note,text=hhamber] at (-1.42,-2.72)
+  \node[pd note,text=pdinkmuted] at (-1.42,-2.72)
     {exposure lasts until the local authority receives the revocation};
 \end{tikzpicture}}
 \caption{\textbf{Revocation propagation is a moving staleness frontier.}
 Alice refuses immediately; B remains stale until $\Delta$ and C until
 $2\Delta$ in this illustrated execution. The amber area is precisely where a
-revoked capability can still be admitted by the named local authority. The teal
+revoked capability can still be admitted by the named local authority. The gold
 staircase marks synchronization, not a global clock. Expected
 $\Theta(\log m)$ dissemination requires connected reliable rounds; a partition
 can extend the amber area without bound and therefore destroys any finite

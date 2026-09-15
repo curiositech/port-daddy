@@ -40,10 +40,10 @@
   % vertical, which loops under its own endpoint and runs straight through the
   % label. The label now sits beside the mark rather than under it, which
   % leaves the space below the circle empty and the sentence unbroken.
-  \node[circle,draw=hhamber,line width=.9pt,fill=hhpaper,minimum size=6.2mm,inner sep=0pt] at (2.65,1.55) {};
-  \draw[draw=hhamber,line width=.9pt] (2.43,1.33) -- (2.87,1.77);
-  \draw[draw=hhamber,line width=.9pt] (2.43,1.77) -- (2.87,1.33);
-  \node[pd direct label,text=hhamber,anchor=east,align=right,text width=2.4cm,
+  \node[circle,draw=pderror,line width=.9pt,fill=hhpaper,minimum size=6.2mm,inner sep=0pt] at (2.65,1.55) {};
+  \draw[draw=pderror,line width=.9pt] (2.43,1.33) -- (2.87,1.77);
+  \draw[draw=pderror,line width=.9pt] (2.43,1.77) -- (2.87,1.33);
+  \node[pd direct label,text=pderror,anchor=east,align=right,text width=2.4cm,
     inner sep=3pt] at (2.15,1.55) {\texttt{k17} never returns};
 
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xmin,-2.08) -- (\xmax,-2.08);
