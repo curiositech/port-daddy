@@ -179,10 +179,11 @@ five rows are the best inventory of what would be lost by deleting them.
 
 ## Volume V: The Anchor Protocol
 
-Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (8 figures).
+Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (9 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
+| `V/fig:anchor-four-phases` | What forced each successive protocol phase, and what does each phase close for good? | left-to-right flow diagram with a per-transition rationale and a per-phase closure box | four ordered phases; the forcing reason on each transition; the attack surface each phase forecloses; per-phase mechanization status | unexplained decorative boxes; a "needs" pill with no source in the chapter's own text; a uniform pass/fail strip that hides the one phase not machine-verified |
 | `V/fig:anchor-capability-attenuation` | How do rights and TTL strictly shrink across delegation? | nested sets paired with a rights/TTL table | root and child capabilities; strict subset relations; TTL decrease; attempted re-grant rejection | unexplained concentric circles; blue outline as sole meaning |
 | `V/fig:anchor-alg-confusion` | Why does issuer-pinned verification reject a token that attacker-selected verification accepts? | aligned paired security trace or comparison table | identical token bytes; control authority; algorithm source; verification trace; accept/reject outcome | two prose flows; giant arrows; colour-only safe/unsafe distinction |
 | `V/fig:anchor-delegation-inline` | What evidence travels with a multi-hop delegated capability? | linear provenance/sequence chain | issuer and delegates; signed tuple; attenuation at each hop; freshness/TTL; verifier checks | looping chain; decorative keys; unreadable token blob |
