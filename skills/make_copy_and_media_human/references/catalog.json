@@ -3082,7 +3082,7 @@
       "description": "Terms of art used before they are defined, or never defined at all. The reader meets a concept with nothing to attach it to.",
       "detection": "For each candidate term of art appearing three or more times, compare the line of first use against the line of the first definitional frame ('X is a', 'X refers to', 'X, which is', 'we call this X'). Flag terms defined well after first use, and terms never defined. Matching spans singular and plural, so a piece that uses 'Soft Leases' and defines 'A Soft Lease' counts as defined.",
       "why_it_reads_ai": "The curse of knowledge with a context window behind it. The writer already holds the concept, so the sentence reads fine to them; the model holds it too, because it was in the prompt. Nothing in the loop represents a reader who does not.",
-      "fix": "Define a term at or before its first load-bearing use, usually with an appositive in the same sentence. Introduce one new idea at a time and let each earn the next. If a term appears three times and is never defined, either define it or stop using it. Read the piece imagining a competent stranger: the first place you would have to stop and look something up is the place to fix.",
+      "fix": "Define a term at or before its first substantive use, usually with an appositive in the same sentence. Introduce one new idea at a time and let each earn the next. If a term appears three times and is never defined, either define it or stop using it. Read the piece imagining a competent stranger: the first place you would have to stop and look something up is the place to fix.",
       "before": "Quantum Lane sits between the Drift Broker and the Lane Coordinator.",
       "after": "Jobs are handed out by a scheduler we call the Lane Coordinator, which takes work from a queue (the Drift Broker) and decides who may run it.",
       "false_positive_when": "Writing for a named expert audience, reference documentation with a stated prerequisite page, and terms defined in a glossary the piece links. Also common nouns that merely happen to be capitalised in a product context.",
@@ -3109,6 +3109,384 @@
       "currency": "current",
       "dialect": "generic-llm",
       "detection_type": "structural"
+    },
+    {
+      "name": "hundred-vw-overflow",
+      "medium": "layout",
+      "severity": "high",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "100vw or w-screen used for width, often with the -50vw full-bleed hack.",
+      "detection": "Regex for 100vw width declarations, w-screen utilities, and margin-left:calc(-50vw...) full-bleed patterns.",
+      "why_it_reads_ai": "100vw is the viewport INCLUDING its scrollbar; 100% is the space actually available. On any browser that reserves scrollbar space the element is wider than its container, and paired with the -50vw trick it overflows twice. It is the most common single cause of a page scrolling sideways.",
+      "fix": "Use width:100% and let the element fill its container, or 100dvw where you genuinely mean the dynamic viewport. For a full-bleed section inside a padded container the modern form is `margin-inline: calc(50% - 50vw)` with `overflow-x: clip` on a wrapper — and verify at 390px either way.",
+      "before": ".hero { width: 100vw }",
+      "after": ".hero { width: 100% }",
+      "false_positive_when": "100vw on a position:fixed overlay does not participate in document flow and cannot cause page overflow.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "static-vh-full-height",
+      "medium": "layout",
+      "severity": "low",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "100vh or h-screen used for a full-height section.",
+      "detection": "Regex for 100vh height declarations and h-screen utilities.",
+      "why_it_reads_ai": "On mobile browsers 100vh is the viewport with the URL bar hidden, so a 100vh hero is taller than the screen until you scroll and its bottom is cut off on first paint. Visible instantly on a phone, invisible in a desktop screenshot.",
+      "fix": "Use 100dvh with a 100vh fallback: `min-height: 100vh; min-height: 100dvh`. Better still, stop pinning the hero to the viewport — let the content decide the height.",
+      "before": ".hero { min-height: 100vh }",
+      "after": ".hero { min-height: 100vh; min-height: 100dvh }",
+      "false_positive_when": "Desktop-only applications, and any layout already using dvh/svh/lvh units alongside it.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "missing-html-lang",
+      "medium": "web-ui",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "The root html element has no lang attribute.",
+      "detection": "Absence of a lang attribute with a value on the html element. Binary and static.",
+      "why_it_reads_ai": "Screen readers choose a voice and pronunciation model from it; without one they guess, and often read the page in the wrong phonology. One attribute, always in the scaffold, only missing in hand-assembled markup.",
+      "fix": "Set it on the root: <html lang=\"en\">. Use the real language, and a region subtag only where it changes pronunciation or formatting.",
+      "before": "<html>",
+      "after": "<html lang=\"en\">",
+      "false_positive_when": "Fragments and partials have no html element.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "tailwind-play-cdn-in-production",
+      "medium": "web-ui",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A runtime-compiled CSS or JS CDN on a shipped page: the Tailwind Play CDN, babel-standalone, and their relatives.",
+      "detection": "Script src matching the known runtime-compiler CDNs.",
+      "why_it_reads_ai": "The Play CDN compiles your stylesheet in the visitor's browser on every page load, and its own documentation says it is for prototyping. Shipping it means the build step was never set up — the page was assembled to be looked at rather than deployed.",
+      "fix": "Install the framework as a build dependency and ship a compiled stylesheet. For Tailwind that is the CLI or the Vite/PostCSS plugin; output is typically a few kilobytes against the CDN's several hundred, and it removes the flash of unstyled content.",
+      "before": "<script src=\"https://cdn.tailwindcss.com\"></script>",
+      "after": "<link rel=\"stylesheet\" href=\"/assets/app.css\">",
+      "false_positive_when": "Genuine prototypes, CodePen-style demos, and documentation examples, where it is the correct tool.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "h1-absent-or-competing",
+      "medium": "web-ui",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A page with no h1, or with several competing for the role.",
+      "detection": "Count h1 elements in a document that has a body. Anything other than exactly one is the signal.",
+      "why_it_reads_ai": "Headings get chosen for size rather than structure, because in the generation loop a heading is a type scale. The h1 is what a screen reader announces first and what search results lean on.",
+      "fix": "Exactly one h1 per page, naming the page rather than the brand. Everything below steps down one level at a time without skipping. If you needed a second h1 for its size, style the h2 instead.",
+      "before": "<h1>Flowstate</h1> ... <h1>Ship faster</h1>",
+      "after": "<h1>Flowstate: invoice reconciliation for finance teams</h1> ... <h2>Ship faster</h2>",
+      "false_positive_when": "Some documented design systems permit an h1 per landmark section; and a fragment legitimately has none.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "no-meta-description-or-og-image",
+      "medium": "web-ui",
+      "severity": "low",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "No meta description, no og:image, or both.",
+      "detection": "Absence of the meta tags in a document head.",
+      "why_it_reads_ai": "What the page looks like when shared or found, which is never visible while building it. Without an og:image a link unfurls as a grey box, which reads as abandoned.",
+      "fix": "Write a meta description that says what the page offers in about 150 characters, and set an og:image at 1200x630 showing the actual product rather than the logo on a gradient. Check it with a link-preview debugger rather than assuming.",
+      "before": "(no description, no og:image)",
+      "after": "<meta name=\"description\" content=\"...\"> <meta property=\"og:image\" content=\"...\">",
+      "false_positive_when": "Pages deliberately excluded from sharing and indexing, and documents whose meta tags are injected by a framework at build time rather than present in source.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "input-without-label",
+      "medium": "web-ui",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "Form inputs with no label element and no aria-label, relying on a placeholder to say what the field is.",
+      "detection": "Count real inputs (excluding hidden, submit, button, reset) against labels and aria-label attributes.",
+      "why_it_reads_ai": "A placeholder looks like a label in a screenshot, which is the only view the generation loop has. It disappears the moment someone types, and screen readers do not reliably announce it.",
+      "fix": "Give every input a <label for> pointing at its id, or an aria-label where a visible label genuinely does not fit. Keep the placeholder for an example of the format rather than the field name. Then fill the form out with a keyboard only.",
+      "before": "<input type=\"email\" placeholder=\"Email\">",
+      "after": "<label for=\"email\">Email</label><input id=\"email\" type=\"email\" placeholder=\"you@company.com\">",
+      "false_positive_when": "A single search field with an adjacent icon and an accessible name supplied elsewhere, and inputs whose labels are composed by a wrapping component the detector cannot see.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "form-without-destination",
+      "medium": "web-ui",
+      "severity": "high",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A form with no action and no submit handler. It looks complete and goes nowhere.",
+      "detection": "Form elements carrying neither an action attribute nor a submit handler.",
+      "why_it_reads_ai": "This one is genuinely model-flavoured rather than merely unreviewed. A generator produces a complete, convincing front end for a back end nobody asked for, and the failure is invisible until a real person types into it and presses send.",
+      "fix": "Wire it to something, then submit it yourself and confirm the message arrives. If there is no destination yet, replace the form with a mailto link so the page makes an honest promise instead of a broken one.",
+      "before": "<form><input name='email'><button>Notify me</button></form>",
+      "after": "<form action=\"/api/subscribe\" method=\"post\">...</form>",
+      "false_positive_when": "Forms whose handler is attached later in JavaScript, or bound by a framework directive the detector does not recognise. Verify by submitting it.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "debug-residue-in-production",
+      "medium": "web-ui",
+      "family": "residue",
+      "severity": "low",
+      "thresholds": {
+        "min_count": 3
+      },
+      "description": "console.log, console.debug and debugger statements on a shipped page.",
+      "detection": "Count console and debugger calls.",
+      "why_it_reads_ai": "Working notes shipped to visitors. Harmless in itself, and a reliable sign nothing was reviewed on the way out.",
+      "fix": "Strip them, or route logging through something that compiles out in production. While you are there, check whether any of them log a request or user object.",
+      "before": "console.log(\"user\", user)",
+      "after": "(removed)",
+      "false_positive_when": "Deliberate console banners (hiring messages, self-XSS warnings) are a long-standing convention, and development builds are expected to be noisy.",
+      "currency": "current",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "barrel-icon-import",
+      "medium": "web-ui",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "An entire icon library imported as a namespace for the handful of icons actually used.",
+      "detection": "Namespace imports from the common icon packages.",
+      "why_it_reads_ai": "The import that makes every icon available is the one a generator reaches for, because it cannot know in advance which icons the page will end up using.",
+      "fix": "Import by name: `import { Check, X } from 'lucide-react'`. Then confirm the bundle actually shrank — some of these packages need a per-icon path import before they tree-shake at all.",
+      "before": "import * as Icons from 'lucide-react'",
+      "after": "import { Check, X } from 'lucide-react'",
+      "false_positive_when": "A dynamic icon picker that genuinely needs the whole set at runtime.",
+      "currency": "current",
+      "family": "defect",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "unbacked-social-proof",
+      "medium": "marketing-copy",
+      "family": "defect",
+      "detection_type": "llm-judge",
+      "severity": "high",
+      "description": "Trust signals with nothing behind them: 'join 10,000+ teams', star ratings with no reviews, a 'Trusted by' bar of logos belonging to companies that are not customers, badges for certifications not held.",
+      "detection": "Judge: for each trust signal, can you name the thing it counts? A number with no source, a logo with no relationship, a rating with no reviews.",
+      "why_it_reads_ai": "The template has a social-proof slot and the generator fills it, because an empty slot looks unfinished and a populated one looks successful. It is the visual-design sibling of the fabricated statistic.",
+      "fix": "Delete anything you cannot substantiate. Real specificity beats invented scale: 'the four finance teams at Northwind run their month-end on this' is worth more than '10,000+ users' and has the advantage of being true. An empty section is better than a false one, and using a company's logo without permission is its own problem.",
+      "before": "Trusted by 10,000+ teams  [six logos]",
+      "after": "Used daily by the AP teams at Northwind and Calder. (Both agreed to be named.)",
+      "false_positive_when": "Real numbers and real customers, obviously. The tell is a claim the site's own operator could not source if asked.",
+      "currency": "current",
+      "dialect": "generic-llm"
+    },
+    {
+      "name": "missing-interaction-states",
+      "medium": "web-ui",
+      "family": "defect",
+      "detection_type": "llm-judge",
+      "severity": "medium",
+      "description": "The happy path only: no empty state, no error state, no loading state, no 404.",
+      "detection": "Judge, or probe: request a bad route, submit an invalid form, throttle the network, and view a list with no items. Four states, four checks.",
+      "why_it_reads_ai": "Generation optimises the screenshot, and the screenshot is always the full, successful, populated view. The other four states never appear in a design shot so nothing in the loop produces them.",
+      "fix": "Build the four: an empty state that says what to do next, an error state that says what went wrong and what to try, a loading state that reserves the final layout, and a 404 that offers a route back. The empty state is the highest-value one, because every user sees it on day one.",
+      "before": "A dashboard that renders a table. With no rows it renders headers over blank space.",
+      "after": "With no rows it says what data goes here and links to the import flow.",
+      "false_positive_when": "Static marketing pages have no states to miss. This applies to anything that loads or submits.",
+      "currency": "current",
+      "dialect": "generic-llm"
+    },
+    {
+      "name": "duplicated-component-markup",
+      "medium": "web-ui",
+      "family": "defect",
+      "detection_type": "llm-judge",
+      "severity": "low",
+      "description": "Three near-identical card or row blocks written out longhand instead of mapped over data.",
+      "detection": "Judge, or diff sibling blocks for near-identity. Static detection is possible by normalising whitespace and text and comparing structural hashes of siblings.",
+      "why_it_reads_ai": "A generator emits what the page looks like. Extracting a component requires deciding what varies, which is a modelling step the visual output does not require.",
+      "fix": "Move the varying parts into an array and map over it. The test is whether adding a fourth item is one line of data or twenty of markup.",
+      "before": "Three <div class='card'> blocks differing only in their heading and body text.",
+      "after": "features.map(f => <Card key={f.id} {...f} />)",
+      "false_positive_when": "Static HTML with no templating available, and blocks that only look similar while differing in ways a shared component would have to special-case.",
+      "currency": "current",
+      "dialect": "generic-llm"
+    },
+    {
+      "name": "eyebrow-with-no-information",
+      "medium": "marketing-copy",
+      "severity": "medium",
+      "thresholds": {
+        "min_count": 2
+      },
+      "description": "The small uppercase label above a headline carrying no fact: INTRODUCING, FOR MODERN TEAMS, AI-POWERED, THE FUTURE OF WORK.",
+      "detection": "Locate small uppercase or letterspaced elements; convict the ones containing no digit, no acronym or standard name, and no link. Capitalisation is deliberately NOT used as the signal, because 'For Modern Teams' is title-cased and says nothing.",
+      "why_it_reads_ai": "An eyebrow is an editorial device that presumes a hierarchy: a publication, a section, an issue. A landing page with one section has nothing for it to be above. The slot exists in the template, so the generator fills it, and the filling has to come from somewhere when no fact is available. It is among the most-cited visual giveaways in practitioner threads for exactly this reason.",
+      "fix": "Delete it and raise the headline. If the page reads identically you have proved it was decoration. If you keep one, make it carry the specific the headline cannot: SOC 2 TYPE II - FEB 2026, WORKS WITH POSTGRES 14+, OPEN SOURCE, AGPL-3.0. The rule of thumb is that an eyebrow must contain a proper noun, a number, a date or a licence. Then delete the eyebrow slot from the component itself, or the next generated section will fill it again.",
+      "before": "<p class=\"uppercase tracking-widest\">Introducing</p>\n<h1>The AI-powered workspace for modern teams</h1>",
+      "after": "<h1>Turn Figma files into React components</h1>",
+      "false_positive_when": "Editorial and documentation contexts where the eyebrow is a real taxonomy label (ENGINEERING, CHANGELOG, API REFERENCE, ISSUE 47) and navigates somewhere; conference pages carrying date and place; and brands whose whole system is editorial and where every eyebrow resolves to a real section. The question is not whether there is an eyebrow but whether it resolves to something a reader could navigate to or verify — which is why a linked eyebrow is never flagged.",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "pull-quote-that-quotes-nothing",
+      "medium": "typography",
+      "severity": "high",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A styled pull-quote block containing a sentence that appears nowhere else on the page and is attributed to nobody. An aphorism in quotation marks that no one ever said.",
+      "detection": "Unusually clean, because a pull quote is DEFINED by a provenance relation: it is an excerpt of the document it sits in. So normalise the quote's text and search for a six-word window of it in the rest of the body. Flag when it appears zero times elsewhere AND carries no cite, figcaption or trailing attribution.",
+      "why_it_reads_ai": "The pull quote is the one typographic device whose definition is a provenance relation, and a generator emitting it as visual rhythm breaks that relation invisibly. A pull quote is an excerpt; a block quotation cites something external. Generated text is neither — it is new text, from nowhere, wearing the costume of a quotation. The form makes a promise the content cannot keep, and a reader who goes looking for the speaker and finds none has learned something true about the page.",
+      "fix": "In an article, replace it with the sharpest eight to fifteen words already in your body copy, and leave them in the body too: the pull quote is a trailer, not a scene. On a landing page there is no document to pull from, so it is a testimonial with a full name, role and company, or it is the founder's words attributed to the founder, or it is deleted. There is no fourth option. Mechanically: make the component require a source prop and fail the build when it is absent or does not appear in the page body.",
+      "before": "<blockquote class=\"pullquote\">\"The best products don't just solve problems — they anticipate them.\"</blockquote>",
+      "after": "<figure><blockquote>\"We cut a 40-minute maintenance window to zero.\"</blockquote><figcaption>Priya Raman, Staff SRE, Calder</figcaption></figure>",
+      "false_positive_when": "Epigraphs — a quotation at the head of a chapter from an external source, correctly attributed — are legitimate and by definition do not appear in the body, so a quote carrying a cite naming an external author is never flagged. Also quote-collection pages, walls of love, Tufte-style marginalia (authorial commentary, not quotation), and lyric fragments used as section openers. The discriminator: cited-but-external is an epigraph, uncited-and-internal is a pull quote, uncited-and-external-to-everything is the tell.",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "hero-with-nothing-to-look-at",
+      "medium": "layout",
+      "severity": "high",
+      "thresholds": {
+        "min_count": 1
+      },
+      "description": "A hero with no screenshot, photograph, illustration, diagram or video — only type on a gradient or a flat ground. The visual budget goes entirely to a background treatment carrying no information about the product.",
+      "detection": "Within the hero region, count img, picture, video, canvas, iframe and substantial svg elements, excluding logos and small icons. Zero is the signal.",
+      "why_it_reads_ai": "Two causes, both diagnostic. A generator cannot screenshot a product it has never run, so the visual slot resolves to the only thing it can synthesise from CSS: a gradient. And placeholder copy produces placeholder layout — the hero has no image because there is nothing real to show yet. An image-less hero is a claim that nothing is worth showing, which for a working product is always false, and the reader correctly infers that the product does not exist, is ugly, or has not been used by anyone involved.",
+      "fix": "Show the product, in descending order of what it proves. A real screenshot of a real screen with real data in it, cropped to the one view that makes the value legible, shipped at 2x through a picture element. Or a five-to-fifteen second silent loop of it doing its one thing, which beats a still for anything streaming or animated. Or a diagram of the mechanism, which is the honest answer for infrastructure with no interface. If there genuinely is no product yet, say so and make the hero the argument for the waitlist — that is not a tell. Hiding pre-product status behind a gradient and a Get Started button is. Never fix this by generating an illustration.",
+      "before": "<section class=\"bg-gradient-to-br from-indigo-500 to-violet-700\"><h1>...</h1><p>...</p></section>",
+      "after": "The same hero plus a screenshot of the actual migration diff view, three real table names visible, one shadow, no device frame.",
+      "false_positive_when": "Products with no visual surface (a DNS provider, a payments API, a law firm); type-led brand systems that commit fully, where the typography IS the demonstration and is doing something rather than being Inter at 64px; deliberately minimal utility pages where the working tool is the hero, which is the strongest version of this pattern rather than a fault; search-first homepages; and pre-launch pages that admit it.",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "undifferentiated-section-padding",
+      "medium": "layout",
+      "severity": "medium",
+      "thresholds": {
+        "min_sections": 4
+      },
+      "description": "Every section on the page padded identically. Hero, feature grid, testimonial, FAQ and footer all get the same vertical space.",
+      "detection": "Collect vertical padding values across sections; flag when four or more sections share exactly one value.",
+      "why_it_reads_ai": "Spacing used as a constant rather than as a relationship. Nothing is grouped with anything and nothing is separated from anything, so the page becomes a stack of equally weighted slabs and the reader gets no signal about what belongs together. Choosing one value is what you do when you have not decided which sections matter.",
+      "fix": "Vary it by role. Give the hero more room than it needs and the sections after it less; tighten the gap between a heading and the thing it introduces; widen it between unrelated sections. A three-step scale used deliberately reads as designed. One value everywhere reads as a default, which is what it is.",
+      "before": "Five sections, every one py-24.",
+      "after": "Hero py-32, feature grid py-20, and eight of those units between a heading and its own paragraph.",
+      "false_positive_when": "Documentation and long-form article templates legitimately use one rhythm throughout, and a design system with a documented spacing scale may deliberately standardise section padding.",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm",
+      "detection_type": "structural"
+    },
+    {
+      "name": "mechanism-never-named",
+      "medium": "marketing-copy",
+      "detection_type": "llm-judge",
+      "severity": "high",
+      "description": "The page describes outcomes and never says how the thing works. You finish it unable to explain the product to someone else.",
+      "detection": "Judge: after reading the page, write one sentence explaining the mechanism. If you cannot, the page never gave you one.",
+      "why_it_reads_ai": "Placeholder copy produces placeholder layout, and the causal arrow runs that way. A generator writing from a product name and a category has outcomes available to it and no mechanism, so it writes the half it has.",
+      "fix": "Add the sentence that says what actually happens: what goes in, what the system does, what comes out. It is usually one sentence and it is usually the most valuable one on the page.",
+      "before": "Empower your team to do more with less.",
+      "after": "We watch your bank feed and match each line to an invoice; the 2% we cannot match go to whoever owns that ledger.",
+      "false_positive_when": "Brand and campaign pages that deliberately withhold detail, and products whose mechanism is genuinely the category (a font shop sells fonts).",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm"
+    },
+    {
+      "name": "numerology-of-three",
+      "medium": "layout",
+      "detection_type": "llm-judge",
+      "severity": "medium",
+      "description": "Three features, three tiers, three testimonials, three steps — regardless of how many real ones exist.",
+      "detection": "Judge: is three the true count, or the count that fills a row? Ask what the fourth would be and whether the third earns its place.",
+      "why_it_reads_ai": "Three is what you pick when the number of real things is unknown, and it happens to fill a grid. The layout chose the content rather than the other way round.",
+      "fix": "Count the real things and show that many. Two strong features beat three where the third is padding, and a five-item list that does not fit a grid is a reason to change the grid.",
+      "before": "Three feature cards, the third of which restates the first.",
+      "after": "Two features, each with a screenshot.",
+      "false_positive_when": "Plenty of products genuinely have three tiers, and the rule of three is a real compositional device. The tell is a third item that restates or pads.",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm"
+    },
+    {
+      "name": "subhead-restates-the-h1",
+      "medium": "marketing-copy",
+      "detection_type": "llm-judge",
+      "severity": "medium",
+      "description": "The line under the headline says the headline again in different words, spending the most valuable position on the page on nothing.",
+      "detection": "Judge: does the subhead add a fact the h1 lacks? If deleting it loses nothing, it was restatement.",
+      "why_it_reads_ai": "The template has a subhead slot and the generator has one idea, so the idea gets said twice.",
+      "fix": "Make the subhead carry what the headline could not: who it is for, what it costs, what it replaces, or the number that makes the claim credible.",
+      "before": "H1: Ship faster with AI-powered workflows. Sub: Empower your team to do more with less.",
+      "after": "H1: Turn Figma files into React components. Sub: Ships typed props and variants; works with your existing design tokens.",
+      "false_positive_when": "A subhead that deliberately expands a deliberately terse headline is doing its job, not restating.",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm"
+    },
+    {
+      "name": "cta-names-the-click-not-the-outcome",
+      "medium": "marketing-copy",
+      "detection_type": "llm-judge",
+      "severity": "low",
+      "description": "'Get Started', 'Learn More', 'Get Started Free' — buttons that describe the act of clicking rather than what happens next.",
+      "detection": "Judge: does the label say what the reader will have, or only that they will proceed?",
+      "why_it_reads_ai": "The most-represented button label in the training corpus, and the one that commits to nothing. A model that does not know what the next screen is cannot name it.",
+      "fix": "Name the outcome and the cost: 'Start a 14-day trial, no card', 'See it run on your repo', 'Book 20 minutes'. If you cannot name the next screen, that is worth knowing before you ship the button.",
+      "before": "Get Started Free",
+      "after": "Start a 14-day trial — no card",
+      "false_positive_when": "'Get started' above a genuine multi-step onboarding is accurate, and established products can rely on a bare label the reader already understands.",
+      "currency": "current",
+      "family": "form",
+      "dialect": "generic-llm"
     }
   ],
   "sources": [
@@ -3516,6 +3894,26 @@
       "title": "melissawm/open-source-ai-contribution-policies",
       "url": "https://github.com/melissawm/open-source-ai-contribution-policies",
       "note": "Survey of project AI policies. Roughly forty REQUIRE disclosure, which is why stripping an agent-attribution trailer is a policy decision to check rather than a cleanup to perform."
+    },
+    {
+      "title": "WebAIM Million 2026 — annual accessibility analysis of the top 1,000,000 home pages",
+      "url": "https://webaim.org/projects/million/",
+      "note": "The external anchor for the web-defect lane, and the industry naming the cause itself: 95.9% of home pages fail WCAG, 56.1 errors per page, up from 51, 'reversing a trend of gradual accessibility improvements' — attributed to 'increased reliance on 3rd party frameworks and libraries and automated or AI-assisted coding practices (vibe coding)'."
+    },
+    {
+      "title": "Why AI-generated websites all look the same - parix.ai",
+      "url": "https://parix.ai/blog/ai-website-design-decisions/",
+      "note": "The causal arrow that unifies the landing-page taste lane: 'An underspecified prompt gets answered with the statistical average of every landing page on the internet... Ask a model to design a landing page without giving it real content and it will invent placeholder copy - and placeholder copy produces placeholder layout.'"
+    },
+    {
+      "title": "Pull quote - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Pull_quote",
+      "note": "The definition that makes pull-quote provenance checkable: 'a key phrase, quotation, or excerpt that has been PULLED from an article and used as a page layout graphic element.' A pull quote that appears nowhere else in its document is not a pull quote."
+    },
+    {
+      "title": "Block Quotes and Pull Quotes: Examples and Good Practices - Smashing Magazine",
+      "url": "https://www.smashingmagazine.com/2008/06/block-quotes-and-pull-quotes-examples-and-good-practices/",
+      "note": "Draws the line the detector implements: pull quotes are excerpts of the presented text, while block quotations refer to an external citation not already in the article. Also the density guidance: an ordinary article should carry at most one or two."
     }
   ]
 }

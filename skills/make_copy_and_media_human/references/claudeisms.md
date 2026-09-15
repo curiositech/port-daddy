@@ -43,7 +43,7 @@ Terms of art used before they are defined, or never defined at all. The reader m
 
 **Thresholds** (read by `scripts/humanize_review.py`): `min_terms` = 2, `max_gap_lines` = 12
 
-**Fix:** Define a term at or before its first load-bearing use, usually with an appositive in the same sentence. Introduce one new idea at a time and let each earn the next. If a term appears three times and is never defined, either define it or stop using it. Read the piece imagining a competent stranger: the first place you would have to stop and look something up is the place to fix.
+**Fix:** Define a term at or before its first substantive use, usually with an appositive in the same sentence. Introduce one new idea at a time and let each earn the next. If a term appears three times and is never defined, either define it or stop using it. Read the piece imagining a competent stranger: the first place you would have to stop and look something up is the place to fix.
 
 **False positive when:** Writing for a named expert audience, reference documentation with a stated prerequisite page, and terms defined in a glossary the piece links. Also common nouns that merely happen to be capitalised in a product context.
 

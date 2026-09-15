@@ -2,7 +2,7 @@
 
 Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 
-_50 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_54 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -323,6 +323,26 @@ Markdown syntax pasted into a medium that does not render it — a LinkedIn post
 **After**
 
 > The key takeaway is that we shipped it. Here's what's next.
+
+### `mechanism-never-named`  ·  high · generic-llm · marketing-copy · llm-judge · family: form
+
+The page describes outcomes and never says how the thing works. You finish it unable to explain the product to someone else.
+
+**Why it reads AI:** Placeholder copy produces placeholder layout, and the causal arrow runs that way. A generator writing from a product name and a category has outcomes available to it and no mechanism, so it writes the half it has.
+
+**Detect:** Judge: after reading the page, write one sentence explaining the mechanism. If you cannot, the page never gave you one.
+
+**Fix:** Add the sentence that says what actually happens: what goes in, what the system does, what comes out. It is usually one sentence and it is usually the most valuable one on the page.
+
+**False positive when:** Brand and campaign pages that deliberately withhold detail, and products whose mechanism is genuinely the category (a font shop sells fonts).
+
+**Before**
+
+> Empower your team to do more with less.
+
+**After**
+
+> We watch your bank feed and match each line to an invoice; the 2% we cannot match go to whoever owns that ledger.
 
 ### `mirror-back-research-opener`  ·  high · generic-llm · email · llm-judge · family: shape
 
@@ -678,6 +698,29 @@ The closing line that asks for interaction rather than ending the thought: 'What
 
 > If anyone has made the Postgres side of this work above 10k writes a second, I'd like to know how.
 
+### `eyebrow-with-no-information`  ·  medium · generic-llm · marketing-copy · structural · family: form
+
+The small uppercase label above a headline carrying no fact: INTRODUCING, FOR MODERN TEAMS, AI-POWERED, THE FUTURE OF WORK.
+
+**Why it reads AI:** An eyebrow is an editorial device that presumes a hierarchy: a publication, a section, an issue. A landing page with one section has nothing for it to be above. The slot exists in the template, so the generator fills it, and the filling has to come from somewhere when no fact is available. It is among the most-cited visual giveaways in practitioner threads for exactly this reason.
+
+**Detect:** Locate small uppercase or letterspaced elements; convict the ones containing no digit, no acronym or standard name, and no link. Capitalisation is deliberately NOT used as the signal, because 'For Modern Teams' is title-cased and says nothing.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 2
+
+**Fix:** Delete it and raise the headline. If the page reads identically you have proved it was decoration. If you keep one, make it carry the specific the headline cannot: SOC 2 TYPE II - FEB 2026, WORKS WITH POSTGRES 14+, OPEN SOURCE, AGPL-3.0. The rule of thumb is that an eyebrow must contain a proper noun, a number, a date or a licence. Then delete the eyebrow slot from the component itself, or the next generated section will fill it again.
+
+**False positive when:** Editorial and documentation contexts where the eyebrow is a real taxonomy label (ENGINEERING, CHANGELOG, API REFERENCE, ISSUE 47) and navigates somewhere; conference pages carrying date and place; and brands whose whole system is editorial and where every eyebrow resolves to a real section. The question is not whether there is an eyebrow but whether it resolves to something a reader could navigate to or verify — which is why a linked eyebrow is never flagged.
+
+**Before**
+
+> <p class="uppercase tracking-widest">Introducing</p>
+> <h1>The AI-powered workspace for modern teams</h1>
+
+**After**
+
+> <h1>Turn Figma files into React components</h1>
+
 ### `grok-forced-irreverence`  ·  medium · grok · marketing-copy · llm-judge · family: shape
 
 Grok is prompt-tuned for an 'edgy/spicy' persona, producing try-hard irreverence: shoehorned snark, winking asides ('Buckle up, buttercup'), and contrarian 'I'm not like other AIs' posturing that doesn't fit the topic.
@@ -989,6 +1032,26 @@ Meta-navigation substituted for structure: 'First we'll explore... Next we'll ex
 
 > The fix had two halves, and the second one is the interesting part.
 
+### `subhead-restates-the-h1`  ·  medium · generic-llm · marketing-copy · llm-judge · family: form
+
+The line under the headline says the headline again in different words, spending the most valuable position on the page on nothing.
+
+**Why it reads AI:** The template has a subhead slot and the generator has one idea, so the idea gets said twice.
+
+**Detect:** Judge: does the subhead add a fact the h1 lacks? If deleting it loses nothing, it was restatement.
+
+**Fix:** Make the subhead carry what the headline could not: who it is for, what it costs, what it replaces, or the number that makes the claim credible.
+
+**False positive when:** A subhead that deliberately expands a deliberately terse headline is doing its job, not restating.
+
+**Before**
+
+> H1: Ship faster with AI-powered workflows. Sub: Empower your team to do more with less.
+
+**After**
+
+> H1: Turn Figma files into React components. Sub: Ships typed props and variants; works with your existing design tokens.
+
 ### `subreddit-register-mismatch`  ·  medium · generic-llm · social-post · llm-judge · family: shape
 
 Formal, structured, correctly punctuated prose posted into a venue that runs on fragments, in-jokes and lowercase.
@@ -1094,6 +1157,26 @@ Branch names prefixed with an agent namespace (claude/, codex/, copilot/, cursor
 **After**
 
 > fix-session-expiry
+
+### `cta-names-the-click-not-the-outcome`  ·  low · generic-llm · marketing-copy · llm-judge · family: form
+
+'Get Started', 'Learn More', 'Get Started Free' — buttons that describe the act of clicking rather than what happens next.
+
+**Why it reads AI:** The most-represented button label in the training corpus, and the one that commits to nothing. A model that does not know what the next screen is cannot name it.
+
+**Detect:** Judge: does the label say what the reader will have, or only that they will proceed?
+
+**Fix:** Name the outcome and the cost: 'Start a 14-day trial, no card', 'See it run on your repo', 'Book 20 minutes'. If you cannot name the next screen, that is worth knowing before you ship the button.
+
+**False positive when:** 'Get started' above a genuine multi-step onboarding is accurate, and established products can rely on a bare label the reader already understands.
+
+**Before**
+
+> Get Started Free
+
+**After**
+
+> Start a 14-day trial — no card
 
 ### `heading-level-skip`  ·  low · generic-llm · structure · structural · family: form
 

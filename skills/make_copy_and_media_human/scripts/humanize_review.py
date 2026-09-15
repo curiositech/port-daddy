@@ -100,6 +100,10 @@ DEFAULT_THRESHOLDS = {
     "unfilled-placeholder-residue": {"min_count": 1},
     "model-markup-residue": {"min_count": 1},
     "ai-default-token-repetition": {"min_count": 3},
+    "eyebrow-with-no-information": {"min_count": 2},
+    "pull-quote-that-quotes-nothing": {"min_count": 1},
+    "hero-with-nothing-to-look-at": {"min_count": 1},
+    "undifferentiated-section-padding": {"min_sections": 4},
     "framework-look-without-responsive": {"min_idiom": 25},
     "missing-viewport-meta": {"min_count": 1},
     "div-soup-no-semantics": {"min_divs": 20, "max_semantic_share": 0.08},
@@ -112,6 +116,16 @@ DEFAULT_THRESHOLDS = {
     "no-reduced-motion-guard": {"min_animations": 6},
     "important-escalation": {"min_count": 8},
     "z-index-escalation": {"max_z": 100},
+    "hundred-vw-overflow": {"min_count": 1},
+    "static-vh-full-height": {"min_count": 1},
+    "missing-html-lang": {"min_count": 1},
+    "tailwind-play-cdn-in-production": {"min_count": 1},
+    "h1-absent-or-competing": {"min_count": 1},
+    "no-meta-description-or-og-image": {"min_count": 1},
+    "input-without-label": {"min_count": 1},
+    "form-without-destination": {"min_count": 1},
+    "debug-residue-in-production": {"min_count": 3},
+    "barrel-icon-import": {"min_count": 1},
     "comment-narrates-next-line": {"min_count": 2, "overlap": 0.6},
     "docstring-restates-signature": {"min_count": 1},
     "swallow-exception-pass": {"min_count": 1},
@@ -983,6 +997,127 @@ def analyze_markup(path, text):
             "Keep each effect where it earns its place. Design one deliberate surface "
             "treatment and reuse that."))
 
+
+    # ---- the eyebrow that says nothing. The slot exists in the template, so the
+    # generator fills it; the test is whether deleting the string removes a fact.
+    eyebrows = []
+    for m in re.finditer(r"<(p|span|div)\b([^>]*)>([^<]{2,40})</\1>", text, re.I):
+        attrs, txt = m.group(2), m.group(3).strip()
+        looks_eyebrow = re.search(r"uppercase|tracking-[\w\[]|letter-spacing", attrs, re.I) \
+            or (txt.isupper() and 2 <= len(txt) <= 40)
+        if not looks_eyebrow or not txt:
+            continue
+        # An eyebrow earns its place by carrying a specific the headline cannot.
+        # Capitalisation is NOT that signal: "For Modern Teams" is title-cased and
+        # says nothing. Use morphology instead \u2014 a digit, a version, or an acronym
+        # or standard name \u2014 plus the research's own discriminator: an eyebrow
+        # that LINKS somewhere resolves to something a reader can verify.
+        has_fact = bool(re.search(r"\d", txt)) or bool(re.search(r"\b[A-Z]{2,}\b", txt))
+        links = "<a " in m.group(0).lower()
+        if not has_fact and not links:
+            eyebrows.append((text[:m.start()].count("\n") + 1, txt[:40]))
+    if len(eyebrows) >= th("eyebrow-with-no-information", "min_count", 2):
+        out.append(finding(
+            path, eyebrows[0][0],
+            f"{len(eyebrows)} information-free eyebrow label(s): "
+            + ", ".join(f'"{t}"' for _, t in eyebrows[:4]),
+            "eyebrow-with-no-information", "medium",
+            "The small label above a headline, carrying no fact. An eyebrow is an "
+            "editorial device that presumes a hierarchy \u2014 a publication, a section, an "
+            "issue. A page with one section has nothing for it to be above, so the slot "
+            "gets filled because it exists rather than because there is something to put "
+            "in it.",
+            "Delete it and raise the headline; if the page reads identically you have "
+            "proved it was decoration. If you keep one, make it carry the specific the "
+            "headline cannot: a date, a version, a licence, a standard. The rule of thumb "
+            "is that an eyebrow must contain a proper noun, a number, a date or a "
+            "licence. Then delete the eyebrow slot from the component, or the next "
+            "generated section will fill it again.",
+            family="form"))
+
+    # ---- the pull quote that quotes nothing. A pull quote is BY DEFINITION an
+    # excerpt of the document it sits in, so this is a provenance check, not taste.
+    body_text = re.sub(r"\s+", " ", strip_markup(text)).lower()
+    orphan_quotes = []
+    for m in re.finditer(r"<(blockquote|aside|figure)\b([^>]*)>(.*?)</\1>", text, re.S | re.I):
+        attrs, inner = m.group(2), m.group(3)
+        if re.search(r"<cite\b|<figcaption\b", inner, re.I):
+            continue
+        qt = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", inner)).strip(' "\u201c\u201d')
+        words = qt.split()
+        if len(words) < 6:
+            continue
+        # Does a six-word window of it occur anywhere else on the page?
+        window = " ".join(words[:6]).lower()
+        if body_text.count(window) <= 1 and not re.search(
+                r"[\u2014\u2013-]\s*[A-Z][\w.\s,'-]{2,40}\s*$", qt):
+            orphan_quotes.append((text[:m.start()].count("\n") + 1, qt[:70]))
+    if orphan_quotes:
+        out.append(finding(
+            path, orphan_quotes[0][0],
+            f"{len(orphan_quotes)} pull quote(s) quoting nothing on the page, "
+            f'e.g. "{orphan_quotes[0][1]}"',
+            "pull-quote-that-quotes-nothing", "high",
+            "A pull quote is defined by a provenance relation: it is text PULLED from the "
+            "document it decorates. This one appears nowhere else and names no source, so "
+            "the form makes a promise the content cannot keep. A reader who goes looking "
+            "for the speaker and finds none has learned something true about the page.",
+            "In an article, replace it with the sharpest eight to fifteen words already in "
+            "your body copy, and leave them in the body too \u2014 the pull quote is a trailer, "
+            "not a scene. On a landing page there is no document to pull from, so it is a "
+            "testimonial with a full name, role and company, or it is deleted. Make the "
+            "component require a source and fail the build without one.",
+            family="form"))
+
+    # ---- the hero with nothing to look at
+    hero_m = re.search(r"<(?:section|header|main|div)\b[^>]*>(.{0,4000}?)</(?:section|header|main|div)>",
+                       text, re.S | re.I)
+    if hero_m and re.search(r"<h1\b", hero_m.group(1), re.I):
+        hero = hero_m.group(1)
+        visuals = len(re.findall(r"<(?:img|picture|video|canvas|iframe)\b", hero, re.I))
+        # A logo or an icon is not a look at the product; require a real <svg>.
+        visuals += len([g for g in re.findall(r"<svg\b[^>]*>.*?</svg>", hero, re.S | re.I)
+                        if g.count("<path") > 2 or len(g) > 600])
+        if visuals == 0:
+            out.append(finding(
+                path, text[:hero_m.start()].count("\n") + 1,
+                "hero contains an h1 and no screenshot, photograph, diagram or video",
+                "hero-with-nothing-to-look-at", "high",
+                "An image-less hero is a claim that there is nothing worth showing, and "
+                "for a working product that claim is always false. A generator cannot "
+                "screenshot software it has never run, so the visual slot resolves to the "
+                "one thing it can synthesise from CSS: a gradient. The reader correctly "
+                "infers the product does not exist, is ugly, or has not been used by "
+                "anyone involved.",
+                "Show the product. In descending order of what it proves: a real "
+                "screenshot of a real screen with real data in it, cropped to the one "
+                "view that makes the value legible; a five-to-fifteen second silent loop "
+                "of it doing its one thing; or a diagram of the mechanism, which is the "
+                "honest answer for infrastructure with no UI. If there genuinely is no "
+                "product yet, say so and make the hero the argument for the waitlist \u2014 "
+                "that is not a tell. Hiding pre-product status behind a gradient is.",
+                family="form"))
+
+    # ---- every section padded identically
+    pads = re.findall(r"\bp[yt]-(\d{1,2})\b", scan) + \
+        re.findall(r"padding(?:-block|-top)?\s*:\s*(\d{2,3})px", scan)
+    if len(pads) >= th("undifferentiated-section-padding", "min_sections", 4) \
+       and len(set(pads)) == 1:
+        out.append(finding(
+            path, next((i + 1 for i, l in enumerate(lines)
+                        if re.search(r"\bp[yt]-\d|padding", l, re.I)), 1),
+            f"{len(pads)} sections all padded {pads[0]}",
+            "undifferentiated-section-padding", "medium",
+            "Spacing used as a constant rather than as a relationship. Nothing is grouped "
+            "with anything and nothing is separated from anything, so the page is a stack "
+            "of equally weighted slabs and the reader gets no signal about what belongs "
+            "together.",
+            "Vary it by role. Give the hero more room than it needs and the rest less, "
+            "tighten the gap between a heading and the thing it introduces, and widen the "
+            "gap between unrelated sections. A three-step scale used deliberately reads as "
+            "designed; one value used everywhere reads as a default.",
+            family="form"))
+
     for i, l in enumerate(lines):
         if re.search(r"<(button|a|h[1-6]|th|label|summary)\b[^>]*>[^<]*", l):
             seg = re.findall(r">([^<]+)<", l)
@@ -1158,7 +1293,7 @@ def analyze_exposition(path, lines, tags, body):
             "The writer already holds the concept, so the sentence reads fine to them "
             "and reads as noise to everyone else. This is the curse of knowledge with a "
             "context window behind it.",
-            "Define a term at or before its first load-bearing use, in the sentence that "
+            "Define a term at or before its first substantive use, in the sentence that "
             "uses it: an appositive is usually enough. Introduce one new idea at a time "
             "and let each one earn the next. If a term appears three times and you never "
             "define it, either define it or stop using it.",
@@ -1357,6 +1492,153 @@ def analyze_web_build(path, text):
             "added without reading the ones already there.",
             "Find the rule being overridden and change it. Keep !important for utility "
             "overrides and print styles.", family="defect"))
+
+
+    # ---- 100vw and the full-bleed hack: the most common single cause of the
+    # sideways scroll, because 100vw includes the scrollbar and 100% does not.
+    vw = len(re.findall(r"\b(?:width|min-width|max-width)\s*:\s*100vw\b", low)) \
+        + len(re.findall(r"\bw-screen\b|\bw-\[100vw\]", low))
+    bleed = len(re.findall(r"margin-(?:left|inline-start)\s*:\s*calc\(\s*-?50vw", low)) \
+        + len(re.findall(r"margin-left\s*:\s*-50vw", low))
+    if vw or bleed:
+        out.append(finding(
+            path, first(r"100vw|w-screen"),
+            f"{vw} use(s) of 100vw/w-screen" + (f" plus {bleed} -50vw full-bleed hack(s)" if bleed else ""),
+            "hundred-vw-overflow", "high" if bleed else "medium",
+            "100vw is the viewport including its scrollbar, so on any desktop browser "
+            "that reserves scrollbar space it is wider than the space available. Paired "
+            "with the -50vw full-bleed trick it overflows twice.",
+            "Use width:100% and let the element fill its container, or `100dvw` where you "
+            "genuinely mean the dynamic viewport. For a full-bleed section inside a padded "
+            "container, the modern form is `margin-inline: calc(50% - 50vw)` with "
+            "`overflow-x: clip` on a wrapper \u2014 and verify it at 390px either way.",
+            family="defect"))
+
+    if re.search(r"\b(?:height|min-height)\s*:\s*100vh\b", low) or "h-screen" in low:
+        out.append(finding(
+            path, first(r"100vh|h-screen"), "100vh used for full-height layout",
+            "static-vh-full-height", "low",
+            "On mobile browsers 100vh is the viewport with the URL bar hidden, so a "
+            "100vh hero is taller than the screen until you scroll, and the bottom of it "
+            "is cut off on first paint.",
+            "Use 100dvh (dynamic viewport height) with a 100vh fallback: "
+            "`min-height: 100vh; min-height: 100dvh`. Or stop pinning the hero to the "
+            "viewport at all, which is usually the better answer.",
+            family="defect"))
+
+    if ext in {".html", ".htm"} and re.search(r"<html\b", low) \
+       and not re.search(r"<html\b[^>]*\blang\s*=\s*[\"']\s*[a-z]", low):
+        out.append(finding(
+            path, first(r"<html"), "<html> has no lang attribute",
+            "missing-html-lang", "medium",
+            "Without a language, screen readers pick a voice by guess and often read the "
+            "page in the wrong accent or phonology. It is one attribute.",
+            'Set it on the root element: <html lang="en">. Use the real language, and a '
+            "region subtag only where it changes pronunciation or formatting.",
+            family="defect"))
+
+    if re.search(r"<script[^>]+src=[\"'][^\"']*(?:cdn\.tailwindcss\.com|@tailwindcss/browser)", low) \
+       or re.search(r"<script[^>]+src=[\"'][^\"']*(?:babel-standalone|@babel/standalone)", low):
+        out.append(finding(
+            path, first(r"cdn\.tailwindcss\.com|babel-standalone|@babel/standalone"),
+            "runtime-compiled CSS/JS CDN on a shipped page",
+            "tailwind-play-cdn-in-production", "medium",
+            "The Play CDN compiles your stylesheet in the visitor's browser on every "
+            "page load. It exists for prototypes and says so in its own documentation. "
+            "Shipping it means the build step was never set up.",
+            "Install the framework as a build dependency and ship a compiled stylesheet. "
+            "For Tailwind that is the CLI or the Vite/PostCSS plugin; the output is "
+            "usually a few kilobytes against the CDN's several hundred, and it stops the "
+            "flash of unstyled content.",
+            family="defect"))
+
+    h1s = len(re.findall(r"<h1\b", low))
+    if ext in {".html", ".htm"} and "<body" in low and h1s != 1:
+        out.append(finding(
+            path, first(r"<h1|<body"), f"{h1s} <h1> elements",
+            "h1-absent-or-competing", "medium",
+            "Either nothing states what the page is, or several things claim to. The h1 "
+            "is what a screen reader announces first and what search results lean on.",
+            "Exactly one h1 per page, naming the page rather than the brand. Everything "
+            "below it steps down by one level without skipping.",
+            family="defect"))
+
+    if ext in {".html", ".htm"} and "<head" in low:
+        miss = []
+        if not re.search(r'<meta[^>]+name=[\"\']description[\"\']', low):
+            miss.append("meta description")
+        if not re.search(r'<meta[^>]+(?:property|name)=[\"\']og:image', low):
+            miss.append("og:image")
+        if miss:
+            out.append(finding(
+                path, first(r"<head"), "missing: " + ", ".join(miss),
+                "no-meta-description-or-og-image", "low",
+                "What the page looks like when someone shares it or finds it. Without an "
+                "og:image a link unfurls as a grey box, which reads as abandoned.",
+                "Write a meta description that says what the page offers in about 150 "
+                "characters, and set an og:image at 1200x630 showing the actual product "
+                "rather than the logo on a gradient.",
+                family="defect"))
+
+    inputs = re.findall(r"<input\b[^>]*>", text, re.I)
+    real = [i for i in inputs
+            if not re.search(r'type=[\"\'](?:hidden|submit|button|image|reset)', i, re.I)]
+    labelled = len(re.findall(r"<label\b", low)) + \
+        len([i for i in real if re.search(r"aria-label|aria-labelledby", i, re.I)])
+    if len(real) >= 2 and labelled < len(real):
+        out.append(finding(
+            path, first(r"<input"), f"{len(real)} real inputs, {labelled} with a label",
+            "input-without-label", "medium",
+            "A placeholder is not a label: it disappears the moment someone types, and "
+            "screen readers do not reliably announce it. Unlabelled fields are the most "
+            "common reason a form cannot be completed without sight.",
+            "Give every input a <label for> pointing at its id, or an aria-label where a "
+            "visible label genuinely does not fit. Keep the placeholder for an example of "
+            "the format, not for the field name.",
+            family="defect"))
+
+    forms = re.findall(r"<form\b[^>]*>", text, re.I)
+    orphan = [f for f in forms
+              if not re.search(r"\baction\s*=", f, re.I)
+              and not re.search(r"onSubmit|on-submit|@submit", f, re.I)]
+    if orphan:
+        out.append(finding(
+            path, first(r"<form"), f"{len(orphan)} form(s) with no action and no submit handler",
+            "form-without-destination", "high",
+            "A form that goes nowhere. This one IS model-flavoured: a generator produces "
+            "a complete, convincing front end for a back end that was never asked for, "
+            "and the failure is invisible until a real person types into it and presses "
+            "send.",
+            "Wire it to something and then submit it yourself and confirm the message "
+            "arrives. If there is no destination yet, replace the form with a mailto link "
+            "so the page makes an honest promise.",
+            family="defect"))
+
+    dbg = len(re.findall(r"\bconsole\.(?:log|debug|warn)\s*\(", text)) \
+        + len(re.findall(r"\bdebugger\s*;", text))
+    if dbg >= th("debug-residue-in-production", "min_count", 3):
+        out.append(finding(
+            path, first(r"console\.(log|debug|warn)|debugger"),
+            f"{dbg} console/debugger statements",
+            "debug-residue-in-production", "low",
+            "Working notes shipped to visitors. Harmless on its own, and a reliable sign "
+            "nothing was reviewed on the way out.",
+            "Strip them, or route them through a logger that compiles out in production. "
+            "Check for logged request or user objects while you are there.",
+            family="defect"))
+
+    if re.search(r"import\s+\*\s+as\s+\w+\s+from\s+[\"\'](?:lucide-react|react-icons"
+                 r"|@heroicons/react|@mui/icons-material)", text):
+        out.append(finding(
+            path, first(r"import\s+\*\s+as"), "whole icon library imported as a namespace",
+            "barrel-icon-import", "medium",
+            "Pulling the entire icon set for the handful actually used. Tree-shaking "
+            "usually cannot help a namespace import, so the bundle carries thousands of "
+            "components.",
+            "Import the icons by name: `import { Check, X } from 'lucide-react'`. Then "
+            "check the bundle actually shrank, because some of these packages need a "
+            "per-icon path import to shake at all.",
+            family="defect"))
 
     zs = [int(m) for m in re.findall(r"z-index\s*:\s*(\d{3,})", low)]
     zs += [int(m) for m in re.findall(r"\bz-\[(\d{3,})\]", low)]
