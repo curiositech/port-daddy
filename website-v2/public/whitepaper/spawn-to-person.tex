@@ -244,7 +244,7 @@ this we draw the series' central economic claim, stated identically across the
 papers: \emph{the reputation estimator is cheap; the substrate it scores over ---
 witnessed outcomes on a non-forgeable identity --- is the gate.} We ground the
 philosophy (Locke's memory criterion, Parfit's psychological continuity), name
-the three continuity organs against a reference implementation on a neutral
+the three continuity subsystems against a reference implementation on a neutral
 maturity scale, and define this paper's central protocol contribution: a
 \textbf{multi-dimensional reputation} (accuracy / aesthetics / efficiency, each a
 different axis with a different judge) scored by \emph{neutral, conflict-free,
@@ -320,8 +320,8 @@ A developer who runs one fleet &
 The maturity ledger (Table~\ref{tab:app-status}) \\
 A philosopher / cognitive scientist &
 \S\ref{sec:continuity} (Locke, Parfit, and why the \emph{ledger} not the
-\emph{memory} is the identity organ), \S\ref{sec:organs}. &
-The continuity-organs table (Table~\ref{tab:stp-organs}) \\
+\emph{memory} is the identity subsystem), \S\ref{sec:organs}. &
+The continuity-subsystems table (Table~\ref{tab:stp-organs}) \\
 A mechanism-design / reputation-systems reader &
 \S\ref{sec:substrate} (substrate vs.\ score), \S\ref{sec:not-bandit} (why
 \emph{not} a bandit), \S\ref{sec:adr0049} (the reputation protocol),
@@ -437,7 +437,7 @@ Read left-to-right it is a roadmap; read right-to-left it is a stack of
 impossibility claims --- each arrow asserts that the right-hand thing
 \emph{cannot exist without} the left-hand thing. Our refusals are as important as
 our claims. We do \textbf{not} claim reputation is built (it is \DESIGNED-to-\VISION).
-We do \textbf{not} claim the reference system's restart organ is real checkpointing
+We do \textbf{not} claim the reference system's restart subsystem is real checkpointing
 (it forwards a summary, not execution state). We do \textbf{not} claim this paper's
 identity root reaches across operators --- it does not, and \S\ref{sec:keystone}
 hands that unsolved problem to the market paper by name.
@@ -470,7 +470,7 @@ not remember the boy). The \emph{psychological-continuity} repair
 memory/intention connections, transitive even where connectedness is not}) is the
 version that survives, and \S\ref{sec:continuity} shows it dictates a specific
 engineering choice. Reid is the named counter-example we must survive, not a result
-we adopt. \textbf{Our departure:} we read the continuity-bearing organ not as the
+we adopt. \textbf{Our departure:} we read the continuity-bearing subsystem not as the
 memory stream (the intuitive default) but as the \emph{transitive outcome ledger},
 because reputation must accumulate over arbitrarily many incarnations and can only
 attach to the transitive thing.
@@ -612,7 +612,7 @@ without reference to who fills it.
 A \textbf{person} is a pair $(R, \kappa)$ of a role instance and a
 \emph{continuity witness} $\kappa$ that binds successive incarnations of the
 role-holder into one accountable thread. $\kappa$ is realized by the three
-continuity organs of \S\ref{sec:organs} (memory, checkpoint, outcome ledger) keyed
+continuity subsystems of \S\ref{sec:organs} (memory, checkpoint, outcome ledger) keyed
 on a non-forgeable identity (\S\ref{sec:identity}). A person is a role
 \emph{plus a self}.
 \end{definition}
@@ -714,7 +714,7 @@ transitive chain --- and reputation, which must accumulate across arbitrarily ma
 incarnations, can only attach to the transitive thing.}
 
 \noindent This is why, later (\S\ref{sec:substrate}), we insist the
-\textbf{outcome ledger}, not the memory stream, is the organ reputation keys on.
+\textbf{outcome ledger}, not the memory stream, is the subsystem reputation keys on.
 Memory makes an agent \emph{feel} like the same character; the ledger makes it
 \emph{be} the same accountable principal. Figure~\ref{fig:parfit} draws the
 distinction: a chain of overlapping connections is continuous even where no single
@@ -724,8 +724,8 @@ incarnation directly remembers the first.
 \input{figures/fig-stp-parfit-chain}
 
 \keyidea{The philosophy matters because it predicts the \emph{wrong
-default}. The intuitive organ of identity is \emph{memory} (``the agent remembers
-its past''). Parfit shows the identity-bearing organ is the \emph{transitive
+default}. The intuitive subsystem of identity is \emph{memory} (``the agent remembers
+its past''). Parfit shows the identity-bearing subsystem is the \emph{transitive
 chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
 the memory.}
 
@@ -801,29 +801,29 @@ continuity, and which one does reputation require?
 % promise that something follows it; four lines is the smallest reservation
 % that keeps the promise on the same page as its first paragraph.
 \needspace{8\baselineskip}
-\section{The three organs of continuity}\label{sec:organs}
+\section{The three subsystems of continuity}\label{sec:organs}
 % ═════════════════════════════════════════════════════════════════════════════
 
 ``Continuity'' is routinely used to mean three different things. Conflating them
 is the most common way a reputation design fails its own honesty test. To keep the
-argument concrete and honest, we measure each organ against a \emph{reference
+argument concrete and honest, we measure each subsystem against a \emph{reference
 system} --- a running coordination daemon for local agent swarms whose component-by-component
 maturity is tabulated in Appendix~\ref{app:status}. Memory is implemented;
-checkpointing is partial; and the third organ has a shipped commitment-and-closure
+checkpointing is partial; and the third subsystem has a shipped commitment-and-closure
 substrate but not yet the reputation-grade witnessed ledger this paper requires.
 We use the neutral maturity scale throughout (\BUILT~/
 \BUILTWEAK~/ \DESIGNED~/ \VISION) and round nothing up.
 
-% --- FIGURE 4: the three continuity organs ---
+% --- FIGURE 4: the three continuity subsystems ---
 \begin{table}[H]
 \centering
-\caption{The three continuity organs have different survival depths. A successor inherits what each organ stores, and each stores less than the live body had: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
+\caption{The three continuity subsystems have different survival depths. A successor inherits what each subsystem stores, and each stores less than the running predecessor held: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
 \label{tab:stp-organs}
 \small
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Organ} & \textbf{What the successor inherits} & \textbf{What it does not} \\
+\textbf{Subsystem} & \textbf{What the successor inherits} & \textbf{What it does not} \\
 \midrule
 episodic memory & the notes, whole, with their ledger addresses & the execution state that produced them \\
 checkpoint & a summary and the worktree lineage & the process's execution state; recovery restores notes, not execution \\
@@ -832,7 +832,7 @@ outcome ledger & the commitments $c_1, c_2$ and the witnessed outcomes $o_1, o_2
 \end{tabularx}
 \end{table}
 
-\subsection{Organ 1 --- Memory: the episodic record \quad\BUILT}
+\subsection{Subsystem 1 --- Memory: the episodic record \quad\BUILT}
 
 An \textbf{episodic memory} component is the system's record of \emph{what
 happened}: durable, typed episodes --- each with a title, a summary, a source
@@ -842,33 +842,33 @@ Agents}~\pdcite{park2023generative} (UIST 2023 --- \emph{a memory stream of
 natural-language observations, periodic \textbf{reflection} into higher-level
 inferences, and retrieval scored by recency $\times$ importance $\times$
 relevance}): the promotion-of-episodes step is Park et al.'s importance gate by
-another name. In the reference system this organ runs in production; it is
+another name. In the reference system this subsystem runs in production; it is
 \BUILT.
 
-\subsection{Organ 2 --- Checkpoint: restorable state \quad\BUILTWEAK}
+\subsection{Subsystem 2 --- Checkpoint: restorable state \quad\BUILTWEAK}
 
 A checkpoint is \emph{restorable execution/belief state}: enough that a successor
 \emph{resumes} where the predecessor stopped. The reference system has a
-\textbf{restart organ} --- a heartbeat-staleness detector that flags dead agents
+\textbf{restart subsystem} --- a heartbeat-staleness detector that flags dead agents
 for salvage and republishes their unfinished work. It must be described formally,
-and it is: the restart organ \textbf{forwards a summary, not state}. It is
+and it is: the restart subsystem \textbf{forwards a summary, not state}. It is
 checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
 inherits a note about what the predecessor was doing, not the live belief state it
 was doing it with. The goal is sometimes called a ``checkpoint with teeth''
 (the same phrase this paper uses everywhere else for it, \S\ref{sec:open},
-Appendix~\ref{app:status}); the current organ has gums. Operating systems have
+Appendix~\ref{app:status}); what ships today has gums. Operating systems have
 drawn this exact line for decades, between \textbf{checkpoint/restore} of a
 process and the live execution state a checkpoint has to carry to deserve the
 name: Condor freezes a running process, serializes the whole of it, and resumes
 it on another machine~\pdcite{litzkow1997condor}, and Orleans's \emph{virtual
 actor} keeps an actor's durable identity distinct from whichever in-memory
 activation currently embodies it~\pdcite{bernstein2014orleans}. The restart
-organ's identity/state split is the LLM-agent instance of the second idea, and
+subsystem's identity/state split is the LLM-agent instance of the second idea, and
 its ``gums'' are the honest measure of how far it is from the first: what
 Condor serializes is registers and memory, and what would have to be serialized
 here is a KV-cache and a sampling state the provider does not export.
 
-\pitfall{Selling a summary-forwarding restart organ as real checkpointing would
+\pitfall{Selling a summary-forwarding restart subsystem as real checkpointing would
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
 ``all good'' when you have actually verified it --- absence of error is not
 attestation}. Strong continuity --- the kind that lets a successor \emph{resume}
@@ -890,7 +890,7 @@ belief, graded per provider and model version; until the mechanism ships it is a
 empirical hypothesis with a stated measurement, not a property. The
 formal-core result on the same seam says only that ``the ledger followed the right
 body'' --- it makes no claim that the checkpoint restored the agent's experience,
-and neither do we. Until the mechanism ships and is measured, the restart organ
+and neither do we. Until the mechanism ships and is measured, the restart subsystem
 still forwards a summary, and this chapter's own maturity ledger
 (Table~\ref{tab:app-status}) is where to check
 whether that has changed.}
@@ -902,22 +902,22 @@ Single-Writer Kernel}, which treats it as a low-level primitive. \emph{This} pap
 \emph{why it is the foundation of personhood and reputation}. The two papers state
 the same canonical sentence (next).
 
-\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \quad\BUILTWEAK}
+\subsection{Subsystem 3 --- Outcome ledger: the witnessed record of delivery \quad\BUILTWEAK}
 
-The third organ is the one reputation actually keys on. Its foundation is now
+The third subsystem is the one reputation actually keys on. Its foundation is now
 \BUILTWEAK: a durable commitment record, daemon-derived deadlines, oracle-bound
 closure, CLI/API surfaces, and an overdue-obligation monitor ship in the reference
-system. The complete organ remains an \textbf{append-only, daemon-witnessed outcome
+system. The complete subsystem remains an \textbf{append-only, daemon-witnessed outcome
 ledger} whose records are neutral, graded, identity-bound, and sanctionable. Its
 specified form is a
 \textbf{durable-commitment} record: a violable promise bound one-to-one to an
 actor, auto-enrolled when the actor takes a claim, closed only against an oracle,
-and watched by an obligation monitor that is the dual of the restart organ. A
+and watched by an obligation monitor that is the dual of the restart subsystem. A
 commitment row records what was promised; closing it requires an
 \emph{oracle reference} --- a released claim, a merged commit SHA, a passing test
 id, a satisfied policy sub-check. That commitment-and-closure seam ships. Neutral
 grading events, reputation updates, judge independence, sanctions, and durable
-identity binding do not; therefore the organ as a reputation ledger is partial,
+identity binding do not; therefore the subsystem as a reputation ledger is partial,
 not complete.
 
 \begin{definition}[Oracle]\label{def:oracle}
@@ -930,11 +930,11 @@ respawn.
 
 \subsection{The canonical seam sentence (stated identically in every paper)}
 
-\keyidea{\textbf{The economy rests on three continuity organs --- memory
+\keyidea{\textbf{The economy rests on three continuity subsystems --- memory
 (\BUILT), checkpoint (\BUILTWEAK: notes, not execution state), and the
 witnessed-outcome ledger (\BUILTWEAK: commitments and oracle-bound closure, not
-neutral graded outcomes) --- and reputation keys on the richer third organ, whose
-neutral, reputation-grade form is not yet complete; the checkpoint organ is the
+neutral graded outcomes) --- and reputation keys on the richer third subsystem, whose
+neutral, reputation-grade form is not yet complete; the checkpoint subsystem is the
 weakest continuity link and
 ``checkpoint with teeth'' (a real execution-state checkpoint) is the literal
 foundation of L3.}}
@@ -951,7 +951,7 @@ reader should consult first.
 \section{Identity: the root the whole chain hangs from}\label{sec:identity}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Before any organ of continuity matters, the identity it attaches to must be one
+Before any subsystem of continuity matters, the identity it attaches to must be one
 the agent cannot freely re-pick. This is the most under-appreciated claim in the
 paper.
 
@@ -2383,8 +2383,8 @@ Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 The third side of the market is a \emph{tradeable person}, defined here. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
 Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
-The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
-Reputation keys on organ~3 (the outcome ledger). \\
+The three continuity subsystems & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
+Reputation keys on subsystem~3 (the outcome ledger). \\
 Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
 Commitment, deadline, oracle closure, API/CLI, and overdue detection ship; neutral graded outcome events, sanctions, and reputation binding do not. \\
 Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
@@ -2412,7 +2412,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \textbf{A role is replaced; a person accumulates.} The role rail names whoever fills it this week; the person rail is the set of witnessed outcomes that survive every respawn.
-\item \textbf{Continuity is a ledger position, not a metaphysics.} Three organs carry it: episodic memory survives process death, the checkpoint keeps a summary and worktree lineage but not execution state, and the outcome ledger keeps commitments and closures in part.
+\item \textbf{Continuity is a ledger position, not a metaphysics.} Three subsystems carry it: episodic memory survives process death, the checkpoint keeps a summary and worktree lineage but not execution state, and the outcome ledger keeps commitments and closures in part.
 \item \textbf{Identity must be non-forgeable} or nothing above it holds: a respawn under a fresh label would shed every penalty and inflate every quorum. Principal-bound identity keeps the penalty flat across respawns and one principal at one weight.
 \item \textbf{Whitewashing has a price}, $\rho^{\ast}=G/(dB)=0.25$ in the worked case, and the penalty a fresh identity can escape decays as $0.8^{k}$; the probation cliff is the cheapest deterrent for the honest newcomer.
 \item \textbf{Adverse selection lives inside one identity} until a price can depend on an attested quantity; the attested flip is the whole gain from attestation ($0.5$ against $0.2$ in the example).
@@ -2575,19 +2575,19 @@ each hop, so the live total telescopes to $0.9^3=0.729\le 1$, which is what
 the sweep's $0$ violations certifies at scale.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:organs}}{The three organs of continuity}
+\pdexercisesfor{\S\ref{sec:organs}}{The three subsystems of continuity}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:stp-weak-organ}
-Which organ is \BUILTWEAK, and what exactly is weak about it?
+Which subsystem is \BUILTWEAK, and what exactly is weak about it?
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-weak-organ}
-The checkpoint organ is the specifically weak one: it forwards notes rather
-than execution state. The outcome-ledger organ is also only partial in the
+The checkpoint subsystem is the specifically weak one: it forwards notes rather
+than execution state. The outcome-ledger subsystem is also only partial in the
 implementation: commitments and oracle closure exist, but neutral graded
 outcomes and reputation binding do not.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-three-organs-trace}
-An agent claims a file, makes a commit, and dies. Walk the three organs: what
+An agent claims a file, makes a commit, and dies. Walk the three subsystems: what
 does each retain, and what is \emph{lost} that a strong checkpoint would have
 kept?
 \end{pdexercise}
@@ -3106,7 +3106,7 @@ manufacturing, and then formally grading, a self.}
 % ═════════════════════════════════════════════════════════════════════════════
 
 The body of this paper is written to stand on its own: every mechanism is described
-as a component (a memory record, a checkpoint organ, a witnessed-outcome ledger) and
+as a component (a memory record, a checkpoint subsystem, a witnessed-outcome ledger) and
 graded on the neutral maturity scale (\BUILT~/ \BUILTWEAK~/ \DESIGNED~/ \VISION).
 This appendix grounds that scale in a concrete \emph{reference system} --- a running
 coordination daemon for local agent swarms --- so a reader who wants to know
@@ -3117,7 +3117,7 @@ rhetorical.
 {\small\renewcommand{\arraystretch}{1.3}
 \begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
 \caption{Maturity of each paper concept against a reference coordination daemon.
-The honest summary: the \emph{organs} of continuity exist (one weakly); the
+The honest summary: the \emph{subsystems} of continuity exist (one weakly); the
 \emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
 identity --- is specified but not yet shipped.}\label{tab:app-status}\\
 \toprule
@@ -3133,11 +3133,11 @@ identity --- is specified but not yet shipped.}\label{tab:app-status}\\
 \endfoot
 \bottomrule
 \endlastfoot
-Episodic memory (Organ 1) & \BUILT &
+Episodic memory (Subsystem 1) & \BUILT &
 Durable typed episodes promoted from execution history; runs in production. \\
-Restart organ (Organ 2) & \BUILTWEAK &
+Restart subsystem (Subsystem 2) & \BUILTWEAK &
 Heartbeat-staleness detector that salvages dead agents; forwards a \emph{summary}, not execution state. \\
-Outcome ledger (Organ 3) & \BUILTWEAK &
+Outcome ledger (Subsystem 3) & \BUILTWEAK &
 Durable commitments, daemon-derived deadlines, oracle-bound closure, API/CLI, and overdue detection ship; neutral grading, sanctions, and reputation binding do not. \\
 Cost meter (efficiency axis) & \BUILT &
 Per-task token/wall-clock/dollar accounting recorded today. \\

@@ -2643,7 +2643,7 @@ The body of this paper is deliberately implementation-agnostic. This appendix
 records, for the reader who wants to check the claims against running code, exactly
 which mechanisms are shipped in the reference implementation, which are specified
 with a proof or a written protocol, and which are still proposed. The single-line
-summary: an \Built{} conserving bond ledger, an \Built{} continuity organ (episodic
+summary: an \Built{} conserving bond ledger, an \Built{} continuity subsystem (episodic
 memory), a \BuiltWeak{} checkpoint, and a richly \Designed{}-and-model-verified
 protocol stack --- but the spine the market trades on (cross-operator identity
 $\to$ outcome ledger $\to$ reputation) is \BuiltWeak{}-to-\Vision{}. Today the harbor
@@ -2671,9 +2671,9 @@ Bond ledger: escrow, slash, commons pool & \Built{} & bond-ledger module
 Conservation $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ & \Built{} &
   10k-trace property test \\
 No-spawn-without-bond & \BuiltWeak{} & escrow-first; runtime gate is a roadmap item \\
-Episodic memory (continuity organ 1) & \Built{} & episodic-memory module \\
-Resurrection / checkpoint (organ 2) & \BuiltWeak{} & passes notes, not state \\
-Outcome ledger (organ 3 --- reputation keys here) & \BuiltWeak{} & commitments,
+Episodic memory (continuity subsystem 1) & \Built{} & episodic-memory module \\
+Resurrection / checkpoint (subsystem 2) & \BuiltWeak{} & passes notes, not state \\
+Outcome ledger (subsystem 3 --- reputation keys here) & \BuiltWeak{} & commitments,
   daemon-derived deadlines, oracle closure, API/CLI, and overdue monitoring ship;
   neutral grading and reputation binding do not ship \\
 Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls}, lookup
