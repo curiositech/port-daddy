@@ -167,29 +167,47 @@ ${enabledLine ? `      ${enabledLine}\n` : ''}      trigger:
     expect(parsed('')).toContain('probe');
   });
 
-  it('accepts an explicit true, and the string form YAML may produce', () => {
-    expect(parsed('enabled: true')).toContain('probe');
-    expect(parsed("enabled: 'true'")).toContain('probe');
+  it('accepts every spelling YAML parses as a real boolean true', () => {
+    // true / True / TRUE are all boolean true under the yaml package's core
+    // schema, so all three enable. Asserted rather than assumed.
+    for (const good of ['enabled: true', 'enabled: True', 'enabled: TRUE']) {
+      expect(parsed(good), good).toContain('probe');
+    }
   });
 
   it('an explicit false takes the ship out of service', () => {
     expect(parsed('enabled: false')).not.toContain('probe');
-    expect(parsed("enabled: 'false'")).not.toContain('probe');
+    expect(parsed('enabled: False')).not.toContain('probe');
   });
 
   it('fails CLOSED on a malformed value — a typo must not re-enable a paused ship', () => {
-    // `enabled: flase` is the case this exists for: it is not `true`, so the
-    // ship stays out of service rather than quietly inheriting the default.
-    for (const bad of ['enabled: flase', 'enabled: yes', 'enabled: 1', 'enabled: null', 'enabled: {}']) {
-      expect(parsed(bad)).not.toContain('probe');
+    // `enabled: flase` is the case this exists for: it is not boolean true, so
+    // the ship stays out of service rather than quietly inheriting the default.
+    for (const bad of [
+      'enabled: flase', 'enabled: yes', 'enabled: 1', 'enabled: 0',
+      'enabled: null', 'enabled: {}', "enabled: 'False'",
+    ]) {
+      expect(parsed(bad), bad).not.toContain('probe');
     }
+  });
+
+  it('a QUOTED string fails closed, matching the daemon rather than the neighbour', () => {
+    // The one case where the obvious implementation diverges. The daemon's
+    // extractBool() takes only `typeof value === 'boolean'`, so a quoted
+    // 'true' fails closed there. Accepting it here would mean the cloud ran a
+    // ship the daemon had paused — fail-open, on an admission boundary, and
+    // the exact disagreement this predicate exists to close.
+    expect(parsed("enabled: 'true'"), "quoted 'true' must NOT enable").not.toContain('probe');
+    expect(parsed("enabled: 'false'")).not.toContain('probe');
   });
 
   it('matches the daemon parser, which already treated it this way', () => {
     // lib/fleet-ast.ts: "`enabled` is an admission boundary, so a
     // present-but-malformed value fails closed to false instead of silently
     // inheriting the enabled default." Two parsers over one config file must
-    // not disagree about what taking a ship out of service means.
+    // not disagree about what taking a ship out of service means — and the
+    // daemon already had the field (AgentNode.enabled?: BoolNode); the cloud
+    // was the side missing it.
     expect(parsed('enabled: false')).toEqual([]);
     expect(parsed('')).toEqual(['probe']);
   });

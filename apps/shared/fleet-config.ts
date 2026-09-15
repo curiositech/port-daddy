@@ -801,17 +801,27 @@ export function fleetMediatorFromDocument(doc: unknown): FleetMediatorConfig {
  * the one an operator would test by reading was not the one that ran.
  *
  * Semantics match the daemon's exactly:
- *   - absent            -> enabled (every pre-existing ship keeps running)
- *   - true / 'true'     -> enabled
- *   - anything else     -> DISABLED, fail-closed
+ *   - absent               -> enabled (every pre-existing ship keeps running)
+ *   - a real YAML boolean  -> that value. `true`, `True` and `TRUE` all parse
+ *                             to boolean true, so all three enable.
+ *   - anything else        -> DISABLED, fail-closed
  *
  * Fail-closed on a malformed value is deliberate. This is an admission
  * boundary; `enabled: flase` must leave the ship out of service, not quietly
  * back in it.
+ *
+ * A QUOTED `'true'` is therefore DISABLED, which is worth stating because it
+ * is the one case where the obvious implementation diverges. The daemon's
+ * extractBool() accepts only `typeof value === 'boolean'`, so a quoted string
+ * fails closed there. Accepting `'true'` here — as this file's own mediator
+ * consent check does for its separate key — would mean the cloud ran a ship
+ * the daemon had paused, which is the exact two-parsers-disagree bug this
+ * function exists to close, and it would fail OPEN. Matching the daemon wins
+ * over matching the neighbouring function.
  */
 function shipEnabled(agent: RawAgent): boolean {
   if (!('enabled' in agent) || agent.enabled === undefined) return true;
-  return agent.enabled === true || agent.enabled === 'true';
+  return agent.enabled === true;
 }
 
 export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfig[] | null {
