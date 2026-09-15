@@ -314,6 +314,20 @@ everything else is convenience.
   never conflate them.
 \end{enumerate}
 
+\begin{pdexample}{A preview: the collision this paper keeps returning to}
+Alice and Bob are two agents, started a millisecond apart, that both try to bind
+a development server to port~7421. Nothing here yet says how the kernel
+resolves it --- that mechanism, an insert against a uniqueness constraint and
+the loser handed the winner's identity rather than a bare error, is
+\S\ref{sec:resource}'s worked example in full. What matters on this page is
+only the shape of the answer: there is one daemon, one file lock, and exactly
+one of the two inserts lands first, so ``who holds port 7421'' is never a
+question with two right answers even for an instant. Every mechanism this
+paper states --- durability, fenced leases, the deontic split, the
+consistency theorem --- is a variation on that one fact applied to a
+different kind of contention.
+\end{pdexample}
+
 \subsection{Why ``reference monitor,'' and why \emph{not} consensus}
 
 The right mental model is the \textbf{reference monitor} of Anderson and
@@ -505,6 +519,12 @@ invocations, agents over the message transports, background workers) is resolved
 by the daemon's request queue; the SQLite file lock is the \emph{backstop} that
 preserves correctness if the discipline is ever violated by a second writer (for
 example a stray direct write), not the primary serialization mechanism.
+
+This is a \emph{design invariant}: \Built{} in the reference daemon, which
+routes every mutating request through its one write connection today; SQLite's
+file lock is the tested backstop, not the property itself, which is why a
+second daemon copy against the same file is a standing risk the substrate
+watches for (\S\ref{sec:attest}) rather than one the file lock alone forecloses.
 \end{definition}
 
 \keyidea{``Single-writer'' is an architectural \emph{discipline} (everything goes
@@ -526,6 +546,24 @@ kernel inherits exactly the crash semantics that configuration defines. The clai
 ``a write that returned success survives a crash'' reduces \emph{entirely} to what
 WAL with normal synchronization guarantees --- which is the subject of
 \S\ref{sec:durability}, and which is not what an unguarded reading assumes.
+
+\begin{pdexample}{The configuration's own two numbers}
+``Bounded'' is not a hand-wave; the reference implementation's pragma set
+(Appendix~\ref{app:status}) fixes it at \texttt{wal\_autocheckpoint=200} and
+\texttt{busy\_timeout=5000}. Read literally: the engine attempts an automatic
+checkpoint once the write-ahead log has accumulated 200 committed pages, so
+up to 199 pages of committed writes can sit in the WAL, durable but not yet
+folded into the main database file, at any moment; and a second writer
+contending for the file lock is retried transparently for up to
+$5000\,\mathrm{ms} = 5\,\mathrm{s}$ before SQLite gives up and returns
+\texttt{SQLITE\_BUSY} to the caller. That second number is irrelevant to
+Alice and Bob's port race above: their collision is resolved inside one
+transaction by a uniqueness-constraint rejection, not by a caller waiting
+out the busy-timeout, so the 5-second budget only ever matters on paths this
+chapter has not yet reached --- a second writer connection, which the
+single-writer discipline (Def.~\ref{def:single-writer}) is built to prevent
+from existing in the first place.
+\end{pdexample}
 
 \subsection{Schema evolution: an ordered boot ledger, not yet a sequencer (OP-7)}
 
@@ -665,7 +703,7 @@ Let a write return success under the default WAL configuration.
 \end{itemize}
 \end{property}
 
-\paragraph{Worked dramatization: Alice crashes mid-write.}
+\begin{pdexample}{Alice crashes mid-write}
 Alice is an agent editing a file. At $t_0$ she commits a claim on a port and a
 note recording her edit; the daemon returns success. At $t_0+5\,\mathrm{ms}$ her
 host operating system kills the daemon process outright --- a forced termination,
@@ -682,6 +720,7 @@ the database is uncorrupted --- but Alice's last claim and note may simply be go
 rolled back as if never written. This is I1b, and it is \emph{not guaranteed}. The
 two faults differ only in whether the page cache survived; conflating them is the
 single most common over-claim about WAL-backed storage.
+\end{pdexample}
 
 \pitfall{The seductive misconception is ``the normal sync level is safe in WAL mode
 because WAL already guarantees crash safety.'' This conflates crash-\emph{consistency}
@@ -795,6 +834,11 @@ a monotone number, present it with every effect, get refused when it is stale.
 
 \begin{theorem}[Atomic Mutual Exclusion and Fenced Leases]\label{thm:exclusion}
 Within a canonical conflict domain (exact normalized key, transactional interval overlap $[a, b] \cap [c, d] \neq \emptyset$, or path prefix hierarchy), at most one holder can hold an active lease at any logical instant. Furthermore, every granted lease carries a strictly monotonic fencing epoch $e \in \mathbb{N}$; downstream effect brokers reject any operation bearing an expired epoch $e' < e_{\text{current}}$.
+
+This is a \emph{theorem}: it follows deductively from Definition~\ref{def:single-writer}
+plus the atomicity of one SQLite immediate transaction, not from a design
+intention alone. The mechanism it describes is \Built{} in the reference
+implementation today, so the guarantee is not merely specified.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
@@ -812,7 +856,7 @@ transaction. That is a good reason not to need Raft (the related-work section
 makes the argument by way of Fischer, Lynch and Paterson); it is not a reason
 to let the token pass as new.
 
-\paragraph{Worked dramatization: Alice and Bob race for one port.}
+\begin{pdexample}{Alice and Bob race for one port}
 Alice and Bob are two agents, started a millisecond apart, that both want to bind a
 development server to port~7421. Each issues \texttt{acquire(7421)} (Algorithm
 \ref{alg:acquire}). Both requests reach the single daemon, which serializes them:
@@ -826,6 +870,7 @@ double-bind. The serialization that makes this clean is not a hand-rolled critic
 section; it is the operating system's file lock funnelling both inserts through one
 writer, and the database's primary-key uniqueness deciding the winner. One writer,
 one constraint, one holder.
+\end{pdexample}
 
 \pitfall{Theorem~\ref{thm:exclusion} is sound for the \emph{fresh-contention} case
 above. A subtler hazard hides in the \emph{stale-holder} branch: reclaiming an
@@ -1058,6 +1103,13 @@ The kernel realizes three deontic modalities with three mechanisms:
 post-commit); \emph{obligation} is enforced by oracle-bound commitments;
 \emph{permission} is a recorded capability. The coordination layer's deontic
 binding is a direct lift of this split.
+
+This is a \emph{design invariant}, \Built{} for all three mechanisms named:
+the daemon's own monitor, commitment, and capability modules realize this
+three-way split today, though the individual strength of each arm differs
+(Table~\ref{tab:swk-deontic-split} and the corrections in
+\S\ref{sec:arbiter-correction} below) --- the split itself is not merely a
+chapter's vocabulary.
 \end{definition}
 
 We keep \textbf{capability} (\emph{ability} --- what the agent's sandbox makes
@@ -1090,6 +1142,12 @@ whose bad prefix ends at that transition. It can detect the prefix, halt later
 actions, and enforce a separate recovery or bounded-response property. Therefore a
 post-commit subscription must not be credited with making the triggering state
 unreachable.
+
+This is a \emph{theorem}, following purely from Schneider's execution-monitor
+formalism~\pdcite{schneider2000} and the definition of a post-commit
+subscriber --- it holds independent of any implementation. The monitor
+mechanism it constrains is itself \Built{} in the reference daemon, which is
+why the correction below has teeth rather than being a hypothetical caveat.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
@@ -1133,6 +1191,12 @@ already did it; the monitor merely logs it.}
 A safety invariant $\phi$ is \textbf{regimentable} (strictly preventable pre-commit, making violation states physically unreachable) if and only if $\phi(S, \Delta)$ is a pure, deterministic boolean predicate decidable solely over the daemon's local, synchronous, committed database state $S$ and the incoming transaction payload $\Delta$. 
 
 Conversely, any invariant requiring external I/O, asynchronous wall-clock verification, distributed consensus, or non-deterministic grading oracles is strictly \textbf{enforceable} (post-commit, detect-and-compensate).
+
+This is a \emph{theorem}, proved directly from SQLite's synchronous
+single-writer commit semantics (Def.~\ref{def:single-writer}) rather than
+asserted as a design intention. The \texttt{UNIQUE}/\texttt{CHECK}
+constraint mechanism it credits as regimentable is \Built{} in the reference
+daemon today.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
@@ -1535,6 +1599,10 @@ A commitment's deadline is derived by the daemon from a scope policy and is
 deadline. (Invariant I5.) The point is to deny the agent control of the very metric
 it is judged against. This removes one direct manipulation channel; it is not a
 general proof of resistance to proxy gaming or misspecified scope policy.
+
+This is a \emph{design invariant}, \Built{} as Invariant I5 in
+Table~\ref{tab:invariants}: the commitment module derives every deadline
+itself and has no code path that accepts an agent-supplied one.
 \end{property}
 
 \begin{property}[Oracle-bound closure, Law 2]\label{prop:law2}
@@ -1542,6 +1610,11 @@ Closing a commitment as ``done'' is refused unless the agent supplies a non-empt
 reference drawn from a \emph{finite oracle vocabulary}: a released claim, a merged
 commit hash, a passing test identifier, or a satisfied policy sub-check. Free-text
 notes cannot close a commitment. (Invariant I6.)
+
+This is a \emph{design invariant}, \Built{} as Invariant I6 in
+Table~\ref{tab:invariants}: the closure gate (Listing~\ref{alg:close}) is
+implemented to accept only a reference from the finite, daemon-reverified
+oracle vocabulary, never free text.
 \end{property}
 
 The closure gate is small enough to state as a protocol (Algorithm
@@ -1681,6 +1754,17 @@ sanctions, identity binding, and reputation updates remain absent. OP-4 (here) a
 that richer outcome-ledger gap (the personhood paper) are the \emph{same} finding
 viewed from two ends.
 
+\begin{pdexample}{Where the coupling actually stands, counted}
+Figure~\ref{fig:swk-continuity-organs} names three continuity organs. Counting
+their grades directly, as just stated: one of the three --- memory --- is
+\Built. The other two --- checkpoint and the witnessed-outcome ledger, which
+are exactly the two organs the personhood and market papers lean on hardest
+--- are \BuiltWeak. That is not a rhetorical average of ``mostly working'';
+it means two of the three legs the cross-machine economy needs to stand on
+are, today, partial, and the weaker of those two (checkpoint, OP-4) is named
+in this chapter as the more important gap of the pair.
+\end{pdexample}
+
 \subsection{The operation log and tamper-evidence}
 
 The append-only operation log is the kernel's audit organ --- the stream the policy
@@ -1719,6 +1803,17 @@ unknown, deny. The drift and liveness self-checks exist precisely because a seco
 copy of the daemon \emph{can} come up against the same file --- a packaged install
 lagging the development tree is a recurring hazard --- and the kernel must know
 which copy of itself is the real one.
+
+\begin{pdexample}{Reading the honesty table by hand}
+Property~\ref{prop:attest} promises the report never rounds up. Counting
+Table~\ref{tab:invariants}'s own thirteen rows directly: seven are \Built
+(I1a, I2--I6, I10), five are \BuiltWeak (I7--I9, I11--I12), and one, I1b, is
+\NotGuar. An attestation that printed a bare ``all good'' today would be
+false on its face --- one row is not guaranteed and five more are only
+partial --- which is exactly why the property requires the report to
+enumerate what was \emph{not} checked rather than average thirteen rows into
+one green light.
+\end{pdexample}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The invariants, stated as theorems}
@@ -1930,6 +2025,11 @@ guarantees they buy.
 Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), transactions never enable \texttt{read\_uncommitted}, each successful response is sent only after commit, and no out-of-band writer mutates the tables.
 Then committed transactions admit a serial order, and the externally observed
 claim/lock operations are linearizable with commit as the linearization point.
+
+This is a \emph{theorem}, conditional exactly on the four assumptions stated
+(Figure~\ref{fig:swk-consistency-model}). Those four assumptions hold in the
+reference daemon today, so the guarantee itself is \Built, not merely
+specified --- it is lost the moment any one of them is violated.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
@@ -1997,6 +2097,20 @@ immediate mode) gives all-or-nothing for free. Filing this under ``research''
 understates how cheap the correct answer is. It is a \textbf{buildable defect}: the
 durable primitive is present; what is missing is the wrapping of the multi-organ
 endpoints in it.}
+
+\begin{pdexample}{The three writes, traced both ways}
+Today, without the wrapping this section proposes: statement 1 claims the
+port and commits; statement 2 opens the session and commits; statement 3
+records the commitment and commits. If the daemon dies between statement~1
+and statement~3, exactly two of the three writes are durable --- a state no
+single organ's own invariants forbid, because each organ only ever checked
+its own row. Wrap the same three statements in one \texttt{BEGIN
+IMMEDIATE}\ldots\texttt{COMMIT}: now there is one outcome to check instead
+of three, and the count of durable writes after any crash is either 3 or 0,
+never 1 or 2. \emph{Now you try:} name exactly which two rows are left
+behind by the unwrapped version, and who is left holding them
+(Exercise~\ref{ex:swk-partial-failure}).
+\end{pdexample}
 
 This is the kind of finding the maturity discipline exists to surface: a gap
 mislabeled as a research frontier hides a one-line fix behind a grander word.
@@ -2086,6 +2200,22 @@ from inside that same process.} The cryptographic version of the same limit is
 ADR-0050's concession --- \emph{a secret a process can use, it can copy} --- and it
 applies to enforcement verbs no less than to keys: a guard a process can decline to
 invoke is advisory.
+
+\begin{pdexample}{Five ways around the wall, counted}
+Counting the escapes named above rather than waving at ``at least five'':
+(1)~a documented bypass environment variable; (2)~an absolute path straight
+to the real \texttt{git} binary, skipping the shim on \texttt{PATH};
+(3)~a \texttt{PATH} rewrite that puts the agent's own binary first;
+(4)~an in-process \texttt{libgit2} or editor binding that never shells out
+through the intercepted command at all; (5)~simply declining to attach a
+session to the guard in the first place. None of the five touches the
+macaroon's cryptography --- the discharge chain stays sound in every case ---
+because all five operate one layer below it, at the same-user process
+boundary Table~\ref{tab:threat-model} already marks out of scope. That is
+the whole content of ``advisory'': five independent ways to reach the same
+effect the wall was built to intercept, using nothing more exotic than shell
+mechanics any same-user process already has.
+\end{pdexample}
 
 The third instrument of the same kind is the \textbf{hook harness}
 (ADR-0108, which absorbed the earlier ADR-0091; both still marked Proposed). It
