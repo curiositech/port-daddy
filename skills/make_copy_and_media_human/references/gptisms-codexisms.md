@@ -7,10 +7,72 @@ _35 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["ChatGPT / Codex / Copilot / Cursor output"] --> B{"Prose or code?"}
+    B -->|prose| C["Service voice: openers, signoffs,<br/>hedge stacks, FAQ tails"]
+    B -->|code| D["Comment narration, hollow tests,<br/>try/except pass, stale APIs"]
+    C --> E{"Literal assistant residue present?<br/>'As an AI', 'Certainly, here is'"}
+    D --> E
+    E -->|yes| F["HIGH, absolutely. Grep and delete,<br/>then re-read what it replaced"]
+    E -->|no| G["Editing cues only.<br/>Check engineering-artifact-tells for code"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`comment-narrates-next-line`](#comment-narrates-next-line) | HIGH | code | yes |
+| [`emoji-section-headers`](#emoji-section-headers) | HIGH | shape | yes |
+| [`h2-spam-full-sentence-headings`](#h2-spam-full-sentence-headings) | HIGH | shape | **no** |
+| [`hallucinated-import-or-api`](#hallucinated-import-or-api) | HIGH | residue | **no** |
+| [`hollow-assertion`](#hollow-assertion) | HIGH | code | **no** |
+| [`key-takeaways-box-everywhere`](#key-takeaways-box-everywhere) | HIGH | shape | **no** |
+| [`linkedin-broetry-one-line-runs`](#linkedin-broetry-one-line-runs) | HIGH | shape | yes |
+| [`markdown-leak-in-unrendered-medium`](#markdown-leak-in-unrendered-medium) | HIGH | form | yes |
+| [`mock-assertion-test`](#mock-assertion-test) | HIGH | code | **no** |
+| [`model-markup-residue`](#model-markup-residue) | HIGH | residue | yes |
+| [`placeholder-stub-residue`](#placeholder-stub-residue) | HIGH | code | yes |
+| [`service-voice-bookends`](#service-voice-bookends) | HIGH | form | **no** |
+| [`swallow-exception-pass`](#swallow-exception-pass) | HIGH | code | yes |
+| [`tracking-param-residue`](#tracking-param-residue) | HIGH | residue | yes |
+| [`unsolicited-faq-section`](#unsolicited-faq-section) | HIGH | shape | n/a |
+| [`amber-white-balance-cast`](#amber-white-balance-cast) | med | visual | **no** |
+| [`checkmark-bullet-grid`](#checkmark-bullet-grid) | med | form | yes |
+| [`dive-delve-openers`](#dive-delve-openers) | med | form | n/a |
+| [`docstring-restates-signature`](#docstring-restates-signature) | med | code | yes |
+| [`email-pleasantry-boilerplate`](#email-pleasantry-boilerplate) | med | form | n/a |
+| [`hedged-disclaimer-ending`](#hedged-disclaimer-ending) | med | form | n/a |
+| [`invisible-unicode-artifacts`](#invisible-unicode-artifacts) | med | residue | yes |
+| [`markdown-bold-title-case-scaffold`](#markdown-bold-title-case-scaffold) | med | shape | **no** |
+| [`over-apologetic-error-explanation`](#over-apologetic-error-explanation) | med | form | n/a |
+| [`problem-agitate-solve-by-template`](#problem-agitate-solve-by-template) | med | shape | n/a |
+| [`readme-boilerplate-shape`](#readme-boilerplate-shape) | med | shape | n/a |
+| [`rhetorical-question-hook`](#rhetorical-question-hook) | med | shape | n/a |
+| [`stale-training-api`](#stale-training-api) | med | code | n/a |
+| [`tables-for-non-tabular-content`](#tables-for-non-tabular-content) | med | shape | **no** |
+| [`trailing-example-usage-block`](#trailing-example-usage-block) | med | code | **no** |
+| [`try-catch-just-in-case`](#try-catch-just-in-case) | med | code | **no** |
+| [`decorative-section-divider`](#decorative-section-divider) | low | code | yes |
+| [`emoji-in-code`](#emoji-in-code) | low | code | yes |
+| [`single-impl-abstraction`](#single-impl-abstraction) | low | code | **no** |
+| [`title-case-heading-uniformity`](#title-case-heading-uniformity) | low | form | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="comment-narrates-next-line"></a>
 ### `comment-narrates-next-line`  ·  high · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -39,6 +101,7 @@ Inline comments that restate exactly what the following statement does in Englis
 > retries += 1
 > if retries > MAX:  # give up; upstream 503s have been seen to last ~30s
 
+<a id="emoji-section-headers"></a>
 ### `emoji-section-headers`  ·  high · chatgpt · structure · structural · family: shape
 
 **Automated here:** yes, these scripts implement it.
@@ -67,6 +130,7 @@ Headings and list items prefixed with a decorative emoji mapped to topic: rocket
 > ## Features
 > ## Configuration
 
+<a id="h2-spam-full-sentence-headings"></a>
 ### `h2-spam-full-sentence-headings`  ·  high · chatgpt · structure · structural · family: shape
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -93,6 +157,7 @@ A heading appears every one to two paragraphs, and the headings are full title-c
 > ## Choosing a CRM
 > A CRM keeps customer data in one place, which matters more than the feature checklist most vendors push. Start with pricing: per-seat costs balloon once your team crosses ten people, so model the 18-month bill, not the sticker.
 
+<a id="hallucinated-import-or-api"></a>
 ### `hallucinated-import-or-api`  ·  high · codex · code · structural · family: residue
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -117,6 +182,7 @@ Calls to functions, flags, endpoints or packages that do not exist — including
 
 > from urllib3.util.retry import Retry
 
+<a id="hollow-assertion"></a>
 ### `hollow-assertion`  ·  high · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -142,6 +208,7 @@ Assertions that cannot fail: assert True, assert result == result, assert x is n
 
 > assert parse(payload).currency == 'EUR'
 
+<a id="key-takeaways-box-everywhere"></a>
 ### `key-takeaways-box-everywhere`  ·  high · chatgpt · structure · structural · family: shape
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -169,6 +236,7 @@ A 'Key Takeaways,' 'TL;DR,' or 'In Summary' box bolted onto every section, not j
 > ## Pricing
 > We moved to usage-based billing in March. Every plan now meters API calls instead of seats, which is why your invoice line items changed shape.
 
+<a id="linkedin-broetry-one-line-runs"></a>
 ### `linkedin-broetry-one-line-runs`  ·  high · chatgpt · marketing-copy · structural · family: shape
 
 **Automated here:** yes, these scripts implement it.
@@ -199,6 +267,7 @@ A post built as a vertical stack of one-line paragraphs separated by blank lines
 
 > I got rejected by 40 companies before the 41st said yes — and the 41st only happened because a friend forwarded my resume past the screener. The lesson isn't 'never give up.' It's that the application pile is a lottery you win by knowing someone.
 
+<a id="markdown-leak-in-unrendered-medium"></a>
 ### `markdown-leak-in-unrendered-medium`  ·  high · chatgpt · structure · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -225,6 +294,7 @@ Markdown syntax pasted into a medium that does not render it — a LinkedIn post
 
 > The key takeaway is that we shipped it. Here's what's next.
 
+<a id="mock-assertion-test"></a>
 ### `mock-assertion-test`  ·  high · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -249,6 +319,7 @@ Tests that assert a mock was called rather than that behavior happened.
 
 > assert outbox[0].to == 'sam@example.com'
 
+<a id="model-markup-residue"></a>
 ### `model-markup-residue`  ·  high · chatgpt · structure · structural · family: residue
 
 **Automated here:** yes, these scripts implement it.
@@ -275,6 +346,7 @@ Vendor scaffolding tokens leaking into shipped text: oaicite, contentReference, 
 
 > Kobak et al. found a 40% reduction.
 
+<a id="placeholder-stub-residue"></a>
 ### `placeholder-stub-residue`  ·  high · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -304,6 +376,7 @@ Generated scaffolding left in place: placeholder identifiers (foo, bar, MyCompon
 >   return <tr><td>{invoice.number}</td><td>{formatCents(invoice.totalCents)}</td></tr>;
 > }
 
+<a id="service-voice-bookends"></a>
 ### `service-voice-bookends`  ·  high · chatgpt · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -326,6 +399,7 @@ Replies open with an eager exclamatory affirmation ('Certainly!', 'Great questio
 
 > Cache config lives in two places, and the second one usually bites people: the per-route TTL silently overrides the global default.
 
+<a id="swallow-exception-pass"></a>
 ### `swallow-exception-pass`  ·  high · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -356,6 +430,7 @@ Error handling that catches broadly and discards: `try: ... except Exception: pa
 > except requests.Timeout:
 >     raise UpstreamUnavailable(url) from None  # caller retries with backoff
 
+<a id="tracking-param-residue"></a>
 ### `tracking-param-residue`  ·  high · chatgpt · structure · structural · family: residue
 
 **Automated here:** yes, these scripts implement it.
@@ -382,6 +457,7 @@ URLs carrying utm_source=chatgpt.com, utm_source=perplexity, or a sibling attrib
 
 > See the report at https://example.org/report
 
+<a id="unsolicited-faq-section"></a>
 ### `unsolicited-faq-section`  ·  high · chatgpt · structure · llm-judge · family: shape
 
 A document, email, or landing page ends with an 'FAQ' section no actual user asked, inventing well-formed questions that map one-to-one to points already made above.
@@ -405,6 +481,7 @@ A document, email, or landing page ends with an 'FAQ' section no actual user ask
 > ## Questions we actually get
 > **Does this double-count sessions across subdomains?** No. We key on the root domain, which is why your numbers dropped ~8% after the migration.
 
+<a id="amber-white-balance-cast"></a>
 ### `amber-white-balance-cast`  ·  medium · chatgpt · image · structural · family: visual
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -427,6 +504,7 @@ A global warm cast across generated images: whites drifting to cream, shadows mu
 
 > Same shot with the seamless corrected to #FAFAFA.
 
+<a id="checkmark-bullet-grid"></a>
 ### `checkmark-bullet-grid`  ·  medium · chatgpt · structure · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -455,6 +533,7 @@ List items led by status glyphs — checkmarks, crosses, warning triangles, targ
 
 > It handles about 4,000 requests a second, runs in our SOC 2 boundary, and has survived two regional failovers.
 
+<a id="dive-delve-openers"></a>
 ### `dive-delve-openers`  ·  medium · chatgpt · prose · llm-judge · family: form
 
 Sections and intros launch with movement-metaphor throat-clearing: 'Let's dive in,' 'Let's delve into,' 'When it comes to X,' 'In today's fast-paced world.' The opener announces that discussion is about to happen instead of discussing.
@@ -475,6 +554,7 @@ Sections and intros launch with movement-metaphor throat-clearing: 'Let's dive i
 
 > API auth fails in two ways that matter: stolen tokens and replayed requests. Short-lived tokens fix the first; nonces fix the second.
 
+<a id="docstring-restates-signature"></a>
 ### `docstring-restates-signature`  ·  medium · codex · code-comments · llm-judge · family: code
 
 Docstrings that re-enumerate the signature with no added meaning: 'This function takes a and b and returns the result.' Args/Returns sections that just retype parameter names and types already visible in the declaration.
@@ -501,6 +581,7 @@ Docstrings that re-enumerate the signature with no added meaning: 'This function
 > def divide(a: float, b: float) -> float:
 >     """Raises ZeroDivisionError when b == 0; callers must guard. Result is not rounded."""
 
+<a id="email-pleasantry-boilerplate"></a>
 ### `email-pleasantry-boilerplate`  ·  medium · chatgpt · prose · llm-judge · family: form
 
 Emails open with 'I hope this email finds you well' / 'Just circling back' and over-structure a simple request with bolded deadlines and numbered sub-asks.
@@ -526,6 +607,7 @@ Emails open with 'I hope this email finds you well' / 'Just circling back' and o
 > Hi Sarah,
 > Can you look over the report by Friday? Mainly want your eyes on the revenue section before it goes to the board.
 
+<a id="hedged-disclaimer-ending"></a>
 ### `hedged-disclaimer-ending`  ·  medium · chatgpt · prose · llm-judge · family: form
 
 Closes with a defensive caveat hedging that the answer might not fit: 'Note that you may need to adjust this based on your specific setup,' 'requirements may vary,' 'this is a general example and should be adapted.'
@@ -546,6 +628,7 @@ Closes with a defensive caveat hedging that the answer might not fit: 'Note that
 
 > This assumes Redis on the default port; if yours is TLS-only, add rediss:// and the CA path — nothing else changes.
 
+<a id="invisible-unicode-artifacts"></a>
 ### `invisible-unicode-artifacts`  ·  medium · chatgpt · typography · structural · family: residue
 
 **Automated here:** yes, these scripts implement it.
@@ -574,6 +657,7 @@ Invisible or near-invisible codepoints in the text: U+202F narrow no-break space
 
 > A sentence — with the residue removed.
 
+<a id="markdown-bold-title-case-scaffold"></a>
 ### `markdown-bold-title-case-scaffold`  ·  medium · chatgpt · structure · structural · family: shape
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -600,6 +684,7 @@ Structural over-formatting carried into contexts that don't call for it: bolded 
 > ## What you get
 > It's fast and it rarely falls over. That's the whole pitch.
 
+<a id="over-apologetic-error-explanation"></a>
 ### `over-apologetic-error-explanation`  ·  medium · chatgpt · prose · llm-judge · family: form
 
 When explaining a bug or correction, the response over-apologizes: 'I apologize for the confusion,' 'You're absolutely right, my mistake,' 'Apologies for any inconvenience' — repeated and disproportionate to the issue.
@@ -620,6 +705,7 @@ When explaining a bug or correction, the response over-apologizes: 'I apologize 
 
 > You're right — the loop should stop at len-1, not len. Fixed bound below.
 
+<a id="problem-agitate-solve-by-template"></a>
 ### `problem-agitate-solve-by-template`  ·  medium · chatgpt · marketing-copy · llm-judge · family: shape
 
 Landing copy mechanically executes Problem-Agitate-Solve: a rhetorical-question problem ('Tired of X?'), an agitation paragraph of stacked pain points, the product as savior, and a generic CTA ('Get Started Today').
@@ -644,6 +730,7 @@ Landing copy mechanically executes Problem-Agitate-Solve: a rhetorical-question 
 > Last month your team rebuilt the same revenue report 14 times because the source numbers kept moving. This connects to the source once, so the report updates itself.
 > [Connect your data — takes 2 minutes]
 
+<a id="readme-boilerplate-shape"></a>
 ### `readme-boilerplate-shape`  ·  medium · chatgpt · structure · llm-judge · family: shape
 
 A README with a fixed, project-agnostic skeleton: badge row, one-line tagline, then Features / Installation / Usage / Contributing / License in that order, every section generic and nothing specific to what the project does or why it exists.
@@ -678,6 +765,7 @@ A README with a fixed, project-agnostic skeleton: badge row, one-line tagline, t
 > ```
 > ## Install / ## Caveats (it only reads pg_stat_statements)
 
+<a id="rhetorical-question-hook"></a>
 ### `rhetorical-question-hook`  ·  medium · chatgpt · marketing-copy · llm-judge · family: shape
 
 An opening question the reader did not ask and cannot answer: 'Ever wonder why some teams ship faster than others?'
@@ -698,6 +786,7 @@ An opening question the reader did not ask and cannot answer: 'Ever wonder why s
 
 > Teams that ship fast almost always have fewer people in the approval chain, not better engineers.
 
+<a id="stale-training-api"></a>
 ### `stale-training-api`  ·  medium · codex · code · llm-judge · family: code
 
 Code written against an API version that was current in the training data and has since changed — deprecated call signatures, removed flags, superseded client libraries.
@@ -720,6 +809,7 @@ Code written against an API version that was current in the training data and ha
 
 > client.chat.completions.create(...)
 
+<a id="tables-for-non-tabular-content"></a>
 ### `tables-for-non-tabular-content`  ·  medium · chatgpt · structure · structural · family: shape
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -746,6 +836,7 @@ A two-column markdown table used for things that aren't comparative data: a sing
 
 > The system is fast and rarely goes down, and it stays affordable because we run it on spot instances. The tradeoff: those spot instances are why the 2am batch job occasionally slips an hour.
 
+<a id="trailing-example-usage-block"></a>
 ### `trailing-example-usage-block`  ·  medium · codex · code-comments · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -771,6 +862,7 @@ A library module ends with a tacked-on demonstration: an `if __name__ == '__main
 
 > # (module ends after its definitions; an example lives in tests/test_add.py)
 
+<a id="try-catch-just-in-case"></a>
 ### `try-catch-just-in-case`  ·  medium · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -800,6 +892,7 @@ Defensive exception handling wrapped around code that cannot meaningfully fail, 
 
 > total = a + b
 
+<a id="decorative-section-divider"></a>
 ### `decorative-section-divider`  ·  low · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -826,6 +919,7 @@ ASCII-art banner comments partitioning a source file into labelled sections.
 
 > (no banner; the helpers live in their own module)
 
+<a id="emoji-in-code"></a>
 ### `emoji-in-code`  ·  low · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -852,6 +946,7 @@ Emoji in source files — log strings, comments, commit-adjacent scaffolding.
 
 > print("migration complete: 412 rows, 2.1s")
 
+<a id="single-impl-abstraction"></a>
 ### `single-impl-abstraction`  ·  low · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -876,6 +971,7 @@ An interface, abstract base class or strategy pattern with exactly one implement
 
 > class LocalStorage: ...
 
+<a id="title-case-heading-uniformity"></a>
 ### `title-case-heading-uniformity`  ·  low · chatgpt · structure · structural · family: form
 
 **Automated here:** yes, these scripts implement it.

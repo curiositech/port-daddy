@@ -17,10 +17,67 @@ _28 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A manuscript, preprint or referee report"] --> B["Point checks OUTWARD, at the world"]
+    B --> C["Does this DOI resolve to THIS paper?"]
+    B --> D["Does the body contain the abstract's number?"]
+    B --> E["Does this review cite a line or figure?"]
+    C --> F{"Which references do you check first?"}
+    F --> G["Sort the bibliography ASCENDING<br/>by citation count. Verify from the bottom"]
+    G --> H["Fidelity tracks citation count, saturating<br/>near verbatim recall above ~1,000 cites"]
+    H --> I["Corollary: checking the famous<br/>references proves nothing"]
+    E --> J["A fabricated reference does NOT mean<br/>a generated paper. 91% of affected<br/>papers had one or two"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`abstract-reports-what-the-body-does-not-contain`](#abstract-reports-what-the-body-does-not-contain) | HIGH | defect | **no** |
+| [`chat-preamble-in-the-manuscript`](#chat-preamble-in-the-manuscript) | HIGH | residue | yes |
+| [`hidden-prompt-aimed-at-a-reviewers-model`](#hidden-prompt-aimed-at-a-reviewers-model) | HIGH | residue | **no** |
+| [`knowledge-cutoff-disclaimer-in-scholarly-prose`](#knowledge-cutoff-disclaimer-in-scholarly-prose) | HIGH | residue | **no** |
+| [`manuscript-addressed-to-the-user`](#manuscript-addressed-to-the-user) | HIGH | residue | yes |
+| [`model-used-as-an-instrument-with-no-version-date-or-parameters`](#model-used-as-an-instrument-with-no-version-date-or-parameters) | HIGH | defect | yes |
+| [`numbers-in-the-text-disagree-with-the-table`](#numbers-in-the-text-disagree-with-the-table) | HIGH | defect | **no** |
+| [`partial-attribute-corruption-in-a-reference`](#partial-attribute-corruption-in-a-reference) | HIGH | defect | **no** |
+| [`placeholder-token-left-in-a-reference-or-heading`](#placeholder-token-left-in-a-reference-or-heading) | HIGH | residue | yes |
+| [`prompt-echo-instead-of-a-finding`](#prompt-echo-instead-of-a-finding) | HIGH | residue | n/a |
+| [`related-work-is-an-annotated-bibliography`](#related-work-is-an-annotated-bibliography) | HIGH | shape | n/a |
+| [`retracted-reference-cited-as-live`](#retracted-reference-cited-as-live) | HIGH | defect | **no** |
+| [`review-criticises-what-the-paper-does-not-contain`](#review-criticises-what-the-paper-does-not-contain) | HIGH | defect | n/a |
+| [`single-factor-design-on-a-public-dataset`](#single-factor-design-on-a-public-dataset) | HIGH | shape | n/a |
+| [`tortured-phrase`](#tortured-phrase) | HIGH | residue | yes |
+| [`unchecked-tail-of-the-bibliography`](#unchecked-tail-of-the-bibliography) | HIGH | defect | **no** |
+| [`ai-use-undeclared-against-the-venues-own-policy`](#ai-use-undeclared-against-the-venues-own-policy) | med | defect | **no** |
+| [`bibliography-any-model-would-have-written`](#bibliography-any-model-would-have-written) | med | shape | **no** |
+| [`bibliography-stops-before-the-recent-work`](#bibliography-stops-before-the-recent-work) | med | shape | **no** |
+| [`contributions-list-is-the-abstract-in-bullets`](#contributions-list-is-the-abstract-in-bullets) | med | shape | **no** |
+| [`correction-that-left-the-residue-in-place`](#correction-that-left-the-residue-in-place) | med | defect | **no** |
+| [`limitations-that-name-no-limitation`](#limitations-that-name-no-limitation) | med | shape | n/a |
+| [`many-exposures-tested-one-reported`](#many-exposures-tested-one-reported) | med | shape | **no** |
+| [`review-whose-weaknesses-are-the-standard-asks`](#review-whose-weaknesses-are-the-standard-asks) | med | shape | n/a |
+| [`review-with-no-locator`](#review-with-no-locator) | med | shape | yes |
+| [`review-in-the-five-canonical-sections`](#review-in-the-five-canonical-sections) | low | shape | **no** |
+| [`review-submitted-at-the-buzzer-and-never-followed-up`](#review-submitted-at-the-buzzer-and-never-followed-up) | low | shape | n/a |
+| [`style-verb-spike-against-the-fields-own-baseline`](#style-verb-spike-against-the-fields-own-baseline) | low | form | **no** |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="abstract-reports-what-the-body-does-not-contain"></a>
 ### `abstract-reports-what-the-body-does-not-contain`  ·  high · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -43,6 +100,7 @@ A number, a sample size, an effect, a dataset or a comparison appears in the abs
 
 > Abstract: 'accuracy improved from 89.0% to 91.3% (n = 214, Table 2)'.
 
+<a id="chat-preamble-in-the-manuscript"></a>
 ### `chat-preamble-in-the-manuscript`  ·  high · generic-llm · academic-paper · structural · family: residue · lane: research-papers
 
 **Automated here:** yes, these scripts implement it.
@@ -65,6 +123,7 @@ The assistant's compliance sentence survives the paste: 'Certainly, here is a po
 
 > Lithium-sulfur batteries are promising candidates for high-energy-density storage.
 
+<a id="hidden-prompt-aimed-at-a-reviewers-model"></a>
 ### `hidden-prompt-aimed-at-a-reviewers-model`  ·  high · generic-llm · academic-paper · structural · family: residue · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -87,6 +146,7 @@ Instruction text hidden in the submission so that a reviewer who pastes the PDF 
 
 > (removed, and reported to the editor; the extracted text layer now matches the rendered page exactly)
 
+<a id="knowledge-cutoff-disclaimer-in-scholarly-prose"></a>
 ### `knowledge-cutoff-disclaimer-in-scholarly-prose`  ·  high · generic-llm · academic-paper · structural · family: residue · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -109,6 +169,7 @@ A sentence that scopes a claim to the model's training window or its lack of too
 
 > A PubMed search on 12 March 2025 (terms in Supplementary Table 1) returned no randomised trial of this agent.
 
+<a id="manuscript-addressed-to-the-user"></a>
 ### `manuscript-addressed-to-the-user`  ·  high · generic-llm · academic-paper · structural · family: residue · lane: research-papers
 
 **Automated here:** yes, these scripts implement it.
@@ -131,6 +192,7 @@ Second-person address or references to 'the user' inside a paper, which has read
 
 > (deleted; the sentence was about the request, not the research, so there is nothing to rewrite)
 
+<a id="model-used-as-an-instrument-with-no-version-date-or-parameters"></a>
 ### `model-used-as-an-instrument-with-no-version-date-or-parameters`  ·  high · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** yes, these scripts implement it.
@@ -153,6 +215,7 @@ A study whose measurements come from a language model reports it as 'we used GPT
 
 > We used gpt-4-0613 via the OpenAI API between 3 and 9 June 2025, temperature 0, seed 7, max_tokens 256; each abstract was classified three times and disagreements are reported in Table S2. Prompts and raw responses: doi:10.5281/zenodo.0000000.
 
+<a id="numbers-in-the-text-disagree-with-the-table"></a>
 ### `numbers-in-the-text-disagree-with-the-table`  ·  high · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -175,6 +238,7 @@ The prose narrating a result and the table reporting it do not match: a percenta
 
 > Our method reduces RMSE by 3.4% (0.912 to 0.881, Table 2) and training time by 0.9% (116 s to 115 s), a difference within run-to-run variance (SD 2.1 s over 10 runs).
 
+<a id="partial-attribute-corruption-in-a-reference"></a>
 ### `partial-attribute-corruption-in-a-reference`  ·  high · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -197,6 +261,7 @@ A reference whose author list is real and whose other fields are not: correct co
 
 > Zayne Sprague, Xi Ye, Kaj Bostrom, Swarat Chaudhuri, and Greg Durrett. MuSR: testing the limits of chain-of-thought with multistep soft reasoning. In ICLR, 2024.
 
+<a id="placeholder-token-left-in-a-reference-or-heading"></a>
 ### `placeholder-token-left-in-a-reference-or-heading`  ·  high · generic-llm · academic-paper · structural · family: residue · lane: research-papers
 
 **Automated here:** yes, these scripts implement it.
@@ -219,6 +284,7 @@ Template variables the generator never filled: 'Firstname Lastname and Others', 
 
 > Yifan Wang, Ruilong Li and Jia Deng. DriVLMe: enhancing LLM-based autonomous driving agents with embodied and social experiences. IROS 2024. arXiv:2406.03008.
 
+<a id="prompt-echo-instead-of-a-finding"></a>
 ### `prompt-echo-instead-of-a-finding`  ·  high · generic-llm · academic-paper · assistive · family: residue · lane: research-papers
 
 A sentence that describes what was asked for rather than what was found, because models restate the instruction before executing it: 'references for a research paper on mass communication law', 'a more concise version', 'the methodology for conducting a literature review', 'additional references as well as illustrative tables for the computer vision topic in APA style'. Academ-AI's word tree of 'certainly' in 768 published documents is built almost entirely from these fragments, and one of them reads 'fictional references on the assessment of the effectiveness of nursing interventions in reducing hospital readmissions' - the request that produced a fabricated bibliography, preserved in print.
@@ -239,6 +305,7 @@ A sentence that describes what was asked for rather than what was found, because
 
 > Two trials report reductions in 30-day readmission after pharmacist-led discharge counselling (refs 14, 15); neither was blinded.
 
+<a id="related-work-is-an-annotated-bibliography"></a>
 ### `related-work-is-an-annotated-bibliography`  ·  high · generic-llm · academic-paper · assistive · family: shape · lane: research-papers
 
 A related-work or background section built as one paragraph per prior paper - author, year, what they did, next - with no sentence that puts two of them in relation to each other and no sentence that says what is missing. On 31 October 2025 arXiv's computer science section began requiring documented peer review for literature surveys and position papers, its moderators describing the incoming submissions as 'little more than annotated bibliographies' and reporting hundreds per month against a historical trickle. The Beel evaluation reached the same verdict independently: related work was 'particularly poor in all manuscripts, often with irrelevant citations'.
@@ -259,6 +326,7 @@ A related-work or background section built as one paragraph per prior paper - au
 
 > All three approaches assume the label noise is symmetric: Smith et al. (2021) and Jones et al. (2022) enforce it in the loss, Lee et al. (2023) in the sampler. None reports behaviour when it is not, which is the regime our dataset is in.
 
+<a id="retracted-reference-cited-as-live"></a>
 ### `retracted-reference-cited-as-live`  ·  high · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -281,6 +349,7 @@ A retracted or expression-of-concern paper is cited in support of a claim, with 
 
 > An early report of improved outcome [23] was retracted in 2022 for image duplication; we therefore rely on the two subsequent independent trials [24, 25].
 
+<a id="review-criticises-what-the-paper-does-not-contain"></a>
 ### `review-criticises-what-the-paper-does-not-contain`  ·  high · generic-llm · peer-review · assistive · family: defect · lane: research-papers
 
 The report objects to a method, dataset, claim or baseline that is not in the submission - asking for an ablation of a component the paper does not have, criticising a sample size the paper never reports, or praising a contribution belonging to a different paper. Pangram's December 2025 analysis of ICLR 2026 reviews lists exactly this among its common markers, alongside hallucinated citations and 'generic praise disconnected from the paper's actual contributions'.
@@ -301,6 +370,7 @@ The report objects to a method, dataset, claim or baseline that is not in the su
 
 > (after checking) The submission is about tabular data and reports two transformer baselines in Table 4; ImageNet is not applicable. Point withdrawn.
 
+<a id="single-factor-design-on-a-public-dataset"></a>
 ### `single-factor-design-on-a-public-dataset`  ·  high · generic-llm · academic-paper · assistive · family: shape · lane: research-papers
 
 One exposure, one outcome, one slice of a large public survey, and a title of the form 'Association between X and Y: a cross-sectional study of NHANES 2007-2018'. Suchak et al. (PLOS Biology, 9 May 2025) traced this template through the US NHANES database: an average of 4 such papers per year from 2014 to 2021, then 33 in 2022, 82 in 2023 and 190 by 9 October 2024. Across the set, 169 predictor variables were investigated as standalone associations with conditions that are inherently multifactorial, and the median analysed window was four years - two biennial cycles - out of a resource spanning decades.
@@ -321,6 +391,7 @@ One exposure, one outcome, one slice of a large public survey, and a title of th
 
 > A pre-registered analysis of all NHANES cycles 1999-2023 testing whether the reported niacin-depression association survives adjustment for total energy intake, income and comorbidity, with the 28 previously reported single-nutrient associations re-tested under FDR control.
 
+<a id="tortured-phrase"></a>
 ### `tortured-phrase`  ·  high · generic-llm · academic-paper · structural · family: residue · lane: research-papers
 
 **Automated here:** yes, these scripts implement it.
@@ -343,6 +414,7 @@ An established technical term replaced by a synonym chain that preserves grammar
 
 > The artificial intelligence model achieved high accuracy on breast cancer classification.
 
+<a id="unchecked-tail-of-the-bibliography"></a>
 ### `unchecked-tail-of-the-bibliography`  ·  high · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -365,6 +437,7 @@ The fabricated references are not distributed evenly through the reference list 
 
 > Huang, X., Khetan, A., Cvitkovic, M. and Karnin, Z. (2020). TabTransformer: tabular data modeling using contextual embeddings. arXiv:2012.06678.
 
+<a id="ai-use-undeclared-against-the-venues-own-policy"></a>
 ### `ai-use-undeclared-against-the-venues-own-policy`  ·  medium · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -387,6 +460,7 @@ The manuscript shows evidence of generative-AI assistance and carries no declara
 
 > Declaration of generative AI use: ChatGPT (GPT-4o, OpenAI) was used to improve the language of the Introduction and Discussion. No content was generated. The authors reviewed and edited all text and take full responsibility for the publication.
 
+<a id="bibliography-any-model-would-have-written"></a>
 ### `bibliography-any-model-would-have-written`  ·  medium · generic-llm · academic-paper · structural · family: shape · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -409,6 +483,7 @@ Every reference is real, every reference is canonical, and nothing in the list i
 
 > The same five, plus the 2021 workshop paper that reported the failure mode this work fixes and the 2024 replication that could not reproduce it.
 
+<a id="bibliography-stops-before-the-recent-work"></a>
 ### `bibliography-stops-before-the-recent-work`  ·  medium · generic-llm · academic-paper · structural · family: shape · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -431,6 +506,7 @@ The reference list has a hard edge roughly where a training cutoff would be, wit
 
 > Twelve references, six of them from 2024-2025, including the two concurrent preprints this work must be distinguished from.
 
+<a id="contributions-list-is-the-abstract-in-bullets"></a>
 ### `contributions-list-is-the-abstract-in-bullets`  ·  medium · generic-llm · academic-paper · structural · family: shape · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -453,6 +529,7 @@ A 'Our contributions are as follows' list whose three or four bullets are the ab
 
 > - A decoder that removes the O(n^2) attention cost at sequence lengths above 8k without loss of exact-match accuracy. - A 12k-item benchmark where the three leading methods fall below 40%. - Evidence that the gain disappears entirely when the inputs are not pre-tokenised.
 
+<a id="correction-that-left-the-residue-in-place"></a>
 ### `correction-that-left-the-residue-in-place`  ·  medium · generic-llm · academic-paper · structural · family: defect · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -475,6 +552,7 @@ A corrigendum or an erratum announces that an AI-use declaration has been added,
 
 > Article acknowledgements: 'ChatGPT (GPT-4, OpenAI) was used to edit the Introduction for language. The authors reviewed and take responsibility for all content.'
 
+<a id="limitations-that-name-no-limitation"></a>
 ### `limitations-that-name-no-limitation`  ·  medium · generic-llm · academic-paper · assistive · family: shape · lane: research-papers
 
 A limitations paragraph in which every sentence is true of every study ever conducted: the sample was drawn from one institution, the design was cross-sectional so causality cannot be inferred, future work should examine larger and more diverse cohorts. Nothing in it could be used to decide whether to believe this paper's specific number, and nothing in it was learned by doing this work.
@@ -495,6 +573,7 @@ A limitations paragraph in which every sentence is true of every study ever cond
 
 > Serum was stored at -20C rather than -80C for the first 94 samples, which degrades this assay by roughly 8% over six months; the effect would push our estimate away from the null, so the true association may be smaller than reported.
 
+<a id="many-exposures-tested-one-reported"></a>
 ### `many-exposures-tested-one-reported`  ·  medium · generic-llm · academic-paper · structural · family: shape · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -517,6 +596,7 @@ A significant association is reported with no statement of how many associations
 
 > Of 14 nutrients tested, one reached significance before correction (p = 0.03) and none after Benjamini-Hochberg control at q = 0.05; we report this as hypothesis-generating.
 
+<a id="review-whose-weaknesses-are-the-standard-asks"></a>
 ### `review-whose-weaknesses-are-the-standard-asks`  ·  medium · generic-llm · peer-review · assistive · family: shape · lane: research-papers
 
 The critique consists entirely of requests that could be made of any paper in the field: more ablations, a larger test set, an additional baseline, more datasets, clearer writing, a discussion of broader impact. Pangram describes this as 'shallow nit-picks rather than genuine analysis' and as 'saying a lot of words that say very little'; multiple evaluations find that LLM reviews rarely propose the addition or removal of a specific analysis, which is the main substance of expert human reviews, and frequently miss the atomic weaknesses human reviewers identify.
@@ -537,6 +617,7 @@ The critique consists entirely of requests that could be made of any paper in th
 
 > Weakness: Theorem 2 assumes the noise is independent of the covariates, but the dataset in Section 5 is known to violate this (see Chen 2023, Fig. 4). If the result survives correlated noise, show it; if not, the empirical section does not support the theory.
 
+<a id="review-with-no-locator"></a>
 ### `review-with-no-locator`  ·  medium · generic-llm · peer-review · structural · family: shape · lane: research-papers
 
 **Automated here:** yes, these scripts implement it.
@@ -559,6 +640,7 @@ A referee report that never points at a place in the manuscript: no line or page
 
 > Section 4.2, lines 231-238: the train/test split is described as random but Table 3 reports per-subject results, so it is not clear whether subjects appear in both splits. Please state this explicitly.
 
+<a id="review-in-the-five-canonical-sections"></a>
 ### `review-in-the-five-canonical-sections`  ·  low · generic-llm · peer-review · structural · family: shape · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -581,6 +663,7 @@ Every review from a given reviewer arrives with the same five bolded headings - 
 
 > A two-paragraph report whose length and emphasis differ per paper, leading with the objection that actually determines the recommendation.
 
+<a id="review-submitted-at-the-buzzer-and-never-followed-up"></a>
 ### `review-submitted-at-the-buzzer-and-never-followed-up`  ·  low · generic-llm · peer-review · assistive · family: shape · lane: research-papers
 
 Not a text property at all: the review arrived within three days of the deadline, the reviewer reported low confidence, and they never replied to the author rebuttal. Liang et al. (2024) measured all three as correlates of estimated LLM modification across ICLR 2024, NeurIPS 2023, CoRL 2023 and EMNLP 2023, alongside a fourth: higher estimated AI modification correlated with homogenisation of review content in embedding space. Their headline corpus estimate is that 6.5% to 16.9% of review text was substantially modified beyond spell-checking, 10.6% of ICLR 2024 review sentences and 16.9% for EMNLP, with no significant evidence in Nature portfolio reviews.
@@ -601,6 +684,7 @@ Not a text property at all: the review arrived within three days of the deadline
 
 > Review filed with confidence 2/5 and an explicit note: 'I can assess the experiments but not the proofs; please assign a theory reviewer.' Reviewer replies to the rebuttal.
 
+<a id="style-verb-spike-against-the-fields-own-baseline"></a>
 ### `style-verb-spike-against-the-fields-own-baseline`  ·  low · generic-llm · academic-paper · structural · family: form · lane: research-papers
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.

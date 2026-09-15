@@ -11,10 +11,69 @@ _29 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A page whose source looks correct"] --> B["The source is not the delivery"]
+    B --> C{"Check each in turn"}
+    C --> D["Image: right format? right size for its box?"]
+    C --> E["Fonts: how many weights actually USED?"]
+    C --> F["Head: what blocks the first paint?"]
+    C --> G["JS: did this need to be a framework?"]
+    D --> H["REFUSAL: there is no published measurement<br/>that AI-generated sites are heavier.<br/>Say UNREVIEWED, not AI-generated"]
+    E --> H
+    F --> H
+    G --> H
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`autoplay-background-video-no-poster`](#autoplay-background-video-no-poster) | HIGH | defect | yes |
+| [`consent-manager-is-the-lcp`](#consent-manager-is-the-lcp) | HIGH | defect | **no** |
+| [`default-third-party-stack`](#default-third-party-stack) | HIGH | shape | yes |
+| [`gradient-mesh-shipped-as-raster`](#gradient-mesh-shipped-as-raster) | HIGH | defect | yes |
+| [`hero-image-as-full-resolution-png`](#hero-image-as-full-resolution-png) | HIGH | defect | yes |
+| [`late-injected-bar-shifts-content`](#late-injected-bar-shifts-content) | HIGH | defect | **no** |
+| [`lazy-loaded-lcp-image`](#lazy-loaded-lcp-image) | HIGH | defect | yes |
+| [`optimised-the-source-never-the-delivery`](#optimised-the-source-never-the-delivery) | HIGH | shape | **no** |
+| [`render-blocking-head-stack`](#render-blocking-head-stack) | HIGH | defect | yes |
+| [`single-source-full-bleed-image`](#single-source-full-bleed-image) | HIGH | defect | yes |
+| [`spa-shell-for-a-brochure-site`](#spa-shell-for-a-brochure-site) | HIGH | defect | yes |
+| [`stock-photo-at-source-resolution`](#stock-photo-at-source-resolution) | HIGH | defect | yes |
+| [`use-client-on-a-static-page`](#use-client-on-a-static-page) | HIGH | defect | yes |
+| [`webgl-library-for-decoration`](#webgl-library-for-decoration) | HIGH | shape | yes |
+| [`animation-library-for-css-effects`](#animation-library-for-css-effects) | med | shape | yes |
+| [`figma-export-svg-unoptimised`](#figma-export-svg-unoptimised) | med | defect | **no** |
+| [`font-display-absent-or-block`](#font-display-absent-or-block) | med | defect | yes |
+| [`font-weights-ordered-not-used`](#font-weights-ordered-not-used) | med | residue | yes |
+| [`google-fonts-cdn-render-blocking`](#google-fonts-cdn-render-blocking) | med | defect | yes |
+| [`icon-webfont-for-a-handful-of-icons`](#icon-webfont-for-a-handful-of-icons) | med | shape | yes |
+| [`lcp-font-not-preloaded`](#lcp-font-not-preloaded) | med | defect | **no** |
+| [`lcp-image-without-fetchpriority`](#lcp-image-without-fetchpriority) | med | defect | yes |
+| [`multiple-display-families-one-page`](#multiple-display-families-one-page) | med | shape | **no** |
+| [`no-modern-image-format-anywhere`](#no-modern-image-format-anywhere) | med | shape | yes |
+| [`same-video-to-every-device`](#same-video-to-every-device) | med | defect | **no** |
+| [`sizes-attribute-that-lies`](#sizes-attribute-that-lies) | med | defect | **no** |
+| [`smooth-scroll-library-on-a-brochure`](#smooth-scroll-library-on-a-brochure) | med | shape | yes |
+| [`icon-library-dependency-for-six-icons`](#icon-library-dependency-for-six-icons) | low | shape | **no** |
+| [`variable-font-single-static-weight`](#variable-font-single-static-weight) | low | defect | **no** |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="autoplay-background-video-no-poster"></a>
 ### `autoplay-background-video-no-poster`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -37,6 +96,7 @@ A looping muted video behind the hero copy with no poster and no preload discipl
 
 > <video poster="/hero-poster.avif" preload="none" …> with playback started on canplaythrough
 
+<a id="consent-manager-is-the-lcp"></a>
 ### `consent-manager-is-the-lcp`  ·  high · generic-llm · performance · rendered · family: defect · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -59,6 +119,7 @@ The cookie banner is the largest painted element in the viewport, so LCP measure
 
 > a compact bottom bar in the system font, script async; LCP 1.4s
 
+<a id="default-third-party-stack"></a>
 ### `default-third-party-stack`  ·  high · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -81,6 +142,7 @@ A one-page marketing site shipping analytics, a tag manager, a consent manager, 
 
 > two origins, with chat loaded on click
 
+<a id="gradient-mesh-shipped-as-raster"></a>
 ### `gradient-mesh-shipped-as-raster`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -103,6 +165,7 @@ The decorative blurred blob or mesh gradient behind the hero — the commonest o
 
 > a div with a radial-gradient background and aria-hidden (0 bytes)
 
+<a id="hero-image-as-full-resolution-png"></a>
 ### `hero-image-as-full-resolution-png`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -125,6 +188,7 @@ The largest image on the page is delivered as PNG at source resolution. PNG is l
 
 > <picture> with AVIF and WebP sources at real widths, an honest sizes, and width/height plus fetchpriority="high" on the img
 
+<a id="late-injected-bar-shifts-content"></a>
 ### `late-injected-bar-shifts-content`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -147,6 +211,7 @@ An announcement bar, promo strip or newsletter ribbon injected at the top of the
 
 > the bar rendered server-side inside a container that exists whether or not the bar does
 
+<a id="lazy-loaded-lcp-image"></a>
 ### `lazy-loaded-lcp-image`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -169,6 +234,7 @@ loading="lazy" applied uniformly to every image including the hero. The rule was
 
 > the hero with fetchpriority="high" and no loading attribute; everything below it lazy
 
+<a id="optimised-the-source-never-the-delivery"></a>
 ### `optimised-the-source-never-the-delivery`  ·  high · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -191,6 +257,7 @@ The organising idea for this lane. A generator can see the markup it is writing.
 
 > “The hero is a 2.3 MB PNG, the fonts block the first paint, and the banner is the largest painted element. Here is what each costs.”
 
+<a id="render-blocking-head-stack"></a>
 ### `render-blocking-head-stack`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -213,6 +280,7 @@ Every stylesheet and several scripts sitting synchronously in the head, so nothi
 
 > inlined critical CSS, one deferred stylesheet, every script deferred
 
+<a id="single-source-full-bleed-image"></a>
 ### `single-source-full-bleed-image`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -235,6 +303,7 @@ An image styled full-width with exactly one source. Every visitor gets the deskt
 
 > the same image with 640/1280/2400 candidates and a sizes that matches the layout
 
+<a id="spa-shell-for-a-brochure-site"></a>
 ### `spa-shell-for-a-brochure-site`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -257,6 +326,7 @@ View source and the body is a single empty mount point. Every word on the page �
 
 > the same page prerendered to HTML, hydrating only where it needs to
 
+<a id="stock-photo-at-source-resolution"></a>
 ### `stock-photo-at-source-resolution`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -279,6 +349,7 @@ The stock download went into the public directory at four to six thousand pixels
 
 > the same URL with width, quality and format parameters, or a resized local asset
 
+<a id="use-client-on-a-static-page"></a>
 ### `use-client-on-a-static-page`  ·  high · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -301,6 +372,7 @@ A client directive at the top of a page or layout that renders text, images and 
 
 > the page left as a server component, with only the mobile nav marked client
 
+<a id="webgl-library-for-decoration"></a>
 ### `webgl-library-for-decoration`  ·  high · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -323,6 +395,7 @@ A 3D library loaded so that a shape can rotate slowly behind the headline — a 
 
 > a CSS gradient with a keyframe rotation, and no dependency
 
+<a id="animation-library-for-css-effects"></a>
 ### `animation-library-for-css-effects`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -345,6 +418,7 @@ An animation library imported so that cards fade up on scroll. Every one of thos
 
 > a reveal class with a CSS transition and one observer
 
+<a id="figma-export-svg-unoptimised"></a>
 ### `figma-export-svg-unoptimised`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -367,6 +441,7 @@ An SVG straight out of a design tool: full float precision, every group and clip
 
 > the same icon at 4 KB
 
+<a id="font-display-absent-or-block"></a>
 ### `font-display-absent-or-block`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -389,6 +464,7 @@ No font-display, or font-display: block. Both produce a flash of invisible text 
 
 > @font-face { font-display: swap; size-adjust: 104% }
 
+<a id="font-weights-ordered-not-used"></a>
 ### `font-weights-ordered-not-used`  ·  medium · generic-llm · performance · structural · family: residue · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -411,6 +487,7 @@ The font request asks for six or eight weights; the stylesheet uses two. Each un
 
 > wght@400;700
 
+<a id="google-fonts-cdn-render-blocking"></a>
 ### `google-fonts-cdn-render-blocking`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -433,6 +510,7 @@ A hosted-font stylesheet link in the head. It is a render-blocking stylesheet on
 
 > self-hosted WOFF2 with a preload, or at minimum a preconnect first in the head
 
+<a id="icon-webfont-for-a-handful-of-icons"></a>
 ### `icon-webfont-for-a-handful-of-icons`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -455,6 +533,7 @@ An icon font loaded to draw six icons. The whole glyph set downloads — often a
 
 > six inline SVGs
 
+<a id="lcp-font-not-preloaded"></a>
 ### `lcp-font-not-preloaded`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -477,6 +556,7 @@ On a page whose LCP element is a headline, the font that renders it is discovere
 
 > <link rel="preload" as="font" type="font/woff2" href="/f/display.woff2" crossorigin>
 
+<a id="lcp-image-without-fetchpriority"></a>
 ### `lcp-image-without-fetchpriority`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -499,6 +579,7 @@ The hero image is discovered late and fetched at default priority, behind styles
 
 > one image carrying fetchpriority="high"
 
+<a id="multiple-display-families-one-page"></a>
 ### `multiple-display-families-one-page`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -521,6 +602,7 @@ Three or more families loaded — a serif display face, a sans body face, and a 
 
 > one family with real contrast, plus the system mono stack for code
 
+<a id="no-modern-image-format-anywhere"></a>
 ### `no-modern-image-format-anywhere`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -543,6 +625,7 @@ Not one AVIF or WebP on the page and no format negotiation. Every image is JPEG 
 
 > the same images served as AVIF with WebP and JPEG fallbacks
 
+<a id="same-video-to-every-device"></a>
 ### `same-video-to-every-device`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -565,6 +648,7 @@ One source, one encode, one resolution — the desktop file — served to phones
 
 > a 720p modern encode and a 480p fallback, selected by media query
 
+<a id="sizes-attribute-that-lies"></a>
 ### `sizes-attribute-that-lies`  ·  medium · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -587,6 +671,7 @@ srcset is present and sizes is wrong — nearly always a full-viewport value on 
 
 > sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
 
+<a id="smooth-scroll-library-on-a-brochure"></a>
 ### `smooth-scroll-library-on-a-brochure`  ·  medium · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** yes, these scripts implement it.
@@ -609,6 +694,7 @@ A scroll-momentum library installed so the page scrolls with easing — a per-fr
 
 > html { scroll-behavior: smooth }
 
+<a id="icon-library-dependency-for-six-icons"></a>
 ### `icon-library-dependency-for-six-icons`  ·  low · generic-llm · performance · structural · family: shape · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -631,6 +717,7 @@ The design half of barrel-icon-import. That entry catches the import and says to
 
 > six inline SVG components in the repo
 
+<a id="variable-font-single-static-weight"></a>
 ### `variable-font-single-static-weight`  ·  low · generic-llm · performance · structural · family: defect · lane: performance
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.

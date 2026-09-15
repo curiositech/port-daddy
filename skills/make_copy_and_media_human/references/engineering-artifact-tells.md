@@ -7,10 +7,65 @@ _27 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Commit, PR, review, test or source file"] --> B["Run: humanize_review.py file.py"]
+    B --> C{"Which artifact?"}
+    C -->|commit / PR| D["Compare against THIS repo's norms,<br/>not against a general style"]
+    C -->|test| E["Does any assertion actually fail<br/>when the code is wrong?"]
+    C -->|source| F["Comment narrates the next line?<br/>Abstraction with one implementation?"]
+    D --> G{"Does it restate the diff?"}
+    G -->|yes| H["The diff is already there.<br/>Say WHY, not what"]
+    E --> I["A test that cannot fail is not a test"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`comment-narrates-next-line`](#comment-narrates-next-line) | HIGH | code | yes |
+| [`commit-body-restates-diff`](#commit-body-restates-diff) | HIGH | code | **no** |
+| [`confident-wrong-security-finding`](#confident-wrong-security-finding) | HIGH | code | n/a |
+| [`convention-drift-in-commit-style`](#convention-drift-in-commit-style) | HIGH | code | **no** |
+| [`dead-internal-cross-reference`](#dead-internal-cross-reference) | HIGH | residue | **no** |
+| [`fabricated-doc-claims`](#fabricated-doc-claims) | HIGH | code | n/a |
+| [`hallucinated-import-or-api`](#hallucinated-import-or-api) | HIGH | residue | **no** |
+| [`hollow-assertion`](#hollow-assertion) | HIGH | code | **no** |
+| [`how-it-works-that-says-what`](#how-it-works-that-says-what) | HIGH | form | n/a |
+| [`idiom-drift-within-file`](#idiom-drift-within-file) | HIGH | code | **no** |
+| [`mock-assertion-test`](#mock-assertion-test) | HIGH | code | **no** |
+| [`placeholder-stub-residue`](#placeholder-stub-residue) | HIGH | code | yes |
+| [`pr-scaffold-without-template`](#pr-scaffold-without-template) | HIGH | code | **no** |
+| [`review-restates-the-diff`](#review-restates-the-diff) | HIGH | code | n/a |
+| [`swallow-exception-pass`](#swallow-exception-pass) | HIGH | code | yes |
+| [`unverified-test-plan`](#unverified-test-plan) | HIGH | code | n/a |
+| [`agent-attribution-trailer`](#agent-attribution-trailer) | med | residue | **no** |
+| [`commit-subject-scale-adjective`](#commit-subject-scale-adjective) | med | code | **no** |
+| [`docstring-restates-signature`](#docstring-restates-signature) | med | code | yes |
+| [`stale-training-api`](#stale-training-api) | med | code | n/a |
+| [`trailing-example-usage-block`](#trailing-example-usage-block) | med | code | **no** |
+| [`try-catch-just-in-case`](#try-catch-just-in-case) | med | code | **no** |
+| [`unwired-badge-row`](#unwired-badge-row) | med | code | **no** |
+| [`verbosity-disproportionate-to-diff`](#verbosity-disproportionate-to-diff) | med | code | **no** |
+| [`decorative-section-divider`](#decorative-section-divider) | low | code | yes |
+| [`emoji-in-code`](#emoji-in-code) | low | code | yes |
+| [`single-impl-abstraction`](#single-impl-abstraction) | low | code | **no** |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="comment-narrates-next-line"></a>
 ### `comment-narrates-next-line`  ·  high · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -39,6 +94,7 @@ Inline comments that restate exactly what the following statement does in Englis
 > retries += 1
 > if retries > MAX:  # give up; upstream 503s have been seen to last ~30s
 
+<a id="commit-body-restates-diff"></a>
 ### `commit-body-restates-diff`  ·  high · generic-llm · commit-message · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -67,6 +123,7 @@ A commit body enumerating, file by file, what the diff already shows, instead of
 > 
 > Sessions were cookie-only, so the mobile client had no way in. Issues a 24h JWT; refresh comes in a follow-up.
 
+<a id="confident-wrong-security-finding"></a>
 ### `confident-wrong-security-finding`  ·  high · generic-llm · code-review · llm-judge · family: code
 
 A security or correctness finding, stated with full confidence and correct-sounding vocabulary, that is wrong about this codebase.
@@ -89,6 +146,7 @@ A security or correctness finding, stated with full confidence and correct-sound
 
 > (not filed — the query is parameterized at db/users.py:42)
 
+<a id="convention-drift-in-commit-style"></a>
 ### `convention-drift-in-commit-style`  ·  high · generic-llm · commit-message · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -115,6 +173,7 @@ Conventional Commits appearing in a repo whose history does not use them — or 
 
 > Add per-profile override scripts
 
+<a id="dead-internal-cross-reference"></a>
 ### `dead-internal-cross-reference`  ·  high · generic-llm · docs · structural · family: residue
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -139,6 +198,7 @@ Conventional Commits appearing in a repo whose history does not use them — or 
 
 > [section written, or the sentence deleted]
 
+<a id="fabricated-doc-claims"></a>
 ### `fabricated-doc-claims`  ·  high · generic-llm · docs · llm-judge · family: code
 
 Documentation describing an architecture the code does not have, platforms nobody tested, or features that are restatements of function names.
@@ -165,6 +225,7 @@ Documentation describing an architecture the code does not have, platforms nobod
 > - In-memory cache with a 60s TTL
 > - Tested on macOS 15 and Ubuntu 24.04. Windows is untested.
 
+<a id="hallucinated-import-or-api"></a>
 ### `hallucinated-import-or-api`  ·  high · codex · code · structural · family: residue
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -189,6 +250,7 @@ Calls to functions, flags, endpoints or packages that do not exist — including
 
 > from urllib3.util.retry import Retry
 
+<a id="hollow-assertion"></a>
 ### `hollow-assertion`  ·  high · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -214,6 +276,7 @@ Assertions that cannot fail: assert True, assert result == result, assert x is n
 
 > assert parse(payload).currency == 'EUR'
 
+<a id="how-it-works-that-says-what"></a>
 ### `how-it-works-that-says-what`  ·  high · generic-llm · docs · llm-judge · family: form
 
 A 'How it works' section that describes what the system does rather than how or why, restating the feature list in longer sentences.
@@ -238,6 +301,7 @@ A 'How it works' section that describes what the system does rather than how or 
 > 
 > We hold a logical replication slot on your primary and stream the WAL. That means we see a row change about 200ms after your database does, and it also means we cannot see anything that never hits the WAL, like a truncate.
 
+<a id="idiom-drift-within-file"></a>
 ### `idiom-drift-within-file`  ·  high · generic-llm · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -262,6 +326,7 @@ A block of code whose idiom does not match the file around it: different naming 
 
 > The same helper, snake_case, unannotated, matching its neighbours.
 
+<a id="mock-assertion-test"></a>
 ### `mock-assertion-test`  ·  high · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -286,6 +351,7 @@ Tests that assert a mock was called rather than that behavior happened.
 
 > assert outbox[0].to == 'sam@example.com'
 
+<a id="placeholder-stub-residue"></a>
 ### `placeholder-stub-residue`  ·  high · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -315,6 +381,7 @@ Generated scaffolding left in place: placeholder identifiers (foo, bar, MyCompon
 >   return <tr><td>{invoice.number}</td><td>{formatCents(invoice.totalCents)}</td></tr>;
 > }
 
+<a id="pr-scaffold-without-template"></a>
 ### `pr-scaffold-without-template`  ·  high · generic-llm · pr-description · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -339,6 +406,7 @@ The Summary / Changes / Test Plan scaffold appearing in a repo with no pull-requ
 
 > Sessions expired at 24h regardless of remember_me. Reads the flag now and sets 30d. Verified by logging in with the box ticked and checking the cookie's Max-Age.
 
+<a id="review-restates-the-diff"></a>
 ### `review-restates-the-diff`  ·  high · generic-llm · code-review · llm-judge · family: code
 
 A review comment that describes back what the diff does, or praises it, without taking a position on whether it is right.
@@ -361,6 +429,7 @@ A review comment that describes back what the diff does, or praises it, without 
 
 > This drops the retry on 429. Was that deliberate? The upstream rate-limits us at 50rps.
 
+<a id="swallow-exception-pass"></a>
 ### `swallow-exception-pass`  ·  high · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -391,6 +460,7 @@ Error handling that catches broadly and discards: `try: ... except Exception: pa
 > except requests.Timeout:
 >     raise UpstreamUnavailable(url) from None  # caller retries with backoff
 
+<a id="unverified-test-plan"></a>
 ### `unverified-test-plan`  ·  high · generic-llm · pr-description · llm-judge · family: code
 
 A Test Plan of ticked checkboxes where nothing was run, or where the 'tests' restate the change rather than record an execution.
@@ -414,6 +484,7 @@ A Test Plan of ticked checkboxes where nothing was run, or where the 'tests' res
 
 > Ran `pytest tests/auth -q`: 25 passed in 3.1s. Did NOT run the e2e suite — no Docker in this environment.
 
+<a id="agent-attribution-trailer"></a>
 ### `agent-attribution-trailer`  ·  medium · generic-llm · commit-message · structural · family: residue
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -440,6 +511,7 @@ Agent signature footers left in commits and PR bodies: 'Generated with <tool>', 
 
 > (removed, or replaced with the repo's mandated form, e.g. Assisted-by: <tool>:<model>)
 
+<a id="commit-subject-scale-adjective"></a>
 ### `commit-subject-scale-adjective`  ·  medium · generic-llm · commit-message · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -466,6 +538,7 @@ A commit subject reaching for scale words the diff does not earn: comprehensive,
 
 > Retry failed uploads with backoff
 
+<a id="docstring-restates-signature"></a>
 ### `docstring-restates-signature`  ·  medium · codex · code-comments · llm-judge · family: code
 
 Docstrings that re-enumerate the signature with no added meaning: 'This function takes a and b and returns the result.' Args/Returns sections that just retype parameter names and types already visible in the declaration.
@@ -492,6 +565,7 @@ Docstrings that re-enumerate the signature with no added meaning: 'This function
 > def divide(a: float, b: float) -> float:
 >     """Raises ZeroDivisionError when b == 0; callers must guard. Result is not rounded."""
 
+<a id="stale-training-api"></a>
 ### `stale-training-api`  ·  medium · codex · code · llm-judge · family: code
 
 Code written against an API version that was current in the training data and has since changed — deprecated call signatures, removed flags, superseded client libraries.
@@ -514,6 +588,7 @@ Code written against an API version that was current in the training data and ha
 
 > client.chat.completions.create(...)
 
+<a id="trailing-example-usage-block"></a>
 ### `trailing-example-usage-block`  ·  medium · codex · code-comments · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -539,6 +614,7 @@ A library module ends with a tacked-on demonstration: an `if __name__ == '__main
 
 > # (module ends after its definitions; an example lives in tests/test_add.py)
 
+<a id="try-catch-just-in-case"></a>
 ### `try-catch-just-in-case`  ·  medium · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -568,6 +644,7 @@ Defensive exception handling wrapped around code that cannot meaningfully fail, 
 
 > total = a + b
 
+<a id="unwired-badge-row"></a>
 ### `unwired-badge-row`  ·  medium · generic-llm · docs · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -590,6 +667,7 @@ A README badge row advertising CI, coverage, npm version or a license that is no
 
 > (removed until CI exists)
 
+<a id="verbosity-disproportionate-to-diff"></a>
 ### `verbosity-disproportionate-to-diff`  ·  medium · generic-llm · pr-description · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -614,6 +692,7 @@ A PR description whose length bears no relation to the size or subtlety of the c
 
 > Bumps the pool size from 5 to 20. We were queueing at 12 concurrent requests.
 
+<a id="decorative-section-divider"></a>
 ### `decorative-section-divider`  ·  low · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -640,6 +719,7 @@ ASCII-art banner comments partitioning a source file into labelled sections.
 
 > (no banner; the helpers live in their own module)
 
+<a id="emoji-in-code"></a>
 ### `emoji-in-code`  ·  low · codex · code-comments · structural · family: code
 
 **Automated here:** yes, these scripts implement it.
@@ -666,6 +746,7 @@ Emoji in source files — log strings, comments, commit-adjacent scaffolding.
 
 > print("migration complete: 412 rows, 2.1s")
 
+<a id="single-impl-abstraction"></a>
 ### `single-impl-abstraction`  ·  low · codex · code · structural · family: code
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.

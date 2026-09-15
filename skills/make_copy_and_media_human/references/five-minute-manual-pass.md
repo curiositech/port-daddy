@@ -22,6 +22,29 @@ so easy to get wrong without noticing.
 
 ---
 
+
+## The pass, end to end
+
+Eleven steps, five minutes, one page. Every step passes an automated scan already — that is the point of them.
+
+```mermaid
+flowchart TD
+    A(["Five minutes, one page"]) --> B["1. Unplug the mouse"]
+    B --> C["2. Tab from the top.<br/>Can you see where you are, always?"]
+    C --> D["3. Does Tab order match reading order?"]
+    D --> E["4. Skip link: press it. Did focus MOVE?"]
+    E --> F["5. Open every menu and dialog by keyboard"]
+    F --> G["6. In a dialog: Escape closes?<br/>Tab stays inside? Focus returns?"]
+    G --> H["7. Zoom to 200%. Then 400%"]
+    H --> I["8. Set the page to 320px wide.<br/>Anything scroll sideways?"]
+    I --> J["9. Turn on the screen reader.<br/>Read the page top to bottom"]
+    J --> K["10. Submit a form wrong.<br/>Did you HEAR what was wrong?"]
+    K --> L["11. Turn on forced colors.<br/>Did any boundary vanish?"]
+    L --> M{"Anything failed?"}
+    M -->|yes| N["That is a defect. It carries<br/>no authorship claim at all"]
+    M -->|no| O["You have covered the part<br/>automation cannot reach"]
+```
+
 ## Minute 1 — hands off the mouse
 
 **1.** Load the page. Press **Tab** once. A "Skip to content" link should appear.

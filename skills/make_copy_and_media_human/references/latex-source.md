@@ -15,10 +15,68 @@ _30 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A .tex or .bib file"] --> B["It compiled. Nobody opened the PDF"]
+    B --> C{"Which layer did it reach for?"}
+    C -->|"VISUAL: backslash-backslash, vspace,<br/>textbf, a typed-out 'Figure 1'"| D["The tell. Only this layer is verifiable<br/>from the token stream alone"]
+    C -->|"SEMANTIC: label/ref, emph, cite"| E["Correct"]
+    D --> F{"Is the item family 'defect'?"}
+    F -->|yes| G["Reproducible by compiling.<br/>No fairness caveat. Just fix it"]
+    F -->|no| H["Craft, and contestable"]
+    H --> I["NO CLAIM that any of this is commoner in<br/>generated than hand-written LaTeX.<br/>People break LaTeX in exactly these ways"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`anonymization-state-mismatch`](#anonymization-state-mismatch) | HIGH | residue | **no** |
+| [`command-without-its-package`](#command-without-its-package) | HIGH | defect | **no** |
+| [`comment-residue-in-public-source`](#comment-residue-in-public-source) | HIGH | residue | **no** |
+| [`conference-template-residue`](#conference-template-residue) | HIGH | residue | yes |
+| [`font-declaration-used-as-command`](#font-declaration-used-as-command) | HIGH | defect | yes |
+| [`hardcoded-cross-reference-number`](#hardcoded-cross-reference-number) | HIGH | form | yes |
+| [`hidden-instruction-to-machine-reader`](#hidden-instruction-to-machine-reader) | HIGH | residue | **no** |
+| [`macro-used-but-never-defined`](#macro-used-but-never-defined) | HIGH | defect | yes |
+| [`manual-linebreak-as-paragraph`](#manual-linebreak-as-paragraph) | HIGH | form | **no** |
+| [`missing-or-absolute-path-include`](#missing-or-absolute-path-include) | HIGH | defect | **no** |
+| [`negative-vspace-to-hit-page-limit`](#negative-vspace-to-hit-page-limit) | HIGH | form | yes |
+| [`unbalanced-braces-or-environments`](#unbalanced-braces-or-environments) | HIGH | defect | **no** |
+| [`usepackage-that-does-not-exist`](#usepackage-that-does-not-exist) | HIGH | defect | **no** |
+| [`ascii-and-pasted-punctuation-in-source`](#ascii-and-pasted-punctuation-in-source) | med | residue | **no** |
+| [`duplicate-bibtex-key`](#duplicate-bibtex-key) | med | defect | **no** |
+| [`every-float-pinned-here`](#every-float-pinned-here) | med | form | yes |
+| [`float-migrated-far-from-its-text`](#float-migrated-far-from-its-text) | med | defect | **no** |
+| [`float-never-referenced-in-text`](#float-never-referenced-in-text) | med | defect | yes |
+| [`hand-rolled-bibliography`](#hand-rolled-bibliography) | med | shape | yes |
+| [`hyperref-load-order-violation`](#hyperref-load-order-violation) | med | code | yes |
+| [`kitchen-sink-preamble`](#kitchen-sink-preamble) | med | shape | **no** |
+| [`left-right-on-every-delimiter`](#left-right-on-every-delimiter) | med | form | **no** |
+| [`math-mode-used-as-typesetting`](#math-mode-used-as-typesetting) | med | form | **no** |
+| [`missing-tie-before-ref-and-cite`](#missing-tie-before-ref-and-cite) | med | form | yes |
+| [`number-and-unit-run-together`](#number-and-unit-run-together) | med | form | **no** |
+| [`obsolete-two-oh-nine-markup`](#obsolete-two-oh-nine-markup) | med | form | yes |
+| [`overfull-box-shipped`](#overfull-box-shipped) | med | defect | **no** |
+| [`vertical-rules-and-full-grid-tables`](#vertical-rules-and-full-grid-tables) | med | shape | yes |
+| [`visual-formatting-instead-of-sectioning`](#visual-formatting-instead-of-sectioning) | med | form | **no** |
+| [`bold-where-emphasis-belongs`](#bold-where-emphasis-belongs) | low | form | n/a |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="anonymization-state-mismatch"></a>
 ### `anonymization-state-mismatch`  ·  high · generic-llm · latex-source · structural · family: residue · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -43,6 +101,7 @@ The document's blinding does not match where it is going. In one direction a dou
 > \iclrfinalcopy
 > \author{Jane Roe \\ Acme Labs \\ \texttt{jane@acme.com}}   % camera-ready
 
+<a id="command-without-its-package"></a>
 ### `command-without-its-package`  ·  high · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -70,6 +129,7 @@ A command used whose package is never loaded: \includegraphics with no graphicx,
 > \begin{document}
 > \includegraphics[width=\linewidth]{fig1.pdf}
 
+<a id="comment-residue-in-public-source"></a>
 ### `comment-residue-in-public-source`  ·  high · generic-llm · latex-source · structural · family: residue · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -94,6 +154,7 @@ Percent comments, \todo{} notes, commented-out alternative sentences and dead \i
 
 > We improve on prior work.
 
+<a id="conference-template-residue"></a>
 ### `conference-template-residue`  ·  high · generic-llm · latex-source · structural · family: residue · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -116,6 +177,7 @@ A publisher or conference template's own placeholder text still in the file. The
 
 > \acmConference[CHI '26]{ACM CHI Conference on Human Factors in Computing Systems}{April 13--17, 2026}{Yokohama, Japan}
 
+<a id="font-declaration-used-as-command"></a>
 ### `font-declaration-used-as-command`  ·  high · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -138,6 +200,7 @@ A publisher or conference template's own placeholder text still in the file. The
 
 > \textbf{Important:} the rest of this chapter is not meant to be bold.
 
+<a id="hardcoded-cross-reference-number"></a>
 ### `hardcoded-cross-reference-number`  ·  high · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -160,6 +223,7 @@ A publisher or conference template's own placeholder text still in the file. The
 
 > As shown in \Cref{fig:throughput}, throughput saturates at eight workers.
 
+<a id="hidden-instruction-to-machine-reader"></a>
 ### `hidden-instruction-to-machine-reader`  ·  high · generic-llm · latex-source · structural · family: residue · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -182,6 +246,7 @@ Text placed in the source so a human reader cannot see it but a machine reading 
 
 > (removed)
 
+<a id="macro-used-but-never-defined"></a>
 ### `macro-used-but-never-defined`  ·  high · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -205,6 +270,7 @@ A control sequence used but defined nowhere: not in the kernel, not in the docum
 > \DeclareMathOperator*{\argmin}{arg\,min}  % in the preamble
 > $\argmin_{x} f(x)$
 
+<a id="manual-linebreak-as-paragraph"></a>
 ### `manual-linebreak-as-paragraph`  ·  high · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -231,6 +297,7 @@ A control sequence used but defined nowhere: not in the kernel, not in the docum
 > 
 > The second result follows.
 
+<a id="missing-or-absolute-path-include"></a>
 ### `missing-or-absolute-path-include`  ·  high · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -253,6 +320,7 @@ A control sequence used but defined nowhere: not in the kernel, not in the docum
 
 > \includegraphics[width=\columnwidth]{figures/throughput.pdf}
 
+<a id="negative-vspace-to-hit-page-limit"></a>
 ### `negative-vspace-to-hit-page-limit`  ·  high · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -278,6 +346,7 @@ A cluster of negative vertical space around section headings, floats and the bib
 > \section{Results}
 > ...   % one paragraph cut instead
 
+<a id="unbalanced-braces-or-environments"></a>
 ### `unbalanced-braces-or-environments`  ·  high · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -304,6 +373,7 @@ A cluster of negative vertical space around section headings, floats and the bib
 >   a &= b
 > \end{align}
 
+<a id="usepackage-that-does-not-exist"></a>
 ### `usepackage-that-does-not-exist`  ·  high · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -326,6 +396,7 @@ A cluster of negative vertical space around section headings, floats and the bib
 
 > \usepackage{threeparttable}  % provides the tablenotes environment
 
+<a id="ascii-and-pasted-punctuation-in-source"></a>
 ### `ascii-and-pasted-punctuation-in-source`  ·  medium · generic-llm · latex-source · structural · family: residue · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -350,6 +421,7 @@ Punctuation that came from a chat window or a word processor rather than from Te
 
 > We call this the ``hot path''---see \Cref{sec:hotpath}.
 
+<a id="duplicate-bibtex-key"></a>
 ### `duplicate-bibtex-key`  ·  medium · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -373,6 +445,7 @@ The same citation key defined twice, usually because two .bib files were concate
 
 > @article{Smi20, title={A Study}, doi={10.1234/abcd}, ...}   % one entry, one file
 
+<a id="every-float-pinned-here"></a>
 ### `every-float-pinned-here`  ·  medium · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -396,6 +469,7 @@ The same citation key defined twice, usually because two .bib files were concate
 > \begin{figure}[tbp]
 > % with \usepackage[section]{placeins} to stop migration across sections
 
+<a id="float-migrated-far-from-its-text"></a>
 ### `float-migrated-far-from-its-text`  ·  medium · generic-llm · latex-source · rendered · family: defect · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -422,6 +496,7 @@ A figure or table that prints pages away from the sentence discussing it -- 'as 
 > \end{figure}
 > ...discussion of the result...
 
+<a id="float-never-referenced-in-text"></a>
 ### `float-never-referenced-in-text`  ·  medium · generic-llm · latex-source · structural · family: defect · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -454,6 +529,7 @@ A figure or table that no sentence points at: either it carries no \label, or it
 >   \label{fig:throughput}
 > \end{figure}
 
+<a id="hand-rolled-bibliography"></a>
 ### `hand-rolled-bibliography`  ·  medium · generic-llm · latex-source · structural · family: shape · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -480,6 +556,7 @@ A figure or table that no sentence points at: either it carries no \label, or it
 > \bibliography{refs}
 > % refs.bib: @article{Smi20, doi={10.1234/abcd}, title={A Review of {HIV} Biology}, ...}
 
+<a id="hyperref-load-order-violation"></a>
 ### `hyperref-load-order-violation`  ·  medium · generic-llm · latex-source · structural · family: code · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -506,6 +583,7 @@ hyperref loaded in the middle of the preamble instead of near the end, or clever
 > \usepackage{hyperref}
 > \usepackage{cleveref}
 
+<a id="kitchen-sink-preamble"></a>
 ### `kitchen-sink-preamble`  ·  medium · generic-llm · latex-source · structural · family: shape · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -535,6 +613,7 @@ A preamble carrying packages nothing in the document uses, the same package load
 > \usepackage{subcaption}
 > % fonts left to the class
 
+<a id="left-right-on-every-delimiter"></a>
 ### `left-right-on-every-delimiter`  ·  medium · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -557,6 +636,7 @@ A preamble carrying packages nothing in the document uses, the same package load
 
 > $(x - x_0)$ and $\bigl((a+b)(c+d)\bigr)$
 
+<a id="math-mode-used-as-typesetting"></a>
 ### `math-mode-used-as-typesetting`  ·  medium · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -579,6 +659,7 @@ Math mode asked to do things it does not mean. Multi-letter words in italic math
 
 > $S_{\mathrm{easy}} = \sin(x) \times 2$
 
+<a id="missing-tie-before-ref-and-cite"></a>
 ### `missing-tie-before-ref-and-cite`  ·  medium · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -601,6 +682,7 @@ Math mode asked to do things it does not mean. Multi-letter words in italic math
 
 > See \Cref{fig:arch} and the analysis in~\cite{smith2020}.
 
+<a id="number-and-unit-run-together"></a>
 ### `number-and-unit-run-together`  ·  medium · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -623,6 +705,7 @@ Math mode asked to do things it does not mean. Multi-letter words in italic math
 
 > The median latency was \qty{5}{\milli\second} over \num{123456} requests at \qty{37.2}{\degreeCelsius}.
 
+<a id="obsolete-two-oh-nine-markup"></a>
 ### `obsolete-two-oh-nine-markup`  ·  medium · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -647,6 +730,7 @@ LaTeX 2.09 and plain-TeX forms that still work and still misbehave. {\bf ...} an
 
 > \[ a = \frac{b}{c} \] and \textbf{important}
 
+<a id="overfull-box-shipped"></a>
 ### `overfull-box-shipped`  ·  medium · generic-llm · latex-source · rendered · family: defect · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -669,6 +753,7 @@ A line, table or image wider than the text block, so something pokes into the ma
 
 > \url{https://example.org/a/very/long/path}   % the box goes away
 
+<a id="vertical-rules-and-full-grid-tables"></a>
 ### `vertical-rules-and-full-grid-tables`  ·  medium · generic-llm · latex-source · structural · family: shape · lane: latex
 
 **Automated here:** yes, these scripts implement it.
@@ -691,6 +776,7 @@ A tabular preamble full of `|` and an \hline between every row -- the spreadshee
 
 > \begin{tabular}{lSS}\toprule A & {B} & {C} \\ \midrule 1 & 2 & 3 \\ \bottomrule \end{tabular}
 
+<a id="visual-formatting-instead-of-sectioning"></a>
 ### `visual-formatting-instead-of-sectioning`  ·  medium · generic-llm · latex-source · structural · family: form · lane: latex
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -714,6 +800,7 @@ A heading built by hand from vertical space and bold text instead of \section / 
 
 > \subsection{The Importance of Semantic Mark-up}\label{sec:semantic}
 
+<a id="bold-where-emphasis-belongs"></a>
 ### `bold-where-emphasis-belongs`  ·  low · generic-llm · latex-source · llm-judge · family: form · lane: latex
 
 \textbf used for emphasis inside running prose, where \emph is the semantic command. \emph means 'this is emphasized' and renders as whatever the surrounding context needs -- italic in roman text, roman inside italic. \textbf means 'make this bold' and cannot adapt. It is the \section-versus-big-bold-text distinction at sentence scale.

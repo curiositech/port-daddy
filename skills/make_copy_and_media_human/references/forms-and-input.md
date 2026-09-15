@@ -13,10 +13,67 @@ _25 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Any form"] --> B{"Is submit disabled until valid?"}
+    B -->|yes| C["The headline finding. The control that would<br/>tell the user what is wrong is the one<br/>being withheld"]
+    C --> D{"Is the gate driven by a KEY event?"}
+    D -->|yes| E["Worst case: a password manager's fill<br/>fires no keypress. Complete form, dead button"]
+    B -->|no| F["Check the operating properties"]
+    D -->|no| F
+    F --> G["autocomplete tokens present?"]
+    F --> H["inputmode set on numeric fields?"]
+    F --> I["errors tied with aria-describedby?"]
+    F --> J["do values SURVIVE a failed submit?"]
+    G --> K["Three items here are WCAG failures<br/>and carry no fairness caveat at all"]
+    I --> K
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`error-not-tied-to-its-field`](#error-not-tied-to-its-field) | HIGH | defect | yes |
+| [`focus-not-moved-after-a-failed-submit`](#focus-not-moved-after-a-failed-submit) | HIGH | defect | yes |
+| [`form-clears-on-validation-failure`](#form-clears-on-validation-failure) | HIGH | defect | yes |
+| [`missing-autofill-attributes`](#missing-autofill-attributes) | HIGH | defect | yes |
+| [`paste-blocked-on-a-password-or-code-field`](#paste-blocked-on-a-password-or-code-field) | HIGH | defect | yes |
+| [`submit-disabled-until-valid`](#submit-disabled-until-valid) | HIGH | defect | yes |
+| [`validity-gate-misses-the-password-manager`](#validity-gate-misses-the-password-manager) | HIGH | defect | yes |
+| [`autocomplete-off-on-personal-fields`](#autocomplete-off-on-personal-fields) | med | defect | yes |
+| [`captcha-as-the-only-route-past-the-form`](#captcha-as-the-only-route-past-the-form) | med | defect | yes |
+| [`email-regex-rejects-valid-addresses`](#email-regex-rejects-valid-addresses) | med | defect | yes |
+| [`inputmode-absent-on-a-numeric-field`](#inputmode-absent-on-a-numeric-field) | med | defect | yes |
+| [`label-that-only-exists-while-empty`](#label-that-only-exists-while-empty) | med | defect | yes |
+| [`multi-step-form-with-no-back-or-progress`](#multi-step-form-with-no-back-or-progress) | med | defect | yes |
+| [`native-and-custom-validation-both-firing`](#native-and-custom-validation-both-firing) | med | defect | yes |
+| [`no-error-summary-on-a-long-form`](#no-error-summary-on-a-long-form) | med | defect | yes |
+| [`number-input-for-a-non-number`](#number-input-for-a-non-number) | med | defect | yes |
+| [`password-rules-revealed-after-failure`](#password-rules-revealed-after-failure) | med | form | yes |
+| [`autofocus-on-page-load`](#autofocus-on-page-load) | low | form | yes |
+| [`character-counter-that-is-never-announced`](#character-counter-that-is-never-announced) | low | defect | yes |
+| [`date-entered-as-three-selects`](#date-entered-as-three-selects) | low | form | yes |
+| [`no-enterkeyhint-on-a-multi-field-form`](#no-enterkeyhint-on-a-multi-field-form) | low | form | yes |
+| [`no-show-password-control`](#no-show-password-control) | low | form | yes |
+| [`required-marking-with-no-key`](#required-marking-with-no-key) | low | form | yes |
+| [`search-field-with-no-clear-and-no-search-type`](#search-field-with-no-clear-and-no-search-type) | low | form | yes |
+| [`select-for-a-two-option-choice`](#select-for-a-two-option-choice) | low | form | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="error-not-tied-to-its-field"></a>
 ### `error-not-tied-to-its-field`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -39,6 +96,7 @@ The message is rendered next to the input and not connected to it -- no aria-des
 
 > <input id="email" aria-invalid="true" aria-describedby="email-err" /><span id="email-err">...
 
+<a id="focus-not-moved-after-a-failed-submit"></a>
 ### `focus-not-moved-after-a-failed-submit`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -61,6 +119,7 @@ The form fails validation and focus stays on the submit button at the bottom. No
 
 > setErrors(next); summaryRef.current.focus()
 
+<a id="form-clears-on-validation-failure"></a>
 ### `form-clears-on-validation-failure`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -83,6 +142,7 @@ One field is wrong and the form comes back empty, or the password fields do. Eve
 
 > catch { setErrors(e) } -- values untouched
 
+<a id="missing-autofill-attributes"></a>
 ### `missing-autofill-attributes`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -107,6 +167,7 @@ Fields collecting a name, email, phone, address or payment detail carry no autoc
 
 > <input type="email" autocomplete="email" inputmode="email" id="email">
 
+<a id="paste-blocked-on-a-password-or-code-field"></a>
 ### `paste-blocked-on-a-password-or-code-field`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -129,6 +190,7 @@ onPaste is blocked, usually with a preventDefault. It stops password managers, i
 
 > paste allowed; validate the resulting value
 
+<a id="submit-disabled-until-valid"></a>
 ### `submit-disabled-until-valid`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -151,6 +213,7 @@ The submit button is disabled until every field validates. It is the most reprod
 
 > <button type="submit"> -- validate on submit, summarise, move focus
 
+<a id="validity-gate-misses-the-password-manager"></a>
 ### `validity-gate-misses-the-password-manager`  ·  high · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -173,6 +236,7 @@ The enable-on-valid logic listens for keyup, and a password manager's fill does 
 
 > input.addEventListener('input', checkValidity)
 
+<a id="autocomplete-off-on-personal-fields"></a>
 ### `autocomplete-off-on-personal-fields`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -195,6 +259,7 @@ autocomplete="off" is set on fields the browser should be filling. Browsers now 
 
 > per-field tokens; one-time-code where it applies
 
+<a id="captcha-as-the-only-route-past-the-form"></a>
 ### `captcha-as-the-only-route-past-the-form`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -217,6 +282,7 @@ A visual challenge with no audio alternative, no token-based fallback, and no pa
 
 > a token-based check, plus a published address that bypasses it
 
+<a id="email-regex-rejects-valid-addresses"></a>
 ### `email-regex-rejects-valid-addresses`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -239,6 +305,7 @@ A hand-rolled email pattern that rejects plus-addressing, apostrophes, long or n
 
 > type="email" and a confirmation mail
 
+<a id="inputmode-absent-on-a-numeric-field"></a>
 ### `inputmode-absent-on-a-numeric-field`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -261,6 +328,7 @@ A numeric field is type="text" with no inputmode, so a phone user gets the full 
 
 > <input type="text" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="done">
 
+<a id="label-that-only-exists-while-empty"></a>
 ### `label-that-only-exists-while-empty`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -283,6 +351,7 @@ A floating label that animates into the border, or a placeholder acting as the l
 
 > a persistent label above the field at body size
 
+<a id="multi-step-form-with-no-back-or-progress"></a>
 ### `multi-step-form-with-no-back-or-progress`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -305,6 +374,7 @@ A wizard that shows one step at a time with no indication of how many there are 
 
 > step in the URL, a Back control, and a visible step count
 
+<a id="native-and-custom-validation-both-firing"></a>
 ### `native-and-custom-validation-both-firing`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -327,6 +397,7 @@ The form has required and pattern attributes and a JavaScript validator, with no
 
 > <form noValidate onSubmit={validate}> -- attributes kept for semantics
 
+<a id="no-error-summary-on-a-long-form"></a>
 ### `no-error-summary-on-a-long-form`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -349,6 +420,7 @@ Submission fails and the errors are only in-line beside their fields, some of th
 
 > an error summary listing and linking each failure, focused on submit
 
+<a id="number-input-for-a-non-number"></a>
 ### `number-input-for-a-non-number`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -371,6 +443,7 @@ type="number" is used for a credit card, phone number, postcode, OTP or account 
 
 > <input type="text" inputmode="numeric" pattern="[0-9]{5}" autocomplete="postal-code">
 
+<a id="password-rules-revealed-after-failure"></a>
 ### `password-rules-revealed-after-failure`  ·  medium · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -393,6 +466,7 @@ The password requirements appear only once the user has submitted something that
 
 > a visible checklist, described-by the field, updating as the user types
 
+<a id="autofocus-on-page-load"></a>
 ### `autofocus-on-page-load`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -415,6 +489,7 @@ autofocus on the first field. It moves the viewport on a phone and opens the key
 
 > no autofocus; or autofocus only on a dedicated single-field page
 
+<a id="character-counter-that-is-never-announced"></a>
 ### `character-counter-that-is-never-announced`  ·  low · generic-llm · web-ui · structural · family: defect · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -437,6 +512,7 @@ A live character count rendered as plain text. A sighted user watches it approac
 
 > <span aria-live="polite" id="c">20 characters remaining</span>, debounced, described-by
 
+<a id="date-entered-as-three-selects"></a>
 ### `date-entered-as-three-selects`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -459,6 +535,7 @@ A date of birth collected as three dropdowns. Selecting a year from a list of ni
 
 > Day / Month / Year as three numeric text inputs in a fieldset
 
+<a id="no-enterkeyhint-on-a-multi-field-form"></a>
 ### `no-enterkeyhint-on-a-multi-field-form`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -481,6 +558,7 @@ Every field's on-screen return key says the same thing. On a phone the user cann
 
 > enterkeyhint="next" through the form, "done" on the final field
 
+<a id="no-show-password-control"></a>
 ### `no-show-password-control`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -503,6 +581,7 @@ A password field with no reveal toggle. The user cannot check what they typed, w
 
 > <input type="password" /> + <button aria-pressed="false">Show password</button>
 
+<a id="required-marking-with-no-key"></a>
 ### `required-marking-with-no-key`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -525,6 +604,7 @@ Asterisks mark required fields and nothing says so. The convention is widespread
 
 > "Fields marked * are required" once, plus required on each input
 
+<a id="search-field-with-no-clear-and-no-search-type"></a>
 ### `search-field-with-no-clear-and-no-search-type`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.
@@ -547,6 +627,7 @@ A search box built as type="text" with no way to empty it in one action. The use
 
 > <form role="search"><input type="search" aria-label="Search"> + a clear button
 
+<a id="select-for-a-two-option-choice"></a>
 ### `select-for-a-two-option-choice`  ·  low · generic-llm · web-ui · structural · family: form · lane: forms-and-input
 
 **Automated here:** yes, these scripts implement it.

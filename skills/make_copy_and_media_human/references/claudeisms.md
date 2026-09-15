@@ -7,10 +7,78 @@ _39 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Prose: essay, reply, README, doc"] --> B{"Do you have 2-3 samples<br/>of this author's prior writing?"}
+    B -->|yes| C["--baseline glob<br/>rhythm can reach high"]
+    B -->|no| D["No baseline<br/>every rhythm finding caps at LOW"]
+    C --> E["Read form + shape items first"]
+    D --> E
+    E --> F{"Finding family?"}
+    F -->|residue| G["Report high. Machine artifact,<br/>near-zero human source"]
+    F -->|form / shape| H["Report as written. Humans do this too"]
+    F -->|rhythm| I["Cue only. Never quote as evidence"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`definition-after-use`](#definition-after-use) | HIGH | form | yes |
+| [`escalating-compliment-sycophancy`](#escalating-compliment-sycophancy) | HIGH | form | n/a |
+| [`negation-contrast-frame`](#negation-contrast-frame) | HIGH | form | yes |
+| [`no-detail-only-you-could-know`](#no-detail-only-you-could-know) | HIGH | form | n/a |
+| [`no-worked-example`](#no-worked-example) | HIGH | form | n/a |
+| [`nothing-at-stake`](#nothing-at-stake) | HIGH | form | n/a |
+| [`participial-tail`](#participial-tail) | HIGH | form | yes |
+| [`significance-puffery-testament`](#significance-puffery-testament) | HIGH | form | n/a |
+| [`staccato-fragment-triplet`](#staccato-fragment-triplet) | HIGH | rhythm | yes |
+| [`stance-neutralization`](#stance-neutralization) | HIGH | form | n/a |
+| [`textureless-anecdote`](#textureless-anecdote) | HIGH | form | n/a |
+| [`unearned-prior-reference`](#unearned-prior-reference) | HIGH | form | yes |
+| [`uniform-explanatory-depth`](#uniform-explanatory-depth) | HIGH | form | n/a |
+| [`vague-attribution`](#vague-attribution) | HIGH | form | n/a |
+| [`abstraction-jump-no-rung`](#abstraction-jump-no-rung) | med | form | n/a |
+| [`adjective-inflation`](#adjective-inflation) | med | form | n/a |
+| [`apologetic-over-qualification`](#apologetic-over-qualification) | med | form | n/a |
+| [`copula-avoidance`](#copula-avoidance) | med | form | yes |
+| [`decision-without-alternatives`](#decision-without-alternatives) | med | form | n/a |
+| [`delve-excess-vocabulary`](#delve-excess-vocabulary) | med | form | **no** |
+| [`deontic-softening`](#deontic-softening) | med | form | yes |
+| [`elegant-variation`](#elegant-variation) | med | form | n/a |
+| [`epistemic-rhetorical-miscalibration`](#epistemic-rhetorical-miscalibration) | med | form | n/a |
+| [`hedging-stack`](#hedging-stack) | med | form | n/a |
+| [`heres-the-thing-pivot`](#heres-the-thing-pivot) | med | form | n/a |
+| [`let-me-be-clear-throat-clearing`](#let-me-be-clear-throat-clearing) | med | form | n/a |
+| [`nominalization-density`](#nominalization-density) | med | form | yes |
+| [`parallel-overload-uniform-bullets`](#parallel-overload-uniform-bullets) | med | form | **no** |
+| [`pronoun-evacuation`](#pronoun-evacuation) | med | rhythm | yes |
+| [`repo-context-leak`](#repo-context-leak) | med | form | yes |
+| [`rule-of-three-tricolon`](#rule-of-three-tricolon) | med | form | **no** |
+| [`specificity-starvation`](#specificity-starvation) | med | form | yes |
+| [`sycophantic-affirmation-opener`](#sycophantic-affirmation-opener) | med | form | n/a |
+| [`unattributed-floating-quote`](#unattributed-floating-quote) | med | form | yes |
+| [`comma-inflation`](#comma-inflation) | low | rhythm | yes |
+| [`connection-vagueness`](#connection-vagueness) | low | form | n/a |
+| [`em-dash-density`](#em-dash-density) | low | rhythm | yes |
+| [`false-range-spectrum-framing`](#false-range-spectrum-framing) | low | form | n/a |
+| [`paragraph-length-monoculture`](#paragraph-length-monoculture) | low | rhythm | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="definition-after-use"></a>
 ### `definition-after-use`  ·  high · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -35,6 +103,7 @@ Terms of art used before they are defined, or never defined at all. The reader m
 
 > Jobs are handed out by a scheduler we call the Lane Coordinator, which takes work from a queue (the Drift Broker) and decides who may run it.
 
+<a id="escalating-compliment-sycophancy"></a>
 ### `escalating-compliment-sycophancy`  ·  high · claude · prose · llm-judge · family: form
 
 The escalating-specificity compliment chain: 'you're the only PM who gets this, who actually reads the data, who pushes back, and who would fly to the warehouse at 2am to see it himself.' Each clause more hyper-specific than the last, ending on an unverifiable hyperbolic claim.
@@ -55,6 +124,7 @@ The escalating-specificity compliment chain: 'you're the only PM who gets this, 
 
 > Agreed. Your point about distribution is the part most founders skip, and your churn data backs it up.
 
+<a id="negation-contrast-frame"></a>
 ### `negation-contrast-frame`  ·  high · generic-llm · prose · llm-judge · family: form
 
 The negation-contrast family: 'It's not X, it's Y' / 'This isn't about X, it's about Y' and the parallel 'not only X but also Y' / 'not a mirror but a portal.' Mimics the shape of insight while usually setting up a strawman X just to knock it down.
@@ -75,6 +145,7 @@ The negation-contrast family: 'It's not X, it's Y' / 'This isn't about X, it's a
 
 > It's a fast database that changes how teams collaborate.
 
+<a id="no-detail-only-you-could-know"></a>
 ### `no-detail-only-you-could-know`  ·  high · generic-llm · prose · llm-judge · family: form
 
 The unifying rubric. A passage fails when it contains no detail that could only have come from the specific author, recipient, or object in front of it.
@@ -95,6 +166,7 @@ The unifying rubric. A passage fails when it contains no detail that could only 
 
 > Your talk on partial index maintenance is the reason we stopped rebuilding ours nightly.
 
+<a id="no-worked-example"></a>
 ### `no-worked-example`  ·  high · generic-llm · prose · llm-judge · family: form
 
 Abstractions with no concrete instance. The piece defines, categorises and qualifies, and never once shows the thing happening.
@@ -115,6 +187,7 @@ Abstractions with no concrete instance. The piece defines, categorises and quali
 
 > Exponential backoff increases the delay between retries: 1s, then 2s, then 4s. Our third retry lands at 4s, by which point the dogpile that caused the failure has usually cleared.
 
+<a id="nothing-at-stake"></a>
 ### `nothing-at-stake`  ·  high · generic-llm · prose · llm-judge · family: form
 
 The whole-document version of the complaint. Nothing in the piece could be wrong, nothing costs the author anything, and removing any paragraph would change nothing.
@@ -137,6 +210,7 @@ The whole-document version of the complaint. Nothing in the piece could be wrong
 
 > A 400-word post arguing that standups are worse than a written update, with the two cases where that's wrong.
 
+<a id="participial-tail"></a>
 ### `participial-tail`  ·  high · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -163,6 +237,7 @@ A sentence-final present-participial clause bolted onto an already complete sent
 
 > The library reopened in 2019. Voters had approved the bond twice.
 
+<a id="significance-puffery-testament"></a>
 ### `significance-puffery-testament`  ·  high · generic-llm · prose · llm-judge · family: form
 
 Unearned emphasis on importance and legacy: 'stands as a testament to,' 'plays a vital/pivotal role,' 'marks a significant milestone,' 'cementing its legacy,' 'a beacon of.' Wikipedia editors named promotional significance-inflation the single most consistent sign of AI text.
@@ -183,6 +258,7 @@ Unearned emphasis on importance and legacy: 'stands as a testament to,' 'plays a
 
 > The 1923 bridge carries 40,000 vehicles a day and was the longest steel span in the state when it opened.
 
+<a id="staccato-fragment-triplet"></a>
 ### `staccato-fragment-triplet`  ·  high · generic-llm · prose · structural · family: rhythm
 
 **Automated here:** yes, these scripts implement it.
@@ -207,6 +283,7 @@ A burst of ultra-short sentence fragments in sequence, usually three, used for f
 
 > The migration worked on the first try, which surprised everyone given how little we'd tested it.
 
+<a id="stance-neutralization"></a>
 ### `stance-neutralization`  ·  high · generic-llm · prose · llm-judge · family: form
 
 The piece surveys both sides and lands nowhere. An argument becomes a balanced overview; a recommendation becomes 'it depends on your needs'.
@@ -229,6 +306,7 @@ The piece surveys both sides and lands nowhere. An argument becomes a balanced o
 
 > Use Postgres. The Mongo case only wins if your schema genuinely changes weekly, and yours doesn't.
 
+<a id="textureless-anecdote"></a>
 ### `textureless-anecdote`  ·  high · generic-llm · prose · llm-judge · family: form
 
 A personal story with no texture: no names, no weather, no dialogue, nothing that could be checked or misremembered. It has a beginning, a lesson, and nothing in between.
@@ -249,6 +327,7 @@ A personal story with no texture: no names, no weather, no dialogue, nothing tha
 
 > Priya gave me exactly one piece of feedback in two years, in a stairwell, about a slide I'd already presented.
 
+<a id="unearned-prior-reference"></a>
 ### `unearned-prior-reference`  ·  high · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -273,6 +352,7 @@ The piece points at a history the reader was never present for: 'building on our
 
 > Our scheduler used to hand the same job to two workers about once every forty thousand runs. Quantum Lane is the fix.
 
+<a id="uniform-explanatory-depth"></a>
 ### `uniform-explanatory-depth`  ·  high · generic-llm · prose · llm-judge · family: form
 
 Everything explained at the same level of detail, so nothing is marked as hard. The reader cannot tell which two ideas actually needed the effort.
@@ -295,6 +375,7 @@ Everything explained at the same level of detail, so nothing is marked as hard. 
 
 > Two paragraphs on install. Nine on the consistency model, with a worked example. One line each on logging and the CLI.
 
+<a id="vague-attribution"></a>
 ### `vague-attribution`  ·  high · generic-llm · prose · llm-judge · family: form
 
 Claims sourced to an unnamed collective: 'Industry reports suggest', 'Experts argue', 'Observers have noted', 'Some critics contend'.
@@ -317,6 +398,7 @@ Claims sourced to an unnamed collective: 'Industry reports suggest', 'Experts ar
 
 > Gartner put 2025 adoption at 34%, up from 19% in 2023.
 
+<a id="abstraction-jump-no-rung"></a>
 ### `abstraction-jump-no-rung`  ·  medium · generic-llm · prose · llm-judge · family: form
 
 The prose moves between levels of abstraction with no transition: a sentence about business outcomes followed by a sentence about a mutex, with nothing between them.
@@ -337,6 +419,7 @@ The prose moves between levels of abstraction with no transition: a sentence abo
 
 > This cuts month-end close from five days to two, because nothing waits on a human to unblock a stuck job any more. The scheduler does that by taking a lease with a ninety-second TTL, so a dead worker's claim expires on its own.
 
+<a id="adjective-inflation"></a>
 ### `adjective-inflation`  ·  medium · generic-llm · prose · llm-judge · family: form
 
 Nouns arriving pre-modified — comprehensive framework, robust solution, seamless integration, significant improvement — where the bare noun carries the same information.
@@ -359,6 +442,7 @@ Nouns arriving pre-modified — comprehensive framework, robust solution, seamle
 
 > We added 340 integration tests. Escaped defects fell from 11 to 2 per release.
 
+<a id="apologetic-over-qualification"></a>
 ### `apologetic-over-qualification`  ·  medium · claude · prose · llm-judge · family: form
 
 Reflexive softening and self-undercutting: 'I could be wrong, but...,' 'This is just my take,' 'It's a bit more nuanced than that,' 'There's no one-size-fits-all answer,' wrapped around claims that don't need the disclaimer.
@@ -379,6 +463,7 @@ Reflexive softening and self-undercutting: 'I could be wrong, but...,' 'This is 
 
 > Use Postgres. The only case where I'd switch is sub-millisecond key lookups at high volume, and you're nowhere near that.
 
+<a id="copula-avoidance"></a>
 ### `copula-avoidance`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -405,6 +490,7 @@ Systematic replacement of 'is' and 'are' with inflated substitutes: serves as, s
 
 > The building is the agency's headquarters. Its atrium was restored in 2011.
 
+<a id="decision-without-alternatives"></a>
 ### `decision-without-alternatives`  ·  medium · generic-llm · prose · llm-judge · family: form
 
 'We decided to go with X' where the reader never learns what else was on the table or what criteria settled it.
@@ -425,6 +511,7 @@ Systematic replacement of 'is' and 'are' with inflated substitutes: serves as, s
 
 > We went with Postgres over DynamoDB because our access pattern needs joins across four tables and we were not willing to denormalise them.
 
+<a id="delve-excess-vocabulary"></a>
 ### `delve-excess-vocabulary`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -451,6 +538,7 @@ Marker vocabulary whose frequency spiked after 2022. The list is ERA-VERSIONED a
 
 > This report looks at how supply chains shape global trade.
 
+<a id="deontic-softening"></a>
 ### `deontic-softening`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -477,6 +565,7 @@ Obligation expressed in procedural modals rather than interpersonal ones: 'canno
 
 > You can't edit the config directly — you have to file a change request.
 
+<a id="elegant-variation"></a>
 ### `elegant-variation`  ·  medium · generic-llm · prose · llm-judge · family: form
 
 The model refuses to repeat a word, so 'the router' becomes 'the routing component', then 'this networking element', then 'the aforementioned module' — four names for one thing.
@@ -499,6 +588,7 @@ The model refuses to repeat a word, so 'the router' becomes 'the routing compone
 
 > The router forwards the packet, then hands it to the scheduler.
 
+<a id="epistemic-rhetorical-miscalibration"></a>
 ### `epistemic-rhetorical-miscalibration`  ·  medium · generic-llm · prose · llm-judge · family: form
 
 Rhetorical intensity out of proportion to evidential grounding: confident emphasis attached to claims with nothing underneath them.
@@ -521,6 +611,7 @@ Rhetorical intensity out of proportion to evidential grounding: confident emphas
 
 > Get this wrong and the migration silently drops rows, which is what happened to us in March.
 
+<a id="hedging-stack"></a>
 ### `hedging-stack`  ·  medium · claude · prose · llm-judge · family: form
 
 Layered qualifiers that cancel each other so the sentence asserts nothing: 'While X, it's worth noting Y, though of course Z,' with ritual concessions ('that said,' 'no solution is perfect') stacked around every claim.
@@ -543,6 +634,7 @@ Layered qualifiers that cancel each other so the sentence asserts nothing: 'Whil
 
 > This approach works well under about 10,000 rows. Past that the join gets slow and you'll want to paginate.
 
+<a id="heres-the-thing-pivot"></a>
 ### `heres-the-thing-pivot`  ·  medium · claude · prose · llm-judge · family: form
 
 The faux-conversational pivot that signals a reveal: 'Here's the thing.' 'Here's the kicker.' 'But here's what's interesting.' Used to manufacture a turn even when no real twist follows.
@@ -563,6 +655,7 @@ The faux-conversational pivot that signals a reveal: 'Here's the thing.' 'Here's
 
 > We optimized the query for a week before realizing the index was missing.
 
+<a id="let-me-be-clear-throat-clearing"></a>
 ### `let-me-be-clear-throat-clearing`  ·  medium · claude · prose · llm-judge · family: form
 
 Meta-announcements of candor before saying anything: 'Let me be clear.' 'I'll be honest with you.' 'To be completely transparent.' 'Make no mistake.' Performs frankness rather than being frank.
@@ -583,6 +676,7 @@ Meta-announcements of candor before saying anything: 'Let me be clear.' 'I'll be
 
 > The project is three weeks behind. We will not make the deadline.
 
+<a id="nominalization-density"></a>
 ### `nominalization-density`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -609,6 +703,7 @@ Verbs converted into abstract nouns and propped up with a weak verb: 'the implem
 
 > We added a caching layer. Latency dropped.
 
+<a id="parallel-overload-uniform-bullets"></a>
 ### `parallel-overload-uniform-bullets`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -637,6 +732,7 @@ Every bullet in a list has identical grammatical shape and near-identical length
 > - Ship to Canada
 > - Quality: figure out why test coverage keeps dropping
 
+<a id="pronoun-evacuation"></a>
 ### `pronoun-evacuation`  ·  medium · generic-llm · prose · structural · family: rhythm
 
 **Automated here:** yes, these scripts implement it.
@@ -663,6 +759,7 @@ First- and second-person pronouns stripped out, so the writer disappears from th
 
 > I postponed the launch.
 
+<a id="repo-context-leak"></a>
 ### `repo-context-leak`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -687,6 +784,7 @@ File paths, function names, ticket ids and branch names in prose meant for someo
 
 > This removes the contention in the scheduler, which we had been chasing since March.
 
+<a id="rule-of-three-tricolon"></a>
 ### `rule-of-three-tricolon`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -709,6 +807,7 @@ Compulsive triplets: three adjectives, three nouns, three parallel clauses or li
 
 > The platform is fast, and flexible enough that teams stop fighting it. Mostly they just ship sooner.
 
+<a id="specificity-starvation"></a>
 ### `specificity-starvation`  ·  medium · generic-llm · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -735,6 +834,7 @@ Confident copy about nothing: no proper nouns, no numbers, no dates, nothing a r
 
 > Three of the four teams that moved to Bazel cut CI time from 22 minutes to under 6.
 
+<a id="sycophantic-affirmation-opener"></a>
 ### `sycophantic-affirmation-opener`  ·  medium · claude · prose · llm-judge · family: form
 
 Reflexive unconditional praise or agreement openers: 'You're absolutely right!', 'Great question!', 'Absolutely! Here's...', often echoing the request back. The 'You're absolutely right' tic was filed as a bug against Claude Code and appears even when the user is wrong.
@@ -755,6 +855,7 @@ Reflexive unconditional praise or agreement openers: 'You're absolutely right!',
 
 > Here's what I found...
 
+<a id="unattributed-floating-quote"></a>
 ### `unattributed-floating-quote`  ·  medium · claude · prose · structural · family: form
 
 **Automated here:** yes, these scripts implement it.
@@ -781,6 +882,7 @@ An italicized or block-quoted line dropped in as if it were a quotation or someo
 
 > The team shipped the feature even though no one could prove it would matter, which was the bravest call of the quarter.
 
+<a id="comma-inflation"></a>
 ### `comma-inflation`  ·  low · generic-llm · prose · structural · family: rhythm
 
 **Automated here:** yes, these scripts implement it.
@@ -807,6 +909,7 @@ Parenthetical smoothing: every clause acquires an appositive, every sentence a m
 
 > The migration shipped on a Tuesday. We had been planning it for months, and it still went wrong.
 
+<a id="connection-vagueness"></a>
 ### `connection-vagueness`  ·  low · generic-llm · prose · llm-judge · family: form
 
 Relationships stated indirectly rather than claimed: 'in connection with', 'associated with', 'has been linked to', 'widely associated with'.
@@ -829,6 +932,7 @@ Relationships stated indirectly rather than claimed: 'in connection with', 'asso
 
 > Chen founded the lab in 2014.
 
+<a id="em-dash-density"></a>
 ### `em-dash-density`  ·  low · generic-llm · prose · structural · family: rhythm
 
 **Automated here:** yes, these scripts implement it.
@@ -857,6 +961,7 @@ Em dashes used at a rate well above the author's own habit — typically as a su
 
 > We shipped it Friday and everything broke. The fix was simple once we found it, but finding it took the whole weekend.
 
+<a id="false-range-spectrum-framing"></a>
 ### `false-range-spectrum-framing`  ·  low · generic-llm · prose · llm-judge · family: form
 
 The sweeping 'from X to Y' / 'whether you're a beginner or an expert' construction used to imply comprehensiveness ('from startups to enterprises,' 'from healthcare to finance').
@@ -877,6 +982,7 @@ The sweeping 'from X to Y' / 'whether you're a beginner or an expert' constructi
 
 > This tool is built for two-to-ten-person data teams who are tired of maintaining Airflow themselves.
 
+<a id="paragraph-length-monoculture"></a>
 ### `paragraph-length-monoculture`  ·  low · generic-llm · prose · structural · family: rhythm
 
 **Automated here:** yes, these scripts implement it.

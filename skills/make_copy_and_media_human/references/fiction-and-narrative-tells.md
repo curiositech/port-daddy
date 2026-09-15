@@ -7,10 +7,45 @@ _6 items. Generated from catalog.json — edit there, then re-run `scripts/regen
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Fiction or anything told as a story"] --> B["Ignore sentence style entirely"]
+    B --> C["Read at the DISCOURSE level"]
+    C --> D{"Does the narration state its own theme?"}
+    D -->|yes| E["Narrated theme statement"]
+    D -->|no| F{"Is every character's voice<br/>interchangeable?"}
+    F -->|yes| G["Register levelling"]
+    F -->|no| H["Structure holds. Edit at sentence level"]
+    E --> I["Evidence note: discourse features separated<br/>human from generated fiction at 93.2% macro-F1<br/>with every stylistic cue stripped"]
+    G --> I
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`narrated-theme-statement`](#narrated-theme-statement) | HIGH | form | n/a |
+| [`single-register-cast`](#single-register-cast) | HIGH | form | n/a |
+| [`uplift-closing-line`](#uplift-closing-line) | HIGH | form | n/a |
+| [`body-sensation-emotion-substitution`](#body-sensation-emotion-substitution) | med | form | n/a |
+| [`no-cultural-anchors`](#no-cultural-anchors) | med | form | n/a |
+| [`simile-stacking`](#simile-stacking) | med | form | n/a |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="narrated-theme-statement"></a>
 ### `narrated-theme-statement`  ·  high · generic-llm · fiction · llm-judge · family: form
 
 The story stops to explain what it means. A character, or the narration, states the theme outright near the end, usually as a short italicized realization.
@@ -33,6 +68,7 @@ The story stops to explain what it means. A character, or the narration, states 
 
 > She looked at the empty chair. Then she moved it into the hall, where she would not have to see it.
 
+<a id="single-register-cast"></a>
 ### `single-register-cast`  ·  high · generic-llm · fiction · llm-judge · family: form
 
 Every character speaks in the same voice. Vocabulary, sentence length, humor and hedging are indistinguishable across the cast.
@@ -53,6 +89,7 @@ Every character speaks in the same voice. Vocabulary, sentence length, humor and
 
 > One of them interrupts, swears, and never finishes a clause.
 
+<a id="uplift-closing-line"></a>
 ### `uplift-closing-line`  ·  high · generic-llm · fiction · llm-judge · family: form
 
 The piece resolves upward regardless of what came before: a final line of quiet hope, acceptance, or gentle forward motion bolted onto an unresolved story.
@@ -73,6 +110,7 @@ The piece resolves upward regardless of what came before: a final line of quiet 
 
 > She locked the door behind her and did not check whether it caught.
 
+<a id="body-sensation-emotion-substitution"></a>
 ### `body-sensation-emotion-substitution`  ·  medium · generic-llm · fiction · llm-judge · family: form
 
 Emotion rendered exclusively as somatic report: her chest tightened, his stomach dropped, a knot formed in her throat, breath she didn't know she was holding.
@@ -93,6 +131,7 @@ Emotion rendered exclusively as somatic report: her chest tightened, his stomach
 
 > She read it twice, put the phone face down, and went back to chopping onions.
 
+<a id="no-cultural-anchors"></a>
 ### `no-cultural-anchors`  ·  medium · generic-llm · fiction · llm-judge · family: form
 
 A world with no specific music, brands, slang, politics, or period detail. Everything is legible everywhere, which means it belongs nowhere.
@@ -113,6 +152,7 @@ A world with no specific music, brands, slang, politics, or period detail. Every
 
 > They met at the Dunkin' on Mass Ave and argued about whether the Sox should have kept Betts.
 
+<a id="simile-stacking"></a>
 ### `simile-stacking`  ·  medium · generic-llm · fiction · llm-judge · family: form
 
 Figurative language arriving in clusters, often two or three comparisons for one image, none of them load-carrying.

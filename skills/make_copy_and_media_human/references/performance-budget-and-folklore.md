@@ -5,6 +5,24 @@ designer can spend before they spend it. The folklore section is the numbers
 people quote instead of a budget, most of which are wrong, out of date, or about
 something else.
 
+
+## Before you quote a number
+
+Half this file is numbers you can use and half is numbers to stop repeating. This decides which you are holding.
+
+```mermaid
+flowchart TD
+    A(["About to quote a performance number"]) --> B{"Is it on the folklore list?"}
+    B -->|yes| C["Do not use it"]
+    C --> D["Lighthouse score as a proxy for speed:<br/>43% of pages scoring 90+ fail a<br/>Core Web Vital in the field"]
+    C --> E["Per-KB parse-time constant:<br/>V8 retired it in 2019"]
+    C --> F["Shared font cache across sites:<br/>cache partitioning killed it in 2020"]
+    C --> G["'AI sites are heavier':<br/>no published measurement exists"]
+    B -->|no| H{"Is it a BUDGET you can check<br/>without a profiler?"}
+    H -->|yes| I["Use it. Frame it as a SIZE:<br/>'the hero is 200 KB' is the same kind<br/>of constraint as 'the hero is 1600px'"]
+    H -->|no| J["Measure it, or say UNREVIEWED"]
+```
+
 ## The budget
 
 Every number here is a *design* constraint — something you can check in a design

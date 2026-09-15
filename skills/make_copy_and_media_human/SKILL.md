@@ -256,32 +256,75 @@ acting on. The same comment on a Reddit reply is firing against a 2% prior and
 will be wrong most of the time. Adjust before you speak, especially anywhere a
 person might feel accused.
 
-## Decision tree
+## Start here: what am I looking at?
+
+Answer one question — what kind of artifact is in front of you — and this
+says which files to open. Every reference file then opens with its own decision
+diagram for when it applies, and an index of its contents.
 
 ```mermaid
 flowchart TD
-    A[Input received] --> B{Baseline available?}
-    B -->|yes| C[Collect 2-3 pieces of the author's known writing]
-    B -->|no| D[Proceed; rhythm findings stay low]
-    C --> E{What medium?}
+    START(["What am I reviewing?"]) --> PROSE["Prose, essay, README,<br/>blog, email, reply"]
+    START --> WEB["Web page, component,<br/>CSS, JSX"]
+    START --> CODE["Commit, PR, review,<br/>test, source file"]
+    START --> DOC["Long document<br/>or slide deck"]
+    START --> MKT["Landing copy, social post,<br/>listing, resume"]
+    START --> PAPER["Paper, preprint,<br/>referee report, .tex"]
+    START --> FIG["Figure, chart,<br/>plotting script"]
+    START --> MEDIA["Generated image,<br/>video or audio"]
+
+    PROSE --> P1["claudeisms · gptisms-codexisms<br/>other-model-dialects"]
+    WEB --> W1["web-build-defects FIRST"]
+    W1 --> W2["then: visual-design · typographic-craft<br/>interaction-and-motion · forms-and-input<br/>accessibility · performance · product-ux-writing<br/>unopened-surfaces · dark-patterns"]
+    CODE --> C1["engineering-artifact-tells"]
+    DOC --> D1["document-and-deck-structure"]
+    MKT --> M1["marketing-and-platform-tells"]
+    PAPER --> R1["research-papers · latex-source"]
+    FIG --> F1["scientific-figures"]
+    MEDIA --> G1["generated-media-tells<br/>provenance first"]
+
+    P1 --> RUN["Run the pipeline"]
+    W2 --> RUN
+    C1 --> RUN
+    D1 --> RUN
+    M1 --> RUN
+    R1 --> RUN
+    F1 --> RUN
+    G1 --> RUN
+```
+
+**Open `references/web-build-defects.md` before anything else on a web page.**
+Everything in it is reproducible by opening the page, so it carries no fairness
+caveat and no claim about authorship — and a page that scrolls sideways at
+390px has a bigger problem than reading a bit generated.
+
+## The pipeline
+
+Three layers. The script is layer one; you are layer three.
+
+```mermaid
+flowchart TD
+    A(["Artifact in hand"]) --> B{"Author's prior writing available?"}
+    B -->|yes| C["Collect 2-3 samples"]
+    B -->|no| D["Proceed. Every rhythm finding caps at LOW"]
+    C --> E["LAYER 1 - STRUCTURAL<br/>humanize_review.py FILE --baseline GLOB"]
     D --> E
-    E -->|prose / README / blog / email| F[humanize_review.py --baseline]
-    E -->|web UI / CSS / JSX| G[Markup pass + build defects; then render_check at 390px]
-    E -->|commit / PR / review / code| H[Code pass + compare against repo norms]
-    E -->|slide deck| I[Export text and notes, review as prose, then layout]
-    E -->|image / video / audio| J[Provenance first: C2PA, EXIF, reverse search]
-    F --> K[Judge pass against catalog.json]
-    G --> K
-    H --> K
-    I --> K
-    J --> K
-    K --> L{Findings?}
-    L -->|yes| M[Write findings.json, merge with --findings]
-    L -->|no| N[Report clean, say so plainly]
-    M --> O[Static HTML report: struck text plus rewrite per item]
-    O --> P{Apply fixes?}
-    P -->|yes| Q[Edit file by file, re-run to verify]
-    P -->|no| R[Deliver report, stop]
+    E --> F{"Any finding marked rendered?"}
+    F -->|yes| G["LAYER 2 - RENDERED<br/>render_check.py FILE --viewports 390,768,1280<br/>--probe-modals --probe-a11y"]
+    F -->|no| H["LAYER 3 - JUDGE"]
+    G --> H
+    H --> I["Read catalog.json. Ask every llm-judge item,<br/>plus every structural item the scripts<br/>do NOT implement - each is marked<br/>'Automated here: no' in its reference file"]
+    I --> J{"Item marked assistive?"}
+    J -->|yes| K["A person must hear it. Do NOT write<br/>an assertion and call a pass evidence"]
+    J -->|no| L["Write findings.json"]
+    K --> L
+    L --> M["Merge: humanize_review.py FILE --findings findings.json"]
+    M --> N{"Fix now?"}
+    N -->|yes| O["Edit file by file, then re-run to verify"]
+    N -->|no| P["Deliver the report and stop"]
+    O --> Q{"Clean?"}
+    Q -->|no| E
+    Q -->|yes| P
 ```
 
 ## Process
@@ -345,102 +388,33 @@ their only visible boundary. Both matter because a static pass reports success o
 exactly these: the Escape handler is present in source whether or not it runs,
 and a gradient looks like a boundary right up until the OS reverts it.
 
-### Optimised the source, never the delivery
+### The mechanism of each lane, one line each
 
-A generator can see the markup it is writing. It cannot see a network waterfall,
-a byte count, a decode time, or which element wins LCP. So the findings in
-`references/performance-as-a-design-tell.md` cluster where correctness-in-source
-and correctness-in-delivery come apart: the `<img>` is valid and the format is
-wrong; the font stack is tasteful and six weights ship; the component is correct
-React and it did not need to be React.
+Each lane file opens with its own mechanism and a decision diagram for when it
+applies, then an index of its contents with severity, family, and whether the
+scripts already automate the check. This table is the index; the file is the
+argument.
 
-**Say UNREVIEWED, not AI-generated, and mean it.** Three or four entries there
-are genuinely model-flavoured and say so; the rest would look identical coming
-from a person who shipped without watching the page load once. Be especially
-careful with the population-level claim, because it is the one that gets
-repeated: the mechanism is well understood and every individual tell is
-measurable on any given page, but **there is no published measurement that
-AI-generated sites are heavier**. What exists measures AI-adjacent signals —
-builder subdomains, the spread of the indigo palette — and explicitly does
-not measure page weight.
-
-Read `references/performance-budget-and-folklore.md` before reporting any of it.
-It carries eleven budget numbers a designer can check in a review without
-opening a profiler, and ten pieces of circulating folklore to drop — the
-Lighthouse score as a proxy for speed, the per-KB parse-time constant, the shared
-font cache, and the weight claim above. A score tells you where you landed; a
-budget tells a designer what they can spend before they spend it.
-
-### One value where a function belonged
-
-`references/typographic-craft-and-tokens.md` has a single governing idea and it
-is worth carrying into any stylesheet review. A generator emits CSS that is
-internally consistent and has no craft in it, because craft in typography is
-almost entirely per-context judgement: this heading at this size on this measure
-needs 1.05 leading — `line-height`, the distance from one baseline to the
-next, expressed as a multiple of the font size — and slightly negative
-tracking, while the one three sections down does not. A default is by construction context-free.
-
-So the tell is never a **wrong value** — any individual number in that file
-is defensible somewhere. The tell is **one value where there should have been a
-function of context**, and every check there is the same computation: does this
-property vary with the thing it is supposed to vary with? Leading with size and
-measure. Tracking with size. Weight with role. Contrast with theme. Colour with
-surface.
-
-That changes how you report it. You are not telling an author their 1.6
-line-height is wrong; you are telling them a 64px headline and 16px body copy
-cannot both want it.
-
-Two cautions, or this lane generates noise. Read **computed** values rather than
-declaration counts — utility frameworks bundle a tightening line-height into
-their size scale, so a page with no explicit `line-height` anywhere is usually
-correct and flagging it is the error. And restraint is not absence: a
-deliberately single-weight, single-ratio system is a real tradition, so the tell
-is one value **plus no other axis carrying the hierarchy**, never a low count on
-its own.
-
-### Where hard string matching is allowed
-
-Everywhere else in this skill, a closed phrase list is a bad detector: the words
-have honest uses, and the list ages out as models change. In-product UI strings
-are different in kind. A product's user-facing string table is small,
-enumerable and extractable — from i18n catalogs, from string literals in the
-render and error path, from the error and empty and toast slots in the DOM —
-and within that surface the phrase space is genuinely narrow, because there are
-only so many ways to say nothing. "Something went wrong" is not a phrase with a
-good use at a different frequency; it is a phrase with no good use at all in a
-product that knows what went wrong.
-
-So `references/product-ux-writing.md` ships closed sets as hard matches, and the
-script runs them only over extracted UI strings. It will not fire on an article
-that quotes the same phrase, and that narrowness is the whole reason the sets are
-defensible.
-
-The mechanism underneath them is worth carrying into any review of product copy.
-Under uncertainty about what failed, every substantive clause a model could write
-risks being wrong, and exactly one clause carries zero risk: the one about how
-sorry everyone is. So the string is optimised for the writer's uncertainty
-rather than the reader's blockage — and the two are anti-correlated. **The
-less the system knows about the failure, the warmer the copy gets.** A person who
-does not know what went wrong writes something terse and slightly embarrassed. A
-model writes something fluent and kind.
-
-### Two surfaces worth naming separately
-
-Most of this skill asks whether something reads generated. Two reference files do
-not, and they need a different sentence when you report them.
-
-`references/unopened-surfaces.md` is about surfaces a model has no way to open.
-There is no printer, no Outlook, no German tester, no screen reader and no second
-page to navigate to, so the tell is not that the output is strange — it is
-that a whole class of output was never looked at. Report these as what the author
-has not yet checked, never as a claim about who wrote it. Its navigation entries
-share one cause, which is worth saying out loud when you find two of them:
-`ia-is-a-projection-of-the-filesystem`. The flat nav, the fat footer, the empty
-mega-menu and the four-deep sidebar are four symptoms of an information
-architecture that is a rendering of the directory listing, because enumeration is
-free and prioritisation needs knowledge the generator does not have.
+| lane | the mechanism in one sentence |
+| --- | --- |
+| [web build defects](references/web-build-defects.md) | Reproducible by opening the page. No authorship claim, no fairness caveat — act on this file first. |
+| [visual design](references/visual-design-tells.md) | One default is a coincidence; the cluster is the finding. |
+| [generated media](references/generated-media-tells.md) | Provenance first, pixels last — the artifact heuristics age in months. |
+| [document and deck structure](references/document-and-deck-structure.md) | Assembly survives a full rewrite of the prose, which is why a reader feels it without being able to name it. |
+| [marketing and platform](references/marketing-and-platform-tells.md) | The venue has a house form, and the tell is the form arriving complete. |
+| [engineering artifacts](references/engineering-artifact-tells.md) | The diff is already visible; a commit that restates it says nothing. |
+| [unopened surfaces](references/unopened-surfaces.md) | Not that the output is strange — that a whole class of output was never looked at. |
+| [dark patterns](references/dark-patterns-the-model-inherits.md) | The violation is usually not in either component but in the gap between them. |
+| [accessibility](references/accessibility-beyond-the-checklist.md) | A machine fully verifies roughly 30% of the criteria; a clean scan is not a clean page. |
+| [product UX writing](references/product-ux-writing.md) | The less the system knows about the failure, the warmer the copy gets. |
+| [typographic craft](references/typographic-craft-and-tokens.md) | Never a wrong value — one value where a function of context belonged. |
+| [performance](references/performance-as-a-design-tell.md) | The generator can see the markup and cannot see the waterfall. |
+| [interaction and motion](references/interaction-and-motion.md) | Motion's quality lives in time, and it is emitted as a string nobody watches run. |
+| [forms and input](references/forms-and-input.md) | The one surface where the output is the START of the user's work. |
+| [research papers](references/research-papers.md) | Prose and checkable commitments arrive at the same confidence, and nothing marks which is which. |
+| [LaTeX source](references/latex-source.md) | Never that it failed to compile — it compiled, and nobody opened the PDF. |
+| [scientific figures](references/scientific-figures.md) | The render is on the far side of a step the author never watched, so the defect is in the code. |
+| [tool fingerprints](references/tool-fingerprints.md) | What made the page. Never who wrote it, never whether it is good. |
 
 ### Provenance is a separate question, and a separate mode
 
@@ -534,157 +508,40 @@ famous ones: one provider's em-dash rate fell from 10.62 per thousand words to
 cautions rather than tests. The entry on mangled hands in generated images is
 already one of them.
 
-### The property a generator cannot watch
-
-Motion is the one design property whose entire quality lives in *time*, and a
-generator emits it as a static string it can never watch run. That single fact
-predicts most of `references/interaction-and-motion.md`. Duration, easing and
-stagger are judgements made by watching, so what arrives is the corpus median
-applied uniformly — 300ms for a 2px hover tint and for a full-height sheet
-alike. And uniform motion is decoration by definition, because decoration is the
-only use of motion that needs no knowledge of what is happening on the page. The
-computation behind most of the lane is the same one the typography lane uses:
-does this property vary with the thing it is supposed to vary with?
-
-The other half is input devices. Hover is the state the author sees while
-building; focus only exists if you put the mouse down, and on a touchscreen
-hover latches on tap and never releases. None of that is visible in the source.
-
-Two items here carry evidence rather than taste. Scroll capture: Nielsen Norman
-Group's usability testing found most participants at least mildly disoriented,
-several reading it as a bug rather than a design. And reduced motion: 35.4% of
-US adults aged 40 and over showed vestibular dysfunction in the 2001-2004 NHANES
-data, about 69 million people. Note the specific failure
-`reduced-motion-honoured-in-css-ignored-in-script` names — the media query is
-satisfied while the parallax keeps running, because the query and the animation
-are two separately correct answers to two separately given instructions. That
-seam, not the missing query, is the model-flavoured part.
-
-Read `initial-state-hidden-so-content-depends-on-script` first. It is the only
-item in the lane that loses content rather than polish.
-
-### A form is the start of the user's work, not the end of yours
-
-Everything else a generator produces is read. A form is *operated* — on a phone
-keyboard, through a password manager, after an error, under time pressure. None
-of those conditions exist in the markup, so the tells in
-`references/forms-and-input.md` cluster exactly at the properties that only come
-into being while somebody is using it: the keyboard that opens, the value
-autofill puts in, what survives a failed submit.
-
-`submit-disabled-until-valid` is the headline. It comes from a clean, testable
-sentence — "disable submit until the form is valid" — and it produces an
-interface where the control that would tell the user what is wrong is the
-control being withheld. Fix one of three errors and the button stays dead.
-Practitioners have argued against it for over a decade and it remains the most
-reproduced form pattern in generated code. Its worst instance is
-`validity-gate-misses-the-password-manager`: the gate listens for `keyup`, a
-password manager's fill does not produce one, and the user is left with a
-visibly complete form and a dead button having done everything right.
-
-Three items in the lane are WCAG failures in their own right and carry no
-fairness caveat at all: missing autocomplete tokens (1.3.5 Identify Input
-Purpose, Level AA), errors not programmatically tied to their fields, and paste
-blocked on a password field (3.3.8 Accessible Authentication). Act on those with
-the same confidence as a dead link.
-
-### Research papers: check outward, never inward
-
-A paper's sentences and its checkable commitments come out of the same machinery
-at the same confidence, and nothing in the finished artifact marks which is
-which. So the characteristic failure is not that the writing sounds wrong — it is
-that the paper's verifiable claims were never verified by anyone, the author
-included. Every honest check in `references/research-papers.md` therefore points
-*outward*: does this DOI resolve to this paper, does the body contain the
-abstract's number, does this review's objection match anything in the submission.
-
-Those checks are about truth rather than authorship. They cost an accused author
-nothing when they come back clean, and that matters more here than anywhere else
-in this skill, because the population most likely to leave a style marker in a
-manuscript is the population writing in its second language — and the cost of
-being wrong is a career rather than an edit.
-
-The most useful item in the lane is a triage rule rather than a defect. Fidelity
-of model-generated citations tracks the cited paper's citation count, saturating
-near verbatim recall above roughly a thousand citations, because citation count
-proxies training-corpus redundancy. So sort the bibliography ascending and verify
-from the bottom — and note the corollary, that checking the famous references
-proves nothing.
-
-**Three claims the lane refuses.** A p-value without an effect size is not a
-tell: 98.06% of 310 papers in Science, Nature and Nature Neuroscience gave no
-confidence intervals. An abstract overstating results is not one either; measured
-spin in human RCT abstracts runs 49.1% to 85.7% by field. And a fabricated
-reference does not mean a generated paper — 91% of affected papers had one or
-two. The modal case is a researcher who did not check one citation.
-
-### LaTeX: it compiled, and nobody opened the PDF
-
-The tell is never that the source failed to build. It is that it *built* and
-nobody looked at the result. That predicts the whole of
-`references/latex-source.md`: generated `.tex` reaches for LaTeX's **visual**
-layer — `\\`, `\vspace`, `\textbf`, a typed-out "Figure 1" — over its
-**semantic** layer — `\label`/`\ref`, `\emph`, `\cite`, `\section` — because
-the visual layer is the only one verifiable from the token stream alone. A
-counter has no value until TeX assigns one, so the number that gets written is
-the one already visible in the draft.
-
-Ten items there are `defect` and reproducible by compiling, so they carry no
-fairness caveat at all. The lane makes **no claim** that any of it is commoner in
-generated than hand-written LaTeX, and the reason is uncomfortable: the largest
-mined corpus of real LaTeX faults is a taxonomy of *human* faults with the same
-top categories. People break LaTeX in exactly these ways.
-
-### Scientific figures: the defect is in the code, not the pixels
-
-A figure is produced by code, and the render sits on the other side of a step the
-author never watched — so the generator commits to `savefig(...)` without ever
-seeing that the legend landed on the data, that 10pt became 2.9pt in an 89mm
-column, or that the two series print as the same grey. That is why most of
-`references/scientific-figures.md` is greppable in the `.py` or `.R`, and why the
-honest word is UNREVIEWED rather than AI-generated.
-
-Keep three things apart, because they are conflated constantly. *Image
-integrity* — duplication, splicing — is a research-integrity matter with its own
-process that predates generative models entirely. *Generated imagery* is three
-items. *Unreviewed plotting* is the other twenty-four and carries no misconduct
-implication at all: the data is real and the defaults were never adjusted.
-
-**There is no detector for "is this figure generated", and the file says so.**
-Benchmarked against 72,965 real and 150,807 synthetic figures, the best zero-shot
-method reached 53.68% and most sat at chance, failing at near-100% on real images
-and 0–3% on synthetic. Note also that four entries elsewhere in this catalog
-*invert* for a manuscript figure — journals want vector and reject PNG for main
-figures — and have been scoped accordingly.
-
 ## The references
+
+Every generated file opens with a decision diagram for when it applies and an
+index of its contents. Load the one the router pointed at; you do not need the
+rest.
 
 | Reference | Load when |
 |---|---|
 | `references/fairness-and-false-positives.md` | Before your first review, and any time someone asks you to judge authorship |
 | `references/catalog.json` | Always, at judge-pass time; the machine-readable rubric with thresholds and false positives |
-| `references/claudeisms.md` | Text suspected from Claude: staccato, dashes, negation frames, escalating compliments |
-| `references/gptisms-codexisms.md` | READMEs, code comments, service-voice copy, emoji headers |
-| `references/other-model-dialects.md` | Gemini caveat stacks, DeepSeek and Qwen register, Grok voice, register leveling |
-| `references/visual-design-tells.md` | Web UI, landing pages, slide visuals, generated imagery, video, audio |
-| `references/structure-and-deck-tells.md` | Long docs, decks, marketing pages, social posts, email |
-| `references/fiction-and-narrative-tells.md` | Fiction, narrative, and anything told as a story; the strongest tells in the catalog live here |
-| `references/web-build-defects.md` | Any web page, before anything else: responsive, semantics, contrast, scaffold residue |
-| `references/engineering-artifact-tells.md` | Commits, PRs, code review, tests, docs, source files |
-| `references/unopened-surfaces.md` | Navigation, i18n, docs sites, commerce, email templates, print and PDF — the surfaces a model has no way to open |
-| `references/dark-patterns-the-model-inherits.md` | Consent banners, countdowns, activity counters, cancellation and checkout: shapes the commercial web supplied, several of them unlawful |
-| `references/tool-fingerprints.md` | Asked which tool built a page, or about to report a generator string as a finding — read the first two items before the other nineteen |
+| `references/claudeisms.md` | Text suspected from Claude: staccato, dashes, negation frames, escalating compliments · **39 items** |
+| `references/gptisms-codexisms.md` | READMEs, code comments, service-voice copy, emoji headers · **35 items** |
+| `references/other-model-dialects.md` | Gemini caveat stacks, DeepSeek and Qwen register, Grok voice, register leveling · **14 items** |
+| `references/visual-design-tells.md` | Web UI and landing pages: the defaults nobody chose, clustering together · **33 items** |
+| `references/document-and-deck-structure.md` | Long documents, READMEs and slide decks — how the thing was assembled, independent of any sentence in it · **28 items** |
+| `references/marketing-and-platform-tells.md` | Landing copy, social posts, cold email, listings, résumés — venues with a house form · **30 items** |
+| `references/generated-media-tells.md` | A generated image, video or audio clip — provenance first, pixels last · **11 items** |
+| `references/fiction-and-narrative-tells.md` | Fiction, narrative, and anything told as a story; the strongest tells in the catalog live here · **6 items** |
+| `references/web-build-defects.md` | Any web page, before anything else: responsive, semantics, contrast, scaffold residue · **36 items** |
+| `references/engineering-artifact-tells.md` | Commits, PRs, code review, tests, docs, source files · **27 items** |
+| `references/unopened-surfaces.md` | Navigation, i18n, docs sites, commerce, email templates, print and PDF — the surfaces a model has no way to open · **36 items** |
+| `references/dark-patterns-the-model-inherits.md` | Consent banners, countdowns, activity counters, cancellation and checkout: shapes the commercial web supplied, several of them unlawful · **9 items** |
+| `references/tool-fingerprints.md` | Asked which tool built a page, or about to report a generator string as a finding — read the first two items before the other nineteen · **21 items** |
 | `references/five-minute-manual-pass.md` | Reviewing any web page for accessibility — eleven keyboard and screen-reader steps, written for someone who has never used one |
-| `references/accessibility-beyond-the-checklist.md` | After the manual pass, or when an automated scan came back clean and you need the other 70% |
-| `references/product-ux-writing.md` | Any string a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints |
-| `references/typographic-craft-and-tokens.md` | Reviewing a stylesheet or a design system: leading, tracking, scale, weight, numerals, colour roles, tokens |
+| `references/accessibility-beyond-the-checklist.md` | After the manual pass, or when an automated scan came back clean and you need the other 70% · **40 items** |
+| `references/product-ux-writing.md` | Any string a logged-in user reads mid-task: errors, empty states, button labels, confirmations, notifications, field hints · **35 items** |
+| `references/typographic-craft-and-tokens.md` | Reviewing a stylesheet or a design system: leading, tracking, scale, weight, numerals, colour roles, tokens · **38 items** |
 | `references/performance-budget-and-folklore.md` | Before any performance finding — eleven budget numbers a designer can hold, and ten pieces of folklore to drop |
-| `references/performance-as-a-design-tell.md` | Images, fonts, video, libraries and the head stack: where the source is right and the delivery is not |
-| `references/interaction-and-motion.md` | Any page with animation, scroll effects or hover styling: duration, easing, reduced motion, and what a touchscreen does with a hover state |
-| `references/forms-and-input.md` | Any form: the disabled submit, autocomplete tokens, mobile keyboards, error handling and what survives a failed submit |
-| `references/research-papers.md` | A manuscript, preprint, abstract or referee report — checks that point outward at the world rather than inward at style |
-| `references/latex-source.md` | A `.tex` or `.bib` file — it compiled, and nobody opened the PDF |
-| `references/scientific-figures.md` | A plot, chart or panel, and the `.py`/`.R` that drew it — most of it is checkable in the code |
+| `references/performance-as-a-design-tell.md` | Images, fonts, video, libraries and the head stack: where the source is right and the delivery is not · **29 items** |
+| `references/interaction-and-motion.md` | Any page with animation, scroll effects or hover styling: duration, easing, reduced motion, and what a touchscreen does with a hover state · **26 items** |
+| `references/forms-and-input.md` | Any form: the disabled submit, autocomplete tokens, mobile keyboards, error handling and what survives a failed submit · **25 items** |
+| `references/research-papers.md` | A manuscript, preprint, abstract or referee report — checks that point outward at the world rather than inward at style · **28 items** |
+| `references/latex-source.md` | A `.tex` or `.bib` file — it compiled, and nobody opened the PDF · **30 items** |
+| `references/scientific-figures.md` | A plot, chart or panel, and the `.py`/`.R` that drew it — most of it is checkable in the code · **29 items** |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
 | `agents/openai.yaml` | Delegating a review to a subagent |
@@ -797,14 +654,17 @@ launch announcement in machine accent and then edited,
 - [`references/catalog.json`](references/catalog.json) — catalog (data/schema)
 - [`references/claudeisms.md`](references/claudeisms.md) — Claudeisms — and the generic prose tells Claude amplifies — Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers.
 - [`references/dark-patterns-the-model-inherits.md`](references/dark-patterns-the-model-inherits.md) — Dark patterns the model inherits — A model that produces a fake countdown or an asymmetric cookie banner is not choosing to deceive.
+- [`references/document-and-deck-structure.md`](references/document-and-deck-structure.md) — Document and deck structure — how the thing was assembled — Document-shape tells: how generated long-form docs, READMEs and slide decks are put together, independent of any sentence in them.
 - [`references/engineering-artifact-tells.md`](references/engineering-artifact-tells.md) — Engineering-artifact tells — commits, PRs, reviews, code, tests, docs — What generated engineering work looks like in the artifacts maintainers actually read.
 - [`references/fairness-and-false-positives.md`](references/fairness-and-false-positives.md) — Fairness and false positives — read this before you act on any finding — Hand-written, not generated from the catalog.
 - [`references/fiction-and-narrative-tells.md`](references/fiction-and-narrative-tells.md) — Fiction and narrative tells — What generated fiction does at the level of story rather than sentence.
 - [`references/five-minute-manual-pass.md`](references/five-minute-manual-pass.md) — The five-minute manual pass — Written for someone who has never used a screen reader.
 - [`references/forms-and-input.md`](references/forms-and-input.md) — Forms and input — where the output is the start of the user's work — A form is the one surface where the model's output is the BEGINNING of the user's work rather than the end of it.
+- [`references/generated-media-tells.md`](references/generated-media-tells.md) — Generated images, video and audio — provenance first — A separate file because the REVIEW ORDER is different.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
 - [`references/interaction-and-motion.md`](references/interaction-and-motion.md) — Interaction and motion — the property a generator cannot watch — Motion is the one design property whose entire quality lives in TIME, and a generator emits it as a static string it can never watch run.
 - [`references/latex-source.md`](references/latex-source.md) — LaTeX source — it compiled, and nobody opened the PDF — LaTeX source is a program nobody in the loop has run — and the tell is never that it failed to compile.
+- [`references/marketing-and-platform-tells.md`](references/marketing-and-platform-tells.md) — Marketing copy and platform posts — written to a template — Landing-page copy, social posts, cold email, listings and résumés.
 - [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
 - [`references/performance-as-a-design-tell.md`](references/performance-as-a-design-tell.md) — Performance and payload as a design tell — **The organising idea.** A generator can see the markup it is writing.
 - [`references/performance-budget-and-folklore.md`](references/performance-budget-and-folklore.md) — A performance budget a designer can hold, and the folklore to drop — Two things in one file, because they are the same argument.
@@ -812,11 +672,10 @@ launch announcement in machine accent and then edited,
 - [`references/research-papers.md`](references/research-papers.md) — Research papers — checks that point outward, at the world — A paper's sentences and its checkable commitments come out of the same machinery at the same confidence, and nothing in the finished artifac
 - [`references/scientific-figures.md`](references/scientific-figures.md) — Scientific figures — checked in the code that drew them — A figure is produced by code, and the render sits on the other side of a step the author never watched.
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
-- [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 - [`references/tool-fingerprints.md`](references/tool-fingerprints.md) — Tool fingerprints — provenance, and the few that are also defects — Read the first two items in this file before the other nineteen, because they are the rules the rest depends on.
 - [`references/typographic-craft-and-tokens.md`](references/typographic-craft-and-tokens.md) — Typographic craft and design-system structure — **The governing mechanism, and the thing to say when you report any item here.** A generator emits a stylesheet that is internally consisten
 - [`references/unopened-surfaces.md`](references/unopened-surfaces.md) — Unopened surfaces — navigation, i18n, docs, commerce, email, print — Everything in this file is about a surface that was never opened.
-- [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look and generated imagery — What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.
+- [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look — What makes a UI read as generated: the defaults nobody chose, clustering together.
 - [`references/web-build-defects.md`](references/web-build-defects.md) — Web build defects — the half you can reproduce — A different KIND of finding from the rest of this catalog.
 
 **`scripts/`**

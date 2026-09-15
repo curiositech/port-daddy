@@ -11,10 +11,46 @@ _9 items. Generated from catalog.json — edit there, then re-run `scripts/regen
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["Consent banner, countdown, checkout, cancellation"] --> B["A model producing one is NOT choosing to deceive"]
+    B --> C["Princeton: 1,818 instances across<br/>1,254 of 11,000 shopping sites.<br/>This is the majority pattern"]
+    C --> D{"Where does the violation live?"}
+    D --> E["Usually NOT inside either component"]
+    E --> F["It is the GAP between them"]
+    F --> G["Load in a fresh profile and watch the network:<br/>does analytics fire before consent?"]
+    G --> H["You are not telling an author they wrote<br/>something manipulative. You are telling them<br/>two innocent halves add up to a fine"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`cancellation-has-no-path`](#cancellation-has-no-path) | HIGH | defect | yes |
+| [`consent-choice-asymmetry`](#consent-choice-asymmetry) | HIGH | defect | yes |
+| [`cost-revealed-at-last-step`](#cost-revealed-at-last-step) | HIGH | defect | **no** |
+| [`countdown-that-resets`](#countdown-that-resets) | HIGH | defect | yes |
+| [`fabricated-live-activity-counter`](#fabricated-live-activity-counter) | HIGH | defect | yes |
+| [`prechecked-optin`](#prechecked-optin) | HIGH | defect | yes |
+| [`tracking-before-consent`](#tracking-before-consent) | HIGH | defect | yes |
+| [`confirmshaming-decline-label`](#confirmshaming-decline-label) | med | form | yes |
+| [`modal-on-first-paint`](#modal-on-first-paint) | med | defect | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="cancellation-has-no-path"></a>
 ### `cancellation-has-no-path`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.
@@ -37,6 +73,7 @@ Signup is two clicks and a hosted checkout; cancellation is an email address. No
 
 > POST /api/billing/portal → stripe.billingPortal.sessions.create({customer}), linked from account settings
 
+<a id="consent-choice-asymmetry"></a>
 ### `consent-choice-asymmetry`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.
@@ -61,6 +98,7 @@ The cookie banner's first layer has a prominent "Accept all" and no equivalent r
 
 > [ Accept all ] [ Reject all ]  Manage preferences
 
+<a id="cost-revealed-at-last-step"></a>
 ### `cost-revealed-at-last-step`  ·  high · generic-llm · web-ui · rendered · family: defect · lane: dark-patterns
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -83,6 +121,7 @@ The price shown on the product page and in the cart excludes shipping, service f
 
 > Cart: Subtotal £49.00 · Shipping from £3.95 · Estimated total £52.95, with a postcode estimator
 
+<a id="countdown-that-resets"></a>
 ### `countdown-that-resets`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.
@@ -105,6 +144,7 @@ An offer timer whose deadline is computed client-side from "now", so it restarts
 
 > const end = new Date(promo.endsAt);  // server-issued; renders nothing once end < now
 
+<a id="fabricated-live-activity-counter"></a>
 ### `fabricated-live-activity-counter`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.
@@ -127,6 +167,7 @@ An offer timer whose deadline is computed client-side from "now", so it restarts
 
 > const viewers = await getActiveSessions(productId); if (viewers < 5) return null;
 
+<a id="prechecked-optin"></a>
 ### `prechecked-optin`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.
@@ -149,6 +190,7 @@ A marketing, newsletter or data-sharing checkbox that ships already ticked, so c
 
 > <input type="checkbox" name="marketing"> Send me product updates and offers
 
+<a id="tracking-before-consent"></a>
 ### `tracking-before-consent`  ·  high · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.
@@ -171,6 +213,7 @@ The banner is present and correct-looking, and GA4, Meta Pixel, Hotjar or Clarit
 
 > gtag('consent','default',{ad_storage:'denied',analytics_storage:'denied'}) before the tag; gtag('consent','update',…) in the banner's accept handler
 
+<a id="confirmshaming-decline-label"></a>
 ### `confirmshaming-decline-label`  ·  medium · generic-llm · marketing-copy · structural · family: form · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.
@@ -193,6 +236,7 @@ The decline control is written as a first-person confession of stupidity: "No th
 
 > No thanks
 
+<a id="modal-on-first-paint"></a>
 ### `modal-on-first-paint`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: dark-patterns
 
 **Automated here:** yes, these scripts implement it.

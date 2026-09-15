@@ -13,10 +13,66 @@ _26 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A page with animation or hover styling"] --> B{"First: does content DEPEND on script?"}
+    B -->|"opacity 0 until JS runs"| C["STOP. This loses content, not polish.<br/>Fix before anything else"]
+    B -->|no| D{"Motion checks"}
+    D --> E["One duration for every distance?"]
+    D --> F["ease-in on an ENTRANCE?"]
+    D --> G["Reduced-motion honoured in CSS<br/>but ignored by the JS library?"]
+    D --> H{"Input device checks"}
+    H --> I["hover styled with no hover guard:<br/>the state latches on tap"]
+    H --> J["hover styled, focus-visible forgotten"]
+    G --> K["35.4% of US adults 40+ showed vestibular<br/>dysfunction. This is not a preference"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`hover-is-the-only-route-to-the-information`](#hover-is-the-only-route-to-the-information) | HIGH | defect | yes |
+| [`hover-styled-focus-forgotten`](#hover-styled-focus-forgotten) | HIGH | defect | yes |
+| [`initial-state-hidden-so-content-depends-on-script`](#initial-state-hidden-so-content-depends-on-script) | HIGH | defect | yes |
+| [`no-pending-state-on-the-primary-action`](#no-pending-state-on-the-primary-action) | HIGH | defect | yes |
+| [`parallax-with-no-reduced-motion-path`](#parallax-with-no-reduced-motion-path) | HIGH | defect | yes |
+| [`reduced-motion-honoured-in-css-ignored-in-script`](#reduced-motion-honoured-in-css-ignored-in-script) | HIGH | defect | yes |
+| [`scroll-jacking`](#scroll-jacking) | HIGH | defect | yes |
+| [`animating-a-layout-property`](#animating-a-layout-property) | med | defect | yes |
+| [`ease-in-on-an-entrance`](#ease-in-on-an-entrance) | med | form | yes |
+| [`fast-scroll-strands-the-reveal`](#fast-scroll-strands-the-reveal) | med | defect | **no** |
+| [`hover-styles-without-a-hover-guard`](#hover-styles-without-a-hover-guard) | med | defect | yes |
+| [`infinite-animation-with-no-off`](#infinite-animation-with-no-off) | med | defect | yes |
+| [`modal-animation-delays-the-focus-move`](#modal-animation-delays-the-focus-move) | med | defect | yes |
+| [`motion-on-everything-so-nothing-is-emphasised`](#motion-on-everything-so-nothing-is-emphasised) | med | shape | yes |
+| [`one-duration-for-every-distance`](#one-duration-for-every-distance) | med | shape | yes |
+| [`skeleton-that-does-not-match-what-arrives`](#skeleton-that-does-not-match-what-arrives) | med | defect | **no** |
+| [`smooth-scroll-forced-globally`](#smooth-scroll-forced-globally) | med | form | yes |
+| [`stagger-delay-outlasts-the-reader`](#stagger-delay-outlasts-the-reader) | med | shape | yes |
+| [`toast-timeout-shorter-than-its-reading-time`](#toast-timeout-shorter-than-its-reading-time) | med | defect | yes |
+| [`transition-all-as-the-default`](#transition-all-as-the-default) | med | form | yes |
+| [`counter-animation-on-a-static-number`](#counter-animation-on-a-static-number) | low | form | yes |
+| [`hover-scale-on-every-card`](#hover-scale-on-every-card) | low | form | yes |
+| [`motion-does-not-track-the-gesture`](#motion-does-not-track-the-gesture) | low | shape | yes |
+| [`reduced-motion-block-only-shortens-duration`](#reduced-motion-block-only-shortens-duration) | low | shape | yes |
+| [`scroll-progress-bar-on-a-short-page`](#scroll-progress-bar-on-a-short-page) | low | shape | yes |
+| [`will-change-left-on-everywhere`](#will-change-left-on-everywhere) | low | shape | yes |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="hover-is-the-only-route-to-the-information"></a>
 ### `hover-is-the-only-route-to-the-information`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -39,6 +95,7 @@ Content or a control exists only in a hover state -- the tooltip with the real l
 
 > .row:hover .actions, .row:focus-within .actions { opacity: 1 }
 
+<a id="hover-styled-focus-forgotten"></a>
 ### `hover-styled-focus-forgotten`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -61,6 +118,7 @@ The stylesheet has a considered :hover state and no :focus-visible, so a keyboar
 
 > a:hover, a:focus-visible { color: var(--accent) } with a visible ring
 
+<a id="initial-state-hidden-so-content-depends-on-script"></a>
 ### `initial-state-hidden-so-content-depends-on-script`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -83,6 +141,7 @@ Reveal-on-scroll is implemented as opacity: 0 in CSS with a class added by scrip
 
 > html.js .reveal { opacity: 0 } -- the hidden state exists only once script is running
 
+<a id="no-pending-state-on-the-primary-action"></a>
 ### `no-pending-state-on-the-primary-action`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -105,6 +164,7 @@ The submit button looks identical during the request. The user gets no acknowled
 
 > pending state driving label, aria-busy, and a re-entry guard
 
+<a id="parallax-with-no-reduced-motion-path"></a>
 ### `parallax-with-no-reduced-motion-path`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -127,6 +187,7 @@ A background moves at a different rate from the foreground, which is the example
 
 > the same, plus a reduce block setting background-attachment: scroll
 
+<a id="reduced-motion-honoured-in-css-ignored-in-script"></a>
 ### `reduced-motion-honoured-in-css-ignored-in-script`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -149,6 +210,7 @@ The stylesheet has a prefers-reduced-motion block and the JavaScript animation l
 
 > if (!matchMedia('(prefers-reduced-motion: reduce)').matches) buildTimeline()
 
+<a id="scroll-jacking"></a>
 ### `scroll-jacking`  ·  high · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -171,6 +233,7 @@ The page overrides native scrolling to drive its own sequence, so a wheel notch 
 
 > scroll-snap-type: y proximity, and the wheel event left alone
 
+<a id="animating-a-layout-property"></a>
 ### `animating-a-layout-property`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -193,6 +256,7 @@ height, width, top, left, margin or padding are animated instead of transform an
 
 > grid-template-rows: 0fr; transition: grid-template-rows 220ms ease-out
 
+<a id="ease-in-on-an-entrance"></a>
 ### `ease-in-on-an-entrance`  ·  medium · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -215,6 +279,7 @@ Content arriving uses ease-in, which starts slow and accelerates -- so the eleme
 
 > animation: fade-in 180ms ease-out;
 
+<a id="fast-scroll-strands-the-reveal"></a>
 ### `fast-scroll-strands-the-reveal`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: interaction-and-motion
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -237,6 +302,7 @@ The reveal fires from an IntersectionObserver with no fallback, so a user who fl
 
 > reveal on intersection, on hashchange, and unconditionally after 1200ms
 
+<a id="hover-styles-without-a-hover-guard"></a>
 ### `hover-styles-without-a-hover-guard`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -259,6 +325,7 @@ Hover styles are declared with no @media (hover: hover) guard, so on a touchscre
 
 > @media (hover: hover) and (pointer: fine) { .card:hover { ... } }
 
+<a id="infinite-animation-with-no-off"></a>
 ### `infinite-animation-with-no-off`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -281,6 +348,7 @@ Something moves forever -- a pulsing dot, a marquee, a floating blob, an animate
 
 > animation: pulse 2s 3; /* or guarded, or with a pause control */
 
+<a id="modal-animation-delays-the-focus-move"></a>
 ### `modal-animation-delays-the-focus-move`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -303,6 +371,7 @@ The dialog animates open over 300ms and focus is moved in an animation-complete 
 
 > focus on open; let the animation run underneath it
 
+<a id="motion-on-everything-so-nothing-is-emphasised"></a>
 ### `motion-on-everything-so-nothing-is-emphasised`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -325,6 +394,7 @@ Every section, card and heading reveals on scroll. Motion is a contrast channel 
 
 > one reveal on the single element the page is about; the rest render
 
+<a id="one-duration-for-every-distance"></a>
 ### `one-duration-for-every-distance`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -347,6 +417,7 @@ The same duration is used for a 2px hover tint and a full-height sheet sliding i
 
 > --dur-quick: 120ms; --dur-panel: 220ms; --dur-sheet: 360ms;
 
+<a id="skeleton-that-does-not-match-what-arrives"></a>
 ### `skeleton-that-does-not-match-what-arrives`  ·  medium · generic-llm · web-ui · rendered · family: defect · lane: interaction-and-motion
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -369,6 +440,7 @@ The loading skeleton is three grey bars and the content that lands is a heading,
 
 > a skeleton whose boxes match the resolved layout, or reserved space
 
+<a id="smooth-scroll-forced-globally"></a>
 ### `smooth-scroll-forced-globally`  ·  medium · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -391,6 +463,7 @@ scroll-behavior: smooth on html or :root makes every programmatic jump animate, 
 
 > @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth } }
 
+<a id="stagger-delay-outlasts-the-reader"></a>
 ### `stagger-delay-outlasts-the-reader`  ·  medium · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -413,6 +486,7 @@ A list animates in with a per-item delay, and nobody multiplied it out. 120ms ac
 
 > delay = Math.min(i, 4) * 60 -- the tail arrives together
 
+<a id="toast-timeout-shorter-than-its-reading-time"></a>
 ### `toast-timeout-shorter-than-its-reading-time`  ·  medium · generic-llm · web-ui · structural · family: defect · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -435,6 +509,7 @@ A notification dismisses itself on a fixed timer -- usually three seconds -- reg
 
 > duration scaled to length, paused on hover/focus, errors persistent
 
+<a id="transition-all-as-the-default"></a>
 ### `transition-all-as-the-default`  ·  medium · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -457,6 +532,7 @@ transition: all applied broadly. It animates every property that ever changes, i
 
 > transition: background-color 120ms ease-out, transform 160ms ease-out;
 
+<a id="counter-animation-on-a-static-number"></a>
 ### `counter-animation-on-a-static-number`  ·  low · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -479,6 +555,7 @@ A statistic counts up from zero when it scrolls into view. The number did not ch
 
 > the real figure in the DOM, the animation decorating it and aria-hidden
 
+<a id="hover-scale-on-every-card"></a>
 ### `hover-scale-on-every-card`  ·  low · generic-llm · web-ui · structural · family: form · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -501,6 +578,7 @@ Every card lifts and scales on hover by the same amount. It is the framer-motion
 
 > hover:bg-surface-raised, and scale reserved for the one primary action
 
+<a id="motion-does-not-track-the-gesture"></a>
 ### `motion-does-not-track-the-gesture`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -523,6 +601,7 @@ A swipe, drag or pull-to-refresh runs a fixed-duration animation instead of foll
 
 > position follows pointer delta; release hands velocity to a spring
 
+<a id="reduced-motion-block-only-shortens-duration"></a>
 ### `reduced-motion-block-only-shortens-duration`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -545,6 +624,7 @@ The reduced-motion block is the copy-pasted nuclear reset -- animation-duration:
 
 > the reset, plus parallax off, autoplay paused, and translations replaced with fades
 
+<a id="scroll-progress-bar-on-a-short-page"></a>
 ### `scroll-progress-bar-on-a-short-page`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.
@@ -567,6 +647,7 @@ A reading-progress indicator sits at the top of a document short enough to need 
 
 > no bar; or animation-timeline: scroll() on a genuinely long article
 
+<a id="will-change-left-on-everywhere"></a>
 ### `will-change-left-on-everywhere`  ·  low · generic-llm · web-ui · structural · family: shape · lane: interaction-and-motion
 
 **Automated here:** yes, these scripts implement it.

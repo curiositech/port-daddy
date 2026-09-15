@@ -17,10 +17,69 @@ _29 items. Generated from catalog.json — edit there, then re-run `scripts/rege
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
 <!-- humanize:ignore-start
+     The diagram and index below quote the tells they document, and a
+     mermaid label is not a sentence. -->
+
+## When this file applies
+
+```mermaid
+flowchart TD
+    A["A figure in a paper or poster"] --> B{"Do you have the plotting code?"}
+    B -->|yes| C["Most of this lane is greppable there.<br/>Run: humanize_review.py plot.py"]
+    B -->|no| D["Read the caption and the axes"]
+    C --> E{"Which of three things is this?"}
+    D --> E
+    E -->|"image integrity: duplication, splicing"| F["NOT an AI question. Predates generative<br/>models. Goes to research integrity"]
+    E -->|"generated imagery"| G["Provenance and publisher policy"]
+    E -->|"unreviewed plotting"| H["The large majority. NO misconduct<br/>implication: real data, untouched defaults"]
+    H --> I["savefig with no dpi wrote 640x480.<br/>10pt in a 12in figure is 2.9pt in print"]
+    F --> J["There is NO detector for<br/>'is this figure generated'.<br/>Best zero-shot: 53.68%"]
+```
+
+## What is in this file
+
+Severity is how loudly the tell announces itself, never how sure you should be about who wrote it. **Automated** means these scripts implement the check; *no* means it is yours to ask in the judge pass.
+
+| item | severity | family | automated |
+| --- | --- | --- | --- |
+| [`bar-chart-hiding-a-small-continuous-sample`](#bar-chart-hiding-a-small-continuous-sample) | HIGH | shape | **no** |
+| [`colour-as-the-only-channel`](#colour-as-the-only-channel) | HIGH | defect | **no** |
+| [`colourbar-or-scale-bar-missing`](#colourbar-or-scale-bar-missing) | HIGH | defect | **no** |
+| [`duplicated-or-spliced-image-panel`](#duplicated-or-spliced-image-panel) | HIGH | defect | n/a |
+| [`error-bars-of-undeclared-type`](#error-bars-of-undeclared-type) | HIGH | defect | yes |
+| [`figsize-not-matched-to-the-column-width`](#figsize-not-matched-to-the-column-width) | HIGH | defect | yes |
+| [`figure-with-no-provenance-trail`](#figure-with-no-provenance-trail) | HIGH | shape | n/a |
+| [`generated-anatomical-or-mechanism-schematic`](#generated-anatomical-or-mechanism-schematic) | HIGH | defect | n/a |
+| [`generated-figure-against-the-publisher-policy`](#generated-figure-against-the-publisher-policy) | HIGH | residue | **no** |
+| [`no-layout-manager-so-labels-are-clipped`](#no-layout-manager-so-labels-are-clipped) | HIGH | defect | yes |
+| [`savefig-at-the-default-dpi`](#savefig-at-the-default-dpi) | HIGH | residue | yes |
+| [`significance-stars-with-no-test-named`](#significance-stars-with-no-test-named) | HIGH | defect | yes |
+| [`truncated-or-dual-axis-without-a-declaration`](#truncated-or-dual-axis-without-a-declaration) | HIGH | defect | **no** |
+| [`axis-label-is-the-dataframe-column-name`](#axis-label-is-the-dataframe-column-name) | med | residue | **no** |
+| [`axis-offset-and-exponent-left-on`](#axis-offset-and-exponent-left-on) | med | residue | yes |
+| [`caption-that-restates-the-axes`](#caption-that-restates-the-axes) | med | form | n/a |
+| [`cropped-blot-without-an-uncropped-source`](#cropped-blot-without-an-uncropped-source) | med | defect | **no** |
+| [`default-hue-palette-that-is-one-grey-in-print`](#default-hue-palette-that-is-one-grey-in-print) | med | residue | **no** |
+| [`figure-never-referenced-in-the-text`](#figure-never-referenced-in-the-text) | med | defect | **no** |
+| [`legend-left-in-the-default-best-position`](#legend-left-in-the-default-best-position) | med | defect | yes |
+| [`line-chart-shipped-as-a-raster`](#line-chart-shipped-as-a-raster) | med | shape | **no** |
+| [`no-code-or-data-link-for-a-figure`](#no-code-or-data-link-for-a-figure) | med | shape | **no** |
+| [`overplotted-scatter-at-full-opacity`](#overplotted-scatter-at-full-opacity) | med | defect | yes |
+| [`panel-labels-missing-or-inconsistent`](#panel-labels-missing-or-inconsistent) | med | defect | **no** |
+| [`panels-compared-across-different-y-limits`](#panels-compared-across-different-y-limits) | med | defect | **no** |
+| [`pie-or-three-d-chart-for-a-quantitative-comparison`](#pie-or-three-d-chart-for-a-quantitative-comparison) | med | shape | yes |
+| [`rainbow-or-jet-colormap-on-continuous-data`](#rainbow-or-jet-colormap-on-continuous-data) | med | defect | yes |
+| [`sample-size-absent-from-the-figure`](#sample-size-absent-from-the-figure) | med | defect | **no** |
+| [`default-font-stack-left-in-the-figure`](#default-font-stack-left-in-the-figure) | low | residue | **no** |
+
+<!-- humanize:ignore-end -->
+
+<!-- humanize:ignore-start
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
 
+<a id="bar-chart-hiding-a-small-continuous-sample"></a>
 ### `bar-chart-hiding-a-small-continuous-sample`  ·  high · generic-llm · scientific-figure · structural · family: shape · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -43,6 +102,7 @@ Continuous measurements from a handful of samples summarised as a bar with an er
 
 > sns.stripplot(data=df, x='group', y='response', jitter=True); sns.pointplot(..., estimator='mean')
 
+<a id="colour-as-the-only-channel"></a>
 ### `colour-as-the-only-channel`  ·  high · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -65,6 +125,7 @@ Series distinguished by colour and nothing else: no marker shape, no line style,
 
 > for g, ls, mk in zip(groups, ['-','--',':'], ['o','s','^']): ax.plot(x, y[g], ls=ls, marker=mk, label=g)
 
+<a id="colourbar-or-scale-bar-missing"></a>
 ### `colourbar-or-scale-bar-missing`  ·  high · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -87,6 +148,7 @@ A heatmap, field map or image plot with no colourbar, so the colours carry no qu
 
 > im = ax.imshow(field, cmap='viridis'); fig.colorbar(im, ax=ax, label='Velocity (m s-1)')
 
+<a id="duplicated-or-spliced-image-panel"></a>
 ### `duplicated-or-spliced-image-panel`  ·  high · generic-llm · scientific-figure · assistive · family: defect · lane: scientific-figures
 
 The same blot band, micrograph field, flow plot or histology region appears twice: across panels, across figures, or across papers, sometimes rotated, mirrored, contrast-shifted or overlapping itself within one image. This is a research-integrity matter with its own literature, its own tooling and its own process (COPE, the journal, the institution). It is NOT an AI-authorship question and it long predates generative models. Bik, Casadevall and Fang visually screened 20,621 papers from 40 journals published 1995-2014 and found problematic figures in 3.8%, with at least half showing features suggestive of deliberate manipulation.
@@ -107,6 +169,7 @@ The same blot band, micrograph field, flow plot or histology region appears twic
 
 > each panel built by script from a named, hashed source acquisition, with the mapping recorded
 
+<a id="error-bars-of-undeclared-type"></a>
 ### `error-bars-of-undeclared-type`  ·  high · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -129,6 +192,7 @@ The figure has error bars and nothing says whether they are standard deviation, 
 
 > caption: 'Figure 2. ... Points are group means; bars are 95% CI. n = 12 per group.'
 
+<a id="figsize-not-matched-to-the-column-width"></a>
 ### `figsize-not-matched-to-the-column-width`  ·  high · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -151,6 +215,7 @@ The figure is authored at a comfortable on-screen size and then scaled down into
 
 > fig, ax = plt.subplots(figsize=(3.5, 2.6)); ax.set_xlabel('Time (s)', fontsize=7)
 
+<a id="figure-with-no-provenance-trail"></a>
 ### `figure-with-no-provenance-trail`  ·  high · generic-llm · scientific-figure · assistive · family: shape · lane: scientific-figures
 
 A figure that cannot be traced to anything: no data file, no plotting script, no instrument metadata, no acquisition settings, no scale, no version. This is the honest replacement for pixel forensics. If you cannot tell whether a figure was generated, stop trying to tell from the picture and ask for the thing that makes the picture: the CSV and the script, or the raw acquisition and its metadata. A figure that can be regenerated is answered; a figure that cannot is the finding, whatever made it.
@@ -171,6 +236,7 @@ A figure that cannot be traced to anything: no data file, no plotting script, no
 
 > figures/fig3.py reading data/fig3.csv (deposited, DOI), emitting figures/fig3.pdf
 
+<a id="generated-anatomical-or-mechanism-schematic"></a>
 ### `generated-anatomical-or-mechanism-schematic`  ·  high · generic-llm · scientific-figure · llm-judge · family: defect · lane: scientific-figures
 
 **Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
@@ -193,6 +259,7 @@ A 'schematic' of anatomy, a signalling pathway or an experimental setup that was
 
 > a vector schematic with real type, every element named, redrawn by the authors
 
+<a id="generated-figure-against-the-publisher-policy"></a>
 ### `generated-figure-against-the-publisher-policy`  ·  high · generic-llm · scientific-figure · structural · family: residue · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -215,6 +282,7 @@ The paper contains a generated image and the target journal does not allow one, 
 
 > Methods: 'Fig. 1 was drawn in Inkscape from the coordinates in Supplementary Data 1. No generative tools were used.'
 
+<a id="no-layout-manager-so-labels-are-clipped"></a>
 ### `no-layout-manager-so-labels-are-clipped`  ·  high · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -237,6 +305,7 @@ Rotated date ticks running off the bottom of the figure, a y-axis label cut in h
 
 > fig, ax = plt.subplots(layout='constrained'); ax.barh(names, values)  # no rotation needed
 
+<a id="savefig-at-the-default-dpi"></a>
 ### `savefig-at-the-default-dpi`  ·  high · generic-llm · scientific-figure · structural · family: residue · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -259,6 +328,7 @@ plt.savefig('fig.png') with no dpi argument. matplotlib's savefig.dpi defaults t
 
 > plt.savefig('fig3.pdf')  # vector; or savefig('fig3.tif', dpi=600) for combination art
 
+<a id="significance-stars-with-no-test-named"></a>
 ### `significance-stars-with-no-test-named`  ·  high · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -281,6 +351,7 @@ Asterisks and a bracket over two bars, and nowhere a statement of which test pro
 
 > ax.text(1.5, 9.2, f'p = {p:.3g}')  # legend: two-sided Welch t-test, Holm-corrected, n = 8 per group
 
+<a id="truncated-or-dual-axis-without-a-declaration"></a>
 ### `truncated-or-dual-axis-without-a-declaration`  ·  high · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -303,6 +374,7 @@ set_ylim clipping the baseline off a bar chart so a 2% difference fills the pane
 
 > two stacked panels sharing x, each starting at its own honest zero, range stated in the legend
 
+<a id="axis-label-is-the-dataframe-column-name"></a>
 ### `axis-label-is-the-dataframe-column-name`  ·  medium · generic-llm · scientific-figure · structural · family: residue · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -325,6 +397,7 @@ The axis reads 'temp_c_mean', 'log2FC', 'value' or 'Unnamed: 0' -- an identifier
 
 > ax.set_xlabel('Mean temperature (deg C)'); ax.set_ylabel('Respiration rate (nmol O2 min-1 mg-1)')
 
+<a id="axis-offset-and-exponent-left-on"></a>
 ### `axis-offset-and-exponent-left-on`  ·  medium · generic-llm · scientific-figure · structural · family: residue · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -347,6 +420,7 @@ A small '1e6' or '+1.9995e3' floating at the corner of the axis, or tick labels 
 
 > ax.plot(t, counts / 1e6); ax.set_ylabel('Counts (millions)'); ax.ticklabel_format(useOffset=False)
 
+<a id="caption-that-restates-the-axes"></a>
 ### `caption-that-restates-the-axes`  ·  medium · generic-llm · scientific-figure · llm-judge · family: form · lane: scientific-figures
 
 'Figure 3. Bar chart showing expression level by treatment group.' The caption describes the picture rather than reporting what the picture shows. A reader who cannot see the figure learns nothing, and a reader who can see it learns nothing new, because they already read the axes. The caption's job is a declarative finding plus everything needed to interpret it: what each panel is, what the error bars are, what test, what n, what every symbol and abbreviation means.
@@ -367,6 +441,7 @@ A small '1e6' or '+1.9995e3' floating at the corner of the axis, or tick labels 
 
 > Figure 3. Treatment reduced expression by 38% (95% CI 22-51%). Bars, group means; points, individual mice (n = 6 per group); two-sided Welch t-test.
 
+<a id="cropped-blot-without-an-uncropped-source"></a>
 ### `cropped-blot-without-an-uncropped-source`  ·  medium · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -389,6 +464,7 @@ A western blot, gel or similar shown as tightly cropped bands with no lane marke
 
 > the same panels plus Supplementary Fig. S7 carrying the full uncropped membranes with ladders
 
+<a id="default-hue-palette-that-is-one-grey-in-print"></a>
 ### `default-hue-palette-that-is-one-grey-in-print`  ·  medium · generic-llm · scientific-figure · structural · family: residue · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -411,6 +487,7 @@ ggplot2's default discrete colour and fill scale is scale_colour_hue, which spac
 
 > ggplot(df, aes(x, y, colour = group, linetype = group)) + geom_line() + scale_colour_okabeito()
 
+<a id="figure-never-referenced-in-the-text"></a>
 ### `figure-never-referenced-in-the-text`  ·  medium · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -433,6 +510,7 @@ The manuscript contains Figure 4 and no sentence anywhere calls it out, or calls
 
 > every figure cited once at first use, in order, with panel-level references
 
+<a id="legend-left-in-the-default-best-position"></a>
 ### `legend-left-in-the-default-best-position`  ·  medium · generic-llm · scientific-figure · rendered · family: defect · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -455,6 +533,7 @@ legend.loc defaults to 'best', which picks a corner by testing candidate positio
 
 > ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False)  # same in every panel
 
+<a id="line-chart-shipped-as-a-raster"></a>
 ### `line-chart-shipped-as-a-raster`  ·  medium · generic-llm · scientific-figure · structural · family: shape · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -477,6 +556,7 @@ A chart made entirely of lines, text and flat fills -- which has a lossless vect
 
 > plt.savefig('figure4.pdf')  # vector; dense scatter layer set rasterized=True
 
+<a id="no-code-or-data-link-for-a-figure"></a>
 ### `no-code-or-data-link-for-a-figure`  ·  medium · generic-llm · scientific-figure · structural · family: shape · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -499,6 +579,7 @@ The paper has a data-availability statement and no deposited data, or a reposito
 
 > Data availability: data and figure scripts at https://doi.org/10.5281/zenodo.XXXXXXX (figures/fig3.py -> Fig. 3).
 
+<a id="overplotted-scatter-at-full-opacity"></a>
 ### `overplotted-scatter-at-full-opacity`  ·  medium · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -521,6 +602,7 @@ Tens of thousands of points drawn as opaque markers at matplotlib's default mark
 
 > hb = ax.hexbin(x, y, gridsize=60, mincnt=1); fig.colorbar(hb, label='points per bin')
 
+<a id="panel-labels-missing-or-inconsistent"></a>
 ### `panel-labels-missing-or-inconsistent`  ·  medium · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -543,6 +625,7 @@ A multi-panel figure with no panel letters, or with letters that disagree with t
 
 > for ax, lab in zip(axes.flat, 'abcd'): ax.set_title(lab, loc='left', fontweight='bold')  # caption matches
 
+<a id="panels-compared-across-different-y-limits"></a>
 ### `panels-compared-across-different-y-limits`  ·  medium · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -565,6 +648,7 @@ A grid of small multiples that invites the reader to compare across panels, wher
 
 > fig, axes = plt.subplots(2, 3, sharey=True, sharex=True)
 
+<a id="pie-or-three-d-chart-for-a-quantitative-comparison"></a>
 ### `pie-or-three-d-chart-for-a-quantitative-comparison`  ·  medium · generic-llm · scientific-figure · structural · family: shape · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -587,6 +671,7 @@ A pie chart, a doughnut, or a bar chart extruded into 3D, used to support a comp
 
 > ax.barh(names_sorted, counts_sorted); ax.set_xlabel('Share of samples (%)')
 
+<a id="rainbow-or-jet-colormap-on-continuous-data"></a>
 ### `rainbow-or-jet-colormap-on-continuous-data`  ·  medium · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** yes, these scripts implement it.
@@ -609,6 +694,7 @@ cmap='jet', 'rainbow', 'hsv' or a home-rolled rainbow on a continuous field. The
 
 > im = ax.imshow(field, cmap='viridis'); fig.colorbar(im, label='Temperature (K)')
 
+<a id="sample-size-absent-from-the-figure"></a>
 ### `sample-size-absent-from-the-figure`  ·  medium · generic-llm · scientific-figure · structural · family: defect · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
@@ -631,6 +717,7 @@ No n anywhere on or under the figure, and no statement of what n counts -- anima
 
 > caption: 'Figure 3. ... n = 6 mice per group; each point is one mouse; three independent litters.'
 
+<a id="default-font-stack-left-in-the-figure"></a>
 ### `default-font-stack-left-in-the-figure`  ·  low · generic-llm · scientific-figure · structural · family: residue · lane: scientific-figures
 
 **Automated here:** no — decidable mechanically, but this bundle does not implement it. Ask it yourself in the judge pass.
