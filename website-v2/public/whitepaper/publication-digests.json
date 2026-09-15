@@ -4,12 +4,12 @@
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 61,
       "bytes": 1005120,
-      "sha256": "3c7b75a1992696a8faf2c31b5c28502abb034cf12a26eb1f5624313d5d6eb171"
+      "sha256": "1a5e1f1f0cc89171f0d2af3d2942fef02b39308ce8f0f041c4954a03f7a1012e"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
       "bytes": 726301,
-      "sha256": "768a5dd1d7a5f8e0cbc007e30f6e65192c311edf19cd94bd33b3630c2059b061"
+      "sha256": "0cc110b20e33f916096d39a09c391be7bc24a9fae8f27276d3a0b90dafc97ba5"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 553,
@@ -24,7 +24,7 @@
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 49,
       "bytes": 789610,
-      "sha256": "9c388612a316ce1876cb14e2747b8a736113c28aba9f6ba59a685c381824415c"
+      "sha256": "276a2efe87f2e93a09762cfae19e0d0b1e688377367c53dbeb6000af3e646155"
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 64,
