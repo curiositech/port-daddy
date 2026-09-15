@@ -1,0 +1,12 @@
+{
+  "name": "@curiositech/harbor-inventory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local source discovery for repository reconciliation; no daemon or inference dependency",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "license": "SEE LICENSE IN LICENSE",
+  "bin": { "harbor-inventory": "scripts/inventory.mjs" },
+  "files": ["scripts/inventory.mjs", "scripts/artifact_inventory.mjs", "README.md", "LICENSE"],
+  "scripts": { "test": "node --test tests/artifact_inventory.test.mjs" }
+}

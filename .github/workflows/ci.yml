@@ -619,6 +619,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Offline repository inventory and Clearance regression tests
+        run: node --test skills/project-epistemology-reconciliation/tests/artifact_inventory.test.mjs skills/project-epistemology-reconciliation/tests/harbor_clearance.test.mjs
+
+      - name: Offline inventory tarball installation proof
+        run: node skills/project-epistemology-reconciliation/tests/package_smoke.mjs
+
       - name: The whole catalog can still fan out to every runtime
         # WHY A FRESH BASE AND NOT --check. The per-runtime link trees
         # (.claude/skills, .codex/skills, and fourteen more) are gitignored, so a
