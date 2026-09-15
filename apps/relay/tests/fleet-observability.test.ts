@@ -19,7 +19,7 @@ import {
   handleFleetPause,
   handleDeleteFleetRun,
 } from '../src/fleet-observability.js';
-import { FLEET_PAUSED_KEY } from '../src/db.js';
+import { memoryFleetControl } from './fleet-control-fixture.js';
 import type { Env } from '../src/types.js';
 
 // >= 32 chars: operatorOnly() fail-closes (500 MISCONFIGURED) below the minimum.
@@ -76,6 +76,7 @@ function makeEnv(o: {
   return {
     DB: o.db ?? makeMockD1({}),
     HARBOR_CHANNEL: {} as unknown as DurableObjectNamespace,
+    FLEET_CONTROL: memoryFleetControl().namespace,
     KV: o.kv ?? makeKV(),
     RELAY_OPERATOR_TOKEN: o.operatorToken ?? OPERATOR,
     RELAY_OPERATOR_GITHUB_USER_ID: o.operatorGithubUserId,
@@ -377,7 +378,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(json.code).toBe('BAD_JSON');
   });
 
-  it('pausing writes the KV flag and health reflects paused=true', async () => {
+  it('pausing commits control and health reflects its durable revision', async () => {
     const kv = makeKV();
     const db = makeMockD1({ onFirst: () => null /* no runs yet */ });
     const env = makeEnv({ kv, db });
@@ -387,10 +388,11 @@ describe('handleFleetPause + handleFleetHealth', () => {
     const pauseJson = (await pauseRes.json()) as { ok: boolean; paused: boolean };
     expect(pauseJson).toMatchObject({ ok: true, paused: true });
 
-    // KV flag persisted as structured JSON.
-    const raw = await kv.get(FLEET_PAUSED_KEY);
-    expect(raw).not.toBeNull();
-    expect(JSON.parse(raw as string).paused).toBe(true);
+    // The eventually consistent cache is a deny-only rollback projection for
+    // old executors. The Durable Object revision remains admission authority.
+    const raw = await kv.get('fleet:paused');
+    expect(JSON.parse(raw!)).toMatchObject({ paused: true, revision: 1 });
+    expect(pauseJson).toMatchObject({ pauseStatus: 'paused', pauseRevision: 1 });
 
     const healthRes = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
     expect(healthRes.status).toBe(200);
@@ -403,9 +405,150 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(health.queueDepthEstimate).toBeNull();
   });
 
+  it('orders rollback projection around canonical pause and resume authority', async () => {
+    const events: string[] = [];
+    const store = new Map<string, string>();
+    const kv = {
+      get: async (key: string) => store.get(key) ?? null,
+      put: async (key: string, value: string) => {
+        const projection = JSON.parse(value) as { paused: boolean; revision?: number };
+        events.push(`kv:${projection.paused}:${projection.revision ?? 'pending'}`);
+        store.set(key, value);
+      },
+      delete: async (key: string) => void store.delete(key),
+    } as unknown as KVNamespace;
+    const durable = memoryFleetControl();
+    const control = {
+      idFromName: (name: string) => durable.namespace.idFromName(name),
+      get: (id: DurableObjectId) => {
+        const stub = durable.namespace.get(id);
+        return {
+          fetch: async (request: Request) => {
+            events.push('do');
+            return stub.fetch(request);
+          },
+        };
+      },
+    } as unknown as DurableObjectNamespace;
+    const env = makeEnv({ kv });
+    env.FLEET_CONTROL = control;
+
+    expect((await handleFleetPause(
+      req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }),
+      env,
+    )).status).toBe(200);
+    expect(events).toEqual(['kv:true:pending', 'do', 'kv:true:1']);
+
+    events.length = 0;
+    expect((await handleFleetPause(
+      req('/v1/fleet/pause', 'POST', OPERATOR, {
+        paused: false,
+        expectedRevision: 1,
+        requestId: 'ordered-resume',
+      }),
+      env,
+    )).status).toBe(200);
+    expect(events).toEqual(['do', 'kv:false:2']);
+  });
+
+  it('does not mutate canonical control when the legacy pause denial cannot be written', async () => {
+    let durableCalls = 0;
+    const env = makeEnv({
+      kv: {
+        get: async () => null,
+        put: async () => { throw new Error('KV unavailable'); },
+      } as unknown as KVNamespace,
+    });
+    env.FLEET_CONTROL = {
+      idFromName: (name: string) => name as unknown as DurableObjectId,
+      get: () => ({
+        fetch: async () => {
+          durableCalls += 1;
+          return Response.json({ paused: true, status: 'paused', revision: 1, pausedAt: 1 });
+        },
+      }),
+    } as unknown as DurableObjectNamespace;
+
+    const response = await handleFleetPause(
+      req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }),
+      env,
+    );
+    expect(response.status).toBe(500);
+    expect(durableCalls).toBe(0);
+  });
+
+  it('preserves the local deny projection when canonical pause mutation fails afterward', async () => {
+    const store = new Map<string, string>();
+    let writes = 0;
+    const env = makeEnv({
+      kv: {
+        get: async (key: string) => store.get(key) ?? null,
+        put: async (key: string, value: string) => {
+          writes += 1;
+          store.set(key, value);
+        },
+      } as unknown as KVNamespace,
+    });
+    env.FLEET_CONTROL = {
+      idFromName: (name: string) => name as unknown as DurableObjectId,
+      get: () => ({ fetch: async () => { throw new Error('DO unavailable'); } }),
+    } as unknown as DurableObjectNamespace;
+
+    const response = await handleFleetPause(
+      req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }),
+      env,
+    );
+    expect(response.status).toBe(500);
+    expect(writes).toBe(1);
+    expect(JSON.parse(store.get('fleet:paused')!)).toMatchObject({ paused: true });
+  });
+
+  it('reports a failed resume readback as unknown while the legacy projection remains paused', async () => {
+    const control = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
+    const store = new Map([['fleet:paused', JSON.stringify({ paused: true, pausedAt: 1, revision: 1 })]]);
+    let failedResumeWrites = 0;
+    const env = makeEnv({
+      kv: {
+        get: async (key: string) => store.get(key) ?? null,
+        put: async (key: string, value: string) => {
+          const projection = JSON.parse(value) as { paused?: unknown };
+          if (projection.paused === false) {
+            failedResumeWrites += 1;
+            throw new Error('legacy projection unavailable');
+          }
+          store.set(key, value);
+        },
+      } as unknown as KVNamespace,
+    });
+    env.FLEET_CONTROL = control.namespace;
+
+    const resume = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, {
+      paused: false,
+      expectedRevision: 1,
+      requestId: 'failed-resume-readback',
+    }), env);
+    expect(resume.status).toBe(409);
+    expect(failedResumeWrites).toBe(1);
+
+    const health = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
+    expect(await health.json()).toMatchObject({
+      paused: null,
+      pauseStatus: 'unknown',
+      pauseRevision: null,
+      automationBlocked: true,
+    });
+  });
+
+  it('health reports unknown for absent authority despite an old KV unpaused value', async () => {
+    const env = makeEnv({ kv: makeKV({ 'fleet:paused': 'false' }) });
+    env.FLEET_CONTROL = undefined;
+    const response = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
+    expect(await response.json()).toMatchObject({ paused: null, pauseStatus: 'unknown', automationBlocked: true });
+  });
+
   it('resuming flips the flag back and health reflects paused=false + last-run age', async () => {
     const now = Math.floor(Date.now() / 1000);
-    const kv = makeKV({ [FLEET_PAUSED_KEY]: JSON.stringify({ paused: true, pausedAt: now - 10 }) });
+    const kv = makeKV({ 'fleet:paused': JSON.stringify({ paused: true, pausedAt: now - 10 }) });
     const db = makeMockD1({
       onFirst: (q) => {
         if (q.includes('FROM fleet_run_intents')) {
@@ -425,9 +568,11 @@ describe('handleFleetPause + handleFleetHealth', () => {
     });
     const env = makeEnv({ kv, db });
 
-    const resumeRes = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: false }), env);
+    await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }), env);
+    const resumeRes = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: false, expectedRevision: 1, requestId: 'resume-test' }), env);
     expect(resumeRes.status).toBe(200);
     expect(((await resumeRes.json()) as { paused: boolean }).paused).toBe(false);
+    expect(JSON.parse((await kv.get('fleet:paused'))!)).toMatchObject({ paused: false, revision: 2 });
 
     const healthRes = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
     const health = (await healthRes.json()) as { paused: boolean; lastRunAgeSec: number | null };
@@ -452,7 +597,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
       env,
     )).status).toBe(200);
     expect((await handleFleetPause(
-      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false }),
+      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false, expectedRevision: 1, requestId: 'account-resume' }),
       env,
     )).status).toBe(200);
 

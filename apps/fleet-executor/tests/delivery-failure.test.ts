@@ -23,6 +23,7 @@ import {
   runIdForDelivery,
 } from '../src/delivery-failure.js';
 import { saveShipCheckpoint } from '../src/ship-checkpoint.js';
+import { beginFleetIntentAttempt } from '../src/run-intent.js';
 import {
   freshState,
   installGitHubFetch,
@@ -33,7 +34,7 @@ import {
   makeJob,
   type GitHubState,
 } from './harness.js';
-import type { FleetRunJob } from '../src/env.js';
+import type { ExecutorEnv, FleetRunJob } from '../src/env.js';
 
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
@@ -48,6 +49,16 @@ function fakeMessage(body: FleetRunJob, attempts?: number) {
 
 function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
+}
+
+async function recordOwnedContinuation(
+  env: ExecutorEnv,
+  attempt: number,
+  completedShip: string,
+  remainingShips: string[],
+): Promise<boolean> {
+  expect(await beginFleetIntentAttempt(env, makeJob(), attempt)).toBe('run');
+  return recordDeliveryContinuation(env, makeJob(), attempt, completedShip, remainingShips);
 }
 
 const CHECKPOINT_BINDING = {
@@ -151,7 +162,7 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     const env = makeEnv({ DB: db.db });
     await recordDeliveryAttemptStart(env, makeJob(), 2);
     await expect(
-      recordDeliveryContinuation(env, makeJob(), 2, 'qa', ['spark', 'spider']),
+      recordOwnedContinuation(env, 2, 'qa', ['spark', 'spider']),
     ).resolves.toBe(true);
 
     const continuation = db.steps.find(step => step.kind === DELIVERY_CONTINUATION_KIND);
@@ -165,11 +176,11 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     const env = makeEnv({ DB: db.db });
     const runId = runIdForDelivery('delivery-abc');
 
-    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await recordOwnedContinuation(env, 1, 'lookout', ['snipe', 'purser']);
     await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
-    await recordDeliveryContinuation(env, makeJob(), 101, 'snipe', ['purser']);
+    await recordOwnedContinuation(env, 101, 'snipe', ['purser']);
     await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
-    await recordDeliveryContinuation(env, makeJob(), 201, 'snipe', ['purser']);
+    await recordOwnedContinuation(env, 201, 'snipe', ['purser']);
 
     await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toEqual({
       completedShip: 'snipe',
@@ -183,8 +194,8 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     const env = makeEnv({ DB: db.db });
     const runId = runIdForDelivery('delivery-abc');
 
-    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
-    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser']);
+    await recordOwnedContinuation(env, 1, 'lookout', ['snipe', 'purser']);
+    await recordOwnedContinuation(env, 101, 'lookout', ['purser']);
 
     await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
   });
@@ -194,8 +205,8 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     const env = makeEnv({ DB: db.db });
     const runId = runIdForDelivery('delivery-abc');
 
-    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', []);
-    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', []);
+    await recordOwnedContinuation(env, 1, 'lookout', []);
+    await recordOwnedContinuation(env, 101, 'lookout', []);
 
     await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toEqual({
       completedShip: 'lookout',
@@ -209,8 +220,8 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     const env = makeEnv({ DB: db.db });
     const runId = runIdForDelivery('delivery-abc');
 
-    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
-    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser', 'snipe']);
+    await recordOwnedContinuation(env, 1, 'lookout', ['snipe', 'purser']);
+    await recordOwnedContinuation(env, 101, 'lookout', ['purser', 'snipe']);
 
     await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
   });
@@ -218,9 +229,9 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
   it('fails open when continuation evidence is unavailable or malformed', async () => {
     const db = memoryD1();
     const env = makeEnv({ DB: db.db });
-    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['purser']);
+    await recordOwnedContinuation(env, 1, 'lookout', ['purser']);
     db.steps.find(step => step.kind === DELIVERY_CONTINUATION_KIND)!.detail = '{bad json';
-    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser']);
+    await recordOwnedContinuation(env, 101, 'lookout', ['purser']);
 
     await expect(readDeliveryContinuationLivelock(
       env,
@@ -279,7 +290,7 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
 
     // Three attempts began; none recorded a failure — the uncatchable-kill shape.
     for (const attempt of [1, 2, 3]) await recordDeliveryAttemptStart(env, makeJob(), attempt);
-    await handleDlqJob(makeJob(), env);
+    await expect(handleDlqJob(makeJob(), env)).resolves.toBeUndefined();
 
     const summary = String(state.completed[0].summary);
     expect(summary).toContain('dead-lettered');
@@ -298,7 +309,7 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
 
     await recordDeliveryAttemptStart(env, makeJob(), 1);
     await recordDeliveryFailure(env, makeJob(), 1, new Error('token mint failed'));
-    await handleDlqJob(makeJob(), env);
+    await expect(handleDlqJob(makeJob(), env)).resolves.toBeUndefined();
 
     const summary = String(state.completed[0].summary);
     expect(summary).toContain('token mint failed');
@@ -313,9 +324,9 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
 
     for (const attempt of [1, 2, 3]) await recordDeliveryAttemptStart(env, makeJob(), attempt);
-    await recordDeliveryContinuation(env, makeJob(), 1, 'qa', ['spark', 'spider']);
-    await recordDeliveryContinuation(env, makeJob(), 2, 'spark', ['spider']);
-    await handleDlqJob(makeJob(), env);
+    await recordOwnedContinuation(env, 1, 'qa', ['spark', 'spider']);
+    await recordOwnedContinuation(env, 2, 'spark', ['spider']);
+    await expect(handleDlqJob(makeJob(), env)).resolves.toBeUndefined();
 
     const summary = String(state.completed[0].summary);
     expect(summary).toContain('1 delivery attempt(s) recorded a start marker but no failure or intentional continuation');
@@ -659,7 +670,7 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
     await recordDeliveryFailure(env, makeJob(), 3, new Error('cause that will be unreadable'));
     db.failAll = true;
 
-    await handleDlqJob(makeJob(), env);
+    await expect(handleDlqJob(makeJob(), env)).rejects.toThrow('D1 unavailable');
 
     expect(state.completed).toHaveLength(0);
   });
@@ -682,18 +693,18 @@ describe('the DLQ handler fails closed on malformed authority', () => {
 
     await expect(
       handleDlqJob(job, makeEnv({ FLEET_TOKENS: kv, DB: memoryD1().db })),
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({ state: 'identity-unavailable' });
 
     expect(state.completed).toHaveLength(0);
   });
 
-  it('never rejects, so the caller always reaches message.ack()', async () => {
+  it('rejects unavailable authority so the caller retries instead of acking', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const db = memoryD1();
     db.failAll = true; // every write throws, including the read-back's guard
     await expect(
       handleDlqJob(makeJob(), makeEnv({ FLEET_TOKENS: memoryKV(), DB: db.db })),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow('D1 unavailable');
   });
 });
 

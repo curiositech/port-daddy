@@ -91,6 +91,7 @@ impl FleetRun {
 
     fn timing(&self) -> String {
         match self.state.as_str() {
+            "waiting_for_control" => "operator action required · no automatic retry".into(),
             "admitting" => self
                 .expected_start_at
                 .map(|value| format!("executor handoff {}Z est.", hhmmss_seconds(value)))
@@ -283,7 +284,9 @@ impl TranscriptTurn {
     /// `MAP 3/7` for chunked turns, bare `PLAN`/`GATE`/… otherwise.
     fn phase_label(&self) -> String {
         match self.chunk {
-            Some((index, count)) => format!("{} {}/{}", self.phase.to_uppercase(), index + 1, count),
+            Some((index, count)) => {
+                format!("{} {}/{}", self.phase.to_uppercase(), index + 1, count)
+            }
             None => self.phase.to_uppercase(),
         }
     }
@@ -382,7 +385,7 @@ fn conclusion_tone(conclusion: &str) -> Tone {
 fn run_tone(run: &FleetRun) -> Tone {
     match run.state.as_str() {
         "running" => Tone::Engaged,
-        "admitting" | "queued" | "retrying" => Tone::Gated,
+        "admitting" | "queued" | "retrying" | "waiting_for_control" => Tone::Gated,
         "enqueue_failed" | "failed_admission" => Tone::Conflicted,
         "superseded" => Tone::Resting,
         _ => conclusion_tone(&run.conclusion),
@@ -450,6 +453,15 @@ fn load_relay_credentials() -> RelayCredentials {
     )
 }
 
+fn fleet_pause_state(value: &Value) -> Option<bool> {
+    let paused = value.get("paused")?.as_bool()?;
+    let status = value.get("pauseStatus")?.as_str()?;
+    let revision = value.get("pauseRevision")?.as_u64()?;
+    let blocked = value.get("automationBlocked")?.as_bool()?;
+    (revision > 0 && blocked == paused && status == if paused { "paused" } else { "unpaused" })
+        .then_some(paused)
+}
+
 pub struct CloudFleetPane {
     relay_url: String,
     relay_token: String,
@@ -463,11 +475,12 @@ pub struct CloudFleetPane {
     detail_retry_at: Option<std::time::Instant>,
     ship_config_attempted: bool,
     pending_proposals: Vec<FleetProposal>,
-    paused: bool,
+    paused: Option<bool>,
     last_run_age_sec: Option<i64>,
     queue_depth_estimate: Option<i64>,
     running: i64,
     retrying: i64,
+    waiting_for_control: i64,
     superseded: i64,
     failed_admission: i64,
     known_intents: i64,
@@ -505,11 +518,12 @@ impl Default for CloudFleetPane {
             detail_retry_at: None,
             ship_config_attempted: false,
             pending_proposals: Vec::new(),
-            paused: false,
+            paused: None,
             last_run_age_sec: None,
             queue_depth_estimate: None,
             running: 0,
             retrying: 0,
+            waiting_for_control: 0,
             superseded: 0,
             failed_admission: 0,
             known_intents: 0,
@@ -568,7 +582,7 @@ impl CloudFleetPane {
     /// A normal estimated queue is informative, not an alarm. Pause and failed
     /// admission are the states that require operator remediation.
     fn alarmed(&self) -> bool {
-        self.paused || self.failed_admission > 0
+        self.paused != Some(false) || self.failed_admission > 0
     }
 
     /// The selected run's captured ship sessions (pd-transcript.v1 Phase 4):
@@ -847,12 +861,14 @@ impl Pane for CloudFleetPane {
             ));
         }
         blocks.push(Block::Chip {
-            label: if self.paused {
+            label: if self.paused.is_none() {
+                "UNKNOWN — automated work blocked".into()
+            } else if self.paused == Some(true) {
                 "PAUSED — kill switch engaged".into()
             } else {
                 format!(
-                    "{} running · {} retrying · {} known intents",
-                    self.running, self.retrying, self.known_intents
+                    "{} running · {} retrying · {} waiting for control · {} known intents",
+                    self.running, self.retrying, self.waiting_for_control, self.known_intents
                 )
             },
             tone: if alarmed {
@@ -1070,7 +1086,7 @@ impl Pane for CloudFleetPane {
                 }
                 Ok(data) => {
                     self.last_error = None;
-                    self.paused = b(&data, "paused");
+                    self.paused = fleet_pause_state(&data);
                     self.last_run_age_sec = match data.get("lastRunAgeSec") {
                         Some(Value::Number(x)) => x.as_i64(),
                         _ => None,
@@ -1081,6 +1097,7 @@ impl Pane for CloudFleetPane {
                     };
                     self.running = n(&data, "running");
                     self.retrying = n(&data, "retrying");
+                    self.waiting_for_control = n(&data, "waitingForControl");
                     self.superseded = n(&data, "superseded");
                     self.failed_admission = n(&data, "failedAdmission");
                     self.known_intents = n(&data, "knownIntents");
@@ -1300,6 +1317,7 @@ mod tests {
         p.relay_token = "tok".into();
         p.account_login = "operator".into();
         p.last_error = None;
+        p.paused = Some(false);
         p
     }
 
@@ -1343,11 +1361,35 @@ mod tests {
     #[test]
     fn paused_flips_health_chip_to_conflicted() {
         let mut p = configured();
-        p.paused = true;
+        p.paused = Some(true);
         let blocks = p.view();
         assert!(blocks.iter().any(|b| matches!(
             b, Block::Chip { label, tone: Tone::Conflicted } if label.contains("PAUSED")
         )));
+    }
+
+    #[test]
+    fn unknown_pause_is_preserved_and_visible() {
+        for value in [
+            json!({}),
+            json!({"paused": null}),
+            json!({"paused": false}),
+            json!({"paused": "false"}),
+            json!({"paused": false, "pauseStatus": "unknown",
+                "pauseRevision": 2, "automationBlocked": true}),
+        ] {
+            let mut p = configured();
+            p.paused = fleet_pause_state(&value);
+            assert!(p.paused.is_none());
+            assert!(p.alarmed());
+            assert!(p.view().iter().any(|block| matches!(block,
+                Block::Chip { label, tone: Tone::Conflicted } if label.contains("UNKNOWN"))));
+        }
+        assert_eq!(
+            fleet_pause_state(&json!({"paused": false, "pauseStatus": "unpaused",
+            "pauseRevision": 2, "automationBlocked": false})),
+            Some(false)
+        );
     }
 
     #[test]
@@ -1402,6 +1444,20 @@ mod tests {
         assert_eq!(r.attempt_count, 4);
         assert_eq!(r.queue_ahead_estimate, Some(2));
         assert!(r.has_transcript);
+    }
+
+    #[test]
+    fn waiting_control_is_not_an_active_retry_or_a_review_verdict() {
+        let run = FleetRun::from_value(&json!({
+            "id": "held", "state": "waiting_for_control", "conclusion": "failure"
+        }));
+        assert!(!run.is_active());
+        assert!(matches!(run_tone(&run), Tone::Gated));
+        assert_eq!(run.timing(), "operator action required · no automatic retry");
+        let mut p = configured();
+        p.waiting_for_control = 2;
+        assert!(p.view().iter().any(|block| matches!(block,
+            Block::Chip { label, .. } if label.contains("0 retrying · 2 waiting for control"))));
     }
 
     #[test]

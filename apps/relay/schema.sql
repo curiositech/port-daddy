@@ -159,12 +159,28 @@ CREATE TABLE IF NOT EXISTS fleet_run_intents (
   finished_at        INTEGER,
   superseded_by      TEXT,
   last_error         TEXT,
+  control_waiting_at INTEGER,
+  control_wait_count INTEGER NOT NULL DEFAULT 0,
+  requeue_revision   INTEGER,
+  continuation_sequence INTEGER NOT NULL DEFAULT 0,
+  pending_continuation_sequence INTEGER,
+  pending_continuation_at INTEGER,
   UNIQUE (repo_full_name, pr_number, generation)
 );
 CREATE INDEX IF NOT EXISTS fleet_run_intents_pr_generation_idx
   ON fleet_run_intents (repo_full_name, pr_number, generation DESC);
 CREATE INDEX IF NOT EXISTS fleet_run_intents_state_queued_idx
   ON fleet_run_intents (state, queued_at ASC);
+
+CREATE TABLE IF NOT EXISTS fleet_control_requeues (
+  request_id TEXT PRIMARY KEY,
+  delivery_id TEXT NOT NULL,
+  control_wait_count INTEGER NOT NULL,
+  revision INTEGER NOT NULL,
+  issuer TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (delivery_id, control_wait_count)
+);
 
 -- Raw ship session transcripts — the pd-transcript.v1 INDEX (Phase 1 of
 -- docs/FLEET-SESSION-TRANSCRIPTS.md). Bytes live in R2 (`fleet-transcripts`,

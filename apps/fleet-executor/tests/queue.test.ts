@@ -18,6 +18,7 @@ import {
   recordDeliveryContinuation,
   runIdForDelivery,
 } from '../src/delivery-failure.js';
+import { beginFleetIntentAttempt } from '../src/run-intent.js';
 
 const ONE_SHIP_YAML = 'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      blocking: true\n      prompt: code-reviewer ship\n';
 
@@ -69,6 +70,116 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('durably retries a merge-group token or check-creation failure even without AI', async () => {
+    const job = makeJob({ eventType: 'merge_group', action: 'checks_requested', prNumber: null,
+      payloadMinimal: { merge_group: { head_sha: 'QUEUE_SHA' } } });
+    const db = memoryD1({ prNumber: 0, headSha: 'QUEUE_SHA', eventType: 'merge_group', action: 'checks_requested' });
+    const tokens = memoryKV();
+    const env = makeEnv({ DB: db.db, FLEET_TOKENS: tokens, AI: undefined });
+    const first = fakeMessage(job, 1);
+    await handler.queue(fakeBatch([first]), env, capturingCtx());
+    expect(first.retry).toHaveBeenCalledOnce();
+    expect(first.ack).not.toHaveBeenCalled();
+    expect(db.steps.some(step => step.kind === 'delivery-failed')).toBe(true);
+    expect(db.runs[0].headSha).toBe('QUEUE_SHA');
+    seedToken(tokens, 42);
+    state.failCreateCheckRun = 1;
+    const second = fakeMessage(job, 2);
+    await handler.queue(fakeBatch([second]), env, capturingCtx());
+    expect(second.retry).toHaveBeenCalledOnce();
+    expect(second.ack).not.toHaveBeenCalled();
+    const third = fakeMessage(job, 3);
+    await handler.queue(fakeBatch([third]), env, capturingCtx());
+    expect(third.ack).toHaveBeenCalledOnce();
+    expect(third.retry).not.toHaveBeenCalled();
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(db.runs[0].conclusion).toBe('failure');
+  });
+
+  it('does not terminalize or ack a merge-group intent until GitHub confirms the failure check', async () => {
+    const job = makeJob({ eventType: 'merge_group', action: 'checks_requested', prNumber: null,
+      payloadMinimal: { merge_group: { head_sha: 'QUEUE_SHA' } } });
+    const d1 = memoryD1({ prNumber: 0, headSha: 'QUEUE_SHA', eventType: 'merge_group', action: 'checks_requested' });
+    const tokens = memoryKV();
+    seedToken(tokens, 42);
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (/\/check-runs\/\d+$/.test(String(input)) && init?.method === 'PATCH') {
+          return new Response('cannot complete', { status: 422 });
+        }
+        return originalFetch(input as RequestInfo, init);
+      }) as unknown as typeof fetch,
+    );
+    const message = fakeMessage(job, 1);
+
+    await handler.queue(fakeBatch([message]), makeEnv({ DB: d1.db, FLEET_TOKENS: tokens }), capturingCtx());
+
+    expect(message.ack).not.toHaveBeenCalled();
+    expect(message.retry).toHaveBeenCalledTimes(1);
+    expect(d1.intents.get(job.deliveryId)?.state).toBe('retrying');
+    expect(state.completed).toHaveLength(0);
+  });
+
+  it('acks suspension without a terminal review verdict and rejects unauthorised direct redelivery', async () => {
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
+    const tokens = memoryKV();
+    seedToken(tokens, 42);
+    const capture = memoryD1();
+    let intentState = 'queued';
+    let intentAttemptCount = 0;
+    let controlWaitingAt: number | null = null;
+    let intentReason = '';
+    const db = { prepare(sql: string) {
+      if (!sql.includes('fleet_run_intents')) return capture.db.prepare(sql);
+      let bound: unknown[] = [];
+      const statement = {
+        bind(...args: unknown[]) { bound = args; return statement; },
+        async first() {
+          return { state: intentState, attempt_count: intentAttemptCount,
+            control_waiting_at: controlWaitingAt, last_error: intentReason || null };
+        },
+        async run() {
+          if (sql.includes("SET state = 'running'")) {
+            intentState = 'running';
+            intentAttemptCount = Number(bound[0]);
+          } else if (sql.includes('control_waiting_at = ?')) {
+            intentState = 'cancelled';
+            controlWaitingAt = Number(bound[0]);
+            intentReason = String(bound[2]);
+          } else if (sql.includes("SET state = 'retrying'")) {
+            intentState = 'retrying';
+            intentReason = String(bound[2]);
+          }
+          else if (sql.includes('SET state = ?')) intentState = String(bound[0]);
+          return { success: true, meta: { changes: 1 } };
+        },
+      };
+      return statement;
+    } } as D1Database;
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const env = makeEnv({ FLEET_TOKENS: tokens, AI: ai.ai, DB: db });
+    const available = env.FLEET_CONTROL;
+    env.FLEET_CONTROL = undefined;
+    const first = fakeMessage(makeJob());
+    await handler.queue(fakeBatch([first]), env, capturingCtx());
+    expect(first.ack).toHaveBeenCalledOnce();
+    expect(first.retry).not.toHaveBeenCalled();
+    expect(intentState).toBe('cancelled');
+    expect(controlWaitingAt).not.toBeNull();
+    expect(intentReason).toContain('Fleet suspended: binding-missing');
+    expect(ai.calls).toHaveLength(0);
+    env.FLEET_CONTROL = available;
+    const redelivery = fakeMessage(makeJob(), 2);
+    await handler.queue(fakeBatch([redelivery]), env, capturingCtx());
+    expect(redelivery.ack).toHaveBeenCalledOnce();
+    expect(ai.calls).toHaveLength(0);
+    expect(intentState).toBe('cancelled');
+    expect(controlWaitingAt).not.toBeNull();
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+  });
+
   it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {
     // A GitHub 5xx from the raw-diff endpoint used to become an empty diff and
     // let a clean, zero-source review complete. It is infrastructure failure:
@@ -148,7 +259,7 @@ describe('queue consumer', () => {
     ]);
   });
 
-  it('slices a multi-ship run into visible cumulative continuations, then acks the verdict', async () => {
+  it('leaves a missing-producer continuation permit repairable without re-running a ship', async () => {
     state.files.set(
       'main:pd-fleet.yml',
       [
@@ -178,8 +289,8 @@ describe('queue consumer', () => {
         'code-reviewer': 'FLEET-VERDICT: PASS',
         qa: 'FLEET-VERDICT: PASS',
       },
-    }).ai;
-    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: db.db });
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db });
 
     const first = fakeMessage(makeJob(), 1);
     await handler.queue!(fakeBatch([first]), env, capturingCtx());
@@ -189,24 +300,22 @@ describe('queue consumer', () => {
     expect(state.completed).toHaveLength(0);
     expect(db.steps.filter(step => step.kind === DELIVERY_CONTINUATION_KIND)).toHaveLength(1);
     expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc'))).toBe(1);
+    expect(db.intents.get('delivery-abc')).toMatchObject({
+      state: 'retrying',
+      pendingContinuationSequence: 1,
+    });
+    const callsAfterFirstShip = ai.calls.length;
 
-    const deliveries = [first];
-    for (let attempt = 2; attempt <= 13 && deliveries.at(-1)?.ack.mock.calls.length === 0; attempt += 1) {
-      const next = fakeMessage(makeJob(), attempt);
-      await handler.queue!(fakeBatch([next]), env, capturingCtx());
-      deliveries.push(next);
-    }
+    const repairOnly = fakeMessage(makeJob(), 2);
+    await handler.queue!(fakeBatch([repairOnly]), env, capturingCtx());
 
-    const final = deliveries.at(-1)!;
-    expect(final.retry).not.toHaveBeenCalled();
-    expect(final.ack).toHaveBeenCalledTimes(1);
-    for (const slice of deliveries.slice(0, -1)) {
-      expect(slice.retry).toHaveBeenCalledWith({ delaySeconds: 1 });
-      expect(slice.ack).not.toHaveBeenCalled();
-    }
-    expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc')))
-      .toBe(deliveries.length - 1);
-    expect(state.completed.at(-1)?.conclusion).toBe('success');
+    expect(repairOnly.retry).toHaveBeenCalledTimes(1);
+    expect(repairOnly.ack).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(callsAfterFirstShip);
+    expect(db.intents.get('delivery-abc')).toMatchObject({
+      state: 'retrying',
+      pendingContinuationSequence: 1,
+    });
   });
 
   it('acks successful slices and sends explicit deduplicated continuation messages', async () => {
@@ -286,6 +395,197 @@ describe('queue consumer', () => {
     expect(vi.mocked(ai.run)).toHaveBeenCalledTimes(callsBeforeDuplicate);
   });
 
+  it('lets only one duplicate explicit successor win the pending permit CAS', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      prompt: review\n    qa:\n      trigger: pull_request:opened\n      prompt: test\n',
+    );
+    const tokens = memoryKV();
+    seedToken(tokens, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'FLEET-VERDICT: PASS',
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    const send = vi.fn(async (
+      _body: FleetRunJob,
+      _options?: { delaySeconds?: number },
+    ) => ({ metadata: { metrics: { sent: 1 } } }));
+    const env = makeEnv({
+      DB: db.db,
+      FLEET_TOKENS: tokens,
+      AI: ai.ai,
+      FLEET_CONTINUATIONS: { send } as unknown as Queue<FleetRunJob>,
+    });
+    const predecessor = fakeMessage(makeJob(), 1);
+    await handler.queue!(fakeBatch([predecessor]), env, capturingCtx());
+    const successor = send.mock.calls[0]?.[0] as FleetRunJob;
+    const callsBeforeDuplicates = ai.calls.length;
+    const firstDuplicate = fakeMessage(successor, 1);
+    const secondDuplicate = fakeMessage(successor, 1);
+
+    await Promise.all([
+      handler.queue!(fakeBatch([firstDuplicate]), env, capturingCtx()),
+      handler.queue!(fakeBatch([secondDuplicate]), env, capturingCtx()),
+    ]);
+
+    expect(ai.calls).toHaveLength(callsBeforeDuplicates + 1);
+    expect(firstDuplicate.ack).toHaveBeenCalledTimes(1);
+    expect(secondDuplicate.ack).toHaveBeenCalledTimes(1);
+    expect(firstDuplicate.retry).not.toHaveBeenCalled();
+    expect(secondDuplicate.retry).not.toHaveBeenCalled();
+    expect(db.intents.get('delivery-abc')).toMatchObject({
+      state: 'success',
+      continuationSequence: 1,
+      pendingContinuationSequence: null,
+    });
+  });
+
+  it('acks a superseded pending permit without repair-send or retry churn', async () => {
+    const db = memoryD1({
+      state: 'retrying',
+      attemptCount: 1,
+      continuationSequence: 0,
+      pendingContinuationSequence: 1,
+      pendingContinuationAt: 123,
+    });
+    const current = db.intents.get('delivery-abc')!;
+    db.intents.set('delivery-newer', {
+      ...current,
+      state: 'queued',
+      generation: 2,
+      attemptCount: 0,
+      controlWaitingAt: null,
+      lastError: null,
+      continuationSequence: 0,
+      pendingContinuationSequence: null,
+      pendingContinuationAt: null,
+    });
+    const send = vi.fn();
+    const ai = aiStub({ perShip: {} });
+    const message = fakeMessage(makeJob(), 2);
+
+    await handler.queue!(fakeBatch([message]), makeEnv({
+      DB: db.db,
+      AI: ai.ai,
+      FLEET_CONTINUATIONS: { send } as unknown as Queue<FleetRunJob>,
+    }), capturingCtx());
+
+    expect(message.ack).toHaveBeenCalledTimes(1);
+    expect(message.retry).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it('retries without a permit or send when a newer attempt wins before permit CAS', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      blocking: true',
+        '      prompt: review',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      prompt: test',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const current = db.intents.get('delivery-abc')!;
+    db.beforeContinuationPermitCas = () => {
+      current.state = 'running';
+      current.attemptCount = 2;
+    };
+    const continuationSend = vi.fn();
+    const message = fakeMessage(makeJob(), 1);
+
+    await handler.queue!(fakeBatch([message]), makeEnv({
+      FLEET_TOKENS: kv,
+      DB: db.db,
+      AI: aiStub({
+        perShip: {
+          'code-reviewer': 'FLEET-VERDICT: PASS',
+          qa: 'FLEET-VERDICT: PASS',
+        },
+      }).ai,
+      FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
+    }), capturingCtx());
+
+    expect(message.retry).toHaveBeenCalledTimes(1);
+    expect(message.ack).not.toHaveBeenCalled();
+    expect(continuationSend).not.toHaveBeenCalled();
+    expect(db.steps.filter(step => step.kind === DELIVERY_CONTINUATION_KIND)).toHaveLength(0);
+    expect(current).toMatchObject({ state: 'running', attemptCount: 2 });
+  });
+
+  it('retries without sending when a successor wins after permit but before send', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      blocking: true',
+        '      prompt: review',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      prompt: test',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const current = db.intents.get('delivery-abc')!;
+    const baselineControl = makeEnv({ DB: db.db }).FLEET_CONTROL!;
+    const racingControl = {
+      async admit(expectedRevision?: number, runId?: string) {
+        if (current.pendingContinuationSequence === 1) {
+          current.state = 'running';
+          current.attemptCount = 101;
+          current.continuationSequence = 1;
+          current.pendingContinuationSequence = null;
+          current.pendingContinuationAt = null;
+        }
+        return baselineControl.admit(expectedRevision, runId);
+      },
+    };
+    const continuationSend = vi.fn();
+    const message = fakeMessage(makeJob(), 1);
+
+    await handler.queue!(fakeBatch([message]), makeEnv({
+      FLEET_TOKENS: kv,
+      DB: db.db,
+      AI: aiStub({
+        perShip: {
+          'code-reviewer': 'FLEET-VERDICT: PASS',
+          qa: 'FLEET-VERDICT: PASS',
+        },
+      }).ai,
+      FLEET_CONTROL: racingControl,
+      FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
+    }), capturingCtx());
+
+    expect(message.retry).toHaveBeenCalledTimes(1);
+    expect(message.ack).not.toHaveBeenCalled();
+    expect(continuationSend).not.toHaveBeenCalled();
+    expect(db.steps.filter(step => step.kind === DELIVERY_CONTINUATION_KIND)).toHaveLength(1);
+    expect(current).toMatchObject({
+      state: 'running',
+      attemptCount: 101,
+      continuationSequence: 1,
+      pendingContinuationSequence: null,
+    });
+  });
+
   it('retries an explicit continuation when its durable cursor is unavailable', async () => {
     const failingDb = {
       prepare() {
@@ -309,53 +609,116 @@ describe('queue consumer', () => {
     expect(continuationSend).not.toHaveBeenCalled();
   });
 
-  it('re-sends the exact successor when checkpoint commit outran its queue send', async () => {
+  it('repairs the exact successor after queue-send failure without re-running a ship', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      prompt: review\n    qa:\n      trigger: pull_request:opened\n      prompt: test\n',
+    );
     const db = memoryD1();
     const job = makeJob();
-    await recordDeliveryContinuation(
-      makeEnv({ DB: db.db }),
-      job,
-      1,
-      'code-reviewer',
-      ['qa', 'red-team'],
-    );
-    await recordDeliveryContinuation(
-      makeEnv({ DB: db.db }),
-      job,
-      101,
-      'qa',
-      ['red-team'],
-    );
+    const tokens = memoryKV();
+    seedToken(tokens, 42);
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'FLEET-VERDICT: PASS',
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    const failedSend = vi.fn(async () => {
+      throw new Error('queue unavailable');
+    });
+    const env = makeEnv({
+      DB: db.db,
+      FLEET_TOKENS: tokens,
+      AI: ai.ai,
+      FLEET_CONTINUATIONS: { send: failedSend } as unknown as Queue<FleetRunJob>,
+    });
+    const first = fakeMessage(job, 1);
+    await handler.queue!(fakeBatch([first]), env, capturingCtx());
+
+    expect(first.retry).toHaveBeenCalledTimes(1);
+    expect(first.ack).not.toHaveBeenCalled();
+    expect(db.intents.get(job.deliveryId)).toMatchObject({
+      state: 'retrying',
+      continuationSequence: 0,
+      pendingContinuationSequence: 1,
+    });
+    const callsAfterFirstShip = ai.calls.length;
+
     const continuationSend = vi.fn(async (
       _body: FleetRunJob,
       _options?: { delaySeconds?: number },
     ) => ({
       metadata: { metrics: { sent: 1 } },
     }));
-    const ai = aiStub({ perShip: {} }).ai;
-    const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 2);
+    env.FLEET_CONTINUATIONS = { send: continuationSend } as unknown as Queue<FleetRunJob>;
+    const msg = fakeMessage(job, 2);
 
-    await handler.queue!(
-      fakeBatch([msg]),
-      makeEnv({
-        AI: ai,
-        DB: db.db,
-        FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
-      }),
-      capturingCtx(),
-    );
+    await handler.queue!(fakeBatch([msg]), env, capturingCtx());
 
     expect(continuationSend).toHaveBeenCalledTimes(1);
     expect(continuationSend.mock.calls[0]?.[0]).toMatchObject({
       deliveryId: job.deliveryId,
-      continuationSequence: 2,
+      continuationSequence: 1,
     });
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
-    expect(ai.run).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(callsAfterFirstShip);
   });
 
-  it('retries a continuation that is ahead of its durable checkpoint', async () => {
+  it('durably holds a pending handoff when Fleet pauses before its repair send', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      prompt: review\n    qa:\n      trigger: pull_request:opened\n      prompt: test\n',
+    );
+    const tokens = memoryKV();
+    seedToken(tokens, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'FLEET-VERDICT: PASS',
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    let paused = false;
+    const control = {
+      async admit() {
+        return { status: paused ? 'paused' as const : 'unpaused' as const,
+          paused, revision: paused ? 2 : 1, pausedAt: 1 };
+      },
+    };
+    const failedSend = vi.fn(async () => { throw new Error('queue unavailable'); });
+    const env = makeEnv({
+      DB: db.db,
+      FLEET_TOKENS: tokens,
+      AI: ai.ai,
+      FLEET_CONTROL: control,
+      FLEET_CONTINUATIONS: { send: failedSend } as unknown as Queue<FleetRunJob>,
+    });
+    const predecessor = fakeMessage(makeJob(), 1);
+    await handler.queue!(fakeBatch([predecessor]), env, capturingCtx());
+    const callsAfterFirstShip = ai.calls.length;
+    expect(predecessor.retry).toHaveBeenCalledTimes(1);
+    expect(db.intents.get('delivery-abc')?.pendingContinuationSequence).toBe(1);
+
+    paused = true;
+    const repairedSend = vi.fn();
+    env.FLEET_CONTINUATIONS = { send: repairedSend } as unknown as Queue<FleetRunJob>;
+    const repair = fakeMessage(makeJob(), 2);
+    await handler.queue!(fakeBatch([repair]), env, capturingCtx());
+
+    expect(repair.ack).toHaveBeenCalledTimes(1);
+    expect(repair.retry).not.toHaveBeenCalled();
+    expect(repairedSend).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(callsAfterFirstShip);
+    expect(db.intents.get('delivery-abc')).toMatchObject({
+      state: 'cancelled',
+      pendingContinuationSequence: 1,
+    });
+    expect(db.intents.get('delivery-abc')?.controlWaitingAt).not.toBeNull();
+  });
+
+  it('acks a continuation without its exact durable permit and performs no work', async () => {
     const db = memoryD1();
     const continuationSend = vi.fn();
     const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 1);
@@ -369,9 +732,11 @@ describe('queue consumer', () => {
       capturingCtx(),
     );
 
-    expect(msg.retry).toHaveBeenCalledTimes(1);
-    expect(msg.ack).not.toHaveBeenCalled();
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(continuationSend).not.toHaveBeenCalled();
+    expect(db.intents.get('delivery-abc')).toMatchObject({ state: 'queued', attemptCount: 0 });
+    expect(db.runs).toHaveLength(0);
   });
 
   it('does not charge intentional slices against the provider retry circuit', async () => {
@@ -401,7 +766,9 @@ describe('queue consumer', () => {
         }),
       } as unknown as Ai,
     });
+    expect(await beginFleetIntentAttempt(env, makeJob(), 1)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 1, 'prior-a', ['qa']);
+    expect(await beginFleetIntentAttempt(env, makeJob(), 2)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 2, 'prior-b', ['qa']);
 
     const thirdQueueDelivery = fakeMessage(makeJob(), 3);
@@ -445,21 +812,24 @@ describe('queue consumer', () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n');
     const kv = memoryKV();
     seedToken(kv, 42);
-    const intent = { state: 'queued', error: null as string | null };
+    const intent = { state: 'queued', attemptCount: 0, error: null as string | null };
     const db = {
       prepare(sql: string) {
         let bound: unknown[] = [];
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
-            if (sql.includes('SELECT state FROM fleet_run_intents')) {
-              return { state: intent.state } as T;
+            if (sql.includes('FROM fleet_run_intents AS current')) {
+              return { state: intent.state, attempt_count: intent.attemptCount, control_waiting_at: null } as T;
             }
             return null;
           },
           async all<T>() { return { results: [] as T[] }; },
           async run() {
-            if (sql.includes("SET state = 'running'")) intent.state = 'running';
+            if (sql.includes("SET state = 'running'")) {
+              intent.state = 'running';
+              intent.attemptCount = Number(bound[0]);
+            }
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
               intent.state = String(bound[0]);
               intent.error = bound[3] == null ? null : String(bound[3]);
@@ -503,21 +873,24 @@ describe('queue consumer', () => {
     );
     const kv = memoryKV();
     seedToken(kv, 42);
-    const intent = { state: 'queued', error: null as string | null };
+    const intent = { state: 'queued', attemptCount: 0, error: null as string | null };
     const db = {
       prepare(sql: string) {
         let bound: unknown[] = [];
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
-            if (sql.includes('SELECT state FROM fleet_run_intents')) {
-              return { state: intent.state } as T;
+            if (sql.includes('FROM fleet_run_intents AS current')) {
+              return { state: intent.state, attempt_count: intent.attemptCount, control_waiting_at: null } as T;
             }
             return null;
           },
           async all<T>() { return { results: [] as T[] }; },
           async run() {
-            if (sql.includes("SET state = 'running'")) intent.state = 'running';
+            if (sql.includes("SET state = 'running'")) {
+              intent.state = 'running';
+              intent.attemptCount = Number(bound[0]);
+            }
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
               intent.state = String(bound[0]);
               intent.error = bound[3] == null ? null : String(bound[3]);
@@ -566,22 +939,25 @@ describe('queue consumer', () => {
     );
     const kv = memoryKV();
     seedToken(kv, 42);
-    const intent = { state: 'queued', error: null as string | null };
+    const intent = { state: 'queued', attemptCount: 0, error: null as string | null };
     const db = {
       prepare(sql: string) {
         let bound: unknown[] = [];
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
-            if (sql.includes('SELECT state FROM fleet_run_intents')) {
-              return { state: intent.state } as T;
+            if (sql.includes('FROM fleet_run_intents AS current')) {
+              return { state: intent.state, attempt_count: intent.attemptCount, control_waiting_at: null } as T;
             }
             if (sql.includes('SELECT conclusion FROM fleet_runs')) return null;
             return null;
           },
           async all<T>() { return { results: [] as T[] }; },
           async run() {
-            if (sql.includes("SET state = 'running'")) intent.state = 'running';
+            if (sql.includes("SET state = 'running'")) {
+              intent.state = 'running';
+              intent.attemptCount = Number(bound[0]);
+            }
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
               intent.state = String(bound[0]);
               intent.error = bound[3] == null ? null : String(bound[3]);

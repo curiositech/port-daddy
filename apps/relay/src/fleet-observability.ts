@@ -9,19 +9,19 @@
  *   GET  /v1/fleet/health             paused flag + last-run age + queue depth
  *
  * Control side: the kill switch.
- *   POST /v1/fleet/pause {paused}     toggle the KV flag the executor checks
+ *   POST /v1/fleet/pause             commit pause, or resume with revision + request ID
  *                                     at job START, before any AI spend.
  *
  * Shared envelope: every response is JSON `{ code, error, ... }` to match the
  * fleet control-plane contract. The gate accepts either the break-glass secret
  * or an account-backed operator role. Reads NEVER mutate fleet state; pause
- * writes only KV + audit.
+ * writes the serialized control object plus audit.
  */
 
 import { fleetOperatorOnly, type FleetOperatorAuthorization } from './fleet-access.js';
 import {
   lastFleetRunAt,
-  getFleetPaused,
+  getFleetControl,
   setFleetPaused,
   appendAudit,
 } from './db.js';
@@ -44,6 +44,29 @@ function envelope(status: number, body: Record<string, unknown>): Response {
 
 function fleetErr(code: string, error: string, status: number): Response {
   return envelope(status, { code, error });
+}
+
+const LEGACY_FLEET_PAUSE_KEY = 'fleet:paused';
+
+/**
+ * Read the rollback-era KV projection as a deny-only signal. A legacy paused
+ * value can expose a failed mirror after the canonical DO has resumed, but
+ * false, absent, malformed, or unreadable KV must never authorize work or
+ * contradict the canonical control state.
+ */
+async function legacyFleetPauseProjectionIsDenied(kv: KVNamespace): Promise<boolean> {
+  try {
+    const raw = await kv.get(LEGACY_FLEET_PAUSE_KEY);
+    if (raw === 'true') return true;
+    if (!raw || raw === 'false') return false;
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === 'object'
+      && parsed !== null
+      && !Array.isArray(parsed)
+      && (parsed as { paused?: unknown }).paused === true;
+  } catch {
+    return false;
+  }
 }
 
 function isSafeRunId(runId: string): boolean {
@@ -182,16 +205,25 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
   if (authorization instanceof Response) return authorization;
 
   try {
-    const [paused, lastAt, intentHealth] = await Promise.all([
-      getFleetPaused(env.KV),
+    const [control, lastAt, intentHealth, legacyPaused] = await Promise.all([
+      getFleetControl(env),
       lastFleetRunAt(env.DB),
       fleetIntentHealth(env.DB),
+      legacyFleetPauseProjectionIsDenied(env.KV),
     ]);
+    // The legacy projection is deny-only. It cannot make an unknown or
+    // canonical pause look healthy, and it cannot make a false/missing/bad KV
+    // value override the Durable Object. It only surfaces the one dangerous
+    // mixed-version outcome: DO resumed, old executor projection still paused.
+    const legacyReadbackMismatch = control.status === 'unpaused' && legacyPaused;
     const lastRunAgeSec = lastAt === null ? null : Math.floor(Date.now() / 1000) - lastAt;
     return envelope(200, {
       code: 'OK',
       error: null,
-      paused,
+      paused: legacyReadbackMismatch ? null : control.paused,
+      pauseStatus: legacyReadbackMismatch ? 'unknown' : control.status,
+      pauseRevision: legacyReadbackMismatch ? null : control.revision,
+      automationBlocked: control.status !== 'unpaused' || legacyReadbackMismatch,
       lastRunAgeSec,
       // D1-known intents, not a promise of Cloudflare's exact internal queue
       // position.  The explicit estimate label prevents false precision while
@@ -201,6 +233,7 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
         : intentHealth.queued + intentHealth.retrying,
       running: intentHealth.running,
       retrying: intentHealth.retrying,
+      waitingForControl: intentHealth.waitingForControl,
       superseded: intentHealth.superseded,
       failedAdmission: intentHealth.failedAdmission,
       oldestQueuedAgeSec: intentHealth.oldestQueuedAgeSec,
@@ -215,12 +248,13 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
 
 interface PauseBody {
   paused?: boolean;
+  expectedRevision?: number;
+  requestId?: string;
 }
 
 /**
- * Toggle the fleet kill switch. The executor reads this KV flag at job START
- * (before any AI spend or GitHub post), so pausing stops new runs immediately.
- * Audited.
+ * Commit the pause before acknowledging it. Each new ship admission consults
+ * the same object. A ship already admitted may finish its bounded work.
  */
 export async function handleFleetPause(request: Request, env: Env): Promise<Response> {
   const authorization = await fleetOperatorOnly(request, env);
@@ -230,17 +264,25 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
   if (!body || typeof body.paused !== 'boolean') {
     return fleetErr('BAD_JSON', 'Request body must be JSON {paused: boolean}', 400);
   }
+  if (!body.paused && (!Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1
+      || typeof body.requestId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(body.requestId))) {
+    return fleetErr('RESUME_PRECONDITION_REQUIRED', 'Resume requires the observed pauseRevision and a unique requestId.', 400);
+  }
 
   try {
-    const state = await setFleetPaused(env.KV, body.paused);
+    const state = await setFleetPaused(env, body.paused, body.paused ? undefined : {
+      expectedRevision: body.expectedRevision!, requestId: body.requestId!,
+    });
     await appendAudit(env.DB, {
       action: body.paused ? 'fleet_pause' : 'fleet_resume',
       detail: operatorAuditDetail(authorization, body.paused ? 'pause' : 'resume'),
     }).catch(() => {
       /* audit is best-effort; never fail the toggle on an audit write error */
     });
-    return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused });
+    return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused,
+      pauseStatus: state.status, pauseRevision: state.revision });
   } catch (e) {
+    if (!body.paused) return fleetErr('RESUME_CONFLICT', `Resume refused: ${msg(e)}`, 409);
     return fleetErr('INTERNAL_ERROR', `pause toggle failed: ${msg(e)}`, 500);
   }
 }

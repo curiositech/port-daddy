@@ -25,6 +25,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { assertFleetContinuationPending, assertFleetIntentCurrent } from './run-intent.js';
 import { ensureRunRow } from './execute.js';
 import { DEAD_LETTER_MARKER } from './dead-letter-marker.js';
 
@@ -135,7 +136,8 @@ export async function recordDeliveryFailure(
     if (!deliveryId) return;
     const runId = runIdForDelivery(deliveryId);
     const pr = job.payloadMinimal?.pull_request as { head?: { sha?: string } } | undefined;
-    const headSha = pr?.head?.sha ?? '';
+    const group = job.payloadMinimal?.merge_group as { head_sha?: string } | undefined;
+    const headSha = job.eventType === 'merge_group' ? group?.head_sha ?? '' : pr?.head?.sha ?? '';
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
     const error = describeDeliveryError(err);
@@ -189,7 +191,8 @@ export async function recordDeliveryAttemptStart(
     if (!deliveryId) return;
     const runId = runIdForDelivery(deliveryId);
     const pr = job.payloadMinimal?.pull_request as { head?: { sha?: string } } | undefined;
-    const headSha = pr?.head?.sha ?? '';
+    const group = job.payloadMinimal?.merge_group as { head_sha?: string } | undefined;
+    const headSha = job.eventType === 'merge_group' ? group?.head_sha ?? '' : pr?.head?.sha ?? '';
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
     const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
@@ -226,6 +229,7 @@ export async function recordDeliveryContinuation(
   attempt: number,
   completedShip: string,
   remainingShips: string[],
+  pendingSequence?: number,
 ): Promise<boolean> {
   try {
     if (!env.DB) return false;
@@ -233,14 +237,53 @@ export async function recordDeliveryContinuation(
     if (!deliveryId) return false;
     const runId = runIdForDelivery(deliveryId);
     const pr = job.payloadMinimal?.pull_request as { head?: { sha?: string } } | undefined;
-    const headSha = pr?.head?.sha ?? '';
+    const group = job.payloadMinimal?.merge_group as { head_sha?: string } | undefined;
+    const headSha = job.eventType === 'merge_group' ? group?.head_sha ?? '' : pr?.head?.sha ?? '';
+    const repoFullName = job.repoFullName ?? '';
+    const prNumber = job.eventType === 'merge_group' ? 0 : job.prNumber ?? 0;
+    const eventType = job.eventType ?? '';
+    const action = job.action ?? '';
+    if (!repoFullName || !Number.isInteger(prNumber)
+        || (eventType === 'merge_group' ? prNumber !== 0 : prNumber <= 0)
+        || !headSha || !eventType) return false;
+    if (pendingSequence === undefined) {
+      await assertFleetIntentCurrent(env, job, attempt);
+    } else {
+      await assertFleetContinuationPending(env, job, pendingSequence);
+    }
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
     const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
     const boundedRemaining = remainingShips.filter(Boolean).slice(0, 50);
-    await env.DB.prepare(
+    const ownership = pendingSequence === undefined
+      ? `current.state = 'running' AND current.attempt_count = ?
+           AND current.control_waiting_at IS NULL
+           AND current.pending_continuation_sequence IS NULL`
+      : `current.state = 'retrying' AND current.control_waiting_at IS NULL
+           AND current.pending_continuation_sequence = ?
+           AND current.continuation_sequence = ?`;
+    const inserted = await env.DB.prepare(
       `INSERT OR REPLACE INTO fleet_run_steps (run_id, seq, kind, ship, title, detail, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       SELECT ?, ?, ?, ?, ?, ?, ?
+       WHERE EXISTS (
+         SELECT 1 FROM fleet_run_intents AS current
+         WHERE current.delivery_id = ? AND current.repo_full_name = ?
+           AND current.pr_number = ? AND current.head_sha = ? AND current.event_type = ?
+           AND COALESCE(current.action, '') = ?
+           AND ${ownership}
+           AND NOT (current.state = 'retrying' AND current.last_error LIKE 'Fleet suspended:%')
+           AND NOT EXISTS (
+             SELECT 1 FROM fleet_run_intents AS newer
+             WHERE newer.repo_full_name = current.repo_full_name
+               AND newer.pr_number = current.pr_number
+               AND newer.generation > current.generation
+               AND (
+                 current.event_type <> 'merge_group'
+                 OR (newer.event_type = 'merge_group' AND newer.head_sha = current.head_sha)
+               )
+               AND newer.state NOT IN ('enqueue_failed','superseded')
+           )
+       )`,
     )
       .bind(
         runId,
@@ -255,9 +298,18 @@ export async function recordDeliveryContinuation(
           remainingShips: boundedRemaining,
         }),
         Math.floor(Date.now() / 1000),
+        deliveryId,
+        repoFullName,
+        prNumber,
+        headSha,
+        eventType,
+        action,
+        ...(pendingSequence === undefined
+          ? [safeAttempt]
+          : [pendingSequence, pendingSequence - 1]),
       )
       .run();
-    return true;
+    return inserted.meta?.changes === 1;
   } catch (recordErr) {
     console.error(
       `[fleet-executor] recording delivery continuation failed delivery=${job?.deliveryId}: ${String(recordErr)}`,

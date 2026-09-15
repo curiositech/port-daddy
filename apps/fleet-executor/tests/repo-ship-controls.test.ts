@@ -39,13 +39,13 @@ function environment(ai = aiStub({ perShip: { 'code-reviewer': PASS, qa: PASS } 
 }
 
 describe('cloud ship execution consumes signed-in repository controls', () => {
-  it('repository OFF consumes delivery with no AI, sandbox, or review, and an honest neutral check', async () => {
+  it('repository OFF consumes delivery with no AI, sandbox, or review, and a blocking check', async () => {
     await setRepoShipControl(controls.db, 'erichowens/port-daddy', '*', false, 0, 'admin');
     const { env, ai } = environment();
     await executeFleet(makeJob(), env);
     expect(ai.calls).toHaveLength(0);
     expect(state.reviews).toHaveLength(0);
-    expect(state.completed.at(-1)?.conclusion).toBe('neutral');
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
     expect(state.completed.at(-1)?.summary).toContain('off for this repository');
   });
   it('one disabled ship does not spend while its enabled peer executes; never reports disabled as PASS', async () => {
@@ -86,7 +86,7 @@ describe('cloud ship execution consumes signed-in repository controls', () => {
     await setRepoShipControl(controls.db, 'erichowens/port-daddy', '*', false, 0, 'admin');
     await executeFleet(makeJob(), env, { maxNewShipsPerInvocation: 1 });
     expect(ai.calls).toHaveLength(before);
-    expect(state.completed.at(-1)?.conclusion).toBe('neutral');
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
   });
   it('rechecks XO OFF after an ideation ship responds, before optional editor spend', async () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n  xo: true\n  agents:\n    spark:\n      class: ideation\n      trigger: pull_request:opened\n      prompt: spark ship\n');
