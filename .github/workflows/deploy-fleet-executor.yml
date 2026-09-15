@@ -3,9 +3,10 @@ name: Deploy fleet-executor (Cloudflare Worker)
 # Why this workflow exists:
 #   apps/fleet-executor is the LIVE cloud fleet bot (the Cloudflare Queues
 #   consumer that posts PR review + ideation-ship comments). It had no deploy
-#   automation, so merging a change to main left the OLD Worker running until
-#   someone remembered to `wrangler deploy` by hand. This workflow deploys it on
-#   every push to main that touches the app, so main == what's live.
+#   automation. This lane is intentionally manual and environment-protected.
+#   It currently refuses activation until a durable GitHub installation
+#   lifecycle writer and authoritative backfill exist; merge leaves the old
+#   Worker live.
 #
 # Config model — committed file, NOT a secret:
 #   The Worker config lives in apps/fleet-executor/wrangler.deploy.toml,
@@ -45,11 +46,6 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                copy-paste secret commands.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/fleet-executor/**'
-      - '.github/workflows/deploy-fleet-executor.yml'
   workflow_dispatch:
 
 permissions:
@@ -62,6 +58,7 @@ concurrency:
 
 jobs:
   deploy:
+    environment: fleet-production
     runs-on: ubuntu-latest
     # Never run from a fork; the secrets only exist on the canonical repo.
     if: github.repository == 'curiositech/port-daddy'
@@ -71,6 +68,14 @@ jobs:
         working-directory: apps/fleet-executor
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Require reviewed current main
+        working-directory: .
+        run: |
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$(git ls-remote origin refs/heads/main | cut -f1)"
 
       - uses: actions/setup-node@v4
         with:
@@ -91,6 +96,12 @@ jobs:
 
       - name: Test
         run: npx vitest run
+
+      - name: Verify production managed-billing readiness
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/check-managed-billing-readiness.mjs
 
       - name: Deploy Worker
         env:
