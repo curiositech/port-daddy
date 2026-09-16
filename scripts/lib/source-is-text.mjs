@@ -100,6 +100,7 @@ export const ALLOWED_NON_TEXT_PATTERNS = new Set([
   'whitepaper-foundlings/**/*.png', // LFS-tracked archival screenshots, PR #10105
   'whitepaper-foundlings/**/*.pdf', // LFS-tracked archival PDFs, PR #10105
   'skill_candidates/**/*.pdf', // LFS-tracked archival PDF, PR #10105
+  'docs/harbor-research/exposition/figures/page-context/**/*.webp', // LFS-tracked in-situ page renders, PR #10210
 ]);
 
 /**
