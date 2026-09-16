@@ -4801,7 +4801,7 @@ dependencies = [
 
 [[package]]
 name = "pd-console"
-version = "3.30.2"
+version = "3.30.6"
 dependencies = [
  "anyhow",
  "base64",
@@ -4816,9 +4816,11 @@ dependencies = [
  "rodio",
  "serde",
  "serde_json",
+ "sha2",
  "time",
  "tokio",
  "unicode-segmentation",
+ "uuid",
  "vt100",
 ]
 
