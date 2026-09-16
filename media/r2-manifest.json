@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 778,
-    "distinctObjects": 742,
-    "bytes": 296542459,
-    "distinctBytes": 293748868
+    "assets": 783,
+    "distinctObjects": 747,
+    "bytes": 298120983,
+    "distinctBytes": 295327392
   },
   "assets": [
     {
@@ -1690,6 +1690,13 @@
       "contentType": "image/png"
     },
     {
+      "path": "docs/pr-assets/figures-pixel-judgment/fig-5-8-audit-tower-before-after.gif",
+      "bytes": 343293,
+      "sha256": "711a0b5c6f8a9b9b1c5492cd51be100a958882f29e73f97b5dd5d9a2a7e18745",
+      "key": "sha256/71/711a0b5c6f8a9b9b1c5492cd51be100a958882f29e73f97b5dd5d9a2a7e18745.gif",
+      "contentType": "image/gif"
+    },
+    {
       "path": "docs/pr-assets/figures-pixel-judgment/new-figures-chapter-7.png",
       "bytes": 539365,
       "sha256": "0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af",
@@ -1981,6 +1988,34 @@
       "bytes": 859038,
       "sha256": "e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667",
       "key": "sha256/e6/e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-book-1x-150dpi.png",
+      "bytes": 257046,
+      "sha256": "af283018c53f10b03d0d3194e1a968c21c6dc8d387ba0550cb401673ad0e051a",
+      "key": "sha256/af/af283018c53f10b03d0d3194e1a968c21c6dc8d387ba0550cb401673ad0e051a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/anchor-handshake-ladder-redraw-chapter-1x-150dpi.png",
+      "bytes": 260643,
+      "sha256": "d526ed50363ae296152bd9f82f034791fca9530e1b73ef12912cd6bd8d3e6e74",
+      "key": "sha256/d5/d526ed50363ae296152bd9f82f034791fca9530e1b73ef12912cd6bd8d3e6e74.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/bc-delta-threshold-book-vs-chapter-1x-150dpi.png",
+      "bytes": 392884,
+      "sha256": "4e9606cb8017d2fd8a7f39bdd6034754591e3cfbbaf710138bf9ebafe9c473e6",
+      "key": "sha256/4e/4e9606cb8017d2fd8a7f39bdd6034754591e3cfbbaf710138bf9ebafe9c473e6.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10190/he-succession-price-book-vs-chapter-1x-150dpi.png",
+      "bytes": 324658,
+      "sha256": "d661a0419acc271a7ecd32d49b9b3f4375314a79c76d9cc359f3b2db94da3e11",
+      "key": "sha256/d6/d661a0419acc271a7ecd32d49b9b3f4375314a79c76d9cc359f3b2db94da3e11.png",
       "contentType": "image/png"
     },
     {
