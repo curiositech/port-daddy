@@ -147,8 +147,15 @@ export async function publishBook(pdfBytes, { pages, sourceCommit, config, now =
   const sha256Hex = sha256Of(pdfBytes);
   const archiveKey = archiveKeyFor(sha256Hex);
 
+  // REST has no cheap per-key probe (HEAD is 405 there — see sync-r2-media.mjs's
+  // own note on the transport), and listing the whole bucket to answer one key
+  // would cost more than just re-sending the bytes. So on REST this always
+  // re-PUTs the archive copy: one extra ~9 MiB upload per publish, accepted
+  // because it only runs on push/workflow_dispatch (not every PR), and PUTting
+  // bytes that already match the content-addressed key is a safe no-op, not a
+  // correctness risk.
   const alreadyArchived = config.transport === 'rest'
-    ? false // REST has no cheap per-key probe; putObject's own PUT is idempotent enough here.
+    ? false
     : await objectExists(archiveKey, config, { fetchImpl });
   if (alreadyArchived) {
     log(`archive already holds ${archiveKey} — skipping upload, still refreshing the pointer`);
