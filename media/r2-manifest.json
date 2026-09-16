@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 772,
-    "distinctObjects": 736,
-    "bytes": 295651026,
-    "distinctBytes": 292857435
+    "assets": 773,
+    "distinctObjects": 737,
+    "bytes": 295994319,
+    "distinctBytes": 293200728
   },
   "assets": [
     {
@@ -1688,6 +1688,13 @@
       "sha256": "62d33543cde16dcfe57c4e96384f2aefae633b25edd899f954ee3a9686840942",
       "key": "sha256/62/62d33543cde16dcfe57c4e96384f2aefae633b25edd899f954ee3a9686840942.png",
       "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/figures-pixel-judgment/fig-5-8-audit-tower-before-after.gif",
+      "bytes": 343293,
+      "sha256": "711a0b5c6f8a9b9b1c5492cd51be100a958882f29e73f97b5dd5d9a2a7e18745",
+      "key": "sha256/71/711a0b5c6f8a9b9b1c5492cd51be100a958882f29e73f97b5dd5d9a2a7e18745.gif",
+      "contentType": "image/gif"
     },
     {
       "path": "docs/pr-assets/figures-pixel-judgment/new-figures-chapter-7.png",
