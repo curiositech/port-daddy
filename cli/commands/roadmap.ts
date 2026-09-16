@@ -226,6 +226,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
+  if (sub === 'push') {
+    await handleRoadmapPush(args.slice(1), options);
+    return;
+  }
+
   if (sub === 'pop') {
     await handleRoadmapPop(args.slice(1), options);
     return;
@@ -1108,6 +1113,163 @@ async function handleRoadmapReindex(_args: string[], options: CLIOptions): Promi
     return;
   }
   ui.success(`Reindexed ${data.indexed ?? 0}/${data.total ?? 0} item(s) (${data.skipped ?? 0} unchanged, skipped)`);
+}
+
+/**
+ * `pd roadmap push [--repo owner/name] [--from committed] [--dry-run]`
+ * — replace the relay's mirror of this repository's roadmap.
+ *
+ * The relay has had `PUT /v1/roadmap/snapshot` and a D1 replica behind it since
+ * 2026-08-22, with nothing on this side to feed them. This is that producer.
+ *
+ * Source order: the daemon first (it is the roadmap's single writer), the
+ * committed `docs/roadmap/roadmap.snapshot.json` when the daemon is unreachable.
+ * Either way the snapshot's own `generatedAt` travels with it, so the mirror
+ * shows the daemon clock the data was made under beside the relay's arrival
+ * clock, and a fallback push reads as old rather than as fresh.
+ */
+async function handleRoadmapPush(args: string[], options: CLIOptions): Promise<void> {
+  const {
+    toMirrorPayload,
+    checkMirrorPayloadFits,
+    pushRoadmapMirror,
+    resolveMirrorRepo,
+    MirrorTranslationError,
+  } = await import('../../lib/roadmap-mirror-push.js');
+  const { readStoredAccount } = await import('./account.js');
+
+  const account = readStoredAccount();
+  if (!account?.token) {
+    ui.error('Not signed in. Run: pd account login');
+    process.exit(1);
+    return;
+  }
+
+  const repoArg = args.find((a) => !a.startsWith('--')) ?? readOption(options, 'repo');
+  // The remote is read unconditionally and handed over; resolveMirrorRepo
+  // decides whether it is allowed to matter. Reading it is free and cannot
+  // change the answer when the operator named a repository.
+  let remote: string | null = null;
+  try {
+    remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    remote = null;
+  }
+  const resolved = resolveMirrorRepo(repoArg ?? null, remote);
+  if (resolved.repo === null) {
+    ui.error(
+      resolved.reason === 'named-unusable'
+        ? `--repo must be owner/name (got "${repoArg}")`
+        : 'Could not read owner/name from the origin remote. Pass --repo owner/name.',
+    );
+    process.exit(1);
+    return;
+  }
+  const repoFullName = resolved.repo;
+
+  const harbor = readOption(options, 'harbor') ?? process.env.PD_HARBOR ?? 'port-daddy';
+  const snapshotPath = resolve(readOption(options, 'snapshot') ?? 'docs/roadmap/roadmap.snapshot.json');
+  const forceCommitted = readOption(options, 'from') === 'committed';
+
+  let snapshot: RoadmapSnapshot | undefined;
+  let source: 'daemon' | 'committed' = 'daemon';
+  let daemonError = '';
+  if (!forceCommitted) {
+    try {
+      snapshot = await buildRoadmapSnapshot({
+        baseUrl: PORT_DADDY_URL.replace(/\/$/, ''),
+        harbor,
+        previousSnapshot: readPreviousSnapshot(snapshotPath),
+      });
+    } catch (err) {
+      daemonError = (err as Error).message;
+    }
+  }
+  if (!snapshot) {
+    const previous = readPreviousSnapshot(snapshotPath) as RoadmapSnapshot | null;
+    if (!previous?.items?.length || typeof previous.generatedAt !== 'number') {
+      ui.error(
+        forceCommitted
+          ? `No usable snapshot at ${snapshotPath}. Run: npx tsx scripts/export-roadmap-snapshot.ts`
+          : `Daemon unreachable (${daemonError}) and no usable snapshot at ${snapshotPath}.\n` +
+            '  Start the daemon, or export one: npx tsx scripts/export-roadmap-snapshot.ts',
+      );
+      process.exit(1);
+      return;
+    }
+    snapshot = previous;
+    source = 'committed';
+  }
+
+  let payload;
+  try {
+    payload = toMirrorPayload(snapshot, repoFullName, readOption(options, 'daemon-label', 'daemonLabel'));
+  } catch (err) {
+    if (err instanceof MirrorTranslationError) {
+      ui.error(err.message);
+      process.exit(1);
+      return;
+    }
+    throw err;
+  }
+
+  const fits = checkMirrorPayloadFits(payload);
+  if (!fits.ok) {
+    ui.error(fits.reason);
+    process.exit(1);
+    return;
+  }
+
+  const age = Math.max(0, Date.now() - payload.generatedAt);
+  const ageLine = `${Math.floor(age / 60000)} min old at push time`;
+
+  if (options['dry-run'] || options.dryRun) {
+    const preview = {
+      wouldPushTo: `${account.relayUrl}/v1/roadmap/snapshot`,
+      source,
+      repoFullName,
+      harbor: payload.harbor,
+      generatedAt: payload.generatedAt,
+      items: payload.items.length,
+      bytes: fits.bytes,
+    };
+    if (isJson(options)) {
+      console.log(JSON.stringify(preview, null, 2));
+      return;
+    }
+    ui.info(
+      `Would push ${payload.items.length} item(s) (${fits.bytes} bytes, from the ${source} ` +
+        `snapshot, ${ageLine}) to ${preview.wouldPushTo}`,
+    );
+    return;
+  }
+
+  const result = await pushRoadmapMirror({
+    relayUrl: account.relayUrl,
+    token: account.token,
+    payload,
+  });
+
+  if (isJson(options)) {
+    console.log(JSON.stringify({ source, repoFullName, bytes: fits.bytes, ...result }, null, 2));
+    if (!result.ok) process.exit(1);
+    return;
+  }
+  if (!result.ok) {
+    ui.error(
+      `Relay refused the push (${result.status}${result.error ? ` ${result.error}` : ''}).` +
+        (result.status === 401 ? '\n  The stored token may be revoked. Run: pd account login' : ''),
+    );
+    process.exit(1);
+    return;
+  }
+  ui.success(
+    `Mirrored ${payload.items.length} roadmap item(s) for ${repoFullName} ` +
+      `(from the ${source} snapshot, ${ageLine})`,
+  );
 }
 
 /**

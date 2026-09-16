@@ -19,13 +19,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GIT_SHIM_CONTENT, SHIM_VERSION } from '../../cli/utils/git-shim.js';
 
-describe('git shim v5 destructive-verb coverage', () => {
-  test('SHIM_VERSION is bumped to 5', () => {
-    expect(SHIM_VERSION).toBe('5');
+describe('git shim v6 destructive-verb coverage', () => {
+  test('SHIM_VERSION is bumped to 6', () => {
+    expect(SHIM_VERSION).toBe('6');
   });
 
-  test('shim header documents v5', () => {
-    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v5');
+  test('shim header documents v6', () => {
+    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v6');
   });
 
   test('shim intercepts the original v1 verbs', () => {

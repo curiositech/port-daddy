@@ -1,4 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
+import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../../shared/paths.js';
 import {
   assessRuntimeIdentity,
   parseLaunchctlPrint,
@@ -95,9 +96,9 @@ describe('runtime identity scope', () => {
       canonicalSupervisor: supervisor,
     })).toEqual({
       expectedPort: 9876,
-      pidFile: expect.stringMatching(/\.port-daddy\/daemon\.pid$/),
-      portFile: expect.stringMatching(/\.port-daddy\/daemon\.port$/),
-      heartbeatFile: expect.stringMatching(/\.port-daddy\/heartbeat$/),
+      pidFile: DEFAULT_PID_FILE,
+      portFile: DEFAULT_PORT_FILE,
+      heartbeatFile: `${PD_HOME}/heartbeat`,
       supervisor,
     });
   });
@@ -129,6 +130,25 @@ describe('runtime identity scope', () => {
 });
 
 describe('launchd ownership', () => {
+  test.each(['start', 'restart'])('Off denies %s before any supervisor call', (action) => {
+    const calls = [];
+    const result = runCanonicalLaunchdAction(action, supervisor, (args) => {
+      calls.push(args);
+      return { status: 0, stdout: '', stderr: '' };
+    }, () => false);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Off');
+    expect(calls).toEqual([]);
+  });
+
+  test('unknown control denies restart but never prevents stop', () => {
+    const calls = [];
+    const run = (args) => { calls.push(args); return { status: 0, stdout: '', stderr: '' }; };
+    const unavailable = () => { throw new Error('EACCES'); };
+    expect(runCanonicalLaunchdAction('restart', supervisor, run, unavailable).status).toBe(1);
+    expect(runCanonicalLaunchdAction('stop', supervisor, run, unavailable).status).toBe(0);
+    expect(calls).toEqual([['bootout', supervisor.target]]);
+  });
   test('parses the launchd-owned PID and verifies liveness', () => {
     const parsed = parseLaunchctlPrint(`gui/501/homebrew.mxcl.port-daddy = {
       state = running
@@ -146,7 +166,7 @@ describe('launchd ownership', () => {
     const result = runCanonicalLaunchdAction('restart', supervisor, (args) => {
       calls.push(args);
       return { status: 0, stdout: '', stderr: '' };
-    });
+    }, () => true);
     expect(result.status).toBe(0);
     expect(calls).toEqual([['kickstart', '-k', 'gui/501/homebrew.mxcl.port-daddy']]);
   });
@@ -156,7 +176,7 @@ describe('launchd ownership', () => {
     runCanonicalLaunchdAction('start', { ...supervisor, loaded: false, running: false, pid: null }, (args) => {
       calls.push(args);
       return { status: 0, stdout: '', stderr: '' };
-    });
+    }, () => true);
     expect(calls).toEqual([[
       'bootstrap',
       'gui/501',

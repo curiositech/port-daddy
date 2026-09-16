@@ -100,13 +100,9 @@ export interface WhitePaper {
   subtitle: string
   thesis: string
   summary: string
-  filename: string
-  pdfPath: string
   readerHref: string
   overviewHref: string
   date: string
-  pages: number
-  sizeKb: number
   /**
    * Chapter number in the Book (1..N), in dependency order: each chapter
    * stands on the ones before it and each proving chapter follows the
@@ -134,7 +130,7 @@ export interface WhitePaper {
    */
   maturity: string
   /**
-   * Cross-reference edges that make the seven read as one book. Each is a list
+   * Cross-reference edges that make the current eight read as one book. Each is a list
    * of chapter ids with a short reason — rendered as assumes / underwrites /
    * proved-by / proves links on the library page. Ids, not numbers: the
    * numbering can change; the chapters do not.
@@ -187,12 +183,17 @@ export interface TextbookChapterRecord {
   prefix: string
   title: string
   source: string
-  pdf: string
   role: 'builds' | 'proves'
   discharges?: string
   formerNumeral: string
   oneLine: string
   question: string
+  /**
+   * Why a reader would want this chapter, in the author's voice. Distinct from
+   * `question` (what the chapter answers) and from `oneLine` (what it claims):
+   * the outline shows all three, and the teaser is the one doing the selling.
+   */
+  teaser: string
   epigraph: { text: string; source: string }
 }
 
@@ -205,13 +206,23 @@ export interface Textbook {
 export const TEXTBOOK = textbookJson as Textbook
 
 /**
- * A secondary typographic edition of the Book: same chapters, same
- * generated body/bibliography, a different driver root
- * (coordination-papers-mega-volume-<id-suffix>.tex sets \pdedition then
- * \input's the main root). `pages`/`sizeKb` are 0 until the edition's PDF
- * has actually been built at least once — check-whitepaper-metadata.ts
- * WARNs (not fails) while the file is missing, and `--fix` fills the real
- * numbers in from disk the first time it exists. Never hand-fill a guess.
+ * A secondary typographic edition of the Book, published alongside the
+ * canonical PDF: same chapters, same generated body/bibliography, a different
+ * driver root (coordination-papers-mega-volume-<id-suffix>.tex sets
+ * \pdedition then \input's the main root). `pages`/`sizeKb` are 0 until the
+ * edition's PDF has actually been built at least once —
+ * check-whitepaper-metadata.ts WARNs (not fails) while the file is missing,
+ * and `--fix` fills the real numbers in from disk the first time it exists.
+ * Never hand-fill a guess.
+ *
+ * Nothing is registered here today, and that is the point: the Book has one
+ * central edition (Swiss, set by \pdedition's default in
+ * coordination-papers-mega-volume-preamble.tex and rendered into the canonical
+ * coordination-papers-mega-volume.pdf), and the maritime and technical
+ * characters remain switchable but unbuilt. This registry describes what is
+ * published, so it describes one PDF. The shape stays because publishing a
+ * second edition beside the central one is one array entry plus one row in
+ * scripts/build-whitepapers.sh away.
  */
 export interface CollectedVolumeEdition {
   id: string
@@ -232,7 +243,11 @@ export interface CollectedVolume {
   pages: number
   sizeKb: number
   references: number
-  /** Alternate-typography editions built from the same sources; see coordination-papers-mega-volume-{swiss,technical}.tex. */
+  /**
+   * Alternate-typography editions published beside the canonical PDF, built
+   * from the same sources; see coordination-papers-mega-volume-{maritime,swiss,technical}.tex.
+   * Absent while the Book publishes only its central edition.
+   */
   editions?: CollectedVolumeEdition[]
 }
 
@@ -244,25 +259,11 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 545,
-  sizeKb: 8128,
+  pages: 580,
+  sizeKb: 9668,
   references: 221,
-  editions: [
-    {
-      id: 'coordination-papers-mega-volume-swiss',
-      title: 'Swiss edition',
-      pdfPath: '/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-      pages: 552,
-      sizeKb: 7532,
-    },
-    {
-      id: 'coordination-papers-mega-volume-technical',
-      title: 'Technical edition',
-      pdfPath: '/whitepaper/coordination-papers-mega-volume-technical.pdf',
-      pages: 548,
-      sizeKb: 7845,
-    },
-  ],
+  // No `editions` while the Book publishes only its central edition. See the
+  // CollectedVolumeEdition doc comment above.
 }
 
 /**
@@ -339,13 +340,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'A swarm of autonomous coding agents, left to coordinate itself, is Hobbes’ state of nature: rational, even well-meaning actors fall into a war of all against all. The operator rationally consents to a local authority for exactly Hobbes’ reason — the alternative is worse — and that authority governs the only way any sovereign governs a population it cannot personally inspect: by making the swarm legible. The binding constraint on scale is read-poverty, not write-contention; tokens are at once the cost-of-goods and the legibility engine; and authority needs a first-class, scoped, revocable consent primitive with an inalienable operator override.',
     summary:
       'A guided read of the series’ flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue using Signal Detection Theory as an explicit decision objective rather than a universal fitted detector.',
-    filename: 'legible-swarm-whitepaper',
-    pdfPath: '/whitepaper/legible-swarm-whitepaper.pdf',
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 63,
-    sizeKb: 939,
     status: 'Version 1.2 (textbook edition)',
     order: '04',
     chapter: 4,
@@ -454,13 +451,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'A swarm sharing one machine collides over the same scarce things: ports, files, locks, and the record of who did what. The instinct, trained on a decade of distributed-systems literature, is to reach for consensus. We make the opposite move: collapse the whole problem onto a single writer over a single local SQLite database in write-ahead-log mode, and let the operating system’s file lock serialize every mutation. There is one decider, so there is no agreement to reach. The kernel is a single-writer transactional reference monitor in the sense of Anderson and Lampson — and it is honest about exactly where its promises stop.',
     summary:
       'A guided read of the substrate chapter: why a single writer beats consensus on one machine, the kernel’s invariants stated as theorems, and a careful split of durability by fault class — survives a process crash, does not promise to survive a power cut.',
-    filename: 'single-writer-kernel-whitepaper',
-    pdfPath: '/whitepaper/single-writer-kernel-whitepaper.pdf',
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
-    pages: 56,
-    sizeKb: 827,
     status: 'Version 1.2 (textbook edition)',
     order: '01',
     chapter: 1,
@@ -570,13 +563,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'A swarm produces work, but until that work can be attributed to something that survives the process that did it, none of it can be priced. A role is a bundle of obligation, capability, and authority — an org-chart entry any spawn can fill. A person is a role instance plus continuity: durable memory, a restorable checkpoint, and a witnessed history of outcomes keyed on an identity that cannot be freely re-picked. From this comes the series’ central economic claim, stated identically across the papers: the reputation estimator is cheap; the substrate it scores over — witnessed outcomes on a non-forgeable identity — is the gate.',
     summary:
       'A guided read of the bridge chapter: the role-vs-person distinction made consequential, why reputation is not a bandit problem, a multi-dimensional reputation scored by neutral conflict-free judges, and the honest naming of cross-operator attestation as the unbuilt keystone.',
-    filename: 'spawn-to-person-whitepaper',
-    pdfPath: '/whitepaper/spawn-to-person-whitepaper.pdf',
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
-    pages: 52,
-    sizeKb: 810,
     status: 'Version 1.5 (textbook edition)',
     order: '05',
     chapter: 5,
@@ -685,13 +674,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'The first three chapters build a harbor for a single operator. This one is the rung above all of them — the only one whose participants are plural and mutually distrusting. The harbor economy is a three-sided market: operators sell labor and fleet-for-hire; agents and fleets are rentable assets; skills and tools are licensed — all settling on one conserving bond ledger via float-plan escrow. The chapter carries the series’ hardest boundary conditions honestly: cross-operator attestation is not shipped; conservation composes additively within one unit of account while cross-currency settlement needs time-indexed valuation, fee, slippage, and exposure accounts; and Myerson–Satterthwaite constrains only bilateral slices satisfying its private-information assumptions. The defensible product is hosted trust, not the commoditized payment rail.',
     summary:
       'A guided read of the market chapter: the three-sided market and its one conserving ledger, additive trace composition within a unit of account, explicit cross-currency exposure accounting, conditionally restricted custody, and the precise bilateral assumptions under which Myerson–Satterthwaite applies.',
-    filename: 'harbor-economy-whitepaper',
-    pdfPath: '/whitepaper/harbor-economy-whitepaper.pdf',
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 47,
-    sizeKb: 781,
     status: 'Version 1.3 (textbook edition)',
     order: '06',
     chapter: 6,
@@ -801,13 +786,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'When you spawn a script, that script often inherits far more authority than its task needs. This paper specifies signed identity and capability cards, attenuation checks, revocation data structures, and the verifier boundary that consumes them. ProVerif checks symbolic correspondence and attenuation properties of the phase models; Kani checks bounded source properties; conformance tests cover the deployed bridge. Those layers are complementary evidence, not a proof of arbitrary-depth delegation, complete runtime interception, or hardware-level constant time.',
     summary:
       'A guided read of the Anchor Protocol paper — what an "identity for a process" should even mean, how to mint one out of off-the-shelf cryptography, and why a problem that felt unsolvable in 2010 is now a long weekend\'s work.',
-    filename: 'anchor-protocol-whitepaper',
-    pdfPath: '/whitepaper/anchor-protocol-whitepaper.pdf',
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'August 2026',
-    pages: 38,
-    sizeKb: 698,
     status: 'Version 1.5 (textbook edition)',
     order: '02',
     chapter: 2,
@@ -916,13 +897,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'Two agents can negotiate directly; twenty need shared infrastructure. This paper proposes a commons authority that records advisory claims, durable evidence, and refundable bonds. The structural guarantees require relevant operations to pass through the runtime verifier; the economic results are conditional on their stated market, identity, monitoring, and oracle assumptions.',
     summary:
       'A guided read of the Bonded Commons paper: why mutual visibility beats locks once you have more than a handful of agents, what kind of refundable "deposit" makes that visibility honest instead of theatrical, and how a tiny insurance market beats any single human picking the deposit size by hand.',
-    filename: 'agent-transactions-whitepaper',
-    pdfPath: '/whitepaper/agent-transactions-whitepaper.pdf',
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
-    pages: 60,
-    sizeKb: 984,
     status: 'Version 2.8 (textbook edition)',
     order: '07',
     chapter: 7,
@@ -1038,13 +1015,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'Two locally coherent daemons do not automatically compose across an administrative boundary. This paper specifies cross-harbor capability transfer, witnessed revocation dissemination, a trusted custody design with a conditional extraction bound, bucket-partition conservation, and bonded admission. Expected logarithmic revocation completion requires a connected reliable-round model; a partition has no finite deadline. Custody restrictions prevent redirect only when the transfer path and keys are non-bypassable. The runtime and protocol models remain partial.',
     summary:
       'A guided read of the Federated Harbor paper — why two trustworthy local daemons can still fail jointly, what four small primitives close the gap, and the honest list of open questions the paper does not answer.',
-    filename: 'federated-harbor-whitepaper',
-    pdfPath: '/whitepaper/federated-harbor-whitepaper.pdf',
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
-    pages: 45,
-    sizeKb: 826,
     status: 'Version 1.1 (textbook edition)',
     order: '08',
     chapter: 8,
@@ -1168,13 +1141,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       'A data owner and a model owner who will share neither data nor model can still obtain one attributable, policy-bound joint computation. Token-level taint through a generative model is not soundly definable, so the security boundary cannot be the token; it has to be the declassification gate. This chapter builds that clean room — dual-attested key release, two fences, whole-worker taint, two gates — and prices what still gets through as an information-theoretic budget of q times b bits across q jobs, before timing channels, which stay out of model.',
     summary:
       'A guided read of the Sealed Harbor chapter: why a confident-sounding "cannot phone home" claim has to be replaced by a narrower, provable one, the four-pillar argument that replaces it (silence except through the slot, the channel as the only enforceable boundary, a conserving budget ledger, and a canary detector with a quotable curve), and the honest list of what none of it promises.',
-    filename: 'sealed-harbor-whitepaper',
-    pdfPath: '/whitepaper/sealed-harbor-whitepaper.pdf',
     readerHref: '/whitepaper/sealed-harbor',
     overviewHref: '/whitepaper?paper=sealed-harbor',
     date: 'September 2026',
-    pages: 21,
-    sizeKb: 554,
     status: 'Version 1.0 (textbook edition)',
     order: '03',
     chapter: 3,
@@ -1418,6 +1387,16 @@ export const TABLE_OF_CONTENTS: TableOfContentsPart[] = TEXTBOOK.parts.map((part
     .filter((paper): paper is WhitePaper => paper !== undefined),
 }))
 
+/**
+ * The chapter's editorial record — question, teaser, epigraph, one-line
+ * claim. These live in textbook.json rather than on WhitePaper because the
+ * Book's own front matter and the site read the same strings; duplicating
+ * them into the paper record would give two places for them to drift.
+ */
+export function chapterRecordFor(paperId: string) {
+  return TEXTBOOK.chapters.find((chapter) => chapter.id === paperId)
+}
+
 export function findWhitePaperByChapter(chapter: number) {
   return WHITE_PAPERS.find((paper) => paper.chapter === chapter)
 }
@@ -1436,10 +1415,6 @@ export function chapterRoleLabel(paper: WhitePaper) {
 
 export function formatPaperSize(sizeKb: number) {
   return `${sizeKb} KB`
-}
-
-export function paperPdfUrl(paper: WhitePaper) {
-  return paper.pdfPath
 }
 
 export function findWhitePaperById(paperId: string | null) {

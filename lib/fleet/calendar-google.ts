@@ -58,7 +58,14 @@ export class GoogleCalendarClient {
   constructor(
     private readonly creds: GoogleCalendarCreds,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly effectAllowed: () => boolean = () => true,
   ) {}
+
+  private assertEffectAllowed(): void {
+    if (!this.effectAllowed()) {
+      throw new Error('Local Port Daddy is Off or control state is unavailable; Google Calendar insert refused');
+    }
+  }
 
   private async token(): Promise<string> {
     if (this.accessToken && Date.now() < this.accessTokenExpiresAt - 60_000) {
@@ -144,6 +151,9 @@ export class GoogleCalendarClient {
     notes?: string;
   }): Promise<{ id: string; url?: string }> {
     const token = await this.token();
+    // Token refresh is not the effect. Re-adjudicate after that await and at
+    // the final boundary before the externally visible calendar insertion.
+    this.assertEffectAllowed();
     const res = await this.fetchImpl(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.creds.calendarId)}/events`,
       {

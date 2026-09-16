@@ -27,7 +27,7 @@
   \node[pd direct label,anchor=south] at (3.10,1.02) {present the same $tk$};
   \node[pd note,anchor=south] at (4.55,2.47) {request intervals overlap};
 
-  \fill[hhamber!9] (5.68,2.70) rectangle (6.38,-1.62);
+  \fill[pd caution fill] (5.68,2.70) rectangle (6.38,-1.62);
   \draw[pd caution rule] (5.68,2.70)--(5.68,-1.62);
   \draw[pd caution rule] (6.38,2.70)--(6.38,-1.62);
   \node[pd panel title,text=hhamber,rotate=90] at (6.03,.55) {ATOMIC DRAIN};
@@ -37,12 +37,12 @@
   % Exactly one request continues as a success; the other terminates visibly.
   \draw[pd focus arrow] (6.38,2.18)--(10.45,2.18);
   \node[pd focus datum] at (10.55,2.18) {};
-  \node[pd direct label,text=hhteal,anchor=west,font=\scriptsize\bfseries]
+  \node[pd verdict,text=hhteal,anchor=west]
     at (10.80,2.18) {SUCCESS};
   \draw[pd caution arrow] (6.38,1.02)--(10.45,1.02);
   \draw[pd caution rule,line width=1.2pt] (10.47,.88)--(10.67,1.16);
   \draw[pd caution rule,line width=1.2pt] (10.47,1.16)--(10.67,.88);
-  \node[pd direct label,text=hhamber,anchor=west,font=\scriptsize\bfseries]
+  \node[pd verdict,text=hhamber,anchor=west]
     at (10.80,1.02) {REJECT};
 
   % The database state has one falling edge and never rises again.

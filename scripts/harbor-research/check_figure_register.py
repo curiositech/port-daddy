@@ -26,6 +26,23 @@ Checks, over both files:
                              under one of the three figure corpora (a
                              `redraw`/`table`/`delete`/`add` row's fragment is
                              allowed to already be gone -- see the schema doc).
+  6. register ids resolve -- every artifact named in a FIGURE-REGISTER.md
+                             `existing figure` cell must exist: a `fig:`/`tab:`/
+                             `alg:`-style id must be `\\label`led (or carry a
+                             listings `label=`) somewhere in the eight chapter
+                             sources or the three figure corpora, and a bare
+                             fragment stem must exist as `<stem>.tex`.
+  7. register completeness-- every drawing fragment a chapter actually
+                             `\\input`s must be named by at least one register
+                             row, so a figure cannot ship unregistered.
+
+Checks 6 and 7 are the two directions of one join. Without them the register's
+`existing figure` column was the one cross-reference in this corpus that
+nothing verified -- and it had already drifted: `ch1-39` named
+`fig-swk-dual-runtime`, a fragment the Wave 11 triage deleted and which exists
+nowhere on disk. A row that wants a figure nobody has drawn says so with
+`none`; that is the explicit status, and it is what distinguishes "not drawn
+yet" from "names something that is not there".
 
 Usage:
     python3 scripts/harbor-research/check_figure_register.py [--verbose]
@@ -65,6 +82,21 @@ ROLE_ENUM = {"carries", "supports", "decorates", "interrupts"}
 # folded into an adjacent row, exempting it from the must/should/could/no
 # count. See figure-register.schema.md's priority column note.
 FOLDED_REGISTER_IDS = {"ch2-34"}
+
+# --- checks 6 and 7: the register's `existing figure` join -------------------
+# A `\label{...}`, and the listings package's `label={alg:acquire}` option --
+# the chapter algorithms are lstlisting exhibits, so their ids never appear in
+# a `\label`.
+LABEL_RE = re.compile(r"\\label\{([^}]+)\}")
+LST_LABEL_RE = re.compile(r"\blabel=\{?([A-Za-z][A-Za-z0-9:._-]*)\}?")
+# What an `existing figure` cell can name: a LaTeX-style id, or a bare
+# fragment stem (`session-bc-delta30`, and the one legacy `fig-...` spelling).
+CELL_ID_RE = re.compile(r"\b(?:fig|tab|alg|lst|thm|def):[A-Za-z0-9:._-]+")
+CELL_STEM_RE = re.compile(r"\b(?:fig|diag|session|legible-swarm|tab)-[A-Za-z0-9][A-Za-z0-9-]*")
+INPUT_FIGURE_RE = re.compile(r"\\input\{figures/([A-Za-z0-9._-]+)\}")
+# A cell that declares "no figure covers this row yet" -- the explicit status
+# an aspirational row carries, as opposed to naming something absent.
+NO_FIGURE_PREFIX = "none"
 
 CHAPTER_HEADING_RE = re.compile(r"^## Chapter (\d+)\s*(?:—|--|-)\s*(.+?)\s*(?:\(.*\))?\s*$")
 ANY_H2_RE = re.compile(r"^## ")
@@ -245,6 +277,142 @@ def check_register(by_number: dict[int, dict]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Checks 6 and 7: the `existing figure` join, both directions
+# ---------------------------------------------------------------------------
+
+def _read(path: str) -> str:
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def chapter_sources(textbook: dict) -> list[str]:
+    """The eight chapter sources, from textbook.json's `source` field -- the
+    same convention margin_lint.py and chapter_lint.py already follow, so a
+    ninth chapter joins this check the day the manifest gains one."""
+    return [c["source"] for c in textbook["chapters"]]
+
+
+def declared_labels(textbook: dict) -> set[str]:
+    """Every id that something in the corpus actually defines: `\\label{...}`
+    anywhere in a chapter source or a figure fragment, plus lstlisting
+    `label=` options (how `alg:` ids are declared)."""
+    out: set[str] = set()
+    paths: list[str] = []
+    for src in chapter_sources(textbook):
+        p = abspath(src)
+        if os.path.isfile(p):
+            paths.append(p)
+    for d in FIGURE_DIRS:
+        dd = abspath(d)
+        if not os.path.isdir(dd):
+            continue
+        paths.extend(
+            os.path.join(dd, fn) for fn in sorted(os.listdir(dd)) if fn.endswith(".tex")
+        )
+    for p in paths:
+        try:
+            text = _read(p)
+        except OSError:
+            continue
+        out.update(LABEL_RE.findall(text))
+        out.update(LST_LABEL_RE.findall(text))
+    return out
+
+
+def live_drawing_fragments(textbook: dict) -> dict[str, str]:
+    """{stem: relpath} for every fragment a chapter `\\input`s whose source
+    opens a `tikzpicture`. Both conjuncts are properties of the files, so
+    there is no hand-maintained skip list: the `pd-*` preamble includes draw
+    nothing, the `session-*` fragments are verbatim transcripts, and the
+    `tab-*` fragments are tabulars -- none of them opens a picture."""
+    live: dict[str, str] = {}
+    for src in chapter_sources(textbook):
+        src_abs = abspath(src)
+        if not os.path.isfile(src_abs):
+            continue
+        figdir = os.path.join(os.path.dirname(src_abs), "figures")
+        for stem in INPUT_FIGURE_RE.findall(_read(src_abs)):
+            if stem.endswith(".tex"):
+                stem = stem[: -len(".tex")]
+            frag = os.path.join(figdir, stem + ".tex")
+            if not os.path.isfile(frag):
+                continue
+            if "\\begin{tikzpicture}" not in _read(frag):
+                continue
+            live.setdefault(stem, rel(frag))
+    return live
+
+
+def register_existing_figure_cells(by_number: dict[int, dict]) -> list[tuple[int, str, str]]:
+    """(line_no, row_id, cell) for every well-formed register row."""
+    lines = read_lines(REGISTER_REL)
+    if lines is None:
+        return []
+    _fails, heading_chapter = check_chapter_headings(lines, REGISTER_REL, by_number)
+    rows: list[tuple[int, str, str]] = []
+    for i, line in enumerate(lines, 1):
+        m = REGISTER_ROW_RE.match(line)
+        if not m or chapter_for_line(i, heading_chapter) is None:
+            continue
+        cells = split_table_row(line)
+        if len(cells) != 11:
+            continue  # already reported by check_register
+        rows.append((i, m.group(1), cells[6]))
+    return rows
+
+
+def check_register_figure_ids(by_number: dict[int, dict], textbook: dict) -> list[str]:
+    """Checks 6 and 7 -- the two directions of the register's figure join."""
+    failures: list[str] = []
+    rows = register_existing_figure_cells(by_number)
+    if not rows:
+        return [f"{REGISTER_REL}: no parseable register rows to check ids over"]
+
+    labels = declared_labels(textbook)
+    live = live_drawing_fragments(textbook)
+
+    named: set[str] = set()
+    for line_no, rid, cell in rows:
+        ids = CELL_ID_RE.findall(cell)
+        stems = [s for s in CELL_STEM_RE.findall(cell)]
+        named.update(ids)
+        named.update(stems)
+        for ident in ids:
+            if ident not in labels:
+                failures.append(
+                    f"{REGISTER_REL}:{line_no}: row '{rid}' names '{ident}', which no "
+                    f"\\label (or listings label=) in the chapter sources or the figure "
+                    f"corpora declares -- draw it, fix the id, or set the cell to 'none'"
+                )
+        for stem in stems:
+            if not fragment_exists(stem):
+                failures.append(
+                    f"{REGISTER_REL}:{line_no}: row '{rid}' names fragment '{stem}', which "
+                    f"does not exist as '{stem}.tex' under {list(FIGURE_DIRS)} -- if the "
+                    f"figure was deleted, say 'none' and record why in the notes column"
+                )
+        if not ids and not stems and not cell.lower().startswith(NO_FIGURE_PREFIX):
+            failures.append(
+                f"{REGISTER_REL}:{line_no}: row '{rid}' has existing-figure cell "
+                f"{cell!r}, which names no id and does not declare 'none' -- an "
+                f"aspirational row must say 'none' explicitly"
+            )
+
+    # Direction two: a drawing that ships must be in the register.
+    for stem, path in sorted(live.items()):
+        frag_labels = set(LABEL_RE.findall(_read(abspath(path))))
+        if frag_labels & named or stem in named:
+            continue
+        shown = sorted(frag_labels) or ["<no \\label at all>"]
+        failures.append(
+            f"{REGISTER_REL}: fragment '{stem}' ({path}) is \\input by a chapter and "
+            f"draws, but no register row names it (its label(s): {shown}) -- add the "
+            f"row, or name it in the existing-figure cell of the row it covers"
+        )
+    return failures
+
+
+# ---------------------------------------------------------------------------
 # FIGURE-TRIAGE.md
 # ---------------------------------------------------------------------------
 
@@ -322,6 +490,7 @@ def main() -> int:
 
     checks = [
         ("FIGURE-REGISTER.md", check_register(by_number)),
+        ("FIGURE-REGISTER.md figure ids", check_register_figure_ids(by_number, textbook)),
         ("FIGURE-TRIAGE.md", check_triage(by_number)),
     ]
 

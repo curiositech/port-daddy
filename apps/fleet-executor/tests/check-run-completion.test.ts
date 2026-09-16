@@ -49,6 +49,7 @@ function fleetYaml(name: string): string {
     `    ${name}:`,
     '      trigger: pull_request:opened',
     '      blocking: true',
+    '      participation: { default: required, rules: [] }',
     '      fallbacks:',
     "        - backend: cloudflare",
     "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",

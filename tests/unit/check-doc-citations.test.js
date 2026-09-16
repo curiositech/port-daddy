@@ -9,7 +9,8 @@ import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
@@ -20,6 +21,16 @@ const fixture = (name) => join(repo, 'tests', 'fixtures', 'doc-citations', name)
 function run(...files) {
   try {
     const stdout = execFileSync('node', [script, ...files], { cwd: repo, encoding: 'utf8' });
+    return { code: 0, stdout, stderr: '' };
+  } catch (e) {
+    return { code: e.status ?? 1, stdout: e.stdout?.toString() ?? '', stderr: e.stderr?.toString() ?? '' };
+  }
+}
+
+/** Run an explicit script variant against an explicit file (used by the mutation tests below). */
+function runScript(scriptPath, ...files) {
+  try {
+    const stdout = execFileSync('node', [scriptPath, ...files], { cwd: repo, encoding: 'utf8' });
     return { code: 0, stdout, stderr: '' };
   } catch (e) {
     return { code: e.status ?? 1, stdout: e.stdout?.toString() ?? '', stderr: e.stderr?.toString() ?? '' };
@@ -45,6 +56,51 @@ describe('check-doc-citations guard', () => {
     expect(code).toBe(1);
     expect(stderr).toMatch(/no-such-sibling\.md/);
     expect(stderr).toMatch(/relative link target missing/);
+  });
+
+  // ── Brace-expansion exclusion and the proof-estate proposal markers ────────
+  //
+  // Raised by pd-qa on the PR that added these: the `{`/`}` exclusion and the
+  // `placeholder` / `artifact target` markers shipped with no test exercising
+  // them at all, so a future regex or list edit could silently start rejecting
+  // (or silently stop excluding) either one and nothing would notice. Each
+  // fixture line was checked non-vacuous BEFORE this test was written: with the
+  // exclusion or marker removed, that specific line — and only that line —
+  // fails, naming the same path the finding warned about.
+
+  test('a brace-expansion citation is out of scope, not a broken path', () => {
+    const { code, stdout } = run(fixture('clean.md'));
+    expect(code).toBe(0);
+    // Non-vacuity: the literal (braced) token is not a file on disk, so if the
+    // `{`/`}` exclusion in REPO_PATH_RE were ever dropped, this citation would
+    // start failing — and it would name exactly this token.
+    expect(stdout).not.toMatch(/coordination-\{crypto,acl\}/);
+  });
+
+  test('the two proof-estate prospective-artifact markers are honoured', () => {
+    const { code } = run(fixture('clean.md'));
+    expect(code).toBe(0);
+    // Mutation check, run directly rather than asserted on faith: strip the
+    // `'placeholder', 'artifact target',` entry from PROPOSAL_MARKERS and rerun
+    // the real script against the real fixture. Both lines that rely on those
+    // markers must fail, and only those two.
+    const src = readFileSync(script, 'utf8');
+    const markerLine = "  'placeholder', 'artifact target',\n";
+    expect(src).toContain(markerLine);
+    const mutated = src.replace(markerLine, '');
+    expect(mutated).not.toBe(src);
+
+    const dir = mkdtempSync(join(tmpdir(), 'doc-citations-mutation-'));
+    const mutatedScript = join(dir, 'check-doc-citations.mjs');
+    writeFileSync(mutatedScript, mutated);
+    try {
+      const { code: mutatedCode, stderr } = runScript(mutatedScript, fixture('clean.md'));
+      expect(mutatedCode).toBe(1);
+      expect(stderr).toMatch(/proofs\/economics\/does-not-exist-yet\.pv/);
+      expect(stderr).toMatch(/analyses\/does-not-exist-yet\.md/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   // ── Retired documents ─────────────────────────────────────────────────────
