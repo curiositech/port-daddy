@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
-import { createClaimForest } from '../../lib/claim-forest.js';
+import { createClaimForest, PROJECTLESS_REPO_ID } from '../../lib/claim-forest.js';
 import { createSessions } from '../../lib/sessions.js';
 
 describe('claim forest store', () => {
@@ -385,7 +385,7 @@ describe('claim forest store', () => {
     });
   });
 
-  it('uses local/unscoped defaults when old rows lack repo and worktree identity', () => {
+  it('uses a reserved projectless scope when old rows lack repo and worktree identity', () => {
     const sessions = createSessions(db);
     const started = sessions.start('identity-free legacy claim', { agentId: 'agent-a' });
     expect(started.success).toBe(true);
@@ -401,9 +401,39 @@ describe('claim forest store', () => {
     expect(forest.backfillFromSessionFiles()).toBe(1);
 
     expect(forest.getActiveClaimsForFile('lib/unscoped.ts')[0]).toMatchObject({
-      repoId: 'local',
+      repoId: PROJECTLESS_REPO_ID,
       worldKind: 'worktree',
       worldId: 'unscoped',
     });
+  });
+
+  it('keeps a literal local project distinct from projectless claims, including legacy local nodes', () => {
+    const sessions = createSessions(db);
+    const projectless = sessions.start('Projectless claim', { worktreeId: 'projectless-wt' });
+    const literalLocal = sessions.start('Literal local project', { project: 'local', worktreeId: 'local-wt' });
+    expect(projectless.success).toBe(true);
+    expect(literalLocal.success).toBe(true);
+
+    sessions.claimFiles(projectless.id, ['README.md']);
+    sessions.claimFiles(literalLocal.id, ['README.md']);
+
+    // Simulate the single shared node written by older builds. Read scope must
+    // come from each immutable session row, not this lossy projection.
+    const literalLocalNode = db.prepare(`
+      SELECT node_id AS nodeId
+      FROM claim_forest_claims
+      WHERE session_id = ?
+    `).get(literalLocal.id).nodeId;
+    db.prepare(`
+      UPDATE claim_forest_claims
+      SET node_id = ?
+      WHERE session_id = ?
+    `).run(literalLocalNode, projectless.id);
+
+    const forest = createClaimForest(db);
+    expect(forest.getActiveClaimsForFile('README.md', { repoId: null }).map((claim) => claim.sessionId))
+      .toEqual([projectless.id]);
+    expect(forest.getActiveClaimsForFile('README.md', { repoId: 'local' }).map((claim) => claim.sessionId))
+      .toEqual([literalLocal.id]);
   });
 });

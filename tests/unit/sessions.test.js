@@ -1106,6 +1106,18 @@ describe('Sessions Module', () => {
       expect(alphaLinked.success).toBe(true);
     });
 
+    it('should not collapse the valid local project into the projectless scope', () => {
+      const projectless = sessions.start('Projectless', { worktreeId: 'projectless-main' });
+      const literalLocal = sessions.start('Literal local', { project: 'local', worktreeId: 'local-main' });
+      sessions.claimFiles(projectless.id, ['README.md']);
+      sessions.claimFiles(literalLocal.id, ['README.md']);
+
+      expect(sessions.getFileConflicts(['README.md'], { project: null }).conflicts
+        .map((conflict) => conflict.sessionId)).toEqual([projectless.id]);
+      expect(sessions.getFileConflicts(['README.md'], { project: 'local' }).conflicts
+        .map((conflict) => conflict.sessionId)).toEqual([literalLocal.id]);
+    });
+
     it('should ignore unreleased zombie rows from inactive sessions', () => {
       const started = sessions.start('Old abandoned', { files: ['src/zombie.ts'] });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(started.id);

@@ -116,6 +116,7 @@ interface ClaimForestRow {
   session_id: string;
   purpose: string;
   session_agent_id: string | null;
+  session_identity_project: string | null;
   phase: string | null;
   claimed_at: number;
   released_at: number | null;
@@ -124,7 +125,11 @@ interface ClaimForestRow {
   legacy_session_file_id: number | null;
 }
 
-const DEFAULT_REPO_ID = 'local';
+// Identity project segments accept only [a-zA-Z0-9._*-], so this sentinel can
+// never collide with a legitimate project named "local" (or any other parsed
+// project). Keep the distinction in the persisted/read model: null is a real
+// projectless scope, not an alias for a conveniently named repository.
+export const PROJECTLESS_REPO_ID = '@projectless';
 const DEFAULT_WORLD_KIND: ClaimForestWorldKind = 'worktree';
 const DEFAULT_WORLD_ID = 'unscoped';
 
@@ -190,7 +195,7 @@ function stableId(prefix: string, parts: unknown[]): string {
 
 function normalizeRepoId(repoId?: string | null): string {
   const value = repoId?.trim();
-  return value || DEFAULT_REPO_ID;
+  return value || PROJECTLESS_REPO_ID;
 }
 
 function normalizeWorld(address: ClaimForestAddress): { kind: ClaimForestWorldKind; id: string; gitOid: string | null } {
@@ -277,7 +282,11 @@ function rowToClaim(row: ClaimForestRow): ClaimForestClaim {
   return {
     id: row.id,
     nodeId: row.node_id,
-    repoId: row.repo_id,
+    // The session row is the source of truth for repository scope. Deriving
+    // here also reconciles claims written by older builds that stored both a
+    // projectless session and the valid literal project "local" as repo_id
+    // "local"; no destructive migration can safely distinguish those nodes.
+    repoId: normalizeRepoId(row.session_identity_project),
     worldKind: row.world_kind,
     worldId: row.world_id,
     gitOid: row.git_oid,
@@ -369,7 +378,8 @@ export function createClaimForest(db: Database.Database) {
              c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
              n.repo_id, n.world_kind, n.world_id, n.selector_kind, n.path, n.symbol,
              n.symbol_path, n.start_line, n.end_line, n.git_oid,
-             s.purpose, s.agent_id AS session_agent_id, s.phase
+             s.purpose, s.agent_id AS session_agent_id,
+             s.identity_project AS session_identity_project, s.phase
       FROM claim_forest_claims c
       JOIN claim_forest_nodes n ON n.id = c.node_id
       JOIN sessions s ON s.id = c.session_id
@@ -381,7 +391,8 @@ export function createClaimForest(db: Database.Database) {
              c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
              n.repo_id, n.world_kind, n.world_id, n.selector_kind, n.path, n.symbol,
              n.symbol_path, n.start_line, n.end_line, n.git_oid,
-             s.purpose, s.agent_id AS session_agent_id, s.phase
+             s.purpose, s.agent_id AS session_agent_id,
+             s.identity_project AS session_identity_project, s.phase
       FROM claim_forest_claims c
       JOIN claim_forest_nodes n ON n.id = c.node_id
       JOIN sessions s ON s.id = c.session_id

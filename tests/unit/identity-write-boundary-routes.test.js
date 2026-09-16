@@ -259,6 +259,28 @@ describe('identity write boundary — sugar routes', () => {
     expect(res.json().success).toBe(true);
   });
 
+  test('the stamped owner can end an exact session after its display agentId is later bound elsewhere', async () => {
+    const begin = (await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: { purpose: 'work', identity: 'demo:test:rebound-display', lifecycle: 'durable' },
+    })).json();
+    // Display aliases are projections. Another actor can later bind the
+    // generated label without changing the immutable actor stamped on this
+    // exact session.
+    mintTestActor(souls, begin.agentId);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      payload: { sessionId: begin.sessionId, note: 'finished by stamped owner' },
+      headers: { 'x-actor-credential': begin.credential },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ success: true, sessionId: begin.sessionId });
+  });
+
   test('an attacker credential cannot complete or relink a victim explicit session when agentId is omitted', async () => {
     const owner = mintTestActor(souls, 'explicit-owner');
     const attacker = mintTestActor(souls, 'explicit-attacker');

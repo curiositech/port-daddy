@@ -919,11 +919,16 @@ export async function handleDone(
   // agent matches the agent this done asserts).
   const doneAgentId = typeof body.agentId === 'string' ? body.agentId : undefined;
   const pd = new PortDaddy({
-    agentId: doneAgentId,
     credential: resolveCliActorCredential(doneAgentId),
   });
   const data = await pd.done(note, {
-    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    // The exact session row carries the daemon-stamped owner actor. Do not
+    // redundantly assert its display agentId on the mutation: an initially
+    // unbound display alias can later acquire a different actor binding, and
+    // treating that projection as authority can reject the real owner before
+    // authorizeSugarSession checks the exact session. The credential still
+    // comes from the selected owner's context above; the daemon verifies it
+    // against this exact session before changing state.
     sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
     status: typeof body.status === 'string' ? body.status : undefined,
     skipOriginCheck: skipOriginCheck ? true : undefined,

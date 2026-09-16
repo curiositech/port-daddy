@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
+import { PROJECTLESS_REPO_ID } from '../../lib/claim-forest.js';
 import { createSessions } from '../../lib/sessions.js';
 
 describe('Region-Level File Claims', () => {
@@ -221,7 +222,7 @@ describe('Region-Level File Claims', () => {
       expect(claims.claims[0]).toMatchObject({
         sessionId: sid,
         filePath: 'src/routes.ts',
-        repoId: 'local',
+        repoId: PROJECTLESS_REPO_ID,
         worldKind: 'worktree',
         nodeId: expect.any(String),
       });
