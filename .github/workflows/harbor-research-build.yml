@@ -95,7 +95,29 @@ jobs:
           git add docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf
           echo "Changed PDFs:"; git diff --cached --stat
           git commit -m "build(harbor-research): regenerate PDFs from source"
-          git push origin "HEAD:$TARGET_BRANCH"
+          # The same race whitepaper-build already survives, and this job did
+          # not: the branch moves while the papers compile, so a bare push is
+          # rejected and the job reports red for a build that succeeded --
+          # exactly what happened at c11b5d073, where the PDFs were built and
+          # committed and the push lost to a source commit pushed meanwhile.
+          # Rebase the one PDF commit onto whatever arrived and try again, a
+          # few times, because the same race can be lost twice. No force: if
+          # the rebase cannot replay the commit, that is a real conflict over
+          # the PDFs and a person should see it.
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$TARGET_BRANCH"; then
+              echo "pushed the regenerated PDFs on attempt $attempt"; exit 0
+            fi
+            echo "push rejected (attempt $attempt) — the branch moved; rebasing onto it"
+            git fetch origin "$TARGET_BRANCH"
+            git rebase "origin/$TARGET_BRANCH" || {
+              git rebase --abort || true
+              echo "::error::the regenerated PDFs conflict with $TARGET_BRANCH and cannot be replayed automatically"
+              exit 1
+            }
+          done
+          echo "::error::could not push the regenerated PDFs after three attempts; the branch is moving faster than the papers build"
+          exit 1
 
       - name: Freshness check (advisory on PRs, enforced on main)
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')

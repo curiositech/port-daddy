@@ -1,0 +1,64 @@
+% R3 relation-map: NEW figure (no source script -- like R2, this result had
+% only a regime diagram in figures/src/, which is the Rail-B gap the round-2
+% review flagged). Drawn to the same base||target||relation-arrow grammar and
+% the same unit length as fig-r1-relation.tex, so the corpus keeps one
+% drawing convention.
+%
+% Base is the house repertoire's assigned base for this result
+% (skills/harbor-exposition/references/style-template-v2.md: "smoke detector
+% -> expected-loss inspection"). The only numbers on the map are the two
+% thresholds already worked in paper1.tex's "Numbers by hand": at
+% C_miss=100, c_att=1, C_fa=5 the bar is 6/105 = 0.0571, and at C_miss=1000
+% it is 6/1005 = 0.00597 -- both closed-form from Theorem 3's own inequality
+% a* = (c_att + C_fa)/(C_miss + C_fa). [verified]
+% [internal, drawn for paper1.tex Theorem 3]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.78cm,y=0.78cm]
+\node[align=center,font=\normalsize\bfseries,text=harborblue] at (6,12.35)
+  {R3 --- the dial is set by a cost ratio; ``anomaly'' is a probability, not a knob};
+
+% Base domain (left): the smoke detector
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,10.6);
+\node[align=center,font=\small\bfseries] at (2.0,11.4) {Base: a smoke detector};
+
+% Target domain (right): the surfacing rule
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,10.6);
+\node[align=center,font=\small\bfseries] at (10.0,11.4) {Target: the inspect-or-pass rule};
+
+% Row 1 --- one dial, one threshold
+\draw[thick,draw=black!55,fill=white] (0.85,8.75) circle (0.42);
+\draw[thick,draw=black!45] (0.85,8.75) circle (0.20);
+\draw[thick,draw=shipred,-{Stealth[length=1.6mm]}] (0.85,8.75) -- (1.13,9.06);
+\node[align=center,font=\scriptsize,text width=1.9cm] at (2.55,8.75)
+  {One dial. Its right setting is fixed by a \emph{ratio} of two costs, not by how much smoke};
+\node[align=center,font=\scriptsize,text width=2.6cm] at (10.0,8.75) {One threshold $a^\star$: inspect iff\\[1pt]$C_{\mathrm{miss}}\,a \ge c_{\mathrm{att}}+C_{\mathrm{fa}}(1{-}a)$,\\[1pt]i.e.\ $a \ge \frac{c_{\mathrm{att}}+C_{\mathrm{fa}}}{C_{\mathrm{miss}}+C_{\mathrm{fa}}}$};
+\draw[<->,>=Stealth,thick,shipred] (3.9,8.30) -- (8.1,8.30);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,9.90) {expected loss $=$\\magnitude $\times$ probability};
+
+% Row 2 --- the direction the dial moves, drawn
+\node[align=center,font=\scriptsize,text width=2.6cm] at (2.0,5.85) {House burns down (rare, catastrophic) against burnt toast at 3am (common, cheap)};
+\node[align=center,font=\scriptsize,text width=2.6cm] at (10.0,6.60) {$C_{\mathrm{miss}}{=}\mathrm{stakes}\times\mathrm{irrev}$ against $c_{\mathrm{att}}+C_{\mathrm{fa}}$};
+\draw[->,>=Stealth,black!55] (8.75,5.35) -- (11.45,5.35);
+\node[font=\tiny,text=black!60,anchor=west] at (11.48,5.16) {$a$};
+\fill[shipred] (8.95,5.35) circle (0.09);
+\fill[harborblue] (10.60,5.35) circle (0.09);
+\node[font=\tiny,text=shipred] at (8.95,5.02) {$0.006$};
+\node[font=\tiny,text=harborblue] at (10.60,5.02) {$0.057$};
+\draw[->,>=Stealth,shipred,thick] (10.60,5.70) -- (8.95,5.70);
+\node[font=\tiny,text=shipred,align=center] at (9.80,5.98) {$C_{\mathrm{miss}}: 100\to1000$};
+\draw[<->,>=Stealth,thick,shipred] (3.9,5.30) -- (8.1,5.30);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,6.90) {raise the fire's cost\\$\Rightarrow$ LOWER the bar to act};
+
+% Row 3 --- what miscalibration actually is
+\node[align=center,font=\scriptsize,text width=2.6cm] at (2.0,2.30) {A detector that cries wolf is not miscalibrated in \emph{sensitivity} --- it is wrong about the chance of fire};
+\node[align=center,font=\scriptsize,text width=2.6cm] at (10.0,2.30) {$\mathrm{anomaly}$ must be $\Pr(\mathsf{bad}\mid\text{evidence})$; any other scalar $s$ needs the calibration map $g$, fit from the audit log};
+\draw[<->,>=Stealth,thick,shipred] (3.9,1.70) -- (8.1,1.70);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,3.55) {miscalibration lives in the\\PROBABILITY, not the dial};
+
+\node[align=center,font=\scriptsize,text width=10.6cm] at (6.0,0.25)
+  {\itshape The misread the base invites: that a better sensor removes the trade-off. It does not --- a perfect sensor still needs the cost ratio to know where to trip, so the threshold is a statement about costs and the anomaly score is a statement about probability.};
+\end{tikzpicture}
+\caption{The relation-map for Theorem 3. Three relations transfer, and they are the section in order: expected loss is magnitude times probability, so the rule must weigh what being wrong costs and not merely how unusual the reading is; raising the miss cost \emph{lowers} the threshold at which to act (drawn in row 2, $a^\star$ moving from $0.057$ to $0.006$ as $C_{\mathrm{miss}}$ goes $100\to1000$ [verified]); and a rule that surfaces too much is miscalibrated in probability rather than over-sensitive, which is why $\mathrm{anomaly}=\Pr(\mathsf{bad}\mid\text{evidence})$ is an obligation and not a naming convention.}
+\label{fig:r3rel}
+\end{figure}

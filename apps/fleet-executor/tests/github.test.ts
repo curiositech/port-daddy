@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchTrustedShipContract, fetchPRContext, PullRequestDiffFetchError, type PRFile } from '../src/github.js';
+import {
+  fetchTrustedShipContract,
+  fetchPRContext,
+  PullRequestDiffFetchError,
+  MAX_FILES_BYTES,
+  type PRFile,
+} from '../src/github.js';
 
 /** Stub the GitHub Contents response with the supplied decoded contract text. */
 function stubTrustedContract(contract: string): ReturnType<typeof vi.fn> {
@@ -174,6 +180,82 @@ describe('fetchPRContext raw-diff 406 fallback', () => {
     expect(ctx.diff).toContain('Binary files a/assets/logo.png and b/assets/logo.png differ');
     expect(ctx.diff).toContain('diff --git a/src/a.ts b/src/a.ts');
     expect(ctx.diffSource).toBe('reconstructed-from-files');
+  });
+
+  it('stops at the page ceiling and says so rather than reporting a whole diff', async () => {
+    // Every page comes back full, so pagination never reaches a short page and
+    // the walk runs out at MAX_RECONSTRUCT_FILE_PAGES. The danger this pins is
+    // not the stopping — it is stopping QUIETLY: a diff that looks complete but
+    // is missing everything past the ceiling would have the reviewer read a
+    // fraction of the PR and call it reviewed. filesTruncated must be true.
+    let pagesServed = 0;
+    const fullPage = (page: number) =>
+      Array.from({ length: 100 }, (_, i) =>
+        makeFile({
+          filename: `src/p${page}-f${i}.ts`,
+          patch: `@@ -1,1 +1,1 @@\n-old${page}_${i}\n+new${page}_${i}`,
+        }));
+
+    const fetcher = routedFetch([
+      {
+        match: (url, accept) => url === PR_URL && accept === 'application/vnd.github.v3.diff',
+        respond: () => new Response('not acceptable', { status: 406 }),
+      },
+      { match: url => url === PR_URL, respond: livePrJson },
+      {
+        match: url => url.includes('/files') && url.includes('page='),
+        respond: () => {
+          pagesServed += 1;
+          return new Response(JSON.stringify(fullPage(pagesServed)), { status: 200 });
+        },
+      },
+      {
+        match: url => url.includes('/files'),
+        respond: () => new Response(JSON.stringify(fullPage(0)), { status: 200 }),
+      },
+    ]);
+    vi.stubGlobal('fetch', fetcher as unknown as typeof fetch);
+
+    const ctx = await fetchPRContext(OWNER, REPO, PR_NUMBER, MINIMAL_EVENT_PAYLOAD, 'token');
+
+    expect(ctx.diffSource).toBe('reconstructed-from-files');
+    expect(ctx.filesTruncated).toBe(true);
+    // The walk stops; it does not keep asking GitHub for pages forever.
+    expect(pagesServed).toBeLessThanOrEqual(40);
+    expect(ctx.files.length).toBeGreaterThan(0);
+  });
+
+  it('treats a /files page that overruns MAX_FILES_BYTES as truncated, not as valid JSON', async () => {
+    // readTextCapped stops reading at the byte ceiling, which leaves a JSON
+    // fragment behind. Parsing that fragment would either throw or — worse, if
+    // the cut happened to land somewhere parseable — yield a short file list
+    // that looks like the whole PR. Either way the answer is the same: the walk
+    // gives up on this page and marks the result truncated.
+    const oversized = Array.from({ length: 100 }, (_, i) =>
+      makeFile({
+        filename: `src/huge-${i}.ts`,
+        patch: `@@ -1,1 +1,1 @@\n-${'x'.repeat(60_000)}\n+${'y'.repeat(60_000)}`,
+      }));
+    const body = JSON.stringify(oversized);
+    expect(body.length).toBeGreaterThan(MAX_FILES_BYTES);
+
+    const fetcher = routedFetch([
+      {
+        match: (url, accept) => url === PR_URL && accept === 'application/vnd.github.v3.diff',
+        respond: () => new Response('not acceptable', { status: 406 }),
+      },
+      { match: url => url === PR_URL, respond: livePrJson },
+      {
+        match: url => url.includes('/files'),
+        respond: () => new Response(body, { status: 200 }),
+      },
+    ]);
+    vi.stubGlobal('fetch', fetcher as unknown as typeof fetch);
+
+    const ctx = await fetchPRContext(OWNER, REPO, PR_NUMBER, MINIMAL_EVENT_PAYLOAD, 'token');
+
+    expect(ctx.diffSource).toBe('reconstructed-from-files');
+    expect(ctx.filesTruncated).toBe(true);
   });
 
   it('reports diffSource "raw" when the raw diff endpoint succeeds', async () => {

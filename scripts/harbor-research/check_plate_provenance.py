@@ -49,6 +49,18 @@ A. Provenance schema (derived from scripts/whitepaper-plates/plates_pipeline.py
          entry["post"]                (technical/cover, technical/chapter-3)
          document["post"]             (swiss's document-level post note)
          entry["note"]                (technical's engraving-round entries)
+     - DERIVED RENDERS are the one exception to the three above. A plate
+       that is a render of something this repository already builds -- page
+       one of a CI-built edition PDF, for instance -- was made by no image
+       model, so it has no prompt, no model and no post-processing round.
+       Such an entry declares instead:
+         entry["derived_from"]  what it was rendered from
+         entry["render"]        how (tool, page, size, encode)
+       and those two stand in for "prompt", model provenance and the
+       post-processing note. Declaring "derived_from" without "render" is
+       itself a failure -- naming a source without saying what was done to
+       it is not provenance. Everything else, the aspect-ratio check
+       included, applies unchanged.
      - file resolution (see (b) below): the entry must name, or default to,
        a file that exists in the directory.
      - "final_aspect" / "generation_aspect" / "aspect" (checked in that
@@ -255,29 +267,51 @@ def check_provenance_dir(dir_path: str, label: str, required: bool) -> list[str]
             resolved = os.path.join(dir_path, filename)
 
         # (c) required per-entry fields (with document-level / reference fallbacks)
-        prompt = entry.get("prompt")
-        if not (isinstance(prompt, str) and prompt.strip()):
-            failures.append(f"{label}: entry '{key}' has no non-empty 'prompt'")
-
-        model_ok = any(
-            isinstance(v, str) and v.strip()
-            for v in (entry.get("model"), doc_model, entry.get("recovered_from"))
+        #
+        # A plate that is a RENDER of something the repository already builds
+        # -- page one of a CI-built edition PDF, say -- has no prompt, no
+        # model and no post-processing round, because no image model made it.
+        # Demanding those three of it would only invite a fabricated prompt,
+        # which is the opposite of what this file is for. Such an entry
+        # declares "derived_from" (what it was rendered from) and "render"
+        # (how), and those two stand in for the three below. Everything else,
+        # the aspect-ratio check included, still applies.
+        derived_from = entry.get("derived_from")
+        render = entry.get("render")
+        is_derived = (
+            isinstance(derived_from, str) and derived_from.strip()
+            and isinstance(render, str) and render.strip()
         )
-        if not model_ok:
+        if isinstance(derived_from, str) and derived_from.strip() and not is_derived:
             failures.append(
-                f"{label}: entry '{key}' has no model provenance (entry 'model', "
-                f"document-level 'model', or entry 'recovered_from')"
+                f"{label}: entry '{key}' declares 'derived_from' but no non-empty "
+                f"'render' saying how it was produced from it"
             )
 
-        post_ok = any(
-            isinstance(v, str) and v.strip()
-            for v in (entry.get("post"), doc_post, entry.get("note"))
-        )
-        if not post_ok:
-            failures.append(
-                f"{label}: entry '{key}' has no post-processing description (entry "
-                f"'post', document-level 'post', or entry 'note')"
+        if not is_derived:
+            prompt = entry.get("prompt")
+            if not (isinstance(prompt, str) and prompt.strip()):
+                failures.append(f"{label}: entry '{key}' has no non-empty 'prompt'")
+
+            model_ok = any(
+                isinstance(v, str) and v.strip()
+                for v in (entry.get("model"), doc_model, entry.get("recovered_from"))
             )
+            if not model_ok:
+                failures.append(
+                    f"{label}: entry '{key}' has no model provenance (entry 'model', "
+                    f"document-level 'model', or entry 'recovered_from')"
+                )
+
+            post_ok = any(
+                isinstance(v, str) and v.strip()
+                for v in (entry.get("post"), doc_post, entry.get("note"))
+            )
+            if not post_ok:
+                failures.append(
+                    f"{label}: entry '{key}' has no post-processing description (entry "
+                    f"'post', document-level 'post', or entry 'note')"
+                )
 
         # (d) aspect ratio, if declared
         aspect_field = next((f for f in ASPECT_FIELDS if f in entry), None)

@@ -106,6 +106,8 @@ Canonical root: `whitepaper/legible-swarm.tex` (14 figures).
 | `I/fig:readpoverty` | How does indexed lookup scale against eyeball search, and when does the L2 wedge begin paying? | two aligned population-scale panels: search cost and L2 value | shared swarm-size logic; O(n) eyeball and O(log n) index curves; nonzero value at n=1; approximately n=50 discovery bottleneck; distinct y-axes and panel titles | cumulative time curves; shaded backlog gap; funnel metaphor; unscaled piles; prose-only warning |
 | `I/fig:split-ranker` | How can one substrate support two incompatible rankings? | shared substrate splitting into two aligned scoring lanes or paired ranked lists | same candidate pool; shared decay; discovery objective; regret objective; reversed example ordering | homogeneous node diagram; telescope/lantern/chart art; one weighted score |
 | `I/fig:roles` | What grants authority, who exercises it, who is governed, and how is override returned? | differentiated institutional route | operator/principal; scoped grant; authority/actor; multitude; enforcement; legibility; revocation/override; mutual covenant | sand-dollar ring; stacked ovals; anonymous hierarchy; reciprocal arrows without labels |
+| `I/fig:escalation-band` | At a given attention budget, does a real dismissal-debit band exist, or have the alarm-load and miss-loss walls crossed? | two aligned rows on one shared linear axis, one budget per row | both walls per row; the feasible interval shaded when real; the walls' crossed order when the band is empty; one shared, labeled axis | two disconnected plots; a table of the same four numbers; an unscaled sketch |
+| `I/fig:split-penalty` | How much more than $2\times$ does splitting a shared digest into disjoint critical sets cost, and how does the penalty grow with critical-set size? | quantitative comparison plot over the theorem's full closed form | both $m$ series across their whole domain; the no-penalty reference line; the chapter's own worked points marked on the curve | the four hand-worked points alone with no curve; an unlabeled reference line |
 
 ## Volume II: The Single-Writer Kernel
 
@@ -156,25 +158,41 @@ Canonical root: `website-v2/public/whitepaper/harbor-economy.tex` (15 figures).
 | `IV/fig:he-three-sided` | How do labor, capital, and licensed IP enter and leave one conserving escrow? | typed accounting-flow junction | three distinct exposure records; serialized escrow turn; release/refund/bounded slash; conservation equation | three circles around escrow; overly blue Sankey; overlapping band labels |
 | `IV/fig:he-float-plan` | What ceremony creates an executable, funded plan? | three-step actor swimlane | request/terms; atomic ledger turn; signed execution; point before which no execution state exists | boxes with an unexplained blue rectangle; generic horizontal flow |
 | `IV/fig:he-conservation-functor` | What is conserved within a unit, and where does cross-currency exposure enter? | paired accounting panels with aligned equations | same transaction in both domains; conservation terms; exchange/exposure mapping; nonconserved risk | abstract commutative diagram without accounting labels; ornamental currencies |
+| `IV/fig:he-cold-start` | When should subsidies end without triggering an empty-market trap? | threshold/regime plot | measured liquidity axis; adoption/supply response; threshold; subsidized and priced regimes; transition assumption | calendar timeline; unlabeled rising curve; prose at plot edge |
+| `IV/fig:he-succession-price` | Past what mortality-to-succession ratio does no skill premium recover sole ownership? | threshold/regime plot with the boundary as a curve | the boundary $D^\star=\eta K/(1-\eta K)$; both axes as dimensionless ratios; the worked instance's own vertical read carrying the boundary value and the canary above it; the domain edge $\eta K<1$ | a filled block under the curve doing the work labels should do; an unlabeled hyperbola; the formula printed on the plot |
+| `IV/fig:he-assurance` | How does independent review reduce residual risk while cost grows? | paired residual-risk and cumulative-cost curves | reviewer count; geometric risk decay; linear cost; independence assumption; chosen operating region | unlabeled shrinking rectangles; blue arrows; assurance slogan box |
 | `IV/fig:fh-xfer` | Which four messages transfer capability without transferring root authority? | four-message swimlane sequence | equal harbors; offer/request/attestation/receipt order; signatures; retained roots | symmetric node graph; curved arrow tangle |
 | `IV/fig:fh-settlement` | How do bond, claim, verification, and clear/refuse outcomes compose? | settlement swimlane plus outcome partition | principals; escrow; evidence/oracle; custody assumption; clear/refuse terminal outcomes | top-down boxes with unclear ownership; note box larger than protocol |
 | `IV/fig:fh-revocation` | How does revocation spread over epochs and become auditable? | aligned epoch columns with state cells and a witness rail | t=0, delta, 2-delta; A/B/C state; gossip steps; root publication; convergence assumption | labels on arrows; overlapping state boxes; generic network animation still |
 | `IV/fig:fh-threat-bands` | Which threat bands require which assurance mechanisms? | assurance matrix or banded ledger | threat class; local/federated boundary; mechanism; residual risk; established/proposed status | decorative shield bands; undifferentiated checklist |
-| `IV/fig:he-cold-start` | When should subsidies end without triggering an empty-market trap? | threshold/regime plot | measured liquidity axis; adoption/supply response; threshold; subsidized and priced regimes; transition assumption | calendar timeline; unlabeled rising curve; prose at plot edge |
 | `IV/fig:cartel-game-inline` | Under which parameters is collusion sustainable? | payoff inequality plus phase/regime plot | collusive stream; detection probability; loss; discounting; deviation payoff; sustainable boundary | decorative seesaw; five blue ticks with no scale; equation floating alone |
-| `IV/fig:he-assurance` | How does independent review reduce residual risk while cost grows? | paired residual-risk and cumulative-cost curves | reviewer count; geometric risk decay; linear cost; independence assumption; chosen operating region | unlabeled shrinking rectangles; blue arrows; assurance slogan box |
+
+**The last five rows are compiled by nothing, and the atlas keeps them anyway.**
+They sit inside the `\else` branch of an `\ifpdbook` in `harbor-economy.tex`:
+the assembled Book takes a `\pdchapref` to chapter 7 or 8, and the chapter's
+standalone form — a submission-style reading whose reader had no other chapters
+to be pointed at — drew them instead. That form is retired: it was an A4 render
+of the same words with no margin column, and it no longer ships as a PDF. So
+the `\else` branch is now source with no output, and the CI check that policed
+it (`check_standalone_figures.py`) has been retired with it.
+
+The rows stay because the atlas covers what the SOURCES carry. Whether those
+branches should still be in the sources at all is an open question, and the
+five rows are the best inventory of what would be lost by deleting them.
 
 ## Volume V: The Anchor Protocol
 
-Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (8 figures).
+Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (9 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
+| `V/fig:anchor-four-phases` | What forced each successive protocol phase, and what does each phase close for good? | left-to-right flow diagram with a per-transition rationale and a per-phase closure box | four ordered phases; the forcing reason on each transition; the attack surface each phase forecloses; per-phase mechanization status | unexplained decorative boxes; a "needs" pill with no source in the chapter's own text; a uniform pass/fail strip that hides the one phase not machine-verified |
 | `V/fig:anchor-capability-attenuation` | How do rights and TTL strictly shrink across delegation? | nested sets paired with a rights/TTL table | root and child capabilities; strict subset relations; TTL decrease; attempted re-grant rejection | unexplained concentric circles; blue outline as sole meaning |
 | `V/fig:anchor-alg-confusion` | Why does issuer-pinned verification reject a token that attacker-selected verification accepts? | aligned paired security trace or comparison table | identical token bytes; control authority; algorithm source; verification trace; accept/reject outcome | two prose flows; giant arrows; colour-only safe/unsafe distinction |
 | `V/fig:anchor-delegation-inline` | What evidence travels with a multi-hop delegated capability? | linear provenance/sequence chain | issuer and delegates; signed tuple; attenuation at each hop; freshness/TTL; verifier checks | looping chain; decorative keys; unreadable token blob |
 | `V/fig:anchor-cuckoo-inline` | How do two candidate buckets bound load and failure? | bucket schematic plus load-threshold plot | two candidate locations; occupancy; relocation or failure; measured load ceiling; probability/assumption | bird metaphor; boxes without capacity scale |
 | `V/fig:anchor-revocation-gossip` | How quickly does a revocation reach all participants under stated assumptions? | epoch timeline or small-multiple spread map | initial revoked node; rounds; informed count/state; network assumptions; convergence bound | dense node hairball; overlapping labels; decorative epidemic arrows |
+| `V/fig:anchor-handshake-ladder` | Who signs each message of the issue--delegate--verify ceremony, and which participant stops being spoken to? | four-party UML sequence diagram: lifelines, activation boxes, a reflex self-message for the verifier's loop, and a shaded region over the offline stretch | the four participants; one structured label per message carrying the card, its signing key and its capability set; the narrowing capability set; the offline stretch as a drawn region the issuer takes no activation box inside | a static chain with no clock; arrows around a metaphor; prose boxes standing in for messages; a floating note in place of the region; a second arrow colour that encodes nothing |
 | `V/fig:anchor-card-lifecycle` | What are the only valid exits from an active card? | small state machine | issued/active states; expiry; revoke; invalid/rejected terminal state; guards | circular lifecycle infographic; ambiguous return arrows |
 
 ## Volume VI: The Bonded Commons
@@ -191,6 +209,7 @@ Canonical root: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex`
 | `VI/fig:cartel-game-inline` | Under which parameters is collusion sustainable? | same contract as `IV/fig:cartel-game-inline` | identical payoff symbols and boundary semantics; detection and loss effects | local decorative seesaw; inconsistent colours |
 | `VI/fig:bonded-key-custody` | Which key holder can break which guarantee? | custody-by-guarantee threat matrix | key holders; signing/redirecting/revoking powers; violated guarantee; mitigation | key icons around a lock; node graph of custodians |
 | `VI/fig:magic-link-inline` | How do concurrent consumers race for one atomic token? | two-lane race timeline | same token; concurrent arrival; atomic drain point; one success; one reject; durable result | two arrows into a magic-link icon; hidden serialization point |
+| `VI/fig:bc-delta-threshold` | At what patience does defecting stop paying, and what does bounding the punishment at three rounds cost? | two-curve xy plot against the discount factor, zero line as the indifference reference | both punishment regimes on one axis; the deviator's payoff in stage-game units; the threshold marked with both bounds named; the model-checked discount factor marked; the chapter's worked value at $\delta=0.9$ | two y axes; an unlabeled cubic; the grim curve run off scale without saying so |
 | `VI/fig:worked-example` | How do capability, evidence, and collateral evolve over wall-clock time in one transaction? | three-lane wall-clock timeline | shared time axis; issuance/execution/evidence/settlement events; cross-layer links; terminal outcome | vertical prose flow; unrelated mini-diagrams |
 
 ## Volume VII: The Federated Harbor
@@ -231,6 +250,36 @@ merely stylistic:
 | Revocation propagation | `IV/fig:fh-revocation`, `VII/fig:fh-revocation` | same epoch/state grammar and convergence assumptions |
 | Federated settlement | `IV/fig:fh-settlement`, `VII/fig:fh-settlement` | same principals, custody boundary, evidence path, and terminal partition |
 | Cartel condition | `IV/fig:cartel-game-inline`, `VI/fig:cartel-game-inline` | same symbols, inequality orientation, and phase boundary |
+
+**These five emptied and came back within a day, and the round trip is worth
+recording.** They were deleted on 2026-09-08 because each of them was, at that
+moment, a drawing the assembled Book printed TWICE under two figure numbers with
+two captions — invisible in either chapter's source and in either standalone
+PDF, visible only in the Book. An outside reader noticed two; checking
+mechanically found seven. The author's decision was that the chapter which
+DEVELOPS an idea owns the drawing and the other points at it, so the five volume
+IV rows went with them.
+
+Deleting them was half a fix. `harbor-economy.tex` was not only chapter 6; it
+was also the source of `harbor-economy-whitepaper.pdf`, and rewriting its prose
+to point at chapters removed five figures from that submission paper and left
+it telling a conference reader that a ceremony is "drawn in The Federated
+Harbor" — a document that reader did not have. The fix was `\ifpdbook`: the
+Book takes the cross-reference, the paper keeps its own copy.
+
+The per-chapter PDFs have since been retired, so there is no second document to
+protect and the `\else` branch compiles nowhere. The conditional is recorded
+here as the reason the five rows exist, not as live machinery.
+
+Which is exactly the case the previous revision of this note said would refill
+the table — "a standalone paper carrying its own copy is exactly that case" —
+written before anyone had noticed it was already the case. So the contracts are
+back, and they now mean what this table was always for: two renders that must
+stay semantically identical across two shipped PDFs. What the table must never
+again record is a duplication INSIDE one Book as though it were deliberate
+reuse; `scripts/harbor-research/check_duplicate_figures.py` reads only the
+`\ifpdbook` branch and fails the build on that, so the state cannot return
+unnoticed.
 
 If a shared figure changes, inspect every member of its contract in the same contact sheet. A
 local redraw that subtly reverses direction, changes the scale, or drops an assumption is a

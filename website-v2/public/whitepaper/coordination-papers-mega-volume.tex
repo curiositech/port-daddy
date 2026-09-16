@@ -28,9 +28,19 @@
   % three type sizes on one left datum at 14 mm, the imprint in the foot.
   \pdswisscoverart
   \begin{tikzpicture}[remember picture,overlay,shift={(current page.north west)},x=1mm,y=-1mm]
-    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,18) {The Harbor,\\the Person,\\and the Economy};
-    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,70) {\pdeditionsubtitle};
-    \node[anchor=south west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (14,246) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+    % The type block ends at about 28% of the 254mm page, which is the number
+    % the cover plate's reserved band has to clear: see
+    % scripts/whitepaper-plates/check_cover_title_band.py, which measures the
+    % plate and fails the build rather than leaving it to the eye. Round 4a's
+    % cover looked clean in a contact sheet, started its photograph 2% down,
+    % and printed the subtitle over a container port.
+    % All three lines live in the plate's reserved band, top-left, and the
+    % image has the rest of the sheet. The imprint used to sit at the foot,
+    % which put 9pt type over a halftone photograph that is 37% lighter than
+    % luminance 140 -- neither black nor reversed white reads on that.
+    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,14) {The Harbor,\\the Person,\\and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,66) {\pdeditionsubtitle};
+    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhgray] at (14,75) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
   \end{tikzpicture}
 \else\ifpdtechnical
   % Technical cover: the engraving in the lower two thirds of the sheet, the
@@ -78,13 +88,31 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \end{minipage}
 \vspace*{1.0cm}
 \clearpage
-% Frontispiece: the etching faces the title matter (plates/frontispiece.jpg is optional).
-\IfFileExists{plates/frontispiece.jpg}{%
-  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
-  \vspace*{\fill}
-  \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{plates/frontispiece.jpg}\end{center}
-  \vspace*{\fill}
-  \clearpage}{}%
+% Frontispiece: the plate faces the title matter, in the edition's own register.
+%
+% It used to be one maritime etching printed in all three editions and wrapped
+% in \IfFileExists, which is two defects in four lines. The etching's vellum and
+% cross-hatching in front of the Swiss edition's flat colour blocks announced
+% that the character stops at the cover; and a missing plate printed NOTHING, so
+% the book would have shipped without a frontispiece and told nobody -- the
+% silent fallback the plate rule exists to forbid (see the \PackageError in
+% coordination-papers-mega-volume-swiss-plates.tex, which this now matches).
+\newcommand{\pdfrontispiece}[1]{%
+  \IfFileExists{#1}{%
+    \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
+    \vspace*{\fill}
+    \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{#1}\end{center}
+    \vspace*{\fill}
+    \clearpage}{%
+    \PackageError{coordination-papers-mega-volume}{Missing plate render #1}%
+      {Generate this edition's frontispiece and place it at #1 before building.}}}
+\ifpdswiss
+  \pdfrontispiece{plates/swiss/frontispiece.jpg}
+\else\ifpdtechnical
+  \pdfrontispiece{plates/technical/frontispiece.jpg}
+\else
+  \pdfrontispiece{plates/frontispiece.jpg}
+\fi\fi
 \nopagecolor\color{hhink}
 
 \pagenumbering{roman}
@@ -165,9 +193,16 @@ what an operator must be able to see (\pdchapref{ls}{The Legible
 Swarm}); what remains long enough to owe anything (\pdchapref{stp}{From Spawn
 to Person}); what makes exchange rational (\pdchapref{he}{The Harbor Economy});
 who may decide, on what evidence (\pdchapref{bonded}{The Bonded Commons}); and
-what may cross a trust boundary (\pdchapref{fh}{The Federated Harbor}). The
-standalone editions of the chapters keep their abstracts and reader maps; here
-each chapter opens on the question it answers and begins with its argument.
+what may cross a trust boundary (\pdchapref{fh}{The Federated Harbor}). No
+chapter carries its own abstract or reader's map, in this edition or any
+other; each chapter simply opens on the question it answers and begins with
+its argument. What follows is the one reader's map this book keeps: not a
+table repeated once per chapter, but a single figure tracing five kinds of
+reader through the book's four parts, drawn once, in front, where a route can
+be checked against the whole argument instead of guessed one chapter at a
+time.
+
+\input{figures/fig-book-reader-map}
 
 There are two ways through every result. Each opens with an express lane, the
 claim in one breath and a pointer to the box that states it precisely; readers
@@ -194,6 +229,48 @@ means a running slice that does not yet satisfy its full contract;
 \Vision{} is a research direction. Mathematical proofs, imported frameworks,
 finite model checks, repository experiments, and running code remain separate
 kinds of evidence throughout, and none is silently promoted into another.
+
+\paragraph{Four ways to teach from this book.} The eight chapters are written to
+be read in order and they do not have to be. Each of the paths below is a
+coherent semester that ends somewhere, rather than a subset that merely omits
+things, and each names the chapter that carries the weight of that discipline's
+own question.
+
+\begin{table}[H]
+\centering
+\caption{Course paths. A path's chapters are read in the order given, which is
+always the book's own order; the rest of the book becomes reference.}
+\label{tab:course-paths}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Course} & \textbf{Chapters} & \textbf{What the path is about} \\
+\midrule
+Distributed Systems and Security & 1, 2, 3, 8 &
+One writer and one history; authority that can only narrow; a room whose exit is
+metered; and what survives crossing a trust boundary between parties who share
+no daemon. \\
+Multi-Agent Economics and Mechanism Design & 5, 6, 7 &
+What has to persist before anything can owe anything, what makes exchange
+rational between strangers, and who decides on what evidence when the bond is
+called. \\
+Human Supervisory Control and Interface Design & 1, 4, 7 &
+The kernel as the thing being supervised, the price of seeing it in bits, and
+the governance surface an operator actually acts through. \\
+Formal Methods and Software Verification & 1, 2, 7, 8 &
+Supervisory control and decidability, mechanized protocol proofs and what their
+harnesses do not cover, TLA\textsuperscript{+} over a coordination lifecycle, and
+a sheaf-theoretic detector with a stated blind spot. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent Two warnings that apply to all four. Every path starts at the chapter
+that grounds it rather than at the chapter that sounds most like the course
+title, which is why three of the four begin with the kernel. And no path is
+self-contained on the formal side: results are cross-cited across parts on
+purpose, so a path's chapters will reach for boxes outside it, and the Result
+Atlas at the back is the map for that rather than a reason to widen the path.
 
 \paragraph{How a claim about the harness earns its grade.} The vocabulary
 above grades claims about mechanisms. Claims about the harness itself ---
@@ -330,6 +407,7 @@ artifact. The chapters stand alone; the book's claim is the chain they make.
 \clearpage
 \pagenumbering{arabic}
 \hypersetup{pageanchor=true}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-solutions.tex}{solutions}
 \input{coordination-papers-mega-volume-appendices.tex}

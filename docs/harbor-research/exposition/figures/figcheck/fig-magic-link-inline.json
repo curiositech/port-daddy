@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-magic-link-inline/fig-magic-link-inline.pdf",
+  "figure": "fig-magic-link-inline",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -7,119 +7,39 @@
   },
   "checks": {
     "T1": {
-      "status": "fail",
-      "count": 4,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            173.09701538085938,
-            206.17901611328125,
-            176.76181030273438,
-            212.1770477294922
-          ],
-          "text": "0",
-          "size_pt": 6.0,
-          "message": "text '0' renders at 6.00pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            305.36029052734375,
-            206.17901611328125,
-            309.02508544921875,
-            212.1770477294922
-          ],
-          "text": "1",
-          "size_pt": 6.0,
-          "message": "text '1' renders at 6.00pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            325.27130126953125,
-            206.17901611328125,
-            328.93609619140625,
-            212.1770477294922
-          ],
-          "text": "2",
-          "size_pt": 6.0,
-          "message": "text '2' renders at 6.00pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            451.84588623046875,
-            206.17901611328125,
-            455.51068115234375,
-            212.1770477294922
-          ],
-          "text": "3",
-          "size_pt": 6.0,
-          "message": "text '3' renders at 6.00pt, below the 7.00pt floor"
-        }
-      ]
-    },
-    "T2": {
       "status": "pass",
       "count": 0,
       "findings": []
     },
-    "T3": {
+    "T2": {
       "status": "fail",
-      "count": 2,
+      "count": 1,
       "findings": [
         {
-          "check": "T3",
+          "check": "T2",
           "severity": "fail",
           "page": 0,
           "bbox": [
-            229.3741912841797,
-            57.06966018676758,
-            319.9044189453125,
-            65.06703186035156
+            192.7919921875,
+            124.23712921142578,
+            253.09646606445312,
+            133.63450622558594
           ],
-          "other_bbox": [
-            216.8740692138672,
-            50.14058303833008,
-            259.3401184082031,
-            58.1379508972168
+          "container_bbox": [
+            191.29754638671875,
+            123.57330322265625,
+            254.59164428710938,
+            132.7393035888672
           ],
-          "text": "request intervals overlap",
-          "other_text": "UPDATE ...",
-          "overlap_fraction": 0.094,
-          "message": "text 'request intervals overlap' overlaps 'UPDATE ...' by 9.4% of the smaller bbox"
-        },
-        {
-          "check": "T3",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            229.3741912841797,
-            57.06966018676758,
-            319.9044189453125,
-            65.06703186035156
-          ],
-          "other_bbox": [
-            267.83331298828125,
-            50.14058303833008,
-            416.47247314453125,
-            58.1379508972168
-          ],
-          "text": "request intervals overlap",
-          "other_text": "WHERE consumed_at IS NULL RETURNING",
-          "overlap_fraction": 0.077,
-          "message": "text 'request intervals overlap' overlaps 'WHERE consumed_at IS NULL RETURNING' by 7.7% of the smaller bbox"
+          "text": "available: NULL",
+          "message": "text 'available: NULL' escapes its containing rect (191.3, 123.6, 254.6, 132.7)"
         }
       ]
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
     "T4": {
       "status": "fail",
@@ -130,20 +50,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            229.3741912841797,
-            57.06966018676758,
-            319.9044189453125,
-            65.06703186035156
+            225.4515380859375,
+            56.00042724609375,
+            322.4796447753906,
+            64.96707153320312
           ],
           "text": "request intervals overlap",
           "line_segment": [
             [
-              306.76202392578125,
-              62.183258056640625
+              306.0030517578125,
+              62.06941223144531
             ],
             [
-              306.76202392578125,
-              185.06004333496094
+              306.0030517578125,
+              184.53106689453125
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'request intervals overlap'"
@@ -153,20 +73,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            312.8330383300781,
-            81.14167785644531,
-            321.830078125,
-            165.53390502929688
+            312.05352783203125,
+            80.9637680053711,
+            321.0201721191406,
+            165.07089233398438
           ],
           "text": "ATOMIC DRAIN",
           "line_segment": [
             [
-              150.89036560058594,
-              109.96857452392578
+              150.65797424316406,
+              109.69328308105469
             ],
             [
-              476.5712890625,
-              109.96857452392578
+              475.23858642578125,
+              109.69328308105469
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'ATOMIC DRAIN'"
@@ -176,20 +96,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            454.09381103515625,
-            73.52530670166016,
-            498.5191955566406,
-            81.52267456054688
+            452.83709716796875,
+            73.37313842773438,
+            497.11236572265625,
+            81.34349060058594
           ],
           "text": "SUCCESS",
           "line_segment": [
             [
-              150.89036560058594,
-              76.97415161132812
+              150.65797424316406,
+              76.8103256225586
             ],
             [
-              476.5712890625,
-              76.97415161132812
+              475.23858642578125,
+              76.8103256225586
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'SUCCESS'"
@@ -199,20 +119,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            454.09381103515625,
-            106.51972961425781,
-            493.19293212890625,
-            114.51710510253906
+            452.83709716796875,
+            106.25609588623047,
+            491.8041687011719,
+            114.22644805908203
           ],
           "text": "REJECT",
           "line_segment": [
             [
-              150.89036560058594,
-              109.96857452392578
+              150.65797424316406,
+              109.69328308105469
             ],
             [
-              476.5712890625,
-              109.96857452392578
+              475.23858642578125,
+              109.69328308105469
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'REJECT'"
@@ -222,20 +142,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            444.9915771484375,
-            170.42178344726562,
-            500.1413269042969,
-            178.5668487548828
+            443.765625,
+            169.39427185058594,
+            503.6375732421875,
+            178.52650451660156
           ],
           "text": "receipt tk 7\u2192A",
           "line_segment": [
             [
-              150.89036560058594,
-              174.8202667236328
+              150.65797424316406,
+              174.3258819580078
             ],
             [
-              476.5712890625,
-              174.8202667236328
+              475.23858642578125,
+              174.3258819580078
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'receipt tk 7\u2192A'"
@@ -245,20 +165,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            167.538330078125,
-            180.7849578857422,
-            376.06182861328125,
-            188.78233337402344
+            167.2497100830078,
+            179.7379150390625,
+            390.743408203125,
+            188.70455932617188
           ],
           "text": "the rejected consumer creates no second state transition",
           "line_segment": [
             [
-              306.76202392578125,
-              62.183258056640625
+              306.0030517578125,
+              62.06941223144531
             ],
             [
-              306.76202392578125,
-              185.06004333496094
+              306.0030517578125,
+              184.53106689453125
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'the rejected consumer creates no second state transition'"
@@ -266,6 +186,11 @@
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -281,11 +206,21 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1614,
+      "edge_density": 0.0877,
+      "distinct_colors": 2064,
+      "flags": [
+        "edge_density=0.088 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
-      "T1",
-      "T3",
+      "T2",
       "T4"
     ],
     "warned_checks": []

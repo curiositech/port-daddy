@@ -73,7 +73,12 @@ WORKTREE_MARKER = os.path.join(".claude", "worktrees")
 
 INPUT_RE = re.compile(r"\\(?:input|include)\{([^}]+)\}")
 BIBITEM_RE = re.compile(r"\\bibitem(?:\[[^\]]*\])?\{([^}]+)\}")
-CITE_RE = re.compile(r"\\cite(?:\[[^\]]*\])?\{([^}]+)\}")
+# \pdcite{key} (figures/pd-pedagogy.tex) emits \cite{key} plus, in the Book
+# only, a margin short-form note; the chapters use it at every point of use
+# (scripts/harbor-research/promote_cites.py rewrote \cite{ to \pdcite{ there),
+# so a citation use is either spelling, not just the bare \cite the class
+# name might suggest.
+CITE_RE = re.compile(r"\\(?:pd)?cite(?:\[[^\]]*\])?\{([^}]+)\}")
 YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
 
 # Words too generic to count as a "distinctive shared word" for check 4 — mostly
@@ -125,8 +130,16 @@ def strip_comments(line: str) -> str:
     return "".join(out)
 
 
+MACRO_PARAM_RE = re.compile(r"^#\d+$")
+
+
 def split_keys(raw: str) -> list[str]:
-    return [k.strip() for k in raw.split(",") if k.strip()]
+    # A bare macro-parameter token ("#1", "#2", ...) is never a real
+    # bibliography key -- it shows up here only inside a macro DEFINITION
+    # body (e.g. figures/pd-pedagogy.tex's \pdcite{#1} -> \cite{#1}, a
+    # shared file every chapter and the Book \input), where it would
+    # otherwise look like a dangling \cite in every document that inputs it.
+    return [k.strip() for k in raw.split(",") if k.strip() and not MACRO_PARAM_RE.match(k.strip())]
 
 
 @dataclass

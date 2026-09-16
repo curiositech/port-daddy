@@ -369,6 +369,61 @@ class TestJsonOutput(unittest.TestCase):
             self.assertEqual(findings[0]["severity"], "advisory")
 
 
+class TestProvedOnResolves(unittest.TestCase):
+    """\\pdprovedon looks its label up in a generated table and, finding
+    nothing, sets a blank margin note -- no error, no warning, just a "Proved
+    on p. N" pointer that silently is not there. The generator already fails
+    closed on the other direction (an entry whose target label has moved), so
+    this rule closes the pair."""
+
+    DISCHARGES_REL = Path("website-v2") / "public" / "whitepaper" / "figures" / "pd-discharges.tex"
+
+    def write_discharges(self, repo: Path, labels: list[str]) -> None:
+        path = repo / self.DISCHARGES_REL
+        path.parent.mkdir(parents=True, exist_ok=True)
+        body = "\n".join(
+            f"\\pdprovedonentry{{{label}}}{{ap:thm:x}}{{thm}}" for label in labels)
+        path.write_text("% GENERATED\n\n" + body + "\n", encoding="utf-8")
+
+    def test_a_pointer_with_an_entry_passes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            self.write_discharges(repo, ["thm:kernel-promise"])
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "The kernel leaves this open.\\pdprovedon{thm:kernel-promise}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("provedon-resolves", result.stdout)
+
+    def test_a_pointer_with_no_entry_fails_the_build(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            self.write_discharges(repo, ["thm:some-other-promise"])
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "The kernel leaves this open.\\pdprovedon{thm:renamed-away}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn("provedon-resolves", result.stdout)
+            self.assertIn("thm:renamed-away", result.stdout)
+
+    def test_a_missing_table_does_not_excuse_a_pointer(self) -> None:
+        """No pd-discharges.tex at all means no entry resolves, which is the
+        same defect and must not read as "nothing to check"."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "The kernel leaves this open.\\pdprovedon{thm:kernel-promise}\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn("provedon-resolves", result.stdout)
+
+
 class TestCleanChapterPasses(unittest.TestCase):
     def test_no_macros_at_all_passes(self) -> None:
         with TemporaryDirectory() as tmp:

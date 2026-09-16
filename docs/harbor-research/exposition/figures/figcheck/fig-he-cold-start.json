@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-he-cold-start/fig-he-cold-start.pdf",
+  "figure": "fig-he-cold-start",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -7,52 +7,9 @@
   },
   "checks": {
     "T1": {
-      "status": "fail",
-      "count": 3,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            324.36077880859375,
-            30.108461380004883,
-            328.2198486328125,
-            36.147674560546875
-          ],
-          "text": "\u22c6",
-          "size_pt": 6.04,
-          "message": "text '\u22c6' renders at 6.04pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            382.83660888671875,
-            69.29620361328125,
-            386.6956787109375,
-            75.33541870117188
-          ],
-          "text": "\u22c6",
-          "size_pt": 6.04,
-          "message": "text '\u22c6' renders at 6.04pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            72.42570495605469,
-            260.4239196777344,
-            76.50540924072266,
-            267.39776611328125
-          ],
-          "text": "\u22c6",
-          "size_pt": 6.97,
-          "message": "text '\u22c6' renders at 6.97pt, below the 7.00pt floor"
-        }
-      ]
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
     "T2": {
       "status": "pass",
@@ -73,20 +30,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            377.8458251953125,
-            69.29620361328125,
-            386.6956787109375,
-            78.61848449707031
+            374.1126708984375,
+            68.28006744384766,
+            383.2852783203125,
+            78.69529724121094
           ],
           "text": "\u03bb\u22c6",
           "line_segment": [
             [
-              115.51902770996094,
-              77.75665283203125
+              115.10421752929688,
+              77.13036346435547
             ],
             [
-              427.68463134765625,
-              77.75665283203125
+              423.321044921875,
+              77.13036346435547
             ]
           ],
           "message": "a drawn line crosses through the interior of text '\u03bb\u22c6'"
@@ -94,6 +51,11 @@
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -109,10 +71,20 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.111,
+      "edge_density": 0.0829,
+      "distinct_colors": 1401,
+      "flags": [
+        "edge_density=0.083 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
-      "T1",
       "T4"
     ],
     "warned_checks": []

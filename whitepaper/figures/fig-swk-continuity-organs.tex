@@ -2,23 +2,19 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure]
-\begin{axis}[
+\begin{axis}[pd axis,
   width=\linewidth,
   height=5.4cm,
   axis lines=left,
-  axis line style={draw=hhink},
-  tick style={draw=hhgray},
   symbolic x coords={memory,checkpoint,continuity,outcome,identity,market},
   xtick=data,
   xticklabels={memory,check-\\point,continuity,outcome\\ledger,identity,market},
-  xticklabel style={align=center,text width=1.6cm,font=\footnotesize},
+  xticklabel style={align=center,text width=1.6cm},
   ytick={0,1,2,3},
   yticklabels={none,partial,{notes only},full},
-  yticklabel style={font=\footnotesize},
   ymin=-.3,ymax=3.6,
   enlarge x limits=0.09,
   ylabel={evidence the next link can inherit},
-  ylabel style={font=\footnotesize,align=center},
   clip=false,
 ]
 \addplot[const plot,color=hhteal,line width=1.3pt,mark=*,
@@ -28,10 +24,10 @@
 \coordinate (oc) at (axis cs:outcome,1);
 \end{axis}
 \draw[pd guide] (cp) -- ++(0,.85cm);
-\node[anchor=south,font=\footnotesize\itshape,text=hhamber,text width=2.9cm,align=center]
+\node[pd note,anchor=south,text=hhamber,text width=3.4cm,align=center]
   at ($(cp)+(0,.95cm)$) {recovery restores notes, not execution state};
 \draw[pd guide] (oc) -- ++(0,.85cm);
-\node[anchor=south,font=\footnotesize\itshape,text=hhamber,text width=2.9cm,align=center]
+\node[pd note,anchor=south,text=hhamber,text width=3.4cm,align=center]
   at ($(oc)+(0,.95cm)$) {outcomes witnessed only in part};
 \end{tikzpicture}
 \caption{The continuity chain as an evidence-support profile. What checkpoint

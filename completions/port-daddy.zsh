@@ -954,6 +954,7 @@ _pd_cmd_session() {
     'done:end a session (alias for end)'
     'abandon:abandon a session'
     'takeover:create successor session; preserve notes'
+    'find:recover my session by begin key or identity'
     'rm:archive a session; preserve notes'
     'files:manage file claims for a session'
     'phase:set session phase (planning/in_progress/testing/etc)'
@@ -1006,6 +1007,17 @@ _pd_cmd_session() {
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:predecessor session ID:'
+          ;;
+        find)
+          _arguments \
+            '--key[begin idempotency key to recover]:key:' \
+            '--identity[identity to search (project:stack:context)]:identity:' \
+            '--all-worktrees[search every worktree]' \
+            '--all[include closed sessions]' \
+            '--no-adopt[do not write the recovered context locally]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1::begin idempotency key:'
           ;;
         files)
           local -a files_subcmds
@@ -2448,7 +2460,6 @@ _port_daddy() {
     'restart:restart the Port Daddy daemon'
     'status:show daemon status'
     'install:install daemon as a system service'
-    'install-bosun:wire only the Bosun watchdog (brew-managed daemon)'
     'uninstall:uninstall the system service'
     'dev:daemon berths — up/down/list tiered side-by-side daemons (ADR-0055)'
     'use:target this shell at a daemon berth (eval "$(pd use dev)")'

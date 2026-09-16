@@ -44,10 +44,12 @@ const TOP_DIRS = [
   'docs', 'skills', 'website-v2', 'mcp', 'fleet', 'public', 'dashboard',
   'analyses', 'proofs', 'fleet-config-ui',
 ]
-// Excludes tokens containing `*` (globs) or `<`/`>` (template placeholders like
-// `skills/<name>/SKILL.md`) — those are patterns, not concrete citations.
+// Excludes tokens containing `*` (globs), `<`/`>` (template placeholders like
+// `skills/<name>/SKILL.md`), or `{`/`}` (brace expansion — `lib/coordination-{
+// crypto,acl}.ts` names several real files at once, exactly the way a shell
+// would expand it) — those are patterns, not concrete citations.
 const REPO_PATH_RE = new RegExp(
-  `^(?:${TOP_DIRS.join('|')})\\/[^\\s\\\`*<>]+\\.[A-Za-z0-9]+$`,
+  `^(?:${TOP_DIRS.join('|')})\\/[^\\s\\\`*<>{}]+\\.[A-Za-z0-9]+$`,
 )
 
 // Deliberately PRECISE markers. Broad prose words like "planned"/"future" are
@@ -59,6 +61,14 @@ const PROPOSAL_MARKERS = [
   'designed but not built', 'will land', 'when it lands', 'to be built',
   'doesn’t exist yet', "doesn't exist yet", 'cite-exempt', 'not built yet',
   'unbuilt', 'salvage diff',
+  // The proof estate's own two prospective-artifact idioms, both as precise as
+  // the phrases above. `(placeholder)` is what the federated-harbor redteam and
+  // whitehat skills write after an artifact path they are *obliging a future
+  // run to produce* ("Artifact obligation to close ... Path: `x.pv`
+  // (placeholder)"). `artifact target` is the shipwright TODO docs' equivalent
+  // ("**Artifact target:** `proofs/...`"). Both name a deliverable, never an
+  // existing file, so treating them as claims-of-existence is a false positive.
+  'placeholder', 'artifact target',
 ]
 
 function changedMarkdown() {

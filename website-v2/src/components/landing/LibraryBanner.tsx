@@ -6,7 +6,7 @@ import { COLLECTED_VOLUME, TEXTBOOK } from '@/data/whitePapers'
 
 /**
  * A thin, page-width strip — below the sticky nav, above the hero — that
- * exists for one reason: `/library` and `/library/research` are two
+ * exists for one reason: `/library` and `/research` are two
  * distinct collections that both used to get called "seven
  * papers" (see the 2026-08-26 `/library` naming-collision fix). Same
  * problem shows up a level up, on the home page, where neither collection
@@ -37,7 +37,7 @@ export function LibraryBanner() {
           />
           <div className="grid min-w-0 flex-1 gap-x-[var(--space-5)] gap-y-[var(--space-2)] py-[var(--space-3)] sm:grid-cols-2 sm:items-center sm:py-[var(--space-2)]">
             <Link
-              to="/library"
+              to="/whitepaper"
               className="group flex items-center gap-[var(--space-3)] border-r-0 sm:border-r-2 sm:border-[var(--border-default)] sm:pr-[var(--space-5)]"
             >
               <FileText
@@ -58,7 +58,7 @@ export function LibraryBanner() {
               />
             </Link>
 
-            <Link to="/library/research" className="group flex items-center gap-[var(--space-3)]">
+            <Link to="/research" className="group flex items-center gap-[var(--space-3)]">
               <FlaskConical
                 aria-hidden="true"
                 size={18}

@@ -2267,6 +2267,27 @@ describe('Giant Squid Harness — ADR-0132 listening watch (halt sentinel)', () 
     spawnSync(bin('pd-hook-stop'), [], { input: JSON.stringify({ cwd: WORKSPACE, ...event }), env: env(extra), encoding: 'utf8' });
   const bash = (command: string, session = 'halt-s1') => ({ tool_name: 'Bash', tool_input: { command }, cwd: WORKSPACE, session_id: session });
 
+  test('global disable marker makes every direct tentacle a zero-work no-op', () => {
+    writeFileSync(join(SCRATCH, 'hooks.disabled'), 'operator halt\n');
+    hoist();
+    writeFileSync(MATRIX, 'PD_ALERT_TEST=must-not-be-read\n');
+
+    for (const hook of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
+      const result = spawnSync(bin(hook), ['unread-argument'], {
+        input: JSON.stringify(bash('pd status', `disabled-${hook}`)),
+        env: env({ PD_SITREP: 'enforce' }),
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+    }
+
+    expect(existsSync(DISTRESS)).toBe(false);
+    expect(existsSync(join(SCRATCH, 'squid'))).toBe(false);
+    expect(readFileSync(MATRIX, 'utf8')).toBe('PD_ALERT_TEST=must-not-be-read\n');
+  });
+
   function pathWithoutJqHalt(): string {
     const dir = join(SCRATCH, 'no-jq-bin-halt');
     mkdirSync(dir, { recursive: true });
@@ -2486,11 +2507,23 @@ describe('Giant Squid Harness — ADR-0132 listening watch (halt sentinel)', () 
       expect(r.stderr).toMatch(/locked by actor 'agent_alpha'/);
     });
 
-    test('stays under the 250 ms breaker line on a halted shell call', () => {
+    test('a halted shell call returns fast enough to be a breaker, not a stall', () => {
       hoist();
       const started = Date.now();
       runPre(bash('git status && pd note x', 'halt-timing'));
-      expect(Date.now() - started).toBeLessThan(250);
+      // 250 is the wrapper's PRODUCTION breaker budget: the work the hook does
+      // once it is running. What this measures is a spawnSync of the real
+      // binary, so it also pays process creation and Node startup, which are
+      // the test harness's cost and not the gate's. On GitHub's macos-latest
+      // runners that overhead alone put this at 297ms (2026-09-09) and
+      // dequeued the merge queue for a gate that had not slowed down at all.
+      // The sibling GC test above hit the same wall in August and settled on a
+      // generous multiple for the same reason; this one takes 1500ms, six
+      // times the production budget and five times the slowest observation.
+      // What it still catches is the regression worth catching: a halt gate
+      // that stops short-circuiting and starts doing work proportional to the
+      // repository takes seconds, not milliseconds.
+      expect(Date.now() - started).toBeLessThan(1_500);
     });
   });
 

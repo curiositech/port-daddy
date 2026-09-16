@@ -10,7 +10,7 @@ import {
   SurfacePanel,
 } from '@/components/site/primitives'
 import { RoleTerm } from '@/components/site/RoleTerm'
-import { WHITE_PAPERS } from '@/data/whitePapers'
+import { COLLECTED_VOLUME, WHITE_PAPERS } from '@/data/whitePapers'
 
 const START_PATHS = [
   {
@@ -204,10 +204,10 @@ pd setup`}
                     <ArrowRight aria-hidden="true" size={14} />
                   </Link>
                   <a
-                    href={paper.pdfPath}
+                    href={COLLECTED_VOLUME.pdfPath}
                     className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
                   >
-                    PDF
+                    The Book
                     <FileDown aria-hidden="true" size={14} />
                   </a>
                 </div>
@@ -215,7 +215,7 @@ pd setup`}
             ))}
           </div>
           <Link
-            to="/library"
+            to="/whitepaper"
             className="group inline-flex w-fit items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] no-underline"
           >
             Read all {WHITE_PAPERS.length} in the Harbor Library
