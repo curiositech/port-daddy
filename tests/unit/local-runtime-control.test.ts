@@ -61,6 +61,23 @@ describe('local Off admission', () => {
     expect(readLocalRuntimeControl({ ...fixture, haltFile: '/fixture/absent-HALT' }).enabled).toBe(false);
   });
 
+  test('only the explicit hosted-test contract may substitute an isolated canonical root', () => {
+    files.set('/fixture/operator', 'dir');
+    files.set('/fixture/operator/HALT', 'file');
+    const env = {
+      CI: 'true',
+      NODE_ENV: 'test',
+      PORT_DADDY_ISOLATED_TEST: '1',
+      PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: '/fixture/selected',
+      PD_HOME: '/fixture/selected',
+    };
+    expect(readLocalRuntimeControl({ canonicalRoot: '/fixture/operator', env }).enabled).toBe(false);
+    expect(readLocalRuntimeControl({ env }).enabled).toBe(true);
+    expect(readLocalRuntimeControl({ env: { ...env, CI: 'false' } }).enabled).toBe(false);
+    expect(readLocalRuntimeControl({ env: { ...env, NODE_ENV: 'production' } }).enabled).toBe(false);
+    expect(readLocalRuntimeControl({ env: { ...env, PORT_DADDY_ISOLATED_TEST: '0' } }).enabled).toBe(false);
+  });
+
   test('uncertain observation latches; removal does not grant ALL-CLEAR', () => {
     let allow = true;
     const gate = createLocalRuntimeGate(() => allow);

@@ -14,7 +14,13 @@ import { homedir } from 'node:os';
 // This plain-JS package entry cannot import TypeScript before starting tsx.
 // Keep its filesystem-only gate fixture-equivalent to local-runtime-control.ts.
 function localRuntimeEnabled() {
-  const canonical = join(homedir(), '.port-daddy');
+  const isolatedTestRoot = process.env.CI === 'true'
+    && process.env.NODE_ENV === 'test'
+    && process.env.PORT_DADDY_ISOLATED_TEST === '1'
+    && isAbsolute(process.env.PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT || '')
+    ? process.env.PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT
+    : undefined;
+  const canonical = isolatedTestRoot || join(homedir(), '.port-daddy');
   const selected = process.env.PD_HOME ?? canonical;
   const roots = new Set([canonical, selected]);
   const inspected = new Set();
