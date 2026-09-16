@@ -91,12 +91,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[131-1].get_pixmap(dpi=150)
 
 ---
 
-## Artifact 1 — `worked-example-dereks-secret.png`
+## Artifact 1 — `https://media.portdaddy.dev/sha256/6c/6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade.png`
 
 1 / A comparison you can do in your head
 
-- File: `docs/pr-assets/pr-10180/worked-example-dereks-secret.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/f415b6c06c5b3bffa0439b4cd3cae60f3fe6ee25/docs/pr-assets/pr-10180/worked-example-dereks-secret.png`
+- File: `https://media.portdaddy.dev/sha256/6c/6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade.png`
+  - raw: `https://media.portdaddy.dev/sha256/6c/6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade.png`
 - Shows: before = p.131 · after = p.131 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 569 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -107,12 +107,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[131-1].get_pixmap(dpi=150)
   half is necessarily an earlier commit (c92efaa5c1 (main at the merge-base)), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 2 — `worked-example-12800-bits.png`
+## Artifact 2 — `https://media.portdaddy.dev/sha256/a4/a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7.png`
 
 2 / The adversarial channel, counted
 
-- File: `docs/pr-assets/pr-10180/worked-example-12800-bits.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/f415b6c06c5b3bffa0439b4cd3cae60f3fe6ee25/docs/pr-assets/pr-10180/worked-example-12800-bits.png`
+- File: `https://media.portdaddy.dev/sha256/a4/a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7.png`
+  - raw: `https://media.portdaddy.dev/sha256/a4/a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7.png`
 - Shows: before = p.150 · after = p.151 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 696 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -123,12 +123,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[131-1].get_pixmap(dpi=150)
   half is necessarily an earlier commit (c92efaa5c1 (main at the merge-base)), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 3 — `graded-exercises.png`
+## Artifact 3 — `https://media.portdaddy.dev/sha256/f2/f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523.png`
 
 3 / More exercises, each graded and pointed at its solution
 
-- File: `docs/pr-assets/pr-10180/graded-exercises.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/f415b6c06c5b3bffa0439b4cd3cae60f3fe6ee25/docs/pr-assets/pr-10180/graded-exercises.png`
+- File: `https://media.portdaddy.dev/sha256/f2/f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523.png`
+  - raw: `https://media.portdaddy.dev/sha256/f2/f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523.png`
 - Shows: before = p.154 · after = p.155 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 593 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon

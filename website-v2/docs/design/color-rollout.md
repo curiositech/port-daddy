@@ -12,9 +12,9 @@ and are AA+ everywhere. This doc is the roll-it-out-everywhere checklist.
 > already-scoped design tasks — they live here and graduate into a roadmap wave
 > only via `pd ideas` / the Cartographer harvest if they need sequencing.
 
-Spec sheet: `website-v2/docs/design/story-palette-spec.png` (regenerate from
+Spec sheet: `https://media.portdaddy.dev/sha256/bb/bb9ce5c79589f886cfe6dd971bcbbccd8e7da89f5fd3a1a6594ad181ed3a3458.png` (regenerate from
 `story-palette-spec.html` with headless Playwright). A scroll-through
-recording lives at `website-v2/docs/design/story-palette-spec.mp4`.
+recording lives at `https://media.portdaddy.dev/sha256/7a/7a644b9f78bda14cf713ffec666860aaee75b4629d5da5c8ec4f763f033dc51a.mp4`.
 
 ## Tasks
 

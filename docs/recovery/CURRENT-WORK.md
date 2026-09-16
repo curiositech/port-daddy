@@ -347,10 +347,10 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
   The direct landing-page `neu-shadow`, brand glow, and SVG drop-shadow bypasses
   were also removed.
 - Browser proof:
-  `docs/reports/website-rehab-screenshots/whitepaper-first-viewport.png` and
-  `docs/reports/website-rehab-screenshots/whitepaper-mobile-first-viewport.png`.
+  `https://media.portdaddy.dev/sha256/5a/5a7c7f33f5b6833d6a6e1b4e147e838985b834d2e479a09e37cfc3ab3b288537.png` and
+  `https://media.portdaddy.dev/sha256/8d/8d77f432cf23f72f713a01b2de73b4c26ded6f05da38dd8163f9804a224051b8.png`.
 - Relief browser proof:
-  `docs/reports/website-rehab-screenshots/flat-relief-home.png`,
+  `https://media.portdaddy.dev/sha256/1b/1b9a7844db9856588fefdd90d3f72629fb460faeeb7f5787e08467cb51e49ee1.png`,
   `flat-relief-tutorials.png`, `flat-relief-whitepaper.png`,
   `flat-relief-docs.png`, `flat-relief-dashboard.png`, `flat-relief-mcp.png`,
   `flat-relief-roadmap.png`, `flat-relief-blog.png`,
