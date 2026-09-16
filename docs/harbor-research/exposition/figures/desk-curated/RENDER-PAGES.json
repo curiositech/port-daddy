@@ -65,10 +65,10 @@
   "fig-cartel-folk-theorem": 378
  },
  "unpublished": {
-  "fig-anchor-four-phases": "caption is in the committed Book, but no corresponding page JPG has a publication receipt",
-  "fig-anchor-handshake-ladder": "caption is in the committed Book, but no corresponding page JPG has a publication receipt",
-  "fig-he-succession-price": "caption is in the committed Book, but no corresponding page JPG has a publication receipt",
-  "fig-bc-delta-threshold": "caption is in the committed Book, but no corresponding page JPG has a publication receipt"
+  "fig-anchor-four-phases": "drawn figure has no corresponding page JPG publication receipt",
+  "fig-anchor-handshake-ladder": "drawn figure has no corresponding page JPG publication receipt",
+  "fig-he-succession-price": "drawn figure has no corresponding page JPG publication receipt",
+  "fig-bc-delta-threshold": "drawn figure has no corresponding page JPG publication receipt"
  },
  "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other."
 }

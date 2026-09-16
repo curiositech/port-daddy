@@ -360,6 +360,17 @@ def attach_render_pages(figs: list[dict], render_pages: dict) -> list[str]:
     """Attach only receipted page JPGs; report figures with no publication state."""
     pinned = render_pages.get("pages", {})
     unpublished = render_pages.get("unpublished", {})
+    if not isinstance(pinned, dict) or not isinstance(unpublished, dict):
+        raise ValueError("render pages and unpublished entries must be JSON objects")
+    invalid_notes = sorted(
+        fid for fid, note in unpublished.items()
+        if not isinstance(note, str) or not note.strip()
+    )
+    if invalid_notes:
+        raise ValueError(
+            "unpublished page entries require a non-empty reason: "
+            + ", ".join(invalid_notes)
+        )
     overlap = set(pinned) & set(unpublished)
     if overlap:
         raise ValueError(
@@ -375,7 +386,7 @@ def attach_render_pages(figs: list[dict], render_pages: dict) -> list[str]:
             f["pagePublicationNote"] = None
         elif f["id"] in unpublished:
             f["pagePublication"] = "unpublished"
-            f["pagePublicationNote"] = unpublished[f["id"]]
+            f["pagePublicationNote"] = unpublished[f["id"]].strip()
         else:
             f["pagePublication"] = "unknown"
             f["pagePublicationNote"] = None

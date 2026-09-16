@@ -453,7 +453,6 @@ class CommittedIdentitiesAreStable(unittest.TestCase):
                 self.assertIsNotNone(f["page"], f["id"])
             else:
                 self.assertIsNone(f["page"], f["id"])
-                self.assertIsNotNone(f["bookPage"], f["id"])
                 self.assertTrue(f["pagePublicationNote"], f["id"])
 
     def test_unpublished_book_pages_do_not_impersonate_published_jpgs(self):
@@ -491,7 +490,7 @@ class RenderPagePublication(unittest.TestCase):
     def test_caption_location_is_not_a_page_image_receipt(self):
         figures = [
             {"id": "published", "bookPage": 10},
-            {"id": "drawn-but-unpublished", "bookPage": 11},
+            {"id": "drawn-but-unpublished", "bookPage": None},
         ]
         missing = B.attach_render_pages(
             figures,
@@ -506,6 +505,15 @@ class RenderPagePublication(unittest.TestCase):
         self.assertIsNone(figures[1]["page"])
         self.assertEqual(figures[1]["pagePublication"], "unpublished")
         self.assertEqual(figures[1]["pagePublicationNote"], "no JPG receipt")
+
+    def test_unpublished_page_receipts_require_a_non_empty_reason(self):
+        for reason in (None, "", "   "):
+            with self.subTest(reason=reason), self.assertRaisesRegex(
+                    ValueError, "require a non-empty reason"):
+                B.attach_render_pages(
+                    [{"id": "drawn-but-unpublished", "bookPage": None}],
+                    {"pages": {}, "unpublished": {"drawn-but-unpublished": reason}},
+                )
 
     def test_undeclared_page_state_fails_the_completeness_contract(self):
         figures = [{"id": "unknown", "bookPage": 12}]
@@ -546,7 +554,6 @@ class ReconciliationIsHonest(unittest.TestCase):
             },
         )
         for row in rows:
-            self.assertIsNotNone(row["bookPage"], row["id"])
             self.assertIn("publication receipt", row["reason"])
 
     def test_a_judged_figure_not_in_the_book_is_listed_not_dropped(self):

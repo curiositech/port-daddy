@@ -1054,7 +1054,9 @@ function renderList(){
     var r2=el('div','r2');
     if(i.kind==='undrawn')r2.appendChild(el('span','und','undrawn'));
     r2.appendChild(el('span',null,i.page?('p'+i.page):
-      (i.pagePublication==='unpublished'&&i.bookPage?('Book p'+i.bookPage+' · JPG pending'):'page unknown')));
+      (i.pagePublication==='unpublished'?
+        (i.bookPage?('Book p'+i.bookPage+' · JPG pending'):'JPG pending'):
+        'page unknown')));
     r2.appendChild(el('span',null,i.dispBase||'—'));
     r2.appendChild(el('span','sp'));
     var nr=(regionsFor(i.id).length);
