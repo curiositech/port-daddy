@@ -1587,6 +1587,13 @@ must be committed before quality can break even\pdprov{b5\_engine\_substitution.
 script's Part~3 (Exercise~\ref{ex:stp-resurrection-soundness}).
 \end{pdexample}
 
+Figure~\ref{fig:stp-engine-swap-regime} draws both regimes of
+Theorem~\ref{thm:engine-swap} on the worked numbers: the flat, price-independent
+gain that survives unattested, and the same gain's flip to negative once the
+engine is attested and the price schedule passes the quality gap through.
+
+\input{figures/fig-stp-engine-swap-regime}
+
 \paragraph{What it buys.} The buyer-facing sentence in its provable form:
 reputation you can trust because the engine behind it is attested. The
 misread to preempt is that attestation forces everyone onto the expensive
@@ -1641,6 +1648,12 @@ shortest crimes: key-scoped sanctions in $1$ step, whitewash-by-resurrection
 in $2$, engine-history shedding in $2$, liability stranding in $2$ [internal,
 \texttt{b5\_engine\_substitution.py}].
 \end{pdclaim}
+
+Figure~\ref{fig:stp-resurrection-soundness} draws the honest migration spine
+and keys each of the three clauses, plus the scope lemma, to the shortest
+escape a checker finds once that guard is dropped.
+
+\input{figures/fig-stp-resurrection-soundness}
 
 \paragraph{The wrong turn.} A first pass keyed sanctions the way it keyed
 prices, per (principal, engine), and the intact protocol failed
@@ -2338,6 +2351,12 @@ value of $+1.78\times10^{-15}$ for each, zero to floating-point precision.
 200=0.25\times 1\times 200=50$, the flat baseline both amortization models
 beat (Exercise~\ref{ex:stp-tower-amortization}).
 \end{pdexample}
+
+Figure~\ref{fig:stp-audit-amortization} draws all three schedules on one axis:
+model A stays cheapest at this chapter's own $T=200$ horizon even though model
+B's total is the one that eventually stops growing.
+
+\input{figures/fig-stp-audit-amortization}
 
 ``Reputation is amortized verification'' is the companion paper's phrase, and
 the idea under it is not the companion paper's. It is Kreps and Wilson's, and
