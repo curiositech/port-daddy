@@ -5,6 +5,12 @@ import Darwin
 /// Removing a marker never rearms an already-stopped app instance. This is a
 /// cooperative admission control, not a sandbox against arbitrary same-user code.
 final class LocalRuntimeControl: @unchecked Sendable {
+    enum State: Equatable { case open, off, unknown }
+    struct Observation: Equatable {
+        let state: State
+        let reason: String?
+    }
+
     static let shared = LocalRuntimeControl(
         canonicalRoot: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".port-daddy"),
         environment: ProcessInfo.processInfo.environment
@@ -14,7 +20,7 @@ final class LocalRuntimeControl: @unchecked Sendable {
     private let selectedRoot: URL
     private let customHalt: String?
     private let lock = NSLock()
-    private var latchedReason: String?
+    private var latchedObservation: Observation?
     private var effects: [UUID: @Sendable () -> Void] = [:]
     private var monitor: DispatchSourceTimer?
 
@@ -23,34 +29,40 @@ final class LocalRuntimeControl: @unchecked Sendable {
         self.selectedRoot = environment["PD_HOME"].map { URL(fileURLWithPath: $0) } ?? canonicalRoot
         self.customHalt = environment["PD_HALT_FILE"]
         if let root = environment["PD_HOME"], !root.hasPrefix("/") {
-            latchedReason = "The selected runtime control path is not absolute. Local starts are blocked."
+            latchedObservation = Observation(
+                state: .unknown,
+                reason: "The selected runtime control path is not absolute. Local starts are blocked."
+            )
         }
     }
 
-    var blockedReason: String? {
+    var observation: Observation {
         lock.lock()
-        let reason = inspectLocked()
-        let cancellations = reason == nil ? [] : drainLocked()
+        let observed = inspectLocked()
+        let cancellations = observed == nil ? [] : drainLocked()
         lock.unlock()
         cancellations.forEach { $0() }
-        return reason
+        return observed ?? Observation(state: .open, reason: nil)
     }
+    var blockedReason: String? { observation.reason }
 
     /// Caller holds the admission lock. Observation and explicit Off share the
     /// same latch; observing another app's marker must also cancel active work.
-    private func inspectLocked() -> String? {
-        if let latchedReason { return latchedReason }
-        let reason = Self.inspect(root: canonicalRoot) ?? Self.inspect(root: selectedRoot)
+    private func inspectLocked() -> Observation? {
+        if let latchedObservation { return latchedObservation }
+        let observed = Self.inspect(root: canonicalRoot) ?? Self.inspect(root: selectedRoot)
             ?? customHalt.flatMap { path in
-                guard path.hasPrefix("/") else { return "The custom halt path is not absolute." }
+                guard path.hasPrefix("/") else {
+                    return Observation(state: .unknown, reason: "The custom halt path is not absolute.")
+                }
                 let marker = URL(fileURLWithPath: path)
                 guard Self.accessibleDirectory(marker.deletingLastPathComponent()) else {
-                    return "The custom halt directory cannot be verified."
+                    return Observation(state: .unknown, reason: "The custom halt directory cannot be verified.")
                 }
-                return Self.markerReason(marker)
+                return Self.inspectMarker(marker)
             }
-        if let reason { latchedReason = reason }
-        return reason
+        if let observed { latchedObservation = observed }
+        return observed
     }
 
     func requireEnabled() throws {
@@ -63,11 +75,11 @@ final class LocalRuntimeControl: @unchecked Sendable {
     /// This is in-process ordering, not atomicity with another process's file write.
     func admit(id: UUID, cancel: @escaping @Sendable () -> Void, start: () throws -> Void) throws {
         lock.lock()
-        if let reason = inspectLocked() {
+        if let observed = inspectLocked() {
             let cancellations = drainLocked()
             lock.unlock()
             cancellations.forEach { $0() }
-            throw ControlError(reason)
+            throw ControlError(observed.reason ?? "Local starts are blocked.")
         }
         defer { lock.unlock() }
         effects[id] = cancel
@@ -104,7 +116,10 @@ final class LocalRuntimeControl: @unchecked Sendable {
     /// Partial persistence is returned honestly, and no failed write rearms us.
     func persistOff() -> [String] {
         lock.lock()
-        latchedReason = "Local Off was requested. This app will not restart Port Daddy."
+        latchedObservation = Observation(
+            state: .off,
+            reason: "Local Off was requested. This app will not restart Port Daddy."
+        )
         let cancellations = drainLocked()
         lock.unlock()
         // Do not wait for disk persistence before cancelling this app's work.
@@ -122,15 +137,17 @@ final class LocalRuntimeControl: @unchecked Sendable {
         return failures
     }
 
-    private static func inspect(root: URL) -> String? {
+    private static func inspect(root: URL) -> Observation? {
         var metadata = stat()
         if lstat(root.path, &metadata) != 0 {
             if errno == ENOENT && accessibleDirectory(root.deletingLastPathComponent()) { return nil }
-            return "Local control state is unavailable. Local starts are blocked."
+            return Observation(state: .unknown, reason: "Local control state is unavailable. Local starts are blocked.")
         }
-        guard accessibleDirectory(root) else { return "Local control directory cannot be verified." }
-        return markerReason(root.appendingPathComponent("HALT"))
-            ?? markerReason(root.appendingPathComponent("hooks.disabled"))
+        guard accessibleDirectory(root) else {
+            return Observation(state: .unknown, reason: "Local control directory cannot be verified.")
+        }
+        return inspectMarker(root.appendingPathComponent("HALT"))
+            ?? inspectMarker(root.appendingPathComponent("hooks.disabled"))
     }
 
     private static func accessibleDirectory(_ url: URL) -> Bool {
@@ -139,10 +156,14 @@ final class LocalRuntimeControl: @unchecked Sendable {
             && access(url.path, R_OK | X_OK) == 0
     }
 
-    private static func markerReason(_ url: URL) -> String? {
+    private static func inspectMarker(_ url: URL) -> Observation? {
         var metadata = stat()
-        if lstat(url.path, &metadata) == 0 { return "Local Off is set (\(url.lastPathComponent))." }
-        return errno == ENOENT ? nil : "Local stop state cannot be verified."
+        if lstat(url.path, &metadata) == 0 {
+            return Observation(state: .off, reason: "Local Off is set (\(url.lastPathComponent)).")
+        }
+        return errno == ENOENT
+            ? nil
+            : Observation(state: .unknown, reason: "Local stop state cannot be verified.")
     }
 
     private static func prepareDirectory(_ root: URL) throws {

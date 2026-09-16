@@ -2,6 +2,7 @@ import SwiftUI
 
 @MainActor
 final class LocalOffStore: ObservableObject {
+    @Published private(set) var controlState: LocalRuntimeControl.State
     @Published private(set) var blockedReason: String?
     @Published private(set) var isStopping = false
     @Published private(set) var persistenceFailures: [String] = []
@@ -11,23 +12,27 @@ final class LocalOffStore: ObservableObject {
 
     init(control: LocalRuntimeControl = .shared) {
         self.control = control
-        blockedReason = control.blockedReason
+        let observation = control.observation
+        controlState = observation.state
+        blockedReason = observation.reason
     }
 
-    nonisolated static func statusTitle(for blockedReason: String?) -> String {
-        switch blockedReason {
-        case nil:
+    nonisolated static func statusTitle(for state: LocalRuntimeControl.State) -> String {
+        switch state {
+        case .open:
             return "Local start gate is open"
-        case "Local Off is set (HALT).",
-             "Local Off is set (hooks.disabled).",
-             "Local Off was requested. This app will not restart Port Daddy.":
+        case .off:
             return "Local starts are off"
-        default:
+        case .unknown:
             return "Start state unknown — blocked"
         }
     }
 
-    func refresh() { blockedReason = control.blockedReason }
+    func refresh() {
+        let observation = control.observation
+        controlState = observation.state
+        blockedReason = observation.reason
+    }
 
     func turnOff() {
         guard !isStopping else { return }
@@ -57,9 +62,9 @@ struct LocalOffSection: View {
         VStack(alignment: .leading, spacing: Fleet.Space.s) {
             Label("Port Daddy on this Mac", systemImage: "power")
                 .font(.headline)
-            Text(LocalOffStore.statusTitle(for: store.blockedReason))
+            Text(LocalOffStore.statusTitle(for: store.controlState))
                 .font(.body.weight(.semibold))
-            if !compact, store.blockedReason == nil {
+            if !compact, store.controlState == .open {
                 Text("This confirms only the stop boundary. Harness, sandbox, coordination, provider, receipt, and cost readiness are separate.")
                     .foregroundStyle(.secondary)
             }
