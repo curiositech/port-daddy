@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 619,
-    "distinctObjects": 583,
-    "bytes": 282197123,
-    "distinctBytes": 279403532
+    "assets": 629,
+    "distinctObjects": 593,
+    "bytes": 284323787,
+    "distinctBytes": 281530196
   },
   "assets": [
     {
@@ -833,6 +833,76 @@
       "bytes": 539365,
       "sha256": "0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af",
       "key": "sha256/09/0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/escalation-band-after.png",
+      "bytes": 246112,
+      "sha256": "73ec0b8436b2b3e22866f6640449395ec4d28e6d223743982162194844b7fc50",
+      "key": "sha256/73/73ec0b8436b2b3e22866f6640449395ec4d28e6d223743982162194844b7fc50.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/escalation-band-before.png",
+      "bytes": 246041,
+      "sha256": "a6ad373411432ad1c4e4b5a6ed32f237a62d4eb27e832325fbe57ce4c8a9cc12",
+      "key": "sha256/a6/a6ad373411432ad1c4e4b5a6ed32f237a62d4eb27e832325fbe57ce4c8a9cc12.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/fh-revocation-after.png",
+      "bytes": 240697,
+      "sha256": "247bdc9501a7d8f28f377399b1e53e84bafb2083ec1e25333f70da070038e471",
+      "key": "sha256/24/247bdc9501a7d8f28f377399b1e53e84bafb2083ec1e25333f70da070038e471.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/fh-revocation-before.png",
+      "bytes": 279263,
+      "sha256": "b6aca18d586975134fa215da5d8ae221853dea4d0dff9e7d00680f9fd9a84603",
+      "key": "sha256/b6/b6aca18d586975134fa215da5d8ae221853dea4d0dff9e7d00680f9fd9a84603.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/fh-settlement-after.png",
+      "bytes": 244957,
+      "sha256": "398f4d814ac9580d55076807d52c6fdc691954ef815a26143f53eac69b3c0ec6",
+      "key": "sha256/39/398f4d814ac9580d55076807d52c6fdc691954ef815a26143f53eac69b3c0ec6.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/fh-settlement-before.png",
+      "bytes": 244494,
+      "sha256": "9a2bce382ff13cfa68d2cc1ac26fa8d3eee00945650224f9ff93f5418a8ccad1",
+      "key": "sha256/9a/9a2bce382ff13cfa68d2cc1ac26fa8d3eee00945650224f9ff93f5418a8ccad1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/fh-threat-bands-after.png",
+      "bytes": 121142,
+      "sha256": "057f80ff62a3efeffe68350e8288b1f58e973735b47b1ab69ead7bd3aaea90c9",
+      "key": "sha256/05/057f80ff62a3efeffe68350e8288b1f58e973735b47b1ab69ead7bd3aaea90c9.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/fh-threat-bands-before.png",
+      "bytes": 240165,
+      "sha256": "527bd4f9b0c9c30a8be3021411e5fad6b876e1d011a6ed45f86dd4fd48fe7f4f",
+      "key": "sha256/52/527bd4f9b0c9c30a8be3021411e5fad6b876e1d011a6ed45f86dd4fd48fe7f4f.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/pillar-pipeline-after.png",
+      "bytes": 131482,
+      "sha256": "20d9ac7e0d5a8bfe00d81edbada7c4a4fad15f06345c1e336ce90e1f1772937d",
+      "key": "sha256/20/20d9ac7e0d5a8bfe00d81edbada7c4a4fad15f06345c1e336ce90e1f1772937d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-book-margin-collisions/pillar-pipeline-before.png",
+      "bytes": 132311,
+      "sha256": "dcc5eb80e01cd9eb733881fb349c1fede7643200978a7ce629621027c923da0b",
+      "key": "sha256/dc/dcc5eb80e01cd9eb733881fb349c1fede7643200978a7ce629621027c923da0b.png",
       "contentType": "image/png"
     },
     {

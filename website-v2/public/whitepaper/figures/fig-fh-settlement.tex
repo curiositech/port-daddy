@@ -20,7 +20,16 @@
   \node[pd direct label,anchor=south] at (-6.0,.87) {funded};
   \node[pd direct label,text=hhteal,anchor=west] at (-1.90,1.45) {CLEAR};
   \node[pd direct label,anchor=west] at (-1.90,-.15) {REFUSE};
-  \node[pd note,anchor=west] at (-1.90,1.08) {compensate claimant};
+  % text width, not a bare single-line anchor=west run-on: at this picture's
+  % scale "compensate claimant" set on one line ran past x=1.1, into panel
+  % B's "funded" label at x=1.35 -- built and measured overlapping, PDF
+  % p. 418 ("compensate claim[ant]funded" printing as one run of ink).
+  % Wrapping to two lines keeps the note inside panel A's own half.
+  % anchor=north west (not west): west centers the taller two-line box on
+  % its own anchor point and the first fix's build pushed the top line up
+  % into CLEAR at y=1.45; north west grows the box downward from the
+  % anchor instead, the same direction the one-line version already used.
+  \node[pd note,anchor=north west,text width=2.1cm,align=left] at (-1.90,1.20) {compensate claimant};
   \node[pd note,anchor=west] at (-1.90,-.52) {return bond};
   \draw[pd focus rule] (-6.15,-1.15)--(-1.05,-1.15);
   \node[pd direct label,text=hhteal] at (-3.60,-1.45)
