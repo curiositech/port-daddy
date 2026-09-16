@@ -63,7 +63,9 @@ inspector beside Mission. It is not a second default conversation.
 ## Native terminal drawer
 
 The **>_ CLI** control raises one persistent login shell over the current Mission
-context; `Ctrl-A` then <code>`</code> is the keyboard equivalent. Drag the named
+context; `Ctrl-A` then <code>`</code> is the keyboard equivalent. Opening it binds
+or replaces the PTY at the daemon-admitted Mission project directory, so switching
+Mission projects cannot leave an unrelated shell active. Drag the named
 **RESIZE** edge to change its height. The PTY row count follows the authored
 height immediately, so full-screen commands reflow instead of being clipped.
 
@@ -140,14 +142,22 @@ PD_CONSOLE_NO_LAUNCH=1 bash core/pd-console/scripts/package-console.sh --devbuil
 
 PORT_DADDY_URL=http://127.0.0.1:3186 PD_CONSOLE_WORKDIR="$PWD" \
   ~/Applications/pd-console-dev-apps/pd-console-dev-<YYYYMMDD-HHMM>-mission-spine.app/Contents/MacOS/pd-console \
-  --pane mission \
   --control-sock ~/coding/tmp/pd-console-mission-spine.sock
 
-printf '%s\n' '{"cmd":"chat","text":"Describe the next bounded change."}' \
-  | nc -U ~/coding/tmp/pd-console-mission-spine.sock
-printf '%s\n' '{"cmd":"state","pane":"mission"}' \
-  | nc -U ~/coding/tmp/pd-console-mission-spine.sock
+python3 core/pd-console/scripts/console-ctl.py \
+  --sock ~/coding/tmp/pd-console-mission-spine.sock describe
+python3 core/pd-console/scripts/console-ctl.py \
+  --sock ~/coding/tmp/pd-console-mission-spine.sock click surface.mission
+python3 core/pd-console/scripts/console-ctl.py \
+  --sock ~/coding/tmp/pd-console-mission-spine.sock type mission.composer \
+  "Describe the next bounded change."
+python3 core/pd-console/scripts/console-ctl.py \
+  --sock ~/coding/tmp/pd-console-mission-spine.sock assert \
+  mission.composer.value "Describe the next bounded change."
 ```
+
+See [`docs/SCRIPTING.md`](docs/SCRIPTING.md) for bounded wait/scenario receipts,
+redacted Mission context, contextual companion surfaces, and Porthole proof flow.
 
 The compiled Port Daddy bundle embeds the complete Agent Harbor schema set, so
 this flow is also testable outside a source checkout. Missing schemas still fail
