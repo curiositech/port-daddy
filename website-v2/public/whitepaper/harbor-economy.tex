@@ -738,7 +738,7 @@ one box, and it belongs in one box: a reader who wants to reimplement the
 polynomial checker should not have to assemble the grammar from four pages of
 running prose.
 
-\begin{definition}[The commitment fragment $\mathcal{L}_c$]\label{def:lc-fragment}
+\begin{pdclaim}{Design invariant}{The commitment fragment $\mathcal{L}_c$}\label{def:lc-fragment}
 A policy set $P \in \mathcal{L}_c$ is a finite set of five kinds of sentence over
 a function-free, ground signature of actions, scopes, resources and integer time
 points:
@@ -770,7 +770,7 @@ overlapping intervals; or (iv) the deadline graph contains a negative cycle.
 The fragment is deliberately ground and deliberately weak, and each omission is
 what buys Theorem~\ref{thm:deontic-detect}: no nested deontic operators, no
 negation as failure, monotone bodies only, and no quantification over time.
-\end{definition}
+\end{pdclaim}
 
 \noindent Note two things the grammar carries that a one-line summary of it
 tends to drop, because both are doing real work below. The deadline system is a
