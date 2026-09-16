@@ -203,6 +203,28 @@ reads Derek's data, drop any tainted egress packet, and declare that the data
 why that sentence is false, and the second is to prove the sentence that
 replaces it.
 
+\begin{pdexample}{what ``nothing leaks'' costs, in bits}
+Price the three candidate designs on the chapter's own toy release --- the one
+Theorem~\ref{thm:sealed-noninterference} will later check exhaustively --- and
+you can do the whole comparison in your head. Derek's secret is one of
+$\{0,1,2,3\}$, so it carries $\log_2 4 = 2$ bits, and the contracted release is
+$g(s)=s\bmod 2$, which takes two values and therefore carries exactly $1$ bit
+--- and, since $s$ written in binary has its parity in the low position, that
+release is literally one of the secret's two bits. Now count. An honest gate
+hands Erin $1$ of those $2$ bits: the bit Derek sold her, and no more. The
+leaky gate of the mutation suite, which forwards $s$ itself, hands over $2$ ---
+the whole secret, which is why the checker catches it four steps in. And the
+taint tracker of the pitch above, run \emph{soundly} at token granularity, has
+to mark the parity bit as tainted by the secret it was computed from and drop
+it, so Erin gets $0$ bits and the engagement has nothing left to deliver to
+her. That $0$-bit column is real, it is sound, and nobody will buy it; the
+other horn, the tracker that lets the parity through, cannot then certify that
+what the worker submitted was $s$ rather than some $f(s)$ it chose. Every
+honest design in this chapter therefore lives in the middle column, and the
+rest of the chapter is the arithmetic of how wide that column is allowed to
+get.
+\end{pdexample}
+
 \begin{pdclaim}{Empirical hypothesis}{Token-level taint through a language model is not soundly definable}
 \label{hyp:sealed-taint}
 A taint tracker over a generative model faces a binary choice: mark every
@@ -285,6 +307,26 @@ and volume. Direct outbound TLS is forbidden; permitted services terminate at a
 policy gateway. Because a remote model API is itself a trusted reader of
 plaintext, the model runs \emph{inside} the confidential domain; an external
 inference endpoint would be a third principal the contract never admitted.
+
+\begin{pdexample}{four label states, four locked doors, two keys}
+The lattice the next paragraph reaches for is small enough to count on your
+fingers, and the count \emph{is} the mechanism. Two owners, Derek and Erin,
+means two clauses, so a value inside the room sits in one of $2^2=4$ label
+states: $\{\}$, $\{D\}$, $\{E\}$, $\{D,E\}$. Derek's data enters at $\{D\}$ and
+Erin's model at $\{E\}$; the instant the worker computes with both, whatever it
+produced sits at $\{D,E\}$. There are four edges up that lattice and four
+edges down it, and the asymmetry between the two fours is the design. All four
+upward edges are free and unwitnessed, because adding somebody's restriction
+needs nobody's permission. All four downward edges are locked, and --- this is
+the part worth doing by hand --- they're locked \emph{by owner}: the two that
+drop $D$, namely $\{D\}\to\{\}$ and $\{D,E\}\to\{E\}$, open only with Derek's
+delegated declassification authority, and the two that drop $E$, namely
+$\{E\}\to\{\}$ and $\{D,E\}\to\{D\}$, only with Erin's. Two keys, four locks,
+two apiece. That is why the room has exactly two gates rather than one, and
+why the aggregate-feedback channel to Erin is \emph{Derek's} gate and not hers:
+the artifact she receives is one that has had Derek's clause dropped, and only
+Derek can drop it.
+\end{pdexample}
 
 \paragraph{Whole-worker taint and two gates.}
 After the first secret read the entire worker state, and every later emission,
@@ -513,6 +555,28 @@ layer mediates, so the enforceable boundary of the room is the egress channel,
 and any promise phrased over model-internal events is detect-only forever; the
 theorem is the controllability theorem of \pdchapref{swk}{The Single-Writer
 Kernel}, and this section only applies it.}
+
+\begin{pdexample}{eight events, five vetoes, and one rule that only looks like an exception}
+Sort the agent's alphabet into two piles before reading any theorem about it.
+Five events the mediation layer can veto before they take effect:
+\texttt{fs\_write}, \texttt{net\_egress}, \texttt{exec\_tool},
+\texttt{git\_push}, \texttt{spawn\_child}. Three it can only watch go past:
+\texttt{model\_emit\_token}, \texttt{in\_context\_read},
+\texttt{internal\_plan}. Eight events, and therefore eight policies of the
+plain form \emph{never do $X$}, of which exactly five are regimentable and
+three are detect-only --- and you can sort any of them without running
+anything, because the test is just ``is the event it has to disable in the
+first pile?'' [internal, \texttt{b3\_controllability.py}]. Now the ninth
+policy, the one the whole room rests on: \emph{no \texttt{net\_egress} after
+\texttt{in\_context\_read} of a secret}. It \emph{mentions} an event from the
+second pile, which is what makes it look like a counterexample, but read what
+it actually has to disable and the answer is \texttt{net\_egress} and nothing
+else --- the read is permitted and merely recorded as taint. One event to
+disable, that event in the first pile, so the count says regimentable, and the
+checker agrees. \emph{Now you try:} classify \emph{no
+\texttt{in\_context\_read} of a secret} the same way, in two sentences.
+(Exercise~\ref{ex:sealed-compound}.)
+\end{pdexample}
 
 {\sloppy The kernel chapter proved that a prefix-closed safety policy is regimentable
 exactly when it is controllable with respect to the uncontrollable alphabet,
@@ -892,6 +956,26 @@ exfiltration is Theorem~\ref{thm:sealed-power}'s job.
 
 \section{The leakage budget: $q\cdot b$ bits, before timing}\label{sec:sealed-budget}
 
+\begin{pdexample}{twelve thousand eight hundred bits, and the only two dials}
+A work order grants Erin a $64$-bit status schema per job, over $200$ jobs.
+Multiply, and that's the account: $200\times 64=12{,}800$ bits of adversarial
+capacity, before timing. Two things about that arithmetic are worth a second
+look, and neither needs a model. First, the account is a \emph{product}, so
+the contract writer has exactly two dials and they trade off against each
+other --- the same $12{,}800$ bits fall out of a narrower schema over a longer
+engagement --- and the only setting that drives the product to zero is $b=0$,
+which closes the feedback channel that was Erin's reason for signing in the
+first place. (That is what Section~\ref{sec:sealed-limitations} means when it
+says ``zero'' is available only at $b=0$; it is a price, not an impossibility.)
+Second, and this is the uncomfortable half,
+Theorem~\ref{thm:sealed-noninterference} does not narrow those $12{,}800$ bits
+by a single one: it guarantees they left through the declared gate, not that a
+worker computing $t=f(s)$ and submitting $t$ chose them innocently. The room
+sells a bounded account. It does not sell an innocent one. \emph{Now you try:}
+the same work order lets each job return at one of three scheduled times ---
+what does that add to the total? (Exercise~\ref{ex:sealed-budget}.)
+\end{pdexample}
+
 The four links compose into one information-theoretic account, and the account
 is deliberately unromantic. It is also where the chapter pays three debts it
 took on earlier: the laundering residual left open by
@@ -925,10 +1009,10 @@ canaries of Section~\ref{sec:sealed-detection} police for evasion around.
 
 The design rule that falls out is quotable: \emph{never negotiate over ``does
 this output contain a secret''; negotiate over channel capacity.} The first
-question is undecidable in practice for prose; the second is arithmetic. A
-contract that grants Erin a 64-bit status schema per job, for 200 jobs, has
-granted at most $12{,}800$ bits of adversarial capacity before timing, and can
-price, bond, and canary-police exactly that.
+question is undecidable in practice for prose; the second is arithmetic, and it
+is the arithmetic the example above did in one multiplication. A granted
+capacity is a quantity a contract can price, bond, and canary-police exactly,
+which is the whole of what the four links, between them, make possible.
 
 \section{Limitations and boundaries}\label{sec:sealed-limitations}
 
@@ -1212,6 +1296,124 @@ $13{,}117$ bits in total; the timing term is why scheduled release with one
 slot is the design default.
 \end{pdsolution}
 
+\section{History and references}
+\label{sec:sealed-history}
+
+Almost nothing in this chapter is new machinery; what is new is which pieces
+were bolted to which, and the honest accounting of what the bolted-together
+thing does not promise. It is worth saying where each piece came from.
+
+\paragraph{Noninterference and its proof technique.}
+Noninterference is Goguen and Meseguer's, stated at Oakland in 1982 as a
+property of a security \emph{model} rather than of any particular mechanism
+\pdcite{goguen-meseguer-82}, and given two years later the proof technique that
+made it usable: replace the quantification over all runs with local
+\emph{unwinding} conditions you can discharge one transition at a time
+\pdcite{goguen-meseguer-84}. Rushby's 1992 report is the version this chapter
+actually leans on, because it separates transitive from intransitive policies
+--- which is precisely what allows a room to have a declassifier and still have
+a theorem --- and because it fixes the three unwinding conditions, output
+consistency, step consistency and local respect, that
+Section~\ref{sec:sealed-limitations} names as the lift's proof obligation
+\pdcite{rushby}. Van der Meyden later showed those conditions are not merely
+sound but sound \emph{and} complete, and for the strictly stronger,
+order-preserving TA-security rather than for the intransitive purge Rushby was
+aiming at \pdcite{vdm07}; that is why the lift should be written to claim
+TA-security rather than to settle for what it was pointed at. The checking
+move itself, running the world twice and stating an ordinary invariant about
+the pair, is self-composition, published by Barthe, D'Argenio and Rezk in 2004
+\pdcite{bdr04}; they apply it to programs with a logic, this chapter applies it
+to a finite model with a Python script, and the difference in ambition should
+not obscure that it is the same move.
+
+\paragraph{Declassification, and why the room needs the word.}
+That an information-flow certifier faces a choice between label creep and
+unsoundness is the oldest result in this lineage, from the Dennings'
+certification lattice \pdcite{denning77}, with the modern restatement --- a
+sound purely dynamic monitor must be strictly more restrictive than a static
+analysis --- due to Russo and Sabelfeld \pdcite{rs10}. The escape hatch itself
+is Sabelfeld and Myers's delimited release \pdcite{sm03}, and so, importantly,
+is the laundering attack this chapter cannot rule out: they named it and closed
+it by enforcement, requiring that no variable used in a declassification be
+updated before it, which a compiler can check because the declassified
+expression is syntax. This chapter's worker emits arbitrary prose rather than
+an expression, so the remedy is unavailable and the residual is priced instead
+--- that substitution, enforcement traded for a capacity account, is the
+chapter's own move and its own liability. The vocabulary for saying which
+dimension of release a mechanism actually controls is Sabelfeld and Sands's
+\pdcite{ss09}; by their taxonomy the release ledger answers \emph{what},
+\emph{who} and \emph{where}, and leaves \emph{when} open. Owner-indexed labels
+under mutual distrust, which is the shape of the four-state lattice counted in
+Section~\ref{sec:sealed-design}, are Myers and Liskov's decentralized label
+model \pdcite{myers-liskov}.
+
+\paragraph{The monitor, and the boundary it can hold.}
+The in-guest monitor and Derek's outer gateway are a reference monitor in
+Anderson's 1972 sense --- always invoked, tamper-resistant, small enough to be
+examined \pdcite{anderson1972} --- enforcing the sort of owner-indexed access
+structure Lampson's \emph{Protection} gave operating systems two years later
+\pdcite{lampson1974}. What this chapter adds to that inheritance is not a
+better monitor but a sharper statement of where a monitor can be placed at all:
+the controllability result is proved in \pdchapref{swk}{The Single-Writer
+Kernel} and merely applied here, and the caveat that partial observation
+shrinks the enforceable set is Lin and Wonham's \pdcite{lin-wonham}. The
+confinement architecture has a direct systems ancestor in Ryoan
+\pdcite{ryoan16}, which solved the two-suspicious-owners problem first and
+solved it more cleanly than this chapter does, at the price of a stateless
+module; the dual-attested key release follows the attester/verifier/relying-party
+pattern the IETF later standardized \pdcite{rats}.
+
+\paragraph{Pricing what does cross.}
+Treating leakage as a quantity rather than a predicate is quantitative
+information flow, and the min-entropy formulation the chapter borrows its
+vocabulary from is Smith's \pdcite{smith-qif}; the bridge between that currency
+and differential privacy's exists, due to Alvim and colleagues
+\pdcite{aacp11}, and this chapter does not cross it, which is why it carries
+two accounts rather than one. On the privacy side, advanced composition is
+Dwork, Rothblum and Vadhan's \pdcite{drv}; the observation that a running
+budget needs a different theorem when the queries and the stopping point are
+chosen adaptively, and the odometer/filter pair that supplies it, is Rogers,
+Roth, Ullman and Vadhan's \pdcite{rruv16}; the fully adaptive filter that
+recovers the advanced rate at worse constants is Whitehouse and colleagues'
+\pdcite{wrrw23}. That production budget schedulers assume a trusted analyst,
+an assumption this chapter explicitly declines about Erin's worker, is visible
+in the Privacy Budget Scheduling work \pdcite{pkube21}. The detector is Wald's
+sequential probability ratio test \pdcite{wald}, optimal in the sense he and
+Wolfowitz proved three years later \pdcite{wald-wolfowitz}; pointing it at a
+security stream is not new either, since Jung, Paxson, Berger and Balakrishnan
+did exactly that to portscan detection in 2004 \pdcite{jpbb04}, and the canary
+gate is their threshold random walk with the network swapped out.
+
+\paragraph{What is this chapter's own, and therefore uncited.}
+Four things. Hypothesis~\ref{hyp:sealed-taint}, that token-level taint through
+a generative model is not soundly definable, is a design rationale and not a
+theorem: it rests on the Denning and Russo--Sabelfeld results above, but no
+published result states it for generative models, so the chapter states it as
+its own position and places the burden of a counterexample on whoever wants
+one. The four-link composition read as an \emph{evidence schedule} rather than
+as four redundant guarantees is the chapter's framing. The $q\cdot b$ account
+as the explicit price of the laundering residual --- the thing the
+noninterference theorem leaves open and delimited release would have closed by
+enforcement --- is the chapter's own construction, and so is the design rule it
+yields, that one should never negotiate over whether an output contains a
+secret and always over channel capacity. And the ``clean room'' of the
+framing is borrowed from industrial and legal practice for its connotation
+only; this chapter claims no formal ancestor for the metaphor and proves
+nothing about it as such.
+
+\paragraph{Further reading.}
+A reader who wants the general theorem this chapter's finite model stands in
+for should read Rushby \pdcite{rushby} and then van der Meyden
+\pdcite{vdm07} in that order, and should expect the second to change what the
+first looks like it was proving. A reader who wants to know why the assurance
+ladder in Section~\ref{sec:sealed-enforceability} is a third axis rather than a
+rebadging of two familiar ones should read Sheridan and Verplank
+\pdcite{sheridanverplank1978} and its four-stage refinement
+\pdcite{parasuraman2000} for the automation-level axis, and the Common
+Criteria's evaluation assurance levels \pdcite{cciso15408} for the
+evaluation-effort axis; neither answers which component's failure would
+falsify a given runtime record, which is the only question the ladder asks.
+
 \pdprintsolutions
 
 \begin{thebibliography}{99}
@@ -1230,6 +1432,13 @@ Technical Report CSL-92-02, SRI International, December 1992.
 
 \bibitem{lin-wonham} F.~Lin and W.~M. Wonham. On observability of discrete-event systems.
 \emph{Information Sciences}, 44(3):173--198, 1988.
+
+\bibitem{anderson1972} James P. Anderson. Computer Security Technology Planning Study.
+ESD-TR-73-51, U.S. Air Force Electronic Systems Division, 1972. (The origin of the
+\emph{reference monitor} concept.)
+
+\bibitem{lampson1974} Butler W. Lampson. Protection. \emph{ACM SIGOPS Operating Systems
+Review}, 8(1):18--24, 1974.
 
 \bibitem{myers-liskov} A.~C. Myers and B.~Liskov. A decentralized model for information flow
 control. In \emph{Proc.\ 16th ACM Symposium on Operating Systems Principles (SOSP)}, 1997.

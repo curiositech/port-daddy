@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 791,
-    "distinctObjects": 755,
-    "bytes": 301229975,
-    "distinctBytes": 298436384
+    "assets": 794,
+    "distinctObjects": 758,
+    "bytes": 303134021,
+    "distinctBytes": 300340430
   },
   "assets": [
     {
@@ -2030,6 +2030,27 @@
       "bytes": 859038,
       "sha256": "e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667",
       "key": "sha256/e6/e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/graded-exercises.png",
+      "bytes": 607631,
+      "sha256": "f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523",
+      "key": "sha256/f2/f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/worked-example-12800-bits.png",
+      "bytes": 713705,
+      "sha256": "a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7",
+      "key": "sha256/a4/a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/worked-example-dereks-secret.png",
+      "bytes": 582710,
+      "sha256": "6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade",
+      "key": "sha256/6c/6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade.png",
       "contentType": "image/png"
     },
     {
