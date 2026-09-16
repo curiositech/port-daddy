@@ -399,9 +399,13 @@ def extract_drawings(page):
     four edges here means T4 sees straight-line geometry the same way
     regardless of which path the PDF took to describe a rectangle."""
     out = []
-    for d in page.get_drawings():
+    for seq, d in enumerate(page.get_drawings()):
         segments = []
-        if d["type"] in ("s", "fs"):
+        # A white stroke is not ink: TikZ bridges ("preaction={draw=white}")
+        # and knockout halos paint the page colour on purpose.
+        color = d.get("color")
+        invisible = color is not None and min(color) > 0.97
+        if d["type"] in ("s", "fs") and not invisible:
             for item in d["items"]:
                 if item[0] == "l":
                     p0, p1 = item[1], item[2]
@@ -412,7 +416,8 @@ def extract_drawings(page):
                     for k in range(4):
                         segments.append((corners[k], corners[(k + 1) % 4]))
         out.append({"rect": tuple(d["rect"]), "type": d["type"], "segments": segments,
-                    "n_items": len(d["items"]),
+                    "n_items": len(d["items"]), "seq": seq,
+                    "fill": d.get("fill") if d["type"] in ("f", "fs") else None,
                     # T9 needs the stroke's own parameters, which live on the
                     # drawing dict rather than on its items.
                     "dashes": d.get("dashes"), "width": d.get("width"),
@@ -607,17 +612,24 @@ def check_t4(lines, drawings, page_no):
     findings = []
     segments = []
     for d in drawings:
-        segments.extend(d["segments"])
+        segments.extend((seg, d.get("seq", 0)) for seg in d["segments"])
+    # Knockouts: a filled shape painted AFTER a stroke hides that stroke
+    # wherever the shape covers it. A label set on a white-filled tag or badge
+    # over a rule (the house `pd tag` / `pd badge`) is therefore not crossed.
+    fills = [(d.get("seq", 0), d["rect"]) for d in drawings if d.get("fill")]
     for ln in lines:
         w = ln["bbox"][2] - ln["bbox"][0]
         h = ln["bbox"][3] - ln["bbox"][1]
         if w <= 2 * LINE_SHRINK_PT or h <= 2 * LINE_SHRINK_PT:
             continue  # too small to have a meaningful "interior" left after shrinking
         shrunk = shrink_rect(ln["bbox"], LINE_SHRINK_PT)
+        covering = [fs for fs, fr in fills if rect_contains(fr, shrunk, tol=0.5)]
         hit = None
-        for p0, p1 in segments:
+        for (p0, p1), seq in segments:
             if p0 == p1:
                 continue
+            if any(fs > seq for fs in covering):
+                continue  # knocked out: a fill painted over the stroke covers the text
             clip = liang_barsky_clip(p0, p1, shrunk)
             if clip and (clip[1] - clip[0]) > 1e-6:
                 hit = (p0, p1)

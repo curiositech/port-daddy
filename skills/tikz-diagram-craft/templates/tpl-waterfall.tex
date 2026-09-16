@@ -1,0 +1,47 @@
+% TEMPLATE: waterfall (a running total, one floating bar per correction).
+% Each bar's base and top are the running total before and after that
+% correction -- computed, never hand-offset -- so a bar's height is always
+% its own delta and the final bar is the true total. A positive correction
+% is `pd ready fill`, a negative one `pd breach fill`: colour doubled by the
+% signed numeral on every bar, never colour alone.
+% QA: PASS in swiss, maritime and technical. (A "wide" failure once
+% reported in technical was a sub-point page speck the technical edition
+% leaves at the page corner, not the pattern fill; book_figure_qa.py now
+% ignores specks under 1 pt.)
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=8.2cm,height=4.3cm,
+  xmin=-0.5,xmax=4.5,ymin=0,ymax=1260,
+  xtick={0,1,2,3,4},
+  xticklabels={start,{+fee},{$-$penalty},{+credit},end},
+  ytick={0,880,1140},
+  ylabel={pd units}]
+  \draw[pd focus fill] (axis cs:-0.32,0) rectangle (axis cs:0.32,1000);
+  \draw[pd guide] (axis cs:0.32,1000) -- (axis cs:0.68,1000);
+  \draw[pd ready fill] (axis cs:0.68,1000) rectangle (axis cs:1.32,1140);
+  \draw[pd guide] (axis cs:1.32,1140) -- (axis cs:1.68,1140);
+  \draw[pd breach fill] (axis cs:1.68,880) rectangle (axis cs:2.32,1140);
+  \draw[pd guide] (axis cs:2.32,880) -- (axis cs:2.68,880);
+  \draw[pd ready fill] (axis cs:2.68,880) rectangle (axis cs:3.32,960);
+  \draw[pd guide] (axis cs:3.32,960) -- (axis cs:3.68,960);
+  \draw[pd focus fill] (axis cs:3.68,0) rectangle (axis cs:4.32,960);
+  \node[pd label] at (axis cs:0,1080) {1000};
+  \node[pd label] at (axis cs:1,1220) {$+140$};
+  \node[pd label] at (axis cs:2,1220) {$-260$};
+  \node[pd label] at (axis cs:3,1040) {$+80$};
+  \node[pd focus label] at (axis cs:4,1040) {960};
+\end{axis}
+\end{tikzpicture}
+\caption{A waterfall of the settlement running total across four
+corrections. Each bar floats from the running total before it to the
+running total after: the fee and credit corrections raise the total
+(\texttt{pd ready fill}), the penalty lowers it (\texttt{pd breach fill}),
+and the two solid bars are the true start and end totals in the chapter
+hue. The account opens at 1000 and settles at 960; every intermediate total
+is also on the tick list, so a reader can check any bar's height against
+the axis directly. [internal, illustrative]}
+\label{fig:tpl-waterfall}
+\end{figure}

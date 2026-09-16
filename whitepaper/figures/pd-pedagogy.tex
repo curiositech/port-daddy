@@ -396,13 +396,18 @@
 % which is the harmless direction.
 \newsavebox{\pd@glossbox}
 \newcommand{\pdgloss}[2]{%
-  {\bfseries #1}%
+  % The margin box is placed BEFORE the term: the placement machinery
+  % consumes the token that follows it, and when the term came first that
+  % token was the word space after the term ("fencing epochof its role",
+  % found the first time the macro was used, 2026-09-11). Ending the macro
+  % on the term leaves the prose's own space where it was.
   \ifpdmargincolumn
     \sbox{\pd@glossbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
       {\scshape #1}\par\nobreak\vspace{1pt plus 1pt}#2\end{minipage}}%
     \pd@placemargin{\pd@glossbox}%
+    {\bfseries #1}%
   \else
-    \space{\itshape (#2)}%
+    {\bfseries #1}\space{\itshape (#2)}%
   \fi}
 
 % Marginalia (Wave 12, 12.2): a duotone portrait or title page in the margin
