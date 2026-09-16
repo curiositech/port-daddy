@@ -252,7 +252,10 @@ build_one() {
           echo "::error::Node.js is required to generate the collected-volume body and bibliography" >&2
           return 1
         }
-        node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
+        if ! node scripts/generate-mega-whitepaper.mjs "$shared_outdir"; then
+          echo "::error::scripts/generate-mega-whitepaper.mjs failed generating the Book's body/bibliography for $roottex — see the Node output above for the real error." >&2
+          return 1
+        fi
       fi
       ;;
   esac

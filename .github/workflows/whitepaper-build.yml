@@ -227,6 +227,50 @@ jobs:
           path: |
             website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
 
+      # Mirror the Book to R2 on every run that can hold the credential and
+      # that just produced a real render -- independent of whether THIS run's
+      # git tree keeps the PDF (see "Keep the Book out of the diff" below).
+      # scripts/publish-book-to-r2.mjs writes book/current.pdf, so a reader
+      # gets the current Book on every push whose source changed it, without
+      # waiting on a `refresh_book` dispatch and without the git-committed
+      # copy ever carrying a diff PRs would conflict over. Skipped on
+      # pull_request (fork PRs hold no repository secrets, and a same-repo PR
+      # gets a mirror anyway once it lands on its own branch push); runs on
+      # push and workflow_dispatch, matching r2-media.yml's sync job.
+      #
+      # A failure here fails the whole build job. The Book compiling with no
+      # TeX errors is necessary but not sufficient: docs/adr/0144-book-r2-mirror-with-one-mutable-pointer.md
+      # makes R2's book/current.pdf the thing "the current, live Book" means,
+      # so a publish that silently did not happen must be as loud as a
+      # LaTeX error, not a background task nobody notices failed.
+      - name: Install poppler (provides pdfinfo) for the Book's page count
+        if: github.event_name != 'pull_request'
+        run: |
+          set -eu
+          command -v pdfinfo >/dev/null 2>&1 || (apt-get update && apt-get install -y poppler-utils)
+
+      - name: Publish the Book to R2
+        if: github.event_name != 'pull_request'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          book=website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
+          if [ ! -f "$book" ]; then
+            echo "::error::$book does not exist; the build step above must have failed silently"
+            exit 1
+          fi
+          pages="$(pdfinfo "$book" | grep -i '^pages:' | grep -oE '[0-9]+' | head -1)"
+          if [ -z "$pages" ]; then
+            echo "::error::could not read a page count from $book with pdfinfo; refusing to publish a manifest with a guessed page count"
+            exit 1
+          fi
+          node scripts/publish-book-to-r2.mjs "$book" --pages "$pages" --source-commit "$GITHUB_SHA"
+
       # THE BOOK IS BUILT ON EVERY RUN AND COMMITTED ON ALMOST NONE.
       #
       # The Book collates every chapter, so ANY chapter edit moves this one
