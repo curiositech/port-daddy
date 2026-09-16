@@ -1007,6 +1007,10 @@ the same at every answer.
 
 \input{figures/fig-swk-marker-decay}
 
+The renewal view makes the operational distinction explicit: persisted weight is
+only a checkpoint, while every read recomputes age before renewal or pruning.
+\input{figures/fig-swk-marker-renewal}
+
 
 \subsection{Two delegation chains, one dangerous name}
 
@@ -1922,7 +1926,8 @@ I12 & Non-forgeable identity & actor-soul id + lookup credential & \BuiltWeak{} 
 \noindent\emph{Express lane: the kernel's promises are properties of one object, an
 evidence-bearing work unit; on a two-principal instance every one of its 536 reachable
 states satisfies six invariants, and removing any single guard lets a checker construct the
-crime in at most seven steps. The machine is Figure~\ref{fig:swk-workunit-machine} and the box below; the numbers are
+crime in at most seven steps. Figure~\ref{fig:swk-workunit-crimes} shows those shortest
+counterexamples as traces; the numbers are
 Table~\ref{tab:workunit-crimes}.}
 
 \paragraph{The scene.}
@@ -1950,7 +1955,7 @@ The misread to preempt: a model checker does not prove the daemon correct. It pr
 \emph{specification} correct at these parameters; the daemon must refine it, and that
 refinement is a separate obligation named in the boundary below.
 
-\input{figures/fig-swk-workunit-machine}
+\input{figures/fig-swk-workunit-crimes}
 
 The checker that explores the machine is short enough to run while reading. Its
 output below is the evidence behind the state count and the shortest-crime table:
