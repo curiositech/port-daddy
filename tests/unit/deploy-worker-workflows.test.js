@@ -12,22 +12,28 @@ import { parse } from 'yaml';
 
 const workflow = name => parse(readFileSync(resolve('.github/workflows', name), 'utf8'));
 
-// Every Worker with a COMMITTED deploy config must deploy from CI — that is
-// the point of the committed file. email-ingress / github-app-receiver only
-// ship wrangler.toml.example (config deliberately out-of-band), so they are
-// exempt by construction.
+// Every Worker with a COMMITTED deploy config must have a deployment workflow.
+// Fleet Executor is deliberately manual because activation can spend money and
+// is version-coupled to Relay control authority; Steward remains auto-deployed
+// from a scoped main-branch path filter. Keep that distinction explicit so a
+// blanket assertion cannot silently undo either policy.
 const DEPLOYED_WORKERS = [
-  { app: 'fleet-executor', file: 'deploy-fleet-executor.yml' },
-  { app: 'steward', file: 'deploy-steward.yml' },
+  { app: 'fleet-executor', file: 'deploy-fleet-executor.yml', trigger: 'manual' },
+  { app: 'steward', file: 'deploy-steward.yml', trigger: 'push' },
 ];
 
 describe('worker deploy workflows', () => {
-  test.each(DEPLOYED_WORKERS)('$app: paths filter, concurrency, fork guard, wrangler deploy', ({ app, file }) => {
+  test.each(DEPLOYED_WORKERS)('$app: trigger policy, concurrency, fork guard, wrangler deploy', ({ app, file, trigger }) => {
     const wf = workflow(file);
-    const push = wf.on?.push ?? wf[true]?.push; // yaml parses bare `on:` as boolean true
-    expect(push.branches).toEqual(['main']);
-    expect(push.paths).toContain(`apps/${app}/**`);
-    expect(push.paths).toContain(`.github/workflows/${file}`);
+    const triggers = wf.on ?? wf[true]; // yaml parsers may read bare `on:` as boolean true
+    if (trigger === 'push') {
+      expect(triggers.push.branches).toEqual(['main']);
+      expect(triggers.push.paths).toContain(`apps/${app}/**`);
+      expect(triggers.push.paths).toContain(`.github/workflows/${file}`);
+    } else {
+      expect(Object.prototype.hasOwnProperty.call(triggers, 'workflow_dispatch')).toBe(true);
+      expect(triggers.push).toBeUndefined();
+    }
 
     expect(wf.concurrency.group).toBe(file.replace('.yml', ''));
     expect(wf.concurrency['cancel-in-progress']).toBe(false);

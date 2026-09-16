@@ -11,9 +11,8 @@
  * Fleet' check run in_progress before model work. A lost admitted job normally
  * leaves that owned check unresolved until the DLQ claims the same intent and
  * marks the exact creator-run check failure. The webhook-to-check interval,
- * degraded legacy admission, and GitHub's lack of atomic metadata/check
- * mutation remain explicit residual windows; this code does not claim they are
- * closed by the queue consumer.
+ * and GitHub's lack of atomic metadata/check mutation remain explicit residual
+ * windows; this code does not claim they are closed by the queue consumer.
  *
  * Retry semantics: on a thrown (recoverable) error we record the cause against
  * the run's transcript (delivery-failure.ts) and call `message.retry()`;
@@ -26,6 +25,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { FLEET_WAITING_CONTROL } from '../../shared/fleet-suspension.js';
 import { executeFleet } from './execute.js';
 import { CheckRunCompletionError } from './github.js';
 import {
@@ -40,15 +40,20 @@ import {
   recordDeliveryAttemptStart,
   recordDeliveryContinuation,
   recordDeliveryFailure,
-  readDeliveryContinuationCount,
   runIdForDelivery,
 } from './delivery-failure.js';
 import { flushSquidEvents } from './squid-events.js';
+import { fleetAutomationControlBlockReason } from './control-gate.js';
 import {
-  beginFleetIntentAttempt,
+  assertFleetContinuationPending,
+  claimFleetIntentWork,
   finishFleetIntentFromRun,
+  holdFleetContinuationForControl,
   markFleetIntentRetrying,
+  markFleetIntentWaitingForControl,
   markFleetIntentTerminal,
+  prepareFleetIntentContinuation,
+  readFleetIntentState,
 } from './run-intent.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
@@ -56,6 +61,15 @@ export { executeFleet } from './execute.js';
 
 /** The dead-letter queue name (must match `dead_letter_queue` in wrangler.toml). */
 const DLQ_QUEUE_NAME = 'fleet-runs-dlq';
+
+const DURABLY_SETTLED_FLEET_INTENT_STATES = new Set([
+  FLEET_WAITING_CONTROL,
+  'superseded',
+  'success',
+  'failure',
+  'neutral',
+  'cancelled',
+]);
 
 /**
  * One provider-heavy ship per isolate. Checkpoints make the logical Fleet run
@@ -85,6 +99,39 @@ function deliveryAttemptCursor(job: FleetRunJob, platformAttempt: number): numbe
     : sequence * CONTINUATION_ATTEMPT_STRIDE + platformAttempt;
 }
 
+/**
+ * Recheck both canonical OFF authorities immediately before a continuation
+ * queue send. A cached false is never permission; the Durable Object and D1
+ * repository control must both be freshly readable and ON.
+ */
+/** Send or durably hold one exact pending continuation permit. */
+async function sendPendingContinuation(
+  env: ExecutorEnv,
+  job: FleetRunJob,
+  sequence: number,
+): Promise<'sent' | 'held'> {
+  await assertFleetContinuationPending(env, job, sequence);
+  const blocked = await fleetAutomationControlBlockReason(env, job);
+  if (blocked) {
+    await holdFleetContinuationForControl(
+      env,
+      job,
+      sequence,
+      `Fleet suspended: ${blocked}; pending continuation ${sequence} was not sent`,
+    );
+    return 'held';
+  }
+  await assertFleetContinuationPending(env, job, sequence);
+  if (!env.FLEET_CONTINUATIONS) {
+    throw new Error(`cannot send pending continuation ${sequence}: producer binding unavailable`);
+  }
+  await env.FLEET_CONTINUATIONS.send(
+    { ...job, continuationSequence: sequence },
+    { delaySeconds: 1 },
+  );
+  return 'sent';
+}
+
 export default {
   async queue(
     batch: MessageBatch<FleetRunJob>,
@@ -110,8 +157,49 @@ export default {
         console.log(
           `[fleet-executor] dlq delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber}`,
         );
-        await handleDlqJob(message.body, env);
-        message.ack();
+        try {
+          await handleDlqJob(message.body, env);
+          message.ack();
+        } catch (error) {
+          console.error(
+            `[fleet-executor] DLQ repair failed delivery=${message.body?.deliveryId}: ${String(error)}`,
+          );
+          // This is the actual automatic-work boundary. A failure may have
+          // happened before the DLQ handler could claim the intent, or while
+          // it was trying to persist an OFF hold, so the handler alone cannot
+          // prove that retrying is still authorized. Unknown control is OFF.
+          const blocked = await fleetAutomationControlBlockReason(env, message.body);
+          if (blocked) {
+            let durableState: string | null = null;
+            try {
+              durableState = await readFleetIntentState(env, message.body);
+            } catch (stateError) {
+              console.error(
+                `[fleet-executor] DLQ control hold could not be verified ` +
+                  `delivery=${message.body?.deliveryId}: ${String(stateError)}`,
+              );
+            }
+            if (durableState && DURABLY_SETTLED_FLEET_INTENT_STATES.has(durableState)) {
+              console.log(
+                `[fleet-executor] DLQ retry suppressed delivery=${message.body?.deliveryId}: ` +
+                  `${blocked}; durableState=${durableState}`,
+              );
+              message.ack();
+            } else {
+              // Retain only the repair delivery. Every later attempt repeats
+              // the OFF/unknown gate before token minting, GitHub mutation, or
+              // model work. Losing the message here would strand an ordinary
+              // retrying row with no operator-visible recovery handle.
+              console.log(
+                `[fleet-executor] DLQ repair retained delivery=${message.body?.deliveryId}: ` +
+                  `${blocked}; durableState=${durableState ?? 'unavailable'}`,
+              );
+              message.retry({ delaySeconds: 60 });
+            }
+          } else {
+            message.retry({ delaySeconds: 60 });
+          }
+        }
       }
       return;
     }
@@ -123,6 +211,7 @@ export default {
         : 1;
       const explicitContinuation = continuationSequence(message.body);
       const attemptCursor = deliveryAttemptCursor(message.body, attempt);
+      let intentClaimed = false;
       try {
         if (
           message.body?.continuationSequence !== undefined &&
@@ -132,77 +221,44 @@ export default {
             `invalid continuation sequence: ${String(message.body.continuationSequence)}`,
           );
         }
+        if (explicitContinuation != null && !message.body.deliveryId) {
+          throw new Error('explicit continuation is missing its delivery id');
+        }
         console.log(
           `[fleet-executor] job delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} ` +
             `pr=${message.body?.prNumber} attempt=${attempt} cursor=${attemptCursor} ` +
             `continuation=${explicitContinuation ?? 'legacy'}`,
         );
-        if (explicitContinuation != null) {
-          if (!message.body.deliveryId) {
-            throw new Error('explicit continuation is missing its delivery id');
-          }
-          const recordedSequence = await readDeliveryContinuationCount(
+        const intentDecision = await claimFleetIntentWork(
+          env,
+          message.body,
+          attemptCursor,
+          explicitContinuation,
+        );
+        if (intentDecision.kind === 'repair-continuation') {
+          const outcome = await sendPendingContinuation(
             env,
-            runIdForDelivery(message.body.deliveryId),
+            message.body,
+            intentDecision.sequence,
           );
-          if (recordedSequence == null) {
-            throw new Error(
-              `explicit continuation ${explicitContinuation} cannot verify durable checkpoint sequence`,
-            );
-          }
-          if (recordedSequence < explicitContinuation) {
-            throw new Error(
-              `explicit continuation ${explicitContinuation} is ahead of durable sequence ${recordedSequence}`,
-            );
-          }
-          if (recordedSequence === explicitContinuation + 1) {
-            // The previous invocation may have committed its checkpoint and
-            // then failed while sending this successor. Re-sending is safe:
-            // the successor itself is deduplicated against the same ledger.
-            if (!env.FLEET_CONTINUATIONS) {
-              throw new Error(
-                `cannot repair missing continuation ${recordedSequence}: producer binding unavailable`,
-              );
-            }
-            await env.FLEET_CONTINUATIONS.send(
-              { ...message.body, continuationSequence: recordedSequence },
-              { delaySeconds: 1 },
-            );
-            console.log(
-              `[fleet-executor] RECOVERED uncertain continuation delivery=${message.body.deliveryId} ` +
-                `messageSequence=${explicitContinuation} resentSequence=${recordedSequence}; ` +
-                `acknowledging predecessor`,
-            );
-            message.ack();
-            continue;
-          }
-          if (recordedSequence > explicitContinuation) {
-            console.log(
-              `[fleet-executor] SKIPPED duplicate continuation delivery=${message.body?.deliveryId} ` +
-                `messageSequence=${explicitContinuation} recordedSequence=${recordedSequence}`,
-            );
-            message.ack();
-            continue;
-          }
-        }
-        const intentDecision = await beginFleetIntentAttempt(env, message.body, attemptCursor);
-        if (intentDecision === 'skip') {
-          // A newer PR generation owns the required check.  The queue cannot
-          // delete this stale message, so acknowledge it here before GitHub or
-          // model work.  The superseded intent remains visible to operators.
-          //
-          // LOUD ON PURPOSE: this is the one exit that acks a job WITHOUT ever
-          // creating the 'Port Daddy Fleet' check, so a PR that takes it shows
-          // no gate at all — indistinguishable from "the fleet never ran" when
-          // read from GitHub. If this fires when it shouldn't, silence would
-          // make it invisible; a superseded skip is normal, a stream of them on
-          // current heads is a bug.
           console.log(
-            `[fleet-executor] SKIPPED as superseded delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} — no check run will be created`,
+            `[fleet-executor] ${outcome === 'sent' ? 'REPAIRED' : 'HELD'} continuation ` +
+              `delivery=${message.body.deliveryId} sequence=${intentDecision.sequence}; ` +
+              'predecessor performed no ship work',
           );
           message.ack();
           continue;
         }
+        if (intentDecision.kind === 'skip') {
+          // A superseded/terminal generation or an operator-control hold cannot
+          // be reopened by an ordinary duplicate consumer delivery.
+          console.log(
+            `[fleet-executor] SKIPPED by durable admission state delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} — no check run will be created`,
+          );
+          message.ack();
+          continue;
+        }
+        intentClaimed = true;
         // Attempt-start marker BEFORE any work: the one write that survives an
         // uncatchable platform kill (memory/CPU), so a dead-letter with starts
         // but no failures is positive evidence of that class — issue #7743.
@@ -219,15 +275,27 @@ export default {
             ? attempt
             : explicitContinuation + attempt,
           maxNewShipsPerInvocation: MAX_NEW_SHIPS_PER_INVOCATION,
-          enforceIntentOwnership: intentDecision === 'run',
+          intentAttemptCursor: attemptCursor,
         });
         if (disposition?.kind === 'continuation') {
+          const nextSequence = (explicitContinuation ?? 0) + 1;
+          await prepareFleetIntentContinuation(
+            env,
+            message.body,
+            attemptCursor,
+            nextSequence,
+          );
+          // From this point the predecessor no longer owns ship work. Any
+          // thrown queue-send path leaves the permit repairable by a higher
+          // retry instead of rewriting it as a generic running failure.
+          intentClaimed = false;
           const recorded = await recordDeliveryContinuation(
             env,
             message.body,
             attemptCursor,
             disposition.completedShip,
             disposition.remainingShips,
+            nextSequence,
           );
           if (!recorded) {
             throw new Error(
@@ -243,20 +311,20 @@ export default {
           } catch {
             void telemetryDrain;
           }
-          if (env.FLEET_CONTINUATIONS) {
-            const nextSequence = await readDeliveryContinuationCount(
-              env,
-              runIdForDelivery(message.body.deliveryId),
+          if (!env.FLEET_CONTINUATIONS) {
+            console.warn(
+              `[fleet-executor] continuation ${nextSequence} durably pending but producer binding is unavailable; ` +
+                'retrying predecessor as a repair-only delivery',
             );
-            if (nextSequence == null || nextSequence <= 0) {
-              throw new Error(
-                `checkpoint continuation count unavailable after pd-${disposition.completedShip}`,
-              );
-            }
-            await env.FLEET_CONTINUATIONS.send(
-              { ...message.body, continuationSequence: nextSequence },
-              { delaySeconds: 1 },
-            );
+            message.retry({ delaySeconds: 1 });
+            continue;
+          }
+          const sendOutcome = await sendPendingContinuation(
+            env,
+            message.body,
+            nextSequence,
+          );
+          if (sendOutcome === 'sent') {
             console.log(
               `[fleet-executor] continuation delivery=${message.body.deliveryId} ` +
                 `sequence=${nextSequence} completed=pd-${disposition.completedShip}; ` +
@@ -264,14 +332,11 @@ export default {
             );
             message.ack();
           } else {
-            // Rolling-deploy compatibility: code may reach an isolate before
-            // the producer binding is live. Preserve the old cumulative path
-            // until Wrangler finishes installing FLEET_CONTINUATIONS.
-            console.warn(
-              `[fleet-executor] continuation producer absent delivery=${message.body.deliveryId}; ` +
-                `falling back to platform retry`,
+            console.log(
+              `[fleet-executor] continuation held by OFF authority delivery=${message.body.deliveryId} ` +
+                `sequence=${nextSequence}; acknowledging predecessor without ship work`,
             );
-            message.retry({ delaySeconds: 1 });
+            message.ack();
           }
           continue;
         }
@@ -289,26 +354,47 @@ export default {
             : 'payload head is no longer current; acknowledged without model spend';
           await markFleetIntentTerminal(
             env,
-            message.body.deliveryId,
+            message.body,
+            attemptCursor,
             'cancelled',
             reason,
+          );
+        } else if (disposition?.kind === 'suspended') {
+          // Keep a durable waiting-for-control intent, but acknowledge this message.
+          // Suspension never schedules automatic paid work or becomes a
+          // terminal model verdict. A later explicit redelivery rechecks the
+          // same durable control epoch.
+          await markFleetIntentWaitingForControl(env, message.body, attemptCursor,
+            `Fleet suspended: ${disposition.reason}; operator-authorized redelivery or new delivery required; no automatic retry`);
+          if (await readFleetIntentState(env, message.body) !== FLEET_WAITING_CONTROL) {
+            throw new Error('Fleet suspension was not durably recorded; refusing to acknowledge the delivery');
+          }
+        } else if (disposition?.kind === 'coverage-held') {
+          await markFleetIntentTerminal(
+            env,
+            message.body,
+            attemptCursor,
+            'failure',
+            'Merge-group constituent review receipts are unverified',
           );
         } else if (disposition?.kind === 'already-decided') {
           await markFleetIntentTerminal(
             env,
-            message.body.deliveryId,
+            message.body,
+            attemptCursor,
             disposition.conclusion,
             'required check already held a model-backed verdict; acknowledged without duplicate spend',
           );
         } else if (disposition?.kind === 'no-cloud-ships') {
           await markFleetIntentTerminal(
             env,
-            message.body.deliveryId,
+            message.body,
+            attemptCursor,
             'cancelled',
             'trusted Fleet configuration contains no Cloud-executable review ships',
           );
         } else {
-          await finishFleetIntentFromRun(env, message.body);
+          await finishFleetIntentFromRun(env, message.body, attemptCursor);
         }
         // Squid delivery never blocks the Fleet verdict, but Workers may
         // terminate floating promises after the queue handler returns. Extend
@@ -363,13 +449,19 @@ export default {
         // the run, so without this the only artifact a dead-lettered job leaves
         // is "was lost" with no cause — see delivery-failure.ts. Best-effort and
         // non-throwing by construction, so it can never eat the retry below.
-        await recordDeliveryFailure(
-          env,
-          message.body,
-          attemptCursor,
-          durableError,
-        );
-        await markFleetIntentRetrying(env, message.body, attemptCursor, durableError);
+        // A rejected or unverifiable queue body never owned this generation,
+        // so it must not write a transcript or reopen the legitimate intent.
+        // Only the exact attempt that completed the conditional admission write
+        // may publish retry evidence for that run.
+        if (intentClaimed) {
+          await recordDeliveryFailure(
+            env,
+            message.body,
+            attemptCursor,
+            durableError,
+          );
+          await markFleetIntentRetrying(env, message.body, attemptCursor, durableError);
+        }
         if (err instanceof CheckRunCompletionError && err.retryAfterSeconds) {
           message.retry({ delaySeconds: err.retryAfterSeconds });
         } else if (providerDelaySeconds != null) {

@@ -21,6 +21,8 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { readFleetPauseGate, type FleetPauseGate } from './control-gate.js';
+import { FLEET_WAITING_CONTROL } from '../../shared/fleet-suspension.js';
 import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
@@ -67,7 +69,7 @@ import { fetchOpenPullRequestsDetailed, fetchPRFilePatches } from './github.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
 import { classifyPrLifecycle } from './pr-lifecycle.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
-import { assertFleetIntentCurrent } from './run-intent.js';
+import { assertFleetIntentCurrent, FleetIntentOwnershipError } from './run-intent.js';
 import {
   resolveVerdict,
   aggregateConclusion,
@@ -652,13 +654,6 @@ async function emitShipTelemetry(
   }
 }
 
-/**
- * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
- * via POST /v1/fleet/pause; the executor reads it via env.CONTROL_KV). Value is
- * either JSON `{ paused: boolean, pausedAt: number }` or the literal
- * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
- */
-const PAUSE_KEY = 'fleet:paused';
 const DELIVERY_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 /** Epoch seconds — the timestamp unit used by fleet_runs / fleet_run_steps. */
@@ -716,35 +711,13 @@ function validDeliveryId(raw: unknown): string | null {
   return raw;
 }
 
-/**
- * Read the kill-switch flag. Tolerates both the JSON object form and the bare
- * `"true"`/`"false"` string. Best-effort: a KV read failure means "not paused"
- * — the fail-safe here is to keep running the gate, never to silently skip it.
- */
-async function isFleetPaused(env: ExecutorEnv): Promise<boolean> {
-  // Read the kill switch from the relay's CONTROL-PLANE KV — the SAME namespace
-  // the relay's POST /v1/fleet/pause writes to. (Previously read FLEET_TOKENS, a
-  // DIFFERENT namespace, so a pause toggle never reached the executor.) Absent
-  // binding ⇒ NOT paused (fail-safe: the gate keeps running).
-  const kv = env.CONTROL_KV;
-  if (!kv) return false;
-  try {
-    const raw = await kv.get(PAUSE_KEY);
-    if (!raw) return false;
-    if (raw === 'true') return true;
-    if (raw === 'false') return false;
-    try {
-      const parsed = JSON.parse(raw) as { paused?: boolean };
-      return parsed.paused === true;
-    } catch {
-      // Non-JSON, non-boolean payload — treat anything truthy-but-unknown as
-      // NOT paused so a corrupt flag can never silently disable the gate.
-      return false;
-    }
-  } catch {
-    return false;
-  }
+function unknownPauseSummary(reason: FleetPauseGate['reason']): string {
+  return `Fleet automation was denied because the global cloud pause state is unknown (${reason}). ` +
+    'No automated review was performed. Restore readable control state and explicitly turn Fleet on before retrying.';
 }
+
+/** Durable GitHub check marker: a suspension is never a terminal review verdict. */
+const FLEET_SUSPENSION_MARKER = '<!-- pd-fleet-suspension:v1 -->\n';
 
 /**
  * Retry-replaceable transcript telemetry. Each {@link step} writes one
@@ -1353,58 +1326,53 @@ function triggerFor(job: FleetRunJob): string | null {
 /**
  * Report `Port Daddy Fleet` on a merge-queue branch.
  *
- * WHY A PASS-THROUGH AND NOT A REVIEW. The queue branch is `main` + the queued
- * PRs, and every PR in it was already gated by the full fleet at
- * `pull_request` time. Re-running every ship on each queue permutation would
- * re-spend the entire review budget per entry, per reorder, to re-derive a
- * verdict the fleet already published — while the queue branch's own CI (which
- * DOES run on `merge_group`) is what actually exercises the combined code. This
- * repo already takes that position elsewhere: scripts/check-roadmap-link.ts
- * treats `merge_group` heads as a pass-through for exactly this reason.
- *
- * What matters is that the context REPORTS. It is required on the merge queue,
- * so a context that never appears is not a strict gate — it is a permanent
- * deadlock, which is what it had been since 2026-08-06.
- *
- * Fails soft on purpose: any error here leaves the check absent, which is
- * exactly today's behaviour, so this can never be worse than not running.
+ * The event does not carry verified constituent review receipts. Until that
+ * proof is implemented, explicitly block the queue instead of asserting every
+ * PR was reviewed. No model work is started to manufacture a pass-through.
  *
  * @param job the merge_group delivery
  * @param env executor bindings (token minting + details url)
  */
-async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+async function reportMergeGroupCoverageHold(
+  job: FleetRunJob,
+  env: ExecutorEnv,
+  assertIntentCurrent?: () => Promise<void>,
+): Promise<void> {
   const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
   const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
-  if (!job.repoFullName || !job.installationId || !headSha) return;
+  if (!job.repoFullName || !job.installationId || !headSha) {
+    throw new Error('Merge-group coverage hold cannot locate its required check: repository, installation ID and head SHA are required');
+  }
   const [owner, repo] = job.repoFullName.split('/');
-  if (!owner || !repo) return;
+  if (!owner || !repo) throw new Error('Merge-group repository coordinates are malformed');
 
   const token = await getInstallationTokenCached(
     env.GITHUB_APP_ID,
     env.GITHUB_APP_PRIVATE_KEY,
     job.installationId,
     env.FLEET_TOKENS,
-  ).catch(() => null);
-  if (!token) return;
-
-  try {
-    const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
-    await completeCheckRun(
-      owner,
-      repo,
-      checkRunId,
-      'success',
-      'Merge-queue pass-through. Every PR in this group was reviewed by the fleet at ' +
-        'pull_request time; the queue branch is gated by its own CI, which runs on ' +
-        'merge_group. The fleet does not re-review each queue permutation.',
-      token,
-      null,
+  );
+  const runId = `run:${job.deliveryId}`;
+  await assertIntentCurrent?.();
+  const existing = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token, env.GITHUB_APP_ID, runId);
+  if (!existing) await assertIntentCurrent?.();
+  const checkRunId = existing ?? await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null, undefined, runId);
+  if (!checkRunId) throw new Error(`Merge-group coverage hold could not create the required check for ${job.repoFullName}@${headSha}`);
+  const completion = await completeCheckRunDetailed(
+    owner, repo, checkRunId, 'failure',
+    'Fleet cannot verify the constituent PR review receipts for this merge group. ' +
+      'The required review check remains blocked; queue CI alone does not establish Fleet review coverage. ' +
+      'Operator action: restore constituent-review verification before requesting a new merge-group check.',
+    token, null, 'Port Daddy Fleet', assertIntentCurrent,
+  );
+  if (!completion.ok) {
+    throw new CheckRunCompletionError(
+      `Merge-group Fleet check completion failed after bounded retries for ${job.repoFullName}@${headSha} ` +
+        `(check ${checkRunId}): ${completion.diagnostic ?? 'unknown GitHub response'}`,
+      completion.retryAfterSeconds,
     );
-  } catch (err) {
-    // Absent check == today's behaviour. Never throw: a failure here must not
-    // retry the job or dead-letter it.
-    console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
   }
+  await recordRunEnd(env, runId, 'failure', Date.now());
 }
 
 export type FleetExecutionDisposition =
@@ -1417,6 +1385,8 @@ export type FleetExecutionDisposition =
       modelSpendPossible?: boolean;
     }
   | { kind: 'already-decided'; conclusion: 'success' | 'failure' }
+  | { kind: 'suspended'; reason: string; controlRevision?: number }
+  | { kind: 'coverage-held' }
   | { kind: 'no-cloud-ships' }
   | { kind: 'continuation'; completedShip: string; remainingShips: string[] };
 
@@ -1442,6 +1412,24 @@ export class PullRequestReviewInputDriftError extends Error {
   }
 }
 
+/**
+ * A hot automation boundary could no longer prove the same global and
+ * repository control authority that admitted this delivery. This is a control
+ * hold, not a ship failure and not permission to continue to another paid or
+ * externally mutating operation.
+ */
+export class FleetAutomationControlError extends Error {
+  constructor(
+    readonly boundary: string,
+    readonly reason: string,
+    readonly pauseStatus: FleetPauseGate['status'],
+    readonly controlRevision?: number,
+  ) {
+    super(`Fleet automation is blocked at ${boundary}: ${reason}`);
+    this.name = 'FleetAutomationControlError';
+  }
+}
+
 export interface FleetExecutionOptions {
   /** Cloudflare Queue's 1-based delivery attempt. Direct callers default final. */
   queueAttempt?: number;
@@ -1450,8 +1438,8 @@ export interface FleetExecutionOptions {
    * gated ships do not count. Omit for direct/full-run callers.
    */
   maxNewShipsPerInvocation?: number;
-  /** Re-check the Relay generation ledger at every hot publication boundary. */
-  enforceIntentOwnership?: boolean;
+  /** Exact durable attempt cursor, re-checked at every hot publication boundary. */
+  intentAttemptCursor?: number;
 }
 
 /**
@@ -1523,16 +1511,26 @@ export async function executeFleet(
   env: ExecutorEnv,
   options: FleetExecutionOptions = {},
 ): Promise<FleetExecutionDisposition | void> {
-  if (!env.AI) return;
-
+  const intentAttemptCursor = options.intentAttemptCursor;
+  const assertIntentCurrent = async (): Promise<void> => {
+    if (intentAttemptCursor !== undefined) {
+      await assertFleetIntentCurrent(env, job, intentAttemptCursor);
+    }
+  };
   // MERGE QUEUE: handled before every guard below, all of which assume a PR.
   // A merge_group delivery has no pull_request and no prNumber, so it would
   // otherwise fall straight out of `!job.prNumber` and report nothing — the
   // deadlock this branch exists to end.
   if (job.eventType === 'merge_group') {
-    await reportMergeGroupPassThrough(job, env);
-    return;
+    await reportMergeGroupCoverageHold(
+      job,
+      env,
+      intentAttemptCursor === undefined ? undefined : assertIntentCurrent,
+    );
+    return { kind: 'coverage-held' };
   }
+
+  if (!env.AI) throw new Error('Fleet AI binding unavailable; review cannot run');
 
   const trigger = triggerFor(job);
   if (!trigger) return;
@@ -1578,24 +1576,20 @@ export async function executeFleet(
 
   // --- KILL SWITCH ---------------------------------------------------------
   // Checked at the very START, before any AI spend or review/comment post.
-  // STILL posts a neutral 'Port Daddy Fleet' check — it must NEVER just
-  // return silently here. "Port Daddy Fleet" is a REQUIRED status check on
-  // the main-branch merge-queue ruleset (ALLGREEN grouping); an absent check
-  // blocks the WHOLE queue forever, not just this one run, and looks like
-  // nothing at all in GitHub's UI (no failing check to investigate — just
-  // permanent silence). This is exactly what happened 2026-07-16: an
-  // out-of-band `fleet:paused=true` (written straight into CONTROL_KV,
-  // bypassing the audited POST /v1/fleet/pause endpoint — no audit_log row
-  // exists for the toggle) left the check silently ABSENT on every PR for 4
-  // days, and every PR needed an admin bypass past a check that never even
-  // attempted to run. One token mint + one create/complete(neutral) check-run
-  // pair is a small, worthwhile cost to keep the gate legible while paused.
+  // Publish a blocking check explaining that review did not run. The control
+  // receipt comes from Relay's transactional object, never the old KV flag.
   // Any infra failure here is swallowed (never thrown) so a broken pause path
   // can never spiral into queue retries/DLQ churn — pausing must stay cheap.
   const initialShipControls = await readRepoShipControls(env.DB, job.repoFullName);
   const repositoryStopped = !repoShipEnabled(initialShipControls, '*');
-  if (await isFleetPaused(env) || repositoryStopped) {
-    console.log(`[fleet-executor] delivery=${deliveryId} paused; posting neutral check (no AI spend, no posts)`);
+  const admissionRunId = `${job.repoFullName}/${runId}`;
+  const initialPauseGate = await readFleetPauseGate(env, undefined, admissionRunId);
+  if (initialPauseGate.blocked || repositoryStopped) {
+    console.log(
+      `[fleet-executor] delivery=${deliveryId} automation-blocked ` +
+      `pauseStatus=${initialPauseGate.status} pauseReason=${initialPauseGate.reason} ` +
+      `repositoryStopped=${repositoryStopped}; posting blocking check (no AI spend, no review posts)`,
+    );
     const head = prPayload.head as { sha?: unknown } | undefined;
     const headSha = typeof head?.sha === 'string' ? head.sha : null;
     if (!headSha) {
@@ -1610,7 +1604,7 @@ export async function executeFleet(
         env.FLEET_TOKENS,
       );
       const assertPausedGateCurrent = async (boundary: string): Promise<void> => {
-        if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+        await assertIntentCurrent();
         const live = await fetchPullRequestMetadataWitness(owner, repo, prNumber, token);
         if (live.headSha !== headSha) {
           throw new PullRequestHeadValidationError(
@@ -1645,29 +1639,45 @@ export async function executeFleet(
           runId,
         );
       }
-      const summary = repositoryStopped
+      const summary = FLEET_SUSPENSION_MARKER + (initialPauseGate.status === 'unknown'
+        ? unknownPauseSummary(initialPauseGate.reason)
+        : repositoryStopped
         ? `${initialShipControls.available ? 'Cloud ships are off for this repository.' : initialShipControls.reason} ` +
           'No automated review was performed. Manage permissions in the signed-in account Ship controls page.'
         : 'Fleet paused by operator; no automated review was performed for this delivery. ' +
-          'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
+          'Use the account control to resume with its observed revision, then request a new review delivery.');
       if (checkRunId) {
-        await completeCheckRun(
+        const completion = await completeCheckRunDetailed(
           owner,
           repo,
           checkRunId,
-          'neutral',
+          'failure',
           summary,
           token,
           detailsUrl,
           'Port Daddy Fleet',
-          () => assertPausedGateCurrent('immediately before paused neutral PATCH'),
+          () => assertPausedGateCurrent('immediately before paused failure PATCH'),
         );
+        if (!completion.ok) {
+          throw new CheckRunCompletionError(
+            `Paused Fleet check completion failed after bounded retries for ${owner}/${repo}#${prNumber} ` +
+              `(check ${checkRunId}): ${completion.diagnostic ?? 'unknown GitHub response'}`,
+            completion.retryAfterSeconds,
+          );
+        }
       }
       await transcript.step(
         'check-completed',
         null,
-        'Check concluded: neutral (paused at job start)',
-        { checkRunId, conclusion: 'neutral', reason: 'paused-at-start' },
+        'Check concluded: failure (paused at job start)',
+        {
+          checkRunId,
+          conclusion: 'failure',
+          reason: initialPauseGate.status === 'unknown' ? 'pause-state-unknown' : 'paused-at-start',
+          pauseStatus: initialPauseGate.status,
+          pauseReason: initialPauseGate.reason,
+          repositoryStopped,
+        },
       );
       const base = prPayload.base as { sha?: unknown } | undefined;
       const stubPrCtx: PRContext = {
@@ -1704,13 +1714,17 @@ export async function executeFleet(
         diffSource: 'raw',
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
-      await recordRunEnd(env, runId, 'neutral', startMs);
+      await recordRunEnd(env, runId, FLEET_WAITING_CONTROL, startMs);
     } catch (err) {
       console.error(
         `[fleet-executor] delivery=${deliveryId} paused-check post failed: ${String(err)}`,
       );
     }
-    return;
+    return {
+      kind: 'suspended',
+      reason: repositoryStopped ? 'repository-off' : initialPauseGate.reason,
+      ...(initialPauseGate.revision === undefined ? {} : { controlRevision: initialPauseGate.revision }),
+    };
   }
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
@@ -1767,8 +1781,8 @@ export async function executeFleet(
         detailsUrl,
         env.GITHUB_APP_ID,
         runId,
-        options.enforceIntentOwnership
-          ? () => assertFleetIntentCurrent(env, job)
+        intentAttemptCursor !== undefined
+          ? assertIntentCurrent
           : undefined,
       );
     }
@@ -1863,7 +1877,7 @@ export async function executeFleet(
     merged: prCtx.merged,
   };
   const assertCurrentReviewInput: PullRequestHeadGuard = async boundary => {
-    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    await assertIntentCurrent();
     let live: Awaited<ReturnType<typeof fetchPullRequestMetadataWitness>>;
     try {
       live = await fetchPullRequestMetadataWitness(owner, repo, prNumber, token);
@@ -1957,11 +1971,12 @@ export async function executeFleet(
   // Actions CI while the fleet check never reappeared at all.
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
   const deadLettered = isDeadLetteredSummary(existing?.summary);
+  const suspended = existing?.summary.startsWith(FLEET_SUSPENSION_MARKER) === true;
   if (
     existing &&
     existing.status === 'completed' &&
     DECIDED.has(existing.conclusion ?? '') &&
-    !deadLettered &&
+    !deadLettered && !suspended &&
     existing.reviewInputSha256 === reviewInputSha256 &&
     existing.mediatorOrderSha256 === (acknowledgedMediatorOrderSha256 ?? mediatorOrderSha256) &&
     existing.creatorRunId === runId
@@ -2021,7 +2036,7 @@ export async function executeFleet(
   const completedNeedsReplacement = Boolean(
     existing &&
       existing.status === 'completed' &&
-      (deadLettered ||
+      (deadLettered || suspended ||
         existing.reviewInputSha256 !== reviewInputSha256 ||
         existing.mediatorOrderSha256 !== mediatorOrderSha256 ||
         existing.conclusion === 'neutral'),
@@ -2045,7 +2060,7 @@ export async function executeFleet(
   // newest run of a given name, so the new one is what the branch rule reads.
   let checkRunId = completedNeedsReplacement || generationMismatch ? null : existing?.id ?? null;
   if (!checkRunId) {
-    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    await assertIntentCurrent();
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(
       owner,
@@ -2127,7 +2142,7 @@ export async function executeFleet(
       console.error('[fleet] failed to record continuation livelock receipt', error);
     }
     await assertCurrentReviewInput('before continuation-livelock neutral completion');
-    await completeCheckRun(
+    const completion = await completeCheckRunDetailed(
       owner,
       repo,
       checkRunId,
@@ -2138,6 +2153,13 @@ export async function executeFleet(
       'Port Daddy Fleet',
       () => assertCurrentReviewInput('immediately before continuation-livelock neutral PATCH'),
     );
+    if (!completion.ok) {
+      throw new CheckRunCompletionError(
+        `Continuation-livelock check completion failed after bounded retries for ${owner}/${repo}#${prNumber} ` +
+          `(check ${checkRunId}): ${completion.diagnostic ?? 'unknown GitHub response'}`,
+        completion.retryAfterSeconds,
+      );
+    }
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -2145,14 +2167,46 @@ export async function executeFleet(
   // before any of them run — see recordShipsConfigInTranscript's docstring.
   await recordShipsConfigInTranscript(transcript, cloudShips);
 
-  const assertCurrentHead = assertCurrentReviewInput;
+  const automationGuardFor = (...controlNames: string[]): PullRequestHeadGuard => async boundary => {
+    await assertCurrentReviewInput(boundary);
+    const [pauseGate, controls] = await Promise.all([
+      readFleetPauseGate(env, initialPauseGate.revision, admissionRunId),
+      readRepoShipControls(env.DB, job.repoFullName!),
+    ]);
+    if (pauseGate.blocked) {
+      throw new FleetAutomationControlError(
+        boundary,
+        pauseGate.reason,
+        pauseGate.status,
+        initialPauseGate.revision,
+      );
+    }
+    const blockedControl = controlNames.find(controlName =>
+      !validShipControlName(controlName) || !repoShipEnabled(controls, controlName)
+    );
+    if (blockedControl !== undefined) {
+      throw new FleetAutomationControlError(
+        boundary,
+        controls.available
+          ? blockedControl === '*' ? 'repository-off' : `ship-off:${blockedControl}`
+          : controls.reason,
+        pauseGate.status,
+        initialPauseGate.revision,
+      );
+    }
+  };
+  const assertAutomationAuthorized = automationGuardFor('*');
+  // Every paid-call and external-effect boundary below uses the composite
+  // guard. The narrower review-input guard remains available only for writing
+  // the required failure receipt after automation has been turned off.
+  const assertCurrentHead = assertAutomationAuthorized;
   const completeOwnedCheck = async (
     completionConclusion: 'success' | 'failure' | 'neutral',
     completionSummary: string,
     boundary: string,
-  ): Promise<boolean> => {
-    await assertCurrentHead(boundary);
-    return completeCheckRun(
+  ): Promise<void> => {
+    await assertCurrentReviewInput(boundary);
+    const completion = await completeCheckRunDetailed(
       owner,
       repo,
       checkRunId,
@@ -2161,8 +2215,45 @@ export async function executeFleet(
       token,
       detailsUrl,
       'Port Daddy Fleet',
-      () => assertCurrentHead(`immediately before ${boundary} PATCH`),
+      () => assertCurrentReviewInput(`immediately before ${boundary} PATCH`),
     );
+    if (!completion.ok) {
+      throw new CheckRunCompletionError(
+        `Fleet check completion failed at ${boundary} after bounded retries for ${owner}/${repo}#${prNumber} ` +
+          `(check ${checkRunId}): ${completion.diagnostic ?? 'unknown GitHub response'}`,
+        completion.retryAfterSeconds,
+      );
+    }
+  };
+
+  const stopSuspendedRun = async (
+    error: FleetAutomationControlError,
+    modelSpendPossible: boolean,
+  ): Promise<FleetExecutionDisposition> => {
+    const summary = FLEET_SUSPENSION_MARKER +
+      `Fleet automation stopped at ${error.boundary} because control authority is blocked ` +
+      `(${error.reason}). No later model call, review, issue, branch, retarget, checkpoint, ` +
+      `continuation, or aggregate publication was started.`;
+    await transcript.step(
+      'automation-suspended',
+      null,
+      `Fleet stopped at ${error.boundary}: ${error.reason}`,
+      {
+        boundary: error.boundary,
+        reason: error.reason,
+        pauseStatus: error.pauseStatus,
+        controlRevision: error.controlRevision ?? null,
+        modelSpendPossible,
+        checkRunId,
+      },
+    );
+    await completeOwnedCheck('failure', summary, `control hold at ${error.boundary}`);
+    await recordRunEnd(env, runId, FLEET_WAITING_CONTROL, startMs);
+    return {
+      kind: 'suspended',
+      reason: error.reason,
+      ...(error.controlRevision === undefined ? {} : { controlRevision: error.controlRevision }),
+    };
   };
 
   const stopSupersededRun = async (
@@ -2179,7 +2270,7 @@ export async function executeFleet(
       `${error.boundary}. Output computed for the superseded head was discarded; ` +
       `no later review, issue, branch, retarget, checkpoint, or aggregate verdict was published.`;
     const assertCurrentIntent = async (): Promise<void> => {
-      if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+      await assertIntentCurrent();
     };
     await assertCurrentIntent();
     const checkNeutralized = await completeCheckRun(
@@ -2217,10 +2308,20 @@ export async function executeFleet(
     };
   };
 
+  const stopInterruptedRun = async (
+    error: unknown,
+    modelSpendPossible: boolean,
+  ): Promise<FleetExecutionDisposition> => {
+    if (error instanceof FleetAutomationControlError) {
+      return stopSuspendedRun(error, modelSpendPossible);
+    }
+    return stopSupersededRun(error, modelSpendPossible);
+  };
+
   try {
     await assertCurrentHead('before Fleet ship execution');
   } catch (error) {
-    return stopSupersededRun(error, intentionalContinuations > 0);
+    return stopInterruptedRun(error, intentionalContinuations > 0);
   }
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
@@ -2340,6 +2441,11 @@ export async function executeFleet(
   // RELAY_PUBLISH_URL + the executor's Ed25519 key + harbor card are all
   // configured AND the tenant opted in via `squidEvents: true` in
   // pd-fleet.yml). Signed zero-trust publish — see src/squid-events.ts.
+  try {
+    await assertCurrentHead('before run-started coordination event');
+  } catch (error) {
+    return stopInterruptedRun(error, false);
+  }
   emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId }, squidConsent);
 
   // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
@@ -2513,25 +2619,34 @@ export async function executeFleet(
     try {
       await assertCurrentHead(`before pd-${ship.name} model work`);
     } catch (error) {
-      return stopSupersededRun(error, results.length > 0);
+      return stopInterruptedRun(error, results.length > 0);
     }
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
-    // but before additional AI spend or review posts. Complete neutral rather
+    // but before additional AI spend or review posts. Complete failure rather
     // than leaving the already-created check run in progress forever.
     const shipControls = await readRepoShipControls(env.DB, job.repoFullName);
-    if (await isFleetPaused(env) || !repoShipEnabled(shipControls, '*')) {
-      const summary = !shipControls.available ? shipControls.reason
-        : `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
-      await transcript.step('check-completed', null, 'Check concluded: neutral (paused)', {
+    const pauseGate = await readFleetPauseGate(env, initialPauseGate.revision, admissionRunId);
+    if (pauseGate.blocked || !repoShipEnabled(shipControls, '*')) {
+      const summary = FLEET_SUSPENSION_MARKER + (pauseGate.status === 'unknown'
+        ? unknownPauseSummary(pauseGate.reason)
+        : !shipControls.available ? shipControls.reason
+          : `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`);
+      await transcript.step('check-completed', null, 'Check concluded: failure (paused)', {
         checkRunId,
-        conclusion: 'neutral',
+        conclusion: 'failure',
         pausedBeforeShip: ship.name,
+        pauseStatus: pauseGate.status,
+        pauseReason: pauseGate.reason,
       });
-      await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
-      await recordRunEnd(env, runId, 'neutral', startMs);
-      return;
+      await completeOwnedCheck('failure', summary, `before pd-${ship.name} paused failure completion`);
+      await recordRunEnd(env, runId, FLEET_WAITING_CONTROL, startMs);
+      return {
+        kind: 'suspended',
+        reason: pauseGate.blocked ? pauseGate.reason : 'repository-off',
+        ...(initialPauseGate.revision === undefined ? {} : { controlRevision: initialPauseGate.revision }),
+      };
     }
 
     const gate = surfaceGate(ship);
@@ -2575,6 +2690,12 @@ export async function executeFleet(
       await persistParticipation(result);
       continue;
     }
+    // The initial decision above determines whether to skip this ship. Every
+    // paid call and effect inside an admitted ship must still re-read its exact
+    // control; the repository master gate alone cannot authorize a ship that
+    // an administrator turned off mid-run.
+    const assertCurrentShip = automationGuardFor(ship.name);
+    const assertCurrentShipAndXo = automationGuardFor(ship.name, 'xo');
 
     if (!gate.run) {
       await transcript.step('ship-abstained', ship.name, `pd-${ship.name}: ${gate.disposition} — ${gate.reason}`, {
@@ -2718,7 +2839,7 @@ export async function executeFleet(
             squidConsent,
             aiCircuit,
             providerAttempt,
-            assertCurrentHead,
+            assertCurrentShip,
             capture,
           )
         : await runShip(
@@ -2737,97 +2858,100 @@ export async function executeFleet(
             ship.name === 'lookout' ? frozenLookoutProjection : null,
             aiCircuit,
             providerAttempt,
-            assertCurrentHead,
+            assertCurrentShip,
+            assertCurrentShipAndXo,
             capture,
+            initialPauseGate.revision,
           );
-      await assertCurrentHead(`after pd-${ship.name} model work, before checkpoint`);
+      await assertCurrentShip(`after pd-${ship.name} model work, before checkpoint`);
     } catch (error) {
       await flushShipTranscript(env, capture);
-      return stopSupersededRun(error, true);
+      return stopInterruptedRun(error, true);
     }
     await flushShipTranscript(env, capture);
-    result = withIncompletePrSourceCoverage(result, sourceCoverageReason);
-    result = { ...result, participation: gate.disposition,
-      voteOutcome: result.errored || result.noUsableOutput ? 'failed' : result.verdict === 'PASS' ? 'approve' : 'reject',
-      operationalStatus: result.errored ? 'failed' : 'completed' };
-    results.push(result);
-    await persistParticipation(result);
-    // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
-    emitSquidEvent(env, 'ship-verdict', {
-      repo: job.repoFullName,
-      pr: prNumber,
-      runId,
-      ship: ship.name,
-      verdict: result.errored ? 'ERROR' : result.verdict,
-    }, squidConsent);
-    await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
-    // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
-    // relay can bill per installation. Best-effort — never changes the run.
-    await recordShipSpend(env, runId, ship, job.installationId, metrics);
-    // Aggregate (not per-call) Workers AI stats for this ship — see
-    // FleetAiCircuit.runForShip for why per-call D1 rows were rejected.
-    await recordShipAiCallStats(env, runId, ship, aiCircuit.snapshotShipStats(ship.name), aiCallDeadlineMs);
-    // …and the same numbers into the transcript, which is what the human-facing
-    // run page actually reads for its token tiles.
-    await recordShipTokensInTranscript(transcript, ship, metrics);
-    // Checkpoint LAST — only after the ship's comment, telemetry, and spend
-    // rows are durable, so a resumed attempt never skips a ship whose
-    // accounting was lost with the kill. Gated-out ships are not checkpointed:
-    // re-deciding a skip costs nothing.
-    await assertCurrentHead(`before pd-${ship.name} checkpoint`);
-    const checkpointSaved = await saveShipCheckpoint(
-      env,
-      runId,
-      shipIndex,
-      result,
-      checkpointBinding,
-    );
-    newlyExecutedShips += 1;
-
-    // A retryable Workers AI fault exhausted its bounded delivery budget. The
-    // current ship now carries a fleet-wide neutral adjudication; stop before
-    // any remaining ship can add load or spend against the open dependency.
-    if (aiCircuit.isOpen) {
-      const skippedShips = orderedShips.slice(shipIndex + 1).map(candidate => candidate.name);
-      const failure = aiCircuit.failure;
-      await transcript.step(
-        'provider-circuit-open',
-        ship.name,
-        `Workers AI circuit OPEN after provider attempt ${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; ` +
-          `${skippedShips.length} remaining ship(s) skipped; fleet-wide dependency fault: ` +
-          `${result.brokenAdjudicated?.reason ?? 'provider retry budget exhausted'}`,
-        {
-          attempt: providerAttempt,
-          maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
-          skippedShips,
-          status: failure?.status ?? null,
-          code: failure?.code ?? null,
-          retryable: failure?.retryable ?? false,
-          brokenAdjudicated: result.brokenAdjudicated ?? null,
-        },
+    try {
+      result = withIncompletePrSourceCoverage(result, sourceCoverageReason);
+      result = { ...result, participation: gate.disposition,
+        voteOutcome: result.errored || result.noUsableOutput ? 'failed' : result.verdict === 'PASS' ? 'approve' : 'reject',
+        operationalStatus: result.errored ? 'failed' : 'completed' };
+      results.push(result);
+      await persistParticipation(result);
+      // Squid events are coordination effects, not passive receipts. Recheck
+      // the same OFF authority immediately before publishing one.
+      await assertCurrentShip(`before pd-${ship.name} verdict coordination event`);
+      emitSquidEvent(env, 'ship-verdict', {
+        repo: job.repoFullName,
+        pr: prNumber,
+        runId,
+        ship: ship.name,
+        verdict: result.errored ? 'ERROR' : result.verdict,
+      }, squidConsent);
+      // Accounting and telemetry describe work that already happened. They
+      // remain available even if a later control read blocks new effects.
+      await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
+      await recordShipSpend(env, runId, ship, job.installationId, metrics);
+      await recordShipAiCallStats(env, runId, ship, aiCircuit.snapshotShipStats(ship.name), aiCallDeadlineMs);
+      await recordShipTokensInTranscript(transcript, ship, metrics);
+      // Checkpoint LAST — only after the ship's comment, telemetry, and spend
+      // rows are durable. A control change discards this result instead of
+      // making it resumable under a stale admission epoch.
+      await assertCurrentShip(`before pd-${ship.name} checkpoint`);
+      const checkpointSaved = await saveShipCheckpoint(
+        env,
+        runId,
+        shipIndex,
+        result,
+        checkpointBinding,
       );
-      break;
-    }
+      newlyExecutedShips += 1;
 
-    // A Workers AI invocation may retain provider-side allocations until the
-    // Worker invocation ends. The live ecf53590 delivery proved that running
-    // multiple ships in one isolate crosses the 128 MB ceiling after one or
-    // two ships, while every ship succeeds alone. End this successful slice
-    // only after its checkpoint is durable; the queue wrapper records an
-    // explicit continuation and retries the message without treating it as an
-    // infrastructure failure. If D1 is unavailable, keep running in this
-    // invocation rather than scheduling a continuation that cannot advance.
-    if (checkpointSaved && newlyExecutedShips >= maxNewShipsPerInvocation) {
-      const remainingShips = orderedShips
-        .slice(shipIndex + 1)
-        .filter(candidate =>
-          !resumedShips.has(candidate.name) &&
-          surfaceGate(candidate).run
-        )
-        .map(candidate => candidate.name);
-      if (remainingShips.length > 0) {
-        return { kind: 'continuation', completedShip: ship.name, remainingShips };
+      // A retryable Workers AI fault exhausted its bounded delivery budget. The
+      // current ship now carries a fleet-wide neutral adjudication; stop before
+      // any remaining ship can add load or spend against the open dependency.
+      if (aiCircuit.isOpen) {
+        const skippedShips = orderedShips.slice(shipIndex + 1).map(candidate => candidate.name);
+        const failure = aiCircuit.failure;
+        await transcript.step(
+          'provider-circuit-open',
+          ship.name,
+          `Workers AI circuit OPEN after provider attempt ${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; ` +
+            `${skippedShips.length} remaining ship(s) skipped; fleet-wide dependency fault: ` +
+            `${result.brokenAdjudicated?.reason ?? 'provider retry budget exhausted'}`,
+          {
+            attempt: providerAttempt,
+            maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
+            skippedShips,
+            status: failure?.status ?? null,
+            code: failure?.code ?? null,
+            retryable: failure?.retryable ?? false,
+            brokenAdjudicated: result.brokenAdjudicated ?? null,
+          },
+        );
+        break;
       }
+
+      // A Workers AI invocation may retain provider-side allocations until the
+      // Worker invocation ends. The live ecf53590 delivery proved that running
+      // multiple ships in one isolate crosses the 128 MB ceiling after one or
+      // two ships, while every ship succeeds alone. End this successful slice
+      // only after its checkpoint is durable; the queue wrapper records an
+      // explicit continuation and retries the message without treating it as an
+      // infrastructure failure. If D1 is unavailable, keep running in this
+      // invocation rather than scheduling a continuation that cannot advance.
+      if (checkpointSaved && newlyExecutedShips >= maxNewShipsPerInvocation) {
+        const remainingShips = orderedShips
+          .slice(shipIndex + 1)
+          .filter(candidate =>
+            !resumedShips.has(candidate.name) &&
+            surfaceGate(candidate).run
+          )
+          .map(candidate => candidate.name);
+        if (remainingShips.length > 0) {
+          return { kind: 'continuation', completedShip: ship.name, remainingShips };
+        }
+      }
+    } catch (error) {
+      return stopInterruptedRun(error, true);
     }
   }
 
@@ -2853,7 +2977,7 @@ export async function executeFleet(
       ...(job.installationId != null ? { installationId: job.installationId } : {}),
     });
   } catch (error) {
-    return stopSupersededRun(error, true);
+    return stopInterruptedRun(error, true);
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
@@ -2875,12 +2999,13 @@ export async function executeFleet(
   // budget is exhausted, then this optional section disables itself and the
   // already-computed check conclusion remains untouched.
   let reviewBody = summary;
-  if (xoEnabled && !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
+  const assertXoCurrent = automationGuardFor('xo');
+  if (xoEnabled && !(await readFleetPauseGate(env, initialPauseGate.revision, admissionRunId)).blocked && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
     const advisories = collectAdvisoryFindings(results);
     if (advisories.length > 0) {
       let section: string;
       try {
-        await assertCurrentHead('before XO triage model work');
+        await assertXoCurrent('before XO triage model work');
         section = await xoOrdersSection({
           ai: env.AI,
           model: resolveXoModel(env.XO_MODEL),
@@ -2890,7 +3015,7 @@ export async function executeFleet(
           telemetryContext: { runId, attempt: providerAttempt, repoFullName: job.repoFullName },
           aiCircuit,
         });
-        await assertCurrentHead('after XO triage model work');
+        await assertXoCurrent('after XO triage model work');
       } catch (error) {
         if (error instanceof FleetAiDependencyError) {
           const failure = error.failure;
@@ -2912,7 +3037,7 @@ export async function executeFleet(
           }
           section = '';
         } else {
-          return stopSupersededRun(error, true);
+          return stopInterruptedRun(error, true);
         }
       }
       if (section) reviewBody = `${summary}\n\n${section}`;
@@ -2942,7 +3067,7 @@ export async function executeFleet(
   try {
     await assertCurrentHead('before aggregate check completion');
   } catch (error) {
-    return stopSupersededRun(error, true);
+    return stopInterruptedRun(error, true);
   }
   const checkCompletion = await completeCheckRunDetailed(
     owner,
@@ -2974,26 +3099,50 @@ export async function executeFleet(
     // A blocking ship with HIGH findings REJECTS the PR rather than commenting
     // beside it -- see reviewEventFor(). Anything else stays COMMENT.
     const reviewEvent = reviewEventFor(results);
+    let reviewAuthorized = true;
     try {
       await assertCurrentHead('before aggregate GitHub review');
     } catch (error) {
-      return stopSupersededRun(error, true);
+      if (error instanceof FleetAutomationControlError) {
+        reviewAuthorized = false;
+        await transcript.step(
+          'automation-suspended',
+          null,
+          `Aggregate GitHub review suppressed after terminal check: ${error.reason}`,
+          { boundary: error.boundary, reason: error.reason, checkRunId },
+        );
+      } else {
+        return stopInterruptedRun(error, true);
+      }
     }
-    await createReview(owner, repo, prNumber, reviewEvent, reviewBody, reviewComments, prCtx.headSha, token);
+    if (reviewAuthorized) {
+      await createReview(owner, repo, prNumber, reviewEvent, reviewBody, reviewComments, prCtx.headSha, token);
+    }
   }
 
-  // Cloud squid: the run is over (fire-and-forget).
-  emitSquidEvent(env, 'run-concluded', {
-    repo: job.repoFullName,
-    pr: prNumber,
-    runId,
-    verdict: conclusion,
-  }, squidConsent);
-  // X7 reconciliation: report this run's event total out-of-band under the
-  // N2 card so the relay can measure fire-and-forget loss. Queued behind the
-  // run-concluded event on the channel tail; same never-disturbs-a-run
-  // contract as the squid itself.
-  reportRunTotals(env, runId, squidConsent);
+  // A concluded check remains historical truth, but OFF still suppresses new
+  // coordination publication. Accounting below is retained as evidence.
+  try {
+    await assertCurrentHead('before run-concluded coordination event');
+    emitSquidEvent(env, 'run-concluded', {
+      repo: job.repoFullName,
+      pr: prNumber,
+      runId,
+      verdict: conclusion,
+    }, squidConsent);
+    reportRunTotals(env, runId, squidConsent);
+  } catch (error) {
+    if (error instanceof FleetAutomationControlError) {
+      await transcript.step(
+        'automation-suspended',
+        null,
+        `Run-concluded coordination event suppressed: ${error.reason}`,
+        { boundary: error.boundary, reason: error.reason, checkRunId },
+      );
+    } else {
+      return stopInterruptedRun(error, true);
+    }
+  }
 
   // --- Transcript: check completion + final run header (best-effort) --------
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
@@ -3009,7 +3158,8 @@ export async function executeFleet(
   // closed to inert; the whole call is additionally fenced here so no scan
   // failure can ever surface as a run failure.
   try {
-    const mediatorAllowed = !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'mediator');
+    await assertCurrentHead('before Mediator scan');
+    const mediatorAllowed = repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'mediator');
     const scan = await runMediatorScan(env, {
       repo: job.repoFullName,
       deliveredPr: prNumber,
@@ -3023,6 +3173,7 @@ export async function executeFleet(
         fetchPatches: fetchPRFilePatches,
         createCheckRun,
         completeCheckRun,
+        assertCurrent: automationGuardFor('mediator'),
       }),
     });
     if (scan.ran || scan.reason !== 'disabled') {
@@ -3149,12 +3300,15 @@ async function runShip(
   providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
   /** Fail-closed live-head proof around model work and publication. */
   assertCurrentHead: PullRequestHeadGuard = async () => {},
+  /** Exact ship + XO authority for the optional nested XO editor. */
+  assertXoCurrent: PullRequestHeadGuard = assertCurrentHead,
   /**
    * Raw pd-transcript.v1 session buffer for THIS ship attempt (null ⇒ capture
    * off). Created and flushed by the orchestrator; this function only records
    * into it via {@link runCaptured}. See docs/FLEET-SESSION-TRANSCRIPTS.md.
    */
   capture: ShipTranscript | null = null,
+  admissionRevision?: number,
 ): Promise<ShipResult> {
   try {
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
@@ -3350,7 +3504,16 @@ async function runShip(
     if (chunks.length > 1) await assertCurrentHead(`before pd-${ship.name} REDUCE`);
     let output = chunks.length === 1
       ? partials[0] ?? ''
-      : await reduceFindings(ship, partials, env, metrics, aiCircuit, transcript, capture);
+      : await reduceFindings(
+          ship,
+          partials,
+          env,
+          metrics,
+          aiCircuit,
+          transcript,
+          capture,
+          assertCurrentHead,
+        );
     if (chunks.length > 1) await assertCurrentHead(`after pd-${ship.name} REDUCE`);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
@@ -3380,6 +3543,9 @@ async function runShip(
         validate,
         abortOnError: error =>
           error instanceof PullRequestHeadValidationError ||
+          error instanceof PullRequestReviewInputDriftError ||
+          error instanceof FleetAutomationControlError ||
+          error instanceof FleetIntentOwnershipError ||
           error instanceof FleetAiDependencyError,
       });
       await assertCurrentHead(`after pd-${ship.name} contract repair`);
@@ -3449,9 +3615,9 @@ async function runShip(
       // failures keep `proposals` untouched. A provider-circuit fault instead
       // propagates to the ship boundary so the queue owns the bounded retry.
       let curated = proposals;
-      if (xoEnabled && proposals && proposals.length > 0 && !(await isFleetPaused(env))
+      if (xoEnabled && proposals && proposals.length > 0 && !(await readFleetPauseGate(env, admissionRevision, `${prCtx.owner}/${prCtx.repo}/${runId}`)).blocked
         && repoShipEnabled(await readRepoShipControls(env.DB, `${prCtx.owner}/${prCtx.repo}`), 'xo')) {
-        await assertCurrentHead(`before pd-${ship.name} XO editor`);
+        await assertXoCurrent(`before pd-${ship.name} XO editor`);
         const recentIdeas = env.DB
           ? await listRecentIdeas(env.DB, XO_RECENT_IDEAS_LIMIT)
           : [];
@@ -3464,7 +3630,7 @@ async function runShip(
           telemetryContext: capture ?? undefined,
           aiCircuit,
         });
-        await assertCurrentHead(`after pd-${ship.name} XO editor`);
+        await assertXoCurrent(`after pd-${ship.name} XO editor`);
         curated = editor.proposals;
         await transcript.step(
           'xo-editor',
@@ -3693,7 +3859,10 @@ async function runShip(
   } catch (error) {
     if (
       error instanceof PullRequestHeadValidationError ||
-      error instanceof ShipCommentPublicationError
+      error instanceof PullRequestReviewInputDriftError ||
+      error instanceof FleetAutomationControlError ||
+      error instanceof ShipCommentPublicationError ||
+      error instanceof FleetIntentOwnershipError
     ) throw error;
     const failure = error instanceof FleetAiDependencyError
       ? error.failure
@@ -3879,6 +4048,7 @@ async function maybeStackProposal(
         sandboxValidated: true,
       },
     );
+    await assertCurrentHead(`before pd-${ship.name} stacked-PR coordination event`);
     emitSquidEvent(env, 'pr-stacked', {
       repo: `${prCtx.owner}/${prCtx.repo}`,
       pr: prCtx.prNumber,
@@ -3888,7 +4058,12 @@ async function maybeStackProposal(
     }, squidConsent);
     return { proposalIndex, number: pr.number, url: pr.url };
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (
+      err instanceof PullRequestHeadValidationError ||
+      err instanceof PullRequestReviewInputDriftError ||
+      err instanceof FleetAutomationControlError ||
+      err instanceof FleetIntentOwnershipError
+    ) throw err;
     const reason =
       err instanceof GitHubApiError && err.status === 403
         ? 'the GitHub App lacks the `contents: write` permission'
@@ -4006,7 +4181,12 @@ async function captureIdeas(
       { results },
     );
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (
+      err instanceof PullRequestHeadValidationError ||
+      err instanceof PullRequestReviewInputDriftError ||
+      err instanceof FleetAutomationControlError ||
+      err instanceof FleetIntentOwnershipError
+    ) throw err;
     if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }
@@ -4195,6 +4375,7 @@ async function runReduceGroup(
   metrics: ShipMetrics,
   aiCircuit: FleetAiCircuit,
   capture: ShipTranscript | null,
+  assertCurrent: PullRequestHeadGuard = async () => {},
 ): Promise<string> {
   const model = reduceModelFor(ship);
   const request = {
@@ -4205,6 +4386,9 @@ async function runReduceGroup(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
+  await assertCurrent(
+    `before pd-${ship.name} REDUCE group ${groupIndex + 1}/${groupCount} model call`,
+  );
   requireContextAdmission(model, request.messages, MAX_OUTPUT_TOKENS);
   const res = await runCaptured(
     capture,
@@ -4218,6 +4402,9 @@ async function runReduceGroup(
           aiOptions(env, ship.name, capture),
         ),
       ),
+  );
+  await assertCurrent(
+    `after pd-${ship.name} REDUCE group ${groupIndex + 1}/${groupCount} model call`,
   );
   const { text } = extractAiText(res);
   accumulateUsage(metrics, model, res, text);
@@ -4246,6 +4433,8 @@ async function reduceFindings(
   transcript: Transcript,
   /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
   capture: ShipTranscript | null = null,
+  /** Exact attempt, PR input and automation-control proof per reducer call. */
+  assertCurrent: PullRequestHeadGuard = async () => {},
 ): Promise<string> {
   const model = reduceModelFor(ship);
   const managerSystem = reduceManagerSystem(ship);
@@ -4277,6 +4466,7 @@ async function reduceFindings(
         metrics,
         aiCircuit,
         capture,
+        assertCurrent,
       ),
     );
   }

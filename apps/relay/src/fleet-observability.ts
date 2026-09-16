@@ -9,19 +9,19 @@
  *   GET  /v1/fleet/health             paused flag + last-run age + queue depth
  *
  * Control side: the kill switch.
- *   POST /v1/fleet/pause {paused}     toggle the KV flag the executor checks
+ *   POST /v1/fleet/pause             commit pause, or resume with revision + request ID
  *                                     at job START, before any AI spend.
  *
  * Shared envelope: every response is JSON `{ code, error, ... }` to match the
  * fleet control-plane contract. The gate accepts either the break-glass secret
  * or an account-backed operator role. Reads NEVER mutate fleet state; pause
- * writes only KV + audit.
+ * writes the serialized control object plus audit.
  */
 
 import { fleetOperatorOnly, type FleetOperatorAuthorization } from './fleet-access.js';
 import {
   lastFleetRunAt,
-  getFleetPaused,
+  getFleetControl,
   setFleetPaused,
   appendAudit,
 } from './db.js';
@@ -44,6 +44,41 @@ function envelope(status: number, body: Record<string, unknown>): Response {
 
 function fleetErr(code: string, error: string, status: number): Response {
   return envelope(status, { code, error });
+}
+
+const LEGACY_FLEET_PAUSE_KEY = 'fleet:paused';
+
+/**
+ * Read the rollback-era KV projection as a deny-only witness. A readable false
+ * never authorizes work without the Durable Object; true, absent, malformed,
+ * and unreadable values keep health visibly blocked during mixed-version
+ * rollout.
+ */
+async function readLegacyFleetPauseProjection(
+  kv: KVNamespace,
+): Promise<{ status: 'paused' | 'unpaused' | 'unknown'; revision: number | null }> {
+  try {
+    const raw = await kv.get(LEGACY_FLEET_PAUSE_KEY);
+    if (raw === 'true') return { status: 'paused', revision: null };
+    if (raw === 'false') return { status: 'unpaused', revision: null };
+    if (!raw) return { status: 'unknown', revision: null };
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { status: 'unknown', revision: null };
+    }
+    const projection = parsed as { paused?: unknown; revision?: unknown };
+    if (typeof projection.paused !== 'boolean'
+        || !Number.isSafeInteger(projection.revision)
+        || Number(projection.revision) < 1) {
+      return { status: 'unknown', revision: null };
+    }
+    return {
+      status: projection.paused ? 'paused' : 'unpaused',
+      revision: Number(projection.revision),
+    };
+  } catch {
+    return { status: 'unknown', revision: null };
+  }
 }
 
 function isSafeRunId(runId: string): boolean {
@@ -182,16 +217,27 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
   if (authorization instanceof Response) return authorization;
 
   try {
-    const [paused, lastAt, intentHealth] = await Promise.all([
-      getFleetPaused(env.KV),
+    const [control, lastAt, intentHealth, legacyProjection] = await Promise.all([
+      getFleetControl(env),
       lastFleetRunAt(env.DB),
       fleetIntentHealth(env.DB),
+      readLegacyFleetPauseProjection(env.KV),
     ]);
+    // The projection is a deny-only witness. It cannot authorize work, and it
+    // is healthy only when both value and revision exactly match canonical
+    // control. Report drift in either direction: an apparently newer/staler
+    // KV value must never hide a partial control mutation or mixed rollout.
+    const legacyReadbackMismatch = control.status !== 'unknown'
+      && (legacyProjection.status !== control.status
+        || legacyProjection.revision !== control.revision);
     const lastRunAgeSec = lastAt === null ? null : Math.floor(Date.now() / 1000) - lastAt;
     return envelope(200, {
       code: 'OK',
       error: null,
-      paused,
+      paused: legacyReadbackMismatch ? null : control.paused,
+      pauseStatus: legacyReadbackMismatch ? 'unknown' : control.status,
+      pauseRevision: legacyReadbackMismatch ? null : control.revision,
+      automationBlocked: control.status !== 'unpaused' || legacyReadbackMismatch,
       lastRunAgeSec,
       // D1-known intents, not a promise of Cloudflare's exact internal queue
       // position.  The explicit estimate label prevents false precision while
@@ -201,6 +247,7 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
         : intentHealth.queued + intentHealth.retrying,
       running: intentHealth.running,
       retrying: intentHealth.retrying,
+      waitingForControl: intentHealth.waitingForControl,
       superseded: intentHealth.superseded,
       failedAdmission: intentHealth.failedAdmission,
       oldestQueuedAgeSec: intentHealth.oldestQueuedAgeSec,
@@ -215,12 +262,13 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
 
 interface PauseBody {
   paused?: boolean;
+  expectedRevision?: number;
+  requestId?: string;
 }
 
 /**
- * Toggle the fleet kill switch. The executor reads this KV flag at job START
- * (before any AI spend or GitHub post), so pausing stops new runs immediately.
- * Audited.
+ * Commit the pause before acknowledging it. Each new ship admission consults
+ * the same object. A ship already admitted may finish its bounded work.
  */
 export async function handleFleetPause(request: Request, env: Env): Promise<Response> {
   const authorization = await fleetOperatorOnly(request, env);
@@ -230,17 +278,25 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
   if (!body || typeof body.paused !== 'boolean') {
     return fleetErr('BAD_JSON', 'Request body must be JSON {paused: boolean}', 400);
   }
+  if (!body.paused && (!Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1
+      || typeof body.requestId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(body.requestId))) {
+    return fleetErr('RESUME_PRECONDITION_REQUIRED', 'Resume requires the observed pauseRevision and a unique requestId.', 400);
+  }
 
   try {
-    const state = await setFleetPaused(env.KV, body.paused);
+    const state = await setFleetPaused(env, body.paused, body.paused ? undefined : {
+      expectedRevision: body.expectedRevision!, requestId: body.requestId!,
+    });
     await appendAudit(env.DB, {
       action: body.paused ? 'fleet_pause' : 'fleet_resume',
       detail: operatorAuditDetail(authorization, body.paused ? 'pause' : 'resume'),
     }).catch(() => {
       /* audit is best-effort; never fail the toggle on an audit write error */
     });
-    return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused });
+    return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused,
+      pauseStatus: state.status, pauseRevision: state.revision });
   } catch (e) {
+    if (!body.paused) return fleetErr('RESUME_CONFLICT', `Resume refused: ${msg(e)}`, 409);
     return fleetErr('INTERNAL_ERROR', `pause toggle failed: ${msg(e)}`, 500);
   }
 }

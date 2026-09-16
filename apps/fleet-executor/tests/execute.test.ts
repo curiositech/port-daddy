@@ -14,6 +14,7 @@ import {
 import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import { assessContextAdmission } from '../src/context-admission.js';
 import { recordDeliveryContinuation } from '../src/delivery-failure.js';
+import { beginFleetIntentAttempt } from '../src/run-intent.js';
 import { MAX_DIFF_BYTES, PR_FILES_PAGE_SIZE, renderFleetContext } from '../src/github.js';
 import {
   freshState,
@@ -1192,6 +1193,106 @@ describe('map-reduce fan-out', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('discards REDUCE output when a newer durable attempt takes ownership mid-call', async () => {
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
+    state.prDiff = ['src/x.ts', 'src/a.ts', 'src/b.ts', 'src/c.ts']
+      .map(file)
+      .join('');
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1({ state: 'running', attemptCount: 1 });
+    const current = db.intents.get('delivery-abc')!;
+    let takeoverApplied = false;
+    const ai = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding('PASS', 'x'.repeat(12_000)) },
+      managerOutput: reviewWithFinding(),
+      onCall: (call) => {
+        if (call.phase === 'reduce' && !takeoverApplied) {
+          takeoverApplied = true;
+          current.attemptCount = 2;
+        }
+      },
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }),
+      { intentAttemptCursor: 1 },
+    )).rejects.toMatchObject({ state: 'attempt-fenced:2' });
+
+    expect(takeoverApplied).toBe(true);
+    expect(ai.calls.some(call => call.phase === 'reduce')).toBe(true);
+    expect(state.commentPosts).toBe(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
+  });
+
+  it('stops a multi-chunk ship when its exact control is turned off mid-call', async () => {
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
+    state.prDiff = ['src/x.ts', 'src/a.ts', 'src/b.ts', 'src/c.ts']
+      .map(file)
+      .join('');
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    let exactShipOff = false;
+    const baseDb = db.db;
+    const controlledDb = new Proxy(baseDb, {
+      get(target, property, receiver) {
+        if (property !== 'prepare') return Reflect.get(target, property, receiver);
+        return (sql: string) => {
+          if (/FROM repo_ship_controls/i.test(sql)) {
+            return {
+              bind: () => ({
+                all: async () => ({
+                  success: true,
+                  results: exactShipOff
+                    ? [{ ship: 'code-reviewer', enabled: 0, revision: 1, updated_by: 'operator', updated_at: 1 }]
+                    : [],
+                }),
+              }),
+            };
+          }
+          return baseDb.prepare(sql);
+        };
+      },
+    }) as D1Database;
+    const ai = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding('PASS', 'x'.repeat(12_000)) },
+      managerOutput: reviewWithFinding(),
+      onCall: (call) => {
+        if (call.phase === 'map') exactShipOff = true;
+      },
+    });
+
+    const disposition = await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: controlledDb }),
+    );
+
+    expect(disposition).toMatchObject({ kind: 'suspended', reason: 'ship-off:code-reviewer' });
+    // The first bounded MAP_CONCURRENCY=4 wave is already in flight when the
+    // first response turns this ship OFF. Those sibling calls cannot be
+    // recalled, but the fresh boundary check must suppress every later phase
+    // and effect.
+    expect(ai.calls.filter(call => call.phase === 'map')).toHaveLength(4);
+    expect(ai.calls.filter(call => call.phase === 'reduce')).toHaveLength(0);
+    expect(state.commentPosts).toBe(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(db.steps.filter(step => step.kind === 'ship-checkpoint')).toHaveLength(0);
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+  });
+
   it('a single-chunk diff makes one map call and no manager call', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -1736,7 +1837,7 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
     } as Partial<ReturnType<typeof makeJob>>);
   }
 
-  it('posts a SUCCESS check on the queue-branch head sha', async () => {
+  it('blocks the queue head when constituent review receipts cannot be verified', async () => {
     const { ai } = aiStub({ perShip: {} });
     const state = freshState();
     installGitHubFetch(state);
@@ -1751,10 +1852,10 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
 
     const completed = state.records.filter(r => r.url.includes('/check-runs/') && r.method === 'PATCH');
     expect(completed).toHaveLength(1);
-    expect((completed[0].body as { conclusion: string }).conclusion).toBe('success');
+    expect((completed[0].body as { conclusion: string }).conclusion).toBe('failure');
   });
 
-  it('spends NOTHING on models — it is a pass-through, not a re-review', async () => {
+  it('spends NOTHING on models — it is a blocking coverage hold', async () => {
     const { ai } = aiStub({ perShip: { 'code-reviewer': 'x\n\nFLEET-VERDICT: PASS' } });
     const state = freshState();
     installGitHubFetch(state);
@@ -1771,9 +1872,79 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
     const state = freshState();
     installGitHubFetch(state);
 
-    await executeFleet(mergeGroupJob({ payloadMinimal: { merge_group: {} } }), envWithToken(ai));
+    await expect(executeFleet(mergeGroupJob({ payloadMinimal: { merge_group: {} } }), envWithToken(ai))).rejects.toThrow('head SHA');
 
     expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
+  });
+
+  it('posts an explicit failing check even without an AI binding', async () => {
+    const state = freshState();
+    installGitHubFetch(state);
+    await executeFleet(mergeGroupJob(), envWithToken(undefined));
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('Operator action:');
+    await executeFleet(mergeGroupJob(), envWithToken(undefined));
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+  });
+
+  it('rejects when GitHub does not confirm the merge-group failure check', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (/\/check-runs\/\d+$/.test(String(input)) && init?.method === 'PATCH') {
+          return new Response('cannot complete', { status: 422 });
+        }
+        return originalFetch(input as RequestInfo, init);
+      }) as unknown as typeof fetch,
+    );
+
+    await expect(executeFleet(mergeGroupJob(), envWithToken(ai)))
+      .rejects.toThrow('Merge-group Fleet check completion failed');
+    expect(state.completed).toHaveLength(0);
+  });
+
+  it('propagates token and check-creation failures instead of acknowledging an invisible gate', async () => {
+    const state = freshState();
+    installGitHubFetch(state);
+    await expect(executeFleet(mergeGroupJob(), makeEnv({ AI: undefined }))).rejects.toThrow();
+    state.failCreateCheckRun = 1;
+    await expect(executeFleet(mergeGroupJob(), envWithToken(undefined))).rejects.toThrow('create Fleet check run failed');
+    expect(state.completed).toHaveLength(0);
+    await executeFleet(mergeGroupJob(), envWithToken(undefined));
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+});
+
+describe('executeFleet — exact attempt ownership', () => {
+  it('discards output when a newer attempt takes ownership during model work', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    void kv.put(
+      'github_inst_42',
+      JSON.stringify({ token: 'tok-seeded', expiresAt: Date.now() + 3_600_000 }),
+    );
+    const d1 = memoryD1({ state: 'running', attemptCount: 1 });
+    const intent = d1.intents.get('delivery-abc');
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' },
+      onCall: () => {
+        if (intent) intent.attemptCount = 2;
+      },
+    }).ai;
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ AI: ai, DB: d1.db, FLEET_TOKENS: kv }),
+      { intentAttemptCursor: 1 },
+    )).rejects.toMatchObject({ state: 'attempt-fenced:2' });
+
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(state.commentPosts).toBe(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
   });
 });
 
@@ -1972,7 +2143,9 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     });
     const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
     const unchangedRemaining = ['code-reviewer', 'qa'];
+    expect(await beginFleetIntentAttempt(env, makeJob(), 1)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    expect(await beginFleetIntentAttempt(env, makeJob(), 101)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
 
     await expect(executeFleet(makeJob(), env, {
@@ -2011,7 +2184,9 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     const ai = aiStub({ perShip: {} });
     const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
     const unchangedRemaining = ['code-reviewer', 'qa'];
+    expect(await beginFleetIntentAttempt(env, makeJob(), 1)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    expect(await beginFleetIntentAttempt(env, makeJob(), 101)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
     d1.failNextStepInsert = true;
 
@@ -2049,7 +2224,9 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     const ai = aiStub({ perShip: {} });
     const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db });
     const unchangedRemaining = ['code-reviewer', 'qa'];
+    expect(await beginFleetIntentAttempt(env, makeJob(), 1)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    expect(await beginFleetIntentAttempt(env, makeJob(), 101)).toBe('run');
     await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
 
     await expect(executeFleet(makeJob(), env, {

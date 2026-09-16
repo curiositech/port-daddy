@@ -12,3 +12,5 @@ export {
   HarborQuota,
 } from './index.js';
 export { CoordinationGrantService } from './coordination-grant-service.js';
+export { FleetControl } from './fleet-pause-control.js';
+export { FleetControlService } from './fleet-control-service.js';

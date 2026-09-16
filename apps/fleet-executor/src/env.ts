@@ -8,8 +8,11 @@
 
 import type { CoordinationGrantServiceContract } from '../../../lib/coordination-grant-contract.js';
 import type { PortDaddyTelemetryEnv } from './telemetry.js';
+import type { FleetControlServiceContract } from '../../relay/src/fleet-pause-control.js';
 
 export interface ExecutorEnv extends PortDaddyTelemetryEnv {
+  /** Relay's strongly consistent service-binding admission; never cached in KV. */
+  FLEET_CONTROL?: FleetControlServiceContract;
   /** GitHub App id (var or secret). */
   GITHUB_APP_ID: string;
   /** GitHub App private key, PEM-encoded (secret). */
@@ -24,12 +27,11 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   FLEET_TOKENS: KVNamespace;
   /**
-   * Relay CONTROL-PLANE KV (the relay's own `KV` namespace). Carries the
-   * kill-switch flag at key `fleet:paused` (JSON `{paused, pausedAt}` or the
-   * literal string `"true"`/`"false"`), written by the relay's
-   * POST /v1/fleet/pause. MUST be the SAME namespace the relay binds as `KV` —
-   * otherwise the executor never sees a pause toggle. Optional at the type level
-   * so unit tests can omit it; absent ⇒ NOT paused (fail-safe: the gate runs).
+   * Relay's KV for Mediator reinjection, secondary flags, and the temporary
+   * deny-only `fleet:paused` projection used during mixed-version rollout.
+   * Global admission still requires FLEET_CONTROL. A readable false projection
+   * grants nothing by itself; true, missing, malformed, and unreadable values
+   * only add a denial while mixed-version rollback remains possible.
    */
   CONTROL_KV?: KVNamespace;
   /**

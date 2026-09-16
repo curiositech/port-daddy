@@ -22,6 +22,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { memoryFleetControl } from './fleet-control-fixture.js';
+import { setFleetPaused } from '../src/db.js';
 import { sha256 } from '@noble/hashes/sha256';
 import {
   handleMediatorConvene,
@@ -35,7 +37,6 @@ import { applyParleyExpiries, lapseOneExpiredParley } from '../src/parleys.js';
 import { handleProvisionFleetExecutor } from '../src/fleet-executor-identity.js';
 import {
   KILL_MEDIATOR_KEY,
-  FLEET_PAUSED_KEY,
   mediatorReinjectionKey,
   type ParleyGateRow,
   type ParleyRow,
@@ -393,7 +394,9 @@ const RELAY_PRIV = '42'.repeat(32);
 const RELAY_FP = toHex(sha256(fromHex(pubKeyFromPrivKey(RELAY_PRIV))));
 
 function makeEnv(db: MockD1, kvStore: Map<string, string>): Env {
+  const kv = makeKv(kvStore);
   return {
+    FLEET_CONTROL: memoryFleetControl({ paused: false, revision: 1, pausedAt: 1 }, kv).namespace,
     DB: db as unknown as D1Database,
     HARBOR_CHANNEL: {
       idFromName: () => ({}),
@@ -404,7 +407,7 @@ function makeEnv(db: MockD1, kvStore: Map<string, string>): Env {
             : new Response('{}', { status: 200 }),
       }),
     } as unknown as DurableObjectNamespace,
-    KV: makeKv(kvStore),
+    KV: kv,
     RELAY_OPERATOR_TOKEN: OPERATOR_TOKEN,
     RELAY_ED25519_PRIVATE_KEY_HEX: RELAY_PRIV,
     RELAY_VERSION: '0.0.0-test',
@@ -783,7 +786,7 @@ describe('renderGateVerdict — Approve / Modify / Reject', () => {
   });
 
   it('fleet paused ⇒ the verdict is REFUSED (the grayed buttons have a server-side twin)', async () => {
-    kvStore.set(FLEET_PAUSED_KEY, JSON.stringify({ paused: true, pausedAt: 1 }));
+    await setFleetPaused(env, true);
     expect(await renderGateVerdict(env, base())).toBe('fleet-paused');
     expect(db.gates[0]!.state).toBe('pending');
   });

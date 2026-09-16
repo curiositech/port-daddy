@@ -810,6 +810,13 @@ re-asking them is the failure mode this section exists to kill.
    result into queue retry/DLQ before acknowledging the message. Keep ship
    checkpoints durable and post non-idempotent aggregate reviews only after
    the required check PATCH succeeds, so retries neither re-spend nor duplicate.
+   A pause is not scoped only to the main queue: dead-letter repair, token mint,
+   check lookup/mutation, telemetry, and the decision to retry must re-read the
+   global and repository controls. OFF or unknown becomes a durable hold plus
+   acknowledgement, never another automatic repair attempt. Resume across the
+   Durable Object and rollout KV projection is two-phase: prepare while the
+   canonical object remains paused, project the prepared target, then commit it.
+   Never acknowledge a failed resume whose canonical authority may already be ON.
    The logical-run deadline must also fit the configured roster: budget at
    least one default AI-call window per ship plus explicit queue/checkpoint
    overhead. A ceiling equal to `ship count x call deadline` has zero room for

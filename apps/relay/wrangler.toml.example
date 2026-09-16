@@ -76,6 +76,7 @@ bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
   { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
   { name = "COORDINATION_ROOM", class_name = "CoordinationRoom" },
+  { name = "FLEET_CONTROL", class_name = "FleetControl" },
 ]
 
 [[migrations]]
@@ -91,6 +92,10 @@ new_classes = ["HarborQuota"]
 [[migrations]]
 tag = "v0003"
 new_sqlite_classes = ["CoordinationRoom"]
+
+[[migrations]]
+tag = "v0004"
+new_sqlite_classes = ["FleetControl"]
 
 [[kv_namespaces]]
 # JWKS cache and pinned relay key cache

@@ -3,16 +3,22 @@ import {
   getFleetRunProjectionWithSteps,
   listFleetRunProjections,
   listFleetRunGenerationsForPr,
+  markFleetRunIntentEnqueueFailed,
   markFleetRunIntentEnqueued,
   reserveFleetRunIntent,
   type FleetRunIntentRow,
 } from '../src/fleet-run-intents.js';
 import type { FleetRunRow } from '../src/db.js';
+import { fleetLifecycleDb } from './fleet-lifecycle-db.js';
 
 function makeDb(opts: {
   intents?: FleetRunIntentRow[];
   runs?: FleetRunRow[];
   insertChanges?: number | number[];
+  updateChanges?: number;
+  omitInsertMeta?: boolean;
+  omitUpdateMeta?: boolean;
+  requeueRevision?: number;
   seen?: Array<{ sql: string; bound: unknown[] }>;
 } = {}): D1Database {
   const intents = opts.intents ?? [];
@@ -30,6 +36,9 @@ function makeDb(opts: {
       },
       async first<T>() {
         seen.push({ sql, bound });
+        if (sql.includes('FROM fleet_control_requeues')) {
+          return (opts.requeueRevision == null ? null : { revision: opts.requeueRevision }) as T | null;
+        }
         if (sql.includes('fleet_run_intents') && sql.includes('delivery_id = ?')) {
           return (intents.find((row) => row.delivery_id === bound[0]) ?? null) as T | null;
         }
@@ -50,9 +59,14 @@ function makeDb(opts: {
       },
       async run() {
         seen.push({ sql, bound });
-        const changes = sql.includes('INSERT OR IGNORE INTO fleet_run_intents') && insertChanges
+        const isInsert = sql.includes('INSERT OR IGNORE INTO fleet_run_intents');
+        const changes = isInsert && insertChanges
           ? (insertChanges.shift() ?? 1)
-          : (typeof opts.insertChanges === 'number' ? opts.insertChanges : 1);
+          : isInsert && typeof opts.insertChanges === 'number'
+            ? opts.insertChanges
+            : opts.updateChanges ?? (typeof opts.insertChanges === 'number' ? opts.insertChanges : 1);
+        if (opts.omitInsertMeta && isInsert) return { success: true };
+        if (opts.omitUpdateMeta && !isInsert) return { success: true };
         return { success: true, meta: { changes } };
       },
     };
@@ -87,6 +101,9 @@ function intent(overrides: Partial<FleetRunIntentRow> = {}): FleetRunIntentRow {
     finished_at: null,
     superseded_by: null,
     last_error: null,
+    continuation_sequence: 0,
+    pending_continuation_sequence: null,
+    pending_continuation_at: null,
     ...overrides,
   };
 }
@@ -125,6 +142,19 @@ describe('Fleet run admission ledger', () => {
     expect(insert?.bound[0]).toBe('delivery-new');
   });
 
+  it('does not authorize enqueue when the reservation INSERT result is unverifiable', async () => {
+    await expect(reserveFleetRunIntent(makeDb({ omitInsertMeta: true }), {
+      deliveryId: 'delivery-new',
+      repoFullName: 'curiositech/port-daddy',
+      prNumber: 8889,
+      prUrl: 'https://github.com/curiositech/port-daddy/pull/8889',
+      headSha: 'a'.repeat(40),
+      eventType: 'pull_request',
+      action: 'synchronize',
+      now: 1_000,
+    })).rejects.toThrow(/reservation INSERT was not verifiable/i);
+  });
+
   it('does not enqueue an already queued duplicate delivery', async () => {
     const result = await reserveFleetRunIntent(makeDb({ intents: [intent()] }), {
       deliveryId: 'delivery-new',
@@ -156,6 +186,78 @@ describe('Fleet run admission ledger', () => {
     expect(result).toEqual({ shouldEnqueue: false, duplicate: true, state: 'admitting' });
   });
 
+  it.each([
+    {
+      label: 'pending successor',
+      row: { continuation_sequence: 2, pending_continuation_sequence: 3 },
+      expected: 3,
+    },
+    {
+      label: 'active continuation',
+      row: { continuation_sequence: 2, pending_continuation_sequence: null },
+      expected: 2,
+    },
+  ])('reconstructs the exact $label on an authorized control replay', async ({ row, expected }) => {
+    const result = await reserveFleetRunIntent(makeDb({
+      intents: [intent({
+        state: 'cancelled',
+        control_waiting_at: 900,
+        control_wait_count: 4,
+        ...row,
+      })],
+      requeueRevision: 12,
+    }), {
+      deliveryId: 'delivery-new',
+      repoFullName: 'curiositech/port-daddy',
+      prNumber: 8889,
+      prUrl: 'https://github.com/curiositech/port-daddy/pull/8889',
+      headSha: 'a'.repeat(40),
+      eventType: 'pull_request',
+      action: 'synchronize',
+      now: 1_001,
+      authorizeReplay: async revision => revision === 12,
+    });
+
+    expect(result).toEqual({
+      shouldEnqueue: true,
+      duplicate: true,
+      state: 'admitting',
+      continuationSequence: expected,
+    });
+  });
+
+  it('preserves continuation identity when retrying an enqueue-failed replay', async () => {
+    const result = await reserveFleetRunIntent(makeDb({
+      intents: [intent({ state: 'enqueue_failed', continuation_sequence: 4 })],
+    }), {
+      deliveryId: 'delivery-new',
+      repoFullName: 'curiositech/port-daddy',
+      prNumber: 8889,
+      prUrl: 'https://github.com/curiositech/port-daddy/pull/8889',
+      headSha: 'a'.repeat(40),
+      eventType: 'pull_request',
+      action: 'synchronize',
+      now: 1_001,
+    });
+    expect(result).toMatchObject({ shouldEnqueue: true, continuationSequence: 4 });
+  });
+
+  it('does not treat an unverifiable enqueue-failed retry CAS as ownership', async () => {
+    await expect(reserveFleetRunIntent(makeDb({
+      intents: [intent({ state: 'enqueue_failed' })],
+      omitUpdateMeta: true,
+    }), {
+      deliveryId: 'delivery-new',
+      repoFullName: 'curiositech/port-daddy',
+      prNumber: 8889,
+      prUrl: 'https://github.com/curiositech/port-daddy/pull/8889',
+      headSha: 'a'.repeat(40),
+      eventType: 'pull_request',
+      action: 'synchronize',
+      now: 1_001,
+    })).rejects.toThrow(/retry CAS was not verifiable/i);
+  });
+
   it('retries a concurrent generation collision instead of dropping the newer head', async () => {
     const seen: Array<{ sql: string; bound: unknown[] }> = [];
     const result = await reserveFleetRunIntent(makeDb({ seen, insertChanges: [0, 1] }), {
@@ -179,6 +281,61 @@ describe('Fleet run admission ledger', () => {
     expect(supersede?.sql).toContain('generation <');
     expect(supersede?.sql).toContain("state IN ('admitting', 'queued', 'running', 'retrying')");
     expect(supersede?.bound).toContain('delivery-new');
+  });
+
+  it('records enqueue failure only while the producer still owns admitting state', async () => {
+    const seen: Array<{ sql: string; bound: unknown[] }> = [];
+    await expect(markFleetRunIntentEnqueueFailed(
+      makeDb({ seen, updateChanges: 0 }),
+      'delivery-new',
+      'ambiguous queue response',
+      1_011,
+    )).resolves.toBe(false);
+    expect(seen.at(-1)?.sql).toContain("WHERE delivery_id = ? AND state = 'admitting'");
+
+    await expect(markFleetRunIntentEnqueueFailed(
+      makeDb({ omitUpdateMeta: true }),
+      'delivery-new',
+      'unverifiable adapter',
+      1_012,
+    )).rejects.toThrow(/not verifiable/i);
+  });
+
+  it.each([
+    {
+      label: 'consumer-owned running',
+      update: "UPDATE fleet_run_intents SET state = 'running', attempt_count = 1 WHERE delivery_id = ?",
+      state: 'running',
+    },
+    {
+      label: 'control-owned hold',
+      update: "UPDATE fleet_run_intents SET state = 'cancelled', control_waiting_at = 123, last_error = 'Fleet suspended: OFF' WHERE delivery_id = ?",
+      state: 'cancelled',
+    },
+  ])('does not overwrite $label state after an ambiguous queue response', async ({ update, state }) => {
+    const { db, sqlite } = fleetLifecycleDb();
+    await reserveFleetRunIntent(db, {
+      deliveryId: 'ambiguous-delivery',
+      repoFullName: 'curiositech/port-daddy',
+      prNumber: 8889,
+      prUrl: 'https://github.com/curiositech/port-daddy/pull/8889',
+      headSha: 'f'.repeat(40),
+      eventType: 'pull_request',
+      action: 'synchronize',
+      now: 1_000,
+    });
+    sqlite.prepare(update).run('ambiguous-delivery');
+
+    await expect(markFleetRunIntentEnqueueFailed(
+      db,
+      'ambiguous-delivery',
+      'queue accepted but response was lost',
+      1_001,
+    )).resolves.toBe(false);
+    expect(sqlite.prepare(
+      'SELECT state, last_error FROM fleet_run_intents WHERE delivery_id = ?',
+    ).get('ambiguous-delivery')).toMatchObject({ state });
+    sqlite.close();
   });
 });
 

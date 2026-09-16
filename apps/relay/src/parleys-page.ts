@@ -51,7 +51,7 @@ import type { Env } from './types.js';
 import type { UserRow } from './db.js';
 import { resolveSession, isSameOrigin } from './auth-github.js';
 import {
-  getFleetPaused,
+  getFleetControl,
   getMediatorKilled,
   getMediatorPairForParley,
   getParleyGate,
@@ -465,6 +465,7 @@ export interface ParleyDetailView {
   summonses: ParleySummonsRow[];
   /** True ⇒ verdict buttons render DISABLED (no verdict the relay can't enforce). */
   fleetPaused: boolean;
+  fleetPauseUnknown?: boolean;
   /** True ⇒ the gate panel renders inert (kill-mediator flag). */
   mediatorKilled: boolean;
 }
@@ -746,11 +747,13 @@ function renderGateSection(view: ParleyDetailView): string {
     </div>`;
   }
 
-  const blocked = view.fleetPaused || view.mediatorKilled;
+  const blocked = view.fleetPauseUnknown || view.fleetPaused || view.mediatorKilled;
   const disabledAttr = blocked ? ' disabled' : '';
   const blockedNote = view.mediatorKilled
     ? `<p class="gb-paused">The <b>kill-mediator</b> flag is set: the mediator is inert and this gate accepts no
        verdicts until an operator clears it.</p>`
+    : view.fleetPauseUnknown
+      ? '<p class="gb-paused">Fleet control is <b>unknown</b>. Automated work and these verdict controls are blocked until its state can be verified.</p>'
     : view.fleetPaused
       ? `<p class="gb-paused">The fleet is <b>paused</b>. These buttons are disabled because the relay refuses to
          record a verdict it cannot enforce &mdash; resume the fleet to decide this gate.</p>`
@@ -1139,7 +1142,8 @@ export async function handleParleyDetailPage(
   // (the parley itself is the artifact; the panels are annotations on it).
   let mediatorGate: ParleyGateRow | null = null;
   let summonses: ParleySummonsRow[] = [];
-  let fleetPaused = false;
+  let fleetPaused: boolean;
+  let fleetPauseUnknown: boolean;
   let mediatorKilled = false;
   try {
     mediatorGate = await getParleyGate(env.DB, parley.id);
@@ -1149,13 +1153,16 @@ export async function handleParleyDetailPage(
     summonses = [];
   }
   try {
-    fleetPaused = await getFleetPaused(env.KV);
+    const control = await getFleetControl(env);
+    fleetPaused = control.status !== 'unpaused';
+    fleetPauseUnknown = control.status === 'unknown';
     mediatorKilled = await getMediatorKilled(env.KV);
   } catch {
     // Unknown flag state ⇒ treat as BLOCKED, not as clear: rendering live
     // verdict buttons on an unreadable pause flag could accept a verdict the
     // relay cannot enforce, and the server-side twin would refuse it anyway.
-    fleetPaused = mediatorGate !== null;
+    fleetPaused = true;
+    fleetPauseUnknown = true;
   }
 
   return htmlResponse(
@@ -1169,6 +1176,7 @@ export async function handleParleyDetailPage(
       gate: mediatorGate,
       summonses,
       fleetPaused,
+      fleetPauseUnknown,
       mediatorKilled,
     }),
   );

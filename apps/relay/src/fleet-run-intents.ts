@@ -18,12 +18,14 @@ import {
   type FleetRunRow,
   type FleetRunStepRow,
 } from './db.js';
+import { FLEET_WAITING_CONTROL } from '../../shared/fleet-suspension.js';
 
 export type FleetIntentState =
   | 'admitting'
   | 'queued'
   | 'running'
   | 'retrying'
+  | typeof FLEET_WAITING_CONTROL
   | 'superseded'
   | 'enqueue_failed'
   | 'success'
@@ -48,6 +50,12 @@ export interface FleetRunIntentRow {
   finished_at: number | null;
   superseded_by: string | null;
   last_error: string | null;
+  control_waiting_at?: number | null;
+  control_wait_count?: number;
+  requeue_revision?: number | null;
+  continuation_sequence?: number;
+  pending_continuation_sequence?: number | null;
+  pending_continuation_at?: number | null;
 }
 
 export interface FleetRunProjection extends FleetRunRow {
@@ -75,16 +83,20 @@ export interface ReserveFleetIntentInput {
   eventType: string;
   action: string | null;
   now: number;
+  authorizeReplay?: (revision: number) => Promise<boolean>;
 }
 
 export interface FleetIntentReservation {
   shouldEnqueue: boolean;
   duplicate: boolean;
   state: FleetIntentState;
+  /** Exact successor incarnation to reconstruct for an authorized replay. */
+  continuationSequence?: number;
 }
 
 const ACTIVE_STATES = new Set<FleetIntentState>(['admitting', 'queued', 'running', 'retrying']);
 const RESERVATION_COLLISION_RETRIES = 4;
+const LEGACY_CONTROL_WAIT_PREFIX = 'Fleet suspended:';
 
 /**
  * Detect only the additive-migration rollout gap. The design deliberately does
@@ -96,6 +108,23 @@ const RESERVATION_COLLISION_RETRIES = 4;
  */
 function isMissingIntentTable(error: unknown): boolean {
   return /no such table:\s*fleet_run_intents/i.test(String(error));
+}
+
+/** Project the additive rollback-compatible hold marker as a first-class state. */
+function projectIntentState(row: FleetRunIntentRow): FleetRunIntentRow {
+  if (row.control_waiting_at != null
+      || (row.state === 'retrying' && row.last_error?.startsWith(LEGACY_CONTROL_WAIT_PREFIX) === true)) {
+    return { ...row, state: FLEET_WAITING_CONTROL };
+  }
+  return row;
+}
+
+/** Preserve continuation identity when control recovery re-enqueues one held delivery. */
+function continuationSequenceForReplay(row: FleetRunIntentRow): number | undefined {
+  const pending = row.pending_continuation_sequence;
+  if (Number.isSafeInteger(pending) && (pending ?? 0) > 0) return pending as number;
+  const active = row.continuation_sequence;
+  return Number.isSafeInteger(active) && (active ?? 0) > 0 ? active as number : undefined;
 }
 
 /**
@@ -113,7 +142,57 @@ export async function reserveFleetRunIntent(
 ): Promise<FleetIntentReservation> {
   const existing = await getFleetRunIntent(db, input.deliveryId);
   if (existing) {
+    if (existing.repo_full_name !== input.repoFullName || existing.pr_number !== input.prNumber
+        || existing.head_sha !== input.headSha || existing.event_type !== input.eventType
+        || existing.action !== input.action) {
+      throw new Error('Fleet delivery identity does not match its original admission');
+    }
+    // A duplicate delivery is not operator consent. Only a permit bound to this
+    // exact suspension incarnation may reopen it; the conditional UPDATE is
+    // the one-winner gate for simultaneous signed webhook redeliveries.
+    if (existing.state === FLEET_WAITING_CONTROL) {
+      const permit = await db.prepare(
+        'SELECT revision FROM fleet_control_requeues WHERE delivery_id = ? AND control_wait_count = ?',
+      ).bind(input.deliveryId, existing.control_wait_count).first<{ revision: number }>();
+      if (!permit || !await input.authorizeReplay?.(permit.revision)) {
+        return { shouldEnqueue: false, duplicate: true, state: existing.state };
+      }
+      const claimed = await db.prepare(
+        `UPDATE fleet_run_intents SET state = 'admitting', control_waiting_at = NULL,
+           attempt_count = 0, requeue_revision = ?, last_progress_at = ?, last_error = NULL
+         WHERE delivery_id = ?
+           AND ((state = 'cancelled' AND control_waiting_at IS NOT NULL)
+             OR (state = 'retrying' AND control_waiting_at IS NULL
+               AND last_error LIKE 'Fleet suspended:%'))
+           AND control_wait_count = ?
+           AND NOT EXISTS (
+             SELECT 1 FROM fleet_run_intents AS newer
+             WHERE newer.repo_full_name = fleet_run_intents.repo_full_name
+               AND newer.pr_number = fleet_run_intents.pr_number
+               AND newer.generation > fleet_run_intents.generation
+               AND (
+                 fleet_run_intents.event_type <> 'merge_group'
+                 OR (newer.event_type = 'merge_group'
+                   AND newer.head_sha = fleet_run_intents.head_sha)
+               )
+               AND newer.state NOT IN ('enqueue_failed','superseded')
+           )`,
+      ).bind(permit.revision, input.now, input.deliveryId, existing.control_wait_count).run();
+      const wonReplay = claimed.meta?.changes === 1;
+      const continuationSequence = continuationSequenceForReplay(existing);
+      return {
+        shouldEnqueue: wonReplay,
+        duplicate: true,
+        state: 'admitting',
+        ...(wonReplay && continuationSequence != null
+          ? { continuationSequence }
+          : {}),
+      };
+    }
     if (existing.state === 'enqueue_failed') {
+      if (existing.requeue_revision != null && !await input.authorizeReplay?.(existing.requeue_revision)) {
+        return { shouldEnqueue: false, duplicate: true, state: existing.state };
+      }
       const retried = await db
         .prepare(
           `UPDATE fleet_run_intents
@@ -122,8 +201,20 @@ export async function reserveFleetRunIntent(
         )
         .bind(input.now, input.deliveryId)
         .run();
-      const wonRetry = (retried.meta?.changes ?? 1) > 0;
-      return { shouldEnqueue: wonRetry, duplicate: true, state: 'admitting' };
+      const retryChanges = retried.meta?.changes;
+      if (retryChanges !== 0 && retryChanges !== 1) {
+        throw new Error(`Fleet enqueue retry CAS was not verifiable for ${input.deliveryId}`);
+      }
+      const wonRetry = retryChanges === 1;
+      const continuationSequence = continuationSequenceForReplay(existing);
+      return {
+        shouldEnqueue: wonRetry,
+        duplicate: true,
+        state: 'admitting',
+        ...(wonRetry && continuationSequence != null
+          ? { continuationSequence }
+          : {}),
+      };
     }
     return { shouldEnqueue: false, duplicate: true, state: existing.state };
   }
@@ -154,12 +245,15 @@ export async function reserveFleetRunIntent(
       )
       .run();
 
-    // Real D1 always reports meta.changes. The default-to-one keeps lightweight
-    // compatibility adapters working. A zero can be either same-delivery
-    // idempotency or a concurrent generation collision; read back and retry only
-    // the latter so a valid newer head is never silently dropped.
-    if ((inserted.meta?.changes ?? 1) > 0) {
+    // Queue admission needs a proved one-row INSERT. A missing write count is
+    // unavailable ownership, never permission to enqueue. A proved zero can be
+    // either same-delivery idempotency or a concurrent generation collision;
+    // read back and retry only the latter.
+    if (inserted.meta?.changes === 1) {
       return { shouldEnqueue: true, duplicate: false, state: 'admitting' };
+    }
+    if (inserted.meta?.changes !== 0) {
+      throw new Error(`Fleet reservation INSERT was not verifiable for ${input.deliveryId}`);
     }
     const duplicate = await getFleetRunIntent(db, input.deliveryId);
     if (duplicate) {
@@ -196,7 +290,7 @@ export async function markFleetRunIntentEnqueued(
       .prepare(
         `UPDATE fleet_run_intents
            SET state = 'superseded', finished_at = ?, last_progress_at = ?,
-               superseded_by = ?
+               superseded_by = ?, control_waiting_at = NULL, requeue_revision = NULL
          WHERE repo_full_name = (
                  SELECT repo_full_name FROM fleet_run_intents WHERE delivery_id = ?
                )
@@ -206,9 +300,19 @@ export async function markFleetRunIntentEnqueued(
            AND generation < (
                  SELECT generation FROM fleet_run_intents WHERE delivery_id = ?
                )
-           AND state IN ('admitting', 'queued', 'running', 'retrying')`,
+           AND (
+             (SELECT event_type FROM fleet_run_intents WHERE delivery_id = ?) <> 'merge_group'
+             OR (
+               event_type = 'merge_group'
+               AND head_sha = (
+                 SELECT head_sha FROM fleet_run_intents WHERE delivery_id = ?
+               )
+             )
+           )
+           AND (state IN ('admitting', 'queued', 'running', 'retrying')
+             OR (state = 'cancelled' AND control_waiting_at IS NOT NULL))`,
       )
-      .bind(now, now, deliveryId, deliveryId, deliveryId, deliveryId),
+      .bind(now, now, deliveryId, deliveryId, deliveryId, deliveryId, deliveryId, deliveryId),
   ]);
 }
 
@@ -220,22 +324,26 @@ export async function markFleetRunIntentEnqueued(
  * @param deliveryId - Webhook delivery whose queue send failed.
  * @param error - Bounded operator-facing failure detail.
  * @param now - Injected unix timestamp for the failure.
- * @returns Completion after the failure receipt is durable.
+ * @returns True when this producer recorded the failure; false when ownership already advanced.
+ * @throws When the adapter cannot prove the conditional write result.
  */
 export async function markFleetRunIntentEnqueueFailed(
   db: D1Database,
   deliveryId: string,
   error: string,
   now: number,
-): Promise<void> {
-  await db
+): Promise<boolean> {
+  const updated = await db
     .prepare(
       `UPDATE fleet_run_intents
          SET state = 'enqueue_failed', last_error = ?, last_progress_at = ?, finished_at = ?
-       WHERE delivery_id = ?`,
+       WHERE delivery_id = ? AND state = 'admitting'`,
     )
     .bind(error.slice(0, 600), now, now, deliveryId)
     .run();
+  if (updated.meta?.changes === 1) return true;
+  if (updated.meta?.changes === 0) return false;
+  throw new Error(`Fleet enqueue-failure CAS was not verifiable for ${deliveryId}`);
 }
 
 /**
@@ -251,10 +359,11 @@ export async function getFleetRunIntent(
   deliveryId: string,
 ): Promise<FleetRunIntentRow | null> {
   try {
-    return await db
+    const row = await db
       .prepare('SELECT * FROM fleet_run_intents WHERE delivery_id = ?')
       .bind(deliveryId)
       .first<FleetRunIntentRow>();
+    return row ? projectIntentState(row) : null;
   } catch (error) {
     if (isMissingIntentTable(error)) return null;
     throw error;
@@ -282,7 +391,7 @@ export async function listFleetRunIntents(
       )
       .bind(limit)
       .all<FleetRunIntentRow>();
-    return rows.results ?? [];
+    return (rows.results ?? []).map(projectIntentState);
   } catch (error) {
     if (isMissingIntentTable(error)) return [];
     throw error;
@@ -325,6 +434,7 @@ export async function listFleetRunGenerationsForPr(
     const rows = await db
       .prepare(
         `SELECT i.delivery_id AS delivery_id, i.generation AS generation, i.state AS state,
+                i.control_waiting_at AS control_waiting_at, i.last_error AS last_error,
                 i.queued_at AS queued_at, i.finished_at AS finished_at, r.id AS run_id
          FROM fleet_run_intents i
          LEFT JOIN fleet_runs r ON r.delivery_id = i.delivery_id
@@ -337,6 +447,8 @@ export async function listFleetRunGenerationsForPr(
         delivery_id: string;
         generation: number;
         state: FleetIntentState;
+        control_waiting_at: number | null;
+        last_error: string | null;
         queued_at: number;
         finished_at: number | null;
         run_id: string | null;
@@ -344,7 +456,10 @@ export async function listFleetRunGenerationsForPr(
     return (rows.results ?? []).map(r => ({
       deliveryId: r.delivery_id,
       generation: r.generation,
-      state: r.state,
+      state: r.control_waiting_at != null
+        || (r.state === 'retrying' && r.last_error?.startsWith(LEGACY_CONTROL_WAIT_PREFIX) === true)
+        ? FLEET_WAITING_CONTROL
+        : r.state,
       queuedAt: r.queued_at,
       finishedAt: r.finished_at,
       runId: r.run_id,
@@ -384,7 +499,9 @@ function project(
   now: number,
 ): FleetRunProjection {
   if (!intent && !run) throw new Error('project requires an intent or run');
-  const logicalState = run && run.conclusion !== 'pending'
+  const logicalState = intent?.state === FLEET_WAITING_CONTROL
+    ? FLEET_WAITING_CONTROL
+    : run && run.conclusion !== 'pending' && !(run.conclusion === FLEET_WAITING_CONTROL && intent)
     ? run.conclusion
     : (intent?.state ?? (run?.conclusion === 'pending' ? 'running' : run?.conclusion) ?? 'pending');
   const createdAt = intent?.queued_at ?? run?.created_at ?? now;
@@ -596,6 +713,7 @@ export async function fleetIntentHealth(
   queued: number;
   running: number;
   retrying: number;
+  waitingForControl: number;
   superseded: number;
   failedAdmission: number;
   oldestQueuedAgeSec: number | null;
@@ -606,10 +724,18 @@ export async function fleetIntentHealth(
         `SELECT COUNT(*) AS known,
                 SUM(CASE WHEN state IN ('admitting','queued') THEN 1 ELSE 0 END) AS queued,
                 SUM(CASE WHEN state = 'running' THEN 1 ELSE 0 END) AS running,
-                SUM(CASE WHEN state = 'retrying' THEN 1 ELSE 0 END) AS retrying,
+                SUM(CASE WHEN state = 'retrying' AND control_waiting_at IS NULL
+                           AND (last_error IS NULL OR last_error NOT LIKE 'Fleet suspended:%')
+                         THEN 1 ELSE 0 END) AS retrying,
+                SUM(CASE WHEN control_waiting_at IS NOT NULL
+                           OR (state = 'retrying' AND last_error LIKE 'Fleet suspended:%')
+                         THEN 1 ELSE 0 END) AS waiting_for_control,
                 SUM(CASE WHEN state = 'superseded' THEN 1 ELSE 0 END) AS superseded,
                 SUM(CASE WHEN state = 'enqueue_failed' THEN 1 ELSE 0 END) AS failed_admission,
-                MIN(CASE WHEN state IN ('admitting','queued','retrying') THEN queued_at END) AS oldest_queued_at
+                MIN(CASE WHEN state IN ('admitting','queued')
+                           OR (state = 'retrying' AND control_waiting_at IS NULL
+                             AND (last_error IS NULL OR last_error NOT LIKE 'Fleet suspended:%'))
+                         THEN queued_at END) AS oldest_queued_at
          FROM fleet_run_intents`,
       )
       .first<{
@@ -617,6 +743,7 @@ export async function fleetIntentHealth(
         queued: number | null;
         running: number | null;
         retrying: number | null;
+        waiting_for_control: number | null;
         superseded: number | null;
         failed_admission: number | null;
         oldest_queued_at: number | null;
@@ -626,6 +753,7 @@ export async function fleetIntentHealth(
       queued: row?.queued ?? 0,
       running: row?.running ?? 0,
       retrying: row?.retrying ?? 0,
+      waitingForControl: row?.waiting_for_control ?? 0,
       superseded: row?.superseded ?? 0,
       failedAdmission: row?.failed_admission ?? 0,
       oldestQueuedAgeSec: row?.oldest_queued_at == null ? null : Math.max(0, now - row.oldest_queued_at),
@@ -637,6 +765,7 @@ export async function fleetIntentHealth(
       queued: 0,
       running: 0,
       retrying: 0,
+      waitingForControl: 0,
       superseded: 0,
       failedAdmission: 0,
       oldestQueuedAgeSec: null,

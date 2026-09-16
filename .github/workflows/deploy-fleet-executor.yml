@@ -1,11 +1,13 @@
 name: Deploy fleet-executor (Cloudflare Worker)
 
-# Why this workflow exists:
+# Why this workflow is manual:
 #   apps/fleet-executor is the LIVE cloud fleet bot (the Cloudflare Queues
-#   consumer that posts PR review + ideation-ship comments). It had no deploy
-#   automation, so merging a change to main left the OLD Worker running until
-#   someone remembered to `wrangler deploy` by hand. This workflow deploys it on
-#   every push to main that touches the app, so main == what's live.
+#   consumer that posts PR review + ideation-ship comments). Deploying it can
+#   spend money and its fail-closed control binding is version-coupled to the
+#   production Relay. A merge is therefore source publication, not permission
+#   to activate cloud automation. An operator starts this workflow only after
+#   the matching Relay control authority, migrations, pause state, and reviewed
+#   executor/Relay version floor have been proved.
 #
 # Config model — committed file, NOT a secret:
 #   The Worker config lives in apps/fleet-executor/wrangler.deploy.toml,
@@ -45,11 +47,6 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                copy-paste secret commands.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/fleet-executor/**'
-      - '.github/workflows/deploy-fleet-executor.yml'
   workflow_dispatch:
 
 permissions:

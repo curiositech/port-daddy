@@ -17,6 +17,8 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.0",
+    "@port-daddy/fleet-executor": "file:../fleet-executor",
     "@cloudflare/vitest-pool-workers": "^0.8.0",
     "@cloudflare/workers-types": "^4.20260507.0",
     "playwright": "^1.58.2",
