@@ -242,6 +242,13 @@ that a later phase changes the key or the chain of, never the party that perform
 \end{tabularx}
 \end{table}
 
+Figure~\ref{fig:anchor-four-phases} draws the same table as a staircase: each
+threat's row turns from red (open) to the chapter hue (closed) at the phase
+that closes it, and the closure frontier moves strictly rightward, so no
+later phase reopens a threat an earlier one closed.
+
+\input{figures/fig-anchor-four-phases}
+
 A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Temporal attenuation is the same rule applied to the clock: a child's expiry is the earlier of its parent's expiry and the lifetime requested, so a twenty-minute child requested under a parent with ten minutes left is refused, and the acceptable narrower card is the one that inherits the parent's ten; in the capability lattice, lifetime is one more coordinate that moves down or stays. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
 
 \begin{pdexample}{a child card under a parent with ten minutes left}
@@ -441,7 +448,9 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 \end{tabularx}
 \end{table}
 
-\paragraph{Table~\ref{tab:anchor-verification-stack} is this section's map.} Read down the rows for what each layer hands the next as an obligation it cannot discharge itself; read the third column for what has actually been checked about the running code. The last column holds the only two places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are listed as assumption gaps rather than as inferences.
+\paragraph{Table~\ref{tab:anchor-verification-stack} is this section's map.} Read down the rows for what each layer hands the next as an obligation it cannot discharge itself; read the third column for what has actually been checked about the running code. The last column holds the only two places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are listed as assumption gaps rather than as inferences. Figure~\ref{fig:anchor-verification-stack} draws the same table as one directed bridge: obligations descending the left rail, evidence climbing the right, the two gaps sitting where a human bridges the claim.
+
+\input{figures/fig-anchor-verification-stack}
 
 \subsection{Symbolic Analysis with ProVerif}
 
@@ -1364,7 +1373,12 @@ C{:}\texttt{write}$ is accepted (ProVerif: escalation reachable). The fix,
 \mathrm{is\_subset}(\mathit{mid},\mathit{root})$) and ProVerif proves the same
 chain rejected. The runtime delegation verifier --- and the cross-harbor
 recompute $\mathrm{att}_B \circ \mathrm{att}_A$ --- must be per-hop, never
-final-vs-root.
+final-vs-root. Figure~\ref{fig:anchor-v6v7-escalation} draws the same chain
+under both verifiers side by side: v6's single final-vs-root check and v7's
+two hop-vs-parent checks, so the one comparison that moves is visible rather
+than implied by the file names.
+
+\input{figures/fig-anchor-v6v7-escalation}
 
 \pdexercisepointer{\ref{ex:anchor-multihop-induction}}{\ref{ex:anchor-macaroon-discharge}}{\pageref{ex:anchor-multihop-induction}}
 

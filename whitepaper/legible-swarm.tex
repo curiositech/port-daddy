@@ -591,6 +591,11 @@ set; the daemon's legitimate action set shrinks accordingly. The override
 \end{enumerate}
 \end{protocol}
 
+\input{figures/legible-swarm-consent-lifecycle}
+Figure~\ref{fig:consent-lifecycle} draws this lifecycle directly: the
+three-clause guard on admission, the loop back to active for either
+outcome, and the separate terminal transition on ttl or revocation.
+
 \scene{Mara, 3:25 p.m.}{Burned by the morning's chaos, she issues one grant: ``you
 may auto-land reversible diffs under low stakes in the \texttt{tests/} subtree
 without asking, for the next two hours.'' She does \emph{not} grant migration
@@ -1091,6 +1096,11 @@ silently pass. This is the authority-side analog of discovery's
 wrong answer.
 \end{definition}
 
+\input{figures/legible-swarm-completion-verifier}
+Figure~\ref{fig:completion-verifier} draws the three-way gate directly:
+a met predicate closes done, an unmet one is refused, and an unverifiable
+one must fail loudly rather than default to either.
+
 The verifier is grounded in design-by-contract (\textbf{Meyer 1992}, \emph{Applying
 Design by Contract}~\pdcite{meyer1992} --- \emph{pre/postconditions as
 machine-checkable obligations; the completion predicate is a postcondition}). This is
@@ -1212,6 +1222,11 @@ At $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified
 \end{pdexample}
 
 \input{figures/legible-swarm-escalation-band}
+
+\input{figures/legible-swarm-escalation-band}
+Figure~\ref{fig:escalation-band} draws the feasible debit band directly
+against the attention budget, showing where the two named points sit
+relative to the crossing at which the band stops being empty.
 
 \pdexercisepointer*{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
 
@@ -1359,7 +1374,29 @@ zoom rate'' and a \emph{single} global forced-zoom knob is mis-calibration by
 aggregation. An operator who correctly trusts the swarm on refactors and correctly
 distrusts it on migrations shows a middling \emph{global} catch-rate, and a global
 knob mis-serves both. Trust calibration must be \emph{function-specific and
-history-dependent} --- per (action-class, agent), not one scalar.
+history-dependent} --- per (action-class, agent), not one scalar. Table~\ref{tab:trust-calibration} makes the aggregation failure concrete.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Action class} & \textbf{The operator's actual calibration} & \textbf{Under one global knob} \\
+\midrule
+Refactors & correctly trusts; low zoom rate & aggregated away \\
+Migrations & correctly distrusts; high zoom rate & aggregated away \\
+\emph{Global aggregate} & a middling catch-rate that looks mis-calibrated & mis-serves both classes at once \\
+\bottomrule
+\end{tabularx}
+\caption{Why a single global forced-zoom knob is mis-calibration by
+aggregation. The operator's own per-class behavior is already correctly
+differentiated; a scalar summary of it reads as mediocre and a scalar
+control over it under-serves the class that needed more zoom and
+over-serves the one that needed less. [internal]}
+\label{tab:trust-calibration}
+\end{table}
 
 And the canary-defect catch-rate mechanism --- inject known-bad diffs at a sampled
 rate, raise friction when catch-rate drops --- is a \emph{vigilance task}, monitoring
@@ -1401,6 +1438,10 @@ freeze-probe (pause the swarm, ask the operator to predict the next three merges
 score accuracy). The forensic time-axis (\S\ref{sec:timeaxis}) is the
 \emph{backward}-looking complement; projection is the missing \emph{forward} one.
 
+\input{figures/legible-swarm-sa-levels}
+Figure~\ref{fig:sa-levels} stacks Endsleys three levels directly and
+marks which two digest-with-zoom reaches today.
+
 \subsection{The Bainbridge--Scott convergence and the abdication gradient}\label{sec:abdication}
 
 \textbf{Lisanne Bainbridge 1983} (\emph{Ironies of Automation}~\pdcite{bainbridge1983}
@@ -1426,6 +1467,11 @@ To continuously measure and maintain operator situation awareness without synthe
 \end{itemize}
 \end{enumerate}
 \end{protocol}
+
+\input{figures/legible-swarm-inception-canary}
+Figure~\ref{fig:inception-canary} draws the three steps into the
+single adjudication gate, with each outcomes opposite effect on the
+operators autonomy lease named beside it.
 
 This transforms supervisory vigilance from a punitive chore into a closed verification loop that rigorously measures human situation awareness --- with the operator's informed consent, on ground truth the system already knows, and with provenance every probe carries so post-hoc audit can distinguish canaries from live items in one lookup.
 
@@ -1453,6 +1499,31 @@ it has made the floor easier to forget. The design rule this chapter derives,
 that every digest line must carry a route back to its artifact, is the rule
 the panes are held to, and it is what makes the thing an instrument rather
 than a dashboard.
+
+
+Table~\ref{tab:pane-floors} names the three panes the chapter itself
+specifies, each its own instance of the information floor.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.16\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Pane} & \textbf{What it shows} & \textbf{What it cannot show} \\
+\midrule
+Claims & what cooperating clients registered & what a non-cooperating process wrote \\
+Lineage & the witnessed record & the unrecorded fork \\
+Cost ledger & a protected meter's count & the cause; a meter has no opinion about why \\
+\bottomrule
+\end{tabularx}
+\caption{Three of the consoles panes, each a separate channel with its
+own coverage and blind spot. Drawing every pane beautifully on one
+screen does not lower the information floor any one of them sits
+against; it only makes the floor easier to forget. [internal]}
+\label{tab:pane-floors}
+\end{table}
 
 Second, the console is not only a viewer. It issues commands: claim and
 release, begin and done, a note, a lane message, a dispatch rejection, an
@@ -1769,6 +1840,12 @@ $q_{11}+q_{01}=f$; with the source margin $q_{10}+q_{11}=p$ this pins all four
 cells. At $(\delta,f)=(0,p)$ the joint is diagonal, $\hat X=X$, and $I=H(p)$.
 \end{proof}
 
+\input{figures/legible-swarm-rate-regime}
+Figure~\ref{fig:rate-regime} draws this pinned joint directly on the
+$(\delta,f)$ plane: the wedge where both constraints bind, the infeasible
+floor beneath it, the line past which the rate collapses to $0$, and the
+zero-miss corner against the two interior points worked above.
+
 A conservative digest over-flags to be safe: it emits a flagged set of size $F$
 containing the $k$ true criticals with $k\ll F$. The naive second stage opens all
 $F$. The adaptive second stage plays twenty questions with group queries: open a
@@ -1840,6 +1917,12 @@ queries two children; the total is $(2k-1)+2k(a-b)=2k\log_2(F/k)+2k-1$. The
 density form follows by dividing $F$ by the bound, and the step function
 $d(2\lceil\log_2(1/d)\rceil+4)$ first touches $1$ at $d=1/12$.
 \end{proof}
+
+\input{figures/legible-swarm-zoom-advantage}
+Figure~\ref{fig:zoom-advantage} plots the guaranteed advantage
+$\mathrm{adv}(d)$ itself against flagged-set density, marking the crossing
+at $d=1/12$ alongside the chapter's own $F{=}2500,k{=}10$ and
+$F{=}4096,k{=}32$ configurations.
 
 \noindent\textbf{Positioning.} None of the group-testing machinery is new
 mathematics: Dorfman introduced pooled testing in 1943~\pdcite{dorfman}, and Hwang's
@@ -2454,6 +2537,11 @@ Thm.~\ref{thm:lowerbound}'s floor at $N=60,k=2,m=8$ is $\log_2\binom{60}{2}-\log
 
 \input{figures/legible-swarm-split-penalty}
 
+\input{figures/legible-swarm-split-penalty}
+Figure~\ref{fig:split-penalty} plots the penalty ratio itself against $k$
+for both review budgets, showing the trend is monotone and unbounded rather
+than a property of the five named points alone.
+
 \paragraph{Architectural corollary: the SLM sidecar.}
 Theorem~\ref{thm:split-digest} dictates that the system must never ask the worker agent to author its own operator-facing summary (which invites self-attestation bias and Potemkin digests~\S\ref{sec:verifiable}). Instead, the design calls for two separate pipelines:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
@@ -2685,6 +2773,11 @@ lives, do not flatten them for legibility's sake. The skill-retention tax
 (\S\ref{sec:abdication}) is the design's gesture at exactly this, and it is the
 hardest mechanism in the paper to realize, because preserving the illegible is, by
 definition, the thing legibility cannot do for you.
+
+\input{figures/legible-swarm-hayek-scott}
+Figure~\ref{fig:hayek-scott} draws the convergence directly: two
+independent sources landing on one claim, with Scotts own later book
+supplying the one prescription that follows from it.
 
 \pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-ranker-political-organ}}{\pageref{ex:ls-hobbes-mapping}}
 

@@ -479,7 +479,10 @@ $1.5+2.5\times2.667=8.17$ checks by hand [verified]. A cost model that forgets
 breakdowns entirely is caught the same way: at $\xi/\eta=2\gg D^\star$ it says
 specialist while simulation says the pool wins decisively, and at low $\xi$ the
 two are indistinguishable, so the canary rather than routine testing is what
-makes the omission visible [internal].
+makes the omission visible [internal]. Figure~\ref{fig:he-succession-price}
+draws the true and naive curves together against the pool's own cost line.
+
+\input{figures/fig-he-succession-price}
 
 \begin{pdexample}{The succession price, for a rented specialist}
 Side~2 rests on a quiet assumption: that Alice's well-reputed specialist $a_2$ is
@@ -685,6 +688,21 @@ Agent $a_2$ completes $40\%$ of the verifiable evidence chain (refactoring two o
   \item \textbf{Collateral settlement:} Alice receives $40\% \times 100 = 40$\,\textsc{cr} of her performance bond returned as collateral (not income); the remaining $60$\,\textsc{cr} bond is slashed and credited to the commons/salvage fund to onboard a successor.
 \end{enumerate}
 Conservation check: $\Delta \text{Bob} = -160$, $\Delta \text{Alice} = +160 - 60 = +100$ net, $\Delta \text{commons} = +60$. The ledger sums to $0$ net delta, and the separate escrow buckets $\text{escrow}_{\text{bounty}} \to 0$ and $\text{escrow}_{\text{bond}} \to 0$ clear completely. No value was created or destroyed. \emph{Now you try:} Exercise~\ref{ex:he-partial-settlement-trace} asks you to redo this at a different completion fraction.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.0cm} r >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Wallet} & \textbf{Net delta} & \textbf{Why} \\
+\midrule
+Bob (requester)   & $-160$ & $-400$ bounty escrowed, $+240$ unearned bounty returned \\
+Alice (labor)     & $+100$ & $+160$ earned revenue; bond $-100$ in, $+40$ back, nets $-60$ \\
+Commons           & $+60$  & bond slash on a Partial (60\% incomplete) settlement \\
+\midrule
+\textbf{Sum}      & $\mathbf{0}$ & escrow $500 \to 0$; supply unchanged \\
+\bottomrule
+\end{tabularx}
+\label{tab:he-float-plan-settlement}
+\end{center}
 \end{pdexample}
 
 \pdexercisepointer*{\ref{ex:he-partial-settlement-trace}}{\ref{ex:he-floatplan-amendment}}{\pageref{ex:he-partial-settlement-trace}}
@@ -715,6 +733,18 @@ specify every contingency, the residual control right should go to the party mak
 the most important non-contractible investment}), the \emph{renter} must hold the
 \emph{runtime} control right --- the ability to sandbox, throttle, or revoke the
 leased agent mid-task --- while the \emph{owner} bears the reputational consequence.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}p{4.6cm} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Party} & \textbf{Control right} & \textbf{Exposure} \\
+\midrule
+Renter (task poster) & runtime: sandbox, throttle, or revoke mid-task & none from the lease itself \\
+Owner (asset holder)  & none at runtime & reputational: the asset's public score falls if it underperforms \\
+\bottomrule
+\end{tabularx}
+\label{tab:he-grossman-hart-roles}
+\end{center}
 
 \keyidea{This is the cleanest economic argument for the runtime \textbf{jail} ---
 the per-agent tool-allowlist plus scoped filesystem that the safety layer enforces:
@@ -815,7 +845,11 @@ assignment extracted from each conflict-free selection [internal,
 \texttt{b4\_deontic\_fragment.py}].
 \end{proof}
 
-Read together, the two theorems are a dichotomy at a designed boundary, in the
+\input{figures/fig-he-deontic-frontier}
+
+Figure~\ref{fig:he-deontic-frontier} draws the two theorems side by side on
+the identical rule vocabulary, so the one added rule kind is the only visible
+difference. Read together, the two theorems are a dichotomy at a designed boundary, in the
 sense Schaefer made standard for satisfiability~\pdcite{schaefer78}: on one side
 of a single expressive choice the problem is polynomial, on the other
 NP-complete, and the language designer is offered nothing in between. The same
@@ -885,8 +919,11 @@ the intersection of all models on all $3{,}000$. Mutation: $149$ of the $885$
 contain a conflict reachable only through Horn propagation, and in 100 of
 those it is the set's only conflict, so a checker that never propagates flips
 those $100$ verdicts to conflict-free [internal,
-\texttt{b4\_deontic\_fragment.py}, seed 20260816]. The canonical miss is the
+\texttt{b4\_deontic\_fragment.py}, seed 20260816]. Figure~\ref{fig:he-conflict-kinds}
+ranks the four conflict kinds by frequency. The canonical miss is the
 witness worked by hand below.
+
+\input{figures/fig-he-conflict-kinds}
 
 \begin{pdexample}{A conflict witness for the deontic layer, checked by hand}
 The deontic layer just named needs a decision procedure once two accepted norms
@@ -917,6 +954,12 @@ commitments needs more expressive power than that fragment offers.
 changes, and what does not, once one of the rules is allowed to be a
 disjunction.
 \end{pdexample}
+
+Figure~\ref{fig:he-conflict-witness} draws this witness as a derivation
+trace: the stated fact, the one Horn step, and the two rules it wakes up,
+joined by the interval they share.
+
+\input{figures/fig-he-conflict-witness}
 
 \paragraph{What it buys.} An authority inventory with prices. In-fragment
 conflict detection needs no authority at all: it is an algorithm with a witness,
@@ -1183,6 +1226,11 @@ This is the concrete shape of Theorem~\ref{thm:ms}'s abstract impossibility, not
 a separate claim: raise the stakes (a bigger $M$) and the threshold and the
 missed trades grow with it, in the same fixed proportion.
 \end{pdexample}
+
+Figure~\ref{fig:he-ms-wedge} draws the whole $(v,c)$ square: the worked point
+sits inside the shaded band the mechanism refuses, not at some rare corner.
+
+\input{figures/fig-he-ms-wedge}
 
 The current design establishes a conservation goal and voluntary entry; it has not
 proved truthfulness. An AGV-style mechanism changes the incentive and participation
@@ -2017,7 +2065,10 @@ with an effective sample size $\gamma\, n_{v1}$, where $\gamma\in[0,1]$ is a
 predeclared compatibility/evaluation discount fixed \emph{before} seeing v2's
 outcomes --- never simply copy v1's settled outcomes onto v2. Lineage proves
 ancestry; it does not, by itself, prove behavioral similarity, which is exactly
-what $\gamma<1$ is there to discount.
+what $\gamma<1$ is there to discount. Figure~\ref{fig:he-skill-lineage} draws
+the leaf and the discounted edge.
+
+\input{figures/fig-he-skill-lineage}
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-deontic-conflict-checker}
 The deontic layer named above --- what an agent \emph{may} or \emph{must} do,
@@ -2305,7 +2356,9 @@ Because ranks are natural numbers, no infinite ascending chain of ``judges
 judging judges'' is possible. For aesthetic judgments the rank-$0$ base is
 contractual finality, not truth; bonding and re-auditing bound the judges'
 incentives to be honest, but they do not, and cannot, transmute taste into a
-machine-checkable fact.
+machine-checkable fact. Figure~\ref{fig:he-rater-ladder} draws the descent.
+
+\input{figures/fig-he-rater-ladder}
 \end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:cold-start}}{Cold start, and the auction question}
@@ -2614,6 +2667,11 @@ $\rho^\star_c = G/\bigl(d(G+B)\bigr) = 0.2083$ at the same parameters. A platfor
 whose rail does claw back but which budgets audits at $G/(dB)$ is over-auditing; one
 that does not claw back but budgets at $G/(d(G{+}B))$ is under-deterring. The
 convention is a property of the slashing contract, not a modeling taste~\pdcite{harbor3}.}
+
+Figure~\ref{fig:he-deterrence-convention} puts the two critical rates side by
+side at the program's own parameters.
+
+\input{figures/fig-he-deterrence-convention}
 
 \pitfall{The $(1-d)^k$ bound is exactly as good as the word \emph{independent} in
 its hypothesis, and independence is the assumption a real test market breaks first.
