@@ -53,6 +53,7 @@ export interface LinkResult {
   /** Machine reason code. */
   reason:
     | 'linked'
+    | 'self-spawned'
     | 'opt-out'
     | 'missing-trailer'
     | 'unknown-slug'
@@ -111,6 +112,42 @@ export function parseRoadmapTrailer(body: string | null | undefined): {
     }
   }
   return { slug, optOutReason };
+}
+
+/**
+ * Merge-admission classification. The PR declaration is the contract; a
+ * versioned roadmap snapshot is neither current authority nor a reason to stop
+ * unrelated delivery. Existence and contradiction reconciliation happen
+ * asynchronously in Chartroom and the durable roadmap service.
+ */
+export function classifyDeclaration(body: string | null | undefined): LinkResult {
+  const { slug, optOutReason } = parseRoadmapTrailer(body);
+  if (optOutReason && optOutReason !== 'unspecified') {
+    return {
+      verdict: 'pass', reason: 'opt-out', slug: null, optOutReason,
+      requiresHumanApproval: false, loud: false, labelShouldBePresent: false,
+      headline: `Opt-out accepted: ${optOutReason}`,
+    };
+  }
+  if (optOutReason === 'unspecified') {
+    return {
+      verdict: 'needs-approval', reason: 'missing-trailer', slug: null, optOutReason,
+      requiresHumanApproval: true, loud: false, labelShouldBePresent: true,
+      headline: '`Roadmap-Item: none` needs a specific opt-out reason.',
+    };
+  }
+  if (slug) {
+    return {
+      verdict: 'pass', reason: 'linked', slug, optOutReason: null,
+      requiresHumanApproval: false, loud: false, labelShouldBePresent: false,
+      headline: `Roadmap declaration present: "${slug}".`,
+    };
+  }
+  return {
+    verdict: 'needs-approval', reason: 'missing-trailer', slug: null, optOutReason: null,
+    requiresHumanApproval: true, loud: false, labelShouldBePresent: true,
+    headline: 'No `Roadmap-Item:` trailer — declare an item or opt out explicitly.',
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -321,6 +358,28 @@ export function classify(
   // 4. Trailer present — does the slug exist?
   const item = items.find((i) => i.slug === slug);
   if (!item) {
+    // 4b. Self-spawned: the slug is declared by THIS PR's own `Roadmap-Spawns:`
+    // trailer. A PR that introduces a program (a plan, an ADR) is necessarily
+    // the first user of the items it creates — demanding the slug pre-exist in
+    // the snapshot made such PRs un-landable without a side-channel daemon
+    // write (the 2026-08-19 THE_FULL_WHEEL chicken-and-egg). The spawn trailer
+    // is the auditable declaration of intent; the daemon stays the only
+    // writer, and the snapshot catches up at the next export. A stale snapshot
+    // still shouts, same as the opt-out branch.
+    if (parseSpawns(body).slugs.includes(slug)) {
+      return {
+        verdict: stale ? 'needs-approval' : 'pass',
+        reason: stale ? 'snapshot-stale' : 'self-spawned',
+        slug,
+        optOutReason: null,
+        requiresHumanApproval: stale,
+        loud: stale,
+        labelShouldBePresent: stale,
+        headline: stale
+          ? `Roadmap snapshot is ${Math.round(ageDays)}d stale — regenerate before landing.`
+          : `Linked to \`${slug}\`, declared by this PR's own Roadmap-Spawns — the snapshot catches up at the next export.`,
+      };
+    }
     return {
       verdict: stale ? 'broken' : 'needs-approval',
       reason: stale ? 'snapshot-stale' : 'unknown-slug',

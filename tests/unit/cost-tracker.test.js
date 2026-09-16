@@ -216,13 +216,15 @@ describe('CostTracker', () => {
   });
 
   test('haiku model rate applied correctly', () => {
-    // Haiku: $0.80 input / $4.00 output per 1M
-    // 10000 input + 2000 output = $0.008 + $0.008 = $0.016
+    // Haiku 4.5: $1.00 input / $5.00 output per 1M (vendor rate; the table
+    // previously carried a stale $0.80/$4.00, corrected in the 2026-08-23
+    // canonical-registry supplant).
+    // 10000 input + 2000 output = $0.010 + $0.010 = $0.020
     const { costUsd, isEstimate } = costTracker.computeCost(
       'claude', 'claude-haiku-4-5', 10000, 2000
     );
     expect(isEstimate).toBe(false);
-    expect(costUsd).toBeCloseTo(0.016, 5);
+    expect(costUsd).toBeCloseTo(0.020, 5);
   });
 
   // ── claude-cli tier shorthands (opus/sonnet/haiku) ───────────────────────

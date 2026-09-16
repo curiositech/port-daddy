@@ -125,7 +125,7 @@ This is why the authors specify "at the level of granularity defined by the prim
 
 For agent orchestration systems: This suggests that skill invocation granularity should be chosen such that determining skill completion/failure is cheap compared to selecting which skill to invoke. If every status check requires expensive reasoning, the architecture's performance advantage disappears.
 
-## Cross-Domain Application to WinDAGs
+## Cross-Domain Application to Jury-rig
 
 In a DAG-based orchestration system:
 

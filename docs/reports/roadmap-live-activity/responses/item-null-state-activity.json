@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "activity": {
+    "slug": "nobody-is-on-this-slice",
+    "harbor": "port-daddy:fleet",
+    "status": "backlog",
+    "summaryMd": "Nobody has claimed this. No session, no dispatch, no assignee — the empty state the operator sees when nothing is running.",
+    "assigneeId": null,
+    "lastTouchedAt": 1787441890960,
+    "stage": "stacked",
+    "dispatch": null,
+    "needsAttention": false,
+    "reviewEvidence": null,
+    "attachments": [],
+    "counts": {
+      "attachments": 0,
+      "active": 0,
+      "stale": 0
+    }
+  }
+}

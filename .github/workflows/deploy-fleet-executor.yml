@@ -32,6 +32,17 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                (cost + failure events back to the daemon /
 #                                FleetBar). OPTIONAL: unset ⇒ the executor runs
 #                                identically and emits nothing.
+#   - FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX / FLEET_EXECUTOR_HARBOR_CARD
+#                                The executor's cloud-squid publish identity
+#                                (plan N2): Ed25519 seed + the hv:2 card from
+#                                the relay's POST /v1/fleet/executor-identity.
+#                                OPTIONAL: unset ⇒ squid events silently off.
+#                                Provisioning is agent-owned and writes both
+#                                values directly to Wrangler over stdin. Until
+#                                FleetBar exposes this action, an agent handles
+#                                it after explicit operator authorization; the
+#                                operator is never sent to a terminal or given
+#                                copy-paste secret commands.
 
 on:
   push:
@@ -70,8 +81,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Don't ship a red build. main is already tested by ci.yml, but a deploy
-      # that skips its own gate can push a broken Worker if the two ever drift.
+      # Don't ship a red build. PRs are gated by ci.yml's fleet-executor-tests
+      # job (typecheck + vitest, required via ci-gate), but a deploy that skips
+      # its own gate can push a broken Worker if the two ever drift — and for a
+      # long time ci.yml had NO fleet-executor job at all, so this step was the
+      # only place the suite ran, and only after merge.
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
 

@@ -39,13 +39,13 @@ final class SpawnApprovalStore: ObservableObject {
     @Published var lastError: String?
     @Published var decidingIds: Set<String> = []
 
-    private let baseURL: String
+    private let baseURL: String?
     private let session: URLSession
     private nonisolated(unsafe) var refreshTimer: Timer?
     private var isRefreshing = false
 
     init(baseURL: String? = nil, session: URLSession = .shared) {
-        self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
+        self.baseURL = baseURL ?? DaemonLocation.availableBaseURL()
         self.session = session
     }
 
@@ -69,9 +69,9 @@ final class SpawnApprovalStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        guard let url = URL(string: "\(baseURL)/fleet/approvals") else { return }
+        guard let baseURL, let url = URL(string: "\(baseURL)/fleet/approvals") else { return }
         do {
-            let (data, _) = try await session.data(from: url)
+            let (data, _) = try await session.pdData(from: url)
             struct Envelope: Codable { let proposals: [SpawnApproval] }
             let envelope = try JSONDecoder().decode(Envelope.self, from: data)
             approvals = envelope.proposals
@@ -88,7 +88,7 @@ final class SpawnApprovalStore: ObservableObject {
         decidingIds.insert(id)
         defer { decidingIds.remove(id) }
 
-        guard let url = URL(string: "\(baseURL)/fleet/approvals/\(id)/decision") else { return }
+        guard let baseURL, let url = URL(string: "\(baseURL)/fleet/approvals/\(id)/decision") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -97,7 +97,7 @@ final class SpawnApprovalStore: ObservableObject {
         request.httpBody = try? JSONEncoder().encode(payload)
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.pdData(for: request)
             if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                 struct ErrorBody: Codable { let error: String? }
                 let body = try? JSONDecoder().decode(ErrorBody.self, from: data)

@@ -1,0 +1,115 @@
+# COMMITTED deploy config — non-credential values only (resource ids are
+# useless without an API token). Runtime secrets are set via
+# `wrangler secret put` and survive deploys.
+#
+# Port Daddy Steward — Cloudflare Worker (P1 PR 1 scaffold)
+#
+# One Durable Object per repo holds the Steward's seat: charter, wake inbox,
+# alarm heartbeat, and the append-only deck-log / merge-ledger fabric in the
+# shared port-daddy-relay D1 database. See docs/plans/THE_FULL_WHEEL.md §11 P1
+# and docs/adr/0109-the-steward-single-approver.md.
+#
+# Provisioning (run once):
+#
+#   1. Apply the ledger schema to the shared D1 database:
+#        wrangler d1 execute port-daddy-relay --file=./schema.sql
+#
+#   2. Commission the seat (the bearer token every route requires; without it
+#      the Worker answers 503 "seat not commissioned"):
+#        openssl rand -hex 32 | wrangler secret put STEWARD_ADMIN_TOKEN
+#
+#   2b. Give the tick eyes (read-only survey of PRs/checks/reviews; without it
+#       every wake logs "Tick held: cannot survey" and renders no verdicts).
+#       A fine-grained PAT or App installation token with contents:read +
+#       pull_requests:read + checks:read on this repo:
+#        wrangler secret put STEWARD_GITHUB_TOKEN
+#
+#   2c. Arm the landing hand (OPTIONAL — presence of this secret is the
+#       switch; without it every LAND verdict logs "seat holds no landing
+#       capability" and nothing is enqueued). Mint a SEPARATE fine-grained PAT,
+#       scoped to this one repo, with Contents: Read+Write and
+#       Pull requests: Read+Write — and NO admin/bypass rights. Non-admin is
+#       load-bearing: GitHub refuses the landing whenever branch protection
+#       (required checks, reviews) is unsatisfied, so the charter's "never
+#       land over a real red" is enforced by the platform. This token is held
+#       by the seat and by nothing else — revoking it disarms landing without
+#       touching the survey eyes:
+#        wrangler secret put STEWARD_LAND_TOKEN
+#
+#       WHAT "LANDING" MEANS HERE: the seat ADDS THE PR TO THE MERGE QUEUE
+#       (GraphQL `enqueuePullRequest`), it does not merge directly. On a repo
+#       whose protection requires a queue, a direct merge is rejected outright
+#       — and where it would succeed it would bypass the protection it exists
+#       to obey. A merge authority whose landing verb skips the queue is not
+#       enforcing the repo's rules, it is outranking them. The queue merges on
+#       its own clock afterwards, so a LAND verdict in the deck log means
+#       "accepted into the queue", never "already on main".
+#
+#       The token therefore also needs whatever scope the merge queue requires
+#       for the enqueue mutation; Pull requests: Read+Write covers it today.
+#       If enqueuing starts failing with a scope error after a GitHub change,
+#       that is the permission to revisit — not Contents.
+#
+#       Protected paths (.github/workflows/, Formula/, core/kernel/,
+#       apps/relay/src/auth.ts, docs/adr/) additionally require a per-PR
+#       operator grant before the seat will land them:
+#        curl -X POST -H "Authorization: Bearer $STEWARD_ADMIN_TOKEN" \
+#          https://<worker>/steward/<owner>/<repo>/ship-it/<prNumber>
+#
+#   3. Deploy — automatic: every push to main touching apps/steward/** deploys
+#      via .github/workflows/deploy-steward.yml (secrets above survive every
+#      deploy). For first-time provisioning or out-of-band repair:
+#        wrangler deploy --config wrangler.deploy.toml
+#
+#   4. Verify the seat is ALIVE, not merely deployed. The cron below pulses it
+#      hourly, and every wake writes exactly one deck-log entry (§5.3), so
+#      within the hour:
+#        wrangler d1 execute port-daddy-relay --remote \
+#          --command "SELECT datetime(created_at,'unixepoch'), entry_kind, summary
+#                     FROM steward_deck_log ORDER BY created_at DESC LIMIT 5"
+#      Zero rows an hour after a deploy means the seat is not running. This
+#      check is not optional paranoia: P1 sat deployed, commissioned, and
+#      completely silent because nothing ever armed its first alarm — and a
+#      green deploy said nothing about it either way.
+
+name = "pd-steward"
+main = "src/worker.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The outside clock (P1 PR 5). A Durable Object alarm re-arms itself, but only
+# after it has fired once, and nothing else in this system ever asks the seat
+# to wake — P1 shipped deployed and commissioned with ZERO deck-log rows in
+# production for exactly that reason. A DO cannot start its own clock, so the
+# starter motor has to come from outside it.
+#
+# Hourly, against a 6h heartbeat: the pulse is a no-op whenever an alarm is
+# already armed, so a faster cron buys faster recovery from a LOST alarm
+# without causing one extra wake. The offset minute keeps this off the :00
+# spike every naive cron schedule piles onto.
+[triggers]
+crons = ["23 * * * *"]
+
+# The roster the cron pulses — repository names, not credentials, and
+# deliberately in the committed config where a reader can see which seats are
+# supposed to be alive. An empty roster pulses nothing; the handler logs that
+# as an error rather than a quiet success.
+[vars]
+STEWARD_REPOS = "curiositech/port-daddy"
+
+# Shared append-only history fabric — same database the relay and
+# fleet-executor already use (fleet_runs / fleet_run_steps live here too).
+[[d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay"
+database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
+
+# The seats themselves. new_sqlite_classes: SQLite-backed DOs are the current
+# platform default and give the seat transactional storage semantics.
+[[durable_objects.bindings]]
+name = "STEWARD"
+class_name = "StewardDO"
+
+[[migrations]]
+tag = "v1-steward-seat"
+new_sqlite_classes = ["StewardDO"]

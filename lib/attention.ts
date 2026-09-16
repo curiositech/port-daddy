@@ -13,6 +13,7 @@
  * docs/api.html for the schema.
  */
 import type { DatabaseInstance } from './sqlite-runtime.js';
+import { validateChannel } from '../shared/validators.js';
 
 interface InboxAPI {
   list(agentId: string, options?: { unreadOnly?: boolean; limit?: number; since?: number }): {
@@ -149,6 +150,8 @@ export function createAttention(deps: CreateAttentionDeps) {
     if (!channel || typeof channel !== 'string') return { success: false, error: 'channel required' };
     const trimmed = channel.trim();
     if (!trimmed) return { success: false, error: 'channel required' };
+    const validation = validateChannel(trimmed);
+    if (!validation.valid) return { success: false, error: validation.error || 'invalid channel' };
     // Snapshot-isolate: start the cursor at the channel's current max so a new
     // subscriber sees future messages only, not the channel's entire history
     // (which would otherwise be drained one CHANNEL_FETCH_LIMIT at a time, and
@@ -163,7 +166,10 @@ export function createAttention(deps: CreateAttentionDeps) {
   function unsubscribe(agentId: string, channel: string): { success: boolean; removed?: boolean; error?: string } {
     if (!agentId || typeof agentId !== 'string') return { success: false, error: 'agentId required' };
     if (!channel || typeof channel !== 'string') return { success: false, error: 'channel required' };
-    const result = stmts.deleteSub.run(agentId, channel.trim());
+    const trimmed = channel.trim();
+    const validation = validateChannel(trimmed);
+    if (!validation.valid) return { success: false, error: validation.error || 'invalid channel' };
+    const result = stmts.deleteSub.run(agentId, trimmed);
     return { success: true, removed: result.changes > 0 };
   }
 

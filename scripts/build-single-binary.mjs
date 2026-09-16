@@ -6,13 +6,31 @@ import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import sessionIntelRedaction from '../lib/session-intel/redact.js';
+import {
+  nativeLoaderEnvironment,
+  packageOnnxRuntimeNative,
+  parseSemanticRuntimeProof,
+  prepareOnnxRuntimeNativeBinding,
+} from './lib/onnx-runtime-native.mjs';
+import { smokeTreeSitterRoute } from './lib/smoke-tree-sitter.mjs';
+import {
+  packageTreeSitterRuntime,
+  TREE_SITTER_RUNTIME_POINTER,
+  verifyTreeSitterRuntimeCargo,
+} from './lib/tree-sitter-runtime.mjs';
 
 const ROOT_DIR = resolve(new URL('..', import.meta.url).pathname);
 const DIST_DIR = join(ROOT_DIR, 'dist');
 const DEFAULT_OUTFILE = join(DIST_DIR, process.platform === 'win32' ? 'port-daddy.exe' : 'port-daddy');
 const EMBEDDED_ASSETS_MODULE = join(DIST_DIR, 'embedded-public-assets.generated.js');
+const EMBEDDED_AGENT_HARBOR_SCHEMAS_MODULE = join(DIST_DIR, 'embedded-agent-harbor-schemas.generated.js');
 const EMBEDDED_NATIVE_CORE_MODULE = join(DIST_DIR, 'embedded-native-core.generated.js');
 const DURABLE_SCRATCH_DIR = process.env.PD_SCRATCH_ROOT || join(homedir(), 'coding', 'tmp');
+const SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS = 120_000;
+const SELF_HOSTED_DAEMON_PROBE_TIMEOUT_MS = 2_000;
+const SELF_HOSTED_DAEMON_BOOT_LOG_LIMIT = 4_000;
+const { redactString } = sessionIntelRedaction;
 mkdirSync(DURABLE_SCRATCH_DIR, { recursive: true });
 
 function readArg(name) {
@@ -44,7 +62,40 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-function launcherSource(binaryName) {
+function launcherSource(binaryName, target) {
+  const requestedPlatform = targetPlatform(target);
+  const requestedArch = targetArch(target);
+  // The macOS N-API binding carries an @executable_path rpath. A hardened
+  // child strips DYLD_* unless an injection-enabling entitlement is granted,
+  // so the launcher must never pretend that environment contract is usable.
+  const loaderVariable = requestedPlatform === 'linux' ? 'LD_LIBRARY_PATH' : null;
+  const nativeSubdir = loaderVariable && requestedArch
+    ? `native/onnxruntime-node/${requestedPlatform}-${requestedArch}`
+    : null;
+  const loaderBootstrap = loaderVariable && nativeSubdir
+    ? `
+  char native_dir[PATH_MAX];
+  written = snprintf(native_dir, sizeof(native_dir), "%.*s/${nativeSubdir}", (int)dir_len, self);
+  if (written < 0 || (size_t)written >= sizeof(native_dir)) {
+    fprintf(stderr, "pd launcher: native runtime path is too long\\n");
+    return 127;
+  }
+  const char *existing_loader_path = getenv("${loaderVariable}");
+  size_t loader_len = strlen(native_dir) + (existing_loader_path ? strlen(existing_loader_path) + 1 : 0) + 1;
+  char *loader_path = calloc(loader_len, sizeof(char));
+  if (loader_path == NULL) {
+    fprintf(stderr, "pd launcher: out of memory while configuring semantic runtime\\n");
+    return 127;
+  }
+  if (existing_loader_path && existing_loader_path[0] != '\\0') {
+    snprintf(loader_path, loader_len, "%s:%s", native_dir, existing_loader_path);
+  } else {
+    snprintf(loader_path, loader_len, "%s", native_dir);
+  }
+  setenv("${loaderVariable}", loader_path, 1);
+  free(loader_path);
+`
+    : '';
   return `#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -89,6 +140,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "pd launcher: sibling binary path is too long\\n");
     return 127;
   }
+${loaderBootstrap}
 
   char **child_argv = calloc((size_t)argc + 1, sizeof(char *));
   if (child_argv == NULL) {
@@ -110,9 +162,9 @@ int main(int argc, char **argv) {
 `;
 }
 
-function writePdLauncher(launcherPath, binaryName) {
+function writePdLauncher(launcherPath, binaryName, target) {
   const sourcePath = `${launcherPath}.launcher.c`;
-  writeFileSync(sourcePath, launcherSource(binaryName));
+  writeFileSync(sourcePath, launcherSource(binaryName, target));
   try {
     run('cc', [sourcePath, '-O2', '-o', launcherPath], { stdio: 'pipe' });
   } finally {
@@ -204,6 +256,41 @@ function writeEmbeddedAssetsModule() {
 }
 
 /**
+ * Compile the frozen Agent Harbor contracts into the self-hosted binary.
+ * Runtime validation is fail-closed, so a nominally "single" binary that only
+ * works beside a source checkout is broken cargo. Filesystem schemas remain
+ * authoritative when present; this table is the exact-byte relocation fallback.
+ */
+function writeEmbeddedAgentHarborSchemasModule() {
+  const schemaRoot = join(ROOT_DIR, 'schemas', 'agent-harbor', 'v0');
+  const files = collectFiles(schemaRoot).filter(file => file.endsWith('.schema.json'));
+  if (files.length === 0) throw new Error(`No Agent Harbor schemas found under ${schemaRoot}`);
+
+  const schemas = {};
+  for (const file of files) {
+    const relativePath = posixPath(relative(schemaRoot, file));
+    const name = relativePath.replace(/\.schema\.json$/, '').split('/').pop();
+    if (!name) throw new Error(`Could not derive embedded schema name from ${relativePath}`);
+    if (Object.hasOwn(schemas, name)) {
+      throw new Error(`Duplicate Agent Harbor schema basename ${name}; embedded lookup must stay unambiguous`);
+    }
+    schemas[name] = JSON.parse(readFileSync(file, 'utf8'));
+  }
+
+  writeFileSync(EMBEDDED_AGENT_HARBOR_SCHEMAS_MODULE, [
+    '// Generated by scripts/build-single-binary.mjs. Do not edit by hand.',
+    `export const EMBEDDED_AGENT_HARBOR_SCHEMAS = ${JSON.stringify(schemas)};`,
+    'globalThis.__PORT_DADDY_EMBEDDED_AGENT_HARBOR_SCHEMAS__ = EMBEDDED_AGENT_HARBOR_SCHEMAS;',
+    '',
+  ].join('\n'));
+  return {
+    count: files.length,
+    names: Object.keys(schemas).sort(),
+    sha256: sha256(EMBEDDED_AGENT_HARBOR_SCHEMAS_MODULE),
+  };
+}
+
+/**
  * Make every locally built artifact repair-capable, not only release.yml.
  * The binary is one runtime generation, while these dependency-free scripts
  * are deliberate companion assets that it stages into PD_HOME. Keeping the
@@ -213,8 +300,10 @@ function writeEmbeddedAssetsModule() {
 function stageSquidReleaseAssets(releaseDir) {
   const executableAssets = [
     'pd-hook-prompt',
+    'pd-hook-precompact',
     'pd-hook-pre-tool',
     'pd-hook-post-tool',
+    'pd-hook-stop',
     'pd-statusline',
   ];
   const binDir = join(releaseDir, 'bin');
@@ -298,54 +387,6 @@ function writeEmbeddedNativeCoreModule(target) {
   };
 }
 
-/**
- * `bun build --compile` embeds onnxruntime-node's `.node` N-API binding and
- * extracts it to a fresh temp directory on first use — but its sibling
- * runtime library (`libonnxruntime.*.dylib` / `libonnxruntime.so.1`), linked
- * via a Mach-O/ELF `@rpath`-relative entry, is NOT extracted alongside it.
- * The result: `@huggingface/transformers`' local embedder fails every
- * daemon boot with "Library not loaded: @rpath/libonnxruntime.*.dylib".
- *
- * Fix: ship the real runtime library as a plain file next to the compiled
- * binary (onnxruntime-node ships prebuilt binaries for every platform, so
- * this works even cross-target) and point `DYLD_FALLBACK_LIBRARY_PATH` /
- * `LD_LIBRARY_PATH` at it at runtime (lib/semantic-resolver.ts) — dyld's
- * fallback path is consulted at the actual `dlopen()` call, so it works
- * regardless of where Bun's own extraction puts the `.node` binding.
- */
-function packageOnnxRuntimeNative(target) {
-  const requestedPlatform = targetPlatform(target);
-  const requestedArch = targetArch(target);
-  if (!requestedPlatform || !requestedArch) {
-    return { status: 'skipped', reason: 'unresolvable target' };
-  }
-  if (requestedPlatform === 'win32') {
-    return { status: 'skipped', reason: 'windows onnxruntime.dll is not @rpath-linked; not applicable' };
-  }
-
-  const sourceDir = join(ROOT_DIR, 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', requestedPlatform, requestedArch);
-  if (!existsSync(sourceDir)) {
-    return { status: 'skipped', reason: `no onnxruntime-node binaries at ${sourceDir}` };
-  }
-
-  const destDir = join(DIST_DIR, 'native', 'onnxruntime-node', `${requestedPlatform}-${requestedArch}`);
-  mkdirSync(destDir, { recursive: true });
-
-  const runtimeLibFiles = readdirSync(sourceDir).filter(name => !name.endsWith('.node'));
-  for (const name of runtimeLibFiles) {
-    copyFileSync(join(sourceDir, name), join(destDir, name));
-  }
-
-  return {
-    status: runtimeLibFiles.length > 0 ? 'packaged' : 'skipped',
-    reason: runtimeLibFiles.length > 0 ? null : 'no runtime library files found alongside the .node binding',
-    platform: requestedPlatform,
-    arch: requestedArch,
-    dir: destDir,
-    files: runtimeLibFiles,
-  };
-}
-
 async function reservePort() {
   return new Promise((resolvePort, reject) => {
     const server = createServer();
@@ -358,39 +399,236 @@ async function reservePort() {
   });
 }
 
-async function waitForJson(url, child, stderrChunks, timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) break;
-    try {
-      const res = await fetch(url);
-      if (res.ok) return await res.json();
-    } catch {
-      // Retry until the self-hosted daemon is listening or exits.
-    }
-    await new Promise(resolveDelay => setTimeout(resolveDelay, 150));
-  }
-  const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-  throw new Error(`single binary daemon smoke failed for ${url}${stderr ? `\n${stderr}` : ''}`);
+function selfHostedDaemonProcessState(child) {
+  return {
+    pid: child.pid ?? null,
+    exitCode: child.exitCode,
+    signalCode: child.signalCode,
+    exited: child.exitCode !== null || child.signalCode !== null,
+  };
 }
 
-async function waitForText(url, child, stderrChunks, timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) break;
-    try {
-      const res = await fetch(url);
-      if (res.ok) return await res.text();
-    } catch {
-      // Retry until the self-hosted daemon is listening or exits.
-    }
-    await new Promise(resolveDelay => setTimeout(resolveDelay, 150));
+function waitForSelfHostedDaemonExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve(selfHostedDaemonProcessState(child));
   }
-  const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-  throw new Error(`single binary static smoke failed for ${url}${stderr ? `\n${stderr}` : ''}`);
+  return new Promise((resolveExit) => {
+    let timer;
+    const done = () => {
+      clearTimeout(timer);
+      resolveExit(selfHostedDaemonProcessState(child));
+    };
+    child.once('exit', done);
+    timer = setTimeout(() => {
+      child.off('exit', done);
+      resolveExit(null);
+    }, timeoutMs);
+  });
 }
 
-async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
+async function stopSelfHostedDaemon(child) {
+  const pid = child.pid ?? null;
+  if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+  let exit = await waitForSelfHostedDaemonExit(child, 10_000);
+  if (!exit && child.exitCode === null && child.signalCode === null) {
+    child.kill('SIGKILL');
+    exit = await waitForSelfHostedDaemonExit(child, 3_000);
+  }
+  if (!exit) throw new Error(`single binary daemon cleanup timed out: ${JSON.stringify(selfHostedDaemonProcessState(child))}`);
+  if (pid !== null) {
+    try {
+      process.kill(pid, 0);
+      throw new Error(`single binary daemon ${pid} remained alive after its exit receipt`);
+    } catch (error) {
+      if (error?.code !== 'ESRCH') throw error;
+    }
+  }
+  return { ...exit, confirmedGone: true };
+}
+
+function selfHostedDaemonBootLog(stderrChunks) {
+  const raw = Buffer.concat(stderrChunks).toString('utf8').trim();
+  const redacted = redactString(raw);
+  return {
+    stderrBytes: Buffer.byteLength(raw),
+    redacted: true,
+    truncated: redacted.length > SELF_HOSTED_DAEMON_BOOT_LOG_LIMIT,
+    tail: redacted.slice(-SELF_HOSTED_DAEMON_BOOT_LOG_LIMIT),
+  };
+}
+
+function selfHostedDaemonReadinessError({
+  url,
+  phase,
+  reason,
+  child,
+  stderrChunks,
+  startedAt,
+  timeoutMs,
+  attempts,
+  lastHttpStatus,
+  lastError,
+}) {
+  const diagnostic = {
+    category: 'self-hosted-daemon-readiness',
+    classification: reason === 'process-exit'
+      ? 'process-exited-before-readiness'
+      : 'readiness-deadline-exceeded',
+    phase,
+    elapsedMs: Date.now() - startedAt,
+    hardDeadlineMs: timeoutMs,
+    attempts,
+    lastHttpStatus,
+    lastError: lastError ? redactString(lastError) : null,
+    process: selfHostedDaemonProcessState(child),
+    bootLog: selfHostedDaemonBootLog(stderrChunks),
+  };
+  return new Error(`single binary daemon smoke failed for ${url}: ${JSON.stringify(diagnostic)}`);
+}
+
+async function waitForJson(url, child, stderrChunks, timeoutMs = SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let attempts = 0;
+  let lastHttpStatus = null;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw selfHostedDaemonReadinessError({
+        url, phase: 'json', reason: 'process-exit', child, stderrChunks, startedAt,
+        timeoutMs, attempts, lastHttpStatus, lastError,
+      });
+    }
+    attempts += 1;
+    try {
+      const remainingMs = Math.max(1, deadline - Date.now());
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(Math.min(SELF_HOSTED_DAEMON_PROBE_TIMEOUT_MS, remainingMs)),
+      });
+      lastHttpStatus = res.status;
+      if (res.ok) {
+        return {
+          value: await res.json(),
+          timing: { elapsedMs: Date.now() - startedAt, attempts, lastHttpStatus },
+        };
+      }
+      await res.arrayBuffer();
+    } catch (error) {
+      lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    }
+    await new Promise(resolveDelay => setTimeout(resolveDelay, Math.min(150, Math.max(1, deadline - Date.now()))));
+  }
+  throw selfHostedDaemonReadinessError({
+    url, phase: 'json', reason: 'deadline', child, stderrChunks, startedAt,
+    timeoutMs, attempts, lastHttpStatus, lastError,
+  });
+}
+
+async function waitForText(url, child, stderrChunks, timeoutMs = SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let attempts = 0;
+  let lastHttpStatus = null;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw selfHostedDaemonReadinessError({
+        url, phase: 'text', reason: 'process-exit', child, stderrChunks, startedAt,
+        timeoutMs, attempts, lastHttpStatus, lastError,
+      });
+    }
+    attempts += 1;
+    try {
+      const remainingMs = Math.max(1, deadline - Date.now());
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(Math.min(SELF_HOSTED_DAEMON_PROBE_TIMEOUT_MS, remainingMs)),
+      });
+      lastHttpStatus = res.status;
+      if (res.ok) {
+        return {
+          value: await res.text(),
+          timing: { elapsedMs: Date.now() - startedAt, attempts, lastHttpStatus },
+        };
+      }
+      await res.arrayBuffer();
+    } catch (error) {
+      lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    }
+    await new Promise(resolveDelay => setTimeout(resolveDelay, Math.min(150, Math.max(1, deadline - Date.now()))));
+  }
+  throw selfHostedDaemonReadinessError({
+    url, phase: 'text', reason: 'deadline', child, stderrChunks, startedAt,
+    timeoutMs, attempts, lastHttpStatus, lastError,
+  });
+}
+
+async function smokeSurfaceGatewaySchemas(baseUrl) {
+  const now = new Date().toISOString();
+  const intentId = `work_intent_single_binary_smoke_${process.pid}`;
+  const idempotencyKey = `pd-console:single-binary-smoke:${process.pid}`;
+  const capture = await fetch(`${baseUrl}/agent-harbor/surface-gateway`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      schema: 'pd.agent-harbor.surface-gateway.v0',
+      envelopeId: `surface_gateway_capture_smoke_${process.pid}`,
+      correlationId: `corr_capture_smoke_${process.pid}`,
+      surface: 'pd-console',
+      direction: 'surface-to-daemon',
+      mode: 'command',
+      noun: 'WorkIntent',
+      operation: 'work-intent.capture',
+      issuedBy: 'pd-console:single-binary-smoke',
+      issuedAt: now,
+      idempotencyKey,
+      payload: {
+        schema: 'pd.agent-harbor.work-intent.v0',
+        intentId,
+        idempotencyKey,
+        source: { kind: 'console' },
+        goal: { text: 'Prove embedded Surface Gateway schemas without launching a body.' },
+        createdAt: now,
+      },
+    }),
+  });
+  const captureBody = await capture.json();
+  if (!capture.ok || captureBody?.schema !== 'pd.agent-harbor.surface-gateway.command-receipt.v0') {
+    throw new Error(`single binary Surface Gateway capture smoke failed (${capture.status}): ${JSON.stringify(captureBody)}`);
+  }
+
+  const query = await fetch(`${baseUrl}/agent-harbor/surface-gateway`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      schema: 'pd.agent-harbor.surface-gateway.v0',
+      envelopeId: `surface_gateway_query_smoke_${process.pid}`,
+      correlationId: `corr_query_smoke_${process.pid}`,
+      surface: 'pd-console',
+      direction: 'surface-to-daemon',
+      mode: 'query',
+      noun: 'WorkIntent',
+      operation: 'work-intent.list',
+      issuedBy: 'pd-console:single-binary-smoke',
+      issuedAt: now,
+      idempotencyKey: null,
+      payload: { limit: 5 },
+    }),
+  });
+  const queryBody = await query.json();
+  const readBack = Array.isArray(queryBody?.data)
+    && queryBody.data.some(snapshot => snapshot?.intent?.intentId === intentId);
+  if (!query.ok || queryBody?.schema !== 'pd.agent-harbor.surface-gateway.query-result.v0' || !readBack) {
+    throw new Error(`single binary Surface Gateway read-back smoke failed (${query.status}): ${JSON.stringify(queryBody)}`);
+  }
+  return { captureStatus: capture.status, queryStatus: query.status, readBack: true, intentId };
+}
+
+async function smokeSelfHostedDaemon(
+  outfile,
+  companionFiles = [],
+  treeSitterRuntime = null,
+  onnxRuntimeNative = null,
+) {
   const port = await reservePort();
   const prefix = join(DURABLE_SCRATCH_DIR, `pd-sb-${process.pid}`);
   const isolatedBinDir = join(prefix, 'isolated-bin');
@@ -406,10 +644,66 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
     copyFileSync(companion, isolatedCompanion);
     chmodSync(isolatedCompanion, statSync(companion).mode | 0o755);
   }
+  if (
+    treeSitterRuntime?.status !== 'packaged' ||
+    typeof treeSitterRuntime.dir !== 'string' ||
+    typeof treeSitterRuntime.manifestPath !== 'string' ||
+    !Array.isArray(treeSitterRuntime.files)
+  ) {
+    throw new Error('single binary daemon smoke failed: Tree-sitter cargo receipt is missing');
+  }
+  const verifiedTreeSitter = verifyTreeSitterRuntimeCargo({
+    dir: treeSitterRuntime.dir,
+    files: treeSitterRuntime.files,
+  });
+  const isolatedTreeSitterRoot = join(isolatedBinDir, 'native', 'tree-sitter');
+  const isolatedTreeSitterDir = join(isolatedTreeSitterRoot, basename(verifiedTreeSitter.dir));
+  mkdirSync(isolatedTreeSitterDir, { recursive: true });
+  for (const file of verifiedTreeSitter.files) {
+    copyFileSync(join(verifiedTreeSitter.dir, file.name), join(isolatedTreeSitterDir, file.name));
+  }
+  copyFileSync(treeSitterRuntime.manifestPath, join(isolatedTreeSitterRoot, TREE_SITTER_RUNTIME_POINTER));
+  verifyTreeSitterRuntimeCargo({
+    dir: isolatedTreeSitterDir,
+    files: verifiedTreeSitter.files,
+    outputRoot: isolatedBinDir,
+  });
+
+  if (
+    onnxRuntimeNative?.status !== 'packaged' ||
+    typeof onnxRuntimeNative.dir !== 'string' ||
+    !Array.isArray(onnxRuntimeNative.files)
+  ) {
+    throw new Error('single binary daemon smoke failed: ONNX runtime cargo receipt is missing');
+  }
+  const isolatedOnnxDir = join(
+    isolatedBinDir,
+    'native',
+    'onnxruntime-node',
+    `${onnxRuntimeNative.platform}-${onnxRuntimeNative.arch}`,
+  );
+  mkdirSync(isolatedOnnxDir, { recursive: true });
+  for (const name of onnxRuntimeNative.files) {
+    const source = join(onnxRuntimeNative.dir, name);
+    if (!existsSync(source) || !statSync(source).isFile()) {
+      throw new Error(`single binary daemon smoke failed: missing packaged ONNX runtime asset ${source}`);
+    }
+    copyFileSync(source, join(isolatedOnnxDir, name));
+  }
+  const isolatedOnnxRuntime = { ...onnxRuntimeNative, dir: isolatedOnnxDir };
+  const semanticRuntime = parseSemanticRuntimeProof(run(isolatedOutfile, ['__semantic-runtime-check'], {
+    timeout: 15_000,
+    env: {
+      PORT_DADDY_RESOURCE_DIR: resourceDir,
+      ...nativeLoaderEnvironment(isolatedOnnxRuntime),
+    },
+  }).stdout);
 
   const stderrChunks = [];
   const child = spawn(isolatedOutfile, ['__daemon'], {
-    cwd: ROOT_DIR,
+    // The smoke must leave the checkout or process.cwd() would hide a missing
+    // compiled schema table by finding the source schemas.
+    cwd: resourceDir,
     env: {
       ...process.env,
       PORT_DADDY_PREFIX: join(prefix, 'runtime'),
@@ -417,6 +711,7 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
       PORT_DADDY_NO_FLEET: '1',
       PORT_DADDY_NO_FLEETBAR: '1',
       PORT_DADDY_RESOURCE_DIR: resourceDir,
+      ...nativeLoaderEnvironment(isolatedOnnxRuntime),
       PORT_DADDY_SILENT: '1',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
@@ -424,10 +719,15 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
   child.stderr.on('data', chunk => stderrChunks.push(Buffer.from(chunk)));
 
   try {
-    const health = await waitForJson(`http://127.0.0.1:${port}/health`, child, stderrChunks);
-    const arbiter = await waitForJson(`http://127.0.0.1:${port}/arbiter/status`, child, stderrChunks);
-    const samples = await waitForJson(`http://127.0.0.1:${port}/samples/manifest.json`, child, stderrChunks);
-    const fleetHtml = await waitForText(`http://127.0.0.1:${port}/fleet-ui/index.html`, child, stderrChunks);
+    const healthProbe = await waitForJson(`http://127.0.0.1:${port}/health`, child, stderrChunks);
+    const arbiterProbe = await waitForJson(`http://127.0.0.1:${port}/arbiter/status`, child, stderrChunks);
+    const samplesProbe = await waitForJson(`http://127.0.0.1:${port}/samples/manifest.json`, child, stderrChunks);
+    const fleetHtmlProbe = await waitForText(`http://127.0.0.1:${port}/fleet-ui/index.html`, child, stderrChunks);
+    const health = healthProbe.value;
+    const arbiter = arbiterProbe.value;
+    const samples = samplesProbe.value;
+    const fleetHtml = fleetHtmlProbe.value;
+    const surfaceGateway = await smokeSurfaceGatewaySchemas(`http://127.0.0.1:${port}`);
     if (arbiter?.enforcerLoaded !== true || arbiter?.summary?.degradedRules !== 0) {
       throw new Error('single binary daemon smoke failed: embedded native Arbiter enforcer was not loaded cleanly');
     }
@@ -437,6 +737,10 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
     if (!fleetHtml.includes('<!doctype html>') && !fleetHtml.includes('<!DOCTYPE html>')) {
       throw new Error('single binary daemon smoke failed: embedded Fleet UI index was not HTML');
     }
+    const treeSitter = await smokeTreeSitterRoute({
+      baseUrl: `http://127.0.0.1:${port}`,
+      scratchRoot: join(prefix, 'tree-sitter'),
+    });
     const cliAttention = run(isolatedOutfile, ['attention', '--agent', 'pd-single-binary-smoke-agent', '--json'], {
       timeout: 15_000,
       env: {
@@ -465,6 +769,18 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
     return {
       status: health?.status ?? 'unknown',
       pid: health?.pid ?? null,
+      readiness: {
+        classification: 'expected-initialization-complete',
+        hardDeadlineMs: SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS,
+        phases: {
+          health: healthProbe.timing,
+          arbiter: arbiterProbe.timing,
+          samples: samplesProbe.timing,
+          fleetUi: fleetHtmlProbe.timing,
+        },
+        process: selfHostedDaemonProcessState(child),
+        bootLog: selfHostedDaemonBootLog(stderrChunks),
+      },
       arbiter: {
         enforcerLoaded: arbiter.enforcerLoaded,
         enforcedRules: arbiter.summary?.enforcedRules ?? null,
@@ -473,13 +789,13 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
       isolatedBinaryDir: isolatedBinDir,
       samples: { count: samples.count },
       fleetUi: { indexHtmlBytes: Buffer.byteLength(fleetHtml) },
+      surfaceGateway,
+      treeSitter,
+      semanticRuntime,
       cli: { attention: attention.success === true, bareAttention: bareAttention.success === true },
     };
   } finally {
-    if (child.exitCode === null) {
-      child.kill('SIGTERM');
-      await new Promise(resolveKill => child.once('exit', resolveKill));
-    }
+    await stopSelfHostedDaemon(child);
     rmSync(prefix, { recursive: true, force: true });
   }
 }
@@ -495,12 +811,34 @@ const launcherOutfile = needsPdLauncher ? requestedOutfile : null;
 const entrypointOutfile = launcherOutfile ?? binaryOutfile;
 const companionFiles = launcherOutfile ? [binaryOutfile] : [];
 const releaseDir = dirname(binaryOutfile);
+const requestedPlatform = targetPlatform(target);
+const requestedArch = targetArch(target);
 
 run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' });
 const squidAssets = stageSquidReleaseAssets(releaseDir);
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
 const embeddedAssets = writeEmbeddedAssetsModule();
-const onnxRuntimeNative = packageOnnxRuntimeNative(target);
+const embeddedAgentHarborSchemas = writeEmbeddedAgentHarborSchemasModule();
+const onnxRuntimeBinding = prepareOnnxRuntimeNativeBinding({
+  repoRoot: ROOT_DIR,
+  platform: requestedPlatform,
+  arch: requestedArch,
+});
+const onnxRuntimeNative = packageOnnxRuntimeNative({
+  repoRoot: ROOT_DIR,
+  // The macOS binding resolves @executable_path/native/... and FleetBar asks
+  // for a custom --outfile. Package beside that executable, never into the
+  // repository-global dist directory that the relocated payload cannot see.
+  outputRoot: releaseDir,
+  platform: requestedPlatform,
+  arch: requestedArch,
+});
+const treeSitterRuntime = packageTreeSitterRuntime({
+  repoRoot: ROOT_DIR,
+  // Custom outputs (FleetBar payloads and release archives) must carry their
+  // runtime beside the requested executable, not in this checkout's dist/.
+  outputRoot: releaseDir,
+});
 
 if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
   throw new Error(`Expected embedded native core for same-runner target ${target || 'host'}; got ${embeddedNativeCore.status}`);
@@ -517,7 +855,7 @@ if (!existsSync(binaryOutfile)) {
 }
 
 if (launcherOutfile) {
-  writePdLauncher(launcherOutfile, basename(binaryOutfile));
+  writePdLauncher(launcherOutfile, basename(binaryOutfile), target);
   if (!existsSync(launcherOutfile)) {
     throw new Error(`Expected pd launcher at ${launcherOutfile}`);
   }
@@ -539,7 +877,12 @@ if (canSmokeTarget) {
     command: 'help',
     target: target || null,
     stdout: result.stdout.trim(),
-    daemon: await smokeSelfHostedDaemon(entrypointOutfile, companionFiles),
+    daemon: await smokeSelfHostedDaemon(
+      entrypointOutfile,
+      companionFiles,
+      treeSitterRuntime,
+      onnxRuntimeNative,
+    ),
   };
   run(process.execPath, ['scripts/smoke-squid-release.mjs', entrypointOutfile, releaseDir], {
     stdio: 'inherit',
@@ -563,8 +906,11 @@ const manifest = {
   builder: `bun ${bunArgs.join(' ')}`,
   bunVersion: run('bun', ['--version']).stdout.trim(),
   embeddedPublicAssets: embeddedAssets.length,
+  embeddedAgentHarborSchemas,
   embeddedNativeCore,
+  onnxRuntimeBinding,
   onnxRuntimeNative,
+  treeSitterRuntime,
   squidAssets: squidAssets.map(path => relative(releaseDir, path)),
   surfaces: {
     cli: 'bundled',
@@ -573,6 +919,7 @@ const manifest = {
     sdk: 'compiled client modules plus package exports in npm distribution',
     fleetUi: 'embedded in the executable through a generated asset table with external public/ fallback',
     publicSamples: 'embedded in the executable through a generated asset table; manifest generated before compile',
+    agentHarborSchemas: 'embedded in the executable as the fail-closed relocation fallback for frozen runtime contracts',
     squidHarness: 'repair-capable companion scripts staged beside every locally built artifact and verified by an isolated four-provider arm smoke',
   },
   smoke,

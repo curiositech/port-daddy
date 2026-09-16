@@ -7,8 +7,12 @@
 //! `#[cfg(test)] mod tests` inside `ledger_pane.rs` compiles and runs as part of
 //! this lightweight integration target.
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
+#[path = "../src/local_control.rs"]
+mod local_control;
 #[path = "../src/ledger_pane.rs"]
 mod ledger_pane;
 #[path = "../src/pane.rs"]

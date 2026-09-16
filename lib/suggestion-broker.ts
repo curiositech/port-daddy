@@ -1,5 +1,6 @@
 /**
- * Suggestion broker — the detection half of the suggestibility layer (ADR-0039 §Primitive 2).
+ * Suggestion broker — durable projections for the suggestibility layer
+ * (ADR-0039 §Primitive 2).
  *
  * This slice ships exactly one detector: `claim-overlap-headsup`. When two *distinct*
  * active sessions hold overlapping claims on the same file, both agents get a durable
@@ -17,10 +18,13 @@
  *
  * Split into a pure detector (`detectClaimOverlaps`, trivially unit-testable) and an
  * IO orchestrator (`runOverlapScan`, deps injected) so the matching logic is verified
- * without a daemon.
+ * without a daemon. Symbol-claim advice deliberately does not add another detector:
+ * `surfaceSymbolConflictAdvice` only projects the conflicts already returned by the
+ * shipped symbol-claim evaluator into this same durable suggestion + inbox path.
  */
 
 import type { Suggestions, SuggestionKind } from './suggestions.js';
+import type { SymbolConflict } from './symbol-claims.js';
 
 /** One active claim, as returned by `sessions.listAllActiveClaims().claims`. */
 export interface ActiveClaim {
@@ -63,10 +67,16 @@ const OVERLAP_KIND: SuggestionKind = 'claim-overlap-headsup';
 export const SUGGESTION_PAYLOAD_VERSION = 1 as const;
 
 /**
- * Whether two line ranges overlap. A null range is a whole-file claim and overlaps
- * everything — identical semantics to `rangesOverlap` in `lib/sessions.ts` (the
- * canonical source; duplicated here as a 4-line pure fn to avoid widening that
- * module's export surface).
+ * Decide whether two line ranges overlap. A null range is a whole-file claim and
+ * overlaps everything. The design intent matches `rangesOverlap` in
+ * `lib/sessions.ts`; this small pure copy avoids widening that module's API solely
+ * for the suggestion projection.
+ *
+ * @param startA - Inclusive start of the first range, or null for a whole file.
+ * @param endA - Inclusive end of the first range, or null for a whole file.
+ * @param startB - Inclusive start of the second range, or null for a whole file.
+ * @param endB - Inclusive end of the second range, or null for a whole file.
+ * @returns True when the ranges share at least one line or either is whole-file.
  */
 export function rangesOverlap(
   startA: number | null,
@@ -78,6 +88,15 @@ export function rangesOverlap(
   return startA <= endB && endA >= startB;
 }
 
+/**
+ * Compare two claims using the existing declared-claim semantics. The purpose is
+ * deterministic overlap detection: exact symbol paths take precedence, otherwise
+ * line-range overlap decides.
+ *
+ * @param a - First active claim.
+ * @param b - Second active claim on the same file.
+ * @returns True when the claims occupy the same declared surface.
+ */
 function claimsCollide(a: ActiveClaim, b: ActiveClaim): boolean {
   // Symbol-path claims collide iff they name the same symbol.
   if (a.symbolPath && b.symbolPath) return a.symbolPath === b.symbolPath;
@@ -85,13 +104,18 @@ function claimsCollide(a: ActiveClaim, b: ActiveClaim): boolean {
   return rangesOverlap(a.startLine, a.endLine, b.startLine, b.endLine);
 }
 
-/** Confidence by overlap severity, so the suggestions module's PRIORITY tier
- *  (S5 fix) actually fires for the overlaps that matter. A same-symbol or
- *  whole-file collision is high-severity (a guaranteed edit conflict); a partial
- *  line-range overlap is ordinary. The threshold (0.95) lives in the suggestions
- *  policy — keep HIGH at/above it and NORMAL below. */
 const SEVERITY_CONFIDENCE_HIGH = 0.97;
 const SEVERITY_CONFIDENCE_NORMAL = 0.9;
+
+/**
+ * Map overlap shape to confidence so the suggestions module's PRIORITY tier
+ * actually fires for the overlaps that matter. The design keeps same-symbol and
+ * whole-file collisions above the policy threshold while partial ranges stay normal.
+ *
+ * @param a - First overlapping claim.
+ * @param b - Second overlapping claim.
+ * @returns Confidence compatible with the existing suggestion priority policy.
+ */
 function overlapSeverityConfidence(a: ActiveClaim, b: ActiveClaim): number {
   if (a.symbolPath && b.symbolPath && a.symbolPath === b.symbolPath) return SEVERITY_CONFIDENCE_HIGH;
   const wholeFile =
@@ -99,14 +123,24 @@ function overlapSeverityConfidence(a: ActiveClaim, b: ActiveClaim): number {
   return wholeFile ? SEVERITY_CONFIDENCE_HIGH : SEVERITY_CONFIDENCE_NORMAL;
 }
 
-/** Stable dedup key for the unordered session pair on a file. */
+/**
+ * Build the stable dedup key for an unordered session pair. The intent is that a
+ * scan sees one standing overlap regardless of input order.
+ *
+ * @param o - Canonically ordered overlap pair.
+ * @returns Stable payload hash consumed by the existing cooldown machinery.
+ */
 export function overlapPayloadHash(o: ClaimOverlap): string {
   return `claim-overlap:${o.filePath}:${o.a.sessionId}|${o.b.sessionId}`;
 }
 
 /**
- * Pure detector. Given the full set of active claims, return every distinct-session
- * overlap on a shared file. Deterministic and order-independent.
+ * Detect every distinct-session overlap on a shared file. The design is pure,
+ * deterministic, and order-independent so matching behavior can be verified without
+ * database or daemon state.
+ *
+ * @param claims - Full set of active declared file or region claims.
+ * @returns Canonically ordered overlap pairs.
  */
 export function detectClaimOverlaps(claims: ActiveClaim[]): ClaimOverlap[] {
   const byFile = new Map<string, ActiveClaim[]>();
@@ -171,6 +205,190 @@ export interface OverlapScanResult {
   delivered: number;
 }
 
+/** The symbol-claim attempt whose authoritative conflict result should become advice. */
+export interface SymbolConflictAdviceInput {
+  sessionId: string;
+  agentId?: string | null;
+  purpose?: string | null;
+  conflicts: SymbolConflict[];
+}
+
+/** Injected existing delivery surfaces; conflict detection intentionally is not a dependency. */
+export interface SymbolConflictAdviceDeps {
+  suggestions: Suggestions;
+  inbox: BrokerInbox;
+  activityLog?: BrokerActivityLog;
+}
+
+/** Counts make the projection observable without changing the symbol-claim HTTP contract. */
+export interface SymbolConflictAdviceResult {
+  conflicts: number;
+  surfaced: number;
+  suppressed: number;
+  delivered: number;
+}
+
+const SYMBOL_CONFLICT_CONFIDENCE = {
+  blocking: 0.99,
+  warning: 0.9,
+  info: 0.75,
+} as const;
+
+/**
+ * Explain the conflict using only the claim evaluator's returned evidence. This is
+ * intentionally a formatter, not a classifier: the reason retains the authoritative
+ * conflict type and both declared claim types so no second conflict engine can drift.
+ *
+ * @param conflict - Conflict emitted by the shipped symbol-claim evaluator.
+ * @param holderLabel - Stable human label for the existing holder.
+ * @returns A concise reason suitable for inbox rendering and parley initiation.
+ */
+function symbolConflictReason(conflict: SymbolConflict, holderLabel: string): string {
+  const chain = conflict.chain?.length ? ` via ${conflict.chain.join(' -> ')}` : '';
+  return `${conflict.type} conflict: requested ${conflict.a.type} on ${conflict.a.filePath}#${conflict.a.symbolPath} conflicts with ${holderLabel}'s ${conflict.b.type} claim on ${conflict.b.filePath}#${conflict.b.symbolPath}${chain}`;
+}
+
+/**
+ * Produce a stable cooldown key for one request/holder/conflict tuple. The intent is
+ * to suppress repeated claim retries while allowing distinct symbols, holders, or
+ * conflict types to surface independently.
+ *
+ * @param input - Requesting session and its authoritative conflict result.
+ * @param conflict - One conflict from the result.
+ * @returns Stable suggestion payload hash used by the existing cooldown machinery.
+ */
+function symbolConflictPayloadHash(input: SymbolConflictAdviceInput, conflict: SymbolConflict): string {
+  return [
+    'symbol-conflict',
+    input.sessionId,
+    conflict.otherSessionId,
+    conflict.type,
+    conflict.severity,
+    `${conflict.a.filePath}#${conflict.a.symbolPath}:${conflict.a.type}`,
+    `${conflict.b.filePath}#${conflict.b.symbolPath}:${conflict.b.type}`,
+  ].join(':');
+}
+
+/**
+ * Project authoritative symbol-claim conflicts into the existing durable suggestion
+ * store and agent inbox consumed by `pd attention`. The design is intentionally
+ * one-way: this function never inspects claims, predicts conflicts, or changes the
+ * claim verdict. It only preserves the evaluator's severity, holder/session, reason,
+ * file/symbol, available dependency chain, and sanctioned parley/handoff actions.
+ *
+ * @param deps - Existing suggestion, inbox, and optional activity-log surfaces.
+ * @param input - Requesting session plus conflicts returned by `symbolClaims.claim`.
+ * @returns Projection counts for telemetry and focused tests.
+ */
+export function surfaceSymbolConflictAdvice(
+  deps: SymbolConflictAdviceDeps,
+  input: SymbolConflictAdviceInput,
+): SymbolConflictAdviceResult {
+  let surfaced = 0;
+  let suppressed = 0;
+  let delivered = 0;
+  const requester = input.agentId?.trim() || input.sessionId;
+
+  for (const conflict of input.conflicts) {
+    const holder = conflict.otherAgentId?.trim() || conflict.otherSessionId;
+    const reason = symbolConflictReason(conflict, holder);
+    const surface = `${conflict.a.filePath}#${conflict.a.symbolPath}`;
+    const handoffMessage = `Please hand off or sequence work on ${surface}. ${reason}.`;
+    const payload = {
+      v: SUGGESTION_PAYLOAD_VERSION,
+      kind: OVERLAP_KIND,
+      source: 'symbol-claim-flow',
+      disposition: conflict.severity === 'blocking' ? 'blocked' : 'advisory',
+      severity: conflict.severity,
+      confidence: conflict.confidence,
+      reason,
+      surface: {
+        filePath: conflict.a.filePath,
+        symbolPath: conflict.a.symbolPath,
+      },
+      requester: {
+        sessionId: input.sessionId,
+        agentId: input.agentId ?? null,
+        purpose: input.purpose ?? null,
+        claim: conflict.a,
+      },
+      holder: {
+        sessionId: conflict.otherSessionId,
+        agentId: conflict.otherAgentId ?? null,
+        claim: conflict.b,
+      },
+      dependencyContext: conflict.chain?.length
+        ? { conflictType: conflict.type, chain: conflict.chain }
+        : null,
+      action: {
+        kind: 'parley-or-handoff',
+        parley: {
+          label: 'Open a parley',
+          command: 'pd',
+          argv: [
+            'parley', 'call',
+            '--surface', surface,
+            '--reason', reason,
+            '--with', `${requester},${holder}`,
+            '--as', requester,
+          ],
+        },
+        handoff: {
+          label: 'Request a handoff',
+          command: 'pd',
+          argv: ['inbox', 'send', holder, handoffMessage, '--agent', requester],
+        },
+      },
+      message: `${conflict.severity.toUpperCase()}: ${reason}. Open a parley or request a handoff before proceeding.`,
+    };
+
+    const result = deps.suggestions.create({
+      agentId: requester,
+      kind: OVERLAP_KIND,
+      payload,
+      payloadHash: symbolConflictPayloadHash(input, conflict),
+      confidence: SYMBOL_CONFLICT_CONFIDENCE[conflict.severity],
+    });
+
+    if (!result.created) {
+      suppressed++;
+      deps.activityLog?.log('symbol_conflict_advice.suppressed', {
+        agentId: requester,
+        holderSessionId: conflict.otherSessionId,
+        severity: conflict.severity,
+        reason: result.reason,
+        filePath: conflict.a.filePath,
+        symbolPath: conflict.a.symbolPath,
+      });
+      continue;
+    }
+
+    surfaced++;
+    const sent = deps.inbox.send(requester, payload, { from: 'suggestion-broker', type: 'suggestion' });
+    if (sent.success) delivered++;
+    deps.activityLog?.log('symbol_conflict_advice.surfaced', {
+      agentId: requester,
+      holderSessionId: conflict.otherSessionId,
+      severity: conflict.severity,
+      suggestionId: result.suggestion.id,
+      filePath: conflict.a.filePath,
+      symbolPath: conflict.a.symbolPath,
+      delivered: sent.success,
+    });
+  }
+
+  return { conflicts: input.conflicts.length, surfaced, suppressed, delivered };
+}
+
+/**
+ * Render the human summary for a declared-claim overlap. Its purpose is a compact
+ * attention preview; the structured payload remains the durable source for actions.
+ *
+ * @param self - Recipient's own claim.
+ * @param other - Counterparty claim.
+ * @param filePath - Shared file surface.
+ * @returns Concise coordination guidance for inbox display.
+ */
 function humanMessage(self: ActiveClaim, other: ActiveClaim, filePath: string): string {
   const who = other.agentId ?? other.sessionId;
   const what = other.purpose ? ` (${other.purpose})` : '';
@@ -181,11 +399,15 @@ function humanMessage(self: ActiveClaim, other: ActiveClaim, filePath: string): 
  * Scan all active claims, detect cross-session overlaps, and surface a
  * `claim-overlap-headsup` to BOTH parties — subject to the suggestions module's
  * cooldown/budget/mute dampers. Re-running over a standing overlap is a no-op until
- * the cooldown lapses. Suppressed surfacings are logged (not dropped) for tuning.
+ * the cooldown lapses. The design logs suppressed surfacings instead of dropping
+ * them so tuning retains evidence without turning overlap detection into inbox spam.
  *
  * Delivery is keyed by `agentId ?? sessionId` — the inbox key is an opaque string,
  * and a session without a registered agentId still gets a queryable record and an
  * inbox entry under its session id.
+ *
+ * @param deps - Existing sessions, suggestions, inbox, and optional telemetry surfaces.
+ * @returns Counts for overlaps, surfaced/suppressed suggestions, and deliveries.
  */
 export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
   const { sessions, suggestions, inbox, activityLog } = deps;

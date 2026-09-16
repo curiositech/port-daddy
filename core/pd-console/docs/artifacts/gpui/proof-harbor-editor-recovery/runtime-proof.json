@@ -1,0 +1,74 @@
+{
+  "schema": "pd-console.harbor-editor-native-proof.v1",
+  "capturedAt": "2026-08-23",
+  "binary": "core/target/debug/pd-console --features gpui",
+  "runtimeProcess": {
+    "pid": 26338,
+    "windowId": 290670,
+    "controlSocket": "/Users/erichowens/coding/tmp/harbor-editor-proof-run/control-branch-head.sock",
+    "initialState": {
+      "pane": "editor",
+      "wrap": false,
+      "showBlame": false,
+      "blame": "off",
+      "syntax": "RUST"
+    }
+  },
+  "nativeReceipts": [
+    {
+      "scenario": "physical typing reaches the focused Loro buffer",
+      "pane": "editor",
+      "marker": "// RELEASE_INPUT_OK",
+      "markerIndex": 22,
+      "markerCount": 1,
+      "syntax": "RUST"
+    },
+    {
+      "scenario": "normal failed open is transactional",
+      "attempt": ":edit core/pd-console/src",
+      "ok": false,
+      "error": "Is a directory (os error 21). Your current view was kept.",
+      "focusedAfter": "edit syntax.rs"
+    },
+    {
+      "scenario": "failed deep link has keyboard recovery",
+      "focusedBefore": "edit src",
+      "input": "Escape",
+      "focusedAfter": "files core/pd-console"
+    },
+    {
+      "scenario": "view controls and provenance stay separate from document text",
+      "stateAfterControls": {
+        "wrap": true,
+        "showBlame": true,
+        "blame": "ready",
+        "syntax": "RUST"
+      },
+      "stateAfterTyping": {
+        "wrap": true,
+        "showBlame": true,
+        "blame": "stale",
+        "syntax": "RUST"
+      }
+    }
+  ],
+  "tests": {
+    "editorView": "7 passed",
+    "gitBlame": "5 passed",
+    "syntax": "9 passed",
+    "paletteContrast": "2 passed",
+    "gpuiBuild": "passed"
+  },
+  "pixelCapture": {
+    "before": "before-permission-denied.png",
+    "after": "after-editor-ready.png",
+    "afterResolution": "2428x1600",
+    "afterSha256": "7078279eace22a0543989afb0cbd964677c3a315e132ccc6554fc68fae53e6a6",
+    "status": "native still verified"
+  },
+  "motionCapture": {
+    "artifact": null,
+    "status": "not produced",
+    "reason": "Operator directed that no further movie-capture attempts be made after native state and still verification."
+  }
+}

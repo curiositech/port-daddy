@@ -272,11 +272,26 @@ export async function handleSetHelm(
     return json(403, { code: 'FORBIDDEN', error: 'only a harbor owner may set the helm' });
   }
 
-  let body: { holder?: unknown; succession?: unknown };
+  let body: { holder?: unknown; succession?: unknown; parleyExpiryDefault?: unknown };
   try {
-    body = (await request.json()) as { holder?: unknown; succession?: unknown };
+    body = (await request.json()) as { holder?: unknown; succession?: unknown; parleyExpiryDefault?: unknown };
   } catch {
     return json(400, { code: 'BAD_REQUEST', error: 'JSON body with holder and optional succession[] required' });
+  }
+
+  // Mediator-body: the Helm configures what a parley DEADLINE LAPSE does in
+  // this harbor. Omitted ⇒ the existing setting is PRESERVED (an owner
+  // re-pointing the helm must not silently reset expiry policy); invalid ⇒
+  // 400, fail closed.
+  let parleyExpiryDefault: 'lapse' | 'first-proceeds' | undefined;
+  if (body.parleyExpiryDefault !== undefined) {
+    if (body.parleyExpiryDefault !== 'lapse' && body.parleyExpiryDefault !== 'first-proceeds') {
+      return json(400, {
+        code: 'BAD_EXPIRY_DEFAULT',
+        error: "parleyExpiryDefault must be 'lapse' or 'first-proceeds'",
+      });
+    }
+    parleyExpiryDefault = body.parleyExpiryDefault;
   }
 
   const holder = await resolveHelmPrincipal(env, gate.harbor.id, body.holder);
@@ -305,6 +320,8 @@ export async function handleSetHelm(
   const now = Math.floor(Date.now() / 1000);
   const existing = await getHelm(env.DB, gate.harbor.id);
   const seq = (existing?.seq ?? 0) + 1;
+  const effectiveExpiryDefault =
+    parleyExpiryDefault ?? existing?.parley_expiry_default ?? 'lapse';
   await setHelm(env.DB, {
     harborId: gate.harbor.id,
     holder,
@@ -312,6 +329,7 @@ export async function handleSetHelm(
     seq,
     updatedAt: now,
     updatedBy: user.id,
+    parleyExpiryDefault: effectiveExpiryDefault,
   });
   // Audit row: helm changes are never silent, including owner sets.
   await insertHelmEvent(env.DB, {
@@ -335,6 +353,7 @@ export async function handleSetHelm(
       vacantFlagged: false,
       seq,
       updatedAt: now,
+      parleyExpiryDefault: effectiveExpiryDefault,
     },
   });
 }
@@ -453,6 +472,7 @@ export async function handleGetHelm(
           vacantFlagged: helm.vacant_flagged === 1,
           seq: helm.seq,
           updatedAt: helm.updated_at,
+          parleyExpiryDefault: helm.parley_expiry_default ?? 'lapse',
         }
       : null,
     events: events.map((e) => ({ at: e.at, kind: e.kind, detail: JSON.parse(e.detail) as unknown })),

@@ -1,0 +1,50 @@
+name: Purser Janitor
+
+# When any PR closes, retire the purser gate PR that was watching it — and
+# ONLY when it is genuinely obsolete. The one distinction with teeth (learned
+# in the 2026-08-22 backlog sweep, where a naive rule closed a live carrier
+# holding ~5k unlanded lines): a reviewed PR that merged INTO its own
+# `purser/pr-<n>-tests` branch makes the purser PR the CARRIER of that work to
+# main. Carriers are flagged "ready to drive to main", never closed.
+#
+# The janitor also warns open PRs whose base branch just died unmerged
+# (orphaned stacks), so dependent work is told its landing path is gone
+# instead of silently rotting. All decisions live in
+# scripts/purser-janitor.mjs (pure core) and are unit-tested; the test suite
+# runs here before any mutation is trusted, mirroring ci-gate-verdict.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+# One run per closed PR; closes are terminal so never cancel an in-flight run.
+concurrency:
+  group: purser-janitor-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  janitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The janitor closes PRs, so its decision table is tested before it is
+      # trusted — a red here means no mutations happen at all.
+      - name: Test the janitor's decision logic
+        run: node --test scripts/purser-janitor.test.mjs
+
+      - name: Run the janitor
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/purser-janitor.mjs

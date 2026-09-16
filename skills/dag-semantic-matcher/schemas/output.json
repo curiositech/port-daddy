@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["matches"],
+  "properties": {
+    "matches": {
+      "type": "array",
+      "description": "Ranked skills matching the task",
+      "items": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string"
+          },
+          "fitScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Overall match score"
+          },
+          "intentMatch": {
+            "type": "number",
+            "description": "Primary action alignment"
+          },
+          "capabilityMatch": {
+            "type": "number",
+            "description": "Capability requirement coverage"
+          },
+          "gaps": {
+            "type": "array",
+            "description": "Unmet capability requirements",
+            "items": {
+              "type": "string"
+            }
+          },
+          "constraintViolations": {
+            "type": "array",
+            "description": "Constraint mismatches",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Reasoning for match results"
+    }
+  },
+  "additionalProperties": false
+}

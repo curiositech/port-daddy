@@ -52,7 +52,7 @@ Every claim is tagged:
 > persistent identity (δ→0), and economic enforcement is what replaces the
 > game-theoretic guarantee once that guarantee evaporates.**
 
-Three moves make the thesis load-bearing rather than decorative:
+Three moves make the thesis central rather than decorative:
 
 1. **The line is not arbitrary; it is the folk-theorem boundary.** The **folk
    theorem** [Friedman 1971; Fudenberg–Maskin 1986] — *repeated play sustains

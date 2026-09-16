@@ -1,5 +1,6 @@
 import {
   parseRoadmapTrailer,
+  classifyDeclaration,
   snapshotBrokenReason,
   classify,
   isPlanningDoc,
@@ -24,6 +25,32 @@ const FRESH = snap([
   { slug: 'adr-0044-phase-0-dark-launch-resolver' },
   { slug: 'roadmap-link-gate' },
 ]);
+
+describe('classifyDeclaration', () => {
+  test('a declared slug passes without consulting a snapshot', () => {
+    expect(classifyDeclaration('Roadmap-Item: chartroom-cutover')).toMatchObject({
+      verdict: 'pass', reason: 'linked', slug: 'chartroom-cutover', loud: false,
+    });
+  });
+
+  test('a reasoned opt-out passes without consulting a snapshot', () => {
+    expect(classifyDeclaration('Roadmap-Item: none — CI policy correction')).toMatchObject({
+      verdict: 'pass', reason: 'opt-out', optOutReason: 'CI policy correction',
+    });
+  });
+
+  test('only an absent declaration blocks merge admission', () => {
+    expect(classifyDeclaration('No trailer here')).toMatchObject({
+      verdict: 'needs-approval', reason: 'missing-trailer', labelShouldBePresent: true,
+    });
+  });
+
+  test('a bare none is not a reasoned opt-out', () => {
+    expect(classifyDeclaration('Roadmap-Item: none')).toMatchObject({
+      verdict: 'needs-approval', reason: 'missing-trailer', optOutReason: 'unspecified',
+    });
+  });
+});
 
 describe('parseRoadmapTrailer', () => {
   test('extracts a slug from the Roadmap-Item trailer', () => {
@@ -110,6 +137,47 @@ describe('classify', () => {
     expect(r.reason).toBe('unknown-slug');
     expect(r.slug).toBe('not-a-real-slug');
     expect(r.requiresHumanApproval).toBe(true);
+  });
+
+  test('PASS when the unknown slug is declared by the SAME PR’s Roadmap-Spawns (self-spawned)', () => {
+    // The 2026-08-19 chicken-and-egg: a PR that lands a program plan is
+    // necessarily the first user of the items it creates. The spawn trailer is
+    // the auditable declaration; the daemon stays the only writer and the
+    // snapshot catches up at the next export.
+    const body = [
+      'Lands the plan.',
+      '',
+      'Roadmap-Item: steward-takes-the-seat',
+      'Roadmap-Spawns: steward-takes-the-seat, cartographer-dispatches-sailors',
+    ].join('\n');
+    const r = classify(body, FRESH, { now: NOW });
+    expect(r.verdict).toBe('pass');
+    expect(r.reason).toBe('self-spawned');
+    expect(r.slug).toBe('steward-takes-the-seat');
+    expect(r.requiresHumanApproval).toBe(false);
+    expect(r.labelShouldBePresent).toBe(false);
+  });
+
+  test('self-spawn does NOT rescue a slug absent from the spawns list', () => {
+    const body = ['Roadmap-Item: something-else', 'Roadmap-Spawns: steward-takes-the-seat'].join('\n');
+    const r = classify(body, FRESH, { now: NOW });
+    expect(r.verdict).toBe('needs-approval');
+    expect(r.reason).toBe('unknown-slug');
+  });
+
+  test('self-spawn against a STALE snapshot still shouts instead of passing', () => {
+    const body = ['Roadmap-Item: brand-new', 'Roadmap-Spawns: brand-new'].join('\n');
+    const r = classify(body, snap(FRESH.items, 40), { now: NOW, staleAfterDays: 21 });
+    expect(r.verdict).toBe('needs-approval');
+    expect(r.reason).toBe('snapshot-stale');
+    expect(r.loud).toBe(true);
+    expect(r.requiresHumanApproval).toBe(true);
+  });
+
+  test('a slug the snapshot already KNOWS stays reason=linked even when also spawned', () => {
+    const body = ['Roadmap-Item: roadmap-link-gate', 'Roadmap-Spawns: roadmap-link-gate'].join('\n');
+    const r = classify(body, FRESH, { now: NOW });
+    expect(r.reason).toBe('linked');
   });
 
   test('BROKEN + loud when snapshot is missing', () => {

@@ -1,0 +1,127 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\title{\textbf{The Product}\\[4pt]
+\large Positioning, a phased roadmap, and the honest boundaries\\ for \textsc{agentsd} / \texttt{agentsdaemon.com}\\[3pt]
+\normalsize Synthesized from three reviews and prior analysis --- Document 2 of 4}
+\author{Prepared for Erich Owens}
+\date{August 2026}
+\begin{document}
+\maketitle
+
+\noindent\textbf{Premise.} Two of the three reviews are, at heart, product documents, and they agree on the shape: rebrand to a Unix-daemon identity, lead with an enterprise compliance wedge, and grow into a clearinghouse for machine-to-machine trust. The rigor review is a science document, but it hands the product two gifts it does not know it needs: a defensible security story (channel-level control, not taint hand-waving) and a sequencing discipline (secure the work before pricing it). This document fuses them into one roadmap, and --- crucially --- marks the claims you may make from each phase, because the fastest way to lose an enterprise deal is to overclaim and get caught.
+
+\section{Positioning and the naming question}
+\begin{verdict}\textbf{On the rebrand.} Adopt \textsc{agentsd} as the daemon, \texttt{agentsctl} as the operator CLI/TUI, \texttt{agentsdaemon.com} as the federation. The Unix-service framing (\emph{systemd} manages services, \emph{httpd} serves web, \emph{agentsd} manages the swarm) is genuinely good positioning: it says ``background infrastructure,'' not ``another agent framework,'' which is the correct category to own. Keep ``Harbor'' as the \emph{unit} noun (a harbor is one principal's daemon-scoped domain) and ``Port Daddy'' nowhere in the product --- it does not survive contact with an enterprise procurement officer. The manuscript can keep whatever internal names it likes; the product needs the clinical one.\end{verdict}
+
+\noindent\textbf{The one-line pitch, corrected.} The product reviews offer ``the Delaware Chancery Court and the Visa network for the machine economy'' and ``the UCC / POSIX standard for AI labor.'' These are good \emph{aspirational} lines for the clearinghouse endgame, but they are Phase-5 claims worn on a Phase-1 body. The rigor review supplies the honest Phase-1 line, which is stronger because it is deliverable: closest to \textbf{Lloyd's for autonomous work} --- standard work orders, declared risks, evidence, and (eventually) underwriters --- built on a local \textbf{control plane and flight recorder} for AI agents. Lead with the flight recorder; grow into Lloyd's; mention Visa only once you clear funds.
+
+\section{Go-to-market: the three stages, re-sequenced and re-claimed}
+The product reviews' three-stage moat (Enterprise Compliance $\to$ B2B Airlock $\to$ Harbor Economy) is the right arc. The correction is what you are \emph{allowed to say} at each stage.
+
+\begin{longtable}{@{}p{0.14\textwidth}p{0.40\textwidth}p{0.40\textwidth}@{}}
+\toprule
+\textbf{Stage} & \textbf{What it is} & \textbf{Claims you may / may not make} \\
+\midrule
+\endhead
+\textbf{1. The Wedge} \newline \emph{Compliance \& liability containment} & Sell \textsc{agentsd} as an API firewall and flight recorder: cryptographic audit logs, hard budget firewalls (SIGKILL on breach), OS-level effect confinement, and a \emph{work receipt} for every task saying what was verified vs.\ merely observed. Buyer: the enterprise terrified its agents will leak keys or drop a database. & \textbf{May:} ``complete, tamper-evident audit log of every mediated effect''; ``hard budget caps enforced at the SQL engine''; ``no ambient network/credential access outside brokered channels.'' \textbf{May not:} ``cannot exfiltrate'' (only ``cannot exfiltrate through mediated channels; here is the enumerated channel set''). Ship the assurance-level label (below) with every deployment. \\
+\addlinespace
+\textbf{2. The Airlock} \newline \emph{Silicon-enforced NDAs / clean room} & The Derek/Erin product: run Erin's encrypted agent against Derek's encrypted data in an attested confidential VM, dual-key release, two declassification gates, priced leakage budget. Platform fee for facilitating the cryptographic DMZ. & \textbf{May:} ``every release is explicit, gated, and metered against a declared leakage budget''; ``neither party's key is released except to the attested measurement.'' \textbf{May not:} ``mathematically cannot phone home'' (replace with the budget claim). The honest version is a \emph{better} sale to a CISO who has seen a side-channel talk. \\
+\addlinespace
+\textbf{3. The Clearinghouse} \newline \emph{Settlement, admission, arbitration} & Charge settlement fees on float plans (you provide oracle-bound closure), harbor-admission fees (Sybil deterrence), and arbitration fees for disputes. The 2-of-3 multisig escrow keeps you non-custodial. & \textbf{May:} ``non-custodial 2-of-3 settlement; the platform never takes custody on the happy path''; ``bonded, rated arbitration.'' \textbf{May not:} ``trustless'' (you are a cryptographic \emph{judge}, which requires a trusted adjudication root) or any yield/return language until counsel clears MSB/regulatory exposure. \\
+\bottomrule
+\end{longtable}
+
+\noindent\textbf{On neo-feudalism.} The product reviews' ``knights wearing colors, lords posting bonds, invitation-only as a feature'' is vivid and correct as an \emph{account of why high-trust networks are exclusionary} (the bonded-sponsor pattern). Use it in a blog post and a keynote. Do \emph{not} put it in the security documentation, where ``exclusionary by design'' reads as ``we could not solve open admission'' --- which the rigor review shows is a real, priced trade-off (sponsor concentration caps, sponsorship auctions, automatic probation expansion), not a virtue to celebrate.
+
+\section{The assurance-level label: your most valuable product artifact}
+The rigor review's five levels are not academic hedging --- they are the single feature that lets you sell honestly and defensibly. Ship this label on every deployment and every marketing claim:
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Observed} --- effects may occur outside the daemon; evidence is best-effort. (Hook-based integrations start here.)
+\item \textbf{Coordinated} --- well-behaved clients use claims, roles, commitments.
+\item \textbf{Brokered} --- credentials and selected effects pass through daemon-owned brokers.
+\item \textbf{Confined} --- the process has no ambient route around fs/network/tool/credential brokers.
+\item \textbf{Attested} --- a remote party can verify the confined runtime and policy measurement.
+\end{enumerate}
+The product reviews' entire pitch presumes level 4--5 (``mathematically cannot''), but their default integration path --- IDE extension intercepting MCP calls, LLM API proxy, PATH shims --- is level 2--3 (a coordinator, bypassable by a determined same-user process). \emph{Do not claim level 4 while shipping level 2.} The hypervisor work (Phase 2) is what earns levels 4--5, and only ``for the enumerated channel set'' after a red team has hunted the negative space (raw sockets, DNS, \texttt{/proc}, inherited descriptors, git helpers, package managers, child processes, clipboard, provider callbacks).
+
+\section{The phased roadmap}
+Sequenced so each phase ships a claim the previous phase earned. The unifying discipline (from the rigor review): \emph{secure the work, then preserve and share it, only then price it.}
+
+\subsection*{Phase 0 --- Repair the spine (weeks, not months)}
+Before any new machinery: land the eight consensus corrections from Document 1 (SDT direction, exact-key exclusion + fencing epoch, identity theorem, float-plan buckets, Anchor edge check, WAL durability types, schema migration ledger, and the ``cryptography $\neq$ reality'' scoping). These are cheap and they are the difference between a system a security engineer trusts and one they do not. Ship the assurance-level label and a per-component threat-model table.
+
+\subsection*{Phase 1 --- The one-agent receipt (the wedge MVP)}
+The smallest product that proves the thesis, at $n{=}1$:
+\begin{itemize}
+\item the work-unit object and lifecycle; a typed \emph{acceptance policy} and completion \emph{receipt};
+\item an artifact/evidence graph answering why / where / why-not for every claim;
+\item structured live-state projection (obligations, grants, pending effects, claim verdicts);
+\item a portable task capsule with \emph{same-provider} restart under a minute (event-sourced message array + Git SHA + prefix-cache replay --- the product reviews' mechanism, correctly scoped);
+\item an operation journal giving tool idempotency (at-most-once external effects);
+\item atomic mutual exclusion on the enforced conflict predicate; oracle-bound closure that rejects free-text ``all green, trust me.''
+\end{itemize}
+\textbf{Ships the claim:} ``a successor can safely continue after termination, and a human can audit why \emph{done} was accepted.'' That is the compliance wedge. \textbf{Distribution:} pre-compiled binaries (\texttt{npm}/\texttt{pip}/\texttt{brew}) and the IDE extension that boots the daemon silently and intercepts MCP calls --- the product reviews are right that vibe-coders will not install a Rust toolchain. Label this integration \textbf{Coordinated/Brokered (level 2--3)} honestly.
+
+\subsection*{Phase 2 --- Roles, typed messaging, confined effects (earn level 4)}
+\begin{itemize}
+\item durable \emph{role} mailboxes addressed by role/topic (\texttt{role:test-owner}, not \texttt{agent-492}) so the mailbox survives resurrection; typed performatives (\textsc{inform, request, propose, commit, accept, refuse, challenge, warn, evidence, retract}) with explicit deontic semantics --- \textsc{inform} creates a claim not a truth, a message never carries tool authority because its text asks for an effect;
+\item sole-responsibility \emph{role leases} with fencing epochs (calendar avatar, test writer, roadmap owner) --- one accepted epoch per exclusive role, verification kept separate from ownership (a test-writer role must not be the sole approver of its own tests);
+\item the effect hypervisor: microVM/VM isolation, seccomp/Landlock/gVisor confinement, cgroup quotas, a network-policy proxy, credential broker (short-lived scoped secrets), tool broker (calendar/GitHub/cloud/payment), transactional outbox;
+\item the SLM sidecar as an \emph{untrusted projection service} --- lower privilege than the daemon, no effect authority, agent text as tainted data, provenance required per generated claim, mandatory-obligation IDs computed \emph{outside} the model. Name it ``evidence compactor,'' not ``memory.''
+\end{itemize}
+\textbf{Ships the claim (red-team gated):} ``Confined (level 4) for the enumerated channel set.'' This is where the psychosis-detection loop lives too --- but framed correctly (below).
+
+\subsection*{Phase 3 --- The review fleet and prospective assurance (the demand generator)}
+Build the GitHub review fleet and Lookout/Unspider on the same claim/effect graph. The rigor review's key insight: do not have five agents read the same diff and vote (correlated failure). Use \emph{deliberately different information} --- a property-author who writes tests from the spec \emph{before} seeing the patch, a blind adversarial tester, a security/effect reviewer, a merge-risk reviewer, a protected-CI adjudicator emitting signed receipts. Adversarial test-writing is scored by \emph{mutation kill rate} on a held-out mutation set. This provides adversarial \emph{demand} for evidence and generates the incident corpus that CDM skill-extraction needs. \textbf{Ships:} ``assurance as a purchasable line item'' --- $(1-d)^k$ at a stated price --- which is the clearinghouse's core value made concrete two phases early.
+
+\subsection*{Phase 4 --- Provider-portable resurrection (the flagship demo)}
+Publish the neutral task-capsule schema; write provider adapters that reconstruct context but never pretend to restore hidden inference state. Demonstrate the money shot: Claude credits exhausted mid-task, a different provider resumes, no external effect duplicated. \textbf{Names its own attack:} engine substitution (build reputation on a strong model, spend it on a weak one) --- defend with engine attestation in every witnessed outcome, reputation indexed by (principal, engine). \textbf{Ships:} the ``big resume button,'' the single feature that makes the continuity story legible to a buyer in five seconds. Say \emph{task continuity with actor replacement}, never ``perfect neural continuity.''
+
+\subsection*{Phase 5 --- The hosted project institution (Alice, Bob, Carl)}
+Start with Alice and Bob under one hosted authority for the non-monotone operations (exclusive roles, revocation, finite budgets, unique settlement); keep personal state in personal harbors. Add the coordination graph (typed modalities: observed/believed/desired/intended/committed/required/permitted/forbidden/forecast), typed-conflict detection (deterministic resource checker $\mid$ SMT for invariants $\mid$ temporal-network for schedules $\mid$ policy block for security $\mid$ steward decision for UX), the durable agentic estate (actor build / instance / memory / relationship / authority, separated), and product-journey traceability. Add Carl only after two-person semantics are stable (the rigor review is right that $n{=}3$ adds coalitions, which is why the charter votes on charter, never on truth or another's namespace). \textbf{This is the remote clearinghouse's real substrate}, and it is more valuable than the shared repo because it explains why the repo exists.
+
+\subsection*{Phase 6 --- The Sealed Harbor (the airlock, hardened)}
+Begin with a no-network microVM whose rich result only Derek receives; add dual attested key release, measured policy, whole-worker taint, fixed output channels, signed receipts, and adversarial exfiltration red-teaming (canary bits through network, logs, errors, filenames, length, timing, CPU load, receipt status). Confidential-GPU attestation and special MPC/FHE kernels for narrow fixed computations come later. \textbf{Ships the corrected airlock claim:} bounded, declared, gated release --- not magical secrecy.
+
+\subsection*{Phase 7 --- Economy and underwriting (price it, finally)}
+Only now, with real receipts and real failure rates, does the market price them. Bind bonds, provider collateral, insurer coverage, and dispute procedures to principal-owned work orders and evidence. Model correlated failure by provider, model family, toolchain, and shared dependency (the rigor review's repeated warning: do not sum risks as if model/provider/dependency failures were independent). Include buyer misconduct and evidence poisoning in the threat model. The 2-of-3 multisig escrow (product reviews' best financial idea) is the settlement rail; the underwriting layer prices the residual after prevent/contain/checkpoint/observe/adjudicate.
+
+\section{The feature adjudications: keep, fix, or cut}
+The product reviews propose a dozen concrete features. Verdicts, with the fix where the intent is good but the mechanism is wrong.
+
+\begin{longtable}{@{}p{0.26\textwidth}p{0.10\textwidth}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Feature} & \textbf{Verdict} & \textbf{Reasoning / required fix} \\
+\midrule
+\endhead
+2-of-3 multisig escrow & \textbf{Keep} & The best financial idea in either review. Non-custodial on the happy path (Alice+Bob sign), arbiter's key only for disputes. Solves the MSB-honeypot problem the manuscript's ``recipient-whitelisted custody ledger'' created. Ship it; get counsel on the arbiter role. \\
+\addlinespace
+Event-sourced rollback / ``swarm time travel'' & \textbf{Keep, rescope} & The mechanism (truncate the message array to a timestamp, \texttt{git reset}, replay under prefix cache) is the right capsule implementation. Drop ``perfect neural continuity''; it is same-provider behavioral continuity, cross-provider succession. \\
+\addlinespace
+Asylum protocol (psychosis detection) & \textbf{Keep, rename} & Detecting ``5{,}000 tokens, zero AST progress'' via a causal-density ratio is a real and useful fault class. \texttt{SIGSTOP} $\to$ excise loop $\to$ inject corrective prompt $\to$ \texttt{SIGCONT} is sound. Rename ``Vibe Time'' to a formal term (the rigor review's \emph{Causal Work Time} plus a separate \emph{hazard} clock; four clocks, not one) and keep ``the Asylum'' as internal slang. \\
+\addlinespace
+2-of-3 escrow arbiter as ``cryptographic judge'' & \textbf{Keep, don't call it trustless} & Correct design; honest framing. You are a trusted adjudication root with cryptographic settlement, not a trustless protocol. \\
+\addlinespace
+Darwinian prompts (skill Elo) & \textbf{Keep, harden} & Awarding skill Elo on settled success is good, but naive Elo is gameable and off-policy. Score on \emph{witnessed downstream outcome}, warm-start new skill versions via provenance-weighted inheritance with a no-mint conservation bound (Document 3, A6), and hold out evaluation tasks to blunt Goodhart. \\
+\addlinespace
+Selective checkpointing (FULL sync for money) & \textbf{Keep} & Exactly right: \texttt{NORMAL} for ephemeral claims, \texttt{wal\_checkpoint(FULL)} before returning on money-bearing writes. This \emph{is} the per-write durability type from Document 1, Change 7. \\
+\addlinespace
+SQL-level overdraft (\texttt{UPDATE\ldots WHERE bal>=b RETURNING}) & \textbf{Keep} & Correct fix for the async-tick race; enforce exclusion in the engine, not the app layer. Generalize to the conflict predicate for claims. \\
+\addlinespace
+Differential fuzzing for runtime parity & \textbf{Keep, relabel} & 1M random ops against two bindings with \texttt{hash(dump(db))} equality is good \emph{conformance evidence}; it is not a proof of I11 (the rigor review is right). Label it conformance testing in CI, not a theorem, and include the deployed binary. \\
+\addlinespace
+Dynamic taint analysis for the airlock & \textbf{Demote to a layer} & Useful as the \emph{contain} rung, but token-level taint through an LLM is not soundly definable and ``cannot phone home'' is an overclaim. The real boundary is the declassification gate with an information-theoretic budget (Document 1, Adjudication 3). \\
+\addlinespace
+``JSON ledger IS the neural state'' & \textbf{Cut the claim} & Keep the ledger; delete the identity claim. Two hidden states can share a transcript (Document 1, Adjudication 2). \\
+\addlinespace
+Inception Canaries (inject real vuln, score operator) & \textbf{Fix or cut} & Intent good (fight abdication), mechanism unacceptable: deceiving your operator and writing a live vulnerability that can escape the harness. Replace with \emph{consented, labelled} probes from a blinded holdout of already-fixed defects replayed in a sandbox (Document 1, Adjudication 5). \\
+\addlinespace
+Inbox-injection via ``top-level system mutation'' & \textbf{Fix} & Delivering operator interrupts by writing to the model's system channel so it treats them as ``un-challengeable ground truth'' is precisely the prompt-injection attack surface the rigor review warns about. Deliver interrupts as \emph{typed, provenance-labelled} control messages the runtime renders as data, with an out-of-band operator override that is higher-priority than agent work and coupled to effect revocation --- not as forged ground truth. \\
+\addlinespace
+Uncapped slashing for Sybil deterrence & \textbf{Keep, with principal binding} & Removing the \texttt{min(B\_dep, B\_T)} cap so a \$1{,}000 stake is fully slashed for sabotaging a \$100 task does raise attack cost --- but only bites when bonds bind to a \emph{principal} who cannot cheaply re-enter. Pair uncapped slashing with principal-aggregated exposure and onboarding cost, or a Sybil just mints a fresh staker. \\
+\bottomrule
+\end{longtable}
+
+\section{What the product is, in one paragraph}
+\textsc{agentsd} is the control plane and flight recorder for AI agents: a local single-writer daemon that mediates every consequential effect, records an auditable evidence-bearing receipt for every unit of work, confines agents to brokered channels, and can resume a task across a provider change without duplicating an external effect. It sells first as compliance and liability containment (the wedge), then as a mutually-confidential clean room for parties who cannot share data or models (the airlock), then as a non-custodial clearinghouse that settles and underwrites machine-to-machine work (the economy). Every claim it makes is labelled with an assurance level it can defend, and every release it permits is explicit and bounded. That is a product a CISO can buy and a regulator can tolerate --- which is worth more than a product that promises magic and gets breached.
+\end{document}

@@ -27,10 +27,25 @@ pub enum Lang {
     Rust,
     /// TypeScript / JavaScript family (ts, tsx, js, jsx, mjs, cjs).
     Ts,
+    Json,
     Python,
     /// `#`-commented config/shell family (sh, bash, zsh, toml, yaml, …).
     Shell,
     Plain,
+}
+
+impl Lang {
+    /// Short, honest label for the always-visible editor status strip.
+    pub fn label(self) -> &'static str {
+        match self {
+            Lang::Rust => "RUST",
+            Lang::Ts => "TS/JS",
+            Lang::Json => "JSON",
+            Lang::Python => "PYTHON",
+            Lang::Shell => "SHELL/CONFIG",
+            Lang::Plain => "PLAIN TEXT",
+        }
+    }
 }
 
 /// Detect the language family from a path's extension (lowercased).
@@ -45,6 +60,7 @@ pub fn lang_for_path(path: &str) -> Lang {
     match ext.to_ascii_lowercase().as_str() {
         "rs" => Lang::Rust,
         "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" => Lang::Ts,
+        "json" | "jsonc" => Lang::Json,
         "py" => Lang::Python,
         "sh" | "bash" | "zsh" | "toml" | "yaml" | "yml" => Lang::Shell,
         _ => Lang::Plain,
@@ -115,6 +131,7 @@ const PY_KEYWORDS: &[&str] = &[
     "def", "del", "elif", "else", "except", "finally", "for", "from", "global", "if", "import",
     "in", "is", "lambda", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield",
 ];
+const JSON_KEYWORDS: &[&str] = &["false", "null", "true"];
 const SHELL_KEYWORDS: &[&str] = &[
     "case", "do", "done", "elif", "else", "esac", "fi", "for", "function", "if", "in", "local",
     "return", "then", "while",
@@ -137,6 +154,7 @@ fn keywords(lang: Lang) -> &'static [&'static str] {
     match lang {
         Lang::Rust => RUST_KEYWORDS,
         Lang::Ts => TS_KEYWORDS,
+        Lang::Json => JSON_KEYWORDS,
         Lang::Python => PY_KEYWORDS,
         Lang::Shell => SHELL_KEYWORDS,
         Lang::Plain => &[],
@@ -148,13 +166,13 @@ fn types(lang: Lang) -> &'static [&'static str] {
         Lang::Rust => RUST_TYPES,
         Lang::Ts => TS_TYPES,
         Lang::Python => PY_TYPES,
-        Lang::Shell | Lang::Plain => &[],
+        Lang::Json | Lang::Shell | Lang::Plain => &[],
     }
 }
 
 /// Does `lang` use `//` line comments (and same-line `/* … */`)?
 fn slash_comments(lang: Lang) -> bool {
-    matches!(lang, Lang::Rust | Lang::Ts)
+    matches!(lang, Lang::Rust | Lang::Ts | Lang::Json)
 }
 
 /// Does `lang` use `#` line comments?
@@ -417,8 +435,16 @@ mod tests {
     fn lang_detection_by_extension() {
         assert_eq!(lang_for_path("core/pd-console/src/app.rs"), Lang::Rust);
         assert_eq!(lang_for_path("web/index.tsx"), Lang::Ts);
+        assert_eq!(lang_for_path("fixtures/package.json"), Lang::Json);
         assert_eq!(lang_for_path("scripts/run.py"), Lang::Python);
         assert_eq!(lang_for_path("conf/settings.yaml"), Lang::Shell);
         assert_eq!(lang_for_path("README"), Lang::Plain);
+    }
+
+    #[test]
+    fn labels_detected_language_for_editor_status() {
+        assert_eq!(Lang::Rust.label(), "RUST");
+        assert_eq!(Lang::Json.label(), "JSON");
+        assert_eq!(Lang::Plain.label(), "PLAIN TEXT");
     }
 }

@@ -84,12 +84,19 @@ function mkShip(): ShipConfig {
     role: 'Hold the PR to its best interpretation.',
     telos: 'Steel-man, then demand.',
     blocking: false,
-    needsExecution: false,
     ideation: false,
     purser: true,
     blockWithoutSandbox: false,
     testPaths: [],
     graft: [],
+    participation: { default: 'advisory', rules: [] },
+    participationValid: true,
+      execution: {
+      mode: 'none', repository: 'current_repository', worktree: 'isolated', cwd: '.',
+      toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],
+      maxWallClockMs: 0, maxCostMicrousd: 0,
+      },
+      executionConfigState: 'absent',
   } as ShipConfig;
 }
 
@@ -113,6 +120,10 @@ function mkCtx(): PRContext {
     installationId: 42,
     files: [],
     diff: 'diff --git a/src/widget.ts b/src/widget.ts\n+frob',
+    diffBytes: 0,
+    diffTruncated: false,
+    filesTruncated: false,
+    diffSource: 'raw',
   };
 }
 

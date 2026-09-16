@@ -10,8 +10,12 @@
 //! Mirrors `lane_live.rs`: include `agent.rs` directly via `#[path]` so this
 //! target links only reqwest/tokio (no gpui) and compiles light.
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
+#[path = "../src/local_control.rs"]
+mod local_control;
 
 use agent::DaemonClient;
 use std::io::{Read, Write};

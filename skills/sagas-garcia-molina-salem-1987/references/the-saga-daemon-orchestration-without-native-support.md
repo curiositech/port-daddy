@@ -117,7 +117,7 @@ The saga daemon pattern translates directly to agent orchestration:
 
 ### The Orchestration Layer as Saga Daemon
 
-The orchestration layer (WinDAGs or equivalent) is the saga daemon. It is always running, it survives individual skill failures, and it drives recovery. Its responsibilities are:
+The orchestration layer (Jury-rig or equivalent) is the saga daemon. It is always running, it survives individual skill failures, and it drives recovery. Its responsibilities are:
 
 1. **Before executing a skill**: Write the step's intent to the saga state table
 2. **After skill execution succeeds**: Write the compensation record and mark the step complete

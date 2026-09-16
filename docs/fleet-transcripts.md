@@ -9,10 +9,10 @@ read the conversation back via:
 - `pd transcripts show <id>` — full conversation rendered to the terminal
 - `pd transcripts watch` — live tail of new transcripts (SSE)
 - `pd transcripts cost --since 1d` — cost rollup by ship + day
-- `pd transcripts delete <id>` — destructive (confirmed)
 - The "Fleet Transcripts" panel in the Port Daddy dashboard
 
-The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
+The read-only HTTP surface lives at `/transcripts*`. See
+`routes/transcripts.ts`.
 
 ## What this MVP ships
 
@@ -22,6 +22,8 @@ The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
   - The full assistant response
   - The status, ended_at, cost_usd, tokens_in/out at finalization
   - An "outputs" row summarizing the result (`message` for success, `noop` for failure)
+  - Daemon-owned producer provenance: reserved producer id, `INTERNAL` trust
+    tier, and the daemon timestamp that first recorded it
 - The dashboard panel polls + subscribes via SSE so new rows appear live.
 - Costs are aggregated in the panel header and via `pd transcripts cost`.
 - Storage cost is ~5KB per typical ship run (one system + user + assistant
@@ -72,6 +74,61 @@ The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
   transcripts table inherits the same restriction — `fleet_transcripts`
   contents are operator-readable only.
 
+### Durable archive
+
+- Each finalized snapshot is serialized as one JSONL record and published as
+  `<root>/YYYY-MM-DD/transcript-<sha256>.jsonl`.
+- Writers use unique `O_EXCL`/`O_NOFOLLOW` private temps, complete every byte,
+  fsync before atomic publication, verify the final bytes, and fsync the
+  partition/root directories. A failed writer removes only its own temp, so it
+  cannot truncate or erase a concurrent writer's retained record.
+- Archive roots and partitions are created or clamped to `0700`; temp and final
+  files are `0600`. Every existing component from the filesystem anchor through
+  the configured root and partition is checked; static symlink ancestors,
+  non-regular files, wrong-owner paths, and multiply-linked targets fail closed.
+- `fleet_transcript_archive_receipts` records exact snapshot and artifact
+  digests, locator, byte count, format, attempts, and success/failure. A generic
+  success bit or mismatched evidence is failure. Replays skip only an exact
+  matching success. The first exact success is immutable: an interleaved late
+  failure or different-digest success cannot replace it.
+- Message/output appends are status-conditional writes. Once a transcript is
+  terminal, its header and child content are immutable, so the receipt digest
+  cannot be invalidated by a late append.
+- The first terminal `finalize()` transition wins. An asynchronous backend
+  completion cannot rewrite a prior kill or produce a second archive receipt.
+- `recordTranscript()` emits an `end` event and archives only when its imported
+  snapshot is terminal. It is a trusted in-process full-snapshot importer: each
+  retry atomically replaces the complete child sets while the row is running,
+  and it cannot reopen a terminal row. Archive reads the committed private DB
+  snapshot before synchronous listeners receive the terminal event.
+- The current in-process backfill helper examines only the 50 newest terminal
+  rows and has no automatic failed-receipt retry. It has no public route or CLI
+  action. Older failures are not self-healing until a cursor-driven repair
+  action lands.
+- Archive publication still uses Node pathname operations rather than an
+  `openat`/dirfd-bound chain. Existing no-follow, mode, owner, link-count, and
+  descriptor checks do not fully stop a hostile same-UID parent/name swap; a
+  native dirfd-relative publisher is required for that stronger threat model.
+
+### Write-authority boundary
+
+The transcript HTTP plugin and `pd transcripts` CLI are read-only. Full-entry
+upsert, message/output append, delete, and archive-backfill routes are not
+registered; there is no loopback, Unix-socket, header, reusable-credential, or
+other compatibility fallback, and the transcript module exports no delete
+primitive. Trusted daemon producers call the in-process API.
+
+Producer provenance is not self-asserted. `start()` and trusted
+`recordTranscript()` imports overwrite producer-shaped input with the reserved
+daemon value; pre-migration rows read back with `null` provenance. The stored
+producer string is audit evidence only and never grants mutation authority.
+
+A future delete/backfill action must redeem a one-use
+action/resource/actor-scoped capability directly in the action service. A
+caller-supplied redemption receipt is never authority, and delete must also
+prove an exact durable archive receipt for the current terminal snapshot. This
+storage slice does not activate automatic Parley.
+
 ## Schema (DDL)
 
 See `lib/transcripts.ts` `SCHEMA_STATEMENTS` for the source of truth.
@@ -118,13 +175,26 @@ CREATE TABLE fleet_transcript_outputs (
   summary TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE fleet_transcript_archive_receipts (
+  transcript_id TEXT PRIMARY KEY,
+  content_sha256 TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('succeeded', 'failed')),
+  attempted_at INTEGER NOT NULL,
+  succeeded_at INTEGER,
+  last_error TEXT,
+  artifact_locator TEXT,
+  artifact_sha256 TEXT,
+  artifact_bytes INTEGER,
+  artifact_format TEXT,
+  attempts INTEGER NOT NULL DEFAULT 1
+);
 ```
 
 ## Hooking a fleet ship into transcripts
 
-If a ship needs to record outputs the spawner can't automatically detect
-(PR comment URLs, draft PR refs, commit SHAs), call `POST
-/transcripts/:id/outputs` from the ship at the moment the artifact is
-created. The transcript id is returned to the operator as part of the SSE
-`start` event, and is also visible in `pd transcripts list` as the first
-column for the most recent run.
+Spawner-owned in-process calls are the canonical producer path. The current
+HTTP and CLI surfaces cannot append or import evidence. New producer adapters
+must enter through a daemon-owned in-process boundary and preserve canonical
+spawn identity, lifecycle ordering, terminal immutability, and archive receipt
+provenance.

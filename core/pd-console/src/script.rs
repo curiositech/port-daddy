@@ -14,6 +14,7 @@
 //!   {"cmd":"state","pane":"sextant"}
 //!   {"cmd":"sextant","windowHours":720,"minTokens":64}
 //!   {"cmd":"work","goal":"Take the next roadmap slice"}
+//!   {"cmd":"stop"}
 //!   {"cmd":"chat","text":"Are you attached live?"}
 //!   {"cmd":"rebind","url":"http://127.0.0.1:9899"}
 //!   {"cmd":"alerts"}
@@ -57,6 +58,7 @@ pub enum ScriptRequest {
     Work {
         goal: String,
     },
+    StopMission,
     Rebind {
         url: String,
     },
@@ -118,6 +120,7 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 goal: goal.trim().to_string(),
             })
         }
+        "stop" => Ok(ScriptRequest::StopMission),
         "sextant" => {
             let window_hours = optional_positive_u32(&v, "windowHours")?;
             let min_tokens = optional_positive_u32(&v, "minTokens")?;
@@ -193,6 +196,35 @@ pub fn block_to_json(block: &Block) -> Value {
         Block::Spark(values) => json!({"type": "spark", "values": values}),
         Block::Gap => json!({"type": "gap"}),
         Block::WrappedText { text, .. } => json!({"type": "text", "text": text}),
+        Block::LedgerHeader {
+            surface,
+            columns,
+            active_sort,
+            descending,
+        } => json!({
+            "type": "ledgerHeader",
+            "surface": surface,
+            "columns": columns.iter().map(|(key, label)| json!({"key": key, "label": label})).collect::<Vec<_>>(),
+            "activeSort": active_sort,
+            "descending": descending,
+        }),
+        Block::LedgerRow {
+            surface,
+            index,
+            selected,
+            cells,
+            ..
+        } => json!({
+            "type": "ledgerRow",
+            "surface": surface,
+            "index": index,
+            "selected": selected,
+            "cells": cells.iter().map(|cell| json!({
+                "label": cell.label,
+                "value": cell.value,
+                "width": cell.width.as_str(),
+            })).collect::<Vec<_>>(),
+        }),
         Block::NodeRow {
             index,
             selected,
@@ -270,7 +302,9 @@ pub fn alert_to_json(alert: &Alert) -> Value {
 /// listener for the life of the process. A stale socket file from a previous
 /// run is removed first (unix sockets don't self-clean).
 pub fn start_server(sock_path: String, tx: mpsc::Sender<ScriptEnvelope>) {
+    if crate::local_control::ensure_allowed().is_err() { return; }
     std::thread::spawn(move || {
+        if crate::local_control::ensure_allowed().is_err() { return; }
         let _ = std::fs::remove_file(&sock_path);
         let listener = match UnixListener::bind(&sock_path) {
             Ok(l) => l,
@@ -285,16 +319,28 @@ pub fn start_server(sock_path: String, tx: mpsc::Sender<ScriptEnvelope>) {
             return;
         }
         eprintln!("pd-console: control socket listening at {sock_path}");
-        for stream in listener.incoming() {
-            let Ok(stream) = stream else { continue };
+        if listener.set_nonblocking(true).is_err() { return; }
+        loop {
+            if crate::local_control::ensure_allowed().is_err() { return; }
+            let stream = match listener.accept() {
+                Ok((stream, _)) => stream,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(100));
+                    continue;
+                }
+                Err(_) => return,
+            };
             let tx = tx.clone();
             std::thread::spawn(move || {
+                if stream.set_read_timeout(Some(Duration::from_millis(250))).is_err() { return; }
+                if stream.set_write_timeout(Some(Duration::from_millis(250))).is_err() { return; }
                 let mut writer = match stream.try_clone() {
                     Ok(w) => w,
                     Err(_) => return,
                 };
                 let reader = BufReader::new(stream);
                 for line in reader.lines() {
+                    if crate::local_control::ensure_allowed().is_err() { return; }
                     let Ok(line) = line else { break };
                     if line.trim().is_empty() {
                         continue;
@@ -396,6 +442,10 @@ mod tests {
             Ok(ScriptRequest::Work {
                 goal: "Take the next roadmap slice".into()
             })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"stop"}"#),
+            Ok(ScriptRequest::StopMission)
         );
         assert_eq!(
             parse_request(r#"{"cmd":"rebind","url":"http://127.0.0.1:9899"}"#),

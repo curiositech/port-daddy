@@ -64,7 +64,7 @@ export const INTEGRATIONS: Integration[] = [
       'LangChain Tool classes for claim, release, begin, done, note, and pub/sub operations.',
       'Automatic session lifecycle tied to chain execution -- begin on start, done on completion.'
     ],
-    setupCode: `pip install portdaddy-langchain\n\nfrom portdaddy_langchain import PortDaddyToolkit\ntools = PortDaddyToolkit(base_url="http://localhost:9876")`
+    setupCode: `pip install portdaddy-langchain\n\nimport os\n\n# LangChain chains use PORT_DADDY_URL if set; else discover from daemon.port\nbase_url = os.getenv('PORT_DADDY_URL')\nif not base_url:\n    daemon_port_file = os.path.expanduser('~/.port-daddy/daemon.port')\n    if os.path.exists(daemon_port_file):\n        with open(daemon_port_file) as f:\n            daemon_port = f.read().strip()\n        base_url = f'http://localhost:{daemon_port}'\n    else:\n        raise RuntimeError('Daemon not found. Check FleetBar Control Center for daemon status.')\n\nfrom portdaddy_langchain import PortDaddyToolkit\ntools = PortDaddyToolkit(base_url=base_url)`
   },
   {
     id: 'crewai',
@@ -106,6 +106,6 @@ export const INTEGRATIONS: Integration[] = [
       'Session notes from Continue conversations appear in the shared project timeline.',
       'Port Daddy context is available as a Continue.dev context provider for agent awareness.'
     ],
-    setupCode: `// In .continue/config.json\n{\n  "contextProviders": [{\n    "name": "portdaddy",\n    "params": { "baseUrl": "http://localhost:9876" }\n  }]\n}`
+    setupCode: `pd mcp install --continue\n\n# Restart Continue.dev to activate Port Daddy integration.`
   }
 ];

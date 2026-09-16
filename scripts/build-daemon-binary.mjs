@@ -2,16 +2,26 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { arch, platform, tmpdir } from 'node:os';
+import { arch, homedir, platform } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
+import {
+  nativeLoaderEnvironment,
+  packageOnnxRuntimeNative,
+  parseSemanticRuntimeProof,
+  prepareOnnxRuntimeNativeBinding,
+} from './lib/onnx-runtime-native.mjs';
+import { smokeTreeSitterRoute } from './lib/smoke-tree-sitter.mjs';
+import { packageTreeSitterRuntime } from './lib/tree-sitter-runtime.mjs';
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist', 'daemon');
 const OUTFILE = join(DIST_DIR, platform() === 'win32' ? 'port-daddy-daemon.exe' : 'port-daddy-daemon');
 const MANIFEST = join(DIST_DIR, 'manifest.json');
 const args = new Set(process.argv.slice(2));
+const DURABLE_SCRATCH_DIR = process.env.PD_SCRATCH_ROOT || join(homedir(), 'coding', 'tmp');
+mkdirSync(DURABLE_SCRATCH_DIR, { recursive: true });
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -78,9 +88,9 @@ async function smokePublicSamples(port) {
   return { count: body.count };
 }
 
-async function smokeBinary() {
+async function smokeBinary(nativeRuntime) {
   const port = await reservePort();
-  const prefix = join(tmpdir(), `port-daddy-daemon-smoke-${process.pid}`);
+  const prefix = join(DURABLE_SCRATCH_DIR, `port-daddy-daemon-smoke-${process.pid}`);
   rmSync(prefix, { recursive: true, force: true });
   mkdirSync(prefix, { recursive: true });
 
@@ -94,6 +104,7 @@ async function smokeBinary() {
       PORT_DADDY_NO_FLEET: '1',
       PORT_DADDY_NO_FLEETBAR: '1',
       PORT_DADDY_RESOURCE_DIR: ROOT_DIR,
+      ...nativeLoaderEnvironment(nativeRuntime),
       PORT_DADDY_SILENT: '1',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
@@ -103,7 +114,11 @@ async function smokeBinary() {
   try {
     const health = await waitForHealth(port, child, stderrChunks);
     const samples = await smokePublicSamples(port);
-    return { health, samples };
+    const treeSitter = await smokeTreeSitterRoute({
+      baseUrl: `http://127.0.0.1:${port}`,
+      scratchRoot: join(prefix, 'tree-sitter'),
+    });
+    return { health, samples, treeSitter };
   } finally {
     if (child.exitCode === null) {
       child.kill('SIGTERM');
@@ -113,13 +128,50 @@ async function smokeBinary() {
   }
 }
 
+/**
+ * Prove the compiled daemon can load ONNX Runtime from its packaged resource
+ * directory. A health-only smoke never reaches this native linkage boundary.
+ *
+ * @returns {{success: true, backends: unknown[]}} Parsed runtime proof.
+ */
+function smokeSemanticRuntime(nativeRuntime) {
+  const output = run(OUTFILE, ['__semantic-runtime-check'], {
+    env: {
+      PORT_DADDY_RESOURCE_DIR: ROOT_DIR,
+      ...nativeLoaderEnvironment(nativeRuntime),
+    },
+  });
+  return parseSemanticRuntimeProof(output);
+}
+
 const bunVersion = run('bun', ['--version']).trim();
 mkdirSync(DIST_DIR, { recursive: true });
+const onnxRuntimeBinding = prepareOnnxRuntimeNativeBinding({
+  repoRoot: ROOT_DIR,
+  platform: platform(),
+  arch: arch(),
+});
+const onnxRuntimeNative = packageOnnxRuntimeNative({
+  repoRoot: ROOT_DIR,
+  // The binding's macOS rpath is executable-relative. Keep the daemon-only
+  // build's cargo beside dist/daemon/port-daddy-daemon; the separately shipped
+  // single binary stages its own cargo beside dist/port-daddy.
+  outputRoot: DIST_DIR,
+  platform: platform(),
+  arch: arch(),
+});
+const treeSitterRuntime = packageTreeSitterRuntime({
+  repoRoot: ROOT_DIR,
+  outputRoot: DIST_DIR,
+});
 run('bun', ['build', '--compile', 'bin/port-daddy-daemon.ts', '--outfile', OUTFILE], { stdio: 'inherit' });
 
 let smoke = null;
 if (!args.has('--no-smoke')) {
-  smoke = await smokeBinary();
+  smoke = {
+    semanticRuntime: smokeSemanticRuntime(onnxRuntimeNative),
+    daemon: await smokeBinary(onnxRuntimeNative),
+  };
 }
 
 const stats = statSync(OUTFILE);
@@ -135,10 +187,15 @@ writeFileSync(MANIFEST, `${JSON.stringify({
   bunVersion,
   resourceRootEnv: 'PORT_DADDY_RESOURCE_DIR',
   sqliteBackend: 'bun:sqlite',
+  onnxRuntimeBinding,
+  onnxRuntimeNative,
+  treeSitterRuntime,
   smoke: smoke ? {
-    status: smoke.health.status,
-    pid: smoke.health.pid ?? null,
-    samples: smoke.samples,
+    status: smoke.daemon.health.status,
+    pid: smoke.daemon.health.pid ?? null,
+    samples: smoke.daemon.samples,
+    treeSitter: smoke.daemon.treeSitter,
+    semanticRuntime: smoke.semanticRuntime,
   } : null,
 }, null, 2)}\n`);
 

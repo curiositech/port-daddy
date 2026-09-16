@@ -1,0 +1,101 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\usepackage{mdframed}
+\newmdenv[backgroundcolor=blue!4,linecolor=harborblue,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{thebox}
+\newmdenv[backgroundcolor=red!4,linecolor=shipred,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{boundary}
+\newcommand{\onebreath}[1]{\begin{center}\emph{#1}\end{center}}
+
+\title{\textbf{Execution Report \#4}\\[4pt]
+\large The ledger, the canaries, and the un-mintable prior\\[3pt]
+\normalsize A3 ($\varepsilon$-conservation), A4 (canary power and SPRT latency),\\ A6 (no-mint inheritance) --- the quick-proofs tier, executed}
+\author{Prepared for Erich Owens}
+\date{August 2026}
+\begin{document}
+\maketitle
+
+\noindent\textbf{Status.} This report discharges the three Tier-A items the proof-debt register put at the top of the queue. A3 and A4 are the two claims the mega-volume's clean-room theorem (thm:cleanroom, claims 2--3) carries as ``short and scheduled''; they are now executed --- exhaustive small-model verification plus the analytic imports for A3, analytic-vs-simulation agreement for A4 --- and the theorem's status note can be upgraded in a follow-up edit. A6 closes the skill-versioning cold-start gap with a conservation theorem whose correct statement was \emph{forced by a counterexample}: the refute-first sweep killed the literal closure-sum phrasing before any proof effort was spent on it, and the wrong turn is reported in \S\ref{sec:a6} per protocol. Every number below is tagged [verified] (externally recomputable) or [internal] (regenerates from the named script, seed 20260816).
+
+\section{A3 --- The privacy budget is a ledger, and the ledger conserves}
+\textbf{The story.} Derek's data never leaves the sealed room; what leaves is a stream of gated releases, each carrying a differential-privacy cost $\varepsilon_i$. The contract says the total never exceeds $\varepsilon_{\max}$. But releases race: two of Erin's jobs invoke the gate concurrently. What exactly guarantees that the spend recorded and the spend counted never drift --- and that the budget cannot be overshot in the gap between check and commit?
+
+\onebreath{Make the budget a ledger --- one atomic transition appends the record and adds the spend --- and conservation of $\sigma=\sum_\Lambda\varepsilon_i$ survives every interleaving, because the single writer makes every concurrent history observationally sequential.}
+
+\textbf{Intuition.} Double-entry bookkeeping: the running balance and the journal are updated in one stroke, so an auditor summing the journal always reproduces the balance. The theorem is the bookkeeping rhyme of the volume's bond-conservation result (VI.10.1): the harbor conserves one more scarce quantity through buckets.
+
+\begin{thebox}
+\textbf{Theorem ($\varepsilon$-conservation).} State $=(\sigma,\Lambda)$ with $\Lambda$ append-only. The only spending transition is $\mathrm{release}(\varepsilon_i)$: if $\sigma+\varepsilon_i\le\varepsilon_{\max}$ it \emph{atomically} appends $(\varepsilon_i,\text{artifact hash},\text{policy hash})$ to $\Lambda$ and sets $\sigma\mathrel{+}=\varepsilon_i$; otherwise it refuses and changes nothing. Then every reachable state satisfies $\sigma=\sum_{\Lambda}\varepsilon_i$ and $\sigma\le\varepsilon_{\max}$ --- including under concurrent invocation, since the kernel's single-writer serialization makes any concurrent execution observationally equal to some sequential interleaving, over which the induction runs unchanged (base: $\sigma=0,\Lambda=()$; step: the guard preserves the bound, the atomic pair preserves the equality; non-spending transitions touch neither).
+
+\textbf{Corollary (what the conserved sum means).} If each release is $\varepsilon_i$-DP, sequential composition makes $\sigma\le\varepsilon_{\max}$ an $(\varepsilon_{\max},0)$-DP certificate; for $k$ releases at $\varepsilon$ each, advanced composition (Dwork--Rothblum--Vadhan, FOCS 2010) certifies $\bigl(\sqrt{2k\ln(1/\delta')}\,\varepsilon+k\varepsilon(e^\varepsilon-1),\,\delta'\bigr)$-DP, tighter once $k$ is large.
+\end{thebox}
+
+\textbf{Numbers.} Exhaustive explicit-state check, two concurrent clients racing programs $(2,2)$ and $(1,2)$ against $\varepsilon_{\max}=4$: all 15 reachable states satisfy both invariants under every interleaving; 2000 randomized deeper instances, 0 violations [internal, \texttt{a3\_epsilon\_ledger.py}]. Mutation suite: (m1) spend-without-append breaks conservation in \textbf{1 step}; (m2) the torn write (log $\varepsilon$, add $\varepsilon-1$) breaks it in 1 step \emph{and} in \textbf{3 steps} drives the \emph{recorded} log to $\sum_\Lambda=5>\varepsilon_{\max}$ --- the undercounting balance silently admits auditable over-spend, so atomicity is what makes the budget promise auditable [internal]. Composition table at $\delta'=10^{-6}$: $k{=}32,\varepsilon{=}0.1$: basic $3.20$ vs advanced $3.31$ (not yet paying); $k{=}128,\varepsilon{=}0.05$: basic $6.40$ vs advanced $3.30$ (paying) [verified].
+
+\textbf{What it buys.} thm:cleanroom claim 2 moves from asserted to executed; the Derek/Erin product's budget line becomes an auditable invariant with the same proof shape as bond conservation, and the composition corollary tells the contract writer exactly which accounting to quote at which engagement length. Paper 4.
+
+\begin{boundary}
+\textbf{Honest boundary.} Conservation governs \emph{recorded} spend; that all spend is recorded is precisely the complete-mediation assumption --- B3/R5's controllability result is the prerequisite, not a nicety. Advanced composition pays only past a crossover in $k$ (below it, quote the exact, $\delta$-free sequential bound). And the theorem conserves the meter, not the meaning: choosing per-release $\varepsilon_i$ honestly is the DP mechanism's obligation, outside this ledger.
+\end{boundary}
+
+\section{A4 --- Canaries with a power curve and a clock}
+\textbf{The story.} The clean room plants unique sentinel spans --- canaries --- in Derek's corpus. If Erin's agent tries to exfiltrate, some canaries ride along, and the gate's suppressor should catch them. ``We have canaries'' is a vibe; a CISO buys a number: with what probability is a leak of a given size caught, and how long does a slow leak run before the alarm?
+
+\onebreath{Independent per-canary misses turn $k$ smuggled canaries into detection probability $1-\beta^k$; uniform planting turns leak \emph{size} into a hypergeometric operating curve; and Wald's sequential test against the permutation null turns leak \emph{intensity} into an expected time-to-detection.}
+
+\textbf{Intuition.} Dye packs in bank bundles: each pack fails alone with probability $\beta$, so grabbing $k$ dyed bundles fails to stain with probability $\beta^k$; how many dyed bundles a thief grabs is set by how much he takes and how densely packs are planted. The sequential half is quality control: each gate output is a Bernoulli trial, and the SPRT is the optimal stopping rule for ``is this stream leaking?''
+
+\begin{thebox}
+\textbf{Theorem (power).} With per-canary false-negative rate $\beta$, independent across canaries, a leak carrying $k$ canary spans is detected with probability $1-\beta^k$. Under uniform planting of $c$ canaries in an $n$-span corpus, a leak of $m$ spans carries $K\sim\mathrm{Hypergeom}(n,c,m)$ canaries, so $\Pr(\text{detect}\mid m)=1-\mathbb{E}[\beta^K]\approx 1-\bigl(1-\tfrac{c}{n}(1-\beta)\bigr)^m$ --- the operating curve.
+
+\textbf{Theorem (latency, Wald).} Gate outputs are Bernoulli with canary-hit rate $p_0$ under the no-leak permutation null and $p_1>p_0$ under exfiltration. The SPRT with error targets $(\alpha,b)$ stops, under leak, after expected $\;\mathbb{E}_1[N]=\bigl[(1-b)\ln\tfrac{1-b}{\alpha}+b\ln\tfrac{b}{1-\alpha}\bigr]/\mathrm{KL}(p_1\Vert p_0)$ outputs (analogously $\mathbb{E}_0[N]$ under the null), and is optimal in the Wald--Wolfowitz sense.
+\end{thebox}
+
+\textbf{Numbers.} $n{=}10^4$, $c{=}100$ (density 1\%), $\beta{=}0.2$: a 100-span leak is caught with probability $0.554$, an 800-span leak at $0.999$; exact hypergeometric, binomial approximation, and simulation agree to Monte-Carlo precision across the curve [internal, \texttt{a4\_canary\_sprt.py}; the $1-\beta^k$ line is verified at $k{=}1,2,5$]. SPRT at $p_0{=}10^{-3}$, $p_1{=}10^{-2}$, $\alpha{=}0.01$, $b{=}0.05$: Wald $\mathbb{E}_1[N]=297$ vs simulated $359$ (the gap is boundary overshoot, which the Wald identities ignore --- and overshoot only \emph{helps} the error rates: realized miss $0.048\le0.05$, false alarm $0.005\le0.01$); $\mathbb{E}_0[N]=432$ vs simulated $438$. Latency sweep: $10\times$ leak intensity cuts time-to-detection $\approx30\times$ [internal].
+
+\textbf{What it buys.} thm:cleanroom claim 3, executed: the clean-room contract can \emph{quote} $\Pr(\text{detect})=f(\text{leak size})$ and expected alarm latency per leak intensity --- so the exfiltration bond is re-scoped to its honest job, funding detection and response rather than pretending to cover unbounded breach damage. Paper 4.
+
+\begin{boundary}
+\textbf{Honest boundary.} Independence and \emph{secrecy} of planting are critical: an adversary who obtains the canary list with probability $0.3$ and strips all of them drops measured power from $0.9997$ to $0.698$ at $k{=}5$ [internal] --- canary secrecy is part of the security boundary, priced explicitly. $\beta$ is a measured property of the suppressor, not an assumption. The Wald stopping-time formulas are approximations (overshoot inflates $\mathbb{E}[N]$ $\sim$20\% here, conservatively); and the SPRT detects \emph{statistical} leak signatures --- a single-shot exfiltration is A4's power half, not its clock.
+\end{boundary}
+
+\section{A6 --- Reputation you cannot photocopy}\label{sec:a6}
+\textbf{The story.} A skill distilled from a good episode warm-starts its v2; a forked agent inherits its ancestor's track record as a prior. Necessary --- cold-starting every fork wastes real evidence --- and dangerous: derive eight skills from one lucky episode, let each inherit the full record, and one witnessed outcome now backs eight voting identities. Inheritance must not be a mint.
+
+\onebreath{Let every derivation \emph{pay} for its prior --- the child receives a discounted share and the source is debited that share --- and then no sequence of forks, merges, chains, or re-derivation cycles can push total live creditable reputation above total witnessed value.}
+
+\textbf{The wrong turn, reported.} The portfolio's phrasing --- per-outcome budgets $\sum_a w(e\to a)\le1$, inherited prior $\iota(a)=\gamma\,w\cdot\text{value(source)}$, ``total inherited over the DAG's closure $\le$ total witnessed'' --- was swept before proving, and \emph{refuted}: a full-weight chain $e\to a_1\to a_2\to a_3$ at $\gamma=0.9$ is budget-legal at every hop yet its closure sums to $0.9+0.81+0.729=2.44>1$ [internal, \texttt{a6\_no\_mint.py}]. Budgets without debiting conserve nothing for $\gamma>\tfrac12$; the counterexample forces the transfer semantics below --- the sweep-first discipline locating the correct statement, again.
+
+\begin{thebox}
+\textbf{Definition (discount-and-split, transfer form).} A derivation with sources $S$, per-source grant fractions $w_p\in[0,1]$, discount $\gamma\in(0,1]$: the child receives $\sum_{p\in S}\gamma\,w_p\,\mathrm{spend}(p)$ and each source is debited $w_p\,\mathrm{spend}(p)$. (Repeated derivations compound on what remains, so lifetime per-outcome budgets hold for free.)
+
+\textbf{Theorem (no-mint).} Let $\Phi=\sum_{\text{nodes}}\mathrm{spend}$ be total live creditable reputation and $W$ total witnessed value. Under any sequence of witness and derivation operations, $\Phi\le W$ always, and $\Phi$ is nonincreasing except at witness steps: each derivation changes $\Phi$ by $\sum_p(\gamma-1)\,w_p\,\mathrm{spend}(p)\le0$ (a supermartingale under derivation). Cycles are safe because re-derivation draws on the artifact's already-debited balance, never the leaf's.
+\end{thebox}
+
+\textbf{Numbers.} Randomized sweep, 4000 fork DAGs (chains, diamonds, multi-parent merges, re-derivations; independent per-parent $w\in[0,1]$, $\gamma\in[0.5,1]$): \textbf{0 violations}; max live-to-witnessed ratio observed $0.999995$ [internal, seed 20260816]. Mutation: the copy-full-reputation mutant (children inherit undebited) mints in a \textbf{2-op} shortest crime (witness $\to$ fork twice: $\Phi=2.8>W=1$), and an 8-way copy-fork yields $8.2\times$ --- one episode backing $8.2$ votes' worth, crossing any reputation-weighted quorum threshold below $8.2q$ [internal]. Reverting the mutation restores conservation.
+
+\textbf{What it buys.} Gap \#4 (skill-versioning cold start) closes safely: v2 warm-starts from provenance, fraud cannot amplify through distillation chains, and the CDM pipeline gets its economic safety proof --- with the quorum-multiplication figure as the exhibit of what the invariant prevents. The estate's export/import ceremony inherits the same conservation for free. Paper 5 / the skill economy.
+
+\begin{boundary}
+\textbf{Honest boundary.} The theorem conserves the \emph{inherited prior} only --- descendants may earn new witnessed value, which is the point of forking. $\gamma$ and the grant fractions are policy choices the theorem constrains but does not pick (it says only: whatever you choose, you cannot mint). Sybil-resistance of the witnessed leaves themselves --- that outcomes are real and singly counted --- is the identity layer's job, priced by R7's inspection accounting, not this theorem's. And ``creditable'' here is the quorum-relevant \emph{live} total; a lineage view that double-counts historical grants is a reporting choice, not a safety one.
+\end{boundary}
+
+\section{Program status}
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Item & Status & Headline & Feeds \\
+\midrule
+A1, A2, A7, B1 & done & Paper 1 complete & Paper 1 \\
+B3 & done & regimentable $=$ controllable & Papers 2, 4 \\
+B2, C0, C1 & done & tower; 536-state machine; NI mod declassification & Papers 3, 8, 4 \\
+Sheaf gate & decided & conditional commit; cycle boundary & Paper 7 \\
+\textbf{A3} & \textbf{done} & ledger conserves; atomicity auditable; DP composition & Paper 4 \\
+\textbf{A4} & \textbf{done} & $1-\beta^k$; operating curve; SPRT latency & Paper 4 \\
+\textbf{A6} & \textbf{done} & no-mint under transfer; $8.2\times$ mint caught & Paper 5 / skills \\
+\bottomrule
+\end{tabular}
+\end{center}
+Remaining from the roadmap: B4 (tractable conflict fragment), B5/B6 (engine substitution; probation cliff), B7--B9 (escalation signaling; specialization boundary; context paging), C2 (minimum viable take-rate), and the lifts (C0 $\to$ Apalache, C1 $\to$ Isabelle). With A3/A4 executed, the mega-volume's thm:cleanroom status note (``short and scheduled'') is ready for its follow-up upgrade edit.
+
+\vspace{0.4em}
+\noindent\emph{Reproducibility.} Three self-contained scripts (\texttt{a3\_epsilon\_ledger.py}, \texttt{a4\_canary\_sprt.py}, \texttt{a6\_no\_mint.py}; numpy only, no figures); every [internal] number above regenerates deterministically at seed 20260816, every mutation prints its shortest witness trace, and each script exits nonzero on any failed check.
+\end{document}

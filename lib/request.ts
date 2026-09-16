@@ -9,8 +9,8 @@
  *   1. PORT_DADDY_SOCK env var -> Unix socket path
  *   2. PORT_DADDY_URL env var -> TCP URL
  *   3. Default: ~/.port-daddy/daemon.sock (Unix socket)
- *   4. Fallback: discovered localhost TCP port from ~/.port-daddy/daemon.port,
- *      or the canonical preferred port when no port file exists
+ *   4. Fallback: discovered localhost TCP port from ~/.port-daddy/daemon.port
+ *   5. No publication: fail closed rather than guess the preferred allocator port
  */
 
 import http from 'node:http';

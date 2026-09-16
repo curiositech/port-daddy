@@ -74,26 +74,26 @@ struct DevDaemonRecord: Decodable {
 // MARK: - Discovery
 
 enum BerthDirectory {
-    static let canonicalPort = DaemonLocation.canonicalPreferredPort
-
     static var registryURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".port-daddy/dev-daemons.json")
     }
 
-    /// Probe the stable berth plus every recorded dev berth, returning a merged,
-    /// port-deduplicated list sorted stable-first. The stable berth is always
-    /// present — even when down — so the operator can see it and start it.
+    /// Probe the published stable berth plus every recorded dev berth, returning
+    /// a merged, port-deduplicated list sorted stable-first. When the stable
+    /// daemon has not published an endpoint, do not invent one.
     static func discover() async -> [Berth] {
         var byPort: [Int: Berth] = [:]
 
-        if let stable = await probe(port: canonicalPort) {
-            byPort[canonicalPort] = stable
-        } else {
-            byPort[canonicalPort] = Berth(
-                tier: "stable", label: "stable", port: canonicalPort, colorHex: "#E6A23C",
-                canonical: true, sourceDir: nil, gitBranch: nil, gitRev: nil, pid: nil,
-                reachable: false, version: nil)
+        if let stablePort = DaemonLocation.publishedStablePort() {
+            if let stable = await probe(port: stablePort) {
+                byPort[stablePort] = stable
+            } else {
+                byPort[stablePort] = Berth(
+                    tier: "stable", label: "stable", port: stablePort, colorHex: "#E6A23C",
+                    canonical: true, sourceDir: nil, gitBranch: nil, gitRev: nil, pid: nil,
+                    reachable: false, version: nil)
+            }
         }
 
         for record in loadRegistry() where byPort[record.port] == nil {
@@ -126,7 +126,7 @@ enum BerthDirectory {
         var request = URLRequest(url: url)
         request.timeoutInterval = 1.5
         guard
-            let (data, response) = try? await URLSession.shared.data(for: request),
+            let (data, response) = try? await URLSession.shared.pdData(for: request),
             let http = response as? HTTPURLResponse, http.statusCode == 200,
             let who = try? JSONDecoder().decode(WhoamiResponse.self, from: data)
         else { return nil }
@@ -238,7 +238,7 @@ enum PDCLI {
                 process.standardOutput = nil
                 process.standardError = nil
                 do {
-                    try process.run()
+                    try process.pdRun()
                     process.waitUntilExit()
                     continuation.resume(returning: process.terminationStatus == 0)
                 } catch {

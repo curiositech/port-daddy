@@ -17,6 +17,21 @@ present.
 
 All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 
+**Identity credentials (#8877 / ADR-0122 — strict):** every ATTRIBUTED write
+boundary — `POST /sessions`, `POST /sessions/:id/takeover`, `POST /notes`,
+`POST /sessions/:id/notes`, `POST|DELETE /sessions/:id/files`,
+`POST|PUT|DELETE /locks/:name`, `/sugar/done`, `/sugar/relink`, salvage
+claim/complete/abandon/dismiss, and `/commitments` writes — REQUIRES a
+daemon-minted ADR-0040 actor credential (`<actor_id>.<secret>`), presented as
+the `x-actor-credential` header or body `credential` field. A self-asserted
+`agentId` with no credential is rejected **401 IDENTITY_CREDENTIAL_REQUIRED**;
+a forged credential is **401 IDENTITY_CREDENTIAL_INVALID**; a valid credential
+asserting a name bound to a different soul is **403 IDENTITY_ALIAS_MISMATCH**.
+Credentials come from the two mint doors: `POST /actors/register`, or
+`POST /sugar/begin` (an uncredentialed begin with unowned names mints a fresh
+soul and returns its `credential` ONCE — persist it). The pd CLI, SDK
+(`lib/client`), and MCP server handle this automatically.
+
 **Transport options:**
 - **HTTP** (TCP or Unix socket) — full API, request-response
 - **Binary IPC** (Unix domain socket) — MessagePack-encoded, 7-byte header, ~3us latency for fire-and-forget. Supports heartbeats, pheromone sprays, pub/sub publish, claims, locks, sessions. The SDK uses IPC automatically when available; falls back to HTTP.
@@ -293,6 +308,24 @@ List all agents. Optional query param: `active=true`.
 ### POST /agents/:id/inbox
 Send a message to an agent's inbox. Body: `{ content, from?, type? }`.
 
+**Requires a daemon-minted actor credential** (`x-actor-credential` header or
+body `credential`) — #8877 / ADR-0122. The inbox is an instruction plane: with
+`wake: true` the message becomes the `- sender:` line in a spawned agent's
+prompt, so `from` is verified, not taken on faith.
+
+- No credential → `401 IDENTITY_CREDENTIAL_REQUIRED`.
+- Invalid credential → `401 IDENTITY_CREDENTIAL_INVALID`.
+- `from` omitted → the message is attributed to your minted `actorId`. **This
+  is the recommended usage.**
+- `from` present → accepted only when it is an alias bound to your soul, or
+  the agentId of an ACTIVE session stamped with your soul (what `pd begin`
+  creates). Anything else — including a name nobody ever minted — is
+  `403 INBOX_FROM_MISMATCH`.
+
+Each stored message carries the daemon's verdict as `fromActorId` and
+`fromSoulClass`. A null `fromActorId` means a daemon-internal send, not a
+principal; do not render it as "system".
+
 ### GET /agents/:id/inbox
 Read inbox messages. Query: `?unread=true&limit=50`.
 
@@ -362,6 +395,29 @@ actually doing what it claims, not just that it is up.
   "honest": true
 }
 ```
+
+### GET /coordination/status
+
+Read-only ADR-0092 cloud coordination peer status. A disconnected peer keeps
+accepting local sessions, notes, claims, and logical lock leases into its
+SQLite ledger and durable outbox; this endpoint reports federation progress,
+not local availability.
+
+```json
+{
+  "enabled": true,
+  "connected": true,
+  "project": "owner/repo",
+  "actorId": "cloud-runner",
+  "replicaId": "peer-01J...",
+  "cursor": 42,
+  "outbox": 0,
+  "lastSyncAt": 1787520000000,
+  "lastError": null
+}
+```
+
+MCP equivalent: `coordination_status()`.
 
 ### GET /status
 Combined daemon report. Includes build identity, metrics, detailed fleet breakdown, guardian state, and recent daemon history.
@@ -581,6 +637,20 @@ Trigger the reaper to move dead agents (stale heartbeats) into the salvage queue
 
 *Note: `/resurrection/*` routes are deprecated aliases for `/salvage/*`.*
 
+## Harbor Editor Recovery
+
+### POST /editor/recovery/request
+### POST /editor/recovery/prepare
+### POST /editor/recovery/replay
+### POST /editor/recovery/finalize
+
+Registered authenticated scaffolding for future abandoned-session recovery. No
+recovery can complete today: the typed sequence-zero receipt producer, sealed
+abandonment high-water, canonical Rust Loro validator, verified scope/symbol/file
+authorities, and atomic P3 released-claim transfer remain unimplemented. Every
+public phase therefore returns 503 before token, preparation, replay, claim, or
+provenance state is written. There is deliberately no CLI, MCP, or SDK alias.
+
 ### CLI: `pd salvage triage`
 Local CLI synthesis over `/salvage/pending` by default, or `/salvage` with `--all`.
 Clusters entries into `resume-now`, `verify-dismiss`, `test-noise`,
@@ -689,6 +759,13 @@ Wait for multiple services.
 ### POST /sugar/begin
 Register agent + start session atomically. Rolls back agent registration on failure.
 
+This is an ADR-0040 **mint door**: with no `credential`, unowned asserted
+names mint a fresh soul and the response carries `credential` (returned once —
+persist it; `/sugar/done` and all other attributed writes require it). With a
+`credential`, the begin is verified against that soul (401 on forgery, 403 if
+`identity`/`agentId` belong to a different soul); asserting a name that an
+existing soul owns WITHOUT its credential is a 401.
+
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -713,12 +790,16 @@ Register agent + start session atomically. Rolls back agent registration on fail
   "lifecycle": "durable",
   "agentRegistered": true,
   "sessionStarted": true,
-  "salvageHint": "1 dead agent(s) found in project"
+  "salvageHint": "1 dead agent(s) found in project",
+  "actorId": "01J...",
+  "credential": "01J....<secret>   // ONLY when this begin minted — persist it",
+  "actorIdentity": { "verified": true, "actorId": "01J...", "soulClass": "newcomer" }
 }
 ```
 
 ### POST /sugar/done
-End session + unregister agent atomically.
+End session + unregister agent atomically. Requires the actor credential from
+begin (`x-actor-credential` header or body `credential`).
 
 **Body:**
 | Field | Type | Required | Description |
@@ -1172,6 +1253,22 @@ List semantic graph edges.
 Summarize graph edges for a project.
 
 **Query params:** `projectDir`.
+
+---
+
+## Jury-rig
+
+### GET /jury-rig/status
+Read current-hash Tool2Vec catalog coverage, active lease state, and the latest
+reconciliation outcome. This endpoint is strictly observational: it does not
+generate centroids or call an LLM.
+
+### POST /jury-rig/reconcile
+Start one bounded reconciliation batch. This mutation accepts only loopback
+transport peers and returns `200` when it acquires the builder lease or `202`
+when another reconciler already owns it.
+
+**Body:** `{ "maxSkills": 8 }` (optional, clamped to `1..64`).
 
 ---
 

@@ -10,7 +10,10 @@
 //! malformed input returns a clean error JSON, never a crash. Fail closed.
 
 use crate::keystore;
-use crate::macaroon::{check_caveat, verify, Macaroon, RentVerdict, RequestContext, DISCHARGE_TTL_MS};
+use crate::macaroon::{
+    check_caveat, is_canonical_actor_principal, matches_actor_bound_push_grant_identifier, verify,
+    Macaroon, RentVerdict, RequestContext, DISCHARGE_TTL_MS,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -33,8 +36,10 @@ struct FfiCtx {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FfiVerifyRequest {
     macaroon: Macaroon,
+    actor: String,
     root_key_hex: String,
     #[serde(default)]
     discharges: Vec<Macaroon>,
@@ -66,7 +71,7 @@ fn respond(ok: bool, reason: impl Into<String>) -> *mut c_char {
 }
 
 /// Verify a macaroon push grant. Input JSON:
-/// `{ macaroon, root_key_hex, discharges, ctx:{op,repo,branch,host,spend_usd,session,now_ms}, caveat_keys:{<id>:<hex>} }`.
+/// `{ macaroon, actor, root_key_hex, discharges, ctx:{op,repo,branch,host,spend_usd,session,now_ms}, caveat_keys:{<id>:<hex>} }`.
 /// Output JSON: `{ ok, reason }`. Returns null only on a catastrophic allocation
 /// failure; every other path returns a `{ok:false,...}` JSON (fail closed).
 /// # Safety
@@ -108,7 +113,24 @@ pub unsafe extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize)
             session: parsed.ctx.session,
             now_ms: parsed.ctx.now_ms,
         };
-        let check = |p: &str| check_caveat(p, &ctx);
+        let Some(repo) = ctx.repo.as_deref() else {
+            return respond(false, "actor-bound push repo is required");
+        };
+        let Some(session) = ctx.session.as_deref() else {
+            return respond(false, "actor-bound push session is required");
+        };
+        if !is_canonical_actor_principal(&parsed.actor)
+            || !matches_actor_bound_push_grant_identifier(
+                &parsed.macaroon,
+                &parsed.actor,
+                repo,
+                session,
+            )
+        {
+            return respond(false, "macaroon is not actor-bound push authority");
+        }
+        let actor_predicate = format!("actor = {}", parsed.actor);
+        let check = |predicate: &str| predicate == actor_predicate || check_caveat(predicate, &ctx);
         let resolve = |id: &str| keys.get(id).cloned();
         let out = verify(
             &parsed.macaroon,
@@ -124,7 +146,7 @@ pub unsafe extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize)
 
 // ─── Planner scheduler (ADR-0086) ────────────────────────────────────────────
 
-use crate::schedule::{schedule, ScheduleResult, SchedEdge, SchedNode};
+use crate::schedule::{schedule, SchedEdge, SchedNode, ScheduleResult};
 
 #[derive(Deserialize)]
 struct FfiScheduleRequest {
@@ -226,19 +248,25 @@ fn parse_verdict(s: &str) -> Option<RentVerdict> {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FfiIssueGrant {
     repo: String,
+    actor: String,
     session: String,
     expires_ms: i64,
     protected_branch: String,
 }
 
-/// Issue a push grant. In: `{repo, session, expires_ms, protected_branch}`.
+/// Issue an actor-bound push grant. In:
+/// `{repo, actor, session, expires_ms, protected_branch}`.
 /// Out: `{ok, grant_id, macaroon}` — the keys stay in the kernel store.
 /// # Safety
 /// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
 #[no_mangle]
-pub unsafe extern "C" fn pd_keystore_issue_grant_json(req: *const c_char, len: usize) -> *mut c_char {
+pub unsafe extern "C" fn pd_keystore_issue_grant_json(
+    req: *const c_char,
+    len: usize,
+) -> *mut c_char {
     catch_unwind(|| {
         let s = match read_request(req, len) {
             Ok(s) => s,
@@ -248,8 +276,16 @@ pub unsafe extern "C" fn pd_keystore_issue_grant_json(req: *const c_char, len: u
             Ok(r) => r,
             Err(e) => return respond(false, format!("request parse error: {e}")),
         };
-        match keystore::issue_grant(&r.repo, &r.session, r.expires_ms, &r.protected_branch) {
-            Ok((m, grant_id)) => respond_value(json!({"ok": true, "grant_id": grant_id, "macaroon": m})),
+        match keystore::issue_grant(
+            &r.repo,
+            &r.actor,
+            &r.session,
+            r.expires_ms,
+            &r.protected_branch,
+        ) {
+            Ok((m, grant_id)) => {
+                respond_value(json!({"ok": true, "grant_id": grant_id, "macaroon": m}))
+            }
             Err(e) => respond(false, format!("issue_grant failed: {e}")),
         }
     })
@@ -269,7 +305,10 @@ struct FfiIssueDischarge {
 /// # Safety
 /// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
 #[no_mangle]
-pub unsafe extern "C" fn pd_keystore_issue_discharge_json(req: *const c_char, len: usize) -> *mut c_char {
+pub unsafe extern "C" fn pd_keystore_issue_discharge_json(
+    req: *const c_char,
+    len: usize,
+) -> *mut c_char {
     catch_unwind(|| {
         let s = match read_request(req, len) {
             Ok(s) => s,
@@ -292,15 +331,18 @@ pub unsafe extern "C" fn pd_keystore_issue_discharge_json(req: *const c_char, le
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FfiAuthorize {
     macaroon: Macaroon,
+    actor: String,
     #[serde(default)]
     discharges: Vec<Macaroon>,
     ctx: FfiCtx,
 }
 
 /// Authorize a push using the kernel-held keys (looked up by the grant's own
-/// identifier). In: `{macaroon, discharges, ctx}` — NO keys. Out: `{ok, reason}`.
+/// identifier). In: `{macaroon, actor, discharges, ctx}` — NO keys. Out:
+/// `{ok, reason}`.
 /// # Safety
 /// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
 #[no_mangle]
@@ -323,7 +365,7 @@ pub unsafe extern "C" fn pd_keystore_authorize_json(req: *const c_char, len: usi
             session: r.ctx.session,
             now_ms: r.ctx.now_ms,
         };
-        let out = keystore::authorize(&r.macaroon, &r.discharges, &ctx);
+        let out = keystore::authorize(&r.macaroon, &r.discharges, &r.actor, &ctx);
         respond(out.ok, out.reason)
     })
     .unwrap_or_else(|_| respond(false, "internal error"))
@@ -341,7 +383,10 @@ struct FfiPruneExpired {
 /// # Safety
 /// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
 #[no_mangle]
-pub unsafe extern "C" fn pd_keystore_prune_expired_json(req: *const c_char, len: usize) -> *mut c_char {
+pub unsafe extern "C" fn pd_keystore_prune_expired_json(
+    req: *const c_char,
+    len: usize,
+) -> *mut c_char {
     catch_unwind(|| {
         let s = match read_request(req, len) {
             Ok(s) => s,
@@ -390,7 +435,10 @@ fn call_export(f: unsafe extern "C" fn(*const c_char, usize) -> *mut c_char, req
     let c = CString::new(req).unwrap();
     let ptr = unsafe { f(c.as_ptr(), req.len()) };
     assert!(!ptr.is_null());
-    let out = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
+    let out = unsafe { std::ffi::CStr::from_ptr(ptr) }
+        .to_str()
+        .unwrap()
+        .to_string();
     unsafe { pd_string_free(ptr) };
     out
 }
@@ -401,6 +449,8 @@ mod tests {
     use crate::macaroon::*;
     use serde_json::json;
 
+    const ACTOR: &str = "01K3YR6M1WPZB8Q6V1J8K7D4MC";
+
     // The custody surface proves itself end-to-end WITHOUT any key in any payload:
     // issue a grant, discharge it (rent paid), bind, authorize — all over the FFI,
     // and assert no "root_key"/"caveat_key" ever crosses the boundary.
@@ -408,9 +458,12 @@ mod tests {
     fn keystore_custody_roundtrip_carries_no_keys() {
         let now = 2_000_000i64;
         let issue_req =
-            json!({"repo":"acme/api","session":"sess-ffi","expires_ms": now+60_000,"protected_branch":"main"})
+            json!({"repo":"acme/api","actor":ACTOR,"session":"sess-ffi","expires_ms": now+60_000,"protected_branch":"main"})
                 .to_string();
-        assert!(!issue_req.contains("key"), "issue request must carry no key");
+        assert!(
+            !issue_req.contains("key"),
+            "issue request must carry no key"
+        );
         let issued: serde_json::Value =
             serde_json::from_str(&call_export(pd_keystore_issue_grant_json, &issue_req)).unwrap();
         assert_eq!(issued["ok"], true);
@@ -419,22 +472,52 @@ mod tests {
 
         let disc_req = json!({"grant_id": grant_id, "verdict":"paid", "now_ms": now}).to_string();
         let discharged: serde_json::Value =
-            serde_json::from_str(&call_export(pd_keystore_issue_discharge_json, &disc_req)).unwrap();
+            serde_json::from_str(&call_export(pd_keystore_issue_discharge_json, &disc_req))
+                .unwrap();
         assert_eq!(discharged["ok"], true);
         let discharge: Macaroon = serde_json::from_value(discharged["discharge"].clone()).unwrap();
 
         let bound = grant.prepare_for_request(&discharge).unwrap();
         let auth_req = json!({
             "macaroon": grant,
+            "actor": ACTOR,
             "discharges": [bound],
             "ctx": {"op":"push","repo":"acme/api","branch":"feat/x","session":"sess-ffi","now_ms": now}
         })
         .to_string();
-        assert!(!auth_req.contains("root_key") && !auth_req.contains("caveat_key"),
-            "authorize request must carry NO keys");
+        assert!(
+            !auth_req.contains("root_key") && !auth_req.contains("caveat_key"),
+            "authorize request must carry NO keys"
+        );
         let authorized: serde_json::Value =
             serde_json::from_str(&call_export(pd_keystore_authorize_json, &auth_req)).unwrap();
-        assert_eq!(authorized["ok"], true, "paid+bound must authorize: {}", authorized["reason"]);
+        assert_eq!(
+            authorized["ok"], true,
+            "paid+bound must authorize: {}",
+            authorized["reason"]
+        );
+    }
+
+    #[test]
+    fn keystore_issue_requires_a_canonical_actor_not_a_session_or_alias() {
+        let now = 2_000_000i64;
+        for actor in [None, Some("sess-ffi"), Some("spark")] {
+            let mut request = json!({
+                "repo": "acme/api",
+                "session": "sess-ffi",
+                "expires_ms": now + 60_000,
+                "protected_branch": "main"
+            });
+            if let Some(actor) = actor {
+                request["actor"] = json!(actor);
+            }
+            let response: serde_json::Value = serde_json::from_str(&call_export(
+                pd_keystore_issue_grant_json,
+                &request.to_string(),
+            ))
+            .unwrap();
+            assert_eq!(response["ok"], false, "{response}");
+        }
     }
 
     // Rent not paid → the discharge export returns no discharge → push refused.
@@ -443,15 +526,19 @@ mod tests {
         let now = 2_000_000i64;
         let issued: serde_json::Value = serde_json::from_str(&call_export(
             pd_keystore_issue_grant_json,
-            &json!({"repo":"acme/api","session":"s2","expires_ms": now+60_000,"protected_branch":"main"}).to_string(),
+            &json!({"repo":"acme/api","actor":ACTOR,"session":"s2","expires_ms": now+60_000,"protected_branch":"main"}).to_string(),
         )).unwrap();
         let grant_id = issued["grant_id"].as_str().unwrap();
         let discharged: serde_json::Value = serde_json::from_str(&call_export(
             pd_keystore_issue_discharge_json,
             &json!({"grant_id": grant_id, "verdict":"rent-due", "now_ms": now}).to_string(),
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(discharged["ok"], false);
-        assert!(discharged["discharge"].is_null(), "rent-due must yield no discharge");
+        assert!(
+            discharged["discharge"].is_null(),
+            "rent-due must yield no discharge"
+        );
     }
 
     // The prune export round-trips its JSON contract. Called with now_ms:0 so it
@@ -477,10 +564,11 @@ mod tests {
     const CKEY: &[u8] = b"pd-canonical-caveat-key-00000001";
 
     fn grant() -> PushGrant {
-        mint_push_grant(MintPushGrant {
+        mint_actor_bound_push_grant(MintActorBoundPushGrant {
             root_key: ROOT,
             grant_id: "g-ffi",
             repo: "curiositech/port-daddy",
+            actor: ACTOR,
             session: "session-ffi",
             expires_ms: 2_000_000,
             caveat_key: CKEY.to_vec(),
@@ -505,6 +593,7 @@ mod tests {
         let bound = g.macaroon.prepare_for_request(&d).unwrap();
         let req = json!({
             "macaroon": g.macaroon,
+            "actor": ACTOR,
             "root_key_hex": hex::encode(ROOT),
             "discharges": [bound],
             "ctx": { "op": "push", "repo": "curiositech/port-daddy", "branch": "feat/x", "session": "session-ffi", "now_ms": 1_500_000 },
@@ -529,7 +618,7 @@ mod tests {
         .unwrap();
         let bound = g.macaroon.prepare_for_request(&d).unwrap();
         let req = json!({
-            "macaroon": g.macaroon, "root_key_hex": hex::encode(ROOT), "discharges": [bound],
+            "macaroon": g.macaroon, "actor": ACTOR, "root_key_hex": hex::encode(ROOT), "discharges": [bound],
             "ctx": { "op": "push", "repo": "curiositech/port-daddy", "branch": "main", "session": "session-ffi", "now_ms": 1_500_000 },
             "caveat_keys": { g.rent_caveat_id.clone(): hex::encode(CKEY) }
         });
@@ -554,6 +643,59 @@ mod tests {
         }
         // null pointer
         let ptr = unsafe { pd_macaroon_verify_json(std::ptr::null(), 0) };
+        assert!(!ptr.is_null());
+        unsafe { pd_string_free(ptr) };
+    }
+
+    // `pd_schedule_dag_json` had zero coverage through the actual C-ABI
+    // marshaling before this — `schedule.rs`'s own tests call the pure
+    // function directly, never crossing the FFI boundary this export exists
+    // to prove. These use `call_export` like the keystore tests above.
+    #[test]
+    fn ffi_schedule_linear_chain_matches_pure_function() {
+        let req = json!({
+            "nodes": [{"id":"a","estimate":2},{"id":"b","estimate":3},{"id":"c","estimate":1}],
+            "edges": [{"from":"a","to":"b"},{"from":"b","to":"c"}]
+        })
+        .to_string();
+        let resp: serde_json::Value =
+            serde_json::from_str(&call_export(pd_schedule_dag_json, &req)).unwrap();
+        assert_eq!(resp["ok"], true);
+        assert_eq!(resp["makespan"], 6);
+        assert_eq!(resp["criticalPath"], serde_json::json!(["a", "b", "c"]));
+    }
+
+    #[test]
+    fn ffi_schedule_cycle_fails_closed_over_the_boundary() {
+        let req = json!({
+            "nodes": [{"id":"a","estimate":1},{"id":"b","estimate":1}],
+            "edges": [{"from":"a","to":"b"},{"from":"b","to":"a"}]
+        })
+        .to_string();
+        let resp: serde_json::Value =
+            serde_json::from_str(&call_export(pd_schedule_dag_json, &req)).unwrap();
+        assert_eq!(resp["ok"], false);
+        assert_eq!(resp["cyclic"], true);
+    }
+
+    #[test]
+    fn ffi_schedule_malformed_input_fails_closed_not_panics() {
+        for bad in ["", "not json", "{\"nodes\":1}"] {
+            let c = CString::new(bad).unwrap();
+            let ptr = unsafe { pd_schedule_dag_json(c.as_ptr(), bad.len()) };
+            assert!(
+                !ptr.is_null(),
+                "input {bad:?} should still yield a response, not null"
+            );
+            let out = unsafe { std::ffi::CStr::from_ptr(ptr) }
+                .to_str()
+                .unwrap()
+                .to_string();
+            unsafe { pd_string_free(ptr) };
+            let resp: serde_json::Value = serde_json::from_str(&out).unwrap();
+            assert_eq!(resp["ok"], false, "input {bad:?} should fail closed");
+        }
+        let ptr = unsafe { pd_schedule_dag_json(std::ptr::null(), 0) };
         assert!(!ptr.is_null());
         unsafe { pd_string_free(ptr) };
     }

@@ -227,7 +227,7 @@ describe('buildSeatbeltProfile — SBPL injection guard (pure, fail-closed)', ()
       '/p\\"x',
       '/p\nx',
       '/p\rx',
-      '/p x',
+      '/p\u0000x',
     ]) {
       expect(() =>
         buildSeatbeltProfile(jewels, { writePolicy: 'read-only', readOnlyRoots: [bad] }),

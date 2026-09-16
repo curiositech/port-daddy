@@ -11,6 +11,8 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -18,6 +20,8 @@ import { createAgents } from '../../lib/agents.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createResurrection } from '../../lib/resurrection.js';
 import { sitrepPlugin } from '../../routes/sitrep.js';
+
+const sitrepCliSource = readFileSync(resolve(import.meta.dirname, '../../cli/commands/sitrep.ts'), 'utf8');
 
 let db;
 let app;
@@ -49,6 +53,12 @@ afterEach(async () => {
 });
 
 describe('/sitrep', () => {
+  test('CLI uses the shared relative transport resolver for every sitrep request', () => {
+    expect(sitrepCliSource).not.toContain('PORT_DADDY_URL');
+    expect(sitrepCliSource).toContain('pdFetch(`/sitrep${qs}`)');
+    expect(sitrepCliSource).toContain('pdFetch(`/sessions/${encodeURIComponent(sessionId)}`)');
+  });
+
   test('returns structure with defaults when harbor is empty', async () => {
     const res = await app.inject({ method: 'GET', url: '/sitrep' });
     expect(res.statusCode).toBe(200);
@@ -107,6 +117,99 @@ describe('/sitrep', () => {
     const res = await app.inject({ method: 'GET', url: '/sitrep?sinceMinutes=45' });
     const body = res.json();
     expect(body.since_minutes).toBe(45);
+  });
+
+  test('bounds every collection and strips full salvage histories from the response', async () => {
+    await app.close();
+    const huge = 'sensitive-payload-'.repeat(1_000);
+    const many = Array.from({ length: 150 }, (_, index) => index);
+    app = Fastify({ logger: false });
+    await app.register(sitrepPlugin, {
+      deps: {
+        activityLog: {
+          getRecent: () => ({ entries: many.map((index) => ({ id: index, type: 'event', details: huge, metadata: { huge } })), total: many.length }),
+        },
+        sessions: {
+          getNotes: () => ({ notes: many.map((index) => ({ id: index, content: huge, created_at: index })) }),
+        },
+        resurrection: {
+          pending: () => ({
+            agents: many.map((index) => ({
+              id: `dead-${index}`,
+              purpose: huge,
+              noteCount: 250,
+              notes: Array.from({ length: 200 }, () => huge),
+            })),
+          }),
+        },
+        spawner: {
+          list: () => many.map((index) => ({ id: `spawn-${index}`, identity: huge, task: huge, status: 'running' })),
+        },
+      },
+    });
+    await app.ready();
+
+    const res = await app.inject({ method: 'GET', url: '/sitrep' });
+    const body = res.json();
+    expect(body.activity).toHaveLength(30);
+    expect(body.notes).toHaveLength(20);
+    expect(body.salvage_queue).toHaveLength(20);
+    expect(body.spawned_agents).toHaveLength(20);
+    expect(body.salvage_queue[0].notes).toHaveLength(3);
+    expect(body.salvage_queue[0].noteWindow).toEqual({ total: 250, returned: 3, truncated: true });
+    expect(body.window.activity.truncated).toBe(true);
+    expect(body.window.notes.truncated).toBe(true);
+    expect(body.window.salvage.truncated).toBe(true);
+    expect(body.window.spawned.truncated).toBe(true);
+    expect(Buffer.byteLength(res.body)).toBeLessThan(128 * 1024);
+
+    const quiet = await app.inject({ method: 'GET', url: '/sitrep?summary_only=1' });
+    const quietBody = quiet.json();
+    expect(quietBody.activity).toEqual([]);
+    expect(quietBody.salvage_queue).toEqual([]);
+    expect(quietBody.window.summaryOnly).toBe(true);
+    expect(Buffer.byteLength(quiet.body)).toBeLessThan(4 * 1024);
+  });
+
+  test('caps hostile query limits before dependency work while preserving the +1 truncation witness', async () => {
+    await app.close();
+    let activityOptions;
+    let noteOptions;
+    let salvageOptions;
+    app = Fastify({ logger: false });
+    await app.register(sitrepPlugin, {
+      deps: {
+        activityLog: {
+          getRecent: (options) => { activityOptions = options; return []; },
+        },
+        sessions: {
+          getNotes: (_sessionId, options) => { noteOptions = options; return { notes: [] }; },
+        },
+        resurrection: {
+          pending: (options) => { salvageOptions = options; return { agents: [] }; },
+        },
+        spawner: {
+          list: () => Array.from({ length: 150 }, (_, index) => ({ id: `spawn-${index}` })),
+        },
+      },
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/sitrep?limit_activity=1000&limit_notes=bogus&limit_salvage=-2&limit_salvage_notes=1000&limit_spawned=1000',
+    });
+    const body = res.json();
+    expect(activityOptions.limit).toBe(101);
+    expect(noteOptions.limit).toBe(21);
+    expect(salvageOptions).toMatchObject({ limit: 21, noteLimit: 10 });
+    expect(body.spawned_agents).toHaveLength(100);
+    expect(body.window).toMatchObject({
+      activity: { limit: 100 },
+      notes: { limit: 20 },
+      salvage: { limit: 20, notesPerAgent: 10 },
+      spawned: { limit: 100, truncated: true },
+    });
   });
 
   test('works without a spawner (optional dep)', async () => {

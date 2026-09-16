@@ -6,7 +6,7 @@ The direct ancestor is Smith (1980): the Contract-Net Protocol defines a task-an
 
 **Reconvention sequence (concrete steps):**
 
-1. **Output broadcast.** Each agent that completed a node in wave N emits an `inform` performative carrying its `NodeOutput` to all agents in the parley pool. This is not gossip — it is a single synchronous broadcast, bounded by the number of agents in the wave (typically 2–8 in current WinDAGs topologies). Cost: O(k) messages for k completing agents.
+1. **Output broadcast.** Each agent that completed a node in wave N emits an `inform` performative carrying its `NodeOutput` to all agents in the parley pool. This is not gossip — it is a single synchronous broadcast, bounded by the number of agents in the wave (typically 2–8 in current Jury-rig topologies). Cost: O(k) messages for k completing agents.
 
 2. **Vague-node announcement.** The parley coordinator identifies every node in wave N+1 with `commitment_level: TENTATIVE | EXPLORATORY`. For each such node, it emits a `cfp` performative addressed to all agents whose declared capabilities overlap the node's `skill_requirements`. The `cfp` content includes: node ID, input contract summary, dependency outputs from step 1, current risk severity for risks whose `affected_nodes` include this node ID.
 

@@ -103,7 +103,7 @@ class CostStore: ObservableObject {
     @Published var golden: GoldenSignals?
 
     private nonisolated(unsafe) var refreshTimer: Timer?
-    private let baseURL: String
+    private let baseURL: String?
 
     var todaySpend: Double {
         liveProjects.reduce(0) { $0 + $1.totalUsd }
@@ -154,7 +154,7 @@ class CostStore: ObservableObject {
     }
 
     init(autoStart: Bool = true) {
-        self.baseURL = DaemonLocation.resolveBaseURL()
+        self.baseURL = DaemonLocation.availableBaseURL()
 
         guard autoStart else { return }
 
@@ -197,9 +197,9 @@ class CostStore: ObservableObject {
     // MARK: - Private Fetchers
 
     private func fetchCost() async -> CostResponse? {
-        guard let url = URL(string: "\(baseURL)/metrics/cost") else { return nil }
+        guard let baseURL, let url = URL(string: "\(baseURL)/metrics/cost") else { return nil }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }
@@ -210,9 +210,9 @@ class CostStore: ObservableObject {
     }
 
     private func fetchGolden() async -> GoldenSignals? {
-        guard let url = URL(string: "\(baseURL)/metrics/golden") else { return nil }
+        guard let baseURL, let url = URL(string: "\(baseURL)/metrics/golden") else { return nil }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }
@@ -223,9 +223,9 @@ class CostStore: ObservableObject {
     }
 
     private func fetchLiveFleetBudgets() async -> [LiveFleetBudget] {
-        guard let url = URL(string: "\(baseURL)/fleet") else { return [] }
+        guard let baseURL, let url = URL(string: "\(baseURL)/fleet") else { return [] }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return []
             }
@@ -247,13 +247,14 @@ class CostStore: ObservableObject {
     }
 
     private func fetchBudget(for project: String) async -> Double? {
-        guard let encodedProject = encodePathSegment(project),
+        guard let baseURL,
+              let encodedProject = encodePathSegment(project),
               let url = URL(string: "\(baseURL)/fleet/config/\(encodedProject)") else {
             return nil
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }

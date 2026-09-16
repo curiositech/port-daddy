@@ -21,6 +21,13 @@ const TURN_VERBS: Record<string, ParleyPerformative> = {
   say: 'inform',
 };
 
+/**
+ * Resolves the first present CLI string option into its canonical trimmed form.
+ * The design keeps each Parley command from treating whitespace as a distinct identity.
+ * @param options Parsed command-line options.
+ * @param keys Candidate option names in precedence order.
+ * @returns The first non-blank option value, or undefined when absent.
+ */
 function readString(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const value = options[key];
@@ -29,6 +36,13 @@ function readString(options: CLIOptions, ...keys: string[]): string | undefined 
   return undefined;
 }
 
+/**
+ * Resolves a finite numeric CLI option without inventing a fallback value.
+ * The purpose is to keep command validation explicit at the CLI boundary.
+ * @param options Parsed command-line options.
+ * @param keys Candidate option names in precedence order.
+ * @returns The first finite numeric value, or undefined when none is supplied.
+ */
 function readNumber(options: CLIOptions, ...keys: string[]): number | undefined {
   for (const key of keys) {
     const value = options[key];
@@ -41,6 +55,13 @@ function readNumber(options: CLIOptions, ...keys: string[]): number | undefined 
   return undefined;
 }
 
+/**
+ * Normalizes a comma-delimited or repeated CLI option into non-blank values.
+ * The design makes transport payloads deterministic regardless of parser shape.
+ * @param options Parsed command-line options.
+ * @param key Option name containing one value or an array of values.
+ * @returns Canonical non-empty option entries.
+ */
 function readList(options: CLIOptions, key: string): string[] {
   const value = options[key];
   if (Array.isArray(value)) return value.flatMap((item) => String(item).split(',')).map((s) => s.trim()).filter(Boolean);
@@ -48,6 +69,13 @@ function readList(options: CLIOptions, key: string): string[] {
   return [];
 }
 
+/**
+ * Posts a JSON command payload to the daemon and retains both HTTP and body evidence.
+ * The purpose is to let command handlers make one consistent success decision.
+ * @param path Daemon-relative route path.
+ * @param body JSON-safe request payload.
+ * @returns The response success flag and parsed JSON body.
+ */
 async function postJson(path: string, body: Record<string, unknown>): Promise<{ ok: boolean; data: any }> {
   const res = await pdFetch(`${PORT_DADDY_URL}${path}`, {
     method: 'POST',
@@ -58,13 +86,25 @@ async function postJson(path: string, body: Record<string, unknown>): Promise<{ 
   return { ok: res.ok, data };
 }
 
+/**
+ * Fetches a JSON daemon resource while preserving status separately from payload data.
+ * The design avoids treating a parseable failure body as a successful Parley operation.
+ * @param path Daemon-relative route path.
+ * @returns The response success flag and parsed JSON body.
+ */
 async function getJson(path: string): Promise<{ ok: boolean; data: any }> {
   const res = await pdFetch(`${PORT_DADDY_URL}${path}`);
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, data };
 }
 
-/** `--as` when given, else the active pd session's agent id (pd begin / PD_AGENT_ID). */
+/**
+ * Chooses an explicit actor first, then falls back to the active Port Daddy session.
+ * The purpose is to preserve attributable Parley mutations without silently inventing an identity.
+ * @param options Parsed command-line options.
+ * @param keys Explicit actor option names in precedence order.
+ * @returns The resolved actor identifier, or undefined when no attributable actor exists.
+ */
 function resolveActor(options: CLIOptions, ...keys: string[]): string | undefined {
   const explicit = readString(options, ...keys);
   if (explicit) return explicit;
@@ -72,10 +112,23 @@ function resolveActor(options: CLIOptions, ...keys: string[]): string | undefine
   return agentId || undefined;
 }
 
+/**
+ * Formats a turn timestamp for terminal transcript output.
+ * The design gives operators a stable, timezone-neutral visual order.
+ * @param at Unix timestamp in milliseconds.
+ * @returns A compact ISO-like timestamp for display.
+ */
 function formatTurnTime(at: number): string {
   return new Date(at).toISOString().replace('T', ' ').slice(0, 19);
 }
 
+/**
+ * Renders Parley turns and receipt progress for a human CLI reader.
+ * The purpose is to make missing context and unread work visible without mutating state.
+ * @param summary Parley summary data supplied by the daemon.
+ * @param viewer Optional actor whose own receipt is annotated.
+ * @returns Nothing; output is written to the terminal.
+ */
 function printTranscript(summary: {
   turns: Array<{ party: string; performative: string; content: string; at: number }>;
   receipts?: Array<{ party: string; lastSeenAt: number | null; unseenTurns: number }>;
@@ -104,31 +157,56 @@ function printTranscript(summary: {
   }
 }
 
+/**
+ * Maps a CLI reasoning-shape option to the conservative swarm-fit default.
+ * The design preserves compatibility when a caller omits or supplies an unknown shape.
+ * @param value Candidate shape string.
+ * @returns A supported reasoning shape.
+ */
 function parseReasoningShape(value: string | undefined): ReasoningShape {
   if (value === 'breadth_first' || value === 'depth_first' || value === 'mixed') return value;
   return 'mixed';
 }
 
+/**
+ * Maps a CLI independence option to the conservative swarm-fit default.
+ * The purpose is to prevent malformed options from producing undefined fit inputs.
+ * @param value Candidate independence string.
+ * @returns A supported subtask-independence value.
+ */
 function parseIndependence(value: string | undefined): SubtaskIndependence {
   if (value === 'none' || value === 'partial' || value === 'high') return value;
   return 'partial';
 }
 
+/**
+ * Maps a CLI contention option to the conservative swarm-fit default.
+ * The design keeps planning behavior deterministic for missing or invalid input.
+ * @param value Candidate contention string.
+ * @returns A supported write-contention value.
+ */
 function parseContention(value: string | undefined): WriteContention {
   if (value === 'none' || value === 'low' || value === 'medium' || value === 'high') return value;
   return 'medium';
 }
 
+/**
+ * Dispatches the Parley CLI surface while preserving explicit actor and harbor context.
+ * The purpose is to make each read or mutation reach the same configured harbor as its record.
+ * @param args Positional Parley subcommand arguments.
+ * @param options Parsed command-line flags.
+ * @returns A promise that resolves after terminal output or daemon interaction completes.
+ */
 export async function handleParley(args: string[], options: CLIOptions): Promise<void> {
   const sub = args[0];
   if (!sub || sub === 'help' || sub === '--help' || sub === '-h') {
     console.log(`Usage:
   pd parley call --surface <path|symbol> --reason <text> --with <sessionA,sessionB>
-  pd parley propose|critique|revise|agree|refuse|say <id> <content...>
-  pd parley respond <id> --performative propose|critique|revise|agree|refuse|inform --content <text>
-  pd parley resolve <id> --status COLLAPSED|ESCALATED|VOIDED [--decision <text>] [--dissenters <a,b>]
+  pd parley propose|critique|revise|agree|refuse|say <id> <content...> [--harbor <h>]
+  pd parley respond <id> --performative propose|critique|revise|agree|refuse|inform --content <text> [--harbor <h>]
+  pd parley resolve <id> --status COLLAPSED|ESCALATED|VOIDED [--decision <text>] [--dissenters <a,b>] [--harbor <h>]
   pd parley list [--status <state>] [--harbor <h>]
-  pd parley show <id>
+  pd parley show <id> [--harbor <h>]
   pd parley fit --shape breadth_first|depth_first|mixed --independence none|partial|high --contention none|low|medium|high
 
 Identity: --as defaults to your active pd session (pd begin / PD_AGENT_ID).
@@ -159,6 +237,8 @@ Receipts: pd parley show records your read receipt; the seen list shows who is b
       proposalId: readString(options, 'proposal', 'proposalId'),
       evidenceRefs: readList(options, 'evidence'),
     };
+    const harbor = readString(options, 'harbor');
+    if (harbor) body.harbor = harbor;
     const { ok, data } = await postJson('/parley/respond', body);
     if (!ok) {
       ui.error(data.error || 'parley respond failed');
@@ -260,6 +340,8 @@ Receipts: pd parley show records your read receipt; the seen list shows who is b
       reason: readString(options, 'reason'),
       dissenters: readList(options, 'dissenters'),
     };
+    const harbor = readString(options, 'harbor');
+    if (harbor) body.harbor = harbor;
     const { ok, data } = await postJson('/parley/resolve', body);
     if (!ok) {
       ui.error(data.error || 'parley resolve failed');
@@ -310,8 +392,12 @@ Receipts: pd parley show records your read receipt; the seen list shows who is b
       process.exit(1);
     }
     const viewer = resolveActor(options, 'as');
-    const query = viewer ? `?as=${encodeURIComponent(viewer)}` : '';
-    const { ok, data } = await getJson(`/parley/${encodeURIComponent(parleyId)}${query}`);
+    const params = new URLSearchParams();
+    if (viewer) params.set('as', viewer);
+    const harbor = readString(options, 'harbor');
+    if (harbor) params.set('harbor', harbor);
+    const query = params.toString();
+    const { ok, data } = await getJson(`/parley/${encodeURIComponent(parleyId)}${query ? `?${query}` : ''}`);
     if (!ok) {
       ui.error(data.error || 'parley not found');
       process.exit(1);

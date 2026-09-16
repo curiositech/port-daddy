@@ -219,7 +219,7 @@ export const CLI_COMMANDS: CliCommand[] = [
     description: 'Launch an AI agent with Port Daddy coordination pre-wired. The agent auto-registers, sends heartbeats, writes notes, and gets salvaged if it crashes.',
     flags: [
       '--backend <type>      AI backend: claude-cli | codex | cloudflare | claude | ollama | gemini | aider | custom. claude-cli and codex ride your Claude Max / ChatGPT Pro at $0 marginal.',
-      "--model <name>        Model to use (e.g. '@cf/qwen/qwen3-30b-a3b-fp8', claude-haiku-4-5)",
+      "--model <name>        Model override (e.g. '@cf/zai-org/glm-4.7-flash', claude-haiku-4-5)",
       '--identity <id>       Semantic identity for this agent',
       '--purpose <text>      What this agent should do',
       '--harbor <name>       Run agent inside a harbor (scoped permissions)',
@@ -358,6 +358,7 @@ export const ENDPOINTS: Endpoint[] = [
   { method: 'POST',   path: '/sugar/begin',             description: 'Register agent + start session in one call',  group: 'Sessions' },
   { method: 'POST',   path: '/sugar/done',              description: 'End session + unregister agent in one call',  group: 'Sessions' },
   { method: 'GET',    path: '/sugar/whoami',            description: 'Get current agent identity and session',      group: 'Sessions' },
+  { method: 'GET',    path: '/sugar/find',              description: 'Recover a session by begin idempotency key or identity', group: 'Sessions' },
   { method: 'POST',   path: '/agents/:id',              description: 'Register an agent',                           group: 'Agents' },
   { method: 'DELETE', path: '/agents/:id',              description: 'Unregister an agent',                         group: 'Agents' },
   { method: 'PUT',    path: '/agents/:id/heartbeat',    description: 'Send agent heartbeat',                        group: 'Agents' },

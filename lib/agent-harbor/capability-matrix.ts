@@ -181,6 +181,32 @@ export const CAPABILITY_MATRIX: Record<AdapterKind, AdapterCapabilityProfile> = 
       + 'checkpoint the daemon can restore into a successor body — not witnessable over a plain HTTP seam yet. '
       + 'Heartbeats are forgeable without the nonce challenge, which the forged-heartbeat probe exercises.',
   },
+  'spawner-child': {
+    kind: 'spawner-child',
+    displayName: 'Fleet-spawned CLI child process',
+    launchModes: ['native'],
+    defaultLaunchMode: 'native',
+    transcriptFidelityCeiling: 'T4',
+    complianceCeiling: 'C1',
+    modelTiers: ['fast', 'mid', 'strong', 'local', 'custom'],
+    requiresExplicitModelName: false,
+    controls: controls({
+      // Mechanically real: the spawner holds the pid and can signal it
+      // directly. Mechanical support is NOT a compliance grant — the C1
+      // ceiling below is what actually blocks kill/pause/etc through the
+      // gate until this adapter kind earns C2+ for real (see rationale).
+      kill: 'supported',
+    }),
+    hookSupport: { preTool: false, postTool: false, transcriptStream: true, heartbeat: false },
+    ceilingRationale:
+      'lib/spawner.ts launches raw claude-code/codex/gemini CLI child processes directly — their tool calls run '
+      + 'against native tool access, not routed through the Agent Harbor gateway, so C2 Governed is honestly '
+      + 'unwitnessable today (routeToolThroughGateway must report false). The ceiling is C1 Transcripted because '
+      + 'lib/transcripts.ts already gives every spawned agent a real, ordered message log that the Agent Harbor '
+      + 'event ledger can hash-chain (lib/agent-harbor/spawner-bridge.ts) — that part is genuinely earned, not '
+      + 'assumed. Raising this ceiling requires actually building gateway-routing for spawner-launched tool '
+      + 'calls, not just relaxing this number.',
+  },
 };
 
 export function getCapabilityProfile(kind: AdapterKind): AdapterCapabilityProfile {

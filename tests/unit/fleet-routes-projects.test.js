@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
+import * as realFs from 'node:fs';
 
 const mockReadFileSync = jest.fn();
 const mockWriteFileSync = jest.fn();
@@ -10,6 +11,7 @@ const mockFindFleetConfigPath = jest.fn();
 const mockValidateTopology = jest.fn(() => ({ valid: true, cycles: [], warnings: [] }));
 
 jest.unstable_mockModule('node:fs', () => ({
+  ...realFs,
   chmodSync: jest.fn(),
   existsSync: mockExistsSync,
   mkdirSync: jest.fn(),
@@ -47,6 +49,8 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
     const match = /^\*\/(\d+) \* \* \* \*$/.exec(cron ?? '');
     return match ? Number(match[1]) * 60_000 : 10 * 60_000;
   },
+  isIntervalCronSchedule: (cron) => /^\*\/[1-9]\d* \* \* \* \*$/.test(cron ?? ''),
+  isAbsoluteCronSchedule: (cron) => /^\d+ (?:\d+|\*) \* \* \*$/.test(cron ?? ''),
   resolveFleetAgentRuntime: (agent) => ({
     backend: agent?.backend ?? null,
     model: agent?.model ?? null,

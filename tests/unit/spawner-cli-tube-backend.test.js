@@ -3,7 +3,7 @@
  *
  * Mocks node:child_process.spawn to exercise:
  *   - claude-code argv shape: `claude -p --output-format=text <prompt>`
- *   - codex argv shape: `codex exec --skip-git-repo-check --full-auto ...`
+ *   - codex argv shape: `codex exec --skip-git-repo-check --approve-for-me ...`
  *   - Tube publish: when a tubeClient is provided, the wrapper
  *     publishes the result on the channel
  *   - Auth failure mapping (stderr "unauthorized" → actionable error)
@@ -17,21 +17,43 @@
 
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
-import { chmodSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
+const mockExecFile = jest.fn();
 const mockExecFileSync = jest.fn();
+const mockCoastGuardReceipt = {
+  tool: 'pd-coast-guard',
+  agentId: 'cli-tube/test',
+  backend: 'cli:claude-code',
+  confined: true,
+  mechanism: 'seatbelt',
+};
+const mockCoastGuardDispose = jest.fn();
+const mockWithCoastGuard = jest.fn(async (input) => ({
+  cmd: input.cmd,
+  args: input.args,
+  env: input.env,
+  receipt: () => mockCoastGuardReceipt,
+  dispose: mockCoastGuardDispose,
+}));
 const originalHome = process.env.HOME;
 const originalPath = process.env.PATH;
 const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
+const realSetImmediate = setImmediate;
 let fakeHome;
+let mockProcessKill;
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
+  execFile: mockExecFile,
   execFileSync: mockExecFileSync,
+}));
+jest.unstable_mockModule('../../lib/spawner/coast-guard-runner.js', () => ({
+  withCoastGuard: mockWithCoastGuard,
 }));
 
 const {
@@ -67,10 +89,35 @@ function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay
   return ee;
 }
 
+async function waitForAsyncProcessDiscovery(predicate, label, turns = 256) {
+  for (let turn = 0; turn < turns; turn += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => realSetImmediate(resolve));
+  }
+  throw new Error(`Timed out waiting for async process discovery: ${label}`);
+}
+
 beforeEach(() => {
+  // This suite creates fake ChildProcess objects with synthetic PIDs. Never
+  // let lifecycle cleanup turn one of those numbers into a real OS signal:
+  // CI has assigned Jest PID 4242 before, colliding with fakeChild's default.
+  mockProcessKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
   mockSpawn.mockReset();
+  mockExecFile.mockReset();
+  mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+    queueMicrotask(() => callback(null, '', ''));
+  });
   mockExecFileSync.mockReset();
   mockExecFileSync.mockReturnValue('');
+  mockCoastGuardDispose.mockReset();
+  mockWithCoastGuard.mockReset();
+  mockWithCoastGuard.mockImplementation(async (input) => ({
+    cmd: input.cmd,
+    args: input.args,
+    env: input.env,
+    receipt: () => mockCoastGuardReceipt,
+    dispose: mockCoastGuardDispose,
+  }));
   fakeHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-home-'));
   process.env.HOME = fakeHome;
   process.env.PATH = '/usr/bin:/bin';
@@ -88,6 +135,7 @@ beforeEach(() => {
 
 afterEach(() => {
   try { rmSync(fakeHome, { recursive: true, force: true }); } catch { /* noop */ }
+  mockProcessKill.mockRestore();
 });
 
 afterAll(() => {
@@ -180,19 +228,27 @@ describe('buildArgs', () => {
     ]);
   });
 
-  test('codex uses exec + workspace-write sandbox', () => {
+  test('codex uses the auto-reviewed workspace-write mode without incompatible sandbox flags', () => {
     const { args } = buildArgs('codex', 'hello');
     expect(args[0]).toBe('exec');
     expect(args).toContain('--skip-git-repo-check');
-    expect(args).toContain('--full-auto');
-    expect(args).toContain('--sandbox');
-    expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    expect(args).toContain('--approve-for-me');
+    expect(args).not.toContain('--full-auto');
+    expect(args).not.toContain('--sandbox');
     expect(args).toContain('--json');
+  });
+
+  test('codex resume places the parent-only approval flag before the subcommand', () => {
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    const { args } = buildArgs('codex', 'continue', undefined, undefined, undefined, undefined, undefined, sessionId);
+    expect(args.slice(0, 3)).toEqual(['exec', '--approve-for-me', 'resume']);
+    expect(args).toContain(sessionId);
+    expect(args).not.toContain('--full-auto');
   });
 
   test.each([
     ['claude-code', '11111111-1111-4111-8111-111111111111', ['--resume', '11111111-1111-4111-8111-111111111111', '-p'], []],
-    ['codex', '22222222-2222-4222-8222-222222222222', ['exec', 'resume', '22222222-2222-4222-8222-222222222222'], ['--sandbox', 'workspace-write']],
+    ['codex', '22222222-2222-4222-8222-222222222222', ['exec', '--approve-for-me', 'resume', '22222222-2222-4222-8222-222222222222'], ['--sandbox', 'workspace-write', '--full-auto']],
     ['agy', '33333333-3333-4333-8333-333333333333', ['--conversation', '33333333-3333-4333-8333-333333333333', '--print'], []],
     ['gemini', '44444444-4444-4444-8444-444444444444', ['--resume', '44444444-4444-4444-8444-444444444444', '-p'], []],
   ])('%s builds native-resume argv without replaying another harness shape', (cli, sessionId, expected, forbidden) => {
@@ -288,6 +344,57 @@ describe('CLI tube provider registry contract', () => {
 });
 
 describe('spawnViaCliTube — provider policy behavior', () => {
+  test.each(CLI_TUBE_TOOLS)('%s refuses an ordinary replaced workspace before sandbox setup', async (cli) => {
+    const workspace = join(fakeHome, 'workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    renameSync(workspace, workspace + '-old');
+    mkdirSync(workspace);
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: workspace, workspaceIdentity });
+    expect(result.error).toMatch(/workspace identity changed/);
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  test.each(CLI_TUBE_TOOLS)('%s rechecks ordinary workspace after sandbox preparation and cleans up', async (cli) => {
+    const workspace = join(fakeHome, 'workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    mockWithCoastGuard.mockImplementationOnce(async (input) => {
+      await Promise.resolve();
+      renameSync(workspace, workspace + '-old');
+      mkdirSync(workspace);
+      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+    });
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: workspace, workspaceIdentity });
+    expect(result.error).toMatch(/workspace identity changed/);
+    expect(result.coastGuardReceipt).toEqual(mockCoastGuardReceipt);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    const scratch = join(fakeHome, '.port-daddy', 'cli-tube-scratch');
+    expect(existsSync(scratch) ? readdirSync(scratch) : []).toEqual([]);
+  });
+
+  test.each(CLI_TUBE_TOOLS)('%s does not launch after cancellation during sandbox preparation', async (cli) => {
+    const controller = new AbortController();
+    mockWithCoastGuard.mockImplementationOnce(async (input) => {
+      await Promise.resolve();
+      controller.abort();
+      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+    });
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', signal: controller.signal });
+    expect(result.error).toMatch(/cancelled before child launch/);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(['claude-code', 'codex'])('%s still requires the native-resume witness', async (cli) => {
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: fakeHome, resumeSessionId: '11111111-1111-4111-8111-111111111111' });
+    expect(result.error).toMatch(/Native resume blocked/);
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
   test('rechecks native-resume workspace identity at the CLI child boundary', async () => {
     const workspace = join(fakeHome, 'workspace');
     const movedWorkspace = join(fakeHome, 'moved-workspace');
@@ -478,7 +585,121 @@ describe('generateTubeChannel', () => {
   });
 });
 
+describe('spawnViaCliTube — Coast Guard confinement (ADR-0050, default-on)', () => {
+  test('a cli-tube child is spawned confined BY DEFAULT — no coastGuard option supplied', async () => {
+    // The whole point of the re-land: a caller that passes nothing extra still
+    // gets its child routed through the Coast Guard wrap before spawn.
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: { ...input.env, PD_TEST_CONFINED: '1' },
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'confined by default', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
+
+    // Coast Guard was consulted exactly once, with honest derived identity.
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      agentId: 'cli-tube/claude-code',
+      backend: 'cli:claude-code',
+      cmd: join(fakeHome, '.local', 'bin', 'claude'),
+    }));
+    // The child that actually ran is the WRAPPED command with the wrapped env —
+    // not the raw binary.
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    expect(mockSpawn).toHaveBeenCalledWith(
+      '/usr/bin/sandbox-wrapper',
+      expect.arrayContaining(['--', join(fakeHome, '.local', 'bin', 'claude')]),
+      expect.objectContaining({ env: expect.objectContaining({ PD_TEST_CONFINED: '1' }) }),
+    );
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+    expect(res.error).toBeNull();
+  });
+
+  test('a per-spec opt-out is passed through VERBATIM and the honest confined:false receipt is surfaced', async () => {
+    // The opt-out decision itself belongs to withCoastGuard/resolveCoastGuardPolicy
+    // (proven against the real implementations in spawner-coast-guard-runner.test.js
+    // and spawner-coast-guard.test.js); what cli-tube owes the caller is (1) the
+    // spec reaching that authority boundary untouched and (2) the resulting
+    // confined:false receipt reaching the CliTubeResult unlaundered.
+    const optOutReceipt = {
+      tool: 'pd-coast-guard',
+      agentId: 'cli-tube/claude-code',
+      backend: 'cli:claude-code',
+      confined: false,
+      mechanism: 'none',
+    };
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: input.cmd, // raw command, no wrapper — the opt-out shape
+      args: input.args,
+      env: input.env,
+      receipt: () => optOutReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ran raw', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'say hi',
+      coastGuard: { spec: { coastGuard: false } },
+    });
+
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      spec: { coastGuard: false },
+    }));
+    // The raw (unwrapped) command is what actually ran.
+    expect(mockSpawn).toHaveBeenCalledWith(
+      join(fakeHome, '.local', 'bin', 'claude'),
+      expect.any(Array),
+      expect.anything(),
+    );
+    expect(res.coastGuardReceipt).toBe(optOutReceipt);
+    expect(res.coastGuardReceipt.confined).toBe(false);
+    expect(res.error).toBeNull();
+  });
+});
+
 describe('spawnViaCliTube — claude-code happy path', () => {
+  test('routes the child through Coast Guard and returns its receipt', async () => {
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: { ...input.env, PD_TEST_CONFINED: '1' },
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'confined', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'say hi',
+      coastGuard: {
+        agentId: 'agent-receipt-test',
+        backend: 'cli:claude-code',
+        writePolicy: 'read-only',
+      },
+    });
+
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      agentId: 'agent-receipt-test',
+      backend: 'cli:claude-code',
+      writePolicy: 'read-only',
+    }));
+    expect(mockSpawn).toHaveBeenCalledWith(
+      '/usr/bin/sandbox-wrapper',
+      expect.arrayContaining(['--', join(fakeHome, '.local', 'bin', 'claude')]),
+      expect.objectContaining({ env: expect.objectContaining({ PD_TEST_CONFINED: '1' }) }),
+    );
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+  });
+
   test('invokes `claude` binary with the prompt', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'Hello!', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
@@ -630,6 +851,55 @@ describe('spawnViaCliTube — tube publishing', () => {
 });
 
 describe('spawnViaCliTube — failure paths', () => {
+  test('disposes Coast Guard and returns its receipt when spawn throws synchronously', async () => {
+    mockSpawn.mockImplementationOnce(() => { throw new Error('spawn exploded'); });
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+
+    expect(res.exitCode).toBe(1);
+    expect(res.error).toContain('spawn exploded');
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test('sync spawn-throw error names both the Coast Guard wrapper and the original binary honestly', async () => {
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: input.env,
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockImplementationOnce(() => { throw new Error('spawn exploded'); });
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+
+    // Actual executable attempted was the wrapper, not the raw claude binary —
+    // the error must say so instead of only naming the pre-wrap binary.
+    expect(res.error).toContain('/usr/bin/sandbox-wrapper');
+    expect(res.error).toContain(join(fakeHome, '.local', 'bin', 'claude'));
+    expect(res.error).toContain('spawn exploded');
+  });
+
+  test('a Coast Guard preparation failure (withCoastGuard rejects) returns a structured error result instead of rejecting, and cleans up the codex scratch tempDir', async () => {
+    mockWithCoastGuard.mockRejectedValueOnce(new Error('egress meter failed to bind loopback port'));
+
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'hi' });
+
+    expect(res.exitCode).toBe(1);
+    expect(res.error).toContain('egress meter failed to bind loopback port');
+    expect(res.coastGuardReceipt).toBeNull();
+    expect(res.output).toBe('');
+    expect(res.rawStdout).toBe('');
+    expect(mockSpawn).not.toHaveBeenCalled();
+    // codex allocates a scratch tempDir under ~/.port-daddy/cli-tube-scratch for
+    // --output-last-message BEFORE Coast Guard prep; a rejected withCoastGuard()
+    // must not leak it.
+    const scratchRoot = join(fakeHome, '.port-daddy', 'cli-tube-scratch');
+    const leftover = existsSync(scratchRoot) ? readdirSync(scratchRoot) : [];
+    expect(leftover).toEqual([]);
+  });
+
   test('ENOENT → "binary not found" error with auth hint', async () => {
     mockSpawn.mockReturnValue(fakeChild({ error: Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }) }));
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
@@ -770,6 +1040,78 @@ describe('spawnViaCliTube — failure paths', () => {
     }
   });
 
+  test('timeout never lets a fake child PID collision escape as a real OS signal', async () => {
+    jest.useFakeTimers();
+    try {
+      // Fail before scheduling the timeout if suite-level signal isolation is
+      // ever removed. Using the live Jest PID makes the historical macOS CI
+      // collision exact without putting this process (or its group) at risk.
+      expect(jest.isMockFunction(process.kill)).toBe(true);
+      const child = fakeChild({ neverClose: true, pid: process.pid });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      await jest.advanceTimersByTimeAsync(10);
+
+      expect(mockProcessKill).toHaveBeenCalledWith(-process.pid, 'SIGTERM');
+      expect(mockProcessKill).toHaveBeenCalledWith(process.pid, 'SIGTERM');
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+
+      child.emit('close', -1);
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({
+        exitCode: -1,
+        error: expect.stringContaining('agy timed out after 10ms'),
+      }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('process-tree liveness sampling is asynchronous and serialized', async () => {
+    jest.useFakeTimers();
+    try {
+      const callbacks = [];
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        callbacks.push(callback);
+      });
+      const child = fakeChild({ neverClose: true, pid: 5151 });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10_000 });
+      // The Coast Guard wrap awaits before spawn, so drain microtasks until the
+      // first liveness sample lands instead of assuming a fixed tick count.
+      await waitForAsyncProcessDiscovery(
+        () => mockExecFile.mock.calls.length >= 1,
+        'initial liveness sample',
+      );
+
+      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(mockExecFile).toHaveBeenCalledTimes(1);
+
+      callbacks.shift()(null, ' 5151 1\n 6161 5151\n', '');
+      await waitForAsyncProcessDiscovery(
+        () => jest.getTimerCount() >= 2,
+        'serialized poll timer',
+      );
+      await jest.advanceTimersByTimeAsync(99);
+      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(1);
+      await waitForAsyncProcessDiscovery(
+        () => mockExecFile.mock.calls.length >= 2,
+        'second serialized liveness sample',
+      );
+      expect(mockExecFile).toHaveBeenCalledTimes(2);
+
+      child.emit('close', 0);
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({ exitCode: 0 }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('timeout sends SIGKILL but waits for close before finalizing', async () => {
     jest.useFakeTimers();
     try {
@@ -853,8 +1195,7 @@ describe('spawnViaCliTube — failure paths', () => {
       await jest.advanceTimersByTimeAsync(5000);
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
       await jest.advanceTimersByTimeAsync(1000);
-      await Promise.resolve();
-
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({ exitCode: -1 }));
       expect(settled).toBe(true);
       expect(stdoutDestroy).not.toHaveBeenCalled();
       expect(stderrDestroy).not.toHaveBeenCalled();
@@ -872,9 +1213,11 @@ describe('spawnViaCliTube — failure paths', () => {
 
   test('timeout root-pid fallback is explicit when process tree collection fails', async () => {
     jest.useFakeTimers();
-    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    const processKill = mockProcessKill;
     try {
-      mockExecFileSync.mockImplementation(() => { throw new Error('ps unavailable'); });
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        queueMicrotask(() => callback(new Error('ps unavailable'), '', ''));
+      });
       const child = fakeChild({ neverClose: true, pid: 5151 });
       child.stdout = new PassThrough();
       child.stderr = new PassThrough();
@@ -886,18 +1229,27 @@ describe('spawnViaCliTube — failure paths', () => {
       child.stdout.write('before ps failure\n');
 
       await jest.advanceTimersByTimeAsync(10);
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === 5151 && signal === 'SIGTERM'),
+        'root-pid SIGTERM fallback',
+      );
       expect(processKill).toHaveBeenCalledWith(-5151, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(5151, 'SIGTERM');
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === 5151 && signal === 'SIGKILL'),
+        'root-pid SIGKILL fallback',
+      );
       expect(processKill).toHaveBeenCalledWith(-5151, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(5151, 'SIGKILL');
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(mockExecFile).toHaveBeenCalledWith(
         'ps',
         ['-axo', 'pid=,ppid='],
         expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+        expect.any(Function),
       );
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -909,37 +1261,58 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(stdoutDestroy).not.toHaveBeenCalled();
       expect(stderrDestroy).not.toHaveBeenCalled();
     } finally {
-      processKill.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  test('unexpected process discovery failures remain best effort and collection still settles', async () => {
+    jest.useFakeTimers();
+    try {
+      mockExecFile.mockImplementation(() => {
+        throw new Error('unexpected process discovery failure');
+      });
+      const child = fakeChild({ neverClose: true, pid: 5151 });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      await jest.advanceTimersByTimeAsync(1000);
+
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({
+        exitCode: -1,
+        error: expect.stringContaining('process tree did not close after SIGKILL'),
+      }));
+    } finally {
       jest.useRealTimers();
     }
   });
 
   test('timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof', async () => {
     jest.useFakeTimers();
-    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    const processKill = mockProcessKill;
     try {
       const childPid = 51515151;
       const holderPid = 6161;
       const holderDescendantPid = 7171;
-      mockExecFileSync.mockImplementation((cmd, args) => {
+      mockExecFile.mockImplementation((cmd, args, _opts, callback) => {
+        let output = '';
         if (cmd === 'ps') {
-          return [
+          output = [
             ` ${childPid} 1`,
             ` ${holderPid} 1`,
             ` ${holderDescendantPid} ${holderPid}`,
             '',
           ].join('\n');
+        } else if (String(cmd).endsWith('/lsof') && args.includes('-d12')) {
+          output = `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${process.pid} user 12u  unix 0xaaa      0t0      ->0xbbb\n`;
+        } else if (String(cmd).endsWith('/lsof') && args.includes('-U')) {
+          output = `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${holderPid} user 1u  unix 0xbbb      0t0      ->0xaaa\n`;
         }
-        if (cmd === 'lsof') {
-          throw Object.assign(new Error('spawnSync lsof ENOENT'), { code: 'ENOENT' });
-        }
-        if (String(cmd).endsWith('/lsof') && args.includes('-d12')) {
-          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${process.pid} user 12u  unix 0xaaa      0t0      ->0xbbb\n`;
-        }
-        if (String(cmd).endsWith('/lsof') && args.includes('-U')) {
-          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${holderPid} user 1u  unix 0xbbb      0t0      ->0xaaa\n`;
-        }
-        return '';
+        callback(null, output, '');
       });
 
       const child = fakeChild({ neverClose: true, pid: childPid });
@@ -952,16 +1325,28 @@ describe('spawnViaCliTube — failure paths', () => {
       const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
 
       await jest.advanceTimersByTimeAsync(10);
-      expect(mockExecFileSync).not.toHaveBeenCalledWith('lsof', expect.anything(), expect.anything());
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      await waitForAsyncProcessDiscovery(
+        () => mockExecFile.mock.calls.some(([cmd, args]) => (
+          String(cmd).endsWith('/lsof') && args.includes('-U')
+        )),
+        'lsof stdio-holder scan',
+      );
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === holderPid && signal === 'SIGTERM'),
+        'stdio-holder SIGTERM',
+      );
+      expect(mockExecFile).not.toHaveBeenCalledWith('lsof', expect.anything(), expect.anything(), expect.anything());
+      expect(mockExecFile).toHaveBeenCalledWith(
         '/usr/sbin/lsof',
         expect.arrayContaining(['-nP', '-a', '-p', String(process.pid), '-d12']),
         expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+        expect.any(Function),
       );
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(mockExecFile).toHaveBeenCalledWith(
         '/usr/sbin/lsof',
         expect.arrayContaining(['-nP', '-U']),
         expect.objectContaining({ maxBuffer: 4 * 1024 * 1024 }),
+        expect.any(Function),
       );
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGTERM');
@@ -969,6 +1354,10 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(processKill).toHaveBeenCalledWith(-holderDescendantPid, 'SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === holderPid && signal === 'SIGKILL'),
+        'stdio-holder SIGKILL',
+      );
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGKILL');
@@ -977,7 +1366,6 @@ describe('spawnViaCliTube — failure paths', () => {
       child.emit('close', -1);
       await resultPromise;
     } finally {
-      processKill.mockRestore();
       jest.useRealTimers();
     }
   });
@@ -1024,6 +1412,7 @@ describe('spawnViaCliTube — no deadline (absent timeoutMs)', () => {
       expect(jest.getTimerCount()).toBe(0);
       // No `ps` process-tree collection either — that bookkeeping only exists
       // to feed the kill path, which never runs without a deadline.
+      expect(mockExecFile).not.toHaveBeenCalled();
       expect(mockExecFileSync).not.toHaveBeenCalled();
 
       // Advance virtual time well past the old hidden 5-minute default.

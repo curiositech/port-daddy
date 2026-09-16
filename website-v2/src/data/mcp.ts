@@ -1,3 +1,5 @@
+import { MCP_AGENT_DEFAULT_TOOL_NAMES, MCP_AGENT_TOOL_DEFINITIONS } from './mcpAgentToolCatalog'
+
 export interface McpTool {
   name: string
   description: string
@@ -15,8 +17,19 @@ export interface McpCategory {
   description: string
 }
 
-export const MCP_TOOL_TOTAL = 136
-export const MCP_DEFAULT_TOOL_TOTAL = 17
+// These two were hand-typed, and both were wrong: the server registered 190
+// tools while the site told readers 136, and the default set had grown to 19
+// while the site said 17. A number the site publishes about the product should
+// not be a number someone has to remember to update, so both are now read off
+// the catalogue that scripts/generate-mcp-agent-tool-catalog.mjs writes
+// straight out of mcp/server.ts, and `npm run test:mcp-catalog` fails when that
+// catalogue falls behind the server.
+//
+// ALL_CATEGORIES below stays hand-curated on purpose -- it is the docs page's
+// selection, with descriptions and examples written for a reader rather than
+// for a schema. It is a subset of the registry, never a claim about its size.
+export const MCP_TOOL_TOTAL = MCP_AGENT_TOOL_DEFINITIONS.length
+export const MCP_DEFAULT_TOOL_TOTAL = MCP_AGENT_DEFAULT_TOOL_NAMES.length
 
 export const ESSENTIAL_TOOLS: McpTool[] = [
   {

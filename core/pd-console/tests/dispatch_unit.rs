@@ -4,8 +4,12 @@
 //! `#[cfg(test)] mod tests` (queue rendering, utf8-safe truncation, tolerant
 //! decode, and the head-of-queue gate plumbing) compiles and runs here.
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
+#[path = "../src/local_control.rs"]
+mod local_control;
 #[path = "../src/dispatch_pane.rs"]
 mod dispatch_pane;
 #[path = "../src/pane.rs"]

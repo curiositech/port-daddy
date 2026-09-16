@@ -382,7 +382,7 @@ def evaluate_referent(self, ref_expr):
         return set(matches)  # Return as a set
 ```
 
-## Design Implications for WinDAGs
+## Design Implications for Jury-rig
 
 ### 1. Don't Enumerate Possibilities in Advance
 

@@ -95,11 +95,11 @@ psql ... -c "SELECT count(*) FROM information_schema.columns WHERE table_name = 
 D1 has a single migration command and no separate "repair":
 
 ```bash
-wrangler d1 migrations create windags-telemetry add_cascade_scores
+wrangler d1 migrations create jury_rig-telemetry add_cascade_scores
 # Edit the generated SQL file under migrations/
 
-wrangler d1 migrations list windags-telemetry --remote
-wrangler d1 migrations apply windags-telemetry --remote
+wrangler d1 migrations list jury_rig-telemetry --remote
+wrangler d1 migrations apply jury_rig-telemetry --remote
 ```
 
 The `d1_migrations` table is updated only on successful apply. There's no "mark applied without running" footgun in D1.
@@ -109,8 +109,8 @@ The `d1_migrations` table is updated only on successful apply. There's no "mark 
 ### One-off SQL on D1
 
 ```bash
-wrangler d1 execute windags-telemetry --remote --command="SELECT count(*) FROM tool_call_events;"
-wrangler d1 execute windags-telemetry --remote --file=hotfixes/backfill_top_score.sql
+wrangler d1 execute jury_rig-telemetry --remote --command="SELECT count(*) FROM tool_call_events;"
+wrangler d1 execute jury_rig-telemetry --remote --file=hotfixes/backfill_top_score.sql
 ```
 
 For exploratory queries, use `--json` for parseable output.

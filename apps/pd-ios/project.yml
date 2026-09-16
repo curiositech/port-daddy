@@ -1,0 +1,62 @@
+# Ephemeral XcodeGen spec — NOT part of the checked-in repo contract.
+# apps/pd-ios ships as a SwiftPM library (Package.swift) whose CI gate builds
+# PortDaddyKit for the simulator. This spec exists to assemble a *runnable*
+# .app target that owns App/PortDaddyApp.swift and links the PortDaddyKit
+# library, so the SwiftUI UI can be booted in a simulator and screenshotted.
+# Generated .xcodeproj is untracked; regenerate with `xcodegen generate`.
+name: PortDaddy
+options:
+  bundleIdPrefix: ai.portdaddy
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  minimumXcodeGenVersion: "2.40.0"
+packages:
+  PortDaddyKit:
+    path: .
+targets:
+  PortDaddy:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: PortDaddyKit
+        product: PortDaddyKit
+    settings:
+      base:
+        INFOPLIST_FILE: PortDaddy-Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        PRODUCT_NAME: PortDaddy
+        PRODUCT_BUNDLE_IDENTIFIER: ai.portdaddy.PortDaddy
+        TARGETED_DEVICE_FAMILY: "1,2"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+  PortDaddyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: PortDaddy
+    settings:
+      base:
+        TEST_TARGET_NAME: PortDaddy
+        PRODUCT_BUNDLE_IDENTIFIER: ai.portdaddy.PortDaddyUITests
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+schemes:
+  PortDaddy:
+    build:
+      targets:
+        PortDaddy: all
+        PortDaddyUITests: [test]
+    test:
+      targets:
+        - PortDaddyUITests

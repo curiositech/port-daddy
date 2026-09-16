@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["dag"],
+  "properties": {
+    "dag": {
+      "type": "object",
+      "description": "Directed acyclic graph to decompose",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "strategy": {
+      "type": "string",
+      "enum": ["minimize-chains", "balance-width", "optimize-depth"],
+      "default": "minimize-chains"
+    }
+  },
+  "additionalProperties": false
+}

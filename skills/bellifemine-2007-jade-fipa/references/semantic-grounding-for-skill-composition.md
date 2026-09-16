@@ -84,7 +84,7 @@ public BookTradingOntology() {
 
 The `BasicOntology` defines primitives (numbers, strings, dates), aggregates (sets, sequences), and meta-constructs (variables, identifying referential expressions). Application ontologies build on top.
 
-**For WinDAGs**: Define a **base skill ontology** with primitives (task ID, timestamp, status code). Each skill's specific ontology extends this base:
+**For Jury-rig**: Define a **base skill ontology** with primitives (task ID, timestamp, status code). Each skill's specific ontology extends this base:
 
 ```
 BaseSkillOntology
@@ -374,7 +374,7 @@ kb.addKBQueryFilter(
 
 The predicate `(zsubstr ...)` isn't stored in the belief base—it's computed on-demand. This allows reasoning about facts that are expensive or impossible to enumerate.
 
-**For WinDAGs**: Use filters to:
+**For Jury-rig**: Use filters to:
 1. **Enforce invariants**: E.g., "Only one skill can claim ownership of resource X"
 2. **Cascade updates**: E.g., "If skill A fails, invalidate all results computed by skills that depend on A"
 3. **Derived facts**: E.g., "Query for 'is resource Y available' by checking current allocation state, not stored facts"
@@ -418,7 +418,7 @@ The `OntoActionBehaviour` FSM checks:
 3. **On SUCCESS**: Assert the postcondition into the belief base
 4. **On EXECUTION_FAILURE**: Don't assert postcondition (belief base remains consistent)
 
-**For WinDAGs**: Each skill should be an OntologicalAction:
+**For Jury-rig**: Each skill should be an OntologicalAction:
 
 ```python
 class ExtractTextSkill(OntologicalAction):

@@ -1,0 +1,162 @@
+{
+  "generatedFrom": "apps/relay/src/interruptions.ts (publicShape) + apps/relay/migrations/2026-08-04-operator-interruptions.sql",
+  "generatedBy": "scripts/generate-pd-ios-fixtures.ts",
+  "note": "Do not hand-edit. Regenerate, then make the Swift port agree.",
+  "shape": {
+    "id": {
+      "column": "id",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": false
+    },
+    "installationId": {
+      "column": "installation_id",
+      "sqlType": "INTEGER",
+      "jsonType": "number",
+      "nullable": true
+    },
+    "sourceAgent": {
+      "column": "source_agent",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": false
+    },
+    "sourceSession": {
+      "column": "source_session",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": true
+    },
+    "title": {
+      "column": "title",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": false
+    },
+    "body": {
+      "column": "body",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": false
+    },
+    "urgency": {
+      "column": "urgency",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": false
+    },
+    "state": {
+      "column": "state",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": false
+    },
+    "answer": {
+      "column": "answer",
+      "sqlType": "TEXT",
+      "jsonType": "string",
+      "nullable": true
+    },
+    "createdAt": {
+      "column": "created_at",
+      "sqlType": "INTEGER",
+      "jsonType": "number",
+      "nullable": false
+    },
+    "nagCount": {
+      "column": "nag_count",
+      "sqlType": "INTEGER",
+      "jsonType": "number",
+      "nullable": false
+    },
+    "lastNaggedAt": {
+      "column": "last_nagged_at",
+      "sqlType": "INTEGER",
+      "jsonType": "number",
+      "nullable": true
+    },
+    "closedAt": {
+      "column": "closed_at",
+      "sqlType": "INTEGER",
+      "jsonType": "number",
+      "nullable": true
+    }
+  },
+  "urgencies": [
+    "low",
+    "normal",
+    "high",
+    "critical"
+  ],
+  "states": [
+    "open",
+    "acked",
+    "answered",
+    "expired"
+  ],
+  "code": "OK",
+  "error": null,
+  "openCount": 2,
+  "interruptions": [
+    {
+      "id": "oi_4f1c8a02",
+      "installationId": 77103928,
+      "sourceAgent": "pd-relay-deploy",
+      "sourceSession": "sess_a19c",
+      "title": "Deploy the relay worker or stop the wave?",
+      "body": "The queue-consumer patch is merged but not deployed. Loads are queuing behind it. Answer 'deploy' to proceed or 'hold' to stop the wave here.",
+      "urgency": "critical",
+      "state": "open",
+      "answer": null,
+      "createdAt": 1755820380,
+      "nagCount": 2,
+      "lastNaggedAt": 1755820680,
+      "closedAt": null
+    },
+    {
+      "id": "oi_9b220d51",
+      "installationId": 77103928,
+      "sourceAgent": "pd-ios-builder",
+      "sourceSession": "sess_4f2a",
+      "title": "Approve App Store Connect spend for the TestFlight lane?",
+      "body": "The iOS distribution lane needs an Apple Distribution certificate and a provisioning profile. Neither exists in this account's secrets today.",
+      "urgency": "high",
+      "state": "open",
+      "answer": null,
+      "createdAt": 1755819100,
+      "nagCount": 1,
+      "lastNaggedAt": 1755820100,
+      "closedAt": null
+    },
+    {
+      "id": "oi_1177ee30",
+      "installationId": null,
+      "sourceAgent": "pd-vault",
+      "sourceSession": null,
+      "title": "Which AEAD for sealed envelopes?",
+      "body": "XChaCha20-Poly1305 or AES-256-GCM for the sealed envelope body.",
+      "urgency": "normal",
+      "state": "answered",
+      "answer": "XChaCha20-Poly1305 — nonce reuse risk is the deciding factor.",
+      "createdAt": 1755700000,
+      "nagCount": 1,
+      "lastNaggedAt": 1755701800,
+      "closedAt": 1755703000
+    },
+    {
+      "id": "oi_5502ba9d",
+      "installationId": 61200477,
+      "sourceAgent": "pd-nightshift",
+      "sourceSession": "sess_0011",
+      "title": "Nightshift budget raise to $40?",
+      "body": "The overnight lane hit its cap at 03:12 and parked four items.",
+      "urgency": "low",
+      "state": "expired",
+      "answer": null,
+      "createdAt": 1755500000,
+      "nagCount": 5,
+      "lastNaggedAt": 1755521600,
+      "closedAt": 1755522000
+    }
+  ]
+}

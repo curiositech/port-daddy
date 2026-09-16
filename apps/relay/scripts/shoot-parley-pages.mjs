@@ -19,6 +19,13 @@ mkdirSync(OUT, { recursive: true });
 const pages = [
   { name: 'list', file: `${OUT}parley-list.html` },
   { name: 'detail', file: `${OUT}parley-detail.html` },
+  // Mediator-body gate states (grand-plan node mediator-body): the pending
+  // gate's live buttons, the SAME buttons grayed out under a paused fleet,
+  // the decided-Modify record, and the Helm-default expiry outcome.
+  { name: 'gate-pending', file: `${OUT}parley-gate-pending.html` },
+  { name: 'gate-paused', file: `${OUT}parley-gate-paused.html` },
+  { name: 'gate-modified', file: `${OUT}parley-gate-modified.html` },
+  { name: 'expiry-outcome', file: `${OUT}parley-expiry-outcome.html` },
 ];
 const viewports = [
   { label: '1440', width: 1440, height: 1100 },

@@ -23,7 +23,8 @@
 
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { resolveDaemonTarget } from '../shared/daemon-discovery.js';
+import type { DaemonTarget } from '../shared/daemon-discovery.js';
 
 // =============================================================================
 // Types
@@ -54,6 +55,11 @@ export interface WatchOptions {
 
 export interface WatchHandle {
   stop(): void;
+}
+
+export interface WatchDependencies {
+  /** Injectable strict socket-or-published-TCP resolver for component tests. */
+  resolveTarget?: () => DaemonTarget;
 }
 
 /**
@@ -88,7 +94,8 @@ export function parseRetryAfterMs(value: string | string[] | undefined): number 
 // Module factory
 // =============================================================================
 
-export function createWatch() {
+export function createWatch(dependencies: WatchDependencies = {}) {
+  const resolveTarget = dependencies.resolveTarget ?? (() => resolveDaemonTarget());
   /**
    * Subscribe to a channel and run `exec` on each message.
    *
@@ -114,14 +121,7 @@ export function createWatch() {
 
     // Rate limiting — track last exec start time
     let lastFired = 0;
-
-    const pdUrl = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(pdUrl);
-    } catch {
-      parsedUrl = new URL(getDaemonTcpUrl());
-    }
+    let lastTargetError: string | null = null;
 
     // ─── Reconnect with exponential backoff ──────────────────────────────────
 
@@ -213,14 +213,34 @@ export function createWatch() {
       if (stopped) return;
       if (once && fired) return;
 
+      let target: DaemonTarget;
+      try {
+        // Rediscover on every attempt. A watcher started before the daemon
+        // publishes its endpoint should recover automatically once it appears,
+        // and a real Unix socket remains a first-class transport.
+        target = resolveTarget();
+        lastTargetError = null;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (lastTargetError !== message) {
+          process.stderr.write(
+            '[pd watch] daemon endpoint is not published; waiting. Open FleetBar and choose Repair if this persists.\n'
+          );
+          lastTargetError = message;
+        }
+        scheduleReconnect();
+        return;
+      }
+
       const path = `/msg/${encodeURIComponent(channel)}/subscribe`;
 
       const reqOpts: http.RequestOptions = {
         method: 'GET',
         path,
         headers: { Accept: 'text/event-stream' },
-        host: parsedUrl.hostname,
-        port: parseInt(parsedUrl.port, 10) || CANONICAL_TCP_PORT,
+        ...(target.socketPath
+          ? { socketPath: target.socketPath }
+          : { host: target.host, port: target.port }),
       };
 
       const req = http.request(reqOpts, (res) => {

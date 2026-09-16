@@ -37,8 +37,9 @@ website-v2/.tmp-og/
 .env.local
 .port-daddy-env
 
-# Internal: analysis, strategy, dev planning
-plans/
+# Internal: analysis, strategy, dev planning (root-level scratch dir only —
+# anchored so it cannot swallow docs/plans/, where tracked program plans live)
+/plans/
 .CLAUDE_LOCK
 .CLAUDE_NOTES.md
 .portdaddyrc
@@ -69,9 +70,11 @@ daemon-error.log
 
 STRATEGY_private_gitignore/
 apps/FleetBar/.build/
+apps/pd-ios/.build/
+apps/pd-ios/DerivedData/
 **/build/
 .firecrawl/
-.windags/
+.skill-runtime-archive/
 v0-agentsd-main/
 agentsd_mocks/
 .aider.chat.history.md
@@ -87,6 +90,16 @@ agentsd_mocks/
 **/.scratch/
 !/.scratch/
 !/.scratch/**
+
+# ... but not the sandbox DIRECTORIES tests create inside it. Many suites
+# mkdtemp under .scratch/ (coordination-guard, halt-watch, history-reader and
+# others), and every run leaves a tree behind that shows up as untracked noise
+# and invites somebody to commit test litter. The nine files this directory
+# really carries are research notes written directly in it, so the rule is
+# shape rather than a list of prefixes: files at the top level stay tracked,
+# any subdirectory is ignored. A prefix list would have to be edited every time
+# a suite adds a fixture, which is the kind of rule that rots quietly.
+/.scratch/*/
 
 # Xcode/SwiftPM user-specific and generated workspace files
 xcuserdata/
@@ -121,8 +134,18 @@ xcuserdata/
 # wrangler.toml — use the checked-in *.example templates instead.
 apps/*/wrangler.toml
 # (apps/*/wrangler.deploy.toml IS committed: id-only CI deploy configs, no secrets.)
+# miniflare/wrangler local state (local D1 sqlite, DO storage, dev caches).
+**/.wrangler/
 **/.swiftpm/xcode/package.xcworkspace/xcuserdata/
 **/*.xcuserstate
 
 # Generated from com.portdaddy.fleetbar.plist.template by apps/FleetBar/install.sh
 apps/FleetBar/com.portdaddy.fleetbar.plist
+
+# harbor-results scripts savefig() to bare filenames, so running one from the
+# repo root drops a stray PNG here. The canonical copies are committed under
+# docs/harbor-research/figures/ — these root-level ones are re-renders and are
+# never the artifact of record.
+/a7_figure.png
+/b2_figure.png
+/b8_figure.png

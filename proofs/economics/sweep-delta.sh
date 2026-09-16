@@ -2,7 +2,7 @@
 # sweep-delta.sh
 #
 # Sweep the TLA+ claim-signaling model across discount factors
-# delta ∈ {0.20, 0.21, ..., 0.30} and print the crossover point.
+# delta ∈ {0.30, 0.31, ..., 0.40} and print the crossover point.
 #
 # Usage:
 #   ./sweep-delta.sh                        # uses tlc (default)
@@ -16,11 +16,11 @@
 #
 # Expected output: a table of (delta, status) rows. The crossover row is
 # the smallest delta for which NoUnilateralDeviationPositive holds; that
-# value should land at delta ≈ 0.26 (the integer-grid rounding of the
-# closed-form root delta* ≈ 0.2531 proved by delta-threshold.z3).
+# value should land at delta ≈ 0.35 (the integer-grid rounding of the
+# closed-form root delta* ≈ 0.3425 proved by delta-threshold.z3).
 #
 # Exit code:
-#   0 — the crossover matched [0.25, 0.26]
+#   0 — the crossover matched [0.34, 0.35]
 #   1 — the crossover landed outside the expected interval, OR a tool
 #       was missing, OR a check produced an unexpected status
 
@@ -65,7 +65,7 @@ case "$CHECKER" in
     ;;
 esac
 
-printf 'sweep-delta.sh — sweeping delta over {0.20, 0.21, ..., 0.30}\n'
+printf 'sweep-delta.sh — sweeping delta over {0.30, 0.31, ..., 0.40}\n'
 printf 'checker      = %s\n' "$CHECKER"
 printf 'horizon      = 4 rounds (minimal IC-exercising horizon)\n'
 printf 'punishment   = 3 rounds (graduated trigger)\n'
@@ -74,7 +74,7 @@ printf 'delta   status\n'
 
 CROSSOVER=""
 
-for n in 20 21 22 23 24 25 26 27 28 29 30; do
+for n in 30 31 32 33 34 35 36 37 38 39 40; do
   delta_pretty="0.$(printf '%02d' "$n")"
   cfg_file="$SWEEP_DIR/sweep-${n}.cfg"
   log_file="$SWEEP_DIR/sweep-${n}.log"
@@ -130,14 +130,14 @@ done
 printf -- '----\n'
 if [[ -n "$CROSSOVER" ]]; then
   printf 'crossover (smallest delta where invariant HOLDS) = %s\n' "$CROSSOVER"
-  printf 'closed-form root (delta-threshold.z3)            = 0.2531\n'
+  printf 'closed-form root (delta-threshold.z3)            = 0.3425\n'
 
-  # Crossover should land in [0.25, 0.26]
-  if [[ "$CROSSOVER" == "0.25" ]] || [[ "$CROSSOVER" == "0.26" ]]; then
+  # Crossover should land in [0.34, 0.35]
+  if [[ "$CROSSOVER" == "0.34" ]] || [[ "$CROSSOVER" == "0.35" ]]; then
     printf 'PASS: crossover matches closed-form within integer-grid rounding.\n'
     exit 0
   else
-    printf 'FAIL: crossover %s outside expected [0.25, 0.26].\n' "$CROSSOVER"
+    printf 'FAIL: crossover %s outside expected [0.34, 0.35].\n' "$CROSSOVER"
     exit 1
   fi
 else

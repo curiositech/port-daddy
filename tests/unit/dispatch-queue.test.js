@@ -53,6 +53,7 @@ describe('propose', () => {
       tags: ['design', 'marketing'],
       budgetUsd: 4,
       timeoutMs: 60 * 60 * 1000,
+      projectDir: '/Users/operator/coding/project',
     });
     expect(d.id).toEqual(expect.any(String));
     expect(d.slug).toBe('normalize-the-design-tokens-across-the-marketing-site');
@@ -64,6 +65,7 @@ describe('propose', () => {
     expect(d.tags).toEqual(['design', 'marketing']);
     expect(d.budgetUsd).toBe(4);
     expect(d.timeoutMs).toBe(60 * 60 * 1000);
+    expect(d.projectDir).toBe('/Users/operator/coding/project');
     expect(d.createdAt).toBe(clock);
     expect(d.claimedAt).toBeNull();
   });
@@ -114,6 +116,11 @@ describe('propose', () => {
   test('rejects empty goal', () => {
     expect(() => queue.propose({ goal: '' })).toThrow(/goal text/);
     expect(() => queue.propose({ goal: '   ' })).toThrow(/goal text/);
+  });
+
+  test('rejects a relative source project binding', () => {
+    expect(() => queue.propose({ goal: 'foo', projectDir: 'relative/project' }))
+      .toThrow(/projectDir must be an absolute path/);
   });
 
   test('rejects goal over 4000 chars', () => {
@@ -203,6 +210,90 @@ describe('claim (proposed -> claimed)', () => {
     expect(() =>
       queue.claim({ id: 'no-such-id', worktreePath: '/w', branch: 'b', sessionId: 's' }),
     ).toThrow(/not found/);
+  });
+});
+
+describe('prepareForRun', () => {
+  test('returns an unbound auto-claim to proposed so the daemon can attach a real worker lease', () => {
+    const d = queue.propose({
+      goal: 'run the auto-claimed dispatch',
+      autoClaim: true,
+      reviewerActorId: 'reviewer-bot',
+      mergePolicy: 'review',
+    });
+
+    const prepared = queue.prepareForRun(d.id);
+
+    expect(prepared).toMatchObject({
+      state: 'proposed',
+      runRequestedAt: clock,
+      claimedAt: null,
+      reviewerActorId: 'reviewer-bot',
+      mergePolicy: 'review',
+    });
+  });
+
+  test('prioritizes the explicitly requested id ahead of older proposed work', () => {
+    const older = queue.propose({ goal: 'older background work' });
+    advance(1000);
+    const requested = queue.propose({ goal: 'run this exact dispatch' });
+
+    const prepared = queue.prepareForRun(requested.id);
+
+    expect(prepared.runRequestedAt).toBe(clock);
+    expect(prepared.claimedAt).toBeNull();
+    expect(queue.peekNextProposed()?.id).toBe(requested.id);
+    expect(queue.get(older.id)?.state).toBe('proposed');
+
+    advance(500);
+    const claimed = queue.claimProposed({
+      id: requested.id,
+      worktreePath: '/work/exact-request',
+      branch: 'dispatch/exact-request-12345678',
+      sessionId: 'session-exact-request',
+      workerActorId: 'daemon:dispatch-worker',
+    });
+    expect(claimed?.runRequestedAt).toBeNull();
+    expect(claimed?.claimedAt).toBe(clock);
+  });
+
+  test('restores the auto-claim placeholder when daemon acknowledgement fails', () => {
+    const original = queue.propose({ goal: 'restore failed request', autoClaim: true });
+    const prepared = queue.prepareForRun(original.id);
+
+    const restored = queue.restorePreparedRun(original, prepared);
+
+    expect(restored).toEqual(original);
+    expect(queue.get(original.id)).toEqual(original);
+  });
+
+  test('rollback cannot steal a dispatch that obtained a real worker lease', () => {
+    const original = queue.propose({ goal: 'worker wins after preparation', autoClaim: true });
+    const prepared = queue.prepareForRun(original.id);
+    const claimed = queue.claimProposed({
+      id: original.id,
+      worktreePath: '/work/worker-won',
+      branch: 'dispatch/worker-won-12345678',
+      sessionId: 'session-worker-won',
+      workerActorId: 'daemon:dispatch-worker',
+    });
+
+    expect(queue.restorePreparedRun(original, prepared)).toEqual(claimed);
+    expect(queue.get(original.id)).toEqual(claimed);
+  });
+
+  test('does not release a claimed dispatch that already has a worker lease', () => {
+    const d = queue.propose({ goal: 'already owned' });
+    const claimed = queue.claim({
+      id: d.id,
+      worktreePath: '/work/already-owned',
+      branch: 'dispatch/already-owned-12345678',
+      sessionId: 'session-owned',
+      workerActorId: 'worker-owned',
+    });
+
+    expect(queue.prepareForRun(d.id)).toEqual(claimed);
+    expect(queue.get(d.id)).toEqual(claimed);
   });
 });
 
@@ -576,6 +667,7 @@ describe('migration from nightshift_intents', () => {
     expect(migrated.branch).toBe('night-shift/fix-the-thing-abcd1234'); // preserved
     expect(migrated.resultArtifact).toBe('https://github.com/foo/bar/pull/7');
     expect(migrated.baseBranch).toBe('main'); // default
+    expect(migrated.projectDir).toBeNull(); // additive migration preserves old rows honestly
     expect(migrated.mergePolicy).toBe('review'); // default
     expect(migrated.requestedBy).toBe('operator');
     expect(migrated.costUsd).toBeCloseTo(1.23);
@@ -603,5 +695,34 @@ describe('migration from nightshift_intents', () => {
     expect(countAfterSecond).toBe(countAfterFirst);
 
     freshDb.close();
+  });
+});
+
+describe('runtime execution binding', () => {
+  test('persists launch, agent, and transcript identities before settlement', () => {
+    const dispatch = queue.propose({ goal: 'show the exact running body' });
+    queue.claim({
+      id: dispatch.id,
+      worktreePath: '/coding/tmp/runtime-binding',
+      branch: 'dispatch/runtime-binding',
+      sessionId: 'dispatch-worker-runtime-binding',
+    });
+    queue.start(dispatch.id);
+
+    queue.bindExecution({ id: dispatch.id, launchId: 'launch-live-1' });
+    queue.bindExecution({
+      id: dispatch.id,
+      agentId: 'spawned-live-1',
+      transcriptId: 'transcript-live-1',
+      model: 'gpt-5.3-codex',
+    });
+
+    expect(queue.get(dispatch.id)).toMatchObject({
+      launchId: 'launch-live-1',
+      agentId: 'spawned-live-1',
+      transcriptId: 'transcript-live-1',
+      model: 'gpt-5.3-codex',
+      state: 'in_progress',
+    });
   });
 });

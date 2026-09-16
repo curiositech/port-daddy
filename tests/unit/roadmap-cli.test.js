@@ -16,7 +16,8 @@ jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch,
 }));
 
-const { handleRoadmap, resolveRoadmapHarbor } = await import('../../cli/commands/roadmap.js');
+const { handleRoadmap, resolveRoadmapHarbor, renderChompTree, buildChompPrBody } =
+  await import('../../cli/commands/roadmap.js');
 
 const fixture = {
   generatedAt: 1,
@@ -258,69 +259,31 @@ describe('pd roadmap', () => {
     }
   });
 
-  test('touch preserves the existing summary and appends a roadmap receipt note', async () => {
-    pdFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          success: true,
-          item: {
-            id: 'r4',
-            slug: 'swarm-coordination',
-            summaryMd: 'Existing summary.',
-            status: 'now',
-            promotedFromFeedbackId: null,
-            promotedByAgentId: 'agent-old',
-            promotedAt: 1,
-            lastTouchedAt: 2,
-            dependencies: ['parley'],
-            notes: [{ at: 1, by: 'agent-old', text: 'old' }],
-            harbor: 'fleet',
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 201,
-        json: async () => ({
-          success: true,
-          item: {
-            id: 'r4',
-            slug: 'swarm-coordination',
-            summaryMd: 'Existing summary.',
-            status: 'now',
-            promotedFromFeedbackId: null,
-            promotedByAgentId: 'agent-1',
-            promotedAt: 1,
-            lastTouchedAt: 3,
-            dependencies: ['parley'],
-            notes: [],
-            harbor: 'fleet',
-          },
-        }),
+  test('touch posts one receipt, never a fetched item or historical notes', async () => {
+    const { writeCurrentContext } = await import('../../cli/utils/current-context.js');
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID', 'PD_ACTOR_CREDENTIAL', 'PORT_DADDY_ACTOR_CREDENTIAL'];
+    const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+    const directory = mkdtempSync(join(process.env.HOME, 'coding', 'tmp', 'roadmap-touch-contract-'));
+    try {
+      for (const key of keys) delete process.env[key];
+      process.env.PORT_DADDY_CONTEXT_DIR = directory;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'synthetic-touch';
+      writeCurrentContext({ sessionId: 'session-one', agentId: 'agent-1', credential: 'actor-one.synthetic-only' });
+      pdFetch.mockImplementation(async (_url, init) => {
+        const body = JSON.parse(init.body);
+        const note = { ...body.note, by: 'agent-1' };
+        return { ok: true, status: 200, json: async () => ({ success: true,
+          item: { slug: 'swarm-coordination', harbor: 'fleet', notes: [note] },
+          receipt: { sessionId: body.sessionId, actorId: 'actor-one', note } }) };
       });
-
-    await handleRoadmap(['touch', 'swarm-coordination'], {
-      as: 'agent-1',
-      note: 'guard receipt',
-      json: true,
-    });
-
-    expect(pdFetch.mock.calls[0][0]).toBe('/roadmap/items/swarm-coordination');
-    expect(pdFetch.mock.calls[1][0]).toBe('/roadmap/items');
-    const body = JSON.parse(pdFetch.mock.calls[1][1].body);
-    expect(body).toMatchObject({
-      slug: 'swarm-coordination',
-      summaryMd: 'Existing summary.',
-      status: 'now',
-      dependencies: ['parley'],
-      promotedByAgentId: 'agent-1',
-    });
-    expect(body.notes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ by: 'agent-old', text: 'old' }),
-      expect.objectContaining({ by: 'agent-1', text: 'guard receipt' }),
-    ]));
+      await handleRoadmap(['touch', 'swarm-coordination'], { harbor: 'fleet', note: 'guard receipt', json: true });
+      expect(pdFetch).toHaveBeenCalledTimes(1);
+      expect(pdFetch.mock.calls[0][0]).toBe('http://127.0.0.1:9876/roadmap/items/swarm-coordination/touch?harbor=fleet');
+      expect(JSON.parse(pdFetch.mock.calls[0][1].body)).toEqual({ sessionId: 'session-one', note: { at: expect.any(Number), text: 'guard receipt' } });
+    } finally {
+      for (const key of keys) { if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key]; }
+      rmSync(directory, { recursive: true });
+    }
   });
 
   test('ack harvests live feedback from the roadmap surface', async () => {
@@ -341,5 +304,214 @@ describe('pd roadmap', () => {
         }),
       }),
     );
+  });
+});
+
+// Operator mandate 2026-08-22: `pd roadmap chomp` is the general planning-doc
+// ingestion verb — parse ANY markdown planning doc into roadmap items via the
+// daemon, preview with --dry-run, and emit the doc-removal PR artifacts.
+describe('pd roadmap chomp', () => {
+  const chompFixture = {
+    success: true,
+    docs: [{ path: 'PLAN.md', format: 'planning-doc', parsed: 3, missing: false }],
+    items: [
+      {
+        slug: 'v4-plan', kind: 'project', status: 'backlog', summaryMd: 'V4 Plan',
+        descriptionMd: 'Body.', parent: null, dependsOn: [], tags: ['plan'],
+        sourcePath: 'PLAN.md', depth: 0, action: 'inserted', protected: false,
+      },
+      {
+        slug: 'phase-1', kind: 'epic', status: 'now', summaryMd: 'Phase 1',
+        descriptionMd: null, parent: 'v4-plan', dependsOn: ['anchor'], tags: ['plan'],
+        sourcePath: 'PLAN.md', depth: 1, action: 'inserted', protected: false,
+      },
+      {
+        slug: 'old-row', kind: 'task', status: 'now', summaryMd: 'Existing row',
+        descriptionMd: null, parent: 'v4-plan', dependsOn: [], tags: ['plan'],
+        sourcePath: 'PLAN.md', depth: 1, action: 'updated', protected: true,
+      },
+    ],
+    inserted: ['v4-plan', 'phase-1'],
+    updated: ['old-row'],
+    parentEdges: [
+      { parent: 'v4-plan', child: 'phase-1' },
+      { parent: 'v4-plan', child: 'old-row' },
+    ],
+    parentEdgesWritten: 2,
+    dangling: [],
+    warnings: [],
+    enrichment: null,
+    missingFiles: [],
+    sourceCommit: null,
+    dryRun: false,
+  };
+
+  test('posts the docs to /roadmap/chomp with root, harbor, and dry-run flags', async () => {
+    pdFetch.mockResolvedValue({ ok: true, json: async () => ({ ...chompFixture, dryRun: true }) });
+
+    await handleRoadmap(['chomp', 'PLAN.md', 'docs/V4.md'], {
+      dir: '/repo',
+      harbor: 'port-daddy',
+      as: 'agent-1',
+      'dry-run': true,
+      json: true,
+    });
+
+    expect(pdFetch.mock.calls[0][0]).toContain('/roadmap/chomp');
+    const body = JSON.parse(pdFetch.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      rootDir: '/repo',
+      paths: ['PLAN.md', 'docs/V4.md'],
+      harbor: 'port-daddy',
+      by: 'agent-1',
+      dryRun: true,
+    });
+  });
+
+  test('bare chomp (no --emit-pr-plan) is a PREVIEW — the daemon is asked for a dry run', async () => {
+    // Single-writer doctrine: roadmap writes land through a reviewed PR, so
+    // without the PR-plan flag the CLI must never request a real write.
+    pdFetch.mockResolvedValue({ ok: true, json: async () => ({ ...chompFixture, dryRun: true }) });
+
+    await handleRoadmap(['chomp', 'PLAN.md'], { dir: '/repo', harbor: 'port-daddy', json: true });
+
+    const body = JSON.parse(pdFetch.mock.calls[0][1].body);
+    expect(body.dryRun).toBe(true);
+  });
+
+  test('--emit-pr-plan performs the real write and emits snapshot + receipt + git-rm list + PR body', async () => {
+    const { mkdtempSync, readFileSync, rmSync, existsSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const planDir = mkdtempSync(join(tmpdir(), 'pd-chomp-plan-'));
+    const rootDir = mkdtempSync(join(tmpdir(), 'pd-chomp-root-'));
+
+    pdFetch.mockImplementation(async (url) => {
+      if (String(url).includes('/roadmap/chomp')) {
+        return { ok: true, json: async () => ({ ...chompFixture, sourceCommit: 'abc1234' }) };
+      }
+      // buildRoadmapSnapshot's GET /roadmap/items read.
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          items: [{ slug: 'v4-plan', status: 'backlog', summaryMd: 'V4 Plan' }],
+        }),
+      };
+    });
+
+    try {
+      await handleRoadmap(['chomp', 'PLAN.md'], {
+        dir: rootDir,
+        harbor: 'port-daddy',
+        'emit-pr-plan': planDir,
+        json: true,
+      });
+
+      // The daemon was asked for a REAL write (no dryRun flag in the body).
+      const body = JSON.parse(pdFetch.mock.calls[0][1].body);
+      expect(body.dryRun).toBeUndefined();
+
+      expect(existsSync(join(planDir, 'roadmap.snapshot.json'))).toBe(true);
+      expect(existsSync(join(planDir, 'remove-docs.txt'))).toBe(true);
+      expect(readFileSync(join(planDir, 'remove-docs.txt'), 'utf8')).toBe('PLAN.md\n');
+
+      const receipt = JSON.parse(readFileSync(join(planDir, 'chomp-receipt.json'), 'utf8'));
+      expect(receipt.receipt).toBe('roadmap-chomp');
+      expect(receipt.sourceCommit).toBe('abc1234');
+      expect(receipt.inserted).toEqual(['v4-plan', 'phase-1']);
+      expect(receipt.items.find((i) => i.slug === 'old-row').protected).toBe(true);
+      expect(receipt.skipped).toBeDefined();
+
+      const prBody = readFileSync(join(planDir, 'pr-body.md'), 'utf8');
+      expect(prBody).toContain('## Summary');
+      expect(prBody).toContain('chomp-receipt.json');
+    } finally {
+      rmSync(planDir, { recursive: true, force: true });
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test('requires at least one doc path', async () => {
+    await expect(handleRoadmap(['chomp'], {})).rejects.toThrow('process.exit(1)');
+    expect(pdFetch).not.toHaveBeenCalled();
+  });
+
+  test('refuses --emit-pr-plan combined with --dry-run (the plan snapshots real writes)', async () => {
+    await expect(
+      handleRoadmap(['chomp', 'PLAN.md'], { 'dry-run': true, 'emit-pr-plan': '/tmp/x' }),
+    ).rejects.toThrow('process.exit(1)');
+    expect(pdFetch).not.toHaveBeenCalled();
+  });
+
+  test('renderChompTree indents children under parents and marks protected rows', () => {
+    const lines = renderChompTree(chompFixture.items);
+    expect(lines[0]).toBe('- v4-plan [project/backlog]');
+    expect(lines).toContain('  - phase-1 [epic/now]  deps: anchor');
+    expect(lines.some((l) => l.includes('old-row [task/now/protected]'))).toBe(true);
+  });
+
+  test('buildChompPrBody fills the gated PR template with tree, git-rm list, and trailers', () => {
+    const body = buildChompPrBody({
+      result: chompFixture,
+      docPaths: ['PLAN.md'],
+      harbor: 'port-daddy',
+      snapshotRelPath: 'docs/roadmap/roadmap.snapshot.json',
+    });
+    expect(body).toContain('## Summary');
+    expect(body).toContain('## Test Plan');
+    expect(body).toContain('- `PLAN.md`');
+    expect(body).toContain('- v4-plan [project/backlog]');
+    expect(body).toContain('visual-exempt:');
+    expect(body).toContain('Roadmap-Item: none —');
+    expect(body).toContain('Roadmap-Spawns: v4-plan, phase-1');
+  });
+});
+
+describe('pd roadmap search', () => {
+  test('builds the query, harbor, and limit params and requests GET /roadmap/search', async () => {
+    pdFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, hits: [] }),
+    });
+
+    await handleRoadmap(['search', 'fix', 'the', 'login', 'bug'], { harbor: 'port-daddy', limit: 3, json: true });
+
+    expect(pdFetch).toHaveBeenCalledTimes(1);
+    const url = new URL(pdFetch.mock.calls[0][0], 'http://x');
+    expect(url.pathname).toBe('/roadmap/search');
+    expect(url.searchParams.get('q')).toBe('fix the login bug');
+    expect(url.searchParams.get('harbor')).toBe('port-daddy');
+    expect(url.searchParams.get('limit')).toBe('3');
+  });
+
+  test('--json prints the hits as structured JSON', async () => {
+    const hits = [{ slug: 'fix-login-bug', status: 'now', summaryMd: 'Fix the login bug', stage: 'bm25', score: 0.9 }];
+    pdFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, hits }),
+    });
+
+    await handleRoadmap(['search', 'login', 'bug'], { json: true });
+
+    const printed = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(printed).toEqual({ success: true, hits, count: 1 });
+  });
+
+  test('requires a query — usage error and no request when neither positional nor --q is given', async () => {
+    await expect(handleRoadmap(['search'], {})).rejects.toThrow('process.exit(1)');
+    expect(pdFetch).not.toHaveBeenCalled();
+  });
+
+  test('a non-ok response exits 1 rather than printing partial results', async () => {
+    pdFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: 'search index unavailable' }),
+    });
+
+    await expect(handleRoadmap(['search', 'anything'], {})).rejects.toThrow('process.exit(1)');
   });
 });

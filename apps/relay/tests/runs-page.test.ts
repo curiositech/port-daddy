@@ -16,10 +16,11 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { handleRunsPage, MAX_REPO_CHECKS } from '../src/runs-page.js';
+import { handleRunsPage, MAX_REPO_CHECKS, renderRunsPage } from '../src/runs-page.js';
 import { hashHex, fromHex, base64UrlEncode } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 import type { FleetRunRow } from '../src/db.js';
+import type { FleetRunProjection } from '../src/fleet-run-intents.js';
 
 const WRAP_KEY = 'bb'.repeat(32);
 const BASE = 'https://relay.example';
@@ -255,6 +256,123 @@ describe('GET /account/runs — transport headers', () => {
     expect(csp).toContain("default-src 'none'");
     expect(csp).not.toContain('script-src'); // no script source is ever allowed
     expect(await res.text()).not.toContain('<script');
+  });
+});
+
+describe('GET /account/runs — live logical state', () => {
+  it('renders a queued intent with generation, estimate, and no invented ships', () => {
+    const base = makeRun();
+    const queued: FleetRunProjection = {
+      ...base,
+      id: 'intent:delivery-live',
+      delivery_id: 'delivery-live',
+      conclusion: 'queued',
+      ships_csv: '',
+      ms: 0,
+      logical_state: 'queued',
+      generation: 4,
+      attempt_count: 0,
+      queued_at: 1_700_000_000,
+      started_at: null,
+      last_progress_at: 1_700_000_000,
+      finished_at: null,
+      superseded_by: null,
+      last_error: null,
+      expected_start_at: 1_700_000_060,
+      expected_finish_at: 1_700_000_120,
+      queue_ahead_estimate: 1,
+      has_transcript: false,
+    };
+    const html = renderRunsPage(
+      {
+        id: 'u_1',
+        github_user_id: 1,
+        login: 'octocat',
+        display_name: null,
+        avatar_url: null,
+        primary_email: null,
+        email_verified: 0,
+        created_at: 0,
+        last_login_at: 0,
+        deleted_at: null,
+      },
+      [{ repo: 'acme/widgets', runs: [queued] }],
+      { truncated: false, nowSec: 1_700_000_010 },
+    );
+    expect(html).toContain('/fleet/runs/intent%3Adelivery-live');
+    expect(html).toContain('badge queued');
+    expect(html).toContain('generation 4');
+    expect(html).toContain('expected');
+    expect(html).not.toContain('pd-—');
+  });
+
+  it('renders corrupt active metadata as an explicit invariant breach, not a plausible value', () => {
+    const base = makeRun();
+    const projectionBase = {
+      ...base,
+      generation: 1,
+      queued_at: 1_700_000_000,
+      started_at: null,
+      last_progress_at: 1_700_000_000,
+      finished_at: null,
+      superseded_by: null,
+      expected_start_at: null,
+      expected_finish_at: null,
+      queue_ahead_estimate: null,
+      has_transcript: false,
+    };
+    const runs: FleetRunProjection[] = [
+      {
+        ...projectionBase,
+        logical_state: 'enqueue_failed',
+        conclusion: 'enqueue_failed',
+        ships_csv: '',
+        attempt_count: 0,
+        last_error: null,
+      } as FleetRunProjection,
+      {
+        ...projectionBase,
+        id: 'run:active',
+        delivery_id: 'active',
+        logical_state: 'running',
+        conclusion: 'pending',
+        ships_csv: '',
+        attempt_count: Number.NaN,
+      } as FleetRunProjection,
+    ];
+    const html = renderRunsPage(
+      {
+        id: 'u_1', github_user_id: 1, login: 'octocat', display_name: null,
+        avatar_url: null, primary_email: null, email_verified: 0,
+        created_at: 0, last_login_at: 0, deleted_at: null,
+      },
+      [{ repo: 'acme/widgets', runs }],
+      { truncated: false, nowSec: 1_700_000_010 },
+    );
+    expect(html).toContain('admission record incomplete');
+    expect(html).toContain('queue handoff failed without durable error detail');
+    expect(html).toContain('attempt 1 · transcript arriving');
+    expect(html).not.toContain('attempt NaN');
+  });
+
+  it('labels a retrying delivery as a scheduled provider retry with its attempt', () => {
+    const retrying: FleetRunProjection = {
+      ...makeRun({ conclusion: 'retrying', ships_csv: '', ms: 0 }),
+      id: 'intent:provider-retry', delivery_id: 'provider-retry', logical_state: 'retrying',
+      generation: 4, attempt_count: 2, queued_at: 1_700_000_000, started_at: 1_700_000_001,
+      last_progress_at: 1_700_000_010, finished_at: null, superseded_by: null,
+      last_error: 'Workers AI circuit open on attempt 2/3; queue retry scheduled in 31s',
+      expected_start_at: 1_700_000_030, expected_finish_at: 1_700_000_090,
+      queue_ahead_estimate: 0, has_transcript: false,
+    };
+    const html = renderRunsPage(
+      { id: 'u_1', github_user_id: 1, login: 'octocat', display_name: null, avatar_url: null, primary_email: null, email_verified: 0, created_at: 0, last_login_at: 0, deleted_at: null },
+      [{ repo: 'acme/widgets', runs: [retrying] }],
+      { truncated: false, nowSec: 1_700_000_010 },
+    );
+    expect(html).toContain('badge retrying');
+    expect(html).toContain('provider retry · attempt 2 scheduled');
+    expect(html).toContain('expected 22:14 UTC');
   });
 });
 

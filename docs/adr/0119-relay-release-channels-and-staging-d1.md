@@ -30,6 +30,13 @@ Cloudflare gives us the primitives for a real chain:
 - **`wrangler versions deploy`** — point traffic at an uploaded version, with
   gradual rollout percentages and instant rollback to any prior version.
 
+Cloudflare also imposes one important boundary on that chain: a Worker version
+that contains a pending Durable Object class lifecycle change cannot be
+uploaded through `wrangler versions upload`. The lifecycle change is atomic and
+must first be applied with `wrangler deploy`; Cloudflare recommends isolating it
+from unrelated Worker changes. See [Gradual deployments with Durable
+Objects](https://developers.cloudflare.com/workers/versions-and-deployments/gradual-deployments/with-durable-objects/).
+
 ## Decision
 
 The relay adopts three release channels, in ascending stability, driven by two
@@ -47,14 +54,18 @@ Every push to `main` touching `apps/relay/**` deploys the `latest` environment:
   production data.
 - The workflow (`deploy-relay.yml`) applies **all pending D1 migrations to the
   staging database first**, records them in the staging ledger
-  (`apps/relay/migrations/applied-staging.json`, committed back by CI), and
-  then deploys the Worker. `latest` is the dress rehearsal: code and schema
-  changes soak here between merge and release.
+  (`apps/relay/migrations/applied-staging.json`), and then deploys the Worker.
+  If the ledger changed, CI publishes it on the deterministic
+  `automation/relay-staging-ledger` branch, opens or updates one generated PR,
+  and arms auto-merge. Protected `main` is never mutated directly. `latest` is
+  the dress rehearsal: code and schema changes soak here between merge and
+  release while the ledger PR traverses the same review gates as other state.
 
 ### 2. `prod` — release channel (release tag, gated, gradual)
 
 Production (`port-daddy-relay` at `relay.portdaddy.dev`, the top-level config)
-deploys **only from a release tag** (`v*`) via `deploy-relay-prod.yml`:
+deploys **only from a relay release tag** (`relay-v*`) via
+`deploy-relay-prod.yml`:
 
 1. **Migration gate** — `node scripts/check-migrations-gate.mjs` fails the
    release unless every file in `apps/relay/migrations/` appears in the
@@ -89,6 +100,34 @@ D1 migrations are **forward-only** and must be additive/backward-compatible
 for at least one release, so that a rolled-back Worker version still runs
 against the migrated schema (see `apps/relay/migrations/README.md`).
 
+### Durable Object lifecycle changes — atomic exception lane
+
+Durable Object class creation, rename, transfer, or deletion is not an ordinary
+versioned release. Before the normal production workflow can upload a version
+that depends on a new lifecycle tag, run
+`.github/workflows/deploy-relay-do-migration.yml` with:
+
+- the full 40-character SHA represented by production's current migration
+  prefix;
+- the full 40-character SHA of the isolated lifecycle commit on `main`;
+- the exact new Wrangler migration tag; and
+- explicit confirmation that this is an atomic 100% cutover.
+
+The workflow fails closed unless both SHAs are ancestors of `origin/main`, the
+baseline is an ancestor of the migration SHA, the candidate preserves the
+baseline migration prefix and adds exactly one lifecycle tag, and the interval
+contains no D1 migration files. It checks out that exact commit, runs the Relay
+typecheck and complete unit suite, then uses `wrangler deploy` and reads back
+production health plus Cloudflare's serving deployment. It shares the
+`deploy-relay-prod` concurrency group, so it cannot race an ordinary release.
+
+After the atomic lifecycle deployment succeeds, resume
+`deploy-relay-prod.yml` from the intended release tag. The ordinary code release
+still uses `versions upload` followed by `versions deploy`; the exception lane
+does not become a general-purpose historical deployment mechanism. A lifecycle
+change also moves the rollback floor: do not route traffic to a Worker version
+from before that lifecycle tag.
+
 ### 3. Named feature builds — preview channel (manual, per-branch)
 
 A feature branch that needs a live URL uploads a **non-deployed version**:
@@ -111,8 +150,13 @@ staging D1, never prod.
 - `apps/relay/migrations/applied-staging.json` is the **staging ledger**: the
   committed record of which migration files have been applied to the staging
   database. `deploy-relay.yml` updates it (via
-  `check-migrations-gate.mjs --record`) after a successful staging apply and
-  commits it back to `main`.
+  `check-migrations-gate.mjs --record`) after a successful staging apply,
+  deploys `relay-latest`, then publishes a generated PR with auto-merge armed.
+  The workflow live-probes the same dedicated mutation-token fallbacks used by
+  the release train; it never uses `GITHUB_TOKEN` for the PR because GitHub
+  leaves the resulting PR workflow runs approval-gated rather than executing
+  them automatically. See [GitHub's `GITHUB_TOKEN` workflow-run
+  rules](https://docs.github.com/en/actions/concepts/security/github_token).
 - `scripts/check-migrations-gate.mjs` (default/`--check` mode) exits non-zero
   when any migration file is missing from the ledger. `deploy-relay-prod.yml`
   runs it before anything touches prod.
@@ -120,7 +164,7 @@ staging D1, never prod.
 ## Consequences
 
 - A merge to `main` no longer touches production. The cost is a second,
-  deliberate step (push a `v*` tag) to ship the relay — which is the point.
+  deliberate step (push a `relay-v*` tag) to ship the relay — which is the point.
 - Two D1 databases exist; the staging one holds throwaway data and can be
   reset at will. Binding ids for staging live in `[env.latest]` in
   `wrangler.deploy.toml` (placeholder until provisioned — see the comments
@@ -128,11 +172,14 @@ staging D1, never prod.
 - Wrangler environments do **not** inherit `vars`/bindings from the top level,
   so `[env.latest]` repeats them; drift between the two blocks is a review
   concern (kept adjacent in one file on purpose).
-- The staging ledger is CI-written state in git. A hand-edit can lie the gate
-  green; the ledger is therefore documented as CI-owned
+- The staging ledger is CI-written state in git and lands through a generated
+  PR. A hand-edit can lie the gate green; the ledger is therefore documented as CI-owned
   (`migrations/README.md`) and any hand edit must be treated as an incident.
 - Rollback of the Worker is one command; rollback of a migration is not —
   hence the forward-only, one-release-compatibility rule for schema changes.
+- Durable Object lifecycle commits are the deliberate exception to gradual
+  rollout. They use the exact-SHA atomic workflow, establish a new rollback
+  floor, and then hand control back to the ordinary versioned release lane.
 - Secrets are unchanged: `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`
   repository secrets drive both workflows; runtime secrets stay out-of-band
   via `wrangler secret put` (per-environment: `--env latest` for staging).

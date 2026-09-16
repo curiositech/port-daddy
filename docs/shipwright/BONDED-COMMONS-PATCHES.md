@@ -63,7 +63,7 @@ Three additional holes the paper references in passing but never develops:
    its capabilities until TTL — a problem that intensifies the moment a mesh of daemons exists.
 2. **Cross-daemon Merkle verification.** The paper claims Merkle roots enable "decentralized verification"
    (§4.2). In a single-daemon system this is a theoretical nicety. The moment there are two daemons, it
-   becomes load-bearing — and it demands concrete inclusion-proof semantics.
+   becomes central — and it demands concrete inclusion-proof semantics.
 3. **Active authority.** The commons authority is passive by design. This is correct for an authority, but
    fleets need an *architect* — an agent who proposes the covenant. The paper's advisory-vs-enforced
    distinction assumed all advisors were humans. It is now clear that the advisor should itself be an agent
@@ -613,7 +613,7 @@ We update the Bonded Commons paper's list of open problems:
 ## 10. Conclusion
 
 The Bonded Commons paper established that trust infrastructure is a precondition for agent coordination
-at scale. This expansion shows, through implementation, that the three layers remain load-bearing as we
+at scale. This expansion shows, through implementation, that the three layers remain decisive as we
 scale: bond enforcement becomes code-level invariant (§2), revocation becomes operationally tractable at
 mesh scale (§3), attribution becomes cross-verifiable via Merkle forests (§4), key custody federates
 without compromising zero-knowledge (§5), and the commons gains an advisory intelligence layer that is

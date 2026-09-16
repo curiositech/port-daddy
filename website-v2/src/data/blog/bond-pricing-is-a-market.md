@@ -135,7 +135,7 @@ A principal with a clean track record should not pay the same bond as an unknown
 
 Where `p` is the principal's reputation and `ρ(p)` is the discount it earns. The discount is bounded — never more than 50% off — so trust never *trivializes* the bond. A clean history makes participation cheaper. A long clean history makes it half-price. It cannot make it free.
 
-This bound is load-bearing. Without it, a sufficiently trusted principal could post a near-zero bond and the system's slashing mechanism would lose its teeth at exactly the moment it most needed them — when the trusted actor is the one breaching. The mechanism design literature has been here before; v2's contribution is to put numbers on it for the agent-coordination case.
+This bound is central. Without it, a sufficiently trusted principal could post a near-zero bond and the system's slashing mechanism would lose its teeth at exactly the moment it most needed them — when the trusted actor is the one breaching. The mechanism design literature has been here before; v2's contribution is to put numbers on it for the agent-coordination case.
 
 ## The Bonded Advisor
 

@@ -1,21 +1,23 @@
 /**
  * The Shipwright chat — a conversational fleet-config architect (MVP v1).
  *
- *   GET  /v1/shipwright/history  (session)                → the user's own log
- *   POST /v1/shipwright/chat     (session + same-origin)  → Workers AI, SSE
- *   POST /v1/shipwright/clear    (session + same-origin)  → delete own history
+ *   POST /v1/shipwright/thread   (session + same-origin)  → issue repo-bound thread
+ *   GET  /v1/shipwright/history  (session + thread)       → one repo-scoped log
+ *   POST /v1/shipwright/chat     (session + thread)       → Workers AI, SSE
+ *   POST /v1/shipwright/clear    (session + thread)       → delete raw thread history
+ *   POST /v1/shipwright/repo-clear (session + stored thread) → delete durable repo state
+ *   POST /v1/shipwright/open-pr  (session + same-origin)  → PR in the user's repo
  *
  * The Shipwright interviews the operator (repo + goals), proposes a bespoke
  * ship roster, and emits a complete pd-fleet.yml in a fenced block the page
  * (shipwright-page.ts) renders with copy/download buttons.
  *
- * Trust boundary: every route is scoped to the signed-in web user
- * (resolveSession → users.id); the conversation is stored per-user in
- * shipwright_chats and one session can never read or write another account's
- * rows. State-changing POSTs carry the same defense-in-depth same-origin
- * check the other session POSTs use. Blast radius of the AI call: the model
- * only ever sees THIS user's conversation + the static system prompt — no
- * repo contents, no other tenants' data, no secrets.
+ * Trust boundary: every live route is scoped to the signed-in web user plus a
+ * server-issued opaque thread bound to one GitHub App installation and one
+ * normalized repository. GitHub reauthorizes that exact binding before raw
+ * history is read or a model is called. The legacy user-only shipwright_chats
+ * table is retained for rollback/export/erasure only; it never enters a scoped
+ * prompt and can never establish proposal provenance.
  *
  * Fail semantics (D12): writes fail closed — no session ⇒ 401, cross-origin
  * ⇒ 403, missing [ai] binding ⇒ 503 SHIPWRIGHT_UNCONFIGURED (the same
@@ -23,10 +25,31 @@
  * AI_ERROR with a redaction-safe message. The user message is persisted
  * BEFORE the model call, so a failed generation never loses operator input.
  *
- * HONEST MVP: the Shipwright does NOT open PRs or touch the operator's repo.
- * The system prompt says so, the page says so, and the YAML ships with
- * commit-it-yourself instructions. Direct PR-opening (via the fleet-save
- * GitHub App path) is the plan's next slice, not this one.
+ * PR-OPENING (grand-plan §shipwright-pr-open): the Shipwright's hands are no
+ * longer tied. Once a roster VALIDATES, the page offers an "Open PR" button —
+ * a plain form POST to {@link handleShipwrightOpenPr} — that commits the YAML
+ * to a fresh branch of the operator's own repo and opens a PR, through the
+ * SAME zero-trust mutation core the fleet control-plane uses
+ * (`commitFilesAndOpenPr` in fleet-control.ts, the only code path that can
+ * write). The click is the product (a user-initiated action), not an approval
+ * gate — no new permission-ask machinery (ADR-0109 / D11). What the
+ * Shipwright still cannot do, and still says so: read the repo, push to an
+ * existing branch, or merge anything — PR review/merge stays the gate.
+ *
+ * PR-route trust boundary, in order of the checks:
+ *   1. session + same-origin (as every Shipwright write);
+ *   2. the server RE-VALIDATES the submitted YAML with `validateFleetYaml` —
+ *      a client claiming "it validated" is a claim, not evidence, and an
+ *      invalid roster 400s here no matter what the page showed (fail-closed);
+ *   3. provenance: the YAML must be a stored proposal for THIS user's exact
+ *      repository thread, with an explicit assistant-conversation or
+ *      deterministic-onboarding origin carried honestly into the PR body;
+ *   4. tenancy: the signed-in user's GitHub token must list the exact repo
+ *      under the exact installation, and a force-refreshed App lookup must
+ *      agree. Publication additionally requires write, maintain, or admin
+ *      permission on that repository. All denial shapes are indistinguishable.
+ *   5. publication mints one uncached installation token attenuated to that
+ *      repository with contents/pull-request write only, then revokes it.
  *
  * VALIDATION (grand-plan §shipwright-yaml-validate): the model's emitted
  * pd-fleet.yml is never trusted on its say-so. Every fenced ```yaml/```yml
@@ -40,24 +63,47 @@
  * old conversations for free. See {@link validateEmittedYaml}.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import type { Env } from './types.js';
-import { resolveSession, isSameOrigin } from './auth-github.js';
+import { modelBoardPromptFragment } from './model-dossier.js';
+import { resolveSession, isSameOrigin, type ResolvedSession } from './auth-github.js';
 import {
-  insertShipwrightMessage,
-  listShipwrightMessages,
-  clearShipwrightChats,
+  getOrCreateShipwrightThread,
+  getShipwrightThread,
+  listShipwrightThreads,
+  insertScopedShipwrightMessage,
+  listScopedShipwrightMessages,
+  clearScopedShipwrightMessages,
+  upsertShipwrightRepoMemory,
+  insertShipwrightProposal,
+  getShipwrightProposalOrigin,
+  clearShipwrightRepo,
+  listShipwrightRepoMemory,
+  latestShipwrightProposal,
+  type ShipwrightThreadRow,
 } from './db.js';
 import { validateFleetYaml, type FleetValidationResult } from './fleet-parser.js';
+import { commitFilesAndOpenPr } from './fleet-control.js';
+import {
+  getRepoInstallationId,
+  mintRepositoryInstallationToken,
+  revokeInstallationToken,
+  getRepoDefaultBranch,
+} from './github-app.js';
+import { randomHex } from './crypto.js';
+import { authorizeExactRepository } from './github-publisher.js';
 
-// ── Bounds (protect Workers AI quota + D1 row size) ──────────────────────────
+// ── Bounds ──────────────────────────────────────────────────────────────────
+//
+// Re-exported from the shared turn engine rather than re-declared. Two chat
+// surfaces with two copies of "how long may a message be" is how the copies
+// start to disagree; there is one answer and it lives in chat-engine.ts.
 
-export const MAX_MESSAGE_CHARS = 4_000;
-/** How much conversation the model sees per turn (and the page reloads). */
-export const HISTORY_WINDOW = 40;
-const CHAT_MAX_TOKENS = 2_048;
+export { MAX_MESSAGE_CHARS, HISTORY_WINDOW } from './chat-engine.js';
+import { HISTORY_WINDOW, runChatTurn, type ChatAgent } from './chat-engine.js';
 
 /** Committed default; the SHIPWRIGHT_MODEL var overrides without a deploy. */
-export const SHIPWRIGHT_DEFAULT_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
+export const SHIPWRIGHT_DEFAULT_MODEL = CF_ROLE_MODELS.shipwright;
 
 export function shipwrightModel(env: Env): string {
   return env.SHIPWRIGHT_MODEL?.trim() || SHIPWRIGHT_DEFAULT_MODEL;
@@ -74,20 +120,23 @@ YOUR PROCESS, in order:
    - REVIEWER ships — code-reviewer (severity-ranked findings, cites specifics), red-team (tries to break security-relevant diffs; silence is success), tautology-sniffer (catches tests that assert their own mocks), qa (breaks changes with hostile inputs).
    - IDEATION ships — spark (high-temperature buildable product ideas), spider (strict two-premise syllogisms: A + B therefore C), lookout (contradictions and trouble across open PRs; alerts, never fixes), snipe (proposes ONE reusable skill when a PR hand-rolls something).
    - THE PURSER — the adversarial gatekeeper: steel-mans each PR into its strongest contract and authors tests against it. Give the purser a "graft" list of repo skill ids prepended to its prompt; the canonical pair is sandboxed-adversarial-test-harness and steel-man-argument. Start it blocking: false — advisory until trusted.
-   - NAMED ROLE PRESETS — six ready-to-paste ship blocks live in the port-daddy repo's roles/ directory; when an operator's goal matches one, offer the preset BY NAME before designing bespoke: cleanup (stacks small mechanical fixes as PRs on top of the reviewed diff), adversarial-test-writing (the purser packaged as a named role), doc-writing (stacks missing docs), unit-test-writing (stacks coverage-gap tests, sandbox-gated), readme-fixes (stacks README corrections), homebrew-release-shepherd (reviews release-surface drift — findings only, never writes). All six ship blocking: false and a quoted '@cf/qwen/qwen3-30b-a3b-fp8' model.
+   - NAMED ROLE PRESETS — six ready-to-paste ship blocks live in the port-daddy repo's roles/ directory; when an operator's goal matches one, offer the preset BY NAME before designing bespoke: cleanup (stacks small mechanical fixes as PRs on top of the reviewed diff), adversarial-test-writing (the purser packaged as a named role), doc-writing (stacks missing docs), unit-test-writing (stacks coverage-gap tests, sandbox-gated), readme-fixes (stacks README corrections), homebrew-release-shepherd (reviews release-surface drift — findings only, never writes). All six ship blocking: false and \`capability: cheap\` on their cloudflare fallback.
    Fit the roster to the repo: a small library wants 2-3 ships, not eleven. Say what you left out and why. Invite pushback.
 4. When the operator is happy with the roster, EMIT the complete pd-fleet.yml in ONE fenced \`\`\`yaml block — a full, valid file, never a fragment. Schema:
    - Top-level key \`fleet:\` with \`name\`, \`harbor: "{project}:fleet"\`, \`limits:\` (\`max_concurrent_spawns\`, \`max_spawns_per_hour\`, \`budget_usd_per_day\`), and \`agents:\`.
-   - Each agent: \`trigger:\` (e.g. pull_request:opened, git:committed — string or list), \`backend: cli:claude-code\`, a \`fallbacks:\` list ending with \`- backend: cloudflare\` + \`model: '@cf/...'\` (this is the model the cloud executor runs), \`cooldown_ms\`, \`singleton: true\`, \`allowedTools\` where relevant, a \`prompt: |\` block with the ship's full working instructions, \`identity: "{project}:fleet:<ship>"\`, and a one-line \`telos:\`.
+   - Each agent: \`trigger:\` (e.g. pull_request:opened, git:committed — string or list), \`backend: cli:claude-code\`, a \`fallbacks:\` list ending with \`- backend: cloudflare\` + \`capability: cheap\` (the rung the cloud executor resolves — NEVER a literal model id), \`cooldown_ms\`, \`singleton: true\`, \`allowedTools\` where relevant, a \`prompt: |\` block with the ship's full working instructions, \`identity: "{project}:fleet:<ship>"\`, and a one-line \`telos:\`.
    - Ideation ships add \`class: ideation\` and a \`temperature:\`. The purser uses \`class: purser\`, \`blocking: false\`, and a \`graft:\` list.
-   - Quote every @cf/ model id ('@cf/qwen/qwen3-30b-a3b-fp8' for general work, '@cf/qwen/qwen2.5-coder-32b-instruct' for code review).
-5. AFTER the YAML, give commit instructions in 3 short steps: save the block as pd-fleet.yml at the repo root, open a PR to the default branch (git checkout -b fleet-setup && git add pd-fleet.yml && git commit && gh pr create), and install the Port Daddy Fleet GitHub App on the repo so the fleet fires on PR events.
+   - Choose every \`model:\` id FROM THE MODEL BOARD below, quoted exactly, and justify the pick by role fit and price (cheap agentic for reviewers reading diffs, the agentic coder tier for ships that must emit runnable code, frontier tiers only where a single judgment is the product).
+   - A \`model:\` id you choose is honored only if it is admitted; the board contains exactly the admitted set, so quote from it and never invent one. Where a ship's need is a JOB rather than a specific measured model ("whatever fills the cheap reviewer slot"), you may instead write \`capability:\` with one of cheap | balanced | high | max-thinking | code, which survives a re-tier without an edit.
+5. AFTER the YAML, tell the operator how to ship it, in this order: (a) once the roster shows the green "Validates" badge, they can click the "Open PR" button right on this page — you (via the relay) will commit pd-fleet.yml to a fresh branch of their repo and open the PR for them, provided the Port Daddy Fleet GitHub App is installed on that repo; (b) or commit it by hand: save the block as pd-fleet.yml at the repo root and open a PR to the default branch (git checkout -b fleet-setup && git add pd-fleet.yml && git commit && gh pr create). Either way, remind them the fleet only fires once the PR is merged and the App is installed.
 
 HARD RULES:
-- BE HONEST ABOUT YOUR HANDS: you cannot open PRs, read the operator's repo, or change anything anywhere. The operator commits the file; say so whenever you hand over YAML.
+- BE HONEST ABOUT YOUR HANDS: you CAN open a PR — but only when the operator clicks "Open PR" beside a roster that passed validation, only into a repo where GitHub freshly confirms they have write, maintain, or admin access and the Port Daddy Fleet GitHub App is installed, and only as a fresh branch + PR (never a push, never a merge — their review is the gate). You still cannot read their repo or change anything anywhere else. Say exactly this much whenever you hand over YAML — no more, no less.
 - Never invent repo facts the operator didn't give you — ask instead.
 - Never emit a partial pd-fleet.yml, and never emit one before you know repo + goals.
-- Keep replies tight: a few short paragraphs or a compact list. No walls of text.`;
+- Keep replies tight: a few short paragraphs or a compact list. No walls of text.
+
+${modelBoardPromptFragment()}`;
 
 // ── Envelope helpers ─────────────────────────────────────────────────────────
 
@@ -108,13 +157,209 @@ async function readJson<T>(request: Request): Promise<T | null> {
   }
 }
 
-// ── GET /v1/shipwright/history ───────────────────────────────────────────────
+// ── Repository/thread scope ──────────────────────────────────────────────────
 
-/** The signed-in user's own conversation, oldest → newest. Session-scoped. */
-export async function handleShipwrightHistory(request: Request, env: Env): Promise<Response> {
+const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const THREAD_RE = /^swt_[0-9a-f]{48}$/;
+
+export function normalizeShipwrightRepo(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return REPO_RE.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
+async function authorizeRepoScope(
+  env: Env,
+  session: ResolvedSession,
+  installationId: number,
+  repoFullName: string,
+  requiredAccess: 'read' | 'write' = 'read',
+): Promise<Response | null> {
+  if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY) {
+    return json(503, { code: 'SHIPWRIGHT_REPO_AUTH_UNCONFIGURED', error: 'GitHub App not configured on this relay' });
+  }
+  const [owner, repo] = repoFullName.split('/') as [string, string];
+  try {
+    const installed = await getRepoInstallationId(
+      env.GITHUB_APP_ID,
+      env.GITHUB_APP_PRIVATE_KEY,
+      owner,
+      repo,
+      env.KV,
+      true,
+    );
+    if (installed !== installationId || !session.ghToken) throw new Error('scope unavailable');
+    await authorizeExactRepository(installationId, repoFullName, session.ghToken, requiredAccess);
+  } catch {
+    // Missing repo, another account, wrong installation and upstream denial
+    // are intentionally indistinguishable. This route is not a repository or
+    // installation existence oracle.
+    return json(404, { code: 'SHIPWRIGHT_SCOPE_UNAVAILABLE', error: 'repository context is unavailable' });
+  }
+  return null;
+}
+
+async function resolveAuthorizedThread(
+  request: Request,
+  env: Env,
+  threadId: string,
+): Promise<{ session: ResolvedSession; thread: ShipwrightThreadRow } | Response> {
   const session = await resolveSession(request, env);
   if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
-  const messages = await listShipwrightMessages(env.DB, session.user.id, HISTORY_WINDOW);
+  if (!THREAD_RE.test(threadId)) {
+    return json(409, { code: 'SHIPWRIGHT_THREAD_REQUIRED', error: 'select or create a repository-scoped Shipwright thread' });
+  }
+  // This metadata lookup is user-scoped and contains no transcript. Raw rows
+  // are not read, and the model is not called, until GitHub reauthorizes the
+  // exact installation/repository binding below.
+  const thread = await getShipwrightThread(env.DB, session.user.id, threadId);
+  if (!thread) return json(404, { code: 'SHIPWRIGHT_THREAD_NOT_FOUND', error: 'thread not found in this account' });
+  const refused = await authorizeRepoScope(env, session, thread.installation_id, thread.repo_full_name);
+  if (refused) return refused;
+  return { session, thread };
+}
+
+interface CreateThreadBody { installationId?: unknown; repo?: unknown }
+interface RepoClearBody { threadId?: unknown }
+
+export const SHIPWRIGHT_AI_CONTEXT_FIELDS = [
+  'desiredReviewOutcomes',
+  'riskTolerance',
+  'budgetCeilingUsdPerDay',
+  'languagesAndFrameworks',
+  'protectedPaths',
+  'reviewStrictness',
+] as const;
+
+export interface ShipwrightOnboardingProfile {
+  desiredReviewOutcomes: string;
+  riskTolerance: 'conservative' | 'balanced' | 'aggressive';
+  budgetCeilingUsdPerDay: number;
+  languagesAndFrameworks: string;
+  protectedPaths: string[];
+  reviewStrictness: 'advisory' | 'standard' | 'strict';
+}
+
+interface OnboardingBody { threadId?: unknown; profile?: unknown }
+interface AiContextConsentBody { threadId?: unknown; enabled?: unknown }
+
+function boundedText(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return text && text.length <= max ? text : null;
+}
+
+export function parseShipwrightOnboardingProfile(value: unknown): ShipwrightOnboardingProfile | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const desiredReviewOutcomes = boundedText(raw.desiredReviewOutcomes, 1_000);
+  const languagesAndFrameworks = boundedText(raw.languagesAndFrameworks, 500);
+  const riskTolerance = raw.riskTolerance;
+  const reviewStrictness = raw.reviewStrictness;
+  const budgetCeilingUsdPerDay = Number(raw.budgetCeilingUsdPerDay);
+  if (!desiredReviewOutcomes || !languagesAndFrameworks
+    || !['conservative', 'balanced', 'aggressive'].includes(String(riskTolerance))
+    || !['advisory', 'standard', 'strict'].includes(String(reviewStrictness))
+    || !Number.isFinite(budgetCeilingUsdPerDay) || budgetCeilingUsdPerDay < 0.25 || budgetCeilingUsdPerDay > 500) return null;
+  if (!Array.isArray(raw.protectedPaths) || raw.protectedPaths.length > 50) return null;
+  const protectedPaths = raw.protectedPaths.map((path) => boundedText(path, 240));
+  if (protectedPaths.some((path) => path === null)) return null;
+  return {
+    desiredReviewOutcomes,
+    riskTolerance: riskTolerance as ShipwrightOnboardingProfile['riskTolerance'],
+    budgetCeilingUsdPerDay: Math.round(budgetCeilingUsdPerDay * 100) / 100,
+    languagesAndFrameworks,
+    protectedPaths: protectedPaths as string[],
+    reviewStrictness: reviewStrictness as ShipwrightOnboardingProfile['reviewStrictness'],
+  };
+}
+
+function yamlString(value: string): string { return JSON.stringify(value); }
+function yamlPromptLine(value: string): string { return value.replace(/\s+/g, ' ').trim(); }
+
+/** Deterministic, valid three-ship starting roster. It is a draft, not an AI claim. */
+export function buildShipwrightDraftProposal(repo: string, profile: ShipwrightOnboardingProfile): string {
+  const project = repo.replace('/', '-');
+  const protectedNote = profile.protectedPaths.length
+    ? `Pay special attention to protected paths: ${profile.protectedPaths.map(yamlPromptLine).join(', ')}.`
+    : 'No protected paths were named; do not infer any.';
+  const context = `Repository stack: ${yamlPromptLine(profile.languagesAndFrameworks)}. Desired outcomes: ${yamlPromptLine(profile.desiredReviewOutcomes)}. ` +
+    `Risk tolerance: ${profile.riskTolerance}. Review strictness: ${profile.reviewStrictness}. ${protectedNote}`;
+  return `fleet:\n  name: ${yamlString(`${repo} review fleet`)}\n  harbor: ${yamlString(`${project}:fleet`)}\n  limits:\n    max_concurrent_spawns: 2\n    max_spawns_per_hour: 12\n    budget_usd_per_day: ${profile.budgetCeilingUsdPerDay}\n  agents:\n    code-reviewer:\n      trigger: pull_request:*\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Review the diff for correctness, regressions, and maintainability. Rank concrete findings by severity and cite exact evidence.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:code-reviewer`)}\n      telos: ${yamlString('Find actionable defects without manufacturing work.')}\n    qa:\n      trigger: pull_request:*\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Design hostile tests around the strongest contract implied by the change. Report gaps; do not claim execution you cannot prove.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:qa`)}\n      telos: ${yamlString('Turn likely regressions into reproducible tests.')}\n    purser:\n      trigger: pull_request:*\n      class: purser\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      graft:\n        - sandboxed-adversarial-test-harness\n        - steel-man-argument\n      prompt: |\n        Steel-man the pull request into its strongest testable contract, then identify the smallest decisive tests. Stay advisory until explicitly promoted.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:purser`)}\n      telos: ${yamlString('Make the review contract explicit and testable.')}\n`;
+}
+
+/** POST /v1/shipwright/thread — issue an opaque, server-bound thread id. */
+export async function handleShipwrightCreateThread(request: Request, env: Env): Promise<Response> {
+  const session = await resolveSession(request, env);
+  if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  const body = await readJson<CreateThreadBody>(request);
+  const installationId = Number(body?.installationId);
+  const repoFullName = normalizeShipwrightRepo(body?.repo);
+  if (!Number.isInteger(installationId) || installationId <= 0 || !repoFullName) {
+    return json(400, { code: 'BAD_JSON', error: 'Request body must be {installationId: positive integer, repo: owner/name}' });
+  }
+  const refused = await authorizeRepoScope(env, session, installationId, repoFullName);
+  if (refused) return refused;
+  const now = Math.floor(Date.now() / 1000);
+  const threadId = `swt_${randomHex(24)}`;
+  let thread: ShipwrightThreadRow;
+  try {
+    thread = await getOrCreateShipwrightThread(env.DB, {
+      id: threadId,
+      user_id: session.user.id,
+      installation_id: installationId,
+      repo_full_name: repoFullName,
+      created_at: now,
+      updated_at: now,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('shipwright thread quota exceeded')) {
+      return json(429, { code: 'SHIPWRIGHT_THREAD_QUOTA', error: 'repository thread quota reached' });
+    }
+    throw error;
+  }
+  await upsertShipwrightRepoMemory(env.DB, {
+    id: `swm_${randomHex(24)}`,
+    userId: session.user.id,
+    installationId,
+    repoFullName,
+    kind: 'repository',
+    bodyJson: JSON.stringify({ repo: repoFullName, installationId }),
+    now,
+  });
+  return json(201, { code: 'SHIPWRIGHT_THREAD_READY', error: null, threadId: thread.id, repo: thread.repo_full_name, installationId: thread.installation_id });
+}
+
+/** GET /v1/shipwright/threads — bounded server-backed resume inventory. */
+export async function handleShipwrightThreads(request: Request, env: Env): Promise<Response> {
+  const session = await resolveSession(request, env);
+  if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
+  const threads = await listShipwrightThreads(env.DB, session.user.id, 100);
+  return json(200, {
+    code: 'OK', error: null,
+    threads: threads.map((thread) => ({
+      threadId: thread.id,
+      repo: thread.repo_full_name,
+      installationId: thread.installation_id,
+      updatedAt: thread.updated_at,
+    })),
+  });
+}
+
+// ── GET /v1/shipwright/history?thread=<opaque> ───────────────────────────────
+
+/** One exact authorized thread, oldest → newest. */
+export async function handleShipwrightHistory(request: Request, env: Env): Promise<Response> {
+  const threadId = new URL(request.url).searchParams.get('thread') ?? '';
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const messages = await listScopedShipwrightMessages(env.DB, {
+    threadId: scope.thread.id,
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+  }, HISTORY_WINDOW);
   return json(200, {
     code: 'OK',
     error: null,
@@ -125,55 +370,156 @@ export async function handleShipwrightHistory(request: Request, env: Env): Promi
       // Only the Shipwright's own turns can carry a roster to badge.
       yaml: m.role === 'assistant' ? validateEmittedYaml(m.content) : [],
     })),
+    thread: {
+      threadId: scope.thread.id,
+      repo: scope.thread.repo_full_name,
+      installationId: scope.thread.installation_id,
+    },
   });
 }
 
-// ── POST /v1/shipwright/clear ────────────────────────────────────────────────
+/** GET /v1/shipwright/context?thread= — user-visible durable-memory preview. */
+export async function handleShipwrightContext(request: Request, env: Env): Promise<Response> {
+  const threadId = new URL(request.url).searchParams.get('thread') ?? '';
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const repoScope = {
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+  };
+  const [memory, proposal] = await Promise.all([
+    listShipwrightRepoMemory(env.DB, repoScope, 20),
+    latestShipwrightProposal(env.DB, { ...repoScope, threadId: scope.thread.id }),
+  ]);
+  const parsed = memory.map((row) => {
+    try { return { kind: row.kind, body: JSON.parse(row.body_json) as unknown, updatedAt: row.updated_at }; }
+    catch { return { kind: row.kind, body: null, updatedAt: row.updated_at, malformed: true }; }
+  });
+  const consent = parsed.find((row) => row.kind === 'ai_context_consent')?.body as { enabled?: unknown } | null | undefined;
+  return json(200, {
+    code: 'OK', error: null,
+    thread: { threadId: scope.thread.id, repo: scope.thread.repo_full_name, installationId: scope.thread.installation_id },
+    memory: parsed,
+    latestProposal: proposal ? {
+      createdAt: proposal.created_at,
+      origin: proposal.origin,
+      yaml: proposal.yaml,
+      verdict: validateFleetYaml(proposal.yaml),
+    } : null,
+    aiContextConsent: {
+      requested: consent?.enabled === true,
+      effective: false,
+      fields: SHIPWRIGHT_AI_CONTEXT_FIELDS,
+      disclosure: 'This records a revocable request. Model continuity remains held until the operator authorizes activation; no durable stored profile is sent to Cloudflare Workers AI by this release.',
+    },
+  });
+}
+
+/** POST /v1/shipwright/onboarding — save/edit answers and generate a scoped draft. */
+export async function handleShipwrightOnboarding(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  const body = await readJson<OnboardingBody>(request);
+  const threadId = typeof body?.threadId === 'string' ? body.threadId : '';
+  const profile = parseShipwrightOnboardingProfile(body?.profile);
+  if (!profile) return json(400, { code: 'BAD_ONBOARDING', error: 'complete every onboarding field with valid bounded values' });
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const now = Math.floor(Date.now() / 1000);
+  const repoScope = {
+    threadId: scope.thread.id,
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+  };
+  const yaml = buildShipwrightDraftProposal(scope.thread.repo_full_name, profile);
+  await upsertShipwrightRepoMemory(env.DB, {
+    id: `swm_${randomHex(24)}`,
+    ...repoScope,
+    kind: 'onboarding',
+    bodyJson: JSON.stringify(profile),
+    now,
+  });
+  await insertShipwrightProposal(env.DB, {
+    id: `swp_${randomHex(24)}`, ...repoScope, yaml, origin: 'deterministic_onboarding', now,
+  });
+  return json(200, { code: 'SHIPWRIGHT_ONBOARDING_SAVED', error: null, profile, draftProposal: { yaml, verdict: validateFleetYaml(yaml) } });
+}
+
+/** POST /v1/shipwright/ai-context-consent — an independent, reversible egress choice. */
+export async function handleShipwrightAiContextConsent(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  const body = await readJson<AiContextConsentBody>(request);
+  const threadId = typeof body?.threadId === 'string' ? body.threadId : '';
+  if (typeof body?.enabled !== 'boolean') return json(400, { code: 'BAD_CONSENT', error: 'enabled must be a boolean' });
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const now = Math.floor(Date.now() / 1000);
+  await upsertShipwrightRepoMemory(env.DB, {
+    id: `swm_${randomHex(24)}`,
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+    kind: 'ai_context_consent',
+    bodyJson: JSON.stringify({ enabled: body.enabled, fields: SHIPWRIGHT_AI_CONTEXT_FIELDS }),
+    now,
+  });
+  return json(200, {
+    code: body.enabled ? 'SHIPWRIGHT_AI_CONTEXT_REQUEST_RECORDED' : 'SHIPWRIGHT_AI_CONTEXT_REVOKED',
+    error: null,
+    requested: body.enabled,
+    effective: false,
+    fields: SHIPWRIGHT_AI_CONTEXT_FIELDS,
+  });
+}
+
+// ── POST /v1/shipwright/clear?thread=<opaque> ────────────────────────────────
 
 /** Delete the signed-in user's own conversation (ADR-0101 delete control). */
 export async function handleShipwrightClear(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  const threadId = new URL(request.url).searchParams.get('thread') ?? '';
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const cleared = await clearScopedShipwrightMessages(env.DB, {
+    threadId: scope.thread.id,
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+  });
+  return json(200, { code: 'OK', error: null, cleared });
+}
+
+/** POST /v1/shipwright/repo-clear — remove transcripts and durable repo state. */
+export async function handleShipwrightRepoClear(request: Request, env: Env): Promise<Response> {
   const session = await resolveSession(request, env);
   if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
   if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
-  const cleared = await clearShipwrightChats(env.DB, session.user.id);
-  return json(200, { code: 'OK', error: null, cleared });
+  const body = await readJson<RepoClearBody>(request);
+  const threadId = typeof body?.threadId === 'string' ? body.threadId : '';
+  if (!THREAD_RE.test(threadId)) {
+    return json(400, { code: 'BAD_JSON', error: 'Request body must be {threadId: opaque Shipwright thread}' });
+  }
+  // Erasure authority comes from the authenticated account's stored thread,
+  // not GitHub. Revoking repo/App access must never strand the user's data.
+  const thread = await getShipwrightThread(env.DB, session.user.id, threadId);
+  if (!thread) return json(404, { code: 'SHIPWRIGHT_THREAD_NOT_FOUND', error: 'thread not found in this account' });
+  const clearedThreads = await clearShipwrightRepo(env.DB, {
+    userId: session.user.id,
+    installationId: thread.installation_id,
+    repoFullName: thread.repo_full_name,
+  });
+  return json(200, { code: 'SHIPWRIGHT_REPO_CLEARED', error: null, clearedThreads });
 }
 
 // ── POST /v1/shipwright/chat ─────────────────────────────────────────────────
 
-interface ChatBody {
-  message?: string;
-  /** false ⇒ buffered JSON reply (tests / non-SSE clients). Default: stream. */
-  stream?: boolean;
-}
-
-/** Workers AI streaming SSE line shapes we accept (defensive across models). */
-function tokenOf(payload: string): string {
-  try {
-    const o = JSON.parse(payload) as {
-      response?: unknown;
-      choices?: Array<{ delta?: { content?: unknown } }>;
-    };
-    if (typeof o.response === 'string') return o.response;
-    const delta = o.choices?.[0]?.delta?.content;
-    return typeof delta === 'string' ? delta : '';
-  } catch {
-    return '';
-  }
-}
-
-/** Reconstruct the full assistant text from raw SSE wire text. */
-export function assembleSseText(raw: string): string {
-  let out = '';
-  for (const line of raw.split('\n')) {
-    const t = line.trim();
-    if (!t.startsWith('data:')) continue;
-    const payload = t.slice(5).trim();
-    if (!payload || payload === '[DONE]') continue;
-    out += tokenOf(payload);
-  }
-  return out;
-}
+/**
+ * Reconstructing assistant text from raw SSE wire text is the turn engine's
+ * job, not this surface's. Re-exported here because the page and the tests
+ * have always imported it from this module — one implementation, two names.
+ */
+export { assembleSseText } from './chat-engine.js';
 
 // ── YAML validation badge (shipwright-yaml-validate) ─────────────────────────
 
@@ -264,114 +610,318 @@ export function validateEmittedYaml(content: string): FleetValidationResult[] {
 }
 
 /**
- * One chat turn. The user message is persisted first (a failed generation
- * never eats operator input), then the model streams; a pass-through
- * TransformStream forwards the SSE bytes to the browser unchanged while
- * accumulating the text, and persists the assistant message on flush.
+ * The Shipwright as the shared turn engine sees it: a prompt, a store, a model
+ * id, and the one thing that is genuinely this surface's own — the roster
+ * verdict that rides the stream.
+ *
+ * Everything else — the session gate, the same-origin check, the message
+ * bound, the unconfigured-binding refusal, the DAILY SPEND CAP, the
+ * persist-before-call ordering and the SSE pass-through — belongs to
+ * chat-engine.ts and is shared byte-for-byte with every other chat surface.
+ * That is deliberate: this surface used to own a private copy of all of it,
+ * and a private copy is exactly how the relay ended up with a chat that could
+ * call a model with no per-user budget in front of it.
  */
-export async function handleShipwrightChat(request: Request, env: Env): Promise<Response> {
-  const session = await resolveSession(request, env);
-  if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
-  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
-
-  const body = await readJson<ChatBody>(request);
-  const message = typeof body?.message === 'string' ? body.message.trim() : '';
-  if (!message) return json(400, { code: 'BAD_JSON', error: 'Request body must be JSON {message: string}' });
-  if (message.length > MAX_MESSAGE_CHARS) {
-    return json(400, { code: 'MESSAGE_TOO_LONG', error: `message exceeds ${MAX_MESSAGE_CHARS} chars` });
-  }
-  if (!env.AI) {
-    // Same honest idiom as BILLING_UNCONFIGURED: the relay deploys before the
-    // [ai] binding is provisioned; the feature says so instead of 500ing.
-    return json(503, { code: 'SHIPWRIGHT_UNCONFIGURED', error: 'Workers AI binding not configured' });
-  }
-  const ai = env.AI;
-  const db = env.DB;
-  const userId = session.user.id;
-  const now = Math.floor(Date.now() / 1000);
-
-  await insertShipwrightMessage(db, { userId, role: 'user', content: message, now });
-
-  const history = await listShipwrightMessages(db, userId, HISTORY_WINDOW);
-  const messages = [
-    { role: 'system', content: SHIPWRIGHT_SYSTEM_PROMPT },
-    ...history.map((m) => ({ role: m.role, content: m.content })),
-  ];
-  const model = shipwrightModel(env) as Parameters<typeof ai.run>[0];
-
-  const persistReply = async (content: string): Promise<void> => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    await insertShipwrightMessage(db, {
-      userId,
-      role: 'assistant',
-      content: trimmed,
-      now: Math.floor(Date.now() / 1000),
-    });
+function scopedShipwrightAgent(thread: ShipwrightThreadRow): ChatAgent {
+  const scope = {
+    threadId: thread.id,
+    installationId: thread.installation_id,
+    repoFullName: thread.repo_full_name,
   };
-
-  // Buffered mode — one JSON envelope, no SSE.
-  if (body?.stream === false) {
-    try {
-      const res = (await ai.run(model, {
-        messages,
-        max_tokens: CHAT_MAX_TOKENS,
-      })) as { response?: string };
-      const reply = (res.response ?? '').trim();
-      await persistReply(reply);
-      return json(200, { code: 'OK', error: null, reply, yaml: validateEmittedYaml(reply) });
-    } catch (e) {
-      return json(500, { code: 'AI_ERROR', error: `Workers AI request failed: ${publicError(e)}` });
-    }
-  }
-
-  // Streaming mode — pipe the Workers AI SSE stream straight through while
-  // accumulating the text; flush() runs after the last chunk is forwarded and
-  // persists the assistant message (the runtime keeps the request context
-  // alive while the response body is still streaming).
-  let upstream: ReadableStream<Uint8Array>;
-  try {
-    upstream = (await ai.run(model, {
-      messages,
-      max_tokens: CHAT_MAX_TOKENS,
-      stream: true,
-    })) as unknown as ReadableStream<Uint8Array>;
-  } catch (e) {
-    return json(500, { code: 'AI_ERROR', error: `Workers AI request failed: ${publicError(e)}` });
-  }
-
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let raw = '';
-  const tee = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      raw += decoder.decode(chunk, { stream: true });
-      controller.enqueue(chunk);
-    },
-    async flush(controller) {
-      raw += decoder.decode();
-      const text = assembleSseText(raw);
-      await persistReply(text);
-      // The verdict rides the SAME SSE stream as one final synthetic line,
-      // after every real model token — never blended into `raw`/persisted
-      // content, so it can never be mistaken for the model's own words. The
-      // client recognizes the `pdYamlVerdict` marker and never treats it as
-      // a token (see shipwright-page.ts's pump()). Skipped entirely when the
-      // turn emitted no roster — no verdict line, no badge, nothing to lie
-      // about.
-      const verdicts = validateEmittedYaml(text);
-      if (verdicts.length > 0) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ pdYamlVerdict: verdicts })}\n\n`));
+  return {
+  id: 'shipwright',
+  systemPrompt: `${SHIPWRIGHT_SYSTEM_PROMPT}\n\nAUTHORIZED REPOSITORY CONTEXT:\n` +
+    `- repository: ${thread.repo_full_name}\n` +
+    `- GitHub App installation: ${thread.installation_id}\n` +
+    '- Treat this server-bound repository identity as authoritative. Never carry facts or proposals from another repository into this thread.',
+  model: shipwrightModel,
+  unconfiguredCode: 'SHIPWRIGHT_UNCONFIGURED',
+  unconfiguredError: 'no model binding is configured on this relay',
+  store: {
+    async insert(db, m) {
+      await insertScopedShipwrightMessage(db, { ...m, ...scope });
+      if (m.role === 'assistant') {
+        for (const yaml of extractFencedYamlBlocks(m.content)) {
+          await insertShipwrightProposal(db, {
+            id: `swp_${randomHex(24)}`,
+            ...scope,
+            userId: m.userId,
+            yaml,
+            origin: 'assistant_conversation',
+            now: m.now,
+          });
+        }
       }
     },
-  });
+    list: (db, userId, limit) => listScopedShipwrightMessages(db, { ...scope, userId }, limit),
+    clear: (db, userId) => clearScopedShipwrightMessages(db, { ...scope, userId }),
+  },
+  // The verdict is computed server-side from the deterministic parser, never
+  // asked of the model — a roster's validity is a fact, not a claim.
+  bufferedExtras: (reply) => ({ yaml: validateEmittedYaml(reply) }),
+  streamTrailer: (text) => {
+    // One final synthetic line, AFTER every real token and never blended into
+    // the persisted content, so it cannot be mistaken for the model's own
+    // words. The client recognizes the `pdYamlVerdict` marker and never treats
+    // it as a token (see shipwright-page.ts's pump()). Skipped entirely when
+    // the turn emitted no roster — no verdict line, no badge, nothing to lie
+    // about.
+    const verdicts = validateEmittedYaml(text);
+    if (verdicts.length === 0) return null;
+    return `data: ${JSON.stringify({ pdYamlVerdict: verdicts })}\n\n`;
+  },
+  };
+}
 
-  return new Response(upstream.pipeThrough(tee), {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'X-Accel-Buffering': 'no',
-    },
+/** Public descriptor remains fail-closed: a repository thread is mandatory. */
+export const shipwrightAgent: ChatAgent = {
+  ...scopedShipwrightAgent({
+    id: '', user_id: '', installation_id: 0, repo_full_name: '', created_at: 0, updated_at: 0,
+  }),
+  store: {
+    async insert() { throw new Error('SHIPWRIGHT_THREAD_REQUIRED'); },
+    async list() { throw new Error('SHIPWRIGHT_THREAD_REQUIRED'); },
+    async clear() { throw new Error('SHIPWRIGHT_THREAD_REQUIRED'); },
+  },
+};
+
+/**
+ * One chat turn — delegated whole to {@link runChatTurn}. The user message is
+ * persisted after the spend cap clears and before the model call (a failed
+ * generation never eats operator input); the pass-through stream forwards the
+ * bytes unchanged and persists the assistant message on flush.
+ */
+export async function handleShipwrightChat(request: Request, env: Env): Promise<Response> {
+  let threadId = '';
+  try {
+    const body = await request.clone().json() as { threadId?: unknown };
+    threadId = typeof body.threadId === 'string' ? body.threadId : '';
+  } catch {
+    // runChatTurn owns the BAD_JSON envelope once a valid scope exists; an
+    // unreadable body cannot carry a scope, so refuse before any model call.
+  }
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  return runChatTurn(request, env, scopedShipwrightAgent(scope.thread));
+}
+
+// ── POST /v1/shipwright/open-pr (shipwright-pr-open) ─────────────────────────
+
+/** Upper bound on a submitted roster (D1 row size + GitHub content sanity). */
+export const MAX_YAML_CHARS = 64_000;
+
+/** Branch prefix for Shipwright-opened PRs — distinct from the control-plane prefix. */
+export const SHIPWRIGHT_BRANCH_PREFIX = 'shipwright-fleet-setup-';
+
+function generateShipwrightBranch(): string {
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${SHIPWRIGHT_BRANCH_PREFIX}${date}-${rand}`;
+}
+
+/** Is this the page's plain-form dialect (vs the JSON API dialect)? */
+function isFormPost(request: Request): boolean {
+  return (request.headers.get('Content-Type') ?? '').includes('application/x-www-form-urlencoded');
+}
+
+function redirect303(location: string): Response {
+  return new Response(null, { status: 303, headers: { Location: location } });
+}
+
+interface OpenPrFields {
+  yaml: unknown;
+  installationId: unknown;
+  repo: unknown;
+  threadId: unknown;
+}
+
+/** Read {yaml, installationId, repo} out of whichever dialect posted. */
+async function readOpenPrBody(request: Request, form: boolean): Promise<OpenPrFields | null> {
+  if (form) {
+    const params = new URLSearchParams(await request.text());
+    return {
+      yaml: params.get('yaml'),
+      installationId: params.get('installationId'),
+      repo: params.get('repo'),
+      threadId: params.get('threadId'),
+    };
+  }
+  const body = await readJson<Record<string, unknown>>(request);
+  if (!body) return null;
+  return { yaml: body.yaml, installationId: body.installationId, repo: body.repo, threadId: body.threadId };
+}
+
+/**
+ * Open a PR carrying a validated pd-fleet.yml into the signed-in user's OWN
+ * repository. This is the Shipwright's one write into the world, and it goes
+ * through {@link commitFilesAndOpenPr} — the same zero-trust mutation core as
+ * the fleet control-plane — so "fresh branch + PR, review is the gate" holds
+ * here by construction, not by promise.
+ *
+ * The click that fires this IS the product feature (a user-initiated action),
+ * not an approval gate: no new permission-ask machinery exists or should
+ * (ADR-0109 / D11). What replaces asking is checking:
+ *   - the server re-runs `validateFleetYaml` on the submitted bytes — a client
+ *     that lies about validation gets a 400, unconditionally;
+ *   - the YAML must be a stored proposal in this user's exact repository
+ *     thread; its typed origin makes the PR distinguish a model conversation
+ *     from deterministic onboarding output;
+ *   - GitHub must freshly confirm both the App's repo→installation binding and
+ *     the signed-in user's exact repository grant before publication.
+ *
+ * Dialects: JSON (`{yaml, installationId, repo}`) answers JSON; the page's
+ * script-free form POST answers 303 — to the created PR on success, back to
+ * /account/shipwright?notice=<code> on failure (the billing form idiom).
+ */
+export async function handleShipwrightOpenPr(request: Request, env: Env): Promise<Response> {
+  const form = isFormPost(request);
+  const fail = (status: number, code: string, error: string): Response => {
+    if (!form) return json(status, { code, error });
+    if (code === 'UNAUTHENTICATED') return redirect303('/login');
+    return redirect303(`/account/shipwright?notice=${encodeURIComponent(code.toLowerCase())}`);
+  };
+
+  const session = await resolveSession(request, env);
+  if (!session) return fail(401, 'UNAUTHENTICATED', 'no session');
+  if (!isSameOrigin(request, env)) return fail(403, 'CROSS_ORIGIN', 'cross-origin request refused');
+  if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY) {
+    // Same honest idiom as SHIPWRIGHT_UNCONFIGURED: a relay deployed before
+    // the GitHub App secrets are provisioned says so instead of 500ing.
+    return fail(503, 'PR_UNCONFIGURED', 'GitHub App not configured on this relay');
+  }
+
+  const body = await readOpenPrBody(request, form);
+  if (!body) return fail(400, 'BAD_JSON', 'Request body must be JSON {yaml, installationId, repo}');
+
+  const yaml = typeof body.yaml === 'string' ? body.yaml.replace(/\s+$/, '') : '';
+  if (!yaml) return fail(400, 'BAD_REQUEST', 'yaml (non-empty string) required');
+  if (yaml.length > MAX_YAML_CHARS) {
+    return fail(400, 'BAD_REQUEST', `yaml exceeds ${MAX_YAML_CHARS} chars`);
+  }
+  const installationId = Number(body.installationId);
+  if (!Number.isInteger(installationId) || installationId <= 0) {
+    return fail(400, 'BAD_REQUEST', 'installationId (positive integer) required');
+  }
+  const repoFull = normalizeShipwrightRepo(body.repo) ?? '';
+  if (!repoFull) {
+    return fail(400, 'BAD_REQUEST', "repo must be 'owner/name'");
+  }
+  const [owner, repo] = repoFull.split('/') as [string, string];
+
+  // Resolve and reauthorize the exact thread/repository before reading any
+  // proposal provenance. Caller-supplied repo/install values must be byte-for-
+  // byte equal to the normalized server binding.
+  const threadId = typeof body.threadId === 'string' ? body.threadId : '';
+  const scoped = await resolveAuthorizedThread(request, env, threadId);
+  if (scoped instanceof Response) {
+    if (!form) return scoped;
+    const detail = await scoped.clone().json().catch(() => null) as { code?: string; error?: string } | null;
+    return fail(
+      scoped.status,
+      detail?.code ?? 'SHIPWRIGHT_THREAD_REQUIRED',
+      detail?.error ?? 'select the repository thread that produced this roster',
+    );
+  }
+  if (scoped.thread.installation_id !== installationId || scoped.thread.repo_full_name !== repoFull) {
+    return fail(404, 'SHIPWRIGHT_SCOPE_UNAVAILABLE', 'repository context is unavailable');
+  }
+
+  // ── Gate 1: the server re-validates. The page's badge, the model's claim,
+  // and the client's say-so are all just claims; this is the fact.
+  let verdict: FleetValidationResult;
+  try {
+    verdict = validateFleetYaml(yaml);
+  } catch (e) {
+    return fail(400, 'INVALID_YAML', `validator error — treated as invalid: ${publicError(e)}`);
+  }
+  if (!verdict.valid) {
+    return fail(400, 'INVALID_YAML', verdict.message || 'the roster does not validate');
+  }
+
+  // ── Gate 2: typed provenance. The YAML must be a stored proposal for this
+  // exact thread. Its origin controls the PR's wording, so deterministic
+  // onboarding output is never misrepresented as a model conversation.
+  const proposalOrigin = await getShipwrightProposalOrigin(env.DB, {
+    threadId: scoped.thread.id,
+    userId: session.user.id,
+    installationId,
+    repoFullName: repoFull,
+    yaml,
   });
+  if (!proposalOrigin) {
+    return fail(400, 'NOT_FROM_CHAT', 'that roster is not a stored Shipwright proposal for this repository thread');
+  }
+
+  // ── Gate 3: repeat exact repository authorization immediately before the
+  // mutation credential is minted. This force-refreshes both the App binding
+  // and the signed-in user's installation-repository grant.
+  const publicationRefusal = await authorizeRepoScope(env, session, installationId, repoFull, 'write');
+  if (publicationRefusal) {
+    return fail(404, 'SHIPWRIGHT_SCOPE_UNAVAILABLE', 'repository context is unavailable');
+  }
+
+  // ── The write: fresh branch + PR via the ONE mutation core. Review/merge
+  // stays the gate; nothing here (or anywhere) pushes to an existing branch.
+  let scopedToken: string | null = null;
+  try {
+    const minted = await mintRepositoryInstallationToken(
+      env.GITHUB_APP_ID,
+      env.GITHUB_APP_PRIVATE_KEY,
+      installationId,
+      owner,
+      repo,
+      { contents: 'write', pull_requests: 'write' },
+    );
+    scopedToken = minted.token;
+    const baseBranch = await getRepoDefaultBranch(owner, repo, scopedToken);
+    const branchName = generateShipwrightBranch();
+    const when = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+    const shipNames = verdict.ships.map((sh) => `\`${sh.name}\``).join(', ');
+    const provenance = proposalOrigin === 'deterministic_onboarding'
+      ? ['Fleet roster generated deterministically from the operator’s saved **Port Daddy Shipwright onboarding answers**.', '',
+        `**Provenance:** generated without a model call for GitHub user \`@${session.user.login}\``,
+        `from their repository-scoped onboarding profile and opened at their click on ${when}.`]
+      : ['Fleet roster drafted in a **Port Daddy Shipwright** conversation.', '',
+        `**Provenance:** designed with GitHub user \`@${session.user.login}\` in their own`,
+        `repository-scoped Shipwright chat and opened at their click on ${when}.`];
+    const prBody = [
+      ...provenance,
+      '',
+      `The YAML was re-validated server-side before this PR existed:`,
+      `${verdict.ships.length} ship(s) parse clean (${shipNames}).`,
+      '',
+      'Zero-trust: this PR adds a fresh branch only. The fleet reads config from',
+      `\`${baseBranch}\`, so nothing takes effect until you review and merge. The`,
+      'Shipwright cannot push to existing branches and cannot merge — that part is yours.',
+    ].join('\n');
+    const prUrl = await commitFilesAndOpenPr({
+      owner,
+      repo,
+      baseBranch,
+      branchName,
+      files: { 'pd-fleet.yml': yaml + '\n' },
+      commitMessage: 'fleet: add pd-fleet.yml drafted by the Port Daddy Shipwright',
+      prTitle: 'Add pd-fleet.yml — fleet roster drafted by the Port Daddy Shipwright',
+      prBody,
+      token: scopedToken,
+    });
+    const revoked = await revokeInstallationToken(scopedToken);
+    scopedToken = null;
+    if (!revoked) {
+      return fail(502, 'TOKEN_CLEANUP_UNCONFIRMED', 'PR may have opened, but repository token cleanup is unconfirmed');
+    }
+    if (form) return redirect303(prUrl);
+    return json(200, { code: 'OK_PR_CREATED', error: null, prUrl, branch: branchName });
+  } catch (e) {
+    const cleanupConfirmed = scopedToken ? await revokeInstallationToken(scopedToken) : true;
+    if (!cleanupConfirmed) {
+      return fail(502, 'TOKEN_CLEANUP_UNCONFIRMED', 'repository token cleanup is unconfirmed');
+    }
+    const message = publicError(e);
+    if (message.includes('token revocation UNCONFIRMED')) {
+      return fail(502, 'TOKEN_CLEANUP_UNCONFIRMED', 'repository token cleanup is unconfirmed');
+    }
+    return fail(502, 'GITHUB_ERROR', `GitHub API save failed: ${message}`);
+  }
 }

@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — The Operator Surfaces</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap">
+<style>
+/* ============================================================
+   Swiss-Modern Maritime — shared token system (revised per operator)
+   A genuine reconsideration, not a reskin of ch20 — WITH THREE
+   OPERATOR CORRECTIONS baked in after the first pass:
+   1. KEEP THE SPINNING RADAR WORDMARK (website-v2 SpinningWordmark.tsx
+      / pd-console's equivalent). It is NOT replaced. The flag hoist
+      below is a SECONDARY, complementary editorial motif — used in
+      section dividers, footers, and "signature" moments — never as
+      the primary logo lockup. Every surface build must render the
+      existing spinning mark in its header/primary position.
+   2. TYPE IS IBM PLEX + RECURSIVE, not Helvetica/Arial. Swiss-modern's
+      "one family carries the page" principle is kept; the family
+      itself is the product's own established system (matches every
+      other ch20 surface + the binder), not a generic Swiss default.
+   3. NOT NEOBRUTALIST. Dialed back from the first pass: hairline
+      rules (1/1.5px), not thick 3-4px black-outlined blocks. Swiss
+      restraint means generous whitespace and quiet structure — it is
+      the OPPOSITE of neobrutalism's loud borders and hard shadows.
+      Flag glyphs get a thin 1px edge, not a heavy frame.
+   Retained from the first pass:
+   - ONE accent (signal red), not hue-per-layer ("Accent Sprawl" is
+     the named Swiss failure mode this replaces).
+   - Flags are DENOTATIVE and RARE: exactly the 9 glyphs verified
+     against Pub. 102, used large and sparingly, never as scattered
+     iconography chips.
+   - Grid is Müller-Brockmann: strict columns, flush-left, generous
+     margins, asymmetric-but-measured.
+   - Papa + Delta spell P·D (secondary motif, see correction 1) — the
+     real maritime convention of a vessel hoisting its call sign in
+     individual letter flags; not a manufactured coincidence.
+   ============================================================ */
+:root {
+  --paper:     #F7F5EF;   /* chart paper, not ch20's cream-dashboard */
+  --paper-2:   #EFEBE0;
+  --ink:       #14130F;
+  --ink-2:     #4B473C;
+  --ink-3:     #8C8574;
+  --line:      rgba(20,19,15,0.14);
+  --line-2:    rgba(20,19,15,0.30);
+  --rule:      #14130F;   /* structural rules are always ink, never accent */
+
+  --accent:    #C81E1E;   /* THE one accent — signal red (flag Bravo's hue) */
+  --accent-ink:#FBEDEC;   /* text-on-accent */
+  --ensign:    #1B3A6B;   /* structural blue — masts/rules/flag devices only, never state */
+
+  /* the 9 verified flag glyphs — colors as literally specified */
+  --fl-y:      #F5C518;   /* signal yellow */
+  --fl-b:      #1B3A6B;   /* signal blue (ensign) */
+  --fl-r:      #C81E1E;   /* signal red */
+  --fl-k:      #14130F;   /* flag black */
+  --fl-w:      #FBF8F0;   /* flag white */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:   #101114;
+    --paper-2: #17181C;
+    --ink:     #EDEAE0;
+    --ink-2:   #B9B3A4;
+    --ink-3:   #726C5E;
+    --line:    rgba(237,234,224,0.14);
+    --line-2:  rgba(237,234,224,0.30);
+    --rule:    #EDEAE0;
+    --accent:  #FF5A4E;   /* signal red, lit for dark ground */
+    --accent-ink:#1A0B0A;
+    --ensign:  #6F97D6;
+    --fl-y:#F5C518; --fl-b:#6F97D6; --fl-r:#FF5A4E; --fl-k:#0A0A08; --fl-w:#EDEAE0;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#101114; --paper-2:#17181C; --ink:#EDEAE0; --ink-2:#B9B3A4; --ink-3:#726C5E;
+  --line:rgba(237,234,224,0.14); --line-2:rgba(237,234,224,0.30); --rule:#EDEAE0;
+  --accent:#FF5A4E; --accent-ink:#1A0B0A; --ensign:#6F97D6;
+  --fl-y:#F5C518; --fl-b:#6F97D6; --fl-r:#FF5A4E; --fl-k:#0A0A08; --fl-w:#EDEAE0;
+}
+:root[data-theme="light"] {
+  --paper:#F7F5EF; --paper-2:#EFEBE0; --ink:#14130F; --ink-2:#4B473C; --ink-3:#8C8574;
+  --line:rgba(20,19,15,0.14); --line-2:rgba(20,19,15,0.30); --rule:#14130F;
+  --accent:#C81E1E; --accent-ink:#FBEDEC; --ensign:#1B3A6B;
+  --fl-y:#F5C518; --fl-b:#1B3A6B; --fl-r:#C81E1E; --fl-k:#14130F; --fl-w:#FBF8F0;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body.swiss-maritime {
+  background:var(--paper); color:var(--ink);
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  font-feature-settings:"kern" 1, "liga" 1;
+  -webkit-font-smoothing:antialiased;
+}
+.sm-mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.sm-casual { font-family: "Recursive", "IBM Plex Sans", sans-serif; font-variation-settings: "CASL" 1; }
+
+/* strict Müller-Brockmann column grid: 12 col desktop / 4 tablet / 2 mobile */
+.sm-grid {
+  display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(1rem,2vw,1.75rem);
+  max-width:1400px; margin:0 auto; padding:0 clamp(1.25rem,4vw,3rem);
+}
+@media (max-width:900px){ .sm-grid{ grid-template-columns:repeat(4,1fr);} }
+@media (max-width:520px){ .sm-grid{ grid-template-columns:repeat(2,1fr);} }
+
+/* the lettered/numbered index system — Swiss labeling that doubles
+   as a call-sign reference (A. B. C. rather than decorative bullets) */
+.sm-idx { font-family: var(--sm-mono, ui-monospace); font-weight:700; font-size:0.8rem;
+  letter-spacing:0.02em; color:var(--ink-3); }
+
+/* structural rule — a quiet hairline, never accent, never a "card border" */
+.sm-rule { border:0; border-top:1px solid var(--line-2); }
+.sm-hair { border:0; border-top:1px solid var(--line); }
+
+/* the ONE accent, used exactly once per view */
+.sm-accent-block { background:var(--accent); color:var(--accent-ink); }
+.sm-accent-text { color:var(--accent); }
+
+/* ---- the 9 verified flag glyphs (real Pub. 102 designs) ----
+   Meanings verified: python3 icos_lookup.py code <letter>, 2026-07-06.
+   P = about to proceed to sea / all aboard.  D = keep clear, maneuvering
+   with difficulty.  Q = vessel healthy, free pratique.  K = I wish to
+   communicate with you.  L = stop your vessel instantly.  N = negative.
+   U = you are running into danger.  C = affirmative (yes).
+   F = I am disabled, communicate with me. */
+/* thin edge only — a quiet register mark, not a neobrutalist frame */
+.sm-flag { display:inline-block; flex:none; border:1px solid var(--line-2); }
+.sm-flag.sz-sm { width:22px; height:16px; }
+.sm-flag.sz-md { width:48px; height:34px; }
+.sm-flag.sz-lg { width:120px; height:86px; border-width:1.5px; }
+.sm-flag.sz-xl { width:220px; height:158px; border-width:1.5px; }
+
+/* Papa — Blue Peter: blue field, white/black rectangle center */
+.fl-P { background:var(--fl-b); position:relative; }
+.fl-P::after { content:""; position:absolute; left:22%; right:22%; top:22%; bottom:22%; background:var(--fl-w); }
+/* Delta — yellow / blue / yellow horizontal bands */
+.fl-D { background:linear-gradient(to bottom, var(--fl-y) 0 30%, var(--fl-b) 30% 70%, var(--fl-y) 70%); }
+/* Quebec — solid yellow */
+.fl-Q { background:var(--fl-y); }
+/* Kilo — yellow / blue vertical halves */
+.fl-K { background:linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-b) 50%); }
+/* Lima — black/yellow quartered (checkerboard) */
+.fl-L { background:
+  linear-gradient(to right, var(--fl-k) 0 50%, var(--fl-y) 50%) top left / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-k) 50%) top right / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-k) 50%) bottom left / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-k) 0 50%, var(--fl-y) 50%) bottom right / 50% 50% no-repeat; }
+/* November — blue/white checkerboard (4 quarters) */
+.fl-N { background:
+  linear-gradient(var(--fl-b),var(--fl-b)) top left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) top right / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) bottom left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-b),var(--fl-b)) bottom right / 50% 50% no-repeat; }
+/* Uniform — red/white quartered (diagonal) */
+.fl-U { background:
+  linear-gradient(var(--fl-r),var(--fl-r)) top left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) top right / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) bottom left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-r),var(--fl-r)) bottom right / 50% 50% no-repeat; }
+/* Charlie — blue/white/red/white/blue horizontal bands */
+.fl-C { background:linear-gradient(to bottom,
+  var(--fl-b) 0 20%, var(--fl-w) 20% 40%, var(--fl-r) 40% 60%, var(--fl-w) 60% 80%, var(--fl-b) 80%); }
+/* Foxtrot — white field, red rectangle center */
+.fl-F { background:var(--fl-w); position:relative; }
+.fl-F::after { content:""; position:absolute; left:22%; right:22%; top:22%; bottom:22%; background:var(--fl-r); }
+
+/* the masthead device: Papa + Delta hoist, spelling P·D */
+.sm-mark { display:inline-flex; align-items:center; gap:0.5rem; }
+.sm-mark .sm-mark-label { font-weight:800; letter-spacing:-0.01em; }
+
+/* ============================================================
+   Page layer — The Operator Surfaces Gallery (swiss-gallery v2).
+   Everything below consumes the tokens above; no new colors,
+   no shadows, hairlines only. 14px floor throughout.
+   ============================================================ */
+html { scroll-behavior:smooth; }
+body.swiss-maritime { font-size:1rem; line-height:1.55; }
+
+/* index letters: bumped from the token default to hold the 14px floor */
+.g-idx {
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-weight:700; font-size:0.875rem; letter-spacing:0.12em;
+  color:var(--ink-3); text-transform:uppercase;
+}
+.g-kicker {
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-weight:600; font-size:0.875rem; letter-spacing:0.14em;
+  text-transform:uppercase; color:var(--ink-2);
+}
+.g-meta {
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric:tabular-nums;
+  font-size:0.875rem; line-height:1.5; color:var(--ink-3);
+}
+
+/* ---------- masthead: the spinning radar wordmark, PRIMARY ---------- */
+.masthead { padding:clamp(2rem,5vh,3.5rem) 0 clamp(1.5rem,4vh,2.5rem); }
+.masthead-row { align-items:center; }
+.mast-mark { grid-column:1 / span 2; }
+.mast-type { grid-column:3 / span 7; }
+.mast-meta { grid-column:10 / span 3; text-align:right; align-self:start; padding-top:0.35rem; }
+@media (max-width:900px){
+  .mast-mark{ grid-column:1 / span 1; }
+  .mast-type{ grid-column:2 / span 3; }
+  .mast-meta{ grid-column:1 / span 4; text-align:left; padding-top:0.75rem; }
+}
+@media (max-width:520px){
+  .mast-mark{ grid-column:1 / span 2; }
+  .mast-type{ grid-column:1 / span 2; }
+  .mast-meta{ grid-column:1 / span 2; }
+}
+.radar { display:block; width:clamp(96px,10vw,150px); height:auto; }
+.radar .r-grid { stroke:var(--line-2); }
+.radar .r-sweep {
+  transform-origin:150px 150px;
+  animation: radar-sweep 12s linear infinite;
+}
+.radar .r-glyph {
+  stroke:var(--ensign);
+  animation: radar-shift 18s ease-in-out infinite;
+}
+@keyframes radar-sweep { to { transform:rotate(360deg); } }
+/* subtle colour cadence — evokes the cobalt/ink cycle of the real mark */
+@keyframes radar-shift {
+  0%,100% { stroke:var(--ensign); }
+  45%,55% { stroke:var(--ink); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar .r-sweep, .radar .r-glyph { animation:none; }
+}
+.wordmark {
+  font-size:clamp(2.25rem,5.5vw,4.25rem);
+  font-weight:700; letter-spacing:-0.025em; line-height:1.02;
+}
+.wordtag { margin-top:0.6rem; }
+
+/* ---------- headline ---------- */
+.lede { padding:clamp(2.5rem,7vh,5rem) 0 clamp(2rem,5vh,3.5rem); }
+.lede-kicker { grid-column:1 / span 3; }
+.lede-head { grid-column:4 / span 9; }
+@media (max-width:900px){ .lede-kicker{grid-column:1 / span 4;} .lede-head{grid-column:1 / span 4; margin-top:0.75rem;} }
+@media (max-width:520px){ .lede-kicker,.lede-head{grid-column:1 / span 2;} }
+.lede h1 {
+  font-size:clamp(1.9rem,4.2vw,3.4rem);
+  font-weight:600; letter-spacing:-0.02em; line-height:1.12;
+  max-width:22ch; text-wrap:balance;
+}
+.lede h1 .sm-casual { font-variation-settings:"CASL" 1; font-weight:750; }
+.lede p {
+  margin-top:1.25rem; max-width:52ch; color:var(--ink-2);
+  font-size:clamp(1rem,1.3vw,1.125rem);
+}
+
+/* ---------- the index ---------- */
+.index { padding-bottom:clamp(2rem,5vh,3rem); }
+.entry {
+  border-top:1px solid var(--line-2);
+  padding:clamp(1.5rem,3.5vh,2.5rem) 0;
+  align-items:baseline;
+}
+.entry:last-of-type { border-bottom:1px solid var(--line-2); }
+.e-idx  { grid-column:1 / span 1; }
+.e-name { grid-column:2 / span 4; }
+.e-desc { grid-column:6 / span 4; }
+.e-meta { grid-column:11 / span 2; text-align:right; }
+@media (max-width:900px){
+  .e-idx{grid-column:1 / span 1;} .e-name{grid-column:2 / span 3;}
+  .e-desc{grid-column:2 / span 3; margin-top:0.5rem;}
+  .e-meta{grid-column:2 / span 3; text-align:left; margin-top:0.5rem;}
+}
+@media (max-width:520px){
+  .e-idx{grid-column:1 / span 2;}
+  .e-name,.e-desc,.e-meta{grid-column:1 / span 2;}
+}
+.e-name h2 {
+  font-size:clamp(1.4rem,2.4vw,2.1rem);
+  font-weight:600; letter-spacing:-0.015em; line-height:1.15;
+}
+.e-name .e-sub { margin-top:0.3rem; }
+.e-desc p { color:var(--ink-2); max-width:44ch; font-size:1rem; }
+.e-meta .st { color:var(--ink-2); }
+
+/* the single bold moment: the flagship entry */
+.entry.flagship { border-top:1.5px solid var(--accent); }
+.entry.flagship .g-idx { color:var(--accent); }
+.entry.flagship h2 { color:var(--accent); }
+.entry.flagship .e-flagline {
+  margin-top:0.55rem;
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-weight:600; font-size:0.875rem; letter-spacing:0.12em;
+  text-transform:uppercase; color:var(--accent);
+}
+
+/* ---------- signal interlude: ONE large flag, true meaning ---------- */
+.interlude { padding:clamp(3rem,8vh,5.5rem) 0; }
+.i-flag { grid-column:2 / span 3; }
+.i-copy { grid-column:6 / span 6; align-self:center; }
+@media (max-width:900px){ .i-flag{grid-column:1 / span 2;} .i-copy{grid-column:1 / span 4; margin-top:1.25rem;} }
+@media (max-width:520px){ .i-flag,.i-copy{grid-column:1 / span 2;} }
+.i-copy h3 { font-size:clamp(1.25rem,2vw,1.7rem); font-weight:600; letter-spacing:-0.01em; }
+.i-copy p { margin-top:0.75rem; color:var(--ink-2); max-width:46ch; }
+.i-copy .g-meta { margin-top:1rem; }
+
+/* ---------- footer: the P·D hoist as a small signature ---------- */
+footer { padding:clamp(2.5rem,6vh,4rem) 0 clamp(2.5rem,6vh,4rem); }
+.f-rule { grid-column:1 / span 12; }
+@media (max-width:900px){ .f-rule{grid-column:1 / span 4;} }
+@media (max-width:520px){ .f-rule{grid-column:1 / span 2;} }
+.f-hoist { grid-column:1 / span 3; margin-top:2rem; }
+.f-note  { grid-column:6 / span 4; margin-top:2rem; }
+.f-colo  { grid-column:11 / span 2; margin-top:2rem; text-align:right; }
+@media (max-width:900px){
+  .f-hoist{grid-column:1 / span 2;} .f-note{grid-column:1 / span 4;} .f-colo{grid-column:1 / span 4; text-align:left;}
+}
+@media (max-width:520px){ .f-hoist,.f-note,.f-colo{grid-column:1 / span 2;} }
+.hoist { display:flex; align-items:flex-start; gap:0.85rem; }
+.hoist .halyard { width:1px; align-self:stretch; background:var(--line-2); }
+.hoist .flags { display:flex; flex-direction:column; gap:0.6rem; }
+.f-note p { color:var(--ink-2); font-size:0.9375rem; max-width:46ch; }
+.f-note .g-meta { margin-top:0.6rem; }
+</style>
+</head>
+<body class="swiss-maritime">
+
+<!-- ================= MASTHEAD — the spinning radar wordmark, primary ================= -->
+<header class="masthead">
+  <div class="sm-grid masthead-row">
+    <div class="mast-mark">
+      <!-- Simplified rendition of website-v2 SpinningWordmark.tsx: the chart
+           grid, one radar sweep (slow rotate), and the p·d monogram with a
+           subtle colour shift. Two keyframe animations, reduced-motion safe. -->
+      <svg class="radar" viewBox="0 0 300 300" role="img" aria-label="Port Daddy radar monogram">
+        <g class="r-grid" fill="none" stroke-width="1.5">
+          <circle cx="150" cy="150" r="45"/>
+          <circle cx="150" cy="150" r="90"/>
+          <circle cx="150" cy="150" r="135"/>
+          <line x1="15" y1="150" x2="285" y2="150" stroke-dasharray="4 4"/>
+          <line x1="150" y1="15" x2="150" y2="285" stroke-dasharray="4 4"/>
+          <line x1="55" y1="55" x2="245" y2="245" stroke-dasharray="2 6"/>
+          <line x1="55" y1="245" x2="245" y2="55" stroke-dasharray="2 6"/>
+        </g>
+        <g class="r-sweep" fill="none" stroke="var(--ensign)">
+          <circle cx="150" cy="150" r="125" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" opacity="0.7"/>
+          <path d="M 145 25 L 155 25" stroke-width="3"/>
+          <path d="M 145 275 L 155 275" stroke-width="3"/>
+          <path d="M 25 145 L 25 155" stroke-width="3"/>
+          <path d="M 275 145 L 275 155" stroke-width="3"/>
+          <path d="M 213 87 A 90 90 0 0 0 187 68" stroke-width="2"/>
+          <path d="M 87 213 A 90 90 0 0 0 113 232" stroke-width="2"/>
+        </g>
+        <g class="r-glyph" fill="none" stroke-width="14" stroke-linecap="butt">
+          <!-- p -->
+          <line x1="110" y1="110" x2="110" y2="210"/>
+          <circle cx="135" cy="135" r="25"/>
+          <!-- d -->
+          <line x1="190" y1="190" x2="190" y2="90"/>
+          <circle cx="165" cy="165" r="25"/>
+        </g>
+        <circle cx="150" cy="150" r="4" fill="none" stroke="var(--ensign)" stroke-width="2"/>
+      </svg>
+    </div>
+    <div class="mast-type">
+      <div class="wordmark">Port Daddy</div>
+      <div class="wordtag g-kicker">A harbor-master for your agents</div>
+    </div>
+    <div class="mast-meta g-meta">
+      OPERATOR SURFACES<br>
+      INDEX N&deg;2 &mdash; 2026<br>
+      SWISS&thinsp;/&thinsp;MARITIME
+    </div>
+  </div>
+</header>
+
+<!-- ================= LEDE ================= -->
+<section class="lede">
+  <div class="sm-grid">
+    <div class="lede-kicker g-idx">The Gallery</div>
+    <div class="lede-head">
+      <h1>Eight surfaces. One <span class="sm-casual">harbor</span>. Every agent accounted for.</h1>
+      <p>Port Daddy runs a fleet of background agents the way a harbor-master runs a
+         port: every vessel has a berth, a call sign, and a standing order. These are
+         the surfaces an operator works from &mdash; indexed, lettered, and kept honest.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= THE INDEX ================= -->
+<main class="index">
+
+  <!-- A — FLAGSHIP: the single accent moment on the page -->
+  <div class="entry flagship sm-grid">
+    <div class="e-idx g-idx">A</div>
+    <div class="e-name">
+      <h2>FleetBar</h2>
+      <div class="e-flagline">Flagship &mdash; always on watch</div>
+    </div>
+    <div class="e-desc">
+      <p>The menu-bar command deck. Agent lanes, spawn forecast, backend selection,
+         and the day&rsquo;s traffic &mdash; one glance from any desktop, all day.</p>
+    </div>
+    <div class="e-meta g-meta">SHIPPING<br><span class="st">macOS menu bar</span></div>
+  </div>
+
+  <!-- B -->
+  <div class="entry sm-grid">
+    <div class="e-idx g-idx">B</div>
+    <div class="e-name"><h2>pd-console</h2></div>
+    <div class="e-desc">
+      <p>The native deep-work console. Sessions, claims, notes, and activity in
+         full detail &mdash; where an operator goes to read the whole logbook.</p>
+    </div>
+    <div class="e-meta g-meta">SHIPPING<br><span class="st">native &middot; gpui</span></div>
+  </div>
+
+  <!-- C -->
+  <div class="entry sm-grid">
+    <div class="e-idx g-idx">C</div>
+    <div class="e-name"><h2>Scout</h2></div>
+    <div class="e-desc">
+      <p>A single-agent spyglass. Pin one running agent and watch its telemetry,
+         output, and claims without opening the whole console.</p>
+    </div>
+    <div class="e-meta g-meta">SPEC<br><span class="st">panel</span></div>
+  </div>
+
+  <!-- D -->
+  <div class="entry sm-grid">
+    <div class="e-idx g-idx">D</div>
+    <div class="e-name"><h2>Control Center</h2></div>
+    <div class="e-desc">
+      <p>The sanctioned shell for every web-rendered surface: fleet health board,
+         forecast, roadmap &mdash; hosted, not browsed to.</p>
+    </div>
+    <div class="e-meta g-meta">SHIPPING<br><span class="st">webview shell</span></div>
+  </div>
+
+  <!-- E -->
+  <div class="entry sm-grid">
+    <div class="e-idx g-idx">E</div>
+    <div class="e-name"><h2>Mobile</h2></div>
+    <div class="e-desc">
+      <p>The glance-and-approve surface. Fleet status, human gates, and urgent
+         signals when the operator is away from the pier.</p>
+    </div>
+    <div class="e-meta g-meta">CONCEPT<br><span class="st">iOS</span></div>
+  </div>
+
+  <!-- F -->
+  <div class="entry sm-grid">
+    <div class="e-idx g-idx">F</div>
+    <div class="e-name"><h2>Leasing &amp; Harbor</h2></div>
+    <div class="e-desc">
+      <p>Federated harbors: discovery, berth leases, and signed work receipts so
+         agents from different fleets can trade labor under one protocol.</p>
+    </div>
+    <div class="e-meta g-meta">ARCHITECTURE<br><span class="st">protocol</span></div>
+  </div>
+
+  <!-- G -->
+  <div class="entry sm-grid">
+    <div class="e-idx g-idx">G</div>
+    <div class="e-name"><h2>Automations</h2></div>
+    <div class="e-desc">
+      <p>Declared, not coded: fleet agents in YAML, event-spawn behind a trust
+         gate, and standing orders that fire without a human on deck.</p>
+    </div>
+    <div class="e-meta g-meta">IN BUILD<br><span class="st">daemon</span></div>
+  </div>
+
+  <!-- H -->
+  <div class="entry sm-grid">
+    <div class="e-idx g-idx">H</div>
+    <div class="e-name"><h2>Orchestration</h2></div>
+    <div class="e-desc">
+      <p>DAGs of agents that sometimes run DAGs of agents: sorties, waves, and
+         parleys &mdash; planned, priced, and replayable.</p>
+    </div>
+    <div class="e-meta g-meta">ACTIVE<br><span class="st">workflow engine</span></div>
+  </div>
+
+</main>
+
+<!-- ================= SIGNAL INTERLUDE — one large flag, true meaning ================= -->
+<section class="interlude">
+  <div class="sm-grid">
+    <div class="i-flag">
+      <span class="sm-flag sz-xl fl-P" role="img" aria-label="Signal flag Papa — the Blue Peter"></span>
+    </div>
+    <div class="i-copy">
+      <h3>Papa &mdash; the Blue Peter.</h3>
+      <p>&ldquo;All persons should report on board; the vessel is about to proceed to
+         sea.&rdquo; It is the signal a spawning fleet hoists: everything accounted
+         for, everyone aboard, departure imminent.</p>
+      <div class="g-meta">INTERNATIONAL CODE OF SIGNALS &mdash; PUB. 102</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER — the P·D hoist as a small signature ================= -->
+<footer>
+  <div class="sm-grid">
+    <hr class="sm-rule f-rule">
+    <div class="f-hoist">
+      <div class="hoist" role="img" aria-label="Flag hoist spelling P D — Papa over Delta">
+        <span class="halyard"></span>
+        <span class="flags">
+          <span class="sm-flag sz-md fl-P"></span>
+          <span class="sm-flag sz-md fl-D"></span>
+        </span>
+      </div>
+    </div>
+    <div class="f-note">
+      <p>A vessel hoists its call sign in single letter flags. Papa over Delta
+         reads <strong>P&middot;D</strong> &mdash; this port&rsquo;s call sign, flown at the stern,
+         never at the masthead.</p>
+      <div class="g-meta">PAPA &middot; DELTA &mdash; CALL SIGN HOIST</div>
+    </div>
+    <div class="f-colo g-meta">
+      PORT DADDY<br>
+      DESIGN PASS V2<br>
+      2026-07-06
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

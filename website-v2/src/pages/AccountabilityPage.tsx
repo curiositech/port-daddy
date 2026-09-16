@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -125,26 +126,134 @@ const honestLimits = [
 ]
 
 /**
- * Labeled art slot. Real pixels come from the ch20 surface mockups
- * (docs/design/2026-07-05-surface-redesign/mockups-ch20/pd-console.html);
- * this page ships no fabricated screenshots. Swap the slot for a real
- * capture of pd-console once the run-detail pane is photographed.
+ * The witnessed-run receipt, drawn — not a screenshot of `pd-console` (this
+ * page ships no fabricated UI captures; swap this for a real capture once the
+ * run-detail pane is photographed, per the same honesty rule the old "Art
+ * slot" placeholder documented), but a real abstract figure built from this
+ * page's own data: the hash-chained transcript, a cost sparkline, the actual
+ * C0–C6 `ladder` array rendered as ascending steps, and a sealed receipt
+ * stamp. Themed entirely through `var(--token)` so it tracks light/dark.
  */
-function ArtSlot({ label, source }: { label: string; source: string }) {
+function RunReceiptFigure() {
+  const uid = React.useId()
+  const titleId = `${uid}-receipt-title`
+  const descId = `${uid}-receipt-desc`
+  const chainX = [26, 66, 106, 146, 186, 226]
+  const sparkline = [10, 18, 14, 24, 17, 28, 21, 32]
+  const stepBase = 246
+  const stepW = 30
+  const stepGap = 4
+
   return (
-    <div
-      role="img"
-      aria-label={label}
-      className="flex aspect-[16/10] w-full flex-col items-center justify-center gap-[var(--space-2)] border-2 border-dashed border-[var(--border-strong)] bg-[var(--surface-muted)] p-[var(--space-5)] text-center"
-    >
-      <PanelEyebrow>Art slot</PanelEyebrow>
-      <PanelBody size="compact" className="max-w-[36ch]">
-        {label}
-      </PanelBody>
-      <code className="max-w-full break-all font-mono text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
-        {source}
-      </code>
-    </div>
+    <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+      <div className="p-[var(--space-4)]">
+        <svg
+          viewBox="0 0 320 380"
+          role="img"
+          aria-labelledby={`${titleId} ${descId}`}
+          className="mx-auto block w-full max-w-[20rem]"
+        >
+          <title id={titleId}>A witnessed run, sealed into one receipt</title>
+          <desc id={descId}>
+            A hash-chained transcript of six linked events, a rising cost
+            sparkline, the seven-rung C0 through C6 compliance ladder drawn as
+            ascending steps, and a stamped seal marking the receipt.
+          </desc>
+
+          <text x="16" y="22" fill="var(--text-muted)" style={{ font: '800 11px var(--font-sans)', letterSpacing: '0.08em' }}>
+            TRANSCRIPT — HASH-CHAINED
+          </text>
+          <g>
+            {chainX.slice(0, -1).map((x, i) => (
+              <line
+                key={`link-${x}`}
+                x1={x}
+                y1={42}
+                x2={chainX[i + 1]}
+                y2={42}
+                stroke="var(--border-strong)"
+                strokeWidth={2}
+              />
+            ))}
+            {chainX.map((x) => (
+              <circle key={x} cx={x} cy={42} r={7} fill="var(--brand-primary)" stroke="var(--border-strong)" strokeWidth={1.5} />
+            ))}
+          </g>
+
+          <text x="16" y="82" fill="var(--text-muted)" style={{ font: '800 11px var(--font-sans)', letterSpacing: '0.08em' }}>
+            EXACT COST, PER TURN
+          </text>
+          <g transform="translate(16, 92)">
+            {sparkline.map((h, i) => (
+              <rect
+                key={i}
+                x={i * 16}
+                y={36 - h}
+                width={11}
+                height={h}
+                fill="var(--story-health)"
+                fillOpacity={0.75}
+              />
+            ))}
+          </g>
+
+          <text x="16" y="160" fill="var(--text-muted)" style={{ font: '800 11px var(--font-sans)', letterSpacing: '0.08em' }}>
+            COMPLIANCE, C0–C6
+          </text>
+          <g>
+            {ladder.map((rung, i) => {
+              const h = 12 + i * 7
+              const x = 16 + i * (stepW + stepGap)
+              return (
+                <g key={rung.level}>
+                  <rect
+                    x={x}
+                    y={stepBase - h}
+                    width={stepW}
+                    height={h}
+                    fill={`var(${rung.token})`}
+                    fillOpacity={0.85}
+                    stroke="var(--border-strong)"
+                    strokeWidth={1.5}
+                  />
+                  <text
+                    x={x + stepW / 2}
+                    y={stepBase + 16}
+                    textAnchor="middle"
+                    fill="var(--text-muted)"
+                    style={{ font: '700 10px var(--font-mono)' }}
+                  >
+                    {rung.level}
+                  </text>
+                </g>
+              )
+            })}
+          </g>
+
+          <g transform="translate(38, 336)">
+            <circle r={22} fill="var(--brand-primary)" stroke="var(--border-strong)" strokeWidth={2} />
+            <path
+              d="M -9 0 L -2 7 L 11 -9"
+              fill="none"
+              stroke="var(--brand-primary-foreground)"
+              strokeWidth={3.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
+          <text x="72" y="331" fill="var(--text-primary)" style={{ font: '900 14px var(--font-sans)' }}>
+            One receipt
+          </text>
+          <text x="72" y="349" fill="var(--text-muted)" style={{ font: '700 11px var(--font-mono)', letterSpacing: '0.04em' }}>
+            per run, sealed
+          </text>
+        </svg>
+      </div>
+      <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+        Transcript, cost, compliance level, receipt — the four things every
+        witnessed run seals into one record, drawn from the same ladder pd-console reads.
+      </figcaption>
+    </figure>
   )
 }
 
@@ -189,10 +298,7 @@ export function AccountabilityPage() {
               <SwissGridItem span="narrow">
                 <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)]">
                   <PanelEyebrow>Run detail</PanelEyebrow>
-                  <ArtSlot
-                    label="pd-console run detail: transcript, cost line, compliance badge, receipt"
-                    source="docs/design/2026-07-05-surface-redesign/mockups-ch20/pd-console.html"
-                  />
+                  <RunReceiptFigure />
                   <div className="grid grid-cols-2 border-2 border-[var(--border-strong)] md:grid-cols-4">
                     {['Transcript', 'Cost', 'Compliance', 'Receipt'].map((label, index) => (
                       <div

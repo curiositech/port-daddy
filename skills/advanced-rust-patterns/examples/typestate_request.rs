@@ -79,11 +79,11 @@ mod tests {
     #[test]
     fn happy_path_compiles_and_runs() {
         let out = Request::new()
-            .url("https://windags.ai")
+            .url("https://example.com")
             .method("GET")
             .header("accept", "application/json")
             .send();
-        assert_eq!(out, "GET https://windags.ai (1 headers)");
+        assert_eq!(out, "GET https://example.com (1 headers)");
     }
 
     // The following would NOT compile (uncomment to see the type error):
@@ -104,6 +104,6 @@ mod tests {
 }
 
 fn main() {
-    let out = Request::new().url("https://windags.ai").method("POST").send();
+    let out = Request::new().url("https://example.com").method("POST").send();
     println!("{out}");
 }

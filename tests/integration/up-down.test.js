@@ -195,7 +195,13 @@ describe('port-daddy up/down Integration', () => {
     upProcess = null;
 
     // Release services from THIS test's projects only
-    const testProjectPrefixes = ['test-up-down:', 'test-nohealth:', 'test-selective:', 'test-remote:'];
+    const testProjectPrefixes = [
+      'test-up-down:',
+      'test-nohealth:',
+      'test-selective:',
+      'test-remote:',
+      'configured-service-proof:',
+    ];
     try {
       const svcRes = await request('/services');
       if (svcRes.ok && svcRes.data?.services) {
@@ -304,6 +310,58 @@ describe('port-daddy up/down Integration', () => {
       await new Promise(r => setTimeout(r, 500));
     }
     expect(thisTestServices.map(s => s.id)).toEqual([]);
+  }, 60000);
+
+  test('uses the configured project identity for registration and discovery after readiness', async () => {
+    const appDir = join(tempDir, 'app');
+    const configuredProject = 'configured-service-proof';
+    const semanticId = `${configuredProject}:app:main`;
+    mkdirSync(appDir, { recursive: true });
+    writeFileSync(join(appDir, 'server.mjs'), MINI_SERVER_SCRIPT);
+
+    writeFileSync(join(tempDir, '.portdaddyrc'), JSON.stringify({
+      project: configuredProject,
+      services: {
+        app: {
+          dev: 'node server.mjs',
+          dir: appDir,
+          health: '/health',
+          env: { SERVICE_NAME: 'configured-app' },
+        },
+      },
+    }, null, 2));
+    // Deliberately disagree with the config: registration must use config.
+    writeFileSync(join(tempDir, 'package.json'), JSON.stringify({
+      name: 'package-directory-inference-must-not-win',
+    }));
+
+    upProcess = spawn(TSX_PATH, [CLI_PATH, 'up', '--dir', tempDir], {
+      env: cliEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    });
+
+    const output = await waitForOutput(upProcess, 'service(s) running', 45000);
+    expect(JSON.parse(readFileSync(join(tempDir, '.portdaddyrc'), 'utf8')).project).toBe(configuredProject);
+    expect(output).toContain(semanticId);
+
+    const portMatch = output.match(/app\s+→\s+(\d{4,5})/);
+    expect(portMatch).not.toBeNull();
+    const readiness = await fetchLocal(parseInt(portMatch[1], 10));
+    expect(readiness).toMatchObject({ status: 'ok', name: 'configured-app' });
+
+    const registered = (await getClaimedServices()).find(service => service.id === semanticId);
+    expect(registered).toMatchObject({ id: semanticId });
+
+    const discovery = spawnSync(TSX_PATH, [CLI_PATH, 'find', semanticId], {
+      encoding: 'utf-8',
+      env: cliEnv(),
+    });
+    expect(discovery.status).toBe(0);
+    expect(discovery.stderr).toContain(semanticId);
+    expect(discovery.stderr).not.toContain('No services found');
+
+    await killAndWait(upProcess, 'SIGTERM', 10000);
   }, 60000);
 
   test('up exits with error when no services found', async () => {

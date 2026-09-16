@@ -49,6 +49,7 @@ export const ADAPTER_PROVIDERS: Record<AdapterKind, string> = {
   lmstudio: 'lmstudio',
   'custom-stdio': 'custom',
   'custom-http': 'custom',
+  'spawner-child': 'custom',
 };
 
 /**

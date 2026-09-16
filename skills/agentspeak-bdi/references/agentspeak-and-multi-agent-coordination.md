@@ -38,7 +38,7 @@ This has important consequences:
 
 The last point is the critical limitation. In AgentSpeak(L), there is no formal language for specifying multi-agent protocols — only for specifying individual agent plans. Protocol verification requires reasoning across multiple agents' plan libraries simultaneously, which the single-agent proof theory does not support.
 
-**For WinDAGs**: Make inter-agent protocols explicit at the orchestration level. While individual agent plans are specified locally (in each agent's plan library), the coordination patterns between agents should be specified and versioned as first-class artifacts — not left implicit in the aggregate of individual plan libraries.
+**For Jury-rig**: Make inter-agent protocols explicit at the orchestration level. While individual agent plans are specified locally (in each agent's plan library), the coordination patterns between agents should be specified and versioned as first-class artifacts — not left implicit in the aggregate of individual plan libraries.
 
 ## Goal Sharing and Joint Intentions
 
@@ -55,7 +55,7 @@ The key insight from this literature: joint intentions are more than the sum of 
 
 When a member's individual intent changes (they believe the goal is unachievable), they must communicate this to other team members — not just drop their individual intention silently.
 
-**For WinDAGs**: Tasks assigned to multiple agents collaboratively should be tracked as *joint intentions* with explicit commitment protocols. When any agent working on a joint task updates its beliefs about task feasibility, it must propagate this update to other agents working on the task. Silent failure — an agent dropping its contribution to a joint task without notification — is the primary failure mode in poorly designed multi-agent systems.
+**For Jury-rig**: Tasks assigned to multiple agents collaboratively should be tracked as *joint intentions* with explicit commitment protocols. When any agent working on a joint task updates its beliefs about task feasibility, it must propagate this update to other agents working on the task. Silent failure — an agent dropping its contribution to a joint task without notification — is the primary failure mode in poorly designed multi-agent systems.
 
 ## Coordination Overhead and the Limits of Decentralization
 
@@ -75,9 +75,9 @@ These failures require coordination mechanisms beyond the basic AgentSpeak(L) fo
 
 Rao's single-agent formalism does not address these multi-agent coordination problems. They must be added as extensions — either through additional plan structures (plans that include coordination protocols) or through infrastructure-level mechanisms (a coordination service that agents invoke through actions).
 
-## WinDAGs-Specific Coordination Design
+## Jury-rig-Specific Coordination Design
 
-For a WinDAGs orchestration system, the AgentSpeak(L) model suggests the following multi-agent coordination design:
+For a Jury-rig orchestration system, the AgentSpeak(L) model suggests the following multi-agent coordination design:
 
 **Shared Belief Store with Agent-Local Views**: Maintain a shared, globally consistent belief store (representing the environment and task state) that all agents can read. Each agent additionally maintains its own private beliefs (its current intentions, its local context). Belief updates to shared state are propagated to all agents; private beliefs are not shared.
 

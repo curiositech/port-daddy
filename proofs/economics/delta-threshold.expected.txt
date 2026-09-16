@@ -2,30 +2,30 @@
 #
 # Z3 returns the root in algebraic-number form: (root-obj P k) names the
 # k-th real root of polynomial P. The polynomial here is the IC cubic
-# 3*x^3 + 3*x^2 + 3*x - 1, and k=1 picks the unique real root in (0, 1).
-# Numerically delta* ≈ 0.2530765865 (computed via numpy.roots).
+# 2*x^3 + 2*x^2 + 2*x - 1, and k=1 picks the unique real root in (0, 1).
+# Numerically delta* ≈ 0.3425080314 (computed via numpy.roots).
 #
 # Tested with Z3 4.13 and Z3 4.15. Wall-clock < 100 ms.
 
 sat
 (
   (define-fun delta () Real
-    (root-obj (+ (* 3 (^ x 3)) (* 3 (^ x 2)) (* 3 x) (- 1)) 1))
+    (root-obj (+ (* 2 (^ x 3)) (* 2 (^ x 2)) (* 2 x) (- 1)) 1))
 )
 sat
 (
   (define-fun delta () Real
-    (root-obj (+ (* 3 (^ x 3)) (* 3 (^ x 2)) (* 3 x) (- 1)) 1))
+    (root-obj (+ (* 2 (^ x 3)) (* 2 (^ x 2)) (* 2 x) (- 1)) 1))
 )
 unsat
 
 # Interpretation:
 #   1st `sat`   — a root of the IC cubic exists in [0, 1].
-#   2nd `sat`   — that root lies in [0.25, 0.26] (matches the closed-form
-#                 numerical value delta* ≈ 0.2530765865).
+#   2nd `sat`   — that root lies in [0.34, 0.35] (matches the closed-form
+#                 numerical value delta* ≈ 0.3425080314).
 #   3rd `unsat` — no SECOND distinct root in [0, 1] (uniqueness).
 #
 # All three together prove: the IC cubic has a unique real root in (0, 1)
-# and it lies in [0.25, 0.26]. This is the discount-factor threshold
+# and it lies in [0.34, 0.35]. This is the discount-factor threshold
 # delta* for the graduated-trigger strategy of agent-transactions
 # whitepaper §sec:economic.

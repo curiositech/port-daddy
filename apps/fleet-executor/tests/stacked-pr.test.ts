@@ -132,6 +132,31 @@ describe('createOrUpdateBranch — blobs → tree → commit → ref, idempotent
     ).rejects.toThrow(/refused/);
     expect(state.records).toHaveLength(0);
   });
+
+  it('fails closed before the first Git Data write when the mutation guard rejects', async () => {
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      createOrUpdateBranch(
+        OWNER,
+        REPO,
+        'purser/pr-7-tests',
+        'BASESHA',
+        FILES,
+        'msg',
+        TOKEN,
+        guard,
+      ),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith('before create blob tests/purser/a.test.ts');
+    expect(state.blobsCreated).toBe(0);
+    expect(state.treesCreated).toBe(0);
+    expect(state.commitsCreated).toBe(0);
+    expect(state.refCreates).toBe(0);
+    expect(state.refUpdates).toBe(0);
+  });
 });
 
 describe('openStackedPr — idempotent create', () => {
@@ -163,6 +188,62 @@ describe('openStackedPr — idempotent create', () => {
       body: 'b2',
     });
   });
+
+  it('does not create a stacked PR when the mutation guard rejects after lookup', async () => {
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      openStackedPr(
+        OWNER,
+        REPO,
+        'purser/pr-7-tests',
+        'main',
+        'title',
+        'body',
+        ['purser'],
+        TOKEN,
+        guard,
+      ),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith('before create stacked PR from purser/pr-7-tests');
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.labelPosts).toHaveLength(0);
+  });
+
+  it('does not refresh an existing stacked PR when the mutation guard rejects', async () => {
+    const first = await openStackedPr(
+      OWNER,
+      REPO,
+      'purser/pr-7-tests',
+      'main',
+      'title',
+      'body',
+      [],
+      TOKEN,
+    );
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      openStackedPr(
+        OWNER,
+        REPO,
+        'purser/pr-7-tests',
+        'main',
+        'new title',
+        'new body',
+        [],
+        TOKEN,
+        guard,
+      ),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith(`before refresh stacked PR #${first.number}`);
+    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.prPatches).toHaveLength(0);
+  });
 });
 
 describe('retargetPrBase', () => {
@@ -174,6 +255,18 @@ describe('retargetPrBase', () => {
       title: undefined,
       body: undefined,
     });
+  });
+
+  it('does not retarget when the mutation guard rejects', async () => {
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      retargetPrBase(OWNER, REPO, 7, 'purser/pr-7-tests', TOKEN, guard),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith('before retarget PR #7 base');
+    expect(state.prPatches).toHaveLength(0);
   });
 });
 

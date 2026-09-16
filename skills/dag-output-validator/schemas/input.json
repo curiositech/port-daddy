@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["agentOutput"],
+  "properties": {
+    "agentOutput": {
+      "type": "object",
+      "description": "Output from a DAG node/agent"
+    },
+    "expectedSchema": {
+      "type": "object",
+      "description": "JSON Schema that output should conform to"
+    },
+    "qualityCriteria": {
+      "type": "object",
+      "description": "Content quality standards to check",
+      "properties": {
+        "minLength": { "type": "integer" },
+        "maxLength": { "type": "integer" },
+        "requiredFields": { "type": "array" },
+        "allowedTypes": { "type": "array" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -38,8 +38,9 @@ import {
   type ReleaseRegionArgs,
 } from '../lib/editor-claims-mcp.js';
 import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
+import { beginRequestFingerprint, generateBeginIdempotencyKey } from '../lib/begin-idempotency.js';
 import { governToolOutput } from '../lib/mcp-output-governor.js';
-import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId } from '../lib/mcp-session-cache.js';
+import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId, resolveActorCredential } from '../lib/mcp-session-cache.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -66,6 +67,16 @@ async function api(
 ): Promise<ApiResponse> {
   const url = new URL(path, DAEMON_URL);
 
+  // #8877 / ADR-0122: attributed daemon writes require the ADR-0040
+  // daemon-minted credential. Present the one begin_session captured (or the
+  // env-injected one) on every request; harmless on reads, required on writes.
+  const actorCredential = resolveActorCredential();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (actorCredential) headers['x-actor-credential'] = actorCredential;
+
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
@@ -73,10 +84,7 @@ async function api(
         port: url.port,
         path: url.pathname + url.search,
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers,
         timeout: options?.timeout ?? REQUEST_TIMEOUT,
       },
       (res) => {
@@ -248,8 +256,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, harbormaster liveness, and witnessed harness compatibility',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status', 'harness_continuation_matrix'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'coordination_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -281,8 +289,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['spray_pheromone', 'resolve_pheromone', 'pheromone_coverage', 'read_pheromones', 'read_entity_pheromones'],
   },
   'roadmap': {
-    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item',
-    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote'],
+    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item',
+    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote', 'roadmap_search', 'roadmap_export'],
   },
   'commitments': {
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
@@ -297,8 +305,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
   },
   'knowledge': {
-    description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
+    description: 'Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
+    tools: ['jury_rig_status', 'semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
@@ -469,6 +477,20 @@ const TOOLS = [
       'connected to the cloud relay, its session, last handshake, and which channels ' +
       'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
       'relying on it. Read-only. Usage: relay_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'coordination_status',
+    description:
+      '[System] Offline-first coordination peer status (ADR-0092 section 4). ' +
+      'Returns whether federation is enabled and connected plus the project, actor, ' +
+      'stable replica id, durable room cursor, pending local outbox count, last sync, ' +
+      'and last error. A disconnected peer does not mean local coordination is ' +
+      'unavailable: the local SQLite ledger remains writable and reconverges later. ' +
+      'Read-only. Usage: coordination_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -659,6 +681,42 @@ const TOOLS = [
       required: ['slug'],
     },
   },
+  {
+    name: 'roadmap_search',
+    description:
+      '[Roadmap] Rank roadmap items against free text (BM25 -> cosine over shared MiniLM embeddings, ' +
+      'same cascade as pd whois). Use before pd_begin when you know what you are about to work on but ' +
+      'not the exact --roadmap slug. Usage: roadmap_search({query: "fix the login timeout"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Free text describing the work' },
+        harbor: { type: 'string', description: 'Restrict to one harbor (optional)' },
+        limit: { type: 'number', description: 'Max candidates to return (default 5)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'roadmap_export',
+    description:
+      '[Roadmap] Push one roadmap item to an external tracker (GitHub Issues, Linear, or Jira). ' +
+      'One-way, repeatable push, not two-way sync. Credentials come from server env vars only. ' +
+      'Usage: roadmap_export({slug: "fix-x", target: "github", repo: "acme/widgets"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Roadmap item slug to export' },
+        target: { type: 'string', enum: ['github', 'linear', 'jira'], description: 'Which tracker' },
+        repo: { type: 'string', description: 'GitHub only: "owner/repo"' },
+        teamId: { type: 'string', description: 'Linear only: team id to file the issue under' },
+        baseUrl: { type: 'string', description: 'Jira only: e.g. https://your-org.atlassian.net' },
+        projectKey: { type: 'string', description: 'Jira only: project key, e.g. "ROAD"' },
+        issueType: { type: 'string', description: 'Jira only: issue type name (default "Task")' },
+      },
+      required: ['slug', 'target'],
+    },
+  },
 
   // ── Commitments (ADR-0041 obligations) ───────────────────────────────
   {
@@ -807,6 +865,17 @@ const TOOLS = [
   },
 
   // ── Knowledge (semantic search + symbol index) ───────────────────────
+  {
+    name: 'jury_rig_status',
+    description:
+      '[Knowledge] Read-only Tool2Vec catalog coverage and checkpoint state. ' +
+      'Reports current, cold, reconciling, embedder-down, or generator-down ' +
+      'without generating centroids or calling an LLM. Usage: jury_rig_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
   {
     name: 'semantic_search',
     description:
@@ -1138,7 +1207,9 @@ const TOOLS = [
       '[Essential] Add a note to the current session or create a quick standalone note. ' +
       'Notes are immutable — once added, they cannot be edited or deleted. ' +
       'Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. ' +
-      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision"})',
+      'If this MCP process has no cached begin_session attachment and multiple sessions are active, ' +
+      'pass agent_id (from your begin_session response) or session_id to avoid AMBIGUOUS_ACTIVE_SESSION. ' +
+      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision", agent_id: "agent-abc123"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1154,6 +1225,13 @@ const TOOLS = [
         session_id: {
           type: 'string',
           description: 'Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note.',
+        },
+        agent_id: {
+          type: 'string',
+          description:
+            'Your agent ID (from begin_session response). Disambiguates which session to write to ' +
+            'when multiple sessions are active in this worktree — otherwise omitting session_id fails ' +
+            'with AMBIGUOUS_ACTIVE_SESSION.',
         },
       },
       required: ['content'],
@@ -1665,10 +1743,6 @@ const TOOLS = [
           type: 'string',
           description: 'Message content to queue.',
         },
-        from: {
-          type: 'string',
-          description: 'Sender agent id or operator label.',
-        },
         type: {
           type: 'string',
           description: 'Optional message type.',
@@ -1828,10 +1902,6 @@ const TOOLS = [
         content: {
           type: 'string',
           description: 'Message content',
-        },
-        from: {
-          type: 'string',
-          description: 'Sender agent ID (optional)',
         },
         type: {
           type: 'string',
@@ -2948,7 +3018,7 @@ const TOOLS = [
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
         files: { type: 'array', description: 'Optional focused file list, mainly for aider-backed runs', items: { type: 'string' } },
-        workdir: { type: 'string', description: 'Optional working directory override' },
+        workdir: { type: 'string', description: 'Existing absolute working directory, required for local CLI/file-capable agents. Omit only for API-only projectless runs; never defaults to the daemon directory.' },
         timeout: { type: 'number', description: 'Optional timeout in milliseconds' },
         allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
         max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
@@ -3403,6 +3473,26 @@ const DAEMON_RECOVERY_HINT =
 // Tool handler
 // ---------------------------------------------------------------------------
 
+/**
+ * Begin idempotency keys, per logical begin, for the life of this MCP
+ * process. A harness that re-issues the SAME `begin_session` call (a tool
+ * retry after a lost or timed-out result) maps to the same key by request
+ * fingerprint, so the daemon replays the session it already committed rather
+ * than minting a second one. Scoped to this process on purpose: keys derived
+ * from public arguments alone would let any caller replay another agent's
+ * begin (and receive its credential).
+ */
+const beginIdempotencyKeysByFingerprint = new Map<string, string>();
+
+function beginIdempotencyKeyFor(body: Record<string, unknown>): string {
+  const fingerprint = beginRequestFingerprint(body);
+  const existing = beginIdempotencyKeysByFingerprint.get(fingerprint);
+  if (existing) return existing;
+  const key = generateBeginIdempotencyKey();
+  beginIdempotencyKeysByFingerprint.set(fingerprint, key);
+  return key;
+}
+
 async function handleTool(
   name: string,
   args: Record<string, unknown>
@@ -3448,6 +3538,7 @@ async function handleTool(
           }, null, 2);
         }
       }
+      body.idempotencyKey = beginIdempotencyKeyFor(body);
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
@@ -3481,7 +3572,14 @@ async function handleTool(
         const data = res.data as Record<string, unknown>;
         const agentId = typeof data.agentId === 'string' ? data.agentId : undefined;
         const sessionId = typeof data.sessionId === 'string' ? data.sessionId : undefined;
-        if (agentId && sessionId) setActiveSession({ agentId, sessionId });
+        // #8877: begin mints (or verifies) the ADR-0040 soul; the returned
+        // credential must be cached so every later attributed write from this
+        // process presents it. NEVER echo the credential back into the tool
+        // output visible to the model transcript longer than necessary — but
+        // the begin response itself already carries it by design (returned
+        // once); we additionally keep it here for subsequent calls.
+        const mintedCredential = typeof data.credential === 'string' ? data.credential : undefined;
+        if (agentId && sessionId) setActiveSession({ agentId, sessionId, credential: mintedCredential });
       }
       break;
     }
@@ -3524,6 +3622,11 @@ async function handleTool(
 
     case 'relay_status': {
       res = await GET('/relay/status');
+      break;
+    }
+
+    case 'coordination_status': {
+      res = await GET('/coordination/status');
       break;
     }
 
@@ -3633,6 +3736,25 @@ async function handleTool(
       break;
     }
 
+    case 'roadmap_search': {
+      const params = new URLSearchParams({ q: args.query as string });
+      if (args.harbor) params.set('harbor', args.harbor as string);
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      res = await GET(`/roadmap/search?${params.toString()}`);
+      break;
+    }
+
+    case 'roadmap_export': {
+      const body: Record<string, unknown> = { target: args.target };
+      if (args.repo !== undefined) body.repo = args.repo;
+      if (args.teamId !== undefined) body.teamId = args.teamId;
+      if (args.baseUrl !== undefined) body.baseUrl = args.baseUrl;
+      if (args.projectKey !== undefined) body.projectKey = args.projectKey;
+      if (args.issueType !== undefined) body.issueType = args.issueType;
+      res = await POST(`/roadmap/items/${encodeURIComponent(args.slug as string)}/export`, body);
+      break;
+    }
+
     // ── Commitments (ADR-0041) ──────────────────────────────────────
     case 'commit': {
       const body: Record<string, unknown> = {
@@ -3733,6 +3855,11 @@ async function handleTool(
     }
 
     // ── Knowledge (semantic search + symbol index) ──────────────────
+    case 'jury_rig_status': {
+      res = await GET('/jury-rig/status');
+      break;
+    }
+
     case 'semantic_search': {
       const params = new URLSearchParams();
       params.set('q', args.q as string);
@@ -3913,7 +4040,9 @@ async function handleTool(
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
       const noteSessionId = resolveSessionId(args);
+      const noteAgentId = resolveAgentId(args);
       if (noteSessionId) body.sessionId = noteSessionId;
+      if (noteAgentId) body.agentId = noteAgentId;
 
       res = await POST('/notes', body);
       break;
@@ -4160,7 +4289,14 @@ async function handleTool(
       const body: Record<string, unknown> = {
         content: args.content,
       };
-      if (args.from) body.from = args.from;
+      // #8877 / ADR-0122: `from` is no longer model-supplied. The inbox is an
+      // instruction plane — a model-chosen sender name is a forged authority
+      // label the daemon would have to take on faith. Send under this
+      // process's own session agentId (which the daemon can verify against
+      // the session binding), or send nothing and let it derive the minted
+      // actorId from the credential.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       if (typeof args.wake === 'boolean') body.wake = args.wake;
       if (args.project) body.project = args.project;
@@ -4217,7 +4353,10 @@ async function handleTool(
     // ── Agent Inbox ─────────────────────────────────────────────────────
     case 'inbox_send': {
       const body: Record<string, unknown> = { content: args.content };
-      if (args.from) body.from = args.from;
+      // See message_actor: the sender is this process's verified session, not
+      // a string the model picked.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}/inbox`, body);
       break;
@@ -4858,6 +4997,7 @@ async function handleTool(
       const message = args.message as string;
       const type = (args.type as string) || 'request';
       const project = args.project as string | undefined;
+      const talkSenderAgentId = resolveAgentId({});
       const candidates = agent.includes(':')
         ? [agent]
         : [
@@ -4868,14 +5008,20 @@ async function handleTool(
       for (const target of candidates) {
         try {
           const r = await POST(`/agents/${encodeURIComponent(target)}/inbox`, {
-            type, content: message, from: 'mcp-user',
+            // 'mcp-user' was a hardcoded, un-minted sender name — exactly the
+            // forged attribution the inbox gate now rejects. Send under this
+            // process's verified session agentId, or omit and let the daemon
+            // attribute the message to the credential's minted actor.
+            type, content: message, ...(talkSenderAgentId ? { from: talkSenderAgentId } : {}),
           });
           if (r.status >= 200 && r.status < 300) {
             return JSON.stringify({ success: true, delivered_to: target, type, message });
           }
         } catch { /* try next candidate */ }
       }
-      await POST(`/msg/${encodeURIComponent(agent)}`, { payload: { type, message, from: 'mcp-user' } });
+      await POST(`/msg/${encodeURIComponent(agent)}`, {
+        payload: { type, message, from: talkSenderAgentId ?? 'mcp-user' },
+      });
       return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
     }
 
@@ -5198,7 +5344,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.28.2',
+    version: '3.30.6',
   },
   {
     capabilities: {

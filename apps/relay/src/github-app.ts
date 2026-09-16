@@ -13,7 +13,15 @@
  * is the gate.
  */
 
+import {
+  githubAppPrivateKeyDer,
+  importGitHubAppSigningKey,
+} from '../../shared/github-app-crypto.js';
+
+export { githubAppPrivateKeyDer };
+
 const GH_API = 'https://api.github.com';
+const GH_PUBLISH_TIMEOUT_MS = 15_000;
 
 function appHeaders(jwt: string): Record<string, string> {
   return {
@@ -38,21 +46,7 @@ function ghHeaders(token: string): Record<string, string> {
 // GitHub App JWT (Workers-native Web Crypto, no @octokit/auth-app)
 
 async function signJwt(payload: Record<string, unknown>, pemKey: string): Promise<string> {
-  const pem = pemKey
-    .replace(/-----BEGIN RSA PRIVATE KEY-----/, '')
-    .replace(/-----END RSA PRIVATE KEY-----/, '')
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s/g, '');
-  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
-
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    der,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+  const key = await importGitHubAppSigningKey(pemKey);
 
   const header = { alg: 'RS256', typ: 'JWT' };
   const enc = (obj: unknown) =>
@@ -83,6 +77,130 @@ export async function mintAppJwt(appId: string, privateKeyPem: string): Promise<
 interface InstallationTokenResponse {
   token: string;
   expires_at?: string;
+  repositories?: Array<{ id?: number; full_name?: string; name?: string }>;
+  permissions?: Record<string, string>;
+}
+
+export type InstallationPermission = 'read' | 'write';
+
+/**
+ * Mint one uncached, attenuated installation token for exactly one repository.
+ * General publishing must use this helper rather than the legacy broad cache.
+ */
+export async function mintRepositoryInstallationToken(
+  appId: string,
+  privateKeyPem: string,
+  installationId: number,
+  owner: string,
+  repository: string,
+  permissions: Readonly<Record<string, InstallationPermission>>,
+): Promise<{ token: string; expiresAt: number }> {
+  const jwt = await mintAppJwt(appId, privateKeyPem);
+  const res = await fetch(`${GH_API}/app/installations/${installationId}/access_tokens`, {
+    method: 'POST',
+    headers: { ...appHeaders(jwt), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repositories: [repository], permissions }),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub App token mint failed ${res.status}`);
+  const body = (await res.json()) as InstallationTokenResponse;
+  if (!body.token) throw new Error('GitHub App token mint returned no token');
+  try {
+    const exactFullName = `${owner}/${repository}`.toLowerCase();
+    const selected = body.repositories;
+    if (!Array.isArray(selected) || selected.length !== 1
+        || selected[0]?.name?.toLowerCase() !== repository.toLowerCase()
+        || selected[0]?.full_name?.toLowerCase() !== exactFullName) {
+      throw new Error('GitHub App token mint did not confirm the exact owner/repository scope');
+    }
+    const requested = Object.entries(permissions).sort(([left], [right]) => left.localeCompare(right));
+    const returned = Object.entries(body.permissions ?? {}).sort(([left], [right]) => left.localeCompare(right));
+    if (JSON.stringify(returned) !== JSON.stringify(requested)) {
+      throw new Error('GitHub App token mint did not confirm the exact requested permissions');
+    }
+    const expiresAt = typeof body.expires_at === 'string' ? new Date(body.expires_at).getTime() : Number.NaN;
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      throw new Error('GitHub App token mint returned an invalid expiration');
+    }
+    return { token: body.token, expiresAt };
+  } catch (error) {
+    const revoked = await revokeInstallationToken(body.token);
+    const message = error instanceof Error ? error.message : 'GitHub App token validation failed';
+    throw new Error(`${message}; issued token revocation ${revoked ? 'confirmed' : 'UNCONFIRMED'}`);
+  }
+}
+
+/** Revoke an attenuated installation token after the one bounded operation. */
+export async function revokeInstallationToken(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${GH_API}/installation/token`, {
+      method: 'DELETE',
+      headers: ghHeaders(token),
+      redirect: 'error',
+      signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+    });
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
+export interface GitHubAppIdentity {
+  id: number;
+  slug: string;
+  botName: string;
+  botEmail: string;
+}
+
+/** Resolve the App's durable bot commit identity, cached as public metadata. */
+export async function getGitHubAppIdentity(
+  appId: string,
+  privateKeyPem: string,
+  kv: KVNamespace,
+): Promise<GitHubAppIdentity> {
+  const cacheKey = `github_app_identity_${appId}`;
+  const cached = await kv.get(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as GitHubAppIdentity;
+      const expectedName = `${parsed.slug}[bot]`;
+      const expectedEmail = `${parsed.id}+${expectedName}@users.noreply.github.com`;
+      if (Number.isSafeInteger(parsed.id) && parsed.id > 0 && /^[a-z0-9-]+$/.test(parsed.slug)
+          && parsed.botName === expectedName && parsed.botEmail === expectedEmail) return parsed;
+    } catch { /* refresh malformed cache */ }
+  }
+  const jwt = await mintAppJwt(appId, privateKeyPem);
+  const res = await fetch(`${GH_API}/app`, {
+    headers: appHeaders(jwt),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub App identity lookup failed ${res.status}`);
+  const body = (await res.json()) as { slug?: string };
+  if (typeof body.slug !== 'string' || !/^[a-z0-9-]+$/.test(body.slug)) {
+    throw new Error('GitHub App identity lookup returned an invalid shape');
+  }
+  const expectedLogin = `${body.slug}[bot]`;
+  const botRes = await fetch(`${GH_API}/users/${encodeURIComponent(expectedLogin)}`, {
+    headers: appHeaders(jwt),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+  });
+  if (!botRes.ok) throw new Error(`GitHub App bot identity lookup failed ${botRes.status}`);
+  const bot = (await botRes.json()) as { id?: number; login?: string; type?: string };
+  if (!Number.isSafeInteger(bot.id) || !bot.id || bot.type !== 'Bot'
+      || typeof bot.login !== 'string' || bot.login.toLowerCase() !== expectedLogin.toLowerCase()) {
+    throw new Error('GitHub App bot identity lookup returned an invalid shape');
+  }
+  const identity: GitHubAppIdentity = {
+    id: bot.id,
+    slug: body.slug,
+    botName: bot.login,
+    botEmail: `${bot.id}+${bot.login}@users.noreply.github.com`,
+  };
+  await kv.put(cacheKey, JSON.stringify(identity), { expirationTtl: 24 * 60 * 60 });
+  return identity;
 }
 
 async function mintInstallationToken(
@@ -144,17 +262,21 @@ export async function getInstallationTokenCached(
  * Resolve the installation id for a repo via the App JWT (cached in KV keyed by
  * `github_repo_inst_<owner>_<repo>`). Avoids requiring an explicit
  * GITHUB_APP_INSTALLATION_ID env var — the App already knows where it is
- * installed.
+ * installed. Exported for the Shipwright PR route, which uses this as the
+ * authoritative repo→installation binding check (GitHub's own answer, never the
+ * caller's claim): a PR can only be opened in a repo whose installation the
+ * signed-in user provably owns.
  */
-async function getRepoInstallationId(
+export async function getRepoInstallationId(
   appId: string,
   privateKeyPem: string,
   owner: string,
   repo: string,
   kv: KVNamespace,
+  forceRefresh = false,
 ): Promise<number> {
   const key = `github_repo_inst_${owner}_${repo}`;
-  const cached = await kv.get(key);
+  const cached = forceRefresh ? null : await kv.get(key);
   if (cached) {
     const id = Number(cached);
     if (Number.isFinite(id) && id > 0) return id;
@@ -162,10 +284,11 @@ async function getRepoInstallationId(
   const jwt = await mintAppJwt(appId, privateKeyPem);
   const res = await fetch(`${GH_API}/repos/${owner}/${repo}/installation`, {
     headers: appHeaders(jwt),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitHub App installation lookup failed ${res.status}: ${text}`);
+    throw new Error(`GitHub App installation lookup failed ${res.status}`);
   }
   const body = (await res.json()) as { id?: number };
   if (!body.id) throw new Error('GitHub App installation lookup returned no id');
@@ -186,6 +309,27 @@ export async function getRepoToken(
 ): Promise<string> {
   const installationId = await getRepoInstallationId(appId, privateKeyPem, owner, repo, kv);
   return getInstallationTokenCached(appId, privateKeyPem, installationId, kv);
+}
+
+/**
+ * The repo's default branch (`main`, `master`, …) per GitHub. The Shipwright
+ * PR route targets THIS — the operator's own trusted ref — so the zero-trust
+ * shape (PR into the branch the fleet-executor reads from) holds for tenant
+ * repos exactly as it does for the operator repo's DEFAULT_BRANCH env.
+ */
+export async function getRepoDefaultBranch(
+  owner: string,
+  repo: string,
+  token: string,
+): Promise<string> {
+  const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(token) });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`repo lookup failed ${res.status}: ${text}`);
+  }
+  const body = (await res.json()) as { default_branch?: string };
+  if (!body.default_branch) throw new Error('repo lookup response missing default_branch');
+  return body.default_branch;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +355,91 @@ export async function fetchRepoFile(
   const body = (await res.json()) as { content?: string; encoding?: string };
   if (body.encoding !== 'base64' || !body.content) return null;
   return atob(body.content.replace(/\n/g, ''));
+}
+
+export interface PrMeta {
+  title: string;
+  body: string | null;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  htmlUrl: string;
+}
+
+/**
+ * Fetch a PR's title/size metadata. The fleet run page's own admission ledger
+ * (`fleet_run_intents`) only ever stores repo/number/url — the webhook payload
+ * carries a title too, but capturing it there would mean a schema migration
+ * for a value GitHub already answers on demand. Fetched live at render time
+ * instead, using the same repo-scoped installation token every other GitHub
+ * App read here uses; null on any failure so the page degrades to the bare
+ * repo#number it already had, never a broken render.
+ */
+export async function getPrMeta(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<PrMeta | null> {
+  const res = await fetch(`${GH_API}/repos/${owner}/${repo}/pulls/${prNumber}`, { headers: ghHeaders(token) });
+  if (!res.ok) return null;
+  const body = (await res.json()) as {
+    title?: string;
+    body?: string | null;
+    additions?: number;
+    deletions?: number;
+    changed_files?: number;
+    html_url?: string;
+  };
+  if (typeof body.title !== 'string') return null;
+  return {
+    title: body.title,
+    body: body.body ?? null,
+    additions: body.additions ?? 0,
+    deletions: body.deletions ?? 0,
+    changedFiles: body.changed_files ?? 0,
+    htmlUrl: body.html_url ?? `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+  };
+}
+
+/** Bound on rendered diff size — big enough for nearly every real PR, bounded against a pathological one blowing up the run page's response. */
+const MAX_DIFF_CHARS = 200_000;
+
+export interface PrDiff {
+  text: string;
+  truncated: boolean;
+}
+
+/**
+ * Fetch a PR's unified diff via GitHub's diff media type (plain text, not
+ * JSON). Truncated at {@link MAX_DIFF_CHARS} rather than unbounded — the page
+ * always keeps a link to the real diff on GitHub alongside whatever renders
+ * here. Null on any failure (network, non-2xx, GitHub disabling the media
+ * type on a huge PR) so the page degrades to that link, never a broken page.
+ */
+export async function getPrDiff(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<PrDiff | null> {
+  try {
+    const res = await fetch(`${GH_API}/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3.diff',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'port-daddy-relay/1.0',
+      },
+    });
+    if (!res.ok) return null;
+    const full = await res.text();
+    return full.length <= MAX_DIFF_CHARS
+      ? { text: full, truncated: false }
+      : { text: full.slice(0, MAX_DIFF_CHARS), truncated: true };
+  } catch {
+    return null;
+  }
 }
 
 export interface ShipFileRef {

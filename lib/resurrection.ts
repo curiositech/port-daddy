@@ -15,7 +15,7 @@ import { EventEmitter } from 'events';
 import { patternToSql } from './identity.js';
 import { getDeadThresholdForStatus, getStaleThresholdForStatus } from './agents.js';
 
-export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting';
+export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting' | 'dormant';
 
 export interface StaleAgent {
   id: string;
@@ -25,7 +25,11 @@ export interface StaleAgent {
   lastHeartbeat: number;
   staleSince: number;
   status: SalvageQueueStatus;
+  holdReason?: 'durable_session_active';
+  replacementAlreadyAdmitted?: boolean;
   notes?: string[];
+  /** Exact session-note total when available, even when notes is a bounded tail. */
+  noteCount?: number;
   // Semantic identity components for prefix filtering
   identityProject: string | null;
   identityStack: string | null;
@@ -43,6 +47,7 @@ interface ResurrectionQueueRow {
   resurrection_attempts: number;
   last_attempt_at: number | null;
   metadata: string | null;
+  hold_reason: string | null;
   // Semantic identity components for prefix filtering
   identity_project: string | null;
   identity_stack: string | null;
@@ -57,9 +62,11 @@ export interface ResurrectionEvents {
 }
 
 interface ResurrectionSessions {
+  activeDurableSessionIdsByAgent?(agentId: string, options: { verifiedOnly: boolean }): string[];
   getNotes(sessionId?: string | null, options?: { limit?: number }): {
     success: boolean;
     notes?: Array<{ content?: unknown }>;
+    total?: number;
   };
 }
 
@@ -93,6 +100,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       resurrection_attempts INTEGER NOT NULL DEFAULT 0,
       last_attempt_at INTEGER,
       metadata TEXT,
+      hold_reason TEXT,
       identity_project TEXT,
       identity_stack TEXT,
       identity_context TEXT
@@ -104,6 +112,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
 
   // Migrations for existing tables
   const migrations = [
+    'ALTER TABLE resurrection_queue ADD COLUMN hold_reason TEXT',
     'ALTER TABLE resurrection_queue ADD COLUMN identity_project TEXT',
     'ALTER TABLE resurrection_queue ADD COLUMN identity_stack TEXT',
     'ALTER TABLE resurrection_queue ADD COLUMN identity_context TEXT',
@@ -126,11 +135,20 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     listPending: db.prepare(`
       SELECT * FROM resurrection_queue WHERE status = 'pending' ORDER BY detected_at ASC
     `),
+    listPendingLimited: db.prepare(`
+      SELECT * FROM resurrection_queue WHERE status = 'pending' ORDER BY detected_at ASC LIMIT ?
+    `),
     listPendingByProject: db.prepare(`
       SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? ORDER BY detected_at ASC
     `),
+    listPendingByProjectLimited: db.prepare(`
+      SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? ORDER BY detected_at ASC LIMIT ?
+    `),
     listPendingByProjectStack: db.prepare(`
       SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? AND identity_stack = ? ORDER BY detected_at ASC
+    `),
+    listPendingByProjectStackLimited: db.prepare(`
+      SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? AND identity_stack = ? ORDER BY detected_at ASC LIMIT ?
     `),
     listAll: db.prepare(`SELECT * FROM resurrection_queue ORDER BY detected_at DESC LIMIT ?`),
     listAllByProject: db.prepare(`
@@ -148,6 +166,15 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       ) LIKE ? ESCAPE '\\'
       ORDER BY detected_at ASC
     `),
+    listPendingByPatternLimited: db.prepare(`
+      SELECT * FROM resurrection_queue
+      WHERE status = 'pending' AND (
+        identity_project ||
+        CASE WHEN identity_stack IS NOT NULL THEN ':' || identity_stack ELSE '' END ||
+        CASE WHEN identity_context IS NOT NULL THEN ':' || identity_context ELSE '' END
+      ) LIKE ? ESCAPE '\\'
+      ORDER BY detected_at ASC LIMIT ?
+    `),
     listAllByPattern: db.prepare(`
       SELECT * FROM resurrection_queue 
       WHERE (
@@ -163,7 +190,13 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     `),
     remove: db.prepare(`DELETE FROM resurrection_queue WHERE agent_id = ?`),
     setMetadata: db.prepare(`UPDATE resurrection_queue SET metadata = ? WHERE agent_id = ?`),
-    cleanup: db.prepare(`DELETE FROM resurrection_queue WHERE detected_at < ?`),
+    holdDurable: db.prepare(`
+      UPDATE resurrection_queue
+      SET status = CASE WHEN status = 'resurrecting' THEN status ELSE 'dormant' END,
+          hold_reason = 'durable_session_active'
+      WHERE agent_id = ? AND hold_reason IS NULL
+    `),
+    cleanup: db.prepare(`DELETE FROM resurrection_queue WHERE detected_at < ? AND hold_reason IS NULL AND status != 'dormant'`),
     countByProject: db.prepare(`SELECT COUNT(*) as count FROM resurrection_queue WHERE status = 'pending' AND identity_project = ?`),
   };
 
@@ -203,12 +236,28 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       .map((note) => typeof note === 'string' ? note : String(note));
   }
 
-  function notesForRow(row: ResurrectionQueueRow, metadata: QueueMetadata): string[] {
-    const fallback = normalizeNotes(metadata.notes);
+  /**
+   * Read one bounded salvage-note tail while preserving its exact total. The
+   * design separates recovery preview cost from completeness metadata so a
+   * caller never has to materialize hundreds of notes merely to say how many
+   * were omitted.
+   *
+   * @param row Resurrection queue record whose session may own live notes.
+   * @param metadata Persisted fallback capsule used when the session is gone.
+   * @param maxNotes Maximum note bodies to materialize for this entry.
+   * @returns A bounded recent-note array plus the exact available-note total.
+   */
+  function notesForRow(
+    row: ResurrectionQueueRow,
+    metadata: QueueMetadata,
+    maxNotes = noteLimit,
+  ): { notes: string[]; total: number } {
+    const fallbackAll = normalizeNotes(metadata.notes);
+    const fallback = { notes: fallbackAll.slice(-maxNotes), total: fallbackAll.length };
     if (!row.session_id || !deps.sessions) return fallback;
 
     try {
-      const result = deps.sessions.getNotes(row.session_id, { limit: noteLimit });
+      const result = deps.sessions.getNotes(row.session_id, { limit: maxNotes });
       if (!result.success || !Array.isArray(result.notes)) return fallback;
 
       const liveNotes = result.notes
@@ -216,19 +265,52 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
         .filter((content) => content !== null && content !== undefined)
         .map((content) => typeof content === 'string' ? content : String(content));
 
-      return liveNotes.length > 0 ? liveNotes : fallback;
+      const reportedTotal = Number.isFinite(result.total) && (result.total ?? -1) >= 0
+        ? Math.floor(result.total as number)
+        : liveNotes.length;
+      return liveNotes.length > 0
+        ? { notes: liveNotes.slice(-maxNotes), total: Math.max(reportedTotal, liveNotes.length) }
+        : fallback;
     } catch {
       return fallback;
     }
   }
 
-  function applyLimit<T>(rows: T[], limit?: number): T[] {
-    if (!Number.isFinite(limit) || !limit || limit <= 0) return rows;
-    return rows.slice(0, Math.floor(limit));
+  /**
+   * Preserve saved recovery bytes. By design a hold never cancels an already
+   * admitted attempt or upgrades a stored identity stamp into fresh authority.
+   * @param agentId Exact process identity whose current work is inspected.
+   * @returns Idempotent hold evidence, including any already-admitted replacement.
+   */
+  function holdForDurableSessions(agentId: string) {
+    const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;
+    const verifiedDurable = deps.sessions?.activeDurableSessionIdsByAgent?.(agentId, { verifiedOnly: true }) ?? [];
+    if (!row?.hold_reason && row?.status !== 'dormant' && verifiedDurable.length === 0) {
+      return { held: false, changed: false, replacementAlreadyAdmitted: false };
+    }
+    const changed = row ? stmts.holdDurable.run(agentId).changes > 0 : false;
+    return { held: true, changed, replacementAlreadyAdmitted: row?.status === 'resurrecting' };
   }
 
-  function formatQueueEntry(row: ResurrectionQueueRow): StaleAgent {
+  /**
+   * Refuse ordinary queue mutations while evidence awaits reconciliation.
+   * The purpose is to prevent stale callbacks from discarding or reopening work.
+   * @param agentId Queue entry and durable-work identity to inspect.
+   * @returns A structured refusal when held, otherwise null.
+   */
+  function heldRefusal(agentId: string) {
+    const hold = holdForDurableSessions(agentId);
+    return hold.held ? {
+      success: false as const,
+      code: 'DURABLE_SESSION_ACTIVE',
+      error: 'Durable recovery evidence is held. Hold clearance is not implemented; ordinary salvage credentials cannot replace or discard it.',
+      replacementAlreadyAdmitted: hold.replacementAlreadyAdmitted,
+    } : null;
+  }
+
+  function formatQueueEntry(row: ResurrectionQueueRow, maxNotes = noteLimit): StaleAgent {
     const metadata = parseMetadata(row.metadata);
+    const noteWindow = notesForRow(row, metadata, maxNotes);
     return {
       id: row.agent_id,
       name: row.agent_name,
@@ -237,7 +319,12 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       lastHeartbeat: metadata.lastHeartbeat || 0,
       staleSince: row.detected_at,
       status: row.status as SalvageQueueStatus,
-      notes: notesForRow(row, metadata),
+      ...(row.hold_reason === 'durable_session_active' ? {
+        holdReason: 'durable_session_active' as const,
+        replacementAlreadyAdmitted: row.status === 'resurrecting',
+      } : {}),
+      notes: noteWindow.notes,
+      noteCount: noteWindow.total,
       identityProject: row.identity_project,
       identityStack: row.identity_stack,
       identityContext: row.identity_context,
@@ -245,6 +332,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
   }
 
   return {
+    holdForDurableSessions,
     /**
      * Check an agent and queue it for resurrection if stale/dead
      */
@@ -263,18 +351,27 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     }) {
       const now = Date.now();
       const sinceHeartbeat = now - agent.lastHeartbeat;
-
-      // Use adaptive thresholds based on agent status
       const agentStaleThreshold = getStaleThreshold(agent.status);
       const agentDeadThreshold = getDeadThreshold(agent.status);
-
+      const existing = stmts.get.get(agent.id) as ResurrectionQueueRow | undefined;
+      // Work durability does not turn a healthy process into a dormant one.
+      if (!existing && sinceHeartbeat < agentStaleThreshold) return { status: 'healthy' };
+      // This lookup is daemon-owned session evidence, never a durability flag
+      // supplied by the heartbeat caller. Holds survive later healthy heartbeats.
+      const hold = holdForDurableSessions(agent.id);
+      if (hold.held) {
+        return {
+          status: hold.replacementAlreadyAdmitted ? 'resurrecting' : 'dormant',
+          queued: false, holdReason: 'durable_session_active',
+          replacementAlreadyAdmitted: hold.replacementAlreadyAdmitted,
+        };
+      }
       if (sinceHeartbeat < agentStaleThreshold) {
         // Agent is healthy, remove from queue if present
         stmts.remove.run(agent.id);
         return { status: 'healthy' };
       }
 
-      const existing = stmts.get.get(agent.id) as ResurrectionQueueRow | undefined;
       const status = sinceHeartbeat >= agentDeadThreshold ? 'dead' : 'stale';
 
       const metadata = JSON.stringify({
@@ -323,26 +420,39 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Get pending resurrections
      * Filters by identity prefix if provided (project or project:stack)
      */
-    pending(options: { project?: string; stack?: string; limit?: number } = {}) {
+    pending(options: { project?: string; stack?: string; limit?: number; noteLimit?: number } = {}) {
       let rows: ResurrectionQueueRow[];
+      const rowLimit = Number.isFinite(options.limit) && (options.limit ?? 0) > 0
+        ? Math.floor(options.limit as number)
+        : null;
+      const entryNoteLimit = Number.isFinite(options.noteLimit) && (options.noteLimit ?? 0) > 0
+        ? Math.floor(options.noteLimit as number)
+        : noteLimit;
 
       if (options.project?.includes('*') || options.stack?.includes('*')) {
         const pattern = options.project + (options.stack ? ':' + options.stack : '');
         const sqlPattern = patternToSql(pattern);
-        rows = stmts.listPendingByPattern.all(sqlPattern) as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPendingByPattern.all(sqlPattern)
+          : stmts.listPendingByPatternLimited.all(sqlPattern, rowLimit)) as ResurrectionQueueRow[];
       } else if (options.project && options.stack) {
-        rows = stmts.listPendingByProjectStack.all(options.project, options.stack) as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPendingByProjectStack.all(options.project, options.stack)
+          : stmts.listPendingByProjectStackLimited.all(options.project, options.stack, rowLimit)) as ResurrectionQueueRow[];
       } else if (options.project) {
-        rows = stmts.listPendingByProject.all(options.project) as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPendingByProject.all(options.project)
+          : stmts.listPendingByProjectLimited.all(options.project, rowLimit)) as ResurrectionQueueRow[];
       } else {
-        rows = stmts.listPending.all() as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPending.all()
+          : stmts.listPendingLimited.all(rowLimit)) as ResurrectionQueueRow[];
       }
-      const limitedRows = applyLimit(rows, options.limit);
 
       return {
         success: true,
-        agents: limitedRows.map(formatQueueEntry),
-        count: limitedRows.length,
+        agents: rows.map((row) => formatQueueEntry(row, entryNoteLimit)),
+        count: rows.length,
         filtered: !!options.project,
       };
     },
@@ -389,6 +499,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Returns the agent's context so a new agent can continue their work
      */
     claim(agentId: string) {
+      const refusal = heldRefusal(agentId);
+      if (refusal) return refusal;
       const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;
       if (!row) {
         return { success: false, error: 'Agent not in resurrection queue' };
@@ -402,13 +514,15 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       emitter.emit('agent:resurrecting', formatQueueEntry(stmts.get.get(agentId) as ResurrectionQueueRow));
 
       const metadata = parseMetadata(row.metadata);
+      const noteWindow = notesForRow(row, metadata);
       return {
         success: true,
         agent: formatQueueEntry(row),
         context: {
           sessionId: row.session_id,
           purpose: row.purpose,
-          notes: notesForRow(row, metadata),
+          notes: noteWindow.notes,
+          noteCount: noteWindow.total,
         },
       };
     },
@@ -417,6 +531,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Mark resurrection as complete
      */
     complete(oldAgentId: string, newAgentId: string) {
+      const refusal = heldRefusal(oldAgentId);
+      if (refusal) return refusal;
       stmts.remove.run(oldAgentId);
       emitter.emit('agent:resurrected', oldAgentId, newAgentId);
       return { success: true };
@@ -426,6 +542,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Abandon a resurrection attempt
      */
     abandon(agentId: string) {
+      const refusal = heldRefusal(agentId);
+      if (refusal) return refusal;
       stmts.updateStatus.run('pending', Date.now(), agentId);
       return { success: true };
     },
@@ -434,6 +552,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Dismiss an agent from the queue (user reviewed, not resurrecting)
      */
     dismiss(agentId: string) {
+      const refusal = heldRefusal(agentId);
+      if (refusal) return refusal;
       stmts.remove.run(agentId);
       return { success: true };
     },
@@ -470,8 +590,15 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      */
     cleanup(olderThan: number = 7 * 24 * 60 * 60 * 1000) {
       const cutoff = Date.now() - olderThan;
-      const result = stmts.cleanup.run(cutoff);
-      return { cleaned: result.changes };
+      return db.transaction(() => {
+        // A retention sweep can run before the heartbeat sweep after restart.
+        // Apply the same session proof before any old queue evidence is deleted.
+        const candidates = db.prepare(`SELECT agent_id FROM resurrection_queue
+          WHERE detected_at < ? AND hold_reason IS NULL AND status != 'dormant'`)
+          .all(cutoff) as Array<{ agent_id: string }>;
+        for (const row of candidates) holdForDurableSessions(row.agent_id);
+        return { cleaned: stmts.cleanup.run(cutoff).changes };
+      })();
     },
 
     /**

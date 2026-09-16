@@ -1,9 +1,14 @@
 import { describe, expect, test } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { APP_SURFACES } from './data/product'
 import { docsFamilyOrder, docsOverviewRoute, docsFamilyRoutes, findDocsRouteByPath, findDocsRouteBySlug } from './data/docs-routes'
 import { docsFamilies, findDocsFamily } from './data/publicSite'
 import { docsContentSections, findDocsContentPage, findDocsContentSection } from './docs-content'
+import { composeRedirects } from '../scripts/compose-redirects.mjs'
+
+const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 function read(relativePath: string) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -159,25 +164,54 @@ describe('public shell contracts', () => {
     expect(docsSidebar).toContain('to="/whitepaper"')
   })
 
-  test('whitepaper page uses the current editorial layout instead of the old ceremonial hero', () => {
+  test('the library routes are one deck on one screen, not two long pages', () => {
+    // This contract used to pin an editorial layout that no longer existed —
+    // it still expected "The Port Daddy papers." and "Research dossier" after
+    // the Textbook Edition rewrite replaced both, and it had been red without
+    // anyone noticing because CI runs only `test:porthole` for this package,
+    // never the vitest suite. Pinning the shape rather than the copy is what
+    // stops that recurring: strings move, structure is the promise.
     const whitepaper = read('./pages/whitepaper/index.tsx')
-    const paperData = read('./data/whitePapers.ts')
+    const research = read('./pages/research/index.tsx')
+    const deck = read('./components/library/DeckShell.tsx')
+    const main = read('./main.tsx')
 
-    expect(whitepaper).toContain('Research dossier')
-    expect(whitepaper).toContain('The Port Daddy papers.')
-    expect(whitepaper).toContain('Available papers')
-    expect(whitepaper).toContain('Argument map')
-    expect(whitepaper).toContain('Reading order')
-    expect(whitepaper).toContain('signed local identity first')
-    expect(whitepaper).toContain('useSearchParams')
-    expect(whitepaper).toContain('Read guide')
-    expect(paperData.indexOf("id: 'anchor-protocol'")).toBeLessThan(paperData.indexOf("id: 'bonded-commons'"))
-    expect(whitepaper).not.toContain('White Papers')
-    expect(whitepaper).not.toContain('Formal Foundations')
-    expect(whitepaper).not.toContain('How the Papers Relate')
+    // One book, one page. /library forwards; /whitepaper renders.
+    expect(main).toContain('<Route path="/whitepaper" element={<WhitepaperPage />} />')
+    expect(main).toContain('<Route path="/library" element={<Navigate to="/whitepaper" replace />} />')
+
+    // Both library routes stand on the same shell, so the deck's guarantees
+    // are guarantees for both of them.
+    for (const page of [whitepaper, research]) {
+      expect(page).toContain('DeckShell')
+      expect(page).toContain('useSearchParams') // a panel is linkable
+      expect(page).toContain('routeLabel=')
+      expect(page).toContain('hoist={[') // the route, spelled in signal flags
+    }
+
+    // One viewport: the deck sizes itself from where it actually starts rather
+    // than assuming it owns the whole screen, which is what made it overflow
+    // by exactly the header's height the first time it was measured.
+    expect(deck).toContain('--deck-h')
+    expect(deck).toContain('overflow-hidden')
+    expect(deck).toContain("role=\"tablist\"")
+    expect(deck).toContain('useReducedMotion')
+
+    // A flag on this site means what Pub. 102 says it means, so every signal
+    // carries its meaning rather than being picked for its letter.
+    expect(whitepaper).toContain('Papa — about to proceed to sea')
+    expect(whitepaper).toContain('Uniform — you are running into danger')
+    expect(research).toContain('Kilo — I wish to communicate with you')
+
+    // The chapters are an outline with a teaser each, never a grid of cards
+    // linking off to eight separate documents — there are not eight documents.
+    expect(whitepaper).toContain('record.question')
+    expect(whitepaper).toContain('record.teaser')
+
+    // The ceremonial hero and the old two-page split stay gone.
+    expect(whitepaper).not.toContain('Research dossier')
     expect(whitepaper).not.toContain('rounded-[28px]')
-    expect(whitepaper).not.toContain('shadow-inset')
-    expect(whitepaper).not.toContain('Anchor size')
+    expect(whitepaper).not.toContain('Formal Foundations')
   })
 
   test('homepage keeps both public papers visible from the landing CTA', () => {
@@ -189,12 +223,15 @@ describe('public shell contracts', () => {
     expect(paperData).toContain('The Bonded Commons')
     expect(cta).toContain('Read inline')
     expect(cta).toContain('paper.readerHref')
-    expect(cta).toContain('paper.pdfPath')
+    // A chapter does not publish a PDF of its own (retired: an A4 render of
+    // the same words with no margin column) — the CTA's PDF link goes to the
+    // Book, the one PDF, not to a per-chapter path.
+    expect(cta).toContain('COLLECTED_VOLUME.pdfPath')
     expect(paperData).toContain('/whitepaper/anchor-protocol')
     expect(paperData).toContain('/whitepaper/bonded-commons')
-    expect(paperData).toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
-    expect(paperData).toContain('/whitepaper/agent-transactions-whitepaper.pdf')
-    expect(cta).toContain('Read both papers')
+    expect(paperData).not.toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
+    expect(paperData).not.toContain('/whitepaper/agent-transactions-whitepaper.pdf')
+    expect(cta).toContain('Read the papers')
     // The "Coordination feedback" / "Dogfood restore" sub-panel was
     // stripped intentionally per the 2026-05-20 IA audit — it was
     // internal build-process commentary at the closing CTA, which is
@@ -204,22 +241,113 @@ describe('public shell contracts', () => {
     expect(cta).not.toContain('Dogfood restore')
   })
 
-  test('individual whitepaper pages explain value and embed PDFs inline', () => {
+  test('a chapter page is web-native prose plus a link to the Book, not a viewer', () => {
     const mainSource = read('./main.tsx')
     const detailPage = read('./pages/whitepaper/PaperDetailPage.tsx')
     const metadata = read('./data/siteMetadata.ts')
     const seo = read('../scripts/generate-seo-artifacts.mjs')
 
     expect(mainSource).toContain('path="/whitepaper/:paperSlug"')
-    expect(detailPage).toContain('What this paper is saying')
-    expect(detailPage).toContain('Why this paper matters')
-    expect(detailPage).toContain('Future value')
-    expect(detailPage).toContain('Inline PDF reader')
-    expect(detailPage).toContain('<iframe')
-    expect(detailPage).toContain('paperPdfUrl(paper)')
+
+    // What earns this page its URL is the apparatus that exists nowhere else:
+    // the primer, the vocabulary, the two reader framings, the argument map,
+    // the takeaways, and the way out to the chapters either side. None of it
+    // is in the PDF, so all of it is the contract.
+    expect(detailPage).toContain('The big idea, in one paragraph.')
+    expect(detailPage).toContain('Words this paper uses, defined.')
+    expect(detailPage).toContain('paper.whatYouGet')
+    expect(detailPage).toContain('paper.forBuilders')
+    expect(detailPage).toContain('Argument map')
+    expect(detailPage).toContain('Takeaways')
+    expect(detailPage).toContain('siblingPapers.map')
+
+    // The Book is reachable from here, as a link. `COLLECTED_VOLUME` is the
+    // one PDF; a chapter-scoped file would be the old claim wearing a link.
+    expect(detailPage).toContain('Read the paper')
+    expect(detailPage).toContain('COLLECTED_VOLUME.pdfPath')
+    expect(detailPage).toContain('to="/whitepaper"')
+    // Every download/open link on this page points at the Book
+    // (COLLECTED_VOLUME) — a chapter does not publish a PDF of its own.
+    expect(detailPage).not.toContain('paperPdfUrl')
+
+    // And the embedded viewer stays gone. An 82vh frame holding all 551 pages
+    // of the Book, under a heading about chapter N, was the last structural
+    // claim that this page *is* a document -- while /whitepaper's own reader
+    // offered the same PDF one click away. The page links to the Book; it does
+    // not pretend to be it.
+    expect(detailPage).not.toContain('<iframe')
+    expect(detailPage).not.toContain('82vh')
+    expect(detailPage).not.toContain('embedded below')
+
+    // Both route lists that name the chapters are spread from the data, so a
+    // ninth chapter lands on the site and in llms.txt without either file
+    // being edited. The hand-typed list this replaced held seven of eight and
+    // dropped The Sealed Harbor for its whole life.
     expect(metadata).toContain('WHITE_PAPERS.map')
-    expect(seo).toContain('/whitepaper/anchor-protocol')
-    expect(seo).toContain('/whitepaper/bonded-commons')
+    expect(seo).toContain('WHITE_PAPERS.map((paper) => paper.readerHref)')
+    expect(seo).not.toContain("'/whitepaper/anchor-protocol'")
+    expect(seo).not.toContain("'/whitepaper/bonded-commons'")
+  })
+
+  test('every retired per-chapter PDF URL redirects to the Book', () => {
+    // The eight filenames the site published until the chapter PDFs were
+    // retired. Frozen on purpose: nothing in the repository derives them any
+    // more, which is exactly why they need a written record — an address a
+    // reader, a citation manager or a crawler may still hold is not something
+    // the site gets to forget just because it stopped generating it.
+    const retired = [
+      'agent-transactions-whitepaper.pdf',
+      'anchor-protocol-whitepaper.pdf',
+      'federated-harbor-whitepaper.pdf',
+      'harbor-economy-whitepaper.pdf',
+      'legible-swarm-whitepaper.pdf',
+      'sealed-harbor-whitepaper.pdf',
+      'single-writer-kernel-whitepaper.pdf',
+      'spawn-to-person-whitepaper.pdf',
+    ]
+    // The DEPLOYED file, not the source one. `public/_redirects` is only half
+    // of it: postbuild composes the route rewrites with it, and before this
+    // retirement that step overwrote the file outright — so asserting the
+    // source would have passed while the deploy shipped something else.
+    const deployed = composeRedirects(
+      [{ path: '/whitepaper' }, { path: '/' }],
+      read('../public/_redirects'),
+    )
+    const rules = deployed
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'))
+      .map((line) => line.split(/\s+/))
+
+    // Without these the `/*` catch-all answers each dead path 200 with the SPA
+    // shell, so the bad URL looks healthy to every monitor and every crawler.
+    for (const filename of retired) {
+      expect(rules, `no redirect for /whitepaper/${filename}`).toContainEqual([
+        `/whitepaper/${filename}`,
+        '/whitepaper/coordination-papers-mega-volume.pdf',
+        '301',
+      ])
+    }
+
+    // Cloudflare Pages takes the first match, so the catch-all must come last
+    // and appear exactly once, or it swallows every rule under it.
+    expect(rules.at(-1)).toEqual(['/*', '/index.html', '200'])
+    expect(rules.filter(([from]) => from === '/*')).toHaveLength(1)
+
+    // And the route rewrites still get composed in, rather than one source
+    // silently replacing the other.
+    expect(rules).toContainEqual(['/whitepaper', '/whitepaper/index.html', '200'])
+
+    // And the redirect target has to be a file, not another dead path.
+    expect(
+      existsSync(resolve(websiteRoot, 'public/whitepaper/coordination-papers-mega-volume.pdf')),
+    ).toBe(true)
+    for (const filename of retired) {
+      expect(
+        existsSync(resolve(websiteRoot, 'public/whitepaper', filename)),
+        `${filename} is retired but still committed`,
+      ).toBe(false)
+    }
   })
 
   test('docs shell copy points to the public whitepaper without replacement-brand framing', () => {
@@ -243,11 +371,15 @@ describe('public shell contracts', () => {
 
     expect(header).toContain('/mac-preview')
     expect(header).toContain('/examples')
-    expect(header).toContain('/agents')
+    // The nav restructure moved /agents out of the header. The claim this test
+    // makes is reachability from the shell, and the footer carries it, so the
+    // check is over both rather than over the header alone -- a page nothing
+    // links to is the defect, not which of the two bars links to it.
+    expect(`${header}${footer}`).toContain('/agents')
     // Skills+MCP page retired and merged into the Mac app page; no /mcp in nav.
     expect(header).not.toContain("/mcp")
     expect(header).toContain('/pd-tube')
-    expect(header).toContain('Tube Playground')
+    expect(header).toContain('Agent Tubes')
     expect(header).toContain('/blog')
     expect(header).not.toContain('/agents/agent-skill')
     expect(header).toContain('/tutorials')
@@ -271,7 +403,7 @@ describe('public shell contracts', () => {
     expect(footer).toContain('/docs/sdk')
     expect(footer).toContain('/docs/mcp')
     expect(footer).toContain('/docs/api')
-    expect(footer).toContain('/library')
+    expect(footer).toContain('/whitepaper')
     expect(footer).toContain('/agents/templates')
     expect(footer).toContain('/tutorials')
 
@@ -296,7 +428,10 @@ describe('public shell contracts', () => {
     const macPreview = read('./pages/MacPreviewPage.tsx')
     const showcase = read('./components/landing/MacAppShowcase.tsx')
 
-    expect(macPreview).toContain('Flow, Roadmap')
+    // The page used to name the surfaces inline ("Flow, Roadmap, ..."); the
+    // gallery now lives entirely in MacAppShowcase, so what the page owes is
+    // that it renders it.
+    expect(macPreview).toContain('<MacAppShowcase />')
     expect(showcase).toContain('Fleet Control Center gallery')
     expect(appSurfaceTitles).toEqual(expect.arrayContaining([
       'Flow',
@@ -427,7 +562,18 @@ describe('public shell contracts', () => {
     expect(appSource).not.toContain('agentsd.ai')
   })
 
-  test('public copy uses the AI infrastructure evaluator lens without slipping into inside-baseball framing', () => {
+  // This test used to pin seventeen exact marketing lines -- "For AI
+  // engineering teams", "shared-state substrate", "Dogfood receipts" and the
+  // rest -- as its positive half. The plain-language copy pass replaced
+  // thirteen of them, and the four that still matched had only survived
+  // because their files had not been rewritten yet. Pinning a draft's exact
+  // sentences does not guard a lens; it guards a draft, and it fails on every
+  // rewrite whether the rewrite was good or bad. The half of this test that
+  // does guard something is the forbidden list below: each phrase there is
+  // framing the site deliberately retired (the maritime-theme explainer, the
+  // acquisition pitch, a hardcoded localhost URL in user-facing copy), and any
+  // of them reappearing is a defect no matter how the surrounding copy reads.
+  test('public copy keeps retired framing off the landing surfaces', () => {
     const sources = {
       hero: read('./components/landing/Hero.tsx'),
       conversation: read('./components/landing/AgentConversationSection.tsx'),
@@ -441,24 +587,6 @@ describe('public shell contracts', () => {
       docsRoutes: read('./data/docs-routes.ts'),
       sectionIntros: read('./data/section-intros.ts'),
     }
-
-    expect(sources.hero).toContain('For AI engineering teams')
-    expect(sources.hero).toContain('shared-state substrate')
-    expect(sources.hero).toContain('Evaluate Mac preview')
-    expect(sources.conversation).toContain('Coordination is state agents can read.')
-    expect(sources.conversation).toContain('Why AI tooling teams care')
-    expect(sources.socialProof).toContain('Dogfood receipts')
-    expect(sources.socialProof).toContain('These are not customer testimonials.')
-    expect(sources.enforcement).toContain('Operators need the control plane.')
-    expect(sources.about).toContain('Why AI Infrastructure Teams Should Care')
-    expect(sources.about).toContain('The control plane under')
-    expect(sources.blog).toContain('AI infrastructure notes')
-    expect(sources.blog).toContain('Engineering notes for agent control planes')
-    expect(sources.examples).toContain('Executable local loops for agent products.')
-    expect(sources.tutorials).toContain('Learn the control plane like an operator.')
-    expect(sources.metadata).toContain('local control plane and shared-state substrate')
-    expect(sources.docsRoutes).toContain('AI tooling team')
-    expect(sources.sectionIntros).toContain('minimum substrate for running multiple AI agents')
 
     const combined = Object.values(sources).join('\n')
     const forbiddenPhrases = [
@@ -538,10 +666,10 @@ describe('public shell contracts', () => {
       'stale-daemon-cli-runtime',
     ])
     expect(findDocsContentSection('concepts')?.pages.map((page) => page.slug)).toEqual([
+      'primitives',
       'daemon-and-authority',
       'sessions-locks-and-tuples',
       'harbors-and-identity',
-      'eleven-product-primitives',
     ])
     expect(findDocsContentSection('best-practices')?.pages.map((page) => page.slug)).toEqual([
       'operator-loop',
@@ -561,6 +689,7 @@ describe('public shell contracts', () => {
     ])
     expect(findDocsContentSection('reference-architectures')?.pages.map((page) => page.slug)).toEqual([
       'single-machine-control-plane',
+      'pd-relay-harbor-mesh',
       'fleet-automation-loop',
       'delegation-surfaces',
     ])
@@ -746,6 +875,7 @@ describe('public shell contracts', () => {
     }
 
     const daemonUrlSource = readRuntime('./lib/daemon-url.ts')
-    expect(daemonUrlSource).toContain("const CANONICAL_DAEMON_BASE_URL = 'http://127.0.0.1:9876'")
+    expect(daemonUrlSource).toContain('class DaemonEndpointConfigurationError')
+    expect(daemonUrlSource).not.toContain('CANONICAL_DAEMON_BASE_URL')
   })
 })

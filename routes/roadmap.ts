@@ -7,34 +7,95 @@
  * endpoints to promote feedback to the roadmap, list current items,
  * or update status — all atomically and queryable.
  *
- *   POST   /roadmap/items                — upsert a roadmap item
- *   GET    /roadmap/items                — list (filter by status/harbor)
- *   GET    /roadmap/items/:slug          — fetch a specific item
- *   POST   /roadmap/items/:slug/status   — update status (audit-trailed)
+ *   POST   /roadmap/items                — upsert a roadmap item (owner validated
+ *                                          against the durable-agent roster)
+ *   GET    /roadmap/items                — list (filter by status/harbor/tag),
+ *                                          owner display info joined per item
+ *   GET    /roadmap/items/:slug          — the full Jira card: all fields + owner
+ *                                          join + links + blocks/blocked-by +
+ *                                          parent/children + planned-vs-actual
+ *   GET    /roadmap/items/:slug/links    — list the item's typed links
+ *   POST   /roadmap/items/:slug/links    — add a pr/doc/file/media link
+ *   DELETE /roadmap/items/:slug/links    — remove one typed link
+ *   POST   /roadmap/items/:slug/status   — update status (audit-trailed; the
+ *                                          'done' transition stamps completed_at)
  *   POST   /roadmap/items/:slug/touch    — refresh last_touched_at
  *   POST   /roadmap/promote              — atomic feedback→item link
+ *   GET    /roadmap/projection           — read-only roadmap-home projection
+ *                                          (lib/roadmap-projection.ts) for the
+ *                                          web/console/iOS home surfaces
+ *   POST   /roadmap/chomp                — general planning-doc ingestion
+ *   POST   /roadmap/import-markdown      — legacy 3-pile alias over chomp
+ *   GET    /roadmap/search               — free-text -> ranked roadmap items
+ *                                          (lib/roadmap-search.ts); the
+ *                                          suggestion source for `pd begin`'s
+ *                                          rent gate when no --roadmap slug
+ *                                          is given
+ *   POST   /roadmap/reindex-search       — backfill/refresh the search index
+ *                                          from the live roadmap_items table
+ *   GET    /roadmap/jira                 — source-labelled, read-only Jira
+ *                                          Cloud project projection; independent
+ *                                          of local roadmap availability
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { createRoadmapSearch, type RoadmapSearch } from '../lib/roadmap-search.js';
+import type { SemanticResolver } from '../lib/semantic-resolver.js';
+import { exportRoadmapItem, RoadmapExportError, type ExportConfig, type ExportTarget, type ExportFetch } from '../lib/roadmap-export.js';
+import { getSecret } from '../lib/secret-env.js';
+import {
+  jiraConfigFromSecrets,
+  jiraRoadmapReader,
+  JiraRoadmapError,
+  type JiraRoadmapReader,
+  type JiraSecretReader,
+} from '../lib/roadmap-jira.js';
 import type {
   RoadmapItems,
+  RoadmapKind,
   RoadmapStatus,
   UpsertRoadmapItemInput,
 } from '../lib/roadmap-items.js';
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
-import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
+import {
+  buildRoadmapProjection,
+  serializeRoadmapProjection,
+} from '../lib/roadmap-projection.js';
+import type Database from 'better-sqlite3';
+import { importMarkdownRoadmap, chompRoadmap, type ChompEnrichOptions } from '../lib/roadmap-chomp.js';
+import { resolveLLMBackend } from '../lib/llm-backend-resolver.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
-import { schedule } from '../lib/planner-schedule.js';
+import { scheduleDagPreferKernel as schedule } from '../lib/planner-schedule-ffi.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
+import {
+  writePlanEdges,
+  itemLinkEdge,
+  listItemLinks,
+  removeItemLink,
+  HIERARCHY_SCOPE,
+  ITEM_TYPE,
+  type ItemLinkKind,
+} from '../lib/planner-edges.js';
+import type { GraphEdges } from '../lib/graph-edges.js';
+import type { DurableAgentRoster, DurableAgentRecord } from '../lib/durable-agent-roster.js';
 import { parseAdrIdentity } from '../lib/adr-matrix.js';
 import { renderMarkdown } from '../lib/mini-markdown.js';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { authorizeSessionOwner, extractActorCredential, resolveWriteIdentity, type IdentityVerifier } from '../lib/identity-write-boundary.js';
+
 interface RoadmapDeps {
   roadmapItems: RoadmapItems;
   roadmapPromote: RoadmapPromote;
+  /** Existing daemon dependencies; absent custom runtimes cannot write receipts. */
+  actorSouls?: IdentityVerifier;
+  sessions?: { get(sessionId: string): Record<string, unknown> };
+  /** Test/custom runtime injection; production reads the managed Keychain. */
+  jiraSecretReader?: JiraSecretReader;
+  /** Test/custom runtime injection; production uses the bounded cached reader. */
+  jiraReader?: JiraRoadmapReader;
 }
 
 interface UpsertBody {
@@ -49,6 +110,24 @@ interface UpsertBody {
   harbor?: unknown;
   project?: unknown;
   ttlMs?: unknown;
+  kind?: unknown;
+  priority?: unknown;
+  assigneeId?: unknown;
+  descriptionMd?: unknown;
+  startedAt?: unknown;
+  dueAt?: unknown;
+  estimate?: unknown;
+  tags?: unknown;
+  actual?: unknown;
+}
+
+interface LinkBody {
+  type?: unknown;
+  target?: unknown;
+  url?: unknown;
+  title?: unknown;
+  mime?: unknown;
+  caption?: unknown;
 }
 
 interface PromoteBody {
@@ -123,18 +202,183 @@ function harborForProject(project: string | undefined): string | undefined {
 }
 
 const STATUS_VALUES = new Set<RoadmapStatus>(['now', 'backlog', 'parked', 'merge', 'done']);
+const KIND_VALUES = new Set<RoadmapKind>([
+  'project',
+  'epic',
+  'story',
+  'task',
+  'subtask',
+  'bug',
+  'chore',
+]);
+const LINK_KINDS = new Set<ItemLinkKind>(['pr', 'doc', 'file', 'media', 'issue']);
+
+/** Owner display info joined from the durable-agent roster onto item reads. */
+interface OwnerInfo {
+  agentNodeId: string;
+  slug: string;
+  displayName: string;
+  status: DurableAgentRecord['status'];
+}
+
+/** Thrown by assignee resolution; the route maps it to a 400 with the message intact. */
+class AssigneeValidationError extends Error {}
+
+/**
+ * Resolve a caller-supplied assignee to a canonical durable-roster identity.
+ *
+ * Why validate at the write boundary: `assignee_id` is a bare TEXT column, and
+ * before this slice any string ("bob", a typo'd id) was silently accepted —
+ * an owner field that cannot be dereferenced is decoration, not ownership.
+ * The design intent (2026-08-22 roadmap command-center mandate) is that the
+ * durable-agent roster is the ONE owner registry, on ADR-0119's terms:
+ * `AgentNode.agentNodeId` is the canonical durable principal and is what gets
+ * STORED; a roster slug is only a scoped display alias, so it is accepted as
+ * input sugar when it names exactly one live agent and is always resolved to
+ * the agentNodeId (an ambiguous slug is escalated to the id rather than
+ * guessed — an alias is never an authority key). Anything else is rejected
+ * with the exact registration path, so the failure teaches the fix.
+ *
+ * @param roster - The durable-agent roster module.
+ * @param value - Caller-supplied assignee: agentNodeId or roster slug.
+ * @returns The canonical agentNodeId to store.
+ * @throws AssigneeValidationError when the value names no (or >1) roster agent.
+ */
+function resolveAssignee(roster: DurableAgentRoster, value: string): string {
+  const registerHint =
+    'Register one first: pd roster create <slug> --remit <text> --instructions <text> ' +
+    '(or POST /durable-agents), then assign by its agentNodeId or slug. ' +
+    'Browse the roster: pd roster list.';
+  try {
+    return roster.get(value).agentNodeId;
+  } catch {
+    // Not a known agentNodeId — fall through to slug resolution.
+  }
+  const matches = roster
+    .list({ includeRetired: false, limit: 500 })
+    .filter((agent) => agent.profile.slug === value);
+  if (matches.length === 1) return matches[0].agentNodeId;
+  if (matches.length > 1) {
+    throw new AssigneeValidationError(
+      `assigneeId '${value}' is ambiguous across roster scopes — assign by agentNodeId ` +
+        `(${matches.map((m) => m.agentNodeId).join(', ')})`,
+    );
+  }
+  throw new AssigneeValidationError(
+    `assigneeId '${value}' is not on the durable-agent roster. ${registerHint}`,
+  );
+}
+
+/**
+ * Build a one-request owner lookup: agentNodeId → display info.
+ *
+ * Why one snapshot per request instead of roster.get per item: the roster is
+ * event-ledger backed (every get replays the agent-node stream), so a
+ * 1000-item list doing per-row lookups would be quadratic in ledger size.
+ * One list() call gives a consistent snapshot; a stored assignee that no
+ * longer resolves (retired-and-gone, pre-validation legacy text) joins as
+ * null rather than failing the read — reads must never 500 on stale owners.
+ *
+ * @param roster - The durable-agent roster module, when wired.
+ * @returns A lookup from agentNodeId to OwnerInfo (empty when no roster).
+ */
+function buildOwnerIndex(
+  roster: DurableAgentRoster | undefined,
+  log?: { warn: (msg: string) => void },
+): Map<string, OwnerInfo> {
+  const index = new Map<string, OwnerInfo>();
+  if (!roster) return index;
+  try {
+    for (const agent of roster.list({ includeRetired: true, limit: 500 })) {
+      index.set(agent.agentNodeId, {
+        agentNodeId: agent.agentNodeId,
+        slug: agent.profile.slug,
+        displayName: agent.profile.displayName,
+        status: agent.status,
+      });
+    }
+  } catch (error) {
+    // Roster read failure degrades to unjoined owners, never a failed item read
+    // — but it must leave a trace: a silently empty index looks identical to
+    // "no items have owners", which is the wrong thing to debug.
+    log?.warn(
+      `[roadmap] durable-agent roster read failed; owners will not be joined on this read: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  return index;
+}
 
 export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (fastify, opts) => {
   const { roadmapItems, roadmapPromote } = opts.deps;
-  // routes/index.ts registers this plugin with the FULL server deps, so repoRoot is present
-  // even though RoadmapDeps only names the two it strictly requires.
+  // routes/index.ts registers this plugin with the FULL server deps, so repoRoot/graphEdges are
+  // present even though RoadmapDeps only names the two it strictly requires. graphEdges is
+  // undefined in unit fixtures that only stand up the roadmap dep pair (see
+  // tests/unit/roadmap-board-route.test.js) — the persistence step below tolerates that.
   const repoRoot = (opts.deps as { repoRoot?: string }).repoRoot;
+  const db = (opts.deps as { db?: Database.Database }).db;
+  const graphEdges = (opts.deps as { graphEdges?: GraphEdges }).graphEdges;
+  // Durable-agent roster: the owner registry item assignees validate against
+  // and reads join for display info. Optional for the same fixture reason as
+  // graphEdges — when absent, writes skip validation and reads join null.
+  const durableAgentRoster = (opts.deps as { durableAgentRoster?: DurableAgentRoster }).durableAgentRoster;
+  // Roadmap search (lib/roadmap-search.ts): same tolerant-optional pattern as
+  // graphEdges/durableAgentRoster above — unit fixtures that stand up only the
+  // {roadmapItems, roadmapPromote} pair run with search disabled rather than
+  // crashing. Requires both a DB (to persist the embedding sidecar table) and
+  // the shared semantic resolver (to compute embeddings) — the same resolver
+  // lib/whois.ts's phonebook cascade uses, not a second embedding pipeline.
+  const semanticResolverDep = (opts.deps as { semanticResolver?: SemanticResolver }).semanticResolver;
+  const jiraSecretReader: JiraSecretReader = opts.deps.jiraSecretReader
+    ?? ((key) => getSecret(key));
+  const jiraReader = opts.deps.jiraReader ?? jiraRoadmapReader;
+  const roadmapSearch: RoadmapSearch | undefined =
+    db && semanticResolverDep
+      ? createRoadmapSearch(db, { resolver: semanticResolverDep, logger: fastify.log })
+      : undefined;
+
+  // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
+  // "roadmap is home everywhere"). One deterministic projection that the relay
+  // account page, pd-console, and the iOS app all render instead of re-deriving
+  // roadmap state (see lib/roadmap-projection.ts for the parsimony law and the
+  // law-13 live/stale honesty rules). Read-only; the body is the projection's
+  // canonical serialization so consumers can byte-diff successive fetches.
+  // Self-degrades with 503 when a stripped daemon mode carries no DB (popper
+  // route convention).
+  fastify.get('/roadmap/projection', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!db) {
+      reply.code(503);
+      return { success: false, error: 'roadmap projection requires daemon db' };
+    }
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const harbor = asString(q.harbor);
+    try {
+      const projection = buildRoadmapProjection(db, repoRoot ?? process.cwd(), { harbor });
+      reply.type('application/json; charset=utf-8');
+      return serializeRoadmapProjection(projection);
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'projection failed',
+      };
+    }
+  });
 
   // GET /roadmap/board — the live, browsable planner board (ADR-0086 §5). Derives the
   // Project→Epic→Task hierarchy from roadmap_items on each request (so it reflects live state
   // without needing the migration applied), computes the critical-path schedule, enriches epics
   // with their ADR title + inline ADR text (from repoRoot/docs/adr), and serves self-contained
   // HTML. Same-origin, so the board's poll + tube layer goes live (no CORS, unlike file://).
+  //
+  // ADR-0086 §3 designed graph_edges to hold this hierarchy/dependency structure. This is the
+  // one place a PlannerPlan is derived from live roadmap_items, so the derived HIERARCHY is
+  // persisted here: idempotent (replaceScope), every render converges planner:hierarchy to the
+  // current plan without duplicating rows. Dependency edges are NOT written here any more —
+  // since the dependencies_json retirement they are AUTHORED truth written by
+  // lib/roadmap-items.ts upserts, and a derived replace would destroy authored edges the plan
+  // cannot see. Purely a side effect — the returned HTML is unchanged either way.
   fastify.get('/roadmap/board', async (_request: FastifyRequest, reply: FastifyReply) => {
     const rows = roadmapItems.list({ status: 'all', limit: 2000 });
     const items: MigrationItem[] = rows.map((r) => ({
@@ -144,10 +388,29 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       dependencies: r.dependencies ?? [],
       notes: (r.notes ?? []).map((n) => ({ text: n.text })),
       harbor: r.harbor,
+      // Gantt wall-clock date anchors (ADR-0086 planner columns) — carried
+      // through so `renderBoard` can date-anchor a task's bar instead of
+      // leaving every item on the CPM-relative offset (see planner-board.ts).
+      startedAt: r.startedAt,
+      dueAt: r.dueAt,
     }));
     const plan = derivePlan(items);
+    if (graphEdges) {
+      try {
+        writePlanEdges(graphEdges, plan);
+      } catch (err) {
+        _request.log?.warn?.({ err }, 'roadmap_board_write_plan_edges_failed');
+      }
+    }
+    // Real ADR-0086 estimates drive the Gantt bars; an unsized item defaults to
+    // one effort unit so it still earns visible geometry (the board renders a
+    // duration chart now, not an unweighted topological-depth chart).
+    const estimateBySlug = new Map(rows.map((r) => [r.slug, r.estimate ?? 1]));
     const sched = schedule(
-      plan.tasks.map((t) => ({ id: t.slug as string, estimate: 1 })),
+      plan.tasks.map((t) => ({
+        id: t.slug as string,
+        estimate: estimateBySlug.get(t.slug as string) ?? 1,
+      })),
       plan.dependsOnEdges,
     );
     const adrs: Record<string, AdrMeta> = {};
@@ -211,10 +474,69 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     if (project) input.project = project;
     const ttlMs = asPosInt(body.ttlMs);
     if (ttlMs !== undefined) input.ttlMs = ttlMs;
+    // Planner columns (ADR-0086): omitted fields preserve the stored value in
+    // upsert; only explicitly-sent fields write through.
+    const kindRaw = asString(body.kind);
+    if (kindRaw && KIND_VALUES.has(kindRaw as RoadmapKind)) input.kind = kindRaw as RoadmapKind;
+    const priority = asNumber(body.priority);
+    if (priority !== undefined) input.priority = priority;
+    // Durable owner (2026-08-22 mandate): a set assignee must dereference into
+    // the durable-agent roster; explicit null (or '') clears; omission
+    // preserves the stored owner. Unknown owners are a 400 that names the
+    // registration path — silent acceptance of free text is what made
+    // assignee_id decoration instead of ownership.
+    if ('assigneeId' in body) {
+      const raw = body.assigneeId;
+      if (raw === null || (typeof raw === 'string' && !raw.trim())) {
+        input.assigneeId = null;
+      } else {
+        const assigneeId = asString(raw);
+        if (!assigneeId) {
+          reply.code(400);
+          return { success: false, error: 'assigneeId must be a roster agentNodeId/slug string, or null to clear' };
+        }
+        if (durableAgentRoster) {
+          try {
+            input.assigneeId = resolveAssignee(durableAgentRoster, assigneeId);
+          } catch (error) {
+            reply.code(400);
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : `assigneeId '${assigneeId}' failed roster validation`,
+            };
+          }
+        } else {
+          input.assigneeId = assigneeId;
+        }
+      }
+    }
+    const descriptionMd = asString(body.descriptionMd);
+    if (descriptionMd) input.descriptionMd = descriptionMd;
+    const startedAt = asPosInt(body.startedAt);
+    if (startedAt !== undefined) input.startedAt = startedAt;
+    const dueAt = asPosInt(body.dueAt);
+    if (dueAt !== undefined) input.dueAt = dueAt;
+    const estimate = asPosInt(body.estimate);
+    if (estimate !== undefined) input.estimate = estimate;
+    // Jira-grade fields: tags replace-when-sent ([] clears); actual mirrors
+    // estimate's units and accepts explicit null to clear.
+    const tags = asStringArray(body.tags);
+    if (tags !== undefined) input.tags = tags;
+    if ('actual' in body) {
+      input.actual = body.actual === null ? null : asPosInt(body.actual) ?? null;
+    }
 
     try {
       const item = roadmapItems.upsert(input);
       reply.code(201);
+      // Fire-and-forget: keep the search index warm without slowing the
+      // write path down or failing the upsert on an embedding hiccup. A
+      // stale/missing embedding degrades pd-begin suggestions, not correctness.
+      if (roadmapSearch) {
+        roadmapSearch.reindexItem(item).catch((error: unknown) => {
+          fastify.log.error({ error, slug: item.slug }, 'roadmap_search_reindex_after_upsert_failed');
+        });
+      }
       return { success: true, item };
     } catch (error) {
       reply.code(400);
@@ -225,11 +547,174 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     }
   });
 
+  // GET /roadmap/search?q=<free text>&harbor=<h>&limit=<n> — rank roadmap
+  // items against free text (lib/roadmap-search.ts). The suggestion source
+  // for `pd begin`'s rent gate: when a caller doesn't already know the exact
+  // --roadmap slug, this turns their purpose text into ranked candidates
+  // instead of a bare rejection. Degrades to an empty list (never an error)
+  // when the index isn't wired (unit fixtures) or hasn't been populated yet.
+  fastify.get('/roadmap/search', async (request: FastifyRequest) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const query = asString(q.q) ?? asString(q.query);
+    if (!query) return { success: true, hits: [], count: 0 };
+    if (!roadmapSearch) return { success: true, hits: [], count: 0, degraded: 'search index unavailable' };
+
+    const harbor = asString(q.harbor);
+    const limit = asPosInt(q.limit);
+    const hits = await roadmapSearch.search(query, { harbor, limit });
+    return { success: true, hits, count: hits.length };
+  });
+
+  // POST /roadmap/reindex-search — backfill/refresh every item's embedding.
+  // Needed once after this feature ships (existing rows predate the index)
+  // and safe to re-run any time (reindexItem no-ops on an unchanged hash).
+  fastify.post('/roadmap/reindex-search', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!roadmapSearch) {
+      reply.code(503);
+      return { success: false, error: 'search index unavailable (no DB or semantic resolver wired)' };
+    }
+    const body = (request.body ?? {}) as { harbor?: unknown };
+    const harbor = asString(body.harbor);
+    const items = roadmapItems.list({ harbor, status: 'all' });
+    const result = await roadmapSearch.reindexAll(items);
+    return { success: true, ...result, total: items.length };
+  });
+
+  // GET /roadmap/jira — live, read-only Jira Cloud projection. This is kept
+  // separate from /roadmap/items so callers can display source authority and
+  // preserve local roadmap availability when Jira is unconfigured or down.
+  fastify.get('/roadmap/jira', async (_request: FastifyRequest, reply: FastifyReply) => {
+    let state;
+    try {
+      state = jiraConfigFromSecrets(jiraSecretReader);
+    } catch (error) {
+      reply.code(503);
+      return {
+        success: false,
+        source: 'jira',
+        configured: true,
+        error: error instanceof Error ? error.message : 'invalid Jira configuration',
+      };
+    }
+    if (!state.configured) {
+      return {
+        success: true,
+        source: 'jira',
+        configured: false,
+        missing: state.missing,
+        issues: [],
+      };
+    }
+    try {
+      const result = await jiraReader.read(state.config);
+      return { success: true, configured: true, ...result };
+    } catch (error) {
+      reply.code(502);
+      return {
+        success: false,
+        source: 'jira',
+        configured: true,
+        projectKey: state.config.projectKey,
+        error: error instanceof JiraRoadmapError
+          ? error.message
+          : 'Jira roadmap read failed',
+      };
+    }
+  });
+
+  // POST /roadmap/items/:slug/export — push one roadmap item to an external
+  // tracker (lib/roadmap-export.ts). One-way, repeatable-but-not-idempotent
+  // (see that module's docblock for why); on success, records a typed `issue`
+  // link on the card (lib/planner-edges.ts) so the two records stay
+  // associated for later reads. Credentials NEVER come from the request body
+  // — Jira's complete connection tuple comes from the managed Keychain, so a
+  // client can pick a target but never smuggle in someone else's credential or
+  // silently export to a different Jira site/project.
+  fastify.post('/roadmap/items/:slug/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { slug?: string };
+    const slug = params.slug;
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug is required' };
+    }
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const existing = roadmapItems.get(slug, asString(q.harbor));
+    if (!existing) {
+      reply.code(404);
+      return { success: false, error: `roadmap item '${slug}' not found` };
+    }
+
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const target = asString(body.target) as ExportTarget | undefined;
+    if (!target || !['github', 'linear', 'jira'].includes(target)) {
+      reply.code(400);
+      return { success: false, error: "target must be one of: 'github', 'linear', 'jira'" };
+    }
+
+    const fetchImpl: ExportFetch = (url, init) => fetch(url, init);
+    let config: ExportConfig;
+    if (target === 'github') {
+      const token = process.env.PD_GITHUB_TOKEN ?? process.env.GITHUB_TOKEN;
+      const repo = asString(body.repo) ?? process.env.PD_ROADMAP_EXPORT_GITHUB_REPO;
+      if (!token) { reply.code(503); return { success: false, error: 'PD_GITHUB_TOKEN (or GITHUB_TOKEN) not configured' }; }
+      if (!repo) { reply.code(400); return { success: false, error: "target 'github' requires body.repo ('owner/repo')" }; }
+      config = { target: 'github', repo, token, fetchImpl };
+    } else if (target === 'linear') {
+      const token = process.env.PD_LINEAR_TOKEN;
+      const teamId = asString(body.teamId) ?? process.env.PD_ROADMAP_EXPORT_LINEAR_TEAM_ID;
+      if (!token) { reply.code(503); return { success: false, error: 'PD_LINEAR_TOKEN not configured' }; }
+      if (!teamId) { reply.code(400); return { success: false, error: "target 'linear' requires body.teamId" }; }
+      config = { target: 'linear', teamId, token, fetchImpl };
+    } else {
+      let jiraState;
+      try {
+        jiraState = jiraConfigFromSecrets(jiraSecretReader);
+      } catch (error) {
+        reply.code(503);
+        return { success: false, error: error instanceof Error ? error.message : 'invalid Jira configuration' };
+      }
+      if (!jiraState.configured) {
+        reply.code(503);
+        return {
+          success: false,
+          error: `Jira is not configured; set ${jiraState.missing.join(', ')} in FleetBar Credentials`,
+          missing: jiraState.missing,
+        };
+      }
+      config = {
+        target: 'jira',
+        ...jiraState.config,
+        issueType: asString(body.issueType),
+        fetchImpl,
+      };
+    }
+
+    try {
+      const result = await exportRoadmapItem(
+        { slug: existing.slug, summaryMd: existing.summaryMd, descriptionMd: existing.descriptionMd, status: existing.status, tags: existing.tags },
+        config,
+      );
+      if (graphEdges) {
+        graphEdges.remember(itemLinkEdge(slug, 'issue', result.externalId, {
+          url: result.externalUrl,
+          tracker: result.target,
+        }));
+      }
+      reply.code(201);
+      return { success: true, export: result };
+    } catch (error) {
+      const message = error instanceof RoadmapExportError ? error.message : error instanceof Error ? error.message : 'export failed';
+      reply.code(502);
+      return { success: false, error: message };
+    }
+  });
+
   fastify.get('/roadmap/items', async (request: FastifyRequest) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
     const project = asString(q.project);
     const harbor = asString(q.harbor) ?? harborForProject(project);
     const limit = asPosInt(q.limit);
+    const tag = asString(q.tag);
     const statusRaw = asString(q.status);
     const status =
       statusRaw === 'all'
@@ -237,10 +722,24 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         : statusRaw && STATUS_VALUES.has(statusRaw as RoadmapStatus)
           ? (statusRaw as RoadmapStatus)
           : undefined;
-    const items = roadmapItems.list({ harbor, limit, status });
+    const rows = roadmapItems.list({ harbor, limit, status, tag });
+    // Owner join: one roster snapshot per request, so every item's assignee
+    // resolves to display info without per-row ledger replays.
+    const owners = buildOwnerIndex(durableAgentRoster, request.log);
+    const items = rows.map((item) => ({
+      ...item,
+      owner: item.assigneeId ? owners.get(item.assigneeId) ?? null : null,
+    }));
     return { success: true, items, count: items.length };
   });
 
+  // GET /roadmap/items/:slug — the full Jira card (2026-08-22 mandate §6):
+  // every stored field, the owner joined from the durable-agent roster, typed
+  // links, both blocking directions (blockedBy = my dependencies; blocks =
+  // items depending on me, derived from the same data that projects into
+  // depends_on edges), hierarchy (parent/children from the persisted
+  // parent_of edges), and planned-vs-actual. Consumers that only want the raw
+  // item keep reading `.item`; the card facets ride alongside it.
   fastify.get('/roadmap/items/:slug', async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { slug?: string };
     const slug = asString(params.slug);
@@ -255,7 +754,188 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       reply.code(404);
       return { success: false, error: `roadmap item '${slug}' not found` };
     }
-    return { success: true, item };
+    const owners = buildOwnerIndex(durableAgentRoster, request.log);
+    const owner = item.assigneeId ? owners.get(item.assigneeId) ?? null : null;
+    const links = graphEdges ? listItemLinks(graphEdges, slug) : [];
+    const blockedBy = [...item.dependencies].sort();
+    const blocks = roadmapItems.listDependents(slug, item.harbor).map((i) => i.slug);
+    let parent: string | null = null;
+    let children: string[] = [];
+    if (graphEdges) {
+      parent =
+        graphEdges.list({
+          scope: HIERARCHY_SCOPE,
+          edgeType: 'parent_of',
+          targetType: ITEM_TYPE,
+          targetId: slug,
+          limit: 10,
+        })[0]?.sourceId ?? null;
+      children = graphEdges
+        .list({
+          scope: HIERARCHY_SCOPE,
+          edgeType: 'parent_of',
+          sourceType: ITEM_TYPE,
+          sourceId: slug,
+          limit: 1000,
+        })
+        .map((e) => e.targetId)
+        .sort();
+    }
+    const plannedVsActual = {
+      estimate: item.estimate,
+      actual: item.actual,
+      variance: item.estimate != null && item.actual != null ? item.actual - item.estimate : null,
+      startedAt: item.startedAt,
+      dueAt: item.dueAt,
+      completedAt: item.completedAt,
+    };
+    return {
+      success: true,
+      item: { ...item, owner },
+      owner,
+      links,
+      blocks,
+      blockedBy,
+      parent,
+      children,
+      plannedVsActual,
+    };
+  });
+
+  // ── Typed item links (pr/doc/file/media) — graph_edges planner:links scope ──
+
+  /**
+   * The shared 503 for link verbs when graph_edges is not wired.
+   *
+   * Why 503 and not a silent no-op: links are durable evidence, so a daemon
+   * that cannot persist them must refuse loudly — the design intent is that a
+   * degraded fixture/deployment never fakes success on an evidence write.
+   *
+   * @param reply - The Fastify reply to mark 503.
+   * @returns The failure body naming the missing dependency.
+   */
+  const linksUnavailable = (reply: FastifyReply) => {
+    reply.code(503);
+    return { success: false, error: 'graph_edges is not wired on this daemon; item links are unavailable' };
+  };
+
+  /**
+   * Parse and validate the (type, target) pair every link verb needs.
+   *
+   * Why one shared parser: add, list-by-key, and remove all identify a link by
+   * the same (kind, target) identity the graph_edges unique index enforces, so
+   * the design keeps the validation in one place — a PR target must be a bare
+   * number (the metadata carries its URL), and unknown kinds are rejected
+   * before they can mint an untyped edge nothing renders.
+   *
+   * @param type - Candidate link kind from body or query.
+   * @param target - Candidate target id (PR number / path / URL).
+   * @returns The validated kind+target, or an `{ error }` for the 400 path.
+   */
+  const parseLinkKey = (
+    type: string | undefined,
+    target: string | undefined,
+  ): { kind: ItemLinkKind; target: string } | { error: string } => {
+    if (!type || !LINK_KINDS.has(type as ItemLinkKind)) {
+      return { error: 'type must be one of pr|doc|file|media' };
+    }
+    if (!target) {
+      return { error: 'target is required (PR number for pr; path for doc/file; path or URL for media)' };
+    }
+    if (type === 'pr') {
+      if (!/^\d+$/.test(target)) {
+        return { error: `pr link target must be a PR number, got '${target}'` };
+      }
+      // Canonicalize leading zeros: the graph_edges unique index keys on the
+      // literal target_id, so '0123' and '123' would otherwise mint two edges
+      // for the same pull request — and `unlink --pr 123` would not remove the
+      // one added as `--pr 0123`. Strip textually (not via Number) so a target
+      // beyond Number.MAX_SAFE_INTEGER cannot be silently rounded.
+      return { kind: type, target: target.replace(/^0+(?=\d)/, '') };
+    }
+    return { kind: type as ItemLinkKind, target };
+  };
+
+  fastify.get('/roadmap/items/:slug/links', async (request: FastifyRequest, reply: FastifyReply) => {
+    const slug = asString((request.params as { slug?: string }).slug);
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug required in path' };
+    }
+    if (!graphEdges) return linksUnavailable(reply);
+    if (!roadmapItems.slugExists(slug)) {
+      reply.code(404);
+      return { success: false, error: `roadmap item '${slug}' not found` };
+    }
+    const links = listItemLinks(graphEdges, slug);
+    return { success: true, links, count: links.length };
+  });
+
+  fastify.post('/roadmap/items/:slug/links', async (request: FastifyRequest, reply: FastifyReply) => {
+    const slug = asString((request.params as { slug?: string }).slug);
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug required in path' };
+    }
+    if (!graphEdges) return linksUnavailable(reply);
+    if (!roadmapItems.slugExists(slug)) {
+      reply.code(404);
+      return { success: false, error: `roadmap item '${slug}' not found` };
+    }
+    const body = (request.body ?? {}) as LinkBody;
+    const key = parseLinkKey(asString(body.type), asString(body.target));
+    if ('error' in key) {
+      reply.code(400);
+      return { success: false, error: key.error };
+    }
+    const metadata: Record<string, unknown> = {};
+    const url = asString(body.url);
+    if (url) metadata.url = url;
+    const title = asString(body.title);
+    if (title) metadata.title = title;
+    const mime = asString(body.mime);
+    if (mime) metadata.mime = mime;
+    const caption = asString(body.caption);
+    if (caption) metadata.caption = caption;
+    const edge = graphEdges.remember(itemLinkEdge(slug, key.kind, key.target, metadata));
+    reply.code(201);
+    return {
+      success: true,
+      link: {
+        kind: key.kind,
+        targetId: edge.targetId,
+        metadata: edge.metadata,
+        createdAt: edge.createdAt,
+        updatedAt: edge.updatedAt,
+      },
+    };
+  });
+
+  fastify.delete('/roadmap/items/:slug/links', async (request: FastifyRequest, reply: FastifyReply) => {
+    const slug = asString((request.params as { slug?: string }).slug);
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug required in path' };
+    }
+    if (!graphEdges) return linksUnavailable(reply);
+    // Accept the (type, target) key from query OR body — DELETE bodies are
+    // legal but some clients cannot send them.
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const body = (request.body ?? {}) as LinkBody;
+    const key = parseLinkKey(
+      asString(body.type) ?? asString(q.type),
+      asString(body.target) ?? asString(q.target),
+    );
+    if ('error' in key) {
+      reply.code(400);
+      return { success: false, error: key.error };
+    }
+    const removed = removeItemLink(graphEdges, slug, key.kind, key.target);
+    if (!removed) {
+      reply.code(404);
+      return { success: false, error: `no ${key.kind} link to '${key.target}' on '${slug}'` };
+    }
+    return { success: true, removed: true };
   });
 
   fastify.delete('/roadmap/items/:slug', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -322,12 +1002,73 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     }
     const q = (request.query ?? {}) as Record<string, unknown>;
     const harbor = asString(q.harbor);
-    const item = roadmapItems.touch(slug, harbor);
-    if (!item) {
-      reply.code(404);
-      return { success: false, error: `roadmap item '${slug}' not found` };
+    const body = request.body as Record<string, unknown> | undefined;
+    const note = body?.note as Record<string, unknown> | undefined;
+    // This endpoint accepts an append, not mutable item fields or asserted
+    // authorship. The credential realm is deliberately NOT the data harbor.
+    if (!harbor || Object.keys(q).some((key) => key !== 'harbor')
+      || !body || typeof body !== 'object' || Array.isArray(body)
+      || Object.keys(body).some((key) => !['sessionId', 'note', 'credential'].includes(key))
+      || typeof body.sessionId !== 'string' || !body.sessionId.trim()
+      || !note || typeof note !== 'object' || Array.isArray(note)
+      || Object.keys(note).some((key) => !['at', 'text'].includes(key))
+      || !Number.isSafeInteger(note.at) || (note.at as number) <= 0
+      || typeof note.text !== 'string' || !note.text.trim() || Buffer.byteLength(note.text, 'utf8') > 4096) {
+      reply.code(400);
+      return { success: false, code: 'VALIDATION_ERROR', error: 'Touch requires an exact harbor, sessionId, and one bounded note { at, text }; item fields and note.by are not accepted.' };
     }
-    return { success: true, item };
+    let verdict: ReturnType<typeof resolveWriteIdentity>;
+    try {
+      verdict = resolveWriteIdentity({
+        souls: opts.deps.actorSouls,
+        credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+        route: 'POST /roadmap/items/:slug/touch', requireIdentity: true,
+      });
+    } catch {
+      reply.code(503);
+      return { success: false, code: 'IDENTITY_VERIFIER_UNAVAILABLE', error: 'Identity verification is unavailable; nothing was appended.' };
+    }
+    if (!verdict.ok) {
+      reply.code(verdict.httpStatus);
+      return { success: false, code: verdict.code, error: verdict.error };
+    }
+    if (verdict.kind !== 'verified' || !opts.deps.sessions) {
+      reply.code(503);
+      return { success: false, code: 'SESSION_VERIFIER_UNAVAILABLE', error: 'Session ownership verification is unavailable; nothing was appended.' };
+    }
+    try {
+      const sessionId = body.sessionId.trim();
+      const lookup = opts.deps.sessions.get(sessionId);
+      const session = lookup.session as Record<string, unknown> | undefined;
+      if (lookup.success !== true || !session || session.id !== sessionId) {
+        reply.code(404);
+        return { success: false, code: 'SESSION_NOT_FOUND', error: 'The exact session was not found.' };
+      }
+      const owner = authorizeSessionOwner(session, verdict, opts.deps.actorSouls);
+      if (!owner.ok) {
+        reply.code(owner.httpStatus);
+        return { success: false, code: owner.code, error: owner.error };
+      }
+      if (session.status !== 'active') {
+        reply.code(409);
+        return { success: false, code: 'SESSION_NOT_ACTIVE', error: 'The exact session is not active; no automatic resume was attempted.' };
+      }
+      const authorizedNote = { at: note.at as number, text: note.text, by: owner.ownerAgentId };
+      const item = roadmapItems.touch(slug, harbor, authorizedNote);
+      if (!item) {
+        reply.code(404);
+        return { success: false, code: 'ROADMAP_ITEM_NOT_FOUND', error: 'The exact live roadmap item was not found in this harbor.' };
+      }
+      return { success: true, item, receipt: { sessionId, actorId: owner.ownerActorId, note: authorizedNote } };
+    } catch (error) {
+      const code = error instanceof Error && ['ROADMAP_HISTORY_INVALID', 'ROADMAP_NOTE_CLOCK_INVALID'].includes(error.message)
+        ? error.message : 'ROADMAP_TOUCH_FAILED';
+      reply.code(code === 'ROADMAP_NOTE_CLOCK_INVALID' ? 400 : code === 'ROADMAP_HISTORY_INVALID' ? 409 : 500);
+      return { success: false, code, error: code === 'ROADMAP_NOTE_CLOCK_INVALID'
+        ? 'A new receipt timestamp must be a positive safe integer no later than the daemon clock; no timestamp was substituted.'
+        : code === 'ROADMAP_HISTORY_INVALID' ? 'Stored roadmap history is malformed; it was preserved without an append.'
+          : 'The receipt could not be confirmed; inspect the exact item before retrying.' };
+    }
   });
 
   fastify.post('/roadmap/render', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -370,6 +1111,82 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       }
     }
     return { success: true, markdown, count: items.length };
+  });
+
+  // POST /roadmap/chomp — general planning-doc ingestion (operator mandate
+  // 2026-08-22). Reads the named markdown docs from rootDir, extracts a
+  // project→epic→story→task tree (headings), checklist tasks, and explicit
+  // depends-on references, and upserts them into roadmap_items with the same
+  // never-clobber-enriched-rows discipline the legacy importer documented.
+  // `enrich: true` opts into one-line summary polish through the daemon's
+  // real request-shape LLM path (lib/llm-backend-resolver.ts, actor 'chomp');
+  // with no backend configured the result is deterministic extraction plus an
+  // honest `enrichment.backend: null` report — nothing is faked.
+  fastify.post('/roadmap/chomp', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const rootDir = asString(body.rootDir) ?? asString(body.root);
+    if (!rootDir) {
+      reply.code(400);
+      return { success: false, error: 'rootDir is required (repo root to read planning docs from)' };
+    }
+    const paths = asStringArray(body.paths);
+    if (!paths || paths.length === 0) {
+      reply.code(400);
+      return { success: false, error: 'paths is required (planning docs to chomp, relative to rootDir)' };
+    }
+    const statusRaw = asString(body.defaultStatus);
+    const defaultStatus =
+      statusRaw && STATUS_VALUES.has(statusRaw as RoadmapStatus)
+        ? (statusRaw as RoadmapStatus)
+        : undefined;
+    const dryRun = body.dryRun === true || body.dryRun === 'true';
+    const enrichRequested = body.enrich === true || body.enrich === 'true';
+
+    let enrich: ChompEnrichOptions | undefined;
+    let enrichmentUnavailable: { requested: true; attempted: 0; applied: 0; backend: null } | null = null;
+    if (enrichRequested) {
+      const resolved = resolveLLMBackend({ actor: 'chomp' });
+      if (resolved) {
+        enrich = {
+          transport: resolved.transport,
+          model: resolved.model,
+          label: `${resolved.backend}:${resolved.model}`,
+        };
+      } else {
+        // Honest degradation: no configured backend means deterministic-only.
+        enrichmentUnavailable = { requested: true, attempted: 0, applied: 0, backend: null };
+      }
+    }
+
+    try {
+      const result = await chompRoadmap(
+        { roadmapItems, graphEdges },
+        {
+          rootDir,
+          paths,
+          defaultStatus,
+          harbor: asString(body.harbor),
+          project: asString(body.project),
+          by: asString(body.by),
+          dryRun,
+          sourceCommit: asString(body.sourceCommit),
+          enrich,
+        },
+      );
+      if (enrichmentUnavailable) {
+        result.enrichment = enrichmentUnavailable;
+        result.warnings.push(
+          'enrich requested but no LLM backend is configured (set PD_CHOMP_BACKEND or PD_FLEET_DEFAULT_BACKEND); deterministic extraction only',
+        );
+      }
+      return { success: true, ...result };
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'chomp failed',
+      };
+    }
   });
 
   fastify.post('/roadmap/import-markdown', async (request: FastifyRequest, reply: FastifyReply) => {

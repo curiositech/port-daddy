@@ -10,12 +10,39 @@
 import {
   resolveBeginRent,
   resolveRelinkRent,
+  shouldRunBeginWizard,
   formatRentReceipt,
   RENT_GATE_MESSAGE,
   RELINK_GATE_MESSAGE,
 } from '../../cli/commands/sugar.js';
 
 const noEnv = {};
+
+describe('shouldRunBeginWizard — scripted begin never prompts', () => {
+  test('a bare interactive begin enters the wizard', () => {
+    expect(shouldRunBeginWizard(undefined, {}, true)).toBe(true);
+  });
+
+  test.each([
+    ['purpose flag', { purpose: '' }],
+    ['identity', { identity: 'project:stack:context' }],
+    ['agent', { agent: 'agent-1' }],
+    ['files', { files: ['src/a.ts'] }],
+    ['empty files', { files: [] }],
+    ['single file', { files: 'src/a.ts' }],
+    ['lifecycle', { lifecycle: 'durable' }],
+    ['name', { name: 'named-session' }],
+  ])('%s scoping disables the wizard even in a TTY', (_label, options) => {
+    expect(shouldRunBeginWizard(undefined, options, true)).toBe(false);
+  });
+
+  test('a supplied purpose or non-interactive shell never enters the wizard', () => {
+    expect(shouldRunBeginWizard('planned work', {}, true)).toBe(false);
+    expect(shouldRunBeginWizard('', {}, true)).toBe(false);
+    expect(shouldRunBeginWizard('planned work', { identity: 'project:task' }, true)).toBe(false);
+    expect(shouldRunBeginWizard(undefined, {}, false)).toBe(false);
+  });
+});
 
 describe('resolveBeginRent — flag matrix', () => {
   test('--roadmap <slug> resolves to a roadmap link', () => {

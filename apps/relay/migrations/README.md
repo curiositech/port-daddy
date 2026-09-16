@@ -32,7 +32,10 @@ with `wrangler d1 migrations apply`, which tracks applied files per-database
 `applied-staging.json` is the committed record of which migration files have
 been applied to the staging database. **It is CI-owned**: the deploy-relay
 workflow updates it (`check-migrations-gate.mjs --record`) after a successful
-staging apply and commits it back to `main`.
+staging apply, deploys `relay-latest`, and publishes the change on the
+deterministic `automation/relay-staging-ledger` PR with auto-merge armed.
+Protected `main` is never pushed directly, and production remains gated until
+that generated PR clears the ordinary review checks.
 
 Do not hand-edit the ledger. A hand edit is the one way to lie the prod gate
 green with a migration that never ran on staging — treat any manual change to
@@ -45,9 +48,10 @@ this file in review as an incident, not a convenience.
 2. Merge. deploy-relay.yml:
      - wrangler d1 migrations apply port-daddy-relay-staging --env latest --remote
      - check-migrations-gate.mjs --record   → ledger gains the new file
-     - commits the ledger, deploys relay-latest
+     - deploys relay-latest
+     - opens or updates the generated ledger PR and arms auto-merge
 3. Soak on the latest channel (relay-latest + staging D1).
-4. Tag a release (git tag v0.x.y && git push --tags). deploy-relay-prod.yml:
+4. Tag a relay release (`relay-v*`). deploy-relay-prod.yml:
      - check-migrations-gate.mjs            → passes (ledger has the file)
      - wrangler d1 migrations apply port-daddy-relay --remote   (PROD)
      - wrangler versions upload + versions deploy               (PROD Worker)
@@ -60,3 +64,12 @@ this file in review as an incident, not a convenience.
 ```sh
 npx wrangler d1 migrations apply port-daddy-relay --local
 ```
+
+## Shipwright scoped-context rollback warning
+
+After `2026-09-14-shipwright-scoped-context.sql` is deployed, the database is
+structurally compatible with an older Worker, but the old Shipwright runtime is
+not tenant-isolation compatible: it resumes user-only prompts from
+`shipwright_chats`. A rollback across that release boundary must disable the
+Shipwright routes until the scoped Worker is restored. Do not describe schema
+compatibility as a safe application rollback.

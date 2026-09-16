@@ -10,7 +10,7 @@
  * shovel to a bonsai tree. Both sides need to live in the SAME semantic
  * space (task-intent space) for cosine to mean anything.
  *
- * THE FIX (Tool2Vec, see https://windags.ai/blog/the-skill-matching-cascade):
+ * THE FIX (Tool2Vec, see https://example.com/blog/the-skill-matching-cascade):
  * for each skill, generate ~15 diverse synthetic task descriptions — the
  * kind of thing a user would actually type that this skill should answer —
  * via one cheap LLM call, embed each with the shared local embedder, and
@@ -36,7 +36,7 @@ import type { SkillEntry, SkillEmbedder } from './shipwright/skill-index.js';
 import type { LLMClient } from './llm-call.js';
 
 /** Number of synthetic task descriptions generated per skill. Matches the
- *  windags Tool2Vec reference (15) — enough diversity to average out any
+ *  jury_rig Tool2Vec reference (15) — enough diversity to average out any
  *  one query's idiosyncratic phrasing without being expensive to generate
  *  or embed. */
 export const SYNTHETIC_QUERIES_PER_SKILL = 15;
@@ -84,6 +84,13 @@ export interface Tool2VecStore {
   /** Drop rows for skill ids no longer present in the catalog. Returns the
    *  count removed so callers can report it in refresh stats. */
   prune(liveSkillIds: readonly string[]): number;
+  /** Inspect current-hash coverage without generating anything. Explicit
+   *  model ids let Doctor inspect a cache built by an earlier daemon even
+   *  when this CLI process does not currently have a generator configured. */
+  coverage(
+    skills: readonly Pick<SkillEntry, 'id' | 'contentHash'>[],
+    expected?: { embedderModelId?: string; generatorId?: string },
+  ): { current: number; missing: number; stale: number; total: number };
   db: DatabaseInstance;
 }
 
@@ -137,6 +144,11 @@ export function createTool2VecStore(options: Tool2VecStoreOptions): Tool2VecStor
       queries_json = excluded.queries_json,
       created_at = excluded.created_at
   `);
+  const inspectStmt = db.prepare(`
+    SELECT content_hash, embedder_model_id, generator_id
+    FROM skill_graft_tool2vec_centroids
+    WHERE skill_id = ?
+  `);
 
   return {
     db,
@@ -188,6 +200,44 @@ export function createTool2VecStore(options: Tool2VecStoreOptions): Tool2VecStor
       const stale = rows.map((r) => r.skill_id).filter((id) => !live.has(id));
       if (stale.length > 0) tx(stale);
       return stale.length;
+    },
+
+    /**
+     * Counts missing, stale, and current rows without generation. The purpose
+     * is a cheap status projection whose expected model identities are explicit
+     * even when the inspecting process has no active generator.
+     *
+     * @param skills Current catalog ids and content hashes.
+     * @param expected Optional embedder and generator identities to compare.
+     * @returns Exact current, missing, stale, and total row counts.
+     */
+    coverage(skills, expected = {}) {
+      const embedderModelId = expected.embedderModelId ?? options.embedderModelId;
+      const generatorId = expected.generatorId ?? options.generatorId;
+      let current = 0;
+      let missing = 0;
+      let stale = 0;
+      for (const skill of skills) {
+        const row = inspectStmt.get(skill.id) as {
+          content_hash: string;
+          embedder_model_id: string;
+          generator_id: string;
+        } | undefined;
+        if (!row) {
+          missing++;
+          continue;
+        }
+        if (
+          row.content_hash === skill.contentHash &&
+          row.embedder_model_id === embedderModelId &&
+          row.generator_id === generatorId
+        ) {
+          current++;
+        } else {
+          stale++;
+        }
+      }
+      return { current, missing, stale, total: skills.length };
     },
   };
 }

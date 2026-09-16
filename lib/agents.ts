@@ -10,6 +10,7 @@ import type Database from 'better-sqlite3';
 import { parseIdentity, patternToSql } from './identity.js';
 import type { SemanticIndex } from './semantic-index.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
+import { createReaperSoulResolver, type SessionBindingLookup } from './agent-soul-binding.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30000;  // 30 seconds
 const DEFAULT_AGENT_TTL = 120000;          // 2 minutes without heartbeat = display as inactive
@@ -163,8 +164,29 @@ interface ResourceCheck {
 }
 
 interface LocksLike {
-  list(options: { owner: string }): { locks?: Array<{ name: string }> };
+  list(options: { owner: string }): { locks?: Array<{ name: string; metadata?: unknown }> };
   release(name: string, options: { force: boolean }): void;
+}
+
+/**
+ * How `cleanup()` decides whether a dying DISPLAY handle is allowed to take a
+ * lock with it.
+ *
+ * See the long note in cleanup() itself. Either supply `agentOwnsSoul`
+ * directly, or the `sessions` manager and one is built for you via
+ * lib/agent-soul-binding.ts.
+ */
+export interface CleanupOptions {
+  /**
+   * Membership predicate: does a dying display handle bind to `actorId`? Keyed
+   * to the specific soul so a display handle shared by several souls cannot let
+   * one soul's session decide another soul's lock. Defaults to a session-stamp
+   * predicate built from `sessions`.
+   */
+  agentOwnsSoul?: (agentId: string, actorId: string) => boolean;
+  sessions?: (SessionBindingLookup & {
+    activeDurableSessionIdsByAgent?(agentId: string, options: { verifiedOnly: boolean }): string[];
+  }) | null;
 }
 
 interface AgentsOptions {
@@ -514,10 +536,10 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     const readiness = safeJsonParse(agent.readiness) as ReadinessCheck[] | null;
     const sinceHeartbeat = now - agent.last_heartbeat;
 
-    // isReady: status must be ready|busy AND all readiness checks must pass (or none reported)
+    // Dormant directory presence is not dispatch readiness, even with stale passing checks.
     const statusReady = agentStatus === 'ready' || agentStatus === 'busy';
     const checksPass = !readiness || readiness.every(c => c.ok);
-    const isReady = statusReady && checksPass;
+    const isReady = sinceHeartbeat < DEFAULT_AGENT_TTL && statusReady && checksPass;
 
     // Health assessment using adaptive thresholds
     const deadThreshold = getDeadThresholdForStatus(agentStatus);
@@ -774,7 +796,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   /**
    * Cleanup stale agents and release their resources
    */
-  function cleanup(locks?: LocksLike) {
+  function cleanup(locks?: LocksLike, options: CleanupOptions = {}) {
     const now = Date.now();
     // Cleanup is an operational death decision, not a display concern.
     // Agents may be "inactive" after 2 minutes for UI purposes while still
@@ -785,29 +807,78 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
 
     let releasedLocks = 0;
 
+    // Decide whether a dying display handle binds to a specific soul — the
+    // daemon-written session stamp, NOT the alias table (see
+    // lib/agent-soul-binding.ts for why the alias is not evidence here). This
+    // is a MEMBERSHIP test keyed to the lock's stamped soul: a display handle
+    // shared by several souls must not let one soul's session release another
+    // soul's lock. `false` means "no ownership claim proved", NOT "unowned".
+    const agentOwnsSoul = options.agentOwnsSoul
+      ?? (options.sessions ? createReaperSoulResolver({ sessions: options.sessions }) : () => false);
+
     for (const agent of cleanupCandidates) {
       // Release locks owned by this agent.
       // Note: services don't track agent ownership (no agent_id column),
       // so service cleanup relies on expires_at TTL and PID liveness checks
       // in services.cleanup() instead.
+      //
+      // ─── Why this consults the lock's soul stamp ───────────────────────
+      // `locks.owner` is a DISPLAY string and `agents.id` is a DISPLAY
+      // handle that anyone can create with one uncredentialed
+      // POST /agents/:id/heartbeat (it auto-registers). Matching those two
+      // strings and calling release(force: true) skipped the soul-level
+      // ownership check that makes the lock plane enforced
+      // (routes/locks.ts' LOCK_OWNER_MISMATCH) — so the potent primitive was
+      // not forging a heartbeat but WITHHOLDING one: register a handle equal
+      // to a lock's owner string, stop heartbeating, and the reaper destroys
+      // a lock held by a different, credentialed soul.
+      //
+      // The rule now: a lock carrying a stamped actorId is released only when
+      // the dying handle resolves to THAT soul. When it does not — including
+      // when nothing can prove the binding at all — the lock is left to its
+      // TTL, which is the correct fail-closed outcome: expiry loses a few
+      // minutes, force-release loses another agent's mutual exclusion.
+      // Unstamped locks have no ownership claim to honour and keep the
+      // historical owner-string behaviour.
+      // Regression test: tests/unit/heartbeat-lock-invariant.test.js.
       if (locks) {
         const lockResult = locks.list({ owner: agent.id });
-        for (const lock of lockResult.locks || []) {
+        const candidateLocks = lockResult.locks || [];
+        for (const lock of candidateLocks) {
+          const metadata = lock.metadata && typeof lock.metadata === 'object' && !Array.isArray(lock.metadata)
+            ? lock.metadata as Record<string, unknown>
+            : null;
+          const stampedActor = typeof metadata?.actorId === 'string' && metadata.actorId
+            ? metadata.actorId
+            : null;
+          // A stamped lock is force-released only when the dying handle is
+          // proven to bind to THAT soul (membership among its session stamps).
+          // A shared display handle carrying another soul's session must not
+          // qualify; when nothing proves the binding, the lock is left to TTL.
+          if (stampedActor && !agentOwnsSoul(agent.id, stampedActor)) continue;
           locks.release(lock.name, { force: true });
           releasedLocks++;
         }
       }
     }
 
+    const retainedAgentIds: string[] = [];
+    const cleanedAgentIds: string[] = [];
     for (const agent of cleanupCandidates) {
+      if (options.sessions?.activeDurableSessionIdsByAgent?.(agent.id, { verifiedOnly: true }).length) {
+        retainedAgentIds.push(agent.id);
+        continue;
+      }
       stmts.deleteById.run(agent.id);
+      cleanedAgentIds.push(agent.id);
     }
 
     return {
-      cleaned: cleanupCandidates.length,
-      cleanedAgentIds: cleanupCandidates.map((agent) => agent.id),
+      cleaned: cleanedAgentIds.length,
+      cleanedAgentIds,
+      retainedAgentIds,
       releasedLocks,
-      message: `cleaned ${cleanupCandidates.length} stale agent(s)`
+      message: `cleaned ${cleanedAgentIds.length} stale agent(s)`
     };
   }
 

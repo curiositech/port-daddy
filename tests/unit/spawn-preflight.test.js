@@ -14,6 +14,7 @@ jest.unstable_mockModule('../../lib/fleet-runtime.js', () => ({
 
 const { assessSpawnPreflight } = await import('../../lib/spawn-preflight.js');
 const { CLI_BACKEND_SELECTION_PATH } = await import('../../lib/backend-catalog.js');
+const { resolveModel } = await import('../../lib/model-registry.js');
 
 describe('assessSpawnPreflight', () => {
   let previousUseCliBackend;
@@ -188,9 +189,15 @@ describe('assessSpawnPreflight', () => {
       },
     });
 
-    expect(result.attempts[0].model).toBe('claude-haiku-4-5-20251001');
+    // The SHARED default is the point: preflight must report the same id the
+    // resolver would pick, so a preflight can never bless a model the spawn then
+    // does not use. Asserting the literal instead pinned a DATED snapshot id
+    // (`-20251001`) that the registry had already corrected to the undated form
+    // the vendor documents — so this test was failing on the fix.
+    const sharedDefault = resolveModel({ backend: 'claude', capability: 'cheap' });
+    expect(result.attempts[0].model).toBe(sharedDefault);
     expect(mockAssessBackendReadiness).toHaveBeenCalledWith('claude', {
-      model: 'claude-haiku-4-5-20251001',
+      model: sharedDefault,
     });
   });
 

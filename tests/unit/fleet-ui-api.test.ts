@@ -81,11 +81,15 @@ describe('fleet-config-ui api', () => {
       contentType: 'json',
       type: 'visual-task',
       messageContent: '[visual-task:fix] Button is clipped',
-      from: 'fleet-ui-visual',
       wake: true,
     });
 
     expect(result.messageId).toBe(77);
+    // No `from` in the body (#8877 / ADR-0122): the UI holds an anonymous
+    // minted soul with no bound alias, so it has no display name it is
+    // entitled to claim and the daemon derives attribution from the
+    // credential instead. The old `from: 'fleet-ui-visual'` was a
+    // self-asserted string on an instruction plane.
     expect(global.fetch).toHaveBeenCalledWith(
       'http://127.0.0.1:9876/agents/qa/inbox',
       expect.objectContaining({
@@ -93,7 +97,6 @@ describe('fleet-config-ui api', () => {
         body: JSON.stringify({
           content: { type: 'visual-task', title: 'Button is clipped' },
           project: undefined,
-          from: 'fleet-ui-visual',
           type: 'visual-task',
           contentType: 'json',
           messageContent: '[visual-task:fix] Button is clipped',
@@ -101,6 +104,44 @@ describe('fleet-config-ui api', () => {
         }),
       }),
     );
+  });
+
+  test('a mutating call presents the UI actor credential; a read does not', async () => {
+    const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+    global.fetch = jest.fn(async (url: unknown, init?: unknown) => {
+      calls.push({ url: String(url), init: init as RequestInit | undefined });
+      if (String(url).endsWith('/actors/register')) {
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => 'application/json' },
+          json: async () => ({ success: true, actorId: 'UI-ACTOR', credential: 'UI-ACTOR.secret' }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: { get: () => 'application/json' },
+        json: async () => ({ success: true, delivered: true, woke: false, messageId: 5, messages: [] }),
+      };
+    }) as unknown as typeof fetch;
+
+    const api = await import('../../fleet-config-ui/src/api.ts');
+
+    await api.sendAgentMessage('qa', { content: 'hello', wake: false });
+    const send = calls.find((c) => c.url.endsWith('/agents/qa/inbox'));
+    expect(send).toBeDefined();
+    expect((send!.init!.headers as Record<string, string>)['x-actor-credential']).toBe('UI-ACTOR.secret');
+
+    calls.length = 0;
+    await api.fetchAgentInbox('qa');
+    const read = calls.find((c) => c.url.includes('/agents/qa/inbox'));
+    expect(read).toBeDefined();
+    // Reads mint nothing: a dashboard render must not flood the newcomer pool.
+    expect(calls.some((c) => c.url.endsWith('/actors/register'))).toBe(false);
+    expect((read!.init?.headers as Record<string, string> | undefined)?.['x-actor-credential']).toBeUndefined();
   });
 
   test('proposeDispatchGoal posts a review dispatch goal', async () => {

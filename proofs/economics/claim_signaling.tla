@@ -12,18 +12,18 @@
  *   public correlating recommendation, a graduated-trigger strategy
  *   supports truthful coordination for all discount factors δ above
  *
- *       δ* = unique real root of  3δ³ + 3δ² + 3δ - 1 = 0  in (0, 1)
- *          ≈ 0.2531
+ *       δ* = unique real root of  2δ³ + 2δ² + 2δ - 1 = 0  in (0, 1)
+ *          ≈ 0.3425
  *
  *   The cubic comes from the standard one-shot deviation analysis with
  *   a 3-round graduated trigger and the stage-game calibration below.
  *   `proofs/economics/delta-threshold.z3` proves the cubic has a unique
- *   real root in (0, 1) and that the root lies in [0.25, 0.26]. This
+ *   real root in (0, 1) and that the root lies in [0.34, 0.35]. This
  *   TLA+ model independently verifies that no one-shot deviation
- *   produces strictly positive discounted payoff at δ = 0.26 — i.e.
+ *   produces strictly positive discounted payoff at δ = 0.35 — i.e.
  *   the IC condition holds at the parameter value the sweep places
  *   just above the threshold. The sweep script `sweep-delta.sh`
- *   confirms the empirical crossover lands at 0.25 or 0.26.
+ *   confirms the empirical crossover lands at 0.34 or 0.35.
  *
  * ---------------------------------------------------------------------------
  * The stage game (and where the cubic comes from)
@@ -33,25 +33,26 @@
  *   the cooperative play is for both agents to play "follow" (the
  *   recommendation is to follow the daemon's coordination hint).
  *   "Claim" is the defection — an agent grabs the resource regardless
- *   of the recommendation. Payoffs (in §sec:economic Fig. 2 form):
+ *   of the recommendation. Payoffs (the corrected prisoner's-dilemma
+ *   bimatrix of the treatise correction, §sec:economic form):
  *
  *                          B: follow         B: claim
- *       A: follow            (3, 3)           (-2, 4)
- *       A: claim             (4, -2)            (0, 0)
+ *       A: follow            (3, 3)            (0, 4)
+ *       A: claim             (4, 0)            (1, 1)
  *
  *   So:
  *     - mutual follow            → (3, 3)        cooperative coordination
- *     - unilateral claim         → (4, -2)       defector wins, sucker
+ *     - unilateral claim         → (4, 0)        defector wins, sucker
  *                                                eats cleanup cost
- *     - mutual claim             → (0, 0)        collision; no surplus
+ *     - mutual claim             → (1, 1)        collision; scrap surplus
  *
  *   One-shot deviation gain g  = 4 - 3 = 1.
- *   Per-round punishment loss L = 3 - 0 = 3 (both claim during trigger).
+ *   Per-round punishment loss L = 3 - 1 = 2 (both claim during trigger).
  *   IC condition:    g  ≤  L · (δ + δ² + δ³)
- *                    1  ≤  3 · (δ + δ² + δ³)
- *                    ⇔   3δ³ + 3δ² + 3δ - 1  ≥  0
+ *                    1  ≤  2 · (δ + δ² + δ³)
+ *                    ⇔   2δ³ + 2δ² + 2δ - 1  ≥  0
  *
- *   The root of the equality is δ* ≈ 0.2531. Above δ*, IC holds. Below,
+ *   The root of the equality is δ* ≈ 0.3425. Above δ*, IC holds. Below,
  *   deviation strictly pays and the graduated trigger does not deter it.
  *
  *   For symmetry with the "claim-signaling" name, the daemon publishes
@@ -81,7 +82,7 @@ EXTENDS Integers, FiniteSets, Sequences, TLC
 
 CONSTANTS
     \* @type: Int;
-    DeltaNum,           \* discount factor numerator (e.g. 26 for 0.26)
+    DeltaNum,           \* discount factor numerator (e.g. 35 for 0.35)
     \* @type: Int;
     DeltaDen,           \* discount factor denominator (e.g. 100)
     \* @type: Int;
@@ -96,11 +97,11 @@ ASSUME PunishmentRounds >= 0
 
 \* Stage-game payoffs. See header for the matrix.
 \* These specific numbers are calibrated so that the IC cubic is
-\* exactly 3δ³ + 3δ² + 3δ - 1 = 0 (gain g = 1, punishment loss L = 3).
+\* exactly 2δ³ + 2δ² + 2δ - 1 = 0 (gain g = 1, punishment loss L = 2).
 PayoffFollowFollow == 3    \* cooperative
-PayoffFollowClaim  == -2   \* sucker
+PayoffFollowClaim  == 0    \* sucker
 PayoffClaimFollow  == 4    \* defector
-PayoffClaimClaim   == 0    \* collision
+PayoffClaimClaim   == 1    \* collision
 
 \* The agents.
 Agents == {"A", "B"}
@@ -162,11 +163,11 @@ vars == << round, followScore, actualScore, punishCountdown, deviated, deviatorI
 \* indexable as `DiscountWeight[round]` (a function lookup), which
 \* both checkers handle.
 \*
-\* Concretely, with Horizon = 4 and (DeltaNum, DeltaDen) = (26, 100):
+\* Concretely, with Horizon = 4 and (DeltaNum, DeltaDen) = (35, 100):
 \*   DiscountWeight[0] = DeltaDen^4                = 100_000_000
-\*   DiscountWeight[1] = DeltaNum * DeltaDen^3     =  26_000_000
-\*   DiscountWeight[2] = DeltaNum^2 * DeltaDen^2   =   6_760_000
-\*   DiscountWeight[3] = DeltaNum^3 * DeltaDen^1   =   1_757_600
+\*   DiscountWeight[1] = DeltaNum * DeltaDen^3     =  35_000_000
+\*   DiscountWeight[2] = DeltaNum^2 * DeltaDen^2   =  12_250_000
+\*   DiscountWeight[3] = DeltaNum^3 * DeltaDen^1   =   4_287_500
 \* All values comfortably fit in TLC's 32-bit signed integer range.
 \*
 \* Implementation: we explicitly unroll the powers for Horizon = 4.
@@ -178,11 +179,11 @@ vars == << round, followScore, actualScore, punishCountdown, deviated, deviatorI
 \* Mathematically:
 \*   DiscountWeight[k] = DeltaNum^k * DeltaDen^(Horizon - k)
 \*
-\* Concretely, with Horizon = 4 and (DeltaNum, DeltaDen) = (26, 100):
+\* Concretely, with Horizon = 4 and (DeltaNum, DeltaDen) = (35, 100):
 \*   DiscountWeight[0] = 1 * DeltaDen^4 = 100*100*100*100 = 100_000_000
-\*   DiscountWeight[1] = DeltaNum * DeltaDen^3 =  26*100*100*100 = 26_000_000
-\*   DiscountWeight[2] = DeltaNum^2 * DeltaDen^2 = 26*26*100*100 = 6_760_000
-\*   DiscountWeight[3] = DeltaNum^3 * DeltaDen   = 26*26*26*100  = 1_757_600
+\*   DiscountWeight[1] = DeltaNum * DeltaDen^3 =  35*100*100*100 = 35_000_000
+\*   DiscountWeight[2] = DeltaNum^2 * DeltaDen^2 = 35*35*100*100 = 12_250_000
+\*   DiscountWeight[3] = DeltaNum^3 * DeltaDen   = 35*35*35*100  = 4_287_500
 \* All values comfortably fit in TLC's 32-bit signed integer range
 \* (max ~2.1e9). Apalache uses arbitrary-precision arithmetic so it
 \* has no overflow concern; the cap on Horizon is purely a TLC
@@ -217,7 +218,7 @@ Init ==
 (* Actual action this round.
 
    - If we are inside the punishment window, both agents play "claim"
-     (mutual deviation = (0,0)).
+     (mutual deviation = (1,1)).
    - Else if the deviator hasn't yet deviated, the deviator plays
      "claim" (the deviation). This is the worst-case ONE-SHOT
      deviation we are checking.
@@ -281,18 +282,18 @@ Spec == Init /\ [][Next]_vars
    condition is a statement about the *total* discounted payoff over
    the full deviation+punishment window — at intermediate states the
    deviator's score is transiently ahead (they grabbed +4 in round 0
-   before the punishment subtracts -3 per round in rounds 1..3). The
+   before the punishment costs -2 per round in rounds 1..3). The
    one-shot deviation principle, by contrast, compares the full-window
    sums, which is exactly what `actualScore[deviator] <=
    followScore[deviator]` at round = Horizon says.
 
    This is the discrete-state analogue of the closed-form inequality
-   proved by `delta-threshold.z3`. At δ = DeltaNum/DeltaDen = 0.26
-   (just above δ* ≈ 0.2531) the invariant should HOLD. At δ = 0.20
+   proved by `delta-threshold.z3`. At δ = DeltaNum/DeltaDen = 0.35
+   (just above δ* ≈ 0.3425) the invariant should HOLD. At δ = 0.30
    it should FAIL (TLC will print a counterexample trace where the
    deviator's actual score exceeds their follow score at round =
    Horizon). `sweep-delta.sh` automates the sweep across
-   δ ∈ {0.20, …, 0.30}. *)
+   δ ∈ {0.30, …, 0.40}. *)
 
 NoUnilateralDeviationPositive ==
   ( round = Horizon /\ deviated /\ deviatorId \in Agents ) =>

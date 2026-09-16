@@ -71,7 +71,7 @@ The `conversation-id` and `in-reply-to` fields aren't just for developer conveni
 
 If the assumption of long conversations is violated (many one-off requests to different agents), the cache thrashes. Every message becomes a cache miss. Performance degrades invisibly—the system still works, but latency spikes.
 
-**For WinDAGs**: If orchestrating 180+ skills with frequent one-off requests (e.g., invoking many skills once each, rather than repeatedly invoking a few), the caching strategy fails. Solutions:
+**For Jury-rig**: If orchestrating 180+ skills with frequent one-off requests (e.g., invoking many skills once each, rather than repeatedly invoking a few), the caching strategy fails. Solutions:
 1. **Pre-warm caches**: At startup, populate the GADT cache with frequently-used skill addresses
 2. **Conversation affinity**: Batch related skill invocations to exploit locality
 3. **Explicit caching hints**: Allow skills to declare "I'll be talking to Skill X repeatedly" so the runtime can optimize
@@ -90,7 +90,7 @@ The split-container architecture (for mobile/constrained devices) introduces a *
 
 **Failure mode**: The mediator is a single point of failure for new connections. Existing connections survive mediator failure, but new devices can't join until it restarts. The book acknowledges this but offers no replication strategy for the mediator itself (unlike the Main Replication Service for the main container).
 
-**For WinDAGs**: If you have unreliable execution environments (e.g., AWS Lambda functions that can be killed mid-execution), use a split architecture:
+**For Jury-rig**: If you have unreliable execution environments (e.g., AWS Lambda functions that can be killed mid-execution), use a split architecture:
 - **Front-end**: Stateless skill executor (runs in Lambda)
 - **Back-end**: Stateful coordinator (runs in ECS/EKS)
 - **Mediator**: Service discovery + connection manager (runs in a replicated control plane)
@@ -130,7 +130,7 @@ The book reveals that DF state can be persisted to SQL databases (DFHSQLKB) or c
 - Service registrations are durable
 - Federation is possible (multiple platforms can share a DF)
 
-**For WinDAGs**: Implement a skill registry (similar to DF) where:
+**For Jury-rig**: Implement a skill registry (similar to DF) where:
 - Each skill publishes: `(name, type, version, SLA, preconditions, postconditions)`
 - Orchestrators query by **capability** (intent-based addressing): "I need a skill that transforms PDFs to text"
 - Registry returns all matching skills, sorted by SLA or cost
@@ -171,7 +171,7 @@ MessageTemplate highPriority = MessageTemplate.or(
 
 This matches messages that are either REQUEST or CFP (useful for prioritizing time-sensitive messages).
 
-**For WinDAGs**: Implement correlation IDs (similar to conversation-id) and request-reply matching (similar to in-reply-to). When Orchestrator A invokes Skill B:
+**For Jury-rig**: Implement correlation IDs (similar to conversation-id) and request-reply matching (similar to in-reply-to). When Orchestrator A invokes Skill B:
 1. Orchestrator generates unique request ID: `req-12345`
 2. Orchestrator sends request with header `request-id: req-12345`
 3. Skill B processes, responds with header `in-reply-to: req-12345`

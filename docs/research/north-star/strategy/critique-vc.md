@@ -30,7 +30,7 @@ The brutal part: **the wedge (security proxy) and the moat (reputation ledger) a
 
 Your defense is "neutrality is structural — they can't be neutral without abandoning their business." Wrong direction. **They don't need to be neutral. They need to be good enough that nobody runs a mixed fleet.** GitHub Copilot already shipped multi-agent VS Code with isolated git worktrees and a "My Work" dashboard — that's your L2 legibility surface, bundled free, for the buyer who's already paying GitHub. Cloudflare Project Think shipped sub-agents with isolated SQLite and checkpointing — your exact vocabulary. The bet that "every operator will run a mix and need somewhere neutral to stand" is a bet *against consolidation*, and infra always consolidates. The most likely 2027 outcome is one or two agent ecosystems win the developer's daily driver, and the "mixed fleet" you're insuring against is a transitional phase that closes before you build the ledger that's supposed to be the moat.
 
-Compare **HashiCorp**: genuinely neutral, genuinely load-bearing, open-core, and *still* got commoditized hard enough by cloud-native bundling that it sold to IBM. Neutrality at a real chokepoint is necessary but nowhere near sufficient.
+Compare **HashiCorp**: genuinely neutral, genuinely core, open-core, and *still* got commoditized hard enough by cloud-native bundling that it sold to IBM. Neutrality at a real chokepoint is necessary but nowhere near sufficient.
 
 ### 3. Willingness-to-pay is asserted on fear, but fear-driven security tools have a known graveyard pattern: the platform ships "good enough" safety for free.
 
@@ -38,7 +38,7 @@ Compare **HashiCorp**: genuinely neutral, genuinely load-bearing, open-core, and
 
 ### 4. The crypto/reputation endgame is a marketplace, and marketplaces with no liquidity are where ambitious infra theses go to die.
 
-The "Moody's for agents" / three-sided labor market is the part that would justify a venture return — and it's also the part that requires (a) cross-operator network, (b) a continuity primitive that doesn't exist yet, (c) trust-brand accumulated over *years*, and (d) other people to actually want to hire each other's local agent fleets, which is itself an unproven behavior. That's four cold-starts stacked. Real comparable: **Sigstore** is beloved, load-bearing, default for npm/PyPI — and it's a *foundation*, not a venture-backed company, because trust-infrastructure-as-public-good monetizes terribly. The honest read of your own Sigstore framing is that the most defensible version of your endgame is structurally a non-profit.
+The "Moody's for agents" / three-sided labor market is the part that would justify a venture return — and it's also the part that requires (a) cross-operator network, (b) a continuity primitive that doesn't exist yet, (c) trust-brand accumulated over *years*, and (d) other people to actually want to hire each other's local agent fleets, which is itself an unproven behavior. That's four cold-starts stacked. Real comparable: **Sigstore** is beloved, essential, default for npm/PyPI — and it's a *foundation*, not a venture-backed company, because trust-infrastructure-as-public-good monetizes terribly. The honest read of your own Sigstore framing is that the most defensible version of your endgame is structurally a non-profit.
 
 ### 5. The single-operator, local-first constraint that makes the wedge defensible also caps it below venture scale.
 

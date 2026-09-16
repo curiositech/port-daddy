@@ -1,0 +1,635 @@
+{
+  "success": true,
+  "generatedAt": 1787442490897,
+  "harbor": null,
+  "counts": {
+    "items": 10,
+    "byStage": {
+      "stacked": 2,
+      "executing": 6,
+      "review": 1,
+      "done": 1
+    },
+    "activeAgents": 7,
+    "staleAttachments": 1,
+    "openClaims": 4,
+    "attention": 3
+  },
+  "items": [
+    {
+      "slug": "nobody-is-on-this-slice",
+      "harbor": "port-daddy:fleet",
+      "status": "backlog",
+      "summaryMd": "Nobody has claimed this. No session, no dispatch, no assignee — the empty state the operator sees when nothing is running.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890960,
+      "stage": "stacked",
+      "dispatch": null,
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [],
+      "counts": {
+        "attachments": 0,
+        "active": 0,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "finished-session-salvage-signal",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "An unreleased claim sitting on a COMPLETED session. Liveness is done, not active — a fresh heartbeat cannot resurrect finished work.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890955,
+      "stage": "stacked",
+      "dispatch": null,
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-finish-the-salvage-signal-slice-9cf0f09192d7",
+          "sources": [
+            "claim"
+          ],
+          "agentId": "fleet-cartographer-10",
+          "agentName": "Cartographer",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-finish-the-salvage-signal-slice-9cf0f09192d7",
+          "sessionStatus": "completed",
+          "purpose": "finish the salvage-signal slice",
+          "worktreeId": "wt-contrast-c",
+          "liveness": "done",
+          "lastHeartbeatMs": 1787441890956,
+          "idleMs": 599941,
+          "staleThresholdMs": 8640000,
+          "claim": {
+            "id": 4,
+            "kind": "next-cut",
+            "claimedBy": "fleet-cartographer-10",
+            "claimedAt": 1787441890897
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-cartographer-10",
+            "streamUrl": "/agents/fleet-cartographer-10/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-cartographer-10/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-finish-the-salvage-signal-slice-9cf0f09192d7/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 0,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "liveness-contrast-slice",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Two work attachments off the same heartbeat: a busy agent (threshold 2.4h) and a draining one (threshold 3m). The ladder splits them.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890955,
+      "stage": "executing",
+      "dispatch": null,
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-drive-the-contrast-slice-0d6dfde2dd4a",
+          "sources": [
+            "claim",
+            "session-link"
+          ],
+          "agentId": "fleet-carpenter-08",
+          "agentName": "Carpenter",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-drive-the-contrast-slice-0d6dfde2dd4a",
+          "sessionStatus": "active",
+          "purpose": "drive the contrast slice",
+          "worktreeId": "wt-contrast-a",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890955,
+          "idleMs": 599942,
+          "staleThresholdMs": 8640000,
+          "claim": {
+            "id": 3,
+            "kind": "next-cut",
+            "claimedBy": "fleet-carpenter-08",
+            "claimedAt": 1787441890897
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-carpenter-08",
+            "streamUrl": "/agents/fleet-carpenter-08/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-carpenter-08/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-drive-the-contrast-slice-0d6dfde2dd4a/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        },
+        {
+          "key": "session-wind-down-the-contrast-slice-fc9666639e7c",
+          "sources": [
+            "session-link"
+          ],
+          "agentId": "fleet-cooper-09",
+          "agentName": "Cooper",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-wind-down-the-contrast-slice-fc9666639e7c",
+          "sessionStatus": "active",
+          "purpose": "wind down the contrast slice",
+          "worktreeId": "wt-contrast-b",
+          "liveness": "stale",
+          "lastHeartbeatMs": 1787441890955,
+          "idleMs": 599942,
+          "staleThresholdMs": 180000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-cooper-09",
+            "streamUrl": "/agents/fleet-cooper-09/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-cooper-09/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-wind-down-the-contrast-slice-fc9666639e7c/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 2,
+        "active": 1,
+        "stale": 1
+      }
+    },
+    {
+      "slug": "durable-roster-projection-backfill",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Backfill the durable roster projection so assignee ids resolve after a daemon restart.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890954,
+      "stage": "executing",
+      "dispatch": {
+        "id": "68ddae76-f89a-41a5-938b-8cfa5cab70c9",
+        "state": "salvage",
+        "sessionId": "session-backfill-the-durable-roster-projection-239a65d9cd46",
+        "workerActorId": "fleet-bosun-07",
+        "branch": "dispatch/durable-roster-projection-backfill",
+        "resultArtifact": null,
+        "errorMessage": "worktree removed under the worker; branch never pushed — salvage the notes",
+        "createdAt": 1787441890897
+      },
+      "needsAttention": true,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-backfill-the-durable-roster-projection-239a65d9cd46",
+          "sources": [
+            "session-link"
+          ],
+          "agentId": "fleet-bosun-07",
+          "agentName": "Bosun",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-backfill-the-durable-roster-projection-239a65d9cd46",
+          "sessionStatus": "active",
+          "purpose": "backfill the durable roster projection",
+          "worktreeId": "wt-roster-backfill",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890954,
+          "idleMs": 599943,
+          "staleThresholdMs": 8640000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-bosun-07",
+            "streamUrl": "/agents/fleet-bosun-07/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-bosun-07/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-backfill-the-durable-roster-projection-239a65d9cd46/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "acknowledged-interrupt-ingress",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Acknowledged control ingress so interrupt can stop being a capability-flagged affordance.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890953,
+      "stage": "executing",
+      "dispatch": {
+        "id": "51f48014-67ca-4383-b659-0229fd07619b",
+        "state": "rejected",
+        "sessionId": "session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24",
+        "workerActorId": "fleet-coxswain-06",
+        "branch": "dispatch/acknowledged-interrupt-ingress",
+        "resultArtifact": "dispatch/acknowledged-interrupt-ingress",
+        "errorMessage": null,
+        "createdAt": 1787441890897
+      },
+      "needsAttention": true,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24",
+          "sources": [
+            "session-link"
+          ],
+          "agentId": "fleet-coxswain-06",
+          "agentName": "Coxswain",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24",
+          "sessionStatus": "active",
+          "purpose": "draft the acknowledged interrupt ingress",
+          "worktreeId": "wt-interrupt-ingress",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890953,
+          "idleMs": 599944,
+          "staleThresholdMs": 8640000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-coxswain-06",
+            "streamUrl": "/agents/fleet-coxswain-06/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-coxswain-06/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24/events",
+          "agentNodeUrl": null,
+          "hitl": [
+            {
+              "id": "approval-fleet-coxswain-06-webhook",
+              "agent": "fleet-coxswain-06",
+              "trigger": "webhook:roadmap-dispatch",
+              "tier": "restricted",
+              "project": "port-daddy",
+              "reason": "trust gate held the spawn: restricted tier requires an operator decision",
+              "timestamp": 1787441890897,
+              "decisionUrl": "/fleet/approvals/approval-fleet-coxswain-06-webhook/decision"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "evidence-blob-store-intake",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Blob-store intake for agent-submitted evidence. Must fail loudly rather than drop evidence.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890952,
+      "stage": "executing",
+      "dispatch": {
+        "id": "3f183ee7-728a-43c5-b865-c8a010e8073a",
+        "state": "failed",
+        "sessionId": "session-wire-the-evidence-blob-store-intake-4d1960e5140f",
+        "workerActorId": "fleet-quartermaster-05",
+        "branch": "dispatch/evidence-blob-store-intake",
+        "resultArtifact": null,
+        "errorMessage": "blob store unreachable at ~/.port-daddy/blobs: ENOENT — intake refused rather than dropping evidence",
+        "createdAt": 1787441890897
+      },
+      "needsAttention": true,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-wire-the-evidence-blob-store-intake-4d1960e5140f",
+          "sources": [
+            "claim",
+            "session-link"
+          ],
+          "agentId": "fleet-quartermaster-05",
+          "agentName": "Quartermaster",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-wire-the-evidence-blob-store-intake-4d1960e5140f",
+          "sessionStatus": "active",
+          "purpose": "wire the evidence blob store intake",
+          "worktreeId": "wt-blob-intake",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890948,
+          "idleMs": 599949,
+          "staleThresholdMs": 8640000,
+          "claim": {
+            "id": 2,
+            "kind": "next-cut",
+            "claimedBy": "fleet-quartermaster-05",
+            "claimedAt": 1787441890897
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-quartermaster-05",
+            "streamUrl": "/agents/fleet-quartermaster-05/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-quartermaster-05/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-wire-the-evidence-blob-store-intake-4d1960e5140f/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "stage-rollup-vocabulary",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Stage rollup: stacked → executing → review → done as a documented projection over the dispatch enum.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890946,
+      "stage": "done",
+      "dispatch": {
+        "id": "8b65fc6c-2662-4c7c-bc1b-ba55c74bc862",
+        "state": "accepted",
+        "sessionId": "session-document-the-stage-rollup-vocabulary-177ff9ba467d",
+        "workerActorId": "fleet-navigator-04",
+        "branch": "dispatch/stage-rollup-vocabulary",
+        "resultArtifact": "dispatch/stage-rollup-vocabulary",
+        "errorMessage": "accepted: merged",
+        "createdAt": 1787441890897
+      },
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [],
+      "counts": {
+        "attachments": 0,
+        "active": 0,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "liveness-ladder-regression-tests",
+      "harbor": "port-daddy:fleet",
+      "status": "merge",
+      "summaryMd": "Regression tests pinning the stale ladder so a future refactor cannot quietly promote stale to active.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890945,
+      "stage": "review",
+      "dispatch": {
+        "id": "92c4387a-2565-465e-8003-70ee335cabfb",
+        "state": "review_pending",
+        "sessionId": "session-write-the-liveness-ladder-regression-tests-4a533ff8ed55",
+        "workerActorId": "fleet-purser-03",
+        "branch": "dispatch/liveness-ladder-regression-tests",
+        "resultArtifact": "dispatch/liveness-ladder-regression-tests",
+        "errorMessage": null,
+        "createdAt": 1787441890897
+      },
+      "needsAttention": false,
+      "reviewEvidence": {
+        "kind": "status-merge"
+      },
+      "attachments": [
+        {
+          "key": "session-write-the-liveness-ladder-regression-tests-4a533ff8ed55",
+          "sources": [
+            "session-link",
+            "dispatch"
+          ],
+          "agentId": "fleet-purser-03",
+          "agentName": "Purser",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-write-the-liveness-ladder-regression-tests-4a533ff8ed55",
+          "sessionStatus": "active",
+          "purpose": "write the liveness ladder regression tests",
+          "worktreeId": "wt-liveness-tests",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890945,
+          "idleMs": 599952,
+          "staleThresholdMs": 8640000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-purser-03",
+            "streamUrl": "/agents/fleet-purser-03/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-purser-03/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-write-the-liveness-ladder-regression-tests-4a533ff8ed55/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "cockpit-transcript-links",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Cockpit links: stream SSE + transcript timeline per attachment, never an invented endpoint.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890945,
+      "stage": "executing",
+      "dispatch": {
+        "id": "59679fc2-4123-4b33-8dc9-147e3f832f64",
+        "state": "in_progress",
+        "sessionId": "session-wire-the-cockpit-transcript-links-19fa5bdcd3fa",
+        "workerActorId": "fleet-lookout-02",
+        "branch": "dispatch/cockpit-transcript-links",
+        "resultArtifact": null,
+        "errorMessage": null,
+        "createdAt": 1787441890897
+      },
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-wire-the-cockpit-transcript-links-19fa5bdcd3fa",
+          "sources": [
+            "session-link",
+            "dispatch"
+          ],
+          "agentId": "fleet-lookout-02",
+          "agentName": "Lookout",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-wire-the-cockpit-transcript-links-19fa5bdcd3fa",
+          "sessionStatus": "active",
+          "purpose": "wire the cockpit transcript links",
+          "worktreeId": "wt-cockpit-links",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890945,
+          "idleMs": 599952,
+          "staleThresholdMs": 8640000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-lookout-02",
+            "streamUrl": "/agents/fleet-lookout-02/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-lookout-02/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-wire-the-cockpit-transcript-links-19fa5bdcd3fa/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "roadmap-activity-board-feed",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Board feed: join roadmap items to in-flight agent work so the operator sees who is driving what, right now.",
+      "assigneeId": "fleet-shipwright-01",
+      "lastTouchedAt": 1787441890943,
+      "stage": "executing",
+      "dispatch": {
+        "id": "0cefed00-31e8-453d-ae34-85d4788e1090",
+        "state": "in_progress",
+        "sessionId": "session-ship-the-roadmap-activity-board-feed-ed2bcc175267",
+        "workerActorId": "fleet-shipwright-01",
+        "branch": "dispatch/roadmap-activity-board-feed",
+        "resultArtifact": null,
+        "errorMessage": null,
+        "createdAt": 1787441890897
+      },
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-ship-the-roadmap-activity-board-feed-ed2bcc175267",
+          "sources": [
+            "claim",
+            "session-link",
+            "dispatch",
+            "assignee-agent"
+          ],
+          "agentId": "fleet-shipwright-01",
+          "agentName": "Shipwright",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-ship-the-roadmap-activity-board-feed-ed2bcc175267",
+          "sessionStatus": "active",
+          "purpose": "ship the roadmap activity board feed",
+          "worktreeId": "wt-roadmap-activity",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890940,
+          "idleMs": 599957,
+          "staleThresholdMs": 8640000,
+          "claim": {
+            "id": 1,
+            "kind": "next-cut",
+            "claimedBy": "fleet-shipwright-01",
+            "claimedAt": 1787441890897
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-shipwright-01",
+            "streamUrl": "/agents/fleet-shipwright-01/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-shipwright-01/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-ship-the-roadmap-activity-board-feed-ed2bcc175267/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    }
+  ]
+}

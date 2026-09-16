@@ -25,6 +25,7 @@ export const ADAPTER_KINDS = [
   'lmstudio',
   'custom-stdio',
   'custom-http',
+  'spawner-child',
 ] as const;
 export type AdapterKind = (typeof ADAPTER_KINDS)[number];
 
@@ -43,6 +44,7 @@ export const BODY_KINDS = [
   'lmstudio',
   'custom-stdio',
   'custom-http',
+  'spawner-child',
   'human',
 ] as const;
 export type BodyKind = (typeof BODY_KINDS)[number];

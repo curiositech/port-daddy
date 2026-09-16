@@ -11,6 +11,7 @@ import {
   assessSupervisionIntegrity,
   isPidAlive,
   resolveBosunBinary,
+  assessBosunWatchdog,
   scanRegistryDbFiles,
   countBunCrashSignatures,
   assessCrashSignature,
@@ -680,6 +681,33 @@ describe('resolveBosunBinary', () => {
     expect(r.binaryPath).toContain('pd-bosun');
   });
 
+  test('resolveDistributionRoot accepts packaged bin layouts silently but still warns for arbitrary paths', () => {
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(' '));
+
+    try {
+      const homebrewRoot = resolveDistributionRoot(
+        '/$bunfs/root/cli/commands',
+        {},
+        '/opt/homebrew/Cellar/port-daddy/3.30.0/bin/port-daddy',
+      );
+      expect(homebrewRoot).toBe('/opt/homebrew/Cellar/port-daddy/3.30.0/bin');
+      expect(warnings).toEqual([]);
+
+      const arbitraryRoot = resolveDistributionRoot(
+        '/$bunfs/root/cli/commands',
+        {},
+        '/Users/example/bin/custom-tool',
+      );
+      expect(arbitraryRoot).toBe('/Users/example/bin');
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('unconventional layout');
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
   // Regression (found live during the v3.25.1/3.25.2 brew rollout, 2026-07-15):
   // `pd doctor`'s Bosun check fed resolveBosunBinary() a naive
   // `join(__dirname, '..', '..')` libDir, which is a bun:// virtual path for a
@@ -747,6 +775,42 @@ describe('resolveBosunBinary', () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
+  });
+});
+
+describe('assessBosunWatchdog', () => {
+  test('missing optional Bosun is visible but never critical', () => {
+    const assessment = assessBosunWatchdog({
+      present: false,
+      binaryPath: '/opt/homebrew/bin/pd-bosun',
+      running: null,
+    });
+    expect(assessment.severity).toBe('warn');
+    expect(assessment.detail).toContain('optional since v3.28');
+    expect(assessment.hint).toContain('No repair is required');
+  });
+
+  test('inactive installed Bosun warns about stale optional wiring', () => {
+    const assessment = assessBosunWatchdog({
+      present: true,
+      binaryPath: '/opt/homebrew/bin/pd-bosun',
+      running: false,
+      reason: 'disabled',
+    });
+    expect(assessment.severity).toBe('warn');
+    expect(assessment.detail).toContain('optional pd-bosun');
+    expect(assessment.detail).toContain('disabled');
+  });
+
+  test('active opt-in Bosun remains healthy context', () => {
+    const assessment = assessBosunWatchdog({
+      present: true,
+      binaryPath: '/opt/homebrew/bin/pd-bosun',
+      running: true,
+      reason: 'healthy',
+    });
+    expect(assessment.severity).toBe('ok');
+    expect(assessment.detail).toContain('optional pd-bosun present');
   });
 });
 

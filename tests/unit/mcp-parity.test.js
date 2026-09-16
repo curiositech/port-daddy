@@ -31,6 +31,7 @@ const TOOL_FEATURE_MAP = {
   // Host-safety posture audit (ADR-0088 Phase A) — read-only
   'safe_scan': 'safe',
   'relay_status': 'relay',
+  'coordination_status': 'coordination',
   'harbormaster_status': 'harbormaster',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
@@ -52,6 +53,8 @@ const TOOL_FEATURE_MAP = {
   'roadmap_list': 'roadmap',
   'roadmap_get': 'roadmap',
   'roadmap_promote': 'roadmap',
+  'roadmap_search': 'roadmap',
+  'roadmap_export': 'roadmap',
 
   // Commitments (ADR-0041) — #199
   'commit': 'commitments',
@@ -70,6 +73,7 @@ const TOOL_FEATURE_MAP = {
   'resolve_parley': 'parley',
 
   // Knowledge: semantic search + symbol index — #199
+  'jury_rig_status': 'skill_graft',
   'semantic_search': 'semantic',
   'semantic_resolve': 'semantic',
   'find_symbols': 'symbols',
@@ -329,16 +333,18 @@ const MCP_EXEMPT_FEATURES = new Set([
   'booty',          // Slice S4a artifact harvest provenance over the blob store. Deposit+list only; agents drive it via `pd booty add/list` (CLI) or HTTP directly, same posture as blob. MCP wrapper deferred until the sweep/gallery follow-ups exist.
   'attention',      // Session-start convention surface; agents consume it via harness SessionStart hooks (Claude Code) or by running `pd attention` at the top of every session. An MCP tool would invert the dependency — the model would have to decide to call it mid-turn, which is exactly the polling problem this feature is supposed to remove. Deferred indefinitely.
   'popper',         // PR #181 autonomous roadmap-to-dispatch task puller. Operator-driven: `pd popper status/next/pop/enable/disable` + the FleetBar Nightshift surface (HTTP). The popper runs daemon-side on a timer; an MCP tool would invert that (the model deciding to pop work mid-turn). CLI/HTTP-only, MCP wrapper deferred.
-  'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
+  'recovery',       // Magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows. Intentionally NO MCP surface — an agent must not mint or consume account-recovery tokens.
+  'editor_recovery', // Registered 503-only Harbor Editor recovery scaffold. Intentionally NO MCP surface: an agent must not mint a capability, self-approve replay, or bypass the missing canonical authorities.
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
   'fleet_hitl_proposals', // Operator HITL queue for fleet ship ideas. Ships submit inert proposals over HTTP; approve/reject happens in FleetBar/pd-console and approval hands off to dispatch. No MCP tool should let an agent approve its own proposal.
   'suggest',        // PR #322 Tender suggestion queue. Same self-approval hazard as fleet_hitl_proposals: the Tender ship writes suggestions and `POST /fleet/suggestions/:id/approve` fires a one-shot ship run, so an MCP tool would let a fleet agent approve — and fund — its own fleet's suggestion. Operator-driven via `pd suggest` / FleetBar. Intentionally NO MCP surface.
   'fleet_registry', // PR #322 Tender ship-health registry. GET/POST /fleet/registry is the Tender's health-score data plane consumed by FleetBar and pd-console (operator read model, same posture as transcripts/resource_governance), and POST /fleet/run/:ship fires a ship run — the same inversion popper and dispatch avoid (the model deciding to spend on a run mid-turn). CLI/HTTP-only, MCP wrapper deferred.
   'seamanship',     // PR #322 skill registry (`pd seamanship list/search/show/sync/outcomes/index`, alias `pd skills`). Agents do not reach skills through a tool call today: harnesses load SKILL.md directly and fleet ships receive them via the pd-fleet.yml `graft:` key, resolved server-side from the trusted branch. A search/show MCP wrapper is the natural surface once the Phase 3 BM25+Tool2Vec catalog engine lands; deferred until then rather than wrapping the Phase 1 substring scan.
-  'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
+  'transcripts',    // Fleet ship-run records. Operator-facing read-only surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
   'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
   'session_galaxy', // 2-D embedding map of recent agent sessions (routes/galaxy.ts: GET /galaxy/map + /galaxy/session/:id). An operator visualization surface consumed by fleet-ui, pd-console, and the FleetBar webview — cross-session t-SNE scatter data is for human eyes, not an agent-driving tool (an agent inspecting peers uses the sessions/transcripts/parley surfaces directly). MCP wrapper deferred indefinitely.
   'harbor-ledger',  // Agent Harbor read API (routes/agent-harbor.ts, C-routes wave). Read-only projection views consumed by the pd-console roster/detail panes (C3) and doctor (C8), plus a long-lived SSE transcript tail — streams are not MCP-shaped (same posture as agent_cockpit). Agents already write to the ledger via `pd harbor-ledger`; an MCP read wrapper is deferred until an agent-facing consumer exists.
+  'roadmap_activity', // Live-work join for the roadmap command center (operator mandate 2026-08-22). Read-only projection consumed by the FleetBar/dashboard board surfaces (follow-up PR) — an operator read model like transcripts/resource_governance, not an agent-driving tool; an agent inspecting who is on an item uses the sessions/cartographer roadmap-claims surfaces directly. MCP wrapper deferred until an agent-facing consumer exists.
   'agent_cockpit',  // "Watch + Grab the Wheel" Phase 0. GET /agents/:id/stream is a long-lived SSE feed consumed by the operator console — streams are not MCP-shaped (MCP is request/response, not a held-open subscription; an MCP-driving agent would already use the in-process messaging.subscribe / transcripts.subscribe primitives this route merges). POST /agents/:id/interrupt is the operator grabbing the wheel from a console (same human-decision posture as dispatch accept/reject); a cooperating agent that wants to steer a peer publishes the same control.interrupt envelope onto the `agent:<id>` channel via the existing messaging surface. MCP wrapper deferred.
 ]);
 
@@ -454,7 +460,7 @@ function extractMcpApiCalls(mcpContent) {
 }
 
 /**
- * Extract all Express routes from routes/*.ts files.
+ * Extract all daemon routes from routes/*.ts files and server.ts.
  * Returns array of { method, path, file } objects.
  */
 function extractServerRoutes() {
@@ -474,6 +480,19 @@ function extractServerRoutes() {
         file
       });
     }
+  }
+
+  // A small number of boot-coupled, read-only routes are registered directly
+  // in server.ts (for example coordination peer readiness). They are real MCP
+  // targets too, so omitting them here creates a false "ghost API call".
+  const serverContent = readFileSync(join(ROOT, 'server.ts'), 'utf-8');
+  let match;
+  while ((match = routePattern.exec(serverContent)) !== null) {
+    routes.push({
+      method: match[1].toUpperCase(),
+      path: normalizePath(match[2]),
+      file: 'server.ts',
+    });
   }
 
   return routes;
@@ -635,6 +654,10 @@ describe('Manifest features --> MCP tools (routed features need MCP coverage)', 
 const KNOWN_GENERIC_ROUTES = new Set([
   'POST /harvest/session/:param',   // routes/harvest.ts — Fastify generic syntax
   'POST /custodian/approvals/:param', // routes/custodian.ts — Fastify generic syntax
+  'GET /harbors',                   // routes/harbors.ts — Fastify generic syntax
+  'GET /harbors/:param',            // routes/harbors.ts — Fastify generic syntax
+  'POST /harbors/:param/check',     // routes/harbors.ts — Fastify generic syntax
+  'GET /harbors/agent/:param',      // routes/harbors.ts — Fastify generic syntax; no MCP tool calls this route yet, listed pre-emptively so adding one later doesn't silently regress this check
 ]);
 
 describe('MCP tool API calls --> Server routes (no ghost API calls)', () => {

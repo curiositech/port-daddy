@@ -191,7 +191,7 @@ Consider nested parallel commands:
 
 **Key insight**: Termination composes hierarchically. An outer parallel command waits for all inner parallel commands to complete. This matches intuition: a complex task finishes when all its subtasks finish.
 
-**For WinDAGs**: A decomposed task tree (root task → subtasks → sub-subtasks) terminates when all leaves terminate. The orchestrator doesn't need explicit "join" operations. The parallel command structure IS the join:
+**For Jury-rig**: A decomposed task tree (root task → subtasks → sub-subtasks) terminates when all leaves terminate. The orchestrator doesn't need explicit "join" operations. The parallel command structure IS the join:
 
 ```
 [
@@ -312,7 +312,7 @@ Termination propagation suggests a decomposition principle: **Arrange processes 
 - Leaves must coordinate to signal Root
 - Requires aggregation of termination signals (complex)
 
-**For WinDAGs**: Design skill DAGs so data flows from sources to sinks, and termination propagates in the same direction. Avoid backward dependencies where a downstream skill must signal an upstream skill.
+**For Jury-rig**: Design skill DAGs so data flows from sources to sinks, and termination propagates in the same direction. Avoid backward dependencies where a downstream skill must signal an upstream skill.
 
 If backward signaling is necessary (cancellation, early termination), use explicit control messages, not implicit termination propagation.
 

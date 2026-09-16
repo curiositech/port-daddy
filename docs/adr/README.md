@@ -32,7 +32,8 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0022](0022-durable-actor-souls-and-body-leases.md) | Durable Actor Souls and Body Leases | Accepted | 2026-04 |
 | [0023](0023-cartographer-roadmap-actor.md) | Cartographer as Navigator Roadmap Actor | Accepted | 2026-04 |
 | [0024](0024-daemon-profiles.md) | Named Daemon Profiles | Accepted | 2026-04 |
-| … | _(0025–0035, 0037–0042 — index backfill tracked as `adr-0043-phase-5-retrofit-existing-adrs`)_ | | |
+| [0027](0027-relay-harbor-mesh.md) | Relay Harbor Mesh — remote harbor via relay federation | Proposed | 2026-05 |
+| … | _(0025–0026, 0028–0035, 0037–0042 — index backfill tracked as `adr-0043-phase-5-retrofit-existing-adrs`)_ | | |
 | [0036](0036-bosun-supervisor.md) | pd-bosun — Minimalist Daemon Supervisor (Rust binary) | Accepted | 2026-06 |
 | [0043](0043-adr-implementation-matrix.md) | ADRs Carry a Roadmap-Linked Implementation Matrix | Accepted | 2026-06 |
 | [0044](0044-shadow-db-path-consolidation.md) | Shadow-Mode DB Path Consolidation | Accepted | 2026-06 |
@@ -49,6 +50,11 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0084](0084-daemon-berths.md) | Daemon Berths — tiered, colour-coded, side-by-side daemons | Accepted | 2026-06 |
 | [0089](0089-durable-security-forensics-journal.md) | Durable security-forensics journal — security events survive the 7-day prune | Accepted | 2026-06 |
 | [0090](0090-the-harbor.md) | The Harbor — one helm for human+agent fleets (North Star; extends ADR-0048) | Proposed | 2026-06 |
+| … | _(0091–0130 — pending the same index backfill as 0025–0042; see the registry for the live list)_ | | |
+| [0138](0138-distress-register-emergency-broadcast.md) | The Distress Register — emergency broadcast that works when Port Daddy doesn't | Proposed | 2026-09 |
+| [0139](0139-verdict-integrity-separating-infra-failure-from-review-verdict.md) | Verdict Integrity — separating infrastructure failure from review verdict | Proposed | 2026-08 |
+| [0140](0140-provable-action-adjudication-contract.md) | Provable Action Adjudication Contract | Proposed | 2026-09 |
+| [0142](0142-r2-media-offload.md) | Review-evidence media moves to R2 — content-addressed, manifest derived from the tree | Proposed | 2026-09 |
 
 > **Numbering authority.** The machine-authoritative number → file map is
 > [`adr-numbering-registry.json`](adr-numbering-registry.json), a pure projection

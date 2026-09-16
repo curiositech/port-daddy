@@ -33,11 +33,14 @@ import {
   type RunnerOptions,
   type SpawnAdapter,
   type DispatchCostFn,
+  type FailoverOptions,
+  type SuccessorRequest,
 } from './runner.js';
 import { defaultSpawnAdapter, reapWorktree } from './spawn-adapter.js';
 import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
 import type { DispatchQueue, Dispatch } from './queue.js';
 import type { WorkIntentService } from '../agent-harbor/work-intent-service.js';
+import { createLocalRuntimeGate } from '../local-runtime-control.js';
 
 export interface DispatchWorkerLogger {
   info(msg: string, meta?: Record<string, unknown>): void;
@@ -46,6 +49,8 @@ export interface DispatchWorkerLogger {
 }
 
 export interface DispatchWorkerOptions {
+  /** Additional injected admission policy; production defaults to canonical local Off. */
+  runtimeAllowed?: () => boolean;
   queue: DispatchQueue;
   logger?: DispatchWorkerLogger;
   /** Max dispatches running concurrently in THIS daemon. Default 2. */
@@ -63,8 +68,35 @@ export interface DispatchWorkerOptions {
    * to the real `reapWorktree`. Injectable for tests.
    */
   reaper?: (worktreePath: string) => Promise<void>;
-  /** Backend override forwarded to the runner. Falls back to per-dispatch / DEFAULT_BACKEND. */
+  /**
+   * Daemon-wide DEFAULT backend, used only when a dispatch does not name one.
+   *
+   * PRECEDENCE CORRECTED (2026-08-23): this used to be applied as an OVERRIDE —
+   * `this.backend ?? claimed.backend` — so a daemon-wide setting silently
+   * shadowed the per-dispatch column. That was already wrong (a dispatch
+   * proposed for a specific backend ran on another), and it is load-bearing now
+   * that failover mints a successor whose whole identity is "the same work, on
+   * the NEXT backend": under the old order every successor would have been
+   * dragged back onto the backend that had just failed.
+   */
   backend?: RunnerOptions['backend'];
+  /**
+   * Cross-backend failover (ADR-0131). Default OFF.
+   *
+   * The daemon worker is the caller that should have it — it runs unattended,
+   * which is exactly the situation where a backend outage otherwise means the
+   * work simply stops — but it stays opt-in because failover spends money with
+   * no operator in the loop.
+   */
+  failover?: {
+    enabled: boolean;
+    /** Preference order for a first failure. Falls back to the catalog default. */
+    preferredChain?: readonly string[];
+    /** Backends the caller knows are unusable now (tripped breaker, disabled). */
+    isUnavailable?: (backend: string) => boolean;
+    /** Builds the ADR-0118 sanitized capsule. Absent → cold successors. */
+    buildHandoff?: FailoverOptions['buildHandoff'];
+  };
   /** Remote override forwarded to the runner. Default 'origin'. */
   remote?: string;
   /**
@@ -119,6 +151,8 @@ export class DispatchWorker {
   private readonly tubeClient: TubeClientLike | undefined;
   private readonly costFn: DispatchCostFn | undefined;
   private readonly workIntentService: WorkIntentService | undefined;
+  private readonly failoverOpts: DispatchWorkerOptions['failover'];
+  private readonly runtimeAllowed: () => boolean;
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
@@ -143,7 +177,9 @@ export class DispatchWorker {
     this.model = opts.model;
     this.tubeClient = opts.tubeClient;
     this.costFn = opts.costFn;
+    this.failoverOpts = opts.failover;
     this.workIntentService = opts.workIntentService;
+    this.runtimeAllowed = createLocalRuntimeGate(opts.runtimeAllowed);
   }
 
   /**
@@ -155,6 +191,7 @@ export class DispatchWorker {
    * can be alive yet, so every claimed/in_progress row is genuinely stranded.
    */
   start(): void {
+    if (!this.runtimeAllowed()) { this.stop(); return; }
     if (this.running) return;
 
     try {
@@ -212,6 +249,7 @@ export class DispatchWorker {
    * tests that want to drive the loop deterministically).
    */
   async poll(): Promise<number> {
+    if (!this.runtimeAllowed()) { this.stop(); return 0; }
     // Note: poll() does NOT gate on `this.running`. The interval timer only
     // fires while started, but poll() is also invoked directly — by the HTTP
     // `/dispatches/:id/run` nudge and by tests — and must work in those cases.
@@ -220,6 +258,7 @@ export class DispatchWorker {
     let launched = 0;
     try {
       while (this.inFlight.size < this.maxConcurrency) {
+        if (!this.runtimeAllowed()) { this.stop(); break; }
         const claimed = this.claimOne();
         if (!claimed) break; // queue empty or claim raced
         this.inFlight.add(claimed.id);
@@ -292,6 +331,78 @@ export class DispatchWorker {
    * and release the in-flight slot. All errors are contained here — a single
    * bad dispatch must never crash the worker or strand a slot.
    */
+  /**
+   * Assemble the runner's failover policy, or undefined when it is off.
+   *
+   * The successor minter lives here rather than in the runner because a
+   * successor MUST be a governed launch: `captureDispatch` writes the WorkIntent
+   * and materializes the dispatch row from it in one step, so the row can never
+   * exist without the intent the worker's own claim gate demands. A successor
+   * written straight to the queue would be claimed and then refused at exactly
+   * the moment recovery mattered.
+   *
+   * @returns The policy the runner should apply, or undefined when failover is off.
+   */
+  private buildFailoverOptions(): FailoverOptions | undefined {
+    const cfg = this.failoverOpts;
+    if (!cfg?.enabled) return undefined;
+    const workIntentService = this.workIntentService;
+    if (!workIntentService) return undefined;
+
+    return {
+      enabled: true,
+      ...(cfg.preferredChain ? { preferredChain: cfg.preferredChain } : {}),
+      ...(cfg.isUnavailable ? { isUnavailable: cfg.isUnavailable } : {}),
+      ...(cfg.buildHandoff ? { buildHandoff: cfg.buildHandoff } : {}),
+      mintSuccessor: async (req: SuccessorRequest) => {
+        if (!this.runtimeAllowed()) return null;
+        try {
+          const captured = workIntentService.captureDispatch(
+            {
+              goal: req.goal,
+              backend: req.backend,
+              baseBranch: req.predecessor.baseBranch,
+              projectDir: req.predecessor.projectDir ?? undefined,
+              mergePolicy: req.predecessor.mergePolicy,
+              requestedBy: req.predecessor.requestedBy,
+              tags: [...req.predecessor.tags, `failover:${req.failoverFromBackend}`],
+              ...(req.budgetUsd != null ? { budgetUsd: req.budgetUsd } : {}),
+              ...(req.predecessor.timeoutMs != null
+                ? { timeoutMs: req.predecessor.timeoutMs }
+                : {}),
+              predecessorDispatchId: req.predecessor.id,
+              failoverAttempt: req.failoverAttempt,
+              failoverFromBackend: req.failoverFromBackend,
+              handoffEpisodeId: req.handoffEpisodeId,
+              failoverChain: req.failoverChain,
+              // Deterministic: a retried tick must not mint a second successor
+              // for the same hop of the same chain.
+              idempotencyKey: `failover:${req.predecessor.id}:${req.failoverAttempt}`,
+            },
+            this.queue,
+          );
+          return captured.dispatch;
+        } catch (err) {
+          this.logger.error('dispatch_failover_mint_failed', {
+            dispatchId: req.predecessor.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return null;
+        }
+      },
+      onReceipt: (receipt) => {
+        this.logger.info('dispatch_failover', {
+          id: receipt.dispatchId.slice(0, 8),
+          successor: receipt.successorId ? receipt.successorId.slice(0, 8) : null,
+          from: receipt.fromBackend,
+          to: receipt.toBackend,
+          attempt: receipt.attempt,
+          reason: receipt.reason,
+        });
+      },
+    };
+  }
+
   private async runOne(claimed: Dispatch): Promise<void> {
     const idShort = claimed.id.slice(0, 8);
     const worktreePath = deriveWorktreePath(claimed.id);
@@ -303,8 +414,16 @@ export class DispatchWorker {
     try {
       this.logger.info('dispatch_worker_run_start', { id: idShort, goal: claimed.goal.slice(0, 80) });
       const { result } = await runClaimedDispatch(this.queue, claimed, {
-        spawnAdapter: this.spawnAdapter,
-        backend: this.backend ?? (claimed.backend ?? DEFAULT_BACKEND),
+        spawnAdapter: async (...args) => {
+          // Runner admission may await budgets/workspace checks. Recheck at the
+          // actual adapter seam, not only before claiming a queued intent.
+          if (!this.runtimeAllowed()) throw new Error('Local Port Daddy is Off; dispatch backend refused');
+          return this.spawnAdapter(...args);
+        },
+        ...(this.buildFailoverOptions() ? { failover: this.buildFailoverOptions()! } : {}),
+        // Per-dispatch choice wins; the worker's setting is a DEFAULT, not an
+        // override (see the `backend` option doc).
+        backend: (claimed.backend as RunnerOptions['backend']) ?? this.backend ?? DEFAULT_BACKEND,
         remote: this.remote,
         model: this.model,
         tubeClient: this.tubeClient,
@@ -349,7 +468,7 @@ export class DispatchWorker {
         rowState = this.queue.get(claimed.id)?.state ?? null;
       } catch { /* row gone — treat as reapable */ }
       const isSalvage = outcomeState === 'salvage' || rowState === 'salvage';
-      if (isSalvage) {
+      if (isSalvage || !this.runtimeAllowed()) {
         this.logger.info('dispatch_worker_reap_skipped_salvage', { id: idShort, worktreePath });
       } else {
         // Best-effort; never throws out.

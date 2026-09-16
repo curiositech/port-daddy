@@ -44,10 +44,12 @@ const TOP_DIRS = [
   'docs', 'skills', 'website-v2', 'mcp', 'fleet', 'public', 'dashboard',
   'analyses', 'proofs', 'fleet-config-ui',
 ]
-// Excludes tokens containing `*` (globs) or `<`/`>` (template placeholders like
-// `skills/<name>/SKILL.md`) — those are patterns, not concrete citations.
+// Excludes tokens containing `*` (globs), `<`/`>` (template placeholders like
+// `skills/<name>/SKILL.md`), or `{`/`}` (brace expansion — `lib/coordination-{
+// crypto,acl}.ts` names several real files at once, exactly the way a shell
+// would expand it) — those are patterns, not concrete citations.
 const REPO_PATH_RE = new RegExp(
-  `^(?:${TOP_DIRS.join('|')})\\/[^\\s\\\`*<>]+\\.[A-Za-z0-9]+$`,
+  `^(?:${TOP_DIRS.join('|')})\\/[^\\s\\\`*<>{}]+\\.[A-Za-z0-9]+$`,
 )
 
 // Deliberately PRECISE markers. Broad prose words like "planned"/"future" are
@@ -59,6 +61,14 @@ const PROPOSAL_MARKERS = [
   'designed but not built', 'will land', 'when it lands', 'to be built',
   'doesn’t exist yet', "doesn't exist yet", 'cite-exempt', 'not built yet',
   'unbuilt', 'salvage diff',
+  // The proof estate's own two prospective-artifact idioms, both as precise as
+  // the phrases above. `(placeholder)` is what the federated-harbor redteam and
+  // whitehat skills write after an artifact path they are *obliging a future
+  // run to produce* ("Artifact obligation to close ... Path: `x.pv`
+  // (placeholder)"). `artifact target` is the shipwright TODO docs' equivalent
+  // ("**Artifact target:** `proofs/...`"). Both name a deliverable, never an
+  // existing file, so treating them as claims-of-existence is a false positive.
+  'placeholder', 'artifact target',
 ]
 
 function changedMarkdown() {
@@ -72,18 +82,49 @@ function changedMarkdown() {
   const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], {
     cwd: REPO, encoding: 'utf8',
   })
-  return out.split('\n').filter((f) => f.endsWith('.md') && !isFixture(f))
+  return out.split('\n').filter((f) => f.endsWith('.md') && !isFixture(f) && !isRetired(f))
 }
 
 function allMarkdown() {
   const out = execFileSync('git', ['ls-files', '*.md'], { cwd: REPO, encoding: 'utf8' })
-  return out.split('\n').filter((f) => f && !isFixture(f))
+  return out.split('\n').filter((f) => f && !isFixture(f) && !isRetired(f))
 }
 
 // Test fixtures intentionally contain broken citations; they are scanned only when
 // passed explicitly (by the unit test), never by the changed-files / --all sweeps.
 function isFixture(f) {
   return f.includes('tests/fixtures/')
+}
+
+/**
+ * Documents formally retired by an ADR (docs/retirement-manifest.json).
+ *
+ * A retired plan's citations are a record of what the repo looked like when it
+ * was written, not a claim about now. V4-DAG.md cites `lib/hlc.ts` and
+ * `lib/sync-protocol.ts` because Part XVII was the plan then; ADR-0049 rejected
+ * that plan and the files were never built. Repairing those paths would be
+ * editing history to make a dead document look current, which is the opposite
+ * of what retiring it was for — and this gate's own rule is "enforce what you
+ * touch", so adding a retirement banner would otherwise make every stale
+ * citation in the body the retiring PR's problem.
+ *
+ * The banner is NOT exempt: doc-retirement-guard.mjs requires every link inside
+ * it to resolve from the file's own directory. So the part a reader needs — the
+ * pointer to what replaced this — stays enforced, and only the history is let
+ * be. Same posture as isFixture: skipped in the sweeps, still scanned when the
+ * path is passed explicitly, so the unit test can exercise it.
+ */
+let retiredCache = null
+function isRetired(f) {
+  if (retiredCache === null) {
+    try {
+      const raw = readFileSync(join(REPO, 'docs', 'retirement-manifest.json'), 'utf8')
+      retiredCache = new Set(Object.keys(JSON.parse(raw).retired ?? {}))
+    } catch {
+      retiredCache = new Set()
+    }
+  }
+  return retiredCache.has(f)
 }
 
 function hasProposalMarker(line) {

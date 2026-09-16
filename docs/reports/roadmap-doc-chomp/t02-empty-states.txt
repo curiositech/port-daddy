@@ -1,0 +1,13 @@
+$ pd roadmap chomp LICENSE docs/DOES-NOT-EXIST.md --harbor port-daddy
+
+⚠ writes → ephemeral:prefix (http://127.0.0.1:9899)
+
+SUCCESS: Would chomp 0 roadmap item(s) from 1 doc(s) (0 new, 0 existing/protected)
+  LICENSE: 0 item(s) [planning-doc]
+  docs/DOES-NOT-EXIST.md: MISSING
+
+  warning: LICENSE: no headings found — nothing to chomp
+  (preview — nothing written. Writing goes through a reviewed PR:
+   re-run with --emit-pr-plan <dir> to write via the daemon AND emit
+   the receipt + snapshot + doc-removal artifacts that PR carries)
+

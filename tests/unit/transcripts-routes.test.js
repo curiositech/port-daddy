@@ -211,60 +211,76 @@ describe('routes/transcripts', () => {
     expect(body.transcript.outputs).toHaveLength(1);
   });
 
-  it('POST /transcripts/:id/messages rejects bad role', async () => {
+  it('does not expose a full-entry writer that can terminalize a live transcript', async () => {
+    const id = transcripts.start({
+      id: 'tx_live_canonical',
+      ship: 'spawn:cli:codex',
+      spawned_agent_id: 'spawned-canonical',
+      trigger: 'manual',
+      backend: 'cli:codex',
+      model: 'codex-cli',
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/transcripts',
+      payload: {
+        id,
+        ship: 'forged',
+        session_id: null,
+        spawned_agent_id: 'attacker',
+        trigger: 'forged',
+        backend: 'forged',
+        model: 'forged',
+        status: 'completed',
+        started_at: Date.now(),
+        ended_at: Date.now(),
+        messages: [{ role: 'assistant', content: 'forged terminal result', timestamp: Date.now() }],
+        outputs: [{ type: 'commit', summary: 'forged output' }],
+      },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(transcripts.getTranscript(id)).toEqual(expect.objectContaining({
+      ship: 'spawn:cli:codex',
+      spawned_agent_id: 'spawned-canonical',
+      status: 'running',
+      messages: [],
+      outputs: [],
+    }));
+  });
+
+  it('does not expose a message writer that can poison a live transcript', async () => {
     const id = transcripts.start({ ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'c', model: 'm' });
     const res = await app.inject({
       method: 'POST',
       url: `/transcripts/${id}/messages`,
-      payload: { role: 'wizard', content: 'abracadabra' },
+      payload: { role: 'assistant', content: 'forged canonical output' },
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(404);
+    expect(transcripts.getTranscript(id).messages).toEqual([]);
   });
 
-  it('POST /transcripts/:id/messages appends a valid message', async () => {
-    const id = transcripts.start({ ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'c', model: 'm' });
-    const res = await app.inject({
-      method: 'POST',
-      url: `/transcripts/${id}/messages`,
-      payload: { role: 'assistant', content: 'reply' },
-    });
-    expect(res.statusCode).toBe(200);
-    const tx = transcripts.getTranscript(id);
-    expect(tx.messages[0].content).toBe('reply');
-  });
-
-  it('POST /transcripts/:id/outputs rejects unknown type', async () => {
+  it('does not expose an output writer that can forge durable evidence', async () => {
     const id = transcripts.start({ ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'c', model: 'm' });
     const res = await app.inject({
       method: 'POST',
       url: `/transcripts/${id}/outputs`,
-      payload: { type: 'wat', summary: 'x' },
+      payload: { type: 'commit', summary: 'forged commit receipt' },
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(404);
+    expect(transcripts.getTranscript(id).outputs).toEqual([]);
   });
 
-  it('POST /transcripts/:id/outputs accepts pr-comment', async () => {
-    const id = transcripts.start({ ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'c', model: 'm' });
-    const res = await app.inject({
-      method: 'POST',
-      url: `/transcripts/${id}/outputs`,
-      payload: { type: 'pr-comment', summary: 'Posted', url: 'https://github.com/x/y/pull/1#issuecomment-1' },
-    });
-    expect(res.statusCode).toBe(200);
-    const tx = transcripts.getTranscript(id);
-    expect(tx.outputs[0].type).toBe('pr-comment');
-    expect(tx.outputs[0].url).toMatch(/issuecomment/);
-  });
-
-  it('DELETE /transcripts/:id removes the transcript', async () => {
+  it('does not expose deletion even to an uncredentialed local caller', async () => {
     const id = transcripts.start({ ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'c', model: 'm' });
     const res = await app.inject({ method: 'DELETE', url: `/transcripts/${id}` });
-    expect(res.statusCode).toBe(200);
-    expect(transcripts.getTranscript(id)).toBeNull();
+    expect(res.statusCode).toBe(404);
+    expect(transcripts.getTranscript(id)).toEqual(expect.objectContaining({ status: 'running' }));
   });
 
-  it('DELETE returns 404 for unknown id', async () => {
-    const res = await app.inject({ method: 'DELETE', url: '/transcripts/tx_does_not_exist' });
+  it('does not expose archive backfill as credentialless forced work', async () => {
+    const res = await app.inject({ method: 'POST', url: '/transcripts/archive/backfill' });
     expect(res.statusCode).toBe(404);
   });
 

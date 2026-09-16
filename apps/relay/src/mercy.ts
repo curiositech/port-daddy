@@ -41,6 +41,14 @@ import { randomHex } from './crypto.js';
 import { resolveSession } from './auth-github.js';
 import { HEAD, TOKENS } from './account-page.js';
 import { countOpenInterruptions } from './interruptions.js';
+import {
+  computeFeatureHooks,
+  parseHooks,
+  pruneHookTables,
+  worstHookStatus,
+  type FeatureHook,
+  type HookStatus,
+} from './mercy-hooks.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,6 +71,8 @@ export interface MercyVerdict {
 export interface MercySweepResult extends MercyVerdict {
   at: number;
   subsystems: SubsystemProbe[];
+  /** Per-feature hooks (x7-mercy-hooks) — always the full declared set. */
+  hooks: FeatureHook[];
   incidentsOpened: number;
   incidentsResolved: number;
   pagesSent: number;
@@ -392,15 +402,32 @@ export async function runMercySweep(env: Env, now: number): Promise<MercySweepRe
   ];
   const verdict = aggregateVerdict(subsystems);
 
+  // Per-feature hooks (x7-mercy-hooks): each hook is internally fenced —
+  // computeFeatureHooks never throws and always returns the full declared
+  // set, with any unmeasurable hook honestly `unknown` (never green).
+  const hooks = await computeFeatureHooks(env, now);
+
   // Snapshot — the status page reads only these rows, never live probes.
+  // hooks_json rides the same row (split-plane: cron writes, pages read).
+  // Fallback for a pre-migration deployment: the column may not exist yet,
+  // so a failed 5-column insert retries in the v1 4-column shape rather than
+  // losing the whole snapshot.
   try {
     await env.DB.prepare(
-      'INSERT INTO mercy_health (at, overall, remote_harbors_possible, subsystems_json) VALUES (?, ?, ?, ?)',
+      'INSERT INTO mercy_health (at, overall, remote_harbors_possible, subsystems_json, hooks_json) VALUES (?, ?, ?, ?, ?)',
     )
-      .bind(now, verdict.overall, verdict.remoteHarborsPossible ? 1 : 0, JSON.stringify(subsystems))
+      .bind(now, verdict.overall, verdict.remoteHarborsPossible ? 1 : 0, JSON.stringify(subsystems), JSON.stringify(hooks))
       .run();
-  } catch (e) {
-    errors.push(`snapshot: ${msg(e)}`);
+  } catch {
+    try {
+      await env.DB.prepare(
+        'INSERT INTO mercy_health (at, overall, remote_harbors_possible, subsystems_json) VALUES (?, ?, ?, ?)',
+      )
+        .bind(now, verdict.overall, verdict.remoteHarborsPossible ? 1 : 0, JSON.stringify(subsystems))
+        .run();
+    } catch (e) {
+      errors.push(`snapshot: ${msg(e)}`);
+    }
   }
 
   // Incidents + paging.
@@ -420,12 +447,16 @@ export async function runMercySweep(env: Env, now: number): Promise<MercySweepRe
   } catch (e) {
     errors.push(`prune: ${msg(e)}`);
   }
+  // Hook-table retention (internally fenced; silent where the additive
+  // migration has not landed — the hooks already report that as `unknown`).
+  await pruneHookTables(env.DB, now);
 
   return {
     at: now,
     overall: verdict.overall,
     remoteHarborsPossible: verdict.remoteHarborsPossible,
     subsystems,
+    hooks,
     incidentsOpened: counters.opened,
     incidentsResolved: counters.resolved,
     pagesSent: counters.pages,
@@ -440,12 +471,14 @@ interface SnapshotRow {
   overall: string;
   remote_harbors_possible: number;
   subsystems_json: string;
+  /** Per-feature hooks (x7). Absent on pre-migration rows — parses to []. */
+  hooks_json?: string | null;
 }
 
 async function latestSnapshot(db: D1Database): Promise<SnapshotRow | null> {
   const row = await db
     .prepare(
-      'SELECT at, overall, remote_harbors_possible, subsystems_json FROM mercy_health ORDER BY at DESC, id DESC LIMIT 1',
+      'SELECT at, overall, remote_harbors_possible, subsystems_json, hooks_json FROM mercy_health ORDER BY at DESC, id DESC LIMIT 1',
     )
     .first<SnapshotRow>();
   return row ?? null;
@@ -536,6 +569,9 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         snapshotAgeSec: null,
         stale: true,
         subsystems: [],
+        // x7: no snapshot means no hook verdicts either — honest unknown.
+        hooks: [],
+        hooksWorst: 'unknown',
         openInterruptions,
         harbors: { count: harborCount },
         parleys: { open: openParleys },
@@ -545,6 +581,10 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
     );
   }
   const ageSec = Math.max(0, now - row.at);
+  // x7 per-feature hooks ride the stored snapshot. Public page rule matches
+  // subsystems: name/status/metric only — the operator-facing `detail`
+  // strings stay on /account/mercy.
+  const hooks = parseHooks(row.hooks_json);
   return Response.json(
     {
       code: 'OK',
@@ -561,6 +601,8 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         status: s.status,
         latencyMs: s.latencyMs,
       })),
+      hooks: hooks.map((h) => ({ name: h.name, status: h.status, metric: h.metric })),
+      hooksWorst: hooks.length ? worstHookStatus(hooks) : ('unknown' satisfies HookStatus),
       openInterruptions,
       harbors: { count: harborCount },
       parleys: { open: openParleys },
@@ -628,7 +670,22 @@ td.mono,th.num{font-variant-numeric:tabular-nums}
 .stale{margin-top:14px;background:var(--surface-card);border:1px solid var(--amber);padding:14px 18px;font-size:14.5px;box-shadow:inset 3px 0 0 var(--amber)}
 .backlink{display:inline-block;margin-top:26px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;padding:10px 18px;border:2px solid var(--border-strong);color:var(--text-primary);text-decoration:none}
 .backlink:hover{background:var(--border-strong);color:var(--surface-base)}
-@media (max-width:720px){.page{padding:0 20px 64px}.verdict{grid-template-columns:1fr}.verdict>div+div{border-left:none;border-top:2px solid var(--border-strong)}}
+@media (max-width:720px){
+  .page{padding:0 20px 64px}
+  .verdict{grid-template-columns:1fr}
+  .verdict>div+div{border-left:none;border-top:2px solid var(--border-strong)}
+  section.sect{padding-top:36px}
+  .tbl-wrap{overflow:visible}
+  table,tbody,tr,td{display:block;width:100%}
+  table{border:0;background:transparent}
+  thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  tbody{display:grid;gap:12px}
+  tr{border:2px solid var(--border-strong);background:var(--surface-card)}
+  td{display:grid;grid-template-columns:minmax(92px,34%) minmax(0,1fr);gap:12px;padding:10px 12px;border-bottom:1px solid var(--hair);line-height:1.5;overflow-wrap:anywhere}
+  td::before{content:attr(data-label);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted)}
+  tr:last-child td{border-bottom:1px solid var(--hair)}
+  td:last-child,tr:last-child td:last-child{border-bottom:0}
+}
 `;
 
 function statusCell(status: string): string {
@@ -648,6 +705,7 @@ export function renderMercyPage(
   now: number,
 ): string {
   const subs = snapshot ? parseSubsystems(snapshot.subsystems_json) : [];
+  const hooks = snapshot ? parseHooks(snapshot.hooks_json) : [];
   const overall = snapshot?.overall ?? 'unknown';
   const remote = snapshot ? snapshot.remote_harbors_possible === 1 : null;
   const ageSec = snapshot ? Math.max(0, now - snapshot.at) : null;
@@ -656,10 +714,23 @@ export function renderMercyPage(
   const subsRows = subs
     .map(
       (s) => `<tr>
-  <td class="mono">${esc(s.name)}</td>
-  <td>${statusCell(s.status)}</td>
-  <td class="mono">${s.latencyMs === null ? '—' : `${s.latencyMs}ms`}</td>
-  <td>${esc(s.detail)}</td>
+  <td class="mono" data-label="Subsystem">${esc(s.name)}</td>
+  <td data-label="Status">${statusCell(s.status)}</td>
+  <td class="mono" data-label="Latency">${s.latencyMs === null ? '—' : `${s.latencyMs}ms`}</td>
+  <td data-label="Detail">${esc(s.detail)}</td>
+</tr>`,
+    )
+    .join('\n');
+
+  // Per-feature hooks (x7): `unknown` renders muted via st-unknown — by the
+  // verdict law it must NEVER borrow green.
+  const hookRows = hooks
+    .map(
+      (h) => `<tr>
+  <td class="mono" data-label="Hook">${esc(h.name)}</td>
+  <td data-label="Status">${statusCell(h.status)}</td>
+  <td class="mono" data-label="Metric">${h.metric === null ? '—' : String(h.metric)}</td>
+  <td data-label="Detail">${esc(h.detail)}</td>
 </tr>`,
     )
     .join('\n');
@@ -667,11 +738,11 @@ export function renderMercyPage(
   const incidentRows = incidents
     .map(
       (i) => `<tr>
-  <td class="mono">${esc(i.subsystem)}</td>
-  <td class="mono">${fmtTs(i.opened_at)}</td>
-  <td>${i.resolved_at === null ? '<span class="st st-red">OPEN</span>' : `<span class="st st-green">resolved</span> <span class="mono">${fmtTs(i.resolved_at)}</span>`}</td>
-  <td class="mono">${i.paged_at === null ? 'not paged' : `paged ${fmtTs(i.paged_at)}`}</td>
-  <td>${esc(i.detail)}</td>
+  <td class="mono" data-label="Subsystem">${esc(i.subsystem)}</td>
+  <td class="mono" data-label="Opened">${fmtTs(i.opened_at)}</td>
+  <td data-label="State">${i.resolved_at === null ? '<span class="st st-red">OPEN</span>' : `<span class="st st-green">resolved</span> <span class="mono">${fmtTs(i.resolved_at)}</span>`}</td>
+  <td class="mono" data-label="Paging">${i.paged_at === null ? 'not paged' : `paged ${fmtTs(i.paged_at)}`}</td>
+  <td data-label="Detail">${esc(i.detail)}</td>
 </tr>`,
     )
     .join('\n');
@@ -725,6 +796,20 @@ export function renderMercyPage(
 ${subsRows}
 </tbody></table></div>`
         : `<div class="empty"><div class="e-title">No vitals recorded yet.</div><p>The MERCY cron writes one snapshot per sweep into <span class="mono">mercy_health</span>. Once the first sweep lands, each subsystem's status, latency and detail appear here.</p></div>`
+    }
+  </section>
+
+  <section class="sect" aria-labelledby="hooks-h">
+    <span class="eyebrow">Per-feature hooks · plan §4</span>
+    <h2 id="hooks-h">Feature hooks</h2>
+    ${
+      hooks.length
+        ? `<div class="tbl-wrap"><table>
+<thead><tr><th>Hook</th><th>Status</th><th>Metric</th><th>Detail</th></tr></thead>
+<tbody>
+${hookRows}
+</tbody></table></div>`
+        : `<div class="empty"><div class="e-title">No hook verdicts recorded yet.</div><p>Each MERCY sweep evaluates the per-feature hooks from the grand plan's §4 table — summons-ack SLO, stale helms, quota exhaustion, run reconciliation, SLO burn — and stores the verdicts in the snapshot. A hook that cannot be measured reports <span class="mono">unknown</span>, never green.</p></div>`
     }
   </section>
 

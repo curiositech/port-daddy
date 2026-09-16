@@ -440,27 +440,54 @@ describe('galaxy routes', () => {
   });
 
   it('GET /galaxy/session/:id returns full detail for a session-linked transcript', async () => {
-    // Add a tool-using message and a PR-shaped output before fetching
-    transcripts.appendMessage('tx_sql_1', {
+    // Build the detail fixture in lifecycle order; terminal transcripts are
+    // immutable because their archive receipt binds the complete snapshot.
+    const detailId = transcripts.start({
+      id: 'tx_sql_detail',
+      ship: 'migrator',
+      spawned_agent_id: 'agent-sqlite-1',
+      session_id: sessionId,
+      pr_number: 123,
+      trigger: 'manual',
+      backend: 'claude',
+      model: 'test-model',
+      started_at: NOW - HOUR,
+      project: 'port-daddy',
+    });
+    transcripts.appendMessage(detailId, {
+      role: 'user',
+      content: topicContent(TOPIC_SQLITE, 'detail request'),
+      timestamp: NOW - HOUR + 1,
+    });
+    transcripts.appendMessage(detailId, {
+      role: 'assistant',
+      content: topicContent(TOPIC_SQLITE, 'detail response'),
+      timestamp: NOW - HOUR + 2,
+    });
+    transcripts.appendMessage(detailId, {
       role: 'assistant',
       content: 'Editing the migration file now.',
       timestamp: NOW - HOUR + 30,
       tool_calls: [{ name: 'Edit', args: { file_path: 'lib/db.ts' } }],
     });
-    transcripts.appendOutput('tx_sql_1', {
+    transcripts.appendOutput(detailId, {
       type: 'pr-comment',
       summary: 'Posted migration review',
       url: 'https://github.com/x/y/pull/123#issuecomment-1',
     });
+    transcripts.finalize(detailId, {
+      status: 'completed',
+      ended_at: NOW - HOUR + 60_000,
+    });
 
-    const res = await app.inject({ method: 'GET', url: '/galaxy/session/tx_sql_1' });
+    const res = await app.inject({ method: 'GET', url: `/galaxy/session/${detailId}` });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.success).toBe(true);
     const { detail } = body;
 
     // Full transcript (messages + outputs, not just headers)
-    expect(detail.transcript.id).toBe('tx_sql_1');
+    expect(detail.transcript.id).toBe(detailId);
     expect(detail.transcript.messages.length).toBeGreaterThanOrEqual(3);
     expect(detail.transcript.outputs).toHaveLength(1);
 

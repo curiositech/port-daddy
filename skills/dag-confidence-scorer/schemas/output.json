@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["confidence", "recommendation"],
+  "properties": {
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Overall confidence score"
+    },
+    "factors": {
+      "type": "object",
+      "description": "Factor-level scores",
+      "properties": {
+        "reasoning": { "type": "number" },
+        "sources": { "type": "number" },
+        "consistency": { "type": "number" },
+        "completeness": { "type": "number" },
+        "uncertainty": { "type": "number" }
+      }
+    },
+    "recommendation": {
+      "type": "string",
+      "enum": ["accept", "review", "iterate", "reject"],
+      "description": "Recommended action based on confidence"
+    },
+    "weaknesses": {
+      "type": "array",
+      "description": "Identified weaknesses",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

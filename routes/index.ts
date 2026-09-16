@@ -32,6 +32,7 @@ import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
 import { sessionsPlugin } from './sessions.js';
 import { resurrectionPlugin } from './resurrection.js';
+import { editorRecoveryPlugin } from './editor-recovery.js';
 import { changelogPlugin } from './changelog.js';
 import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
@@ -77,6 +78,7 @@ import { galaxyPlugin } from './galaxy.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
+import { roadmapActivityPlugin } from './roadmap-activity.js';
 import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
@@ -93,6 +95,7 @@ import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
 import { harvestPlugin } from './harvest.js';
 import { custodianPlugin } from './custodian.js';
+import { skillGraftPlugin } from './skill-graft.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -168,6 +171,9 @@ export async function registerAllRoutes(
           accepted_channels: [],
           relay_version: null,
         })),
+      // Optional: server.ts supplies this so a runtime relay config write or a
+      // freshly exchanged card restarts the live connection lifecycle.
+      onConfigChanged: (deps as { notifyRelayConfigChanged?: () => void }).notifyRelayConfigChanged,
     },
   } as any);
 
@@ -175,6 +181,7 @@ export async function registerAllRoutes(
   await fastify.register(projectsPlugin, { deps } as any);
   await fastify.register(sessionsPlugin, { deps } as any);
   await fastify.register(resurrectionPlugin, { deps } as any);
+  await fastify.register(editorRecoveryPlugin, { deps } as any);
   await fastify.register(changelogPlugin, { deps } as any);
   await fastify.register(tunnelPlugin, { deps } as any);
   await fastify.register(dnsPlugin, { deps } as any);
@@ -321,6 +328,15 @@ export async function registerAllRoutes(
     await fastify.register(roadmapPlugin, { deps } as any);
   }
 
+  // Roadmap Activity — the live-work join for the roadmap command center
+  // (operator mandate 2026-08-22): GET /roadmap/activity (board feed with
+  // stage counts) + GET /roadmap/items/:slug/activity (per-item attachments
+  // with honest liveness, cockpit links, HITL). Read-only; mounts when the
+  // roadmapActivity dep is present.
+  if ((deps as any).roadmapActivity) {
+    await fastify.register(roadmapActivityPlugin, { deps } as any);
+  }
+
   // Durable commitments + obligation monitor (ADR-0041 first slice). Mounts
   // when both the commitments store and its monitor were constructed.
   if ((deps as any).commitments && (deps as any).obligationMonitor) {
@@ -381,6 +397,10 @@ export async function registerAllRoutes(
   // Context health overview — mounts when contextTracker dep is present.
   if ((deps as { contextTracker?: unknown }).contextTracker) {
     await fastify.register(contextPlugin, { deps } as any);
+  }
+
+  if ((deps as { tool2VecReconciler?: unknown }).tool2VecReconciler) {
+    await fastify.register(skillGraftPlugin, { deps } as any);
   }
 
   // Session harvest — mounts when episodicMemory dep is present (already gated above for memoryPlugin).

@@ -1,5 +1,8 @@
 // ─── Port Daddy Fleet API client ──────────────────────────────────────────────
 
+import { forgetActorCredential, resolveActorCredential } from './actor-credential';
+import { verifySessionDetail, type SessionDetail } from './sessionPlan';
+
 import type {
   FleetDaemonStatus,
   ProjectSummary,
@@ -161,6 +164,25 @@ function syncDaemonQueryParam(url: string): void {
   window.history.replaceState({}, '', next);
 }
 
+/**
+ * Attach the UI's daemon-minted actor credential to a mutating request
+ * (#8877 / ADR-0122). Reads are left alone: they need no credential today,
+ * and minting a soul just to render a dashboard would flood the newcomer
+ * admission pool.
+ *
+ * @param method - The HTTP method being issued.
+ * @param headers - The headers built so far.
+ * @returns The headers, with `x-actor-credential` when one could be obtained.
+ */
+async function withActorCredential(
+  method: string,
+  headers: Record<string, string>,
+): Promise<Record<string, string>> {
+  if (method === 'GET' || method === 'HEAD') return headers;
+  const credential = await resolveActorCredential(daemonUrl);
+  return credential ? { ...headers, 'x-actor-credential': credential } : headers;
+}
+
 function daemonEndpoint(path: string): string {
   return `${daemonUrl}${path}`;
 }
@@ -213,13 +235,18 @@ export function runSetupAction(input: {
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const startedAt = Date.now();
+  const headers = await withActorCredential(method, body !== undefined ? { 'Content-Type': 'application/json' } : {});
   const res = await fetch(daemonEndpoint(path), {
     method,
-    ...(body !== undefined && {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }),
+    ...(Object.keys(headers).length > 0 && { headers }),
+    ...(body !== undefined && { body: JSON.stringify(body) }),
   });
+  if (res.status === 401) {
+    // The daemon rejected our credential — most often because its database
+    // was reset and the soul no longer exists. Drop the cache so the next
+    // write mints a fresh one instead of looping on a dead token.
+    forgetActorCredential(daemonUrl);
+  }
   if (!res.ok) {
     void recordUsageEvent({
       surface: 'ui',
@@ -571,6 +598,17 @@ export async function fetchSessions(opts: {
   return data.sessions ?? [];
 }
 
+/**
+ * Read one explicit Port Daddy session, including its complete top-level notes.
+ * Design: no directory/cwd/agent fallback and no limited notes-list projection.
+ * @param sessionId Exact session ID from the link or operator selection.
+ * @returns Verified detail from the currently selected daemon.
+ */
+export async function fetchSessionDetail(sessionId: string): Promise<SessionDetail> {
+  if (!sessionId.trim()) throw new Error('The session link has an empty session ID.');
+  return verifySessionDetail(await get<unknown>(`/sessions/${encodeURIComponent(sessionId)}`), sessionId);
+}
+
 export async function fetchFileClaims(opts: {
   agent?: string;
   purpose?: string;
@@ -649,7 +687,6 @@ export async function resolveChannel(name: string, projectDir?: string): Promise
 export async function sendAgentMessage(agentId: string, opts: {
   content: unknown;
   project?: string;
-  from?: string;
   type?: string;
   contentType?: 'text' | 'json' | 'binary';
   messageContent?: string;
@@ -663,19 +700,24 @@ export async function sendAgentMessage(agentId: string, opts: {
   error?: string;
 }> {
   const path = `/agents/${encodeURIComponent(agentId)}/inbox`;
+  // No `from`. This UI holds an anonymous minted soul with no bound alias, so
+  // there is no display name it is entitled to claim — the daemon derives
+  // attribution from the credential, which nothing can forge. The old
+  // `from: 'fleet-ui'` was a self-asserted string on an instruction plane.
+  const headers = await withActorCredential('POST', { 'Content-Type': 'application/json' });
   const res = await fetch(daemonEndpoint(path), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       content: opts.content,
       project: opts.project,
-      from: opts.from ?? 'fleet-ui',
       type: opts.type,
       contentType: opts.contentType,
       messageContent: opts.messageContent,
       wake: opts.wake ?? true,
     }),
   });
+  if (res.status === 401) forgetActorCredential(daemonUrl);
 
   const contentType = res.headers.get('content-type') ?? '';
   const payload = contentType.includes('application/json')

@@ -16,9 +16,9 @@
  *   pd attention --unsubscribe <ch>    remove a subscription
  *   pd attention --subscriptions       list current subscriptions
  *
- * Identity resolution: --agent <id> > $PD_AGENT_ID > .portdaddy/current.json
- * If no identity is resolvable, the command errors instead of silently
- * fetching nothing.
+ * Identity resolution: --agent <id> > $PD_AGENT_ID > .portdaddy/current.json.
+ * Before a session exists, the default read is a successful unbound empty
+ * result; identity-requiring subscription mutations still fail explicitly.
  */
 
 import { pdFetch } from '../utils/fetch.js';
@@ -26,6 +26,7 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
 import { resolveTargetDir } from '../utils/channel-resolution.js';
+import { validateChannel } from '../../shared/validators.js';
 import * as ui from '../utils/ui.js';
 
 interface AttentionItem {
@@ -62,6 +63,7 @@ interface DiscoveredChannel {
 
 interface AttentionSummary {
   success: boolean;
+  bound: boolean;
   agentId?: string;
   items?: AttentionItem[];
   counts?: {
@@ -76,6 +78,34 @@ interface AttentionSummary {
   generatedAt?: number;
   error?: string;
   code?: string;
+}
+
+interface AttentionHandlerDeps {
+  fetch?: (path: string, options?: FetchOptions) => Promise<PdFetchResponse>;
+}
+
+export const ATTENTION_HELP: string = [
+  'Usage: pd attention [--peek] [--limit N] [--agent ID] [--json]',
+  '       pd attention --subscribe <channel>',
+  '       pd attention --subscribe-recommended',
+  '       pd attention --unsubscribe <channel>',
+  '       pd attention --subscriptions',
+  '',
+  'Read direct inbox messages plus watched coordination channels in one call.',
+  'Before pd begin, the default read succeeds as an unbound empty result.',
+].join('\n');
+
+export function unboundAttentionSummary(peek = false, now = Date.now()): AttentionSummary {
+  return {
+    success: true,
+    bound: false,
+    items: [],
+    counts: { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 },
+    subscriptions: [],
+    suggestions: [],
+    peek,
+    generatedAt: now,
+  };
 }
 
 const ATTENTION_PROTOCOL_CHANNELS = [
@@ -551,35 +581,49 @@ async function handleListSubscriptions(agentId: string, options: CLIOptions): Pr
   }
 }
 
-export async function handleAttention(options: CLIOptions): Promise<void> {
-  if (options.help === true) {
-    console.log('Usage: pd attention [--peek] [--limit N] [--agent ID] [--json]');
-    console.log('       pd attention --subscribe <channel>');
-    console.log('       pd attention --subscribe-recommended');
-    console.log('       pd attention --unsubscribe <channel>');
-    console.log('       pd attention --subscriptions');
-    console.log('');
-    console.log('Read direct inbox messages plus watched coordination channels in one call.');
-    console.log('With no watches, the empty state ranks concrete channels and explains why each matters.');
-    console.log('Use --subscribe-recommended to arm that ranked set in one command.');
-    return;
-  }
-
+export async function handleAttention(options: CLIOptions, deps: AttentionHandlerDeps = {}): Promise<void> {
   const agentId = resolveAgentId(options);
   if (!agentId) {
-    ui.error('No agent identity resolved. Pass --agent <id>, set $PD_AGENT_ID, or run `pd begin` first.');
-    process.exit(2);
+    const identityRequired =
+      (typeof options.subscribe === 'string' && options.subscribe.trim().length > 0) ||
+      options['subscribe-recommended'] === true ||
+      (typeof options.unsubscribe === 'string' && options.unsubscribe.trim().length > 0) ||
+      options.subscriptions === true;
+    if (identityRequired) {
+      ui.error('This attention operation needs an agent identity. Start a session or pass --agent <id>.');
+      process.exit(2);
+      return;
+    }
+
+    const empty = unboundAttentionSummary(options.peek === true);
+    if (isJson(options)) console.log(JSON.stringify(empty, null, 2));
+    else if (!isQuiet(options)) console.log('Attention clear (no active agent session).');
+    return;
   }
 
   // Subscribe / unsubscribe / list subscriptions
   if (typeof options.subscribe === 'string' && options.subscribe.trim()) {
-    return handleSubscribe(agentId, options.subscribe.trim(), options);
+    const channel = options.subscribe.trim();
+    const validation = validateChannel(channel);
+    if (!validation.valid) {
+      ui.error(validation.error || 'invalid channel');
+      process.exit(2);
+      return;
+    }
+    return handleSubscribe(agentId, channel, options);
   }
   if (options['subscribe-recommended'] === true) {
     return handleSubscribeRecommended(agentId, options);
   }
   if (typeof options.unsubscribe === 'string' && options.unsubscribe.trim()) {
-    return handleUnsubscribe(agentId, options.unsubscribe.trim(), options);
+    const channel = options.unsubscribe.trim();
+    const validation = validateChannel(channel);
+    if (!validation.valid) {
+      ui.error(validation.error || 'invalid channel');
+      process.exit(2);
+      return;
+    }
+    return handleUnsubscribe(agentId, channel, options);
   }
   if (options.subscriptions === true) {
     return handleListSubscriptions(agentId, options);
@@ -590,7 +634,8 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
   if (options.peek === true) params.set('peek', 'true');
   if (options.limit !== undefined) params.set('limit', String(options.limit));
 
-  const res: PdFetchResponse = await attentionFetch(`/attention?${params}`);
+  const fetchAttention = deps.fetch ?? attentionFetch;
+  const res: PdFetchResponse = await fetchAttention(`/attention?${params}`);
   const data = (await res.json()) as unknown as AttentionSummary;
   if (!res.ok || !data.success) {
     ui.error(data.error || 'attention fetch failed');
@@ -598,8 +643,16 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
   }
 
   if ((data.items || []).length === 0) {
-    data.suggestions = await discoverAttentionSuggestions(data.subscriptions || [], options);
+    // SessionStart must remain a strict one-request fast path. The old empty
+    // state synchronously called /channels/discover?observed=true, turning a
+    // completed inbox read into a whole-history channel scan that was observed
+    // taking almost a minute under daemon contention. Stable protocol channels
+    // can be ranked locally; richer discovery remains available explicitly via
+    // `pd attention --subscribe-recommended`.
+    data.suggestions = rankAttentionSuggestions([], data.subscriptions || []);
   }
+
+  data.bound = true;
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));

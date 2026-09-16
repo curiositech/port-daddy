@@ -13,11 +13,10 @@
  * throws instead of silently not validating.
  *
  * The npm package ships schemas/ (package.json "files" — added with this
- * module), so installed environments normally find the contract files. The
- * { skipped: true } path remains as a fail-safe for layouts where they are
- * genuinely absent (e.g. single-binary bundles or trimmed vendored copies):
- * skipping is reported honestly rather than pretending validation happened;
- * tests always run from the repo and exercise the real path.
+ * module), while the compiled entrypoint registers the same frozen contracts
+ * in an embedded table. Filesystem schemas win when present; the table keeps
+ * fail-closed validation intact after relocation into Homebrew or FleetBar.
+ * The { skipped: true } path remains for genuinely trimmed/broken runtimes.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -139,6 +138,16 @@ export interface SchemaValidationResult {
 
 const schemaCache = new Map<string, JsonSchema | null>();
 
+type EmbeddedSchemaGlobal = typeof globalThis & {
+  __PORT_DADDY_EMBEDDED_AGENT_HARBOR_SCHEMAS__?: Readonly<Record<string, unknown>>;
+};
+
+function embeddedSchema(name: string): unknown | null {
+  const table = (globalThis as EmbeddedSchemaGlobal)
+    .__PORT_DADDY_EMBEDDED_AGENT_HARBOR_SCHEMAS__;
+  return table && Object.hasOwn(table, name) ? table[name] : null;
+}
+
 /** Candidate roots for schemas/agent-harbor/v0/ (repo layouts + env override). */
 function candidateSchemaDirs(): string[] {
   const here = dirname(fileURLToPath(import.meta.url));
@@ -166,6 +175,15 @@ export function loadFrozenSchema(name: string): { schema: JsonSchema; path: stri
       schemaCache.set(cacheKey, schema);
       return { schema, path: file };
     }
+  }
+  const embedded = embeddedSchema(name);
+  if (embedded) {
+    // __loadedFrom is validator metadata, not part of the frozen contract.
+    const schema = compile(JSON.parse(JSON.stringify(embedded)));
+    const path = `embedded:schemas/agent-harbor/v0/${name}.schema.json`;
+    schema.__loadedFrom = path;
+    schemaCache.set(cacheKey, schema);
+    return { schema, path };
   }
   schemaCache.set(cacheKey, null);
   return null;

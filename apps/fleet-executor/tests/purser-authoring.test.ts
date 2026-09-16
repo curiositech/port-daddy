@@ -24,16 +24,17 @@ describe('extractCodeFence', () => {
   });
 
   it('accepts any info-string, or none', () => {
+    const source = 'test("works", () => {});';
     for (const info of ['', 'ts', 'TypeScript', 'javascript', 'js']) {
-      expect(extractCodeFence(`\`\`\`${info}\ncode()\n\`\`\``)).toBe('code()');
+      expect(extractCodeFence(`\`\`\`${info}\n${source}\n\`\`\``)).toBe(source);
     }
   });
 
   it('ignores a draft fence inside a think span and takes the real answer', () => {
     const out = extractCodeFence(
-      ['<think>', 'maybe:', '```ts', 'DRAFT', '```', '</think>', '```ts', 'FINAL', '```'].join('\n'),
+      ['<think>', 'maybe:', '```ts', 'const DRAFT = true;', '```', '</think>', '```ts', 'const FINAL = true;', '```'].join('\n'),
     );
-    expect(out).toBe('FINAL');
+    expect(out).toBe('const FINAL = true;');
   });
 
   it('takes the LONGEST fence when a model narrates with snippets first', () => {
@@ -53,6 +54,54 @@ describe('extractCodeFence', () => {
   it('returns null for prose that is plainly not a file', () => {
     expect(extractCodeFence('I cannot write these tests.')).toBeNull();
     expect(extractCodeFence('')).toBeNull();
+  });
+
+  it('rejects the exact #8736 failure: a fenced JSON fixture is not a TypeScript test', () => {
+    const rawTimeline = JSON.stringify({
+      schemaVersion: 1,
+      enabled: true,
+      privacy: 'Sanitized timing only.',
+      sessions: [{
+        id: 'codex-session',
+        steps: [{
+          state: 'running',
+          deadlineMs: 1000,
+          description: 'A misleading fixture value can even contain expect(true).toBe(true).',
+        }],
+      }],
+    }, null, 2);
+
+    expect(extractCodeFence(`\`\`\`ts\n${rawTimeline}\n\`\`\``)).toBeNull();
+  });
+
+  it('rejects a JSON string even when its value contains source-looking syntax', () => {
+    const encodedSource = JSON.stringify('test("looks real", () => expect(true).toBe(true));');
+    expect(extractCodeFence(`\`\`\`ts\n${encodedSource}\n\`\`\``)).toBeNull();
+  });
+
+  it('chooses real source over a longer fenced data fixture', () => {
+    const fixture = JSON.stringify({ sessions: Array.from({ length: 20 }, (_, i) => ({ id: i })) }, null, 2);
+    const source = 'test("drops data-only author output", () => {\n  expect(true).toBe(true);\n});';
+    const out = extractCodeFence([
+      '```json',
+      fixture,
+      '```',
+      '```ts',
+      source,
+      '```',
+    ].join('\n'));
+
+    expect(out).toBe(source);
+  });
+
+  it('keeps source-like fenced tests in non-TypeScript languages', () => {
+    expect(extractCodeFence('```python\ndef test_frob():\n    assert frob() == 1\n```')).not.toBeNull();
+    expect(extractCodeFence('```rust\n#[test]\nfn rejects_empty_input() { assert!(true); }\n```')).not.toBeNull();
+    expect(extractCodeFence('```bash\n#!/bin/sh\nset -eu\ntest -f package.json\n```')).not.toBeNull();
+  });
+
+  it('does not mistake fenced prose containing a function call for source', () => {
+    expect(extractCodeFence('```text\nPlease call cleanup() before trying again.\nThis is advice, not a test.\n```')).toBeNull();
   });
 
   it('rejects a multi-line REFUSAL that happens to contain code-ish punctuation', () => {
@@ -222,17 +271,26 @@ describe('purser step model tiering', () => {
 
   const CHEAP = '@cf/qwen/qwen3-30b-a3b-fp8';
   const MID = '@cf/openai/gpt-oss-20b';
+  const AUTHOR = '@cf/deepseek-ai/deepseek-v4-flash-0731';
 
-  it('defaults PLAN to the cheap model and AUTHOR to the mid tier', () => {
+  it('defaults PLAN to the cheap model and AUTHOR to the agentic-coding tier', () => {
+    // Operator ruling 2026-08-22, from the live D1 record: on the gpt-oss-20b
+    // mid tier the author step ended 121 sets NON-EXECUTABLE and failed 83 of
+    // 110 rewrites in 14 days, gating the fleet neutral on 249 of 584 runs
+    // (#8870). Authoring a runnable file IS agentic coding, so the default is
+    // the tier with the strongest independent agentic-coding record
+    // (deepseek-v4-flash-0731; see AUTHOR_CF_MODEL's docblock) — while the
+    // repair rewrite deliberately stays on a DIFFERENT family (gpt-oss-120b).
     const ship = purserFrom();
     expect(ship.cfModel).toBe(CHEAP);
     expect(planOf(ship)).toBe(CHEAP);
-    expect(authorOf(ship)).toBe(MID);
+    expect(authorOf(ship)).toBe(AUTHOR);
   });
 
-  it('an explicit cheap author_model pin WINS over the mid-tier default', () => {
+  it('an explicit cheaper author_model pin WINS over the strong default', () => {
     // The operator opting back down to save money must not be silently upgraded.
     expect(authorOf(purserFrom(`author_model: '${CHEAP}'`))).toBe(CHEAP);
+    expect(authorOf(purserFrom(`author_model: '${MID}'`))).toBe(MID);
   });
 
   it('accepts the camelCase spellings operators actually write', () => {
@@ -242,7 +300,7 @@ describe('purser step model tiering', () => {
 
   it('DROPS an unknown id back to the tier default rather than remapping it', () => {
     // A nonexistent Workers AI id returns blank, not an error — the #654 outage.
-    expect(authorOf(purserFrom("author_model: '@cf/some/nonexistent'"))).toBe(MID);
+    expect(authorOf(purserFrom("author_model: '@cf/some/nonexistent'"))).toBe(AUTHOR);
   });
 
   it('warns, but still defaults, when the key is present and EMPTY', () => {
@@ -251,16 +309,19 @@ describe('purser step model tiering', () => {
     // mistake that produced no output at all. (pd-code-reviewer HIGH on #6813.)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect(authorOf(purserFrom("author_model: ''"))).toBe(MID);
+      expect(authorOf(purserFrom("author_model: ''"))).toBe(AUTHOR);
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('present but empty'));
     } finally {
       warn.mockRestore();
     }
   });
 
-  it('cannot pin a step onto the review bot model', () => {
-    // gpt-oss-120b is reached by ROLE, never by pin. The bound survives the tier.
-    expect(authorOf(purserFrom("author_model: '@cf/openai/gpt-oss-120b'"))).toBe(MID);
+  it('an explicit pin of the strong tier equals the default (and is honored, not dropped)', () => {
+    // Until 2026-08-22 a gpt-oss-120b author pin was silently dropped to the
+    // mid tier ("no pin can reach the review bot model"). That ceiling is
+    // retired: the known-good set guards existence, not price, and the strong
+    // tier IS the author default — pd-fleet.yml pins it explicitly.
+    expect(authorOf(purserFrom(`author_model: '${AUTHOR}'`))).toBe(AUTHOR);
   });
 
   it('non-purser ships get no step-model keys at all', () => {

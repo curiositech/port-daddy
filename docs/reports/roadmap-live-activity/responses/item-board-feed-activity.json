@@ -1,0 +1,75 @@
+{
+  "success": true,
+  "activity": {
+    "slug": "roadmap-activity-board-feed",
+    "harbor": "port-daddy:fleet",
+    "status": "now",
+    "summaryMd": "Board feed: join roadmap items to in-flight agent work so the operator sees who is driving what, right now.",
+    "assigneeId": "fleet-shipwright-01",
+    "lastTouchedAt": 1787441890943,
+    "stage": "executing",
+    "dispatch": {
+      "id": "0cefed00-31e8-453d-ae34-85d4788e1090",
+      "state": "in_progress",
+      "sessionId": "session-ship-the-roadmap-activity-board-feed-ed2bcc175267",
+      "workerActorId": "fleet-shipwright-01",
+      "branch": "dispatch/roadmap-activity-board-feed",
+      "resultArtifact": null,
+      "errorMessage": null,
+      "createdAt": 1787441890897
+    },
+    "needsAttention": false,
+    "reviewEvidence": null,
+    "attachments": [
+      {
+        "key": "session-ship-the-roadmap-activity-board-feed-ed2bcc175267",
+        "sources": [
+          "claim",
+          "session-link",
+          "dispatch",
+          "assignee-agent"
+        ],
+        "agentId": "fleet-shipwright-01",
+        "agentName": "Shipwright",
+        "agentRegistered": true,
+        "agentNodeId": null,
+        "sessionId": "session-ship-the-roadmap-activity-board-feed-ed2bcc175267",
+        "sessionStatus": "active",
+        "purpose": "ship the roadmap activity board feed",
+        "worktreeId": "wt-roadmap-activity",
+        "liveness": "active",
+        "lastHeartbeatMs": 1787441890940,
+        "idleMs": 599957,
+        "staleThresholdMs": 8640000,
+        "claim": {
+          "id": 1,
+          "kind": "next-cut",
+          "claimedBy": "fleet-shipwright-01",
+          "claimedAt": 1787441890897
+        },
+        "cockpit": {
+          "steeringChannel": "agent:fleet-shipwright-01",
+          "streamUrl": "/agents/fleet-shipwright-01/stream",
+          "interrupt": {
+            "available": false,
+            "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+            "softSignalUrl": "/agents/fleet-shipwright-01/interrupt",
+            "plannedRoute": "/agent-nodes/:id/control",
+            "plannedVerbs": [
+              "interrupt",
+              "steer"
+            ]
+          }
+        },
+        "transcriptUrl": "/sessions/session-ship-the-roadmap-activity-board-feed-ed2bcc175267/events",
+        "agentNodeUrl": null,
+        "hitl": []
+      }
+    ],
+    "counts": {
+      "attachments": 1,
+      "active": 1,
+      "stale": 0
+    }
+  }
+}

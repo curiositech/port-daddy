@@ -234,7 +234,7 @@ If (r, u) ~ᵢ (r', u'), then action(i, r, u) = action(i, r', u')
 
 The agent **cannot** take different actions in indistinguishable states (it doesn't know which state it's in).
 
-**For WinDAGs orchestration**:
+**For Jury-rig orchestration**:
 - If skill A's optimal action depends on skill B's internal state, but A can't observe B's state, then:
   - A must either: (1) query B for state, OR (2) make conservative assumptions
   - This is **coordination via information exchange**, not independent reasoning
@@ -368,7 +368,7 @@ None are fully satisfactory; logical omniscience remains an open problem.
 
 ## Transfer to Multi-Agent Orchestration
 
-### WinDAGs with 180+ Skills: Grounding Knowledge
+### Jury-rig with 180+ Skills: Grounding Knowledge
 
 **Challenge**: How do you verify that orchestration correctly coordinates 180 skills?
 

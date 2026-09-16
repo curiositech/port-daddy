@@ -26,11 +26,16 @@
  *    401, insufficient role → 403); D1 throws bubble to index.ts's controlled
  *    INTERNAL_ERROR envelope.
  *
- * Deferred from the plan (v2+), marked honestly: signed single-use invite JTIs
- * + /join, per-harbor issuer keys at /v1/keys/:harborFp, daemon-to-daemon E2E
- * channel-key distribution, member removal + lazy key rotation, reachability
- * verdicts (possible|degraded|impossible|unknown), and the per-harbor
- * `remote_harbors` mercy verdict (v1 ships only the harbor count on /mercy).
+ * SHIPPED since v1: single-use invite JTIs + /join with the ADR-0122 §4
+ * authority-epoch clock (src/invites.ts; migrations/2026-08-23-harbor-invites)
+ * — every membership write now ticks harbors.authority_epoch atomically via
+ * db.ts addHarborMembership, so the add-member route below bumps it too.
+ *
+ * Deferred from the plan (v2+), marked honestly: per-harbor issuer keys at
+ * /v1/keys/:harborFp, daemon-to-daemon E2E channel-key distribution, member
+ * removal + lazy key rotation, reachability verdicts
+ * (possible|degraded|impossible|unknown), and the per-harbor `remote_harbors`
+ * mercy verdict (v1 ships only the harbor count on /mercy).
  */
 
 import type { Env } from './types.js';
@@ -76,6 +81,7 @@ function harborJson(h: HarborRow, role: HarborRole): Record<string, unknown> {
     name: h.name,
     pubkey: h.pubkey,
     createdAt: h.created_at,
+    authorityEpoch: h.authority_epoch,
     role,
   };
 }
@@ -140,6 +146,7 @@ export async function handleCreateHarbor(request: Request, env: Env): Promise<Re
     pubkey,
     created_by: user.id,
     created_at: Math.floor(Date.now() / 1000),
+    authority_epoch: 1, // ADR-0122 §4 clock; creation with the founding owner is epoch 1
   };
   const res = await createHarbor(env.DB, {
     id: harbor.id,

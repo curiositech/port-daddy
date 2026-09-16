@@ -1,0 +1,220 @@
+[
+  {
+    "success": true,
+    "activity": {
+      "slug": "durable-roster-projection-backfill",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Backfill the durable roster projection so assignee ids resolve after a daemon restart.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890954,
+      "stage": "executing",
+      "dispatch": {
+        "id": "68ddae76-f89a-41a5-938b-8cfa5cab70c9",
+        "state": "salvage",
+        "sessionId": "session-backfill-the-durable-roster-projection-239a65d9cd46",
+        "workerActorId": "fleet-bosun-07",
+        "branch": "dispatch/durable-roster-projection-backfill",
+        "resultArtifact": null,
+        "errorMessage": "worktree removed under the worker; branch never pushed — salvage the notes",
+        "createdAt": 1787441890897
+      },
+      "needsAttention": true,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-backfill-the-durable-roster-projection-239a65d9cd46",
+          "sources": [
+            "session-link"
+          ],
+          "agentId": "fleet-bosun-07",
+          "agentName": "Bosun",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-backfill-the-durable-roster-projection-239a65d9cd46",
+          "sessionStatus": "active",
+          "purpose": "backfill the durable roster projection",
+          "worktreeId": "wt-roster-backfill",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890954,
+          "idleMs": 599943,
+          "staleThresholdMs": 8640000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-bosun-07",
+            "streamUrl": "/agents/fleet-bosun-07/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-bosun-07/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-backfill-the-durable-roster-projection-239a65d9cd46/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    }
+  },
+  {
+    "success": true,
+    "activity": {
+      "slug": "acknowledged-interrupt-ingress",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Acknowledged control ingress so interrupt can stop being a capability-flagged affordance.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890953,
+      "stage": "executing",
+      "dispatch": {
+        "id": "51f48014-67ca-4383-b659-0229fd07619b",
+        "state": "rejected",
+        "sessionId": "session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24",
+        "workerActorId": "fleet-coxswain-06",
+        "branch": "dispatch/acknowledged-interrupt-ingress",
+        "resultArtifact": "dispatch/acknowledged-interrupt-ingress",
+        "errorMessage": null,
+        "createdAt": 1787441890897
+      },
+      "needsAttention": true,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24",
+          "sources": [
+            "session-link"
+          ],
+          "agentId": "fleet-coxswain-06",
+          "agentName": "Coxswain",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24",
+          "sessionStatus": "active",
+          "purpose": "draft the acknowledged interrupt ingress",
+          "worktreeId": "wt-interrupt-ingress",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890953,
+          "idleMs": 599944,
+          "staleThresholdMs": 8640000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-coxswain-06",
+            "streamUrl": "/agents/fleet-coxswain-06/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-coxswain-06/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-draft-the-acknowledged-interrupt-ingress-5bd3997c7c24/events",
+          "agentNodeUrl": null,
+          "hitl": [
+            {
+              "id": "approval-fleet-coxswain-06-webhook",
+              "agent": "fleet-coxswain-06",
+              "trigger": "webhook:roadmap-dispatch",
+              "tier": "restricted",
+              "project": "port-daddy",
+              "reason": "trust gate held the spawn: restricted tier requires an operator decision",
+              "timestamp": 1787441890897,
+              "decisionUrl": "/fleet/approvals/approval-fleet-coxswain-06-webhook/decision"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    }
+  },
+  {
+    "success": true,
+    "activity": {
+      "slug": "evidence-blob-store-intake",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Blob-store intake for agent-submitted evidence. Must fail loudly rather than drop evidence.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890952,
+      "stage": "executing",
+      "dispatch": {
+        "id": "3f183ee7-728a-43c5-b865-c8a010e8073a",
+        "state": "failed",
+        "sessionId": "session-wire-the-evidence-blob-store-intake-4d1960e5140f",
+        "workerActorId": "fleet-quartermaster-05",
+        "branch": "dispatch/evidence-blob-store-intake",
+        "resultArtifact": null,
+        "errorMessage": "blob store unreachable at ~/.port-daddy/blobs: ENOENT — intake refused rather than dropping evidence",
+        "createdAt": 1787441890897
+      },
+      "needsAttention": true,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-wire-the-evidence-blob-store-intake-4d1960e5140f",
+          "sources": [
+            "claim",
+            "session-link"
+          ],
+          "agentId": "fleet-quartermaster-05",
+          "agentName": "Quartermaster",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-wire-the-evidence-blob-store-intake-4d1960e5140f",
+          "sessionStatus": "active",
+          "purpose": "wire the evidence blob store intake",
+          "worktreeId": "wt-blob-intake",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890948,
+          "idleMs": 599949,
+          "staleThresholdMs": 8640000,
+          "claim": {
+            "id": 2,
+            "kind": "next-cut",
+            "claimedBy": "fleet-quartermaster-05",
+            "claimedAt": 1787441890897
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-quartermaster-05",
+            "streamUrl": "/agents/fleet-quartermaster-05/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-quartermaster-05/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-wire-the-evidence-blob-store-intake-4d1960e5140f/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    }
+  }
+]

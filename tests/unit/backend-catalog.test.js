@@ -15,6 +15,11 @@ import {
   resolveEffectiveSpawnBackend,
 } from '../../lib/backend-catalog.js';
 import { renderHarnessContinuationMatrix } from '../../lib/harness-conformance.js';
+import {
+  CAPABILITIES,
+  resolveModel,
+  resolveCliModelAlias,
+} from '../../lib/model-registry.js';
 
 describe('backend-catalog', () => {
   test('includes the cli-tube backends introduced in PR #109', () => {
@@ -259,28 +264,59 @@ describe('backend-catalog', () => {
     expect(detectForcedCliBackendValue({ PD_USE_CLI_BACKEND: 'Antigravity' })).toBe('agy');
   });
 
-  test('claude SDK ladder uses current undated model ids', () => {
+  test('the advertised model list is exactly what the resolver can pick', () => {
+    // The invariant, not the ids: a picker must not offer a model resolveModel()
+    // will never return. The old assertion pinned three literals, which made it
+    // a change-detector — and it passed for months while the Cloudflare row
+    // advertised an id Workers AI had retired, because nobody pinned that one.
     const claude = getBackendCatalogEntry('claude');
-    expect(claude.models).toEqual([
-      'claude-haiku-4-5',
-      'claude-sonnet-4-6',
-      'claude-opus-4-8',
-    ]);
+    const resolvable = new Set(CAPABILITIES.map((c) => resolveModel({ backend: 'claude', capability: c })));
+    expect(new Set(claude.models)).toEqual(resolvable);
+    expect(claude.models.length).toBeGreaterThan(0);
   });
 
-  test('cli:claude-code model list uses current undated model ids', () => {
+  test('cli:claude-code advertises the CLI flag values, not API ids', () => {
+    // The `claude` binary takes family nicknames on --model. Advertising API ids
+    // here told the operator to type something the CLI rejects.
     const claudeCode = getBackendCatalogEntry('cli:claude-code');
-    expect(claudeCode.models).toEqual([
-      'claude-sonnet-4-6',
-      'claude-opus-4-8',
-      'claude-haiku-4-5',
-    ]);
+    const aliases = new Set(
+      CAPABILITIES.map((c) => resolveCliModelAlias('claude-cli', c)).filter(Boolean),
+    );
+    expect(new Set(claudeCode.models)).toEqual(aliases);
+    for (const m of claudeCode.models) expect(m).not.toMatch(/^claude-/);
+  });
+
+  test('no catalog row advertises a model the registry does not map', () => {
+    const registryFor = {
+      claude: 'claude', gemini: 'gemini', cloudflare: 'cloudflare', openai: 'openai',
+      groq: 'groq', codex: 'codex', deepseek: 'deepseek', xai: 'xai',
+      lmstudio: 'lmstudio', aider: 'aider', 'cli:codex': 'codex',
+      'cli:gemini': 'gemini', 'cli:groq': 'groq', 'cli:grok': 'xai',
+    };
+    for (const [catalogId, registryBackend] of Object.entries(registryFor)) {
+      const entry = getBackendCatalogEntry(catalogId);
+      if (!entry) continue;
+      const resolvable = new Set(
+        CAPABILITIES.map((c) => resolveModel({ backend: registryBackend, capability: c })),
+      );
+      for (const m of entry.models) {
+        expect(resolvable.has(m) ? 'ok' : `${catalogId} advertises unresolvable ${m}`).toBe('ok');
+      }
+    }
   });
 
   test('OpenAI metered backend has openai id and metered framing', () => {
     const openai = getBackendCatalogEntry('openai');
     expect(openai).toBeDefined();
     expect(openai.costModel).toBe('metered');
-    expect(openai.models).toContain('gpt-5-mini');
+    // The PROPERTY, not a literal: the catalog advertises exactly what the
+    // resolver picks, so a picker can never offer a model the resolver would
+    // never return. Naming one id here made this test fail on a ladder move
+    // that was correct — the model it pinned was superseded by a cheaper one
+    // with more context — which is a false alarm, not a caught regression.
+    expect(openai.models.length).toBeGreaterThan(0);
+    for (const capability of CAPABILITIES) {
+      expect(openai.models).toContain(resolveModel({ backend: 'openai', capability }));
+    }
   });
 });

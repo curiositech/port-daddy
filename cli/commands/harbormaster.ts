@@ -21,6 +21,7 @@ import {
   HARBORMASTER_ACTOR_ID,
   DEFAULT_POLL_INTERVAL_MS,
 } from '../../lib/harbormaster.js';
+import { mergeJscSafeModeEnv } from '../../shared/daemon-binary.js';
 import type { CLIOptions } from '../types.js';
 
 const PID_FILE = join(homedir(), '.port-daddy', 'harbormaster.pid');
@@ -125,7 +126,7 @@ async function cmdStart(options: CLIOptions): Promise<void> {
   const child = spawn(process.argv[0]!, [process.argv[1]!, 'harbormaster', 'start', '--foreground'], {
     detached: true,
     stdio: 'ignore',
-    env: process.env,
+    env: mergeJscSafeModeEnv(process.env),
   });
   child.unref();
   writePidFile(child.pid ?? 0);

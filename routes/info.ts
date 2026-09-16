@@ -97,6 +97,16 @@ interface InfoRouteDeps {
    * wirings stay compatible.
    */
   plane?: string;
+  /**
+   * ADR-0132 listening watch (lib/halt-watch.ts). When wired, `GET /health`
+   * carries a top-level `state` of `nominal | degraded | halted` plus the halt
+   * detail while the sentinel has been seen. Optional so older route wirings
+   * and tests stay compatible; phase 5 completes the vocabulary.
+   */
+  haltWatch?: {
+    state(): 'nominal' | 'halted';
+    halt(): { line: string; ref: string; detectedAt: number; complied: boolean } | null;
+  };
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
@@ -432,11 +442,19 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       : null;
     const runtime = buildRuntimeSummary(deps, routeHealth);
     const severity = computeHealthSeverity(routeHealth, runtime, !!binaryDrift?.drifted);
+    const halt = deps.haltWatch?.state() === 'halted' ? deps.haltWatch.halt() : null;
     return {
       // #160: top-level liveness reflects whether the daemon can actually serve
       // its route contract. Arbiter/rule degradation is surfaced separately in
       // `runtime` (it does not mean the daemon is 404'ing its own endpoints).
       status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
+      // ADR-0132 Area A2 state vocabulary: `nominal | degraded | halted`.
+      // `halted` means the listening watch has seen ~/.port-daddy/HALT and the
+      // sweeps are stopped; it is not a fault, it is a mode (SECURITE HALT).
+      state: halt ? 'halted' : runtime.state,
+      halt: halt
+        ? { ref: halt.ref, line: halt.line, since: new Date(halt.detectedAt).toISOString(), complied: halt.complied }
+        : undefined,
       // The shared three-tier severity (ok | warn | critical) that the Rust
       // console, FleetBar, and `pd doctor` all colour from. Folds routes +
       // runtime + binary drift via lib/health-severity.ts.

@@ -1,7 +1,8 @@
 ---
 name: agentic-software-installation
 description: >-
-  Install Port Daddy coordination hooks ("tentacles", from the Giant Squid
+  Install Port Daddy's bounded interactive coordination hooks ("tentacles",
+  from the Giant Squid
   Harness) into the INTERACTIVE sessions of agentic coding CLIs (Claude Code,
   Codex, Gemini, Antigravity/agy) by auto-detecting which CLIs are installed and
   writing PER-PROJECT hook config behind a runtime gate, so coordination fires
@@ -15,6 +16,7 @@ description: >-
   authoring new skills (delegate to `skill-architect` / `skill-creator`); NOT
   for editing the tentacle scripts themselves (owned by the Giant Squid Harness
   program; this installer layer is pd-adr-090).
+license: FSL-1.1-MIT
 allowed-tools: Read,Write,Edit,Bash(pd:*,jq:*,install:*,cp:*,mkdir:*,ls:*,awk:*,printf:*,grep:*,command:*),Grep,Glob
 metadata:
   category: Developer Experience
@@ -32,29 +34,36 @@ metadata:
       reason: The tentacles read the same lock/pheromone matrix that pd sessions, claims, and notes write.
     - skill: agent-creator
       reason: When adding a new vendor CLI surface, scaffold the adapter alongside the tentacles.
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+    scope: public
 io-contract:
   kind: deliverable
   produces:
     - kind: code
-      description: User-level hook configuration installed for each detected agentic CLI (Claude Code, Codex, Gemini, Antigravity)
+      description: Provider-appropriate project or exactly gated user-level hook configuration for each detected agentic CLI
     - kind: runbook
       description: Verification steps confirming coordination hooks fire in interactive sessions
 ---
 
 # Agentic Software Installation — Squid Tentacles for Interactive Sessions
 
-Install Port Daddy's three coordination hook scripts ("tentacles") into the
-native hook surface of agentic coding CLIs, so multi-agent locks and pheromones
-fire **inside the vendor's own agent loop** during normal **interactive**
-sessions — scoped to the projects you opt in.
+Stage Port Daddy's coordination hook scripts ("tentacles") and install the two
+bounded interactive hooks that earn their place in the agent loop: one
+turn-level steering hook and one synchronous pre-edit ownership gate. The
+legacy post-tool asset remains staged for headless compatibility, but its stable
+interactive wrapper is deliberately a zero-work tombstone.
 
 Two hard rules this installer enforces (don't violate them):
 
 - **Per-project, not machine-wide.** Claude/Gemini get hook config written into
   the repo (`<repo>/.claude/settings.json`, `<repo>/.gemini/settings.json`).
-  Codex (repo-local hooks don't fire interactively, openai/codex#17532) and agy
-  (home-scoped `~/.gemini/hooks.json`) must live at user level, so they are
-  constrained at runtime by the gate below.
+  Codex is written at user level for compatibility with older clients and agy
+  uses its home-scoped `~/.gemini/hooks.json`; both are constrained at runtime
+  by an exact project gate. Current Codex also supports trusted project hook
+  layers, but installing the same PD hooks at both scopes would make every
+  matching event run twice.
 - **Inert unless the daemon is running.** Every hook command points at a GATE
   WRAPPER, never the tentacle directly. The wrapper no-ops (allow, no context
   injection) unless (a) the pd daemon is alive and (b) the cwd is inside a
@@ -76,7 +85,7 @@ injectors can never drift. Normal use is just `pd hooks install` in your repo
 Use for:
 - "Install port daddy hooks" / "make coordination hooks fire in interactive sessions"
 - Auto-detecting which agent CLIs (`claude`, `codex`, `gemini`, `agy`) are present and wiring only those
-- Turning headless-only squid coverage into machine-wide interactive coverage
+- Turning headless-only squid coverage into explicit per-project interactive coverage
 
 NOT for:
 - Generic software / package installation (`brew install`, `npm i`, etc.)
@@ -92,11 +101,11 @@ NOT for:
 flowchart TD
     A[Install request<br/>default the prompt to YES] --> B{For each CLI in<br/>claude codex gemini agy:<br/>command -v finds it?}
     B -- no --> Z[Skip — write NOTHING<br/>for an absent CLI]
-    B -- yes --> C[Stage 3 tentacles to the stable<br/>absolute path ~/.port-daddy/bin/<br/>NEVER repo-relative]
+    B -- yes --> C[Stage the runtime artifacts at the stable<br/>absolute path ~/.port-daddy/bin/<br/>NEVER repo-relative]
     C --> D{Which CLI?}
-    D -- claude --> E["~/.claude/settings.json<br/>(user-level)"]
-    D -- codex --> F["~/.codex/config.toml USER-LEVEL<br/>repo-local is IGNORED interactively<br/>(openai/codex#17532)"]
-    D -- gemini --> G["~/.gemini/settings.json<br/>stdout must be JSON-only"]
+    D -- claude --> E["<repo>/.claude/settings.json<br/>(project-level)"]
+    D -- codex --> F["~/.codex/config.toml USER-LEVEL<br/>compatibility anchor plus exact<br/>project runtime gate"]
+    D -- gemini --> G["<repo>/.gemini/settings.json<br/>stdout must be JSON-only"]
     D -- agy --> H["~/.gemini/hooks.json<br/>already HOME-scoped"]
     E --> I{Config already<br/>has hooks?}
     F --> I
@@ -113,7 +122,7 @@ flowchart TD
 
 ---
 
-## The Three Tentacles
+## The Tentacles and the Interactive Budget
 
 Each tentacle maps to one vendor hook class. They are vendor-agnostic `sh`
 scripts that read the lock/pheromone matrix (`~/.port-daddy/matrix.env`). **You
@@ -124,7 +133,7 @@ Harness program; this skill only *installs* them.
 |----------|-----------|-----|---------|
 | `pd-hook-prompt` | UserPromptSubmit / BeforeAgent | Reads the matrix, emits steering alerts + pheromone traces to **stdout** (CLI prepends to model context). | Advisory. Always `exit 0`. |
 | `pd-hook-pre-tool` | PreToolUse / BeforeTool | **Enforced gate.** Reads tool-event JSON from **stdin**, extracts file targets (incl. paths inside Codex `apply_patch` bodies via `*** Update File:` / `*** Add File:` / `*** Delete File:` / `*** Move to:` markers), computes canonical `PD_LOCK_<path>` keys, greps the matrix; if a path is locked by a **different** actor than `$PD_ACTOR`, it **BLOCKS**. | Fails **OPEN** on parse error or unset actor. |
-| `pd-hook-post-tool` | PostToolUse / AfterTool | Appends `PD_PHEROMONE_<subject>_<ts>` to the matrix per touched path (flock-guarded atomic append). | Always `exit 0`. |
+| `pd-hook-post-tool` | Legacy PostToolUse / AfterTool | Retained as a raw headless asset and compatibility path. The stable interactive wrapper exits before deadline lookup, debug logging, daemon probing, or delegation. Claims and notes provide cumulative coordination evidence instead of one process per tool call. | Zero-work tombstone interactively. |
 
 ### Block dialects (pre-tool only)
 
@@ -177,46 +186,36 @@ pd hooks install        # detect + stage + wire THIS project (daemon-gated)
 pd hooks list           # show detection + wiring status
 ```
 
-**Manual fallback** (no `pd hooks` verb available — e.g. an older build). The
-tentacles ship with the Giant Squid Harness inside the Port Daddy checkout's
-`bin/`. Fail loud with the canonical location rather than a bare
-`install: No such file`:
+There is intentionally no raw-file-copy fallback. Copying `bin/pd-hook-*`
+directly over the stable wrappers bypasses the daemon/project gate, deadline,
+circuit breaker, and post-tool tombstone. If the installed build has no
+`pd hooks` verb, update Port Daddy or use FleetBar's hook repair action.
 
-```sh
-PD_BIN="$HOME/.port-daddy/bin"
-mkdir -p "$PD_BIN"
-# REPO is your port-daddy checkout root (the dir containing bin/pd-hook-*).
-REPO="${REPO:-$HOME/coding/port-daddy}"
-for t in prompt pre-tool post-tool; do
-  src="$REPO/bin/pd-hook-$t"
-  [ -x "$src" ] || { echo "tentacle source missing: $src — set REPO to your port-daddy checkout, or update Port Daddy so the Giant Squid Harness ships bin/pd-hook-*"; exit 1; }
-  install -m 0755 "$src" "$PD_BIN/pd-hook-$t"
-done
-ls -l "$PD_BIN"/pd-hook-*
-```
-
-After this, every CLI's hook config points at the GATE WRAPPERS (which delegate
-to the real tentacles under `~/.port-daddy/bin/squid/` only when the daemon is up
-and the cwd is a pd project):
+After this, each interactive CLI config points only at the active GATE WRAPPERS
+(which delegate to the real tentacles under `~/.port-daddy/bin/squid/` only when
+the daemon is up and the cwd is an explicitly enabled pd project):
 - `~/.port-daddy/bin/pd-hook-prompt`
 - `~/.port-daddy/bin/pd-hook-pre-tool`
-- `~/.port-daddy/bin/pd-hook-post-tool`
+
+`~/.port-daddy/bin/pd-hook-post-tool` is still staged so a provider process that
+cached an older registration can call a safe, silent tombstone until restart.
 
 ### 3. Wire each detected CLI (per project, gated)
 
 Claude and Gemini are wired with **project** config inside the repo
-(`<repo>/.claude/settings.json`, `<repo>/.gemini/settings.json`). Codex (repo-
-local hooks don't fire interactively, openai/codex#17532) and agy (home-scoped)
-are written at user level, but the runtime gate confines them to pd projects.
+(`<repo>/.claude/settings.json`, `<repo>/.gemini/settings.json`). Codex uses one
+user-level compatibility block and agy is home-scoped, so their runtime wrapper
+performs the exact project opt-in check. Never install a duplicate Codex project
+block on top of the PD user block: Codex launches all matching hooks concurrently.
 Each wire step is an **idempotent upsert**: merge into existing config, preserve
 non-PD hooks, dedupe PD entries by the `pd-hook-` command path (the PD marker).
 
 Per-CLI exact shapes and gotchas live in the reference files — read the one for
 each detected CLI before writing its config:
 
-- Claude Code → `references/claude.md`
-- Codex CLI → `references/codex.md` (contains the **critical openai/codex#17532 warning**)
-- Gemini CLI → `references/gemini.md`
+- Claude Code → `references/claude-hooks.md`
+- Codex CLI → `references/codex.md` (one-scope compatibility posture and trust details)
+- Gemini CLI → `references/gemini-hooks.md`
 - Antigravity `agy` → `references/agy.md`
 
 ### 4. Verify the hook fires interactively
@@ -252,17 +251,17 @@ blocked or steered. Claude Code interactive firing is VERIFIED.
 
 ## Per-CLI Matrix
 
-| CLI | Interactive config file | User-level path (global) | Events (prompt / pre / post) | Block dialect | Gotcha |
+| CLI | Interactive config file | User-level path (global) | Active PD events | Block dialect | Gotcha |
 |-----|------------------------|--------------------------|------------------------------|---------------|--------|
-| **claude** | `.claude/settings.json` (project) | `~/.claude/settings.json` | `UserPromptSubmit` / `PreToolUse` / `PostToolUse` | stderr + `exit 2` | Tool events need a `matcher` regex over tool names (`Edit\|Write\|MultiEdit\|NotebookEdit`). VERIFIED interactive. |
-| **codex** | `.codex/config.toml` (repo) or sibling `hooks.json` | `~/.codex/config.toml` | `UserPromptSubmit` / `PreToolUse` / `PostToolUse` | stderr + `exit 2` (hooks) **or** deny-JSON (app-server) | **repo-local hooks do NOT fire interactively — openai/codex#17532. Must use `~/.codex/config.toml`.** Headless `codex exec` needs `--dangerously-bypass-hook-trust`; interactive uses in-TUI trust. |
-| **gemini** | `.gemini/settings.json` (project) | `~/.gemini/settings.json` | `BeforeAgent` / `BeforeTool` / `AfterTool` | stderr + `exit 2` | A hook script must print **nothing to stdout except the final JSON** (all logs → stderr). Tool events use **regex** matchers; lifecycle events use **exact-string** matchers. Tier-deprecated — prefer `agy`. |
-| **agy** (Antigravity ~v1.0.12) | `~/.gemini/hooks.json` | `~/.gemini/hooks.json` (already HOME-scoped) | Claude-named events | deny-JSON (`hookSpecificOutput.decision:block`) | Ships a Claude-shaped JSON hook engine but auto-loads from `~/.gemini/hooks.json` — already global, no separate user/project split. Live replacement for tier-dead `gemini`. |
+| **claude** | `.claude/settings.json` (project) | `~/.claude/settings.json` | `UserPromptSubmit` / `PreToolUse` | stderr + `exit 2` | Claude launches all matching hooks in parallel. PD therefore registers one narrow edit matcher and no per-tool PostToolUse observer. |
+| **codex** | trusted project hook layers are supported | `~/.codex/config.toml` (PD compatibility anchor) | `UserPromptSubmit` / `PreToolUse` | stderr + `exit 2` (hooks) **or** deny-JSON (app-server) | Use exactly one PD scope. Matching hooks launch concurrently, so duplicate user/project registrations multiply latency. |
+| **gemini** | `.gemini/settings.json` (project) | `~/.gemini/settings.json` | `BeforeAgent` / `BeforeTool` | stderr + `exit 2` | Synchronous hooks delay the loop; stdout is protocol JSON only, logs go to stderr. No PD AfterTool observer. Tier-deprecated — prefer `agy`. |
+| **agy** (Antigravity ~v1.0.12) | `~/.gemini/hooks.json` | `~/.gemini/hooks.json` (already HOME-scoped) | `UserPromptSubmit` / `PreToolUse` | deny-JSON (`hookSpecificOutput.decision:block`) | Home-scoped config is narrowed by the PD wrapper's project gate. No PD PostToolUse observer. |
 
 Sources, inline:
 - Claude Code hooks: https://code.claude.com/docs/en/hooks
 - Codex hooks: https://developers.openai.com/codex/hooks
-- Codex interactive-hook bug: https://github.com/openai/codex/issues/17532
+- Historical Codex project-hook report: https://github.com/openai/codex/issues/17532
 - Gemini CLI hooks: https://geminicli.com/docs/hooks/ and https://geminicli.com/docs/hooks/reference/
 - pd-adr-090 (this installer layer, interactive surfaces wired) and the Giant Squid Harness program (the tentacle scripts) in the Port Daddy repo.
 
@@ -354,22 +353,40 @@ block.
 **Why this matters**: a coordination tool that bricks the human's session gets
 ripped out within the hour, taking all coordination with it.
 
+### Anti-Pattern: Per-tool observation as a hook (COST AMPLIFICATION)
+
+**Clown-car topology**: register a PostToolUse/AfterTool process on every edit so
+it can append one more trace record. Every matching vendor block runs, usually
+concurrently, so duplicate scopes and retained provider configs multiply the
+processes while the agent waits or queues more work.
+
+**Bounded topology**: keep synchronous hooks only where they can change the
+decision: turn-level steering and pre-edit ownership enforcement. Record
+cumulative outcomes in claims, notes, transcripts, and the daemon event stream.
+Leave the stable post-tool path as a zero-work tombstone so already-running
+providers recover without requiring an immediate restart.
+
+**Tripwire**: the installed config contains no PD `PostToolUse` or `AfterTool`
+entry; direct invocation of the stable `pd-hook-post-tool` produces no stdout,
+no stderr, no debug record, no daemon request, and exit code 0.
+
 ---
 
 ## Worked Examples (Expert vs Novice)
 
-### Example 1: Codex interactive caveat — user-level vs repo-local
+### Example 1: Codex scope — compatibility without duplication
 
-**Novice**: puts `[[hooks.PreToolUse]]` in the repo-local `.codex/config.toml`,
-tests with a headless `codex exec` run (the hook fires), declares victory, ships.
+**Novice**: installs the same PD hooks in both `~/.codex/config.toml` and a
+project hook layer, reasoning that two registrations are safer than one.
 
-**Expert**: knows **openai/codex#17532** — repo-local hooks are silently ignored
-in *interactive* sessions. So the expert writes the blocks to the **user-level**
-`~/.codex/config.toml` and verifies inside a real interactive `codex` TUI
-(approving the hook once in the trust prompt), not just `codex exec`.
+**Expert**: current Codex supports trusted project hook layers and launches all
+matching hooks concurrently. Port Daddy keeps one user-level compatibility
+block because older clients did not consistently load project hooks, then makes
+that block project-scoped in the wrapper. The expert verifies the one-time trust
+flow and confirms exactly one PD start record per event.
 
-**What the novice missed**: headless `exec` and interactive load different
-config surfaces. A green `codex exec` proves nothing about interactive coverage.
+**What the novice missed**: config scopes compose; they are not fallbacks. A
+duplicate block doubles work rather than improving coverage.
 
 ### Example 2: Tentacle path — absolute vs repo-relative
 
@@ -377,10 +394,10 @@ config surfaces. A green `codex exec` proves nothing about interactive coverage.
 in the demo repo, then breaks the moment `claude` runs from another cwd or from
 user-level config, because the relative path no longer resolves.
 
-**Expert**: stages the three tentacles to the stable absolute path
-`~/.port-daddy/bin/pd-hook-{prompt,pre-tool,post-tool}` (the same convention as
-the Port Daddy `git` shim) and references those absolute, `$HOME`-expanded paths
-in every CLI config.
+**Expert**: stages the artifacts at stable absolute paths under
+`~/.port-daddy/bin/` (the same convention as the Port Daddy `git` shim), but
+references only `pd-hook-prompt` and `pd-hook-pre-tool` in interactive config.
+The post-tool path remains an inert compatibility tombstone.
 
 **Decision rule**: if a hook command could be evaluated from an arbitrary cwd
 (it always can, in interactive sessions) → use the absolute `~/.port-daddy/bin/`
@@ -407,12 +424,13 @@ Run these checks after install. All are measurable; each is phrased as a test
 you can actually execute against the machine state.
 
 - Test: only CLIs found by `command -v` are configured — no config file is created or modified for an absent CLI.
-- Test: running the install twice produces exactly **one** Port Daddy entry per event (idempotent upsert); `jq` over each event array finds a single `pd-hook-` command.
+- Test: running the install twice produces exactly **one** Port Daddy entry per active event (idempotent upsert); `jq` over each event array finds a single prompt or pre-tool command.
 - Test: a pre-existing non-PD hook on the same event **survives** the install (plant a dummy audit hook first, confirm it remains afterward).
 - Test: every written hook `command` is an **absolute** path under `~/.port-daddy/bin/` (no relative paths, no literal `$HOME`/`~` left unexpanded).
-- Test: Codex hooks are written to `~/.codex/config.toml` (user-level), **never** only repo-local `.codex/config.toml` (openai/codex#17532).
+- Test: Codex has exactly one PD registration scope; the compatibility installer writes the user-level block and does not add a duplicate project block.
 - Test: the `pd-hook-pre-tool` gate fed an event with `PD_ACTOR` unset does **not** block (fails OPEN).
 - Test: a Gemini-bound hook emits stdout that parses as JSON with `jq .` (no stray plaintext leak).
+- Test: no provider config contains a PD `PostToolUse` or `AfterTool` registration, and direct invocation of the staged stable post-tool wrapper performs zero work and exits 0.
 - Test: in a real interactive session of each detected CLI, an edit to a path locked by another actor is blocked or steered (the only honest end-to-end check).
 
 ---

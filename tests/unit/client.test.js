@@ -6,12 +6,11 @@
  */
 
 import http from 'node:http';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { jest } from '@jest/globals';
 import { PortDaddy, PortDaddyError, ConnectionError } from '../../lib/client.js';
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 
 // ============================================================================
 // Mock HTTP server — records requests and returns queued responses
@@ -100,20 +99,53 @@ beforeEach(() => {
 // =============================================================================
 
 describe('PortDaddy constructor', () => {
-  test('uses default URL', () => {
+  test('does not publish a guessed default URL when no endpoint exists', () => {
     const prev = process.env.PORT_DADDY_URL;
+    const prevPort = process.env.PORT_DADDY_PORT;
+    const prevPortFile = process.env.PORT_DADDY_PORT_FILE;
     delete process.env.PORT_DADDY_URL;
+    delete process.env.PORT_DADDY_PORT;
+    process.env.PORT_DADDY_PORT_FILE = join(process.cwd(), '.scratch', 'missing-daemon.port');
     try {
       const pd = new PortDaddy();
-      expect(pd.url).toBe(getDaemonTcpUrl().replace(/\/$/, ''));
+      expect(pd.url).toBe('');
     } finally {
-      if (prev !== undefined) process.env.PORT_DADDY_URL = prev;
+      if (prev === undefined) delete process.env.PORT_DADDY_URL;
+      else process.env.PORT_DADDY_URL = prev;
+      if (prevPort === undefined) delete process.env.PORT_DADDY_PORT;
+      else process.env.PORT_DADDY_PORT = prevPort;
+      if (prevPortFile === undefined) delete process.env.PORT_DADDY_PORT_FILE;
+      else process.env.PORT_DADDY_PORT_FILE = prevPortFile;
     }
   });
 
   test('accepts custom URL', () => {
     const pd = new PortDaddy({ url: 'http://custom:1234/' });
     expect(pd.url).toBe('http://custom:1234'); // Trailing slash stripped
+  });
+
+  test('constructor URL overrides an existing socket path', () => {
+    const scratchBase = join(process.cwd(), '.scratch');
+    mkdirSync(scratchBase, { recursive: true });
+    const scratch = mkdtempSync(join(scratchBase, 'pd-client-explicit-url-'));
+    const socketPath = join(scratch, 'stale.sock');
+    writeFileSync(socketPath, 'stale');
+    try {
+      const pd = new PortDaddy({ url: 'http://custom:1234', socketPath });
+      expect(pd._resolveTarget()).toEqual({ host: 'custom', port: 1234 });
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  test('uses the HTTP protocol default for an explicit URL without a port', () => {
+    const pd = new PortDaddy({ url: 'http://custom', socketPath: '/nonexistent/port-daddy.sock' });
+    expect(pd._resolveTarget()).toEqual({ host: 'custom', port: 80 });
+  });
+
+  test('fails closed when an explicit URL requests unsupported TLS transport', () => {
+    const pd = new PortDaddy({ url: 'https://custom', socketPath: '/nonexistent/port-daddy.sock' });
+    expect(() => pd._resolveTarget()).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_DAEMON_URL' }));
   });
 
   test('reads PORT_DADDY_URL from environment', () => {
@@ -140,7 +172,9 @@ describe('Socket transport fallback', () => {
     const prevUrl = process.env.PORT_DADDY_URL;
     delete process.env.PORT_DADDY_URL;
 
-    const tempDir = mkdtempSync(join(tmpdir(), 'pd-client-socket-'));
+    const scratchBase = join(process.cwd(), '.scratch');
+    mkdirSync(scratchBase, { recursive: true });
+    const tempDir = mkdtempSync(join(scratchBase, 'pd-client-socket-'));
     const socketPath = join(tempDir, 'daemon.sock');
     writeFileSync(socketPath, '');
 
@@ -170,7 +204,6 @@ describe('Socket transport fallback', () => {
 
     try {
       const pd = new PortDaddy({
-        url: `http://127.0.0.1:${mockPort}`,
         socketPath,
       });
 
@@ -419,15 +452,20 @@ describe('Sessions', () => {
       sessions: [{ id: 'session-123', purpose: 'Ship it', status: 'active', agentId: 'session-agent', createdAt: 1, updatedAt: 1, completedAt: null, metadata: null }],
       count: 1,
     });
-    queueResponse({ success: true, id: 'session-123', purpose: 'Ship it', status: 'completed', createdAt: 1, updatedAt: 2, releasedFiles: ['src/auth.ts'] });
+    queueResponse({ success: true, sessionId: 'session-123', sessionStatus: 'completed', releasedFiles: ['src/auth.ts'] });
 
     const result = await pd.endSession('wrapped up', { status: 'completed' });
 
     expect(receivedRequests).toHaveLength(2);
-    expect(receivedRequests[0].url).toBe('/sessions?status=active&agent=session-agent&limit=1');
-    expect(receivedRequests[1].url).toBe('/sessions/session-123');
-    expect(receivedRequests[1].method).toBe('PUT');
-    expect(receivedRequests[1].body).toEqual({ status: 'completed', note: 'wrapped up' });
+    expect(receivedRequests[0].url).toBe('/sessions?status=active&agent=session-agent&allWorktrees=true&limit=50');
+    expect(receivedRequests[1].url).toBe('/sugar/done');
+    expect(receivedRequests[1].method).toBe('POST');
+    expect(receivedRequests[1].body).toEqual(expect.objectContaining({
+      agentId: 'session-agent',
+      sessionId: 'session-123',
+      status: 'completed',
+      note: 'wrapped up',
+    }));
     expect(result.releasedFiles).toEqual(['src/auth.ts']);
   });
 
@@ -439,6 +477,29 @@ describe('Sessions', () => {
     expect(receivedRequests[0].method).toBe('DELETE');
     expect(receivedRequests[0].url).toBe('/sessions/session-123');
     expect(result.success).toBe(true);
+  });
+
+  test('endSession refuses to choose among multiple active sessions', async () => {
+    queueResponse({
+      success: true,
+      sessions: [
+        { id: 'session-one', status: 'active', worktreeId: 'wt-one' },
+        { id: 'session-two', status: 'active', worktreeId: 'wt-two' },
+      ],
+      count: 2,
+    });
+
+    const result = await pd.endSession('wrapped up', { status: 'completed' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(result).toMatchObject({
+      success: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+      candidates: [
+        { sessionId: 'session-one', worktreeId: 'wt-one' },
+        { sessionId: 'session-two', worktreeId: 'wt-two' },
+      ],
+    });
   });
 
   test('takeoverSession sends successor request', async () => {
@@ -457,7 +518,6 @@ describe('Sessions', () => {
       note: 'continuing here',
       purpose: 'Continue ship',
       claimFiles: false,
-      agentId: 'session-agent',
       durable: true,
     });
     expect(result.successorId).toBe('session-456');
@@ -900,29 +960,32 @@ describe('IPC fast paths', () => {
     pd = createClient({ agentId: 'registered-agent' });
   });
 
-  test('note prefers IPC when agent/session context is available', async () => {
+  test('note is credentialed HTTP-only when agent/session context is available', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-123',
       noteId: 7,
     });
+    queueResponse({ success: true, sessionId: 'sess-123', noteId: 7 });
 
     const result = await pd.note('progress update', {
       sessionId: 'sess-123',
       type: 'progress',
     });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.note',
-      expect.objectContaining({
-        sessionId: 'sess-123',
-        agentId: undefined,
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/notes',
+      body: {
         content: 'progress update',
+        sessionId: 'sess-123',
         type: 'progress',
-      }),
-      { agentId: undefined },
-    );
-    expect(receivedRequests).toHaveLength(0);
+      },
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.sessionId).toBe('sess-123');
   });
 
@@ -947,17 +1010,22 @@ describe('IPC fast paths', () => {
       agentId: 'agent-readable-work-def456',
       type: 'progress',
     });
+    expect(receivedRequests[0].headers['x-agent-id']).toBe('agent-readable-work-def456');
     expect(result.sessionId).toBe('session-readable-work-abc123');
   });
 
-  test('done falls back to HTTP when IPC is unavailable', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+  test('done is HTTP-only and carries the actor credential', async () => {
+    pd = createClient({ agentId: 'session-agent', credential: 'ACTOR.secret', pid: 1234 });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, sessionId: 'wrong-ipc-session' });
     queueResponse({ success: true, sessionId: 'sess-123', sessionStatus: 'completed' });
 
     const result = await pd.done('all set', { sessionId: 'sess-123' });
 
     expect(receivedRequests[0].url).toBe('/sugar/done');
     expect(receivedRequests[0].body.note).toBe('all set');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(result.sessionId).toBe('sess-123');
   });
 
@@ -1002,7 +1070,25 @@ describe('IPC fast paths', () => {
     expect(result.sessionId).toBe('sess-123');
   });
 
-  test('startSession prefers IPC before HTTP', async () => {
+  test('whoami explicit session suppresses the client ambient agent unless explicitly paired', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+    queueResponse({
+      success: true,
+      active: true,
+      agentId: 'stored-session-owner',
+      sessionId: 'session-explicit-b',
+      purpose: 'Exact B',
+    });
+
+    const result = await pd.whoami({ sessionId: 'session-explicit-b' });
+
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0].url).toBe('/sugar/whoami?sessionId=session-explicit-b');
+    expect(result.agentId).toBe('stored-session-owner');
+  });
+
+  test('startSession is credentialed HTTP-only', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       id: 'session-123',
@@ -1011,22 +1097,21 @@ describe('IPC fast paths', () => {
       createdAt: 1,
       updatedAt: 1,
     });
+    queueResponse({ success: true, id: 'session-123', purpose: 'Ship it', status: 'active', createdAt: 1, updatedAt: 1 });
 
     const result = await pd.startSession({ purpose: 'Ship it', files: ['src/auth.ts'], force: true });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.start',
-      {
-        purpose: 'Ship it',
-        files: ['src/auth.ts'],
-        force: true,
-      },
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions',
+      body: { purpose: 'Ship it', files: ['src/auth.ts'], force: true },
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.id).toBe('session-123');
   });
 
-  test('startSession maps lifecycle enum to durable flag for IPC', async () => {
+  test('startSession preserves lifecycle enum over HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       id: 'session-123',
@@ -1035,26 +1120,31 @@ describe('IPC fast paths', () => {
       createdAt: 1,
       updatedAt: 1,
     });
+    queueResponse({ success: true, id: 'session-123', purpose: 'Ship it', status: 'active', createdAt: 1, updatedAt: 1 });
 
     await pd.startSession({ purpose: 'Ship it', lifecycle: 'durable' });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.start',
-      {
-        purpose: 'Ship it',
-        durable: true,
-      },
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions',
+      body: { purpose: 'Ship it', lifecycle: 'durable' },
+    });
   });
 
-  test('startSession IPC file conflict preserves HTTP semantics', async () => {
+  test('startSession HTTP file conflict preserves 409 semantics', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: false,
       error: 'File conflicts detected',
       code: 'FILE_CONFLICT',
       conflicts: [{ filePath: 'src/auth.ts', sessionId: 'session-999', purpose: 'other', claimedAt: 1 }],
     });
+    queueResponse({
+      success: false,
+      error: 'File conflicts detected',
+      code: 'FILE_CONFLICT',
+      conflicts: [{ filePath: 'src/auth.ts', sessionId: 'session-999', purpose: 'other', claimedAt: 1 }],
+    }, 409);
 
     await expect(pd.startSession({ purpose: 'Ship it', files: ['src/auth.ts'] })).rejects.toMatchObject({
       name: 'PortDaddyError',
@@ -1062,28 +1152,25 @@ describe('IPC fast paths', () => {
     });
   });
 
-  test('endSession prefers IPC before HTTP when sessionId is explicit', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      id: 'session-123',
-      purpose: 'Ship it',
-      status: 'completed',
-      createdAt: 1,
-      updatedAt: 2,
-      releasedFiles: ['src/auth.ts'],
-    });
+  test('endSession is HTTP-only when sessionId is explicit', async () => {
+    pd = createClient({ agentId: 'session-agent', credential: 'ACTOR.secret', pid: 1234 });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, id: 'wrong-ipc-session' });
+    queueResponse({ success: true, sessionId: 'session-123', sessionStatus: 'completed', releasedFiles: ['src/auth.ts'] });
 
     const result = await pd.endSession('session-123', { status: 'completed', note: 'wrapped up' });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.end',
-      {
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sugar/done',
+      body: expect.objectContaining({
         sessionId: 'session-123',
         status: 'completed',
         note: 'wrapped up',
-      },
-    );
-    expect(receivedRequests).toHaveLength(0);
+      }),
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.releasedFiles).toEqual(['src/auth.ts']);
   });
 
@@ -1120,144 +1207,156 @@ describe('IPC fast paths', () => {
     expect(result.worktreeId).toBe('wt-1');
   });
 
-  test('removeSession prefers IPC before HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      message: 'Session removed',
-    });
+  test('removeSession is HTTP-only and carries the actor credential', async () => {
+    pd = createClient({ agentId: 'session-agent', credential: 'ACTOR.secret', pid: 1234 });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
+    queueResponse({ success: true, message: 'Session removed' });
 
     const result = await pd.removeSession('session-123');
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.remove',
-      { sessionId: 'session-123' },
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0]).toMatchObject({ method: 'DELETE', url: '/sessions/session-123' });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.success).toBe(true);
   });
 
-  test('takeoverSession prefers IPC before HTTP', async () => {
+  test('takeoverSession is credentialed HTTP-only', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       predecessorId: 'session-123',
       successorId: 'session-456',
       notesPreserved: true,
     });
+    queueResponse({ success: true, predecessorId: 'session-123', successorId: 'session-456', notesPreserved: true });
 
     const result = await pd.takeoverSession('session-123', { note: 'take over', lifecycle: 'ephemeral' });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.takeover',
-      {
-        sessionId: 'session-123',
-        note: 'take over',
-        agentId: 'registered-agent',
-        durable: false,
-      },
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions/session-123/takeover',
+      body: { note: 'take over', durable: false },
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.successorId).toBe('session-456');
   });
 
-  test('claimFiles prefers IPC before HTTP', async () => {
+  test('claimFiles is credentialed HTTP-only', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-123',
       claimed: ['src/auth.ts'],
     });
+    queueResponse({ success: true, sessionId: 'sess-123', claimed: ['src/auth.ts'] });
 
     const result = await pd.claimFiles('sess-123', ['src/auth.ts'], { force: true });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.files.claim',
-      expect.objectContaining({
-        sessionId: 'sess-123',
-        paths: ['src/auth.ts'],
-        force: true,
-        agentId: 'registered-agent',
-      }),
-      { agentId: 'registered-agent' },
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions/sess-123/files',
+      body: { files: ['src/auth.ts'], force: true },
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.success).toBe(true);
   });
 
-  test('claimFiles preserves regions and force over IPC', async () => {
+  test('claimFiles preserves regions and force over HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-123',
       claimed: ['src/auth.ts'],
     });
+    queueResponse({ success: true, sessionId: 'sess-123', claimed: ['src/auth.ts'] });
     const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20, symbol: 'login' }];
 
-    await pd.claimFiles('sess-123', ['src/auth.ts'], { force: true, regions });
+    await pd.claimFiles('sess-123', ['src/auth.ts'], { force: true, regions, agentId: 'explicit-owner' });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.files.claim',
-      expect.objectContaining({
-        sessionId: 'sess-123',
-        paths: ['src/auth.ts'],
-        regions,
-        force: true,
-        agentId: 'registered-agent',
-      }),
-      { agentId: 'registered-agent' },
-    );
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions/sess-123/files',
+      body: { files: ['src/auth.ts'], regions, force: true, agentId: 'explicit-owner' },
+    });
+    expect(receivedRequests[0].headers['x-agent-id']).toBe('explicit-owner');
   });
 
-  test('releaseFiles preserves regions over IPC', async () => {
+  test('releaseFiles preserves regions over credentialed HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-123',
       released: ['src/auth.ts'],
     });
+    queueResponse({ success: true, sessionId: 'sess-123', released: ['src/auth.ts'] });
     const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20 }];
 
     await pd.releaseFiles('sess-123', ['src/auth.ts'], { regions });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.files.release',
-      expect.objectContaining({
-        sessionId: 'sess-123',
-        paths: ['src/auth.ts'],
-        regions,
-        agentId: 'registered-agent',
-      }),
-      { agentId: 'registered-agent' },
-    );
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'DELETE',
+      url: '/sessions/sess-123/files',
+      body: { files: ['src/auth.ts'], regions },
+    });
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
   });
 
-  test('lock prefers IPC before HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      name: 'deploy-prod',
-      owner: 'registered-agent',
-      acquiredAt: Date.now(),
-      expiresAt: Date.now() + 60000,
-      message: 'acquired lock: deploy-prod',
-    });
+  test('exact session mutations never graft an unrelated ambient agent header', async () => {
+    pd = createClient({ agentId: 'ambient-agent-a', credential: 'OWNER_B.secret' });
+    for (const response of [
+      { success: true, id: 'session-b', status: 'abandoned' },
+      { success: true },
+      { success: true, sessionId: 'session-b', noteId: 1 },
+      { success: true, phase: 'testing' },
+      { success: true, claimed: ['src/b.ts'] },
+      { success: true, released: ['src/b.ts'] },
+      { success: true, predecessorId: 'session-b', successorId: 'session-b-next' },
+      { success: true, sessionId: 'session-b', sessionStatus: 'abandoned', agentId: 'owner-b' },
+    ]) queueResponse(response);
+
+    await pd.endSession('session-b', { status: 'abandoned' });
+    await pd.removeSession('session-b');
+    await pd.note('exact note', { sessionId: 'session-b' });
+    await pd.setSessionPhase('session-b', 'testing');
+    await pd.claimFiles('session-b', ['src/b.ts']);
+    await pd.releaseFiles('session-b', ['src/b.ts']);
+    await pd.takeoverSession('session-b', { note: 'continue exactly' });
+    await pd.done('close exactly', { sessionId: 'session-b', status: 'abandoned' });
+
+    expect(receivedRequests).toHaveLength(8);
+    for (const request of receivedRequests) {
+      expect(request.headers['x-actor-credential']).toBe('OWNER_B.secret');
+      expect(request.headers['x-agent-id']).toBeUndefined();
+    }
+    expect(pd.agentId).toBe('ambient-agent-a');
+  });
+
+  test('lock uses credentialed HTTP and never raw IPC', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
+    queueResponse({ success: true, name: 'deploy-prod', owner: 'registered-agent' });
 
     const result = await pd.lock('deploy-prod', { ttl: 60000 });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'lock.acquire',
-      expect.objectContaining({
-        name: 'deploy-prod',
-        owner: 'registered-agent',
-        ttl: 60000,
-      }),
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/locks/deploy-prod',
+      body: expect.objectContaining({ owner: 'registered-agent', ttl: 60000 }),
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.success).toBe(true);
   });
 
-  test('lock IPC failure preserves contention semantics', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: false,
-      error: 'lock is held',
-      code: 'LOCK_HELD',
-      holder: 'other-agent',
-    });
+  test('lock HTTP failure preserves contention semantics', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    queueResponse({ success: false, error: 'lock is held', code: 'LOCK_HELD', holder: 'other-agent' }, 409);
 
     await expect(pd.lock('deploy-prod')).rejects.toMatchObject({
       name: 'PortDaddyError',
@@ -1265,24 +1364,20 @@ describe('IPC fast paths', () => {
     });
   });
 
-  test('unlock prefers IPC before HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      released: true,
-      name: 'deploy-prod',
-      message: 'released lock: deploy-prod',
-    });
+  test('unlock uses credentialed HTTP and never raw IPC', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
+    queueResponse({ success: true, released: true, name: 'deploy-prod' });
 
     const result = await pd.unlock('deploy-prod');
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'lock.release',
-      expect.objectContaining({
-        name: 'deploy-prod',
-        owner: 'registered-agent',
-      }),
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'DELETE',
+      url: '/locks/deploy-prod',
+      body: expect.objectContaining({ owner: 'registered-agent' }),
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.released).toBe(true);
   });
 
@@ -1305,25 +1400,20 @@ describe('IPC fast paths', () => {
     expect(result.held).toBe(true);
   });
 
-  test('extendLock prefers IPC before HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      name: 'deploy-prod',
-      expiresAt: Date.now() + 60000,
-      message: 'extended lock: deploy-prod',
-    });
+  test('extendLock uses credentialed HTTP and never raw IPC', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
+    queueResponse({ success: true, name: 'deploy-prod', expiresAt: Date.now() + 60000 });
 
     const result = await pd.extendLock('deploy-prod', { ttl: 60000 });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'lock.extend',
-      expect.objectContaining({
-        name: 'deploy-prod',
-        owner: 'registered-agent',
-        ttl: 60000,
-      }),
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'PUT',
+      url: '/locks/deploy-prod',
+      body: expect.objectContaining({ owner: 'registered-agent', ttl: 60000 }),
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.success).toBe(true);
   });
 
@@ -1484,6 +1574,33 @@ describe('Webhooks', () => {
 
     expect(receivedRequests[0].method).toBe('DELETE');
     expect(receivedRequests[0].url).toContain('/webhooks/wh-123');
+  });
+});
+
+// =============================================================================
+// Actor identity
+// =============================================================================
+
+describe('Actor identity', () => {
+  test('registerActor sends only active registration fields', async () => {
+    const pd = createClient();
+    queueResponse({
+      success: true,
+      status: 'minted',
+      actorId: 'soul_test',
+      soulClass: 'newcomer',
+      credential: 'soul_test.secret',
+    }, 201);
+
+    await pd.registerActor({ alias: 'port-daddy:test:client' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/actors/register',
+      body: { alias: 'port-daddy:test:client' },
+    });
+    expect(receivedRequests[0].body).not.toHaveProperty('project');
   });
 });
 
@@ -1897,10 +2014,11 @@ describe('Salvage listing with filters', () => {
 describe('Salvage lifecycle methods', () => {
   let pd;
   beforeEach(() => {
-    pd = createClient({ agentId: 'rescue-agent', pid: 9999 });
+    pd = createClient({ agentId: 'rescue-agent', credential: 'RESCUE.secret', pid: 9999 });
   });
 
   test('salvageClaim sends POST to /resurrection/claim/:agentId', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
     queueResponse({
       success: true,
       message: 'Claimed dead-agent-1 for resurrection',
@@ -1917,19 +2035,22 @@ describe('Salvage lifecycle methods', () => {
     expect(receivedRequests[0].method).toBe('POST');
     expect(receivedRequests[0].url).toBe('/resurrection/claim/dead-agent-1');
     expect(receivedRequests[0].body.newAgentId).toBe('rescue-agent');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('RESCUE.secret');
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(result.success).toBe(true);
     expect(result.context.sessionId).toBe('sess-123');
     expect(result.context.notes).toHaveLength(2);
   });
 
-  test('salvageClaim uses fallback agentId when none set', async () => {
+  test('salvageClaim never synthesizes a pid-based successor identity', async () => {
     const pd2 = createClient({ pid: 4242 });
     pd2.agentId = undefined;
-    queueResponse({ success: true, message: 'Claimed' });
+    queueResponse({ success: false, error: 'actor credential required' }, 401);
 
-    await pd2.salvageClaim('dead-agent-2');
+    await expect(pd2.salvageClaim('dead-agent-2')).rejects.toMatchObject({ status: 401 });
 
-    expect(receivedRequests[0].body.newAgentId).toBe('sdk-4242');
+    expect(receivedRequests[0].body.newAgentId).toBeUndefined();
+    expect(receivedRequests[0].headers['x-actor-credential']).toBeUndefined();
   });
 
   test('salvageClaim encodes agentId in URL', async () => {

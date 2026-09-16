@@ -83,7 +83,7 @@ in `fleet-ast.ts`.)
    yet — see roadmap" tag**, never as if they work. A backend **ladder picker**
    (claude-code → codex → cloudflare fallbacks). A **budget slider** bound to
    `budget_usd_per_day`. A `singleton` toggle.
-3. **Prompt editor — first class.** The prompt is the load-bearing field
+3. **Prompt editor — first class.** The prompt is the foundational field
    ("where the hell is the agent prompt"), so it gets a large, monospace,
    syntax-aware editor pane, not a cramped textarea. Token/cost estimate live.
 4. **YAML.** The live file with **syntax highlighting** (the YAML highlighter

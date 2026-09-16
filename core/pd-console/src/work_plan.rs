@@ -241,7 +241,7 @@ pub fn from_work_snapshot(snapshot: &crate::agent::WorkSnapshot) -> PredictedDag
     }
 }
 
-/// Map a commitment level to a semantic [`Tone`]. Matches windags' own stroke
+/// Map a commitment level to a semantic [`Tone`]. Matches jury_rig' own stroke
 /// semantics: COMMITTED is the strongest signal, EXPLORATORY the faintest.
 /// Unknown levels fall back to the neutral default tone.
 pub fn commitment_tone(level: &str) -> Tone {
@@ -816,6 +816,7 @@ mod tests {
                 "evidence": "Intent is durable; planner unavailable.",
                 "nodeSpecs": []
             })),
+            execution: None,
         };
         let dag = from_work_snapshot(&snapshot);
         assert_eq!(dag.title, "Consolidate work creation");
@@ -849,6 +850,7 @@ mod tests {
                     "requiresApproval": true
                 }]
             })),
+            execution: None,
         };
         let dag = from_work_snapshot(&snapshot);
         assert_eq!(dag.waves.len(), 1);
@@ -859,10 +861,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_accepts_a_windags_next_move_shaped_payload() {
-        // A representative windags `next_move` JSON (snake_case fields matching the
+    fn parse_accepts_a_jury_rig_next_move_shaped_payload() {
+        // A representative jury_rig `next_move` JSON (snake_case fields matching the
         // TS PredictedDAG -> serde) parses into a renderable DAG. This is the exact
-        // shape the live windags hook will hand back when a provider key is valid.
+        // shape the live jury_rig hook will hand back when a provider key is valid.
         let json = r#"{
             "title": "Wire the Work prompt box to the Vello renderer",
             "problem_classification": "well-structured",
@@ -914,7 +916,7 @@ mod tests {
                 }
             ]
         }"#;
-        let dag = parse(json).expect("a windags next_move payload parses");
+        let dag = parse(json).expect("a jury_rig next_move payload parses");
         assert_eq!(dag.title, "Wire the Work prompt box to the Vello renderer");
         assert_eq!(dag.problem_classification, "well-structured");
         assert_eq!(dag.waves.len(), 2);

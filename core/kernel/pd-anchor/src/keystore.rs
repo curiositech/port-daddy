@@ -26,14 +26,19 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use crate::macaroon::{
-    discharge_rent_paid, mint_push_grant, verify, check_caveat, Macaroon, MacaroonError,
-    MintPushGrant, RentVerdict, RequestContext, VerifyOutcome, DISCHARGE_TTL_MS,
+    check_caveat, discharge_rent_paid, is_canonical_actor_principal,
+    matches_actor_bound_push_grant_identifier, mint_actor_bound_push_grant, verify, Macaroon,
+    MacaroonError, MintActorBoundPushGrant, RentVerdict, RequestContext, VerifyOutcome,
+    DISCHARGE_TTL_MS,
 };
 
 struct GrantKeys {
     root_key: Vec<u8>,
     caveat_key: Vec<u8>,
     rent_caveat_id: String,
+    actor: String,
+    repo: String,
+    session: String,
     /// Hard expiry of the underlying grant (unix ms), retained so `prune_expired`
     /// can reclaim entries — revoked or merely aged-out — once they can no longer
     /// authorize anything (the macaroon's own expiry caveat already refuses them).
@@ -75,38 +80,54 @@ fn rand_bytes(n: usize) -> Result<Vec<u8>, MacaroonError> {
 /// and its grant id. The daemon never sees a key.
 pub fn issue_grant(
     repo: &str,
+    actor: &str,
     session: &str,
     expires_ms: i64,
     protected_branch: &str,
 ) -> Result<(Macaroon, String), MacaroonError> {
     let root_key = rand_bytes(32)?;
     let caveat_key = rand_bytes(32)?;
-    let grant_id = hex::encode(rand_bytes(16)?);
+    if !is_canonical_actor_principal(actor) {
+        return Err(MacaroonError::Malformed);
+    }
+    let grant_seed = hex::encode(rand_bytes(16)?);
     let rent_nonce = hex::encode(rand_bytes(8)?);
 
-    let pg = mint_push_grant(MintPushGrant {
+    let pg = mint_actor_bound_push_grant(MintActorBoundPushGrant {
         root_key: &root_key,
-        grant_id: &grant_id,
+        grant_id: &grant_seed,
         repo,
+        actor,
         session,
         expires_ms,
         caveat_key: caveat_key.clone(),
         rent_nonce: &rent_nonce,
         protected_branch,
     })?;
+    let grant_id = pg.macaroon.identifier.clone();
 
-    with_store(|m| {
+    let inserted = with_store(|m| {
+        if m.contains_key(&grant_id) {
+            return false;
+        }
         m.insert(
             grant_id.clone(),
             GrantKeys {
                 root_key,
                 caveat_key,
                 rent_caveat_id: pg.rent_caveat_id,
+                actor: actor.to_owned(),
+                repo: repo.to_owned(),
+                session: session.to_owned(),
                 expires_ms,
                 revoked: false,
             },
-        )
+        );
+        true
     });
+    if !inserted {
+        return Err(MacaroonError::Malformed);
+    }
     Ok((pg.macaroon, grant_id))
 }
 
@@ -121,9 +142,13 @@ pub fn issue_discharge(
     ttl_ms: i64,
 ) -> Result<Option<Macaroon>, MacaroonError> {
     with_store(|m| match m.get(grant_id) {
-        Some(keys) if !keys.revoked => {
-            discharge_rent_paid(&keys.caveat_key, &keys.rent_caveat_id, verdict, now_ms, ttl_ms)
-        }
+        Some(keys) if !keys.revoked => discharge_rent_paid(
+            &keys.caveat_key,
+            &keys.rent_caveat_id,
+            verdict,
+            now_ms,
+            ttl_ms,
+        ),
         _ => Ok(None),
     })
 }
@@ -135,25 +160,53 @@ pub fn issue_discharge(
 pub fn authorize(
     grant: &Macaroon,
     discharges: &[Macaroon],
+    actor: &str,
     ctx: &RequestContext,
 ) -> VerifyOutcome {
     with_store(|m| match m.get(&grant.identifier) {
         Some(keys) if !keys.revoked => {
+            if actor != keys.actor
+                || !is_canonical_actor_principal(actor)
+                || !matches_actor_bound_push_grant_identifier(
+                    grant,
+                    &keys.actor,
+                    &keys.repo,
+                    &keys.session,
+                )
+            {
+                return VerifyOutcome {
+                    ok: false,
+                    reason: "actor-bound grant scope mismatch".into(),
+                };
+            }
             // Clone what the verify closures need so we don't hold the lock guard
             // inside the recursive verifier longer than necessary.
             let root = keys.root_key.clone();
             let ckey = keys.caveat_key.clone();
             let rent_id = keys.rent_caveat_id.clone();
+            let actor_predicate = format!("actor = {}", keys.actor);
             verify(
                 grant,
                 &root,
                 discharges,
-                &|p| check_caveat(p, ctx),
-                &|cid| if cid == rent_id { Some(ckey.clone()) } else { None },
+                &|predicate| predicate == actor_predicate || check_caveat(predicate, ctx),
+                &|cid| {
+                    if cid == rent_id {
+                        Some(ckey.clone())
+                    } else {
+                        None
+                    }
+                },
             )
         }
-        Some(_) => VerifyOutcome { ok: false, reason: "grant has been revoked".into() },
-        None => VerifyOutcome { ok: false, reason: "unknown grant".into() },
+        Some(_) => VerifyOutcome {
+            ok: false,
+            reason: "grant has been revoked".into(),
+        },
+        None => VerifyOutcome {
+            ok: false,
+            reason: "unknown grant".into(),
+        },
     })
 }
 
@@ -218,6 +271,8 @@ mod tests {
     use super::*;
     use crate::macaroon::RequestContext;
 
+    const ACTOR: &str = "01K3YR6M1WPZB8Q6V1J8K7D4MC";
+
     fn ctx(branch: &str, session: &str, now_ms: i64) -> RequestContext {
         RequestContext {
             op: Some("push".into()),
@@ -233,56 +288,72 @@ mod tests {
     #[test]
     fn paid_rent_authorizes_a_push() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-1", now + 60_000, "main").unwrap();
+        let (grant, id) = issue_grant("acme/api", ACTOR, "sess-1", now + 60_000, "main").unwrap();
         let discharge = issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
             .unwrap()
             .expect("paid rent must yield a discharge");
         let bound = grant.prepare_for_request(&discharge).unwrap();
-        let out = authorize(&grant, &[bound], &ctx("feat/x", "sess-1", now));
-        assert!(out.ok, "paid + bound discharge must authorize: {}", out.reason);
+        let out = authorize(&grant, &[bound], ACTOR, &ctx("feat/x", "sess-1", now));
+        assert!(
+            out.ok,
+            "paid + bound discharge must authorize: {}",
+            out.reason
+        );
     }
 
     #[test]
     fn unpaid_rent_yields_no_discharge_so_push_is_refused() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-2", now + 60_000, "main").unwrap();
+        let (grant, id) = issue_grant("acme/api", ACTOR, "sess-2", now + 60_000, "main").unwrap();
         // Rent due → no discharge at all.
-        assert!(issue_discharge(&id, RentVerdict::RentDue, now, DISCHARGE_TTL_MS)
-            .unwrap()
-            .is_none());
+        assert!(
+            issue_discharge(&id, RentVerdict::RentDue, now, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
         // With no discharge, the third-party rent caveat can't be satisfied.
-        let out = authorize(&grant, &[], &ctx("feat/x", "sess-2", now));
+        let out = authorize(&grant, &[], ACTOR, &ctx("feat/x", "sess-2", now));
         assert!(!out.ok, "no discharge must refuse the push");
     }
 
     #[test]
     fn protected_branch_is_refused_even_when_paid() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-3", now + 60_000, "main").unwrap();
-        let discharge =
-            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS).unwrap().unwrap();
+        let (grant, id) = issue_grant("acme/api", ACTOR, "sess-3", now + 60_000, "main").unwrap();
+        let discharge = issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+            .unwrap()
+            .unwrap();
         let bound = grant.prepare_for_request(&discharge).unwrap();
-        let out = authorize(&grant, &[bound], &ctx("main", "sess-3", now));
+        let out = authorize(&grant, &[bound], ACTOR, &ctx("main", "sess-3", now));
         assert!(!out.ok, "push to the protected branch must be refused");
     }
 
     #[test]
     fn keys_never_leave_the_kernel_and_revoke_kills_the_grant() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-4", now + 60_000, "main").unwrap();
-        let discharge =
-            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS).unwrap().unwrap();
+        let (grant, id) = issue_grant("acme/api", ACTOR, "sess-4", now + 60_000, "main").unwrap();
+        let discharge = issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+            .unwrap()
+            .unwrap();
         let bound = grant.prepare_for_request(&discharge).unwrap();
-        assert!(authorize(&grant, &[bound.clone()], &ctx("feat/x", "sess-4", now)).ok);
+        assert!(
+            authorize(
+                &grant,
+                std::slice::from_ref(&bound),
+                ACTOR,
+                &ctx("feat/x", "sess-4", now)
+            )
+            .ok
+        );
         assert!(revoke(&id));
         // After revocation the root key is gone — the same grant no longer authorizes.
-        let out = authorize(&grant, &[bound], &ctx("feat/x", "sess-4", now));
+        let out = authorize(&grant, &[bound], ACTOR, &ctx("feat/x", "sess-4", now));
         assert!(!out.ok, "revoked grant must not authorize");
-        assert!(issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS).unwrap().is_none());
+        assert!(
+            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
     }
 
     // Regression for the dead-code fix: `revoke` must leave a tombstone so a revoked
@@ -294,11 +365,11 @@ mod tests {
     #[test]
     fn revoked_grant_reports_revoked_not_unknown() {
         let now = 1_000_000;
-        let (grant, id) = issue_grant("acme/api", "sess-rev", now + 60_000, "main").unwrap();
+        let (grant, id) = issue_grant("acme/api", ACTOR, "sess-rev", now + 60_000, "main").unwrap();
         assert!(revoke(&id), "revoking a known grant returns true");
 
         // authorize distinguishes revoked from never-existed.
-        let out = authorize(&grant, &[], &ctx("feat/x", "sess-rev", now));
+        let out = authorize(&grant, &[], ACTOR, &ctx("feat/x", "sess-rev", now));
         assert!(!out.ok);
         assert_eq!(
             out.reason, "grant has been revoked",
@@ -308,14 +379,16 @@ mod tests {
         // A genuinely unknown grant still says "unknown grant" — the distinction is real.
         let mut ghost = grant.clone();
         ghost.identifier = "never-issued-grant-id".into();
-        let ghost_out = authorize(&ghost, &[], &ctx("feat/x", "sess-rev", now));
+        let ghost_out = authorize(&ghost, &[], ACTOR, &ctx("feat/x", "sess-rev", now));
         assert!(!ghost_out.ok);
         assert_eq!(ghost_out.reason, "unknown grant");
 
         // No fresh discharge can be minted for a revoked grant.
-        assert!(issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
-            .unwrap()
-            .is_none());
+        assert!(
+            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
 
         // Revoking is idempotent; revoking an unknown id returns false.
         assert!(revoke(&id), "re-revoking a revoked grant is idempotent");
@@ -334,15 +407,18 @@ mod tests {
     fn prune_expired_reclaims_revoked_and_aged_out_grants() {
         let base = 700_000;
         let exp = base + 1_000; // 701_000 — well under any other test's 1_060_000+
-        let (g_live, live) = issue_grant("acme/api", "sess-gc-live", exp, "main").unwrap();
-        let (g_rev, revd) = issue_grant("acme/api", "sess-gc-rev", exp, "main").unwrap();
+        let (g_live, live) = issue_grant("acme/api", ACTOR, "sess-gc-live", exp, "main").unwrap();
+        let (g_rev, revd) = issue_grant("acme/api", ACTOR, "sess-gc-rev", exp, "main").unwrap();
         assert!(revoke(&revd));
 
         // Before expiry the revoked entry is kept as an auditable tombstone.
         let pruned_early = prune_expired(base); // clock < exp → touches nothing here
-        assert_eq!(pruned_early, 0, "no grant in this window is expired at {base}");
         assert_eq!(
-            authorize(&g_rev, &[], &ctx("feat/x", "sess-gc-rev", base)).reason,
+            pruned_early, 0,
+            "no grant in this window is expired at {base}"
+        );
+        assert_eq!(
+            authorize(&g_rev, &[], ACTOR, &ctx("feat/x", "sess-gc-rev", base)).reason,
             "grant has been revoked",
             "tombstone survives an early prune"
         );
@@ -355,12 +431,14 @@ mod tests {
         // The revoked grant is now genuinely gone → reads as unknown, and the live one
         // can no longer be discharged.
         assert_eq!(
-            authorize(&g_rev, &[], &ctx("feat/x", "sess-gc-rev", base)).reason,
+            authorize(&g_rev, &[], ACTOR, &ctx("feat/x", "sess-gc-rev", base)).reason,
             "unknown grant"
         );
         let _ = g_live;
-        assert!(issue_discharge(&live, RentVerdict::Paid, base, DISCHARGE_TTL_MS)
-            .unwrap()
-            .is_none());
+        assert!(
+            issue_discharge(&live, RentVerdict::Paid, base, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
     }
 }

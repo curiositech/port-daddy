@@ -1,0 +1,18 @@
+% The keystone split as a table, shared by chapters 5 and 6 (one source).
+\begin{table}[H]
+\centering
+\caption{The keystone split. Everything Alice's daemon knows about itself is also checkable from Bob's foreign view except the last row: a signed, intact history still does not prove who controls the foreign key. Log integrity crosses the trust boundary; accountable-principal binding does not, and that missing row is the stone the market rests on and does not yet have. [internal]}
+\label{tab:keystone-split}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Claim} & \textbf{Inside Alice's trusted daemon} & \textbf{From Bob's foreign view} \\
+\midrule
+the actor key was minted by the daemon & known: the daemon minted it & the key remains visible; the signature checks \\
+the history is append-only & known: the daemon wrote it & log integrity remains verifiable; inclusion proofs check \\
+the registry is local & known & the foreign registry is inspectable, not trusted \\
+the key is bound to an accountable principal & known: the daemon's own binding & \textbf{no cross-operator binding proof}: nothing Bob can check says who controls the key \\
+\bottomrule
+\end{tabularx}
+\end{table}

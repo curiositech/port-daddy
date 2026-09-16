@@ -22,6 +22,7 @@
  */
 
 import { jest } from '@jest/globals';
+import * as realFs from 'node:fs';
 
 // ---------------------------------------------------------------------------
 // Determine current uid BEFORE mocking
@@ -37,7 +38,9 @@ const mockStatSync = jest.fn();
 const mockReadFileSync = jest.fn();
 
 jest.unstable_mockModule('node:fs', () => ({
+  ...realFs,
   existsSync: mockExistsSync,
+  readdirSync: jest.fn(() => []),
   statSync: mockStatSync,
   readFileSync: mockReadFileSync,
   writeFileSync: jest.fn(),
@@ -82,6 +85,7 @@ function createSpawner(deps = {}) {
   }
   return createSpawnerBase({
     ...deps,
+    runtimeAllowed: deps.runtimeAllowed ?? (() => true),
     enforceTelemetryPolicy: false,
     enforceTranscriptPolicy: deps.enforceTranscriptPolicy ?? false,
     telemetryBypassApproval: deps.telemetryBypassApproval ?? TEST_TELEMETRY_BYPASS,

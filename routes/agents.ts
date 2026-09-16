@@ -10,11 +10,15 @@ import { validateAgentId } from '../shared/validators.js';
 import { WebhookEvent } from '../lib/webhooks.js';
 import { getEffectiveContextWindow } from '../lib/context-window-tracker.js';
 import type { CloudAppTelemetry } from '../lib/cloud-app-telemetry.js';
+import { createInboxIdentity, type InboxSessionLookup } from '../lib/inbox-identity.js';
+import type { IdentityVerifier } from '../lib/identity-write-boundary.js';
 
 interface InboxMessage {
   id: number;
   agentId: string;
   from: string | null;
+  fromActorId?: string | null;
+  fromSoulClass?: string | null;
   content: unknown;
   contentType?: string;
   type: string;
@@ -36,7 +40,7 @@ interface AgentsRouteDeps {
     list(opts: { activeOnly: boolean; identityPrefix?: string; purpose?: string }): unknown;
   };
   agentInbox: {
-    send(agentId: string, content: unknown, opts?: { from?: string; type?: string; contentType?: 'text' | 'json' | 'binary' }): { success: boolean; messageId?: number; error?: string };
+    send(agentId: string, content: unknown, opts?: { from?: string; fromActorId?: string | null; fromSoulClass?: string | null; type?: string; contentType?: 'text' | 'json' | 'binary' }): { success: boolean; messageId?: number; error?: string };
     list(agentId: string, opts?: { unreadOnly?: boolean; limit?: number; since?: number }): { success: boolean; messages: InboxMessage[]; count: number };
     listSent(fromAgent: string, opts?: { unreadOnly?: boolean; limit?: number }): { success: boolean; messages: InboxMessage[]; count: number };
     markRead(agentId: string, messageId: number): { success: boolean };
@@ -58,7 +62,7 @@ interface AgentsRouteDeps {
     publish(channel: string, message: string): { success: boolean };
   };
   fleetDaemon?: {
-    hailAgent(agentId: string, context?: { project?: string; source?: 'inbox' | 'manual' | 'trigger' | 'schedule'; channel?: string; from?: string | null; message?: unknown; messageContent?: string }): Promise<{
+    hailAgent(agentId: string, context?: { project?: string; source?: 'inbox' | 'manual' | 'trigger' | 'schedule'; channel?: string; from?: string | null; fromActorId?: string | null; fromSoulClass?: string | null; message?: unknown; messageContent?: string }): Promise<{
       success: boolean;
       error?: string;
       project?: string;
@@ -69,6 +73,21 @@ interface AgentsRouteDeps {
     upsertContextHealth(agentId: string, model: string, tokensUsed: number): unknown;
   };
   cloudAppTelemetry?: CloudAppTelemetry;
+  /**
+   * ADR-0040 souls store (subset). Inbox SENDS require the daemon-minted
+   * credential (#8877 / ADR-0122): the inbox is an instruction plane, not a
+   * display plane — `from` is written into a spawned agent's prompt as the
+   * `- sender:` line. Already supplied through the shared deps bag by
+   * server.ts; see lib/inbox-identity.ts for why the locks-shaped check is
+   * not sufficient here.
+   */
+  actorSouls?: IdentityVerifier | null;
+  /**
+   * Sessions manager (subset). Supplies the daemon-witnessed display-agentId
+   * → minted-soul binding that lets `pd inbox send --agent <self>` keep
+   * working without binding shared aliases at mint time.
+   */
+  sessions?: InboxSessionLookup | null;
 }
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
@@ -102,7 +121,12 @@ function requestPid(request: FastifyRequest, body: Record<string, unknown>): num
 // Fastify plugin (dual-export)
 // =============================================================================
 export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon, contextTracker, cloudAppTelemetry } = opts.deps;
+  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon, contextTracker, cloudAppTelemetry, actorSouls, sessions } = opts.deps;
+
+  // The strict sender gate for the inbox plane. Shared verbatim with
+  // routes/actors.ts (POST /actors/:id/message) — the second door into the
+  // same agent_inbox table — so the two cannot drift apart.
+  const { requireInboxSender } = createInboxIdentity({ souls: actorSouls, sessions, logger });
 
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -323,6 +347,22 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
       const agentId = (request.params as any).id as string;
       const { content, from, type, wake, project, contentType, messageContent } = request.body as any;
 
+      // The sender gate runs BEFORE anything observable happens: a rejected
+      // request must not store a message, must not log an attribution, and
+      // must never reach hailAgent (which spawns a code-editing agent with
+      // `from` in its prompt). The body's `from` is dead after this point —
+      // `sender.from` is the only attribution used below.
+      const sender = requireInboxSender(
+        request.headers as Record<string, unknown>,
+        request.body,
+        from,
+        'POST /agents/:id/inbox',
+      );
+      if (!sender.success) {
+        reply.code(sender.httpStatus);
+        return sender.result;
+      }
+
       const hasContent = content !== undefined
         && content !== null
         && !(typeof content === 'string' && content.trim() === '');
@@ -333,13 +373,19 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
 
       const agentResult = agents.get(agentId);
       if (!agentResult.success) {
-        logger.info('inbox_hail_sent', { agentId, from, note: 'Agent not in registry' });
+        logger.info('inbox_hail_sent', { agentId, from: sender.from, note: 'Agent not in registry' });
       }
 
       const safeContentType = contentType === 'text' || contentType === 'json' || contentType === 'binary'
         ? contentType
         : undefined;
-      const result = agentInbox.send(agentId, content, { from, type, contentType: safeContentType });
+      const result = agentInbox.send(agentId, content, {
+        from: sender.from,
+        fromActorId: sender.fromActorId,
+        fromSoulClass: sender.fromSoulClass,
+        type,
+        contentType: safeContentType,
+      });
 
       if (!result.success) {
         const statusCode = (result as Record<string, unknown>).code === 'RESOURCE_LIMIT' ? 429 : 400;
@@ -347,13 +393,21 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         return { error: result.error, code: (result as Record<string, unknown>).code };
       }
 
-      logger.info('inbox_message_sent', { agentId, from, messageId: result.messageId });
+      logger.info('inbox_message_sent', {
+        agentId,
+        from: sender.from,
+        fromActorId: sender.fromActorId,
+        fromSoulClass: sender.fromSoulClass,
+        messageId: result.messageId,
+      });
       let wakeResult: { success: boolean; error?: string; project?: string; agent?: string } | undefined;
       if (wake === true && fleetDaemon?.hailAgent) {
         wakeResult = await fleetDaemon.hailAgent(agentId, {
           project: typeof project === 'string' ? project : undefined,
           source: 'inbox',
-          from: typeof from === 'string' ? from : null,
+          from: sender.from,
+          fromActorId: sender.fromActorId,
+          fromSoulClass: sender.fromSoulClass,
           message: content,
           messageContent: typeof messageContent === 'string' && messageContent.trim()
             ? messageContent.trim()

@@ -9,15 +9,40 @@ import { getDirectLocks } from '../utils/direct-db.js';
 import * as ui from '../utils/ui.js';
 import PortDaddy from '../../lib/client.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { ensureCliActorCredential, resolveCliActorCredential } from '../utils/actor-credential.js';
+import { readCurrentContext } from '../utils/current-context.js';
+
+/**
+ * Build the SDK client for lock commands with the ADR-0040 actor credential
+ * (#8877 / ADR-0122 — lock mutations reject without one). The asserted owner
+ * is `--owner` when given, else the context agent from `pd begin`; the
+ * credential resolves through the shared CLI resolver so a mismatched
+ * context credential is never presented for someone else's owner name.
+ */
+function createLockClient(options: CLIOptions): PortDaddy {
+  const owner = typeof options.owner === 'string' ? options.owner : readCurrentContext()?.agentId;
+  return new PortDaddy({
+    agentId: owner,
+    credential: resolveCliActorCredential(owner),
+    pid: process.pid,
+  });
+}
 
 /**
  * Handle `pd lock <name-or-path>` command
  */
 export async function handleLock(name: string | undefined, options: CLIOptions): Promise<void> {
-  const pd = new PortDaddy({
-    agentId: typeof options.owner === 'string' ? options.owner : undefined,
-    pid: process.pid,
-  });
+  const pd = createLockClient(options);
+  // #8877 / ADR-0122: lock mutations require a daemon-minted credential;
+  // mint one (persisted per shell slot) when this shell holds none.
+  if (!pd.credential) {
+    try {
+      pd.credential = await ensureCliActorCredential(typeof options.owner === 'string' ? options.owner : undefined);
+    } catch (error) {
+      console.error(`ERROR: failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
 
   // Subcommand: lock extend <name> [--ttl <ms>]
   if (name === 'extend') {
@@ -113,10 +138,18 @@ export async function handleUnlock(name: string | undefined, options: CLIOptions
     if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
   }
 
-  const pd = new PortDaddy({
-    agentId: typeof options.owner === 'string' ? options.owner : undefined,
-    pid: process.pid,
-  });
+  const pd = createLockClient(options);
+  // #8877: release is soul-checked against the acquiring actor; present the
+  // shell's persisted credential (minting here would fail ownership anyway,
+  // but a fresh shell releasing an expired/foreign lock still needs a soul).
+  if (!pd.credential) {
+    try {
+      pd.credential = await ensureCliActorCredential(typeof options.owner === 'string' ? options.owner : undefined);
+    } catch (error) {
+      console.error(`ERROR: failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
 
   try {
     const data = await pd.unlock(name, {
@@ -143,10 +176,7 @@ export async function handleUnlock(name: string | undefined, options: CLIOptions
  * Handle `pd locks` command
  */
 export async function handleLocks(options: CLIOptions): Promise<void> {
-  const pd = new PortDaddy({
-    agentId: typeof options.owner === 'string' ? options.owner : undefined,
-    pid: process.pid,
-  });
+  const pd = createLockClient(options);
 
   let data;
   try {

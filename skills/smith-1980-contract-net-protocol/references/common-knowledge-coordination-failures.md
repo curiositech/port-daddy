@@ -89,4 +89,4 @@ The deepest contribution of the Big Brother Logic framework is the recognition t
 
 This reframing changes what designers look for when coordination fails. The question is not "did the messages get through?" but "did the agents achieve the required epistemic state?" — a subtler and more demanding standard.
 
-For WinDAGs: when a complex multi-agent workflow fails, the first diagnostic question should be: "What did each agent know, and what did it need to know, at the point of failure?" Answering this question — with the rigor of epistemic modal logic as a guide, even if not as a formal implementation — will often reveal the root cause more directly than tracing message logs or inspecting code paths.
+For Jury-rig: when a complex multi-agent workflow fails, the first diagnostic question should be: "What did each agent know, and what did it need to know, at the point of failure?" Answering this question — with the rigor of epistemic modal logic as a guide, even if not as a formal implementation — will often reveal the root cause more directly than tracing message logs or inspecting code paths.

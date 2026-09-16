@@ -94,6 +94,8 @@ export type ModelTier = 'low' | 'mid' | 'high';
 
 export interface AgentNode extends FleetAstNode<'agent'> {
   name:           StringNode;
+  /** Explicit false removes the declaration from the executable FleetConfig. */
+  enabled?:       BoolNode;
   prompt?:        StringNode;
   trigger?:       ChannelRefNode;
   /** Additive plural trigger list (kind:type grammar or legacy channels). */
@@ -115,10 +117,10 @@ export interface AgentNode extends FleetAstNode<'agent'> {
   identity?:      StringNode;
   timeout?:       IntNode;
   allowedTools?:  StringNode;
-  /** Opt-in: pull a windags-pattern skill shortlist into this ship's task
+  /** Opt-in: pull native Jury-rig skill guidance into this ship's task
    *  text before it spawns (lib/skill-graft.ts). Default false — existing
    *  ships are unaffected unless a pd-fleet.yml author sets this. */
-  skillGraft?:    BoolNode;
+  juryRig?:       BoolNode;
   fallbacks?:     RuntimeTargetNode[];
   cooldownMs?:    IntNode;
   dedupeWindowMs?: IntNode;
@@ -321,12 +323,26 @@ function parseAgentMap(
   m: YAMLMap,
   gr: GetRange,
 ): AgentNode {
+  for (const removedKey of ['skill_graft', 'skillGraft']) {
+    if (m.has(removedKey)) {
+      throw new Error(`Fleet agent "${name}" uses removed field "${removedKey}"; use "jury_rig" instead.`);
+    }
+  }
   const r = gr(nodeRange(m));
   const nameRange = nameScalar ? gr(nodeRange(nameScalar)) : r;
   const nodeR = nameScalar ? { start: nameRange.start, end: r.end } : r;
   return {
     kind: 'agent', range: nodeR,
     name:          { kind: 'string', range: nameRange, value: name },
+    // `enabled` is an admission boundary, so a present-but-malformed value
+    // fails closed to false instead of silently inheriting the enabled default.
+    enabled:       m.has('enabled')
+      ? (gBool(m, 'enabled', gr) ?? {
+          kind: 'bool' as const,
+          range: gr(nodeRange(m.get('enabled', true))),
+          value: false,
+        })
+      : undefined,
     prompt:        gStr(m, 'prompt', gr),
     trigger:       extractChannelRef(gNode(m, 'trigger'),   gr),
     triggers:      extractStringList(gNode(m, 'triggers'),  gr),
@@ -352,7 +368,7 @@ function parseAgentMap(
     identity:      gStr(m, 'identity',    gr),
     timeout:       gInt(m, 'timeout',     gr),
     allowedTools:  gStr(m, 'allowedTools', gr) ?? gStr(m, 'allowed_tools', gr),
-    skillGraft:    gBool(m, 'skill_graft', gr) ?? gBool(m, 'skillGraft', gr),
+    juryRig:       gBool(m, 'jury_rig', gr),
     fallbacks:     extractRuntimeTargets(gNode(m, 'fallbacks'), gr),
     cooldownMs:    gInt(m, 'cooldown_ms',        gr),
     dedupeWindowMs:gInt(m, 'dedupe_window_ms',   gr),
@@ -570,6 +586,10 @@ export function astToConfig(ast: FleetAst): FleetConfig {
 
   const agents: FleetAgent[] = [];
   for (const [name, a] of ast.agents) {
+    // Disabled declarations remain available in the source-aware AST for
+    // inspection/editing, but never cross into the executable runtime config.
+    if (a.enabled?.value === false) continue;
+
     const agentBackendVal = a.backend?.value?.trim() || undefined;
     const defsBackendVal  = defs?.backend?.value?.trim() || undefined;
     const sameBackend     = !agentBackendVal || !defsBackendVal || agentBackendVal === defsBackendVal;
@@ -627,7 +647,7 @@ export function astToConfig(ast: FleetAst): FleetConfig {
       identity:       a.identity?.value,
       timeout:        a.timeout?.value,
       allowedTools:   a.allowedTools?.value,
-      skillGraft:     a.skillGraft?.value ?? false,
+      juryRig:        a.juryRig?.value ?? false,
       fallbacks,
       cooldownMs:     normMs(a.cooldownMs),
       dedupeWindowMs: normMs(a.dedupeWindowMs),

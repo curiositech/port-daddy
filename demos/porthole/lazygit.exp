@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set stty_init "rows 28 columns 100"
+proc pause {t} { set ::timeout $t; expect timeout }
+spawn lazygit
+pause 3
+send "4"; pause 1
+send "j"; pause 1
+send "j"; pause 1
+send "\r"; pause 2
+send "j"; pause 1
+send "j"; pause 1
+send "\x1b"; pause 1
+send "q"
+set timeout 8
+expect eof

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { modelsForBackend, resolveCliModelAlias, CAPABILITIES } from './model-registry.js';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -375,6 +376,44 @@ const AIDER_ADAPTER: HarnessAdapterCapabilities = {
   },
 };
 
+
+/**
+ * The models a catalog row advertises, DERIVED from the registry.
+ *
+ * The rationale — SUPPLANTED (2026-08-23): each row used to carry a hand-written list, and the
+ * lists had drifted from what `resolveModel()` actually returns — so the picker
+ * offered models the resolver would never choose, and the Cloudflare row
+ * advertised an id Workers AI no longer served (which hangs rather than errors).
+ * Deriving makes "advertised" and "reachable" the same set by construction.
+ *
+ * @param registryBackend The registry backend key this row is backed by, or
+ *   null for a row whose models are not the registry's to know (agy names its
+ *   own; ollama's list comes from the running daemon; `custom` is operator-defined).
+ * @returns The ids to advertise.
+ */
+function catalogModels(registryBackend: string | null): string[] {
+  return registryBackend ? modelsForBackend(registryBackend) : [];
+}
+
+/**
+ * The `--model` values a tier-aware agent CLI accepts.
+ *
+ * These are family NICKNAMES, not API ids — a transport vocabulary declared in
+ * config/models.yaml, not a second model list. The intent is that the picker
+ * shows the operator a value their CLI will actually accept.
+ *
+ * @param cli The CLI transport key.
+ * @returns The accepted flag values, cheap rung first.
+ */
+function catalogCliAliases(cli: string): string[] {
+  const seen = new Set<string>();
+  for (const capability of CAPABILITIES) {
+    const alias = resolveCliModelAlias(cli, capability);
+    if (alias) seen.add(alias);
+  }
+  return [...seen];
+}
+
 export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
   // ──── Subscription / free-at-marginal-cost ─────────────────────────────
   {
@@ -384,7 +423,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'FREE — your Claude Max subscription',
     description: "Drives your local `claude` binary as a child process. Auth and billing flow through your Claude Max ($200/mo) or Claude Pro ($20/mo) subscription. $0 marginal cost per spawn.",
     tagline: '$200/mo Claude Max powers the entire fleet at $0 marginal',
-    models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5'],
+    models: catalogCliAliases('claude-cli'),
     pdUseCliBackendValue: 'claude-code',
     recommended: true,
     adapter: CLAUDE_CLI_ADAPTER,
@@ -396,7 +435,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'FREE — your ChatGPT Pro subscription',
     description: "Drives your local `codex` binary as a child process. Auth and billing flow through your ChatGPT Pro ($20/mo) subscription. $0 marginal cost per spawn.",
     tagline: '$20/mo ChatGPT Pro powers the entire fleet at $0 marginal',
-    models: ['gpt-5', 'gpt-5-codex'],
+    models: catalogModels('codex'),
     pdUseCliBackendValue: 'codex',
     recommended: true,
     adapter: CODEX_CLI_ADAPTER,
@@ -419,7 +458,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'FREE tier — your Google account',
     description: "Drives your local `gemini` binary as a child process. Auth and billing flow through your Google account (generous free tier) or Gemini Code Assist subscription.",
     tagline: 'Google-account Gemini CLI free tier powers spawns at $0 marginal',
-    models: ['gemini-2.5-flash', 'gemini-2.5-pro'],
+    models: catalogModels('gemini'),
     pdUseCliBackendValue: 'gemini',
     adapter: GEMINI_CLI_ADAPTER,
   },
@@ -430,7 +469,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Rides your Groq account',
     description: "Drives your local `groq` binary as a child process. Auth and billing flow through your Groq account; the CLI manages its own key.",
     tagline: 'Groq LPU speed through your existing groq CLI login',
-    models: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'],
+    models: catalogModels('groq'),
     pdUseCliBackendValue: 'groq',
     adapter: promptOnlyCliAdapter(
       'groq-cli',
@@ -446,7 +485,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Rides your xAI / SuperGrok subscription',
     description: "Drives your local `grok` binary as a child process. Auth and billing flow through your xAI account or SuperGrok subscription.",
     tagline: 'SuperGrok subscription powers spawns at $0 marginal',
-    models: ['grok-4', 'grok-code-fast-1'],
+    models: catalogModels('xai'),
     pdUseCliBackendValue: 'grok',
     adapter: promptOnlyCliAdapter(
       'grok-claude-proxy',
@@ -466,7 +505,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'cli',
     framing: 'Metered through `claude` CLI',
     description: 'The `claude` binary in non-tube mode; tier-aware (low/mid/high → haiku/sonnet/opus).',
-    models: ['haiku', 'sonnet', 'opus'],
+    models: catalogCliAliases('claude-cli'),
     adapter: CLAUDE_CLI_ADAPTER,
   },
   {
@@ -475,7 +514,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
     description: 'Direct Anthropic API via @anthropic-ai/sdk. Requires ANTHROPIC_API_KEY.',
-    models: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-8'],
+    models: catalogModels('claude'),
     adapter: apiAdapter('anthropic-api', 'provider-sdk', ['api-key']),
   },
   {
@@ -483,8 +522,8 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     name: 'Google Gemini',
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
-    description: 'Google Gemini REST API (generateContent). Requires GEMINI_API_KEY. Default model: gemini-2.5-flash.',
-    models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+    description: 'Google Gemini REST API (generateContent). Requires GEMINI_API_KEY. The default is the registry\'s cheap rung for this backend.',
+    models: catalogModels('gemini'),
     adapter: apiAdapter('gemini-api', 'provider-http', ['api-key']),
   },
   {
@@ -493,15 +532,10 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'metered',
     framing: 'Cheap metered — fractions of a cent per spawn',
     description: 'Cloudflare Workers AI — many open models behind one API token.',
-    models: [
-      '@cf/zai-org/glm-4.7-flash',
-      '@cf/openai/gpt-oss-120b',
-      // Real Workers AI slug — the phantom kimi-k2.6 id hung ai.run (2026-07-03 fleet outage).
-      '@cf/moonshotai/kimi-k2-instruct',
-      '@cf/qwen/qwen3-30b-a3b-fp8',
-      '@cf/nvidia/nemotron-3-120b-a12b',
-      '@cf/meta/llama-4-scout-17b-16e-instruct',
-    ],
+    // This list used to be hand-written, and it named `@cf/moonshotai/kimi-k2-instruct`
+    // under a comment asserting it was the real slug. It was not — Cloudflare had
+    // retired it, and a retired Workers AI id does not 404, it hangs. Derived now.
+    models: catalogModels('cloudflare'),
     adapter: apiAdapter(
       'cloudflare-workers-ai',
       'provider-http',
@@ -514,8 +548,8 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     name: 'OpenAI API',
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
-    description: 'Direct OpenAI API. Requires OPENAI_API_KEY. Default model: gpt-5-mini.',
-    models: ['gpt-5-nano', 'gpt-5-mini', 'gpt-5', 'gpt-4.1-mini', 'gpt-4o-mini', 'o4-mini'],
+    description: "Direct OpenAI API. Requires OPENAI_API_KEY. The default is the registry's cheap rung for this backend.",
+    models: catalogModels('openai'),
     adapter: apiAdapter('openai-api', 'provider-http', ['api-key']),
   },
   {
@@ -523,8 +557,8 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     name: 'Groq (LPU)',
     costModel: 'metered',
     framing: 'Cheap metered — fast open-weight models on LPU hardware',
-    description: 'Groq OpenAI-compatible API. Requires GROQ_API_KEY. Default model: llama-3.3-70b-versatile.',
-    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+    description: "Groq OpenAI-compatible API. Requires GROQ_API_KEY. The default is the registry's cheap rung for this backend.",
+    models: catalogModels('groq'),
     adapter: apiAdapter('groq-api', 'provider-http', ['api-key']),
   },
   {
@@ -533,7 +567,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'cli',
     framing: 'Metered through `codex` CLI',
     description: 'Legacy adapter that drives `codex` CLI in non-tube mode.',
-    models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'],
+    models: catalogModels('codex'),
     adapter: CODEX_CLI_ADAPTER,
   },
   {
@@ -542,7 +576,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
     description: 'DeepSeek OpenAI-compatible API. Requires DEEPSEEK_API_KEY. deepseek-chat = V3 general/coder, deepseek-reasoner = R1 reasoning.',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
+    models: catalogModels('deepseek'),
     adapter: apiAdapter('deepseek-api', 'provider-http', ['api-key']),
   },
   {
@@ -551,7 +585,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
     description: 'xAI (Grok) OpenAI-compatible API. Requires XAI_API_KEY.',
-    models: ['grok-2-latest', 'grok-code-fast-1', 'grok-3'],
+    models: catalogModels('xai'),
     adapter: apiAdapter('xai-api', 'provider-http', ['api-key']),
   },
 
@@ -571,7 +605,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'local',
     framing: 'FREE — runs on your machine',
     description: 'Local LM Studio server. Serves whatever model is currently loaded in the app.',
-    models: ['local-model'],
+    models: catalogModels('lmstudio'),
     adapter: localModelServerAdapter('lmstudio'),
   },
   {
@@ -580,7 +614,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'cli',
     framing: 'Metered — depends on Aider model config',
     description: 'Drives the `aider` CLI; underlying model provider auth is external.',
-    models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5'],
+    models: catalogModels('aider'),
     adapter: AIDER_ADAPTER,
   },
   {

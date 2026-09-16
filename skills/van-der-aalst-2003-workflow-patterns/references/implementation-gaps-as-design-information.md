@@ -6,7 +6,7 @@ One of the most profound teachings in the workflow patterns paper is not about w
 
 The key insight: **the way a system fails to implement a pattern reveals its underlying execution model and architectural philosophy**. Implementation gaps are not just limitations—they are design information about the system's fundamental assumptions.
 
-For WinDAGs and any agent orchestration system, this teaching is transformative: **how your system fails to express certain coordination patterns tells you what your abstractions actually are**, regardless of what you claim they are.
+For Jury-rig and any agent orchestration system, this teaching is transformative: **how your system fails to express certain coordination patterns tells you what your abstractions actually are**, regardless of what you claim they are.
 
 ## What "Cannot Implement" Really Means
 
@@ -61,7 +61,7 @@ If forced to implement discriminator via workaround:
 
 Each workaround tells you something about what the system is missing.
 
-## For WinDAGs: The DAG Abstraction Under Stress
+## For Jury-rig: The DAG Abstraction Under Stress
 
 A DAG-based system has inherent limitations due to its acyclic nature. These are not flaws—they are consequences of the abstraction choice. The question is: what patterns does the DAG abstraction make hard or impossible?
 
@@ -143,19 +143,19 @@ Activities cannot be conditionally enabled based on process state.
 
 For agent orchestration, this is critical: **agent workflows are inherently exploratory**. Agents try multiple approaches, iterate on failures, dynamically adjust strategies. If your orchestration system assumes structured workflows, you will fight it constantly.
 
-## Diagnostic Use: Evaluating WinDAGs Through Implementation Gaps
+## Diagnostic Use: Evaluating Jury-rig Through Implementation Gaps
 
-To evaluate WinDAGs honestly, systematically attempt to implement each pattern:
+To evaluate Jury-rig honestly, systematically attempt to implement each pattern:
 
 1. **Sequence**: Can you express A→B? (Certainly yes for DAG)
 2. **AND-split/join**: Can you express A→{B,C}→D? (Yes for DAG)
 3. **XOR-split/join**: Can you express A→(B OR C)→D with runtime condition? (Yes with conditional edges)
 4. **OR-split with synchronizing merge**: Can you express A→{runtime-determined subset of B,C,D,E}→F where F waits for exactly the activated subset?
-   - **If no**: WinDAGs lacks runtime path tracking
+   - **If no**: Jury-rig lacks runtime path tracking
    - **If requires workaround**: Reveals what's missing (stateful coordination, dynamic merge points)
 
 5. **Discriminator**: Can you express A→{B,C,D} where first completion of {B,C,D} triggers E?
-   - **If no**: WinDAGs lacks first-completion semantics
+   - **If no**: Jury-rig lacks first-completion semantics
    - **Workaround needed**: Reveals whether coordination is primitive or must be coded
 
 6. **Arbitrary cycles**: Can you express A→B→(back to A if condition)?
@@ -163,14 +163,14 @@ To evaluate WinDAGs honestly, systematically attempt to implement each pattern:
    - **Workaround**: Unroll? Encapsulate? External orchestration?
 
 7. **Deferred choice**: Can you express "offer B and C to environment, only one executes"?
-   - **If no**: WinDAGs lacks external interaction primitives
+   - **If no**: Jury-rig lacks external interaction primitives
    - **Workaround**: Reveals whether system is closed or open to environment
 
 8. **Cancellation region**: Can you express A→{B,C,D} where if B completes, abort C and D?
-   - **If no**: WinDAGs lacks transactional/abortion primitives
+   - **If no**: Jury-rig lacks transactional/abortion primitives
    - **Workaround**: Manual tracking? External watchdog?
 
-Each failed implementation or awkward workaround reveals: **what WinDAGs really is** (not what you hope it is).
+Each failed implementation or awkward workaround reveals: **what Jury-rig really is** (not what you hope it is).
 
 ## The Positive Interpretation: Choosing Your Constraints
 
@@ -185,10 +185,10 @@ A DAG-based system that refuses cycles is not "broken"—it is trading expressiv
 If you need arbitrary cycles, you sacrifice these properties.
 
 The key is **honesty about tradeoffs**:
-- **Claim**: "WinDAGs is DAG-based for clarity and analyzability"
+- **Claim**: "Jury-rig is DAG-based for clarity and analyzability"
   - **Honest**: "We cannot express arbitrary cycles; use external orchestration for iterative workflows"
   
-- **Claim**: "WinDAGs supports 180+ skills"
+- **Claim**: "Jury-rig supports 180+ skills"
   - **Honest**: "Coordination patterns like discriminator and OR-merge require workarounds"
 
 Implementation gaps guide users toward problems the system handles well and away from problems that require fighting the abstractions.
@@ -201,11 +201,11 @@ The anti-pattern: **seeing every implementation gap as a deficiency to fix by ad
 
 Better approach: **choose a coherent execution model, implement patterns that align with it, honestly document gaps, provide clean escape hatches for out-of-scope patterns**.
 
-For WinDAGs:
+For Jury-rig:
 - **Core**: DAG-based coordination for tasks with clear dependencies
 - **Extensions**: Conditional routing, parallel execution, basic synchronization
 - **Escape hatches**: For cycles, advanced coordination, external interaction—clean integration with Python/external orchestrators
-- **Documentation**: "WinDAGs is optimized for X patterns; for Y patterns, use approach Z"
+- **Documentation**: "Jury-rig is optimized for X patterns; for Y patterns, use approach Z"
 
 ## Conclusion: Gaps as Specifications
 
@@ -219,7 +219,7 @@ For agent orchestration systems, understanding your gaps is crucial because **ag
 
 The teaching: **Map your system to the pattern taxonomy. Where are the gaps? Don't hide them. They are the clearest specification of what you actually built.**
 
-For WinDAGs: create a pattern implementation matrix. For each pattern: Direct support? Workaround? Impossible? If workaround, what's the recipe? If impossible, what's the alternative?
+For Jury-rig: create a pattern implementation matrix. For each pattern: Direct support? Workaround? Impossible? If workaround, what's the recipe? If impossible, what's the alternative?
 
 That matrix is more valuable than any feature list. It tells users: **here is what this system really is, and here is where it will fight your problem**.
 

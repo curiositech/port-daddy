@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
-import { handleDlqJob } from '../src/dlq.js';
+import { DLQ_CHECK_OUTPUT_TITLE, handleDlqJob } from '../src/dlq.js';
 import {
   freshState,
   installGitHubFetch,
@@ -50,6 +50,13 @@ describe('DLQ handler', () => {
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0]).toMatchObject({ id: 4242, conclusion: 'failure' });
     expect(state.completed[0].summary).toContain('dead-lettered');
+    expect(state.completed[0].summary).toContain('not a verdict on your change');
+    const completion = state.records.find(
+      record => record.method === 'PATCH' && record.url.endsWith('/check-runs/4242'),
+    );
+    expect(completion?.body).toMatchObject({
+      output: { title: DLQ_CHECK_OUTPUT_TITLE },
+    });
   });
 
   it('routes a fleet-runs-dlq batch through the handler and always acks', async () => {

@@ -326,8 +326,10 @@ pub fn decode_claim_frame(text: &str) -> Option<ClaimFrame> {
 /// it is considered stale. Deliberately far longer than presence's 30s: a claim means
 /// "I am working here", which must outlive a GC pause or a think, but must NOT wedge a
 /// region forever if the actor dies — so a dead actor's live claim eventually clears
-/// while its **durable** twin (the `/files` mirror) persists until salvage releases
-/// it. A working actor re-publishes (heartbeats) well inside this window.
+/// while its **durable** twin (the `/files` mirror) persists until an authorized
+/// release or future P3.5 claim-transfer transaction changes it. Generic salvage
+/// does not transfer editor claims. A working actor re-publishes (heartbeats) well
+/// inside this window.
 pub const CLAIM_TIMEOUT_MS: i64 = 120_000;
 
 /// The awareness-store key of a **revocation** marker for `(peer, id)`: the claim's

@@ -11,6 +11,7 @@ const liveSquid = deriveSquidConformance({
   projectRoot: '/Users/example/coding/tmp/route',
   projectArmed: true,
   daemonAlive: true,
+  daemonReady: true,
   tentaclesStaged: true,
   statuslineStaged: true,
   statuslineVisible: true,

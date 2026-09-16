@@ -27,6 +27,14 @@
 export interface ActiveSession {
   agentId: string;
   sessionId: string;
+  /**
+   * The ADR-0040 daemon-minted actor credential `begin_session` returned
+   * (minted once for this process's soul). Every subsequent attributed write
+   * (#8877 / ADR-0122 — add_note, claim_files, locks, salvage, done) must
+   * present it as the `x-actor-credential` header; the MCP HTTP helper reads
+   * it from here.
+   */
+  credential?: string;
 }
 
 let active: ActiveSession | null = null;
@@ -62,4 +70,18 @@ export function resolveSessionId(args: Record<string, unknown>): string | undefi
 /** Same resolution rule as {@link resolveSessionId}, for agent ids. */
 export function resolveAgentId(args: Record<string, unknown>): string | undefined {
   return nonEmptyString(args.agent_id) ?? active?.agentId;
+}
+
+/**
+ * The actor credential this process should present on daemon writes.
+ *
+ * Resolution order: the credential captured from this process's own
+ * `begin_session` (the common case — begin mints and returns it once), then
+ * the PORT_DADDY_ACTOR_CREDENTIAL env var (a harness that pre-registered via
+ * POST /actors/register and injected the credential). Returns undefined when
+ * neither exists — attributed writes will then be rejected 401 by the daemon
+ * (#8877 / ADR-0122), which is the correct fail-closed outcome.
+ */
+export function resolveActorCredential(): string | undefined {
+  return active?.credential ?? nonEmptyString(process.env.PORT_DADDY_ACTOR_CREDENTIAL);
 }

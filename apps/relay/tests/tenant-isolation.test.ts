@@ -23,6 +23,7 @@ import {
   handleGetHarbor,
   handleAddHarborMember,
 } from '../src/harbors.js';
+import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from '../src/roadmap-mirror.js';
 import type { Env } from '../src/types.js';
 
 const BASE = 'https://relay.example';
@@ -73,6 +74,10 @@ describe('tenant isolation — no ambient access to tenant data (MT1)', () => {
       ['/v1/harbors (mine)', handleListMyHarbors(noAuth('/v1/harbors'), env), 401],
       ['/v1/harbors/a/b', handleGetHarbor(noAuth('/v1/harbors/a/b'), env, 'a', 'b'), 401],
       ['/v1/harbors/a/b/members', handleAddHarborMember(noAuth('/v1/harbors/a/b/members', 'POST'), env, 'a', 'b'), 401],
+      // Roadmap command-center mirror (2026-08-22): push and read are both
+      // credential-gated; the mirror is keyed off the credential, never the payload.
+      ['/v1/roadmap/snapshot', handleRoadmapSnapshotPut(noAuth('/v1/roadmap/snapshot', 'PUT'), env), 401],
+      ['/v1/roadmap/mirror', handleRoadmapMirrorGet(noAuth('/v1/roadmap/mirror?repo=a/b'), env), 401],
     ];
     for (const [name, p, want] of cases) {
       const res = await p;

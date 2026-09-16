@@ -552,8 +552,8 @@ struct FleetControlNightshiftSection: View {
         // Until a native transcript detail view is wired, show the fleet-ui
         // transcript surface in an in-app sheet — never in an external browser.
         guard let transcriptId = dispatch.transcriptId else { return }
-        let base = DaemonLocation.resolveBaseURL()
-        guard var components = URLComponents(string: "\(base)/fleet-ui/") else { return }
+        guard let base = DaemonLocation.availableBaseURL(),
+              var components = URLComponents(string: "\(base)/fleet-ui/") else { return }
         components.queryItems = [
             URLQueryItem(name: "surface", value: "transcripts"),
             URLQueryItem(name: "id", value: transcriptId),

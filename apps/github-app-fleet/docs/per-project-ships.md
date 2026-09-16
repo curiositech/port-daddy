@@ -15,7 +15,7 @@ properties.
 
 ```yaml
 fleet:
-  name: <project-slug>             # e.g. port-daddy, expungement-guide, windags
+  name: <project-slug>             # e.g. port-daddy, expungement-guide, jury_rig
   agents:
     <ship-key>:
       handle: <handle>             # lower-kebab-case; rendered as `pd-<handle>`
@@ -221,15 +221,15 @@ to the site owner than any number of code-review ships.
 
 ---
 
-## Example 3 — windags
+## Example 3 — jury_rig
 
-Windags is a skill-distribution site. The dossier for each skill needs
+Jury-rig is a skill-distribution site. The dossier for each skill needs
 hero illustrations, inline diagrams, and clean SKILL.md frontmatter. The
 ships generate media as much as they review prose.
 
 ```yaml
 fleet:
-  name: windags
+  name: jury_rig
   agents:
     skill-media:
       handle: skill-media

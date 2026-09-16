@@ -20,7 +20,7 @@ artifact behind it.
 | `core/harbor-card-rs/src/lib.rs` (3× `#[kani::proof]`) | Kani | source only | decode-robustness, constant-time compare, and a 2-case subset assertion | anchor |
 | `proofs/bonded/conservation/Conservation.tla` | TLA+ (TLC) | ✅ run.log "no error", 1716 states | `TotalFree + TotalEscrow + burned = minted` — value conserved | bonded |
 | `proofs/bonded/{pairing,recovery,merkle}` | ProVerif/EasyCrypt | ✅ | passkey pairing, magic-link recovery, Merkle binding | bonded |
-| `proofs/economics/delta-threshold.z3` | Z3 | ✅ expected.txt | unique discount-factor root δ*∈[0.25,0.26] | bonded econ |
+| `proofs/economics/delta-threshold.z3` | Z3 | ✅ expected.txt | unique discount-factor root δ*∈[0.34,0.35] (δ*≈0.3425; see `proofs/economics/delta-threshold.z3` and `proofs/economics/README.md`) | bonded econ |
 | `proofs/bonded/federated/federated.pv` | ProVerif | ✅ | **Shamir 4-share escrow recovery secrecy** (`not attacker(account_root)`) — the *optional* §7.5 recovery mechanism | bonded (NOT federation) |
 
 ## Verdicts

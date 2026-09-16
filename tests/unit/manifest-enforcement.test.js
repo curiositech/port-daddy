@@ -20,6 +20,7 @@
 import { describe, it, expect, beforeAll } from '@jest/globals';
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
+import ts from 'typescript';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 
@@ -138,6 +139,35 @@ function extractManifestCliCommands(manifest) {
       commands.push({ command: cmd, feature: featureName });
     }
   }
+  return commands;
+}
+
+/**
+ * Extract literal case labels and command-tier entries from TypeScript syntax.
+ * Comments and diagnostic strings can contain example cases, so a text regex
+ * cannot distinguish them from dispatch. Only named command sets count as tiers.
+ */
+function extractCliCommands(content) {
+  const source = ts.createSourceFile('port-daddy-cli.ts', content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  expect(source.parseDiagnostics).toEqual([]);
+  const commands = new Set();
+  const tierNames = new Set(['TIER_1_COMMANDS', 'TIER_2_COMMANDS']);
+  const addLiteral = (node) => {
+    if (ts.isStringLiteralLike(node)) commands.add(node.text);
+  };
+  const visit = (node) => {
+    if (ts.isCaseClause(node)) addLiteral(node.expression);
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && tierNames.has(node.name.text)) {
+      const initializer = node.initializer;
+      if (initializer && ts.isNewExpression(initializer)
+        && ts.isIdentifier(initializer.expression) && initializer.expression.text === 'Set') {
+        const entries = initializer.arguments?.[0];
+        if (entries && ts.isArrayLiteralExpression(entries)) entries.elements.forEach(addLiteral);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
   return commands;
 }
 
@@ -342,29 +372,33 @@ describe('Manifest --> Routes (no ghost routes)', () => {
 // ============================================================================
 
 describe('CLI --> Manifest (no undocumented CLI commands)', () => {
+  it('extracts real literal cases and tiers without interpreting comments or templates as commands', () => {
+    const content = [
+      "// This case doesn't describe dispatch; case 'comment-only':",
+      "/* case 'block-comment': new Set(['comment-set']) */",
+      'const diagnostic = "case \'string-only\':";',
+      "const template = `case 'template-text': ${command}`;",
+      "const REPEATABLE_FLAGS = new Set(['not-a-command']);",
+      "const TIER_1_COMMANDS: Set<string> = new Set(['tier-one', /* 'ignored' */ `tier-literal`]);",
+      "const TIER_2_COMMANDS = new Set(['tier-two', `dynamic-${command}`]);",
+      'switch (command) {',
+      "  case 'alpha': case \"beta\": case `literal-template`: break;",
+      "  case 'esc\\u0061ped': break;",
+      '  case `dynamic-${command}`: break;',
+      '  default: break;',
+      '}',
+    ].join('\n');
+
+    expect([...extractCliCommands(content)].sort()).toEqual([
+      'alpha', 'beta', 'escaped', 'literal-template', 'tier-literal', 'tier-one', 'tier-two',
+    ]);
+  });
+
   it('every CLI command handler should map to a manifest feature', () => {
     // Read bin/port-daddy-cli.ts to find the command dispatch
     const cliContent = readFileSync(join(ROOT, 'bin', 'port-daddy-cli.ts'), 'utf-8');
 
-    // Extract commands from the case statements in the main dispatch
-    // Pattern: case 'commandname': or case 'cmd1': case 'cmd2':
-    const casePattern = /case\s+['"`]([^'"`]+)['"`]\s*:/g;
-    const cliCommands = new Set();
-    let match;
-    while ((match = casePattern.exec(cliContent)) !== null) {
-      cliCommands.add(match[1]);
-    }
-
-    // Also extract from TIER_1_COMMANDS and TIER_2_COMMANDS sets
-    const tierPattern = /new Set\(\[\s*([\s\S]*?)\]\)/g;
-    while ((match = tierPattern.exec(cliContent)) !== null) {
-      const tierContent = match[1];
-      const stringPattern = /['"`]([^'"`]+)['"`]/g;
-      let strMatch;
-      while ((strMatch = stringPattern.exec(tierContent)) !== null) {
-        cliCommands.add(strMatch[1]);
-      }
-    }
+    const cliCommands = extractCliCommands(cliContent);
 
     // Build manifest command set
     const manifestCommands = new Set();
@@ -382,8 +416,6 @@ describe('CLI --> Manifest (no undocumented CLI commands)', () => {
     // independent manifest entries.
     const metaCommands = new Set([
       'help', 'version', '--help', '-h', '--version', '-V', '--json', '-j', '--quiet', '-q',
-      // Repeatable bridge option names extracted from REPEATABLE_FLAGS, not commands
-      'client-arg', 'codex-config',
       // Short flag characters (from shortFlags map, not commands)
       'p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o', 'f',
       // Session subcommands: handled inside `case 'session':` dispatch
@@ -513,6 +545,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'attest': 'attest',
       'safe_scan': 'safe',
       'relay_status': 'relay',
+      'coordination_status': 'coordination',
       'harbormaster_status': 'harbormaster',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',
@@ -529,6 +562,8 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'roadmap_list': 'roadmap',
       'roadmap_get': 'roadmap',
       'roadmap_promote': 'roadmap',
+      'roadmap_search': 'roadmap',
+      'roadmap_export': 'roadmap',
       'call_parley': 'parley',
       'list_parleys': 'parley',
       'get_parley': 'parley',
@@ -539,6 +574,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_overdue_commitments': 'commitments',
       'list_nudges': 'suggestions',
       'respond_nudge': 'suggestions',
+      'jury_rig_status': 'skill_graft',
       'semantic_search': 'semantic',
       'semantic_resolve': 'semantic',
       'find_symbols': 'symbols',

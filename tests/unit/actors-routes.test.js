@@ -1,6 +1,23 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import Fastify from 'fastify';
 import { actorsPlugin } from '../../routes/actors.js';
+import { createTestDb } from '../setup-unit.js';
+import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
+
+/**
+ * POST /actors/:id/message is a credentialed write (#8877 / ADR-0122): it is
+ * a door into the same agent_inbox table as POST /agents/:id/inbox, with the
+ * same `wake` → hailAgent path that spawns a code-editing agent with the
+ * sender name in its prompt. These fixtures therefore mint a REAL soul
+ * through the shared helper and present its credential, exactly as a client
+ * does. Do not swap this for a stub that skips verification.
+ */
+function mintSender(alias) {
+  const db = createTestDb();
+  const souls = createTestActorSouls(db);
+  const actor = mintTestActor(souls, alias);
+  return { db, souls, actor };
+}
 
 function buildApp(deps = {}) {
   const app = Fastify();
@@ -242,18 +259,21 @@ describe('actor routes', () => {
   test('POST /actors/:id/message queues to durable actor mailbox and can wake compatibility body', async () => {
     const inboxSend = jest.fn(() => ({ success: true, messageId: 42, agentId: 'actor:cartographer' }));
     const hailAgent = jest.fn(async () => ({ success: true, project: 'port-daddy', agent: 'cartographer' }));
+    const { db, souls, actor } = mintSender('agent-test');
     const { app, register } = buildApp({
       agents: { list: () => ({ agents: [] }) },
       sessions: { list: () => ({ sessions: [] }) },
       resurrection: { list: () => ({ agents: [] }) },
       agentInbox: { send: inboxSend },
       fleetDaemon: { hailAgent },
+      actorSouls: souls,
     });
     await register();
 
     const res = await app.inject({
       method: 'POST',
       url: '/actors/cartographer/message',
+      headers: actor.headers,
       payload: {
         content: 'roadmap item needs evidence',
         from: 'agent-test',
@@ -271,35 +291,44 @@ describe('actor routes', () => {
       delivered: true,
       woke: true,
     }));
+    // 'agent-test' is a BOUND alias of the presented credential's soul, so it
+    // survives the gate — and the daemon's verified verdict rides along.
     expect(inboxSend).toHaveBeenCalledWith('actor:cartographer', 'roadmap item needs evidence', {
       from: 'agent-test',
+      fromActorId: actor.actorId,
+      fromSoulClass: 'newcomer',
       type: 'actor.message',
     });
     expect(hailAgent).toHaveBeenCalledWith('cartographer', expect.objectContaining({
       project: 'port-daddy',
       source: 'inbox',
       from: 'agent-test',
+      fromActorId: actor.actorId,
       messageContent: 'roadmap item needs evidence',
     }));
 
     await app.close();
+    db.close();
   });
 
   test('POST /actors/:id/message queues to Coxswain without requiring a live fleet body', async () => {
     const inboxSend = jest.fn(() => ({ success: true, messageId: 43, agentId: 'actor:coxswain' }));
     const hailAgent = jest.fn(async () => ({ success: true }));
+    const { db, souls, actor } = mintSender('agent-test');
     const { app, register } = buildApp({
       agents: { list: () => ({ agents: [] }) },
       sessions: { list: () => ({ sessions: [] }) },
       resurrection: { list: () => ({ agents: [] }) },
       agentInbox: { send: inboxSend },
       fleetDaemon: { hailAgent },
+      actorSouls: souls,
     });
     await register();
 
     const res = await app.inject({
       method: 'POST',
       url: '/actors/coxswain/message',
+      headers: actor.headers,
       payload: {
         content: 'claims check needed',
         from: 'agent-test',
@@ -319,10 +348,13 @@ describe('actor routes', () => {
     }));
     expect(inboxSend).toHaveBeenCalledWith('actor:coxswain', 'claims check needed', {
       from: 'agent-test',
+      fromActorId: actor.actorId,
+      fromSoulClass: 'newcomer',
       type: 'actor.message',
     });
     expect(hailAgent).not.toHaveBeenCalled();
 
     await app.close();
+    db.close();
   });
 });

@@ -139,6 +139,15 @@ CREATE TABLE user_tokens (
   expires_at  INTEGER,
   revoked_at  INTEGER
 );
+
+-- Server-owned authority; a pdu_ token proves identity, not operator access.
+CREATE TABLE user_roles (
+  user_id    TEXT NOT NULL REFERENCES users(id),
+  role       TEXT NOT NULL CHECK (role IN ('operator')),
+  source     TEXT NOT NULL,
+  granted_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, role)
+);
 ```
 
 **Email storage policy:** store the verified primary email only, for login
@@ -156,7 +165,10 @@ no parallel permission tables to drift.
 
 - Relay: `/v1/fleet/*` operator endpoints additionally accept a `user_tokens`
   bearer whose user has an `operator` role row (owner-only at first). The
-  operator token remains the break-glass credential.
+  initial owner is materialized from the trusted
+  `RELAY_OPERATOR_GITHUB_USER_ID` server variable on first access; the operator
+  token remains the break-glass credential. Browser cookies do not authorize
+  the native pause/delete path.
 - Daemon/FleetBar/pd-console: `pd account login` runs the GitHub device flow,
   stores the minted `pdu_` token in the Keychain tenant `lib/keychain.ts`
   already reserves. FleetBar shows an account chip (Control Center → Cloud

@@ -20,6 +20,13 @@ import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CONFIG = readFileSync(`${APP_ROOT}/wrangler.deploy.toml`, 'utf8');
+const DEPLOY_FACADE = readFileSync(`${APP_ROOT}/src/worker.ts`, 'utf8');
+const GITHUB_APP_MANIFEST = JSON.parse(
+  readFileSync(`${APP_ROOT}/../github-app-fleet/manifest.json`, 'utf8')
+) as {
+  default_events?: string[];
+  default_permissions?: Record<string, string>;
+};
 
 /**
  * Everything from a section header to the next top-level `[` header.
@@ -35,7 +42,28 @@ function section(header: string): string {
   return next === -1 ? rest : rest.slice(0, next);
 }
 
+/**
+ * Find one committed queue producer block by header and binding name.
+ *
+ * @param header exact TOML array header, including brackets
+ * @param binding queue binding expected inside the block
+ * @returns the matching producer block, or '' when it is absent
+ */
+function producerBlock(header: string, binding: string): string {
+  const blocks = CONFIG.split(header).slice(1);
+  return blocks.find((candidate) =>
+    new RegExp(`^\\s*binding\\s*=\\s*"${binding}"`, 'm').test(candidate)
+  ) ?? '';
+}
+
 describe('wrangler.deploy.toml — release-channel domain safety (ADR-0119)', () => {
+  it('deploys the facade that exports the internal coordination grant service', () => {
+    expect(CONFIG).toMatch(/^main\s*=\s*"src\/worker\.ts"\s*$/m);
+    expect(DEPLOY_FACADE).toMatch(
+      /export\s*\{\s*CoordinationGrantService\s*\}\s*from\s*['"]\.\/coordination-grant-service\.js['"]/,
+    );
+  });
+
   it('prod owns the branded custom domain', () => {
     // The top-level block IS prod; the domain lives there and nowhere else.
     expect(CONFIG).toMatch(/pattern\s*=\s*"relay\.portdaddy\.dev"/);
@@ -74,5 +102,23 @@ describe('wrangler.deploy.toml — release-channel domain safety (ADR-0119)', ()
 
   it('the latest channel keeps its own worker name', () => {
     expect(section('[env.latest]')).toMatch(/name\s*=\s*"relay-latest"/);
+  });
+
+  it('keeps deterministic merge-group gates off the substantive review queues', () => {
+    const prod = producerBlock('[[queues.producers]]', 'FLEET_GATES');
+    const latest = producerBlock('[[env.latest.queues.producers]]', 'FLEET_GATES');
+    expect(prod, 'missing production FLEET_GATES producer').toMatch(
+      /^\s*queue\s*=\s*"fleet-gates"\s*$/m
+    );
+    expect(latest, 'missing staging FLEET_GATES producer').toMatch(
+      /^\s*queue\s*=\s*"fleet-gates-staging"\s*$/m
+    );
+  });
+
+  it('keeps the GitHub App subscribed and permitted for merge-group delivery', () => {
+    expect(GITHUB_APP_MANIFEST.default_events).toContain('merge_group');
+    expect(['read', 'write']).toContain(
+      GITHUB_APP_MANIFEST.default_permissions?.merge_queues
+    );
   });
 });

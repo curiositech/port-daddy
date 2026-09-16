@@ -1,10 +1,36 @@
+<!-- RETIRED-BY: ADR-0126 -->
+> ## ⚓ Demoted to narrative history — this directory is no longer canonical
+>
+> This hub used to claim precedence over every other roadmap in the repo:
+> *"If a roadmap, ideas list, or cleanup proposal elsewhere disagrees with this
+> directory, this directory wins."* That claim is **revoked**. It was last
+> updated 2026-04-07 and, left standing, it instructs anyone reading it to
+> override the current plan.
+>
+> Authority now lives in two places, neither of them here:
+>
+> | For | Read |
+> |---|---|
+> | Gate truth — what is planned, claimed, and shipped | [`docs/roadmap/AUTHORITY.md`](../roadmap/AUTHORITY.md) — the daemon's `roadmap_items` table, projected append-only to `roadmap.snapshot.json` |
+> | Relay sequencing | [`docs/proposals/relay-grand-plan.md`](../proposals/relay-grand-plan.md) |
+>
+> Two things both called "the roadmap" is the ambiguity the
+> `legible-roadmap-with-sidequests` discipline exists to close: one canonical
+> registry, everything else history.
+>
+> **Authority:** [ADR-0126 — Shared-Harbors Re-sequencing](../adr/0126-shared-harbors-resequencing.md), § Formal supersessions.
+> The directory is retained deliberately — demote by default, delete only a
+> merged twin. Its contents remain useful as a record of what was being
+> recovered and why.
+
+---
+
 # Recovery Hub
 
 Last updated: 2026-04-07
 
-This directory is the canonical recovery surface for Port Daddy while V4 is being consolidated.
-
-If a roadmap, ideas list, or cleanup proposal elsewhere disagrees with this directory, this directory wins.
+This directory is a recovery surface for Port Daddy from the V4 consolidation
+period. It is history; see the banner above for where authority lives now.
 
 ## Canonical Docs
 

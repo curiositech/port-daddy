@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["output"],
+  "properties": {
+    "output": {
+      "type": "object",
+      "description": "Agent output to score"
+    },
+    "taskType": {
+      "type": "string",
+      "enum": ["analysis", "research", "creative", "code", "unknown"],
+      "default": "unknown"
+    },
+    "historicalAccuracy": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Prior accuracy rate of this agent"
+    },
+    "isSafetyCritical": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": false
+}
