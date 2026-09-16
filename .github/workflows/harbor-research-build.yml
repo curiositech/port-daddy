@@ -64,7 +64,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Render the harbor-research corpus
-        run: make -C docs/harbor-research docs
+        run: bash scripts/render-harbor-research.sh
 
       - name: Publish the seven papers + execution reports for the site
         run: |
