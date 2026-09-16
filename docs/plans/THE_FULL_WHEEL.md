@@ -516,22 +516,81 @@ bearer `STEWARD_ADMIN_TOKEN` on every route:
 > explicit SURFACE with a reason; zero un-charted merges; deck log complete for every wake;
 > one injected land-fail loop trips the freeze and pages.
 >
-> **Deployment state, measured 2026-08-26 via the Cloudflare API** (`workers/scripts/pd-steward/versions`).
-> The live seat is **version 9, uploaded 2026-08-23 10:39 UTC by `wrangler` from a workstation
-> — not by CI**; `deploy-steward.yml` has never produced the running build. Its declared
-> handlers are `["fetch"]` alone and its cron schedule list is empty, so PR 5's `scheduled`
-> handler is genuinely not live yet: the single deck-log row is the operator's manual wake and
-> nothing else could have written one. Bindings are `DB`, `STEWARD`, `STEWARD_ADMIN_TOKEN`,
-> `STEWARD_GITHUB_TOKEN` — no `STEWARD_LAND_TOKEN`, which is why `/status` reports
-> `landing: unarmed`. That version postdates PR 4 by three days, so `recentDeckLog` and
-> `clusterfudgePage` *are* in the running bundle; the `null null` a live `/status` returned for
-> them is not a version skew and is most consistent with the request having lost its bearer
-> (an `{"error":"unauthorized"}` body yields exactly two nulls under that `jq` filter).
+> **Deployment state, measured 2026-08-26 via the Cloudflare API.** The seat is **live at
+> version 12 with landing armed**: `handlers` is `['scheduled','fetch']`, the cron schedule
+> reads `23 * * * *`, and all four secrets are bound — `STEWARD_ADMIN_TOKEN`,
+> `STEWARD_GITHUB_TOKEN`, `STEWARD_LAND_TOKEN`, plus `STEWARD_REPOS` as plain text.
+> `deploy-steward.yml` produced v10 from CI on the merge of PRs 5–8.
 >
-> **Verification still owed before the gate can start:** confirm the cron fires by finding an
-> `all-quiet` entry written with no operator wake — impossible until a deploy carries the
-> `scheduled` handler, which the version metadata above now gives us a direct way to check
-> (`handlers` gains `"scheduled"`, `schedules` stops being empty).
+> Two corrections to earlier readings of this same API, recorded because both were confidently
+> wrong and the correction is the useful part:
+>
+> - **"v9 was deployed by a workstation, not CI" was false.** `deploy-steward.yml` run #1
+>   produced v9. A version's `source: wrangler` / author-email metadata cannot distinguish CI
+>   from a laptop, because CI runs `wrangler deploy` under the same account token. The
+>   observation that mattered — `handlers: ["fetch"]`, no cron — was correct; the inference
+>   about *who* deployed it was not.
+> - **"The cron firing will produce an `all-quiet` deck-log row" was false**, and it
+>   contradicts this phase's own design. `handlePulse` deliberately no-ops on a healthy seat —
+>   that is precisely what lets an hourly cron run against a 6h heartbeat without multiplying
+>   the wake rate, and it is test-pinned. A row appears when `alarm()` fires, not when the
+>   cron does. The two are different events; proving the cron fires means reading its log
+>   line, not counting rows.
+>
+> **Verification still owed before the gate can start:** (a) the cron's own log line, via
+> `wrangler tail pd-steward` across a `:23` firing; (b) the first *live* enqueue — the landing
+> verb has never executed once outside tests, so the first LAND verdict is also its first real
+> exercise.
+>
+> **Throughput ceiling, measured from `fleet_runs`.** Completed fleet runs take **25–50 minutes
+> each** (2,934,189 ms; 2,840,050 ms) and `fleet-runs` has **one consumer** by design, so a long
+> review cannot starve the merge-queue gate. With eight runs queued that is a **4–6 hour wall**
+> before anything lands. This caps the Steward's throughput no matter how well it decides: it
+> can enqueue, but the queue is the bottleneck. Tracked separately from this phase.
+
+### P1.5 — One seat per customer, not one seat per operator (≈1 week · 3 PRs)
+
+**Why this exists, and why it is before P2.** The seat's *shape* is already multi-tenant and
+correct: `idFromName('steward:owner/repo')` gives one Durable Object per repo with isolated
+storage and its own charter, both ledgers key on `repo_full_name`, and `/account/steward`
+already authorizes per repo through `userCanReadRepo` while deriving its repo list from data.
+
+Every *credential*, however, is a global singleton:
+
+| Thing | Why it breaks at N repos |
+|---|---|
+| `STEWARD_LAND_TOKEN` | One human's PAT. It cannot land in a customer's repo, and no customer will hand over a PAT. |
+| `STEWARD_GITHUB_TOKEN` | Same — one set of survey eyes, scoped to one person's repos. |
+| `STEWARD_REPOS` | A **committed var**. Onboarding a customer means a code change and a deploy. |
+| `STEWARD_ADMIN_TOKEN` | One shared bearer for every route on every seat. Whoever holds it can `/ship-it` *any* repo, `/charter` *any* seat, `/clusterfudge/ack` *any* freeze — a cross-tenant authority breach, not merely awkward. |
+
+The fix reuses machinery that already exists rather than inventing any: `apps/relay/src/github-app.ts`
+already has `getRepoInstallationId`, `getRepoToken`, and `getInstallationTokenCached`, and
+`installationId` is already threaded per-delivery through `FleetRunJob`. The fleet mints
+per-installation tokens today; the Steward simply does not use them.
+
+An App installation token is *strictly better* than the PAT it replaces: the repo owner consents
+at install time so it works for anyone, permissions are fixed at installation and cannot be
+exceeded — preserving the same structural "GitHub itself refuses a landing over unsatisfied
+protection" guarantee, per tenant — and the tokens are short-lived and auto-expiring, so there
+is no long-lived secret to leak, rotate, or silently let expire.
+
+1. **Credentials.** Move `github-app.ts` to `apps/shared/` (the same discipline the ledger
+   readers taught) and have `landPr` and the survey resolve a token per repo. Both PATs are then
+   deleted, not left armed.
+2. **Roster as data.** `STEWARD_REPOS` becomes a D1 table keyed on installations, so onboarding
+   is a row and not a deploy. **This overturns an argument P1 made on purpose:** PR 5 held that a
+   *committed* roster is a virtue because a reader can see which seats are supposed to be alive.
+   That is right for one repo and cannot survive N — a customer list is not committable. The
+   legibility it was buying moves to the console page instead.
+3. **Per-repo authorization.** `STEWARD_ADMIN_TOKEN` stops being the normal path and becomes an
+   operator break-glass; `/ship-it` and `/clusterfudge/ack` authorize through the same GitHub
+   session the console already uses, needing a `userCanAdminRepo` alongside the existing
+   `userCanReadRepo`. The cron also needs fan-out rather than one serial loop over N seats.
+
+> **Proof gate.** A second repository, owned by a different GitHub account, gets a seat through
+> App installation alone — no new secret, no deploy, no code change. Its operator can read its
+> deck log and cannot read the first repo's. Revoking that installation disarms only that seat.
 
 ### P2 — Cartographer dispatches; sailors are born (≈3 weeks · 5 PRs)
 
@@ -654,6 +713,7 @@ in `Roadmap-Item:` trailers and `pd roadmap touch`.
 | Slug | Phase | First PR |
 |---|---|---|
 | `steward-takes-the-seat` | P1 — The Steward takes the seat | Steward DO scaffold (`apps/steward`) |
+| `steward-serves-every-repo` | P1.5 — One seat per customer, not one seat per operator | GitHub App installation tokens replace both PATs |
 | `cartographer-dispatches-sailors` | P2 — Cartographer dispatches; sailors are born | Cartographer DO + detectors |
 | `transcript-dag-viewer` | P3 — The transcript DAG, visible and enterable | Transcript schema node/DAG identity |
 | `portdaddy-console` | P4 — The console at portdaddy.dev | Auth + per-repo shell |

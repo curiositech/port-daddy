@@ -30,6 +30,7 @@ function fleetYaml(ships: Array<{ name: string; blocking?: boolean }>): string {
   const body = ships
     .map(s => {
       const lines = [`    ${s.name}:`, '      trigger: pull_request:opened'];
+      lines.push(`      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`);
       if (s.blocking) lines.push('      blocking: true');
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');

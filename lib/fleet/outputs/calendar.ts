@@ -23,6 +23,7 @@ import {
   type EventKitClient,
 } from '../calendar-eventkit.js';
 import { GoogleCalendarClient, googleCredsFromEnv } from '../calendar-google.js';
+import { createLocalRuntimeGate } from '../../local-runtime-control.js';
 import type {
   OutputAvailability,
   OutputPayload,
@@ -34,12 +35,23 @@ export interface CalendarSinkDeps {
   /** Injectable clients (tests). */
   eventKit?: Pick<EventKitClient, 'status' | 'createEvent'>;
   google?: Pick<GoogleCalendarClient, 'createEvent'>;
+  /** Rechecked immediately before a calendar write; false latches for this sink. */
+  runtimeAllowed?: () => boolean;
 }
 
 export class CalendarOutputSink implements OutputSink {
   readonly kind = 'calendar' as const;
+  private readonly runtimeAllowed: () => boolean;
 
-  constructor(private readonly deps: CalendarSinkDeps = {}) {}
+  constructor(private readonly deps: CalendarSinkDeps = {}) {
+    this.runtimeAllowed = createLocalRuntimeGate(deps.runtimeAllowed);
+  }
+
+  private assertRuntimeAllowed(): void {
+    if (!this.runtimeAllowed()) {
+      throw new Error('Local Port Daddy is Off or control state is unavailable; calendar write refused');
+    }
+  }
 
   async available(): Promise<OutputAvailability> {
     if (this.deps.eventKit || this.deps.google) return { ready: true };
@@ -106,6 +118,7 @@ export class CalendarOutputSink implements OutputSink {
 
   private async dispatchEventKit(payload: OutputPayload): Promise<OutputResult> {
     const client = this.deps.eventKit ?? getSharedEventKitClient();
+    this.assertRuntimeAllowed();
     const created = await client.createEvent({
       title: payload.title!,
       start: new Date(payload.start!).toISOString(),
@@ -132,8 +145,9 @@ export class CalendarOutputSink implements OutputSink {
     if (!client) {
       const creds = googleCredsFromEnv();
       if (!creds) throw new Error('Google Calendar creds missing (available() should have refused)');
-      client = new GoogleCalendarClient(creds);
+      client = new GoogleCalendarClient(creds, fetch, this.runtimeAllowed);
     }
+    this.assertRuntimeAllowed();
     const created = await client.createEvent({
       title: payload.title!,
       start: new Date(payload.start!).toISOString(),

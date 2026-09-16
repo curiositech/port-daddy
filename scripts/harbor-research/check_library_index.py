@@ -198,10 +198,29 @@ def load_index() -> dict:
                     "figures", "scripts", "numbers", "mechanization", "site", "status"):
             if req not in e:
                 raise IndexError_(f"{INDEX_REL}: entry '{eid}' is missing '{req}'")
+    # An allow-list id is a chapter's own \label{...}, and two chapters may
+    # legitimately carry the same one: the Book generator namespaces labels per
+    # chapter, which is exactly what lets def:0040b and def:float-plan sit in
+    # two chapters each (library-checks.yml passes both to
+    # check_duplicate_theorems.py --allow for that reason). So the identity of a
+    # row is the (file, id) PAIR, which is how check_coverage reads this list
+    # and how render_markdown sorts it -- and, until now, an assumption nothing
+    # enforced. A row repeated under one file is a real double-entry: it says
+    # the same label is unindexed twice for two different reasons, and the
+    # second reason is unreachable. Reported as the pair, so a reader is never
+    # told a deliberate cross-chapter label is a duplicate.
+    seen_allow: set[tuple[str, str]] = set()
     for i, a in enumerate(data["unindexed_allow"]):
         for req in ("id", "file", "reason"):
             if req not in a:
                 raise IndexError_(f"{INDEX_REL}: unindexed_allow[{i}] is missing '{req}'")
+        pair = (a["file"], a["id"])
+        if pair in seen_allow:
+            raise IndexError_(
+                f"{INDEX_REL}: duplicate unindexed_allow entry "
+                f"'{a['id']}' in {a['file']} -- one row per (file, id)"
+            )
+        seen_allow.add(pair)
     return data
 
 

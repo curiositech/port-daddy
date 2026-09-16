@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-sealed-two-worlds/fig-sealed-two-worlds.pdf",
+  "figure": "fig-sealed-two-worlds",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -31,6 +31,11 @@
       "count": 0,
       "findings": []
     },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
     "T6": {
       "status": "pass",
       "count": 0,
@@ -42,6 +47,17 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1533,
+      "edge_density": 0.0906,
+      "distinct_colors": 1616,
+      "flags": [
+        "edge_density=0.091 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "pass",
     "failed_checks": [],

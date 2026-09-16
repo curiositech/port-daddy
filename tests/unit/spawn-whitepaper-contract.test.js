@@ -5,11 +5,21 @@ import { inflateSync } from 'node:zlib';
 import { describe, expect, test } from '@jest/globals';
 
 // Executable, adversarial acceptance contract for the stacked publication artifact.
+//
+// Chapter III (spawn-to-person) used to publish a standalone PDF of its own;
+// that is retired (an A4 render of the same words with no margin column, a
+// worse layout of the Book's 7x10in trim), so this contract no longer binds
+// a per-chapter PDF — only the chapter's .tex source, its catalog entry, and
+// the shared review evidence that still names it.
 const paths = {
   catalog: 'website-v2/src/data/whitePapers.ts',
   source: 'website-v2/public/whitepaper/spawn-to-person.tex',
   keystone: 'website-v2/public/whitepaper/figures/tab-keystone-split.tex',
-  pdf: 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
+  // \BUILT/\BUILTWEAK/\DESIGNED/\VISION used to be defined again in this
+  // chapter's own preamble; they are now defined once, for every chapter and
+  // the Book, in the shared file this chapter \input{}s (see
+  // check_duplicate_macros.py). The maturity-word assertion below reads both.
+  pedagogy: 'website-v2/public/whitepaper/figures/pd-pedagogy.tex',
   contact: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png',
   tour: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif',
   proof: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/proof-manifest.md',
@@ -27,17 +37,11 @@ const reviewSha256 = {
 };
 
 const publicationPdfs = [
-  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
-  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
-  'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
-  'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
-  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
-  'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
-  'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf',
-  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
+  // One published Book. Which typographic character it carries is set by
+  // \pdedition's default in the preamble (Swiss today); the maritime and
+  // technical drivers remain switchable, are not built, and publish nothing.
+  // The eight chapters no longer publish a standalone PDF of their own.
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
 ];
 
 function publicationDigests() {
@@ -154,15 +158,20 @@ describe('Spawn-to-Person publication contract', () => {
   test('the maturity plot marks partial only where the runtime has a grounded substrate', () => {
     const source = text(paths.source);
     const keystone = text(paths.keystone);
+    const pedagogy = text(paths.pedagogy);
 
-    // The maturity words are set by macro so no organ can round itself up.
-    expect(source).toMatch(/\\newcommand\{\\BUILTWEAK\}.*\\textsc\{partial\}/);
-    // Checkpoint and outcome ledger are the two organs marked partial; memory is built.
-    expect(source).toContain('Organ 1 --- Memory: the episodic record \\quad\\BUILT}');
-    expect(source).toContain('Organ 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
-    expect(source).toContain('Organ 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
-    // The continuity-organs table (which replaced the three-organs figure) says
-    // what each partial organ does not carry across a restart.
+    // The maturity words are set by macro so no subsystem can round itself up.
+    // This chapter no longer defines \BUILTWEAK itself -- it \input{}s the
+    // shared figures/pd-pedagogy.tex, which aliases the capitalised name to
+    // \BuiltWeak and defines that body once for every chapter and the Book.
+    expect(pedagogy).toMatch(/\\newcommand\{\\BUILTWEAK\}\{\\BuiltWeak\}/);
+    expect(pedagogy).toMatch(/\\newcommand\{\\BuiltWeak\}.*\\textsc\{partial\}/);
+    // Checkpoint and outcome ledger are the two subsystems marked partial; memory is built.
+    expect(source).toContain('Subsystem 1 --- Memory: the episodic record \\quad\\BUILT}');
+    expect(source).toContain('Subsystem 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
+    expect(source).toContain('Subsystem 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
+    // The continuity-subsystems table (which replaced the three-subsystems figure) says
+    // what each partial subsystem does not carry across a restart.
     expect(source).toContain('\\label{tab:stp-organs}');
     expect(source).toContain('recovery restores notes, not execution');
     expect(source).toContain('an outcome nobody witnessed; a closure no oracle checked');
@@ -187,33 +196,33 @@ describe('Spawn-to-Person publication contract', () => {
     expect(chapterEnd).toBeGreaterThan(chapterStart);
     const chapter = catalog.slice(chapterStart, chapterEnd);
 
-    const manifest = publicationDigests()[paths.pdf];
+    // The chapter carries no `pages`/`sizeKb`/`pdfPath` — it no longer
+    // publishes a standalone PDF for those to describe (retired: an A4
+    // render of the same words with no margin column). The version string
+    // is the one fact this contract still pins.
     expect(chapter).toMatch(/status: 'Version \d+\.\d+ \(textbook edition\)'/);
-    expect(chapter).toContain(`pages: ${manifest.pages}`);
-    // The catalog's sizeKb is held to the metadata guard's tolerance
-    // (max(2 %, 4 KB)), not to the byte: deterministic LaTeX wobble must not
-    // force a catalog edit on every regen.
-    const declaredKb = Number(chapter.match(/sizeKb: (\d+)/)[1]);
-    const manifestKb = Math.round(manifest.bytes / 1024);
-    expect(Math.abs(declaredKb - manifestKb)).toBeLessThanOrEqual(Math.max(manifestKb * 0.02, 4));
+    expect(chapter).not.toContain('pdfPath:')
+    expect(chapter).not.toContain('pages:')
+    expect(chapter).not.toContain('sizeKb:')
     expect(catalog).toContain('Spawn-to-Person diagrams and implementation status align');
     expect(catalog).toContain("chapters: ['spawn-to-person']");
   });
 
-  test('the committed PDF is the artifact the catalog and the digest manifest declare', () => {
-    const pdf = readFileSync(paths.pdf);
-    const manifest = publicationDigests()[paths.pdf];
-    expect(pdfPageCount(pdf)).toBe(manifest.pages);
-    expect(pdf.length).toBe(manifest.bytes);
-    expect(sha256(paths.pdf)).toBe(manifest.sha256);
-  });
-
-  test('every publication PDF matches the digest manifest', () => {
+  // Chapter III's own PDF is retired, so the artifact this contract reads
+  // back is the Book. The three facts stay the three facts: the page tree the
+  // file really carries, the byte length it really has, and its digest — all
+  // against the manifest, which is what the site and the catalog quote. The
+  // page count is read out of the PDF here rather than from `pdfinfo`, so the
+  // check holds on a runner with no poppler (check-whitepaper-metadata.ts
+  // degrades when pdfinfo is absent; this does not).
+  test('every publication PDF is the artifact the digest manifest declares', () => {
     const digests = publicationDigests();
     expect(Object.keys(digests).sort()).toEqual([...publicationPdfs].sort());
     for (const artifact of publicationPdfs) {
+      const pdf = readFileSync(artifact);
+      expect(pdfPageCount(pdf)).toBe(digests[artifact].pages);
+      expect(pdf.length).toBe(digests[artifact].bytes);
       expect(sha256(artifact)).toBe(digests[artifact].sha256);
-      expect(readFileSync(artifact).length).toBe(digests[artifact].bytes);
     }
   });
 
@@ -223,22 +232,13 @@ describe('Spawn-to-Person publication contract', () => {
       expect(sha256(paths[artifact])).toBe(expected);
       expect(proof).toContain(expected);
     }
-    // The manifest records the renders that were reviewed; every publication
-    // PDF must have a row there, and the manifest must say where the current
-    // digests live now that the PDFs are regenerated per edition.
-    // The proof manifest is a frozen record of the first-edition review
-    // (August 2026, seven chapters plus the Book); the Sealed Harbor chapter
-    // and the Book's Swiss and technical editions postdate it and are bound by
-    // publication-digests.json alone.
-    const postdatesReview = [
-      'sealed-harbor-whitepaper.pdf',
-      'coordination-papers-mega-volume-swiss.pdf',
-      'coordination-papers-mega-volume-technical.pdf',
-    ];
-    const firstEditionPdfs = publicationPdfs.filter(
-      (artifact) => !postdatesReview.some((suffix) => artifact.endsWith(suffix)),
-    );
-    for (const artifact of firstEditionPdfs) {
+    // The manifest is a frozen record of the first-edition review (August
+    // 2026, seven chapters plus the Book, all still named in its table by
+    // their now-retired standalone-PDF paths); it is historical evidence and
+    // stays as written. The one publication PDF that still exists today (the
+    // Book) must still have a row there, and the manifest must say where the
+    // current digests live now that PDFs are regenerated per edition.
+    for (const artifact of publicationPdfs) {
       expect(proof).toContain(`\`${artifact}\``);
     }
     expect(proof).toContain('publication-digests.json');

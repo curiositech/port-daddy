@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Readable } from 'node:stream';
@@ -31,7 +31,7 @@ function childEnvironment(inherited: NodeJS.ProcessEnv, mode: Mode): NodeJS.Proc
   for (const key of ['PATH', 'HOME', 'USERPROFILE', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'LANG', 'LC_ALL']) {
     if (inherited[key] !== undefined) env[key] = inherited[key];
   }
-  return { ...env, PORT_DADDY_URL: endpoint, SALVAGE_FIXTURE_MODE: mode };
+  return { ...env, PORT_DADDY_URL: endpoint, SALVAGE_FIXTURE_MODE: mode, SALVAGE_FIXTURE_HOME: join(root, 'fixture-home') };
 }
 
 function runHook(mode: Mode, inherited = process.env, probe = false): Promise<{
@@ -68,6 +68,11 @@ beforeEach(() => {
   root = mkdtempSync(join(fixtureParent, 'pilot-salvage-'));
   project = join(root, 'salvage-fixture');
   mkdirSync(join(project, '.portdaddy'), { recursive: true });
+  const state = join(root, 'fixture-home', '.port-daddy');
+  mkdirSync(state, { recursive: true });
+  writeFileSync(join(state, 'daemon.ready'), '4242\n');
+  writeFileSync(join(state, 'daemon.pid'), '4242\n');
+  writeFileSync(join(state, 'heartbeat'), 'fixture\n');
 });
 afterEach(() => { if (root) rmSync(root, { recursive: true, force: true }); });
 
@@ -85,6 +90,18 @@ function verifyTransport(result: Awaited<ReturnType<typeof runHook>>): string {
 }
 
 describe('SessionStart Pilot salvage nudge', () => {
+  test.each(['hooks.disabled', 'HALT', 'missing-ready'])('%s suppresses all transport and steering', async state => {
+    const controlRoot = join(root, 'fixture-home', '.port-daddy');
+    if (state === 'missing-ready') rmSync(join(controlRoot, 'daemon.ready'));
+    else writeFileSync(join(controlRoot, state), 'off');
+    const result = await runHook('two');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
+    expect(result.diagnostics.requests).toEqual([]);
+    expect(result.diagnostics.deadlines).toEqual([]);
+  });
+
   test('appends a project-scoped salvage count while preserving base steering', async () => {
     const ctx = verifyTransport(await runHook('two'));
     expect(ctx).toContain('SALVAGE: 2 interrupted agent run(s)');

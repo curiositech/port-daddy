@@ -1,0 +1,294 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/surface-graph.schema.json",
+  "title": "Surface Graph (Random-Surfer Reader Model Input)",
+  "description": "A reading/interaction graph for scripts/surfer_model.mjs. Covers web flows, wireframes, PDF documents, and LaTeX books with one shape. Every field is a number, boolean, or explicit concept label the analyst decided while reading the surface: the script performs no text, image, or URL inspection. Node order IS reading order \u2014 index 0 is where a linear reader starts.",
+  "type": "object",
+  "required": [
+    "nodes"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "surfaceKind": {
+      "type": "string",
+      "enum": [
+        "web-flow",
+        "wireframe",
+        "pdf-document",
+        "latex-book",
+        "slide-deck",
+        "other"
+      ],
+      "description": "What is being audited. Changes which findings are meaningful, not the arithmetic. See references/surface-adapters.md for how to encode each kind, and what each kind CANNOT tell you."
+    },
+    "readerMode": {
+      "type": "string",
+      "enum": [
+        "skim",
+        "scan",
+        "study",
+        "task"
+      ],
+      "default": "task",
+      "description": "Which surfer to run. Reader modes are parameter presets on one chain, not separate models: skim teleports often and abandons fast, study reads linearly and re-reads. Run a document in ALL of skim/scan/study \u2014 a surface that only survives 'study' has an acquisition problem, because nobody starts in study mode."
+    },
+    "workingSetWindowNodes": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3,
+      "description": "How many nodes back a freshly-introduced concept still counts against working memory. Counted in nodes, so size nodes to one reading sitting (a section, a screen, a page spread). Raise this only if your nodes are unusually fine-grained."
+    },
+    "patienceBudget": {
+      "type": "object",
+      "description": "How long this reader will actually give the surface before the decision to continue is re-made from scratch. Used to gate total reading time and time-to-first-insight.",
+      "required": [
+        "seconds"
+      ],
+      "properties": {
+        "seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Where the number came from \u2014 a real telemetry figure, a stated reading occasion, or an assumption. Say which."
+        }
+      }
+    },
+    "entryNodes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Where surfers arrive, with optional weights. A book entered only at its cover models a very different reader from one entered at a search hit in Chapter 6 \u2014 model both. Defaults to the first node.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "weight": {
+                "type": "number",
+                "minimum": 0,
+                "default": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    "payoffNodes": {
+      "type": "array",
+      "description": "The nodes that actually deliver the value the surface promises: the result, the working feature, the answer. Reach probability and time-to-first-insight are computed against these. A surface with no declared payoff node has not been analysed, only described.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "readerPaths": {
+      "type": "array",
+      "description": "Prescribed routes through the surface, one per named kind of reader - the book's own \"Reader's Map\" or \"How to read this book\", or a docs site's role-based tracks. Each route is evaluated as its own surface: the same chain, restricted to the prescribed nodes in the prescribed order. That is what catches a map whose route skips the chapter introducing a concept the route later needs - a defect the linear reading order hides completely.",
+      "items": {
+        "type": "object",
+        "required": [
+          "nodes"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identifier for the route, used in finding messages."
+          },
+          "label": {
+            "type": "string",
+            "description": "The route as the document names it, e.g. \"Practitioner track\"."
+          },
+          "persona": {
+            "type": "string",
+            "description": "The vocational identity this route is written for, matched to a persona in product-appeal-analyzer's spec. A route with no persona is a route nobody was chosen for; a persona with no route is a reader the map forgot."
+          },
+          "nodes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "description": "Node ids in the order the map prescribes. Need not be contiguous - skipping is the point."
+          },
+          "readerMode": {
+            "type": "string",
+            "enum": [
+              "skim",
+              "scan",
+              "study",
+              "task"
+            ],
+            "description": "Override the graph's reader mode for this route. A practitioner track is usually read in scan or skim mode even when the book as a whole is a study read."
+          },
+          "patienceBudgetSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "This reader's budget, which is usually not the book's. A practitioner track promising four hours to someone with one is a broken promise even if every chapter on it is excellent."
+          },
+          "payoffNodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What pays THIS reader, if different from the document's overall payoff. Defaults to the graph's payoffNodes that lie on the route; an empty result is itself a finding."
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Reading positions in reading order: screens in a flow, frames in a wireframe, sections in a document, chapters/sections in a book.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable name, used verbatim in findings."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "prose",
+              "definition",
+              "theorem",
+              "proof",
+              "figure",
+              "table",
+              "example",
+              "exercise",
+              "screen",
+              "form",
+              "nav",
+              "hero",
+              "cta"
+            ],
+            "description": "What this node is. Documentary only today, but it keeps a graph legible to the next analyst."
+          },
+          "costSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "default": 30,
+            "description": "Expected seconds to read/complete this node once. For prose, estimate from word count at the reader's real rate (roughly 200-250 wpm for ordinary prose, and far slower for dense technical text \u2014 50-100 wpm is common for mathematics)."
+          },
+          "newConcepts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Concepts, terms, or notation this node INTRODUCES (defines, names, or explains for the first time). The label is an arbitrary stable string; only identity across nodes matters."
+          },
+          "requiresConcepts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Concepts this node leans on to be understood. A concept required here but introduced nowhere is a dangling prerequisite; required here but introduced LATER is a forward reference. Both cost the reader, and the model charges for both."
+          },
+          "payoff": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0,
+            "description": "How much of the surface's promised value this node actually delivers, 0-1. Lowers the abandon hazard: readers who are being paid keep reading."
+          },
+          "hook": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0,
+            "description": "How strongly this node's ending pulls the reader onward, 0-1: an open question, a cliffhanger result, a visible next step. Distinct from payoff \u2014 a hook promises, a payoff delivers."
+          },
+          "attentionElements": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "How many things compete for attention here at once: choices, fields, callouts, animated elements, marginalia, simultaneous figures. Measured against a working-memory limit of 4."
+          },
+          "gestalt": {
+            "type": "object",
+            "description": "The analyst's Gestalt judgement of this node, 0-10 each (10 = ideal). See references/gestalt-operators.md for the detection rules behind each score. Omitted sub-scores default to 10 (no penalty) so a partially-scored graph still runs.",
+            "properties": {
+              "groupingClarity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10,
+                "description": "Do proximity/similarity/enclosure produce the groups the CONTENT actually has? 0 = the layout groups things that are unrelated and separates things that belong together."
+              },
+              "figureGroundClarity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10,
+                "description": "Does the primary thing separate cleanly from its background/chrome? 0 = everything has equal visual weight and nothing reads as primary."
+              },
+              "continuityClarity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10,
+                "description": "Does the layout imply the reading order the content needs (alignment, flow lines, a single dominant axis)? Recorded for reporting; not yet weighted in the hazard."
+              },
+              "commonRegionClarity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10,
+                "description": "Do enclosures/cards/rules bound exactly one idea each? Recorded for reporting; not yet weighted in the hazard."
+              }
+            }
+          },
+          "links": {
+            "type": "array",
+            "description": "Outgoing transitions in the reader's likely order. A node with NO links is terminal: reaching its end counts as finishing the surface. Backward links need not be listed \u2014 regression is derived from prerequisite distance.",
+            "items": {
+              "type": "object",
+              "required": [
+                "to"
+              ],
+              "properties": {
+                "to": {
+                  "type": "string",
+                  "description": "Target node id."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "sequential",
+                    "crossref",
+                    "nav",
+                    "figure-jump",
+                    "cta",
+                    "escape"
+                  ],
+                  "description": "What kind of move this is. Documentary today."
+                },
+                "weight": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 1,
+                  "description": "Relative likelihood among this node's outgoing links. Weights are normalised, so only ratios matter."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

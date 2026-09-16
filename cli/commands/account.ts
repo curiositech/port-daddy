@@ -20,7 +20,7 @@ import { PD_HOME } from '../../shared/paths.js';
 const DEFAULT_RELAY = 'https://relay.portdaddy.dev';
 const ACCOUNT_FILE = join(PD_HOME, 'account.json');
 
-interface StoredAccount {
+export interface StoredAccount {
   token: string;
   login: string;
   relayUrl: string;
@@ -30,6 +30,22 @@ interface StoredAccount {
 function relayUrl(): string {
   const u = process.env.PD_ACCOUNTS_RELAY_URL?.trim() || DEFAULT_RELAY;
   return u.replace(/\/+$/, '');
+}
+
+/**
+ * The signed-in account as stored by `pd account login`, or null.
+ *
+ * Exported because the `pdu_` token here is the ONLY credential the relay's
+ * account-scoped JSON paths accept from a machine, so any command that talks to
+ * the relay on the operator's behalf (`pd roadmap push`, and whatever follows)
+ * reads it rather than minting a second token store.
+ *
+ * @returns The stored account, or null when nobody has signed in on this machine
+ *   or the file is unreadable — the two are not distinguished on purpose, since
+ *   the operator's next step is `pd account login` either way.
+ */
+export function readStoredAccount(): StoredAccount | null {
+  return readStored();
 }
 
 function readStored(): StoredAccount | null {

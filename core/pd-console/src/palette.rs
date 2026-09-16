@@ -108,6 +108,15 @@ const LIGHT: Theme = Theme {
 /// Filled controls use the deep slab colors; text uses the brighter dark-mode
 /// counterparts. Keeping those two jobs separate is what stops the shell from
 /// collapsing into a generic bright-blue developer tool.
+///
+/// `engaged`/`gated`/`landed` track the website's dark-mode `--brand-warm`,
+/// `--brand-heat` and `--brand-accent` (see tokens.semantic.css) — the same
+/// relationship LIGHT keeps below. A story-linework pass once pointed these
+/// three at unrelated port.css roles (chart lime, identity violet, and the
+/// health green meant for `--story-health`, not `--brand-accent`'s teal) —
+/// notably `gated` also drives the warning `Tone` (see pane.rs), so a violet
+/// "needs attention" chip was reading as neutral rather than as a warning.
+/// scripts/check-console-palette-tokens.mjs holds this line going forward.
 const DARK: Theme = Theme {
     mode: ThemeMode::Dark,
     bg: 0x0b0d11,
@@ -121,9 +130,9 @@ const DARK: Theme = Theme {
     line2: 0x4a4f5c,
     accent: 0x003fb8,
     accent_ink: 0x7db4ff,
-    engaged: 0xcad900,
-    gated: 0xe0a5ed,
-    landed: 0x5fce97,
+    engaged: 0xf2be51,
+    gated: 0xff9c85,
+    landed: 0x8fd0a7,
     resting: 0xa59f93,
     conflict: 0xff7d7d,
     mayday: 0xff7d7d,
