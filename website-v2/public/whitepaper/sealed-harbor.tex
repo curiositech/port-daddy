@@ -156,7 +156,12 @@ Derek owns sensitive financial data $D$. Erin owns a valuable agent system $M$:
 weights, prompts, skills, tools, orchestration. Both want the answer
 $y=f_M(D)$. Neither will hand over the crown jewels: Derek must not receive $M$,
 Erin must not receive $D$, and the cloud operator hosting the computation must
-receive neither. Every week some enterprise negotiates this standoff with
+receive neither -- three parties, three sight-lines, one boundary that must
+seal all of them at once, drawn in Figure~\ref{fig:sealed-three-principals}.
+
+\input{figures/fig-sealed-three-principals}
+
+Every week some enterprise negotiates this standoff with
 lawyers and air-gapped laptops. The question this chapter answers is whether a
 \emph{computational} contract can replace the lawyers' one, and what, precisely,
 it can promise. The systems literature answered a narrower version first: Ryoan
@@ -278,6 +283,10 @@ retention fixes key destruction; validators name the success evidence and the
 dispute procedure; payment and liability are the guarantee. Any change makes a
 new hash and requires both signatures. It is a work unit in the sense of \pdchapref{swk}{The Single-Writer
 Kernel}: the case file that outlives every process that touches it.
+Figure~\ref{fig:sealed-work-order-schema} groups the tuple's thirteen
+fields by the five roles just named.
+
+\input{figures/fig-sealed-work-order-schema}
 
 \paragraph{Dual-attested key release.}
 The workload boots in a confidential virtual machine and creates an ephemeral
@@ -289,6 +298,12 @@ same condition, the attester, verifier, and relying-party pattern of IETF RATS
 \pdcite{rats}. The job then runs with no ambient network or credentials. Neither
 principal, and not the cloud operator, can read the other's plaintext: the room
 is sealed from three sides at once.
+
+Figure~\ref{fig:sealed-dual-attestation} draws the ceremony as a sequence:
+one attestation evidence bundle, appraised twice and independently, each
+broker releasing its own key off its own appraisal alone.
+
+\input{figures/fig-sealed-dual-attestation}
 
 \paragraph{Two fences.}
 Erin's worker is treated as hostile even if Erin is honest, because prompt
@@ -350,7 +365,11 @@ R=\mathrm{Sign}\bigl(\, & H(C),\,H(\text{attestation}),\,H(\text{inputs}),\,H(M)
 \end{aligned}
 \]} The receipt proves what the
 measured system reported under a policy; it does not prove the answer is true,
-nor that no unmodeled side channel existed.
+nor that no unmodeled side channel existed. Figure~\ref{fig:sealed-receipt-provenance}
+draws $R$'s bound fields as a tree and flags the one leaf that proves
+only what was released, not that it was correct.
+
+\input{figures/fig-sealed-receipt-provenance}
 
 \begin{pdclaim}{Design invariant}{The room's side properties}
 \label{inv:sealed-side}
@@ -364,6 +383,30 @@ external ledgers. Each is intended to hold and is backed by the implementation
 and its tests; none is a theorem, and this chapter never lets one stand in for
 one.
 \end{pdclaim}
+
+Table~\ref{tab:sealed-side-invariants} names, for each of the six, the later
+result that leans on it; complete mediation is the one link and conservation
+both cite by name, the others every later theorem assumes silently.
+
+\begin{table}[H]\centering\footnotesize
+\caption{The room's six side properties and the later result each underwrites.
+None is a theorem; each is backed by the implementation and its tests.
+Complete mediation is flagged because it is the one property later sections
+name explicitly, not merely assume.}
+\label{tab:sealed-side-invariants}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.6cm}@{}}
+\toprule
+Invariant & States & Depended on by \\
+\midrule
+Label monotonicity & no label weakens without a declassification witness & every gate of Sec.~\ref{sec:sealed-design}; assumed silently by noninterference (Sec.~\ref{sec:sealed-noninterference}) \\
+\textbf{Complete mediation} & every release has exactly one gate decision & \textbf{named explicitly}: the deployment assumption Enforceability (Sec.~\ref{sec:sealed-enforceability}) and Conservation (Sec.~\ref{sec:sealed-conservation}) both inherit \\
+Provenance closure & every release traces to committed input, model, runtime, policy, and declassifier nodes & the receipt $R=\mathrm{Sign}(\ldots)$ of Sec.~\ref{sec:sealed-design} \\
+Replay safety & each job nonce settles at most once & the receipt's nonce field and the dual-attested key release's fresh nonce (Sec.~\ref{sec:sealed-design}, Fig.~\ref{fig:sealed-dual-attestation}) \\
+Measurement binding & neither secret key is released for a different runtime or policy & the dual-attested key release ceremony directly (Fig.~\ref{fig:sealed-dual-attestation}) \\
+Rollback detectability & accepted epochs strictly increase in both external ledgers & the $\varepsilon$-ledger's append-only journal (Sec.~\ref{sec:sealed-conservation}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \paragraph{Four links, one pipeline.}
 The four claims are not four independent guarantees stacked for redundancy;
@@ -547,6 +590,13 @@ Section~\ref{sec:sealed-limitations}. And a human who reads a released parity
 may still remember it: the system bounds channels, not minds.
 \end{pdboundary}
 
+Figure~\ref{fig:sealed-laundering-fork} draws the fork: the honest path and
+the laundering path are identical through \texttt{submit}, because that is
+the one node the checker's model can see, and only the honest gate's
+\emph{argument} differs.
+
+\input{figures/fig-sealed-laundering-fork}
+
 \section{The gate sits on the only enforceable boundary}\label{sec:sealed-enforceability}
 
 \noindent\emph{Express lane: a safety policy over an agent's behavior can be
@@ -613,6 +663,13 @@ never emit a token that names a secret & \texttt{model\_emit\_token} & uncontrol
 \bottomrule
 \end{tabularx}
 \end{table}
+
+Figure~\ref{fig:sealed-controllability-quadrant} places the same five
+policies on the controllability x witnessing quadrant this book already
+uses for the general theorem, so the compound rule's trigger and its
+enforcement point can be seen to sit in different cells.
+
+\input{figures/fig-sealed-controllability-quadrant}
 
 That verdict is the whole sealed-room design in one line, and it is the
 computational vindication of the correction in
@@ -780,7 +837,11 @@ running a private mechanism, and its recorded $\varepsilon_i$ is a number it
 declared about itself. In that regime $\sigma\le\varepsilon_{\max}$ certifies
 nothing, and the $q\cdot b$ capacity account of
 Section~\ref{sec:sealed-budget}, not the ledger, is the operative bound. The
-two accounts are for two different adversaries and the chapter owns both.
+two accounts are for two different adversaries and the chapter owns both,
+drawn side by side in Figure~\ref{fig:sealed-two-adversaries}.
+
+\input{figures/fig-sealed-two-adversaries}
+
 Systems that schedule privacy budgets across concurrent jobs make the
 corresponding assumption explicit, that the analyst is trusted to implement
 the mechanism correctly \pdcite{pkube21}; this chapter declines that assumption
@@ -983,7 +1044,12 @@ Theorem~\ref{thm:sealed-noninterference}'s committed-input hypothesis, the
 malicious worker against whom $\sigma\le\varepsilon_{\max}$ certifies nothing,
 and the arbitrary-telemetry channel disclaimed in
 Section~\ref{sec:sealed-limitations}. All three are the same debt seen from
-three sides, and it has one price. If an Erin-visible channel permits $b$
+three sides, and it has one price, drawn converging in
+Figure~\ref{fig:sealed-residuals-converge}.
+
+\input{figures/fig-sealed-residuals-converge}
+
+If an Erin-visible channel permits $b$
 freely chosen bits per job, a malicious worker, one that launders by computing
 $t=f(s)$ and submitting $t$ so that the gate honestly releases $g(t)$, can
 exfiltrate up to $b$ bits through it: the noninterference property guarantees
@@ -1014,38 +1080,38 @@ is the arithmetic the example above did in one multiplication. A granted
 capacity is a quantity a contract can price, bond, and canary-police exactly,
 which is the whole of what the four links, between them, make possible.
 
+\input{figures/fig-sealed-leakage-ledger}
+
 \section{Limitations and boundaries}\label{sec:sealed-limitations}
 
 None of the following is promised, and a contract that implies any of them
 overclaims.
 
-\begin{itemize}
-\item \textbf{Zero model leakage with unlimited useful adaptive outputs to Derek.}
-  The model-confidentiality property is weaker than the data property,
-  structurally: Derek \emph{intentionally observes} evaluations of $M$, and
-  unlimited adaptive black-box access enables model extraction. Erin's
-  confidentiality is stated relative to the contracted query-and-output
-  interface, not as absolute secrecy.
-\item \textbf{Zero data leakage with arbitrary natural-language telemetry to Erin.}
-  That channel is the $q\cdot b$ budget; ``zero'' is available only at $b=0$.
-\item \textbf{Elimination of timing, cache, speculative, firmware, or physical channels.}
-  The noninterference guarantee is possibilistic; these channels are out of
-  model, declared so, and partially mitigated by padding and scheduled release
-  rather than closed.
-\item \textbf{Confidentiality through an unapproved external model or tool provider.}
-  A remote API that reads plaintext is another trusted reader; the model runs
-  inside the confidential domain or the guarantee does not apply.
-\item \textbf{Correctness of the answer.} The receipt proves what the measured
-  system reported under a policy; it does not prove the advice was good.
-\item \textbf{Literal deletion of information a party already observed}, availability
-  if a key owner refuses or aborts, or security against a colluding hardware
-  vendor, cloud operator, and principal; each needs a strictly stronger threat
-  model, for which multi-party computation and homomorphic backends are the
-  high-assurance option for narrow fixed computations, not the first
-  implementation for arbitrary tool-using agents.
-\item \textbf{Bounds on minds.} A human who reads a released aggregate may
-  remember it; the system bounds channels.
-\end{itemize}
+Table~\ref{tab:sealed-not-promised} lists six of them: for each, what
+mechanism is responsible for the gap, and where -- if anywhere -- the residual
+is priced.
+
+\begin{table}[H]\centering\footnotesize
+\caption{Six things this design does not promise, why not, and where the
+residual is priced. A contract that implies any of these overclaims.}
+\label{tab:sealed-not-promised}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.5cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.3cm}@{}}
+\toprule
+Not promised & Why not & Residual priced by \\
+\midrule
+Zero model leakage under unlimited adaptive queries to Derek & Derek \emph{intentionally observes} evaluations of $M$; unlimited black-box access enables model extraction & out of model: bounded only by the contracted query-and-output interface \\
+Zero data leakage with arbitrary natural-language telemetry to Erin & that channel is exactly the $q\cdot b$ budget; ``zero'' needs $b=0$ & the $q\cdot b$ budget (Sec.~\ref{sec:sealed-budget}) \\
+Elimination of timing, cache, speculative, firmware, or physical channels & the noninterference guarantee is possibilistic & out of model; padded and scheduled, not closed \\
+Confidentiality through an unapproved external model or tool provider & a remote API that reads plaintext is another trusted reader & not priced: the model must run inside the confidential domain, or the guarantee does not apply \\
+Correctness of the answer & the receipt proves what the measured system reported, not that it is true & out of model \\
+Literal deletion of information already observed, availability under refusal, or collusion resistance & each needs a strictly stronger threat model & needs MPC or homomorphic backends, not priced here \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+One more limit sits outside even that table: bounds on minds. A human who
+reads a released aggregate may still remember it; the system bounds
+channels, not memories.
 
 \paragraph{The lift.}
 Theorem~\ref{thm:sealed-noninterference} is exhaustive on a finite model; the
@@ -1115,8 +1181,26 @@ release steps?
 Both parity classes have four members, so the equal-parity pairs number
 $2\binom{4}{2}=12$; those must stay indistinguishable forever. The remaining
 $\binom{8}{2}-12=16$ pairs have different parities and may differ at explicit
-gate-release steps only.
+gate-release steps only. Table~\ref{tab:sealed-parity-pairs} shows how this
+scales: doubling the secret count roughly quadruples both counts, since
+both grow quadratically in $n$ while the equal-parity share of the total
+stays fixed at one half.
 \end{pdsolution}
+
+\begin{table}[H]\centering\footnotesize
+\caption{How many unordered secret pairs a sound room must keep
+Erin-indistinguishable forever (equal-parity), against how many may
+legally differ at a release step (different-parity), for $g(s)=s\bmod 2$.}
+\label{tab:sealed-parity-pairs}
+\begin{tabular}{@{}c c c c@{}}
+\toprule
+Secrets & Unordered pairs & Equal-parity (hidden forever) & Different-parity (may differ at release) \\
+\midrule
+4 & $\binom{4}{2}=6$ & 2 & 4 \\
+8 & $\binom{8}{2}=28$ & 12 & 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-m1-trace}
 Run \texttt{c1\_noninterference.py} and read the first mutation's witness. Why

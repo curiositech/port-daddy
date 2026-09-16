@@ -308,6 +308,12 @@ The federation is \emph{not} a hub-and-spoke topology with a privileged coordina
 
 The federation is \emph{not} a permissionless market in identities. New harbors enter through the admission ceremony of \S\ref{sec:fh-admission}, which requires either a pre-existing bond or an existing harbor sponsor. This is by design; the cost is that the federation is invitation-bounded, the benefit is that Sybil attacks against the federation~\pdcite{douceur2002sybil} cost the attacker as much per identity as honest entry does.
 
+Figure~\ref{fig:fh-sovereignty-fence} draws the fence: the five powers inside, downstream effects outside.
+
+\input{figures/fig-fh-sovereignty-fence}
+
+With the boundary in view, the recall prompts separate sovereign powers from downstream consequences.
+
 \begin{pdrecitation}
 \item Without looking: name the five things Design Invariant~\ref{def:fh-sovereignty} says a sovereign daemon $D_A$ has exclusive authority over.
 \item Why does Design Invariant~\ref{def:fh-sovereignty} say sovereignty is \emph{not} violated when an $A$-side agent operates against a $B$-hosted database under $B$'s policy?
@@ -341,6 +347,10 @@ The protocols in this paper are designed against the following attackers.
 \paragraph{Stale-revocation acceptance.} An attacker at $B$ presents a card revoked at $A$ but not yet observed at $B$. Under the reliable connected-overlay model the window has expected scale $\Theta(\Delta\log m)$; during a partition it is unbounded. A bond can price a configured service-level window, not eliminate the tail.
 
 \paragraph{Cross-witness equivocation.} A malicious daemon $D_A$ publishes contradictory roots to isolated witnesses. The contradiction is cryptographically verifiable once a common auditor receives both views, but the time to that event is topology- and partition-dependent. A witness bond prices confirmed equivocation; it does not create a delivery deadline.
+Table~\ref{tab:fh-witness-log} lays out all five properties against what each one prevents.
+
+\input{figures/tab-fh-witness-log}
+
 
 \paragraph{Settlement redirection or equivocation.} A signed escrow promise makes misconduct attributable. Prevention requires a custody ledger whose transition API cannot name an arbitrary recipient or fee. Design Invariant~\ref{thm:fh-escrow-bound} states the bound conditionally on that mechanism; without it, the full bond remains at risk.
 
@@ -495,6 +505,10 @@ The interesting case is disagreement. Harbor $A$ has revoked card $c$; harbor $B
 
 We adopt rule (2). The pessimistic rule has the wrong defaults; the epoch-bounded rule is operationally the same as (2) with a watchdog. Adopting (2) means the Conservation invariant of \S\ref{sec:fh-settlement} can be stated cleanly.
 
+Table~\ref{tab:fh-revocation-rules} lays out all three rules against what each defends against.
+
+\input{figures/tab-fh-revocation-rules}
+
 \pdexercisepointerone{\ref{ex:fh-revocation-finality}}{\pageref{ex:fh-revocation-finality}}
 
 \subsection{Event Log \& Ephemeral Cuckoo Discipline}\label{sec:fh-cuckoo}
@@ -557,6 +571,10 @@ at the sharpened scope only: synthetic gossip, prefix restrictions, one
 equivocator per trial. A statistical pass is not a theorem, which is what the
 three claims below are for.
 
+Table~\ref{tab:fh-sheaf-harness} lays out all six arms against the two pre-registered gates.
+
+\input{figures/tab-fh-sheaf-harness}
+
 \begin{pdexample}{The cochain by hand: one ring, one chain, one dark link}
 Four relays $0,1,2,3$ in a ring, scalar stalks, one shared coordinate. The links
 $0\!-\!1$, $1\!-\!2$ and $2\!-\!3$ are compared and agree; the link $3\!-\!0$ is
@@ -588,6 +606,10 @@ you try:} $C_8$, lie of size $2$ on the relayed edge: $2/\sqrt8=0.7071$; the sam
 lie on any bridge, $0$; the same lie on $C_8$ with any one of the other seven
 links severed, also $0$ [verified].
 \end{pdexample}
+
+Figure~\ref{fig:fh-cochain-hand} draws all three variants side by side.
+
+\input{figures/fig-fh-cochain-hand}
 
 \begin{pdexample}{the consistency radius, six-cycle vs.\ six-path, and the $1/\sqrt n$ scaling}
 Six harbors in a ring ($C_6$), unit-weight edges, a lie of magnitude $|s|=3$ on one relayed cycle edge. The effective resistance across that edge is $R_{\mathrm{eff}}=(n-1)/n=5/6$, so by hand:
@@ -796,6 +818,10 @@ Summing over bonds gives $\sum_b(P_b+E_b+C_b+R_b)=\sum_b a_b$. External top-ups 
 
 This is the federation-layer analogue of Conservation in Bonded. The intra-harbor Conservation invariants hold per-harbor (Bonded gives the proofs); the cross-harbor property adds the constraint that bonds in transit between harbors --- i.e., posted at $A$, locked in escrow, awaiting clearance against $B$ --- are accounted for as in-escrow rather than as either posted at $A$ or cleared to $B$. The escrow's role as the holder of in-flight bonds is what makes the conservation accounting tractable.
 
+Figure~\ref{fig:fh-conservation-ledger} draws the four buckets and the pipes between them.
+
+\input{figures/fig-fh-conservation-ledger}
+
 \begin{pdexample}{One bond across two harbors}
 A \$100 bond posted at $A$ has buckets $(P,E,C,R)=(100,0,0,0)$. The transfer
 locks it in escrow, $(0,100,0,0)$. Clearance at $B$ pays \$90 to the
@@ -808,7 +834,9 @@ broken partition.
 
 \subsection{Settlement protocol}\label{sec:fh-settle-proto}
 
-Figure~\ref{fig:fh-settlement} shows the three-step protocol. To unpack the figure:
+Figure~\ref{fig:fh-settle-protocol} shows the three-step protocol. To unpack the figure:
+
+\input{figures/fig-fh-settle-protocol}
 
 \begin{enumerate}[nosep]
 \item \textbf{Bond post.} Alice's harbor mints a work card for agent $\alpha$; agent operates at $B$. Bond $B_\alpha = \$B$ is posted at $A$ and locked in the escrow. The bond's amount and TTL are signed into both $A$'s and $B$'s witness-log roots so the federation knows the bond exists.
@@ -853,6 +881,10 @@ A new harbor $N$ with no prior reputation cannot price its own bond fairly under
 
 This is the federation-layer analogue of competitive insurance from \pdchapref{bonded}{The Bonded Commons} (the Youle contribution): instead of an authority picking who joins, the sponsor market discovers it. The cost of being a sponsor is real --- forfeit risk during probation --- and the benefit is the network effect of having $N$ in the federation. We expect (open) that for federations with many candidate sponsors and clear-eyed risk pricing, the equilibrium is reasonably efficient. We do not prove it.
 
+Figure~\ref{fig:fh-sponsor-lifecycle} draws the four-state lifecycle end to end.
+
+\input{figures/fig-fh-sponsor-lifecycle}
+
 \subsection{Cold-start failure modes}\label{sec:fh-cold-start}
 
 A new harbor that cannot find a sponsor cannot join. This is a real limitation. In the worst case, the federation collapses to invitation-only --- which is the failure mode of every interesting federated identity system from PGP web-of-trust~\pdcite{zimmermann1995pgp} to SAML~\pdcite{maler2008venn}. The structural pushback is:
@@ -870,6 +902,10 @@ This is engineering discipline, not a theorem. The historical evidence on whethe
 % ═════════════════════════════════════════════════════════════════════════════
 
 The four primitives are easier to read against a concrete case. We work the example end-to-end: two organizations, three machines, one shared project. The example is intentionally familiar; nothing in it is novel except the way the primitives compose.
+
+Figure~\ref{fig:fh-worked-example} shows the whole incident end to end, three harbor lifelines and six marked steps, before the subsections below walk through it one at a time.
+
+\input{figures/fig-fh-worked-example}
 
 \subsection{Setup}\label{sec:fh-ex-setup}
 
@@ -1029,6 +1065,10 @@ The federation does not run consensus; partition tolerance is per-protocol. Capa
 
 The structural posture is that partitions are operationally common and the federation should degrade gracefully rather than fail fast. We inherit this discipline from Anchor's intra-mesh design~\pdcite{owens2026anchor}; the federation extension is straightforward but adds no novel mathematics.
 
+Table~\ref{tab:fh-partition} lays out all three protocols side by side.
+
+\input{figures/tab-fh-partition}
+
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Related Work}\label{sec:fh-related}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1080,6 +1120,10 @@ protocols standardize discovery and the transaction envelope and are
 explicit that counterparty trustworthiness, collateral, and settlement
 enforcement are out of scope --- which is the half of the problem this paper
 and its predecessors supply.
+
+Table~\ref{tab:fh-related-borrow-depart} lays out all five lineages against what this chapter borrows, departs from, and why.
+
+\input{figures/tab-fh-related-borrow-depart}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Limitations and Open Questions}\label{sec:fh-limitations}

@@ -478,6 +478,24 @@ than applying them, is \Designed. OP-7 therefore stands \Partial{}: this is
 Table~\ref{tab:honestkey}'s second question --- ``is a version table unavoidable?''
 --- answered \emph{probably yes}, at the cost of the ``any module, any order''
 flexibility the schema-by-union design offered, and not yet paid for in full.
+Table~\ref{tab:swk-schema-evolution} states the trade in two rows.
+
+\begin{table}[H]
+\centering
+\caption{Schema evolution (OP-7): what ships today against the sequencer the
+design would still need. [internal]}
+\label{tab:swk-schema-evolution}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} X@{}}
+\toprule
+\textbf{State} & \textbf{What governs migration order} \\
+\midrule
+ships (\BuiltWeak) & a numbered, totally ordered boot-time migration ledger, applied before any request is served, with post-apply verification against the actual tables; organ modules still self-initialize their own tables, so the schema is still, in part, a union \\
+designed (\Designed) & a strict linear ledger managed exclusively by the daemon via \texttt{pragma user\_version}, in which modules \emph{declare} migrations rather than applying them themselves \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Path and ownership invariants}
 
@@ -561,9 +579,32 @@ The kernel's foundational promise --- ``a write that returned success survives''
 --- is true, but only for the fault class a careful reader expects and not for the
 one the pitch most invites.
 
-\input{figures/fig-swk-durability-faultclass}
+\begin{table}[H]
+\centering
+\caption{Durability by fault class under the two synchronization levels. A
+classification of three fault classes against two configurations, not a
+quantity, so it is set as a table rather than drawn. The reference
+implementation ships \texttt{synchronous=NORMAL}: a process crash never
+loses a returned write, but an OS crash or power loss can roll back the most
+recent commits. \texttt{synchronous=FULL} buys the power-loss cell too, at
+the cost of an fsync on every commit. [internal]}
+\label{tab:swk-durability-faultclass}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} *{3}{>{\centering\arraybackslash}X}@{}}
+\toprule
+\textbf{synchronization level} & \textbf{process crash} & \textbf{OS crash} & \textbf{power loss} \\
+\midrule
+\texttt{NORMAL} (default) & durable & may lose last commits & may lose last commits \\
+\texttt{FULL} & durable & durable & durable \\
+\bottomrule
+\end{tabularx}
 
-Figure~\ref{fig:swk-durability-faultclass} draws the split this section defends:
+\smallskip
+\noindent{\footnotesize\itshape The default trades the power-loss cell for one fsync per commit.}
+\end{table}
+
+Table~\ref{tab:swk-durability-faultclass} draws the split this section defends:
 the same write, judged against two different fault classes with two different
 answers.
 
@@ -611,6 +652,11 @@ rolled back as if never written. This is I1b, and it is \emph{not guaranteed}. T
 two faults differ only in whether the page cache survived; conflating them is the
 single most common over-claim about WAL-backed storage.
 
+\input{figures/fig-swk-durability-dramatization}
+
+Figure~\ref{fig:swk-durability-dramatization} draws the two outcomes from one
+fork, so the equidistance is visible rather than merely asserted.
+
 \pitfall{The seductive misconception is ``the normal sync level is safe in WAL mode
 because WAL already guarantees crash safety.'' This conflates crash-\emph{consistency}
 (true: the database is never corrupt) with \emph{durability} (false for power loss).
@@ -638,7 +684,27 @@ in, the guarantee it buys is \emph{per path}: Property~\ref{prop:durability}
 continues to govern every path that does not, so I1b remains \NotGuar{} for the
 kernel as a whole, and a table row or a figure that says otherwise is wrong. OP-10
 stays \Open{} until both the selector and an interface that stops a \emph{new} write
-path from silently defaulting into the fast lane exist.
+path from silently defaulting into the fast lane exist. Table~\ref{tab:swk-selective-checkpoint}
+states the selector's shape, not a status report.
+
+\begin{table}[H]
+\centering
+\caption{Selective Checkpointing (OP-10, \Designed): the write-path selector
+it specifies, not a status report. \emph{No path opts in today} --- this is
+the design's shape, not the reference implementation's current behavior.
+[internal]}
+\label{tab:swk-selective-checkpoint}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{write-path kind} & \textbf{sync level it would opt into} \\
+\midrule
+claim, marker, note (ordinary) & \texttt{NORMAL} (the fast default; unchanged) \\
+settlement-ledger entry (money-bearing) & \texttt{FULL} on that commit (\texttt{PRAGMA wal\_checkpoint(FULL)}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{A recovery story, not just a durability story}
 
@@ -650,6 +716,11 @@ chain on boot, and what becomes of a half-applied cross-subsystem operation
 that refuses to serve when a critical self-check fails (\S\ref{sec:attest}) ---
 but boot-time WAL recovery plus integrity check plus chain verification should be a
 single named invariant, and today it is closer to \BuiltWeak{} than \Built.
+
+\input{figures/fig-swk-recovery-pipeline}
+
+Figure~\ref{fig:swk-recovery-pipeline} draws the three mechanisms in the
+order they run, with the dashed panel naming what does not yet unify them.
 
 \pdexercisepointer{\ref{ex:swk-fault-classes}}{\ref{ex:swk-op10-interface}}{\pageref{ex:swk-fault-classes}}
 
@@ -672,7 +743,25 @@ claims, each keyed by the file path together with, respectively, nothing, a
 line interval, or a syntactic symbol identifier. This is the substrate for a
 ``reserve regions, not whole files'' coordination policy and for semantic-conflict
 prediction over a syntax-aware symbol index --- but at the substrate layer it is
-simply exclusion at three granularities.
+simply exclusion at three granularities, listed in Table~\ref{tab:swk-claim-granularity}.
+
+\begin{table}[H]
+\centering
+\caption{The three claim granularities: what varies is the key, not the
+exclusion primitive underneath it. [internal]}
+\label{tab:swk-claim-granularity}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.18\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{granularity} & \textbf{key components} & \textbf{example} \\
+\midrule
+whole-file & file path alone & \texttt{claim(lib/webhooks.ts)} \\
+line-range & file path + a line interval & \texttt{claim(lib/webhooks.ts, 40--72)} \\
+symbol-path & file path + a syntactic symbol identifier & \texttt{claim(lib/webhooks.ts\#} \newline \texttt{handleEvent)} \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{The claim lifecycle as a finite-state machine}
 
@@ -729,6 +818,12 @@ Within a canonical conflict domain (exact normalized key, transactional interval
 Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
 \end{proof}
 
+\input{figures/fig-swk-fencing-epoch}
+
+Figure~\ref{fig:swk-fencing-epoch} isolates that guard as a four-step
+sequence: the epoch, not the lock, is what a paused holder's late effect
+cannot get past.
+
 What differs from Chubby is the setting, and it is worth being exact about how
 much smaller our problem is. Chubby's sequencer and Raft's leader term fence
 across machines that cannot otherwise agree on who is alive; the danger they
@@ -754,6 +849,11 @@ double-bind. The serialization that makes this clean is not a hand-rolled critic
 section; it is the operating system's file lock funnelling both inserts through one
 writer, and the database's primary-key uniqueness deciding the winner. One writer,
 one constraint, one holder.
+
+\input{figures/fig-swk-race-dramatization}
+
+Figure~\ref{fig:swk-race-dramatization} draws the two lanes converging on that
+one commit point and the two outcomes.
 
 \pitfall{Theorem~\ref{thm:exclusion} is sound for the \emph{fresh-contention} case
 above. A subtler hazard hides in the \emph{stale-holder} branch: reclaiming an
@@ -819,6 +919,11 @@ So bounded wait would hold for cooperative release and fail on exactly the
 failure path the kernel was built to expect. OP-1 stays \Open{} until the sweep and
 the queue are the same code path, and until the ticket table exists at all.
 
+\input{figures/fig-swk-ticket-lock-delta}
+
+Figure~\ref{fig:swk-ticket-lock-delta} draws that split as a delta on the
+shipped machine: one exit closed, one still open.
+
 \pdexercisepointer{\ref{ex:swk-release-idempotent}}{\ref{ex:swk-op1-ticket}}{\pageref{ex:swk-release-idempotent}}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -870,6 +975,11 @@ high-leverage fix at the coordination layer. The kernel provides the bus; making
 every speech-act effect idempotent is the coordination layer's debt, flagged here
 so the reader does not mistake silent deduplication for dishonesty.}
 
+\input{figures/fig-swk-idempotency-gap}
+
+Figure~\ref{fig:swk-idempotency-gap} draws the one redelivery on two lanes:
+today's convention and the still-absent key's explicit receipt.
+
 \subsection{Stigmergic markers: decay as a provided guarantee}
 
 The kernel also carries \emph{stigmergic markers} --- numeric coordination signals
@@ -896,6 +1006,10 @@ the same at every answer.
 \end{pdexample}
 
 \input{figures/fig-swk-marker-decay}
+
+The renewal view makes the operational distinction explicit: persisted weight is
+only a checkpoint, while every read recomputes age before renewal or pruning.
+\input{figures/fig-swk-marker-renewal}
 
 
 \subsection{Two delegation chains, one dangerous name}
@@ -925,6 +1039,11 @@ with a rule against keyword-based text classification, because loop detection ne
 a \emph{semantic} task-shape equivalence (a learned embedding or a structural
 hash), which is not deterministically signable. This tension is a real open
 problem; we flag it rather than assert it solved.}
+
+\input{figures/fig-swk-delegation-chains}
+
+Figure~\ref{fig:swk-delegation-chains} draws the containment: the coordination
+lineage rides inside the authorization chain, never beside it.
 
 \subsection{A second transport}
 
@@ -996,6 +1115,11 @@ it \emph{exists} (an agent is \emph{capable} of invoking it) but \emph{must not 
 used} (it is \emph{forbidden}). Collapsing capability into permission makes that
 state inexpressible --- which is exactly the bug a discipline against silently
 bypassing guardrails cannot afford.
+
+\input{figures/fig-swk-capability-permission}
+
+Figure~\ref{fig:swk-capability-permission} puts both axes on one grid; the
+override flag names the one cell that must stay expressible.
 
 \subsection{The policy monitor is a detector, not a regimenter}
 \label{sec:arbiter-correction}
@@ -1268,7 +1392,8 @@ compound: no \texttt{net\_egress} after a secret \texttt{in\_context\_read} & mi
 The last row of Table~\ref{tab:policy-classification} is the one an entire product line
 rests on. The policy \emph{no network egress after an in-context read of a secret} mentions an
 uncontrollable event, so a naive reading of the single-event rows predicts detect-only. The
-checker says otherwise, and the mechanism is visible in the policy automaton: two states,
+checker says otherwise, and the mechanism is visible in the policy automaton
+(Figure~\ref{fig:swk-taint-automaton}): two states,
 \texttt{ok} and \texttt{tainted}. The uncontrollable read is enabled in both. The policy never
 tries to forbid it; it lets the read happen and records the taint transition. What the
 tainted state disables is \texttt{net\_egress} alone, and egress is controllable. Every
@@ -1280,6 +1405,8 @@ with his states relabelled. What the alphabet split adds is not the construction
 grading: under complete mediation the figure is one more enforceable safety policy; once
 $\Sigma_u \neq \emptyset$ the same two states become the canonical witness that a policy may
 reference an unrefusable event freely so long as it never tries to refuse it.
+
+\input{figures/fig-swk-taint-automaton}
 
 Three consequences, in increasing order of consequence.
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
@@ -1337,6 +1464,27 @@ vocabulary. \emph{Now you try:} add $P_4$, ``no \texttt{spawn\_child} after
 \texttt{git\_push},'' to the review job and write the new disablement map
 (Exercise~\ref{ex:swk-synthesis}).
 \end{pdexample}
+
+Table~\ref{tab:swk-review-disablement} states the two-row disablement map the
+proof falls out as.
+
+\begin{table}[H]
+\centering
+\caption{The sandboxed review job's maximally permissive supervisor: a
+two-row disablement map, checkable by eye against the three rules $P_1$--$P_3$.
+[verified: eight cases]}
+\label{tab:swk-review-disablement}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.16\textwidth} X@{}}
+\toprule
+\textbf{state} & \textbf{disabled events} \\
+\midrule
+\texttt{ok} & \texttt{net\_egress}, \texttt{git\_push} \\
+\texttt{tainted} & \texttt{net\_egress}, \texttt{git\_push}, \texttt{fs\_write} \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsubsection{Partial observation: the second boundary}
 \label{sec:partial-observation}
@@ -1650,6 +1798,11 @@ a closure of OP-4. The companion personhood chapter reaches the same boundary fr
 the identity side: a continuity witness attests that the ledger followed the right
 body, never that the successor inherited the predecessor's experience.
 
+\input{figures/fig-swk-rehydration-pipeline}
+
+Figure~\ref{fig:swk-rehydration-pipeline} draws the pipeline with its own
+exclusion: what replay restores, and the one thing it does not.
+
 \textbf{The witnessed-outcome ledger} --- the durable record of what an agent
 actually delivered --- is the subsystem on which reputation keys. A \BuiltWeak{}
 substrate now ships: durable commitments, daemon-derived deadlines, oracle-bound
@@ -1689,6 +1842,32 @@ boot-admission gate (refuse to serve on a critical failure), a command pre-fligh
 (loud refusal that names the fix), and a continuous watchdog (a pass-to-fail
 transition deposits a coordination marker and a notification). \Built.
 \end{property}
+
+Table~\ref{tab:swk-attestation-triggers} lines the three triggers up against
+when each fires and what it does when a checked invariant fails; a row is
+silent about \emph{which} class of failure is most likely there because the
+registry is the same one at every trigger, only the moment and the response
+differ.
+
+\begin{table}[H]
+\centering
+\caption{The three attestation triggers, all evaluating the same invariant
+registry (\emph{pass}, \emph{fail}, \emph{skipped-with-reason}, or
+\emph{unknown}), differing in when they run and what a failure does.
+[internal, I10]}
+\label{tab:swk-attestation-triggers}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.24\textwidth} X@{}}
+\toprule
+\textbf{trigger} & \textbf{when it fires} & \textbf{on a critical failure} \\
+\midrule
+boot-admission gate & at daemon start, before serving any request & refuses to serve \\
+command pre-flight & before a command runs & a loud refusal that names the fix \\
+continuous watchdog & on every check cycle while running & a pass-to-fail transition deposits a coordination marker and a notification \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 This is the honesty discipline of the rest of the series turned on the kernel
 itself, and it is the right posture for a trusted computing base: when integrity is
@@ -1747,7 +1926,8 @@ I12 & Non-forgeable identity & actor-soul id + lookup credential & \BuiltWeak{} 
 \noindent\emph{Express lane: the kernel's promises are properties of one object, an
 evidence-bearing work unit; on a two-principal instance every one of its 536 reachable
 states satisfies six invariants, and removing any single guard lets a checker construct the
-crime in at most seven steps. The machine is Figure~\ref{fig:swk-workunit-machine} and the box below; the numbers are
+crime in at most seven steps. Figure~\ref{fig:swk-workunit-crimes} shows those shortest
+counterexamples as traces; the numbers are
 Table~\ref{tab:workunit-crimes}.}
 
 \paragraph{The scene.}
@@ -1775,7 +1955,7 @@ The misread to preempt: a model checker does not prove the daemon correct. It pr
 \emph{specification} correct at these parameters; the daemon must refine it, and that
 refinement is a separate obligation named in the boundary below.
 
-\input{figures/fig-swk-workunit-machine}
+\input{figures/fig-swk-workunit-crimes}
 
 The checker that explores the machine is short enough to run while reading. Its
 output below is the evidence behind the state count and the shortest-crime table:
@@ -2001,6 +2181,11 @@ Sagas matter when the steps are remote and a single transaction is impossible;
 here, where every step is a local write to one file, the single transaction is
 strictly simpler and strictly stronger.
 
+\input{figures/fig-swk-atomicity-fix}
+
+Figure~\ref{fig:swk-atomicity-fix} draws the same three writes twice: today's
+failure gap, and the fix's single commit point.
+
 \pdexercisepointer{\ref{ex:swk-partial-failure}}{\ref{ex:swk-op11-begin-work}}{\pageref{ex:swk-partial-failure}}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -2117,7 +2302,11 @@ grade of kernel enforcement against a non-cooperating same-user agent is
 \NotGuar: the gate is a verifiable transcript and a loud tripwire, not a wall. We
 state this here so no reader carries the (legitimate) ``mechanically verified
 macaroon'' result forward into the (false) belief that the kernel can presently
-\emph{compel} a same-user agent through it.
+\emph{compel} a same-user agent through it. Figure~\ref{fig:swk-enforcement-layers}
+lays out the four layers of the program and names, one clause each, what every
+layer actually stops.
+
+\input{figures/fig-swk-enforcement-layers}
 
 That separate boundary is therefore the substrate this chapter prescribes,
 rather than one more option on the menu of layers. The guard and the shim are
@@ -2143,6 +2332,10 @@ identity path. This dependency --- complete I12 enforcement gates the soundness 
 I7, I8, and I9 --- is a hard precondition, stated here so the reader does not
 over-trust the enforcement subsystem. It is also the central reason the cross-machine
 layer, where identities genuinely conflict, must make identity cryptographic.
+Figure~\ref{fig:swk-i12-dependency} draws the one-root, three-dependent shape of
+that precondition.
+
+\input{figures/fig-swk-i12-dependency}
 
 \subsection{Hash-chain tamper-evidence, and the hardening OP-9 would need}
 \label{sec:merkle}
@@ -2193,6 +2386,11 @@ OP-9 is closed.
   wrong word for a containment boundary; ``the capability is removed for this
   named class of access'' is the right one.
 \end{itemize}
+
+\input{figures/fig-swk-op9-reclass}
+
+Figure~\ref{fig:swk-op9-reclass} draws that reclassification as the one thing it
+is: a move from one threat-table row to another, not a new defense.
 
 \noindent OP-9 therefore stands \Open{}: a specified hardening path, not a shipped
 defense, and the honest grade against a same-machine adversary remains the one

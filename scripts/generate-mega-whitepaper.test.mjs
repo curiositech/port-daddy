@@ -275,9 +275,10 @@ const knownUnreferencedFragments = [
   'website-v2/public/whitepaper/figures/fig-bc-oracle-audit-rate.tex',
   'website-v2/public/whitepaper/figures/tab-bc-settlement-rule.tex',
 ];
-const stagedUnreferencedFragments = JSON.parse(
-  readFileSync(resolve('whitepaper/figure-staging.json'), 'utf8'),
-).fragments;
+const figureStagingPath = resolve('whitepaper/figure-staging.json');
+const stagedUnreferencedFragments = existsSync(figureStagingPath)
+  ? JSON.parse(readFileSync(figureStagingPath, 'utf8')).fragments
+  : [];
 
 // The shared figure apparatus exists TWICE -- once under whitepaper/figures and
 // once under website-v2/public/whitepaper/figures -- because the standalone
