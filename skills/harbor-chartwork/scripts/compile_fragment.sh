@@ -69,6 +69,8 @@
 #     builds under either engine.
 #
 # Environment:
+#   PD_EDITION           Book mode only: maritime | swiss | technical.
+#   PD_CHAPTER_HUE       Book mode only: the chapter hue (pdcobalt, pdteal, ...).
 #   TECTONIC             Path to the tectonic binary. Default: the first of
 #                         (a) a `tectonic` found on PATH, (b) the dev-sandbox
 #                         copy at $CHARTWORK_SCRATCH_TEX/tectonic if present.
@@ -292,10 +294,22 @@ else
       }
     done
     cp "$FRAGMENT_ABS" "$BUILD/figures/$STEM.tex"
-    extract_preamble "$BOOK_ROOT" > "$WRAPPER"
+    # PD_EDITION (maritime | swiss | technical) selects the edition exactly as
+    # the edition roots do, by defining \pdedition before the Book root is
+    # read; unset, the Book's own default applies. PD_CHAPTER_HUE sets the
+    # hue the chapter opener would have set (e.g. pdviolet for Part III), so
+    # a figure is judged in the colour it prints in.
+    : > "$WRAPPER"
+    if [ -n "${PD_EDITION:-}" ]; then
+      printf '\\def\\pdedition{%s}\n' "$PD_EDITION" >> "$WRAPPER"
+    fi
+    extract_preamble "$BOOK_ROOT" >> "$WRAPPER"
     {
       echo '\begin{document}'
       echo '\pagestyle{empty}'
+      if [ -n "${PD_CHAPTER_HUE:-}" ]; then
+        echo "\\renewcommand{\\pdcurrentchaptercolor}{$PD_CHAPTER_HUE}"
+      fi
       echo "\\input{figures/$STEM}"
       echo '\end{document}'
     } >> "$WRAPPER"

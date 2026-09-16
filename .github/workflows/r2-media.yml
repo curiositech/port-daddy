@@ -80,6 +80,11 @@ jobs:
       # and buildManifest() refuses an incomplete checkout rather than silently
       # emitting a shorter manifest.
       - uses: actions/checkout@v4
+        with:
+          # The manifest records the media bytes, not Git LFS pointer files.
+          # Without hydration this job hashes 130-byte pointers and reports
+          # every LFS-managed review image as drifted.
+          lfs: true
 
       - uses: actions/setup-node@v4
         with:

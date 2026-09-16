@@ -1,0 +1,39 @@
+% TEMPLATE: message-sequence ladder (numbered messages, a ruled legend below
+% keyed by badge stating what each one binds -- never a paragraph in the
+% picture). Every arrow slopes forward in time (tail above head) rather than
+% running level, so causal order reads off the geometry, not a caption.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{1.05}  \def\gap{5.6}
+  \foreach \i/\name/\role in {0/requester/author, 1/harbor/actor}{
+    \node[pd state,minimum width=2.7cm] (h\i) at ({\i*\gap},0) {\name};
+    \node[pd label,text=pdinkmuted,anchor=north] at ({\i*\gap},-0.52) {\role};
+    \draw[pd guide] ({\i*\gap},-1.35) -- ({\i*\gap},{-4*\dy-0.55});}
+  \foreach \a/\b/\k in {0/1/1,1/0/2,0/1/3,1/0/4}{
+    \pgfmathsetmacro{\ytail}{-\k*\dy-0.43}
+    \pgfmathsetmacro{\yhead}{-\k*\dy-0.67}
+    \node[pd focus badge] (m\k) at ({(\a+\b)*\gap/2},{-\k*\dy-0.55}) {\k};
+    \draw[pd focus arrow,pd to badge] ({\a*\gap},\ytail) -- (m\k);
+    \draw[pd focus arrow,pd from badge] (m\k) -- ({\b*\gap},\yhead);}
+\end{tikzpicture}
+\footnotesize
+\begin{tabular}{@{}c l l@{}}
+\toprule
+\# & binds & value \\
+\midrule
+1 & $n$, a fresh nonce & requester's random 128 bits \\
+2 & $c$, the challenge & $H(n \,\Vert\, k_H)$ \\
+3 & $r$, the response & $\mathrm{sign}(c, k_Q)$ \\
+4 & $t$, the session token & valid 300\,s from issue \\
+\bottomrule
+\end{tabular}
+\caption{A handshake of four messages between a requester and the harbor,
+each numbered on its own arrow and keyed to the table of what it binds. The
+arrows slope forward in time -- a tail always above its head -- so the
+order is legible from the geometry alone, matching a Lamport diagram's
+convention that a message is a diagonal, never a perfectly level line.
+[internal, illustrative]}
+\label{fig:tpl-message-ladder}
+\end{figure}

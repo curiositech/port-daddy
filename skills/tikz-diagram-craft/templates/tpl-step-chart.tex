@@ -1,0 +1,32 @@
+% TEMPLATE: step chart (a quantity that narrows through stages, held
+% constant between them and jumping at each boundary -- never a smooth
+% interpolation between categorical stages). The stage that narrows the
+% most is the chapter's claim, marked with a focus datum and a direct label
+% for its drop; every level is also on the tick list, so no legend is
+% needed to read a count off the axis.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=8.0cm,height=4.3cm,
+  xmin=-0.3,xmax=3.5,ymin=0,ymax=520,
+  xtick={0,1,2,3},
+  xticklabels={submitted,triaged,reviewed,admitted},
+  ytick={96,150,340,480},
+  ylabel={candidates remaining}]
+  \addplot[pd series,const plot,mark=none] coordinates {(0,480)(1,340)(2,150)(3,96)(3.4,96)};
+  \node[pd focus datum] at (axis cs:2,150) {};
+  \node[pd label] at (axis cs:1.32,410) {$-140$};
+  \node[pd focus label] at (axis cs:2.32,245) {$-190$};
+  \node[pd label] at (axis cs:3.18,140) {$-54$};
+\end{axis}
+\end{tikzpicture}
+\caption{A step chart of candidates remaining at each review stage: the
+count holds within a stage and jumps at the boundary, never interpolates
+between two categorical stages. The review stage removes the most
+candidates, $-190$, roughly a third more than triage's $-140$ and four
+times admission's $-54$; every stage's count is also on the tick list, so
+each level can be read directly off the axis. [internal, illustrative]}
+\label{fig:tpl-step-chart}
+\end{figure}

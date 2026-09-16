@@ -162,6 +162,10 @@ CHAPTER_COLORS = {
     "hhsand", "hhsanddeep", "hhebony", "hhink", "hhcobalt", "hhamber",
     "hhteal", "hhpaper", "hhgray",
     "codebg", "codeframe", "darkgreen", "darkblue", "accent",
+    # figures/pd-palette.tex and the v2 figure language (pdpage, pdfocus)
+    "pdcobalt", "pdteal", "pdhealth", "pdindigo", "pdviolet", "pdrust",
+    "pdgold", "pderror", "pdamber", "pdlime", "pdink", "pdinkmuted",
+    "pdcream", "pdcreamraised", "pdcreamstrong", "pdpage", "pdfocus",
 }
 RESEARCH_COLORS = {"harborblue", "shipred", "seagreen"}
 UNIVERSAL_COLORS = {"black", "white", "none", "gray", "grey"}
@@ -193,6 +197,27 @@ CHAPTER_SAFE_STYLES = {
     "pd decision", "pd mono label", "pd verdict", "pd reverse label",
     "pd kind tag", "pd badge",
 }
+
+# v2 figure language (skills/tikz-diagram-craft): voices, surfaces, strokes,
+# marks, UML and the concept map. Added to the registries after they are built.
+_V2_CONCEPTS = ("truth", "legible", "ready", "protocol", "identity",
+                "reputation", "value", "breach", "warn", "danger")
+CHAPTER_STYLE_NAMES |= {
+    "pd title", "pd label", "pd kind", "pd tag", "pd panel", "pd spine",
+    "pd thin arrow", "pd spine arrow", "pd focus state", "pd focus outline",
+    "pd focus label", "pd focus badge", "pd to badge", "pd from badge",
+    "pd fact badge", "pd automaton state", "pd automaton focus",
+    "pd automaton terminal", "pd initial", "pd bucket", "pd pipe",
+    "pd focus pipe", "pd trust boundary", "pd series", "pd focus series",
+    "pd muted series", "pd grid", "pd lattice",
+} | {f"pd {c}{sfx}" for c in _V2_CONCEPTS
+     for sfx in ("", " rule", " arrow", " state", " fill", " datum", " label", " series")}
+CHAPTER_SAFE_STYLES |= {
+    "pd title", "pd label", "pd kind", "pd tag", "pd panel", "pd focus state",
+    "pd focus outline", "pd focus label", "pd badge", "pd focus badge",
+    "pd fact badge", "pd automaton state", "pd automaton focus",
+    "pd automaton terminal", "pd bucket",
+} | {f"pd {c} {sfx}" for c in _V2_CONCEPTS for sfx in ("state", "label")}
 
 RESEARCH_STYLE_NAMES = {"relnode", "relarrow", "regimebox"}
 RESEARCH_SAFE_STYLES = {"relnode", "regimebox"}
@@ -788,12 +813,18 @@ STYLE_PROMISES = {
         r"\bdashed\b", r"\bdensely dashed\b", r"\bloosely dashed\b",
         r"\bdash pattern\s*=", r"\bdash dot\b",
         r"\bpd boundary\b", r"\bpd caution arrow\b",
+        # v2 roles whose bodies carry a dash pattern
+        r"\bpd (breach|danger|warn) (rule|arrow|series)\b", r"\bpd caution rule\b",
+        r"\bpd trust boundary\b", r"\bpd panel\b", r"\bpd guide\b",
     ),
     "shaded": (
         r"\bfill\s*=", r"\\fill\b", r"\bshade\b", r"\bshading\s*=",
         r"\bpattern\s*=", r"\bpd focus fill\b", r"\bpd caution fill\b",
         r"\bpd neutral fill\b", r"\bpd hatch\b", r"\bpd state\b",
         r"\bpd artifact\b", r"\bpd terminal\b",
+        # v2 filled roles
+        r"\bpd (focus|truth|legible|ready|protocol|identity|reputation|value|breach|danger|warn) (state|fill)\b",
+        r"\bpd automaton (focus|state)\b", r"\bpd ink fill\b",
     ),
     "bold": (
         r"\\bfseries\b", r"\\textbf\b", r"\bultra thick\b", r"\bvery thick\b",

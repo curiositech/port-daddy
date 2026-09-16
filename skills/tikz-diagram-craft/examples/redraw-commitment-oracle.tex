@@ -1,0 +1,66 @@
+% Redraw of fig-swk-commitment-oracle to the tikz-diagram-craft standard: the
+% aperture is drawn as an aperture -- a heavy wall in the chapter hue with one
+% jambed slot -- the four admissible references are tributaries that join the
+% closure attempt just before the slot, and the refused free-text path is a red
+% loop back to the state it left.  Facts from
+% whitepaper/single-writer-kernel.tex, prop:law1, prop:law2, alg:close.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- the grid -----------------------------------------------------------
+  \def\ax{1.60}    % the closure axis
+  \def\wx{6.30}    % the oracle wall
+  \def\gap{0.38}   % least clearance between a rule and any text
+  % ---- the wall, with exactly one slot in it ------------------------------
+  \draw[pd focus rule,line width=2.6pt] (\wx,6.20) -- (\wx,{\ax+.36});
+  \draw[pd focus rule,line width=2.6pt] (\wx,{\ax-.36}) -- (\wx,-0.75);
+  \draw[pd focus rule,line width=1.1pt] ({\wx-.20},{\ax+.36}) -- ({\wx+.20},{\ax+.36});
+  \draw[pd focus rule,line width=1.1pt] ({\wx-.20},{\ax-.36}) -- ({\wx+.20},{\ax-.36});
+  \node[pd title,rotate=90,anchor=center] at ({\wx+.55},3.80) {the finite oracle};
+  % ---- the closure axis ---------------------------------------------------
+  \node[pd focus state,minimum width=2.3cm] (O) at (1.15,\ax) {open};
+  \node[pd ready state,minimum width=2.3cm,line width=1.5pt] (D) at (9.35,\ax) {done};
+  \draw[pd focus arrow] (O.east) -- ({\wx-.14},\ax);
+  \draw[pd ready arrow,line width=1.6pt] ({\wx+.14},\ax) -- (D.west);
+  \node[pd tag,anchor=south] at (3.40,{\ax+\gap}) {attempt closure};
+  \node[pd tag,anchor=south] at (7.80,{\ax+\gap}) {closes as done};
+  % ---- the vocabulary: four references, joining the attempt before the slot
+  \node[pd title,anchor=west] at (1.35,6.55) {the four admissible references};
+  \foreach \i/\t/\jx in {1/{policy sub-check}/4.95, 2/{passing test id}/5.22,
+                         3/{merged commit}/5.49, 4/{released claim}/5.76}{
+    \node[pd state,minimum width=3.4cm] (r\i) at (3.05,{2.10+\i*0.95}) {\t};
+    \draw[pd focus arrow,line width=1.1pt] (r\i.east) -- (\jx,\ax);}
+  % ---- the key: every hue on the page, named ------------------------------
+  \node[pd title,anchor=north west] at (7.35,6.78) {what each hue means};
+  \foreach \i/\s/\w in {0/{pd focus state}/{the kernel's own state},
+                        1/{pd ready state}/{admitted},
+                        2/{pd breach state}/{refused}}{
+    \node[\s,minimum width=.52cm,minimum height=.34cm,inner sep=0pt]
+      at (7.55,{6.08-\i*.56}) {};
+    \node[pd label,anchor=west] at (7.90,{6.08-\i*.56}) {\w};}
+  % ---- the one reference the wall does not admit --------------------------
+  \node[pd breach state,minimum width=3.4cm] (F) at (3.05,-0.30) {free-text assertion};
+  \draw[pd breach arrow] (F.east) -- ({\wx-.44},-0.30);
+  \draw[pd breach rule,line width=1.8pt,dash pattern=on 1cm off 0pt]
+    ({\wx-.30},-0.60) -- ({\wx+.30},0.00);
+  \draw[pd breach rule,line width=1.8pt,dash pattern=on 1cm off 0pt]
+    ({\wx-.30},0.00) -- ({\wx+.30},-0.60);
+  % ---- refusal returns the commitment to the state it left ----------------
+  \draw[pd breach arrow,rounded corners=3pt]
+    ({\wx+.46},-0.30) -- (7.60,-0.30) -- (7.60,-1.78) -- (1.15,-1.78) -- (O.south);
+  \node[pd tag,anchor=south] at (4.40,{-1.78+\gap})
+    {refused; the commitment stays open};
+  \node[pd note,anchor=north west] at (0.00,-2.20)
+    {the deadline is set by the daemon, never by the agent};
+\end{tikzpicture}
+\caption{Typed evidence passes a narrow closure aperture. A commitment closes
+as done only when the agent names a reference from the finite oracle
+vocabulary --- a released claim, a merged commit, a passing test identifier, or
+a satisfied policy sub-check --- and the daemon re-checks that the reference
+still holds at closure time. A free-text assertion (red, dashed) meets solid
+wall: it is refused and the commitment remains open. The deadline the
+commitment is judged against is derived by the daemon from scope policy and is
+never agent-supplied. [internal]}
+\label{fig:swk-commitment-oracle}
+\end{figure}

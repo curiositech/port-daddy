@@ -203,6 +203,51 @@ class TestLineTouchingEdgeOnly(unittest.TestCase):
         self.assertEqual(report["checks"]["T4"]["status"], "pass", msg=report["checks"]["T4"]["findings"])
 
 
+class TestKnockoutOverLine(unittest.TestCase):
+    """A label knocked out of a rule -- a white fill painted AFTER the rule,
+    under the text (the house `pd tag` and `pd badge`) -- hides the rule
+    where the text sits, so T4 must pass. The same fill painted BEFORE the
+    rule hides nothing, so T4 must still fail. So must a line that merely
+    has a white stroke (an invisible bridge) through the text: that one is
+    not ink at all and must pass."""
+
+    def _make(self, fill_first, white_stroke=False):
+        doc = pymupdf.open()
+        page = doc.new_page(width=400, height=300)
+        box = pymupdf.Rect(45, 82, 190, 104)
+        if fill_first:
+            page.draw_rect(box, color=None, fill=(1, 1, 1))
+        page.draw_line((30, 94), (250, 94), color=(1, 1, 1) if white_stroke else (0, 0, 0), width=1)
+        if not fill_first:
+            page.draw_rect(box, color=None, fill=(1, 1, 1))
+        page.insert_text((50, 100), "knocked out", fontsize=16, fontname="helv")
+        return save_temp_pdf(doc)
+
+    def test_t4_passes_when_fill_is_painted_over_the_rule(self):
+        path = self._make(fill_first=False)
+        try:
+            report = figcheck.run_figcheck(path)
+            self.assertEqual(report["checks"]["T4"]["status"], "pass", msg=report["checks"]["T4"]["findings"])
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+    def test_t4_fails_when_fill_is_painted_under_the_rule(self):
+        path = self._make(fill_first=True)
+        try:
+            report = figcheck.run_figcheck(path)
+            self.assertEqual(report["checks"]["T4"]["status"], "fail")
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+    def test_t4_ignores_a_white_stroke(self):
+        path = self._make(fill_first=True, white_stroke=True)
+        try:
+            report = figcheck.run_figcheck(path)
+            self.assertEqual(report["checks"]["T4"]["status"], "pass", msg=report["checks"]["T4"]["findings"])
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+
 class TestOutsideMediaBox(unittest.TestCase):
     def setUp(self):
         doc = pymupdf.open()

@@ -634,9 +634,13 @@ async function smokeSelfHostedDaemon(
   const isolatedBinDir = join(prefix, 'isolated-bin');
   const isolatedOutfile = join(isolatedBinDir, basename(outfile));
   const resourceDir = join(prefix, 'empty-resource-root');
+  const runtimeDir = join(prefix, 'runtime');
+  const testDb = join(runtimeDir, 'port-daddy.db');
   rmSync(prefix, { recursive: true, force: true });
   mkdirSync(isolatedBinDir, { recursive: true });
   mkdirSync(resourceDir, { recursive: true });
+  mkdirSync(runtimeDir, { recursive: true, mode: 0o700 });
+  chmodSync(runtimeDir, 0o700);
   copyFileSync(outfile, isolatedOutfile);
   chmodSync(isolatedOutfile, 0o755);
   for (const companion of companionFiles) {
@@ -706,7 +710,10 @@ async function smokeSelfHostedDaemon(
     cwd: resourceDir,
     env: {
       ...process.env,
-      PORT_DADDY_PREFIX: join(prefix, 'runtime'),
+      PD_HOME: runtimeDir,
+      PORT_DADDY_DB: testDb,
+      PORT_DADDY_PREFIX: runtimeDir,
+      PORT_DADDY_TEST_DB: testDb,
       PORT_DADDY_PORT: String(port),
       PORT_DADDY_NO_FLEET: '1',
       PORT_DADDY_NO_FLEETBAR: '1',
