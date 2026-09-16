@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 788,
-    "distinctObjects": 752,
-    "bytes": 299191620,
-    "distinctBytes": 296398029
+    "assets": 791,
+    "distinctObjects": 755,
+    "bytes": 301229975,
+    "distinctBytes": 298436384
   },
   "assets": [
     {
@@ -1967,6 +1967,27 @@
       "bytes": 198686,
       "sha256": "9f7525081a430fcdded50a7a9c2f26696a33331a820b0cd50486337f222834fd",
       "key": "sha256/9f/9f7525081a430fcdded50a7a9c2f26696a33331a820b0cd50486337f222834fd.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10177/conservation-invariant.png",
+      "bytes": 705253,
+      "sha256": "c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef",
+      "key": "sha256/c6/c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10177/worked-example-declared-dead.png",
+      "bytes": 772847,
+      "sha256": "da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad",
+      "key": "sha256/da/da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10177/worked-example-pairwise-count.png",
+      "bytes": 560255,
+      "sha256": "d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36",
+      "key": "sha256/d3/d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36.png",
       "contentType": "image/png"
     },
     {
