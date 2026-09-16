@@ -204,6 +204,15 @@ export function prepareOwnedPrivateDirectory(path) {
   return resolved;
 }
 
+/** Prepare every private directory inherited by a release-candidate child. */
+export function prepareReleaseCandidateRunDirectories(root) {
+  const resolvedRoot = resolve(root);
+  for (const name of ['build-home', 'build-scratch', 'control', 'tmp']) {
+    prepareOwnedPrivateDirectory(join(resolvedRoot, name));
+  }
+  return resolvedRoot;
+}
+
 /**
  * Wait for a spawned fixture to terminate without missing a fast `close`
  * event. Some launchers fail before Node records an `exitCode`, so listening
@@ -239,7 +248,7 @@ export function waitForChildExit(child, timeoutMs) {
 }
 
 /** Close a fixture server with an explicit deadline so cleanup always settles. */
-export function closeServerBoundedly(server, timeoutMs = 3_000, label = 'fixture server') {
+export function closeServerBoundedly(server, timeoutMs = 3_000, label = 'fixture server', sockets = []) {
   return new Promise((resolveClose, rejectClose) => {
     let settled = false;
     let timer;
@@ -255,6 +264,7 @@ export function closeServerBoundedly(server, timeoutMs = 3_000, label = 'fixture
       timeoutMs,
     );
     try {
+      for (const socket of sockets) socket.destroy();
       server.close((error) => finish(error || null));
     } catch (error) {
       finish(error);

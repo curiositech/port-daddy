@@ -26,6 +26,7 @@ import {
   findAuthorityArtifacts,
   loadReleaseCandidateMatrix,
   prepareOwnedPrivateDirectory,
+  prepareReleaseCandidateRunDirectories,
   redactReleaseCandidateText,
   releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
@@ -164,9 +165,7 @@ class ReleaseCandidateSuite {
     }
     mkdirSync(dirname(this.resultsPath), { recursive: true });
     mkdirSync(dirname(this.logPath), { recursive: true });
-    mkdirSync(join(this.root, 'tmp'), { recursive: true });
-    mkdirSync(join(this.root, 'control'), { recursive: true, mode: 0o700 });
-    chmodSync(join(this.root, 'control'), 0o700);
+    prepareReleaseCandidateRunDirectories(this.root);
     this.checkoutBefore = this.checkoutAuthoritySnapshot();
   }
 
@@ -952,7 +951,12 @@ class ReleaseCandidateSuite {
   }
 
   async portCollisionRecovery(caseRoot) {
-    const blocker = createServer((socket) => socket.end('occupied\n'));
+    const blockerSockets = new Set();
+    const blocker = createServer((socket) => {
+      blockerSockets.add(socket);
+      socket.once('close', () => blockerSockets.delete(socket));
+      socket.end('occupied\n');
+    });
     await new Promise((resolveListen, reject) => {
       blocker.once('error', reject);
       blocker.listen(0, '127.0.0.1', resolveListen);
@@ -996,7 +1000,7 @@ class ReleaseCandidateSuite {
           cleanupError = error;
         }
       }
-      await closeServerBoundedly(blocker, 3_000, 'collision listener');
+      await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets);
       if (cleanupError) throw cleanupError;
     }
 
