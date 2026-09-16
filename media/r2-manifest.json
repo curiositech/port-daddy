@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 783,
-    "distinctObjects": 747,
-    "bytes": 298120983,
-    "distinctBytes": 295327392
+    "assets": 790,
+    "distinctObjects": 754,
+    "bytes": 300895198,
+    "distinctBytes": 298101607
   },
   "assets": [
     {
@@ -764,6 +764,55 @@
       "sha256": "fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f",
       "key": "sha256/fd/fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f.gif",
       "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/book-contents-maritime-before-after.png",
+      "bytes": 435875,
+      "sha256": "0ceeb0645ddcc8b1ae791bf17cb3e1f61edb6601b0db9150bc7e0e28304d1e8d",
+      "key": "sha256/0c/0ceeb0645ddcc8b1ae791bf17cb3e1f61edb6601b0db9150bc7e0e28304d1e8d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-contents-swiss-before-after.png",
+      "bytes": 436813,
+      "sha256": "ab91f881f11392f3aa30abfe37ba643bc719b18a39f1eaf5f0b73b3587a82050",
+      "key": "sha256/ab/ab91f881f11392f3aa30abfe37ba643bc719b18a39f1eaf5f0b73b3587a82050.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-contents-technical-before-after.png",
+      "bytes": 454355,
+      "sha256": "051239057cb03ce476033370297bd55c00dce38177aa78653c95e789539d953d",
+      "key": "sha256/05/051239057cb03ce476033370297bd55c00dce38177aa78653c95e789539d953d.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-section-heads-before-after.gif",
+      "bytes": 639794,
+      "sha256": "967e52296da86c9594ea228c3db91d8e3f0ee88d230fb9ceb55c3d52ca602e13",
+      "key": "sha256/96/967e52296da86c9594ea228c3db91d8e3f0ee88d230fb9ceb55c3d52ca602e13.gif",
+      "contentType": "image/gif"
+    },
+    {
+      "path": "docs/pr-assets/book-toc-maritime-before-after.png",
+      "bytes": 271751,
+      "sha256": "fc7947c8bfb56f92f1c97c13ce37b4c6b7c8d2cee521aebc664166d51178c742",
+      "key": "sha256/fc/fc7947c8bfb56f92f1c97c13ce37b4c6b7c8d2cee521aebc664166d51178c742.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-toc-swiss-before-after.png",
+      "bytes": 272721,
+      "sha256": "c3cd8951bf8861e8deec0ed81939623b8efeb14ad19ef4a735a90f2bb1437090",
+      "key": "sha256/c3/c3cd8951bf8861e8deec0ed81939623b8efeb14ad19ef4a735a90f2bb1437090.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/book-toc-technical-before-after.png",
+      "bytes": 262906,
+      "sha256": "f0710d275181160dd3042c00a587015cfde3c37214616777227962b01e6a8164",
+      "key": "sha256/f0/f0710d275181160dd3042c00a587015cfde3c37214616777227962b01e6a8164.png",
+      "contentType": "image/png"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-card-lifecycle.webp",
