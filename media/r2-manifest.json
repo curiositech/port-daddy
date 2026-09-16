@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 794,
-    "distinctObjects": 758,
-    "bytes": 303134021,
-    "distinctBytes": 300340430
+    "assets": 795,
+    "distinctObjects": 759,
+    "bytes": 329008823,
+    "distinctBytes": 326215232
   },
   "assets": [
     {
@@ -788,863 +788,863 @@
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-card-lifecycle.webp",
-      "bytes": 130,
-      "sha256": "dd7d6d49c27c5b883c8690a4c937af9dec413bdcf101e0f8456d3f2de3d57019",
-      "key": "sha256/dd/dd7d6d49c27c5b883c8690a4c937af9dec413bdcf101e0f8456d3f2de3d57019.webp",
+      "bytes": 36868,
+      "sha256": "b11557a084256ea33b02713d75732df66fbe08dcaf4e0e1eb7ff105c6f6dea01",
+      "key": "sha256/b1/b11557a084256ea33b02713d75732df66fbe08dcaf4e0e1eb7ff105c6f6dea01.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-delegation-inline.webp",
-      "bytes": 130,
-      "sha256": "14260b11772098f1a2d911d187f9436cfa4f785e1b8302c0fd8f70bb309d1509",
-      "key": "sha256/14/14260b11772098f1a2d911d187f9436cfa4f785e1b8302c0fd8f70bb309d1509.webp",
+      "bytes": 53540,
+      "sha256": "c9fe77fb422558d64505f86651334f7210c96dd83e452d56e99ef28529b9274c",
+      "key": "sha256/c9/c9fe77fb422558d64505f86651334f7210c96dd83e452d56e99ef28529b9274c.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-revocation-gossip.webp",
-      "bytes": 130,
-      "sha256": "783098d30a1933591e7aca2b1f9ca36d652585df0746e034bd808284dab0c37d",
-      "key": "sha256/78/783098d30a1933591e7aca2b1f9ca36d652585df0746e034bd808284dab0c37d.webp",
+      "bytes": 38164,
+      "sha256": "5fb01ee04070944bffddd9e81675075d94e7779bcf19c9087f0ade6942f73199",
+      "key": "sha256/5f/5fb01ee04070944bffddd9e81675075d94e7779bcf19c9087f0ade6942f73199.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-bonded-key-custody.webp",
-      "bytes": 130,
-      "sha256": "c2ecfa7bf1f62c27e3b2564b1c8736388a37d9e58d47a2ec4f8be10f037bc72f",
-      "key": "sha256/c2/c2ecfa7bf1f62c27e3b2564b1c8736388a37d9e58d47a2ec4f8be10f037bc72f.webp",
+      "bytes": 59680,
+      "sha256": "2a9c26a2bcd2f98aa03ef5b68c3e461eb00f3c65fc6c0e710249ac5a4c607923",
+      "key": "sha256/2a/2a9c26a2bcd2f98aa03ef5b68c3e461eb00f3c65fc6c0e710249ac5a4c607923.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-fh-revocation-gossip.webp",
-      "bytes": 130,
-      "sha256": "3332d5e92d6da396aa5e6e91990582551d525b8d82bf4f2f6ff79aba564a8705",
-      "key": "sha256/33/3332d5e92d6da396aa5e6e91990582551d525b8d82bf4f2f6ff79aba564a8705.webp",
+      "bytes": 44580,
+      "sha256": "1cca72bad0b6857a0b064001f2648d69145be51a98c77e42ad0a2532b1cc55c9",
+      "key": "sha256/1c/1cca72bad0b6857a0b064001f2648d69145be51a98c77e42ad0a2532b1cc55c9.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-fh-settlement.webp",
-      "bytes": 130,
-      "sha256": "89929e2f186b406bbb3622e01a74fec2fcb916ac168c2e32209e424e42c690aa",
-      "key": "sha256/89/89929e2f186b406bbb3622e01a74fec2fcb916ac168c2e32209e424e42c690aa.webp",
+      "bytes": 61804,
+      "sha256": "d2d7a6def6a225f20f72fa849dfe90155ee381ed7cc2df5fb0e61009708c844f",
+      "key": "sha256/d2/d2d7a6def6a225f20f72fa849dfe90155ee381ed7cc2df5fb0e61009708c844f.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-governance-flow.webp",
-      "bytes": 130,
-      "sha256": "8435628b7ecab2e1eb36689b425252942d555ca4b3780fe2b45e78122e1ecdb7",
-      "key": "sha256/84/8435628b7ecab2e1eb36689b425252942d555ca4b3780fe2b45e78122e1ecdb7.webp",
+      "bytes": 49688,
+      "sha256": "b7b7bcd174c01559d3263165dea16a9693bbfddc504eef6db01d70b573f03637",
+      "key": "sha256/b7/b7b7bcd174c01559d3263165dea16a9693bbfddc504eef6db01d70b573f03637.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-he-assurance.webp",
-      "bytes": 130,
-      "sha256": "37b0ecae260cc81dacb551a041e795a2e0735ea06b7a3826e6e03ee60d7914e5",
-      "key": "sha256/37/37b0ecae260cc81dacb551a041e795a2e0735ea06b7a3826e6e03ee60d7914e5.webp",
+      "bytes": 47116,
+      "sha256": "963c0655cadf5e337659025e1b648e3d8d3e801c4be7286dc844e45bdb8a238a",
+      "key": "sha256/96/963c0655cadf5e337659025e1b648e3d8d3e801c4be7286dc844e45bdb8a238a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-he-float-plan.webp",
-      "bytes": 130,
-      "sha256": "9f017c1c82d8de141e4f6e4ab4ad549776e7f51626927eb93fa2fd2207d12c65",
-      "key": "sha256/9f/9f017c1c82d8de141e4f6e4ab4ad549776e7f51626927eb93fa2fd2207d12c65.webp",
+      "bytes": 43102,
+      "sha256": "697c3552af63d82d4f9ee8edbf57778d58079f56e759f189dac513a34fa3aa5e",
+      "key": "sha256/69/697c3552af63d82d4f9ee8edbf57778d58079f56e759f189dac513a34fa3aa5e.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-he-three-sided.webp",
-      "bytes": 130,
-      "sha256": "ca2b2e763e16945104f3f0c0d82e18eae36cb5145430c3dcbfedb6c8152046f0",
-      "key": "sha256/ca/ca2b2e763e16945104f3f0c0d82e18eae36cb5145430c3dcbfedb6c8152046f0.webp",
+      "bytes": 52354,
+      "sha256": "d59d6d14ed6ce050369bb425ea51a3c0ea9ecd759ffad624ceb0a1c5e5e6b5c2",
+      "key": "sha256/d5/d59d6d14ed6ce050369bb425ea51a3c0ea9ecd759ffad624ceb0a1c5e5e6b5c2.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-sealed-two-worlds.webp",
-      "bytes": 130,
-      "sha256": "dfdaef9c49e57a927abf4d76b1017df74f56eb1f6788a7f9eaffe068fe84ea50",
-      "key": "sha256/df/dfdaef9c49e57a927abf4d76b1017df74f56eb1f6788a7f9eaffe068fe84ea50.webp",
+      "bytes": 62598,
+      "sha256": "2b2f52ba7622bddd864f63806574b1f33a83007d51a6b574fce81c1bdab03027",
+      "key": "sha256/2b/2b2f52ba7622bddd864f63806574b1f33a83007d51a6b574fce81c1bdab03027.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-stp-sybil-whitewash.webp",
-      "bytes": 130,
-      "sha256": "4a58c7d95564a27c0fc43ace01b6114afa2ed81732871e181082698ab1b78f31",
-      "key": "sha256/4a/4a58c7d95564a27c0fc43ace01b6114afa2ed81732871e181082698ab1b78f31.webp",
+      "bytes": 57256,
+      "sha256": "8b89065a6e2b84439ef64173326ea98d224b030e004d4dfc19b045b450547e05",
+      "key": "sha256/8b/8b89065a6e2b84439ef64173326ea98d224b030e004d4dfc19b045b450547e05.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-swk-commitment-oracle.webp",
-      "bytes": 130,
-      "sha256": "59c30c1be02eb802e8dd68c1881b7d0be01aa688ef36ec442087015bf2748ffa",
-      "key": "sha256/59/59c30c1be02eb802e8dd68c1881b7d0be01aa688ef36ec442087015bf2748ffa.webp",
+      "bytes": 40002,
+      "sha256": "cd7845861236deacff119b766c58f77bde843b8197a347a73aeccc08712917f8",
+      "key": "sha256/cd/cd7845861236deacff119b766c58f77bde843b8197a347a73aeccc08712917f8.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-worked-example.webp",
-      "bytes": 130,
-      "sha256": "206c3aa5a5fe4c1b1592170f922b83e50d493a589fcda50be8129d71554d8c12",
-      "key": "sha256/20/206c3aa5a5fe4c1b1592170f922b83e50d493a589fcda50be8129d71554d8c12.webp",
+      "bytes": 41546,
+      "sha256": "98ee53ebc934d8b06dd9b6ec9d39b7f0890fc707ce2b3319faeeb9932024762f",
+      "key": "sha256/98/98ee53ebc934d8b06dd9b6ec9d39b7f0890fc707ce2b3319faeeb9932024762f.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/legible-swarm-state-of-nature.webp",
-      "bytes": 130,
-      "sha256": "7abb88bef2c4dcb663d981137eff5ceb6a49c5ec5e0fb26db11f4fbd3988b451",
-      "key": "sha256/7a/7abb88bef2c4dcb663d981137eff5ceb6a49c5ec5e0fb26db11f4fbd3988b451.webp",
+      "bytes": 44956,
+      "sha256": "2c4dbe19f14b8090744151c7f90c488b5e722bf0b8e65f49c0f553ca582130f8",
+      "key": "sha256/2c/2c4dbe19f14b8090744151c7f90c488b5e722bf0b8e65f49c0f553ca582130f8.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-source-defects/fig-worked-example.webp",
-      "bytes": 130,
-      "sha256": "9eac489e7f4b119cda29ea1444a378dc1028d5d321a1ed01cdac8ef6c1934959",
-      "key": "sha256/9e/9eac489e7f4b119cda29ea1444a378dc1028d5d321a1ed01cdac8ef6c1934959.webp",
+      "bytes": 42180,
+      "sha256": "53edb3e4539417c9bc543d9735d71a05053dfa70c916e3d4cbef1e2d0f5edb1b",
+      "key": "sha256/53/53edb3e4539417c9bc543d9735d71a05053dfa70c916e3d4cbef1e2d0f5edb1b.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-stack-map-redraw/fig-swk-stack-map.webp",
-      "bytes": 130,
-      "sha256": "10833d173ff83b9744b9ff89964aa5dee4d4d2b3cef5e123b3a3f7adeb4dc985",
-      "key": "sha256/10/10833d173ff83b9744b9ff89964aa5dee4d4d2b3cef5e123b3a3f7adeb4dc985.webp",
+      "bytes": 81604,
+      "sha256": "efc126377c2d300fb5e08ad937abf7e058b7e963bd1f7cf9881fdd33a2b213d7",
+      "key": "sha256/ef/efc126377c2d300fb5e08ad937abf7e058b7e963bd1f7cf9881fdd33a2b213d7.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/appendix-figures.webp",
-      "bytes": 130,
-      "sha256": "484295ce085f8cdf6c17b1530d49a173cfa53dd781bd0a6265734a54a70a0fca",
-      "key": "sha256/48/484295ce085f8cdf6c17b1530d49a173cfa53dd781bd0a6265734a54a70a0fca.webp",
+      "bytes": 85684,
+      "sha256": "b94abb18447796573886d1055a536d587be2ed21120fa88bcf76c5a0ca4046f7",
+      "key": "sha256/b9/b94abb18447796573886d1055a536d587be2ed21120fa88bcf76c5a0ca4046f7.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-alg-confusion.webp",
-      "bytes": 130,
-      "sha256": "7103d15aedff21bcc7bfde46d49c20317f7a10cd9422ffb13c3ac4294a6cee50",
-      "key": "sha256/71/7103d15aedff21bcc7bfde46d49c20317f7a10cd9422ffb13c3ac4294a6cee50.webp",
+      "bytes": 57318,
+      "sha256": "e131780112d7c4784bfb5c170136b039c60b79176d681e8c1b8ad308025ba0ac",
+      "key": "sha256/e1/e131780112d7c4784bfb5c170136b039c60b79176d681e8c1b8ad308025ba0ac.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-capability-attenuation.webp",
-      "bytes": 130,
-      "sha256": "d6f257a5d9f94ed79908bd5a4deb96c1b29295e027d15ac5b8d25128af8629a3",
-      "key": "sha256/d6/d6f257a5d9f94ed79908bd5a4deb96c1b29295e027d15ac5b8d25128af8629a3.webp",
+      "bytes": 36794,
+      "sha256": "288f8e8339041f73516509117288c0db38060a8b8907fc56045fb66249258e7c",
+      "key": "sha256/28/288f8e8339041f73516509117288c0db38060a8b8907fc56045fb66249258e7c.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-card-lifecycle.webp",
-      "bytes": 130,
-      "sha256": "850126703639b319b4f9576e75d5ef70ca1fc24b549a7ca42ea7b4e9352ef769",
-      "key": "sha256/85/850126703639b319b4f9576e75d5ef70ca1fc24b549a7ca42ea7b4e9352ef769.webp",
+      "bytes": 37248,
+      "sha256": "8f52d1f9445fb7f759e2a57bf5c1ea53cedb261d37e09ba375e3e5d9e3f7da8e",
+      "key": "sha256/8f/8f52d1f9445fb7f759e2a57bf5c1ea53cedb261d37e09ba375e3e5d9e3f7da8e.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-cuckoo-inline.webp",
-      "bytes": 130,
-      "sha256": "97e35b09e6e4810c98e9a85f68bad4e87ae22c3420c0a90cd53fe2383e8d7b28",
-      "key": "sha256/97/97e35b09e6e4810c98e9a85f68bad4e87ae22c3420c0a90cd53fe2383e8d7b28.webp",
+      "bytes": 52190,
+      "sha256": "4e9b2e07fc2aa0b5c77eb6cbf3dd1cdcee7f007b5464854f25711113242e6b36",
+      "key": "sha256/4e/4e9b2e07fc2aa0b5c77eb6cbf3dd1cdcee7f007b5464854f25711113242e6b36.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-delegation-inline.webp",
-      "bytes": 130,
-      "sha256": "4be18694d13b1d7b6e65113b5ff15e776d6028e4589a0e781c24ea7aa8d0f4e0",
-      "key": "sha256/4b/4be18694d13b1d7b6e65113b5ff15e776d6028e4589a0e781c24ea7aa8d0f4e0.webp",
+      "bytes": 51028,
+      "sha256": "bcb6bd0e40d87875ffef3e38c1ed60ee97cd393537da7e0cedf289b87a0f3444",
+      "key": "sha256/bc/bcb6bd0e40d87875ffef3e38c1ed60ee97cd393537da7e0cedf289b87a0f3444.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-phases.webp",
-      "bytes": 130,
-      "sha256": "72ca0b0278988106d077c12c67a984de1f2d5117b43df186d12c38c39a42d612",
-      "key": "sha256/72/72ca0b0278988106d077c12c67a984de1f2d5117b43df186d12c38c39a42d612.webp",
+      "bytes": 45548,
+      "sha256": "05d50c015e273a76413a750f9fe972368b95f29de5cec285c800e72e0004aae9",
+      "key": "sha256/05/05d50c015e273a76413a750f9fe972368b95f29de5cec285c800e72e0004aae9.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-revocation-gossip.webp",
-      "bytes": 130,
-      "sha256": "88963ee79492e2172a2057bf205abb8ad1df4ce205a6e3b6dd14466aca667543",
-      "key": "sha256/88/88963ee79492e2172a2057bf205abb8ad1df4ce205a6e3b6dd14466aca667543.webp",
+      "bytes": 38386,
+      "sha256": "5fe2b2894a7ea0351e9bff47c3e3c4e8122e42878c7cecf613bb7f01fd0a1772",
+      "key": "sha256/5f/5fe2b2894a7ea0351e9bff47c3e3c4e8122e42878c7cecf613bb7f01fd0a1772.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-bonded-key-custody.webp",
-      "bytes": 130,
-      "sha256": "d794ccbd365bdd8c0a6586676c4ca2e1d2c1e04643bfcb3efa728b2bc4aead34",
-      "key": "sha256/d7/d794ccbd365bdd8c0a6586676c4ca2e1d2c1e04643bfcb3efa728b2bc4aead34.webp",
+      "bytes": 60008,
+      "sha256": "970273ae8889227f38e38a938e95a4b1bf7105085be44be1ad7be66220fc73db",
+      "key": "sha256/97/970273ae8889227f38e38a938e95a4b1bf7105085be44be1ad7be66220fc73db.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-cartel-game-inline.webp",
-      "bytes": 130,
-      "sha256": "2a8449d09c04bd06354cead41553153b9807cf70af1df2909745bb6a2cbba756",
-      "key": "sha256/2a/2a8449d09c04bd06354cead41553153b9807cf70af1df2909745bb6a2cbba756.webp",
+      "bytes": 47530,
+      "sha256": "e359e03e407a74026be60551faf4732f56bb7beb48ec63d34290d11cda3864d1",
+      "key": "sha256/e3/e359e03e407a74026be60551faf4732f56bb7beb48ec63d34290d11cda3864d1.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-cycle-vs-cut.webp",
-      "bytes": 130,
-      "sha256": "abb2b6e6d4269a59c47057435a5f8476469345281f52cd9637268cd468923bfe",
-      "key": "sha256/ab/abb2b6e6d4269a59c47057435a5f8476469345281f52cd9637268cd468923bfe.webp",
+      "bytes": 47418,
+      "sha256": "771e9df4275ba151ea02f954398ca7aa9b1a29b33a25ce3cf4a7ad35376558c7",
+      "key": "sha256/77/771e9df4275ba151ea02f954398ca7aa9b1a29b33a25ce3cf4a7ad35376558c7.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-revocation-gossip.webp",
-      "bytes": 130,
-      "sha256": "3a0e504b554989276839869695d899456540b9b9fcc29243f00b1f6434ffda6c",
-      "key": "sha256/3a/3a0e504b554989276839869695d899456540b9b9fcc29243f00b1f6434ffda6c.webp",
+      "bytes": 44490,
+      "sha256": "544b122344797042e8d92567c75de41dc15d375aa43240f246dae1783d457694",
+      "key": "sha256/54/544b122344797042e8d92567c75de41dc15d375aa43240f246dae1783d457694.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-revocation-regime.webp",
-      "bytes": 130,
-      "sha256": "76d5f2a94c35e5af9a7b70b88970d928a4440d23a494aed4661f9ba8ec23bd0c",
-      "key": "sha256/76/76d5f2a94c35e5af9a7b70b88970d928a4440d23a494aed4661f9ba8ec23bd0c.webp",
+      "bytes": 43972,
+      "sha256": "fd7b5f7123dc142044d429226962561db7e17c9ad58dbbec398ec90d20515d25",
+      "key": "sha256/fd/fd7b5f7123dc142044d429226962561db7e17c9ad58dbbec398ec90d20515d25.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-settlement.webp",
-      "bytes": 130,
-      "sha256": "4611edd9b5d8c29a9a01f9c3f2c28cda3d810063d2eef4f4b0fa7b5eb43a1173",
-      "key": "sha256/46/4611edd9b5d8c29a9a01f9c3f2c28cda3d810063d2eef4f4b0fa7b5eb43a1173.webp",
+      "bytes": 62846,
+      "sha256": "e10a7168d5aa0c8fd4fe0468c7e959b17a3075df5b9001e9320fdc0151b867d0",
+      "key": "sha256/e1/e10a7168d5aa0c8fd4fe0468c7e959b17a3075df5b9001e9320fdc0151b867d0.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-threat-bands.webp",
-      "bytes": 130,
-      "sha256": "8a80406c735eb6d2b7418f08a81bd333a4bd99be8a01ca7cefb73be84fd0b3ec",
-      "key": "sha256/8a/8a80406c735eb6d2b7418f08a81bd333a4bd99be8a01ca7cefb73be84fd0b3ec.webp",
+      "bytes": 56162,
+      "sha256": "c7f78561e9b239ea28567de78a58d1700fa8597e4d4c33a352c411e6efb750ad",
+      "key": "sha256/c7/c7f78561e9b239ea28567de78a58d1700fa8597e4d4c33a352c411e6efb750ad.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-xfer-ceremony.webp",
-      "bytes": 130,
-      "sha256": "fa811c2324dcdb39ace87859d6b385831f64ed4d62c7a7f1ae3a83d0747cc8d0",
-      "key": "sha256/fa/fa811c2324dcdb39ace87859d6b385831f64ed4d62c7a7f1ae3a83d0747cc8d0.webp",
+      "bytes": 58062,
+      "sha256": "8198342aad989555b607dd95a6e14eb8c5306ba710ca648caa2e175c38347f09",
+      "key": "sha256/81/8198342aad989555b607dd95a6e14eb8c5306ba710ca648caa2e175c38347f09.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-governance-flow.webp",
-      "bytes": 130,
-      "sha256": "92a4a86b4a616d7a4d9693d90dd0d4f58aa3a186937fcf2de739b791fc3fe17a",
-      "key": "sha256/92/92a4a86b4a616d7a4d9693d90dd0d4f58aa3a186937fcf2de739b791fc3fe17a.webp",
+      "bytes": 50766,
+      "sha256": "823321e6f7ed53c98105d0409f9e7a55c237ebfaeae154d0a8d59d748b7a9e28",
+      "key": "sha256/82/823321e6f7ed53c98105d0409f9e7a55c237ebfaeae154d0a8d59d748b7a9e28.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-he-assurance-sieve.webp",
-      "bytes": 130,
-      "sha256": "0508d0d42d803505d2719d5900d7fff3996ec35125e31df3004ca6abc002849f",
-      "key": "sha256/05/0508d0d42d803505d2719d5900d7fff3996ec35125e31df3004ca6abc002849f.webp",
+      "bytes": 22906,
+      "sha256": "5f641130ea2b19e3da91fc0078b7cf79356b4c09335078ed3d6c5492d9efbe36",
+      "key": "sha256/5f/5f641130ea2b19e3da91fc0078b7cf79356b4c09335078ed3d6c5492d9efbe36.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-he-cold-start.webp",
-      "bytes": 130,
-      "sha256": "43959bfad792753d6df141454116cea5dbeed0d1798534d073974eb11726a67f",
-      "key": "sha256/43/43959bfad792753d6df141454116cea5dbeed0d1798534d073974eb11726a67f.webp",
+      "bytes": 49968,
+      "sha256": "9f39c5de603d8c5cd0d5647a471744fe31bed7d84a58ba133da1fbc2bf008293",
+      "key": "sha256/9f/9f39c5de603d8c5cd0d5647a471744fe31bed7d84a58ba133da1fbc2bf008293.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-he-float-plan.webp",
-      "bytes": 130,
-      "sha256": "d6690c12d4039485e32dd42b616e0a2f2f0bdc67cc9055823439dbba7589d894",
-      "key": "sha256/d6/d6690c12d4039485e32dd42b616e0a2f2f0bdc67cc9055823439dbba7589d894.webp",
+      "bytes": 42428,
+      "sha256": "834d72a5884ddce8448aeca9f1d2112a7976b78b1068a83e5f8b428fd78ecc31",
+      "key": "sha256/83/834d72a5884ddce8448aeca9f1d2112a7976b78b1068a83e5f8b428fd78ecc31.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-magic-link-inline.webp",
-      "bytes": 130,
-      "sha256": "076b78621175903b22c24d7ddfa0cb6e19bf68d85e931e8ac657ee971d21c3c3",
-      "key": "sha256/07/076b78621175903b22c24d7ddfa0cb6e19bf68d85e931e8ac657ee971d21c3c3.webp",
+      "bytes": 50624,
+      "sha256": "08596c44bed03e9b30b6e7616bb0e60f6f75ad72fbcb8d03d1d060704444baf0",
+      "key": "sha256/08/08596c44bed03e9b30b6e7616bb0e60f6f75ad72fbcb8d03d1d060704444baf0.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-composition-crossover.webp",
-      "bytes": 130,
-      "sha256": "82092ad5d400e3553029d8984c8d7bd9f5ad0f7e680e990de128cf063e02d346",
-      "key": "sha256/82/82092ad5d400e3553029d8984c8d7bd9f5ad0f7e680e990de128cf063e02d346.webp",
+      "bytes": 49732,
+      "sha256": "d6bc0292980ff33b9ef1be5dac2b6ae416b664e2bb521283c40a78e44ccc4e62",
+      "key": "sha256/d6/d6bc0292980ff33b9ef1be5dac2b6ae416b664e2bb521283c40a78e44ccc4e62.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-mutant-grid.webp",
-      "bytes": 130,
-      "sha256": "f422673ccc4aa0efbc84bef42dfae10739bcb3b7e44441eed2178090b4308ea7",
-      "key": "sha256/f4/f422673ccc4aa0efbc84bef42dfae10739bcb3b7e44441eed2178090b4308ea7.webp",
+      "bytes": 71670,
+      "sha256": "fffdee8abc6b6288accd87de99ffe908a5802cf11ef7ad81e7e25447180693c0",
+      "key": "sha256/ff/fffdee8abc6b6288accd87de99ffe908a5802cf11ef7ad81e7e25447180693c0.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-operating-curve.webp",
-      "bytes": 130,
-      "sha256": "07a5aa2cf91e15c502134fc0aa1ab5bb88d8debe2a29e2c102330ce5d6d0caeb",
-      "key": "sha256/07/07a5aa2cf91e15c502134fc0aa1ab5bb88d8debe2a29e2c102330ce5d6d0caeb.webp",
+      "bytes": 54618,
+      "sha256": "2009bd10336bdaaa1a5eeb3b4556cbd1a55db728e3d53efb1e4566223dd4417d",
+      "key": "sha256/20/2009bd10336bdaaa1a5eeb3b4556cbd1a55db728e3d53efb1e4566223dd4417d.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-pillar-pipeline.webp",
-      "bytes": 130,
-      "sha256": "5a28a6f09a3307882ff9a5873efb48569af3f5b01529b4247a59742b5478458e",
-      "key": "sha256/5a/5a28a6f09a3307882ff9a5873efb48569af3f5b01529b4247a59742b5478458e.webp",
+      "bytes": 61146,
+      "sha256": "41453a2231781fce508eecf89c15803d823c493131267c830015d98cb200a3d3",
+      "key": "sha256/41/41453a2231781fce508eecf89c15803d823c493131267c830015d98cb200a3d3.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-two-worlds.webp",
-      "bytes": 130,
-      "sha256": "e67d888f8c07fe1cc29ee1ebc7775cc1cce947ab304607a58c281831aa6f6c43",
-      "key": "sha256/e6/e67d888f8c07fe1cc29ee1ebc7775cc1cce947ab304607a58c281831aa6f6c43.webp",
+      "bytes": 68394,
+      "sha256": "1f39501667bafbe3353361db33143e94933a0118fbe14719c2a706936977cfab",
+      "key": "sha256/1f/1f39501667bafbe3353361db33143e94933a0118fbe14719c2a706936977cfab.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-deterrence-regime.webp",
-      "bytes": 130,
-      "sha256": "56ac458a4761fa01f0652c1ac0e1c50f5b5604b4a3942b43c60680a127859e5c",
-      "key": "sha256/56/56ac458a4761fa01f0652c1ac0e1c50f5b5604b4a3942b43c60680a127859e5c.webp",
+      "bytes": 41638,
+      "sha256": "5c4365f1ab2ad6f9767ff746ea56b4a4bd7869ca6a63495d664437cf48b77e44",
+      "key": "sha256/5c/5c4365f1ab2ad6f9767ff746ea56b4a4bd7869ca6a63495d664437cf48b77e44.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-judge-market.webp",
-      "bytes": 130,
-      "sha256": "27587e925367faef7f22d087d657bb5488ca3b955e75422d0b64809ea6b3ba8a",
-      "key": "sha256/27/27587e925367faef7f22d087d657bb5488ca3b955e75422d0b64809ea6b3ba8a.webp",
+      "bytes": 57230,
+      "sha256": "3171f0fc187b3dd6710e330b4433889903cd7f3a0dcd0c40bce57bfecd1a52e3",
+      "key": "sha256/31/3171f0fc187b3dd6710e330b4433889903cd7f3a0dcd0c40bce57bfecd1a52e3.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-multidim-reputation.webp",
-      "bytes": 130,
-      "sha256": "a39eefb9bc0cdb002bc01c426865d63b4779f7439f3dd36a1b5ef48b016cfd2c",
-      "key": "sha256/a3/a39eefb9bc0cdb002bc01c426865d63b4779f7439f3dd36a1b5ef48b016cfd2c.webp",
+      "bytes": 53172,
+      "sha256": "7fe610e2e383922ab3a1c8e9aca464bfccea88c2123100d379ba92ea6434ab93",
+      "key": "sha256/7f/7fe610e2e383922ab3a1c8e9aca464bfccea88c2123100d379ba92ea6434ab93.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-nomint-lineage.webp",
-      "bytes": 130,
-      "sha256": "4a536270958f639fb5885621d9ae0de75dc7ebc763d9fff4aa462e3f4a14cb54",
-      "key": "sha256/4a/4a536270958f639fb5885621d9ae0de75dc7ebc763d9fff4aa462e3f4a14cb54.webp",
+      "bytes": 63710,
+      "sha256": "b83c75829905363866aa89e20319dfc01a1d33d5cd0f3240c1ab318884935a91",
+      "key": "sha256/b8/b83c75829905363866aa89e20319dfc01a1d33d5cd0f3240c1ab318884935a91.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-parfit-chain.webp",
-      "bytes": 130,
-      "sha256": "8c3ead9d27802b0fd605e25732ac70b785edab916819f22bb6c5ce52b95fabca",
-      "key": "sha256/8c/8c3ead9d27802b0fd605e25732ac70b785edab916819f22bb6c5ce52b95fabca.webp",
+      "bytes": 40090,
+      "sha256": "b20dc7a7a8478f7cfa531601c8fa1428db559b087ab0c64e067f33e28f615511",
+      "key": "sha256/b2/b20dc7a7a8478f7cfa531601c8fa1428db559b087ab0c64e067f33e28f615511.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-probation-cliff.webp",
-      "bytes": 130,
-      "sha256": "54170906c7a9aafc55aa3801af88df7550342fd56abdd8a070fcd7303bfdb0ff",
-      "key": "sha256/54/54170906c7a9aafc55aa3801af88df7550342fd56abdd8a070fcd7303bfdb0ff.webp",
+      "bytes": 51100,
+      "sha256": "e393c82df1fcef7bbaaf5d3e76be9d3bf9d027e6831c0aa3ebe4d3660b1552e7",
+      "key": "sha256/e3/e393c82df1fcef7bbaaf5d3e76be9d3bf9d027e6831c0aa3ebe4d3660b1552e7.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-rate-the-raters.webp",
-      "bytes": 130,
-      "sha256": "d23dd6d7357b60356d5b0fb1752cc4e2f092948bc0ec44c22a39c6bd9454b40c",
-      "key": "sha256/d2/d23dd6d7357b60356d5b0fb1752cc4e2f092948bc0ec44c22a39c6bd9454b40c.webp",
+      "bytes": 59708,
+      "sha256": "2a7fc9931e54d3f8e0a1a757fdb5a6fe3d1f9d4d4ccfb6385297092b34ce1713",
+      "key": "sha256/2a/2a7fc9931e54d3f8e0a1a757fdb5a6fe3d1f9d4d4ccfb6385297092b34ce1713.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-role-vs-person.webp",
-      "bytes": 130,
-      "sha256": "de5bb6633941c05bc15cb322deef5e0617f4931adb88e2547550381423e80708",
-      "key": "sha256/de/de5bb6633941c05bc15cb322deef5e0617f4931adb88e2547550381423e80708.webp",
+      "bytes": 51226,
+      "sha256": "bcf4b0fe822e1a7b461ae91e9cb810824ce39abd52d322a027b71645db235340",
+      "key": "sha256/bc/bcf4b0fe822e1a7b461ae91e9cb810824ce39abd52d322a027b71645db235340.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-sybil-whitewash.webp",
-      "bytes": 130,
-      "sha256": "9cb4e72e0f2048e6c964fa7a9572f5fe9bbdf6c605e733dcd4651b84c1b65717",
-      "key": "sha256/9c/9cb4e72e0f2048e6c964fa7a9572f5fe9bbdf6c605e733dcd4651b84c1b65717.webp",
+      "bytes": 57066,
+      "sha256": "fd8fdd4f785122428d0f7b6e30801eadbdac3fb537530e17000837b2d4a9da95",
+      "key": "sha256/fd/fd8fdd4f785122428d0f7b6e30801eadbdac3fb537530e17000837b2d4a9da95.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-continuity-organs.webp",
-      "bytes": 130,
-      "sha256": "904e7558f6ffb7cf7793c0b36a4dccfcb93d887a1e19e71c8e4e615cfe5290da",
-      "key": "sha256/90/904e7558f6ffb7cf7793c0b36a4dccfcb93d887a1e19e71c8e4e615cfe5290da.webp",
+      "bytes": 32994,
+      "sha256": "20d250010ef05b41c5b8b900d9d69181599a9288c7e2a8b754a83e300bca6d90",
+      "key": "sha256/20/20d250010ef05b41c5b8b900d9d69181599a9288c7e2a8b754a83e300bca6d90.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-controllability-quadrant.webp",
-      "bytes": 130,
-      "sha256": "e624a81237804e2c81a1c987a73dd4a2c03b69eb2199ece49c948b54c806421f",
-      "key": "sha256/e6/e624a81237804e2c81a1c987a73dd4a2c03b69eb2199ece49c948b54c806421f.webp",
+      "bytes": 42312,
+      "sha256": "0d0c5afbd8e452f71a623c281c6fdf82b65ffaaedee17760af434b914faae7b1",
+      "key": "sha256/0d/0d0c5afbd8e452f71a623c281c6fdf82b65ffaaedee17760af434b914faae7b1.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-durability-faultclass.webp",
-      "bytes": 130,
-      "sha256": "4924880efba4b1bdfeb6ff266b7d4bd6ba94192717995d12761fc7f6f5ef2dfa",
-      "key": "sha256/49/4924880efba4b1bdfeb6ff266b7d4bd6ba94192717995d12761fc7f6f5ef2dfa.webp",
+      "bytes": 33076,
+      "sha256": "c4236f8083fb31f8cf4ae28e7e95945163aebe2e88c605f40fb82096612cd0c3",
+      "key": "sha256/c4/c4236f8083fb31f8cf4ae28e7e95945163aebe2e88c605f40fb82096612cd0c3.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-marker-decay.webp",
-      "bytes": 130,
-      "sha256": "dd5c8d2c78ca23422aa22b2ba3aad4c0d84a422b89bb4fe359a611465211dc8d",
-      "key": "sha256/dd/dd5c8d2c78ca23422aa22b2ba3aad4c0d84a422b89bb4fe359a611465211dc8d.webp",
+      "bytes": 37394,
+      "sha256": "75150227eb7076d914235916bfc827a04ffad003a482af8c21768cf99da854a2",
+      "key": "sha256/75/75150227eb7076d914235916bfc827a04ffad003a482af8c21768cf99da854a2.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-workunit-machine.webp",
-      "bytes": 130,
-      "sha256": "8e7211a00b176195078ffc2de38b460fc3906abd75f21c1d194b14f5a527df91",
-      "key": "sha256/8e/8e7211a00b176195078ffc2de38b460fc3906abd75f21c1d194b14f5a527df91.webp",
+      "bytes": 79300,
+      "sha256": "f07a7bbbcbe46823663c451a1ff6ea757df1e0e37e91eebbf209449abe065a1c",
+      "key": "sha256/f0/f07a7bbbcbe46823663c451a1ff6ea757df1e0e37e91eebbf209449abe065a1c.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sybil-inline.webp",
-      "bytes": 130,
-      "sha256": "25f6a40a11ed6be770db36271cfbd0d2cf179f5f481a0702edb27828f78760ae",
-      "key": "sha256/25/25f6a40a11ed6be770db36271cfbd0d2cf179f5f481a0702edb27828f78760ae.webp",
+      "bytes": 48648,
+      "sha256": "8e3ac862102899aaa1d1a9a95dff02689290d28924d3963b96b49b78f2c7ec3b",
+      "key": "sha256/8e/8e3ac862102899aaa1d1a9a95dff02689290d28924d3963b96b49b78f2c7ec3b.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-worked-example.webp",
-      "bytes": 130,
-      "sha256": "5956156bde7a38985966032a5945921dc4bc6d36309bc308e7934c43818026c4",
-      "key": "sha256/59/5956156bde7a38985966032a5945921dc4bc6d36309bc308e7934c43818026c4.webp",
+      "bytes": 42670,
+      "sha256": "75965910dfe7c7fde1de4373d9f2efd08709e4c1f754267970db4c69e2172af1",
+      "key": "sha256/75/75965910dfe7c7fde1de4373d9f2efd08709e4c1f754267970db4c69e2172af1.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-readpoverty.webp",
-      "bytes": 130,
-      "sha256": "074d749a8424d3d8fc866e05fbc1eccb36bc4b6e8a3d71bcbcee13bc8c3b2a5e",
-      "key": "sha256/07/074d749a8424d3d8fc866e05fbc1eccb36bc4b6e8a3d71bcbcee13bc8c3b2a5e.webp",
+      "bytes": 44668,
+      "sha256": "b09b7b4faddd217cbe9ccac7e109ada8aff5ab5005bcdb107c0b9b461fac4a39",
+      "key": "sha256/b0/b09b7b4faddd217cbe9ccac7e109ada8aff5ab5005bcdb107c0b9b461fac4a39.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-roles.webp",
-      "bytes": 130,
-      "sha256": "605fbdde8579bf6d7d8468ec5648821ca356bd2f931feeb85c2cbb68c51f025f",
-      "key": "sha256/60/605fbdde8579bf6d7d8468ec5648821ca356bd2f931feeb85c2cbb68c51f025f.webp",
+      "bytes": 42088,
+      "sha256": "6e56331467d1d615788820227853b2ae8a6f91d54bd3d97617588240842a5648",
+      "key": "sha256/6e/6e56331467d1d615788820227853b2ae8a6f91d54bd3d97617588240842a5648.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-sdt.webp",
-      "bytes": 130,
-      "sha256": "eadcdb6147205043f470b16d07132b12d1a83af73cb1b41b576ecbc4cb2c8797",
-      "key": "sha256/ea/eadcdb6147205043f470b16d07132b12d1a83af73cb1b41b576ecbc4cb2c8797.webp",
+      "bytes": 53426,
+      "sha256": "bbfaf03b7d1804c71e116fd2998fe6a1aaffe8a5a26e640c742f0ea04af7caeb",
+      "key": "sha256/bb/bbfaf03b7d1804c71e116fd2998fe6a1aaffe8a5a26e640c742f0ea04af7caeb.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-specialization.webp",
-      "bytes": 130,
-      "sha256": "8eb4ae3fc8bd093c41e6f83f456cd557b02740bda6d13ed3e109b0f456fc05e1",
-      "key": "sha256/8e/8eb4ae3fc8bd093c41e6f83f456cd557b02740bda6d13ed3e109b0f456fc05e1.webp",
+      "bytes": 40198,
+      "sha256": "081b09ea31045d4763a93dc31305554d5f10b0d70f2432d397d65d89f43f19f6",
+      "key": "sha256/08/081b09ea31045d4763a93dc31305554d5f10b0d70f2432d397d65d89f43f19f6.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-state-of-nature.webp",
-      "bytes": 130,
-      "sha256": "cccb78a5145f0755aa1586ba8b72ff20a4b1824b7dd9a6f04c625cad48739f41",
-      "key": "sha256/cc/cccb78a5145f0755aa1586ba8b72ff20a4b1824b7dd9a6f04c625cad48739f41.webp",
+      "bytes": 42232,
+      "sha256": "71f7bf4ad9a6e84394f3cdcc9277c9695a816d83b47bc00e961947fbb94292fc",
+      "key": "sha256/71/71f7bf4ad9a6e84394f3cdcc9277c9695a816d83b47bc00e961947fbb94292fc.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/fig-bc-graduated-trigger.webp",
-      "bytes": 130,
-      "sha256": "c0ed29fc20b01cfa02856b7357b21c8e05263512050cb855d63900882fb33bd5",
-      "key": "sha256/c0/c0ed29fc20b01cfa02856b7357b21c8e05263512050cb855d63900882fb33bd5.webp",
+      "bytes": 77930,
+      "sha256": "b4a73930e73c92676e9a7dc7761934b0606c77392cfd806a9500187bc713e54d",
+      "key": "sha256/b4/b4a73930e73c92676e9a7dc7761934b0606c77392cfd806a9500187bc713e54d.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/fig-bc-oracle-audit-rate.webp",
-      "bytes": 130,
-      "sha256": "7b4e95d06fcb3cbad5629852f36c4a5849758a586bb05e89ee3617ec5429a2f0",
-      "key": "sha256/7b/7b4e95d06fcb3cbad5629852f36c4a5849758a586bb05e89ee3617ec5429a2f0.webp",
+      "bytes": 85674,
+      "sha256": "83ae3ff927b20f3f4e2bb3cf70e6d1a57af433695c62b8e605a3b55726bed32f",
+      "key": "sha256/83/83ae3ff927b20f3f4e2bb3cf70e6d1a57af433695c62b8e605a3b55726bed32f.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/fig-stp-rate-the-raters.webp",
-      "bytes": 130,
-      "sha256": "118b06a980916347617237d1560e03f00edfd7ba20ef133b9aac1e5521cec7df",
-      "key": "sha256/11/118b06a980916347617237d1560e03f00edfd7ba20ef133b9aac1e5521cec7df.webp",
+      "bytes": 83834,
+      "sha256": "934eb5739a30197e56ff03a4954e818295894db5e031cd6b2855a5247081ae2d",
+      "key": "sha256/93/934eb5739a30197e56ff03a4954e818295894db5e031cd6b2855a5247081ae2d.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/tab-bc-settlement-rule.webp",
-      "bytes": 130,
-      "sha256": "8cced9880306dba097a1383379f0a83b53713a834cdb2aaf61a78d466f82efe3",
-      "key": "sha256/8c/8cced9880306dba097a1383379f0a83b53713a834cdb2aaf61a78d466f82efe3.webp",
+      "bytes": 52866,
+      "sha256": "a13822111bc9d20d8d266b3d1c6caac3ddfe6f3dad4ecb15d07ca1727450b0f3",
+      "key": "sha256/a1/a13822111bc9d20d8d266b3d1c6caac3ddfe6f3dad4ecb15d07ca1727450b0f3.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figures-that-were-missing/fig-anchor-handshake-ladder.webp",
-      "bytes": 130,
-      "sha256": "885dac7afb2fef418622cc7b2d49d0e37d89a069a76a22b4b9a5126234e8f9a5",
-      "key": "sha256/88/885dac7afb2fef418622cc7b2d49d0e37d89a069a76a22b4b9a5126234e8f9a5.webp",
+      "bytes": 34194,
+      "sha256": "f2eddf68706d84077b6cccd937678f56c78d2b55f28ff86eef8525f04871699a",
+      "key": "sha256/f2/f2eddf68706d84077b6cccd937678f56c78d2b55f28ff86eef8525f04871699a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figures-that-were-missing/fig-bc-delta-threshold.webp",
-      "bytes": 130,
-      "sha256": "4dd005d1893f239ea9a88342696074b9935d91773d545884a8bc15e8da7dab84",
-      "key": "sha256/4d/4dd005d1893f239ea9a88342696074b9935d91773d545884a8bc15e8da7dab84.webp",
+      "bytes": 81972,
+      "sha256": "c041186e11828b3a21d0b6809f882b2ba2296ea6c63b9b99f1a32b53ab6b6b1f",
+      "key": "sha256/c0/c041186e11828b3a21d0b6809f882b2ba2296ea6c63b9b99f1a32b53ab6b6b1f.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__figures-that-were-missing/fig-he-succession-price.webp",
-      "bytes": 130,
-      "sha256": "bf02e8973806c6d0b195902645348827f32af0c523eb50795aa430f7489da7f5",
-      "key": "sha256/bf/bf02e8973806c6d0b195902645348827f32af0c523eb50795aa430f7489da7f5.webp",
+      "bytes": 65248,
+      "sha256": "38533964b894bea8c34a01693f3bf21f2d775cb9e5b240c2757f53345b152c6c",
+      "key": "sha256/38/38533964b894bea8c34a01693f3bf21f2d775cb9e5b240c2757f53345b152c6c.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/claude__stack-map-redraw-v2/fig-swk-stack-map.webp",
-      "bytes": 130,
-      "sha256": "960673dfb6e31794b16c3bc6138cee3383c31b7d06962a73e7145fb802ad0c7e",
-      "key": "sha256/96/960673dfb6e31794b16c3bc6138cee3383c31b7d06962a73e7145fb802ad0c7e.webp",
+      "bytes": 76432,
+      "sha256": "8366e196b2fdfccb5b5b49c77b855ded11f3b6a9be810335f39019d2794ee1ea",
+      "key": "sha256/83/8366e196b2fdfccb5b5b49c77b855ded11f3b6a9be810335f39019d2794ee1ea.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/appendix-figures.webp",
-      "bytes": 130,
-      "sha256": "98af6c942853071f41237f7ff225865df3e5877b238967975fc3e77e1a728814",
-      "key": "sha256/98/98af6c942853071f41237f7ff225865df3e5877b238967975fc3e77e1a728814.webp",
+      "bytes": 84656,
+      "sha256": "57a6348923ae43f8baf2d062282ea16dad3e0ff05a59f7cca7af319095ab3ec2",
+      "key": "sha256/57/57a6348923ae43f8baf2d062282ea16dad3e0ff05a59f7cca7af319095ab3ec2.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-anchor-alg-confusion.webp",
-      "bytes": 130,
-      "sha256": "98ac5b110b549028a0491cf0511f277a5c90fe7064824a5b727f6c18bda1a2af",
-      "key": "sha256/98/98ac5b110b549028a0491cf0511f277a5c90fe7064824a5b727f6c18bda1a2af.webp",
+      "bytes": 57212,
+      "sha256": "37caa6cd3806fe04da1e7ade8dfc7f1caf8f7568b2041998f66e36b8ea795d0a",
+      "key": "sha256/37/37caa6cd3806fe04da1e7ade8dfc7f1caf8f7568b2041998f66e36b8ea795d0a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-anchor-capability-attenuation.webp",
-      "bytes": 130,
-      "sha256": "d97937a2d3de5b91ab1672eb0f1365c32b15b65ea3444d4b38026ca90d778e37",
-      "key": "sha256/d9/d97937a2d3de5b91ab1672eb0f1365c32b15b65ea3444d4b38026ca90d778e37.webp",
+      "bytes": 36940,
+      "sha256": "9c8499df394ae3ea5e3f71bcfa84327ccc2cf08778663e8d0243e98c448e58d2",
+      "key": "sha256/9c/9c8499df394ae3ea5e3f71bcfa84327ccc2cf08778663e8d0243e98c448e58d2.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-anchor-card-lifecycle.webp",
-      "bytes": 130,
-      "sha256": "9fe9ffa22551b22cb699f21aef26ed9344003ac0da2d6c6501a6f1b87664f5a2",
-      "key": "sha256/9f/9fe9ffa22551b22cb699f21aef26ed9344003ac0da2d6c6501a6f1b87664f5a2.webp",
+      "bytes": 36760,
+      "sha256": "15b573149559f021f52282676582ad1e2df525aaab9c2dc6448bc9caf30ba89a",
+      "key": "sha256/15/15b573149559f021f52282676582ad1e2df525aaab9c2dc6448bc9caf30ba89a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-anchor-cuckoo-inline.webp",
-      "bytes": 130,
-      "sha256": "cccce5e26c7435e96633fe44b65f72ab29c2d8bbf956a77cb3f5c104a1b45a95",
-      "key": "sha256/cc/cccce5e26c7435e96633fe44b65f72ab29c2d8bbf956a77cb3f5c104a1b45a95.webp",
+      "bytes": 52400,
+      "sha256": "d63fcc50a5df1dbeb29e2be25f2e14057a6841aac331660ff8d591e7bb845e46",
+      "key": "sha256/d6/d63fcc50a5df1dbeb29e2be25f2e14057a6841aac331660ff8d591e7bb845e46.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-anchor-delegation-inline.webp",
-      "bytes": 130,
-      "sha256": "de9675a7ac4d13f94ab76c768d1fb804bd8fec1553ef3e6e260bb7b09be1cef2",
-      "key": "sha256/de/de9675a7ac4d13f94ab76c768d1fb804bd8fec1553ef3e6e260bb7b09be1cef2.webp",
+      "bytes": 53986,
+      "sha256": "0a8f5f8468c8e3f0be00154a1f53e6eccc0024bbebc527b4504e945cddefa2ae",
+      "key": "sha256/0a/0a8f5f8468c8e3f0be00154a1f53e6eccc0024bbebc527b4504e945cddefa2ae.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-anchor-phases.webp",
-      "bytes": 130,
-      "sha256": "25f80519308fa081662b34def4cf9c1edd49545ff780e80b4b7c5937070b8501",
-      "key": "sha256/25/25f80519308fa081662b34def4cf9c1edd49545ff780e80b4b7c5937070b8501.webp",
+      "bytes": 43620,
+      "sha256": "c68a0cbe4ea7ffbadba92667cd8170252208257a79fbcba5a00af74f97d857ed",
+      "key": "sha256/c6/c68a0cbe4ea7ffbadba92667cd8170252208257a79fbcba5a00af74f97d857ed.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-anchor-revocation-gossip.webp",
-      "bytes": 130,
-      "sha256": "34b5da46f77a73c2d0a75a0790ba6c9a830b083f0800b1eacb86eed3103430b0",
-      "key": "sha256/34/34b5da46f77a73c2d0a75a0790ba6c9a830b083f0800b1eacb86eed3103430b0.webp",
+      "bytes": 38314,
+      "sha256": "965f9daf63ecc809d3d2aa53543524ceda0c9fbe6e54bc2b6cbecc77266d13cd",
+      "key": "sha256/96/965f9daf63ecc809d3d2aa53543524ceda0c9fbe6e54bc2b6cbecc77266d13cd.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-bonded-key-custody.webp",
-      "bytes": 130,
-      "sha256": "7af476a5e5415693894a764913c57e7d2066ef733d7fa6ea6f86fc1477ff331f",
-      "key": "sha256/7a/7af476a5e5415693894a764913c57e7d2066ef733d7fa6ea6f86fc1477ff331f.webp",
+      "bytes": 59516,
+      "sha256": "21c489e1e718df14dbc09c2d6a5b2e83e2356b1f33541a916918ccd32a5b01a8",
+      "key": "sha256/21/21c489e1e718df14dbc09c2d6a5b2e83e2356b1f33541a916918ccd32a5b01a8.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-cartel-game-inline.webp",
-      "bytes": 130,
-      "sha256": "91740f9f06b8693adb41e6ea03205d14e8eac4a18107704735ae673a7b633c7a",
-      "key": "sha256/91/91740f9f06b8693adb41e6ea03205d14e8eac4a18107704735ae673a7b633c7a.webp",
+      "bytes": 47094,
+      "sha256": "6fa1e890bd29209aee069d40eddaa04b5f3248ae830d5606e82ada14c278ebec",
+      "key": "sha256/6f/6fa1e890bd29209aee069d40eddaa04b5f3248ae830d5606e82ada14c278ebec.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-fh-cycle-vs-cut.webp",
-      "bytes": 130,
-      "sha256": "c4ba4d7b10a6904dcabf46229b723bb5a5095d0b96bcfb8d1b962b10072c6bcc",
-      "key": "sha256/c4/c4ba4d7b10a6904dcabf46229b723bb5a5095d0b96bcfb8d1b962b10072c6bcc.webp",
+      "bytes": 46006,
+      "sha256": "b7cbf9a72efd20bda10cf456ca8fecfe503aba51d9b3c5318451f4e5ad26a68e",
+      "key": "sha256/b7/b7cbf9a72efd20bda10cf456ca8fecfe503aba51d9b3c5318451f4e5ad26a68e.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-fh-revocation-gossip.webp",
-      "bytes": 130,
-      "sha256": "ddc6f1be6bd14d0b0124649bae89ecab97c618ab9def66ea8280c550477ec829",
-      "key": "sha256/dd/ddc6f1be6bd14d0b0124649bae89ecab97c618ab9def66ea8280c550477ec829.webp",
+      "bytes": 44960,
+      "sha256": "7a6667b49907bff6f54c07f6bc7a91b574aa349efec43a6c802728c563328278",
+      "key": "sha256/7a/7a6667b49907bff6f54c07f6bc7a91b574aa349efec43a6c802728c563328278.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-fh-revocation-regime.webp",
-      "bytes": 130,
-      "sha256": "04f1656c1f159ded5bcb9bee9ab8afe11ce93ed7f01046837162108bad8fa710",
-      "key": "sha256/04/04f1656c1f159ded5bcb9bee9ab8afe11ce93ed7f01046837162108bad8fa710.webp",
+      "bytes": 43750,
+      "sha256": "39dd5d6fe2fabe239e3b3634f87bf836c37c9e97af56f646acc19a2680a585be",
+      "key": "sha256/39/39dd5d6fe2fabe239e3b3634f87bf836c37c9e97af56f646acc19a2680a585be.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-fh-settlement.webp",
-      "bytes": 130,
-      "sha256": "1b27833cfd57e47c0bebd1e5381b55cee33373c928650c6fb8c70bd2512662ef",
-      "key": "sha256/1b/1b27833cfd57e47c0bebd1e5381b55cee33373c928650c6fb8c70bd2512662ef.webp",
+      "bytes": 61426,
+      "sha256": "37f54e9cc883af6705e41b5f320dc73147b3cf425af4f5678cfb6ba0d6225445",
+      "key": "sha256/37/37f54e9cc883af6705e41b5f320dc73147b3cf425af4f5678cfb6ba0d6225445.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-fh-threat-bands.webp",
-      "bytes": 130,
-      "sha256": "faeb0a0951948f42fe069aa02fcfc5c8c510e89eca88cf0976358755561d2985",
-      "key": "sha256/fa/faeb0a0951948f42fe069aa02fcfc5c8c510e89eca88cf0976358755561d2985.webp",
+      "bytes": 56676,
+      "sha256": "7cf8948fec90049de6b5fcb11ff6c1ef139aa39accba6ae6b91ee5f0a5fe83da",
+      "key": "sha256/7c/7cf8948fec90049de6b5fcb11ff6c1ef139aa39accba6ae6b91ee5f0a5fe83da.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-fh-xfer-ceremony.webp",
-      "bytes": 130,
-      "sha256": "5857714b27d805399b01d5c979565d8233d4150a3f2861cc1ac9ba6bd8c8fe56",
-      "key": "sha256/58/5857714b27d805399b01d5c979565d8233d4150a3f2861cc1ac9ba6bd8c8fe56.webp",
+      "bytes": 59038,
+      "sha256": "cbf85bdadee2a7341b7f1a7ab3e150010b5cf7fbf95ce448d8c4d1dcc5e36a1c",
+      "key": "sha256/cb/cbf85bdadee2a7341b7f1a7ab3e150010b5cf7fbf95ce448d8c4d1dcc5e36a1c.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-governance-flow.webp",
-      "bytes": 130,
-      "sha256": "c31292cce912d33ac3cdd4f802142ec12aef9e8e287909259bf04d13705f0507",
-      "key": "sha256/c3/c31292cce912d33ac3cdd4f802142ec12aef9e8e287909259bf04d13705f0507.webp",
+      "bytes": 50114,
+      "sha256": "dc1088dd195f20e5e18115523c4ccc637541bad3d5a832ef3fc9a054d7620ff0",
+      "key": "sha256/dc/dc1088dd195f20e5e18115523c4ccc637541bad3d5a832ef3fc9a054d7620ff0.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-he-assurance-sieve.webp",
-      "bytes": 130,
-      "sha256": "fbbc1257d53bd994f97437aeed9a3a976b1f8a189f6f435a24fb4097e5a1f623",
-      "key": "sha256/fb/fbbc1257d53bd994f97437aeed9a3a976b1f8a189f6f435a24fb4097e5a1f623.webp",
+      "bytes": 21744,
+      "sha256": "abf7eb996409dd495dca34c1be989b1ce0f61ef4e29a8574df4d980c9530ed6a",
+      "key": "sha256/ab/abf7eb996409dd495dca34c1be989b1ce0f61ef4e29a8574df4d980c9530ed6a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-he-assurance.webp",
-      "bytes": 130,
-      "sha256": "ebd993cacee70e318c819960d8f8462410f73ef35ba7ff8d7572f38ff40aaf28",
-      "key": "sha256/eb/ebd993cacee70e318c819960d8f8462410f73ef35ba7ff8d7572f38ff40aaf28.webp",
+      "bytes": 47004,
+      "sha256": "896b308be79942346be46dababad17fe4b18543f90c4c98adae56c0811bdbb1c",
+      "key": "sha256/89/896b308be79942346be46dababad17fe4b18543f90c4c98adae56c0811bdbb1c.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-he-cold-start.webp",
-      "bytes": 130,
-      "sha256": "926f2f5cbf91b506d30f2752d701b37af505951c55847b8646700ee4cf814e7d",
-      "key": "sha256/92/926f2f5cbf91b506d30f2752d701b37af505951c55847b8646700ee4cf814e7d.webp",
+      "bytes": 49808,
+      "sha256": "add3e70c2313f8fc2d3197f195485b8a2aeb4a27f9d8de1e2279a3d42a373a78",
+      "key": "sha256/ad/add3e70c2313f8fc2d3197f195485b8a2aeb4a27f9d8de1e2279a3d42a373a78.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-he-float-plan.webp",
-      "bytes": 130,
-      "sha256": "9870979c077080352a730618419f8eef181ac66cbd6340e8bb0d9fb0c3b85e2b",
-      "key": "sha256/98/9870979c077080352a730618419f8eef181ac66cbd6340e8bb0d9fb0c3b85e2b.webp",
+      "bytes": 43744,
+      "sha256": "a0029f929dc168fbde53fc4b367e5a71fd2140334ee4aa6fad843964a3f471b3",
+      "key": "sha256/a0/a0029f929dc168fbde53fc4b367e5a71fd2140334ee4aa6fad843964a3f471b3.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-he-three-sided.webp",
-      "bytes": 130,
-      "sha256": "5c0c6bbbaed0a9fc4328c2b36bbf93b193412e78a08b6a00cae62ed96263b227",
-      "key": "sha256/5c/5c0c6bbbaed0a9fc4328c2b36bbf93b193412e78a08b6a00cae62ed96263b227.webp",
+      "bytes": 52952,
+      "sha256": "7c9dcffc16b2b07dea5d0b8f8848ffcb1792b03620470a64af0b96b69bc5efa0",
+      "key": "sha256/7c/7c9dcffc16b2b07dea5d0b8f8848ffcb1792b03620470a64af0b96b69bc5efa0.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-magic-link-inline.webp",
-      "bytes": 130,
-      "sha256": "88949e71f1c0494feabe28b03a2274a34909371b017fe69dafbda63e2083824c",
-      "key": "sha256/88/88949e71f1c0494feabe28b03a2274a34909371b017fe69dafbda63e2083824c.webp",
+      "bytes": 50078,
+      "sha256": "7ab5fc496d741bfeee695ec328dd146b42e727d86cf6295245353e7955d7f8af",
+      "key": "sha256/7a/7ab5fc496d741bfeee695ec328dd146b42e727d86cf6295245353e7955d7f8af.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-sealed-composition-crossover.webp",
-      "bytes": 130,
-      "sha256": "ca29b2dada4081a908ace40d7b46a355b66440bc0d3818e9717d4be84ab53db3",
-      "key": "sha256/ca/ca29b2dada4081a908ace40d7b46a355b66440bc0d3818e9717d4be84ab53db3.webp",
+      "bytes": 48766,
+      "sha256": "bcad56ec0cd0fe5eb5be7e7bebe99f4379c106ce591af197df3495e2b1d3bb40",
+      "key": "sha256/bc/bcad56ec0cd0fe5eb5be7e7bebe99f4379c106ce591af197df3495e2b1d3bb40.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-sealed-mutant-grid.webp",
-      "bytes": 130,
-      "sha256": "5ee1f4b76402e189c01e0e880b7a98bf479e165d8a50ed587e3da9251e791138",
-      "key": "sha256/5e/5ee1f4b76402e189c01e0e880b7a98bf479e165d8a50ed587e3da9251e791138.webp",
+      "bytes": 68672,
+      "sha256": "e99429fdd3a4fcacd9454ad86a22f65b02db7bbb1a0ec2f34e851bbdd5b66fbf",
+      "key": "sha256/e9/e99429fdd3a4fcacd9454ad86a22f65b02db7bbb1a0ec2f34e851bbdd5b66fbf.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-sealed-operating-curve.webp",
-      "bytes": 130,
-      "sha256": "37319096387c73a5cd0460b37b8c5eca90179258d0d7f2477dfb516afa2dc0b9",
-      "key": "sha256/37/37319096387c73a5cd0460b37b8c5eca90179258d0d7f2477dfb516afa2dc0b9.webp",
+      "bytes": 53402,
+      "sha256": "d23558d5c0c361c2e7542af7fb9f48de0dbf95d5f34cb9720aaf7430e0ad83af",
+      "key": "sha256/d2/d23558d5c0c361c2e7542af7fb9f48de0dbf95d5f34cb9720aaf7430e0ad83af.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-sealed-pillar-pipeline.webp",
-      "bytes": 130,
-      "sha256": "bbf2dbca6f466c3cc3b39d2b2a584ab3a54760fb085fe361c0d0e66b39941614",
-      "key": "sha256/bb/bbf2dbca6f466c3cc3b39d2b2a584ab3a54760fb085fe361c0d0e66b39941614.webp",
+      "bytes": 61866,
+      "sha256": "5280f36eaaf3656e95ec85c703a0a7ceb9a47a6d5f1563241404bbaf371c595a",
+      "key": "sha256/52/5280f36eaaf3656e95ec85c703a0a7ceb9a47a6d5f1563241404bbaf371c595a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-sealed-two-worlds.webp",
-      "bytes": 130,
-      "sha256": "9ac7ec2552b94e7bd72b5c27552ebebc98bc6868df0c3c3340871054e12126fc",
-      "key": "sha256/9a/9ac7ec2552b94e7bd72b5c27552ebebc98bc6868df0c3c3340871054e12126fc.webp",
+      "bytes": 63642,
+      "sha256": "896f393fac17d254f52c69272086da4f0d91d9c396f2399c940dec64be95ceae",
+      "key": "sha256/89/896f393fac17d254f52c69272086da4f0d91d9c396f2399c940dec64be95ceae.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-deterrence-regime.webp",
-      "bytes": 130,
-      "sha256": "20fc832b0b016761430e73e800d564212055f349d50be52fdba1aea4ebef4aa7",
-      "key": "sha256/20/20fc832b0b016761430e73e800d564212055f349d50be52fdba1aea4ebef4aa7.webp",
+      "bytes": 41446,
+      "sha256": "cc5301cf255f414dc868af7dae4638e2a9190b2c4bb73b1c36f6ecd251914349",
+      "key": "sha256/cc/cc5301cf255f414dc868af7dae4638e2a9190b2c4bb73b1c36f6ecd251914349.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-judge-market.webp",
-      "bytes": 130,
-      "sha256": "09ba1c4be7d15e5e67b9b40324bc48c868dcd3633c7cb248ef5494e14fc6777f",
-      "key": "sha256/09/09ba1c4be7d15e5e67b9b40324bc48c868dcd3633c7cb248ef5494e14fc6777f.webp",
+      "bytes": 56340,
+      "sha256": "e5be4fe7db0579d3bba38f54382fdf1c6d352933bc9da62cc63f33907cd0da2d",
+      "key": "sha256/e5/e5be4fe7db0579d3bba38f54382fdf1c6d352933bc9da62cc63f33907cd0da2d.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-multidim-reputation.webp",
-      "bytes": 130,
-      "sha256": "8204f1e033212116579b4da49542f73e232b2cc0099d16e9fc23c1bedcc5dfab",
-      "key": "sha256/82/8204f1e033212116579b4da49542f73e232b2cc0099d16e9fc23c1bedcc5dfab.webp",
+      "bytes": 49152,
+      "sha256": "9c799d2aafd159951e55c932a1c978a3c7270582c8e7da3671bcef2d4d98b9bf",
+      "key": "sha256/9c/9c799d2aafd159951e55c932a1c978a3c7270582c8e7da3671bcef2d4d98b9bf.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-nomint-lineage.webp",
-      "bytes": 130,
-      "sha256": "05ad76ac5969873b3c478153b86ca943c69fe71528896d507e4040d3a93b9677",
-      "key": "sha256/05/05ad76ac5969873b3c478153b86ca943c69fe71528896d507e4040d3a93b9677.webp",
+      "bytes": 65540,
+      "sha256": "39424967af8da3cbe3bc11020bf1a2707823a548aba484a86d32f8f92838f0a5",
+      "key": "sha256/39/39424967af8da3cbe3bc11020bf1a2707823a548aba484a86d32f8f92838f0a5.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-parfit-chain.webp",
-      "bytes": 130,
-      "sha256": "f6134a7dcfdf8bf33389d06a5852e359998fbf2efd26b44dc17b8d764c6ba7ad",
-      "key": "sha256/f6/f6134a7dcfdf8bf33389d06a5852e359998fbf2efd26b44dc17b8d764c6ba7ad.webp",
+      "bytes": 39904,
+      "sha256": "84aae9229ece9e4e3eadff8f92a85cfbd97ab3b8b141bc5c0b359002aec0f0f1",
+      "key": "sha256/84/84aae9229ece9e4e3eadff8f92a85cfbd97ab3b8b141bc5c0b359002aec0f0f1.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-probation-cliff.webp",
-      "bytes": 130,
-      "sha256": "2a18c1415266f260740d2a13f1f73ba62d5667f04f4ae060d3b4baf3937e2bef",
-      "key": "sha256/2a/2a18c1415266f260740d2a13f1f73ba62d5667f04f4ae060d3b4baf3937e2bef.webp",
+      "bytes": 51722,
+      "sha256": "37627fe9ab2cbed737efdd195445de635997912151cdccbfc300f43f226aaa8e",
+      "key": "sha256/37/37627fe9ab2cbed737efdd195445de635997912151cdccbfc300f43f226aaa8e.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-rate-the-raters.webp",
-      "bytes": 130,
-      "sha256": "2f64b625c0074d7854fc84d12ed7d7e4f99900cd00bc3d6039568988bb2a75ac",
-      "key": "sha256/2f/2f64b625c0074d7854fc84d12ed7d7e4f99900cd00bc3d6039568988bb2a75ac.webp",
+      "bytes": 62850,
+      "sha256": "43b042386e1525adac6900f170f53fe3af133c31ccd6105377b46d8fcc905d14",
+      "key": "sha256/43/43b042386e1525adac6900f170f53fe3af133c31ccd6105377b46d8fcc905d14.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-role-vs-person.webp",
-      "bytes": 130,
-      "sha256": "1978e6d4d26fa6e46a79e5fb3b5066c38c6ca046205a5e65ed18b0288f4582fb",
-      "key": "sha256/19/1978e6d4d26fa6e46a79e5fb3b5066c38c6ca046205a5e65ed18b0288f4582fb.webp",
+      "bytes": 50098,
+      "sha256": "238fd07e43793491e9bea08a29b5d7b6c3e271b12fd137f22e7956ebf30df9bb",
+      "key": "sha256/23/238fd07e43793491e9bea08a29b5d7b6c3e271b12fd137f22e7956ebf30df9bb.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-stp-sybil-whitewash.webp",
-      "bytes": 130,
-      "sha256": "ac1fc2357c79fd2081c414c103c04fb0617a79717c13d090e72dc45bb0d96d34",
-      "key": "sha256/ac/ac1fc2357c79fd2081c414c103c04fb0617a79717c13d090e72dc45bb0d96d34.webp",
+      "bytes": 57264,
+      "sha256": "e371f48f6dbd6a60d5b96040e8dceef521a83c13d33929a24c9f423672724c09",
+      "key": "sha256/e3/e371f48f6dbd6a60d5b96040e8dceef521a83c13d33929a24c9f423672724c09.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-swk-commitment-oracle.webp",
-      "bytes": 130,
-      "sha256": "892c6ec86b7583364dc9dc63cfdad3958c52dc608acabd7b5118ff9daa53d97a",
-      "key": "sha256/89/892c6ec86b7583364dc9dc63cfdad3958c52dc608acabd7b5118ff9daa53d97a.webp",
+      "bytes": 40492,
+      "sha256": "df0bbbe2f72661bd8dc6d0bc69fd3df07a278df6ac78c0cce56065a7ee440d8a",
+      "key": "sha256/df/df0bbbe2f72661bd8dc6d0bc69fd3df07a278df6ac78c0cce56065a7ee440d8a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-swk-continuity-organs.webp",
-      "bytes": 130,
-      "sha256": "34476d1f2febf607a926cf386dc115eb77618f7e5f2e446ee1f81dd15cf2e529",
-      "key": "sha256/34/34476d1f2febf607a926cf386dc115eb77618f7e5f2e446ee1f81dd15cf2e529.webp",
+      "bytes": 32756,
+      "sha256": "b53009b0e69a1330be10586dee3febd5fe8b45f5f746e23b5ab5272bff2a6173",
+      "key": "sha256/b5/b53009b0e69a1330be10586dee3febd5fe8b45f5f746e23b5ab5272bff2a6173.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-swk-controllability-quadrant.webp",
-      "bytes": 130,
-      "sha256": "1dbbf2c4cc2e1fdfce27cb762db597e5b279e9be239d0de9ff4cb798ce424448",
-      "key": "sha256/1d/1dbbf2c4cc2e1fdfce27cb762db597e5b279e9be239d0de9ff4cb798ce424448.webp",
+      "bytes": 41560,
+      "sha256": "ec0ffea13afa6962617298c520ac90a3cecb86a1d3921c6d3f6f914981008de8",
+      "key": "sha256/ec/ec0ffea13afa6962617298c520ac90a3cecb86a1d3921c6d3f6f914981008de8.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-swk-durability-faultclass.webp",
-      "bytes": 130,
-      "sha256": "7f30b00e4be54120032efed25f6de4c4c0fb6c6b3337a4f52bc2e8c5ee531642",
-      "key": "sha256/7f/7f30b00e4be54120032efed25f6de4c4c0fb6c6b3337a4f52bc2e8c5ee531642.webp",
+      "bytes": 32504,
+      "sha256": "0c927db1f0b12d8e1b956b980e2ba976795ed966ba167494feb5ba59c4c67381",
+      "key": "sha256/0c/0c927db1f0b12d8e1b956b980e2ba976795ed966ba167494feb5ba59c4c67381.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-swk-marker-decay.webp",
-      "bytes": 130,
-      "sha256": "f84328e251797539b78820d2cd0a6af9e9b1c0fc0e1d1164c04ee8a03eee1910",
-      "key": "sha256/f8/f84328e251797539b78820d2cd0a6af9e9b1c0fc0e1d1164c04ee8a03eee1910.webp",
+      "bytes": 36626,
+      "sha256": "98de8ca09d3734862135126a5a4eaa13198b6da38f288bc3b1a1c24b286f5aca",
+      "key": "sha256/98/98de8ca09d3734862135126a5a4eaa13198b6da38f288bc3b1a1c24b286f5aca.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-swk-stack-map.webp",
-      "bytes": 130,
-      "sha256": "a28f3f221dcbcd2fadae6489312a4f3d0e204dd9887b1cded2520a662b0c997e",
-      "key": "sha256/a2/a28f3f221dcbcd2fadae6489312a4f3d0e204dd9887b1cded2520a662b0c997e.webp",
+      "bytes": 40138,
+      "sha256": "94f1d96ebb3fe36502dd5fd35a383b4e8e295d3ff86f9663ff3acb487afeb10f",
+      "key": "sha256/94/94f1d96ebb3fe36502dd5fd35a383b4e8e295d3ff86f9663ff3acb487afeb10f.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-swk-workunit-machine.webp",
-      "bytes": 130,
-      "sha256": "1104a6a34571f98f6ff14c8507b4e725cfd57dd718fe035fb8d7fa648252f446",
-      "key": "sha256/11/1104a6a34571f98f6ff14c8507b4e725cfd57dd718fe035fb8d7fa648252f446.webp",
+      "bytes": 79360,
+      "sha256": "10612553ad137faaf13fbe4e48cc54bb84d3b2f8590eb46b6215fc1ed691f75b",
+      "key": "sha256/10/10612553ad137faaf13fbe4e48cc54bb84d3b2f8590eb46b6215fc1ed691f75b.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-sybil-inline.webp",
-      "bytes": 130,
-      "sha256": "90d7ce13fcb534e6827140a48427ecd1e5b751b18113049bdc502857ae5c1cb8",
-      "key": "sha256/90/90d7ce13fcb534e6827140a48427ecd1e5b751b18113049bdc502857ae5c1cb8.webp",
+      "bytes": 51510,
+      "sha256": "32a0200b2d9a82617923e7e7537495fa85c75fc1e777502cbe1b383153b06c24",
+      "key": "sha256/32/32a0200b2d9a82617923e7e7537495fa85c75fc1e777502cbe1b383153b06c24.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/fig-worked-example.webp",
-      "bytes": 130,
-      "sha256": "f8a21c975a1dee66318131b2bc86109eeb363f65a05b7d5f6018ecf8db4ee59b",
-      "key": "sha256/f8/f8a21c975a1dee66318131b2bc86109eeb363f65a05b7d5f6018ecf8db4ee59b.webp",
+      "bytes": 42284,
+      "sha256": "28f790a4b2e27afa77761aa5b19795cc91f45f5a6fbd07b15b33020f90923a8b",
+      "key": "sha256/28/28f790a4b2e27afa77761aa5b19795cc91f45f5a6fbd07b15b33020f90923a8b.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/legible-swarm-readpoverty.webp",
-      "bytes": 130,
-      "sha256": "aee1725e29b77984aada19963bec8905becd3de83d5b197c8aeae95e0d6a904a",
-      "key": "sha256/ae/aee1725e29b77984aada19963bec8905becd3de83d5b197c8aeae95e0d6a904a.webp",
+      "bytes": 44374,
+      "sha256": "1fb2c47c712ac75f8869a500c1e9965b36b15f7b0fbf27a0f3690f19b62a6017",
+      "key": "sha256/1f/1fb2c47c712ac75f8869a500c1e9965b36b15f7b0fbf27a0f3690f19b62a6017.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/legible-swarm-roles.webp",
-      "bytes": 130,
-      "sha256": "b88d20035113015e0fe9ddd12a322b645f651fdf39b51ad30e0e19ce14cb6454",
-      "key": "sha256/b8/b88d20035113015e0fe9ddd12a322b645f651fdf39b51ad30e0e19ce14cb6454.webp",
+      "bytes": 44188,
+      "sha256": "f8f6173830812cb8a28e98ee3419bada7ac2b44fe05fca1e8f98c08a865ca181",
+      "key": "sha256/f8/f8f6173830812cb8a28e98ee3419bada7ac2b44fe05fca1e8f98c08a865ca181.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/legible-swarm-sdt.webp",
-      "bytes": 130,
-      "sha256": "530ec28e974761954f5fd64b1aa09f550dcc869321299991a1d785171751e681",
-      "key": "sha256/53/530ec28e974761954f5fd64b1aa09f550dcc869321299991a1d785171751e681.webp",
+      "bytes": 52790,
+      "sha256": "0f8f7736dcea31711c62fdfd6bc729a1a1842e782977075f5fdab3c531942723",
+      "key": "sha256/0f/0f8f7736dcea31711c62fdfd6bc729a1a1842e782977075f5fdab3c531942723.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/legible-swarm-specialization.webp",
-      "bytes": 130,
-      "sha256": "329ec4f3ca0c50416887e2b26999034cb9535aa8724bc31ef7cd8fff79970d0a",
-      "key": "sha256/32/329ec4f3ca0c50416887e2b26999034cb9535aa8724bc31ef7cd8fff79970d0a.webp",
+      "bytes": 40236,
+      "sha256": "27e0fc60ba4712b6efcb22e334695d607568cb3346319ee46659f0fedd557b3a",
+      "key": "sha256/27/27e0fc60ba4712b6efcb22e334695d607568cb3346319ee46659f0fedd557b3a.webp",
       "contentType": "image/webp"
     },
     {
       "path": "docs/pr-assets/figure-rivals/main/legible-swarm-state-of-nature.webp",
-      "bytes": 130,
-      "sha256": "4b4f89c6c3ec2d8fe299b630ad3b2e68336baf838910cc3608fe247817ec0dc2",
-      "key": "sha256/4b/4b4f89c6c3ec2d8fe299b630ad3b2e68336baf838910cc3608fe247817ec0dc2.webp",
+      "bytes": 45296,
+      "sha256": "bc535a1588e7dc12dc1029bb3c5a39e0752d63adc86559cd93958860fd8103fe",
+      "key": "sha256/bc/bc535a1588e7dc12dc1029bb3c5a39e0752d63adc86559cd93958860fd8103fe.webp",
       "contentType": "image/webp"
     },
     {
@@ -2199,6 +2199,13 @@
       "sha256": "efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739",
       "key": "sha256/ef/efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739.png",
       "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10274/book-figures-old-v-new.pdf",
+      "bytes": 19582146,
+      "sha256": "292708b7bc6028eef8c0943f75e6d45639c6081c984be2db9ad1aeac5599dbe8",
+      "key": "sha256/29/292708b7bc6028eef8c0943f75e6d45639c6081c984be2db9ad1aeac5599dbe8.pdf",
+      "contentType": "application/pdf"
     },
     {
       "path": "docs/pr-assets/pr-729/wedge-editor-face.png",
