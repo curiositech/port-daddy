@@ -2,11 +2,17 @@ import SwiftUI
 
 @MainActor
 final class LocalOffStore: ObservableObject {
-    @Published private(set) var blockedReason = LocalRuntimeControl.shared.blockedReason
+    @Published private(set) var blockedReason: String?
     @Published private(set) var isStopping = false
     @Published private(set) var persistenceFailures: [String] = []
     @Published private(set) var receipts: [LocalRuntimeShutdown.Receipt] = []
     @Published private(set) var hasRequestedOff = false
+    private let control: LocalRuntimeControl
+
+    init(control: LocalRuntimeControl = .shared) {
+        self.control = control
+        blockedReason = control.blockedReason
+    }
 
     nonisolated static func statusTitle(for blockedReason: String?) -> String {
         switch blockedReason {
@@ -21,14 +27,14 @@ final class LocalOffStore: ObservableObject {
         }
     }
 
-    func refresh() { blockedReason = LocalRuntimeControl.shared.blockedReason }
+    func refresh() { blockedReason = control.blockedReason }
 
     func turnOff() {
         guard !isStopping else { return }
         isStopping = true
         hasRequestedOff = true
         // No suspension or daemon request before the persistent stop attempt.
-        persistenceFailures = LocalRuntimeControl.shared.persistOff()
+        persistenceFailures = control.persistOff()
         refresh()
         Task {
             receipts = await Task.detached(priority: .userInitiated) {
