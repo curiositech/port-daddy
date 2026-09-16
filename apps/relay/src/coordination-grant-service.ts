@@ -4,8 +4,11 @@ import { WorkerEntrypoint } from 'cloudflare:workers';
 import type { CoordinationGrantServiceContract } from '../../../lib/coordination-grant-contract.js';
 import {
   mintFleetCoordinationGrant,
+  mintFleetInterruptionGrant,
   type FleetCoordinationGrant,
   type FleetCoordinationGrantRequest,
+  type FleetInterruptionGrant,
+  type FleetInterruptionGrantRequest,
 } from './coordination-grants.js';
 import type { Env } from './types.js';
 
@@ -21,5 +24,11 @@ export class CoordinationGrantService
     input: FleetCoordinationGrantRequest,
   ): Promise<FleetCoordinationGrant> {
     return mintFleetCoordinationGrant(this.env, input);
+  }
+
+  async mintInterruptionGrant(
+    input: FleetInterruptionGrantRequest,
+  ): Promise<FleetInterruptionGrant> {
+    return mintFleetInterruptionGrant(this.env, input);
   }
 }

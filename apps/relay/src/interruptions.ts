@@ -48,18 +48,27 @@
  *     recorded and expired — nobody is paged (the mercy contract).
  *   - KILL SWITCH: KV 'interruptions:paused' truthy ⇒ the sweep no-ops.
  *
- * CREATION RATE LIMIT: at most CREATE_LIMIT_PER_HOUR interruptions per
- * (operator, source_agent) per hour — a looping agent cannot nag-bomb. Excess
- * collapses into that agent's newest open interruption (409-free: the caller
- * gets the existing row back with collapsed:true).
+ * CREATION INTEGRITY: every distinct operator ask is persisted. Exact retries
+ * reuse the original row through (operator, request_key); batching and page
+ * budgets may coalesce delivery, but they never alias one decision to another.
  */
 
 import type { Env } from './types.js';
-import { randomHex } from './crypto.js';
+import { hashHex, randomHex } from './crypto.js';
 import { resolveSession, isSameOrigin } from './auth-github.js';
-import { resolveUserFromRequest } from './device-flow.js';
+import { readBearerToken, resolveUserFromRequest } from './device-flow.js';
 import { apnsConfigured, sendInterruptionPushes, type ApnsPushMessage } from './push-apns.js';
 import { HEAD, TOKENS } from './account-page.js';
+import {
+  coordinationMacaroonFromRequest,
+  INTERRUPTION_CREATE_VERB,
+  INTERRUPTION_READ_ALL_VERB,
+  INTERRUPTION_READ_OWN_VERB,
+  mintInterruptionMacaroon,
+  verifyInterruptionMacaroon,
+  type InterruptionCapabilityScope,
+  type InterruptionCapabilityVerb,
+} from './coordination-auth.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,6 +78,8 @@ export type InterruptionState = 'open' | 'acked' | 'answered' | 'expired';
 export interface InterruptionRow {
   id: string;
   user_id: string;
+  request_key?: string | null;
+  request_fingerprint?: string | null;
   installation_id: number | null;
   source_agent: string;
   source_session: string | null;
@@ -126,8 +137,6 @@ export const PAGE_BUDGET_PER_HOUR = 6;
 const BUDGET_WINDOW_SECONDS = 60 * 60;
 /** The mercy cron cadence — the breaker opens for one of these on trip. */
 const SWEEP_INTERVAL_SECONDS = 5 * 60;
-/** Creation rate limit per (operator, source_agent) per hour. */
-export const CREATE_LIMIT_PER_HOUR = 5;
 /** Global nag-engine kill switch (KV). Truthy value ⇒ sweep no-ops. */
 export const INTERRUPTIONS_PAUSED_KEY = 'interruptions:paused';
 /** Webhook circuit-breaker state (KV): { failures, openUntil }. */
@@ -150,7 +159,30 @@ const GAVE_UP_RETRY_WINDOW_SECONDS = 24 * 60 * 60;
 const TITLE_MAX = 200;
 const BODY_MAX = 4000;
 const ANSWER_MAX = 4000;
-const SOURCE_MAX = 120;
+const INTERRUPTION_GRANT_DEFAULT_TTL_SECONDS = 60;
+const INTERRUPTION_GRANT_MIN_TTL_SECONDS = 10;
+const INTERRUPTION_GRANT_MAX_TTL_SECONDS = 5 * 60;
+const INTERRUPTION_GRANT_FIELDS = new Set([
+  'verb',
+  'sourceAgent',
+  'sourceSession',
+  'requestKey',
+  'requestFingerprint',
+  'ttlSeconds',
+]);
+const UNSIGNED_CREATE_SCOPE_FIELDS = [
+  'user',
+  'userId',
+  'user_id',
+  'sourceAgent',
+  'sourceSession',
+  'source_agent',
+  'source_session',
+  'requestKey',
+  'requestFingerprint',
+  'request_key',
+  'request_fingerprint',
+] as const;
 
 function msg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -670,6 +702,8 @@ function json(status: number, body: Record<string, unknown>): Response {
 function publicShape(row: InterruptionRow): Record<string, unknown> {
   return {
     id: row.id,
+    requestKey: row.request_key ?? null,
+    requestFingerprint: row.request_fingerprint ?? null,
     installationId: row.installation_id,
     sourceAgent: row.source_agent,
     sourceSession: row.source_session,
@@ -693,15 +727,79 @@ function isState(x: unknown): x is InterruptionState {
   return typeof x === 'string' && (STATES as readonly string[]).includes(x);
 }
 
+function isInterruptionCapabilityVerb(value: unknown): value is InterruptionCapabilityVerb {
+  return value === INTERRUPTION_CREATE_VERB
+    || value === INTERRUPTION_READ_OWN_VERB
+    || value === INTERRUPTION_READ_ALL_VERB;
+}
+
+type InterruptionAuthorization =
+  | { scope: InterruptionCapabilityScope; failure?: never }
+  | { scope?: never; failure: Response };
+
 /**
- * POST /v1/interruptions — an agent (pdu_ bearer) or a signed-in surface
- * (session) files a blocking ask. Rate-limited per (operator, source_agent):
- * past CREATE_LIMIT_PER_HOUR/h, the excess collapses into the newest open ask
- * from the same agent (collapsed:true) instead of nag-bombing the operator.
+ * Resolve a data-plane request to Relay-signed interruption authority.
+ *
+ * The purpose of this boundary is to ensure account bearers never authorize
+ * create or receipt reads directly: only a short-lived macaroon can reach the
+ * data plane, and every caller consumes the exact signed scope returned here.
  */
-export async function handleCreateInterruption(request: Request, env: Env): Promise<Response> {
+function authorizeInterruptionCapability(
+  request: Request,
+  env: Env,
+  verbs: InterruptionCapabilityVerb | readonly InterruptionCapabilityVerb[],
+): InterruptionAuthorization {
+  const rootKey = env.COORDINATION_MACAROON_ROOT_KEY_HEX;
+  if (!rootKey) {
+    return {
+      failure: json(503, {
+        code: 'CAPABILITY_UNAVAILABLE',
+        error: 'operator interruption capability verification is not configured',
+      }),
+    };
+  }
+  const token = coordinationMacaroonFromRequest(request);
+  if (!token) {
+    return {
+      failure: json(401, {
+        code: 'CAPABILITY_REQUIRED',
+        error: 'a short-lived interruption macaroon is required',
+      }),
+    };
+  }
+  const verification = verifyInterruptionMacaroon(token, rootKey, verbs);
+  if (!verification.authorized || !verification.scope) {
+    const wrongVerb = verification.reason === 'interruption verb caveat mismatch';
+    const unavailable = verification.reason === 'interruption macaroon gate is not configured';
+    return {
+      failure: json(unavailable ? 503 : wrongVerb ? 403 : 401, {
+        code: unavailable ? 'CAPABILITY_UNAVAILABLE' : wrongVerb ? 'CAPABILITY_FORBIDDEN' : 'CAPABILITY_INVALID',
+        error: verification.reason,
+      }),
+    };
+  }
+  return { scope: verification.scope };
+}
+
+/**
+ * POST /v1/interruptions/grant exchanges one account bearer for a bounded
+ * interruption capability. Bearer use deliberately ends at this control-plane
+ * seam; subsequent create and read calls accept only the returned macaroon.
+ */
+export async function handleInterruptionGrant(request: Request, env: Env): Promise<Response> {
+  if (!readBearerToken(request)) {
+    return json(401, { code: 'UNAUTHENTICATED', error: 'a pdu_ bearer token is required' });
+  }
   const user = await resolveUserFromRequest(request, env);
-  if (!user) return json(401, { code: 'UNAUTHENTICATED', error: 'a pdu_ bearer token or session is required' });
+  if (!user) {
+    return json(401, { code: 'UNAUTHENTICATED', error: 'the pdu_ bearer token is invalid or expired' });
+  }
+  if (!env.COORDINATION_MACAROON_ROOT_KEY_HEX) {
+    return json(503, {
+      code: 'CAPABILITY_UNAVAILABLE',
+      error: 'operator interruption capability minting is not configured',
+    });
+  }
 
   let raw: unknown;
   try {
@@ -709,63 +807,208 @@ export async function handleCreateInterruption(request: Request, env: Env): Prom
   } catch {
     return json(400, { code: 'BAD_REQUEST', error: 'body must be JSON' });
   }
-  if (typeof raw !== 'object' || raw === null) {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return json(400, { code: 'BAD_REQUEST', error: 'body must be a JSON object' });
+  }
+  const body = raw as Record<string, unknown>;
+  const unknownField = Object.keys(body).find((field) => !INTERRUPTION_GRANT_FIELDS.has(field));
+  if (unknownField) {
+    return json(400, { code: 'BAD_REQUEST', error: `unsupported interruption grant field: ${unknownField}` });
+  }
+  if (!isInterruptionCapabilityVerb(body.verb)) {
+    return json(400, { code: 'BAD_REQUEST', error: 'unsupported interruption grant verb' });
+  }
+  const ttlSeconds = body.ttlSeconds === undefined
+    ? INTERRUPTION_GRANT_DEFAULT_TTL_SECONDS
+    : body.ttlSeconds;
+  if (
+    !Number.isSafeInteger(ttlSeconds)
+    || Number(ttlSeconds) < INTERRUPTION_GRANT_MIN_TTL_SECONDS
+    || Number(ttlSeconds) > INTERRUPTION_GRANT_MAX_TTL_SECONDS
+  ) {
+    return json(400, {
+      code: 'BAD_REQUEST',
+      error: `ttlSeconds must be an integer between ${INTERRUPTION_GRANT_MIN_TTL_SECONDS} and ${INTERRUPTION_GRANT_MAX_TTL_SECONDS}`,
+    });
+  }
+
+  const scope: InterruptionCapabilityScope = {
+    verb: body.verb,
+    userId: user.id,
+    ...(body.sourceAgent !== undefined ? { sourceAgent: body.sourceAgent as string } : {}),
+    ...(body.sourceSession !== undefined ? { sourceSession: body.sourceSession as string } : {}),
+    ...(body.requestKey !== undefined ? { requestKey: body.requestKey as string } : {}),
+    ...(body.requestFingerprint !== undefined ? { requestFingerprint: body.requestFingerprint as string } : {}),
+  };
+  let grant: ReturnType<typeof mintInterruptionMacaroon>;
+  try {
+    grant = mintInterruptionMacaroon(env.COORDINATION_MACAROON_ROOT_KEY_HEX, scope, {
+      ttlMs: Number(ttlSeconds) * 1000,
+    });
+  } catch (error) {
+    return json(400, { code: 'BAD_REQUEST', error: msg(error) });
+  }
+
+  const response = json(200, {
+    macaroon: grant.token,
+    verb: scope.verb,
+    userId: scope.userId,
+    ...(scope.sourceAgent !== undefined ? { sourceAgent: scope.sourceAgent } : {}),
+    ...(scope.sourceSession !== undefined ? { sourceSession: scope.sourceSession } : {}),
+    ...(scope.requestKey !== undefined ? { requestKey: scope.requestKey } : {}),
+    ...(scope.requestFingerprint !== undefined ? { requestFingerprint: scope.requestFingerprint } : {}),
+    expiresAt: grant.expiresAt,
+  });
+  response.headers.set('Cache-Control', 'no-store');
+  return response;
+}
+
+/**
+ * POST /v1/interruptions files one capability-bound blocking ask. Every
+ * distinct ask gets its own durable row; only an exact signed request-key and
+ * request-fingerprint replay reuses one.
+ */
+export async function handleCreateInterruption(request: Request, env: Env): Promise<Response> {
+  const authorization = authorizeInterruptionCapability(request, env, INTERRUPTION_CREATE_VERB);
+  if (authorization.failure) return authorization.failure;
+  const scope = authorization.scope;
+
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return json(400, { code: 'BAD_REQUEST', error: 'body must be JSON' });
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return json(400, { code: 'BAD_REQUEST', error: 'body must be a JSON object' });
   }
   const b = raw as Record<string, unknown>;
+  const unsignedScope = UNSIGNED_CREATE_SCOPE_FIELDS.find((field) => Object.hasOwn(b, field));
+  if (unsignedScope) {
+    return json(400, {
+      code: 'UNSIGNED_SCOPE',
+      error: `${unsignedScope} must come from the signed interruption capability`,
+    });
+  }
 
   const title = typeof b.title === 'string' ? b.title.trim() : '';
   if (!title || title.length > TITLE_MAX) {
     return json(400, { code: 'BAD_REQUEST', error: `title is required (1..${TITLE_MAX} chars)` });
   }
-  const body = typeof b.body === 'string' ? b.body.slice(0, BODY_MAX) : '';
-  const urgency: InterruptionUrgency = isUrgency(b.urgency) ? b.urgency : 'normal';
-  const sourceAgent =
-    typeof b.source_agent === 'string' && b.source_agent.trim()
-      ? b.source_agent.trim().slice(0, SOURCE_MAX)
-      : 'unknown';
-  const sourceSession =
-    typeof b.source_session === 'string' ? b.source_session.slice(0, SOURCE_MAX) : null;
-  const installationId =
-    typeof b.installation_id === 'number' && Number.isInteger(b.installation_id)
-      ? b.installation_id
-      : null;
+  const body = typeof b.body === 'string' ? b.body : '';
+  if (body.length > BODY_MAX) {
+    return json(400, { code: 'BAD_REQUEST', error: `body must be at most ${BODY_MAX} chars` });
+  }
+  if (b.urgency !== undefined && !isUrgency(b.urgency)) {
+    return json(400, { code: 'BAD_REQUEST', error: `urgency must be one of ${URGENCIES.join('|')}` });
+  }
+  const urgency: InterruptionUrgency = b.urgency === undefined ? 'normal' : b.urgency as InterruptionUrgency;
+  if (b.installation_id !== undefined && (!Number.isSafeInteger(b.installation_id) || Number(b.installation_id) <= 0)) {
+    return json(400, { code: 'BAD_REQUEST', error: 'installation_id must be a positive integer' });
+  }
+  const installationId = b.installation_id === undefined ? null : Number(b.installation_id);
+  const sourceAgent = scope.sourceAgent!;
+  const sourceSession = scope.sourceSession!;
+  const requestKey = scope.requestKey!;
+  const requestFingerprint = hashHex(JSON.stringify([
+    'pd.operator-interruption.fingerprint.v1',
+    title,
+    body,
+    urgency,
+    sourceAgent,
+    sourceSession,
+    installationId,
+  ]));
+  if (requestFingerprint !== scope.requestFingerprint) {
+    return json(403, {
+      code: 'CAPABILITY_SCOPE_MISMATCH',
+      error: 'the interruption payload does not match the signed request fingerprint',
+    });
+  }
 
   const now = Math.floor(Date.now() / 1000);
 
-  // Creation rate limit: a looping agent cannot nag-bomb its operator.
-  const recent = await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM operator_interruptions WHERE user_id = ? AND source_agent = ? AND created_at >= ?',
+  // Exact idempotency precedes insertion. A caller retrying an ambiguous
+  // network result must get the original durable row rather than a duplicate.
+  const existing = await env.DB.prepare(
+    'SELECT * FROM operator_interruptions WHERE user_id = ? AND request_key = ? LIMIT 1',
   )
-    .bind(user.id, sourceAgent, now - 3600)
-    .first<{ n: number }>();
-  if ((recent?.n ?? 0) >= CREATE_LIMIT_PER_HOUR) {
-    const newestOpen = await env.DB.prepare(
-      "SELECT * FROM operator_interruptions WHERE user_id = ? AND source_agent = ? AND state = 'open' ORDER BY created_at DESC LIMIT 1",
-    )
-      .bind(user.id, sourceAgent)
-      .first<InterruptionRow>();
-    if (newestOpen) {
-      return json(200, { code: 'OK', error: null, collapsed: true, interruption: publicShape(newestOpen) });
+    .bind(scope.userId, requestKey)
+    .first<InterruptionRow>();
+  if (existing) {
+    if (existing.request_fingerprint !== requestFingerprint) {
+      return json(409, { code: 'IDEMPOTENCY_CONFLICT', error: 'request_key was already used for a different interruption' });
     }
-    return json(429, { code: 'RATE_LIMITED', error: `at most ${CREATE_LIMIT_PER_HOUR} interruptions per source agent per hour` });
+    return json(200, {
+      code: 'OK',
+      error: null,
+      replayed: true,
+      interruption: publicShape(existing),
+    });
   }
 
   const id = `oi_${randomHex(8)}`;
   // First nag is full-jittered off the urgency base — never a thundering herd.
   const nextNagAt = now + nextNagDelaySeconds(urgency, 0);
-  await env.DB.prepare(
-    `INSERT INTO operator_interruptions
-       (id, user_id, installation_id, source_agent, source_session, title, body, urgency, state, created_at, nag_count, decay_stage, next_nag_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, 0, 0, ?)`,
-  )
-    .bind(id, user.id, installationId, sourceAgent, sourceSession, title, body, urgency, now, nextNagAt)
-    .run();
+  try {
+    await env.DB.prepare(
+      `INSERT INTO operator_interruptions
+         (id, user_id, request_key, request_fingerprint, installation_id, source_agent, source_session, title, body, urgency, state, created_at, nag_count, decay_stage, next_nag_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, 0, 0, ?)`,
+    )
+      .bind(id, scope.userId, requestKey, requestFingerprint, installationId, sourceAgent, sourceSession, title, body, urgency, now, nextNagAt)
+      .run();
+  } catch (error) {
+    // The preflight SELECT and INSERT are separate D1 statements. A concurrent
+    // retry can win the unique (user_id, request_key) race between them. Read
+    // the winner back and apply the same exact-fingerprint rule instead of
+    // leaking a storage error or creating a second semantic interruption.
+    const winner = await env.DB.prepare(
+      'SELECT * FROM operator_interruptions WHERE user_id = ? AND request_key = ? LIMIT 1',
+    )
+      .bind(scope.userId, requestKey)
+      .first<InterruptionRow>();
+    if (winner) {
+      if (winner.request_fingerprint !== requestFingerprint) {
+        return json(409, { code: 'IDEMPOTENCY_CONFLICT', error: 'request_key was already used for a different interruption' });
+      }
+      return json(200, {
+        code: 'OK',
+        error: null,
+        replayed: true,
+        interruption: publicShape(winner),
+      });
+    }
+    throw error;
+  }
 
   const row = await env.DB.prepare('SELECT * FROM operator_interruptions WHERE id = ?')
     .bind(id)
     .first<InterruptionRow>();
-  return json(201, { code: 'OK', error: null, collapsed: false, interruption: row ? publicShape(row) : { id } });
+  return json(201, { code: 'OK', error: null, replayed: false, interruption: row ? publicShape(row) : { id } });
+}
+
+/** GET /v1/interruptions/:id — exact owner-scoped receipt for agent wait loops. */
+export async function handleGetInterruption(request: Request, env: Env, id: string): Promise<Response> {
+  const authorization = authorizeInterruptionCapability(
+    request,
+    env,
+    [INTERRUPTION_READ_OWN_VERB, INTERRUPTION_READ_ALL_VERB],
+  );
+  if (authorization.failure) return authorization.failure;
+  const scope = authorization.scope;
+  const readOwn = scope.verb === INTERRUPTION_READ_OWN_VERB;
+  const row = await env.DB.prepare(readOwn
+    ? 'SELECT * FROM operator_interruptions WHERE id = ? AND user_id = ? AND source_agent = ? AND source_session = ? LIMIT 1'
+    : 'SELECT * FROM operator_interruptions WHERE id = ? AND user_id = ? LIMIT 1')
+    .bind(...(readOwn
+      ? [id, scope.userId, scope.sourceAgent!, scope.sourceSession!]
+      : [id, scope.userId]))
+    .first<InterruptionRow>();
+  if (!row) {
+    return json(404, { code: 'NOT_FOUND', error: 'no such interruption' });
+  }
+  return json(200, { code: 'OK', error: null, interruption: publicShape(row) });
 }
 
 /**
@@ -775,8 +1018,14 @@ export async function handleCreateInterruption(request: Request, env: Env): Prom
  * scoped to the authenticated operator — never anyone else's.
  */
 export async function handleListInterruptions(request: Request, env: Env): Promise<Response> {
-  const user = await resolveUserFromRequest(request, env);
-  if (!user) return json(401, { code: 'UNAUTHENTICATED', error: 'a pdu_ bearer token or session is required' });
+  const authorization = authorizeInterruptionCapability(
+    request,
+    env,
+    [INTERRUPTION_READ_OWN_VERB, INTERRUPTION_READ_ALL_VERB],
+  );
+  if (authorization.failure) return authorization.failure;
+  const scope = authorization.scope;
+  const readOwn = scope.verb === INTERRUPTION_READ_OWN_VERB;
 
   const stateParam = new URL(request.url).searchParams.get('state');
   if (stateParam !== null && !isState(stateParam)) {
@@ -784,24 +1033,34 @@ export async function handleListInterruptions(request: Request, env: Env): Promi
   }
 
   const rows = stateParam
-    ? await env.DB.prepare(
-        `SELECT * FROM operator_interruptions WHERE user_id = ? AND state = ?
+    ? await env.DB.prepare(readOwn
+        ? `SELECT * FROM operator_interruptions WHERE user_id = ? AND source_agent = ? AND source_session = ? AND state = ?
          ORDER BY CASE urgency WHEN 'critical' THEN 3 WHEN 'high' THEN 2 WHEN 'normal' THEN 1 ELSE 0 END DESC,
-                  created_at ASC LIMIT 100`,
-      )
-        .bind(user.id, stateParam)
+                  created_at ASC LIMIT 100`
+        : `SELECT * FROM operator_interruptions WHERE user_id = ? AND state = ?
+         ORDER BY CASE urgency WHEN 'critical' THEN 3 WHEN 'high' THEN 2 WHEN 'normal' THEN 1 ELSE 0 END DESC,
+                  created_at ASC LIMIT 100`)
+        .bind(...(readOwn
+          ? [scope.userId, scope.sourceAgent!, scope.sourceSession!, stateParam]
+          : [scope.userId, stateParam]))
         .all<InterruptionRow>()
-    : await env.DB.prepare(
-        'SELECT * FROM operator_interruptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 100',
-      )
-        .bind(user.id)
+    : await env.DB.prepare(readOwn
+        ? 'SELECT * FROM operator_interruptions WHERE user_id = ? AND source_agent = ? AND source_session = ? ORDER BY created_at DESC LIMIT 100'
+        : 'SELECT * FROM operator_interruptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 100')
+        .bind(...(readOwn
+          ? [scope.userId, scope.sourceAgent!, scope.sourceSession!]
+          : [scope.userId]))
         .all<InterruptionRow>();
 
   const list = rows.results ?? [];
-  const openCount =
-    stateParam === 'open'
-      ? list.length
-      : list.filter((r) => r.state === 'open').length;
+  const countRow = await env.DB.prepare(readOwn
+    ? "SELECT COUNT(*) AS n FROM operator_interruptions WHERE user_id = ? AND source_agent = ? AND source_session = ? AND state = 'open'"
+    : "SELECT COUNT(*) AS n FROM operator_interruptions WHERE user_id = ? AND state = 'open'")
+    .bind(...(readOwn
+      ? [scope.userId, scope.sourceAgent!, scope.sourceSession!]
+      : [scope.userId]))
+    .first<{ n: number }>();
+  const openCount = Math.max(0, Number(countRow?.n ?? 0));
   return json(200, {
     code: 'OK',
     error: null,
@@ -938,7 +1197,9 @@ section.sect{padding-top:44px}
 .urg-low{color:var(--text-muted)}
 .st{font-family:"IBM Plex Mono",monospace;font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:12px}
 .st-open{color:var(--error)}.st-answered{color:var(--health)}.st-acked{color:var(--teal)}.st-expired{color:var(--text-muted)}
-.ask-body{padding:16px 20px;font-size:15px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.ask-question{padding:16px 20px 8px;font-size:20px;font-weight:700;line-height:1.35;letter-spacing:-.01em}
+.ask-body{padding:0 20px 18px;font-size:15px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.ask-body-label{display:block;margin-bottom:5px;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
 .ask-answer{padding:0 20px 14px;font-size:14.5px;color:var(--text-secondary)}
 .ask-answer b{color:var(--health)}
 .ask-forms{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;padding:14px 20px 18px;border-top:1px solid var(--hair)}
@@ -971,21 +1232,22 @@ function renderAsk(row: InterruptionRow): string {
   const forms = open
     ? `<div class="ask-forms">
   <form method="post" action="/v1/interruptions/${esc(row.id)}/answer">
-    <div><label for="answer-${esc(row.id)}">Answer</label>
-    <textarea id="answer-${esc(row.id)}" name="answer" required maxlength="4000" placeholder="Tell the agent what to do"></textarea></div>
-    <button type="submit" class="btn-answer">Answer</button>
+    <div><label for="answer-${esc(row.id)}">Your answer to the agent</label>
+    <textarea id="answer-${esc(row.id)}" name="answer" required maxlength="4000" placeholder="State the decision and any limits the agent must follow"></textarea></div>
+    <button type="submit" class="btn-answer">Send answer to agent</button>
   </form>
   <form method="post" action="/v1/interruptions/${esc(row.id)}/ack">
-    <button type="submit" class="btn-ack">Acknowledge</button>
+    <button type="submit" class="btn-ack">I handled this elsewhere</button>
   </form>
 </div>`
     : '';
   return `<article class="ask${open ? '' : ' closed'}">
   <div class="ask-head">
-    <h3>${esc(row.title)}</h3>
+    <h3>Agent waiting for your decision</h3>
     <div><span class="urg urg-${esc(row.urgency)}">${esc(row.urgency)}</span> <span class="st st-${esc(row.state)}">${esc(row.state)}</span></div>
   </div>
-  <div class="ask-body">${esc(row.body)}</div>
+  <div class="ask-question">${esc(row.title)}</div>
+  <div class="ask-body"><span class="ask-body-label">Why the agent is blocked</span>${esc(row.body) || 'No additional context was supplied. Ask the agent for a clearer escalation before deciding.'}</div>
   ${answer}
   <div class="ask-head" style="border-top:1px solid var(--hair);border-bottom:none">
     <span class="ask-meta">from ${esc(row.source_agent)}${row.source_session ? ` · ${esc(row.source_session)}` : ''} · filed ${esc(fmtTs(row.created_at))}</span>
@@ -1012,7 +1274,7 @@ export function renderInterruptionsPage(open: InterruptionRow[], closed: Interru
   <div class="page-head">
     <span class="eyebrow">portdaddy.dev · account · interruptions</span>
     <h1 style="margin-top:8px">Agents <span class="rec">waiting on you</span></h1>
-    <p class="caption">A blocking ask escalates here instead of failing silently. Answer it (the agent reads your text) or acknowledge it (you have handled it out-of-band). Unanswered asks re-page on a decaying schedule, then give up honestly.</p>
+    <p class="caption">Each card names the decision, explains why work stopped, and shows exactly which agent receives your response. “Send answer to agent” delivers your words to that waiting session. “I handled this elsewhere” closes the ask without pretending you sent an answer.</p>
   </div>
 
   <section class="sect" aria-labelledby="open-h">
