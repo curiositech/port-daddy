@@ -132,6 +132,13 @@ function uniqueCapabilities(values: readonly RuntimeCapability[]): RuntimeCapabi
   return [...new Set(values)];
 }
 
+function isDenseArray(values: readonly unknown[]): boolean {
+  for (let index = 0; index < values.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(values, index)) return false;
+  }
+  return true;
+}
+
 function capabilityStatus(
   input: RuntimePostureInput,
   capability: RuntimeCapability,
@@ -211,6 +218,7 @@ export function admitRuntimeEffect(
 ): RuntimeEffectAdmission {
   const assessment = assessRuntimePosture(input);
   const suppliedEffects: readonly unknown[] = Array.isArray(request.effects) ? request.effects : [];
+  const effectsAreDense = isDenseArray(suppliedEffects);
   const knownEffects = new Set(Object.keys(RUNTIME_EFFECT_REQUIREMENTS));
   const invalidEffects = suppliedEffects.filter((effect) => typeof effect !== 'string' || !knownEffects.has(effect));
   const effects = [...new Set(suppliedEffects.filter(
@@ -219,6 +227,7 @@ export function admitRuntimeEffect(
   const suppliedAdditionalRequirements: readonly unknown[] = Array.isArray(request.additionalRequirements)
     ? request.additionalRequirements
     : [];
+  const additionalRequirementsAreDense = isDenseArray(suppliedAdditionalRequirements);
   const invalidAdditionalRequirements = request.additionalRequirements !== undefined
     && !Array.isArray(request.additionalRequirements)
     ? [request.additionalRequirements]
@@ -232,8 +241,10 @@ export function admitRuntimeEffect(
   ]);
   const onlyHumanSafeEffects = effects.every((effect) => HUMAN_SAFE_EFFECTS.has(effect));
   const classificationReasons: string[] = [];
-  if (effects.length === 0 && invalidEffects.length === 0) classificationReasons.push('effect_set_empty');
+  if (!effectsAreDense) classificationReasons.push('effect_set_sparse');
+  if (effectsAreDense && effects.length === 0 && invalidEffects.length === 0) classificationReasons.push('effect_set_empty');
   if (invalidEffects.length > 0) classificationReasons.push('effect_unknown');
+  if (!additionalRequirementsAreDense) classificationReasons.push('capability_requirement_sparse');
   if (invalidAdditionalRequirements.length > 0) classificationReasons.push('capability_requirement_unknown');
 
   if (onlyHumanSafeEffects && requiredCapabilities.length === 0 && classificationReasons.length === 0) {
