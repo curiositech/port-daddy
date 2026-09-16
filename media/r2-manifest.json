@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 636,
-    "distinctObjects": 600,
-    "bytes": 289127021,
-    "distinctBytes": 286333430
+    "assets": 645,
+    "distinctObjects": 609,
+    "bytes": 294399805,
+    "distinctBytes": 291606214
   },
   "assets": [
     {
@@ -1095,6 +1095,55 @@
       "contentType": "image/png"
     },
     {
+      "path": "docs/pr-assets/pr-10192/ch2-withdrawn-section-title.png",
+      "bytes": 639874,
+      "sha256": "13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c",
+      "key": "sha256/13/13ea55ea87a239a01aa1b4180766f6d6c6e245a295e05b135067b7d12e054a5c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch5-why-not-stake.png",
+      "bytes": 534543,
+      "sha256": "e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a",
+      "key": "sha256/e9/e90f7a5ebc40e78691ea43dd24c2d8ad0e8fdeb785aae7fad032a9c82b14562a.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/ch7-perfect-public-monitoring.png",
+      "bytes": 749486,
+      "sha256": "32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb",
+      "key": "sha256/32/32d0a199fcecaa92c3a1718ab32d6917d0a36f020cb07e7f205d2f6c08efc4cb.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-1-equation-over-measure.png",
+      "bytes": 621051,
+      "sha256": "245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1",
+      "key": "sha256/24/245b3debf4e5bd8bc073c23299356052bd67f56a3c829e8653181d334b2437b1.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-2-ownership-table-columns.png",
+      "bytes": 373635,
+      "sha256": "3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6",
+      "key": "sha256/32/3290cce5316f57521c864f75f700503bd9cdf0c01f3cc7d6605d8a06488f02c6.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-3-chapref-dead-link.png",
+      "bytes": 496423,
+      "sha256": "1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa",
+      "key": "sha256/19/1942df2582ef7e35ba76ad2f2eced555fa557dfe53a56fcc093043447def49aa.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10192/defect-4-margin-plate-off-paper.png",
+      "bytes": 949207,
+      "sha256": "015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4",
+      "key": "sha256/01/015e16f51e1dd43cf774477525d8a0f9361e511e58ab1b001a206fa8f53b30d4.png",
+      "contentType": "image/png"
+    },
+    {
       "path": "docs/pr-assets/pr-10222/reader-map-spread-page1-parts-i-ii.png",
       "bytes": 63679,
       "sha256": "e2de6c2a995130cf1cfa3dc1a6a9982a9f830b2ae9c22225eae71498367611a8",
@@ -1121,6 +1170,20 @@
       "sha256": "4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337",
       "key": "sha256/4c/4c55f9435e2bf37979b00f24cc43af5bfec544bf8918b60f055ec93ab0b04337.webm",
       "contentType": "video/webm"
+    },
+    {
+      "path": "docs/pr-assets/pr-math-critique-closeout/book-p179-succession-corner-ch4-1x-150dpi.png",
+      "bytes": 212992,
+      "sha256": "996ce721ecb09fa3a5f808806e000b40488eac172808c9ed1ad95117039891a9",
+      "key": "sha256/99/996ce721ecb09fa3a5f808806e000b40488eac172808c9ed1ad95117039891a9.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-math-critique-closeout/critique-before-after-tour.gif",
+      "bytes": 695573,
+      "sha256": "aaa004ee25984734456a2879a5908552aff90b5abd4aa070c2b406e534112eb9",
+      "key": "sha256/aa/aaa004ee25984734456a2879a5908552aff90b5abd4aa070c2b406e534112eb9.gif",
+      "contentType": "image/gif"
     },
     {
       "path": "docs/pr-assets/pr-organ-metaphor-fix/before-after-p07-seven-subsystems.png",
