@@ -2239,7 +2239,7 @@ export function createSessions(
     for (const filePath of filePaths) {
       const activeClaims = claimForest.getActiveClaimsForFile(
         filePath,
-        options.project === undefined ? undefined : { repoId: options.project },
+        options.project === undefined ? undefined : { repoId: options.project, worldKind: 'worktree' },
       );
       for (const claim of activeClaims) {
         conflicts.push({
@@ -2273,7 +2273,9 @@ export function createSessions(
     }
 
     const conflicts: FileConflict[] = [];
-    const scope = options.project === undefined ? undefined : { repoId: options.project };
+    const scope = options.project === undefined
+      ? undefined
+      : { repoId: options.project, worldKind: 'worktree' as const };
 
     for (const region of regions) {
       const resolved = resolveRegionClaim(region);

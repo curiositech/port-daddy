@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
+import { createClaimForest } from '../../lib/claim-forest.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createAgents } from '../../lib/agents.js';
 import { ActivityType } from '../../lib/activity.js';
@@ -1135,6 +1136,18 @@ describe('Sessions Module', () => {
       const betaMain = sessions.start('Beta main', { project: 'beta', worktreeId: 'beta-main' });
       sessions.claimFiles(alphaMain.id, ['README.md']);
       sessions.claimFiles(betaMain.id, ['README.md']);
+      const forest = createClaimForest(db);
+      for (const worldKind of ['ref', 'commit', 'harbor']) {
+        forest.claim({
+          repoId: 'alpha',
+          world: { kind: worldKind, id: `alpha-${worldKind}` },
+          selector: { kind: 'file', path: 'README.md' },
+        }, {
+          sessionId: alphaMain.id,
+          agentId: 'alternate-world-owner',
+          observedBy: 'sessions.test',
+        });
+      }
 
       const alpha = sessions.getFileConflicts(['README.md'], { project: 'alpha' });
       const beta = sessions.getFileConflicts(['README.md'], { project: 'beta' });
@@ -1159,6 +1172,18 @@ describe('Sessions Module', () => {
       expect(sessions.claimFiles(alphaMain.id, [], { regions: [heldRegion] }).success).toBe(true);
       expect(sessions.claimFiles(alphaLinked.id, [], { regions: [heldRegion] }).success).toBe(true);
       expect(sessions.claimFiles(betaMain.id, [], { regions: [heldRegion] }).success).toBe(true);
+      const forest = createClaimForest(db);
+      for (const worldKind of ['ref', 'commit', 'harbor']) {
+        forest.claim({
+          repoId: 'alpha',
+          world: { kind: worldKind, id: `alpha-${worldKind}` },
+          selector: { kind: 'symbol', ...heldRegion },
+        }, {
+          sessionId: alphaMain.id,
+          agentId: 'alternate-world-owner',
+          observedBy: 'sessions.test',
+        });
+      }
 
       const alpha = sessions.getRegionConflicts([heldRegion], {
         project: 'alpha',
