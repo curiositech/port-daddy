@@ -1,25 +1,39 @@
-% Figure 3 — two claim trees, redrawn to spec [ch4.md 4.3]. Left: every claim
-% the digest makes resolves to a named artifact. Right: the same shape of
-% summary whose claims resolve to nothing. The leaf text is the readable fact;
-% color is doubled by shape (pd state boxes vs. caution diamonds) and by
-% arrow style (solid resolves-to vs. dashed caution) so the claim survives
-% grayscale. Fan-out arrows to the off-center branches route through a bend
-% so the final approach into each child is vertical, never diagonal into text.
+% Restyle of fig-zoom-vs-potemkin to the tikz-diagram-craft v2 standard (v1
+% names and raw colours migrated to roles; layout unchanged, ch4.md 4.3).
+% Fixes the T4 "resolves to" labels: they now sit beside the fan-out gutter
+% in clear space rather than on the vertical line the arrows share.
+%
+% Reader question: can each claim a digest makes reach reviewable evidence?
+% Claim: two summaries of identical shape differ entirely in whether their
+% claims resolve to anything -- one is an index, the other terminates early.
+% Evidence: PR 123's three claims (auth refactor, tests pass, one critique)
+% each resolving to a named artifact, versus a same-shaped "ALL GREEN"
+% summary resolving to nothing, whitepaper/legible-swarm.tex [internal].
+% Must distinguish: a claim that resolves to a named artifact (solid arrow,
+% pd state box) from a claim that resolves to nothing (dashed arrow, pd
+% breach datum), holding the tree shape identical between the two trees.
+% Grammar chosen: two claim trees, aligned (S1-style before/after) -- the
+% same shape twice is the whole point; a single annotated tree would hide
+% that a Potemkin digest can advertise the same claim count.
+% Grammar rejected: a Venn of worlds or a prose list would lose the tree's
+% own claim-to-evidence edges, which are the fact being compared.
+% Five-second test: which tree's leaves are things an operator can open?
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=0.78cm,y=0.86cm]
   % ---------------- top tree: digest as lens ----------------
-  \node[pd panel title,anchor=west] at (0,7.55) {digest as lens};
-  \node[pd direct label,anchor=south] (lroot) at (4.0,7.15) {PR 123: 3 claims};
+  \node[pd title,anchor=west] at (0,7.95) {digest as lens};
+  \node[pd label,anchor=south] (lroot) at (4.0,7.15) {PR 123: 3 claims};
 
-  \node[pd direct label,anchor=south,align=center] (lc1) at (1.0,5.35) {auth refactor};
-  \node[pd direct label,anchor=south,align=center] (lc2) at (4.0,5.35) {tests pass};
-  \node[pd direct label,anchor=south,align=center] (lc3) at (7.0,5.35) {1 critique};
+  \node[pd label,anchor=south,align=center] (lc1) at (1.0,5.35) {auth refactor};
+  \node[pd label,anchor=south,align=center] (lc2) at (4.0,5.35) {tests pass};
+  \node[pd label,anchor=south,align=center] (lc3) at (7.0,5.35) {1 critique};
 
   \draw[pd focus arrow] (lroot.south) -- (4.0,6.55) -- (1.0,6.55) -- (lc1.north);
   \draw[pd focus arrow] (lroot.south) -- (lc2.north);
   \draw[pd focus arrow] (lroot.south) -- (4.0,6.55) -- (7.0,6.55) -- (lc3.north);
-  \node[pd axis label,anchor=west] at (5.35,6.25) {claims};
+  \node[pd label,anchor=west] at (4.35,6.28) {claims};
 
   \node[pd state,text width=2.1cm] (ll1) at (1.0,3.9) {diff a1c\ldots};
   \node[pd state,text width=2.1cm] (ll2) at (4.0,3.9) {run \#4812};
@@ -28,32 +42,32 @@
   \draw[pd focus arrow] (lc1.south) -- (ll1.north);
   \draw[pd focus arrow] (lc2.south) -- (ll2.north);
   \draw[pd focus arrow] (lc3.south) -- (ll3.north);
-  \node[pd axis label,text=hhteal,anchor=west,align=left,text width=2.4cm] at (5.35,4.65) {resolves to};
+  \node[pd focus label,anchor=south west] at (7.55,4.85) {resolves to};
 
   % ---------------- bottom tree: digest as facade ----------------
-  \node[pd panel title,anchor=west] at (0,2.05) {digest as facade};
-  \node[pd direct label,anchor=south] (rroot) at (4.0,1.65) {ALL GREEN};
+  \node[pd title,anchor=west] at (0,2.45) {digest as facade};
+  \node[pd label,anchor=south] (rroot) at (4.0,1.65) {ALL GREEN};
 
-  \node[pd direct label,anchor=south,inner sep=7pt] (rc1) at (1.0,-0.15) {\ldots};
-  \node[pd direct label,anchor=south,inner sep=7pt] (rc2) at (4.0,-0.15) {\ldots};
-  \node[pd direct label,anchor=south,inner sep=7pt] (rc3) at (7.0,-0.15) {\ldots};
+  \node[pd label,anchor=south,inner sep=7pt] (rc1) at (1.0,-0.15) {\ldots};
+  \node[pd label,anchor=south,inner sep=7pt] (rc2) at (4.0,-0.15) {\ldots};
+  \node[pd label,anchor=south,inner sep=7pt] (rc3) at (7.0,-0.15) {\ldots};
 
   \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (4.0,0.95) -- (1.0,0.95) -- (rc1.north);
   \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (rc2.north);
   \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (4.0,0.95) -- (7.0,0.95) -- (rc3.north);
-  \node[pd axis label,anchor=west] at (5.35,0.75) {claims};
+  \node[pd label,anchor=west] at (4.35,0.45) {claims};
 
-  \node[pd caution datum] (rl1) at (1.0,-1.55) {};
-  \node[pd caution datum] (rl2) at (4.0,-1.55) {};
-  \node[pd caution datum] (rl3) at (7.0,-1.55) {};
-  \node[pd axis label,text=hhamber,anchor=north] at (1.0,-1.75) {none};
-  \node[pd axis label,text=hhamber,anchor=north] at (4.0,-1.75) {none};
-  \node[pd axis label,text=hhamber,anchor=north] at (7.0,-1.75) {none};
+  \node[pd breach datum] (rl1) at (1.0,-1.55) {};
+  \node[pd breach datum] (rl2) at (4.0,-1.55) {};
+  \node[pd breach datum] (rl3) at (7.0,-1.55) {};
+  \node[pd label,anchor=north] at (1.0,-1.75) {none};
+  \node[pd label,anchor=north] at (4.0,-1.75) {none};
+  \node[pd label,anchor=north] at (7.0,-1.75) {none};
 
-  \draw[pd caution arrow] (rc1.south) -- (rl1.north);
-  \draw[pd caution arrow] (rc2.south) -- (rl2.north);
-  \draw[pd caution arrow] (rc3.south) -- (rl3.north);
-  \node[pd axis label,text=hhamber,anchor=west,align=left,text width=2.4cm] at (5.35,-0.85) {resolves to};
+  \draw[pd breach arrow] (rc1.south) -- (rl1.north);
+  \draw[pd breach arrow] (rc2.south) -- (rl2.north);
+  \draw[pd breach arrow] (rc3.south) -- (rl3.north);
+  \node[pd label,anchor=south west,text=pderror] at (7.55,-1.05) {resolves to};
 \end{tikzpicture}
 \caption{Two claim trees of identical shape. Top: the legible digest's three
 named claims each resolve to one artifact --- a diff, a test run, a review

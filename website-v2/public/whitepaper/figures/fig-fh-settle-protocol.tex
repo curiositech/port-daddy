@@ -1,0 +1,94 @@
+% Figure IV.10 --- the three-step settlement protocol S:fh-settle-proto
+% describes (bond post, damage claim, verify-and-clearance), drawn as a
+% three-lifeline sequence with escrow as its own lifeline -- distinct from
+% fig:fh-settlement, which draws the custody-bound counterfactual
+% (S:fh-escrow), not this protocol. Fixes the corpus defect where
+% fig-fh-settlement.tex was pressed into service for two different claims
+% under one label; this fragment gives the settlement-protocol prose its own
+% figure and its own label.
+%
+% Reader question: which of the three settlement steps can a signed
+%   inclusion proof alone not settle by itself, and why?
+% Claim: the protocol is exactly three steps in strict order -- bond post,
+%   damage claim, verify-and-clearance -- and only the third step is a
+%   decision the escrow makes; the first two are one-sided announcements.
+% Evidence: the chapter's own three-step enumeration in S:fh-settle-proto:
+%   the bond B_alpha locked at post time, the claim
+%   cl_B=(R_B^(e),evidence), and the two terminal outcomes clear/refuse from
+%   Design Invariant thm:fh-escrow-bound.
+% Must distinguish: the two one-sided announcements (post, claim) from the
+%   one step where the escrow actually decides (verify), and that the
+%   decision has exactly two terminal outcomes, not a spectrum.
+% Grammar chosen: three-lifeline sequence (A, escrow, B), reusing
+%   fig-fh-settlement's own Clear/Refuse fan for the terminal step so the
+%   two figures read as one family without redrawing the same schema.
+%   Grammar rejected: a three-row table would lose the fact that step 3
+%   branches into two outcomes while 1--2 do not; a state machine would
+%   overstate this as a machine with memory beyond three announcements plus
+%   one decision.
+% Five-second test: which step is the only one with two possible outcomes?
+\pdfigurehue{pdgold}%
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xA{0.90}  \def\xG{5.20}  \def\xB{9.50}
+  \node[pd title,anchor=west,text width=9.0cm] at (0.00,1.00)
+    {two announcements, then one decision};
+  \node[pd state,minimum width=2.6cm] (hA) at (\xA,0) {Harbor $A$};
+  \node[draw=pdinkmuted!70,line width=.9pt,fill=pdpage,diamond,
+    minimum width=1.5cm,minimum height=0.85cm,inner sep=0pt,pd label]
+    (hG) at (\xG,0) {escrow};
+  \node[pd state,minimum width=2.6cm] (hB) at (\xB,0) {Harbor $B$};
+  \draw[pd guide] (\xA,-0.60) -- (\xA,-4.55);
+  \draw[pd guide] (\xG,-0.60) -- (\xG,-4.15);
+  \draw[pd guide] (\xB,-0.60) -- (\xB,-4.55);
+
+  \node[pd tag,anchor=south,text width=4.4cm,align=center] at ({(\xA+\xG)/2},-1.16)
+    {bond post: $B_\alpha$ locked, signed into $R_A{}^{(e)}$};
+  \node[pd badge] (m1) at ({(\xA+\xG)/2},-1.40) {1};
+  \draw[pd arrow,pd to badge] (\xA,-1.20) -- (m1);
+  \draw[pd arrow,pd from badge] (m1) -- (\xG,-1.60);
+
+  \node[pd tag,anchor=south,text width=4.4cm,align=center] at ({(\xG+\xB)/2},-2.36)
+    {damage claim: $\mathsf{cl}_B=(R_B{}^{(e)},\mathrm{evidence})$};
+  \node[pd badge] (m2) at ({(\xG+\xB)/2},-2.60) {2};
+  \draw[pd arrow,pd to badge] (\xB,-2.40) -- (m2);
+  \draw[pd arrow,pd from badge] (m2) -- (\xG,-2.80);
+
+  \node[draw=pdinkmuted!70,line width=.9pt,fill=pdpage,diamond,
+    minimum width=1.6cm,minimum height=0.90cm,inner sep=0pt,pd label]
+    (verify) at (\xG,-3.70) {verify};
+  \node[pd badge] at (\xG-1.35,-3.70) {3};
+  \node[pd focus datum] (clear) at (\xB-0.60,-4.90) {};
+  \draw[pd focus arrow] (verify) -- (clear);
+  \node[pd focus label,anchor=north,text width=4.0cm,align=left] at (\xB-1.55,-5.12)
+    {\textbf{clear}: pay $B$, refund remainder to $A$};
+  \node[pd datum] (refuse) at (\xA+0.60,-4.90) {};
+  \draw[pd arrow] (verify) -- (refuse);
+  \node[pd label,anchor=north,text width=3.6cm,align=right] at (\xA+1.55,-5.12)
+    {\textbf{refuse}: return bond to $A$};
+\end{tikzpicture}
+
+\vspace{4pt}
+\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}c l p{6.3cm}@{}}
+\toprule
+\# & step & binds / value \\
+\midrule
+1 & bond post & $A\to$ escrow: $B_\alpha$ locked, TTL signed into $R_A{}^{(e)}$ and $R_B{}^{(e)}$ \\
+2 & damage claim & $B\to$ escrow: $\mathsf{cl}_B=(R_B{}^{(e)},\mathrm{evidence})$, a Merkle inclusion proof \\
+3 & verify \& clear & escrow checks the proof against step 1's terms; clear or refuse \\
+\bottomrule
+\end{tabular}
+\normalsize
+\caption{\textbf{Two announcements, then one decision.} Step 1 posts the bond
+at the escrow (message 1); step 2 is Harbor $B$ signed damage claim, sent
+independently whenever damage surfaces (message 2); step 3 is the only step
+where the escrow decides anything, checking the claim inclusion proof against
+the preconditions signed at step 1 and producing exactly one of two terminal
+outcomes, \textbf{clear} or \textbf{refuse} -- matching the two terminal
+transitions Design Invariant~\ref{thm:fh-escrow-bound} bounds. Neither
+announcement alone settles anything; only step 3 does. [internal]}
+\label{fig:fh-settle-protocol}
+\end{figure}

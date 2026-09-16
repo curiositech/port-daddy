@@ -1,33 +1,53 @@
-% Regime diagram for Sec. sealed-conservation ("Which composition bound to quote"): the basic bound k*epsilon and the advanced bound sqrt(2 k ln(1/delta')) epsilon + k epsilon (e^epsilon - 1) at epsilon=0.1, delta'=1e-6, plotted from the closed forms the chapter states. The k=32 mark and both bound values are copied from website-v2/public/whitepaper/sealed-harbor.tex, Sec. sealed-conservation, "Numbers by hand" [verified].
+% Restyle of fig-sealed-composition-crossover to the tikz-diagram-craft v2
+% standard (measured-quantity plot; the plot itself is unchanged).
+%
+% Reader question: when does the advanced composition bound start to pay?
+% Claim: below k=32 releases (at the chapter's per-release epsilon=0.1) the
+% basic bound is smaller and should be quoted; past it, the advanced bound is.
+% Evidence: closed forms k*epsilon and sqrt(2 k ln(1/delta')) epsilon +
+% k epsilon (e^epsilon-1), website-v2/public/whitepaper/sealed-harbor.tex,
+% Sec.~sealed-conservation, "Numbers by hand" [verified].
+% Must distinguish: the two curves; the crossover point; which bound is
+% smaller on each side of it.
+% Grammar chosen: measured-quantity plot (pgfplots), the worked point (k=32)
+% marked on both curves -- a schematic curve pair would lose the fact that
+% the crossover is a specific, computed k.
+% Grammar rejected: a table of the two bounds at k=32 alone would drop the
+% crossover structure -- that a contract's right bound depends on how many
+% releases it already expects.
+% Five-second test: which curve is lower before k=32, and which after.
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure]
-  \begin{axis}[pd axis,
-    width=13.8cm,height=7.0cm,
+  \begin{axis}[
+    width=9.6cm,height=5.6cm,
     axis lines=left,
     title={which bound to quote, as the engagement grows longer},
+    title style={font=\pdfiglabelbold,text=pdink,yshift=-2pt},
     xmin=0,xmax=64,ymin=0,ymax=7,
     xlabel={releases $k$ (per-release $\varepsilon=0.1$)},
     ylabel={spent-budget bound},
+    xlabel style={font=\pdfiglabel,text=pdinkmuted},
+    ylabel style={font=\pdfiglabel,text=pdinkmuted},
+    tick label style={font=\pdfiglabel,text=pdinkmuted},
+    axis line style={pd hairline},
+    tick style={pd tick},
     xtick={0,16,32,48,64},
     ytick={0,2,4,6},
     clip=false,
-    legend style={pd legend,at={(0.03,0.97)},anchor=north west,
-      row sep=1pt,inner sep=2pt},
+    legend style={at={(0.03,0.97)},anchor=north west,draw=none,fill=none,
+      font=\pdfiglabel,text=pdink,row sep=1pt,inner sep=2pt},
     legend cell align=left,
   ]
-    \addplot[pd rule,domain=0:64,samples=120,line width=.9pt] {0.1*x};
+    \addplot[domain=0:64,samples=120,pd rule] {0.1*x};
     \addlegendentry{basic: $k\varepsilon$}
-    \addplot[pd focus rule,domain=0:64,samples=120,line width=.9pt] {sqrt(2*x*ln(1/0.000001))*0.1 + x*0.1*(exp(0.1)-1)};
+    \addplot[domain=0:64,samples=120,pd focus rule] {sqrt(2*x*ln(1/0.000001))*0.1 + x*0.1*(exp(0.1)-1)};
     \addlegendentry{advanced: $\sqrt{k}$-scaled}
-    \addplot[pd rule,only marks,mark=*,mark size=1.4pt,forget plot] coordinates {(32,3.20)};
-    \addplot[pd focus rule,only marks,mark=*,mark size=1.4pt,forget plot] coordinates {(32,3.3101)};
+    \addplot[only marks,mark=*,mark size=1.4pt,draw=pdink,fill=pdink,forget plot] coordinates {(32,3.20)};
+    \addplot[only marks,mark=*,mark size=1.4pt,draw=pdfocus,fill=pdfocus,forget plot] coordinates {(32,3.3101)};
     \draw[pd guide] (axis cs:32,0) -- (axis cs:32,3.3101);
-    % Raised clear of the axis: this three-line block grew when pd direct label
-    % gained the inner ysep its descenders needed, and its last line came to
-    % rest on the x axis rule. anchor=west on the block's own middle keeps it
-    % centred on the k=32 read instead of hanging from it.
-    \node[pd direct label,align=left,text width=3.0cm,anchor=west] at (axis cs:34.5,2.1) {$k=32$:\\basic $3.20$\\advanced $3.31$};
+    \node[pd tag,align=left,text width=2.4cm,anchor=north west] at (axis cs:34.5,2.7) {$k=32$:\\basic $3.20$\\advanced $3.31$};
   \end{axis}
 \end{tikzpicture}
 \caption{The basic and advanced $\varepsilon$-composition bounds on cumulative spend as functions of the number of releases $k$, at the per-release $\varepsilon=0.1$ the chapter uses for this comparison. At $k=32$, the chapter's reported comparison, basic composition ($3.20$) is still smaller than the advanced bound ($3.31$): below the crossover a contract should quote the exact, $\delta$-free basic bound, and only past it the square-root-scaled advanced bound -- the same rule at $\varepsilon=0.05$ gives $k=128$: basic $6.40$ versus advanced $3.30$, where the advanced bound has come to pay.}

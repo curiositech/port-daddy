@@ -1,50 +1,61 @@
-% Figure --- adjacent evidence overlap yields transitive continuity.
+% Reader question: how can overlapping episodes create continuity without a
+% permanent substrate? Claim: direct connectedness is local (adjacent
+% incarnations share one witnessed outcome) but continuity is the transitive
+% closure of that overlap, not a single unbroken memory. Evidence: three
+% incarnations sharing witnesses o_2 (1-2) and o_3 (2-3), so o_1 and o_4 are
+% linked without either incarnation directly witnessing the other's outcome
+% (Sec. continuity). Must distinguish: a real overlap chain from a repeated
+% label with no shared witness. Grammar: an interval/provenance chain,
+% rejected: snake/ribbon art (decorative, no evidence marks) and an unlabeled
+% chain of circles (no witness identity to check). Five-second test: a reader
+% traces o_1 to o_4 through two shared marks and says "linked, but never
+% directly."
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.7,2.75)
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=west] at (-1.00,8.80)
     {direct connectedness is local; continuity is the transitive closure};
-
-  % Incarnation intervals.
-  \draw[pd hairline,line width=5.5pt] (-5.7,1.55) -- (-.9,1.55);
-  \draw[pd hairline,line width=5.5pt] (-1.8,.35) -- (3.0,.35);
-  \draw[pd hairline,line width=5.5pt] (2.1,-.85) -- (6.1,-.85);
-  \node[pd direct label,anchor=east] at (-5.95,1.55) {incarnation 1};
-  \node[pd direct label,anchor=east] at (-2.05,.35) {incarnation 2};
-  \node[pd direct label,anchor=east] at (1.85,-.85) {incarnation 3};
-
-  % Evidence marks, with shared outcomes aligned vertically.
-  \foreach \x/\y/\lab in {-4.75/1.55/$o_1$,-1.35/1.55/$o_2$,-1.35/.35/$o_2$,2.55/.35/$o_3$,2.55/-.85/$o_3$,5.25/-.85/$o_4$} {
-    \node[pd datum] at (\x,\y) {};
-    \node[pd axis label,anchor=south] at (\x,\y+.18) {\lab};
-  }
-  \fill[pd focus fill] (-1.72,-.08) rectangle (-.98,1.98);
-  \draw[pd focus rule] (-1.35,.35) -- (-1.35,1.55);
-  \fill[pd focus fill] (2.18,-1.28) rectangle (2.92,.78);
-  \draw[pd focus rule] (2.55,-.85) -- (2.55,.35);
-  \node[pd direct label,text=hhteal,anchor=west] at (-.82,1.02) {shared witness $o_2$};
-  \node[pd direct label,text=hhteal,anchor=west] at (2.72,-.22) {shared witness $o_3$};
-
-  % Derived accountable chain.
-  \draw[pd focus rule,line width=1.4pt] (-5.7,-2.05) -- (6.1,-2.05);
-  \foreach \x in {-4.75,-1.35,2.55,5.25} \node[pd focus datum] at (\x,-2.05) {};
-  \node[pd direct label,text=hhteal,anchor=north] at (.2,-2.30)
+  % ---- three incarnation intervals, generously separated -------------------
+  \draw[pd hairline,line width=5.5pt] (1.40,7.50) -- (4.00,7.50);
+  \node[pd label,anchor=east,text width=2.6cm,align=right] at (1.15,7.50) {incarnation 1};
+  \draw[pd hairline,line width=5.5pt] (3.40,6.10) -- (8.00,6.10);
+  \node[pd label,anchor=east,text width=2.6cm,align=right] at (3.15,6.10) {incarnation 2};
+  \draw[pd hairline,line width=5.5pt] (6.60,4.70) -- (10.00,4.70);
+  \node[pd label,anchor=east,text width=2.6cm,align=right] at (6.35,4.70) {incarnation 3};
+  % ---- witness marks; shared witnesses connect two rows ---------------------
+  \node[pd datum] at (2.40,7.50) {};
+  \node[pd label,anchor=south] at (2.40,7.78) {$o_1$};
+  \node[pd datum] at (4.60,7.50) {};
+  \node[pd datum] at (4.60,6.10) {};
+  \draw[pd legible rule] (4.60,6.10) -- (4.60,7.50);
+  \node[pd label,anchor=south] at (4.60,7.78) {$o_2$};
+  \node[pd legible label,anchor=west] at (4.90,6.90) {shared witness $o_2$};
+  \node[pd datum] at (7.40,6.10) {};
+  \node[pd datum] at (7.40,4.70) {};
+  \draw[pd legible rule] (7.40,4.70) -- (7.40,6.10);
+  \node[pd label,anchor=west] at (7.68,6.46) {$o_3$};  % see also shared-witness label below, well clear
+  \node[pd legible label,anchor=east,text width=2.3cm,align=right] at (7.15,5.55) {shared witness $o_3$};
+  \node[pd datum] at (9.20,4.70) {};
+  \node[pd label,anchor=south] at (9.20,4.98) {$o_4$};
+  % ---- derived accountable chain, drawn once as its own rail ----------------
+  \draw[pd legible rule,line width=1.4pt] (2.40,3.40) -- (9.20,3.40);
+  \foreach \x in {2.40,4.60,7.40,9.20} \node[pd legible datum] at (\x,3.40) {};
+  \node[pd legible label,anchor=north,text width=8.0cm,align=center] at (5.80,3.10)
     {transitive ledger rail: $o_1\leadsto o_2\leadsto o_3\leadsto o_4$};
-
-  % Counterexample: a repeated name without an overlapping witness.
-  \draw[pd caution rule,dashed] (-5.7,-3.18) -- (-2.95,-3.18);
-  \draw[pd caution rule,dashed] (-2.15,-3.18) -- (.55,-3.18);
-  \node[pd direct label,text=hhamber,anchor=west] at (.85,-3.18)
+  % ---- counterexample: a repeated name without an overlapping witness -------
+  \draw[pd breach rule,dashed] (1.40,1.60) -- (4.00,1.60);
+  \draw[pd breach rule,dashed] (4.80,1.60) -- (7.60,1.60);
+  \draw[pd breach rule] (4.25,1.45) -- (4.55,1.75);
+  \draw[pd breach rule] (4.25,1.75) -- (4.55,1.45);
+  \node[pd breach label,anchor=north,text width=8.0cm,align=center] at (4.50,1.15)
     {same label, no shared witness $\Rightarrow$ no inherited continuity};
-  \draw[pd caution rule] (-2.80,-3.48) -- (-2.30,-2.88);
-  \draw[pd caution rule] (-2.80,-2.88) -- (-2.30,-3.48);
-\end{tikzpicture}}
+\end{tikzpicture}
 \caption{\textbf{Parfitian continuity is an overlap chain, not permanent
 connectedness.} Incarnation 1 shares witnessed outcome $o_2$ with incarnation 2;
 incarnation 2 shares $o_3$ with incarnation 3. No later body must directly
 remember $o_1$: the overlapping evidence establishes the transitive ledger rail
 $o_1\leadsto o_2\leadsto o_3\leadsto o_4$. The dashed counterexample repeats a
-label without a shared witness and therefore inherits nothing.}
+label without a shared witness and therefore inherits nothing. [internal]}
 \label{fig:parfit}
 \end{figure}

@@ -1,0 +1,46 @@
+% Brief (tikz-diagram-craft). Register row ch1-13 [should].
+% Reader question: two racing acquires, one winner -- where exactly does
+%   the loser learn who won?
+% Claim: both acquire(7421) calls converge on one insert-commit point; the
+%   loser does not get a bare error, the catch path reads back the row and
+%   hands the loser the winner's identity, atomically -- there is no moment
+%   at which both rows exist.
+% Evidence: whitepaper/single-writer-kernel.tex sec:resource, the "Alice
+%   and Bob race for one port" dramatization; alg:acquire's catch path
+%   (existing = SELECT row; DENIED(holder=existing.holder)).
+% Must distinguish: the one commit point both requests race for; that the
+%   loser's outcome is a named DENIED, not a timeout or a bare failure.
+% Grammar: two lanes converging on one insert-commit point, the losing
+%   lane's catch-path callout. Rejected: a sequence diagram with a
+%   database lifeline, which would need a third participant for a fact
+%   that belongs entirely to the daemon's one atomic statement.
+% Five-second test: "two lanes converge to one dot; one continues granted,
+%   the other reads back DENIED(holder=Alice)".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=east] at (-.25,1.55) {Alice};
+  \node[pd title,anchor=east] at (-.25,-1.55) {Bob};
+  \draw[pd hairline] (0,1.55) -- (2.35,1.55);
+  \draw[pd hairline] (0,-1.55) -- (2.35,-1.55);
+  \node[pd label,anchor=south] at (1.15,1.70) {\texttt{acquire(7421)}};
+  \node[pd label,anchor=north] at (1.15,-1.70) {\texttt{acquire(7421)}};
+  \draw[pd focus arrow] (2.35,1.55) -- (4.10,0.10);
+  \draw[pd focus arrow] (2.35,-1.55) -- (4.10,-0.10);
+  \node[pd focus datum] (fork) at (4.25,0) {};
+  \draw[pd ready arrow] (4.43,.10) -- (6.30,1.55);
+  \node[pd ready state,minimum width=2.6cm] at (7.85,1.55) {granted (Alice)};
+  \draw[pd breach arrow] (4.43,-.10) -- (6.30,-1.55);
+  \node[pd breach state,minimum width=3.3cm,text width=3.0cm,align=center] at (8.35,-1.55)
+    {\texttt{DENIED} \texttt{(holder=Alice)}};
+\end{tikzpicture}
+\caption{Two racing \texttt{acquire(7421)} calls converge on one
+insert-commit point in the single daemon; the uniqueness constraint decides
+the winner. Alice's insert lands first and she is granted the port. Bob's
+insert is rejected atomically -- there is no moment at which both rows
+exist -- and the catch path reads the row back, handing Bob a named
+\texttt{DENIED(holder=Alice)} rather than a bare error, so he can pick
+another port, wait, or message Alice. [internal, alg:acquire]}
+\label{fig:swk-race-dramatization}
+\end{figure}

@@ -1,64 +1,81 @@
-% Figure 11 — slope chart, restyled to spec [ch4.md restyles]. Ranks 1-4 are
-% ticks on both axes; all four candidates are named with a three-word gloss
-% at BOTH ends so no legend is needed. A and B fully reverse (the theorem's
-% content); C and D swap one adjacent pair, a smaller instance of the same
-% non-comonotone fact. C/D glosses are this redraw's own short illustrative
-% tags — the chapter names only A and B explicitly.
+% Restyle of fig-split-ranker to the tikz-diagram-craft v2 standard (v1
+% names and raw colours migrated to roles; slope-chart layout unchanged,
+% ch4.md restyles). Fixes the clipped end glosses: they now sit on a wider
+% grid with enough margin that "safe, calm" and the other three-word tags no
+% longer run off the picture's own edge.
+%
+% Reader question: how can one substrate support two incompatible rankings?
+% Claim: discovery rank and attention rank are not monotone rescalings of
+% each other -- two candidates (A, B) fully invert, and a smaller pair
+% (C, D) swap one adjacent step, the same non-comonotone fact in miniature.
+% Evidence: candidates A (best fit, safest to skip) and B (poor fit, most
+% dangerous to miss), whitepaper/legible-swarm.tex [internal].
+% Must distinguish: the full inversion (A, B) from the adjacent swap (C, D);
+% which end of each axis a candidate sits at, named at both ends so no
+% legend is needed.
+% Grammar chosen: paired ranked lists (slope chart) -- two rank columns,
+% one line per candidate; a shared substrate splitting into two scoring
+% lanes is exactly this grammar's reading.
+% Grammar rejected: a single weighted score would erase the claim, which is
+% that no single rescaling reconciles the two orders.
+% Five-second test: which candidate is safe to skip but dangerous to miss?
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.5cm,y=1cm]
-  \draw[pd focus rule,line width=1.1pt] (4,0.7)--(4,5.8);
-  \draw[pd caution rule,line width=1.1pt] (12,0.7)--(12,5.8);
-  \node[pd panel title,text=hhteal,anchor=south,align=center] at (4,6.05)
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=.60cm,y=1cm]
+  \def\lx{3.4}   % discovery-rank column
+  \def\rx{9.4}   % attention-rank column
+  \draw[pd focus rule,line width=1.1pt] (\lx,0.7)--(\lx,5.8);
+  \draw[pd breach rule,line width=1.1pt] (\rx,0.7)--(\rx,5.8);
+  \node[pd title,anchor=south,align=center] at (\lx,6.05)
     {rank by discovery\\(fit)};
-  \node[pd panel title,text=hhamber,anchor=south,align=center] at (12,6.05)
+  \node[pd title,text=pderror,anchor=south,align=center] at (\rx,6.05)
     {rank by attention\\(regret)};
 
   \foreach \y/\rank in {5.2/1,3.9/2,2.6/3,1.3/4}{
-    \draw[pd tick] (3.85,\y)--(4.15,\y);
-    \draw[pd tick] (11.85,\y)--(12.15,\y);
-    \node[pd axis label,anchor=east] at (3.7,\y) {\rank};
-    \node[pd axis label,anchor=west] at (12.3,\y) {\rank};
-  }
+    \draw[pd tick] (\lx-.15,\y)--(\lx+.15,\y);
+    \draw[pd tick] (\rx-.15,\y)--(\rx+.15,\y);
+    \node[pd label,anchor=east] at (\lx-.30,\y) {\rank};
+    \node[pd label,anchor=west] at (\rx+.30,\y) {\rank};}
 
   % A: discovery rank 1 -> attention rank 4 (safe to ignore)
-  \draw[pd focus rule,line width=1.05pt] (4,5.2)--(12,1.3);
-  \node[pd focus datum] at (4,5.2) {};
-  \node[pd focus datum] at (12,1.3) {};
+  \draw[pd focus rule,line width=1.05pt] (\lx,5.2)--(\rx,1.3);
+  \node[pd focus datum] at (\lx,5.2) {};
+  \node[pd focus datum] at (\rx,1.3) {};
   % B: discovery rank 4 -> attention rank 1 (dangerous to miss)
-  \draw[pd caution rule,line width=1.05pt] (4,1.3)--(12,5.2);
-  \node[pd caution datum] at (4,1.3) {};
-  \node[pd caution datum] at (12,5.2) {};
+  \draw[pd breach rule,line width=1.05pt] (\lx,1.3)--(\rx,5.2);
+  \node[pd breach datum] at (\lx,1.3) {};
+  \node[pd breach datum] at (\rx,5.2) {};
   % C, D: a smaller adjacent swap, the same non-comonotone fact in miniature
-  \draw[pd hairline] (4,3.9)--(12,2.6);
-  \draw[pd hairline] (4,2.6)--(12,3.9);
-  \node[pd datum] at (4,3.9) {};
-  \node[pd datum] at (12,2.6) {};
-  \node[pd datum] at (4,2.6) {};
-  \node[pd datum] at (12,3.9) {};
+  \draw[pd hairline] (\lx,3.9)--(\rx,2.6);
+  \draw[pd hairline] (\lx,2.6)--(\rx,3.9);
+  \node[pd datum] at (\lx,3.9) {};
+  \node[pd datum] at (\rx,2.6) {};
+  \node[pd datum] at (\lx,2.6) {};
+  \node[pd datum] at (\rx,3.9) {};
 
-  % end glosses, named at both ends, outside both axes
-  \node[pd direct label,text=hhteal,anchor=east,align=center,text width=1.8cm]
-    at (2.3,5.2) {\hyphenpenalty=10000\textbf{A} \\ capable, safe, calm};
-  \node[pd direct label,text=hhteal,anchor=west,align=center,text width=1.8cm]
-    at (13.7,1.3) {\hyphenpenalty=10000\textbf{A} \\ capable, safe, calm};
+  % end glosses, named at both ends, in the clear margin outside both axes
+  \node[pd focus label,anchor=east,align=center,text width=2.3cm]
+    at (0.55,5.2) {\hyphenpenalty=10000\textbf{A}\\capable, safe, calm};
+  \node[pd focus label,anchor=west,align=center,text width=2.3cm]
+    at (12.25,1.3) {\hyphenpenalty=10000\textbf{A}\\capable, safe, calm};
 
-  \node[pd direct label,text=hhamber,anchor=east,align=center,text width=1.8cm]
-    at (2.3,1.3) {\hyphenpenalty=10000\textbf{B} \\ off-topic, risky, tense};
-  \node[pd direct label,text=hhamber,anchor=west,align=center,text width=1.8cm]
-    at (13.7,5.2) {\hyphenpenalty=10000\textbf{B} \\ off-topic, risky, tense};
+  \node[pd label,text=pderror,anchor=east,align=center,text width=2.3cm]
+    at (0.55,1.3) {\hyphenpenalty=10000\textbf{B}\\off-topic, risky, tense};
+  \node[pd label,text=pderror,anchor=west,align=center,text width=2.3cm]
+    at (12.25,5.2) {\hyphenpenalty=10000\textbf{B}\\off-topic, risky, tense};
 
-  \node[pd direct label,anchor=east,align=center,text width=1.8cm]
-    at (2.3,3.9) {\hyphenpenalty=10000\textbf{C} \\ steady, calm, minor};
-  \node[pd direct label,anchor=west,align=center,text width=1.8cm]
-    at (13.7,2.6) {\hyphenpenalty=10000\textbf{C} \\ steady, calm, minor};
+  \node[pd label,anchor=east,align=center,text width=2.3cm]
+    at (0.55,3.9) {\hyphenpenalty=10000\textbf{C}\\steady, calm, minor};
+  \node[pd label,anchor=west,align=center,text width=2.3cm]
+    at (12.25,2.6) {\hyphenpenalty=10000\textbf{C}\\steady, calm, minor};
 
-  \node[pd direct label,anchor=east,align=center,text width=1.8cm]
-    at (2.3,2.6) {\hyphenpenalty=10000\textbf{D} \\ shaky, tense, rising};
-  \node[pd direct label,anchor=west,align=center,text width=1.8cm]
-    at (13.7,3.9) {\hyphenpenalty=10000\textbf{D} \\ shaky, tense, rising};
+  \node[pd label,anchor=east,align=center,text width=2.3cm]
+    at (0.55,2.6) {\hyphenpenalty=10000\textbf{D}\\shaky, tense, rising};
+  \node[pd label,anchor=west,align=center,text width=2.3cm]
+    at (12.25,3.9) {\hyphenpenalty=10000\textbf{D}\\shaky, tense, rising};
 
-  \node[pd note,anchor=north,align=center,text width=8.2cm] at (8,0.35)
+  \node[pd note,anchor=north,align=center,text width=8.2cm] at (6.4,0.35)
     {\hyphenpenalty=10000\exhyphenpenalty=10000
      A and B reverse: no monotone rescaling\\makes the two heads interchangeable};
 \end{tikzpicture}

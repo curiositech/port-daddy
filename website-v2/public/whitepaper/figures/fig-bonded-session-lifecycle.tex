@@ -1,0 +1,100 @@
+% Brief (tikz-diagram-craft). Register row ch7-46 (must).
+% Reader question: what are the reachable states of an agent session, and
+%   which named TLA+ action moves it between them?
+% Claim: a session runs one honest path (Begin -> active -> Commit ->
+%   settled) with two off-ramps -- Crash then Reap demotes it to abandoned,
+%   from which it either resumes (Salvage) or is permanently lost (Dismiss)
+%   -- and ClaimFile never blocks any of this.
+% Evidence: website-v2/public/whitepaper/agent-transactions-whitepaper.tex
+%   sec:tlaplus, the guards on BondedCommons.tla's own actions, read
+%   directly off each one: Begin (a notin registered and escrow>0), Commit
+%   (status=active), Crash (status=active; heartbeats:=0, status itself is
+%   unchanged -- labelled "crashed" here as the operational condition Reap
+%   watches for, not a literal TLA+ status value), Reap (status=active and
+%   clock-heartbeats>=DeadThreshold), Salvage (successor active and
+%   (dead,pending) in salvageQueue), Dismiss ((dead,pending) in
+%   salvageQueue; the source comment calls this "irrecoverable information
+%   loss"). Tick only advances the clock the Reap guard reads; it moves no
+%   session state, so it is named in the caption, not drawn as an edge.
+% Must distinguish: the one honest path from the two off-ramps; which
+%   transitions carry a guard (five) from the one that never blocks
+%   (ClaimFile); the two terminal outcomes (settled, good; dismissed, data
+%   loss) from the two mid-recovery states (crashed, abandoned).
+% Grammar: named-phase state machine (S12: long lifecycle names stay
+%   rounded rectangles, not automaton circles), guards as numbered badges
+%   keyed to an aligned tabularx legend, mirroring
+%   II/fig:swk-workunit-machine. Rejected: literal automaton circles for
+%   each TLA+ status value, which would either truncate "resurrecting" and
+%   "abandoned" past legibility or force scriptsize, both forbidden.
+% Five-second test: "one clean path settles; a crash detours through
+%   abandoned to either a comeback or a permanent loss."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\lcdy{1.95}   % row pitch
+  \def\lcsx{3.75}   % spine: active / crashed / abandoned
+  \def\lctx{8.85}   % settled (right branch off active)
+  \def\lcrx{0.95}   % resurrecting (left branch off abandoned)
+  \def\lcdx{6.55}   % dismissed (right branch off abandoned)
+  \def\lcgx{2.15}   % right edge of the transition-name gutter
+  \def\lcbx{2.62}   % guard badge column
+  \tikzset{lc state/.style={minimum width=2.55cm}}
+  \node[pd focus state,lc state] (active) at (\lcsx,{3*\lcdy}) {active};
+  \node[pd terminal,lc state] (settled) at (\lctx,{3*\lcdy}) {settled};
+  \node[pd breach state,lc state] (crashed) at (\lcsx,{2*\lcdy}) {crashed};
+  \node[pd state,lc state] (abandoned) at (\lcsx,{1*\lcdy}) {abandoned};
+  \node[pd ready state,minimum width=3.05cm] (resurrecting) at (\lcrx,0) {resurrecting};
+  \node[pd breach state,lc state] (dismissed) at (\lcdx,0) {dismissed};
+  % the entry point: Begin
+  \draw[pd initial] (\lcsx-2.55,{3*\lcdy}) -- (active.west);
+  \node[pd label,anchor=east] at (\lcsx-2.60,{3*\lcdy}) {Begin};
+  \node[pd badge] at (\lcsx-2.05,{3*\lcdy+.36}) {1};
+  % ClaimFile: informs, never blocks -- a self-loop, unguarded, no badge
+  \draw[pd hairline,densely dashed,->] (active.150) .. controls +(150:1.0) and +(30:1.0) .. (active.30);
+  \node[pd note,anchor=south] at (\lcsx,{3*\lcdy+.95}) {ClaimFile: informs, never blocks};
+  % the honest path: Commit
+  \draw[pd focus arrow] (active.east) -- (settled.west);
+  \node[pd label,anchor=south] at ({(\lcsx+\lctx)/2},{3*\lcdy+.05}) {Commit};
+  \node[pd badge] at ({(\lcsx+\lctx)/2},{3*\lcdy-.44}) {2};
+  % the off-ramp: Crash
+  \draw[pd breach arrow] (active.south) -- (crashed.north);
+  \node[pd label,anchor=east] at (\lcgx,{2.5*\lcdy}) {Crash};
+  \node[pd badge] at (\lcbx,{2.5*\lcdy}) {3};
+  % Reap: crashed to abandoned
+  \draw[pd arrow] (crashed.south) -- (abandoned.north);
+  \node[pd label,anchor=east] at (\lcgx,{1.5*\lcdy}) {Reap};
+  \node[pd badge] at (\lcbx,{1.5*\lcdy}) {4};
+  % the two ways out of abandoned: Salvage and Dismiss
+  \draw[pd ready arrow] (abandoned.south) -| ({(\lcsx+\lcrx)/2-.15},{.55*\lcdy}) -- (resurrecting.north);
+  \node[pd label,anchor=south east] at ({(\lcsx+\lcrx)/2-.10},{.68*\lcdy}) {Salvage};
+  \node[pd badge] at ({(\lcsx+\lcrx)/2-.10},{.34*\lcdy}) {5};
+  \draw[pd breach arrow] (abandoned.south) -| ({(\lcsx+\lcdx)/2+.15},{.55*\lcdy}) -- (dismissed.north);
+  \node[pd label,anchor=south west] at ({(\lcsx+\lcdx)/2+.20},{.68*\lcdy}) {Dismiss};
+  \node[pd badge] at ({(\lcsx+\lcdx)/2+.20},{.34*\lcdy}) {6};
+\end{tikzpicture}
+
+\medskip
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}c l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+ & action & guard & effect \\
+\midrule
+1 & Begin & $a\notin\mathit{registered} \wedge \mathit{escrow}>0$ & posts collateral; status $\to$ active \\
+2 & Commit & $\mathit{status}=\text{active}$ & status $\to$ settled; escrow $\to 0$; claims and locks released \\
+3 & Crash & $\mathit{status}=\text{active}$ & $\mathit{heartbeats}\to 0$ (status itself unchanged until Reap fires) \\
+4 & Reap & $\mathit{status}=\text{active} \wedge \mathit{clock}-\mathit{heartbeats}\geq\mathit{DeadThreshold}$ & status $\to$ abandoned; queued \textit{pending} for salvage \\
+5 & Salvage & successor active $\wedge$ $(\mathit{dead},\text{pending})\in\mathit{salvageQueue}$ & queue entry $\to$ resurrecting \\
+6 & Dismiss & $(\mathit{dead},\text{pending})\in\mathit{salvageQueue}$ & session $\to$ NULL; irrecoverable information loss \\
+\bottomrule
+\end{tabularx}}
+\caption{The coordination lifecycle of \texttt{BondedCommons.tla}: one honest
+path down the right (Begin, Commit) settles a session; a crash detours down
+the spine through the dead-threshold check Reap performs, to abandoned, from
+which a successor either resumes it (Salvage) or the session is permanently
+lost (Dismiss). \texttt{ClaimFile} is the one named action with no guard at
+all --- it always succeeds and only ever informs, drawn here as a self-loop.
+\texttt{Tick} advances no session state; it only ages the clock that feeds
+the guard Reap checks. [internal, \texttt{BondedCommons.tla}]}
+\label{fig:bonded-session-lifecycle}
+\end{figure}

@@ -1,0 +1,87 @@
+% Brief (grammar: paired before/after panels, same chain geometry, different
+%   check edges; new addition -- register item "v6-vs-v7 escalation chains,"
+%   the chapter's only figure-free treatment of a fully evidenced result.
+%   Facts: \S "Multi-hop scope" and the v6/v7 pdexample pair, chain
+%   A:write -> B:read -> C:write, files harbor_card_v6_multihop_attack.pv /
+%   harbor_card_v7_multihop_fixed.pv [internal].
+% Reader question: why does checking the final capability against the root
+%   miss a re-escalating middle hop that checking each hop against its
+%   parent catches?
+% Claim: A:write -> B:read -> C:write is accepted when the verifier compares
+%   only final-vs-root (write subset write, trivially true) and rejected the
+%   moment the verifier compares final-vs-immediate-parent (write is not a
+%   subset of read).
+% Evidence: harbor_card_v6_multihop_attack.pv (escalation reachable);
+%   harbor_card_v7_multihop_fixed.pv (same chain, rejected) [internal].
+% Must distinguish: the SHAPE of the check (which edge the verifier actually
+%   compares), not the chain itself, which is identical in both panels --
+%   only the comparison target changes.
+% Grammar chosen: before/after on identical chain geometry (tpl-before-after).
+%   Rejected: a state machine per verifier -- the chain has only three nodes
+%   and one comparison choice; a machine would add apparatus the two-panel
+%   comparison does not need.
+% Five-second test: "same three-node chain in both panels; v6 checks C
+%   straight against A and accepts; v7 checks B against A and C against B,
+%   and the second check fails."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.85cm,y=1cm]
+  \def\ax{0}   \def\bx{3.6}  \def\cx{7.2}
+  % ================= panel A: v6, final vs root =================
+  \node[pd title,anchor=west] at (-1.1,6.4) {v6 \quad final capability checked against root};
+  \node[pd state,minimum width=2.2cm] (A1) at (\ax,5.3) {A: write};
+  \node[pd state,minimum width=2.2cm] (B1) at (\bx,5.3) {B: read};
+  \node[pd state,minimum width=2.2cm] (C1) at (\cx,5.3) {C: write};
+  \draw[pd thin arrow] (A1.east) -- (B1.west);
+  \draw[pd thin arrow] (B1.east) -- (C1.west);
+  \draw[pd breach rule] (A1.south) -- (\ax,3.95);
+  \draw[pd breach rule] (C1.south) -- (\cx,3.95);
+  \draw[pd breach rule] (\ax,3.95) -- (\cx,3.95);
+  \node[pd badge] at (3.6,3.95) {1};
+  \node[pd label,anchor=north,text width=6.4cm,align=center] at (3.6,3.55)
+    {check 1: passes};
+  \node[pd breach state,minimum width=6.0cm] (O1) at (3.6,2.15)
+    {accept (exploited): the re-escalation at B is never compared};
+  \draw[pd breach arrow] (3.6,2.95) -- (O1.north);
+
+  % ================= panel B: v7, each hop vs its own parent ======
+  \node[pd title,anchor=west] at (-1.1,.1) {v7 \quad each hop checked against its own parent};
+  \node[pd state,minimum width=2.2cm] (A2) at (\ax,-1.0) {A: write};
+  \node[pd state,minimum width=2.2cm] (B2) at (\bx,-1.0) {B: read};
+  \node[pd state,minimum width=2.2cm] (C2) at (\cx,-1.0) {C: write};
+  \draw[pd thin arrow] (A2.east) -- (B2.west);
+  \draw[pd thin arrow] (B2.east) -- (C2.west);
+  \draw[pd focus rule] (A2.south) -- (\ax,-2.35);
+  \draw[pd focus rule] (B2.south) -- (\bx,-2.35);
+  \draw[pd focus rule] (\ax,-2.35) -- (\bx,-2.35);
+  \node[pd focus badge] at (1.8,-2.35) {2};
+  \node[pd focus label,anchor=north,text width=5.6cm,align=center] at (1.8,-2.75)
+    {check 2: passes};
+  \draw[pd breach rule] (\bx,-4.15) -- (\bx,-3.5);
+  \draw[pd breach rule] (\cx,-4.15) -- (\cx,-3.5);
+  \draw[pd breach rule] (\bx,-4.15) -- (\cx,-4.15);
+  \node[pd badge] at (5.4,-4.15) {3};
+  \node[pd label,anchor=north,text width=5.6cm,align=center] at (5.4,-4.55)
+    {check 3: fails};
+  \node[pd ready state,minimum width=4.4cm] (O2) at (5.4,-6.35)
+    {reject (safe): caught at the second hop};
+  \draw[pd ready arrow] (5.4,-5.55) -- (O2.north);
+
+  \node[pd note,anchor=north west,text width=9.8cm] at (-1.1,-7.0)
+    {same chain, same forged escalation; only the comparison target moves
+     from root to immediate parent};
+\end{tikzpicture}
+\caption{The multi-hop attenuation check, before and after: the identical
+chain $A$:\texttt{write} $\to$ $B$:\texttt{read} $\to$ $C$:\texttt{write}
+under two verifiers. v6 (top) runs one check, the final capability against
+the root (badge 1); \texttt{write} $\subseteq$ \texttt{write} holds
+trivially, so the re-escalating middle hop at $B$ is never compared, and
+ProVerif finds the escalation reachable in
+\texttt{harbor\_card\_v6\_multihop\_attack.pv}. v7 (bottom) runs one check
+per hop against its own immediate parent (badges 2, 3); the first passes but
+\texttt{write} $\not\subseteq$ \texttt{read} fails the second, and
+\texttt{harbor\_card\_v7\_multihop\_fixed.pv} proves the same chain
+rejected. [internal]}
+\label{fig:anchor-v6v7-escalation}
+\end{figure}

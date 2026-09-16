@@ -1,0 +1,74 @@
+% Reader question: which exact safeguard, if dropped, lets a resurrected
+% agent cheat, and how fast? Claim: sanction-respecting reputation survives
+% provider migration only under three clauses (verified lineage, per-outcome
+% engine attestation, closed/escrowed commitments) plus one scope choice
+% (sanctions key on the principal, not the (principal,engine) pair); drop
+% any one and a named shortest-trace escape exists. Evidence: bounded model
+% check, 747 reachable states to depth 7, 0 violations intact; each of four
+% mutants caught -- scope in 1 step, the three clause-drops in 2 steps each
+% (b5_engine_substitution.py Part 3, seed 20260816). Must distinguish: the
+% honest spine (every clause held) from the four named escapes, and that the
+% scope mistake needs no migration at all -- it is the cheapest crime, drawn
+% first. Grammar: a state machine, the honest path as a weighted spine, one
+% off-ramp to the scope escape, every clause a numbered guard keyed to a
+% ruled legend with its crime and shortest-trace length, rejected: four
+% separate diagrams (hides that all four break the same theorem) and a
+% prose list (hides which guard is cheapest to attack). Five-second test: a
+% reader says "the wrong turn costs one step; every dropped clause costs two."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid, declared once --------------------------------------------
+  \def\dy{1.32}   % phase pitch; transitions are named at the half-pitch
+  \def\sx{3.30}   % spine column
+  \def\gx{1.75}   % right edge of the naming gutter
+  \def\R{9.85}    % right margin of the picture
+  % ---- the honest spine, in the chapter hue --------------------------------
+  \node[pd focus outline,minimum width=3.2cm] (P) at (\sx,{5*\dy}) {migration requested};
+  \node[pd focus outline,minimum width=3.2cm] (A) at (\sx,{4*\dy}) {lineage verified};
+  \node[pd focus outline,minimum width=3.2cm] (X) at (\sx,{3*\dy}) {outcomes attested};
+  \node[pd focus outline,minimum width=3.2cm] (W) at (\sx,{2*\dy}) {commitments closed};
+  \node[pd focus outline,minimum width=3.2cm] (V) at (\sx,{1*\dy}) {migrated};
+  \node[pd ready state,minimum width=3.2cm] (S) at (\sx,0) {resumes work, sanctions intact};
+  \foreach \a/\b in {P/A,A/X,X/W,W/V}{\draw[pd focus arrow] (\a)--(\b);}
+  \draw[pd ready arrow,line width=1.6pt] (V)--(S);
+  % ---- every guard named once, in one gutter, on the half-pitch ------------
+  \foreach \i/\t in {4.5/{lineage: credential + continuity witness},
+                     3.5/{outcomes: engine attested per key},
+                     2.5/{commitments: closed or escrowed}}{
+    \node[pd label,anchor=east,text width=3.0cm,align=right] at ({\gx-.55},{\i*\dy}) {\t};}
+  \foreach \i/\n in {4.5/2,3.5/3,2.5/4}{\node[pd badge] at ({\gx-.20},{\i*\dy}) {\n};}
+  % ---- the off-ramp: the cheapest crime, no migration needed ---------------
+  \node[pd breach state,minimum width=3.2cm] (C) at (\sx,{6.35*\dy}) {WORK\_DISHONEST: sibling-engine key};
+  \draw[pd breach arrow] (P.north) -- (C.south);
+  \node[pd badge] at ({\sx+2.15},{5.68*\dy}) {1};
+  % ---- the legend: each guard, its crime, its cost -------------------------
+  \def\ly{-1.15}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.16}) {guard};
+  \node[pd title,anchor=north west] at (4.75,{\ly-.16}) {crime once it is removed};
+  \node[pd title,anchor=north east] at (\R,{\ly-.16}) {steps};
+  \draw[pd hairline] (0,{\ly-.80}) -- (\R,{\ly-.80});
+  \foreach \i/\n/\g/\c/\s in {%
+    0/1/{sanctions keyed per principal, not (principal,engine)}/{sibling-engine escape: no migration needed}/{1},
+    1/2/{lineage: credential + continuity witness}/{whitewash-by-resurrection: ledger shed with the old body}/{2},
+    2/3/{successor outcomes engine-attested}/{engine-history shedding: paid on the wrong key}/{2},
+    3/4/{commitments closed or escrowed before cutover}/{liability stranding: default lands on nobody}/{2}}{
+      \node[pd badge] at (.28,{\ly-1.45-\i*1.15}) {\n};
+      \node[pd label,anchor=west,align=left,text width=3.85cm] at (.62,{\ly-1.45-\i*1.15}) {\g};
+      \node[pd breach label,anchor=west,align=left,text width=3.6cm] at (4.75,{\ly-1.45-\i*1.15}) {\c};
+      \node[pd label,anchor=east] at (\R,{\ly-1.45-\i*1.15}) {\s};}
+\end{tikzpicture}
+\caption{Resurrection soundness (Model-checked property~\ref{thm:resurrection-soundness}):
+the honest migration spine, violet, holds sanction-respecting reputation
+(Definition~\ref{def:sanction-respecting}) over all $747$ reachable states to
+depth $7$, with zero violations. Three guards protect it, each keyed to the
+legend below with the shortest-trace escape a checker finds once that guard
+is dropped; a fourth row is a scope choice, not a migration guard at all
+--- keying sanctions to (principal, engine) instead of the principal alone
+opens the cheapest crime, one step, with no migration needed. Every dropped
+clause is caught within two steps. [verified;
+\texttt{b5\_engine\_substitution.py}, seed 20260816]}
+\label{fig:stp-resurrection-soundness}
+\end{figure}

@@ -1,0 +1,49 @@
+% Table for ch8-25 -- the pre-registered harness results (S5.4), a
+% classification (arm x trials x detections x gate) per the whitepaper
+% figure system's own rule: a classification is a table, not a figure.
+%
+% Reader question: does the detector actually behave as the theorem
+%   predicts across every topology it was tested on?
+% Claim: across six arms the cohomology-only detection rate tracks the
+%   theorem's visibility clause exactly -- 200/200 on a relayed cycle,
+%   0/200 on a severed one, silence at float epsilon on a cut edge -- and
+%   both pre-registered gates pass.
+% Evidence: sheaf_harness_v2.py, seed 20260816, 200 trials/arm (400 for the
+%   cut-edge arm, both offset directions).
+% Must distinguish: the two pre-registered gates (must detect on a relayed
+%   cycle; must stay silent on honest/cut/severed) from the supporting arms
+%   that are not themselves a named gate.
+% Grammar rejected: a bar chart of detection rates would lose the exact
+%   trial counts and the gate pass/fail the theorem is checked against;
+%   the atlas rule for a classification (n items x m properties) is a
+%   booktabs table.
+% Five-second test: which two rows are the pre-registered gates, and do
+%   both say PASS?
+\begin{table}[H]
+\centering
+\caption{Six pre-registered arms, 200 trials each (400 for the cut-edge
+arm, both offset directions), seed 20260816. Cohomology-only: the residual
+fires and every pairwise comparison already passes; dark: neither. The gate
+column marks the two
+pre-registered claims: two\_path must detect (it does, 200/200) and
+single\_bridge must stay silent (it does, to float epsilon); the other three
+arms are supporting evidence, not named gates. The rival CUT refutation
+holds: 313 of 1{,}101 residual detections across all arms were
+pairwise-blind. [verified, \texttt{sheaf\_harness\_v2.py}]}
+\label{tab:fh-sheaf-harness}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X r r r l@{}}
+\toprule
+\textbf{arm} & \textbf{trials} & \textbf{coh.-only} & \textbf{dark} & \textbf{gate} \\
+\midrule
+two\_path (relayed cycle) & 200 & 200 & 0 & \textbf{PASS} \\
+severed-cycle & 200 & 0 & 200 & shown \\
+single\_bridge (cut) & 400 & 0\rlap{\textsuperscript{*}} & 400 & \textbf{PASS} \\
+full-visibility & 200 & 0 & 0 & redundant \\
+expander (3 sev., 3 relayed) & 200 & 113 & 87 & split \\
+\bottomrule
+\end{tabularx}
+\vspace{2pt}
+\footnotesize\textsuperscript{*}max residual $1.5\times10^{-13}$, float epsilon.
+\end{table}

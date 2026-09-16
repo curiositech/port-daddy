@@ -1,53 +1,58 @@
-% Figure --- the same outcome vectors reverse under legitimate buyer weights.
+% Reader question: how does quality differ across dimensions rather than
+% collapse to one score? Claim: the same two outcome vectors legitimately
+% reverse rank once independent judges disclose per-axis scores and a buyer
+% applies its own weights -- no premature averaging is needed to explain the
+% reversal. Evidence: outcome A=(1,.85,.45), outcome B=(.75,.55,1) on
+% accuracy/aesthetics/efficiency, each independently judged; a security buyer
+% (weights .60,.30,.10) selects A, a cost buyer (weights .15,.15,.70) selects
+% B. Must distinguish: the three independently judged axes from a single
+% averaged score, and which buyer selects which outcome. Grammar: an aligned
+% dot profile across three axes plus a buyer-selection strip, rejected: a
+% radar chart (area exaggerates the axis with the largest scale) and a single
+% average badge (hides the exact reversal this figure exists to show).
+% Five-second test: a reader says "same two vectors, opposite winners."
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,3.05)
-    {witnessed outcome profiles remain vectors};
-
-  % Three independently judged axes.
-  \foreach \x/\axis/\judge in {-4.4/accuracy/test oracle,0/aesthetics/expert reviewer,4.4/efficiency/cost ledger} {
-    \draw[pd hairline] (\x,-.35) -- (\x,2.45);
-    \foreach \y/\lab in {-.35/0,.35/.25,1.05/.5,1.75/.75,2.45/1}
-      \draw[pd tick] (\x-.11,\y) -- (\x+.11,\y);
-    \node[pd direct label,anchor=north,align=center] at (\x,-.58)
-      {\textbf{\axis}\\[-1pt]{\pdfigsub \judge}};
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=west] at (0,3.35) {witnessed outcome profiles remain vectors};
+  % ---- three independently judged axes --------------------------------------
+  \foreach \x/\axis/\judge in {0.75/accuracy/test oracle,3.55/aesthetics/expert reviewer,6.35/efficiency/cost ledger} {
+    \draw[pd hairline] (\x,0) -- (\x,2.60);
+    \foreach \y in {0,.65,1.30,1.95,2.60} \draw[pd tick] ({\x-.11},\y) -- ({\x+.11},\y);
+    \node[pd title,anchor=north] at (\x,-.20) {\axis};
+    \node[pd note,anchor=north] at (\x,-.56) {\judge};
   }
-  % A=(1,.85,.45), B=(.75,.55,1)
-  \draw[pd focus rule,line width=1.5pt] (-4.4,2.45) -- (0,2.03) -- (4.4,.91);
-  \draw[pd caution rule,dashed,line width=1.5pt] (-4.4,1.75) -- (0,1.19) -- (4.4,2.45);
-  \foreach \x/\y in {-4.4/2.45,0/2.03,4.4/.91} \node[pd focus datum] at (\x,\y) {};
-  \foreach \x/\y in {-4.4/1.75,0/1.19,4.4/2.45} \node[pd caution datum] at (\x,\y) {};
-  \node[pd direct label,text=hhteal,anchor=west] at (4.65,.91) {outcome A};
-  \node[pd direct label,text=hhamber,anchor=west] at (4.65,2.45) {outcome B};
-
-  % Buyer-specific projections; same vectors, opposite decisions.
-  % Moved down from -1.55: the axis sub-lines above are set at the label size
-  % now rather than \tiny, so they reach further into this line's space.
-  \node[pd panel title,anchor=west] at (-6.8,-1.78)
-    {buyers apply preferences after disclosure};
-  \draw[pd hairline] (-5.25,-2.35) -- (5.8,-2.35);
-  \draw[pd hairline] (-5.25,-3.20) -- (5.8,-3.20);
-  \node[pd direct label,anchor=east] at (-5.45,-2.35)
-    {security buyer\\[-1pt]{\pdfigsub weights $.60,.30,.10$}};
-  \node[pd direct label,anchor=east] at (-5.45,-3.20)
-    {cost buyer\\[-1pt]{\pdfigsub weights $.15,.15,.70$}};
-  \node[pd focus datum] at (4.10,-2.35) {};
-  \node[pd caution datum] at (1.85,-2.35) {};
-  \node[pd focus datum] at (-.70,-3.20) {};
-  \node[pd caution datum] at (4.00,-3.20) {};
-  \node[pd direct label,text=hhteal,anchor=west] at (4.30,-2.35) {A selected};
-  \node[pd direct label,text=hhamber,anchor=west] at (4.20,-3.20) {B selected};
-  \node[pd axis label,anchor=north] at (-5.25,-3.45) {lower weighted fit};
-  \node[pd axis label,anchor=north] at (5.8,-3.45) {higher weighted fit};
-\end{tikzpicture}}
+  % A=(1,.85,.45), B=(.75,.55,1), scaled to the 0..2.60 axis
+  \draw[pd focus rule,line width=1.5pt] (0.75,2.60) -- (3.55,2.21) -- (6.35,1.17);
+  \draw[pd breach rule,dashed,line width=1.5pt] (0.75,1.95) -- (3.55,1.43) -- (6.35,2.60);
+  \foreach \x/\y in {0.75/2.60,3.55/2.21,6.35/1.17} \node[pd focus datum] at (\x,\y) {};
+  \foreach \x/\y in {0.75/1.95,3.55/1.43,6.35/2.60} \node[pd breach datum] at (\x,\y) {};
+  \node[pd focus label,anchor=west] at (6.60,1.17) {outcome A};
+  \node[pd breach label,anchor=west] at (6.60,2.60) {outcome B};
+  % ---- buyers apply preferences after disclosure -----------------------------
+  \node[pd title,anchor=west] at (0,-1.55) {buyers apply preferences after disclosure};
+  \draw[pd hairline] (0,-2.55) -- (6.50,-2.55);
+  \draw[pd hairline] (0,-3.45) -- (6.50,-3.45);
+  \node[pd title,anchor=east] at (-.20,-2.55) {security buyer};
+  \node[pd note,anchor=east] at (-.20,-2.90) {weights $.60,.30,.10$};
+  \node[pd title,anchor=east] at (-.20,-3.45) {cost buyer};
+  \node[pd note,anchor=east] at (-.20,-3.80) {weights $.15,.15,.70$};
+  \node[pd focus datum] at (4.55,-2.55) {};
+  \node[pd breach datum] at (2.10,-2.55) {};
+  \node[pd focus datum] at (0.85,-3.45) {};
+  \node[pd breach datum] at (4.45,-3.45) {};
+  \node[pd focus label,anchor=south west] at (4.75,-2.45) {A selected};
+  \node[pd breach label,anchor=south west] at (4.65,-3.35) {B selected};
+  \node[pd label,anchor=north] at (0,-4.05) {lower weighted fit};
+  \node[pd label,anchor=north] at (6.50,-4.05) {higher weighted fit};
+\end{tikzpicture}
 \caption{\textbf{One quality vector supports legitimate preference reversal.}
 Outcome A is strongest on accuracy and aesthetics; outcome B is strongest on
 efficiency. Each axis is independently judged, then disclosed without a universal
 scalar. A security-weighted buyer selects A while a cost-weighted buyer selects B.
 Premature averaging would erase one of these valid decisions and create a single
 Goodhart target. Color is redundant with solid-versus-dashed profiles and direct
-labels.}
+labels. [internal]}
 \label{fig:multidim}
 \end{figure}

@@ -1,51 +1,73 @@
-% Semantic contract: a child must stay inside its parent's rights-by-lifetime
-% envelope. Nested geometry carries both inequalities without a prose table.
+% Brief (grammar: nested sets on two real axes; atlas V/fig:anchor-capability-attenuation).
+% Reader question: how do rights and TTL shrink together across delegation?
+% Claim: every delegated capability sits strictly inside its parent on BOTH
+%   the rights axis and the lifetime axis at once -- attenuation is conjunctive,
+%   not a trade between the two.
+% Evidence: C0 root (db:write+fs:read+net:*, 60 min) narrowing to C1
+%   (db:write+fs:read, 15 min) to C2 (db:write, 5 min); the worked example
+%   (parent fs:read+db:write, 10 min left) beside it in prose (anchor-protocol-
+%   whitepaper.tex around the capability-attenuation paragraph and pdexample
+%   "a child card under a parent with ten minutes left") [internal].
+% Must distinguish: a child's own envelope (nested, focus-tinted) from a
+%   re-grant attempt that widens either axis (breach, refused, own mark).
+% Grammar chosen: nested sets (tpl-nested-sets), matching the atlas row.
+%   Rejected: a table of C0/C1/C2 x {rights, TTL} -- the two real axes already
+%   let a reader read off both quantities by position, so a table would repeat
+%   data the geometry already shows (Tufte: redundant ink only when it earns
+%   its keep).
+% Five-second test: "C2 is inside C1 is inside C0, on both axes; the red mark
+%   directly above C0's own net:* row is the one request that is not
+%   narrower and is refused."
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.15cm,y=1.08cm]
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (63,0);
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.113cm,y=.97cm]
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (62,0);
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (0,4.15);
-  \node[pd axis label,anchor=north,align=center,text width=4.6cm] at (30,-.75)
+  \node[pd label,anchor=north,align=center,text width=3.6cm] at (30,-.75)
     {remaining lifetime (min)};
-  \node[pd axis label,anchor=south,rotate=90,align=center,text width=3.2cm]
-    at (-4.7,4.15) {capability reach};
+  \node[pd label,anchor=south,rotate=90,align=center,text width=1.1cm]
+    at (-1.7,4.15) {capability reach};
 
   \foreach \y/\rightname in {1/{\texttt{db:write}},2/{+ \texttt{fs:read}},3/{+ \texttt{net:*}}} {
-    \draw[pd lattice] (0,\y) -- (63,\y);
-    \node[pd axis label,anchor=east] at (-.6,\y) {\rightname};
+    \draw[pd guide] (0,\y) -- (62,\y);
+    \node[pd label,anchor=east] at (-.4,\y) {\rightname};
   }
   \foreach \x/\tickname in {5/5,15/15,60/60} {
     \draw[pd tick] (\x,0) -- (\x,-.12);
-    \node[pd axis label,anchor=north] at (\x,-.18) {\tickname};
+    \node[pd label,anchor=north] at (\x,-.18) {\tickname};
   }
 
-  \path[pd neutral fill] (0,0) rectangle (60,3.35);
-  \draw[pd rule] (0,0) rectangle (60,3.35);
-  \path[pd focus fill] (0,0) rectangle (15,2.35);
-  \draw[pd focus rule] (0,0) rectangle (15,2.35);
-  \path[pd focus fill] (0,0) rectangle (5,1.35);
-  \draw[pd focus rule] (0,0) rectangle (5,1.35);
+  % ---- the root, subordinate: the given container, not the subject --------
+  \path[pd artifact] (0,0) rectangle (60,3.1);
+  \draw[pd rule] (0,0) rectangle (60,3.1);
+  % ---- C1, C2: the subject of the chapter, nested tint deepens with depth -
+  \path[pd focus fill] (0,0) rectangle (15,2.2);
+  \draw[pd focus rule] (0,0) rectangle (15,2.2);
+  \path[pd focus fill] (0,0) rectangle (5,1.3);
+  \draw[pd focus rule] (0,0) rectangle (5,1.3);
 
-  \node[pd direct label,anchor=north east] at (59.4,2.7)
+  \node[pd tag,anchor=north east] at (59.4,2.55)
     {\textbf{C0} root, 60 min};
-  \node[pd direct label,text=hhteal,anchor=north east] at (14.5,2.0)
+  \node[pd focus label,anchor=north east] at (14.5,1.9)
     {\textbf{C1}, 15 min};
-  \draw[pd hairline] (5,.9) -- (18,1.62);
-  \node[pd direct label,text=hhteal,anchor=west] (c2lab) at (18,1.62)
+  \draw[pd hairline] (5,.85) -- (18,1.5);
+  \node[pd focus label,anchor=west] (c2lab) at (18,1.5)
     {\textbf{C2}, 5 min};
 
-  \node[pd caution datum] (bad) at (60,3.7) {};
-  \draw[pd caution arrow] (bad) -- ++(-14,.55)
-    node[pd direct label,text=hhamber,align=left,text width=3.3cm,anchor=south east]
-      {attempted re-grant:\\ net:* at 60 min:\\ refused};
-  \node[pd note,anchor=west] at (17,.5)
+  % ---- the refused re-grant: a short tag directly above its own datum -----
+  \node[pd breach datum] (bad) at (60,3) {};
+  \node[pd tag,text=pderror,anchor=south] at (60,3.42) {refused};
+
+  \node[pd note,anchor=west,text width=8.5cm,align=left] at (17,.45)
     {C2 $\subseteq$ C1 $\subseteq$ C0 and T2 $<$ T1 $<$ T0};
 \end{tikzpicture}
 \caption{Nested rectangles for the capability envelope C0 (root, 60 min), C1
 (15 min) and C2 (5 min): each child rectangle sits strictly inside its parent
-on both axes. The amber datum is an attempted re-grant of \texttt{net:*} at
-the full 60-minute root lifetime, outside C0 on the capability axis; the
-verifier refuses it because attenuation is conjunctive on rights and time
-together, not a trade between them. [internal]}
+on both axes. The red mark sits directly above C0's own \texttt{net:*} row,
+at the full 60-minute root lifetime: it is a re-grant attempt that asks for
+\texttt{net:*} at that full lifetime rather than a narrower child envelope,
+and the verifier refuses it because attenuation is conjunctive on rights and
+time together, not a trade between them. [internal]}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

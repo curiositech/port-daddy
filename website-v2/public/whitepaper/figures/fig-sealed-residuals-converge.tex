@@ -1,0 +1,63 @@
+% Fragment: fig-sealed-residuals-converge.tex -- three residuals opened
+% earlier in the chapter, one q*b account that prices all of them.
+%
+% Reader question: why do three separate gaps opened earlier in the
+% chapter all get paid off by one number?
+% Claim: the laundering residual, the malicious-worker gap in the ledger,
+% and the arbitrary-telemetry channel are three faces of one debt, all
+% priced by the same q*b capacity account -- not three independent
+% problems needing three independent fixes.
+% Evidence: opening paragraph of Sec. sealed-budget, website-v2/public/
+% whitepaper/sealed-harbor.tex ("It is also where the chapter pays three
+% debts it took on earlier: the laundering residual...the malicious
+% worker...and the arbitrary-telemetry channel...All three are the same
+% debt seen from three sides, and it has one price.").
+% Must distinguish: three DIFFERENT sources (different sections, different
+% failure shapes) from one SHARED sink -- the figure must not suggest
+% three separate accounts that happen to look similar; there is exactly
+% one q*b bucket, filled from three pipes.
+% Grammar chosen: converging pipes into one bucket (S12's ledger
+% convention: asset pools are buckets joined by directed pipes) -- reused
+% here as three named residuals piping into the one leakage-budget bucket
+% introduced in fig-sealed-leakage-ledger, this row's own paired panel.
+% Grammar rejected: three separate small ledgers, one per residual --
+% that is the "three independent problems" misreading the chapter is
+% explicit about ruling out.
+% Five-second test: count the buckets -- one, fed by three pipes, not
+% three buckets side by side.
+% QA: beauty_lint warns B7 in all three editions (sub-point
+% near-alignment noise among the three stacked source nodes' centres);
+% justified, not fixed.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{1.85}
+  \node[pd breach state,minimum width=4.1cm,align=center] (R1) at (0,{2*\dy})
+    {laundering residual\\\footnotesize\itshape worker computes $t=f(s)$};
+  \node[pd breach state,minimum width=4.1cm,align=center] (R2) at (0,{1*\dy})
+    {malicious worker\\\footnotesize\itshape declares its own $\varepsilon_i$};
+  \node[pd breach state,minimum width=4.1cm,align=center] (R3) at (0,0)
+    {arbitrary telemetry\\\footnotesize\itshape unconstrained prose channel};
+  \node[pd bucket,minimum width=3.0cm,minimum height=2.4cm,align=center]
+    (ACCT) at (6.5,{1*\dy}) {\\[8pt]the $q\cdot b$\\account};
+  \draw[pd focus pipe] (R1.east) -| (ACCT.north);
+  \draw[pd focus pipe] (R2.east) -- (ACCT.west);
+  \draw[pd focus pipe] (R3.east) -| (ACCT.south);
+  \node[pd note,anchor=north,align=center,text width=4.6cm]
+    at (6.5,-1.15) {one price for all three: negotiate over channel
+    capacity, not over which residual};
+\end{tikzpicture}
+\caption{Three gaps opened earlier in this chapter, one account that
+prices all of them. The laundering residual
+(Fig.~\ref{fig:sealed-laundering-fork}, Sec.~\ref{sec:sealed-noninterference})
+lets a worker choose what it submits; the malicious worker
+(Fig.~\ref{fig:sealed-two-adversaries}, Sec.~\ref{sec:sealed-conservation})
+lets it choose what it reports spending; arbitrary natural-language
+telemetry (Sec.~\ref{sec:sealed-limitations}) lets it choose the words. All
+three hand an adversary free bits through a channel the noninterference
+property does not forbid, and all three are priced the same way: by the
+$q\cdot b$ capacity account of this section, not by three separate
+mechanisms. [internal]}
+\label{fig:sealed-residuals-converge}
+\end{figure}

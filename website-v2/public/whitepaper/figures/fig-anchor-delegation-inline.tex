@@ -1,63 +1,72 @@
-% Semantic contract: each signed hop binds adjacent identities to one task hash;
-% a spliced-in signature that does not cover the local nonce breaks the braid.
+% Brief (grammar: linear provenance chain, time left to right; atlas
+%   V/fig:anchor-delegation-inline).
+% Reader question: what evidence travels with a multi-hop delegated
+%   capability, and what happens when an attacker splices a hop?
+% Claim: each signed hop binds parent, child and a fresh nonce to one shared
+%   task hash h; a spliced-in signature that does not cover the local nonce
+%   breaks exactly at the one crossing it touches.
+% Evidence: identities id1-id4 (\S "Phase 3: Stigmergic Delegation"); ordinary
+%   hops 1 and 3 (sig1, sig3, fresh n1/n3); the splice at hop 2 (sig3 moved
+%   into the id2-id3 slot, where a signature over n2 is expected) [internal].
+% Must distinguish: an ordinary hop (focus, solid) from the spliced hop
+%   (breach, dashed) -- both travel the same adversary-visible network.
+% Grammar chosen: tree/DAG left to right (tpl-tree-dag), one dashed network
+%   band behind all three crossings per chapter line ~746 (added here; it was
+%   missing before this redraw, flagged for the author to confirm). Rejected:
+%   a generic node-link graph -- the atlas's own rejection, since it would
+%   erase the left-to-right time order the splice depends on.
+% Five-second test: "three crossings, same shared hash h below; the middle
+%   one is dashed red because its signature does not cover n2."
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  % id1..id4 are identifiers, so the circle's text takes the identifier face.
-  % Composed once as a style rather than set on each node: a node may not carry
-  % a house style and its own font (P15); a compound style is where a fragment
-  % composes, and it composes from the law's handle, not from a raw \ttfamily.
-  idnode/.style={pd state,circle,line width=.7pt,fill=hhpaper,minimum size=10mm,
-    inner sep=0pt,font=\pdfiglabelmono}]
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.66cm,y=1cm]
+  \draw[pd warn rule] (-5.75,1.45) rectangle (5.75,3.35);
+  \node[pd label,anchor=south west] at (-5.7,3.9) {adversary-visible};
   \foreach \x/\id in {-5.1/1,-1.7/2,1.7/3,5.1/4} {
-    \node[idnode] (id\id) at (\x,2.1) {id\id};
-    \draw[pd hairline] (\x,1.58) -- (\x,-.4);
+    \node[pd focus outline,circle,minimum size=9mm,inner sep=0pt] (id\id) at (\x,2.1) {id\id};
   }
 
-  % ---- crossing 1: id1 -> id2, ordinary hop ----
-  \draw[pd focus arrow] (id1.east) to[out=5,in=175] (id2.west);
-  \node[pd direct label,text=hhteal,anchor=south] at (-3.4,2.42) {sig1};
-  \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce1) at (-3.4,.75) {};
-  \node[pd axis label,anchor=west,align=left,text width=1.6cm] at (-3.26,.75) {n1 fresh};
-  \draw[pd focus rule] (-3.4,1.82) -- (nonce1);
-  \draw[pd focus rule] (nonce1) -- (-3.4,-.32);
+  % ---- crossing 1: id1 -> id2, ordinary hop --------------------------------
+  \draw[pd focus arrow] (id1.east) to[out=15,in=165] (id2.west);
+  \node[pd focus label,anchor=south] at (-3.4,2.42) {sig1};
+  \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce1) at (-3.4,.65) {};
+  \node[pd label,anchor=west,align=left,text width=1.5cm] at (-3.26,.65) {n1 fresh};
+  \draw[pd focus rule] (-3.4,1.65) -- (nonce1);
 
-  % ---- crossing 2: id2 -> id3, the attempted splice (refused: danger, not caution) ----
-  \draw[pd danger rule,dashed] (id2.east) to[out=5,in=175] (id3.west);
-  \node[pd danger datum] (splice) at (0,2.1) {};
-  \node[pd direct label,text=pderror,align=center,text width=3.6cm,anchor=south]
-    at (0,2.42) {sig3 does not cover n2: refused};
-  \node[pd danger datum] (nonce2) at (0,.75) {};
-  \node[pd axis label,anchor=west,align=left,text width=1.3cm] at (.1,.75)
-    {n2\\ expected};
-  \draw[pd danger rule,dashed] (0,1.82) -- (nonce2);
-  \draw[pd danger rule,dashed] (nonce2) -- (0,-.32);
+  % ---- crossing 2: id2 -> id3, the attempted splice ------------------------
+  \draw[pd breach rule] (id2.east) to[out=15,in=165] (id3.west);
+  \node[pd breach datum] (splice) at (0,2.1) {};
+  \node[pd label,text=pderror,align=center,text width=3.5cm,anchor=south]
+    at (0,2.85) {sig3 does not cover n2: refused};
+  \node[pd breach datum] (nonce2) at (0,.65) {};
+  \node[pd label,anchor=west,align=left,text width=1.5cm] at (.14,.65) {n2 expected};
+  \draw[pd breach rule] (0,1.65) -- (nonce2);
 
-  % ---- crossing 3: id3 -> id4, ordinary hop ----
-  \draw[pd focus arrow] (id3.east) to[out=5,in=175] (id4.west);
-  \node[pd direct label,text=hhteal,anchor=south] at (3.4,2.42) {sig3};
-  \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce3) at (3.4,.75) {};
-  \node[pd axis label,anchor=west,align=left,text width=1.6cm] at (3.54,.75) {n3 fresh};
-  \draw[pd focus rule] (3.4,1.82) -- (nonce3);
-  \draw[pd focus rule] (nonce3) -- (3.4,-.32);
+  % ---- crossing 3: id3 -> id4, ordinary hop --------------------------------
+  \draw[pd focus arrow] (id3.east) to[out=15,in=165] (id4.west);
+  \node[pd focus label,anchor=south] at (3.4,2.42) {sig3};
+  \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce3) at (3.4,.65) {};
+  \node[pd label,anchor=west,align=left,text width=1.5cm] at (3.54,.65) {n3 fresh};
+  \draw[pd focus rule] (3.4,1.65) -- (nonce3);
 
-  \draw[pd rule] (-5.55,-.32) -- (5.55,-.32);
-  \foreach \x in {-5.1,-1.7,1.7,5.1} \fill[pd focus fill] (\x,-.32) circle (1.45pt);
-  \node[pd direct label,anchor=north west] at (-5.55,-.52)
-    {same h at every hop};
+  \draw[pd rule] (-5.55,-.35) -- (5.55,-.35);
+  \foreach \x in {-5.1,-1.7,1.7,5.1} \node[pd focus datum,minimum size=4pt,inner sep=0pt] at (\x,-.35) {};
+  \node[pd label,anchor=north west,text width=1.9cm,align=left] at (-5.55,-.55) {task hash h};
 
-  \node[pd note,anchor=west,align=left,text width=10.8cm] at (-5.55,-1.75)
+  \node[pd note,anchor=north west,align=left,text width=6.9cm] at (-5.55,-1.15)
     {each ordinary crossing binds parent, child, a fresh nonce, and the same
-     task hash h; the red crossing reuses sig3 (bound to n3) where n2 was
-     expected, so verification fails there};
+     task hash h; the breach crossing reuses sig3 (bound to n3) where n2 was
+     expected, so verification fails at that crossing only};
 \end{tikzpicture}
 \caption{The delegation chain as a signed provenance braid across four
-identities id1--id4. Ordinary hops 1 and 3 bind parent, child, a fresh nonce
-(n1, n3), and the shared task hash h below. Hop 2 shows a splice attack: an
-attacker moves the legitimate signature sig3 (computed over id3, id4, and
-n3) into the id2--id3 position, where the verifier expects a signature over
-n2; the check fails at exactly that crossing, so the discontinuity is
-visible at one adjacent-identity boundary rather than anywhere else in the
-chain. [internal]}
+identities id1--id4, drawn inside the network the Dolev-Yao adversary
+observes. Ordinary hops 1 and 3 bind parent, child, a fresh nonce (n1, n3),
+and the shared task hash h below. Hop 2 shows a splice attack: an attacker
+moves the legitimate signature sig3 (computed over id3, id4, and n3) into
+the id2--id3 position, where the verifier expects a signature over n2; the
+check fails at exactly that crossing, so the discontinuity is visible at one
+adjacent-identity boundary rather than anywhere else in the chain.
+[internal]}
 \label{fig:anchor-delegation-inline}
 \end{figure}

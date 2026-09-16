@@ -1,66 +1,74 @@
-% Figure IV.9 --- staleness is an area in time-by-authority space.
+% Figure IV.9 --- staleness is a per-harbor window, not a global clock.
+%
+% Reader question: how long does a revoked capability stay spendable at each
+%   harbor, and does that window ever end?
+% Claim: the spendable window is the harbor-specific delay before local
+%   synchronization; the issuer has none, and the illustrated execution shows
+%   one harbor exposed until Delta and another until 2*Delta.
+% Evidence: the worked execution from S:fh-revocation (Alice refuses at 0,
+%   B until Delta, C until 2*Delta) under thm:fh-conv's epidemic model.
+% Must distinguish: the still-spendable portion of each row (breach, red)
+%   from the already-synchronized portion (focus, gold).
+% Grammar chosen: swimlane over time, one row per harbor (tpl-swimlane-gantt
+%   idiom). Grammar rejected: the v1 figure stacked an area chart, a
+%   double-headed exposure arrow, and cream knockout label boxes into one
+%   picture -- three devices and a sticker habit the standard forbids; a
+%   single smooth curve would assert a continuous quantity the discrete
+%   per-harbor bound does not give.
+% Five-second test: at time Delta, which harbor can still accept the revoked
+%   card, and which already refuses it locally?
+\pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
-\resizebox{0.93\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.4,3.0)
-    {the spendable revocation window is the amber area};
-  \node[pd axis label,anchor=east] at (-5.15,1.45) {Harbor A};
-  \node[pd axis label,anchor=east] at (-5.15,.20) {Harbor B};
-  \node[pd axis label,anchor=east] at (-5.15,-1.05) {Harbor C};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\x0{1.55}   \def\dd{2.72}   \def\rh{0.42}
+  \node[pd title,anchor=north west,text width=10.6cm,align=left] at (0,3.70)
+    {the spendable window closes when the local authority synchronizes};
 
-  % Stale-to-synchronized state bands.
-  \fill[pd focus fill] (-4.80,1.00) rectangle (6.00,1.90);
-  \fill[pd caution fill] (-4.80,-.25) rectangle (-1.20,.65);
-  \fill[pd focus fill] (-1.20,-.25) rectangle (6.00,.65);
-  \fill[pd caution fill] (-4.80,-1.50) rectangle (1.95,-.60);
-  \fill[pd focus fill] (1.95,-1.50) rectangle (6.00,-.60);
-  \foreach \y in {1.00,1.90,-.25,.65,-1.50,-.60}
-    \draw[pd hairline] (-4.80,\y)--(6.00,\y);
+  % ---- epoch-root commit points (concrete, auditable) --------------------
+  \node[pd focus datum] (e0) at (\x0,3.05) {};
+  \node[pd focus datum] (e1) at (\x0+\dd,3.05) {};
+  \node[pd focus datum] (e2) at (\x0+2*\dd,3.05) {};
+  \draw[pd focus rule] (e0) -- (e2);
+  \node[pd focus label,anchor=west,text width=3.5cm,align=left] at (\x0+2*\dd+0.55,3.05)
+    {signed epoch roots};
 
-  \draw[pd focus rule,line width=1.4pt]
-    (-4.80,1.00)--(-4.80,.65)--(-1.20,.65)--(-1.20,-.60)--(1.95,-.60)--(1.95,-1.50);
-  \node[pd direct label,text=hhteal,anchor=west] at (2.20,-1.05) {refuse locally};
-  \node[pd direct label,text=pdinkmuted,anchor=west] at (-4.45,-1.05) {stale verifier};
+  % ---- row A: Alice refuses immediately, no stale window ------------------
+  \node[pd label,anchor=east,text width=1.4cm,align=right] at (\x0-0.20,2.20) {Harbor $A$};
+  \draw[pd focus rule] (\x0,2.20-\rh) rectangle (\x0+3*\dd,2.20+\rh);
+  \node[pd focus label] at (\x0+1.5*\dd,2.20) {refuses locally};
 
-  \foreach \x/\lab in {-4.80/$0$,-1.20/$\Delta$,1.95/$2\Delta$,5.20/$3\Delta$}
-    {\draw[pd lattice] (\x,-1.72)--(\x,2.15);
-     \node[pd axis label,anchor=north] at (\x,-1.88) {\lab};}
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.90,-1.72)--(6.20,-1.72);
-  \node[pd axis label,anchor=west] at (6.30,-1.72) {time};
+  % ---- row B: stale until Delta, synchronized after ------------------------
+  \node[pd label,anchor=east,text width=1.4cm,align=right] at (\x0-0.20,1.00) {Harbor $B$};
+  \draw[pd breach rule] (\x0,1.00-\rh) rectangle (\x0+\dd,1.00+\rh);
+  \draw[pd focus rule] (\x0+\dd,1.00-\rh) rectangle (\x0+3*\dd,1.00+\rh);
 
-  \node[pd focus datum] at (-4.80,2.35) {};
-  \node[pd focus datum] at (-1.20,2.35) {};
-  \node[pd focus datum] at (1.95,2.35) {};
-  \draw[pd focus rule] (-4.80,2.35)--(1.95,2.35);
-  % text width, not a bare single-line anchor=west run-on: "signed epoch
-  % roots make the illustrated history auditable" set on one line ran well
-  % past this panel's own right edge (~x=6.3) and into the margin column,
-  % where it collided with the Recall block's item 3 -- built and measured
-  % overlapping ("...section closes the[[signed epoch roots...]]deferred
-  % one." printing as one run of ink), PDF p. 406. Wrapping to two lines
-  % keeps the note inside the figure's own width.
-  %
-  % anchor=south west, not west: `west` vertically centers a wrapped,
-  % multi-line node on its anchor point, and this anchor sits on the same
-  % focus-rule datum row (y=2.35) as the three datum dots and the rule
-  % above -- centering put the wrapped text's own top line across that
-  % rule (figcheck T2/T4, built Book: the rule drawn straight through the
-  % text). `south west` hangs the two lines upward from (2.20,2.35)
-  % instead, clear of the rule and the datum row it marks.
-  \node[pd note,text=hhteal,anchor=south west,text width=3.9cm,align=left] at (2.20,2.35)
-    {signed epoch roots make the illustrated history auditable};
-  \draw[pd caution rule,<->] (-4.65,-2.45)--(1.80,-2.45);
-  \node[pd note,text=pdinkmuted] at (-1.42,-2.72)
-    {exposure lasts until the local authority receives the revocation};
-\end{tikzpicture}}
-\caption{\textbf{Revocation propagation is a moving staleness frontier.}
-Alice refuses immediately; B remains stale until $\Delta$ and C until
-$2\Delta$ in this illustrated execution. The amber area is precisely where a
-revoked capability can still be admitted by the named local authority. The gold
-staircase marks synchronization, not a global clock. Expected
-$\Theta(\log m)$ dissemination requires connected reliable rounds; a partition
-can extend the amber area without bound and therefore destroys any finite
-deadline.}
+  % ---- row C: stale until 2*Delta, synchronized after -----------------------
+  \node[pd label,anchor=east,text width=1.4cm,align=right] at (\x0-0.20,-0.20) {Harbor $C$};
+  \draw[pd breach rule] (\x0,-0.20-\rh) rectangle (\x0+2*\dd,-0.20+\rh);
+  \node[pd breach label] at (\x0+0.5*\dd,-0.20) {still spendable};
+  \draw[pd focus rule] (\x0+2*\dd,-0.20-\rh) rectangle (\x0+3*\dd,-0.20+\rh);
+
+  % ---- time axis -------------------------------------------------------
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}]
+    (\x0-0.20,-0.20-\rh-0.55) -- (\x0+3*\dd+0.35,-0.20-\rh-0.55);
+  \foreach \k/\lab in {0/$0$,1/$\Delta$,2/$2\Delta$,3/$3\Delta$}
+    {\draw[pd tick] (\x0+\k*\dd,-0.20-\rh-0.55) -- (\x0+\k*\dd,-0.20-\rh-0.70);
+     \node[pd label,anchor=north] at (\x0+\k*\dd,-0.20-\rh-0.75) {\lab};}
+  \node[pd label,anchor=west] at (\x0+3*\dd+0.30,-0.20-\rh-0.55) {time};
+
+  \node[pd note,anchor=north west,text width=9.2cm] at (\x0-0.20,-2.35)
+    {gold marks a harbor that has synchronized and refuses the card on its
+    own authority; red marks the window in which that card is still spendable
+    at that harbor};
+\end{tikzpicture}
+\caption{\textbf{Revocation propagation is a moving, per-harbor staleness
+frontier.} In this illustrated execution Alice (harbor $A$) refuses
+immediately; $B$ remains stale until $\Delta$ and $C$ until $2\Delta$. The red
+band is exactly where a revoked capability can still be admitted by the named
+local authority; the gold epoch-root commits mark synchronization, not a
+global clock. Expected $\Theta(\log m)$ dissemination (Theorem~\ref{thm:fh-conv})
+requires connected reliable rounds; a partition can extend the red window
+without bound and therefore destroys any finite deadline. [internal]}
 \label{fig:fh-revocation}
 \end{figure}

@@ -1,0 +1,53 @@
+% Brief (tikz-diagram-craft), register row ch4-27.
+% Reader question: when a blinded, ground-truth-known defect is replayed to
+%   the operator, does the response tighten or loosen the daemons trust in
+%   them?
+% Claim: the Inception Canary replays a known, already-fixed defect into a
+%   sandboxed replay at a disclosed rate, surfaces it in the attention
+%   queue like live traffic, and adjudicates the operators response as
+%   either a rubber-stamp failure (halt, tighten lease) or a vigilant
+%   detection (log defeated, widen grant) -- never a silent third option.
+% Evidence: Protocol The Inception Canary protocol, prot:canary,
+%   whitepaper/legible-swarm.tex sec 4.5.4 (this pass).
+% Must distinguish: the two adjudication outcomes and their opposite
+%   effects on the operators autonomous policy lease; that the probe is a
+%   replay with known ground truth, never a live pull request.
+% Grammar chosen: protocol/decision flow, three ordered steps into a single
+%   two-way adjudication gate, each outcome badged with its trust effect.
+% Grammar rejected: a two-state trust-score time series would need a
+%   measurement this hypothesis-stage mechanism does not have yet; the
+%   protocol itself, not its (unmeasured) effect over time, is what the
+%   chapter actually specifies.
+% Five-second test: does approving without expanding the diff tighten or
+%   widen the operators future autonomy?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state,minimum width=2.5cm] (S1) at (1.30,4.20) {replay known defect};
+  \node[pd state,minimum width=2.8cm] (S2) at (4.40,4.20) {surface in queue};
+  \node[pd focus state,minimum width=2.3cm] (S3) at (7.40,4.20) {operator zooms?};
+  \node[pd breach state,minimum width=2.6cm] (FA) at (5.30,1.30) {rubber-stamp failure};
+  \node[pd ready state,minimum width=2.6cm]  (FB) at (9.30,1.30) {vigilant detection};
+  \draw[pd focus arrow] (S1) -- (S2);
+  \draw[pd focus arrow] (S2) -- (S3);
+  \draw[pd breach arrow] (S3) -- (FA);
+  \draw[pd ready arrow] (S3) -- (FB);
+  \node[pd label,anchor=east,text width=1.7cm,align=right] at (5.15,2.55) {approves; diff not expanded};
+  \node[pd label,anchor=west,text width=1.7cm,align=left] at (9.45,2.55) {zooms; identifies and rejects};
+  \node[pd label,anchor=north,text width=3.0cm,align=center,text=pderror] at (5.30,0.35)
+    {halt pre-commit;\\tighten autonomy lease};
+  \node[pd focus label,anchor=north,text width=3.0cm,align=center] at (9.30,0.35)
+    {log Canary Defeated;\\widen autonomy grant};
+\end{tikzpicture}
+\caption{The Inception Canary protocol of Protocol~\ref{prot:canary}. A
+known, already-fixed defect is replayed into a sandboxed past work item at
+the disclosed rate $\rho_{\mathrm{canary}}$ and surfaced in the attention
+queue indistinguishably from live traffic. If the operator approves without
+expanding the forced-zoom diff, the daemon halts pre-commit and tightens
+the autonomous policy lease; if the operator zooms, identifies the flaw,
+and rejects it, the daemon widens the autonomy grant instead. A missed
+canary costs vigilance points, never production correctness, since every
+probe is a replay against known ground truth. [internal]}
+\label{fig:inception-canary}
+\end{figure}

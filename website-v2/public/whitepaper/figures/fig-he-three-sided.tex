@@ -1,46 +1,78 @@
 % Figure IV.2 --- three economically distinct flows close on one journal.
+%
+% Reader question: how can three different market sides (labor, capital,
+% licensed IP) close through one escrow without becoming three separate
+% ledgers?
+% Claim: the same agent can be three economically different things, and all
+% three settle through one witnessed journal that still conserves value.
+% Evidence: sec:three-sides (the three-side enumeration) and the running
+% Bob/Alice/Carol example; conservation invariant
+% Delta W + Delta E + Delta C = 0.
+% Must distinguish: the three rows carry different hidden information and a
+% different exposure, yet all three close on the same escrow spine.
+% Grammar chosen: typed accounting-flow junction -- three tributaries into
+% one spine (the idiom in examples/redraw-commitment-oracle.tex). Each rail
+% now carries its own exposure and payee; the table keeps only the hidden-
+% information column, the one fact the rail geometry cannot carry.
+% Grammar rejected: three circles around a shared escrow (atlas reject list)
+% -- it reads as three markets, not three exposure profiles closing on one
+% journal; also rejected an overly blue Sankey, which erases which lane is
+% whose.
+% Five-second test: a reader can name which row is Alice's reputational
+% exposure (badge 2) and see all three rows end on the same gold spine.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.9,3.0)
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- the grid -------------------------------------------------------------
+  \def\dy{1.95}    % row pitch
+  \def\lx{0}       % kind-tag column (anchor east)
+  \def\rx{0.20}    % lane start
+  \def\bx{3.00}    % badge column
+  \def\sx{6.60}    % escrow spine
+  \def\ex{6.82}    % spine label start
+  % ---- title ------------------------------------------------------------
+  \node[pd title,anchor=west] at (\lx,5.05)
     {one agent can carry three different risk signatures};
-  \node[pd axis label,anchor=east] at (-5.65,1.75) {LABOR};
-  \node[pd axis label,anchor=east] at (-5.65,.15) {CAPITAL};
-  \node[pd axis label,anchor=east] at (-5.65,-1.45) {LICENSED IP};
-  \foreach \y in {1.75,.15,-1.45} \draw[pd hairline] (-5.35,\y)--(5.85,\y);
+  % ---- three lanes, each a clean rule broken only at its keyed guard --------
+  \foreach \y/\k/\n/\e in {3.90/{Labor}/1/{principal bond $\to$ fleet principal},
+      1.95/{Capital}/2/{reputation exposure $\to$ asset owner},
+      0/{Licensed IP}/3/{content hash $+$ use $\to$ licensor}}{
+    \node[pd kind,anchor=east] at (\lx,\y) {\k};
+    \draw[pd rule,pd to badge] (\rx,\y) -- (\bx,\y);
+    \node[pd badge] at (\bx,\y) {\n};
+    \draw[pd rule,pd from badge,->] (\bx,\y) -- (\sx,\y);
+    \node[pd label,anchor=north,align=center,text width=3.5cm]
+      at ({(\bx+\sx)/2},{\y-.20}) {\e};
+  }
+  % ---- the escrow spine: the figure's subject ------------------------------
+  \draw[pd focus rule,line width=1.6pt] (\sx,-0.90) -- (\sx,{2*\dy+0.55});
+  \foreach \y in {0,1.95,3.90}{\node[pd focus datum] at (\sx,\y) {};}
+  \node[pd focus label,anchor=west,align=left,text width=2.1cm] at (\ex,\dy)
+    {one witnessed settlement journal};
+  % ---- the conserved close ---------------------------------------------------
+  \draw[pd focus rule] (-0.30,-1.35) -- (\sx,-1.35);
+  \node[pd note,anchor=north west,text width=8.7cm] at (-0.30,-1.55)
+    {$\Delta W+\Delta E+\Delta C=0$, despite three different counterparties and
+     three different exposure keys};
+\end{tikzpicture}
 
-  \node[pd direct label,anchor=west] at (-5.20,2.13) {fleet capability unknown};
-  \node[pd direct label,anchor=west] at (-5.20,.53) {specialist quality hidden};
-  \node[pd direct label,anchor=west] at (-5.20,-1.07) {version quality hidden};
-  \draw[pd caution rule,line width=3.0pt] (-2.45,1.75)--(.15,1.75);
-  \draw[pd caution rule,line width=1.8pt] (-1.70,.15)--(.15,.15);
-  \draw[pd caution rule,line width=1.1pt] (-.95,-1.45)--(.15,-1.45);
-  \node[pd direct label,text=pdinkmuted,anchor=north] at (-1.15,1.53) {principal bond};
-  \node[pd direct label,text=pdinkmuted,anchor=north] at (-.75,-.07) {reputation exposure};
-  \node[pd direct label,text=pdinkmuted,anchor=north] at (-.35,-1.67) {content hash + use};
+\smallskip
+\begin{tabularx}{\textwidth}{@{}c >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{No.} & \textbf{Hidden information} \\
+\midrule
+1 & fleet capability unknown \\
+2 & specialist quality hidden \\
+3 & version quality hidden \\
+\bottomrule
+\end{tabularx}
 
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,1.75)--(3.65,1.75);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,.15)--(3.65,.15);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,-1.45)--(3.65,-1.45);
-  \node[pd direct label,anchor=south] at (2.20,1.88) {bounty $\to$ fleet principal};
-  \node[pd direct label,anchor=south] at (2.20,.28) {rent $\to$ asset owner};
-  \node[pd direct label,anchor=south] at (2.20,-1.32) {metered fee $\to$ licensor};
-
-  \draw[pd focus rule,line width=1.4pt] (4.05,-1.85)--(4.05,2.15);
-  \foreach \y in {1.75,.15,-1.45} \node[pd focus datum] at (4.05,\y) {};
-  \node[pd direct label,text=hhteal,anchor=west,align=left] at (4.35,.15)
-    {one witnessed\\settlement journal};
-  \draw[pd focus rule] (-5.20,-2.35)--(5.75,-2.35);
-  \node[pd note,text=hhteal] at (.25,-2.62)
-    {$\Delta W+\Delta E+\Delta C=0$ despite different counterparties and exposure keys};
-\end{tikzpicture}}
 \caption{\textbf{The three sides are three risk signatures, not three tabs.}
 Labor exposes a principal bond and pays a fleet principal; rented capital exposes
 the owner's reputation and pays rent; licensed IP exposes a version-bound content
-claim and pays a metered fee. Line thickness redundantly distinguishes the forms
-of exposure. All three close through one witnessed journal, so the conservation
-invariant is shared even though the counterparties, private information, and
-reputation keys are not.}
+claim and pays a metered fee. All three close through one witnessed journal (the
+gold spine), so the conservation invariant is shared even though the
+counterparties, private information, and reputation keys are not. [internal]}
 \label{fig:he-three-sided}
 \end{figure}

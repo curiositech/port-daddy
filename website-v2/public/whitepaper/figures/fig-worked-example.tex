@@ -1,74 +1,74 @@
-% One task across three layers, with a process discontinuity but durable continuity.
+% Reader question: When a process crashes mid-task, what breaks and what
+%   survives across the three layers a transaction touches?
+% Claim: structural authority breaks at the crash and is re-issued to a
+%   successor, but the evidence chain and the pre-funded escrow both span the
+%   crash unbroken.
+% Evidence: the worked example minute-by-minute timeline (capability, claim,
+%   crash at minute 12, successor capability at minute 13, settlement at
+%   minute 24) from this chapter worked example [internal].
+% Must distinguish: which layer the crash actually interrupts (L1 structural
+%   authority only) from the two layers that bridge it unbroken (L2 evidence,
+%   L3 escrow).
+% Grammar chosen: three-lane wall-clock timeline, one shared minute axis.
+%   Rejected: tinted background strata for each lane, because a tinted band
+%   reads as a sticker on a white page and the lane identity is already
+%   carried by its own label and rule.
+% Five-second test: a reader names the one layer that breaks at the crash and
+%   the two that do not.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-1.55,3.28)
-    {a crash breaks the process, not the task's evidence or escrow};
-
-  % Light strata establish a common temporal field without boxes.
-  % The minute axis below is drawn to one uniform scale (12.5cm / 24 real
-  % minutes): every x-coordinate in this picture is that same linear map
-  % applied to the labeled or interpolated minute of the event it marks, so a
-  % reader who measures the drawing gets the right answer. (A prior version
-  % of this figure used two different scales on the same axis -- roughly
-  % 1cm/min for 0-3 and 12-13, but only ~0.41-0.44cm/min for 3-12 and 13-24 --
-  % with no break marked; that silently misrepresented duration and is why
-  % every coordinate below now derives from the single \x/\lab pairs at the
-  % bottom of this figure.) Regions go through the pd *-fill roles, each of
-  % which draws its own edge, rather than a bare low-alpha colour.
-  \fill[pd neutral fill] (-.05,1.72) rectangle (12.82,2.42);
-  \fill[pd focus fill] (-.05,.30) rectangle (12.82,1.00);
-  \fill[pd caution fill] (-.05,-1.12) rectangle (12.82,-.42);
-  \node[pd panel title,anchor=east] at (-.25,2.07) {L1 scope};
-  \node[pd panel title,anchor=east] at (-.25,.65) {L2 evidence};
-  \node[pd panel title,anchor=east] at (-.25,-.77) {L3 escrow};
-
-  \foreach \x in {0,0.52,1.56,6.25,6.77,12.5}
-    \draw[pd lattice] (\x,-1.30)--(\x,2.55);
-
-  % Structural authority ends at the crash and is re-issued to the successor.
-  \draw[pd rule,line width=1.65pt] (0,2.07)--(6.04,2.07);
-  \draw[pd focus rule,line width=1.65pt] (6.77,2.07)--(12.5,2.07);
-  \node[pd datum] at (0,2.07) {};
-  \node[pd datum] at (1.56,2.07) {};
-  \node[pd caution datum] at (6.25,2.07) {};
-  \node[pd focus datum] at (6.77,2.07) {};
-  \node[pd direct label,anchor=south] at (0,2.32) {capability};
-  \node[pd direct label,anchor=south] at (1.56,2.32) {claim};
-  \node[pd verdict,text=pdinkmuted,anchor=south] at (6.04,2.55) {CRASH};
-  \node[pd direct label,text=hhteal,anchor=west] at (6.97,2.32) {successor cap};
-  \draw[pd caution rule,line width=1pt] (6.06,1.86)--(6.28,2.28);
-  \draw[pd caution rule,line width=1pt] (6.28,1.86)--(6.40,2.28);
-
-  % Evidence continuity explicitly bridges the disposed identity.
-  \draw[pd focus rule,line width=1.55pt] (1.56,.65)--(6.04,.65);
-  \draw[pd focus rule,line width=1.55pt] (6.77,.65)--(12.5,.65);
-  \foreach \x in {1.56,2.56,3.55,4.55,5.55}
-    \node[pd focus datum,inner sep=1.45pt] at (\x,.65) {};
-  \foreach \x in {6.77,8.87,10.97}
-    \node[pd focus datum,inner sep=1.45pt] at (\x,.65) {};
-  \draw[pd focus arrow,dashed] (5.66,.78) .. controls (6.25,1.35) and (6.54,1.35) .. (6.83,.78);
-  \node[pd direct label,text=hhteal,anchor=south] at (6.39,1.23) {salvage parent};
-  \node[pd note,text=hhteal,anchor=north] at (3.55,.39) {{\pdfigmath $h_1\ldots h_5$}};
-  \node[pd note,text=hhteal,anchor=north] at (8.87,.39) {{\pdfigmath $h_6\ldots h_8$}};
-
-  % Pre-funded exposure persists for the full task lifetime.
-  \draw[pd caution rule,line width=3.2pt] (0.52,-.77)--(12.5,-.77);
-  \node[pd caution datum] at (0.52,-.77) {};
-  \node[pd focus datum] at (12.5,-.77) {};
-  \node[pd direct label,text=pdinkmuted,anchor=south] at (0.52,-.47) {bond \$6};
-  \node[pd direct label,text=hhteal,anchor=south] at (12.5,-.47) {settle to $P$};
-  \node[pd note,text=pdinkmuted,anchor=north] at (5.96,-1.02) {cleanup exposure remains funded through the crash};
-
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-.05,-1.58)--(13.07,-1.58);
-  \node[pd axis label,anchor=west] at (13.20,-1.58) {minute};
-  \foreach \x/\lab in {0/0,0.52/1,1.56/3,6.25/12,6.77/13,12.5/24} {
-    \draw[pd tick] (\x,-1.66)--(\x,-1.50);
-    \node[pd axis label,anchor=north] at (\x,-1.73) {\lab};
-  }
-\end{tikzpicture}%
-}
-\caption{The worked example is a continuity braid over one task. Structural authority belongs to a process and visibly breaks at minute~12; the successor receives a new capability at minute~13. The evidence chain does not break: its salvage-parent edge binds $h_1\ldots h_5$ to $h_6\ldots h_8$. The escrow rail spans the entire task and settles at minute~24. Identity is disposable, while attribution and pre-funded cleanup exposure persist.}
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xSt{1.60}  \def\xEnd{8.80}
+  \def\mB{2.30}  \def\mC{3.40}  \def\mCrash{5.60}  \def\mSucc{6.60}
+  \def\yL{3.30}  \def\yE{1.90}  \def\yS{0.50}  \def\yax{-1.10}
+  \node[pd title,anchor=west,text width=8.4cm] at (\xSt,4.30)
+    {a crash breaks the process, not the task evidence or escrow};
+  \node[pd label,anchor=east] at ({\xSt-.14},\yL) {L1 scope};
+  \node[pd label,anchor=east] at ({\xSt-.14},\yE) {L2 evidence};
+  \node[pd label,anchor=east] at ({\xSt-.14},\yS) {L3 escrow};
+  \foreach \y in {\yL,\yE,\yS} {\draw[pd hairline] (\xSt,\y)--(\xEnd,\y);}
+  % ---- L1: structural authority ends at the crash, re-issued after --------
+  \draw[pd rule,line width=1.4pt] (\xSt,\yL)--(\mCrash,\yL);
+  \draw[pd focus rule,line width=1.4pt] (\mSucc,\yL)--(\xEnd,\yL);
+  \node[pd datum] at (\xSt,\yL) {};
+  \node[pd datum] at (\mC,\yL) {};
+  \node[pd breach datum] at (\mCrash,\yL) {};
+  \node[pd focus datum] at (\mSucc,\yL) {};
+  \draw[pd breach rule,line width=1pt] ({\mCrash-.11},{\yL-.20})--({\mCrash+.11},{\yL+.20});
+  \draw[pd breach rule,line width=1pt] ({\mCrash+.02},{\yL-.20})--({\mCrash+.24},{\yL+.20});
+  \node[pd label,anchor=south] at (\xSt,{\yL+.20}) {capability};
+  \node[pd label,anchor=south] at (\mC,{\yL+.20}) {claim};
+  \node[pd breach label,anchor=south east] at ({\mCrash-.10},{\yL+.20}) {crash};
+  \node[pd ready label,anchor=south west] at ({\mSucc+.10},{\yL+.20}) {successor cap};
+  % ---- L2: the evidence chain bridges the crash unbroken -------------------
+  \draw[pd focus rule,line width=1.15pt] (\mC,\yE)--(\mCrash,\yE);
+  \draw[pd focus rule,line width=1.15pt] (\mSucc,\yE)--(\xEnd,\yE);
+  \foreach \i in {0,...,4} {\node[pd focus datum,inner sep=1.4pt] at ({\mC+\i*.675},\yE) {};}
+  \foreach \i in {0,...,2} {\node[pd focus datum,inner sep=1.4pt] at ({\mSucc+\i*.82},\yE) {};}
+  \draw[pd focus arrow,dashed] (\mCrash,{\yE+.10}) .. controls ({\mCrash+.20},{\yE+.55}) and ({\mSucc-.20},{\yE+.55}) .. (\mSucc,{\yE+.10});
+  \node[pd ready label,anchor=south] at ({(\mCrash+\mSucc)/2},{\yE+.58}) {salvage parent};
+  \node[pd note,anchor=north] at (\mC,{\yE-.20}) {$h_1\ldots h_5$};
+  \node[pd note,anchor=north] at (\mSucc,{\yE-.20}) {$h_6\ldots h_8$};
+  % ---- L3: pre-funded escrow spans the full task lifetime -------------------
+  \draw[pd breach rule,line width=2.4pt] (\mB,\yS)--(\xEnd,\yS);
+  \node[pd breach datum] at (\mB,\yS) {};
+  \node[pd focus datum] at (\xEnd,\yS) {};
+  \node[pd breach label,anchor=south] at (\mB,{\yS+.20}) {bond \$6};
+  \node[pd ready label,anchor=south] at (\xEnd,{\yS+.20}) {settle to $P$};
+  % ---- minute axis --------------------------------------------------------
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\xSt,\yax)--({\xEnd+.15},\yax);
+  \node[pd label,anchor=west] at ({\xEnd+.20},\yax) {minute};
+  \foreach \x/\lab in {\xSt/0,\mB/1,\mC/3,\mCrash/12,\mSucc/13,\xEnd/24} {
+    \draw[pd tick] (\x,{\yax-.07})--(\x,{\yax+.07});
+    \node[pd label,anchor=north] at (\x,{\yax-.12}) {\lab};}
+\end{tikzpicture}
+\caption{The worked example is a continuity braid over one task. Structural
+authority belongs to a process and visibly breaks at minute 12; the
+successor receives a new capability at minute 13. The evidence chain does
+not break: its salvage-parent edge binds $h_1\ldots h_5$ to $h_6\ldots h_8$.
+The escrow rail spans the entire task and settles at minute 24. Identity is
+disposable, while attribution and pre-funded cleanup exposure persist.
+[internal]}
 \label{fig:worked-example}
 \end{figure}

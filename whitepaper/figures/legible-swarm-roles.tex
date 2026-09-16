@@ -1,33 +1,57 @@
-% Figure 14 — sequence diagram, redrawn to spec [ch4.md 4.14]. Three
-% lifelines, four messages top to bottom, no crossing: operator grants once,
-% agents act under the grant, the daemon gates or escalates every act, and
-% the override is the one edge running straight from operator to daemon.
+% Restyle of fig-roles to the tikz-diagram-craft v2 standard (v1 names and
+% raw colours migrated to roles; three lifelines, four messages, unchanged
+% layout, ch4.md 4.14).
+%
+% NOTE for the author: the atlas row (I/fig:roles) prescribes a
+% "differentiated institutional route" encoding operator/principal,
+% multitude, enforcement, legibility and mutual covenant explicitly; this
+% fragment draws a simpler three-lifeline grant-and-gate sequence (operator,
+% daemon, agents) that matches the chapter's own roles paragraph and
+% caption. The gap between the atlas's fuller cast and this figure's three
+% lifelines is flagged for the author, not resolved here.
+%
+% Reader question: what grants authority, who exercises it, who is
+% governed, and how is override returned?
+% Claim: one grant lets many agents act, but the daemon -- not the agents --
+% gates every act, and only the operator can revoke.
+% Evidence: the grant-act-gate-override sequence, whitepaper/
+% legible-swarm.tex, the roles section [internal].
+% Must distinguish: the one-time grant (message 1) from the repeated
+% gate (messages 2-3, per act); the override (message 4) as the one edge
+% that bypasses the agents entirely.
+% Grammar chosen: sequence with lifelines and numbered messages, no
+% crossing -- the claim is entirely about who sends what to whom, in what
+% order, which this grammar reads directly.
+% Grammar rejected: a state machine would suggest the daemon itself changes
+% state per act; the daemon's role here is a standing check, not a state.
+% Five-second test: which edge lets the operator bypass the agents?
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,x=0.82cm,y=1cm]
-  \node[pd actor] (op) at (0,8.0) {\textbf{operator}\\[1pt]\pdfigsub author};
-  \node[pd actor] (dm) at (5.0,8.0) {\textbf{daemon}\\[1pt]\pdfigsub actor};
-  \node[pd actor] (ag) at (10.0,8.0) {\textbf{agents}\\[1pt]\pdfigsub multitude};
+  \node[pd state] (op) at (0,8.0) {\textbf{operator}\\[1pt]\footnotesize author};
+  \node[pd state] (dm) at (5.0,8.0) {\textbf{daemon}\\[1pt]\footnotesize actor};
+  \node[pd state] (ag) at (10.0,8.0) {\textbf{agents}\\[1pt]\footnotesize multitude};
 
-  \draw[pd lattice] (0,7.35) -- (0,0.3);
-  \draw[pd lattice] (5.0,7.35) -- (5.0,0.3);
-  \draw[pd lattice] (10.0,7.35) -- (10.0,0.3);
+  \draw[pd guide] (0,7.35) -- (0,0.3);
+  \draw[pd guide] (5.0,7.35) -- (5.0,0.3);
+  \draw[pd guide] (10.0,7.35) -- (10.0,0.3);
 
   % 1. operator grants the daemon a scoped grant g
   \draw[pd focus arrow] (0,6.1) -- (5.0,6.1);
-  \node[pd direct label,text=hhteal,anchor=south] at (2.5,6.2) {scoped grant g};
+  \node[pd focus label,anchor=south] at (2.5,6.2) {scoped grant g};
 
   % 2. an agent's act arrives at the daemon under g
   \draw[pd arrow] (10.0,4.6) -- (5.0,4.6);
-  \node[pd direct label,anchor=south] at (7.5,4.7) {act a1 under g};
+  \node[pd label,anchor=south] at (7.5,4.7) {act a1 under g};
 
   % 3. the daemon gates or escalates that act
   \draw[pd arrow] (5.0,3.1) -- (10.0,3.1);
-  \node[pd direct label,anchor=south] at (7.5,3.2) {gate / escalate};
+  \node[pd label,anchor=south] at (7.5,3.2) {gate / escalate};
 
   % 4. the override: the one edge from operator to daemon
-  \draw[pd caution arrow] (0,1.6) -- (5.0,1.6);
-  \node[pd direct label,text=hhamber,anchor=south] at (2.5,1.7) {override: revoke g};
+  \draw[pd breach arrow] (0,1.6) -- (5.0,1.6);
+  \node[pd label,text=pderror,anchor=south] at (2.5,1.7) {override: revoke g};
 
   \node[pd note,anchor=north,align=center,text width=7.6cm] at (5.0,-0.1)
     {\hyphenpenalty=10000\exhyphenpenalty=10000

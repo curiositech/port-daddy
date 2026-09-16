@@ -1,0 +1,45 @@
+% Figure IV.14 --- Harbor Sovereignty as a fence (S2.1, def:fh-sovereignty):
+% five exclusive powers inside, downstream effects at other harbors
+% explicitly drawn outside.
+%
+% Reader question: what exactly can only D_A decide about harbor A, and
+%   what can it not touch?
+% Claim: sovereignty is a narrow fence around exactly five decisions; an
+%   A-side agent acting at a B-hosted database sits outside the fence by
+%   definition, not by omission.
+% Evidence: def:fh-sovereignty's own five-item list (issuance, attenuation,
+%   revocation, acceptance, evidence binding) and S2.1's own
+%   counterexample (an A-side agent operating against a B-hosted database).
+% Must distinguish: the five powers inside the fence from the one named
+%   thing the text is explicit is outside it -- drawing only the five
+%   powers would silently relitigate the scope question the text answers.
+% Grammar chosen: containment (a trust boundary fence, pd trust boundary)
+%   with five named ports inside and one named thing outside. Grammar
+%   rejected: a Venn diagram of two circles would suggest overlap or
+%   degree; the text's claim is a hard boundary, all-or-nothing per power,
+%   which a fence with ports states more literally.
+% Five-second test: is "what a B-hosted database does with an A-issued
+%   card" inside or outside the fence?
+\pdfigurehue{pdgold}%
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \draw[pd trust boundary] (0.3,0.3) rectangle (6.8,5.3);
+  \node[pd title,anchor=north west] at (0.55,5.15) {$D_A$'s sovereignty over harbor $A$};
+  \node[pd focus outline,minimum width=2.0cm,text width=1.8cm,align=center] (p1) at (1.42,4.20) {issuance};
+  \node[pd focus outline,minimum width=2.0cm,text width=1.95cm,inner xsep=3pt,align=center] (p2) at (3.65,4.20) {attenuation};
+  \node[pd focus outline,minimum width=2.0cm,text width=1.8cm,align=center] (p3) at (5.72,4.20) {revocation};
+  \node[pd focus outline,minimum width=2.0cm,text width=1.8cm,align=center] (p4) at (2.50,2.55) {acceptance};
+  \node[pd focus outline,minimum width=2.3cm,text width=2.1cm,align=center] (p5) at (4.70,2.55) {evidence binding};
+  \node[pd label,text=pdinkmuted,anchor=south west,text width=6.3cm,align=left] at (0.55,0.55)
+    {exclusive: no external party can compel or bypass any of the five};
+  \node[pd breach state,minimum width=2.6cm,text width=2.3cm,align=center] (out) at (9.35,4.20)
+    {downstream effects at other harbors};
+  \draw[pd breach arrow] (p3.east) to[out=20,in=180] (out.west);
+  \node[pd note,anchor=north west,text width=2.9cm,align=left] at (8.00,2.85)
+    {downstream policy applies at the receiving harbor, not at $D_A$};
+\end{tikzpicture}
+
+\caption{\textbf{Five powers inside the fence, everything downstream outside it.} Definition~\ref{def:fh-sovereignty} gives $D_A$ exclusive authority over exactly five things: issuance, attenuation, revocation, acceptance, and evidence binding. What an $A$-side agent does at a $B$-hosted database sits outside the fence by definition -- $B$'s policy applies there, not $D_A$'s, which is exactly why the transfer ceremony (\S\ref{sec:fh-xfer}) cannot require $B$ to verify under $D_A$'s key in its hot path without violating $B$'s own sovereignty. [internal]}
+\label{fig:fh-sovereignty-fence}
+\end{figure}

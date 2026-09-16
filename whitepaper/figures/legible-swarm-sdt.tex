@@ -1,29 +1,45 @@
-% Figure 7 — Signal Detection Theory view of the operator's forced-zoom
-% decision, redrawn to spec [ch4.md 4.7] with pgfplots. Two named densities;
-% the criterion beta trades misses for false alarms; d' is their separation.
-% Greyscale survival: the dangerous curve is dashed as well as differently
-% hued, and the two error regions are edged and labelled, never told apart
-% by tint alone. Vertical zones, bottom to top: axis, error labels, curves
-% and their name tags, beta's own label, the d' dimension on top.
+% Restyle of fig-sdt to the tikz-diagram-craft v2 standard (v1 names and raw
+% colours migrated to roles; the two densities and pgfplots axis are
+% unchanged, ch4.md 4.7). Fixes label crowding: the curve name tags move
+% above the peaks with clearance instead of sitting beside them.
+%
+% Reader question: how does the forced-zoom threshold trade misses against
+% false alarms?
+% Claim: because a miss costs far more than a false alarm, the optimal
+% criterion sits well left of the throughput optimum.
+% Evidence: Def.~sdt, the running costs 100 (miss) against 5 (false alarm),
+% the inspect bar at $a\ge0.057$, whitepaper/legible-swarm.tex [internal].
+% Must distinguish: the miss region (dangerous mass left of beta) from the
+% false-alarm region (safe mass right of beta); which curve is dashed.
+% Grammar chosen: two-distribution decision plot (pgfplots) -- axes, named
+% densities, a criterion line, and the two error regions in the data field.
+% Grammar rejected: text over the curves (the v1 draft) crowds the peaks;
+% callouts inside the peaks would sit on the densest ink in the figure.
+% Five-second test: which side of beta is the costly error?
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,
   declare function={
     safe(\x)   = 5*exp(-((\x-3)^2)/1.4);
     danger(\x) = 5*exp(-((\x-6)^2)/1.4);
   }]
-\begin{axis}[pd axis,
-  width=8.6cm,height=6.1cm,
+\begin{axis}[
+  width=7.6cm,height=5.6cm,
   axis lines=left,
+  axis line style={pd rule},
   xmin=0,xmax=10,ymin=0,ymax=8.6,
   xtick={0,2,4,6,8,10},ytick={0},
+  tick label style={font=\pdfiglabel,text=pdinkmuted},
   xlabel={evidence of danger the operator reads},
   ylabel={density},
+  xlabel style={align=center,text width=6.8cm},
+  every axis label/.style={font=\pdfiglabel,text=pdinkmuted},
   clip=false,
   axis on top,
   ]
   % miss area: dangerous mass left of beta
-  \addplot[pd caution fill,domain=0:5.0,samples=80,smooth] {danger(x)} \closedcycle;
+  \addplot[pd breach fill,domain=0:5.0,samples=80,smooth] {danger(x)} \closedcycle;
   % false-alarm area: safe mass right of beta
   \addplot[pd neutral fill,domain=5.0:10,samples=80,smooth] {safe(x)} \closedcycle;
 
@@ -31,20 +47,20 @@
   \addplot[pd rule,dashed,line width=1.0pt,domain=0:10,samples=120,smooth] {danger(x)};
 
   % error labels, low, inside their own tinted region, clear of the axis
-  \node[pd direct label,anchor=south,align=center] at (axis cs:3.6,0.55) {miss};
-  \node[pd direct label,text=hhteal,anchor=south,align=center] at (axis cs:7.3,0.55) {false alarm};
+  \node[pd label,anchor=south,align=center] at (axis cs:3.6,0.55) {miss};
+  \node[pd focus label,anchor=south,align=center] at (axis cs:7.3,0.55) {false alarm};
 
-  % curve name tags, just above each peak, growing away from each other
-  \node[pd direct label,text=hhteal,anchor=south east] at (axis cs:2.7,5.25) {safe actions};
-  \node[pd direct label,anchor=south west] at (axis cs:6.3,5.25) {dangerous (dashed)};
+  % curve name tags, well above each peak, clear of the density's own ink
+  \node[pd focus label,anchor=south,align=center,text width=2.2cm] at (axis cs:3,5.85) {safe actions};
+  \node[pd label,anchor=south west,text width=2.2cm] at (axis cs:5.55,5.85) {dangerous};
 
   % criterion beta: full-height rule with its own label in the low valley
   \draw[pd rule,line width=1.0pt] (axis cs:5.0,0) -- (axis cs:5.0,6.7);
-  \node[pd direct label,anchor=south west] at (axis cs:5.1,3.3) {criterion $\beta$};
+  \node[pd label,anchor=south west,text width=2.0cm] at (axis cs:5.1,3.3) {criterion $\beta$};
 
   % d' dimension, above everything, spanning the two peaks
   \draw[pd hairline,{Stealth[length=1.4mm]}-{Stealth[length=1.4mm]}] (axis cs:3,7.4) -- (axis cs:6,7.4);
-  \node[pd axis label,anchor=south,align=center,text width=3.4cm] at (axis cs:4.5,7.5) {d\textquotesingle{} (sensitivity)};
+  \node[pd label,anchor=south,align=center,text width=3.0cm] at (axis cs:4.5,7.5) {d\textquotesingle{} (sensitivity)};
 \end{axis}
 \end{tikzpicture}
 \caption{The operator's forced-zoom decision as Signal Detection Theory

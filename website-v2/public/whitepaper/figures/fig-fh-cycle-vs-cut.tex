@@ -2,34 +2,60 @@
 % it closes a visible cycle, and invisible on P6, where no edge closes one.
 % Radii from skills/harbor-results/scripts/sheaf_consistency_radius.py
 % (seed 20260816): C6 r = 3 sqrt(1 - 5/6) = 1.2247, P6 r = 0. [verified]
+%
+% Reader question: why does the same disagreement get caught on one topology
+%   and not another?
+% Claim: detection is exactly the visible-cycle condition: the disagreeing
+%   overlap closes a cycle on C6 (r>0) but no edge closes one on P6 (r=0).
+% Evidence: the two computed radii from sheaf_consistency_radius.py, seed
+%   20260816, on six harbors numbered 1-6.
+% Must distinguish: a closed cycle through the disagreement (detectable)
+%   from the same disagreement on a path (invisible, r=0 exactly).
+% Grammar chosen: before/after pair, two instances of the same six-node
+%   graph on one grid (tpl-before-after idiom, applied to two topologies
+%   rather than two times). Grammar rejected: a single graph with both edge
+%   sets overlaid would hide which edge is the one difference (the missing
+%   closing edge on the path).
+% Five-second test: which panel's disagreeing edge closes a cycle, and what
+%   is that panel's radius?
+\pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % left panel: the cycle
-  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-cycle\\\pdfigsub the disagreement closes a cycle};
-  \foreach \i in {1,...,6} {
-    \node[pd state,circle,minimum size=6.5mm,inner sep=0pt] (c\i) at ({90-60*(\i-1)}:1.45) {\i};
-  }
-  \foreach \i/\j in {1/2,2/3,3/4,4/5,5/6} { \draw[pd rule] (c\i) -- (c\j); }
-  \draw[pd caution rule,line width=1.4pt] (c6) -- (c1) node[pd direct label,text=hhamber,midway,above left=2pt,align=right,text width=3.1cm] {overlap disagrees: the edge that closes the cycle};
-  \node[pd note,anchor=north,align=center] at (0,-1.95) {$r = 1.2247$\\the disagreement is visible};
-  % right panel: the path
-  \begin{scope}[xshift=6.4cm]
-  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-path\\\pdfigsub the same disagreement, no cycle};
-  \foreach \i in {1,...,6} {
-    \node[pd state,circle,minimum size=6.5mm,inner sep=0pt] (p\i) at ({-2.5+(\i-1)*1.0},0.55) {\i};
-  }
-  \foreach \i/\j in {1/2,2/3,4/5,5/6} { \draw[pd rule] (p\i) -- (p\j); }
-  \draw[pd caution rule,line width=1.4pt] (p3) -- (p4) node[pd direct label,text=hhamber,midway,above=3pt] {overlap disagrees};
-  \draw[pd hairline,dashed] (p6) to[out=-60,in=-120] node[pd direct label,midway,below=3pt] {no edge closes a cycle} (p1);
-  \node[pd note,anchor=north,align=center] at (0,-1.95) {$r = 0$\\the same disagreement is invisible};
-  \end{scope}
+  \def\cax{1.50}   \def\pbx{7.10}   \def\rad{1.25}
+  \node[pd title,anchor=north,text width=4.0cm,align=center] at (\cax,2.85)
+    {the 6-cycle: disagreement closes a cycle};
+  \foreach \i in {1,...,6}
+    {\node[pd state,circle,minimum size=6.2mm,inner sep=0pt] (c\i)
+       at ({\cax+\rad*cos(90-60*(\i-1))},{\rad*sin(90-60*(\i-1))}) {\i};}
+  \foreach \i/\j in {1/2,2/3,3/4,4/5,5/6}
+    {\draw[pd rule] (c\i) -- (c\j);}
+  \draw[pd breach rule,line width=1.3pt] (c6) -- (c1);
+  \node[pd breach label,anchor=west] at (\cax+\rad+0.25,0.55) {disagreeing edge};
+  \node[pd label,anchor=north,text width=3.6cm,align=center] at (\cax,-1.75)
+    {$r=1.2247$: visible};
+
+  \node[pd title,anchor=north,text width=4.6cm,align=center] at (\pbx,2.85)
+    {the 6-path: same disagreement, no cycle};
+  \foreach \i in {1,...,6}
+    {\node[pd state,circle,minimum size=6.2mm,inner sep=0pt] (p\i)
+       at ({\pbx-2.15+(\i-1)*0.86},0.30) {\i};}
+  \foreach \i/\j in {1/2,2/3,4/5,5/6}
+    {\draw[pd rule] (p\i) -- (p\j);}
+  \draw[pd breach rule,line width=1.3pt] (p3) -- (p4);
+  \node[pd breach label,anchor=south] at ({\pbx-0.43},0.65) {disagreeing edge};
+  \draw[pd hairline,dashed] (p6) to[out=-55,in=-125] (p1);
+  \node[pd label,anchor=north,text width=3.4cm,align=center] at (\pbx,-0.55)
+    {no edge closes a cycle};
+  \node[pd label,anchor=north,text width=3.6cm,align=center] at (\pbx,-1.75)
+    {$r=0$: invisible};
 \end{tikzpicture}
-\caption{Cycle versus cut on six harbors, numbered 1 to 6. The same pairwise disagreement on one
-overlap is placed on the cycle $C_6$ and on the path $P_6$. On the cycle the
-disagreeing edge closes a visible cycle and the consistency radius is
-$r = 3\,(1-5/6)^{1/2} = 1.2247$; on the path no edge closes a cycle and $r = 0$, so
-detection is exactly the visible-cycle condition of the theorem. [verified;
-\texttt{sheaf\_consistency\_radius.py}, seed 20260816]}
+\caption{Cycle versus cut on six harbors, numbered 1 to 6. The same pairwise
+disagreement on one overlap is placed on the cycle $C_6$ and on the path
+$P_6$. On the cycle the disagreeing edge closes a visible cycle and the
+consistency radius is $r=3\,(1-5/6)^{1/2}=1.2247$; on the path no edge closes
+a cycle and $r=0$, so detection is exactly the visible-cycle condition of
+Theorem~\ref{thm:sheaf-equivocation}. [verified; \texttt{sheaf\_consistency\_radius.py},
+seed 20260816]}
 \label{fig:fh-cycle-vs-cut}
 \end{figure}

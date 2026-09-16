@@ -1,0 +1,59 @@
+% Figure IV.new --- the Myerson-Satterthwaite wedge: efficient trades the
+% mechanism itself refuses. ch6-15 (register: must) and ADDENDUM 4 (breaks
+% the visual-less run at sec:ms).
+%
+% Reader question: how much real, mutually-beneficial trade does budget
+% balance and incentive compatibility actually cost the market?
+% Claim: on the chapter's own (v,c) square, the double auction refuses a
+% 10-cr efficient trade at the worked point (Bob v=70, Alice c=60) because
+% v-c=10<M/4=22.5; integrated over the whole square, that wedge is
+% 7/32 (approx 21.9%) of all draws, independent of M.
+% Evidence: Thm. ms (Myerson-Satterthwaite); Chatterjee-Samuelson linear
+% equilibrium, trade iff v-c>=M/4; worked point (70,60); wedge probability
+% a(2M-a)/(2M^2) at a=M/4 = 7/32.
+% Must distinguish: the "trade happens" corner (v-c>=M/4) from the
+% "efficient but refused" wedge (0<=v-c<M/4, real surplus left on the
+% table) from the genuinely-no-surplus region (v<c).
+% Grammar chosen: regime plot in (v,c) space, the wedge filled between two
+% lines (S11 fillbetween), the worked point dropped to both axes (atlas
+% first choice). Grammar rejected: the probability alone in prose (already
+% stated) -- it hides that the wedge is a fixed-width band running the
+% whole diagonal, not a corner case.
+% Five-second test: a reader can find (70,60) inside the shaded wedge and
+% see it sits on the trade side of the diagonal but the wrong side of the
+% refusal line.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=7.6cm,height=6.4cm,
+  xmin=0,xmax=90,ymin=0,ymax=90,
+  xtick={0,30,60,90},ytick={0,30,60,90},
+  xlabel={Bob's value $v$},
+  ylabel={Alice's cost $c$}]
+  \addplot[name path=upper,draw=none,forget plot,domain=0:90,samples=60] {x};
+  \addplot[name path=lower,draw=none,forget plot,domain=0:90,samples=60]
+    {max(x-22.5,0)};
+  \addplot[pd warn fill,forget plot] fill between[of=upper and lower];
+  \addplot[pd guide,mark=none,domain=0:90,samples=2] {x};
+  \addplot[pd focus series,mark=none,domain=22.5:90,samples=2] {x-22.5};
+  \node[pd label,anchor=west] at (axis cs:18,34) {$v=c$};
+  \node[pd focus label,anchor=west,align=left,text width=2.1cm] at (axis cs:91,{90-22.5})
+    {trade iff $v-c\ge M/4$};
+  \node[pd label,anchor=west,align=left,text width=2.3cm] at (axis cs:8,44)
+    {efficient but refused: $7/32$};
+  \draw[pd guide] (axis cs:70,0) -- (axis cs:70,60) -- (axis cs:0,60);
+  \node[pd focus datum] at (axis cs:70,60) {};
+  \node[pd focus label,anchor=south west] at (axis cs:73,66) {$(70,60)$};
+\end{axis}
+\end{tikzpicture}
+\caption{\textbf{The double auction refuses more than one efficient trade in
+five.} Above the diagonal $v=c$ every draw has a real surplus; the mechanism
+only trades it when $v-c\ge M/4=22.5$ (gold line). The band between the two
+lines is efficient but refused, $7/32\approx21.9\%$ of the square, the same
+fraction at every $M$. At the chapter's own worked point, Bob values the
+rental at $70$ and Alice's cost is $60$: a $10$-cr surplus sits on the
+table, but $10<22.5$, so no trade happens. [internal; algebra shown]}
+\label{fig:he-ms-wedge}
+\end{figure}

@@ -1,44 +1,89 @@
-% Figure 9 — typed evidence passes a narrow closure aperture.
+% Brief (tikz-diagram-craft). Verified against prop:law1 (metric-control
+% separation: the daemon derives the deadline, never the agent), prop:law2
+% (oracle-bound closure: a non-empty reference from the finite vocabulary --
+% released claim, merged commit, passing test id, policy sub-check), and
+% alg:close (the daemon re-verifies the reference currently holds at closure
+% time -- a test that passed yesterday and has since regressed is refused).
+% Reader question: what may pass through the closure gate, and what may not?
+% Claim: a commitment closes as done only when a reference from the finite
+%   oracle vocabulary is supplied AND the daemon re-checks it holds now; a
+%   free-text assertion meets solid wall and is refused, the commitment
+%   staying open.
+% Evidence: whitepaper/single-writer-kernel.tex sec:commitments, prop:law1,
+%   prop:law2, alg:close.
+% Must distinguish: the four admissible references from the one inadmissible
+%   one; that refusal returns the commitment to open, not to a new state;
+%   that the deadline is the daemon's, never the agent's.
+% Grammar: a heavy wall with one aperture, tributaries joining just before
+%   the slot, the refused path a dashed loop back to the state it left.
+%   Rejected: a bare state machine (open -> done) with a guard label, which
+%   would state the rule but not show the vocabulary as a finite, named set.
+% Five-second test: "four solid arrows feed one slot in a wall; one dashed
+%   arrow hits the wall and loops back".
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd state] (open) at (.9,1.0) {OPEN};
-  \draw[pd focus rule,line width=1.6pt] (5.6,.4)--(5.6,7.6);
+  % ---- the grid -------------------------------------------------------------
+  \def\ax{1.60}     % the closure axis
+  \def\wx{6.30}     % the oracle wall
+  \def\slot{0.36}   % half-gap at the slot
+  \def\bar{0.11}    % half-thickness of the wall bar
+  % ---- the wall: a solid tinted bar with one aperture, never an oversized
+  % stroke -- weight stays on the .5/.9/1.6 ladder throughout.
+  \fill[pd focus fill] ({\wx-\bar},{\ax+\slot}) rectangle ({\wx+\bar},6.20);
+  \draw[pd focus rule] ({\wx-\bar},{\ax+\slot}) rectangle ({\wx+\bar},6.20);
+  \fill[pd focus fill] ({\wx-\bar},-0.75) rectangle ({\wx+\bar},{\ax-\slot});
+  \draw[pd focus rule] ({\wx-\bar},{\ax-\slot}) rectangle ({\wx+\bar},-0.75);
+  \draw[pd rule,draw=pdfocus] ({\wx-.20},{\ax+\slot}) -- ({\wx+.20},{\ax+\slot});
+  \draw[pd rule,draw=pdfocus] ({\wx-.20},{\ax-\slot}) -- ({\wx+.20},{\ax-\slot});
+  \node[pd title,rotate=90,anchor=south] at ({\wx+.70},3.80) {the finite oracle};
 
-  \draw[pd focus arrow] (1.8,1.0)--(5.35,1.0);
-  \node[pd direct label,anchor=south] at (3.55,1.15) {attempt closure};
-  \draw[pd focus arrow] (5.85,1.0)--(7.9,1.0);
-  \node[pd terminal] (done) at (8.65,1.0) {DONE};
-  \node[pd direct label,anchor=west,text=hhteal] at (5.85,4.0) {typed oracle};
+  % ---- the closure axis -----------------------------------------------------
+  \node[pd focus state,minimum width=2.3cm] (O) at (1.15,\ax) {open};
+  \node[pd ready state,minimum width=2.3cm] (D) at (9.35,\ax) {done};
+  \draw[pd focus arrow] (O.east) -- ({\wx-\bar-.14},\ax);
+  \draw[pd focus arrow] ({\wx+\bar+.14},\ax) -- (D.west);
+  \node[pd tag,anchor=south] at (3.40,{\ax+.20}) {attempt closure};
+  \node[pd tag,anchor=south] at (7.80,{\ax+.20}) {closes as done};
 
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,7.6) {released claim};
-  \draw[pd focus arrow] (3.35,7.6)--(5.55,7.3);
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,6.6) {merged commit};
-  \draw[pd focus arrow] (3.35,6.6)--(5.55,6.6);
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,5.6) {passing test id};
-  \draw[pd focus arrow] (3.35,5.6)--(5.55,5.9);
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,4.6) {policy sub-check};
-  \draw[pd focus arrow] (3.35,4.6)--(5.55,5.2);
+  % ---- the vocabulary: four references, joining the attempt before the slot
+  \node[pd title,anchor=west] at (1.35,6.55) {the four admissible references};
+  \foreach \i/\t/\jx in {1/{policy sub-check}/4.95, 2/{passing test id}/5.22,
+                         3/{merged commit}/5.49, 4/{released claim}/5.76}{
+    \node[pd state,minimum width=3.4cm] (r\i) at (3.05,{2.10+\i*0.95}) {\t};
+    \draw[pd rule,draw=pdfocus] (r\i.east) -- (\jx,\ax);}
 
-  \node[pd direct label,anchor=west,text=pdinkmuted,text width=2.6cm] at (7.3,-.6)
-    {free-text assertion};
-  \draw[pd caution arrow] (7.1,-.3)--(5.85,.6);
-  \draw[pd caution rule,line width=1.3pt] (5.62,.42)--(5.96,.76);
-  \draw[pd caution rule,line width=1.3pt] (5.62,.76)--(5.96,.42);
+  % ---- the key: every hue on the page, named ---------------------------------
+  \node[pd title,anchor=north west] at (7.35,6.78) {what each hue means};
+  \foreach \i/\s/\w in {0/{pd focus state}/{the kernel's own state},
+                        1/{pd ready state}/{admitted},
+                        2/{pd breach state}/{refused}}{
+    \node[\s,minimum width=.52cm,minimum height=.34cm,inner sep=0pt]
+      at (7.55,{6.08-\i*.56}) {};
+    \node[pd label,anchor=west] at (7.90,{6.08-\i*.56}) {\w};}
 
-  \draw[pd caution arrow,dashed]
-    (5.6,.4)--(5.6,-1.5)--(.5,-1.5)--(.5,.7);
-  \node[pd direct label,anchor=north,text=pdinkmuted,text width=4.0cm,align=center]
-    at (3.05,-1.65) {refused; remains open};
+  % ---- the one reference the wall does not admit -----------------------------
+  \node[pd breach state,minimum width=3.4cm] (F) at (3.05,-0.30) {free-text assertion};
+  \draw[pd breach arrow] (F.east) -- ({\wx-\bar-.14},-0.30);
+  \draw[pd breach rule] ({\wx-.14},-0.60) -- ({\wx+.14},0.00);
+  \draw[pd breach rule] ({\wx-.14},0.00) -- ({\wx+.14},-0.60);
 
-  \node[pd note,anchor=north west,text width=3.3cm] at (1.15,.55)
-    {deadline set by the daemon, not the agent};
+  % ---- refusal returns the commitment to the state it left -------------------
+  \draw[pd breach arrow,rounded corners=3pt]
+    ({\wx+\bar+.32},-0.30) -- (7.60,-0.30) -- (7.60,-1.78) -- (1.15,-1.78) -- (O.south);
+  \node[pd tag,anchor=south] at (4.40,{-1.78+.20})
+    {refused; the commitment stays open};
+  \node[pd note,anchor=north west] at (0.00,-2.20)
+    {the deadline is set by the daemon, never by the agent};
 \end{tikzpicture}
-\caption{Typed evidence passes through a narrow closure aperture. A
-commitment closes as done only when the daemon can re-run a check from the
-finite oracle vocabulary: a released claim, merged commit, passing test id,
-or satisfied policy sub-check. A free-text assertion is refused and the
-commitment remains open. The deadline is set by the daemon, not the agent.
-[internal]}
+\caption{Typed evidence passes a narrow closure aperture. A commitment closes
+as done only when the agent names a reference from the finite oracle
+vocabulary --- a released claim, a merged commit, a passing test identifier, or
+a satisfied policy sub-check --- and the daemon re-checks that the reference
+still holds at closure time. A free-text assertion (red, dashed) meets solid
+wall: it is refused and the commitment remains open. The deadline the
+commitment is judged against is derived by the daemon from scope policy and is
+never agent-supplied. [internal]}
 \label{fig:swk-commitment-oracle}
 \end{figure}

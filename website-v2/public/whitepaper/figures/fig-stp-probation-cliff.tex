@@ -1,29 +1,46 @@
-% The probation cliff: the honest newcomer's burden of one unit of deterrence,
-% placed at period t, grows as (delta_h/delta_f)^t. Numbers from the exchange-step
-% spot check in skills/harbor-results/scripts/b6_probation.py (seed 20260816).
-% [internal; b6_probation.py]
+% Reader question: why is the front-loaded probation schedule the cheapest
+% deterrent for an honest newcomer? Claim: the honest burden of one unit of
+% deterrence grows geometrically, (delta_h/delta_f)^t, the later it is placed,
+% so placing it all at t=0 (the cliff) is the undominated minimum. Evidence:
+% delta_h=0.95, delta_f=0.60, ratio 1.5833; the exchange-step spot check and
+% the 4000-instance random search in b6_probation.py (seed 20260816), which
+% finds no dominating schedule (min slack +0.028). Must distinguish: the
+% cliff (t=0, cost 1x) from every later placement, and the multiplicative
+% step between periods. Grammar: a computed bar plot, one bar per period,
+% each labelled with its multiple, rejected: a schematic ramp with no axis
+% (hides that the growth is geometric, not linear) and a table of the ten
+% numbers (states them but hides the shape of the growth). Five-second test:
+% a reader says "waiting one period already costs 58% more."
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdviolet}%
 \begin{tikzpicture}[pd figure]
 \begin{axis}[pd axis,
-  width=\linewidth, height=0.58\linewidth,
-  ybar, bar width=9pt,
+  width=7.0cm,height=6.0cm,
+  ybar,bar width=9pt,
   xlabel={period $t$ at which the whole deterrence requirement is placed},
+  xlabel style={align=center,text width=7.2cm},
   ylabel={honest burden $H$, as a multiple of the cliff's},
-  xmin=-0.6, xmax=9.6, ymin=0, ymax=80,
+  xmin=-1.5,xmax=9.6,ymin=0,ymax=80,
   xtick={0,1,2,3,4,5,6,7,8,9},
-  ytick={1,10,20,30,40,50,60,70}, yticklabels={1,10,20,30,40,50,60,70},
-  axis lines=left, axis line style={pd hairline},
-  nodes near coords, every node near coord/.append style={pd direct label,fill=none},
-  point meta=explicit symbolic,
-  clip=false,
+  ytick={1,10,20,30,40,50,60,70},yticklabels={1,10,20,30,40,50,60,70},
 ]
-\addplot[pd focus fill,line width=0.6pt] coordinates {(0,1) [1.00]};
-\addplot[pd neutral fill,line width=0.6pt] coordinates {
-  (1,1.5833) [1.58] (2,2.5069) [2.51] (3,3.9693) [3.97] (4,6.2848) [6.28]
-  (5,9.9509) [9.95] (6,15.756) [15.8] (7,24.946) [24.9] (8,39.498) [39.5] (9,62.539) [62.5]};
-\node[pd note,anchor=south west,align=left] at (axis cs:1.2,44) {the cliff: the whole requirement at $t=0$\\costs the honest newcomer $1\times$, no more};
-\node[pd note,anchor=south east,align=right] at (axis cs:8.6,60) {each period of delay multiplies\\the burden by $0.95/0.60 = 1.58$};
+\addplot[pd focus fill] coordinates {(0,1)};
+\addplot[pd neutral fill] coordinates {
+  (1,1.5833) (2,2.5069) (3,3.9693) (4,6.2848)
+  (5,9.9509) (6,15.756) (7,24.946) (8,39.498) (9,62.539)};
+\node[pd label,anchor=south] at (axis cs:0,5.0) {1.00};
+\node[pd label,anchor=south] at (axis cs:1,5.6) {1.58};
+\node[pd label,anchor=south] at (axis cs:2,6.5) {2.51};
+\node[pd label,anchor=south] at (axis cs:3,8.0) {3.97};
+\node[pd label,anchor=south] at (axis cs:4,10.3) {6.28};
+\node[pd label,anchor=south] at (axis cs:5,14.0) {9.95};
+\node[pd label,anchor=south] at (axis cs:6,19.8) {15.8};
+\node[pd label,anchor=south] at (axis cs:7,28.9) {24.9};
+\node[pd label,anchor=south] at (axis cs:8,43.5) {39.5};
+\node[pd label,anchor=south] at (axis cs:9,66.5) {62.5};
+\node[pd focus label,anchor=north west,align=left,text width=2.7cm] at (axis cs:0.4,78)
+  {the cliff: $t=0$ costs $1\times$, no more};
 \end{axis}
 \end{tikzpicture}
 \caption{The honest newcomer's burden of one unit of deterrence, by the period in which
