@@ -508,6 +508,11 @@ export function createSessions(
       UPDATE session_files SET released_at = ?
       WHERE session_id = ? AND file_path = ? AND symbol_path = ? AND released_at IS NULL
     `),
+    releaseRegionBySymbol: db.prepare(`
+      UPDATE session_files SET released_at = ?
+      WHERE session_id = ? AND file_path = ? AND symbol = ?
+        AND symbol_path IS NULL AND released_at IS NULL
+    `),
     releaseAllFiles: db.prepare(`
       UPDATE session_files SET released_at = ? WHERE session_id = ? AND released_at IS NULL
     `),
@@ -2074,6 +2079,25 @@ export function createSessions(
           symbol: claim.symbol,
           symbolPath: claim.symbolPath,
         });
+      }
+
+      // Re-claiming is a replacement, including for active rows written before
+      // projectless claims moved from the ambiguous "local" repository id to
+      // the reserved sentinel. Release by selector rather than node id so the
+      // compatibility row and every historical forest node are retired before
+      // the canonical claim is inserted.
+      if (symbolPath) {
+        stmts.releaseRegionBySymbolPath.run(now, sessionId, region.path, symbolPath);
+        claimForest.releaseBySymbolPath(sessionId, region.path, symbolPath, now);
+      } else if (symbol) {
+        stmts.releaseRegionBySymbol.run(now, sessionId, region.path, symbol);
+        claimForest.releaseBySymbol(sessionId, region.path, symbol, now);
+      } else if (startLine !== null && endLine !== null) {
+        stmts.releaseRegion.run(now, sessionId, region.path, startLine, endLine);
+        claimForest.releaseByRange(sessionId, region.path, startLine, endLine, now);
+      } else {
+        stmts.releaseFile.run(now, sessionId, region.path);
+        claimForest.releaseByFilePath(sessionId, region.path, now);
       }
 
       const legacyResult = stmts.claimRegion.run(sessionId, region.path, startLine, endLine, symbol, symbolPath, now);

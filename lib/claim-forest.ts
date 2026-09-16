@@ -411,6 +411,15 @@ export function createClaimForest(db: Database.Database) {
       WHERE session_id = ? AND released_at IS NULL
         AND node_id IN (SELECT id FROM claim_forest_nodes WHERE path = ? AND symbol_path = ?)
     `),
+    releaseBySymbol: db.prepare(`
+      UPDATE claim_forest_claims
+      SET released_at = ?
+      WHERE session_id = ? AND released_at IS NULL
+        AND node_id IN (
+          SELECT id FROM claim_forest_nodes
+          WHERE path = ? AND symbol = ? AND symbol_path IS NULL
+        )
+    `),
     releaseByRange: db.prepare(`
       UPDATE claim_forest_claims
       SET released_at = ?
@@ -631,6 +640,11 @@ export function createClaimForest(db: Database.Database) {
     return stmts.releaseBySymbolPath.run(releasedAt, sessionId, normalizedPath, symbolPath).changes;
   }
 
+  function releaseBySymbol(sessionId: string, filePath: string, symbol: string, releasedAt = Date.now()) {
+    const normalizedPath = normalizePath(filePath) ?? filePath;
+    return stmts.releaseBySymbol.run(releasedAt, sessionId, normalizedPath, symbol).changes;
+  }
+
   function releaseByRange(sessionId: string, filePath: string, startLine: number, endLine: number, releasedAt = Date.now()) {
     const normalizedPath = normalizePath(filePath) ?? filePath;
     return stmts.releaseByRange.run(releasedAt, sessionId, normalizedPath, startLine, endLine).changes;
@@ -699,6 +713,7 @@ export function createClaimForest(db: Database.Database) {
     getActiveClaimsForFileExcludingSession,
     releaseByFilePath,
     releaseBySymbolPath,
+    releaseBySymbol,
     releaseByRange,
     releaseAllBySession,
     backfillFromSessionFiles,
