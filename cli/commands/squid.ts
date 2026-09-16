@@ -36,6 +36,12 @@ import { ensureSquidClaudeHome } from '../../lib/squid/bridge-client-home.js';
 import { squidTokens } from '../../lib/squid/terminal.js';
 import { resolveSquidAsset } from '../../lib/squid/assets.js';
 import {
+  allowSquidWorktree,
+  denySquidWorktree,
+  disarmSquidRepositoryFamily,
+  listVerifiedRepositoryFamilyWorktrees,
+} from '../../lib/squid/repository-family-authority.js';
+import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
@@ -707,7 +713,7 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const t = squidTokens('stdout');
 
-  const { stageTentacles, silentHooksInstall, unregisterSquidProject } = await import('./hooks-install.js');
+  const { stageTentacles, silentHooksInstall } = await import('./hooks-install.js');
   const stage = stageTentacles();
   const problems: string[] = [];
   if (stage.missing.length > 0) {
@@ -716,10 +722,15 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   const hooks = stage.missing.length === 0
     ? silentHooksInstall(undefined, { cwd, stage, resetHealthOnSuccess: false })
     : null;
-  if (hooks && hooks.detected.length === 0) problems.push('no supported agent CLIs detected');
   if (hooks?.failures.length) problems.push(...hooks.failures.map((failure) => `hook wiring: ${failure}`));
-  if (hooks && hooks.detected.length > hooks.configured) {
-    problems.push(`only ${hooks.configured}/${hooks.detected.length} detected agent CLIs were wired`);
+  if (hooks && !hooks.activated) problems.push('repository-family hook activation did not commit');
+  if (hooks && hooks.configured !== 4) problems.push(`only ${hooks.configured}/4 dormant provider registrations were wired`);
+  if (hooks?.activated) {
+    try {
+      allowSquidWorktree(cwd);
+    } catch (error) {
+      problems.push(`worktree privacy deny could not be cleared explicitly: ${(error as Error).message}`);
+    }
   }
 
   const stagedStatusline = stageStatusline();
@@ -749,15 +760,16 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   const armed = problems.length === 0;
   if (armed) {
     resetSquidHookHealth();
-    ui.success('Giant Squid harness ARMED for this project');
+    ui.success('Giant Squid harness ARMED for this repository family');
   } else {
-    unregisterSquidProject(cwd);
-    ui.warn(`Giant Squid harness NOT ARMED for this project — ${problems.length} problem(s)`);
+    disarmSquidRepositoryFamily(cwd);
+    ui.warn(`Giant Squid harness NOT ARMED for this repository family — ${problems.length} problem(s)`);
     process.exitCode = 1;
   }
   console.log(`  workspace:   ${cwd}`);
   if (hooks) {
-    console.log(`  hooks:       ${hooks.detected.length > 0 ? hooks.detected.join(', ') : 'no agent CLIs detected'} (daemon-gated)`);
+    console.log(`  hooks:       claude, codex, gemini, agy registered once (daemon + repository-family gated)`);
+    console.log(`  detected:    ${hooks.detected.length > 0 ? hooks.detected.join(', ') : 'none currently installed; registrations remain dormant'}`);
   } else {
     console.log(`  hooks:       ${t.bad('skipped — tentacles missing on this build')}`);
   }
@@ -772,51 +784,71 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   console.log('');
   if (armed) {
     printSquidValueCard(t);
-    console.log('  New agent sessions in this project are visibly Port-Daddy-harnessed.');
+    console.log('  Existing and future linked worktrees inherit hook activation; unrelated clones do not.');
     console.log('  Inspect the background machinery any time: pd squid status · pd squid tap');
     console.log('  Disarm: pd squid off');
   } else {
     console.log(`  ${t.warn('The harness is NOT fully wired:')}`);
     for (const problem of problems) console.log(`    ${t.bad('✗')} ${problem}`);
-    console.log('  Safety: the exact project-root gate was removed, so staged hooks remain inert.');
+    console.log('  Safety: repository-family authority was revoked, so staged hooks remain inert.');
     console.log('  Repair: pd doctor, or reinstall/rebuild the pd binary — see pd squid status for live detail.');
   }
 }
 
 /**
- * `pd squid off` — disarm this project: remove pd hooks, statusline, steering
- * hook, and slash command. `--all` also clears user-level configs (codex/agy
- * live there; without --all they stay wired but runtime-gated inert).
+ * `pd squid off` revokes this whole repository family. `--this-worktree`
+ * installs a narrower verified-worktree deny without affecting siblings.
+ * Shared user registrations stay dormant; `--all` requests explicit global
+ * removal and refuses while any other family remains armed.
  */
 async function handleSquidOff(options: CLIOptions): Promise<void> {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
-  const { buildTargets, clearArmedSquidProjects, unregisterSquidProject, uninstallTarget } = await import('./hooks-install.js');
+  const { buildTargets, uninstallSharedProviderHooks, uninstallTarget } = await import('./hooks-install.js');
   const home = process.env.HOME || process.env.USERPROFILE || '';
+  const thisWorktree = options['this-worktree'] === true || options.thisWorktree === true;
+  if (thisWorktree && options.all) {
+    throw new Error('Choose either --this-worktree or --all; the scopes are mutually exclusive');
+  }
+  if (options.user) {
+    throw new Error('`pd squid off --user` was supplanted; use --this-worktree, default family off, or --all');
+  }
 
+  const roots = thisWorktree ? [cwd] : listVerifiedRepositoryFamilyWorktrees(cwd);
+  const authorityLabel = thisWorktree
+    ? `worktree deny ${denySquidWorktree(cwd).lookupId}`
+    : disarmSquidRepositoryFamily(cwd).reason;
   const cleared: string[] = [];
-  for (const target of buildTargets(home)) {
-    const scopes: Array<'project' | 'user'> = options.all || options.user ? ['project', 'user'] : ['project'];
-    for (const scope of scopes) {
-      const r = uninstallTarget(target, { scope, cwd });
-      if (r.success && !r.skipped) cleared.push(`${target.slug} (${scope})`);
+  const targets = buildTargets(home);
+  for (const root of roots) {
+    for (const target of targets) {
+      const result = uninstallTarget(target, { scope: 'project', cwd: root });
+      if (result.success && !result.skipped) cleared.push(`${target.slug} (${root})`);
     }
+    uninstallStatusline(root);
+    uninstallPilotSessionStartHook(root);
+    uninstallSlashCommand(root);
   }
-  if (options.all || options.user) clearArmedSquidProjects();
-  else unregisterSquidProject(cwd);
-  const statusline = uninstallStatusline(cwd);
-  const sessionStart = uninstallPilotSessionStartHook(cwd);
-  const slash = uninstallSlashCommand(cwd);
 
-  ui.success('Giant Squid harness DISARMED for this project');
-  console.log(`  hooks:       ${cleared.length > 0 ? `cleared ${cleared.join(', ')}` : 'none found'}`);
-  console.log(`  statusline:  ${statusline.reason}`);
-  console.log(`  steering:    ${sessionStart.reason}`);
-  console.log(`  /squid:      ${slash.reason}`);
-  if (!options.all && !options.user) {
-    console.log('');
-    console.log('  User-level codex/agy configs remain installed, but this project was removed');
-    console.log('  from the exact-root arm registry, so every tentacle is inert here.');
+  let globalFailures: string[] = [];
+  if (options.all) {
+    const global = uninstallSharedProviderHooks(targets);
+    globalFailures = global.failures;
+    if (global.failures.length === 0) cleared.push(`${global.changed} shared user registration(s)`);
   }
+
+  if (globalFailures.length > 0) {
+    ui.warn('Repository family was revoked, but global provider cleanup refused while another family remains armed.');
+    for (const failure of globalFailures) console.log(`  ${failure}`);
+    process.exitCode = 1;
+  } else {
+    ui.success(thisWorktree
+      ? 'Giant Squid hooks DENIED for this verified worktree'
+      : 'Giant Squid harness DISARMED for this repository family');
+  }
+  console.log(`  authority:   ${authorityLabel}`);
+  console.log(`  project UI:  cleared in ${roots.length} verified worktree(s)`);
+  console.log(`  hooks:       ${cleared.length > 0 ? `cleared ${cleared.join(', ')}` : 'shared dormant registrations preserved'}`);
+  if (!options.all) console.log('  Shared claude/codex/gemini/agy registrations remain dormant for other armed families.');
   console.log('  Re-arm any time: pd squid on');
 }
 
@@ -1275,8 +1307,9 @@ function printBridgeCard(args: {
 
 function printHelp(): void {
   console.log(`Usage:
-  pd squid on     [--cwd <repo>]                 Arm the FULL harness for this project
-  pd squid off    [--all] [--cwd <repo>]         Disarm it (hooks, statusline, /squid)
+  pd squid on     [--cwd <repo>]                 Arm hooks for this repository family
+  pd squid off    [--this-worktree|--all] [--cwd <repo>]
+                                                 Deny one worktree or revoke the family
   pd squid status [--json]                       Non-diegetic readout of every surface
   pd squid tap                                   Preview the next-turn injection envelope
   pd squid debug on|off|status|clear [--json]    Sanitized per-session hook timeline
@@ -1286,10 +1319,10 @@ function printHelp(): void {
   pd squid serve  [bridge options]
 
 Toggle:
-  on    Stage tentacles + wire hooks for detected CLIs, install the ◆ PD
-        statusline, the Pilot SessionStart steering hook, and /squid — one shot.
-  off   Remove all of it from this project. --all also clears user-level
-        codex/agy configs (otherwise the runtime gate just keeps them inert).
+  on    Stage tentacles + install dormant Claude/Codex/Gemini/agy user hooks,
+        arm the local repository family, and install current-worktree UI.
+  off   Default revokes the whole family. --this-worktree installs a narrower
+        verified deny. --all removes shared hooks only when no family remains.
 
 Bridge options:
   --port <n>                  Local bridge port (default: 8765)

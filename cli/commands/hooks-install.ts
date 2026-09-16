@@ -8,11 +8,10 @@
  * injectors can never drift.
  *
  * Two guarantees the user asked for:
- *   1. PER PROJECT. Claude/Gemini get project-level config written into the repo
- *      (`<repo>/.claude/settings.json`, `<repo>/.gemini/settings.json`). Codex
- *      (repo-local hooks don't fire interactively — openai/codex#17532) and agy
- *      (home-scoped `~/.gemini/hooks.json`) must be user-level, so they are
- *      constrained at RUNTIME by the gate below.
+ *   1. PER LOCAL REPOSITORY FAMILY. All four providers receive one dormant,
+ *      user-level registration. Activation is a verified local common-dir/root
+ *      authority, so existing and future linked worktrees inherit without
+ *      per-worktree config; unrelated clones remain inert.
  *   2. INERT UNTIL PORT DADDY IS READY. Every hook command points at a gate
  *      wrapper, not the tentacle directly. The wrapper no-ops (allow / no
  *      context) unless (a) the pd daemon's ready lease matches its live PID,
@@ -26,10 +25,9 @@
  * Hook configs point at the gate wrappers.
  *
  * Usage:
- *   pd hooks install            # wire detected CLIs for THIS project (+gated user cfg)
- *   pd hooks install --user     # also write user-level config for claude/gemini
+ *   pd hooks install            # register four dormant adapters + arm this family
  *   pd hooks list               # detection + wiring status
- *   pd hooks uninstall          # remove Port Daddy hooks from every surface
+ *   pd hooks uninstall          # global cleanup; refuses while another family is armed
  */
 
 import {
@@ -37,13 +35,15 @@ import {
   readFileSync,
   writeFileSync,
   mkdirSync,
-  copyFileSync,
   chmodSync,
+  lstatSync,
+  statSync,
   realpathSync,
   renameSync,
   rmSync,
 } from 'node:fs';
-import { basename, join, dirname, resolve } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
+import { basename, join, dirname, parse, relative, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import * as ui from '../utils/ui.js';
 import { PD_HOME } from '../../shared/paths.js';
@@ -55,6 +55,7 @@ import {
   CODEX_PD_MARKER,
   SQUID_HOOK_DEADLINE_MS,
   buildJsonHookMap,
+  isPdEntry,
   codexHooksTomlBlock,
   upsertJsonHookMap,
   removeJsonHooks,
@@ -69,6 +70,20 @@ import {
   resetSquidHookHealth,
 } from '../../lib/squid/debug.js';
 import { resolveSquidAsset } from '../../lib/squid/assets.js';
+import {
+  disarmSquidRepositoryFamily,
+  assertAllSquidRepositoryFamiliesDisarmed,
+  inspectSquidRepositoryFamily,
+  isSquidRepositoryFamilyArmed,
+  listVerifiedRepositoryFamilyWorktrees,
+  SQUID_REPOSITORY_FAMILY_MARKER_FILENAME,
+  SQUID_REPOSITORY_FAMILY_MAX_RECORD_BYTES,
+  SQUID_REPOSITORY_FAMILY_RECORD_VERSION,
+  transactSquidRepositoryFamilyArm,
+  type PendingRepositoryFamilyArm,
+  type PreparedRepositoryFamilyArm,
+  type RepositoryFamilyFaultPoint,
+} from '../../lib/squid/repository-family-authority.js';
 
 const DEFAULT_HOME = process.env.HOME || process.env.USERPROFILE || '';
 const SQUID_DAEMON_HEARTBEAT_STALE_SECONDS = 30;
@@ -81,12 +96,200 @@ export function tentacleBinDir(): string {
 function realTentacleDir(): string {
   return join(PD_HOME, 'bin', 'squid');
 }
-/** The gate-wrapper path a hook config invokes for a given tentacle. */
-function gatePath(name: TentacleName): string {
-  return join(tentacleBinDir(), name);
+// ─── Gate wrapper (pd-ready + per-project) ───────────────────────────────────
+
+interface GateWrapperOptions {
+  /** Authority root resolved from the trusted wrapper staging destination. */
+  pdHome: string;
+  /** Fixed at staging; hook input/environment can never extend this budget. */
+  authorityBudgetMs: number;
+  /** Test-only stderr trace. Production wrappers make no pre-authority writes. */
+  authorityTrace: boolean;
+  /** One staged generation shared by every wrapper and committed manifest. */
+  wrapperGeneration: string;
 }
 
-// ─── Gate wrapper (pd-ready + per-project) ───────────────────────────────────
+function repositoryFamilyGateShellLines(options: GateWrapperOptions): string[] {
+  return [
+    '# Repository-family authority runs before daemon/debug/input work. It is',
+    '# direct, filesystem-only, bounded by fixed ascent/record limits, and never',
+    '# invokes Git or scans the family registry.',
+    'LC_ALL=C; export LC_ALL',
+    `pd_authority_max_bytes=${SQUID_REPOSITORY_FAMILY_MAX_RECORD_BYTES}`,
+    `pd_authority_budget_ms=${options.authorityBudgetMs}`,
+    `pd_authority_trace=${options.authorityTrace ? 1 : 0}`,
+    'pd_authority_now_ms() {',
+    '  if [ -x /usr/bin/perl ]; then /usr/bin/perl -MTime::HiRes=time -e \'printf "%.0f", time * 1000\';',
+    '  else printf "%s000" "$(date +%s)"; fi',
+    '}',
+    'pd_authority_started_ms=$(pd_authority_now_ms 2>/dev/null || printf 0)',
+    'pd_authority_receipt() {',
+    '  case "$1" in allow|boundary|verifier|marker|deny) ;; *) set -- boundary ;; esac',
+    '  pd_authority_finished_ms=$(pd_authority_now_ms 2>/dev/null || printf 0)',
+    '  pd_authority_duration_ms=$((pd_authority_finished_ms - pd_authority_started_ms))',
+    '  [ "$pd_authority_duration_ms" -ge 0 ] 2>/dev/null || pd_authority_duration_ms=0',
+    '  [ "$pd_authority_trace" -eq 1 ] || return 0',
+    `  printf "${SQUID_REPOSITORY_FAMILY_RECORD_VERSION}\\t%s\\t%s\\n" "$1" "$pd_authority_duration_ms" >&2`,
+    '}',
+    'pd_authority_deny() { pd_authority_receipt "$1"; exit 0; }',
+    'pd_path_no_symlink() {',
+    '  pd_path=$1; case "$pd_path" in /*) ;; *) return 1 ;; esac',
+    '  pd_path_steps=0',
+    '  while [ "$pd_path" != / ]; do',
+    '    [ ! -L "$pd_path" ] || return 1',
+    '    pd_path=${pd_path%/*}; [ -n "$pd_path" ] || pd_path=/',
+    '    pd_path_steps=$((pd_path_steps + 1)); [ "$pd_path_steps" -le 80 ] || return 1',
+    '  done',
+    '}',
+    'pd_stat_devino() {',
+    '  pd_stat_value=$(stat -f "%d %i" "$1" 2>/dev/null || true)',
+    '  case "$pd_stat_value" in ""|*[!0-9\\ ]*) pd_stat_value=$(stat -c "%d %i" "$1" 2>/dev/null || true) ;; esac',
+    '  case "$pd_stat_value" in ""|*[!0-9\\ ]*) return 1 ;; esac',
+    '  set -- $pd_stat_value; [ "$#" -eq 2 ] || return 1',
+    '  [ "$1" -gt 0 ] 2>/dev/null && [ "$2" -gt 0 ] 2>/dev/null || return 1',
+    '  pd_stat_device=$1; pd_stat_inode=$2',
+    '}',
+    'pd_uid=$(id -u 2>/dev/null || true)',
+    'case "$pd_uid" in ""|*[!0-9]*) pd_authority_deny boundary ;; esac',
+    'pd_secure_directory() {',
+    '  [ -d "$1" ] && [ ! -L "$1" ] && pd_path_no_symlink "$1" || return 1',
+    '  pd_dir_shape=$(stat -f "%Lp %u" "$1" 2>/dev/null || true)',
+    '  case "$pd_dir_shape" in ""|*[!0-9\\ ]*) pd_dir_shape=$(stat -c "%a %u" "$1" 2>/dev/null || true) ;; esac',
+    '  set -- $pd_dir_shape; [ "$#" -eq 2 ] || return 1',
+    '  [ "$1" = 700 ] && [ "$2" = "$pd_uid" ]',
+    '}',
+    'pd_owned_directory() {',
+    '  [ -d "$1" ] && [ ! -L "$1" ] && pd_path_no_symlink "$1" || return 1',
+    '  pd_dir_owner=$(stat -f "%u" "$1" 2>/dev/null || true)',
+    '  case "$pd_dir_owner" in ""|*[!0-9]*) pd_dir_owner=$(stat -c "%u" "$1" 2>/dev/null || true) ;; esac',
+    '  [ "$pd_dir_owner" = "$pd_uid" ]',
+    '}',
+    'pd_read_record() {',
+    '  pd_record_path=$1; pd_record_mode=$2',
+    '  [ -f "$pd_record_path" ] && [ ! -L "$pd_record_path" ] && pd_path_no_symlink "$pd_record_path" || return 1',
+    '  pd_file_shape=$(stat -f "%Lp %l %u" "$pd_record_path" 2>/dev/null || true)',
+    '  case "$pd_file_shape" in ""|*[!0-9\\ ]*) pd_file_shape=$(stat -c "%a %h %u" "$pd_record_path" 2>/dev/null || true) ;; esac',
+    '  set -- $pd_file_shape; [ "$#" -eq 3 ] || return 1',
+    '  if [ "$pd_record_mode" = secure ]; then [ "$1" = 600 ] || return 1; fi',
+    '  [ "$2" = 1 ] && [ "$3" = "$pd_uid" ] || return 1',
+    '  pd_record_bytes=$(wc -c < "$pd_record_path" 2>/dev/null | tr -d "[:space:]" || true)',
+    '  case "$pd_record_bytes" in ""|*[!0-9]*) return 1 ;; esac',
+    '  [ "$pd_record_bytes" -gt 0 ] && [ "$pd_record_bytes" -le "$pd_authority_max_bytes" ] || return 1',
+    '  pd_record_lines=$(wc -l < "$pd_record_path" 2>/dev/null | tr -d "[:space:]" || true)',
+    '  [ "$pd_record_lines" = 1 ] || return 1',
+    '  IFS= read -r pd_record_line < "$pd_record_path" || return 1',
+    '  [ $(( ${#pd_record_line} + 1 )) -eq "$pd_record_bytes" ] 2>/dev/null || return 1',
+    '}',
+    'pd_tab=$(printf "\\t")',
+    'pd_field_count() {',
+    '  pd_fields_line=$1; pd_fields=1; pd_fields_steps=0',
+    '  while :; do',
+    '    case "$pd_fields_line" in *"$pd_tab"*) pd_fields_line=${pd_fields_line#*"$pd_tab"}; pd_fields=$((pd_fields + 1)) ;; *) break ;; esac',
+    '    pd_fields_steps=$((pd_fields_steps + 1)); [ "$pd_fields_steps" -le 8 ] || return 1',
+    '  done',
+    '  [ "$pd_fields" -eq "$2" ]',
+    '}',
+    'pd_valid_uuid() {',
+    '  [ "${#1}" -eq 36 ] || return 1',
+    '  case "$1" in ????????-????-4???-[89ab]???-????????????) ;; *) return 1 ;; esac',
+    '  case "$1" in *[!0-9a-f-]*) return 1 ;; esac',
+    '}',
+    `pd_wrapper_generation=${shellQuote(options.wrapperGeneration)}`,
+    'pd_generation_manifest="$PD_HOME/squid/hook-wrapper-generation.v1"',
+    'pd_read_record "$pd_generation_manifest" secure || pd_authority_deny verifier',
+    'pd_field_count "$pd_record_line" 2 || pd_authority_deny verifier',
+    'IFS="$pd_tab" read -r pd_generation_version pd_generation_value < "$pd_generation_manifest" || pd_authority_deny verifier',
+    `  [ "$pd_generation_version" = ${SQUID_REPOSITORY_FAMILY_RECORD_VERSION} ] || pd_authority_deny verifier`,
+    '  [ "$pd_generation_value" = "$pd_wrapper_generation" ] || pd_authority_deny verifier',
+    'pd_cwd=$(pwd -P 2>/dev/null || true)',
+    '[ -n "$pd_cwd" ] || pd_authority_deny boundary',
+    'pd_boundary=; pd_project_root=; pd_authority_root=; pd_kind=; pd_device=; pd_inode=; pd_worktree_device=; pd_worktree_inode=',
+    'pd_d=$pd_cwd; pd_ascent=0',
+    'while [ "$pd_ascent" -le 64 ]; do',
+    '  pd_git="$pd_d/.git"',
+    '  if [ -e "$pd_git" ] || [ -L "$pd_git" ]; then',
+    '    [ ! -L "$pd_git" ] || pd_authority_deny boundary',
+    '    pd_project_root=$pd_d; pd_kind=git',
+    '    pd_stat_devino "$pd_project_root" || pd_authority_deny boundary',
+    '    pd_worktree_device=$pd_stat_device; pd_worktree_inode=$pd_stat_inode',
+    '    if [ -d "$pd_git" ]; then',
+    '      pd_owned_directory "$pd_git" || pd_authority_deny boundary',
+    '      pd_authority_root=$(cd "$pd_git" 2>/dev/null && pwd -P) || pd_authority_deny boundary',
+    '    elif [ -f "$pd_git" ]; then',
+    '      pd_read_record "$pd_git" metadata || pd_authority_deny boundary',
+    '      case "$pd_record_line" in "gitdir: "/*) pd_admin_candidate=${pd_record_line#gitdir: } ;; *) pd_authority_deny boundary ;; esac',
+    '      pd_path_no_symlink "$pd_admin_candidate" || pd_authority_deny boundary',
+    '      pd_admin=$(cd "$pd_admin_candidate" 2>/dev/null && pwd -P) || pd_authority_deny boundary',
+    '      pd_owned_directory "$pd_admin" || pd_authority_deny boundary',
+    '      pd_read_record "$pd_admin/commondir" metadata || pd_authority_deny boundary',
+    '      [ "$pd_record_line" = "../.." ] || pd_authority_deny boundary',
+    '      pd_worktrees_candidate=${pd_admin%/*}',
+    '      pd_common_candidate=${pd_worktrees_candidate%/*}',
+    '      pd_path_no_symlink "$pd_common_candidate" || pd_authority_deny boundary',
+    '      pd_authority_root=$(cd "$pd_common_candidate" 2>/dev/null && pwd -P) || pd_authority_deny boundary',
+    '      pd_owned_directory "$pd_authority_root" || pd_authority_deny boundary',
+    '      [ "${pd_admin%/*}" = "$pd_authority_root/worktrees" ] || pd_authority_deny boundary',
+    '      pd_read_record "$pd_admin/gitdir" metadata || pd_authority_deny boundary',
+    '      [ "$pd_record_line" = "$pd_project_root/.git" ] || pd_authority_deny boundary',
+    '      pd_stat_devino "$pd_admin" || pd_authority_deny boundary',
+    '      pd_worktree_device=$pd_stat_device; pd_worktree_inode=$pd_stat_inode',
+    '    else pd_authority_deny boundary; fi',
+    '    pd_stat_devino "$pd_authority_root" || pd_authority_deny boundary',
+    '    pd_device=$pd_stat_device; pd_inode=$pd_stat_inode; pd_boundary=1; break',
+    '  fi',
+    '  pd_marker_dir="$pd_d/.portdaddy"',
+    '  if [ -e "$pd_marker_dir" ] || [ -L "$pd_marker_dir" ]; then',
+    '    pd_owned_directory "$pd_marker_dir" || pd_authority_deny boundary',
+    '    pd_owned_directory "$pd_d" || pd_authority_deny boundary',
+    '    pd_project_root=$pd_d; pd_authority_root=$pd_d; pd_kind=root',
+    '    pd_stat_devino "$pd_d" || pd_authority_deny boundary',
+    '    pd_device=$pd_stat_device; pd_inode=$pd_stat_inode; pd_worktree_device=$pd_device; pd_worktree_inode=$pd_inode',
+    '    pd_boundary=1; break',
+    '  fi',
+    '  [ "$pd_d" != / ] || break',
+    '  pd_d=${pd_d%/*}; [ -n "$pd_d" ] || pd_d=/',
+    '  pd_ascent=$((pd_ascent + 1))',
+    'done',
+    '[ "$pd_boundary" = 1 ] || pd_authority_deny boundary',
+    'pd_authority_lookup="$pd_kind-$pd_device-$pd_inode"',
+    'pd_registry="$PD_HOME/squid/repository-families"',
+    'pd_secure_directory "$pd_registry" || pd_authority_deny verifier',
+    'pd_verifier="$pd_registry/$pd_authority_lookup.v1"',
+    'pd_read_record "$pd_verifier" secure || pd_authority_deny verifier',
+    'pd_field_count "$pd_record_line" 6 || pd_authority_deny verifier',
+    'IFS="$pd_tab" read -r pd_v pd_record_kind pd_record_lookup pd_local_repository_id pd_record_device pd_record_inode < "$pd_verifier" || pd_authority_deny verifier',
+    `  [ "$pd_v" = ${SQUID_REPOSITORY_FAMILY_RECORD_VERSION} ] || pd_authority_deny verifier`,
+    '  [ "$pd_record_kind" = "$pd_kind" ] && [ "$pd_record_lookup" = "$pd_authority_lookup" ] || pd_authority_deny verifier',
+    '  [ "$pd_record_device" = "$pd_device" ] && [ "$pd_record_inode" = "$pd_inode" ] || pd_authority_deny verifier',
+    '  pd_valid_uuid "$pd_local_repository_id" || pd_authority_deny verifier',
+    'pd_denies="$pd_registry/denies"; pd_deny_family="$pd_denies/$pd_authority_lookup"',
+    'if [ -e "$pd_denies" ] || [ -L "$pd_denies" ]; then pd_secure_directory "$pd_denies" || pd_authority_deny deny; fi',
+    'if [ -e "$pd_deny_family" ] || [ -L "$pd_deny_family" ]; then pd_secure_directory "$pd_deny_family" || pd_authority_deny deny; fi',
+    'pd_worktree_deny="$pd_deny_family/$pd_worktree_device-$pd_worktree_inode.v1"',
+    'if [ -e "$pd_worktree_deny" ] || [ -L "$pd_worktree_deny" ]; then',
+    '  pd_read_record "$pd_worktree_deny" secure || pd_authority_deny deny',
+    '  pd_field_count "$pd_record_line" 6 || pd_authority_deny deny',
+    '  IFS="$pd_tab" read -r pd_dv pd_dtype pd_dlookup pd_did pd_ddev pd_dino < "$pd_worktree_deny" || pd_authority_deny deny',
+    `  [ "$pd_dv" = ${SQUID_REPOSITORY_FAMILY_RECORD_VERSION} ] && [ "$pd_dtype" = deny ] || pd_authority_deny deny`,
+    '  [ "$pd_dlookup" = "$pd_authority_lookup" ] && [ "$pd_did" = "$pd_local_repository_id" ] || pd_authority_deny deny',
+    '  [ "$pd_ddev" = "$pd_worktree_device" ] && [ "$pd_dino" = "$pd_worktree_inode" ] || pd_authority_deny deny',
+    '  pd_authority_deny deny',
+    'fi',
+    `if [ "$pd_kind" = git ]; then pd_marker="$pd_authority_root/port-daddy/${SQUID_REPOSITORY_FAMILY_MARKER_FILENAME}"; else pd_marker="$pd_authority_root/.portdaddy/${SQUID_REPOSITORY_FAMILY_MARKER_FILENAME}"; fi`,
+    'pd_marker_parent=${pd_marker%/*}',
+    'pd_owned_directory "$pd_marker_parent" || pd_authority_deny marker',
+    'pd_read_record "$pd_marker" secure || pd_authority_deny marker',
+    'pd_field_count "$pd_record_line" 3 || pd_authority_deny marker',
+    'IFS="$pd_tab" read -r pd_mv pd_mlookup pd_mid < "$pd_marker" || pd_authority_deny marker',
+    `  [ "$pd_mv" = ${SQUID_REPOSITORY_FAMILY_RECORD_VERSION} ] || pd_authority_deny marker`,
+    '  [ "$pd_mlookup" = "$pd_authority_lookup" ] && [ "$pd_mid" = "$pd_local_repository_id" ] || pd_authority_deny marker',
+    'pd_authority_finished_ms=$(pd_authority_now_ms 2>/dev/null || printf 0)',
+    'pd_authority_duration_ms=$((pd_authority_finished_ms - pd_authority_started_ms))',
+    'case "$pd_authority_duration_ms" in ""|*[!0-9]*) pd_authority_deny boundary ;; esac',
+    '[ "$pd_authority_duration_ms" -le "$pd_authority_budget_ms" ] 2>/dev/null || pd_authority_deny boundary',
+    '',
+  ];
+}
 
 /**
  * The shell gate. It runs on every tool call, so it is filesystem-only and
@@ -100,12 +303,15 @@ function gatePath(name: TentacleName): string {
  * made every Codex hook silently fail open. The Bosun heartbeat is specifically
  * designed as the filesystem-only liveness contract for sandboxed observers.
  */
-function gateWrapperScript(): string {
+function gateWrapperScript(options: GateWrapperOptions): string {
   return [
     '#!/bin/sh',
+    '# Authority must not inherit a repository-controlled command search path.',
+    'PATH=/usr/bin:/bin:/usr/sbin:/sbin; export PATH',
+    'unset ENV BASH_ENV CDPATH GLOBIGNORE',
     '# Port Daddy hook gate — GENERATED by `pd hooks install`. Do not edit.',
     '# Makes coordination hooks per-project and inert until the daemon is ready.',
-    'PD_HOME="${PD_HOME:-$HOME/.port-daddy}"',
+    `PD_HOME=${shellQuote(options.pdHome)}; export PD_HOME`,
     '# Operator emergency kill switch. It deliberately outranks debug capture,',
     '# stdin reads, project discovery, HALT listening, and daemon probes.',
     '[ -e "$PD_HOME/hooks.disabled" ] && exit 0',
@@ -129,6 +335,7 @@ function gateWrapperScript(): string {
     'esac',
     'pd_provider="${PD_HOOK_PROVIDER:-unknown}"',
     'case "$pd_provider" in claude|codex|gemini|agy) ;; *) pd_provider=unknown ;; esac',
+    ...repositoryFamilyGateShellLines(options),
     `pd_deadline_ms="${'${PD_HOOK_DEADLINE_MS:-'}${SQUID_HOOK_DEADLINE_MS}}"`,
     `case "$pd_deadline_ms" in ""|*[!0-9]*) pd_deadline_ms=${SQUID_HOOK_DEADLINE_MS} ;; esac`,
     `pd_failure_threshold="${'${PD_HOOK_FAILURE_THRESHOLD:-'}${SQUID_HOOK_BREAKER_FAILURE_THRESHOLD}}"`,
@@ -454,18 +661,7 @@ function gateWrapperScript(): string {
     `  [ "$age" -ge -${SQUID_DAEMON_HEARTBEAT_STALE_SECONDS} ] 2>/dev/null || pd_debug_skip daemon_stale`,
     `  [ "$age" -le ${SQUID_DAEMON_HEARTBEAT_STALE_SECONDS} ] 2>/dev/null || pd_debug_skip daemon_stale`,
     'fi',
-    '# (c) cwd inside a project explicitly armed by `pd squid on`?',
-    'd=$PWD',
-    'while [ -n "$d" ] && [ "$d" != "/" ]; do',
-    '  if [ -d "$d/.portdaddy" ]; then',
-    '    project_root=$(cd "$d" 2>/dev/null && pwd -P) || pd_debug_skip project_unreadable',
-    '    registry="$PD_HOME/squid/projects"',
-    '    [ -f "$registry" ] || pd_debug_skip registry_missing',
-    '    pd_project_armed=0',
-    '    while IFS= read -r pd_registered_project; do',
-    '      if [ "$pd_registered_project" = "$project_root" ]; then pd_project_armed=1; break; fi',
-    '    done < "$registry" 2>/dev/null || true',
-    '    [ "$pd_project_armed" -eq 1 ] || pd_debug_skip project_disarmed',
+    '# Repository-family authority was already verified before any debug/input work.',
     '    pd_health_load',
     '    pd_health_notice_emit',
     '    if [ "$pd_breaker_state" = open ]; then',
@@ -610,63 +806,8 @@ function gateWrapperScript(): string {
     '    pd_health_record_unhealthy "exit_$pd_exit" "$pd_exit" "$pd_duration_ms"',
     '    pd_debug_finish failure_swallowed "$pd_exit"',
     '    exit 0',
-    '  fi',
-    '  d=${d%/*}; [ -n "$d" ] || d=/',
-    'done',
-    '# not a pd project (or daemon down) -> no-op; allow the tool (fail open).',
-    'pd_debug_skip no_project',
     '',
   ].join('\n');
-}
-
-// ─── Per-project arm registry ────────────────────────────────────────────────
-
-export function squidProjectRegistryPath(pdHome = PD_HOME): string {
-  return join(pdHome, 'squid', 'projects');
-}
-
-function canonicalProjectRoot(cwd: string): string {
-  const absolute = resolve(cwd);
-  try { return realpathSync(absolute); } catch { return absolute; }
-}
-
-export function readArmedSquidProjects(registryPath = squidProjectRegistryPath()): string[] {
-  if (!existsSync(registryPath)) return [];
-  try {
-    return [...new Set(readFileSync(registryPath, 'utf8').split('\n').map((line) => line.trim()).filter(Boolean))].sort();
-  } catch {
-    return [];
-  }
-}
-
-export function registerSquidProject(cwd: string, registryPath = squidProjectRegistryPath()): string {
-  const project = canonicalProjectRoot(cwd);
-  const projects = [...new Set([...readArmedSquidProjects(registryPath), project])].sort();
-  mkdirSync(dirname(registryPath), { recursive: true });
-  writeFileSync(registryPath, `${projects.join('\n')}\n`, { mode: 0o600 });
-  chmodSync(registryPath, 0o600);
-  return project;
-}
-
-export function unregisterSquidProject(cwd: string, registryPath = squidProjectRegistryPath()): boolean {
-  const project = canonicalProjectRoot(cwd);
-  const before = readArmedSquidProjects(registryPath);
-  const after = before.filter((entry) => entry !== project);
-  if (after.length === before.length) return false;
-  if (after.length === 0) rmSync(registryPath, { force: true });
-  else {
-    writeFileSync(registryPath, `${after.join('\n')}\n`, { mode: 0o600 });
-    chmodSync(registryPath, 0o600);
-  }
-  return true;
-}
-
-export function clearArmedSquidProjects(registryPath = squidProjectRegistryPath()): void {
-  rmSync(registryPath, { force: true });
-}
-
-export function isSquidProjectArmed(cwd: string, registryPath = squidProjectRegistryPath()): boolean {
-  return readArmedSquidProjects(registryPath).includes(canonicalProjectRoot(cwd));
 }
 
 // ─── Tentacle staging ────────────────────────────────────────────────────────
@@ -675,6 +816,114 @@ export interface StageResult {
   staged: string[];
   missing: TentacleName[];
   sourceDir: string;
+  /** Immutable authority root embedded in every staged wrapper. */
+  pdHome: string;
+  /** Exact directory provider configs must invoke. */
+  binDir: string;
+  /** Shared wrapper generation committed by the manifest last. */
+  wrapperGeneration: string;
+  generationManifestPath: string;
+  /** Fixed generator inputs used for complete wrapper-byte verification. */
+  authorityBudgetMs: number;
+  authorityTrace: boolean;
+  /** Exact staged artifact digests, captured from bounded source bytes. */
+  artifactDigests: Partial<Record<TentacleName, { wrapperSha256: string; realSha256: string }>>;
+}
+
+export interface StageTentaclesOptions {
+  /** Fixed verifier deadline embedded in wrapper bytes. */
+  authorityBudgetMs?: number;
+  /** Test-only sanitized denial classes on stderr; never enabled in production. */
+  authorityTrace?: boolean;
+  /** Test-only interruption seam for generation-commit conformance. */
+  fault?: (point: `after-wrapper:${TentacleName}` | 'before-generation-commit') => void;
+}
+
+const SQUID_STAGED_ARTIFACT_MAX_BYTES = 8 * 1024 * 1024;
+
+function sha256(value: string | Buffer): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function isContainedBy(root: string, candidate: string): boolean {
+  const rel = relative(root, candidate);
+  return rel === '' || (!rel.startsWith('..') && !parse(rel).root);
+}
+
+function preflightDestinationEntry(path: string, type: 'directory' | 'file', ownedFrom: string): void {
+  const absolute = resolve(path);
+  const root = parse(absolute).root;
+  let cursor = root;
+  for (const component of absolute.slice(root.length).split('/').filter(Boolean)) {
+    cursor = join(cursor, component);
+    let stats;
+    try {
+      stats = lstatSync(cursor);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw new Error(`Cannot inspect Squid staging destination ${cursor}: ${(error as Error).message}`);
+    }
+    if (stats.isSymbolicLink()) throw new Error(`Symlinked Squid staging destination rejected: ${cursor}`);
+    const isFinal = cursor === absolute;
+    if (!isFinal && !stats.isDirectory()) throw new Error(`Non-directory Squid staging ancestry rejected: ${cursor}`);
+    if (isFinal) {
+      if (type === 'directory' && !stats.isDirectory()) throw new Error(`Squid staging directory is not a directory: ${cursor}`);
+      if (type === 'file' && (!stats.isFile() || stats.nlink !== 1)) {
+        throw new Error(`Unsafe existing Squid staged file rejected: ${cursor}`);
+      }
+    }
+    if (
+      isContainedBy(ownedFrom, cursor)
+      && typeof process.getuid === 'function'
+      && stats.uid !== process.getuid()
+    ) throw new Error(`Squid staging destination is not owned by the current user: ${cursor}`);
+  }
+}
+
+interface StagingDirectoryIdentity {
+  path: string;
+  device: number;
+  inode: number;
+}
+
+function ensureStagingDirectory(path: string, authorityRoot: string, mode: number): StagingDirectoryIdentity {
+  const absolute = resolve(path);
+  if (!existsSync(absolute)) mkdirSync(absolute, { mode });
+  const before = lstatSync(absolute);
+  if (
+    before.isSymbolicLink()
+    || !before.isDirectory()
+    || (typeof process.getuid === 'function' && before.uid !== process.getuid())
+    || (before.mode & 0o022) !== 0
+  ) throw new Error(`Squid staging directory failed private ownership checks: ${absolute}`);
+  const canonical = realpathSync(absolute);
+  const canonicalRoot = realpathSync(authorityRoot);
+  if (canonical !== absolute || !isContainedBy(canonicalRoot, canonical)) {
+    throw new Error(`Squid staging directory escaped its authority root: ${absolute}`);
+  }
+  chmodSync(absolute, mode);
+  const after = lstatSync(absolute);
+  if (
+    after.dev !== before.dev
+    || after.ino !== before.ino
+    || after.isSymbolicLink()
+    || !after.isDirectory()
+    || (after.mode & 0o777) !== mode
+  ) throw new Error(`Squid staging directory changed during exact readback: ${absolute}`);
+  return { path: canonical, device: after.dev, inode: after.ino };
+}
+
+function readStagedSource(path: string): { bytes: Buffer; digest: string } {
+  const stats = lstatSync(path);
+  if (
+    stats.isSymbolicLink()
+    || !stats.isFile()
+    || stats.size <= 0
+    || stats.size > SQUID_STAGED_ARTIFACT_MAX_BYTES
+  ) throw new Error(`Unsafe Squid tentacle source rejected: ${path}`);
+  const bytes = readFileSync(path);
+  if (bytes.byteLength !== stats.size) throw new Error(`Squid tentacle source changed while being read: ${path}`);
+  return { bytes, digest: sha256(bytes) };
 }
 
 /**
@@ -686,7 +935,12 @@ export interface StageResult {
 export function stageTentacles(
   sourceDir?: string,
   destBinDir = tentacleBinDir(),
+  options: StageTentaclesOptions = {},
 ): StageResult {
+  const requestedBinDir = resolve(destBinDir);
+  const requestedPdHome = dirname(requestedBinDir);
+  const wrapperGeneration = randomUUID();
+  const requestedManifestPath = join(requestedPdHome, 'squid', 'hook-wrapper-generation.v1');
   const resolved = TENTACLES.map((name) => {
     const explicit = sourceDir ? join(sourceDir, name) : null;
     const source = explicit ? (existsSync(explicit) ? explicit : null) : resolveSquidAsset(join('bin', name));
@@ -694,33 +948,104 @@ export function stageTentacles(
   });
   const missing = resolved.filter((candidate) => candidate.source === null).map((candidate) => candidate.name);
   if (missing.length > 0) {
-    return { staged: [], missing, sourceDir: sourceDir ?? 'runtime asset resolver' };
+    return {
+      staged: [],
+      missing,
+      sourceDir: sourceDir ?? 'runtime asset resolver',
+      pdHome: requestedPdHome,
+      binDir: requestedBinDir,
+      wrapperGeneration,
+      generationManifestPath: requestedManifestPath,
+      authorityBudgetMs: options.authorityBudgetMs ?? 250,
+      authorityTrace: options.authorityTrace === true,
+      artifactDigests: {},
+    };
   }
 
-  const realDir = join(destBinDir, 'squid');
-  const binDir = destBinDir;
-  const healthDir = join(dirname(binDir), 'squid', 'health');
-  mkdirSync(realDir, { recursive: true });
-  mkdirSync(binDir, { recursive: true });
-  mkdirSync(healthDir, { recursive: true, mode: 0o700 });
-  chmodSync(healthDir, 0o700);
+  const realDir = join(requestedBinDir, 'squid');
+  const binDir = requestedBinDir;
+  const configuredPdHome = dirname(resolve(binDir));
+  // Fixed into the generated wrapper. Real macOS cold starts regularly spend
+  // more than 75ms in the strict stat/read checks; 250ms remains bounded while
+  // leaving enough headroom for the measured p99 process-startup path.
+  const authorityBudgetMs = options.authorityBudgetMs ?? 250;
+  if (!Number.isSafeInteger(authorityBudgetMs) || authorityBudgetMs < 1 || authorityBudgetMs > 1_000) {
+    throw new Error('Squid authority budget must be a fixed integer from 1 to 1000ms');
+  }
+  const stateDir = join(configuredPdHome, 'squid');
+  const healthDir = join(stateDir, 'health');
+  const generationManifestPath = join(configuredPdHome, 'squid', 'hook-wrapper-generation.v1');
+
+  // Preflight every existing destination and source before the first mkdir,
+  // copy, rename, or chmod. A repo/tool-controlled symlink must have zero
+  // ability to redirect even a partial stage outside this authority root.
+  for (const path of [configuredPdHome, binDir, realDir, stateDir, healthDir]) {
+    preflightDestinationEntry(path, 'directory', configuredPdHome);
+  }
+  for (const { name } of resolved) {
+    preflightDestinationEntry(join(realDir, name), 'file', configuredPdHome);
+    preflightDestinationEntry(join(binDir, name), 'file', configuredPdHome);
+  }
+  preflightDestinationEntry(generationManifestPath, 'file', configuredPdHome);
+  const sourceArtifacts = new Map(
+    resolved.map(({ name, source }) => [name, readStagedSource(source as string)]),
+  );
+
+  // Creation is one level at a time after the complete preflight. Exact
+  // dev/inode readback prevents a swapped directory from silently becoming the
+  // authority root between validation and staging.
+  const pdHomeIdentity = ensureStagingDirectory(configuredPdHome, configuredPdHome, 0o700);
+  const binIdentity = ensureStagingDirectory(binDir, pdHomeIdentity.path, 0o700);
+  const realIdentity = ensureStagingDirectory(realDir, pdHomeIdentity.path, 0o700);
+  const stateIdentity = ensureStagingDirectory(stateDir, pdHomeIdentity.path, 0o700);
+  const healthIdentity = ensureStagingDirectory(healthDir, pdHomeIdentity.path, 0o700);
+  const stagedBin = binIdentity.path;
+  const stagedPdHome = pdHomeIdentity.path;
+  for (const identity of [realIdentity, stateIdentity, healthIdentity]) {
+    if (!isContainedBy(stagedPdHome, identity.path)) {
+      throw new Error(`Squid staging directory escaped exact authority readback: ${identity.path}`);
+    }
+  }
+  const wrapperOptions: GateWrapperOptions = {
+    pdHome: stagedPdHome,
+    authorityBudgetMs,
+    authorityTrace: options.authorityTrace === true,
+    wrapperGeneration,
+  };
+  if (generationManifestPath !== join(stagedPdHome, 'squid', 'hook-wrapper-generation.v1')) {
+    throw new Error('Squid generation manifest escaped its staged authority root');
+  }
 
   const staged: string[] = [];
+  const artifactDigests: Partial<Record<TentacleName, { wrapperSha256: string; realSha256: string }>> = {};
   const suffix = `.stage-${process.pid}-${Date.now()}`;
   const temporary: string[] = [];
   try {
-    for (const { name, source } of resolved) {
-      const src = source as string;
+    for (const { name } of resolved) {
       const realDst = join(realDir, name);
       const realTmp = `${realDst}${suffix}`;
       const wrapper = join(binDir, name);
       const wrapperTmp = `${wrapper}${suffix}`;
-      copyFileSync(src, realTmp);
+      const sourceArtifact = sourceArtifacts.get(name)!;
+      const wrapperBytes = gateWrapperScript(wrapperOptions);
+      writeFileSync(realTmp, sourceArtifact.bytes, { mode: 0o755, flag: 'wx' });
       chmodSync(realTmp, 0o755);
-      writeFileSync(wrapperTmp, gateWrapperScript(), { mode: 0o755 });
+      writeFileSync(wrapperTmp, wrapperBytes, { mode: 0o755, flag: 'wx' });
       chmodSync(wrapperTmp, 0o755);
+      artifactDigests[name] = {
+        wrapperSha256: sha256(wrapperBytes),
+        realSha256: sourceArtifact.digest,
+      };
       temporary.push(realTmp, wrapperTmp);
     }
+    const generationTemporary = `${generationManifestPath}${suffix}`;
+    writeFileSync(
+      generationTemporary,
+      `${SQUID_REPOSITORY_FAMILY_RECORD_VERSION}\t${wrapperGeneration}\n`,
+      { mode: 0o600, flag: 'wx' },
+    );
+    chmodSync(generationTemporary, 0o600);
+    temporary.push(generationTemporary);
 
     for (const { name } of resolved) {
       const realDst = join(realDir, name);
@@ -728,11 +1053,80 @@ export function stageTentacles(
       renameSync(`${realDst}${suffix}`, realDst);
       renameSync(`${wrapper}${suffix}`, wrapper);
       staged.push(wrapper);
+      options.fault?.(`after-wrapper:${name}`);
     }
+    // Completion receipt last. Mixed old/new wrappers are inert unless their
+    // embedded generation matches this exact committed record.
+    options.fault?.('before-generation-commit');
+    renameSync(generationTemporary, generationManifestPath);
+    chmodSync(generationManifestPath, 0o600);
   } finally {
     for (const path of temporary) rmSync(path, { force: true });
   }
-  return { staged, missing, sourceDir: sourceDir ?? 'runtime asset resolver' };
+  return {
+    staged,
+    missing,
+    sourceDir: sourceDir ?? 'runtime asset resolver',
+    pdHome: stagedPdHome,
+    binDir: stagedBin,
+    wrapperGeneration,
+    generationManifestPath,
+    authorityBudgetMs,
+    authorityTrace: options.authorityTrace === true,
+    artifactDigests,
+  };
+}
+
+function verifyStagedTentacles(stage: StageResult, requestedPdHome: string): string | null {
+  try {
+    const pdHome = realpathSync(resolve(requestedPdHome));
+    if (stage.pdHome !== pdHome || stage.binDir !== join(pdHome, 'bin')) return 'staged authority root mismatch';
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(stage.wrapperGeneration)) {
+      return 'staged wrapper generation is malformed';
+    }
+    if (stage.generationManifestPath !== join(pdHome, 'squid', 'hook-wrapper-generation.v1')) {
+      return 'staged generation receipt path mismatch';
+    }
+    const manifestStats = lstatSync(stage.generationManifestPath);
+    if (
+      !manifestStats.isFile()
+      || manifestStats.isSymbolicLink()
+      || manifestStats.nlink !== 1
+      || (manifestStats.mode & 0o777) !== 0o600
+      || readFileSync(stage.generationManifestPath, 'utf8')
+        !== `${SQUID_REPOSITORY_FAMILY_RECORD_VERSION}\t${stage.wrapperGeneration}\n`
+    ) return 'staged generation receipt failed exact readback';
+    const stagedSet = new Set(stage.staged);
+    const expectedWrapper = gateWrapperScript({
+      pdHome,
+      authorityBudgetMs: stage.authorityBudgetMs,
+      authorityTrace: stage.authorityTrace,
+      wrapperGeneration: stage.wrapperGeneration,
+    });
+    for (const name of TENTACLES) {
+      const wrapper = join(stage.binDir, name);
+      const real = join(stage.binDir, 'squid', name);
+      if (!stagedSet.has(wrapper)) return `staged wrapper list omitted ${name}`;
+      for (const path of [wrapper, real]) {
+        const stats = lstatSync(path);
+        if (!stats.isFile() || stats.isSymbolicLink() || stats.nlink !== 1 || (stats.mode & 0o100) === 0) {
+          return `staged executable is unsafe: ${path}`;
+        }
+      }
+      const expectedDigests = stage.artifactDigests[name];
+      if (!expectedDigests) return `staged artifact digest omitted ${name}`;
+      const wrapperBytes = readFileSync(wrapper, 'utf8');
+      const realBytes = readFileSync(real);
+      if (
+        wrapperBytes !== expectedWrapper
+        || sha256(wrapperBytes) !== expectedDigests.wrapperSha256
+        || sha256(realBytes) !== expectedDigests.realSha256
+      ) return `staged artifact failed exact byte/digest readback: ${name}`;
+    }
+    return null;
+  } catch (error) {
+    return `staged wrapper verification failed: ${(error as Error).message}`;
+  }
 }
 
 // ─── Target definitions ──────────────────────────────────────────────────────
@@ -830,12 +1224,41 @@ function shellQuote(value: string): string {
 }
 
 /** Resolver pointing hook commands at the gate and attaching only static metadata. */
-function gateResolverFor(provider: string): TentacleResolver {
+function gateResolverFor(provider: string, binDir = tentacleBinDir()): TentacleResolver {
   return (name) => [
     `PD_HOOK_PROVIDER=${provider}`,
     `PD_HOOK_DEADLINE_MS=${SQUID_HOOK_DEADLINE_MS}`,
-    shellQuote(gatePath(name)),
+    shellQuote(join(binDir, name)),
   ].join(' ');
+}
+
+function configCarriesExpectedTargetHooks(target: AgentCliTarget, path: string, binDir: string): boolean {
+  if (!existsSync(path)) return false;
+  try {
+    const text = readFileSync(path, 'utf8');
+    const resolver = gateResolverFor(target.slug, binDir);
+    if (target.format === 'codex-toml') {
+      const expected = codexHooksTomlBlock(resolver);
+      const pdCommands = (value: string) => value
+        .split('\n')
+        .filter((line) => /^command\s*=.*pd-hook-/.test(line));
+      return text.split(CODEX_PD_MARKER).length === 2
+        && text.includes(expected)
+        && JSON.stringify(pdCommands(text)) === JSON.stringify(pdCommands(expected));
+    }
+    const config = JSON.parse(text) as { hooks?: Record<string, unknown> };
+    if (!config.hooks || typeof config.hooks !== 'object' || Array.isArray(config.hooks)) return false;
+    const expected = buildJsonHookMap(target.vendor!, resolver);
+    for (const [event, value] of Object.entries(config.hooks)) {
+      const actual = Array.isArray(value) ? value : [];
+      const pdEntries = actual.filter(isPdEntry);
+      const expectedEntries = expected[event] ?? [];
+      if (JSON.stringify(pdEntries) !== JSON.stringify(expectedEntries)) return false;
+    }
+    return Object.keys(expected).every((event) => Object.hasOwn(config.hooks!, event));
+  } catch {
+    return false;
+  }
 }
 
 function atomicWriteConfig(path: string, content: string): void {
@@ -888,7 +1311,7 @@ export function commitCodexConfigMigration(
 
 export function configureTarget(
   target: AgentCliTarget,
-  opts: { scope: 'user' | 'project'; cwd?: string },
+  opts: { scope: 'user' | 'project'; cwd?: string; gateBinDir?: string },
 ): ConfigureResult {
   let configPath: string;
   if (opts.scope === 'user') {
@@ -911,7 +1334,7 @@ export function configureTarget(
       const legacy = migratedLegacyCodexHooksJson(configPath);
       commitCodexConfigMigration(
         configPath,
-        `${base}${sep}${codexHooksTomlBlock(gateResolverFor(target.slug))}\n`,
+        `${base}${sep}${codexHooksTomlBlock(gateResolverFor(target.slug, opts.gateBinDir))}\n`,
         legacy,
       );
       return { success: true, created: !existed, path: configPath };
@@ -922,7 +1345,7 @@ export function configureTarget(
       const raw = readFileSync(configPath, 'utf-8').trim();
       if (raw) config = JSON.parse(raw) as Record<string, unknown>;
     }
-    upsertJsonHookMap(config, buildJsonHookMap(target.vendor!, gateResolverFor(target.slug)));
+    upsertJsonHookMap(config, buildJsonHookMap(target.vendor!, gateResolverFor(target.slug, opts.gateBinDir)));
     atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
     return { success: true, created: !existed, path: configPath };
   } catch (err) {
@@ -966,25 +1389,267 @@ export function uninstallTarget(
   }
 }
 
-/**
- * Write the right scopes for a target: project where it has a project surface
- * (claude/gemini), user-level where it must be global (codex/agy). Everything is
- * runtime-gated to pd projects regardless of where the config lives.
- */
-function wireTarget(target: AgentCliTarget, cwd: string, alsoUser: boolean): ConfigureResult[] {
-  const out: ConfigureResult[] = [];
-  if (target.projectConfigPath) {
-    out.push(configureTarget(target, { scope: 'project', cwd }));
-    if (alsoUser) out.push(configureTarget(target, { scope: 'user' }));
-  } else {
-    // codex/agy: user-level is the only interactive surface; the gate scopes it.
-    if (target.format === 'codex-toml') {
-      const cleanup = uninstallTarget(target, { scope: 'project', cwd });
-      if (!cleanup.success) out.push(cleanup);
+interface ConfigSnapshot {
+  path: string;
+  existed: boolean;
+  content: string;
+  mode: number;
+  device: number | null;
+  inode: number | null;
+}
+
+const SQUID_PROVIDER_CONFIG_MAX_BYTES = 4 * 1024 * 1024;
+
+type ProviderSlug = AgentCliTarget['slug'];
+export type HooksInstallFaultPoint = `after-provider:${ProviderSlug}` | 'before-marker-commit';
+
+function assertProviderConfigPath(path: string): void {
+  const absolute = resolve(path);
+  const root = parse(absolute).root;
+  let cursor = root;
+  for (const component of absolute.slice(root.length).split('/').filter(Boolean)) {
+    cursor = join(cursor, component);
+    try {
+      const stats = lstatSync(cursor);
+      if (stats.isSymbolicLink()) throw new Error(`Provider config path traverses a symlink: ${path}`);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
     }
-    out.push(configureTarget(target, { scope: 'user' }));
   }
-  return out;
+}
+
+function targetConfigPaths(
+  target: AgentCliTarget,
+  scope: 'user' | 'project',
+  cwd?: string,
+): string[] {
+  let primary: string | null = null;
+  if (scope === 'user') primary = target.userConfigPath;
+  else if (target.projectConfigPath) primary = target.projectConfigPath(cwd ?? process.cwd());
+  else if (target.format === 'codex-toml') primary = join(cwd ?? process.cwd(), '.codex', 'config.toml');
+  if (!primary) return [];
+  return target.format === 'codex-toml'
+    ? [primary, join(dirname(primary), 'hooks.json')]
+    : [primary];
+}
+
+function configPathsForTransaction(targets: AgentCliTarget[], worktrees: string[]): string[] {
+  const paths: string[] = [];
+  for (const target of targets) {
+    paths.push(...targetConfigPaths(target, 'user'));
+    for (const root of worktrees) {
+      paths.push(...targetConfigPaths(target, 'project', root));
+    }
+  }
+  return [...new Set(paths)];
+}
+
+function strictConfigState(path: string): ConfigSnapshot {
+  assertProviderConfigPath(path);
+  let stats;
+  try {
+    stats = lstatSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { path, existed: false, content: '', mode: 0o600, device: null, inode: null };
+    }
+    throw new Error(`Cannot inspect provider config ${path}: ${(error as Error).message}`);
+  }
+  if (
+    stats.isSymbolicLink()
+    || !stats.isFile()
+    || stats.nlink !== 1
+    || stats.size > SQUID_PROVIDER_CONFIG_MAX_BYTES
+    || (typeof process.getuid === 'function' && stats.uid !== process.getuid())
+  ) throw new Error(`Unsafe provider config rejected: ${path}`);
+  let content: string;
+  try {
+    content = readFileSync(path, 'utf8');
+  } catch (error) {
+    throw new Error(`Cannot read provider config ${path}: ${(error as Error).message}`);
+  }
+  if (Buffer.byteLength(content) !== stats.size || content.includes('\0')) {
+    throw new Error(`Provider config changed while being read or contains NUL: ${path}`);
+  }
+  return {
+    path,
+    existed: true,
+    content,
+    mode: stats.mode & 0o777,
+    device: stats.dev,
+    inode: stats.ino,
+  };
+}
+
+function snapshotConfigs(paths: string[]): ConfigSnapshot[] {
+  return paths.map(strictConfigState);
+}
+
+function sameConfigState(left: ConfigSnapshot, right: ConfigSnapshot): boolean {
+  return left.existed === right.existed
+    && left.content === right.content
+    && left.mode === right.mode
+    && left.device === right.device
+    && left.inode === right.inode;
+}
+
+function assertConfigPreimages(
+  paths: string[],
+  snapshots: Map<string, ConfigSnapshot>,
+  postimages: Map<string, ConfigSnapshot>,
+): void {
+  for (const path of paths) {
+    const expected = postimages.get(path) ?? snapshots.get(path);
+    if (!expected || !sameConfigState(strictConfigState(path), expected)) {
+      throw new Error(`Provider config changed concurrently before mutation: ${path}`);
+    }
+  }
+}
+
+function captureConfigPostimages(
+  paths: string[],
+  snapshots: Map<string, ConfigSnapshot>,
+  postimages: Map<string, ConfigSnapshot>,
+): void {
+  for (const path of paths) {
+    const current = strictConfigState(path);
+    const before = snapshots.get(path);
+    if (before && !sameConfigState(current, before)) postimages.set(path, current);
+  }
+}
+
+function restoreConfigSnapshots(
+  snapshots: Map<string, ConfigSnapshot>,
+  postimages: Map<string, ConfigSnapshot>,
+): string[] {
+  const failures: string[] = [];
+  for (const [path, postimage] of [...postimages.entries()].reverse()) {
+    const snapshot = snapshots.get(path);
+    if (!snapshot) continue;
+    try {
+      const live = strictConfigState(path);
+      if (!sameConfigState(live, postimage)) {
+        failures.push(`${path}: concurrent user edit preserved; rollback CAS refused`);
+        continue;
+      }
+      if (!snapshot.existed) rmSync(path, { force: true });
+      else {
+        atomicWriteConfig(path, snapshot.content);
+        chmodSync(path, snapshot.mode);
+      }
+    } catch (error) {
+      failures.push(`${path}: ${(error as Error).message}`);
+    }
+  }
+  return failures;
+}
+
+export interface SharedProviderInstallReceipt {
+  configured: number;
+  partialProviders: ProviderSlug[];
+  changedPaths: string[];
+  rolledBack: boolean;
+  rollbackFailures: string[];
+}
+
+class SharedProviderInstallError extends Error {
+  constructor(message: string, readonly receipt: SharedProviderInstallReceipt) {
+    super(message);
+    this.name = 'SharedProviderInstallError';
+  }
+}
+
+/**
+ * Install all four PD-owned user registrations, then sweep only PD project
+ * blocks from every verified member worktree. Any error restores exact prior
+ * file bytes before the family marker can be published.
+ */
+function installSharedProviderHooksTransaction(
+  targets: AgentCliTarget[],
+  worktrees: string[],
+  gateBinDir: string,
+  fault?: (point: HooksInstallFaultPoint) => void,
+): PreparedRepositoryFamilyArm<SharedProviderInstallReceipt> {
+  const snapshotList = snapshotConfigs(configPathsForTransaction(targets, worktrees));
+  const snapshots = new Map(snapshotList.map((snapshot) => [snapshot.path, snapshot]));
+  const postimages = new Map<string, ConfigSnapshot>();
+  const partialProviders: ProviderSlug[] = [];
+  try {
+    for (const target of targets) {
+      const userPaths = targetConfigPaths(target, 'user');
+      assertConfigPreimages(userPaths, snapshots, postimages);
+      const configured = configureTarget(target, { scope: 'user', gateBinDir });
+      captureConfigPostimages(userPaths, snapshots, postimages);
+      if (
+        !configured.success
+        || configured.skipped
+        || !configCarriesExpectedTargetHooks(target, target.userConfigPath, gateBinDir)
+      ) {
+        throw new Error(`${target.slug}: ${configured.error ?? configured.skipped ?? 'user hook verification failed'}`);
+      }
+      for (const root of worktrees) {
+        const projectPaths = targetConfigPaths(target, 'project', root);
+        assertConfigPreimages(projectPaths, snapshots, postimages);
+        const cleanup = uninstallTarget(target, { scope: 'project', cwd: root });
+        captureConfigPostimages(projectPaths, snapshots, postimages);
+        if (!cleanup.success) throw new Error(`${target.slug} project cleanup: ${cleanup.error ?? 'failed'}`);
+      }
+      partialProviders.push(target.slug);
+      fault?.(`after-provider:${target.slug}`);
+    }
+    const receipt: SharedProviderInstallReceipt = {
+      configured: targets.length,
+      partialProviders,
+      changedPaths: [...postimages.keys()],
+      rolledBack: false,
+      rollbackFailures: [],
+    };
+    return {
+      value: receipt,
+      rollback: () => {
+        const failures = restoreConfigSnapshots(snapshots, postimages);
+        receipt.rolledBack = true;
+        receipt.rollbackFailures = failures;
+        return failures;
+      },
+    };
+  } catch (error) {
+    const rollbackFailures = restoreConfigSnapshots(snapshots, postimages);
+    throw new SharedProviderInstallError((error as Error).message, {
+      configured: 0,
+      partialProviders,
+      changedPaths: [...postimages.keys()],
+      rolledBack: true,
+      rollbackFailures,
+    });
+  }
+}
+
+export interface SharedProviderUninstallReceipt {
+  changed: number;
+  failures: string[];
+}
+
+/** Explicit machine-wide cleanup. Family off never calls this. */
+export function uninstallSharedProviderHooks(
+  targets = buildTargets(DEFAULT_HOME),
+  options: { pdHome?: string } = {},
+): SharedProviderUninstallReceipt {
+  let changed = 0;
+  const failures: string[] = [];
+  try {
+    assertAllSquidRepositoryFamiliesDisarmed(options.pdHome ?? PD_HOME);
+  } catch (error) {
+    return { changed: 0, failures: [(error as Error).message] };
+  }
+  for (const target of targets) {
+    const carried = configCarriesPdHook(target.userConfigPath);
+    const result = uninstallTarget(target, { scope: 'user' });
+    if (!result.success) failures.push(`${target.slug}: ${result.error ?? 'uninstall failed'}`);
+    else if (carried && !configCarriesPdHook(target.userConfigPath)) changed++;
+  }
+  return { changed, failures };
 }
 
 // ─── Silent install (pd init) ────────────────────────────────────────────────
@@ -994,6 +1659,11 @@ export interface SilentHooksResult {
   detected: string[];
   tentaclesMissing: boolean;
   failures: string[];
+  activated: boolean;
+  rolledBack: boolean;
+  rollbackFailures: string[];
+  partialProviders: ProviderSlug[];
+  commitReadBack: boolean;
 }
 
 export interface HookTargetStatus {
@@ -1019,13 +1689,18 @@ function configCarriesPdHook(path: string): boolean {
 }
 
 /** Read-only truth used by `pd squid status --json` and operator surfaces. */
-export function inspectHookTargets(home = DEFAULT_HOME, cwd = process.cwd()): HookTargetStatus[] {
-  const projectArmed = isSquidProjectArmed(cwd);
-  return buildTargets(home).map((target) => {
+export function inspectHookTargets(
+  home = DEFAULT_HOME,
+  cwd = process.cwd(),
+  options: { pdHome?: string; targets?: AgentCliTarget[] } = {},
+): HookTargetStatus[] {
+  const pdHome = options.pdHome ?? PD_HOME;
+  const projectArmed = isSquidRepositoryFamilyArmed(cwd, pdHome);
+  return (options.targets ?? buildTargets(home)).map((target) => {
     const projectPath = target.projectConfigPath?.(cwd) ?? null;
     const projectWired = projectPath ? configCarriesPdHook(projectPath) : false;
-    const userWired = configCarriesPdHook(target.userConfigPath);
-    const expectedScope = target.projectConfigPath ? 'project' : 'user';
+    const userWired = configCarriesExpectedTargetHooks(target, target.userConfigPath, join(pdHome, 'bin'));
+    const expectedScope = 'user' as const;
     return {
       name: target.name,
       slug: target.slug,
@@ -1035,7 +1710,7 @@ export function inspectHookTargets(home = DEFAULT_HOME, cwd = process.cwd()): Ho
       projectWired,
       userWired,
       expectedScope,
-      wired: projectArmed && (expectedScope === 'project' ? projectWired : userWired),
+      wired: projectArmed && userWired,
       note: target.note,
       projectArmed,
     };
@@ -1043,37 +1718,79 @@ export function inspectHookTargets(home = DEFAULT_HOME, cwd = process.cwd()): Ho
 }
 
 /**
- * Wire detected CLIs for a specific project (pd init). Project-level for
- * claude/gemini; gated user-level for codex/agy. Never global-by-default.
+ * Stage one dormant user registration for every supported provider, sweep old
+ * project-local PD blocks, then publish this repository family's marker last.
  */
 export function silentHooksInstall(
   home = DEFAULT_HOME,
-  opts: { cwd?: string; stage?: StageResult; resetHealthOnSuccess?: boolean } = {},
+  opts: {
+    cwd?: string;
+    stage?: StageResult;
+    resetHealthOnSuccess?: boolean;
+    targets?: AgentCliTarget[];
+    pdHome?: string;
+    fault?: (point: HooksInstallFaultPoint) => void;
+    authorityFault?: (point: RepositoryFamilyFaultPoint) => void;
+  } = {},
 ): SilentHooksResult {
   const cwd = opts.cwd ?? process.cwd();
+  const pdHome = opts.pdHome ?? PD_HOME;
   // `pd squid on` already stages once for the whole arm transaction. Reuse
   // that fulfilled result instead of repeating release-asset discovery/copies.
   const stage = opts.stage ?? stageTentacles();
-  const detected = buildTargets(home).filter((t) => t.detect());
+  const targets = opts.targets ?? buildTargets(home);
+  const detected = targets.filter((t) => t.detect());
   const result: SilentHooksResult = {
     configured: 0,
     detected: detected.map((t) => t.slug),
     tentaclesMissing: stage.missing.length > 0,
     failures: [],
+    activated: false,
+    rolledBack: false,
+    rollbackFailures: [],
+    partialProviders: [],
+    commitReadBack: false,
   };
-  if (result.tentaclesMissing || detected.length === 0) return result;
-  registerSquidProject(cwd);
-
-  for (const target of detected) {
-    const results = wireTarget(target, cwd, false);
-    if (results.some((r) => r.success && !r.skipped)) result.configured++;
-    for (const failure of results.filter((r) => !r.success)) {
-      result.failures.push(`${target.slug}: ${failure.error ?? 'configuration failed'}`);
+  if (result.tentaclesMissing) return result;
+  const stageError = verifyStagedTentacles(stage, pdHome);
+  if (stageError) {
+    result.failures.push(stageError);
+    return result;
+  }
+  let preparedReceipt: SharedProviderInstallReceipt | null = null;
+  try {
+    const transaction = transactSquidRepositoryFamilyArm(cwd, {
+      pdHome,
+      fault: (point) => {
+        if (point === 'before-marker-commit') opts.fault?.('before-marker-commit');
+        opts.authorityFault?.(point);
+      },
+    }, (_pending: PendingRepositoryFamilyArm) => {
+      const worktrees = listVerifiedRepositoryFamilyWorktrees(cwd);
+      const prepared = installSharedProviderHooksTransaction(targets, worktrees, stage.binDir, opts.fault);
+      preparedReceipt = prepared.value;
+      return prepared;
+    });
+    result.configured = transaction.value.configured;
+    result.partialProviders = transaction.value.partialProviders;
+    result.activated = true;
+    result.commitReadBack = transaction.arm.commitReadBack;
+  } catch (error) {
+    result.failures.push((error as Error).message);
+    if (error instanceof SharedProviderInstallError) {
+      result.partialProviders = error.receipt.partialProviders;
+      result.rolledBack = error.receipt.rolledBack;
+      result.rollbackFailures = error.receipt.rollbackFailures;
+    } else {
+      const rollbackReceipt = preparedReceipt as SharedProviderInstallReceipt | null;
+      if (rollbackReceipt?.rolledBack) {
+        result.partialProviders = rollbackReceipt.partialProviders;
+        result.rolledBack = true;
+        result.rollbackFailures = rollbackReceipt.rollbackFailures;
+      }
     }
   }
-  if (result.failures.length > 0 || result.configured < detected.length) {
-    unregisterSquidProject(cwd);
-  } else if (opts.resetHealthOnSuccess !== false) {
+  if (result.activated && opts.resetHealthOnSuccess !== false) {
     resetSquidHookHealth();
   }
   return result;
@@ -1091,10 +1808,11 @@ export async function handleHooks(
 
   if (isHooksStatusRequest(sub, options)) {
     console.log('');
-    ui.info('Port Daddy agent-CLI hooks (per-project, daemon-gated)');
+    ui.info('Port Daddy agent-CLI hooks (repository-family + daemon gated)');
     console.log('');
     const cwd = process.cwd();
-    console.log(`  This project: ${isSquidProjectArmed(cwd) ? '\x1b[32mARMED\x1b[0m' : '\x1b[2mnot armed\x1b[0m'} (${canonicalProjectRoot(cwd)})`);
+    const family = inspectSquidRepositoryFamily(cwd);
+    console.log(`  This repository family: ${family.armed ? '\x1b[32mARMED\x1b[0m' : '\x1b[2mnot armed\x1b[0m'} (${family.projectRoot ?? cwd})`);
     console.log('');
     for (const t of targets) {
       const present = t.detect();
@@ -1112,36 +1830,44 @@ export async function handleHooks(
 
   if (sub === 'uninstall' || sub === 'remove') {
     console.log('');
-    ui.info('Removing Port Daddy hooks from all agent CLIs');
+    ui.info('Removing Port Daddy-owned global hook registrations');
     const cwd = process.cwd();
-    for (const t of targets) {
-      for (const scope of ['user', 'project'] as const) {
-        const r = uninstallTarget(t, { scope, cwd });
-        if (r.success && !r.skipped) ui.success(`${t.name} (${scope}): cleared ${r.path}`);
+    const roots = listVerifiedRepositoryFamilyWorktrees(cwd);
+    // Revoke authority before mutating any provider config. A failed cleanup
+    // must already be inert.
+    const family = disarmSquidRepositoryFamily(cwd);
+    for (const root of roots) {
+      for (const target of targets) {
+        const cleanup = uninstallTarget(target, { scope: 'project', cwd: root });
+        if (!cleanup.success) ui.warn(`${target.name} legacy project cleanup: ${cleanup.error}`);
       }
     }
-    clearArmedSquidProjects();
+    const global = uninstallSharedProviderHooks(targets);
+    if (global.failures.length > 0) {
+      for (const failure of global.failures) ui.warn(failure);
+      process.exitCode = 1;
+    } else {
+      ui.success(`Cleared ${global.changed} Port Daddy-owned user registration(s); user hooks were preserved.`);
+    }
+    if (family.revoked) ui.success('Revoked this repository family.');
     console.log('');
     return;
   }
 
   // install
   console.log('');
-  ui.info('Port Daddy — agent-CLI interactive hooks (this project)');
+  ui.info('Port Daddy — agent-CLI interactive hooks (this local repository family)');
   console.log('');
 
   const detected = targets.filter((t) => t.detect());
   if (detected.length === 0) {
-    ui.warn('No agent CLIs detected (looked for claude, codex, gemini, agy).');
-    console.log('');
-    process.exitCode = 1;
-    return;
+    ui.info('No agent CLIs are installed yet; staging dormant adapters for claude, codex, gemini, and agy.');
   }
 
   const cwd = process.cwd();
-  console.log('  Detected: ' + detected.map((t) => t.name).join(', '));
-  console.log(`  Wires coordination into their interactive sessions for THIS project (${cwd}).`);
-  console.log('  Hooks are inert unless the pd daemon is running and this exact project root is armed.');
+  console.log('  Detected: ' + (detected.length > 0 ? detected.map((t) => t.name).join(', ') : 'none yet'));
+  console.log(`  One dormant user registration per provider; activation is this local repository family (${cwd}).`);
+  console.log('  Unrelated clones and unarmed projects remain inert.');
   console.log('');
 
   const assumeYes = !!options.yes || !!options.y || !ui.canPrompt();
@@ -1160,34 +1886,16 @@ export async function handleHooks(
     process.exitCode = 1;
     return;
   }
-  ui.success(`Staged tentacles + gate → ${tentacleBinDir()}`);
-  registerSquidProject(cwd);
-
-  const alsoUser = !!options.user;
-  const failures: string[] = [];
-  console.log('');
-  console.log('  Wiring hooks:');
-  for (const target of detected) {
-    const results = wireTarget(target, cwd, alsoUser);
-    for (const r of results) {
-      if (r.skipped) continue;
-      if (r.success) console.log(`    \x1b[32m✓\x1b[0m ${target.name.padEnd(22)} ${r.path}`);
-      else {
-        failures.push(`${target.slug}: ${r.error ?? 'configuration failed'}`);
-        console.log(`    \x1b[31m✗\x1b[0m ${target.name.padEnd(22)} ${r.error}`);
-      }
-    }
-    if (target.note) console.log(`      \x1b[2m${target.note}\x1b[0m`);
-  }
+  ui.success(`Staged tentacles + family gate → ${tentacleBinDir()}`);
+  const install = silentHooksInstall(home, { cwd, stage, targets });
 
   console.log('');
-  if (failures.length > 0) {
-    unregisterSquidProject(cwd);
-    ui.warn(`Hook installation failed closed; this project remains inert (${failures.join('; ')}).`);
+  if (!install.activated) {
+    ui.warn(`Hook installation failed closed; this repository family remains inert (${install.failures.join('; ')}).`);
+    if (install.rolledBack) ui.info(`Rolled back provider writes (${install.partialProviders.join(', ') || 'none'} reached).`);
     process.exitCode = 1;
   } else {
-    resetSquidHookHealth();
-    ui.success('Coordination hooks wired for this project (active only when the daemon is up).');
+    ui.success('Coordination hooks registered once and armed for this repository family.');
   }
   if (detected.some((t) => t.slug === 'codex')) {
     console.log('  Codex: run `codex` → `/hooks` once to trust the pd hooks (persisted thereafter).');
