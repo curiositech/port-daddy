@@ -165,7 +165,21 @@
 \makeatother
 % The technical edition's accents are the brand's own Seventies trio: amber
 % (mustard), rust (brown) and gold (avocado); no colour outside the palette.
-\geometry{paperwidth=7in,paperheight=10in,left=0.8in,right=1.7in,%
+%
+% Two-sided margins (2026-09-16): the margin column now sits on the OUTER
+% edge of every page -- left on a verso (even) page, right on a recto (odd)
+% page -- via geometry's own inner=/outer= keys plus the \documentclass's
+% twoside option, rather than fixed left=/right=. inner=0.8in is the narrow
+% gutter-side margin on every page; outer=1.7in is the wide margin that
+% holds marginparwidth on every page, whichever physical side "outer" is.
+% This is safe for the same reason \marginnote (loaded in pd-pedagogy.tex,
+% see its own note there) is safe and a bare \ifoddpage read at hook time is
+% not: \marginnote resolves the actual side from LaTeX's own \@mparswitch
+% machinery at output-routine time, when the page's parity is finally
+% settled, not when the macro issuing the note happens to fire. Turning on
+% twoside here is what makes that resolution meaningful; it does not
+% introduce a new hook-time parity read anywhere.
+\geometry{paperwidth=7in,paperheight=10in,twoside,inner=0.8in,outer=1.7in,%
   top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
 \captionsetup{font=small,labelfont=bf}
 \setlength{\emergencystretch}{3em}\tolerance=1500
@@ -881,34 +895,33 @@
       \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to a \the\linewidth\space box}%
       \resizebox{\linewidth}{!}{\usebox{\pd@picbox}}%
     \else
-      \ifdim\wd\pd@picbox>\pdfullwidth
-        \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to the full width}%
-        \sbox{\pd@picbox}{\resizebox{\pdfullwidth}{!}{\usebox{\pd@picbox}}}%
-      \else
-        \PackageInfo{pd-book}{picture \the\wd\pd@picbox\space wide set full width}%
-      \fi
-      % Always flush LEFT (hang the excess into the margin column on the
-      % right). Investigated and deliberately did NOT make this depend on
-      % page parity: this Book's geometry is ONE-SIDED (no \evensidemargin
-      % swap; \geometry{...} above sets a fixed left/right, and no
-      % \ifpdmargincolumn call anywhere enables \@twoside) so the margin
-      % column sits at the same absolute x on every page -- measured via
-      % every \pd@marginhead ("RECALL", "PITFALL", ...) box in the built
-      % Book landing at x=396.0pt regardless of \thepage's parity. A
-      % \checkoddpage/\ifoddpage branch was tried and reverted: \thepage (and
-      % so \c@page, which \checkoddpage reads) is the page TeX currently
-      % THINKS it is composing, and for a picture that ends up shipped on
-      % the NEXT page because a break falls between this hook firing and the
-      % page actually breaking, that reading is stale -- confirmed on this
-      % Book, where fig-sealed-pillar-pipeline's hook fired at \thepage=118
-      % (even) for a figure that ships on page 119 (odd). A parity branch
-      % keyed on that stale reading chose flush-RIGHT for a page whose
-      % margin is on the right, hanging the figure's leftmost node off the
-      % physical left edge of the page -- a strictly worse, self-inflicted
-      % defect. Flush-left has no such failure mode: it is correct on every
-      % page in a one-sided book regardless of which \thepage the hook
-      % happens to read.
-      \makebox[\textwidth][l]{\usebox{\pd@picbox}}%
+      % Two-sided margins (2026-09-16): this branch used to let a picture
+      % wider than \linewidth hang into the margin column, flush toward it.
+      % That choice needed to know, AT THIS POINT IN THE SOURCE, which
+      % physical side this picture's page will finally have its margin on --
+      % and that reading was already tried once (a \checkoddpage/\ifoddpage
+      % branch) and reverted, because \thepage (and anything built on it)
+      % names the page TeX currently THINKS it is composing, not the page a
+      % picture pushed across a break by the page builder actually ships on:
+      % confirmed on this Book, where fig-sealed-pillar-pipeline's hook fired
+      % at \thepage=118 (even) for a figure that ships on page 119 (odd).
+      % Now that the margin genuinely alternates sides (see the twoside/
+      % inner=/outer= geometry above), that same stale reading would put the
+      % figure's excess into the WRONG side's gutter on any page where the
+      % hook and the shipout disagree on parity -- worse than useless, since
+      % the reader-facing margin apparatus (\marginnote-based, resolved
+      % correctly at output-routine time, not here) sits on the other side.
+      % Rather than reintroduce a hook-time parity read to chase which side
+      % is outer, a full-width picture is simply fit to \linewidth like any
+      % other -- it no longer intentionally spans into the margin. This is a
+      % deliberate scope reduction, not an oversight: a figure that needs
+      % the extra room can still be drawn at \pdfullwidth's aspect ratio and
+      % resized down, same as any other, and \pdfullwidth remains defined
+      % above for that purpose. Revisit only alongside a real shipout-time-
+      % safe horizontal-offset mechanism (paralleling how \marginnote itself
+      % resolves side, not a \thepage read), not with a new hook-time guess.
+      \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to a \the\linewidth\space box (two-sided margins: no longer spans into the margin column)}%
+      \resizebox{\linewidth}{!}{\usebox{\pd@picbox}}%
     \fi
   \else
     \usebox{\pd@picbox}%

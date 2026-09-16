@@ -208,11 +208,23 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
         out = {}
         for key, value in re.findall(r"([a-z]+)\s*=\s*([0-9.]+)in", body):
             out[key] = float(value) * 72.0
+        # Two-sided margins (2026-09-16): the preamble now names the margins
+        # inner=/outer= (the margin column alternates sides with page parity)
+        # rather than a fixed left=/right=. left/right still name a real,
+        # checkable page -- the recto (odd) page, where inner sits on the
+        # physical left and outer on the physical right, matching every
+        # measurement po.INNER/po.TEXTW below was ever taken against. This
+        # is not a synonym for convenience; it is the one page whose margins
+        # this checker's own hardcoded numbers describe.
+        if "inner" in out and "left" not in out:
+            out["left"] = out["inner"]
+        if "outer" in out and "right" not in out:
+            out["right"] = out["outer"]
         # Name what is missing rather than failing later with a bare KeyError.
         # A key commented out or renamed in the preamble still fails this test --
         # it cannot pass having read nothing -- but it should say which key.
         for required in ("paperwidth", "paperheight", "left", "right"):
-            self.assertIn(required, out, f"{required} is not set in \\geometry{{}} in {self.GEOMETRY}")
+            self.assertIn(required, out, f"{required} (or inner=/outer=) is not set in \\geometry{{}} in {self.GEOMETRY}")
         return out
 
     def test_the_trim_matches(self):
