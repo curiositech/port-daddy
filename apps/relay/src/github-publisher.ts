@@ -1525,7 +1525,7 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     await authorizeExactRepository(
       installationId,
       action.repository,
-      account.credential.accessToken,
+      account.accessToken,
       repositoryAccessFor(action.operation),
     );
     const headBranch = await publisherHeadBranch(env, action, payload, account.user.id);
