@@ -7,11 +7,12 @@ description: >-
   trusted-language/process selection, durable agent lifecycle accounting, crash-storm
   breakers, fail-cheap controls, and promotion gates. Use before a daemon, agent, test suite, build, or skill may touch
   real machines, networks, credentials, providers, repositories, or money. NOT for running
-  the hostile workload, treating same-UID guards as containment, routine correctness tests,
-  agent training, or implementing a provider integration without a separately reviewed
-  threat model.
+  the hostile workload, making production rebodiment/admission decisions, defining durable
+  identity, treating same-UID guards as containment, routine correctness tests, agent
+  training, or implementing a provider integration without a separately reviewed threat
+  model.
 license: Apache-2.0
-allowed-tools: Read,Write,Edit,Bash,Grep,Glob
+allowed-tools: Read,Write,Edit,Grep,Glob,Bash(node:*)
 metadata:
   category: Infrastructure & DevOps
   tags:
@@ -38,6 +39,10 @@ metadata:
       reason: Monitors the same invariants after a capability has earned runtime promotion.
     - skill: tlaplus-practitioner
       reason: Models crash, retry, cancellation, reservation, and settlement safety and liveness.
+    - skill: agent-resurrection-and-body-continuity
+      reason: Supplies the normative body-continuity contract that Drydock attempts to falsify at one exact tier.
+    - skill: context-economics-for-agent-swarms
+      reason: Supplies schema-valid native-unit capacity evidence; Drydock tests its observation and enforcement boundary.
   io-contract:
     kind: deliverable
     consumes:
@@ -45,6 +50,12 @@ metadata:
         format: markdown
       - kind: proposed-isolation-and-effect-topology
         format: markdown
+      - kind: resurrection-plan
+        format: json
+        optional: true
+      - kind: capacity-evidence
+        format: json
+        optional: true
     produces:
       - kind: drydock-review
         format: markdown
@@ -67,6 +78,16 @@ subject. Obey any operator or incident halt before all other steps. During a hal
 limit work to inert source inspection, schemas, fixtures, models, and documents. Do
 not start the daemon, UI, agent backend, test suite, workflow, or provider canary to
 “see what happens.” A design review is not a run lease.
+
+## Composition Boundary
+
+Drydock proves or falsifies one concrete implementation at one named capability
+tier. It does not invent production identity, rebodiment, or capacity policy.
+When continuity is in scope, consume a schema-valid resurrection plan from
+`agent-resurrection-and-body-continuity`; when model allowance is in scope,
+consume schema-valid capacity evidence from
+`context-economics-for-agent-swarms`. A Drydock PASS cannot turn either artifact
+into launch authority.
 
 ## Use This For
 
@@ -101,7 +122,7 @@ not start the daemon, UI, agent backend, test suite, workflow, or provider canar
 | Who can truthfully attest what happened? | Supply-chain provenance, witness classes, append-only receipts | `references/provenance-receipts-and-evidence.md` |
 | Which attacks must the gate cover? | SSRF, traversal, exfiltration, resource, authority, billing, replay, teardown | `references/threat-classes-and-adversarial-recipes.md` |
 
-If one person cannot answer all five questions, that is a review-composition need,
+If one person cannot answer all required questions, that is a review-composition need,
 not permission to blur the answers. Record the missing expertise and block the tier
 that depends on it.
 
@@ -220,16 +241,24 @@ payload, recomputes digests and sizes, inventories media and tools, and derives
 provider-specific conservative token and fee bounds. Unknown input kinds or stale
 prices deny real dispatch.
 
-### 7. Prove two different spend bounds
+### 7. Prove financial and subscription-capacity bounds
 
 1. **Protocol-authority ceiling:** durable broker reservation limits what the
    broker is allowed to send.
-2. **Financial-loss ceiling:** an isolated provider account, project, key, or
+2. **Billable financial-loss ceiling:** an isolated provider account, project, key, or
    payment rail independently refuses charges above the approved amount, including
    a measured worst-case enforcement lag.
+3. **Subscription-capacity envelope:** documented provider or first-party-client
+   observations preserve each native allowance window, reset horizon, auth mode,
+   shared bucket, reserve, unresolved-attempt hold, checkpoint tail, and forecast
+   uncertainty. This is not a hard cash cap: a recurring subscription and a
+   `$0` incremental estimate do not make the route free.
 
-Without proof 2, real-provider execution is ineligible. Use fake, replay, or local
-models. Read `references/spend-custody-and-accounting.md` before writing equations.
+Without proof 2 for billable routes, or proof 3 for subscription-backed routes,
+real-provider execution is ineligible. Use fake, replay, or local models. Read
+`references/spend-custody-and-accounting.md` and the paired
+`context-economics-for-agent-swarms/references/subscription-capacity-ledger.md`
+before writing equations.
 
 ### 8. Build Trial Basin as a deterministic laboratory
 
@@ -249,6 +278,7 @@ Use at least these classes:
 
 - `HOST_OBSERVED`: VM, device, mount, process, resource, or lifecycle fact from the controller.
 - `BROKER_OBSERVED`: framed request, payload size, decision, dispatch, or byte count.
+- `CAPACITY_OBSERVED`: native allowance, reset, auth mode, freshness, and parser provenance from a documented source.
 - `PROVIDER_RECONCILED`: provider-side quota, usage, invoice, or rejection evidence.
 - `GUEST_ASSERTED`: probe, log, test result, or claim produced inside the subject.
 - `MODEL_CHECKED`: finite-model property and exact model/configuration.
@@ -276,8 +306,9 @@ to the exact subject, scenario, controller, policy, and capability tier evaluate
 | T0 Static | no guest process, network, credential, or spend | schema and source review |
 | T1 Deterministic | fake services in a disposable guest | repeatable safety/liveness scenarios |
 | T2 Replay | recorded inputs, still no external network | exact trace replay and external receipts |
-| T3 Canary | one real operation under provider-enforced custody | per-run human approval and reconciled tolerance |
-| T4 Worker | one worker on fixture systems; quarantined output | separate review after T3 |
+| T3A Billable canary | one real billable operation under provider-enforced custody | per-run human approval, one attempt/no retry, externally enforced cash ceiling, and reconciled tolerance |
+| T3B Subscription canary | one real subscription-backed operation under a fresh native-unit reservation | per-run human approval, one attempt/no retry, worst-case allowance hold, checkpoint tail, before/after observation, and no claim of a hard cash cap |
+| T4 Worker | one worker on fixture systems; quarantined output | separate review after the exact applicable T3A/T3B gate |
 | T5 Crew | multiple workers under one aggregate envelope | independent adversarial program |
 | T6 Federation | cross-host custody and settlement | deferred until composition is proven |
 
@@ -298,6 +329,8 @@ Produce one review using `templates/output-template.md` with:
 - durable lifecycle states, global reservation scopes, process/VM witness,
   retry owner, breaker reset contract, and backend-continuation proof when agents
   can be launched;
+- schema-valid resurrection-plan and capacity-evidence identities when those
+  domains are in scope, plus negative fixtures for unsafe ready/unknown states;
 - stable adversarial gate matrix;
 - evidence grouped by witness class;
 - residual risks and counterclaims; and
@@ -310,135 +343,24 @@ gate. Never promote because that script returns `pass: true`.
 
 ## Anti-Patterns
 
-### Same-UID Convenience Called Containment
+Reject these shortcuts during design review. Load
+`references/anti-patterns.md` for the novice/expert/timeline treatment.
 
-**Novice:** A worktree, path guard, Seatbelt profile, or process wrapper is “the sandbox.”
-
-**Expert:** Arbitrary code shares too much host authority. Put it behind a VM or
-microVM and treat host controls as defense in depth.
-
-**Timeline:** Appears during prototyping, survives because tests pass, fails when a
-native module, shell, inherited descriptor, or overlooked path bypasses convention.
-
-### Host Executes The Submitted Test Harness
-
-**Novice:** Run Jest, configuration, and setup on the host against a daemon in a VM.
-
-**Expert:** Pull-request-controlled tests are code. Stage inert bytes and execute
-the entire test runner inside a disposable guest.
-
-**Timeline:** Looks efficient in CI, then a configuration file or transform gains
-host code execution before the supposedly isolated subject starts.
-
-### Clean Main As A Social Convention
-
-**Novice:** Ask agents to avoid the main checkout and add a pre-commit hook.
-
-**Expert:** Make the canonical checkout absent from guests and invalid in every
-packer, broker, and promotion schema. Fetch through a bare source vault, author in
-worktrees only, and admit output only into a new linked review worktree. Hooks are
-friendly diagnostics, not enforcement.
-
-**Timeline:** Main stays clean during cooperative testing, then one wrong working
-directory, inherited `GIT_DIR`, or path alias stages unrelated operator bytes and
-turns source provenance into guesswork.
-
-### In-Memory Roster Called Global Accounting
-
-**Novice:** Counts children in a process-local map, writes the PID later, and
-restarts a worker when a heartbeat disappears.
-
-**Expert:** Atomically reserves global capacity in a durable external ledger,
-witnesses boot/process-start/nonce/sandbox identity before `RUNNING`, and keeps
-admission closed after restart until every old body is adopted, terminated,
-settled, lost, or quarantined.
-
-**Timeline:** The normal path respects its limit, then a crash erases the count
-while detached children survive. Startup retries create another generation and a
-crash-plus-spawn loop multiplies processes and bills.
-
-### Backoff Called A Spawn Safety Boundary
-
-**Novice:** Adds exponential delay to recursive or crash-triggered spawning.
-
-**Expert:** Denies all but the atomically reserved number of births, gives one
-layer ownership of retries, persists attempt/ancestry limits, and opens a durable
-breaker. Full-jitter backoff only desynchronizes a later, already bounded retry.
-
-**Timeline:** Delay makes the first graph look calm, then restart resets the
-counter or 1,000 distinct requests bypass exact idempotency and all eventually run.
-
-### Guest Self-Attestation
-
-**Novice:** A failed `curl 127.0.0.1:9876` proves the host daemon was unreachable.
-
-**Expert:** Guest loopback is not host loopback. Prove absent host mounts, devices,
-routes, and mappings externally; label guest probes `GUEST_ASSERTED`.
-
-**Timeline:** Produces reassuring logs immediately, then collapses under a
-compromised guest that lies or tests the wrong namespace.
-
-### Internal Ledger Called A Hard Bill Cap
-
-**Novice:** Reserve five dollars locally, therefore no provider can charge more.
-
-**Expert:** Reservation limits broker authority. Only isolated provider-enforced
-custody plus measured enforcement lag bounds actual financial loss.
-
-**Timeline:** Works in mocks, then delayed usage reporting, concurrent requests, or
-quota propagation allows overshoot.
-
-### One Language Everywhere
-
-**Novice:** Rewrites the controller, Apple adapter, UI, guest, and subject in Rust
-and calls the result safer.
-
-**Expert:** Keeps one Rust implementation for trusted state and receipt logic,
-uses a mechanical Swift helper for Apple's native VM API, confines rich web UI to
-read-only evidence, and measures every process/channel added to the TCB.
-
-**Timeline:** A uniform prototype feels elegant, then unsafe FFI, duplicated native
-policy, or a WebView command bridge quietly becomes the broadest authority path.
-
-### Presentation As Containment
-
-**Novice:** Treats a gallery, `chroot`, `sandbox-exec`, or a same-UID wrapper as
-evidence that hostile code was contained.
-
-**Expert:** Uses the gallery only to inspect evidence, labels fixtures honestly,
-and requires an approved external controller's host receipt for containment.
-
-**Timeline:** The specimen looks boxed in while its process can still inherit host
-paths, hooks, credentials, sockets, or network authority.
-
-### Guest-Declared Billing Inputs
-
-**Novice:** Trust `inputTokens`, `inputBytes`, or `maxOutput` in the guest request.
-
-**Expert:** The broker measures payloads and derives conservative provider-specific
-bounds; host policy supplies maxima.
-
-**Timeline:** Honest clients agree in tests, malicious or buggy clients understate
-inputs in production and defeat admission accounting.
-
-### Random Chaos Without Replay
-
-**Novice:** Kill processes randomly until something fails.
-
-**Expert:** Control entropy, virtual time, order, and fault schedules; preserve a
-seed and minimized counterexample; test safety and liveness.
-
-**Timeline:** Finds an exciting flake, then consumes days and money because nobody
-can reproduce or distinguish it from infrastructure noise.
-
-### Signed Claims Treated As Truth
-
-**Novice:** The guest signed a PASS receipt, so the run passed.
-
-**Expert:** Signatures prove origin and integrity. Trust comes from witness position,
-observed fields, isolation, and downstream verification.
-
-**Timeline:** Looks rigorous until a compromised subject signs a perfectly authentic lie.
+| Shortcut | Required correction |
+|---|---|
+| Same-UID wrapper called containment | Put hostile execution behind the selected VM or microVM boundary. |
+| Host executes submitted tests | Execute the entire submitted test runner inside the disposable guest. |
+| “Keep main clean” as convention | Make the canonical checkout structurally absent and schema-invalid. |
+| Process-local child count as global truth | Reserve globally before birth and reconcile every prior body before reopening admission. |
+| Backoff as spawn safety | Persist hard birth, ancestry, and retry bounds before adding jitter. |
+| Guest self-attestation as containment proof | Use external host witnesses and label guest claims honestly. |
+| Internal ledger as hard provider cap | Distinguish broker authority from provider custody and measured enforcement lag. |
+| Subscription allowance as free | Keep native allowance and cash ledgers separate; unknown capacity fails closed. |
+| One language everywhere | Minimize the trusted implementation while using narrow native adapters where required. |
+| Presentation as containment | Treat galleries and fixtures as views, never enforcement evidence. |
+| Guest-declared billing inputs | Measure payloads at the broker and derive conservative bounds. |
+| Random chaos without replay | Control clock, entropy, order, and fault schedules; preserve the minimized seed. |
+| Signed claim as truth | Treat signatures as origin/integrity proof, not witness authority. |
 
 ## References
 
@@ -451,6 +373,7 @@ observed fields, isolation, and downstream verification.
 | `references/deterministic-simulation-and-formal-models.md` | Designing Trial Basin seeds, virtual time, faults, schedule exploration, safety, and liveness. |
 | `references/provenance-receipts-and-evidence.md` | Sealing inputs and deciding which witness may assert each receipt field. |
 | `references/threat-classes-and-adversarial-recipes.md` | Building the complete hostile-specimen and failure matrix. |
+| `references/anti-patterns.md` | Reviewing common shortcuts through novice, expert, and failure-timeline lenses. |
 | `templates/output-template.md` | Writing the integrated Drydock review and promotion verdict. |
 | `tests/activation.md` | Evaluating skill activation and rejection behavior. |
 | `examples/sample-input.json` | Inspecting the paired legacy T0 policy-lint input used by the abbreviated example. |
@@ -464,7 +387,7 @@ observed fields, isolation, and downstream verification.
 - `SKILL.md`: activation, decision process, evidence classes, tiers, and anti-patterns.
 - `README.md` and `CHANGELOG.md`: bundle orientation and version history.
 - `references/`: implementation language, fail-cheap controls, isolation, spend,
-  durable agent lifecycle, simulation, provenance, and adversarial recipes.
+  durable agent lifecycle, simulation, provenance, anti-patterns, and adversarial recipes.
 - `templates/output-template.md`: integrated review artifact.
 - `tests/activation.md`: positive, negative, and boundary activation prompts.
 - `examples/`: abbreviated legacy and Drydock examples.

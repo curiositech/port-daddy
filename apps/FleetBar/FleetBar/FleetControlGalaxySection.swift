@@ -532,7 +532,7 @@ final class FleetControlGalaxyStore: ObservableObject {
     }
 
     private func fetch<T: Decodable>(_ type: T.Type, from url: URL) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let (data, response) = try await URLSession.shared.pdData(from: url)
         if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
             throw GalaxyControlError.message("HTTP \(http.statusCode) from \(url.path)")
         }

@@ -28,6 +28,7 @@ import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/tru
 import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex, type SkillGraftResult } from './skill-graft.js';
 import { buildSkillGraftEvent } from './skill-graft-events.js';
 import { PD_HOME } from '../shared/paths.js';
+import { createLocalRuntimeGate } from './local-runtime-control.js';
 import {
   loadWatcherPidRegistry,
   saveWatcherPidRegistry,
@@ -653,6 +654,8 @@ export interface FleetApprovalProposal {
 export type FleetEventCallback = (event: FleetEvent) => void;
 
 export interface FleetRunnerOptions {
+  /** Inert fixture injection or an additional daemon-latched Off observation. */
+  runtimeAllowed?: () => boolean;
   onEvent?: FleetEventCallback;
   costTracker?: CostTracker;
   initiallyPausedAgents?: string[];
@@ -721,6 +724,7 @@ const DEFAULT_SKILL_GRAFT_SPAWN_BUDGET_MS = 8_000;
 const SKILL_GRAFT_TIMED_OUT: unique symbol = Symbol('skill-graft-timeout');
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
+  const runtimeAllowed = createLocalRuntimeGate(options?.runtimeAllowed);
   const running = new Map<string, RunningAgent>();
   // Lifecycle guard for async I/O-registry trigger starts. `startAgent` kicks
   // off `ioDispatch.startTrigger(...)` which resolves asynchronously; without
@@ -792,6 +796,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   // `email`/`sms`/`calendar` resolve through the registry and are honestly
   // refused at available() until their connectors ship (ROADMAP).
   const ioDispatch = new IoDispatch({
+    runtimeAllowed,
     channelSubscribe: options?.messaging?.subscribe,
     resolveChannel,
     // schedule registry kind stays on the legacy cron path (see startAgent);
@@ -1194,6 +1199,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function startAgent(agent: FleetAgent): void {
+    if (!runtimeAllowed()) return;
     if (pausedAgents.has(agent.name)) return;
     if (running.has(agent.name)) return; // already running
 
@@ -1303,6 +1309,16 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           // context (e.g. a test) has finished ("Cannot log after tests are
           // done") and a live handle would leak.
           const aborted = stopped || !running.has(agent.name);
+          if (!result.started && result.cleanupHandle) {
+            const handle = result.cleanupHandle;
+            const retryCleanup = () => {
+              void handle.stop().catch((error: unknown) => {
+                console.error(`[Fleet] Trigger "${raw}" shutdown remains unverified:`, String(error));
+              });
+            };
+            if (aborted) retryCleanup();
+            else cleanupHandles.push(retryCleanup);
+          }
           if (result.started) {
             const stopHandle = result.handle;
             if (aborted) {
@@ -1404,7 +1420,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       record.tuplePollInterval.unref?.();
     }
 
-    if (cleanupHandles.length > 0) {
+    // Async registry starts append their handles after this synchronous setup.
+    // Install the cleanup closure now, even while that list is still empty.
+    if (cleanupHandles.length > 0 || registryTriggers.length > 0) {
       record.watchHandle = () => {
         for (const cleanup of cleanupHandles) {
           try {
@@ -1424,6 +1442,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function startWatcher(watcher: FleetWatcher): void {
+    if (!runtimeAllowed()) return;
     if (running.has(watcher.name)) return;
     const physicalTriggerChannel = resolveChannel(watcher.trigger);
 
@@ -1525,6 +1544,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
    * ```
    */
   function triggerWatcherExec(watcher: FleetWatcher, physicalTriggerChannel: string, message: unknown): void {
+    if (!runtimeAllowed()) return;
     const record = running.get(watcher.name);
     if (!record) return;
 
@@ -1704,6 +1724,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function fireHook(hook: string, payload: string): void {
+    if (!runtimeAllowed()) return;
     const [action, channel] = hook.split(' ');
     if (action === 'publish' && channel) {
       const physicalChannel = resolveChannel(channel);
@@ -1737,6 +1758,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     agent: FleetAgent,
     runMeta: { status?: string; agentId?: string; backend?: string | null },
   ): void {
+    if (!runtimeAllowed()) return;
     const targets = agent.outputs;
     if (!targets || targets.length === 0) return;
     const status = runMeta.status ?? 'completed';
@@ -2009,6 +2031,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   async function requestAgentRun(agent: FleetAgent, context?: FleetRunContext): Promise<{ success: boolean; error?: string; queued?: boolean }> {
+    if (!runtimeAllowed()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     if (pausedAgents.has(agent.name)) {
       return { success: false, error: `${agent.name} is paused` };
     }
@@ -2037,6 +2060,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   async function runAgentOnce(agent: FleetAgent, context?: FleetRunContext): Promise<{ success: boolean; error?: string }> {
+    if (!runtimeAllowed()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     const identity = agent.identity || `${project}:fleet:${agent.name}`;
     const attempts = buildRuntimeAttempts(agent);
     const primaryRuntime = attempts[0];
@@ -2132,6 +2156,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       }
     }
 
+    // A queued permit is not permission to ignore Off pressed while waiting.
+    if (!runtimeAllowed()) {
+      releasePermit?.();
+      return { success: false, error: 'Local Port Daddy is Off; queued Fleet run refused' };
+    }
     activeAgentRuns.add(agent.name);
     activeSpawns++;
     if (config.limits?.maxSpawnsPerHour !== undefined) {
@@ -2163,6 +2192,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       observeSemanticAliases(agent, task, context, now);
 
       for (let i = 0; i < attempts.length; i += 1) {
+        if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; Fleet attempt refused');
         const runtime = attempts[i];
         if (!runtime.backend) continue;
         const outcome = await spawnFleetAttempt(
@@ -2302,6 +2332,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   async function ensureHarbor(): Promise<void> {
+    if (!runtimeAllowed()) return;
     if (!config.harbor) return;
     try {
       // Create harbor (idempotent — daemon returns existing if it already exists)
@@ -2326,6 +2357,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   async function enrollInHarbor(agentIdentity: string): Promise<void> {
+    if (!runtimeAllowed()) return;
     if (!config.harbor) return;
     try {
       await fetch(`${getFleetDaemonUrl()}/harbors/${encodeURIComponent(config.harbor)}/enter`, {
@@ -2347,6 +2379,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   let respawnWatcherStopped = false;
 
   function startRespawnWatcher(): void {
+    if (!runtimeAllowed()) return;
     const respawnAgents = config.agents.filter(a => a.respawn);
     if (respawnAgents.length === 0) return;
 
@@ -2361,11 +2394,13 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     const url = new URL(`${getFleetDaemonUrl()}/msg/resurrection/subscribe`);
 
     function connect() {
+      if (!runtimeAllowed()) return;
       const req = httpGet(url, (res) => {
         res.setEncoding('utf-8');
         let buffer = '';
 
         res.on('data', (chunk: string) => {
+          if (!runtimeAllowed()) return;
           buffer += chunk;
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
@@ -2491,9 +2526,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function startAll(): void {
+    if (!runtimeAllowed()) return;
     sweepOrphanedWatcherChildren();
     // Create the fleet harbor first, then start agents
     ensureHarbor().then(() => {
+      if (!runtimeAllowed() || stopped) return;
       for (const agent of config.agents) {
         startAgent(agent);
         if (agent.identity) enrollInHarbor(agent.identity);
@@ -2635,6 +2672,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function resumeAgent(agentName: string): { success: boolean; error?: string } {
+    if (!runtimeAllowed()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     const agent = agentIndex.get(agentName);
     if (!agent) return { success: false, error: `No agent named ${agentName}` };
     pausedAgents.delete(agentName);

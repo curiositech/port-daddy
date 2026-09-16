@@ -145,6 +145,24 @@ fleet:
       # post-commit path stays as a quick check that still routes
       # through coordination:inconsistency only when material.
       trigger: pull_request:opened
+      participation:
+        default: abstain
+        unavailable_blocks: false
+        rules:
+          - disposition: advisory
+            prClasses: [code, ui, ci, data, dependencies]
+            reason: runnable product or build surface changed; execution evidence is advisory until the sandbox runner is configured
+      execution:
+        mode: write_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file, list_files, search, run_tests]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: [.]
+        maxWallClockMs: 600000
+        maxCostMicrousd: 2000000
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -421,6 +439,7 @@ fleet:
       # into REAL actionable Port Daddy syntax (see fleet/ships/spark.md and
       # apps/fleet-executor/src/proposals.ts).
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - pull_request:opened
         - git:committed
@@ -659,6 +678,7 @@ fleet:
       # and proposes the new product or workflow that follows from them, as
       # validated Proposals rendered into actionable syntax by the executor.
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - spark:idea
         - pull_request:opened
@@ -760,6 +780,7 @@ fleet:
       # gates a merge. Absorbs the ADR-0032 unSpider contradiction-finder
       # ambition into the cloud fleet. See fleet/ships/lookout.md.
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - pull_request:opened
       backend: cli:claude-code
@@ -848,6 +869,7 @@ fleet:
       # via the skill-architect skill — with a ready-to-run dispatch command.
       # Advisory: never gates a merge. See fleet/ships/snipe.md.
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - pull_request:opened
       backend: cli:claude-code
@@ -957,6 +979,12 @@ fleet:
 
     code-reviewer:
       trigger: pull_request:opened
+      participation:
+        default: abstain
+        rules:
+          - disposition: required
+            prClasses: [code, dependencies, security, ci, infrastructure, data, ui]
+            reason: executable or governed contract changed
       # Voice-sensitive: prefers anthropic only when CLI backends and
       # cheaper-but-good options aren't healthy. Spawner walks the
       # array and picks the first available + under-cap entry.
@@ -1032,6 +1060,12 @@ fleet:
 
     red-team:
       trigger: pull_request:opened
+      participation:
+        default: abstain
+        rules:
+          - disposition: required
+            riskSignals: [authentication, authorization, secrets, cryptography, billing, tenant-boundary, privacy, storage, schema-migration, security-uncertain]
+            reason: security, privacy, storage, migration, or uncertain code boundary changed
       # Novel attack construction benefits from headroom. The primary target
       # resolves through the registry's `high` rung; it is never left to a
       # CLI default that could silently weaken this security review. On Cloudflare,
@@ -1080,6 +1114,7 @@ fleet:
 
     test-author:
       trigger: pull_request:opened
+      participation: { default: abstain, rules: [] }
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -1133,6 +1168,7 @@ fleet:
 
     tautology-sniffer:
       trigger: pull_request:opened
+      participation: { default: advisory, rules: [] }
       # Pattern recognition over test code — gpt-5-mini is the
       # sweet spot. Anthropic dropped from the preference list
       # entirely: this isn't a voice-sensitive task.
@@ -1335,6 +1371,8 @@ fleet:
       # model, but the Steward never blocks on one being available.
       schedule: "*/20 * * * *"
       trigger: pull_request:opened
+      participation: { default: advisory, rules: [] }
+      execution: { mode: none }
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
