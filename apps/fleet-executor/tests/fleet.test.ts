@@ -47,6 +47,19 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     }
   });
 
+  it('EXCLUDES steward, paused by operator request', () => {
+    // Same regression class as the ideation-ship guard above, for a ship
+    // that is NOT ideation-class: unlike those four, pausing steward stops
+    // real merge-authority actions (review verdicts, bot replies, landing),
+    // not just proposals — see pd-fleet.yml's comment on the `steward:`
+    // entry. Asserted against the REAL pd-fleet.yml so re-enabling it
+    // without meaning to fails this test rather than silently resuming.
+    const executing = new Set(ships!.map(s => s.name));
+    const listed = new Set((parseFleetShips(REAL_YAML, '*') ?? []).map(s => s.name));
+    expect(executing.has('steward'), 'steward must not execute').toBe(false);
+    expect(listed.has('steward'), 'steward must not be listed').toBe(false);
+  });
+
   it('pausing the ideation ships left the blocking review path armed', () => {
     // The point of the split: proposals stop, review does not.
     const names = new Set(ships!.map(s => s.name));
@@ -88,7 +101,7 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
   });
 
   it('declares Steward model-only instead of deriving authority from its command list', () => {
-    const steward = parseFleetShips(REAL_YAML, '*')?.find(ship => ship.name === 'steward');
+    const steward = parseFleetShips(UNPAUSED_YAML, '*')?.find(ship => ship.name === 'steward');
     expect(steward).toBeDefined();
     expect(steward!.execution.mode).toBe('none');
     expect(steward!.executionConfigState).toBe('valid');
