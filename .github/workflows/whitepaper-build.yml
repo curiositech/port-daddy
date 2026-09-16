@@ -260,7 +260,11 @@ jobs:
         run: |
           set -euo pipefail
           book=website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
-          pages="$(pdfinfo "$book" | awk -F: '/^Pages:/ { gsub(/[ \t]/, "", $2); print $2 }')"
+          if [ ! -f "$book" ]; then
+            echo "::error::$book does not exist; the build step above must have failed silently"
+            exit 1
+          fi
+          pages="$(pdfinfo "$book" | grep -i '^pages:' | grep -oE '[0-9]+' | head -1)"
           if [ -z "$pages" ]; then
             echo "::error::could not read a page count from $book with pdfinfo; refusing to publish a manifest with a guessed page count"
             exit 1
