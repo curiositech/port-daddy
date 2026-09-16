@@ -364,6 +364,10 @@ describe('release-candidate E2E contract', () => {
     expect(smoke).toContain('HOME="$CLI_HOME"');
     expect(smoke).toContain('__corral_fixture="$CLI_HOME/.env"');
     expect(smoke).toContain('__corral_before="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('if __corral_out="$(cli safe corral --all 2>&1)"; then');
+    expect(smoke).toContain('__corral_status=$?');
+    expect(smoke).toContain('[ "$__corral_status" -eq 0 ]');
+    expect(smoke).not.toContain('cli safe corral --all 2>/dev/null || true');
     expect(smoke).toContain('__corral_after="$(cksum < "$__corral_fixture")"');
     expect(smoke).toContain('[ "$__corral_before" = "$__corral_after" ]');
   });

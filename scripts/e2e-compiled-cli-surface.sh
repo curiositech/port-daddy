@@ -244,14 +244,19 @@ fi
 __corral_fixture="$CLI_HOME/.env"
 printf 'E2E_SAFE_CORRAL=%s%s\n' 'ghp_' 'aB3dE5fG7hJ9kL2mN4pQ6rS8tV0wX1yZ3cD5' > "$__corral_fixture"
 __corral_before="$(cksum < "$__corral_fixture")"
-__corral_out="$(cli safe corral --all 2>/dev/null || true)"
+if __corral_out="$(cli safe corral --all 2>&1)"; then
+  __corral_status=0
+else
+  __corral_status=$?
+fi
 __corral_after="$(cksum < "$__corral_fixture")"
-if printf '%s' "$__corral_out" | grep -qi "DRY RUN" \
+if [ "$__corral_status" -eq 0 ] \
+   && printf '%s' "$__corral_out" | grep -qi "DRY RUN" \
    && printf '%s' "$__corral_out" | grep -qi "reduces blast radius" \
    && [ "$__corral_before" = "$__corral_after" ]; then
   pass "safe corral --all (dry-run default; honest-limit echoed; source unchanged)"
 else
-  fail "safe corral --all" "no dry-run plan / honest-limit or source changed: $(printf '%s' "$__corral_out" | head -c 160)"
+  fail "safe corral --all" "exit $__corral_status; no dry-run plan / honest-limit or source changed: $(printf '%s' "$__corral_out" | head -c 160)"
 fi
 rm -f "$__corral_fixture"
 # guard --staged: read-only scan of the staged diff. In the scratch repo with no
