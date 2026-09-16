@@ -22,6 +22,21 @@ import { beginFleetIntentAttempt } from '../src/run-intent.js';
 
 const ONE_SHIP_YAML = 'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      participation: { default: required, rules: [] }\n      blocking: true\n      prompt: code-reviewer ship\n';
 
+const TWO_SHIP_YAML = [
+  'fleet:',
+  '  agents:',
+  '    code-reviewer:',
+  '      trigger: pull_request:opened',
+  '      participation: { default: required, rules: [] }',
+  '      blocking: true',
+  '      prompt: review',
+  '    qa:',
+  '      trigger: pull_request:opened',
+  '      participation: { default: advisory, rules: [] }',
+  '      prompt: test',
+  '',
+].join('\n');
+
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
     `github_inst_${installationId}`,
@@ -403,7 +418,7 @@ describe('queue consumer', () => {
   it('lets only one duplicate explicit successor win the pending permit CAS', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      prompt: review\n    qa:\n      trigger: pull_request:opened\n      prompt: test\n',
+      TWO_SHIP_YAML,
     );
     const tokens = memoryKV();
     seedToken(tokens, 42);
@@ -487,18 +502,7 @@ describe('queue consumer', () => {
   it('retries without a permit or send when a newer attempt wins before permit CAS', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      [
-        'fleet:',
-        '  agents:',
-        '    code-reviewer:',
-        '      trigger: pull_request:opened',
-        '      blocking: true',
-        '      prompt: review',
-        '    qa:',
-        '      trigger: pull_request:opened',
-        '      prompt: test',
-        '',
-      ].join('\n'),
+      TWO_SHIP_YAML,
     );
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -533,18 +537,7 @@ describe('queue consumer', () => {
   it('retries without sending when a successor wins after permit but before send', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      [
-        'fleet:',
-        '  agents:',
-        '    code-reviewer:',
-        '      trigger: pull_request:opened',
-        '      blocking: true',
-        '      prompt: review',
-        '    qa:',
-        '      trigger: pull_request:opened',
-        '      prompt: test',
-        '',
-      ].join('\n'),
+      TWO_SHIP_YAML,
     );
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -617,7 +610,7 @@ describe('queue consumer', () => {
   it('repairs the exact successor after queue-send failure without re-running a ship', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      prompt: review\n    qa:\n      trigger: pull_request:opened\n      prompt: test\n',
+      TWO_SHIP_YAML,
     );
     const db = memoryD1();
     const job = makeJob();
@@ -674,7 +667,7 @@ describe('queue consumer', () => {
   it('durably holds a pending handoff when Fleet pauses before its repair send', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      prompt: review\n    qa:\n      trigger: pull_request:opened\n      prompt: test\n',
+      TWO_SHIP_YAML,
     );
     const tokens = memoryKV();
     seedToken(tokens, 42);

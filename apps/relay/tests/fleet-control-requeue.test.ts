@@ -30,7 +30,16 @@ function setup() {
   const queued: FleetRunJob[] = [];
   const job = makeJob();
   const state = freshState();
-  state.files.set('main:pd-fleet.yml', 'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      blocking: true\n      prompt: review\n');
+  state.files.set('main:pd-fleet.yml', [
+    'fleet:',
+    '  agents:',
+    '    code-reviewer:',
+    '      trigger: pull_request:opened',
+    '      blocking: true',
+    '      participation: { default: required, rules: [] }',
+    '      prompt: review',
+    '',
+  ].join('\n'));
   installGitHubFetch(state);
   const tokens = memoryKV();
   void tokens.put('github_inst_42', JSON.stringify({ token: 'seeded-tok', expiresAt: Date.now() + 3600000 }));
