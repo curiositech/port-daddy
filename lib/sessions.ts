@@ -2175,9 +2175,10 @@ export function createSessions(
   }
 
   /**
-   * Get active file conflicts for given paths
+   * Get active file conflicts for given paths. Callers may scope the lookup to
+   * one logical repository while intentionally spanning all of its worktrees.
    */
-  function getFileConflicts(filePaths: string[]) {
+  function getFileConflicts(filePaths: string[], options: { project?: string | null } = {}) {
     if (!Array.isArray(filePaths) || filePaths.length === 0) {
       return { conflicts: [] };
     }
@@ -2185,7 +2186,10 @@ export function createSessions(
     const conflicts: FileConflict[] = [];
 
     for (const filePath of filePaths) {
-      const activeClaims = claimForest.getActiveClaimsForFile(filePath);
+      const activeClaims = claimForest.getActiveClaimsForFile(
+        filePath,
+        options.project === undefined ? undefined : { repoId: options.project },
+      );
       for (const claim of activeClaims) {
         conflicts.push({
           filePath,

@@ -6,6 +6,8 @@ export interface SessionWorktreeContext {
   name: string;
   branch: string | null;
   isMain: boolean;
+  /** Git common directory recorded by the client for repository-family proof. */
+  commonDir?: string;
 }
 
 export interface SessionWorktreePolicyInput {
@@ -29,6 +31,7 @@ export function toSessionWorktreeContext(info: WorktreeInfo): SessionWorktreeCon
     name: info.name,
     branch: info.branch,
     isMain: info.isMain,
+    commonDir: info.commonDir,
   };
 }
 
@@ -45,6 +48,7 @@ export function normalizeSessionWorktreeContext(value: unknown): SessionWorktree
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : raw.root.split('/').pop() || 'unknown',
     branch: typeof raw.branch === 'string' && raw.branch.trim() ? raw.branch : null,
     isMain: raw.isMain,
+    ...(typeof raw.commonDir === 'string' && raw.commonDir.trim() ? { commonDir: raw.commonDir } : {}),
   };
 }
 

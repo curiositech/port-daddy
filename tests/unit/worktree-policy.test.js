@@ -8,6 +8,7 @@ import {
   evaluateSessionWorktreePolicy,
   mergeSessionWorktreeMetadata,
   normalizeSessionWorktreeContext,
+  toSessionWorktreeContext,
 } from '../../lib/worktree-policy.js';
 
 const linkedWorktree = {
@@ -16,6 +17,7 @@ const linkedWorktree = {
   name: 'port-daddy-feature',
   branch: 'codex/worktree-policy',
   isMain: false,
+  commonDir: '/repo/.git',
 };
 
 describe('evaluateSessionWorktreePolicy', () => {
@@ -100,6 +102,19 @@ describe('normalizeSessionWorktreeContext', () => {
       branch: null,
       isMain: false,
     });
+  });
+
+  test('preserves a recorded git common directory when present', () => {
+    const result = normalizeSessionWorktreeContext(linkedWorktree);
+
+    expect(result).toEqual(linkedWorktree);
+    expect(result.commonDir).toBe('/repo/.git');
+  });
+});
+
+describe('toSessionWorktreeContext', () => {
+  test('carries git common-directory provenance into session metadata', () => {
+    expect(toSessionWorktreeContext(linkedWorktree)).toEqual(linkedWorktree);
   });
 });
 

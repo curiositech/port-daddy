@@ -1089,6 +1089,23 @@ describe('Sessions Module', () => {
       expect(result.conflicts).toHaveLength(2);
     });
 
+    it('should scope preflight conflicts to the requested project across worktrees', () => {
+      const alphaMain = sessions.start('Alpha main', { project: 'alpha', worktreeId: 'alpha-main' });
+      const alphaLinked = sessions.start('Alpha linked', { project: 'alpha', worktreeId: 'alpha-linked' });
+      const betaMain = sessions.start('Beta main', { project: 'beta', worktreeId: 'beta-main' });
+      sessions.claimFiles(alphaMain.id, ['README.md']);
+      sessions.claimFiles(betaMain.id, ['README.md']);
+
+      const alpha = sessions.getFileConflicts(['README.md'], { project: 'alpha' });
+      const beta = sessions.getFileConflicts(['README.md'], { project: 'beta' });
+      const unscoped = sessions.getFileConflicts(['README.md'], { project: null });
+
+      expect(alpha.conflicts.map((conflict) => conflict.sessionId)).toEqual([alphaMain.id]);
+      expect(beta.conflicts.map((conflict) => conflict.sessionId)).toEqual([betaMain.id]);
+      expect(unscoped.conflicts).toHaveLength(0);
+      expect(alphaLinked.success).toBe(true);
+    });
+
     it('should ignore unreleased zombie rows from inactive sessions', () => {
       const started = sessions.start('Old abandoned', { files: ['src/zombie.ts'] });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(started.id);

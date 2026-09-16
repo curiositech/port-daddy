@@ -718,9 +718,9 @@ class ReleaseCandidateSuite {
     }
     const sessions = [];
     const specs = [
-      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
-      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'LINKED.md' },
-      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-main', project: 'rc-e2e-alpha', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', project: 'rc-e2e-alpha', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'LINKED.md' },
+      { label: 'beta-main', project: 'rc-e2e-beta', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
     ];
     try {
       for (const spec of specs) {
@@ -728,7 +728,7 @@ class ReleaseCandidateSuite {
           'begin',
           `RC fixture ${spec.label}`,
           '--identity',
-          `port-daddy:rc-e2e:${spec.label}`,
+          `${spec.project}:coordination:${spec.label}`,
           '--lifecycle',
           'durable',
           '--sidequest',
