@@ -229,8 +229,29 @@ describe('effect admission is narrower than the overall posture', () => {
 
   test('unknown and empty effect sets fail closed without throwing for JavaScript callers', () => {
     expect(admitRuntimeEffect(ready, { effects: [] } as never)).toMatchObject({ allowed: false, reasons: ['effect_set_empty'] });
-    expect(admitRuntimeEffect(ready, { effects: new Array(1) } as never)).toMatchObject({ allowed: false, reasons: ['effect_set_empty'] });
+    expect(admitRuntimeEffect(ready, { effects: new Array(1) } as never)).toMatchObject({ allowed: false, reasons: ['effect_set_sparse'] });
     expect(admitRuntimeEffect(ready, { effects: ['future_effect'] } as never)).toMatchObject({ allowed: false, reasons: ['effect_unknown'] });
+  });
+
+  test('mixed sparse effect and capability arrays cannot hide missing classifications', () => {
+    const sparseEffects = ['automatic_local'];
+    sparseEffects.length = 2;
+    expect(admitRuntimeEffect(ready, { effects: sparseEffects } as never)).toMatchObject({
+      allowed: false,
+      effects: ['automatic_local'],
+      reasons: ['effect_set_sparse'],
+    });
+
+    const sparseRequirements = ['sandbox'];
+    sparseRequirements.length = 2;
+    expect(admitRuntimeEffect(ready, {
+      effects: ['automatic_local'],
+      additionalRequirements: sparseRequirements,
+    } as never)).toMatchObject({
+      allowed: false,
+      requiredCapabilities: ['sandbox'],
+      reasons: ['capability_requirement_sparse'],
+    });
   });
 
   test('unrecognized desired and control values deny every automatic effect', () => {
