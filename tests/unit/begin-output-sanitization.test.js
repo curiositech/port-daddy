@@ -70,6 +70,11 @@ function fixture({ response, ok = true, env = {}, persistenceError } = {}) {
         if (persistenceError) throw persistenceError;
         writes.push(value);
       },
+      // Real writeBeginAttempt/clearBeginAttempt touch disk (.portdaddy);
+      // begin's idempotency-key bookkeeping is not what output-sanitization
+      // fixtures test, so both are inert no-ops rather than real I/O.
+      writeBeginAttempt: (attempt) => attempt,
+      clearBeginAttempt: () => {},
     },
     '../utils/session-worktree-policy.js': {
       resolveCliSessionWorktreePolicy: () => ({ success: true }),
@@ -79,6 +84,14 @@ function fixture({ response, ok = true, env = {}, persistenceError } = {}) {
     '../../lib/dispatch/queue.js': { createDispatchQueue: unexpected },
     '../../lib/dispatch/auto-merge.js': { checkAndCompleteDispatch: unexpected },
     '../../lib/semantic-resolver.js': { DEFAULT_SEMANTIC_REVIEW_THRESHOLD: 0.5 },
+    // Pattern duplicated from lib/begin-idempotency.ts's own
+    // BEGIN_IDEMPOTENCY_KEY_PATTERN -- keep the two in sync.
+    '../../lib/begin-idempotency.js': {
+      BEGIN_IDEMPOTENCY_KEY_PATTERN: /^[A-Za-z0-9._-]{16,128}$/,
+      generateBeginIdempotencyKey: () => 'fixture-idempotency-00000000-0000-0000-0000-000000000000',
+      isValidBeginIdempotencyKey: (value) =>
+        typeof value === 'string' && /^[A-Za-z0-9._-]{16,128}$/.test(value),
+    },
   };
   const exports = evaluate(source, {
     console: { log, error },
@@ -113,6 +126,7 @@ describe('begin public output and private admission persistence', () => {
       agentId: 'fixture-agent', sessionId: 'fixture-session',
       agentName: 'Fixture Agent', sessionName: 'Fixture Session',
       purpose: 'Fixture purpose', identity: 'fixture:cli', startedAt: NOW, credential,
+      idempotencyKey: 'fixture-idempotency-00000000-0000-0000-0000-000000000000',
     }]);
     expect(test.events).toEqual(['fetch', 'persist', 'stdout']);
     expectPrivateOnly(test);
