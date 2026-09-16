@@ -37,6 +37,8 @@ def _repo():
         if (top / 'whitepaper/textbook.json').exists():
             return top
     except (subprocess.CalledProcessError, FileNotFoundError):
+        # Expected in non-git environments (or when git is unavailable):
+        # fall back to the script-relative repo root below.
         pass
     return Path(__file__).resolve().parents[3]
 
