@@ -35,6 +35,7 @@ import {
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
 } from './ai-resilience.js';
 import { handleDlqJob } from './dlq.js';
+import { finalizeUnleasedManagedRun, sweepStaleManagedReservations } from './managed-billing.js';
 import {
   countDeliveryContinuations,
   recordDeliveryAttemptStart,
@@ -110,6 +111,8 @@ export default {
         console.log(
           `[fleet-executor] dlq delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber}`,
         );
+        await sweepStaleManagedReservations(env.DB, Math.floor(Date.now()/1000));
+        await finalizeUnleasedManagedRun(env.DB, `run:${message.body.deliveryId}`, Math.floor(Date.now()/1000));
         await handleDlqJob(message.body, env);
         message.ack();
       }
