@@ -205,6 +205,10 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
     expect(runner).toContain("mkdirSync(path, { recursive: true, mode: 0o700 });");
+    expect(runner).toContain('chmodSync(path, 0o700);');
+    expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
+    expect(runner).toContain("['sitrep', '--template']");
+    expect(runner).toContain("if (child.exitCode !== null || child.signalCode !== null) {\n      done(child.exitCode, child.signalCode);");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);

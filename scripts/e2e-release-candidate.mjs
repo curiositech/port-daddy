@@ -113,12 +113,25 @@ function processExited(child, timeoutMs) {
   }
   return new Promise((resolveExit) => {
     let timer;
+    let settled = false;
     const done = (code, signal) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
+      child.off('exit', done);
       resolveExit({ code, signal });
     };
     child.once('exit', done);
+    // The child can exit between the observation above and listener
+    // registration. Re-observe after subscribing so an already-delivered
+    // `exit` event cannot leave the suite's top-level await unsettled.
+    if (child.exitCode !== null || child.signalCode !== null) {
+      done(child.exitCode, child.signalCode);
+      return;
+    }
     timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
       child.off('exit', done);
       resolveExit(null);
     }, timeoutMs);
@@ -179,6 +192,8 @@ class ReleaseCandidateSuite {
     mkdirSync(dirname(this.resultsPath), { recursive: true });
     mkdirSync(dirname(this.logPath), { recursive: true });
     mkdirSync(join(this.root, 'tmp'), { recursive: true });
+    mkdirSync(join(this.root, 'control'), { recursive: true, mode: 0o700 });
+    chmodSync(join(this.root, 'control'), 0o700);
     this.checkoutBefore = this.checkoutAuthoritySnapshot();
   }
 
@@ -281,11 +296,15 @@ class ReleaseCandidateSuite {
   isolatedEnv(extra = {}) {
     return {
       ...secretFreeBaseEnv(),
-      CI: process.env.CI || '1',
+      CI: 'true',
       CARGO_HOME: process.env.CARGO_HOME || join(homedir(), '.cargo'),
       HOME: join(this.root, 'build-home'),
+      NODE_ENV: 'test',
       NO_COLOR: '1',
       PD_SCRATCH_ROOT: join(this.root, 'build-scratch'),
+      PD_HOME: join(this.root, 'control'),
+      PORT_DADDY_ISOLATED_TEST: '1',
+      PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: join(this.root, 'control'),
       RUSTUP_HOME: process.env.RUSTUP_HOME || join(homedir(), '.rustup'),
       TERM: 'dumb',
       TMPDIR: join(this.root, 'tmp'),
@@ -386,17 +405,23 @@ class ReleaseCandidateSuite {
     // makes mandatory note encryption fail closed before readiness.
     for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) {
       mkdirSync(path, { recursive: true, mode: 0o700 });
+      chmodSync(path, 0o700);
     }
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
       ...secretFreeBaseEnv(),
-      CI: process.env.CI || '1',
+      CI: 'true',
       HOME: home,
       NODE_ENV: 'test',
       NO_COLOR: '1',
       PD_HOME: pdHome,
+      PORT_DADDY_ISOLATED_TEST: '1',
+      PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: pdHome,
       PD_SCRATCH_ROOT: join(caseRoot, 'scratch'),
-      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'pd'),
+      // `pd __daemon` hands off to the staged companion executable. Drift
+      // detection must compare that running companion with itself, not with
+      // the intentionally different launcher binary.
+      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy'),
       PORT_DADDY_CONTEXT_DIR: contextDir,
       PORT_DADDY_DB: db,
       PORT_DADDY_DISABLE_KEYCHAIN: '1',
@@ -768,7 +793,7 @@ class ReleaseCandidateSuite {
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
         const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], { slot: spec.slot }), `claim ${spec.label}`);
         if (!claim.success || !claim.claimed?.includes('README.md')) throw new Error(`README claim did not land for ${spec.label}`);
-        const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep'], { slot: spec.slot });
+        const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep', '--template'], { slot: spec.slot });
         if (!sitrep.stdout.includes(sessionId)) throw new Error(`sitrep did not name ${spec.label}'s active session`);
         sessions.push({ ...spec, sessionId });
       }
