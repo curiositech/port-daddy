@@ -462,6 +462,39 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Input grouping is policy, not a second undo stack.** Use Loro's manual
+  groups after range/claim checks, keep each authored delta independently mirrored,
+  and fence continuation by exact frontier plus successful-import generation:
+  duplicate or dependency-pending imports may not move visible state. Explicitly
+  close groups on navigation, focus loss, saves and isolated edits. IME updates
+  may span time gaps but must refer to the same marked range. Headless group tests
+  and a GPUI compile do not prove native callback or composition behavior.
+
+- **Local text Save is not CRDT recovery.** Capture the exact document/revision,
+  serialize in-process filesystem writes off the UI thread, and revalidate the
+  opened target before replacement. A completion cannot mark later edits clean.
+  Preserve metadata or refuse the write; readable linked sources need not grant
+  overwrite authority. Foreground save status overrides producer-mirror status.
+  Keep history reload protection after text saves. Optimistic disk checks are
+  not an OS compare-and-swap or a shared Harbor admission receipt.
+
+- **Editor reload is not permission to discard a CRDT.** Share the sync/async
+  preflight; keep the existing buffer/cache/claims on refusal or read failure.
+  Protect imports waiting for dependencies even when the visible state frontier
+  has not advanced. Equal text after undo is not equal operation history. Mirrors
+  never reseed from disk. Keep reload notices distinct from failed-open navigation
+  so a preserved editor remains usable. Test the complete headless target graph,
+  including examples that rehost modules; selected test filters miss compile gaps.
+  In-memory preservation is not a durable draft or shared acknowledgement.
+
+- **Editor undo is a local operation, not rollback.** Use the existing buffer's
+  per-incarnation Loro UndoManager; exclude disk seeds and imported history, and
+  send its exact authored delta through the foreground/mirror pipeline. Check
+  claims before mutation. Loro can skip obsolete history items, so the caret or
+  last replacement's old range is not a safe preview. Pending canonical affected-op
+  validation, another replica's claim holds undo/redo. Do not broaden that hold
+  to ordinary adjacent typing or treat headless tests as native interaction proof.
+
 - **Research reuse is not another authority.** The Project Epistemology D1a lab
   (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor
   R17 checker without running its sweep at import. Keep fixture envelopes out of

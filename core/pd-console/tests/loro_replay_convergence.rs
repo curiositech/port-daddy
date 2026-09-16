@@ -34,7 +34,7 @@
 //! `HarborBuffer` exposes authored *inserts* only (no delete yet — live editing is
 //! a later slice), but a real salvage log contains deletions. So the edit-script
 //! driver is a thin `Replica` harness over `LoroDoc` that mirrors buffer.rs
-//! byte-for-byte where it matters: same `peer_id_for_identity` PeerID mint, same
+//! byte-for-byte where it matters: same `fixture_peer_id` PeerID mint, same
 //! `"content"` `LoroText` container, same `ExportMode` calls. Salvage *successors*
 //! then import through the real `HarborBuffer::apply_remote_ops`, so the public
 //! surface is exercised on the consuming side.
@@ -56,8 +56,8 @@ mod buffer;
 #[path = "../src/editor_sync.rs"]
 mod editor_sync;
 
-use buffer::{peer_id_for_identity, HarborBuffer, PeerId};
-use editor_sync::{channel_for_path, decode_oplog_note, encode_oplog_note, OpLog};
+use buffer::{fixture_peer_id, HarborBuffer, PeerId};
+use editor_sync::{fixture_channel, decode_oplog_note, encode_oplog_note, OpLog};
 use loro::{ExportMode, LoroDoc, VersionVector};
 use proptest::prelude::*;
 
@@ -124,7 +124,7 @@ struct Replica {
 
 impl Replica {
     fn new(identity: &str) -> Self {
-        let peer = peer_id_for_identity(identity);
+        let peer = fixture_peer_id(identity);
         let doc = LoroDoc::new();
         // Same discipline as HarborBuffer::empty — peer id set before any op.
         doc.set_peer_id(peer).expect("set_peer_id on a fresh doc");
@@ -346,7 +346,7 @@ proptest! {
     ) {
         let (a, b) = fork(&seed, &a_script, &b_script);
         let b_log = b.export_all_updates();
-        let channel = channel_for_path("/salvaged/file.rs");
+        let channel = fixture_channel("/salvaged/file.rs");
 
         // Successor 1: B's log + A wholesale.
         let wholesale = HarborBuffer::empty("port-daddy:console:successor-wholesale");

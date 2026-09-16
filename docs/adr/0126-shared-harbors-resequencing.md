@@ -19,6 +19,26 @@
 - **Doctrine drawn from:** `skills/architecture-binder-of-record`,
   `skills/legible-roadmap-with-sidequests`
 
+## 2026-09-08 amendment: complete the Cooperative Harbor
+
+The operator approved the [implementation sequence](../strategy/cooperative-harbor-implementation.md)
+under the existing unified product hypertree. Managed Cloudflare hosting is the
+recommended, explicitly consented choice for new shared projects; self-hosted
+and account-free local-only operation remain. Hosting the existing Harbor
+daemon/kernel is now in implementation scope, with encrypted durable journals
+and checked heads rather than reliance on Container disk. This expands the older
+coordination-only hosting stage below; it does not authorize paid agent bodies,
+deployment or service activation. ADR-0123 records the managed-processing trust
+amendment, and ADR-0122's single-writer/explicit-transfer authority remains.
+
+The workspace is project-first (Overview, Plan, Work, Decisions, Evidence), with
+a collapsible roster. Chartroom owns canonical planning records; Harbor owns
+editing/execution records. Exact-revision references connect them, not duplicate
+mutable stores. Epistemology contributes advisory, evidence-backed collision and
+opportunity cases. Material shared changes may trigger bounded prediction only
+under approved policy/budget and current account/global controls; unknown control
+state denies new automated paid work without disabling human editing or access.
+
 ## Context
 
 This ADR is a decision log, not a design. Its job is honesty: to record

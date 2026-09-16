@@ -29,7 +29,7 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use crate::buffer::{HarborBuffer, HistoryDirection, PeerId};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
@@ -72,34 +72,15 @@ const WEDGE_PROBE_INTERVAL_MS: i64 = 400;
 /// truncation marker.
 const MAX_LINES: usize = 2000;
 
-/// Default PD identity for the local (opener) replica when none is injected. Real
-/// callers pass the operator's `pd whoami` identity; tests and the headless render
-/// path fall back to this so the buffer always has a stable replica id.
+/// Unverified display label for a local opener. It is never replica identity or
+/// authority to read/publish a shared project.
 const DEFAULT_IDENTITY: &str = "port-daddy:console:operator";
 
-/// Resolve the operator's PD identity for the local Loro replica.
-///
-/// Tries `pd whoami --identity` once; on any failure (no session, `pd` absent,
-/// non-zero exit) falls back to [`DEFAULT_IDENTITY`]. Honest about the fallback:
-/// the buffer is correct either way (a stable PeerID is minted from whatever
-/// string we get), the identity just won't reflect the live session if `pd` is
-/// unavailable. Kept synchronous and cheap; the caller invokes it at pane
-/// construction, not per render tick.
+/// Local display label only. Opening a file must not execute a coordination CLI
+/// or imply that a label is a verified identity. Shared principal/device/grant
+/// admission belongs to the authenticated Harbor gateway, not this constructor.
 pub fn resolve_operator_identity() -> String {
-    let out = std::process::Command::new("pd")
-        .args(["whoami", "--identity"])
-        .output();
-    match out {
-        Ok(o) if o.status.success() => {
-            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() {
-                DEFAULT_IDENTITY.to_string()
-            } else {
-                s
-            }
-        }
-        _ => DEFAULT_IDENTITY.to_string(),
-    }
+    DEFAULT_IDENTITY.to_string()
 }
 
 /// Width of the gutter line-number column for a file with `n` lines.
@@ -151,19 +132,29 @@ struct CodeCache {
 /// error); `error` holds any load failure; `truncated` records the large-file cap.
 pub struct EditorPane {
     path: String,
+    document: crate::editor_sync::DocumentRef,
     region: Option<(u32, u32)>,
     identity: String,
+    /// Presentation baseline for a read-only producer mirror, not a writing ID.
+    viewer_peer: Option<PeerId>,
     buffer: Option<HarborBuffer>,
+    /// The operation frontier immediately after the last successful disk open.
+    /// This is a reload guard, not a durable receipt or shared acknowledgement.
+    /// Imported operations and undo-to-identical-text still carry new history.
+    loaded_stamp: Option<Vec<u8>>,
+    /// Explicit disk-open/save witness. Mirrors and snapshot-only buffers have
+    /// no permission to overwrite a path merely because they display it.
+    local_file: Option<crate::editor_save::LocalFileBaseline>,
+    saved_stamp: Option<Vec<u8>>,
+    saving: Option<(uuid::Uuid, Vec<u8>)>,
+    save_error: Option<String>,
+    input_history: crate::editor_history::InputHistory,
     truncated: bool,
     error: Option<String>,
-    /// The per-file **edit-sync** tube channel this editor's op stream rides on (P2
-    /// slice 1), derived once from `path` via [`crate::editor_sync::channel_for_path`].
-    /// Two replicas opening the same file land on the same channel and exchange Loro
-    /// op frames over it. Presence (slice 2) and snapshot refs (slice 3) ride this
-    /// SAME channel under distinct frame kinds.
+    /// DocumentRef-derived edit lane. Merely opening a local path does not
+    /// subscribe; verified shared-session admission is still an external gate.
     channel: String,
-    /// The per-file **coordination** tube channel (P2 slice 3), derived from `path`
-    /// via [`crate::editor_sync::coordination_channel_for_path`]. Deliberately a
+    /// The DocumentRef-derived **coordination** channel. Deliberately a
     /// SEPARATE channel from `channel` so claims / guard / conflict-predict signals
     /// never share a queue with the high-frequency doc-op lane — a keystroke burst
     /// cannot starve coordination (ref-03 §3 isolation). Derived once; stable for the
@@ -222,10 +213,8 @@ impl EditorPane {
         Self::new_with_identity(path, region, DEFAULT_IDENTITY)
     }
 
-    /// Construct a pane whose local Loro replica is keyed to `identity` (the
-    /// operator's PD identity, e.g. from `pd whoami`). This is the identity↔replica
-    /// binding the battle-plan requires for correct authorship across reconnects.
-    /// It is not authority for a successor to impersonate a dead actor.
+    /// Construct a local pane with an unverified display label. A new buffer
+    /// receives a fresh replica; equal labels cannot restart one shared counter.
     pub fn new_with_identity(
         path: impl Into<String>,
         region: Option<(u32, u32)>,
@@ -233,21 +222,25 @@ impl EditorPane {
     ) -> Self {
         let path = path.into();
         let identity = identity.into();
-        // Derive both per-file channels once at construction — each is a pure
-        // function of the path, so both are stable for the pane's whole life (and
-        // match every other replica that opens the same file). The edit-sync lane and
-        // the coordination lane are DISTINCT channels (slice-3 isolation).
-        let channel = crate::editor_sync::channel_for_path(&path);
-        let coord_channel = crate::editor_sync::coordination_channel_for_path(&path);
-        // Mint the local replica id from the identity directly (same FNV-1a as the
-        // buffer) so presence has a stable local PeerId even before a file loads —
-        // the presence lane does not depend on the buffer being open.
-        let local_peer = peer_id_for_identity(&identity);
+        // A local draft gets its own document identity; no auto-join by path.
+        let document = crate::editor_sync::DocumentRef::local_draft();
+        let channel = crate::editor_sync::channel_for_document(&document);
+        let coord_channel = crate::editor_sync::coordination_channel_for_document(&document);
+        // Provisional empty awareness; replaced by the loaded buffer's fresh ID.
+        let local_peer = HarborBuffer::empty(&identity).local_peer();
         Self {
             path,
+            document,
             region,
             identity,
+            viewer_peer: None,
             buffer: None,
+            loaded_stamp: None,
+            local_file: None,
+            saved_stamp: None,
+            saving: None,
+            save_error: None,
+            input_history: crate::editor_history::InputHistory::default(),
             truncated: false,
             error: None,
             channel,
@@ -268,25 +261,88 @@ impl EditorPane {
         }
     }
 
-    /// Synchronously open the bound file into a Loro buffer, recording any error.
-    /// Used by the GPUI render path (`&self`-sync construction) and by `refresh()`.
-    /// Idempotent: clears prior state before loading.
+    /// Synchronously open the bound file. Never discard in-memory operations or
+    /// a mirror to reload from disk. Failed reads retain any existing buffer.
     pub fn load(&mut self) {
-        self.buffer = None;
-        self.truncated = false;
-        // Drop the render cache: a re-load may read DIFFERENT disk content that
-        // happens to produce an equal-length op stream (an equal CRDT stamp), so
-        // the stamp alone cannot be trusted across a reopen.
-        self.code.replace(None);
-        match HarborBuffer::open(&self.path, self.identity.clone()) {
-            Ok(buf) => {
+        if self.prepare_load() {
+            self.finish_load(Self::open_local(&self.path, &self.identity));
+        }
+    }
+
+    /// Changes since the disk-open frontier must be preserved, regardless of
+    /// whether they came from typing, undo/redo or an imported replica. Equal
+    /// text is not equal history. Any successful import conservatively holds
+    /// reload, including duplicate and dependency-pending imports. A snapshot-only
+    /// buffer has no disk baseline. This is not a filesystem dirty-bit receipt.
+    pub fn has_unpersisted_operations(&self) -> bool {
+        self.buffer.as_ref().is_some_and(|buffer| {
+            buffer.has_received_import()
+                || self.loaded_stamp.as_ref() != Some(&buffer.change_stamp())
+        })
+    }
+
+    fn prepare_load(&mut self) -> bool {
+        let reason = if self.saving.is_some() {
+            Some("Reload refused: a local save is still in progress.")
+        } else if self.viewer_peer.is_some() {
+            Some("Reload refused: this mirror follows the editor's operations, not the disk file.")
+        } else if self.has_unpersisted_operations() {
+            Some("Reload refused: this buffer has in-memory operations not preserved on disk. Your work was kept; crash-safe draft saving is not available yet.")
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            self.error = Some(reason.into());
+            return false;
+        }
+        true
+    }
+
+    /// Install only a completely opened candidate. Shared by sync and async
+    /// reload so neither path clears history, claims or cache before success.
+    fn open_local(path: &str, identity: &str) -> std::io::Result<(HarborBuffer, Option<crate::editor_save::LocalFileBaseline>)> {
+        let (text, baseline) = crate::editor_save::read_for_editor(std::path::Path::new(path))?;
+        Ok((HarborBuffer::from_text(&text, identity), baseline))
+    }
+
+    fn finish_load(&mut self, opened: std::io::Result<(HarborBuffer, Option<crate::editor_save::LocalFileBaseline>)>) {
+        match opened {
+            Ok((buf, baseline)) => {
+                self.loaded_stamp = Some(buf.change_stamp());
+                self.saved_stamp = self.loaded_stamp.clone();
+                self.local_file = baseline;
+                self.save_error = None;
+                self.reset_replica_awareness(buf.local_peer());
                 self.buffer = Some(buf);
+                self.code.replace(None);
+                self.truncated = false;
                 self.error = None;
             }
             Err(e) => {
-                self.error = Some(format!("{e}"));
+                self.error = Some(if self.buffer.is_some() {
+                    format!("Reload failed: {e}. Your existing buffer was kept.")
+                } else {
+                    format!("{e}")
+                });
             }
         }
+    }
+
+    /// Reopening creates a new operation-counter incarnation. Ephemeral claims
+    /// and presence from the discarded replica cannot become the new one's.
+    fn reset_replica_awareness(&mut self, peer: PeerId) {
+        self.input_history.clear();
+        self.presence = PresenceStore::new(peer);
+        self.remote.clear();
+        self.presence_out = PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS);
+        self.local_presence = PresenceState::caret(1, 0, 1, 1);
+        self.claims = ClaimStore::new(peer);
+        self.claim_ledger = ClaimLedger::new();
+        self.claim_out = ClaimMirror::new(CLAIM_MIRROR_INTERVAL_MS);
+        self.next_claim_id = 0;
+        self.wedge_probe = WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS);
+        self.wedge_inflight = None;
+        self.guard_band = None;
     }
 
     /// Borrow the live buffer, if loaded. Lets callers (and the merge demo) inject
@@ -296,11 +352,94 @@ impl EditorPane {
         self.buffer.as_ref()
     }
 
+    pub fn document(&self) -> &crate::editor_sync::DocumentRef {
+        &self.document
+    }
+
+    /// Dirty means this exact revision has no completed local save. It does
+    /// not imply unsaved CRDT history is safe to discard after saving text.
+    pub fn is_locally_dirty(&self) -> bool {
+        self.buffer.as_ref().is_some_and(|buffer| self.saved_stamp.as_ref() != Some(&buffer.change_stamp()))
+    }
+
+    pub fn local_save_status(&self) -> String {
+        if let Some(error) = &self.save_error { return format!("Save failed: {error}. Buffer kept."); }
+        if self.saving.is_some() { return "Saving captured revision to this device…".into(); }
+        if self.viewer_peer.is_some() { return "Read-only operation mirror; no local save authority".into(); }
+        if self.local_file.is_none() { return "Save unavailable: no eligible disk baseline (linked or snapshot-only document)".into(); }
+        if self.is_locally_dirty() { return "Unsaved changes · Save with Cmd-S / Ctrl-S".into(); }
+        "Text matches last local open/save · not shared acceptance".into()
+    }
+
+    /// Capture on the pane's owning thread, execute on a worker. There is at
+    /// most one in-flight save per pane and no daemon or automatic publication.
+    pub fn prepare_local_save(&mut self) -> std::result::Result<LocalSaveTask, String> {
+        if self.viewer_peer.is_some() { return Err("Read-only mirrors cannot save".into()); }
+        if self.saving.is_some() { return Err("A local save is already in progress".into()); }
+        let baseline = self.local_file.clone().ok_or("No opened file baseline; save refused")?;
+        let buffer = self.buffer.as_ref().ok_or("No buffer to save")?;
+        let id = uuid::Uuid::new_v4();
+        let stamp = buffer.change_stamp();
+        let task = LocalSaveTask { id, document: self.document.clone(), baseline, text: buffer.to_string() };
+        self.saving = Some((id, stamp));
+        self.save_error = None;
+        self.end_input_history();
+        Ok(task)
+    }
+
+    pub fn finish_local_save(&mut self, completed: LocalSaveCompletion) -> bool {
+        if completed.document != self.document
+            || self.saving.as_ref().map(|(id, _)| id) != Some(&completed.id)
+        { return false; }
+        let (_, stamp) = self.saving.take().expect("matching save checked above");
+        match completed.result {
+            Ok(baseline) => {
+                self.local_file = Some(baseline);
+                // Never use the current frontier here: typing may have continued
+                // while this older captured revision was being written.
+                self.saved_stamp = Some(stamp);
+                self.save_error = None;
+            }
+            Err(error) => self.save_error = Some(error),
+        }
+        true
+    }
+
+    pub fn local_save_worker_failed(&mut self) {
+        self.saving = None;
+        self.save_error = Some("Save worker stopped; disk outcome is unknown. Inspect the file before retrying".into());
+    }
+
+    /// Collaboration blocks carry remote claims/presence, not local save state.
+    /// A producer mirror must never overwrite the foreground writer's status.
+    pub fn with_local_save_status(&self, mut blocks: Vec<Block>) -> Vec<Block> {
+        blocks.retain(|block| !matches!(block, Block::KeyVal(key, _) if key == "local save"));
+        blocks.insert(blocks.len().min(1), Block::KeyVal("local save".into(), self.local_save_status()));
+        blocks
+    }
+
+    /// The background lane imports the foreground's exact history, never seeds
+    /// a second copy from disk. Its distinct replica cannot author as the opener.
+    pub fn mirror(path: String, region: Option<(u32, u32)>,
+        document: crate::editor_sync::DocumentRef, snapshot: &[u8], viewer_peer: PeerId) -> Result<Self> {
+        let mut pane = Self::new(path, region);
+        pane.channel = crate::editor_sync::channel_for_document(&document);
+        pane.coord_channel = crate::editor_sync::coordination_channel_for_document(&document);
+        pane.document = document;
+        if !pane.hydrate_from_snapshot(snapshot) {
+            return Err(anyhow::anyhow!("invalid editor mirror snapshot"));
+        }
+        pane.viewer_peer = Some(viewer_peer);
+        Ok(pane)
+    }
+
     /// The most recent disk-open failure, if this pane could not establish a
     /// buffer. Navigation code reads this before committing an Editor surface so
     /// a permission error cannot replace the operator's current workspace.
     pub fn load_error(&self) -> Option<&str> {
-        self.error.as_deref()
+        // A reload refusal is not an unsuccessful initial open. Otherwise the
+        // workspace's open transaction could replace a preserved cached editor.
+        self.error.as_deref().filter(|_| self.buffer.is_none())
     }
 
     /// Current buffer text for the foreground input bridge. This is a snapshot
@@ -319,6 +458,35 @@ impl EditorPane {
         range: std::ops::Range<usize>,
         replacement: &str,
     ) -> std::result::Result<String, String> {
+        self.apply_text_edit_with_context(range, replacement, None)
+    }
+
+    pub fn end_input_history(&mut self) {
+        self.input_history.clear();
+        if let Some(buffer) = self.buffer.as_mut() { buffer.end_input_group(); }
+    }
+
+    /// The platform bridge supplies input intent and before/after selection.
+    /// Range and claim validation still happen before opening an undo group.
+    pub fn apply_input_edit(
+        &mut self, edit: &crate::editor_input::TextEdit,
+        kind: crate::editor_history::InputKind,
+        before_input: &crate::editor_input::EditorInput,
+        after_input: &crate::editor_input::EditorInput,
+        at: std::time::Instant,
+    ) -> std::result::Result<String, String> {
+        self.apply_text_edit_with_context(edit.range.clone(), &edit.text,
+            Some((kind, before_input, after_input, at)))
+    }
+
+    fn apply_text_edit_with_context(
+        &mut self, range: std::ops::Range<usize>, replacement: &str,
+        input: Option<(crate::editor_history::InputKind, &crate::editor_input::EditorInput,
+            &crate::editor_input::EditorInput, std::time::Instant)>,
+    ) -> std::result::Result<String, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot author local operations".into());
+        }
         let Some(buffer) = self.buffer.as_ref() else {
             return Err("editor buffer is not loaded".into());
         };
@@ -351,11 +519,71 @@ impl EditorPane {
         }
 
         let unicode = before[..range.start].chars().count()..before[..range.end].chars().count();
+        let group = input.map(|(kind, previous, next, at)| self.input_history.plan(
+            kind, &range, replacement, &before, previous, next, at,
+            &buffer.change_stamp(), buffer.import_generation()));
+        let buffer = self.buffer.as_mut().expect("validated buffer above");
+        if !group.as_ref().is_some_and(|plan| plan.continue_group) {
+            buffer.end_input_group();
+            if group.as_ref().is_some_and(|plan| plan.open_group) {
+                buffer.begin_input_group()?;
+            }
+        }
         let delta = buffer.replace_authored(unicode, replacement);
+        let remain_open = if let Some(group) = group {
+            self.input_history.commit(group, buffer.change_stamp())
+        } else { self.input_history.clear(); false };
+        if !remain_open { buffer.end_input_group(); }
         Ok(crate::editor_sync::encode_frame(
             buffer.local_peer(),
             &delta,
         ))
+    }
+
+    /// Local-only history through the same exact-delta lane as typing. Loro may
+    /// skip an obsolete undo item and undo an earlier item, so checking only the
+    /// caret or the last replacement's old line span is unsafe. Until a canonical
+    /// affected-operation preview exists, ANY other replica's claim holds history
+    /// replay. Normal replacements remain region-scoped. Rejection touches neither
+    /// the CRDT, the history stacks nor the input/IME state.
+    pub fn apply_history(
+        &mut self,
+        direction: HistoryDirection,
+        input: &mut crate::editor_input::EditorInput,
+    ) -> std::result::Result<Option<String>, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot author local operations".into());
+        }
+        let buffer = self.buffer.as_ref().ok_or("editor buffer is not loaded")?;
+        if !buffer.can_step_history(direction) {
+            return Ok(None);
+        }
+        if self.claim_ledger.iter().any(|(_, claim)| claim.peer != buffer.local_peer()) {
+            return Err("Undo/redo is unavailable while another replica holds a claim in this document. Request a handoff; affected-operation claim validation is not available yet.".into());
+        }
+        self.input_history.clear();
+        let selected = input.selection();
+        let reversed = input.selection_reversed();
+        let anchors = buffer.anchor_at_byte(selected.start)
+            .zip(buffer.anchor_at_byte(selected.end));
+        let buffer = self.buffer.as_mut().expect("loaded buffer checked above");
+        let Some(delta) = buffer.step_history(direction)? else {
+            return Ok(None);
+        };
+        let after = buffer.to_string();
+        if let Some((mut start, mut end)) = anchors {
+            if let (Some(start), Some(end)) = (
+                buffer.resolve_anchor_byte(&mut start),
+                buffer.resolve_anchor_byte(&mut end),
+            ) {
+                input.restore_selection(&after, start..end, reversed);
+            }
+        }
+        // An accepted history operation ends any stale platform composition,
+        // including when the selection's old anchors can no longer resolve.
+        input.unmark();
+        input.reconcile(&after);
+        Ok(Some(crate::editor_sync::encode_frame(buffer.local_peer(), &delta)))
     }
 
     /// Fold the foreground authority's exact local delta into the producer's
@@ -374,6 +602,34 @@ impl EditorPane {
             return false;
         }
         buffer.change_stamp() != before
+    }
+
+    /// Import an admitted document frame without moving a local selection onto
+    /// unrelated text. CRDT positions, not old byte or line offsets, survive edits.
+    pub fn ingest_preserving_selection(&mut self, frame: &str,
+        input: &mut crate::editor_input::EditorInput) -> bool {
+        let selected = input.selection();
+        let reversed = input.selection_reversed();
+        let anchors = self.buffer().and_then(|buffer| Some((
+            buffer.anchor_at_byte(selected.start)?,
+            buffer.anchor_at_byte(selected.end)?,
+        )));
+        if !self.ingest_frame(frame) {
+            return false;
+        }
+        if let Some(buffer) = self.buffer() {
+            let text = buffer.to_string();
+            if let Some((mut start, mut end)) = anchors {
+                if let (Some(start), Some(end)) = (
+                    buffer.resolve_anchor_byte(&mut start),
+                    buffer.resolve_anchor_byte(&mut end),
+                ) {
+                    input.restore_selection(&text, start..end, reversed);
+                }
+            }
+            input.reconcile(&text);
+        }
+        true
     }
 
     /// The per-file tube channel this editor's op stream rides on. Callers open the
@@ -410,7 +666,9 @@ impl EditorPane {
         if frame.peer == buffer.local_peer() {
             return false; // our own ops, echoed back — nothing to fold
         }
+        let before = buffer.change_stamp();
         crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+            && buffer.change_stamp() != before
     }
 
     // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
@@ -431,6 +689,16 @@ impl EditorPane {
     /// authorship intact. Returns whether the snapshot applied. Idempotent: importing
     /// a snapshot the buffer already contains is a no-op.
     pub fn hydrate_from_snapshot(&mut self, snapshot: &[u8]) -> bool {
+        if self.buffer.is_none() {
+            let buffer = HarborBuffer::empty(self.identity.clone());
+            if buffer.apply_remote_ops(snapshot).is_err() {
+                return false;
+            }
+            self.reset_replica_awareness(buffer.local_peer());
+            self.buffer = Some(buffer);
+            self.error = None;
+            return true;
+        }
         let buffer = self
             .buffer
             .get_or_insert_with(|| HarborBuffer::empty(self.identity.clone()));
@@ -799,7 +1067,7 @@ impl EditorPane {
         let mut slot = self.code.borrow_mut();
         if slot.as_ref().map_or(true, |c| c.stamp != stamp) {
             let lang = crate::syntax::lang_for_path(&self.path);
-            let opener = buffer.local_peer();
+            let opener = self.viewer_peer.unwrap_or_else(|| buffer.local_peer());
             let all = buffer.lines();
             let total = all.len();
             let show_authors = all
@@ -853,8 +1121,14 @@ impl Pane for EditorPane {
         let mut blocks = vec![Block::Header(self.title())];
 
         if let Some(err) = &self.error {
-            blocks.push(Block::KeyVal("error".into(), err.clone()));
-            return blocks;
+            // Native navigation treats the "error" key as a failed-open card.
+            // A refused reload has a usable editor, so keep its code/input on
+            // screen and show the notice through the existing KeyVal renderer.
+            let key = if self.buffer.is_some() { "reload" } else { "error" };
+            blocks.push(Block::KeyVal(key.into(), err.clone()));
+            if self.buffer.is_none() {
+                return blocks;
+            }
         }
 
         let Some(buffer) = &self.buffer else {
@@ -863,7 +1137,8 @@ impl Pane for EditorPane {
             return blocks;
         };
 
-        let opener = buffer.local_peer();
+        let opener = self.viewer_peer.unwrap_or_else(|| buffer.local_peer());
+        blocks.push(Block::KeyVal("local save".into(), self.local_save_status()));
         // The tokenized snapshot: an Arc clone on the unchanged path — the old
         // path re-cloned every line's String into a Block::Row per view().
         let (lines, gutter_cols, show_authors, total) = self.code_snapshot(buffer);
@@ -1025,49 +1300,358 @@ impl Pane for EditorPane {
         // open does a blocking std::fs read; do it off the reactor so a slow/huge
         // file can't stall it, then fold the buffer (or error) back into `self`.
         Box::pin(async move {
+            if !self.prepare_load() {
+                return Ok(());
+            }
             let path = self.path.clone();
             let identity = self.identity.clone();
-            // Same reopen hazard as `load()`: never trust the old cache across
-            // a fresh disk read.
-            self.code.replace(None);
-            let opened = tokio::task::spawn_blocking(move || HarborBuffer::open(&path, identity))
+            let opened = tokio::task::spawn_blocking(move || Self::open_local(&path, &identity))
                 .await
-                .map_err(|e| anyhow::anyhow!("editor load task panicked: {e}"))?;
-            match opened {
-                Ok(buf) => {
-                    self.buffer = Some(buf);
-                    self.error = None;
-                    self.truncated = false;
-                }
-                Err(e) => {
-                    self.error = Some(format!("{e}"));
-                    self.buffer = None;
-                    self.truncated = false;
-                }
-            }
+                .unwrap_or_else(|e| Err(std::io::Error::other(format!("editor load task failed: {e}"))));
+            self.finish_load(opened);
             Ok(())
         })
     }
 
-    /// Declare this editor's live intent: watch the file's op-stream channel so a
-    /// second replica's Loro edits arrive over the tube (P2 slice 1). Same
-    /// declare-intent contract the `AgentTranscript` lane uses — main.rs opens the
-    /// SSE (`DaemonClient::subscribe_channel`) and drains frames back through
-    /// [`ingest_frame`](Self::ingest_frame). Only once a real buffer is open: an
-    /// errored / not-yet-loaded pane has nothing to fold remote ops into, so it
-    /// subscribes to nothing (poll-only).
+    /// No implicit shared admission from a local file/identity label. The
+    /// authenticated shared-session adapter is required before subscribing.
     fn subscription(&self) -> Option<Subscription> {
-        self.buffer.as_ref().map(|_| Subscription::Editor {
-            channel: self.channel.clone(),
-            coord_channel: self.coord_channel.clone(),
-        })
+        // Local file opening is not a shared-session consent/admission flow.
+        // The former path-derived auto-subscription admitted unrelated peers.
+        // Stay local until the verified principal/device/grant adapter exists.
+        None
+    }
+}
+
+/// Immutable, one-use worker packet; fields stay private to prevent an arbitrary
+/// path, document or revision being substituted by a completion consumer.
+pub struct LocalSaveTask {
+    id: uuid::Uuid,
+    document: crate::editor_sync::DocumentRef,
+    baseline: crate::editor_save::LocalFileBaseline,
+    text: String,
+}
+
+pub struct LocalSaveCompletion {
+    id: uuid::Uuid,
+    document: crate::editor_sync::DocumentRef,
+    result: std::result::Result<crate::editor_save::LocalFileBaseline, String>,
+}
+
+impl LocalSaveTask {
+    pub fn run(self) -> LocalSaveCompletion {
+        LocalSaveCompletion { id: self.id, document: self.document,
+            result: self.baseline.save(&self.text).map_err(|error| error.to_string()) }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::peer_id_for_identity;
+    use crate::buffer::fixture_peer_id;
+
+    #[test]
+    fn local_save_captures_revision_and_does_not_clear_newer_edits_or_history() {
+        let path = write_temp("save-race.txt", "original");
+        let mut pane = make_pane(&path, None);
+        assert!(!pane.is_locally_dirty());
+        pane.apply_local_text_edit(0..0, "first ").unwrap();
+        let task = pane.prepare_local_save().unwrap();
+        assert!(pane.prepare_local_save().is_err());
+        assert!(!pane.prepare_load());
+        pane.apply_local_text_edit(0..0, "second ").unwrap();
+        assert!(pane.finish_local_save(task.run()));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "first original");
+        assert_eq!(pane.text().unwrap(), "second first original");
+        assert!(pane.is_locally_dirty());
+        assert!(pane.has_unpersisted_operations());
+        let next = pane.prepare_local_save().unwrap();
+        pane.finish_local_save(next.run());
+        assert!(!pane.is_locally_dirty());
+        assert!(pane.has_unpersisted_operations(), "plain text save must not discard CRDT history");
+        assert!(!pane.prepare_load());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), pane.text().unwrap());
+    }
+
+    #[test]
+    fn local_save_error_retains_buffer_replica_and_unsaved_state() {
+        let path = write_temp("save-conflict.txt", "original");
+        let mut pane = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "editor ").unwrap();
+        let peer = pane.buffer().unwrap().local_peer();
+        let task = pane.prepare_local_save().unwrap();
+        std::fs::write(&path, "external").unwrap();
+        assert!(pane.finish_local_save(task.run()));
+        assert!(pane.local_save_status().contains("Save failed"));
+        assert!(pane.is_locally_dirty());
+        assert_eq!(pane.text().unwrap(), "editor original");
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external");
+    }
+
+    #[test]
+    fn save_completion_cannot_clean_a_different_document() {
+        let path = write_temp("save-binding.txt", "original");
+        let mut pane = make_pane(&path, None);
+        let mut other = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "editor ").unwrap();
+        other.apply_local_text_edit(0..0, "other ").unwrap();
+        let other_task = other.prepare_local_save().unwrap();
+        let completion = pane.prepare_local_save().unwrap().run();
+        assert!(!other.finish_local_save(completion));
+        assert!(other.saving.is_some());
+        assert!(other.is_locally_dirty());
+        other.finish_local_save(other_task.run());
+        assert!(other.save_error.is_some());
+    }
+
+    #[test]
+    fn mirrors_and_snapshot_only_documents_cannot_save_to_their_display_path() {
+        let path = write_temp("save-mirror.txt", "original");
+        let pane = make_pane(&path, None);
+        let snapshot = pane.snapshot_blob().unwrap();
+        let mut mirror = EditorPane::mirror(path.clone(), None, pane.document().clone(),
+            &snapshot, pane.buffer().unwrap().local_peer()).unwrap();
+        assert!(mirror.prepare_local_save().is_err());
+        let mut cold = EditorPane::new(&path, None);
+        assert!(cold.hydrate_from_snapshot(&snapshot));
+        assert!(cold.prepare_local_save().is_err());
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "original");
+    }
+
+    #[test]
+    fn foreground_save_status_overlays_mirror_status_through_every_transition() {
+        let path = write_temp("save-status.txt", "original");
+        let mut pane = make_pane(&path, None);
+        let mirror = EditorPane::mirror(path.clone(), None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let status = |pane: &EditorPane| {
+            let blocks = pane.with_local_save_status(mirror.view());
+            let rows: Vec<_> = blocks.into_iter().filter_map(|block| match block {
+                Block::KeyVal(key, value) if key == "local save" => Some(value), _ => None,
+            }).collect();
+            assert_eq!(rows.len(), 1);
+            rows[0].clone()
+        };
+        pane.apply_local_text_edit(0..0, "editor ").unwrap();
+        assert!(status(&pane).contains("Unsaved changes"));
+        let task = pane.prepare_local_save().unwrap();
+        assert!(status(&pane).contains("Saving captured revision"));
+        pane.finish_local_save(task.run());
+        assert!(status(&pane).contains("not shared acceptance"));
+        pane.apply_local_text_edit(0..0, "new ").unwrap();
+        let task = pane.prepare_local_save().unwrap();
+        std::fs::write(path, "external").unwrap();
+        pane.finish_local_save(task.run());
+        assert!(status(&pane).contains("Save failed"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn linked_sources_remain_readable_without_save_authority() {
+        use std::os::unix::fs::symlink;
+        let path = write_temp("linked.txt", "original");
+        let directory = std::path::Path::new(&path).parent().unwrap();
+        let alias = directory.join("alias");
+        symlink(&path, &alias).unwrap();
+        let linked_directory = directory.join("linked-directory");
+        symlink(directory, &linked_directory).unwrap();
+        for link in [alias, linked_directory.join("linked.txt")] {
+            let mut pane = make_pane(link.to_str().unwrap(), None);
+            assert_eq!(pane.text().unwrap(), "original");
+            assert!(pane.prepare_local_save().is_err());
+            assert!(pane.local_save_status().contains("linked"));
+        }
+        std::fs::hard_link(&path, directory.join("hardlink")).unwrap();
+        let mut pane = make_pane(&path, None);
+        assert_eq!(pane.text().unwrap(), "original");
+        assert!(pane.prepare_local_save().is_err());
+    }
+
+    #[test]
+    fn reload_preserves_local_history_claims_identity_and_cached_code() {
+        let path = write_temp("reload-local.txt", "original\n");
+        let mut pane = make_pane(&path, None);
+        assert!(!pane.has_unpersisted_operations());
+        pane.apply_local_text_edit(0..0, "研究 ").unwrap();
+        pane.acquire_region_claim(1, 1, "my work", 1_000);
+        let before = pane.snapshot_blob().unwrap();
+        let peer = pane.buffer().unwrap().local_peer();
+        let document = pane.document().clone();
+        let claims = pane.claim_ledger().len();
+        let (code, _, _) = code_buffer(&pane.view()).unwrap();
+        std::fs::write(&path, "external replacement\n").unwrap();
+
+        pane.load();
+        assert!(pane.has_unpersisted_operations());
+        assert_eq!(pane.snapshot_blob().unwrap(), before);
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        assert_eq!(pane.document(), &document);
+        assert_eq!(pane.claim_ledger().len(), claims);
+        assert!(pane.load_error().is_none(), "a preserved editor stays navigable");
+        assert!(pane.error.as_deref().unwrap().starts_with("Reload refused"));
+        assert!(pane.view().iter().any(|block| matches!(block,
+            Block::KeyVal(key, _) if key == "reload")));
+        assert!(!pane.view().iter().any(|block| matches!(block,
+            Block::KeyVal(key, _) if key == "error")), "native failed-open UI must not hide preserved code");
+        assert!(Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external replacement\n");
+
+        // Undo returns to identical disk-open text, not identical operation
+        // history: redo and the edit's provenance must still survive a reload.
+        let mut input = crate::editor_input::EditorInput::default();
+        pane.apply_history(HistoryDirection::Undo, &mut input).unwrap();
+        assert_eq!(pane.text().as_deref(), Some("original\n"));
+        assert!(pane.has_unpersisted_operations());
+        pane.load();
+        pane.apply_history(HistoryDirection::Redo, &mut input).unwrap();
+        assert_eq!(pane.text().as_deref(), Some("研究 original\n"));
+    }
+
+    #[test]
+    fn reload_preserves_remote_authorship_and_snapshot_only_buffers() {
+        let path = write_temp("reload-remote.txt", "baseline\n");
+        let mut pane = make_pane(&path, None);
+        let peer = HarborBuffer::empty("Becky");
+        peer.apply_remote_ops(&pane.snapshot_blob().unwrap()).unwrap();
+        peer.append_line("remote observation");
+        pane.buffer().unwrap().apply_remote_ops(&peer.export_ops()).unwrap();
+        let lines = pane.buffer().unwrap().lines();
+        pane.load();
+        assert!(pane.has_unpersisted_operations());
+        assert_eq!(pane.buffer().unwrap().lines(), lines);
+
+        let mut cold = EditorPane::new(path, None);
+        assert!(cold.hydrate_from_snapshot(&pane.snapshot_blob().unwrap()));
+        cold.load();
+        assert!(cold.has_unpersisted_operations());
+        assert_eq!(cold.buffer().unwrap().lines(), lines);
+        assert!(cold.load_error().is_none());
+    }
+
+    #[test]
+    fn failed_clean_reload_keeps_visible_buffer_then_retry_installs_new_baseline() {
+        let path = write_temp("reload-retry.txt", "first\n");
+        let mut pane = make_pane(&path, None);
+        let peer = pane.buffer().unwrap().local_peer();
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let (code, _, _) = code_buffer(&pane.view()).unwrap();
+        // Invalid UTF-8 is a portable read failure (unlike permissions as root).
+        std::fs::write(&path, [0xff, 0xfe]).unwrap();
+        pane.load();
+        assert_eq!(pane.text().as_deref(), Some("first\n"));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        assert!(pane.load_error().is_none());
+        assert!(pane.error.as_deref().unwrap().contains("existing buffer was kept"));
+        assert!(Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
+        assert!(!pane.has_unpersisted_operations());
+
+        std::fs::write(&path, "other\n").unwrap();
+        pane.load();
+        assert_eq!(pane.text().as_deref(), Some("other\n"));
+        assert_ne!(pane.buffer().unwrap().local_peer(), peer);
+        assert!(pane.error.is_none());
+        assert!(!pane.has_unpersisted_operations());
+        assert!(!Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
+    }
+
+    #[test]
+    fn reload_preserves_imports_waiting_for_missing_dependencies() {
+        let path = write_temp("reload-pending.txt", "disk\n");
+        let mut pane = make_pane(&path, None);
+        let peer = HarborBuffer::empty("Charli");
+        peer.insert_authored(0, "unseen ");
+        let dependencies = peer.export_ops();
+        let pending = peer.replace_authored(7..7, "later");
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let incarnation = pane.buffer().unwrap().local_peer();
+        pane.buffer().unwrap().apply_remote_ops(&pending).unwrap();
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp,
+            "the visible frontier alone cannot detect dependency-pending work");
+        assert!(pane.has_unpersisted_operations());
+        pane.load();
+        assert_eq!(pane.buffer().unwrap().local_peer(), incarnation);
+        // Supply ONLY the missing earlier changes. The later operation must
+        // still be pending in the same document after the refused reload.
+        pane.buffer().unwrap().apply_remote_ops(&dependencies).unwrap();
+        assert!(pane.text().unwrap().contains("later"));
+    }
+
+    #[tokio::test]
+    async fn background_refresh_shares_preservation_and_mirror_guards() {
+        // Constructing this inert client performs no discovery or network call.
+        let daemon = DaemonClient::new("http://127.0.0.1:1".into());
+        let path = write_temp("refresh.txt", "first\n");
+        let mut pane = EditorPane::new(&path, None);
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.text().as_deref(), Some("first\n"));
+        std::fs::write(&path, [0xff]).unwrap();
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.text().as_deref(), Some("first\n"));
+        assert!(pane.error.is_some());
+        std::fs::write(&path, "again\n").unwrap();
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.text().as_deref(), Some("again\n"));
+        pane.apply_local_text_edit(0..0, "local ").unwrap();
+        let stamp = pane.buffer().unwrap().change_stamp();
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some("local again\n"));
+
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let peer = mirror.buffer().unwrap().local_peer();
+        mirror.load();
+        mirror.refresh(&daemon).await.unwrap();
+        assert_eq!(mirror.buffer().unwrap().local_peer(), peer);
+        assert_eq!(mirror.buffer().unwrap().lines(), pane.buffer().unwrap().lines());
+        assert!(mirror.error.as_deref().unwrap().contains("this mirror follows"));
+        assert!(mirror.apply_local_text_edit(0..0, "forged").is_err());
+        assert!(mirror.subscription().is_none());
+    }
+
+    #[test]
+    fn mirror_imports_exact_history_without_reseeding_or_reusing_authorship() {
+        let path = write_temp("mirror.txt", "original\n");
+        let mut foreground = make_pane(&path, None);
+        let snapshot = foreground.snapshot_blob().unwrap();
+        let mut mirror = EditorPane::mirror(path, None, foreground.document().clone(), &snapshot,
+            foreground.buffer().unwrap().local_peer()).unwrap();
+        assert_ne!(foreground.buffer().unwrap().local_peer(), mirror.buffer().unwrap().local_peer());
+        assert_eq!(foreground.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+        assert_eq!(foreground.document(), mirror.document());
+        assert!(mirror.apply_local_text_edit(0..0, "forged").is_err());
+        assert_eq!(code_buffer(&foreground.view()).unwrap().2, code_buffer(&mirror.view()).unwrap().2);
+        let frame = foreground.apply_local_text_edit(0..0, "one new line\n").unwrap();
+        assert!(mirror.ingest_local_frame(&frame));
+        assert!(!mirror.ingest_local_frame(&frame), "duplicate local delivery is a no-op");
+        assert_eq!(foreground.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+        assert!(mirror.subscription().is_none(), "a mirror is not shared admission");
+    }
+
+    #[test]
+    fn malformed_mirror_snapshot_is_not_an_empty_success() {
+        assert!(EditorPane::mirror("/not/read/from/disk".into(), None,
+            crate::editor_sync::DocumentRef::local_draft(), b"garbage", 1).is_err());
+    }
+
+    #[test]
+    fn remote_edits_preserve_reversed_selection_on_the_same_unicode_text() {
+        let path = write_temp("stable-selection.txt", "a😀target\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection(&pane.text().unwrap(), "a😀".len().."a😀target".len(), true);
+        let peer = HarborBuffer::empty("Charli");
+        peer.apply_remote_ops(&pane.snapshot_blob().unwrap()).unwrap();
+        peer.insert_authored(0, "研究\n");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &peer.export_ops());
+        assert!(pane.ingest_preserving_selection(&frame, &mut input));
+        assert_eq!(&pane.text().unwrap()[input.selection()], "target");
+        assert!(input.selection_reversed());
+        assert_eq!(input.selection().start, "研究\na😀".len());
+        assert!(!pane.ingest_preserving_selection(&frame, &mut input));
+    }
     use std::io::Write;
     use std::path::PathBuf;
 
@@ -1273,7 +1857,9 @@ mod tests {
         let path = write_temp("local-input.rs", "let value = 1;\n");
         let identity = "port-daddy:console:human-input";
         let mut foreground = make_pane_as(&path, identity);
-        let mut producer_mirror = make_pane_as(&path, identity);
+        let mut producer_mirror = EditorPane::mirror(path.clone(), None,
+            foreground.document().clone(), &foreground.snapshot_blob().unwrap(),
+            foreground.buffer().unwrap().local_peer()).unwrap();
         let (before_lines, _, _) = code_buffer(&foreground.view()).expect("code buffer");
 
         let text = foreground.text().expect("loaded text");
@@ -1320,6 +1906,343 @@ mod tests {
         assert_eq!(human.text().as_deref(), Some(before.as_str()));
         for token in BYPASS {
             assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+    }
+
+    fn platform_input(pane: &mut EditorPane, input: &mut crate::editor_input::EditorInput,
+        kind: crate::editor_history::InputKind, replacement: &str, at: std::time::Instant,
+    ) -> String {
+        let before = input.clone();
+        let text = pane.text().unwrap();
+        let edit = input.replace(&text, None, replacement,
+            kind == crate::editor_history::InputKind::Composition, None);
+        pane.apply_input_edit(&edit, kind, &before, input, at).unwrap()
+    }
+
+    fn undo_text(pane: &mut EditorPane, input: &mut crate::editor_input::EditorInput) -> String {
+        pane.apply_history(HistoryDirection::Undo, input).unwrap().unwrap();
+        pane.text().unwrap()
+    }
+
+    #[test]
+    fn editor_typing_group_keeps_individual_deltas_and_mirror_convergence() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("typing-group.rs", "\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        for replacement in ["a", "é", "👩‍💻", "界"] {
+            let frame = platform_input(&mut pane, &mut input, Typing, replacement, at);
+            assert!(mirror.ingest_local_frame(&frame));
+            assert_eq!(pane.text(), mirror.text());
+        }
+        let expected = pane.text().unwrap();
+        for (direction, text) in [(HistoryDirection::Undo, "\n"),
+            (HistoryDirection::Redo, expected.as_str())] {
+            let frame = pane.apply_history(direction, &mut input).unwrap().unwrap();
+            assert!(mirror.ingest_local_frame(&frame));
+            assert!(!mirror.ingest_local_frame(&frame));
+            assert_eq!(pane.text().as_deref(), Some(text));
+            assert_eq!(pane.text(), mirror.text());
+        }
+    }
+
+    #[test]
+    fn editor_typing_groups_split_at_time_whitespace_and_isolated_edits() {
+        use crate::editor_history::InputKind::{Typing, Isolated};
+        let path = write_temp("typing-boundaries.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        let later = at + std::time::Duration::from_millis(751);
+        platform_input(&mut pane, &mut input, Typing, "b", later);
+        platform_input(&mut pane, &mut input, Typing, "c", later);
+        platform_input(&mut pane, &mut input, Typing, " ", later);
+        platform_input(&mut pane, &mut input, Typing, "d", later);
+        platform_input(&mut pane, &mut input, Isolated, "PASTE", later);
+        platform_input(&mut pane, &mut input, Isolated, "\n", later);
+        for expected in ["abc dPASTE\n", "abc d\n", "abc \n", "abc\n", "a\n", "\n"] {
+            assert_eq!(undo_text(&mut pane, &mut input), expected);
+        }
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_none());
+    }
+
+    #[test]
+    fn editor_selected_replacement_and_multigrapheme_platform_insert_are_isolated() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("selected-group.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        platform_input(&mut pane, &mut input, Typing, "b", at);
+        input.restore_selection(&pane.text().unwrap(), 0..2, true);
+        platform_input(&mut pane, &mut input, Typing, "c", at);
+        platform_input(&mut pane, &mut input, Typing, "d", at);
+        platform_input(&mut pane, &mut input, Typing, "ef", at);
+        for expected in ["cd\n", "c\n", "ab\n", "\n"] {
+            assert_eq!(undo_text(&mut pane, &mut input), expected);
+        }
+    }
+
+    #[test]
+    fn editor_deletion_runs_group_without_absorbing_whitespace_or_selected_text() {
+        use crate::editor_history::InputKind::{Backspace, DeleteForward};
+        for kind in [Backspace, DeleteForward] {
+            let path = write_temp("deletion-group.rs", "ab cd");
+            let mut pane = make_pane(&path, None);
+            let mut input = crate::editor_input::EditorInput::default();
+            if kind == Backspace { input.end("ab cd", false); }
+            let at = std::time::Instant::now();
+            for _ in 0..4 {
+                let text = pane.text().unwrap();
+                let before = input.clone();
+                let range = if kind == Backspace { input.backspace_range(&text) }
+                    else { input.delete_range(&text) }.unwrap();
+                let edit = input.replace_bytes(&text, range, "");
+                pane.apply_input_edit(&edit, kind, &before, &input, at).unwrap();
+            }
+            let expected = if kind == Backspace { ["ab", "ab ", "ab cd"] }
+                else { ["cd", " cd", "ab cd"] };
+            for text in expected { assert_eq!(undo_text(&mut pane, &mut input), text); }
+        }
+    }
+
+    #[test]
+    fn editor_slow_ime_updates_and_commit_are_one_undo_step() {
+        use crate::editor_history::InputKind::{Composition, Typing};
+        let path = write_temp("composition-group.rs", "original\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection("original\n", 0..8, false);
+        let at = std::time::Instant::now();
+        for (seconds, kind, text) in [(0, Composition, "k"), (2, Composition, "か"),
+            (9, Composition, "研究"), (20, Typing, "研究")] {
+            platform_input(&mut pane, &mut input, kind, text,
+                at + std::time::Duration::from_secs(seconds));
+        }
+        assert_eq!(input.marked_range(), None);
+        platform_input(&mut pane, &mut input, Typing, "!", at + std::time::Duration::from_secs(20));
+        assert_eq!(undo_text(&mut pane, &mut input), "研究\n");
+        assert_eq!(undo_text(&mut pane, &mut input), "original\n");
+        pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().unwrap();
+        assert_eq!(pane.text().as_deref(), Some("研究\n"));
+    }
+
+    #[test]
+    fn editor_explicit_navigation_unmark_and_save_end_input_groups() {
+        use crate::editor_history::InputKind::{Composition, Typing};
+        for boundary in ["navigation", "unmark", "save"] {
+            let path = write_temp("explicit-boundary.rs", "\n");
+            let mut pane = make_pane(&path, None);
+            let mut input = crate::editor_input::EditorInput::default();
+            let at = std::time::Instant::now();
+            let kind = if boundary == "unmark" { Composition } else { Typing };
+            platform_input(&mut pane, &mut input, kind, "a", at);
+            match boundary {
+                "save" => { let _task = pane.prepare_local_save().unwrap(); }
+                "unmark" => { pane.end_input_history(); input.unmark(); }
+                _ => { pane.end_input_history(); input.left("a\n", false); input.right("a\n", false); }
+            }
+            platform_input(&mut pane, &mut input, Typing, "b", at);
+            assert_eq!(undo_text(&mut pane, &mut input), "a\n", "{boundary}");
+            assert_eq!(undo_text(&mut pane, &mut input), "\n", "{boundary}");
+        }
+    }
+
+    #[test]
+    fn editor_remote_and_duplicate_imports_split_local_groups() {
+        use crate::editor_history::InputKind::Typing;
+        for duplicate in [false, true] {
+            let path = write_temp("remote-boundary.rs", "\n");
+            let mut pane = make_pane(&path, None);
+            let mut input = crate::editor_input::EditorInput::default();
+            let at = std::time::Instant::now();
+            let remote = HarborBuffer::empty("Becky");
+            remote.apply_remote_ops(&pane.buffer().unwrap().export_ops()).unwrap();
+            remote.append_line("remote");
+            let frame = crate::editor_sync::encode_frame(remote.local_peer(), &remote.export_ops());
+            if duplicate { assert!(pane.ingest_preserving_selection(&frame, &mut input)); }
+            platform_input(&mut pane, &mut input, Typing, "a", at);
+            let before_remote = pane.buffer().unwrap().change_stamp();
+            assert_eq!(pane.ingest_preserving_selection(&frame, &mut input), !duplicate);
+            if duplicate { assert_eq!(before_remote, pane.buffer().unwrap().change_stamp()); }
+            let before_b = pane.text().unwrap();
+            platform_input(&mut pane, &mut input, Typing, "b", at);
+            assert_eq!(undo_text(&mut pane, &mut input), before_b);
+            assert!(undo_text(&mut pane, &mut input).contains("remote"));
+        }
+    }
+
+    #[test]
+    fn editor_focus_boundary_retains_ime_range_for_late_platform_commit() {
+        use crate::editor_history::InputKind::{Composition, Typing};
+        let path = write_temp("blur-composition.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Composition, "か", at);
+        pane.end_input_history(); // The window/pane loses focus before IME commits.
+        assert_eq!(input.marked_range(), Some(0..3));
+        platform_input(&mut pane, &mut input, Typing, "か", at);
+        assert_eq!(pane.text().as_deref(), Some("か\n"), "not a second insertion");
+        assert_eq!(input.marked_range(), None);
+        platform_input(&mut pane, &mut input, Typing, "b", at);
+        assert_eq!(undo_text(&mut pane, &mut input), "か\n");
+    }
+
+    #[test]
+    fn editor_dependency_pending_import_ends_group_without_losing_queued_ops() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("pending-group.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        let remote = HarborBuffer::empty("Charli");
+        remote.insert_authored(0, "unseen ");
+        let dependencies = remote.export_ops();
+        let pending = remote.replace_authored(7..7, "later");
+        let stamp = pane.buffer().unwrap().change_stamp();
+        pane.buffer().unwrap().apply_remote_ops(&pending).unwrap();
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        platform_input(&mut pane, &mut input, Typing, "b", at);
+        assert_eq!(undo_text(&mut pane, &mut input), "a\n");
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
+        pane.buffer().unwrap().apply_remote_ops(&dependencies).unwrap();
+        assert!(pane.text().unwrap().contains("later"));
+    }
+
+    #[test]
+    fn editor_edit_after_grouped_undo_clears_redo_and_begins_new_group() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("group-redo.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        for text in ["a", "b"] { platform_input(&mut pane, &mut input, Typing, text, at); }
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
+        assert!(pane.buffer().unwrap().can_step_history(HistoryDirection::Redo));
+        for text in ["c", "d"] { platform_input(&mut pane, &mut input, Typing, text, at); }
+        assert!(!pane.buffer().unwrap().can_step_history(HistoryDirection::Redo));
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
+        pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().unwrap();
+        assert_eq!(pane.text().as_deref(), Some("cd\n"));
+    }
+
+    #[test]
+    fn editor_claim_refusal_does_not_admit_or_consume_a_grouped_edit() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("group-claim.rs", "\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut other = make_pane_as(&path, "Becky");
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        pane.ingest_claim(&other.acquire_region_claim(1, 1, "held", 1_000));
+        let prior = input.clone();
+        let edit = input.replace(&pane.text().unwrap(), None, "b", false, None);
+        let stamp = pane.buffer().unwrap().change_stamp();
+        assert!(pane.apply_input_edit(&edit, Typing, &prior, &input, at).is_err());
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some("a\n"));
+        // The app restores its provisional input and closes the boundary on refusal.
+        input = prior;
+        pane.end_input_history();
+        pane.ingest_claim(&other.release_region_claim(0));
+        platform_input(&mut pane, &mut input, Typing, "c", at);
+        assert_eq!(undo_text(&mut pane, &mut input), "a\n");
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
+    }
+
+    #[test]
+    fn history_refusal_preserves_ops_stack_selection_and_composition() {
+        let path = write_temp("history-claims.rs", "open\nclaimed\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut other = make_pane_as(&path, "Becky");
+        pane.apply_local_text_edit(0..0, "😀 ").unwrap();
+        let claim = other.acquire_region_claim(2, 2, "claimed", 1_000);
+        pane.ingest_claim(&claim);
+        // A claim on a different line does not block ordinary region-safe typing.
+        pane.apply_local_text_edit(0..0, "é ").unwrap();
+        let before = pane.text().unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.replace(&before, None, "研究", true, Some(0..2));
+        let prior_input = input.clone();
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let refusal = pane.apply_history(HistoryDirection::Undo, &mut input).unwrap_err();
+        assert!(refusal.contains("Request a handoff"));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+        assert_eq!(input, prior_input);
+        assert!(!pane.buffer().unwrap().can_step_history(HistoryDirection::Redo));
+        for token in BYPASS {
+            assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+
+        pane.ingest_claim(&other.release_region_claim(0));
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some("😀 open\nclaimed\n"));
+        assert_eq!(input.marked_range(), None);
+        // Re-check current claims for REDO too, not only the initial undo.
+        pane.ingest_claim(&other.acquire_region_claim(1, 1, "new claim", 2_000));
+        let stamp = pane.buffer().unwrap().change_stamp();
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).is_err());
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        pane.ingest_claim(&other.release_region_claim(1));
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+    }
+
+    #[test]
+    fn history_delta_updates_mirror_and_render_cache_without_duplicate_effects() {
+        let path = write_temp("history-mirror.rs", "a😀z\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_none());
+        assert!(mirror.apply_history(HistoryDirection::Undo, &mut input).is_err());
+        mirror.ingest_local_frame(&pane.apply_local_text_edit(1..5, "研究").unwrap());
+        let (edited_lines, _, _) = code_buffer(&pane.view()).unwrap();
+        for (direction, expected) in [
+            (HistoryDirection::Undo, "a😀z\n"),
+            (HistoryDirection::Redo, "a研究z\n"),
+        ] {
+            let frame = pane.apply_history(direction, &mut input).unwrap().unwrap();
+            assert!(mirror.ingest_local_frame(&frame));
+            assert!(!mirror.ingest_local_frame(&frame));
+            assert!(!pane.ingest_frame(&frame), "local echo is not another edit");
+            assert_eq!(pane.text().as_deref(), Some(expected));
+            assert_eq!(pane.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+            let (lines, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(!Arc::ptr_eq(&lines, &edited_lines));
+            let (idle, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(Arc::ptr_eq(&lines, &idle));
+            assert!(!mirror.buffer().unwrap().can_step_history(HistoryDirection::Undo));
+            assert!(mirror.apply_history(direction, &mut input).is_err());
+        }
+    }
+
+    #[test]
+    fn history_preserves_reversed_selection_on_unaffected_unicode_text() {
+        let path = write_temp("history-selection.rs", "😀 target\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        pane.acquire_region_claim(1, 1, "my own claim", 1_000);
+        pane.apply_local_text_edit(0..0, "研究 ").unwrap();
+        let text = pane.text().unwrap();
+        let start = text.find("target").unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection(&text, start..start + 6, true);
+        for direction in [HistoryDirection::Undo, HistoryDirection::Redo] {
+            pane.apply_history(direction, &mut input).unwrap().unwrap();
+            let text = pane.text().unwrap();
+            assert_eq!(&text[input.selection()], "target");
+            assert!(input.selection_reversed());
+            assert_eq!(input.marked_range(), None);
         }
     }
 
@@ -1465,13 +2388,12 @@ mod tests {
         );
         assert_eq!(lines.len(), 2, "human line + merged agent line");
         let human_tag = author_tag(opener);
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(lines[0].author_tag.as_deref(), Some(human_tag.as_str()));
         assert_eq!(lines[1].author_tag.as_deref(), Some(agent_tag.as_str()));
-        assert_ne!(
-            human_tag, agent_tag,
-            "distinct replicas carry distinct tags"
-        );
+        // Tags are display abbreviations, not unique identities. Policy and
+        // attribution compare the complete PeerID, including on two devices.
+        assert_ne!(opener, agent.local_peer());
         assert_eq!(lines[1].text.as_ref(), "agent added this");
     }
 
@@ -1479,8 +2401,8 @@ mod tests {
     /// opener is Resting, any other replica is Engaged, unknown is Default.
     #[test]
     fn author_tone_maps_opener_to_resting_and_agents_to_engaged() {
-        let opener = peer_id_for_identity("port-daddy:console:operator");
-        let agent = peer_id_for_identity("port-daddy:editor:agent-Y");
+        let opener = fixture_peer_id("port-daddy:console:operator");
+        let agent = fixture_peer_id("port-daddy:editor:agent-Y");
         assert!(matches!(author_tone(Some(opener), opener), Tone::Resting));
         assert!(matches!(author_tone(Some(agent), opener), Tone::Engaged));
         assert!(matches!(author_tone(None, opener), Tone::Default));
@@ -1489,29 +2411,15 @@ mod tests {
     /// A loaded editor declares its intent to watch the file's op-stream channel;
     /// an errored/empty pane subscribes to nothing (no buffer to fold ops into).
     #[test]
-    fn subscription_targets_the_files_channel_once_loaded() {
+    fn opening_a_local_file_never_auto_joins_a_shared_channel() {
         let path = write_temp("sub.txt", "hello\n");
         let pane = make_pane(&path, None);
-        match pane.subscription() {
-            Some(Subscription::Editor {
-                channel,
-                coord_channel,
-            }) => {
-                assert_eq!(channel, crate::editor_sync::channel_for_path(&path));
-                assert_eq!(channel, pane.channel());
-                // Slice-3 isolation: the coordination lane is a SEPARATE channel.
-                assert_eq!(
-                    coord_channel,
-                    crate::editor_sync::coordination_channel_for_path(&path)
-                );
-                assert_eq!(coord_channel, pane.coordination_channel());
-                assert_ne!(
-                    channel, coord_channel,
-                    "edit-sync and coordination ride distinct channels"
-                );
-            }
-            other => panic!("a loaded editor must subscribe to its file channel, got {other:?}"),
-        }
+        assert!(pane.subscription().is_none());
+        assert_eq!(pane.channel(), crate::editor_sync::channel_for_document(pane.document()));
+        assert_ne!(pane.channel(), pane.coordination_channel());
+        let other = make_pane(&path, None);
+        assert_ne!(pane.document(), other.document(), "same path is not shared consent");
+        assert_ne!(pane.channel(), other.channel());
         // An unreadable file → no buffer → nothing to fold into → no subscription.
         let errored = make_pane("/nonexistent/does/not/exist.rs", None);
         assert!(errored.subscription().is_none());
@@ -1548,7 +2456,7 @@ mod tests {
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "human line + wired-in agent line");
         assert_eq!(r[1].text.as_ref(), "agent added over the wire");
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(
             r[1].author_tag.as_deref(),
             Some(agent_tag.as_str()),
@@ -1595,7 +2503,7 @@ mod tests {
     /// Encode a presence frame from a distinct remote replica, the exact string
     /// that would arrive on this pane's channel subscription.
     fn remote_presence_frame(identity: &str, state: PresenceState) -> String {
-        let peer = peer_id_for_identity(identity);
+        let peer = fixture_peer_id(identity);
         let store = PresenceStore::new(peer);
         encode_presence_frame(peer, &store.publish(state))
     }
@@ -1638,7 +2546,7 @@ mod tests {
         let pool = pane.remote_cursors();
         assert_eq!(pool.len(), 2, "both remote cursors pooled");
         assert_eq!(
-            pool.get(&peer_id_for_identity(a)).map(|s| s.cursor_line),
+            pool.get(&fixture_peer_id(a)).map(|s| s.cursor_line),
             Some(2)
         );
         assert_eq!(
@@ -1648,7 +2556,7 @@ mod tests {
         );
 
         // A non-presence frame (an op frame) and garbage are ignored by the lane.
-        let op = crate::editor_sync::encode_frame(peer_id_for_identity(a), &[1, 2, 3]);
+        let op = crate::editor_sync::encode_frame(fixture_peer_id(a), &[1, 2, 3]);
         assert!(!pane.ingest_presence(&op), "an op frame is not presence");
         assert!(!pane.ingest_presence("not a frame"), "garbage is ignored");
     }
@@ -1659,7 +2567,7 @@ mod tests {
     fn local_presence_broadcast_is_debounced() {
         let path = write_temp("presence-out.txt", "hello\n");
         let mut pane = make_pane(&path, None);
-        let local = peer_id_for_identity("port-daddy:console:operator");
+        let local = pane.buffer().unwrap().local_peer();
 
         // Nothing moved yet → nothing to broadcast.
         assert!(pane.take_presence_broadcast(0).is_none());
@@ -1732,8 +2640,8 @@ mod tests {
         // Establish two remote cursors — two genuine repaint edges.
         let a = "port-daddy:editor:agent-A";
         let b = "port-daddy:editor:agent-B";
-        let store_a = PresenceStore::new(peer_id_for_identity(a));
-        let store_b = PresenceStore::new(peer_id_for_identity(b));
+        let store_a = PresenceStore::new(fixture_peer_id(a));
+        let store_b = PresenceStore::new(fixture_peer_id(b));
         let frame_a = encode_presence_frame(
             store_a.local(),
             &store_a.publish(PresenceState::caret(2, 0, 1, 5)),
@@ -1789,7 +2697,7 @@ mod tests {
         // once (a new PeerId is unambiguously a pool change, independent of clock
         // resolution), and replaying that same frame does not.
         let c = "port-daddy:editor:agent-C";
-        let store_c = PresenceStore::new(peer_id_for_identity(c));
+        let store_c = PresenceStore::new(fixture_peer_id(c));
         let frame_c = encode_presence_frame(
             store_c.local(),
             &store_c.publish(PresenceState::caret(5, 2, 1, 5)),
@@ -1854,7 +2762,7 @@ mod tests {
             "operator + agent lines survived to the cold replica via /blob"
         );
         assert_eq!(r[1].text.as_ref(), "agent added before the crash");
-        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        let agent_tag = author_tag(agent.local_peer());
         assert_eq!(
             r[1].author_tag.as_deref(),
             Some(agent_tag.as_str()),
@@ -1894,9 +2802,14 @@ mod tests {
     fn region_claim_rides_the_coord_lane_and_lands_in_a_remote_pane() {
         let path = write_temp("claim-wire.txt", "l1\nl2\nl3\nl4\nl5\n");
         let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
-        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+        // Explicit fixture binding, not production admission or a read-only mirror.
+        let mut pane_b = EditorPane::new_with_identity(path, None, "human-B");
+        pane_b.document = pane_a.document().clone();
+        pane_b.channel = crate::editor_sync::channel_for_document(pane_b.document());
+        pane_b.coord_channel = crate::editor_sync::coordination_channel_for_document(pane_b.document());
+        assert!(pane_b.hydrate_from_snapshot(&pane_a.snapshot_blob().unwrap()));
 
-        // Both panes agree on the coordination channel (pure function of the path).
+        // An explicit document reference, not matching paths, pairs these fixtures.
         assert_eq!(pane_a.coordination_channel(), pane_b.coordination_channel());
         assert!(
             pane_b.claim_ledger().is_empty(),
@@ -1917,7 +2830,7 @@ mod tests {
             pane_b.ingest_claim(&frame),
             "a remote claim frame changes B's ledger"
         );
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a_peer = pane_a.buffer().unwrap().local_peer();
         let owners = pane_b.claim_ledger().owners_of_line(3);
         assert_eq!(owners.len(), 1, "line 3 is claimed on B");
         assert_eq!(owners[0].peer, a_peer, "the claim is attributed to A");
@@ -1993,7 +2906,7 @@ mod tests {
 
         // Region-scoped, not file-scoped: A's own header line is not an 'other' claim
         // to A, but B's footer line is — on the very same file.
-        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let a_peer = pane_a.buffer().unwrap().local_peer();
         let led = pane_a.claim_ledger();
         assert!(
             !led.is_line_claimed_by_other(25, a_peer),
