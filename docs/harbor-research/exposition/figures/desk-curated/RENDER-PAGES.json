@@ -1,5 +1,5 @@
 {
- "_comment": "Page numbers of the Book build the published desk page images (pages/pNNN.jpg) were rendered from. The author region notes in the artifact db are stored against these exact filenames, so these numbers may only change when the JPGs are re-rendered in the same commit. build_figure_desk.py reports the drift against today Book PDF; it never applies it.",
+ "_comment": "Page numbers of the Book build the published desk page images (pages/pNNN.jpg) were rendered from. The author region notes in the artifact db are stored against these exact filenames, so these numbers may only change when the JPGs are re-rendered in the same commit. A drawn figure without a published JPG belongs in unpublished, never pages. build_figure_desk.py reports the drift against today's Book PDF; it never applies it.",
  "renderedFrom": "the mega-volume build current when the desk was first published (2026-09-13); see FINDINGS.reconciliation.renderDrift for the offset against the committed PDF",
  "pages": {
   "fig-swk-stack-map": 19,
@@ -16,11 +16,9 @@
   "fig-anchor-capability-attenuation": 90,
   "fig-anchor-alg-confusion": 92,
   "fig-anchor-delegation-inline": 93,
-  "fig-anchor-four-phases": 94,
   "fig-anchor-cuckoo-inline": 95,
   "fig-anchor-revocation-gossip": 97,
   "fig-anchor-card-lifecycle": 98,
-  "fig-anchor-handshake-ladder": 100,
   "fig-sealed-pillar-pipeline": 134,
   "fig-sealed-two-worlds": 137,
   "fig-sealed-mutant-grid": 143,
@@ -48,13 +46,11 @@
   "fig-he-three-sided": 294,
   "fig-he-float-plan": 299,
   "fig-he-conservation-functor": 309,
-  "fig-he-succession-price": 320,
   "fig-he-cold-start": 318,
   "fig-he-assurance": 330,
   "fig-governance-flow": 356,
   "fig-sybil-inline": 375,
   "fig-cartel-game-inline": 377,
-  "fig-bc-delta-threshold": 394,
   "fig-bonded-key-custody": 390,
   "fig-magic-link-inline": 391,
   "fig-worked-example": 400,
@@ -67,6 +63,12 @@
   "fig-pareto-dominance": 375,
   "fig-sybil-deposit-floor": 376,
   "fig-cartel-folk-theorem": 378
+ },
+ "unpublished": {
+  "fig-anchor-four-phases": "caption is in the committed Book, but no corresponding page JPG has a publication receipt",
+  "fig-anchor-handshake-ladder": "caption is in the committed Book, but no corresponding page JPG has a publication receipt",
+  "fig-he-succession-price": "caption is in the committed Book, but no corresponding page JPG has a publication receipt",
+  "fig-bc-delta-threshold": "caption is in the committed Book, but no corresponding page JPG has a publication receipt"
  },
  "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other."
 }

@@ -38,6 +38,19 @@ setTimeout(()=>{
   ];
   for(const [n,got,want] of checks)
     if(got!==want) errs.push(`CHECK ${n}: got ${got}, want ${want}`);
+  const unpublished=qa('#list .row').find(b=>b.textContent.includes('anchor-four-phases'));
+  if(!unpublished){
+    errs.push('CHECK unpublished figure row: missing anchor-four-phases');
+  }else{
+    unpublished.onclick();
+    const stageText=(q('#stage')&&q('#stage').textContent||'').replace(/\s+/g,' ');
+    if(!stageText.includes('Page image not published'))
+      errs.push('CHECK unpublished stage: missing truthful publication state');
+    if(!stageText.includes('Book p94'))
+      errs.push('CHECK unpublished stage: missing current Book location');
+    if(q('#sheet'))
+      errs.push('CHECK unpublished stage: fabricated a page image sheet');
+  }
   const epi=q('#epigraph'); if(epi) console.log('epigraph:', epi.textContent.slice(0,90)+'...');
   console.log('list head:', q('#listhead') && q('#listhead').textContent);
   console.log('first row:', q('#list .row') && q('#list .row').textContent.replace(/\s+/g,' ').slice(0,90));
