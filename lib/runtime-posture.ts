@@ -68,6 +68,12 @@ export interface RuntimePostureInput {
   desired: RuntimeDesiredState;
   control: RuntimeControlObservation;
   capabilities?: Partial<Record<RuntimeCapability, RuntimeCapabilityObservation>>;
+  /**
+   * Authority scope expected for each capability observation. An omitted entry
+   * is not a wildcard: that capability remains unknown and cannot authorize an
+   * effect. The map stays optional because human-safe effects do not require
+   * capability evidence.
+   */
   expectedScopes?: Partial<Record<RuntimeCapability, string>>;
   controlObservedAt?: number;
   controlValidUntil?: number;
