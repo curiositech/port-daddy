@@ -6,8 +6,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, copyFileSync, mkdirSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdtempSync, copyFileSync, mkdirSync, symlinkSync, rmSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { decideGate, resolveStale } from './ci-gate-verdict.mjs'
@@ -172,6 +172,12 @@ test('entrypoint runs from a checkout path that needs URL escaping', () => {
   // The exact regression: `file://` + a raw path with a space is not a valid
   // file URL, the guard compared false, and the gate exited 0 having decided
   // nothing.
+  //
+  // On macOS `tmpdir()` is `/var/folders/...`, itself a symlink to
+  // `/private/var/...`, so this test also exercised the symlink regression
+  // below by accident and failed locally while CI stayed green. It keeps
+  // using `tmpdir()` deliberately: whichever quirk the host has, the gate
+  // must still run.
   const dir = join(mkdtempSync(join(tmpdir(), 'ci-gate-')), 'dir with space')
   mkdirSync(dir, { recursive: true })
   const copy = join(dir, 'ci-gate-verdict.mjs')
@@ -179,6 +185,34 @@ test('entrypoint runs from a checkout path that needs URL escaping', () => {
   const r = run(copy, '{"lint":{"result":"failure"}}')
   assert.equal(r.status, 1, 'a space in the path must not silently skip the gate')
   assert.match(r.stdout, /these jobs failed: lint/)
+})
+
+test('entrypoint runs from a checkout reached through a SYMLINKED directory', () => {
+  // Node resolves the main module's `import.meta.url` through realpath but
+  // leaves `process.argv[1]` as typed. Invoking via a symlinked directory made
+  // the old URL comparison false, and the gate exited 0 having decided
+  // nothing. GitHub runners live at a non-symlinked `/home/runner/work`, so
+  // CI never saw it; macOS `/tmp` and `/var` are symlinks and hit it at once.
+  //
+  // The scratch space is built under ~/coding/tmp, never the OS temp dir,
+  // so the symlink here is one WE created rather than one the host happens
+  // to have — the test proves the same thing on every platform.
+  const scratch = join(homedir(), 'coding', 'tmp')
+  mkdirSync(scratch, { recursive: true })
+  const base = mkdtempSync(join(scratch, 'ci-gate-symlink-'))
+  try {
+    const real = join(base, 'real-checkout')
+    mkdirSync(real, { recursive: true })
+    copyFileSync(SCRIPT, join(real, 'ci-gate-verdict.mjs'))
+    const link = join(base, 'linked-checkout')
+    symlinkSync(real, link, 'dir')
+    const viaLink = join(link, 'ci-gate-verdict.mjs')
+    const r = run(viaLink, '{"lint":{"result":"failure"}}')
+    assert.equal(r.status, 1, 'a symlinked checkout path must not silently skip the gate')
+    assert.match(r.stdout, /these jobs failed: lint/)
+  } finally {
+    rmSync(base, { recursive: true, force: true })
+  }
 })
 
 test('entrypoint exits 1 rather than 0 when RESULTS is unparseable', () => {

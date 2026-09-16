@@ -56,7 +56,7 @@ Data flows left to right. Each process inputs from its left neighbor, transforms
 3. **Automatic termination**: When SOURCE terminates, TRANSFORM's input fails, causing TRANSFORM to terminate, causing SINK's input to fail, causing SINK to terminate
 4. **Composable**: Can insert new stages without changing existing stages
 
-**For WinDAGs**: Linear skill chains are the simplest orchestration pattern. Parse → Analyze → Transform → Generate. Each skill is independent; the orchestrator just wires them together. Termination propagates automatically from the source.
+**For Jury-rig**: Linear skill chains are the simplest orchestration pattern. Parse → Analyze → Transform → Generate. Each skill is independent; the orchestrator just wires them together. Termination propagates automatically from the source.
 
 **When pipelines fail**: When stages have different throughputs. If TRANSFORM is slower than SOURCE, SOURCE will block. If TRANSFORM is faster than SINK, TRANSFORM will block. Solution: Insert explicit buffer processes (Section 5.1) between stages with throughput mismatch.
 
@@ -197,7 +197,7 @@ Real systems combine topological patterns:
       grid nodes in array
 ```
 
-**For WinDAGs**: Complex orchestrations will use hybrid topologies. Example: A code analysis pipeline might be:
+**For Jury-rig**: Complex orchestrations will use hybrid topologies. Example: A code analysis pipeline might be:
 
 1. **Parse** (star: one coordinator, multiple parser workers for different languages)
 2. **Analyze** (pipeline: data flow → control flow → type checking)
@@ -252,7 +252,7 @@ Tasks emerge from transformation points:
 
 The topology is linear (pipeline). The processes are defined by their position in the pipeline.
 
-**For WinDAGs**: When decomposing a complex task:
+**For Jury-rig**: When decomposing a complex task:
 1. Draw the data flow graph (inputs, transformations, outputs)
 2. Each edge is a communication channel
 3. Each node is a skill invocation
@@ -286,6 +286,6 @@ The orchestration layer then becomes a *topology instantiator*: given a task, it
 
 The skills themselves are unaware of topology. They just have input and output ports. The orchestrator decides how those ports are connected. This is separation of concerns at the architectural level: process behavior vs. process connectivity.
 
-For WinDAGs: represent orchestration plans as communication topology graphs. Execution is graph instantiation. Debugging is graph visualization. Optimization is graph transformation (insert buffers, parallelize nodes, redirect edges).
+For Jury-rig: represent orchestration plans as communication topology graphs. Execution is graph instantiation. Debugging is graph visualization. Optimization is graph transformation (insert buffers, parallelize nodes, redirect edges).
 
-The DAG in WinDAGs is literally Hoare's communication topology, made explicit and manipulable.
+The DAG in Jury-rig is literally Hoare's communication topology, made explicit and manipulable.

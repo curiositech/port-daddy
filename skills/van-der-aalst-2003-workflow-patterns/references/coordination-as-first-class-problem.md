@@ -6,7 +6,7 @@ The workflow patterns paper makes an implicit but profound claim: **coordination
 
 The paper identifies 20+ distinct coordination patterns, each with specific semantics, failure modes, and implementation challenges. This reveals: **coordination is not a simple glue between smart tasks; it is a complex domain requiring its own abstractions, language, and engineering discipline**.
 
-For agent orchestration systems like WinDAGs, this teaching is transformative: **don't treat coordination as an afterthought; treat it as a first-class architectural concern**.
+For agent orchestration systems like Jury-rig, this teaching is transformative: **don't treat coordination as an afterthought; treat it as a first-class architectural concern**.
 
 ## The Task-Centric Bias
 
@@ -115,9 +115,9 @@ Pattern-driven design flow:
 
 **Advantage**: Coordination requirements drive architectural decisions. No mismatch between coordination needs and coordination capabilities.
 
-## For WinDAGs: Coordination-First Architecture
+## For Jury-rig: Coordination-First Architecture
 
-If WinDAGs is DAG-based, coordination capabilities are fundamental:
+If Jury-rig is DAG-based, coordination capabilities are fundamental:
 
 **What DAGs naturally support:**
 - Sequential dependencies (A→B)
@@ -132,11 +132,11 @@ If WinDAGs is DAG-based, coordination capabilities are fundamental:
 - External interaction (deferred choice)
 - Cancellation (abortion of active nodes)
 
-**Design implication**: WinDAGs should be used for problems naturally fitting DAG coordination. For other problems, use different orchestration models.
+**Design implication**: Jury-rig should be used for problems naturally fitting DAG coordination. For other problems, use different orchestration models.
 
 **Anti-pattern**: Forcing all agent coordination into DAGs because "we have a DAG orchestrator." If the problem requires cycles or discriminators, forcing DAG expression creates complexity.
 
-**Better pattern**: "WinDAGs handles DAG-natural coordination; for cycles/discriminators/etc., use complementary orchestrators (Step Functions for state machines, Temporal for long-running with compensation)."
+**Better pattern**: "Jury-rig handles DAG-natural coordination; for cycles/discriminators/etc., use complementary orchestrators (Step Functions for state machines, Temporal for long-running with compensation)."
 
 ## Coordination Abstraction Levels
 
@@ -158,7 +158,7 @@ Coordination exists at multiple abstraction levels:
 
 The workflow patterns operate at Level 2. They are not about physical message passing (Level 1) or business semantics (Level 3), but about logical routing structures.
 
-**For WinDAGs**: The DAG abstraction is Level 2—it specifies logical coordination (which skills depend on which, what runs in parallel, what is conditional). Level 1 (how skills are invoked, how data flows) is implementation. Level 3 (what the workflow means in terms of user problems) is domain-specific.
+**For Jury-rig**: The DAG abstraction is Level 2—it specifies logical coordination (which skills depend on which, what runs in parallel, what is conditional). Level 1 (how skills are invoked, how data flows) is implementation. Level 3 (what the workflow means in terms of user problems) is domain-specific.
 
 Keeping levels separate is crucial:
 - Level 1 concerns (performance, reliability) should not force Level 2 complexity (awkward coordination patterns)
@@ -185,7 +185,7 @@ More expressive coordination models can represent more patterns, but at cost of 
 
 There is no free lunch: expressiveness comes at the cost of complexity. The design choice is where on this tradeoff to land.
 
-**For WinDAGs**: If you choose low-expressiveness (simple DAG), accept limitations and provide escape hatches. If you choose high-expressiveness (rich coordination model), invest in tooling to manage complexity (visualization, analysis, debugging).
+**For Jury-rig**: If you choose low-expressiveness (simple DAG), accept limitations and provide escape hatches. If you choose high-expressiveness (rich coordination model), invest in tooling to manage complexity (visualization, analysis, debugging).
 
 Don't try to bolt high expressiveness onto low-complexity abstractions. That creates worst of both worlds (complex but still limited).
 
@@ -228,7 +228,7 @@ When coordination is first-class, it becomes a specification language:
 
 This specification is precise, analyzable, and communicable. It is not "tasks connected by code."
 
-**For WinDAGs**: If DAG is your coordination language, workflows should be specified as DAG structures with pattern annotations. The DAG itself is the specification, not an implementation detail.
+**For Jury-rig**: If DAG is your coordination language, workflows should be specified as DAG structures with pattern annotations. The DAG itself is the specification, not an implementation detail.
 
 If workflows cannot be clearly specified as DAGs (because cycles, discriminators, etc. are needed), that is information: **the problem does not fit the DAG abstraction**.
 
@@ -236,7 +236,7 @@ If workflows cannot be clearly specified as DAGs (because cycles, discriminators
 
 The workflow patterns research teaches: **coordination is as important as tasks, as complex as tasks, and as deserving of systematic design**.
 
-For WinDAGs and agent orchestration:
+For Jury-rig and agent orchestration:
 - Don't focus solely on skill diversity (180+ skills)
 - Focus equally on coordination expressiveness (which patterns supported?)
 - Treat coordination as architectural foundation, not afterthought

@@ -21,6 +21,7 @@
  * Fleet operator; mutation and AI-spend routes retain the break-glass secret.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import { operatorOnly } from './handlers.js';
 import { fleetOperatorOnly } from './fleet-access.js';
 import { validateFleetYaml, parseAllShips } from './fleet-parser.js';
@@ -211,7 +212,7 @@ interface OptimizeBody {
   goal?: string;
 }
 
-const OPTIMIZE_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
+const OPTIMIZE_MODEL = CF_ROLE_MODELS.optimize;
 
 /**
  * Rewrite a ship prompt for clarity and LLM execution quality. The metaprompt

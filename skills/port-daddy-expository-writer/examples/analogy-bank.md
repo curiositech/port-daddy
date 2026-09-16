@@ -7,7 +7,7 @@ These are the *workhorses*. Reach for them when a section needs a handhold and a
 ---
 
 **1. ProVerif as bouncer.**
-ProVerif is the bouncer at the protocol door. It reads the script — your `.pv` file — imagines a perfectly malicious party guest who can read every message, replay any sequence, and compose new messages from old ones, and asks whether the door holds. If the proof closes, the door holds against every guest the model permits. *The model is the load-bearing word.*
+ProVerif is the bouncer at the protocol door. It reads the script — your `.pv` file — imagines a perfectly malicious party guest who can read every message, replay any sequence, and compose new messages from old ones, and asks whether the door holds. If the proof closes, the door holds against every guest the model permits. *The model is the critical word.*
 
 ---
 

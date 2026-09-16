@@ -70,6 +70,10 @@ describe('Agent Harbor context continuity vertical slice', () => {
       project: 'port-daddy',
       projectDir: '/workspace',
       workdir: '/workspace',
+      planCheckpoint: {
+        content: '- [ ] Continue from the cited packet\n- [x] Never carry raw transcript text across backends',
+        capturedAt: '2026-08-23T12:00:00.000Z',
+      },
       measuredAt: '2026-08-23T12:00:00.000Z',
     });
 
@@ -93,6 +97,7 @@ describe('Agent Harbor context continuity vertical slice', () => {
       'operator_message',
       'assistant_message',
       'session_end',
+      'plan_checkpoint',
       'context_pressure',
       'compaction_packet',
     ]);
@@ -107,13 +112,13 @@ describe('Agent Harbor context continuity vertical slice', () => {
       packetId: first?.packet?.packetId,
       sourceHeadHash: first?.packet?.sourceTranscript.headHash,
     });
-    expect(episode?.metadata?.capsule?.operatorTurns).toEqual([expect.objectContaining({
-      text: 'Finish the bounded context-continuity slice.',
-    })]);
-    expect(episode?.metadata?.capsule?.tail).toEqual(expect.arrayContaining([
-      expect.objectContaining({ role: 'operator', text: 'Finish the bounded context-continuity slice.' }),
-      expect.objectContaining({ role: 'assistant', text: 'I preserved the cited packet and its source transcript.' }),
-    ]));
+    // Cross-backend continuation carries a verified packet and, when present,
+    // the last pd-plan checkpoint. It never copies raw operator or assistant
+    // transcript text into the capsule.
+    expect(episode?.metadata?.capsule?.operatorTurns).toEqual([
+      expect.objectContaining({ text: '- [ ] Continue from the cited packet\n- [x] Never carry raw transcript text across backends' }),
+    ]);
+    expect(episode?.metadata?.capsule?.tail).toEqual([]);
 
     const second = bridge.recordContext({
       agentNodeId: agentId,
@@ -130,7 +135,7 @@ describe('Agent Harbor context continuity vertical slice', () => {
     });
     expect(second?.replayed).toBe(true);
     expect(second?.packet?.packetId).toBe(first?.packet?.packetId);
-    expect(readEvents(db, { streamType: 'transcript-event', sessionId: agentId })).toHaveLength(6);
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: agentId })).toHaveLength(7);
 
     const readyProjection = listContextContinuity(db);
     expect(readyProjection.counts).toMatchObject({ observed: 1, packetReady: 1, successorRequired: 1 });
@@ -244,6 +249,37 @@ describe('Agent Harbor context continuity vertical slice', () => {
     expect(result?.packet?.validator.passed).toBe(true);
   });
 
+  test('projects the most recent cited plan checkpoint into a continuation capsule', () => {
+    const { transcripts, episodicMemory, bridge } = state();
+    const agentId = 'spawn-context-latest-plan';
+    const transcriptId = transcripts.start({
+      id: 'transcript-context-latest-plan', ship: 'test', spawned_agent_id: agentId,
+      trigger: 'test', backend: 'cli:codex', model: 'gpt-5', started_at: 4_000,
+    });
+    transcripts.appendMessage(transcriptId, { role: 'user', content: 'Continue safely.', timestamp: 4_001 });
+    bridge.registerNode(agentId, null, 4_000);
+    bridge.syncTranscript(agentId, transcriptId);
+
+    const first = bridge.recordContext({
+      agentNodeId: agentId, sessionId: agentId, runId: transcriptId, transcriptId,
+      sourceAdapter: 'cli:codex', model: 'gpt-5', windowTokens: 1_000,
+      daemonUsedTokensEstimate: 760, adapterUsedTokensEstimate: 0, estimateMode: 'estimated',
+      observationId: 'first-plan', planCheckpoint: { content: '- [ ] Stale plan' },
+    });
+    expect(first?.packet).not.toBeNull();
+    const second = bridge.recordContext({
+      agentNodeId: agentId, sessionId: agentId, runId: transcriptId, transcriptId,
+      sourceAdapter: 'cli:codex', model: 'gpt-5', windowTokens: 1_000,
+      daemonUsedTokensEstimate: 850, adapterUsedTokensEstimate: 0, estimateMode: 'estimated',
+      observationId: 'latest-plan', planCheckpoint: { content: '- [ ] Latest plan' },
+    });
+    expect(second?.packet).not.toBeNull();
+    const latestEpisode = episodicMemory.get(second!.handoffEpisodeId!);
+    expect(latestEpisode?.metadata?.capsule?.operatorTurns).toEqual([
+      expect.objectContaining({ text: '- [ ] Latest plan' }),
+    ]);
+  });
+
   test('surfaces a malformed continuity proof instead of silently looking empty', () => {
     const { db } = state();
     appendEvent(db, {
@@ -266,6 +302,33 @@ describe('Agent Harbor context continuity vertical slice', () => {
     expect(projection.failures).toEqual([expect.objectContaining({
       eventId: 'evt-broken-context-proof',
       reason: expect.stringMatching(/context envelope is missing/),
+    })]);
+  });
+
+  test('keeps an oversized multibyte historical context proof out of the projection parser', () => {
+    const { db } = state();
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: {
+        eventId: 'evt-oversized-context-proof',
+        sessionId: 'oversized-context-session',
+        agentNodeId: 'oversized-context-agent',
+        sequence: 1,
+        occurredAt: '2026-08-27T12:00:00.000Z',
+        schemaVersion: 1,
+        kind: 'context_pressure',
+        visibility: 'operator',
+        // Under the old SQLite character count this could cross the byte cap
+        // unnoticed; no projection reader should parse this payload.
+        payloadJson: { contextEnvelope: { envelopeId: 'ctx_oversized', evidence: '🦑'.repeat(5_000) } },
+      },
+    });
+
+    const projection = listContextContinuity(db);
+    expect(projection.counts).toMatchObject({ observed: 0, verificationFailed: 1 });
+    expect(projection.failures).toEqual([expect.objectContaining({
+      eventId: 'evt-oversized-context-proof',
+      reason: expect.stringMatching(/projection budget/),
     })]);
   });
 });

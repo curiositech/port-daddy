@@ -2,7 +2,7 @@
 
 ## The Core Argument
 
-One of Agha's most important contributions is a rigorous proof that **asynchronous communication is the foundation**, and synchronous communication is always derived. This has profound implications for how WinDAGs should be designed. Systems that assume synchronous communication by default pay enormous costs — in bottlenecks, in brittleness, in inability to represent certain correct programs — for no theoretical gain.
+One of Agha's most important contributions is a rigorous proof that **asynchronous communication is the foundation**, and synchronous communication is always derived. This has profound implications for how Jury-rig should be designed. Systems that assume synchronous communication by default pay enormous costs — in bottlenecks, in brittleness, in inability to represent certain correct programs — for no theoretical gain.
 
 ## The Physical Argument
 
@@ -67,14 +67,14 @@ This is not a bug to be fixed; it is a **fundamental property** that must be emb
 
 Consequence: **Agent systems that rely on message ordering for correctness are fragile**. The correct design builds correctness into the protocol, not into assumptions about delivery order.
 
-## Application to WinDAGs
+## Application to Jury-rig
 
 **Message passing between skills**: All inter-skill communication should be asynchronous with buffering. A skill should never "busy-wait" for a response from another skill. Instead, it should specify a continuation (a customer actor, in Agha's terms) that will be invoked when the response arrives.
 
 **Orchestrator design**: The orchestrator should not be a synchronization bottleneck. It should fire tasks asynchronously and collect results as they arrive, not wait sequentially for each skill before invoking the next.
 
-**Recursive skill invocation**: Skills that invoke themselves (e.g., a planning skill that plans sub-plans) require asynchronous self-messaging. WinDAGs' task queue must support this without deadlock.
+**Recursive skill invocation**: Skills that invoke themselves (e.g., a planning skill that plans sub-plans) require asynchronous self-messaging. Jury-rig' task queue must support this without deadlock.
 
-**Robustness under reordering**: WinDAGs should not assume that responses arrive in the order requests were sent. Results should be tagged with the request they fulfill, and the system should handle out-of-order arrival correctly.
+**Robustness under reordering**: Jury-rig should not assume that responses arrive in the order requests were sent. Results should be tagged with the request they fulfill, and the system should handle out-of-order arrival correctly.
 
-**Building synchronous primitives when needed**: For cases where strict ordering matters (e.g., a skill that must see the output of a previous skill before it can proceed), WinDAGs should provide explicit sequencing constructs built on top of the asynchronous base — not replace the asynchronous base with synchrony.
+**Building synchronous primitives when needed**: For cases where strict ordering matters (e.g., a skill that must see the output of a previous skill before it can proceed), Jury-rig should provide explicit sequencing constructs built on top of the asynchronous base — not replace the asynchronous base with synchrony.

@@ -28,7 +28,7 @@ fleets who don't trust each other work together"*
 need reputation; reputation needs an identity that cannot be shed; and an identity
 that cannot be shed needs **continuity** — memory, checkpoint, and an outcome
 history that outlives any one process or context window. This paper traces that
-dependency chain in reverse, from the economy back to its load-bearing root, and
+dependency chain in reverse, from the economy back to its foundational root, and
 argues the central thesis of the L3 bridge: **a reputation system is exactly as
 real as the identity it keys on, and an identity is durable only if it carries
 continuity.** We ground the chain in Port Daddy's primitives (episodic memory,
@@ -47,7 +47,7 @@ then a score, then routing, then a market.
   `{obligation, capability, authority}`; a *person* is a role instance **plus**
   continuity. Reputation can only attach to persons, and a market can only price
   reputation.
-- **Identity is the load-bearing root.** While Port Daddy identities are
+- **Identity is the critical root.** While Port Daddy identities are
   self-asserted strings (`lib/actor-roster.ts`), every reputation built on them is
   defeated for free by **Sybil-reset** and **whitewashing** — a respawn launders
   the record. The fix (`docs/adr/0040-non-forgeable-actor-identity.md`) is the one
@@ -93,7 +93,7 @@ reputation attaches to the continuity, not to the role and not to the process.
 
 ---
 
-## 2. Personal identity is a continuity problem (the philosophy is load-bearing)
+## 2. Personal identity is a continuity problem (the philosophy is pivotal)
 
 The claim "a person is a role *plus continuity*" is not a metaphor borrowed
 loosely; it is the dominant theory of personal identity in philosophy, and it
@@ -415,7 +415,7 @@ hard:
   model is a lazy agent in a fleet the operator *owns*; the market (L3 federation)
   introduces a *mutually-distrusting* counterparty, where reputation must travel
   across a trust boundary. This is where the *cryptographic* market of the
-  one-sentence definition becomes load-bearing — and is the seam between this paper
+  one-sentence definition becomes central — and is the seam between this paper
   and the economy/anchor whitepaper.
 
 ---

@@ -99,6 +99,15 @@ export type TriggerKind =
  * propose time, but every archetype ships with one sensible default so the
  * proposed YAML is runnable as-is.
  */
+/**
+ * A body declared as intent rather than as an id: which backend, and which rung
+ * of the capability ladder. The concrete model is spliced by `resolveModel()`.
+ */
+export interface BackendIntent {
+  backend: string;
+  capability: 'cheap' | 'balanced' | 'high' | 'max-thinking' | 'code';
+}
+
 export interface ArchetypeTrigger {
   kind: TriggerKind;
   /** Cron expression — required when `kind: cron`. */
@@ -209,16 +218,21 @@ export interface Archetype {
    */
   costClass?: CostClass;
   /**
-   * (retool) Default backend slug, e.g. `'cloudflare:@cf/qwen/qwen3-30b-a3b-fp8'`,
-   * `'claude:haiku-4.5'`, `'gpt-5-mini'`. Runtime backend resolution lives
-   * in `lib/llm-backend-resolver.ts`; this is the proposed-YAML default only.
+   * (retool) Default body for the proposed YAML, as declarative intent.
+   *
+   * SUPPLANTED (2026-08-23): this was a slug embedding a concrete model id
+   * (`'cloudflare:@cf/qwen/qwen3-30b-a3b-fp8'`), two of which named models that
+   * had already been retired — the shape that lets dead ids sit unnoticed in a
+   * field nothing reads yet. A (backend, capability) pair is what the proposed
+   * YAML now carries, and it resolves through the registry at emit time.
+   * Runtime backend resolution stays in `lib/llm-backend-resolver.ts`.
    */
-  backendDefault?: string;
+  backendDefault?: BackendIntent;
   /**
-   * (retool) Backend to fall back to for harder cases (novel construction,
-   * big-lane recommendation prose). `null` = no escalation lane.
+   * (retool) Body to escalate to for harder cases (novel construction, big-lane
+   * recommendation prose). `null` = no escalation lane.
    */
-  backendEscalation?: string | null;
+  backendEscalation?: BackendIntent | null;
   /**
    * Skills this archetype prefers when present in the catalog. Used as a
    * boost during cosine retrieval — concrete skill IDs already known to
@@ -609,7 +623,7 @@ Skills available: {skills}
     triggers: ['cron:every-30m', 'event:roadmap.feedback-open'],
     outputs: ['cartographer-state', 'roadmap_items', 'docs/recovery/*'],
     costClass: 'low',
-    backendDefault: 'cloudflare:@cf/qwen/qwen3-30b-a3b-fp8',
+    backendDefault: { backend: 'cloudflare', capability: 'cheap' },
     backendEscalation: null,
     defaultTrigger: { kind: 'cron', cron: '*/30 * * * *' },
     defaultModelTier: 'low',
@@ -644,8 +658,8 @@ Skills available: {skills}
     triggers: ['cron:nightly', 'event:sortie.completed:n=5', 'manual:pd spider'],
     outputs: ['cartographer_drafts'],
     costClass: 'low',
-    backendDefault: 'cloudflare:@cf/meta/llama-3-8b-instruct',
-    backendEscalation: 'claude:haiku-4.5',
+    backendDefault: { backend: 'cloudflare', capability: 'cheap' },
+    backendEscalation: { backend: 'claude', capability: 'cheap' },
     defaultTrigger: { kind: 'cron', cron: '0 4 * * *' }, // 4am, before operator wakes
     defaultModelTier: 'low',
     defaultBondUsd: 0.10,
@@ -679,8 +693,8 @@ Skills available: {skills}
     triggers: ['event:cartographer.write', 'event:sortie.completed', 'event:claim.acquired', 'event:draft.created:spider', 'cron:daily', 'manual:pd unspider'],
     outputs: ['feedback:create', 'inbox:actor:user'],
     costClass: 'low',
-    backendDefault: 'cloudflare:@cf/meta/llama-3-8b-instruct',
-    backendEscalation: 'claude:haiku-4.5',
+    backendDefault: { backend: 'cloudflare', capability: 'cheap' },
+    backendEscalation: { backend: 'claude', capability: 'cheap' },
     defaultTrigger: { kind: 'cartographer-write' },
     defaultModelTier: 'low',
     defaultBondUsd: 0.10,
@@ -714,8 +728,8 @@ Skills available: {skills}
     triggers: ['pull_request:opened', 'pull_request:synchronize'],
     outputs: ['github:pr-comment'],
     costClass: 'medium',
-    backendDefault: 'claude:haiku-4.5',
-    backendEscalation: 'claude:sonnet-4.5',
+    backendDefault: { backend: 'claude', capability: 'cheap' },
+    backendEscalation: { backend: 'claude', capability: 'balanced' },
     defaultTrigger: { kind: 'git-pr' },
     defaultModelTier: 'mid',
     defaultBondUsd: 0.30,
@@ -749,7 +763,7 @@ Skills available: {skills}
     triggers: ['pull_request:opened'],
     outputs: ['github:pr-comment'],
     costClass: 'high',
-    backendDefault: 'claude:sonnet-4.5',
+    backendDefault: { backend: 'claude', capability: 'high' },
     backendEscalation: null,
     defaultTrigger: { kind: 'git-pr' },
     defaultModelTier: 'high',
@@ -786,7 +800,7 @@ Skills available: {skills}
     triggers: ['pull_request:opened', 'label:needs-tests', 'event:test-hunter.coverage-gap'],
     outputs: ['github:draft-pr', 'github:pr-comment'],
     costClass: 'medium',
-    backendDefault: 'claude:haiku-4.5',
+    backendDefault: { backend: 'claude', capability: 'cheap' },
     backendEscalation: null,
     defaultTrigger: { kind: 'git-pr' },
     defaultModelTier: 'mid',
@@ -820,7 +834,7 @@ Skills available: {skills}
     triggers: ['pull_request:opened'],
     outputs: ['github:pr-comment'],
     costClass: 'low',
-    backendDefault: 'gpt-5-mini',
+    backendDefault: { backend: 'openai', capability: 'cheap' },
     backendEscalation: null,
     defaultTrigger: { kind: 'git-pr' },
     defaultModelTier: 'low',
@@ -854,7 +868,7 @@ Skills available: {skills}
     triggers: ['cron:weekly-monday-8am', 'pull_request:merged'],
     outputs: ['github:issue'],
     costClass: 'low',
-    backendDefault: 'claude:haiku-4.5',
+    backendDefault: { backend: 'claude', capability: 'cheap' },
     backendEscalation: null,
     defaultTrigger: { kind: 'cron', cron: '0 8 * * 1' }, // Mondays 8am
     defaultModelTier: 'low',

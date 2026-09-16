@@ -98,7 +98,7 @@ X?msg;
 
 The structure of the input command IS the type check. Pattern match failure causes the guard to fail—meaning the message doesn't match and won't be accepted.
 
-**For WinDAGs**: Skills declare the message patterns they handle. The orchestrator need not parse and route based on message content; the guard structure does this automatically. A skill declares:
+**For Jury-rig**: Skills declare the message patterns they handle. The orchestrator need not parse and route based on message content; the guard structure does this automatically. A skill declares:
 
 ```
 skill_interface = [
@@ -122,7 +122,7 @@ The reasoning: fairness is an implementation quality, not a semantic requirement
 - Prefer the one with external effects (I/O) over internal computation
 - Use randomization to avoid systematic bias
 
-**For WinDAGs**: When multiple skills can handle a request, the orchestrator should:
+**For Jury-rig**: When multiple skills can handle a request, the orchestrator should:
 1. Not guarantee any particular ordering (semantic freedom)
 2. In practice, load-balance or prefer faster skills (implementation quality)
 3. Never rely on fairness for correctness (prove termination assuming adversarial scheduling)
@@ -174,7 +174,7 @@ This always fails. If it's inside a repetitive command, the repetitive command t
 
 **Example of intentional failure**: The dining philosophers (Section 5.3) deliberately allows a state where no philosopher can pick up forks (all have left fork, all waiting for right fork). This is deadlock, and the program is incorrect. The fix is architectural: prevent the state from arising (limit room occupancy to 4).
 
-**For WinDAGs**: If all alternative skills are unavailable (overloaded, crashed, terminated), the orchestrator should:
+**For Jury-rig**: If all alternative skills are unavailable (overloaded, crashed, terminated), the orchestrator should:
 - Fail explicitly with a clear error
 - NOT busy-wait hoping one becomes available
 - Propagate the failure to the caller (who may have fallback logic)
@@ -230,4 +230,4 @@ This separation of concerns (scheduling policy vs. message handling) is exactly 
 
 Together, they define a reactive system that responds to its environment without busy-waiting, without callbacks, and without losing sequential control flow.
 
-For WinDAGs with 180+ skills: define orchestration as guarded alternatives over skill responses. The orchestrator is then a *reactive process* whose behavior is entirely determined by its guard structure and the messages that arrive. This is comprehensible, analyzable, and free of the callback spaghetti that plagues event-driven systems.
+For Jury-rig with 180+ skills: define orchestration as guarded alternatives over skill responses. The orchestrator is then a *reactive process* whose behavior is entirely determined by its guard structure and the messages that arrive. This is comprehensible, analyzable, and free of the callback spaghetti that plagues event-driven systems.

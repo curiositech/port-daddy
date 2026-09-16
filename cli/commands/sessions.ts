@@ -12,7 +12,16 @@ import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import {
+  clearBeginAttempt,
+  readBeginAttempt,
+  readCurrentContext,
+  resolveCurrentContext,
+  writeCurrentContext,
+  type CurrentContextProvenance,
+} from '../utils/current-context.js';
+import { autoIdentityFromPackageJson } from './services.js';
+import { isValidBeginIdempotencyKey } from '../../lib/begin-idempotency.js';
 import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
@@ -32,9 +41,23 @@ type FileReleaseResult = Awaited<ReturnType<PortDaddy['releaseFiles']>>;
 type NoteResult = Awaited<ReturnType<PortDaddy['note']>>;
 type ErrorBody = Record<string, unknown>;
 type ActiveSessionResolution = {
+  success: true;
   sessionId: string;
+  agentId?: string;
   source: 'explicit-session' | 'current-context' | 'active-agent';
 };
+type ActiveSessionResolutionFailure = {
+  success: false;
+  code: 'CONTEXT_CONFLICT' | 'AMBIGUOUS_ACTIVE_SESSION' | 'SESSION_NOT_ACTIVE'
+    | 'SESSION_SCOPE_MISMATCH' | 'SESSION_RESOLUTION_FAILED';
+  error: string;
+  provenances?: {
+    environment: CurrentContextProvenance;
+    stored: CurrentContextProvenance;
+  };
+  candidates?: Array<{ sessionId: string; worktreeId: string | null }>;
+};
+type ActiveSessionResolutionResult = ActiveSessionResolution | ActiveSessionResolutionFailure | null;
 type FileRegion = {
   path: string;
   startLine?: number;
@@ -54,6 +77,9 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
  * Build the SDK client for session commands, carrying the ADR-0040 actor
  * credential (#8877 / ADR-0122).
  *
+ * Design intent: an explicit CLI session or agent is the highest-authority
+ * identity carrier, so ambient context can never silently replace it.
+ *
  * Credential resolution order: the PD_ACTOR_CREDENTIAL /
  * PORT_DADDY_ACTOR_CREDENTIAL env vars, then the per-worktree context file —
  * but the context credential is used ONLY when the context's agentId matches
@@ -66,11 +92,30 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
  * @returns A PortDaddy client with agentId + credential set when available.
  */
 function createSessionClient(options: CLIOptions): PortDaddy {
-  const current = readCurrentContext();
-  const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId || `cli-${process.pid}`;
+  const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  const explicitSessionId = stringOption(options, 'session', 'session-id', 'sessionId');
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitAgentId && !explicitSessionId) {
+    const conflict = {
+      success: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+    if (isJson(options)) {
+      console.error(JSON.stringify(conflict, null, 2));
+    } else {
+      ui.error(`${conflict.code}: ${conflict.error}`);
+      console.error(JSON.stringify({ provenances: conflict.provenances }, null, 2));
+    }
+    process.exit(1);
+  }
+  const current = contextResolution.success ? contextResolution.context : null;
+  const agentId = explicitAgentId
+    || (explicitSessionId ? undefined : current?.agentId || `cli-${process.pid}`);
   return new PortDaddy({
     agentId,
-    credential: resolveCliActorCredential(agentId),
+    credential: agentId ? resolveCliActorCredential(agentId) : undefined,
     pid: process.pid,
   });
 }
@@ -158,52 +203,103 @@ function buildRegionFromOptions(paths: string[], options: CLIOptions): FileRegio
 /**
  * Resolve the active session that a file-claim command should mutate.
  *
+ * Design intent: every mutating file command must resolve one exact session;
+ * conflicting carriers and multiple active candidates fail closed with enough
+ * provenance for the caller to retry explicitly.
+ *
  * Sample input:
  * `current = { agentId: "agent-a", sessionId: "session-1" }`
  *
  * Sample output:
  * `{ sessionId: "session-1", source: "current-context" }`
+ *
+ * @param pd - Read/write client used to verify exact sessions and enumerate candidates.
+ * @param options - CLI scope; explicit session/agent values outrank ambient context.
+ * @returns One exact active session, a structured conflict/ambiguity, or null.
  */
-async function resolveActiveSessionForFiles(
+export async function resolveActiveSessionForFiles(
   pd: PortDaddy,
   options: CLIOptions
-): Promise<ActiveSessionResolution | null> {
-  const current = readCurrentContext();
+): Promise<ActiveSessionResolutionResult> {
   const explicitSessionId = stringOption(options, 'session', 'session-id', 'sessionId');
   const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitSessionId && !explicitAgentId) {
+    return {
+      success: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+  }
+  // An explicit CLI scope outranks ambient carriers. If only one half was
+  // explicit, use stored context only when it resolves without conflict and
+  // agrees with that explicit half; otherwise let the daemon resolve the
+  // explicit half without grafting a contradictory identity onto it.
+  const current = contextResolution.success ? contextResolution.context : null;
   const contextSessionId = current?.sessionId;
   const contextAgentId = current?.agentId;
-  const candidateSessionId = explicitSessionId || contextSessionId;
-  const candidateAgentId = explicitAgentId || contextAgentId || pd.agentId;
+  const candidateSessionId = explicitSessionId
+    || (explicitAgentId && contextAgentId !== explicitAgentId ? undefined : contextSessionId);
+  // An explicit session without an explicit agent must derive its owner from
+  // that exact stored session. Ambient agent context may be valid for a
+  // different session and must not be grafted onto the explicit selector.
+  const candidateAgentId = explicitAgentId
+    || (explicitSessionId ? undefined : (contextAgentId || pd.agentId));
 
   if (candidateSessionId) {
     try {
-      const whoami = await pd.whoami({ agentId: candidateAgentId, sessionId: candidateSessionId });
-      if (whoami?.active && whoami.sessionId) {
+      const whoami = await pd.whoami({
+        ...(candidateAgentId ? { agentId: candidateAgentId } : {}),
+        sessionId: candidateSessionId,
+      });
+      if (whoami?.success !== true) {
         return {
-          sessionId: whoami.sessionId,
-          source: explicitSessionId ? 'explicit-session' : 'current-context',
+          success: false,
+          code: 'SESSION_RESOLUTION_FAILED',
+          error: `Could not verify exact session "${candidateSessionId}"; no fallback attempted.`,
         };
       }
-      if (explicitSessionId) {
-        ui.error(whoami?.hint || `Session "${explicitSessionId}" is not active`);
-        process.exit(1);
+      if (whoami.active !== true) {
+        return {
+          success: false,
+          code: 'SESSION_NOT_ACTIVE',
+          error: whoami?.hint || `Session "${candidateSessionId}" is not active; select or resume that exact session explicitly.`,
+        };
       }
+      if (whoami.sessionId !== candidateSessionId || !whoami.agentId?.trim()
+        || (candidateAgentId && whoami.agentId !== candidateAgentId)) {
+        return {
+          success: false,
+          code: 'SESSION_SCOPE_MISMATCH',
+          error: `Resolved identity does not match exact session "${candidateSessionId}" and its selected owner.`,
+        };
+      }
+      return {
+        success: true,
+        sessionId: candidateSessionId,
+        agentId: whoami.agentId,
+        source: explicitSessionId ? 'explicit-session' : 'current-context',
+      };
     } catch (error) {
-      if (explicitSessionId) {
-        const errorBody = getErrorBody(error);
-        ui.error((errorBody.error as string) || (error as Error).message || 'Failed to resolve session');
-        process.exit(1);
-      }
+      const errorBody = getErrorBody(error);
+      return {
+        success: false,
+        code: 'SESSION_RESOLUTION_FAILED',
+        error: (errorBody.error as string) || (error as Error).message || `Failed to resolve exact session "${candidateSessionId}"`,
+      };
     }
   }
+
+  if (!candidateAgentId) return null;
 
   let listData: SessionListResult;
   try {
     listData = await pd.sessions({
       status: 'active',
       agentId: candidateAgentId,
-      limit: 1,
+      allWorktrees: true,
+      limit: 50,
     });
   } catch (error) {
     const errorBody = getErrorBody(error);
@@ -213,8 +309,25 @@ async function resolveActiveSessionForFiles(
 
   if (!listData.success || listData.count === 0) return null;
 
+  if (listData.sessions.length > 1) {
+    return {
+      success: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+      error: `Agent "${candidateAgentId || '<unspecified>'}" has multiple active sessions; pass --session explicitly.`,
+      candidates: listData.sessions.map((session) => {
+        const row = session as unknown as Record<string, unknown>;
+        return {
+          sessionId: session.id,
+          worktreeId: typeof row.worktreeId === 'string' ? row.worktreeId : null,
+        };
+      }),
+    };
+  }
+
   return {
+    success: true,
     sessionId: listData.sessions[0].id,
+    agentId: listData.sessions[0].agentId || candidateAgentId,
     source: 'active-agent',
   };
 }
@@ -229,7 +342,7 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase|relink> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|find|rm|files|phase|relink> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
@@ -237,6 +350,8 @@ export async function handleSession(
     console.error('  done [note]           # Alias for "end" with status=completed');
     console.error('  abandon [note]        # End session with status=abandoned');
     console.error('  takeover <id> [note]  # Start a successor session; preserve old notes');
+    console.error('  find [--key K | --identity ID] [--all-worktrees] [--all] [--no-adopt]');
+    console.error('                        # Recover "my session" after a lost begin response or crash');
     console.error('  rm <id>               # Archive a session; preserve old notes');
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
@@ -262,6 +377,8 @@ export async function handleSession(
       return sessionEnd(rest, options, 'abandoned');
     case 'takeover':
       return sessionTakeover(rest, options);
+    case 'find':
+      return sessionFind(rest, options);
     case 'rm':
       return sessionRemove(rest, options);
     case 'files':
@@ -309,7 +426,7 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
-  const pd = createSessionClient(options);
+  let pd = createSessionClient(options);
   // #8877: an attributed session start requires a daemon-minted credential.
   // Mint one through POST /actors/register when this shell does not already
   // hold one (env or matching context); the alias binds the asserted agentId
@@ -435,6 +552,27 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
   }
 
   const pd = createSessionClient(options);
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
+    ui.error('No active session found');
+    process.exit(1);
+  }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  if (activeSession.agentId) {
+    pd.agentId = activeSession.agentId;
+    pd.credential = resolveCliActorCredential(activeSession.agentId);
+  }
   let data: SessionEndResult;
   try {
     if (status === 'completed') {
@@ -444,8 +582,8 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
       const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
 
       const sugarResult = await pd.done(note, {
-        agentId: stringOption(options, 'agent', 'agent-id', 'agentId'),
-        sessionId: stringOption(options, 'session', 'session-id', 'sessionId'),
+        agentId: activeSession.agentId,
+        sessionId: activeSession.sessionId,
         status,
         skipOriginCheck: skipOriginCheck ? true : undefined,
         skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
@@ -460,7 +598,7 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
         releasedFiles: sugarResult.releasedFiles,
       } as any;
     } else {
-      data = await pd.endSession(note, { status });
+      data = await pd.endSession(activeSession.sessionId, { status, note });
     }
   } catch (error) {
     const errorBody = getErrorBody(error);
@@ -502,7 +640,26 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     process.exit(1);
   }
 
-  const pd = createSessionClient(options);
+  const pd = createSessionClient({ ...options, session: sessionId });
+  const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  let exact;
+  try {
+    exact = await pd.whoami({ sessionId });
+  } catch (error) {
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to resolve session owner');
+    process.exit(1);
+  }
+  if (!exact.sessionId || !exact.agentId) {
+    ui.error(exact.error || exact.hint || `Session "${sessionId}" was not found`);
+    process.exit(1);
+  }
+  if (explicitAgentId && explicitAgentId !== exact.agentId) {
+    ui.error(`SESSION_OWNERSHIP_MISMATCH: session "${sessionId}" belongs to "${exact.agentId}", not "${explicitAgentId}"`);
+    process.exit(1);
+  }
+  pd.agentId = exact.agentId;
+  pd.credential = resolveCliActorCredential(exact.agentId);
   let data: SessionRemoveResult;
   try {
     data = await pd.removeSession(sessionId);
@@ -527,6 +684,142 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     }
     console.log('  Notes preserved: yes');
   }
+}
+
+/**
+ * `pd session find` — successor discovery for an agent that lost its local
+ * state (a `pd begin` whose response never arrived, a crash before the
+ * context file was written, a wiped worktree).
+ *
+ * Two doors, tried in this order:
+ *   1. `--key <k>` (or the pending begin attempt / current context on disk):
+ *      the daemon returns the session that begin created together with the
+ *      credential it sealed under the key, and this shell adopts it — the
+ *      agent is exactly where it would have been had the response arrived.
+ *   2. `--identity <p:s:c>` (or the package.json identity): the most recent
+ *      live session(s) for that identity in this worktree. Ids only; the
+ *      hint says how to continue, which is `pd session takeover <id>` for a
+ *      closed session. Nothing here bypasses takeover's ownership rules.
+ */
+async function sessionFind(rest: string[], options: CLIOptions): Promise<void> {
+  const positionalKey = rest[0] && !rest[0].startsWith('-') ? rest[0] : undefined;
+  let key = typeof options.key === 'string' ? options.key : positionalKey;
+  const explicitIdentity = typeof options.identity === 'string' ? options.identity : undefined;
+  let keySource: 'flag' | 'begin-attempt' | 'context' | null = key ? 'flag' : null;
+
+  if (!key && !explicitIdentity) {
+    const attempt = readBeginAttempt();
+    if (attempt?.idempotencyKey) {
+      key = attempt.idempotencyKey;
+      keySource = 'begin-attempt';
+    } else {
+      const context = readCurrentContext();
+      if (context?.idempotencyKey) {
+        key = context.idempotencyKey;
+        keySource = 'context';
+      }
+    }
+  }
+
+  if (key && !isValidBeginIdempotencyKey(key)) {
+    ui.error('--key must be the begin idempotency key (16-128 URL-safe chars, e.g. a UUID v4)');
+    process.exit(1);
+  }
+
+  const identity = key ? undefined : (explicitIdentity || autoIdentityFromPackageJson());
+  if (!key && !identity) {
+    ui.error('Nothing to search by: pass --key <begin key> or --identity <project:stack:context>');
+    console.error('  (no pending begin attempt or context with a key was found in this worktree)');
+    process.exit(1);
+  }
+
+  const params = new URLSearchParams();
+  if (key) {
+    params.set('key', key);
+  } else {
+    params.set('identity', identity as string);
+    const allWorktrees = Boolean(options['all-worktrees'] || options.aw);
+    if (allWorktrees) {
+      params.set('allWorktrees', '1');
+    } else {
+      const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+      if (worktreePolicy.success && worktreePolicy.worktree?.id) params.set('worktreeId', worktreePolicy.worktree.id);
+      else params.set('allWorktrees', '1');
+    }
+    if (options.all) params.set('includeClosed', '1');
+  }
+
+  let res: PdFetchResponse;
+  try {
+    res = await pdFetch(`/sugar/find?${params.toString()}`);
+  } catch (error) {
+    ui.error(`Failed to reach the daemon: ${(error as Error).message}`);
+    process.exit(1);
+  }
+  const data = await res.json();
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to find session');
+    if (typeof data.hint === 'string') console.error(`  ${data.hint}`);
+    if (typeof data.sessionId === 'string') console.error(`  Recorded session: ${data.sessionId}`);
+    process.exit(1);
+  }
+
+  // Adopt a key-recovered session locally: the context file is exactly what
+  // the lost `pd begin` response would have written.
+  let adopted = false;
+  const adopt = !(options['no-adopt'] === true || options.noAdopt === true);
+  if (data.foundBy === 'key' && adopt && typeof data.sessionId === 'string' && typeof data.agentId === 'string' && data.driveable === true) {
+    const priorContext = readCurrentContext();
+    writeCurrentContext({
+      agentId: data.agentId,
+      sessionId: data.sessionId,
+      purpose: typeof data.purpose === 'string' ? data.purpose : undefined,
+      identity: typeof data.identity === 'string' ? data.identity : null,
+      startedAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+      credential: typeof data.credential === 'string' && data.credential
+        ? data.credential
+        : (priorContext?.sessionId === data.sessionId ? priorContext.credential ?? null : null),
+      idempotencyKey: key as string,
+    });
+    clearBeginAttempt();
+    adopted = true;
+  }
+
+  if (isJson(options)) {
+    const { credential: _hidden, ...rest } = data;
+    void _hidden;
+    console.log(JSON.stringify({ ...rest, adopted, keySource, credentialRecovered: typeof data.credential === 'string' }, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    if (typeof data.sessionId === 'string') console.log(data.sessionId);
+    return;
+  }
+
+  if (data.foundBy === 'key') {
+    ui.success(`Found session ${String(data.sessionId)} (agent ${String(data.agentId)})`);
+    if (keySource && keySource !== 'flag') console.error(`  Key source: ${keySource === 'begin-attempt' ? 'pending begin attempt on disk' : 'current context file'}`);
+    if (data.purpose) console.error(`  Purpose: ${String(data.purpose)}`);
+    console.error(`  Status: ${String(data.status ?? 'unknown')}${data.lifecycle ? ` (${String(data.lifecycle)})` : ''}`);
+    if (adopted) {
+      console.error(`  Context restored${typeof data.credential === 'string' ? ' with credential' : ' (no credential sealed under this key)'} — continue with pd note / pd done`);
+    }
+    if (typeof data.hint === 'string' && !adopted) console.error(`  ${data.hint}`);
+    return;
+  }
+
+  const rows = Array.isArray(data.sessions) ? data.sessions as Array<Record<string, unknown>> : [];
+  if (rows.length === 0) {
+    ui.warn(`No ${options.all ? '' : 'active '}session for ${String(data.identity)}${data.worktreeId ? ' in this worktree' : ''}`);
+  } else {
+    ui.success(`${rows.length} session(s) for ${String(data.identity)} (newest first)`);
+    for (const row of rows) {
+      const when = typeof row.createdAt === 'number' ? new Date(row.createdAt).toISOString() : '';
+      console.error(`  ${String(row.sessionId)}  ${String(row.status ?? '')}  agent=${String(row.agentId ?? '-')}  ${when}`);
+      if (row.purpose) console.error(`      ${String(row.purpose)}`);
+    }
+  }
+  if (typeof data.hint === 'string') console.error(`  ${data.hint}`);
 }
 
 async function sessionTakeover(rest: string[], options: CLIOptions): Promise<void> {
@@ -651,8 +944,24 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     ui.error('No active session found');
     process.exit(1);
   }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
 
   const sessionId = activeSession.sessionId;
+  if (activeSession.agentId) {
+    pd.agentId = activeSession.agentId;
+    pd.credential = resolveCliActorCredential(activeSession.agentId);
+  }
 
   if (filesCmd === 'add') {
     let data: FileClaimResult;
@@ -717,9 +1026,23 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
+  const pd = createSessionClient({ ...options, session: sessionId });
+  const activeSession = await resolveActiveSessionForFiles(pd, { ...options, session: sessionId });
+  if (!activeSession || !activeSession.success) {
+    const message = activeSession && !activeSession.success
+      ? `${activeSession.code}: ${activeSession.error}`
+      : `Session "${sessionId}" is not active`;
+    ui.error(message);
+    process.exit(1);
+  }
+  const ownerAgentId = activeSession.agentId;
+  const credential = resolveCliActorCredential(ownerAgentId);
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/phase`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(credential ? { 'X-Actor-Credential': credential } : {}),
+    },
     body: JSON.stringify({ phase })
   });
 
@@ -752,9 +1075,27 @@ async function sessionRelink(options: CLIOptions): Promise<void> {
     process.exit(1);
   }
 
-  const ctx = readCurrentContext();
-  const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || ctx?.agentId;
-  const sessionId = (typeof options.session === 'string' ? options.session : undefined) || ctx?.sessionId;
+  const pd = createSessionClient(options);
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
+    ui.error('No active session found');
+    process.exit(1);
+  }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  const agentId = activeSession.agentId;
+  const sessionId = activeSession.sessionId;
+  const credential = resolveCliActorCredential(agentId);
 
   const body: Record<string, unknown> = {};
   if (agentId) body.agentId = agentId;
@@ -764,7 +1105,10 @@ async function sessionRelink(options: CLIOptions): Promise<void> {
 
   const res: PdFetchResponse = await pdFetch('/sugar/relink', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(credential ? { 'X-Actor-Credential': credential } : {}),
+    },
     body: JSON.stringify(body),
   });
 
@@ -1159,10 +1503,24 @@ export async function handleNote(content: string | undefined, options: CLIOption
   const current = readCurrentContext();
   const explicitSessionId = typeof options.session === 'string' ? options.session : undefined;
   const explicitAgentId = typeof options.agent === 'string' ? options.agent : undefined;
-  const pd = createSessionClient(options);
+  let pd = createSessionClient(options);
 
   let sessionId = explicitSessionId;
   let agentId = explicitAgentId;
+
+  if (sessionId && !agentId) {
+    const exact = await pd.whoami({ sessionId });
+    if (!exact.active || !exact.agentId) {
+      ui.error(exact.error || exact.hint || `Session ${sessionId} is not active`);
+      process.exit(1);
+    }
+    agentId = exact.agentId;
+    pd = new PortDaddy({
+      agentId,
+      credential: resolveCliActorCredential(agentId),
+      pid: process.pid,
+    });
+  }
 
   if (!sessionId && !explicitAgentId && current?.sessionId) {
     try {

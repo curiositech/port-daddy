@@ -1,3 +1,0 @@
-type: fixed
-
-- **Porthole's terminal replay no longer breaks box-drawing borders in alt-screen (TUI) casts.** vim/tmux/htop/lazygit-style panel borders were rendering as disconnected dashes instead of continuous lines — the readable-prose line-height used for normal scrollback (1.42-1.5) left a vertical gap between every row, and box-drawing glyphs (U+2500 block) are designed to sit edge-to-edge in their cell. `demos/porthole/porthole.html` and `website-v2/src/components/porthole/porthole.css` now tighten the line pitch to a near-1:1 ratio once a cast enters the alternate screen (reusing the `VT.sawAlt` detection already used elsewhere to force no-wrap); normal scrollback casts are unaffected.

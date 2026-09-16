@@ -30,6 +30,7 @@ const ADVISORY_QA = [
   '  agents:',
   '    qa:',
   '      trigger: pull_request:opened',
+  '      participation: { default: required, rules: [] }',
   '      fallbacks:',
   '        - backend: cloudflare',
   "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -40,6 +41,34 @@ const ADVISORY_QA = [
 
 const GARBAGE = 'I took a look and it seems fine to me overall.';
 const CLEAN = '```json\n[]\n```\nFLEET-VERDICT: PASS';
+
+/** A small, valid Purser contract; the authoring failure is tested separately. */
+const PURSER_STEELMAN = [
+  '```json',
+  JSON.stringify({
+    purpose: 'Keep the runtime admission contract enforceable.',
+    contract: { obligations: ['reject unavailable review evidence'] },
+    testTargets: ['apps/fleet-executor/src/execute.ts'],
+  }),
+  '```',
+].join('\n');
+
+const PURSER_BLOCKING = [
+  'fleet:',
+  '  name: test',
+  '  agents:',
+  '    purser:',
+  '      class: purser',
+  '      trigger: pull_request:opened',
+  '      blocking: true',
+  '      participation: { default: required, rules: [] }',
+  '      fallbacks:',
+  '        - backend: cloudflare',
+  "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+  '      testPaths:',
+  '        - tests/unit/purser',
+  '',
+].join('\n');
 
 function seedToken(kv: KVNamespace): void {
   void kv.put(
@@ -137,9 +166,9 @@ describe('stage 2 — persistent ISOLATED breakage still fails the run', () => {
 });
 
 describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR', () => {
-  it('with the same ship broken on 2 other PRs: neutral + ONE tracked issue + honest summary', async () => {
+  it('keeps a required ship failure closed even when fleet-wide, while filing one tracked issue', async () => {
     const { d1 } = await runFleet({ seedHistory: true });
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
 
     const adj = d1.steps.find(s => s.kind === 'ship-adjudicated')!;
     expect(String(adj.title)).toContain('FLEET-WIDE');
@@ -150,16 +179,75 @@ describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR',
 
     const summary = state.completed[0].summary ?? '';
     expect(summary).toContain('adjudicated FLEET-WIDE fault');
-    expect(summary).toContain('not gating this PR');
+    expect(summary).toContain('required vote remains unmet and gates this PR');
     expect(summary).not.toContain('run FAILED');
   });
 
   it('a subsequent run REUSES the open tracking issue instead of filing another', async () => {
     state.openIssues.push({ number: 5150, title: 'fleet-broken-ship: pd-qa — errored' });
     await runFleet({ seedHistory: true });
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.issuesCreated).toHaveLength(0);
     expect(state.completed[0].summary).toContain('#5150');
+  });
+
+  it('keeps a Purser malformed author-repair epidemic neutral, never a clean success', async () => {
+    // #9920's failure shape: a valid steel-man is followed by a test with an
+    // unresolved import, then two malformed repair responses. Admission can
+    // bound every request, but semantic authoring breakage must still surface
+    // as `errored:true`; with independent historical evidence it is a visible
+    // fleet fault (neutral), never a laundered PASS for this PR.
+    state.files.set('main:pd-fleet.yml', PURSER_BLOCKING);
+    const kv = memoryKV();
+    seedToken(kv);
+    const d1 = memoryD1();
+    seedBrokenHistory(d1, 'purser-hist-1', 101, 'purser');
+    seedBrokenHistory(d1, 'purser-hist-2', 102, 'purser');
+    const unresolvedAuthoring = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/environment-injection.test.js',
+          contents: [
+            "import { currentContext } from '../../../cli/utils/context.ts';",
+            "test('holds the admission contract', () => expect(currentContext).toBeDefined());",
+          ].join('\n'),
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const malformedRepair = ['```ts', 'if (', '```'].join('\n');
+    const ai = aiStub({
+      perShip: { purser: malformedRepair },
+      perShipQueue: {
+        purser: [PURSER_STEELMAN, unresolvedAuthoring, malformedRepair, malformedRepair],
+      },
+    });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }),
+    );
+
+    // The two bounded author repairs exhaust and the Purser never claims a
+    // passing, executed test suite or mutates the reviewed PR's base.
+    expect(ai.calls).toHaveLength(4);
+    expect(d1.steps.filter(step => step.kind === 'purser-author-repair')).toHaveLength(2);
+    expect(d1.steps.find(step => step.kind === 'purser-tests' && /NON-EXECUTABLE/.test(String(step.title))))
+      .toBeDefined();
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches.filter(patch => patch.base)).toHaveLength(0);
+
+    // The result remains a broken ship; only actual multi-PR evidence turns
+    // it into a neutral fleet fault. Neutral is deliberately not success.
+    const broken = d1.steps.find(step => step.kind === 'ship-broken' && step.ship === 'purser');
+    expect(broken).toBeDefined();
+    const adjudicated = d1.steps.find(step => step.kind === 'ship-adjudicated' && step.ship === 'purser');
+    expect(String(adjudicated?.title)).toContain('FLEET-WIDE');
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].conclusion).not.toBe('success');
+    expect(state.completed[0].summary).toContain('adjudicated FLEET-WIDE fault');
+    expect(state.completed[0].summary).toContain('required vote remains unmet and gates this PR');
   });
 });
 
@@ -172,18 +260,21 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
         '      prompt: review tests',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
         '      prompt: review code',
         '    lookout:',
         '      trigger: pull_request:opened',
+        '      participation: { default: advisory, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -207,7 +298,7 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
     );
 
     expect(ai.run).toHaveBeenCalledTimes(1);
-    expect(state.completed[0]?.conclusion).toBe('neutral');
+    expect(state.completed[0]?.conclusion).toBe('failure');
     const error = d1.steps.find(step => step.kind === 'ship-error');
     expect(error?.title).toContain('HTTP 429, code 3040');
     const circuit = d1.steps.find(step => step.kind === 'provider-circuit-open');

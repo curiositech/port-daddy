@@ -1,0 +1,32 @@
+schema_version: 1
+required_review_dimensions:
+  - identity
+  - authority
+  - lifecycle
+  - failure
+  - timeout
+  - cancellation
+  - replay
+  - delegation
+  - revocation
+  - concurrency
+  - budget
+  - privacy
+  - provenance
+  - migration
+  - observability
+  - epistemic_guarantee
+  - cross_harbor_semantics
+  - operator_override
+  - backward_compatibility
+  - proof
+allowed_dispositions:
+  - addressed
+  - open
+  - not_applicable_with_reason
+forbidden_ephemeral_citations:
+  - filecite
+  - memcite
+  - turn[0-9]+
+stub_marker: "**Status:** STUB"
+

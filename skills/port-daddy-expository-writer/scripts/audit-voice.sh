@@ -75,7 +75,7 @@ for file in "$@"; do
   for phrase in "${banned_phrases[@]}"; do
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
-      if grep -qF '/* exception:' <<< "$line"; then
+      if printf '%s\n' "$line" | grep -qF '/* exception:'; then
         exception_hits=$((exception_hits + 1))
         echo "EXCEPTION  $file:$line"
       else

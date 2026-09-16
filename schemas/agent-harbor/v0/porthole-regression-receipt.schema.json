@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-regression-receipt.schema.json",
+  "title": "PortholeRegressionReceipt",
+  "description": "A signed review receipt for a regression artifact generated from a canonical Porthole interval. Source identifiers are individually bound to commitments; generation, privacy scanning, clean-profile/build/worktree/sandbox/egress attestations, immutable artifact hashes, repeated execution attempts, human review, and lineage are all explicit. Generated code is never proof until a reviewer accepts it at a concrete commit or rejects it with a reason.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.regression-receipt.v1" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "stageId": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "object",
+          "properties": {
+            "startedAt": { "type": "string", "format": "date-time" },
+            "endedAt": { "type": "string", "format": "date-time" },
+            "startEventId": { "type": "string", "minLength": 1 },
+            "endEventId": { "type": "string", "minLength": 1 }
+          },
+          "required": ["startedAt", "endedAt", "startEventId", "endEventId"],
+          "additionalProperties": false
+        },
+        "bugReport": {
+          "type": "object",
+          "properties": {
+            "eventId": { "type": "string", "minLength": 1 },
+            "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["eventId", "commitment"],
+          "additionalProperties": false
+        },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "eventId": { "type": "string", "minLength": 1 },
+              "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": ["eventId", "commitment"],
+            "additionalProperties": false
+          }
+        },
+        "perspectives": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "perspectiveId": { "type": "string", "minLength": 1 },
+              "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": ["perspectiveId", "commitment"],
+            "additionalProperties": false
+          }
+        },
+        "sourceSetCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": ["interval", "bugReport", "events", "perspectives", "sourceSetCommitment"],
+      "additionalProperties": false
+    },
+    "generator": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "framework": { "enum": ["playwright", "xcuitest", "accessibility-replay", "custom"] },
+        "frameworkVersion": { "type": "string", "minLength": 1 },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "version", "framework", "frameworkVersion", "generatedAt"],
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "scan": {
+          "type": "object",
+          "properties": {
+            "scanner": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 },
+            "status": { "const": "passed" },
+            "detectedSecretCount": { "const": 0 },
+            "completedAt": { "type": "string", "format": "date-time" },
+            "receiptRef": { "type": "string", "minLength": 1 },
+            "artifactManifestHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["scanner", "version", "status", "detectedSecretCount", "completedAt", "receiptRef", "artifactManifestHash"],
+          "additionalProperties": false
+        },
+        "policy": {
+          "type": "object",
+          "properties": {
+            "policyId": { "type": "string", "minLength": 1 },
+            "receiptRef": { "type": "string", "minLength": 1 },
+            "verification": { "const": "verified" },
+            "verifiedAt": { "type": "string", "format": "date-time" }
+          },
+          "required": ["policyId", "receiptRef", "verification", "verifiedAt"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["scan", "policy"],
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "cleanProfile": {
+          "type": "object",
+          "properties": {
+            "profileId": { "type": "string", "minLength": 1 },
+            "state": { "const": "clean" },
+            "attestationRef": { "type": "string", "minLength": 1 },
+            "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["profileId", "state", "attestationRef", "commitment"],
+          "additionalProperties": false
+        },
+        "build": {
+          "type": "object",
+          "properties": {
+            "buildRef": { "type": "string", "minLength": 1 },
+            "commitHash": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+            "attestationRef": { "type": "string", "minLength": 1 },
+            "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["buildRef", "commitHash", "attestationRef", "commitment"],
+          "additionalProperties": false
+        },
+        "worktree": {
+          "type": "object",
+          "properties": {
+            "worktreeId": { "type": "string", "minLength": 1 },
+            "state": { "const": "clean" },
+            "baseCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+            "attestationRef": { "type": "string", "minLength": 1 },
+            "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["worktreeId", "state", "baseCommit", "attestationRef", "commitment"],
+          "additionalProperties": false
+        },
+        "sandbox": {
+          "type": "object",
+          "properties": {
+            "policyRef": { "type": "string", "minLength": 1 },
+            "state": { "const": "enforced" },
+            "attestationRef": { "type": "string", "minLength": 1 },
+            "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["policyRef", "state", "attestationRef", "commitment"],
+          "additionalProperties": false
+        },
+        "egress": {
+          "type": "object",
+          "properties": {
+            "policyRef": { "type": "string", "minLength": 1 },
+            "state": { "const": "denied-by-default" },
+            "attestationRef": { "type": "string", "minLength": 1 },
+            "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["policyRef", "state", "attestationRef", "commitment"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["cleanProfile", "build", "worktree", "sandbox", "egress"],
+      "additionalProperties": false
+    },
+    "artifactManifest": {
+      "type": "object",
+      "properties": {
+        "manifestId": { "type": "string", "minLength": 1 },
+        "immutableVersion": { "type": "integer", "minimum": 1 },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "artifactId": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "mediaType": { "type": "string", "minLength": 1 },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+            },
+            "required": ["artifactId", "path", "mediaType", "sha256"],
+            "additionalProperties": false
+          }
+        },
+        "manifestHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": ["manifestId", "immutableVersion", "files", "manifestHash"],
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["passed", "failed", "blocked"] },
+        "targetBuildCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "attempts": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "properties": {
+              "attempt": { "type": "integer", "minimum": 1 },
+              "status": { "enum": ["passed", "failed", "blocked"] },
+              "startedAt": { "type": "string", "format": "date-time" },
+              "completedAt": { "type": "string", "format": "date-time" },
+              "outputManifestHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": ["attempt", "status", "startedAt", "completedAt", "outputManifestHash"],
+            "additionalProperties": false
+          }
+        },
+        "flakeAssessment": { "enum": ["stable", "flaky", "inconclusive"] }
+      },
+      "required": ["status", "targetBuildCommit", "startedAt", "completedAt", "attempts", "flakeAssessment"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "blocked" } }, "required": ["status"] },
+          "then": { "properties": { "flakeAssessment": { "const": "inconclusive" } } }
+        }
+      ]
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "decision": { "enum": ["accepted", "rejected"] },
+        "reviewedByParticipantId": { "type": "string", "minLength": 1 },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "reviewReceiptRef": { "type": "string", "minLength": 1 },
+        "acceptedCommit": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+        "rejectionReason": { "type": ["string", "null"], "minLength": 8 }
+      },
+      "required": ["decision", "reviewedByParticipantId", "reviewedAt", "reviewReceiptRef", "acceptedCommit", "rejectionReason"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "decision": { "const": "accepted" } }, "required": ["decision"] },
+          "then": {
+            "properties": {
+              "acceptedCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+              "rejectionReason": { "const": null }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "decision": { "const": "rejected" } }, "required": ["decision"] },
+          "then": {
+            "properties": {
+              "acceptedCommit": { "const": null },
+              "rejectionReason": { "type": "string", "minLength": 8 }
+            }
+          }
+        }
+      ]
+    },
+    "lineageRunId": { "type": "string", "minLength": 1 },
+    "issuer": {
+      "type": "object",
+      "properties": {
+        "harborId": { "type": "string", "minLength": 1 },
+        "participantId": { "type": "string", "minLength": 1 },
+        "deviceId": { "type": "string", "minLength": 1 },
+        "signingKeyId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["harborId", "participantId", "deviceId", "signingKeyId"],
+      "additionalProperties": false
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 32 }
+      },
+      "required": ["algorithm", "keyId", "value"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema", "receiptId", "stageId", "source", "generator", "privacy", "environment",
+    "artifactManifest", "execution", "review", "lineageRunId", "issuer", "createdAt",
+    "contentHash", "signature"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "review": { "properties": { "decision": { "const": "accepted" } }, "required": ["decision"] } },
+        "required": ["review"]
+      },
+      "then": { "properties": { "execution": { "properties": { "status": { "const": "passed" } } } } }
+    }
+  ]
+}

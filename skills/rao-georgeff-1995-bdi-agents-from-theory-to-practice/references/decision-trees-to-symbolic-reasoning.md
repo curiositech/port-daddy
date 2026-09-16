@@ -174,7 +174,7 @@ When full probabilistic or utilitarian information is unavailable or too expensi
 
 Rather than arbitrary boolean flags, beliefs, desires, and intentions are constrained by accessibility relations over shared tree structures. This ensures they remain grounded in a common model of possible evolution.
 
-## For WinDAGs: Translating Tree Structures to DAG Execution
+## For Jury-rig: Translating Tree Structures to DAG Execution
 
 In a DAG-based orchestration system, the tree structure translates naturally:
 

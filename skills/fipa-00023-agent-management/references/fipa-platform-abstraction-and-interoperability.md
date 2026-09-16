@@ -67,7 +67,7 @@ By using URLs as the universal syntax for transport addresses, FIPA achieves tra
 
 The agent can list all of them in its AID `:addresses` field with a preference ordering. Senders try addresses in order until one works. This means the same logical agent can be reached via multiple transport protocols simultaneously, enabling gradual protocol migration and redundancy.
 
-For modern WinDAGs systems, this maps directly to supporting multiple invocation channels per skill: HTTP REST, gRPC, async message queue, direct function call — all potentially valid transport addresses for the same logical skill.
+For modern Jury-rig systems, this maps directly to supporting multiple invocation channels per skill: HTTP REST, gRPC, async message queue, direct function call — all potentially valid transport addresses for the same logical skill.
 
 ## The AP Description as a Capability Declaration
 
@@ -95,9 +95,9 @@ This creates a natural boundary:
 - **Inside an AP**: Implementation freedom. Use whatever is fastest and most convenient.
 - **At AP boundaries**: Use the standardized MTS protocol. This is what enables interoperability.
 
-For WinDAGs, this suggests an analogous boundary:
-- **Within a WinDAGs deployment**: Use whatever communication pattern is most efficient (function calls, shared memory, direct API calls)
-- **Between WinDAGs deployments** (or between WinDAGs and external agent systems): Use a standardized message envelope that follows FIPA-like conventions (structured sender/receiver AIDs, standard content language, standard request/response protocol)
+For Jury-rig, this suggests an analogous boundary:
+- **Within a Jury-rig deployment**: Use whatever communication pattern is most efficient (function calls, shared memory, direct API calls)
+- **Between Jury-rig deployments** (or between Jury-rig and external agent systems): Use a standardized message envelope that follows FIPA-like conventions (structured sender/receiver AIDs, standard content language, standard request/response protocol)
 
 ## Software as Non-Agent Resources
 
@@ -111,22 +111,22 @@ This distinction is important because it prevents over-agentification: not every
 
 The FIPA reference specification ([FIPA00079]) on Agent Software Integration addresses how agents discover and acquire software capabilities — a separate problem from how agents discover each other.
 
-## Application to WinDAGs Architecture
+## Application to Jury-rig Architecture
 
 ### Clean Interface Boundaries
 
-WinDAGs should adopt FIPA's core architectural principle: standardize interfaces, not implementations. The specification for what a skill must expose (registration interface, invocation protocol, exception format, lifecycle state) should be a stable contract that any skill can implement however it chooses internally.
+Jury-rig should adopt FIPA's core architectural principle: standardize interfaces, not implementations. The specification for what a skill must expose (registration interface, invocation protocol, exception format, lifecycle state) should be a stable contract that any skill can implement however it chooses internally.
 
 This means:
 - A skill written in Python with PostgreSQL storage and a skill written in Rust with in-memory storage should be indistinguishable at the interface level
 - A skill running as a single process and a skill running as a Kubernetes deployment should present the same management interface
 - A skill invoked via HTTP and a skill invoked via gRPC should produce responses in the same content structure
 
-The interface contract is what WinDAGs enforces. The implementation is the skill developer's concern.
+The interface contract is what Jury-rig enforces. The implementation is the skill developer's concern.
 
 ### Platform Capabilities Metadata
 
-Implement an AP-description analog in WinDAGs: a platform capabilities document that declares:
+Implement an AP-description analog in Jury-rig: a platform capabilities document that declares:
 - What skill capabilities are available on this deployment
 - Whether external skill registration is permitted
 - What communication protocols are supported
@@ -137,7 +137,7 @@ This platform-level capability declaration enables orchestrators to reason about
 
 ### Logical vs. Physical Skill Boundaries
 
-Skills in WinDAGs should be thought of as *logical* capabilities, not physical processes. A single skill identifier might be backed by:
+Skills in Jury-rig should be thought of as *logical* capabilities, not physical processes. A single skill identifier might be backed by:
 - A pool of replicated processes
 - A serverless function
 - A microservice
@@ -149,7 +149,7 @@ This is especially important for scaling: when a skill is replicated for load ba
 
 ### Transport Address Multiplicity
 
-Following the multi-address AID model, WinDAGs skills should support multiple invocation addresses with preference ordering:
+Following the multi-address AID model, Jury-rig skills should support multiple invocation addresses with preference ordering:
 1. Direct in-process function call (if same process)
 2. Local IPC (if same machine)
 3. gRPC (if network, preferred for binary efficiency)
@@ -162,7 +162,7 @@ The orchestrator tries addresses in preference order. This provides automatic fa
 
 One of FIPA's strengths is that its reference model is logically complete: every agent interaction — creation, discovery, communication, lifecycle management, retirement — has a specified home in the model. There are no "and then some magic happens" gaps.
 
-For WinDAGs, this is an important design goal: define a complete model where every possible event in a skill's lifecycle — creation, registration, discovery, invocation, failure, recovery, deprecation, retirement — has a specified protocol. If any event lacks a protocol, that is a gap that will manifest as ambiguity and ad-hoc behavior in production.
+For Jury-rig, this is an important design goal: define a complete model where every possible event in a skill's lifecycle — creation, registration, discovery, invocation, failure, recovery, deprecation, retirement — has a specified protocol. If any event lacks a protocol, that is a gap that will manifest as ambiguity and ad-hoc behavior in production.
 
 ## Caveats
 
@@ -174,4 +174,4 @@ For WinDAGs, this is an important design goal: define a complete model where eve
 
 ## Summary
 
-FIPA's architecture achieves interoperability through interface standardization without implementation constraint: specify what must be exposed, not how it must be built. The Agent Platform is a logical boundary that can span any physical topology. Transport addresses are URLs, enabling protocol multiplicity. The `ap-description` object makes platform capabilities machine-queryable. Software resources are distinct from agents and don't require full agent infrastructure. For WinDAGs: standardize the skill interface contract rigorously, implement the platform capabilities declaration, treat skills as logical entities independent of their physical backing, support multiple invocation addresses per skill, and ensure every lifecycle event has a specified protocol.
+FIPA's architecture achieves interoperability through interface standardization without implementation constraint: specify what must be exposed, not how it must be built. The Agent Platform is a logical boundary that can span any physical topology. Transport addresses are URLs, enabling protocol multiplicity. The `ap-description` object makes platform capabilities machine-queryable. Software resources are distinct from agents and don't require full agent infrastructure. For Jury-rig: standardize the skill interface contract rigorously, implement the platform capabilities declaration, treat skills as logical entities independent of their physical backing, support multiple invocation addresses per skill, and ensure every lifecycle event has a specified protocol.

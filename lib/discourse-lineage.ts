@@ -17,7 +17,7 @@
  * Together they are digest-with-zoom for *reasoning provenance*: read the digest,
  * then drill into the exact edge where two agents disagree.
  *
- * It ports the shape of windags' `SwarmTracer` (epistemic-ancestry spans) onto
+ * It ports the shape of jury_rig' `SwarmTracer` (epistemic-ancestry spans) onto
  * port-daddy's existing tube substrate, with no new persistence — the messages
  * already live on the channel.
  */

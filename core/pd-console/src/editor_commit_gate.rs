@@ -20,7 +20,8 @@
 //!     same file passes. Proven by `adjacent_region_edit_passes_the_gate`.
 //!   - **Only LIVE actors block (HARD RULE 7).** A dead actor's stale durable claim is
 //!     filtered by the injected `is_live` predicate, so it never wedges a commit forever —
-//!     it clears on liveness, while the durable twin persists until salvage releases it.
+//!     it clears on liveness, while the durable twin persists until an authorized
+//!     release or future P3.5 claim-transfer transaction changes it.
 //!   - **First-granted wins (HARD RULE 6).** The owner named is the earliest-granted live
 //!     claim over the line; if THAT owner is me, I proceed even when a later claim overlaps.
 //!   - **Typed refusal, no bypass (HARD RULE 5).** The message is `guard_message`; it names

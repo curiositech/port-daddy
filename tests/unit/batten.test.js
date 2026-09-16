@@ -74,7 +74,7 @@ describe('loadManifest', () => {
     // cargo with the 3.28 single-supervisor cutover — the tap formula's tarball
     // gate now REJECTS a >=3.28.0 tarball that carries it, so asserting its
     // presence here would ship a brew-breaking release.
-    for (const id of ['pd', 'port-daddy', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'sessionstart-pilot', 'agent-skill', 'pilot-agent']) {
+    for (const id of ['pd', 'port-daddy', 'pd-hook-prompt', 'pd-hook-precompact', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'sessionstart-pilot', 'agent-skill', 'pilot-agent']) {
       expect(ids).toContain(id);
     }
     expect(ids).not.toContain('pd-bosun');

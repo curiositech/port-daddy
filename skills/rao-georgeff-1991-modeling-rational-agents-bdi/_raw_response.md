@@ -37,7 +37,7 @@ The key architectural decision: **Each possible world is itself a time tree with
 
 ## Why This Matters for Multi-Agent Systems
 
-Consider an AI agent in a WinDAGs orchestration system deciding whether to invoke an expensive API call or use cached data. The architectural question is: which uncertainty are we modeling?
+Consider an AI agent in a Jury-rig orchestration system deciding whether to invoke an expensive API call or use cached data. The architectural question is: which uncertainty are we modeling?
 
 **Epistemic uncertainty**: "I don't know whether the cache is still valid"
 - This creates multiple belief-accessible worlds: one where cache is valid, one where it's stale
@@ -64,13 +64,13 @@ This maps directly to practical agent systems:
 
 **Decision nodes → Branching within a world**: When your agent must choose between parallel execution or sequential execution, that's optionality. You model it with branches in the time tree.
 
-The WinDAGs orchestration engine faces both constantly:
+The Jury-rig orchestration engine faces both constantly:
 - **I don't know** which skills will be available (some agents might be offline)
 - **I haven't decided** which decomposition strategy to use even given full knowledge
 
 ## Implications for Task Decomposition
 
-When a complex problem enters WinDAGs, the system faces a decomposition decision. Traditional approaches conflate two questions:
+When a complex problem enters Jury-rig, the system faces a decomposition decision. Traditional approaches conflate two questions:
 
 1. "What are the possible ways to decompose this?"
 2. "Which decomposition will I attempt?"
@@ -90,10 +90,10 @@ The sub-world relationship is critical: her goal-world contains only the branche
 The formalism makes a crucial three-way distinction:
 
 - `succeeded(e)`: Event e was attempted and succeeded (an arc labeled with S_w(t₀,t₁) = e)
-- `failed(e)`: Event e was attempted and failed (an arc labeled with F_w(t₀,t₁) = e)  
+- `failed(e)`: Event e was attempted and failed (an arc labeled with F_w(t₀,t₁) = e)
 - `¬done(e)`: Event e was never attempted (no arc for e)
 
-For a WinDAGs agent routing a request:
+For a Jury-rig agent routing a request:
 
 **Case 1: succeeded(route_to_specialist)**: The routing happened and the specialist accepted. The world moves to a new time point along the success branch.
 
@@ -111,14 +111,14 @@ The formalism captures this by having distinct arcs for success and failure, bot
 
 ## Practical Encoding for Agent Systems
 
-A WinDAGs skill invocation system might maintain:
+A Jury-rig skill invocation system might maintain:
 
 ```python
 class AgentWorldState:
     belief_accessible_worlds: Set[TimeTree]  # Epistemic uncertainty
     goal_accessible_worlds: Set[TimeTree]    # Desired futures (subset)
     intention_accessible_worlds: Set[TimeTree]  # Committed futures (sub-subset)
-    
+
 class TimeTree:
     current_timepoint: TimePoint
     branches: Dict[Action, Tuple[TimePoint, SuccessProb]]  # Optionality
@@ -158,7 +158,7 @@ Many orchestration systems fail by collapsing these:
 
 The BDI architecture keeps these separate, enabling agents that:
 - Can commit to trying things they might fail at
-- Can maintain intentions while believing success is uncertain  
+- Can maintain intentions while believing success is uncertain
 - Can reason about "I will try X, and if it fails, I will try Y"
 
 This is the architecture of resourceful agents that persist through failure.
@@ -212,7 +212,7 @@ Your intention-world is a further pruning, keeping only paths you've committed t
 
 The agent believes `inevitable(go_to_dentist → eventually(pain))` in world b. On all paths where go_to_dentist happens, pain follows.
 
-**Goal-accessible world g** (where g ⊑ b): 
+**Goal-accessible world g** (where g ⊑ b):
 - Branch 1 only: Agent goes to dentist → tooth fixed
 - (Branch 1 terminates after "tooth fixed", or pain is not explicitly represented on this path)
 
@@ -232,7 +232,7 @@ The critical property (Proposition 2 in the paper):
 
 Specifically: `GOAL(φ) ∧ BEL(inevitable(φ → ψ)) ∧ ¬GOAL(ψ)` is **satisfiable**.
 
-Why? Because the goal-accessibility relation G can map to worlds that **do not correspond to any belief-accessible world**. 
+Why? Because the goal-accessibility relation G can map to worlds that **do not correspond to any belief-accessible world**.
 
 Let me unpack this carefully:
 
@@ -257,7 +257,7 @@ The BDI approach: goal-worlds are **geometrically smaller** (fewer branches) tha
 
 ## Application to Agent Systems: Task Execution with Known Side-Effects
 
-Consider a WinDAGs agent tasked with "optimize database query performance." The agent believes:
+Consider a Jury-rig agent tasked with "optimize database query performance." The agent believes:
 
 ```
 inevitable(optimize_query → temporarily_locks_table)
@@ -268,7 +268,7 @@ Classical closure would force: `INTEND(optimize_query) → INTEND(user_requests_
 
 This is absurd. The agent shouldn't be modeled as *wanting* user delays.
 
-**BDI solution**: 
+**BDI solution**:
 
 **Belief-world b**: Contains branches where optimize_query leads to locks leads to delays, AND branches where no optimization occurs and delays don't happen.
 
@@ -284,7 +284,7 @@ The agent intends the action, has the goal of performance improvement, believes 
 
 Critically for coordination: when reporting to other agents, this agent should say:
 - "I intend to optimize the query" ✓
-- "I believe this will cause temporary delays" ✓  
+- "I believe this will cause temporary delays" ✓
 - "I want to cause delays" ✗ (this would be false)
 
 ## Boundary Conditions: When You DO Intend Side-Effects
@@ -309,37 +309,37 @@ When designing an agent reasoning system:
 class BeliefWorld:
     """Full branching structure of what agent thinks is possible"""
     time_tree: BranchingTimeStructure
-    
+
 class GoalWorld:
     """Sub-tree containing only desired trajectories"""
     time_tree: BranchingTimeStructure  # Subset of belief world
     parent_belief_world: BeliefWorld
-    
+
     def validate_realism(self):
         """Ensure this is truly a sub-world of belief world"""
         assert self.time_tree.timepoints ⊆ parent.time_tree.timepoints
-        assert all(self.evaluate(prop, t) == parent.evaluate(prop, t) 
-                   for t in self.time_tree.timepoints 
+        assert all(self.evaluate(prop, t) == parent.evaluate(prop, t)
+                   for t in self.time_tree.timepoints
                    for prop in propositions)
 ```
 
 When reasoning about intentions toward goals with side-effects:
 
 ```python
-def can_intend_without_side_effect(belief: BeliefWorld, 
+def can_intend_without_side_effect(belief: BeliefWorld,
                                    goal: GoalWorld,
                                    action: Action,
                                    side_effect: Proposition) -> bool:
     """Can agent intend action that causes believed side-effect?"""
-    
+
     # Check agent believes side-effect is inevitable consequence
     if not belief.satisfies(BEL(inevitable(action → side_effect))):
         return True  # Not a believed side-effect
-    
+
     # Check if goal-world contains side-effect as explicit goal-state
     # If goal-world is sub-world, it might not include side-effect node
     goal_contains_side_effect = goal.satisfies(GOAL(side_effect))
-    
+
     # Agent CAN intend action without intending side-effect
     # if goal-world doesn't explicitly include side-effect
     return not goal_contains_side_effect
@@ -360,7 +360,7 @@ This maps to practical agent design:
 
 Each layer is a **principled restriction** of the layer above, maintaining compatibility (sub-world relationship) without inheriting all content (not closed under implication).
 
-For WinDAGs orchestration, this means:
+For Jury-rig orchestration, this means:
 - The orchestrator can intend to route a task to a specific agent
 - While believing this will consume retry budget (inevitable side-effect)
 - Without having "consume retry budget" as an explicit goal
@@ -379,7 +379,7 @@ The answer: Different rational agent types emerge from different **axioms of cha
 
 Rao and George introduce three commitment strategies:
 1. **Blind commitment**: Maintain intentions until believed achieved
-2. **Single-minded commitment**: Maintain intentions until believed achieved OR believed impossible  
+2. **Single-minded commitment**: Maintain intentions until believed achieved OR believed impossible
 3. **Open-minded commitment**: Maintain intentions until believed achieved OR no longer a goal
 
 These aren't personality descriptions. They are **precise logical axioms** that generate different patterns of persistence.
@@ -423,7 +423,7 @@ INTEND(inevitable(φ)) ⊃ inevitable(INTEND(inevitable(φ)) U (BEL(φ) ∨ ¬BE
 
 But she does NOT drop the intention just because a better opportunity arises. She's single-minded about her commitments.
 
-### AI₉c: Open-Minded Commitment  
+### AI₉c: Open-Minded Commitment
 
 ```
 INTEND(inevitable(φ)) ⊃ inevitable(INTEND(inevitable(φ)) U (BEL(φ) ∨ ¬GOAL(optional(φ))))
@@ -458,7 +458,7 @@ Maintenance (the focus here): **Axioms of change** specify temporal dynamics.
 This separation allows you to:
 
 1. **Mix and match**: Blind commitment to means, open-minded about ends
-2. **Formally verify**: Prove an agent with axiom AI₉b will eventually drop impossible intentions  
+2. **Formally verify**: Prove an agent with axiom AI₉b will eventually drop impossible intentions
 3. **Debug**: "This agent is failing to reconsider when new information arrives" → Check which commitment axiom it's using
 4. **Design**: Choose commitment strategy based on environment properties
 
@@ -496,7 +496,7 @@ Here's the theorem that matters for real systems:
 
 Formally (Theorem 3a):
 ```
-INTEND(inevitable(φ)) 
+INTEND(inevitable(φ))
 ∧ inevitable(∃x(INTEND(does(x)) ∧ (BEL(optional(done(x) ∧ φ)) ⊃ optional(BEL(done(x) ∧ φ)))))
 ⊃ inevitable(BEL(φ))
 ```
@@ -513,7 +513,7 @@ INTEND(inevitable(φ))
 
 Unlike omniscience, these are achievable properties.
 
-## Application to WinDAGs Orchestration
+## Application to Jury-rig Orchestration
 
 Consider an orchestration task: "Route this request to the optimal agent and get a response."
 
@@ -523,12 +523,12 @@ Consider an orchestration task: "Route this request to the optimal agent and get
 class BlindCommitmentOrchestrator:
     def __init__(self):
         self.intention = None
-    
+
     def update(self, belief_state):
         # Maintain intention until believed achieved
         if self.intention is None:
             self.intention = self.select_agent(belief_state)
-        
+
         # Drop intention ONLY if we believe response received
         if belief_state.believes_response_received():
             self.intention = None
@@ -547,11 +547,11 @@ class BlindCommitmentOrchestrator:
 class SingleMindedOrchestrator:
     def __init__(self):
         self.intention = None
-    
+
     def update(self, belief_state):
         if self.intention is None:
             self.intention = self.select_agent(belief_state)
-        
+
         # Drop if achieved OR believed impossible
         if belief_state.believes_response_received():
             self.intention = None
@@ -572,11 +572,11 @@ class SingleMindedOrchestrator:
 class OpenMindedOrchestrator:
     def __init__(self):
         self.intention = None
-    
+
     def update(self, belief_state, goal_state):
         if self.intention is None:
             self.intention = self.select_agent(belief_state, goal_state)
-        
+
         # Drop if achieved OR no longer a goal OR better option found
         if belief_state.believes_response_received():
             self.intention = None
@@ -605,13 +605,13 @@ class MixedCommitmentOrchestrator:
     def __init__(self):
         self.goal = None  # What to achieve (end)
         self.plan = None  # How to achieve it (means)
-    
+
     def update(self, belief_state, goal_state):
         # OPEN-MINDED about goals
         if self.goal is None or not goal_state.still_important(self.goal):
             self.goal = goal_state.select_highest_priority()
             self.plan = self.create_plan(self.goal, belief_state)
-        
+
         # SINGLE-MINDED about plan execution
         if self.plan.is_complete(belief_state):
             self.plan = None  # Achieved
@@ -622,7 +622,7 @@ class MixedCommitmentOrchestrator:
             self.plan.execute_next_step()
 ```
 
-**Design principle**: 
+**Design principle**:
 - **Reconsider your objectives** when the world changes (open-minded about "what")
 - **Stick to your methods** unless they fail (single-minded about "how")
 
@@ -668,7 +668,7 @@ This opens the door to:
 - Debugging via "which axiom is violated?"
 - Design via "which axioms should this agent satisfy?"
 
-For WinDAGs, this suggests: Don't just specify what an orchestration agent believes, wants, and intends **right now**. Specify how these attitudes evolve under different classes of information updates.
+For Jury-rig, this suggests: Don't just specify what an orchestration agent believes, wants, and intends **right now**. Specify how these attitudes evolve under different classes of information updates.
 
 That's the difference between a reactive system and a rationally persistent agent.
 ```
@@ -696,7 +696,7 @@ But the formalism contains a critical subtlety that many agent architectures mis
 The BDI formalism defines three future-oriented predicates about events:
 
 - **does(e)**: Event e is attempted (either succeeds or fails)
-- **succeeds(e)**: Event e is attempted and succeeds  
+- **succeeds(e)**: Event e is attempted and succeeds
 - **fails(e)**: Event e is attempted and fails
 
 And three past-oriented predicates:
@@ -707,14 +707,14 @@ And three past-oriented predicates:
 Critically: `does(e) ≡ succeeds(e) ∨ fails(e)` but `does(e) ≢ succeeds(e)`
 
 The time tree has **separate arcs** for success and failure:
-- Success arc: S_w(t₀, t₁) = e  
+- Success arc: S_w(t₀, t₁) = e
 - Failure arc: F_w(t₀, t₁) = e
 
 Both advance time. Both represent e being attempted. But they lead to different futures.
 
 ## Why This Matters: Committed Action Under Uncertainty
 
-Consider a WinDAGs agent tasked with calling an external API. The agent forms the intention:
+Consider a Jury-rig agent tasked with calling an external API. The agent forms the intention:
 
 `INTEND(does(call_api))`
 
@@ -722,7 +722,7 @@ Consider a WinDAGs agent tasked with calling an external API. The agent forms th
 
 Why? Because the agent cannot guarantee success. The API might be down, the network might fail, the request might timeout.
 
-**What the agent controls**: Whether to attempt the call  
+**What the agent controls**: Whether to attempt the call
 **What the environment controls**: Whether the attempt succeeds
 
 AI₄ (`INTEND(does(e)) ⊃ does(e)`) says: If you intend to attempt the call, you will attempt it.
@@ -737,17 +737,17 @@ This distinction enables rational behavior under uncertainty:
 class IntentionalAgent:
     def __init__(self):
         self.intention = None
-    
+
     def form_intention(self, action):
         """Agent commits to ATTEMPTING action"""
         self.intention = ('does', action)  # Not ('succeeds', action)
-    
+
     def act(self):
         """Volitional commitment: execute intended action"""
         if self.intention:
             action_type, action = self.intention
             result = self.attempt(action)
-            
+
             if result == 'success':
                 self.observe(('succeeded', action))
                 # Continue with plan assuming success
@@ -766,13 +766,13 @@ class IntentionalAgent:
 
 The BDI formalism allows intentions over both "inevitable" and "optional" formulas:
 
-**Inevitable intentions**: `INTEND(inevitable(φ))`  
+**Inevitable intentions**: `INTEND(inevitable(φ))`
 - "I intend that φ be true on ALL future paths"
 - For deterministic actions under agent's full control
 - Example: `INTEND(inevitable(does(set_variable)))`—the agent fully controls this
 
-**Optional intentions**: `INTEND(optional(φ))`  
-- "I intend that φ be true on AT LEAST ONE future path"  
+**Optional intentions**: `INTEND(optional(φ))`
+- "I intend that φ be true on AT LEAST ONE future path"
 - For actions with uncertain outcomes
 - Example: `INTEND(optional(succeeds(call_api)))`—agent wants success but recognizes uncertainty
 
@@ -791,7 +791,7 @@ The most practically useful result in the paper is Theorem 3, which requires:
 
 **Condition**: The agent preserves beliefs over intentional actions.
 
-Formally: 
+Formally:
 ```
 INTEND(does(x)) ∧ BEL(optional(done(x) ∧ φ)) ⊃ optional(BEL(done(x) ∧ φ))
 ```
@@ -808,16 +808,16 @@ This is **NOT** requiring true beliefs. It's requiring **belief coherence**:
 - Failed action detection (agent believes done(x) but actually ¬done(x))
 
 **What maintains it**:
-- Correct prediction (φ actually holds after x)  
+- Correct prediction (φ actually holds after x)
 - Consistent reasoning (no contradictory belief updates)
 - Successful execution monitoring (accurate observation of outcomes)
 
 ## Application: Multi-Step Task Orchestration
 
-Consider a WinDAGs orchestration task with three steps:
+Consider a Jury-rig orchestration task with three steps:
 
 1. Route request to agent A
-2. Agent A processes request  
+2. Agent A processes request
 3. Return result to user
 
 The orchestrator forms intentions:
@@ -889,24 +889,24 @@ class StrictlyIntentionalOrchestrator:
         """Only perform intended actions"""
         if not self.has_current_intention():
             self.deliberate()  # Form an intention before acting
-        
+
         # AI₄: If I intend it, I do it
         intended_action = self.current_intention()
         self.execute(intended_action)
-        
+
         # Converse: Don't do things I don't intend
         self.block_unintended_actions()
 ```
 
 This is a strong architectural constraint: no reactive behaviors, no unexpected skill invocations. Everything flows through intention formation.
 
-**Trade-off**: 
+**Trade-off**:
 - **Benefit**: Predictable, verifiable behavior. Can prove properties about the agent's trajectory.
 - **Cost**: No fast reflexes, no opportunistic actions. Might miss time-critical opportunities.
 
 ## Practical Guidance for Skill Systems
 
-When designing a WinDAGs skill invocation system:
+When designing a Jury-rig skill invocation system:
 
 ### 1. Separate Attempt from Success in Skill Signatures
 
@@ -944,15 +944,15 @@ orchestrator.monitor_outcome()  # Separate concern
 class BeliefUpdateEngine:
     def update_after_action(self, intended_action, outcome):
         """Maintain belief coherence per Theorem 3"""
-        
+
         # Before action: believed(action → effect)
         predicted_effects = self.beliefs.query(
             f"what_follows({intended_action})"
         )
-        
+
         # After action: observe outcome
         observed_effects = outcome.effects
-        
+
         # Belief preservation: update beliefs to be consistent
         if predicted_effects == observed_effects:
             # Success: strengthen belief in model
@@ -960,7 +960,7 @@ class BeliefUpdateEngine:
         else:
             # Surprise: revise model
             self.beliefs.revise(f"{intended_action} → {observed_effects}")
-            
+
             # This may trigger intention dropping (single-minded)
             self.check_intention_conditions()
 ```
@@ -972,7 +972,7 @@ For **idempotent, retryable actions** (like reading a database):
 - Retry until believed achieved or believed impossible
 
 For **non-idempotent actions** (like sending an email):
-- Open-minded commitment  
+- Open-minded commitment
 - Reconsider quickly after failure (don't spam)
 
 For **irreversible actions** (like deleting data):
@@ -1169,7 +1169,7 @@ The goal is **selective**, not **comprehensive**.
 
 ## Application to Multi-Agent Planning
 
-Consider a WinDAGs system planning a complex task:
+Consider a Jury-rig system planning a complex task:
 
 **Belief**: "If we allocate 10 agents to this task, it will complete in 1 hour, but will consume 100 API credits."
 
@@ -1188,7 +1188,7 @@ Goal-world g:
 
 This is a sub-world of the belief-world, which contains all three.
 
-**Practical Implication**: 
+**Practical Implication**:
 
 When the orchestrator reasons about whether to execute this plan, it can weigh:
 - Goal satisfaction: complete_in_1hr (positive)
@@ -1252,29 +1252,29 @@ class SelectiveRepresentationAgent:
         self.beliefs = WorldModel()  # Full, comprehensive model
         self.goals = PartialWorldModel()  # Selective sub-model
         self.intentions = PartialWorldModel()  # Even more selective
-    
+
     def add_goal(self, goal_state):
         """Add a goal without inheriting all believed consequences"""
         # Ensure realism: goal must be achievable
         if not self.beliefs.is_achievable(goal_state):
             raise GoalNotAchievableError()
-        
+
         # Add ONLY the defining features
         self.goals.add_defining_features(goal_state)
-        
+
         # Do NOT add all believed consequences
         consequences = self.beliefs.query_consequences(goal_state)
         # These are NOT automatically added to self.goals
-    
+
     def reason_about_goal(self, goal_state):
         """Can reason about consequences without adopting them as goals"""
         if goal_state in self.goals:
             consequences = self.beliefs.query_consequences(goal_state)
-            
+
             # Evaluate consequences for decision-making
             positive_effects = [c for c in consequences if self.values(c) > 0]
             negative_effects = [c for c in consequences if self.values(c) < 0]
-            
+
             # Might drop the goal if negative effects outweigh benefits
             if sum(self.values(c) for c in negative_effects) > threshold:
                 self.goals.remove(goal_state)
@@ -1297,7 +1297,7 @@ It struggles when:
 2. **Consequence-defined goals**: "I want whatever reduces suffering" (defined by consequences, not features)
 3. **Implicit representation**: The agent can't explicitly represent what is/isn't part of her goals
 
-For WinDAGs orchestration, the selective approach works well:
+For Jury-rig orchestration, the selective approach works well:
 - Goals are typically about task completion, performance metrics (defining features)
 - Consequences like resource consumption, latency side-effects can be evaluated without being goals
 - The system can explicitly represent goal-states vs. believed consequences
@@ -1346,7 +1346,7 @@ Belief-World b₁:
             ↳ Branch D: Use Algorithm 2 → fails
 
 Belief-World b₂:
-  t₀ → Branch E: Use Algorithm 1 → fails  
+  t₀ → Branch E: Use Algorithm 1 → fails
             ↳ Branch F: Use Algorithm 2 → succeeds
 ```
 
@@ -1409,7 +1409,7 @@ Each stage reduces optionality:
 - **Goals**: "I want some of those things"
 - **Intentions**: "I'm committed to attempting specific things"
 
-## Application to WinDAGs: Hierarchical Skill Decomposition
+## Application to Jury-rig: Hierarchical Skill Decomposition
 
 Consider a complex request: "Analyze the security vulnerabilities in this codebase."
 
@@ -1420,11 +1420,11 @@ Belief-World b:
   t₀ → Branch 1: Invoke comprehensive_security_audit skill
            ↳ → succeeds in 2 hours with deep analysis
            ↳ → fails (skill unavailable)
-       
+
        Branch 2: Decompose into [static_analysis, dynamic_analysis, dependency_check]
            ↳ → succeeds in 1 hour with good coverage
            ↳ → static_analysis fails (syntax errors)
-           
+
        Branch 3: Decompose into [pattern_matching, manual_review]
            ↳ → succeeds in 4 hours with manual effort
            ↳ → succeeds in 3 hours if expert available
@@ -1531,7 +1531,7 @@ Agent B's intention-world:
 
 No central controller needs to understand the full branching structure. Each agent maintains their own partial view.
 
-For WinDAGs: This suggests a **distributed orchestration pattern** where each agent:
+For Jury-rig: This suggests a **distributed orchestration pattern** where each agent:
 - Maintains beliefs about task structure (branching possibilities)
 - Selects goals based on local objectives
 - Commits to intentions based on coordination signals
@@ -1563,23 +1563,23 @@ This triggers:
 3. Re-evaluate remaining goal-branches
 4. Re-commit to new intention-branch
 
-For WinDAGs orchestration, this means failure handling should:
+For Jury-rig orchestration, this means failure handling should:
 
 ```python
 def handle_subtask_failure(self, failed_task, error):
     # 1. Belief update: learn about world structure
     self.beliefs.remove_branch(f"{failed_task}_succeeds")
     self.beliefs.add_observation(f"{failed_task}_failed: {error}")
-    
+
     # 2. Check if overall goal is still achievable
     if not self.beliefs.any_path_to_goal():
         # Single-minded commitment: drop if impossible
         self.intentions.clear()
         return IMPOSSIBLE
-    
+
     # 3. Replan: find alternative branch in goal-world
     alternative_branches = self.goals.find_branches_to(target_state)
-    
+
     # 4. Commit to new intention-branch
     if alternative_branches:
         self.intentions.select(best_alternative(alternative_branches))
@@ -1618,24 +1618,24 @@ class ProgressiveDecompositionAgent:
         self.belief_branches = set()  # All possible decompositions
         self.goal_branches = set()    # Desirable decompositions
         self.intention_branch = None  # Currently committed decomposition
-    
+
     def solve(self, problem):
         # Stage 1: Epistemic - identify all possible approaches
         self.belief_branches = self.generate_all_decompositions(problem)
-        
+
         # Stage 2: Desirability - filter to good approaches
         self.goal_branches = {
-            b for b in self.belief_branches 
+            b for b in self.belief_branches
             if self.satisfies_constraints(b)
         }
-        
+
         # Stage 3: Commitment - select one approach
         self.intention_branch = self.select_best(self.goal_branches)
-        
+
         # Stage 4: Execution - act on first step
         first_task = self.intention_branch.first_step()
         result = self.execute(first_task)
-        
+
         # Stage 5: Revision - update based on result
         if result.failed:
             # Prune this branch from beliefs
@@ -1668,12 +1668,12 @@ This pattern implements the BDI structure:
 The BDI formalism reveals that **decomposition is not a function from problems to sub-problems**. It's a **multi-stage filtering process** over a branching possibility space:
 
 1. **Generate** the branching structure (belief-worlds)
-2. **Filter** based on desirability (goal-worlds)  
+2. **Filter** based on desirability (goal-worlds)
 3. **Commit** to specific branches (intention-worlds)
 4. **Execute** and observe which branch is actual (action)
 5. **Revise** the structure based on observations (belief update)
 
-For WinDAGs, this suggests:
+For Jury-rig, this suggests:
 - Don't just ask "How should I decompose this task?"
 - Ask: "What are all possible decompositions?" (belief)
 - Then: "Which would achieve my objectives?" (goal)
@@ -1707,7 +1707,7 @@ Every formal system rests on assumptions. The BDI architecture is elegant and po
 - Analog measurements (temperature gradually rising)
 - Concurrent processes that don't have clear event boundaries
 
-**Implication for WinDAGs**: The formalism naturally fits task orchestration (discrete skill invocations) but would struggle with continuous monitoring or real-time control systems.
+**Implication for Jury-rig**: The formalism naturally fits task orchestration (discrete skill invocations) but would struggle with continuous monitoring or real-time control systems.
 
 If you need to model "gradually improving performance" or "continuously adjusting strategy," you'd need extensions like dense time or hybrid systems.
 
@@ -1727,7 +1727,7 @@ If you need to model "gradually improving performance" or "continuously adjustin
 
 **The paper acknowledges this**: "If parallel actions among multiple agents are to be allowed, the functions S_w and F_w must be extended to map to a set of event-agent pairs."
 
-**Implication for WinDAGs**: Works well for orchestrator-centric architectures where the orchestrator controls routing and task assignment. Needs extension for peer-to-peer agent coordination where multiple agents simultaneously make decisions.
+**Implication for Jury-rig**: Works well for orchestrator-centric architectures where the orchestrator controls routing and task assignment. Needs extension for peer-to-peer agent coordination where multiple agents simultaneously make decisions.
 
 ### Assumption 3: Observable Action Attempts
 
@@ -1744,7 +1744,7 @@ If you need to model "gradually improving performance" or "continuously adjustin
 - Delayed feedback (don't know if action succeeded until much later)
 - Unobservable failures (action failed silently, agent thinks it succeeded)
 
-**Implication for WinDAGs**: Requires robust logging and monitoring. Each skill invocation should explicitly report:
+**Implication for Jury-rig**: Requires robust logging and monitoring. Each skill invocation should explicitly report:
 - That it was attempted (done)
 - Whether it succeeded or failed
 - What effects it had (for belief updates)
@@ -1765,7 +1765,7 @@ Without this observability, the agent can't maintain accurate belief-worlds.
 - Pure computation (failed attempt has no side effects, no time advancement)
 - Idempotent retries (failing and immediately retrying is equivalent to never attempting)
 
-**Implication for WinDAGs**: The formalism assumes attempts have costs/effects even when they fail. This fits real distributed systems (failed API calls consume rate limits, network bandwidth). 
+**Implication for Jury-rig**: The formalism assumes attempts have costs/effects even when they fail. This fits real distributed systems (failed API calls consume rate limits, network bandwidth).
 
 For pure computation with no side effects, you might model failure as "staying at the same time point" (no arc), which isn't directly supported.
 
@@ -1788,7 +1788,7 @@ For pure computation with no side effects, you might model failure as "staying a
 - Subconscious processes (reflexes, learned behaviors not accessible to reasoning)
 - Distributed cognition (agent's "beliefs" are spread across multiple systems)
 
-**Implication for WinDAGs**: Requires explicit representation of agent mental states. The orchestrator should maintain data structures for:
+**Implication for Jury-rig**: Requires explicit representation of agent mental states. The orchestrator should maintain data structures for:
 - `belief_worlds`: What do I believe is possible?
 - `goal_worlds`: What do I want to achieve?
 - `intention_worlds`: What am I committed to attempting?
@@ -1812,10 +1812,10 @@ def deliberate(self, goal_worlds):
     """Form intentions from goals - NOT specified by BDI formalism"""
     # Option 1: Expected utility
     return max(goal_worlds, key=lambda g: self.expected_utility(g))
-    
+
     # Option 2: Bounded rationality (limited time)
     return self.satisficing_search(goal_worlds, time_limit=100ms)
-    
+
     # Option 3: Habit-based (prefer similar to past intentions)
     return most_similar(goal_worlds, self.past_intentions)
 ```
@@ -1835,16 +1835,16 @@ def update_beliefs(self, observation):
     """Update belief-worlds when observation contradicts them"""
     # Option 1: Remove contradicted worlds
     self.belief_worlds = {
-        w for w in self.belief_worlds 
+        w for w in self.belief_worlds
         if w.consistent_with(observation)
     }
-    
+
     # Option 2: Minimum change (keep most of old beliefs)
     self.belief_worlds = minimal_revision(
-        self.belief_worlds, 
+        self.belief_worlds,
         observation
     )
-    
+
     # Option 3: Bayesian update (probability-weighted)
     for w in self.belief_worlds:
         w.probability *= likelihood(observation | w)
@@ -1865,11 +1865,11 @@ def reconsider_goals(self):
     # Option 1: Time-based (reconsider every N steps)
     if self.time % reconsideration_interval == 0:
         self.recompute_goals()
-    
+
     # Option 2: Event-based (reconsider on significant observations)
     if self.observed_unexpected_event():
         self.recompute_goals()
-    
+
     # Option 3: Meta-reasoning (reconsider if expected benefit > cost)
     if self.expected_value_of_reconsideration() > cost:
         self.recompute_goals()
@@ -1889,7 +1889,7 @@ Example: `GOAL(fast_response) ∧ GOAL(accurate_response)` might be in conflict 
 class PrioritizedGoal:
     proposition: Formula
     priority: float
-    
+
     def conflicts_with(self, other):
         """Check if goals are incompatible"""
         return mutual_exclusion(self.proposition, other.proposition)
@@ -1908,7 +1908,7 @@ def resolve_goal_conflicts(goals):
 ## When You Should Use This Formalism
 
 **Strong fit**:
-1. **Task orchestration systems** (WinDAGs, workflow engines)
+1. **Task orchestration systems** (Jury-rig, workflow engines)
 2. **Multi-agent planning** with discrete tasks
 3. **Autonomous systems** making sequential decisions under uncertainty
 4. **Deliberative architectures** where reasoning about commitments is important
@@ -1945,7 +1945,7 @@ def resolve_goal_conflicts(goals):
 class ProbabilisticBeliefWorld:
     world: TimeTree
     probability: float
-    
+
     def update(self, observation):
         """Bayesian update"""
         self.probability *= likelihood(observation | self.world)
@@ -1966,7 +1966,7 @@ class TeamIntention:
     agents: Set[Agent]
     joint_action: Action
     individual_commitments: Dict[Agent, Action]
-    
+
     def is_maintained(self):
         """Joint intention maintained if all agents maintain individual parts"""
         return all(
@@ -2011,7 +2011,7 @@ Even if you modify the internal workings of each module (probabilistic beliefs, 
 
 This architectural separation is the transferable insight, even if you don't use the exact formalism.
 
-## Practical Guidance for WinDAGs
+## Practical Guidance for Jury-rig
 
 **Use BDI-style architecture when**:
 - Tasks are discrete (skill invocations, API calls)

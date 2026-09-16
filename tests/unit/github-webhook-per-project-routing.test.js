@@ -54,10 +54,10 @@ describe('github webhook → per-project routing', () => {
     const messaging = createMessaging(db);
 
     const pdDir = '/repos/curiositech/port-daddy';
-    const winDir = '/repos/curiositech/windags';
+    const winDir = '/repos/curiositech/example-service';
     const repoRegistry = registryFor({
       [pdDir]: 'curiositech/port-daddy',
-      [winDir]: 'curiositech/windags',
+      [winDir]: 'curiositech/example-service',
     });
 
     const app = Fastify();
@@ -68,8 +68,8 @@ describe('github webhook → per-project routing', () => {
     // port-daddy's fleet declares a BARE trigger — resolveFleetChannel
     // project-scopes it to port-daddy's scope.
     const pdChannel = resolveFleetChannel('github:webhook:pull_request', pdDir, 'port-daddy');
-    // windags' fleet does the same — but a DIFFERENT scope.
-    const winChannel = resolveFleetChannel('github:webhook:pull_request', winDir, 'windags');
+    // jury_rig' fleet does the same — but a DIFFERENT scope.
+    const winChannel = resolveFleetChannel('github:webhook:pull_request', winDir, 'jury_rig');
     expect(pdChannel).not.toBe(winChannel);
 
     const pdSeen = [];
@@ -124,7 +124,7 @@ describe('github webhook → per-project routing', () => {
     });
 
     // A scoped subscriber for the OTHER repo must not fire.
-    const winChannel = resolveFleetChannel('github:webhook:pull_request', '/repos/curiositech/windags', 'windags');
+    const winChannel = resolveFleetChannel('github:webhook:pull_request', '/repos/curiositech/example-service', 'jury_rig');
     const globalChannel = 'github:webhook:pull_request';
     const winSeen = [];
     const globalSeen = [];

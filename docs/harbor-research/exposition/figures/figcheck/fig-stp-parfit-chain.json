@@ -1,0 +1,308 @@
+{
+  "figure": "fig-stp-parfit-chain",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "fail",
+      "count": 12,
+      "findings": [
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            162.60830688476562,
+            53.769676208496094,
+            165.9185333251953,
+            59.187400817871094
+          ],
+          "text": "1",
+          "size_pt": 5.42,
+          "message": "text '1' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            249.96041870117188,
+            53.769676208496094,
+            253.27064514160156,
+            59.187400817871094
+          ],
+          "text": "2",
+          "size_pt": 5.42,
+          "message": "text '2' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            249.96041870117188,
+            84.59980773925781,
+            253.27064514160156,
+            90.01753234863281
+          ],
+          "text": "2",
+          "size_pt": 5.42,
+          "message": "text '2' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            350.1588439941406,
+            84.59980773925781,
+            353.4690856933594,
+            90.01753234863281
+          ],
+          "text": "3",
+          "size_pt": 5.42,
+          "message": "text '3' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            350.1588439941406,
+            115.43031311035156,
+            353.4690856933594,
+            120.84803771972656
+          ],
+          "text": "3",
+          "size_pt": 5.42,
+          "message": "text '3' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            419.5267333984375,
+            115.43031311035156,
+            422.83697509765625,
+            120.84803771972656
+          ],
+          "text": "4",
+          "size_pt": 5.42,
+          "message": "text '4' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            324.8614196777344,
+            78.73738098144531,
+            328.1716613769531,
+            84.15510559082031
+          ],
+          "text": "2",
+          "size_pt": 5.42,
+          "message": "text '2' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            415.81072998046875,
+            110.59539031982422,
+            419.1209716796875,
+            116.01311492919922
+          ],
+          "text": "3",
+          "size_pt": 5.42,
+          "message": "text '3' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            298.88519287109375,
+            168.8201904296875,
+            302.1954345703125,
+            174.2379150390625
+          ],
+          "text": "1",
+          "size_pt": 5.42,
+          "message": "text '1' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            319.45745849609375,
+            168.8201904296875,
+            322.7677001953125,
+            174.2379150390625
+          ],
+          "text": "2",
+          "size_pt": 5.42,
+          "message": "text '2' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            340.02972412109375,
+            168.8201904296875,
+            343.3399658203125,
+            174.2379150390625
+          ],
+          "text": "3",
+          "size_pt": 5.42,
+          "message": "text '3' renders at 5.42pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            360.60198974609375,
+            168.8201904296875,
+            363.9122314453125,
+            174.2379150390625
+          ],
+          "text": "4",
+          "size_pt": 5.42,
+          "message": "text '4' renders at 5.42pt, below the 7.00pt floor"
+        }
+      ]
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            415.48358154296875,
+            112.41031646728516,
+            422.83697509765625,
+            120.84803771972656
+          ],
+          "other_bbox": [
+            355.92108154296875,
+            107.57539367675781,
+            419.1209716796875,
+            116.01311492919922
+          ],
+          "text": "o4",
+          "other_text": "shared witness o3",
+          "overlap_fraction": 0.211,
+          "message": "text 'o4' overlaps 'shared witness o3' by 21.1% of the smaller bbox"
+        }
+      ]
+    },
+    "T4": {
+      "status": "fail",
+      "count": 2,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            245.917236328125,
+            81.5798110961914,
+            253.27064514160156,
+            90.01753234863281
+          ],
+          "text": "o2",
+          "line_segment": [
+            [
+              249.82003784179688,
+              96.93434143066406
+            ],
+            [
+              249.82003784179688,
+              66.10419464111328
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'o2'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            346.11566162109375,
+            112.41031646728516,
+            353.4690856933594,
+            120.84803771972656
+          ],
+          "text": "o3",
+          "line_segment": [
+            [
+              350.0184631347656,
+              127.76484680175781
+            ],
+            [
+              350.0184631347656,
+              96.93434143066406
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'o3'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1585,
+      "edge_density": 0.0707,
+      "distinct_colors": 1687,
+      "flags": [
+        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T1",
+      "T3",
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

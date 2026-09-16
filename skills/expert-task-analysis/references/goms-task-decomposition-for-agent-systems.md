@@ -108,19 +108,19 @@ Notice the nested conditional structure: the selection rule at the Increase/Decr
 ## Mapping GOMS to Agent Orchestration Architecture
 
 ### Goals → Task Specifications
-In a WinDAGs system, a goal corresponds to a task specification passed to an agent or skill. The hierarchy of goals corresponds to a decomposition tree where:
+In a Jury-rig system, a goal corresponds to a task specification passed to an agent or skill. The hierarchy of goals corresponds to a decomposition tree where:
 - Top-level goals are task requests from users or parent agents
 - Mid-level goals are sub-task specifications dispatched to specialized agents
 - Leaf-level goals are direct skill invocations
 
 ### Operators → Skill Invocations
-Operators are the atomic actions available in the system. In WinDAGs terms, these are the 180+ skills. The GOMS model defines which operators are available for each subgoal, analogous to which skills are available to an agent for each sub-task.
+Operators are the atomic actions available in the system. In Jury-rig terms, these are the 180+ skills. The GOMS model defines which operators are available for each subgoal, analogous to which skills are available to an agent for each sub-task.
 
 ### Methods → Skill Sequences / Workflows
 Methods are ordered sequences of operators. In agent terms, these are workflows or skill pipelines — "to accomplish Goal X, invoke Skill A, then Skill B, then verify with Skill C."
 
 ### Selection Rules → Routing Logic
-Selection rules are the conditional dispatch logic that determines which method to invoke based on current context. In WinDAGs terms, this is the routing layer — the logic that looks at the current state of the task and decides which skill pipeline to activate.
+Selection rules are the conditional dispatch logic that determines which method to invoke based on current context. In Jury-rig terms, this is the routing layer — the logic that looks at the current state of the task and decides which skill pipeline to activate.
 
 **Critical design implication**: Selection rules require *state assessment* as their input. Before you can apply a selection rule, you must have assessed the relevant condition. This means that task decomposition agents need two types of nodes in their execution:
 

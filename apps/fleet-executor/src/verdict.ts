@@ -10,7 +10,14 @@
  * verdict found. Case-insensitive, whitespace-tolerant.
  */
 
-export type Verdict = 'PASS' | 'BLOCK';
+import { computeFleetQuorum } from '../../shared/fleet-participation.js';
+
+/**
+ * Stored outcome for one ship. ABSTAIN and UNAVAILABLE are executor states,
+ * never model-authored verdicts; keeping them in the same durable field avoids
+ * manufacturing a PASS for a ship that did not review the change.
+ */
+export type Verdict = 'PASS' | 'BLOCK' | 'ABSTAIN' | 'UNAVAILABLE';
 
 const VERDICT_RE = /^\s*FLEET-VERDICT:\s*(PASS|BLOCK)\s*$/i;
 
@@ -140,6 +147,13 @@ export interface ShipResult {
    * fail-closed gate.
    */
   errored: boolean;
+  /** Authoritative participation decision for this PR. */
+  participation?: 'required' | 'advisory' | 'abstain' | 'ineligible';
+  /** Explicit vote state; gated/disabled ships never manufacture PASS. */
+  voteOutcome?: 'approve' | 'reject' | 'abstain' | 'failed';
+  operationalStatus?: 'completed' | 'disabled' | 'gated' | 'unavailable' | 'failed';
+  /** Explicit repository policy: advisory unavailability gates only when true. */
+  unavailableBlocks?: boolean;
   /**
    * Bounded, redacted cause for an errored ship. This survives checkpoints and
    * feeds the transcript/check summary; it must never contain prompts, request
@@ -160,6 +174,18 @@ export interface ShipResult {
    */
   noUsableOutput?: boolean;
   /**
+   * Whether this ship saw the reviewable source it was asked to judge.
+   *
+   * Absent means complete coverage (the common path). `partial` means one or
+   * more intact source files could not fit the model request or the bounded
+   * MAP cap omitted later chunks; `none` means the diff contained only derived
+   * artifacts / terminal evidence and no source was sent to a model. Neither
+   * state may render as a clean PASS in the required GitHub check.
+   */
+  reviewCoverage?: 'partial' | 'none';
+  /** Bounded human-readable explanation for an incomplete review. */
+  reviewCoverageReason?: string;
+  /**
    * Structured findings parsed from the ship's reduced output. Empty when the
    * ship found nothing; absent on legacy/test results that predate findings.
    */
@@ -172,6 +198,15 @@ export interface ShipResult {
    * issue; absent, a broken result fails the run per the doctrine.
    */
   brokenAdjudicated?: BrokenAdjudication;
+  /** Current-invocation Purser sandbox proof, consumed directly by checkpoint save. */
+  checkpointExecutionReceipt?: {
+    kind: 'purser-sandbox-v1';
+    executed: true;
+    passed: boolean;
+    outcomeKind: 'passed' | 'assertion-failure';
+    attemptId: string;
+    testDigest: string;
+  };
 }
 
 /** The adjudicator's verdict that a breakage is the fleet's, not the PR's. */
@@ -270,7 +305,24 @@ export function reviewEventFor(results: ShipResult[]): 'COMMENT' | 'REQUEST_CHAN
  * convention, not a judgment, so it never counts as a BLOCK on its own.
  */
 export function aggregateConclusion(results: ShipResult[]): Conclusion {
-  const isBroken = (r: ShipResult) => r.errored || r.noUsableOutput === true;
+  const authoritative = results.filter(r => r.participation != null);
+  if (authoritative.length > 0) {
+    // Required unavailability fails through quorum. Advisory unavailability is
+    // visible but gates only under an explicit repository opt-in.
+    if (authoritative.some(r => r.operationalStatus === 'unavailable' && r.unavailableBlocks === true)) return 'failure';
+    const quorum = computeFleetQuorum(authoritative.map(r => ({
+      ship: r.ship,
+      participation: r.participation!,
+      outcome: r.voteOutcome ?? 'failed',
+    })));
+    if (!quorum.reached) return 'failure';
+  }
+  const isBroken = (r: ShipResult) => {
+    if (r.operationalStatus === 'unavailable') {
+      return r.participation === 'required' || r.unavailableBlocks === true;
+    }
+    return r.errored || r.noUsableOutput === true;
+  };
 
   const brokenUnadjudicated = results.some(r => isBroken(r) && r.brokenAdjudicated == null);
   const blockingJudgmentBlock = results.some(
@@ -280,7 +332,8 @@ export function aggregateConclusion(results: ShipResult[]): Conclusion {
 
   const advisoryObjection = results.some(r => !r.blocking && r.verdict === 'BLOCK' && !isBroken(r));
   const adjudicatedBreakage = results.some(r => isBroken(r) && r.brokenAdjudicated != null);
-  if (advisoryObjection || adjudicatedBreakage) return 'neutral';
+  const incompleteCoverage = results.some(r => r.reviewCoverage === 'partial' || r.reviewCoverage === 'none');
+  if (advisoryObjection || adjudicatedBreakage || incompleteCoverage) return 'neutral';
 
   return 'success';
 }

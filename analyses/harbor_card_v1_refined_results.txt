@@ -1,0 +1,75 @@
+Process 0 (that is, the initial process):
+{1}new agent_id: id;
+{2}new harbor_id: id;
+{3}new token_jti: jti;
+{4}new secret_cap: capability;
+(
+    {5}!
+    {6}let k: key = master_key in
+    {7}let a_id: id = agent_id in
+    {8}let h_id: id = harbor_id in
+    {9}let j: jti = token_jti in
+    {10}let cap: capability = secret_cap in
+    {11}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
+    {12}let signature: bitstring = hs256(msg,k) in
+    {13}event Issued(a_id,h_id,j,cap);
+    {14}out(c, (hs256_alg,msg,signature))
+) | (
+    {15}!
+    {16}let k_1: key = master_key in
+    {17}let expected_h: id = harbor_id in
+    {18}in(c, (alg_header: alg_type,msg_1: bitstring,signature_1: bitstring));
+    {19}if (check_hs256(msg_1,k_1,signature_1) = true) then
+    {20}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
+    {21}if (h = expected_h) then
+    {22}event Accepted(a,h,j_1,cap_1)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new agent_id: id;
+{2}new harbor_id: id;
+{3}new token_jti: jti;
+{4}new secret_cap: capability;
+(
+    {5}!
+    {10}let cap: capability = secret_cap in
+    {9}let j: jti = token_jti in
+    {8}let h_id: id = harbor_id in
+    {7}let a_id: id = agent_id in
+    {13}event Issued(a_id,h_id,j,cap);
+    {11}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
+    {6}let k: key = master_key in
+    {12}let signature: bitstring = hs256(msg,k) in
+    {14}out(c, (hs256_alg,msg,signature))
+) | (
+    {15}!
+    {18}in(c, (alg_header: alg_type,msg_1: bitstring,signature_1: bitstring));
+    {16}let k_1: key = master_key in
+    {19}if (check_hs256(msg_1,k_1,signature_1) = true) then
+    {20}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
+    {17}let expected_h: id = harbor_id in
+    {21}if (h = expected_h) then
+    {22}event Accepted(a,h,j_1,cap_1)
+)
+
+-- Query not attacker(master_key[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(master_key[])
+RESULT not attacker(master_key[]) is true.
+-- Query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2))
+goal reachable: b-event(Issued(agent_id[],harbor_id[],token_jti[],secret_cap[])) -> event(Accepted(agent_id[],harbor_id[],token_jti[],secret_cap[]))
+RESULT event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(master_key[]) is true.
+
+Query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) is true.
+
+--------------------------------------------------------------
+

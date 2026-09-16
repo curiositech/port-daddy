@@ -36,6 +36,27 @@ describe('POST /actors/register', () => {
     expect(body.credential.startsWith(`${body.actorId}.`)).toBe(true);
   });
 
+  test('more than 25 project and projectless requests mint unique newcomer credentials', async () => {
+    const requestMint = async (payload) => {
+      const res = await app.inject({ method: 'POST', url: '/actors/register', payload });
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body).toMatchObject({ success: true, status: 'minted', soulClass: 'newcomer' });
+      expect(typeof body.credential).toBe('string');
+      return body;
+    };
+
+    const projectMints = [];
+    const projectlessMints = [];
+    for (let i = 0; i < 30; i++) {
+      projectMints.push(await requestMint({ alias: `proj:stack:${i}`, project: 'proj' }));
+      projectlessMints.push(await requestMint({}));
+    }
+    const allMints = [...projectMints, ...projectlessMints];
+    expect(new Set(allMints.map((mint) => mint.actorId)).size).toBe(60);
+    expect(new Set(allMints.map((mint) => mint.credential)).size).toBe(60);
+  });
+
   test('re-presenting a valid credential resolves to the same id (200, no new credential)', async () => {
     const first = (await app.inject({
       method: 'POST', url: '/actors/register', payload: { alias: 'a:b:c' },

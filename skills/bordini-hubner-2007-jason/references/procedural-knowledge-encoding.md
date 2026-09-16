@@ -159,7 +159,7 @@ Poor organization → hard to find relevant plans (for humans reading code, and 
 
 Traditional development: write a program that solves the problem. AgentSpeak development: accumulate a library of know-how that *collectively* addresses the problem space.
 
-For a WinDAGs orchestration system with 180+ skills:
+For a Jury-rig orchestration system with 180+ skills:
 - Don't write one orchestration procedure
 - Instead, build a library where each plan encodes one coordination pattern, one failure recovery strategy, one optimization heuristic
 - The system's intelligence is the size and quality of the library
@@ -321,7 +321,7 @@ AgentSpeak combines aspects of all three:
 
 But it's distinct: plans are pre-defined (not generated), but selection is dynamic (not fixed calls). This trades off planning flexibility for execution efficiency and predictability.
 
-## Implications for WinDAGs Skill Orchestration
+## Implications for Jury-rig Skill Orchestration
 
 ### 1. Skills as Composable Know-How Units
 

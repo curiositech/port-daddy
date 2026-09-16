@@ -1,23 +1,51 @@
 # Porthole — kill the GIFs, replay the truth
 
-**Status:** prototype validated (this directory) · **Date:** 2026-08-18 · **Session:** cli-output-capture-viz
+**Status:** replay prototype validated; evidence-layer successor specified · **Updated:** 2026-08-29
 
 The website's CLI demos are GIFs: lossy, truncated, unreviewable, uncopyable, and in several
 cases fabricated or shipping errors on camera (see `AUDIT-2026-08-18.md`). This plan replaces
 the entire pipeline with honest timestamped captures replayed as **real, selectable DOM text**
 — and makes the CLI itself worth recording.
 
+## Strategic revision: the player is the lens, not the product boundary
+
+The original plan solved a real but narrow problem: replace lying GIFs with reviewable terminal
+replays. Keep that wedge. The defensible product is higher in the stack:
+
+> **Porthole is the privacy-safe evidence, continuity, and debugging layer for autonomous work.**
+
+The revised killer demo is not “drive a TUI and wait for text.” A reviewer clicks a failed agent
+decision and sees the exact rendered screen, command boundary, process lineage, context envelope,
+referenced omitted output, and work receipt that informed it. The reviewer verifies that a displayed
+canary secret was rejected before Porthole's first durable write, then starts a controlled branch
+from the last verified pre-failure checkpoint and compares the repair's receipt with the original.
+
+That experience is a **target contract**, not a claim about the current gallery. This PR proves the
+replay and proof UX, real tmux perspectives, real elapsed-time discontinuities, service discovery,
+and honest join boundaries. `BufferedOutputRef`, `ContextEnvelope`, `CompactionPacket`, and
+`WorkReceipt` become visualizable only after their owning contracts are merged and re-verified.
+Pre-persistence DLP, trace search, and controlled execution branching remain future engineering.
+
+The canonical product and architecture contract is now [`PRODUCT.md`](PRODUCT.md). The capture
+engine is deliberately replaceable: Microsoft [`tui-test`](https://github.com/microsoft/tui-test)
+is a strong deterministic control/cell-inspection reference, while Coder
+[`agent-tty`](https://github.com/coder/agent-tty) is a useful event-log/artifact-replay reference.
+Neither owns Porthole receipts, Port Daddy correlation, privacy policy, search, or branch authority.
+
 ## 1. The three-part program
 
-### A. Capture: asciicast is the natural representation — use it, don't invent one
-The "unicode char + color + timestamp" format the operator asked for **exists**: asciicast.
-- **Source of truth: asciicast v3** (`asciinema rec` ≥3.0 default). NDJSON; header carries
+### A. Current display capture: asciicast is a useful adapter, not the evidence authority
+The "unicode char + color + timestamp" format the first player needed **exists**: asciicast.
+- **Display adapter: asciicast v3** (`asciinema rec` ≥3.0 default). NDJSON; header carries
   `term.cols/rows/theme` (the *actual* palette at record time), events are `[delta, "o", bytes]`,
   plus `m` markers and `x` exit-status — so the site can honestly render "exited 0".
   Spec: https://docs.asciinema.org/manual/asciicast/v3/
 - **v2↔v3 gotcha:** v2 timestamps are absolute, v3 are deltas. Parse both (prototype does).
-- **Capture doctrine:** `asciinema rec --window-size 100x28 -c <driver>` — pinned size means no
-  `r` resize events; typing simulated, **output 100% real**, zero filtering, zero `sed -n '1,18p'`.
+- **Capture doctrine:** single-shell evidence uses `asciinema rec --window-size 100x28 -c <driver>`;
+  real split-pane/tmux evidence uses the separately pinned `120x34`. Pinned profiles mean no
+  `r` resize events; typing is simulated and program output is not edited for storytelling. These
+  proof casts contain no secrets. Future strict-privacy capture must redact before the first durable
+  write and mark every affected cell/omission; it cannot persist an unfiltered cast first.
   `demos/porthole/drive.sh` is the reference driver. Never pass `-I` (records keystrokes/secrets).
 - Keep VHS `.tape` files as the *driver/DSL* for reproducible CI demos, but record them to `.cast`,
   not GIF. VHS `.ascii` output doubles as a golden-file rendering test.

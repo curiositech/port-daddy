@@ -30,7 +30,7 @@ the code lands per the staging order in `SHIPWRIGHT-DESIGN.md §15`.
 |---|---|
 | `preview/index.html` | Component showcase. Token swatches, ship grammar walkthrough, harbor grid, proposal cards with purpose + controls, FleetControl panel, spark-drift demo, motion grammar. Pure HTML + inline SVG — no build step. |
 | `preview/ships-3d.html` | Live 3D ships via Three.js (CDN). Three ships on a water plane with vertex-displacement waves, click-to-select emissive. v0 without dither; see `COMPONENT-BRIEF §R3F` for the full BloomPass + DitherEffect pipeline. |
-| `preview/buildShip.js` | Browser-side port of `lib/ship-grammar.ts`. Same grammar, same invariants. Fed by both HTML pages. |
+| `preview/buildShip.js` | Browser-side port of `fleet-config-ui/src/ships/ship-grammar.ts`. Same grammar, same invariants. Fed by both HTML pages. |
 
 > **Running the preview**: to load the ES module + Three.js CDN imports
 > cleanly, serve the folder with any static server:
@@ -59,7 +59,7 @@ the code lands per the staging order in `SHIPWRIGHT-DESIGN.md §15`.
 2. `AGENT-MODEL.md` — the Plane. Why every agent, not just Shipwright,
    lives here.
 3. `SHIP-GRAMMAR.md` — what ships look like + how they're built.
-4. `FLEETCONTROL-HARDENING.md` — the load-bearing work that lands first.
+4. `FLEETCONTROL-HARDENING.md` — the essential work that lands first.
 5. `SHIPWRIGHT-DAEMON.md` — the archetype, with the runtime moved to AGENT-MODEL.
 6. `COMPONENT-BRIEF.md` — once the above is agreed.
 7. `INTEGRATION-PLAN.md` — how the component contracts enter Fleet Control Center.

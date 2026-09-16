@@ -33,6 +33,37 @@
 #   pd-app-watch.sh --force-prod     # rebuild prod lanes even if version unchanged/failed
 set -uo pipefail
 
+# Shared HOOK_OFF_GATE from lib/hook-runtime-gate.ts; never invokes PD.
+pd_hook_runtime_enabled() (
+  [ "$#" -eq 2 ] && [ -n "$1" ] && [ -n "$2" ] || exit 1
+  pd_gate_home="$2"
+  for pd_gate_root in "$1" "$pd_gate_home"; do
+    if [ ! -e "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ]; then
+      [ -d "${pd_gate_root%/*}" ] && [ -r "${pd_gate_root%/*}" ] && [ -x "${pd_gate_root%/*}" ] || exit 1
+      continue
+    fi
+    [ -d "$pd_gate_root" ] && [ -r "$pd_gate_root" ] && [ -x "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ] || exit 1
+    for pd_gate_marker in "$pd_gate_root/hooks.disabled" "$pd_gate_root/HALT"; do
+      [ ! -e "$pd_gate_marker" ] && [ ! -L "$pd_gate_marker" ] || exit 1
+    done
+  done
+  pd_gate_halt="${PD_HALT_FILE:-$pd_gate_home/HALT}"
+  case "$pd_gate_halt" in /*) ;; *) exit 1 ;; esac
+  pd_gate_parent="${pd_gate_halt%/*}"
+  [ -d "$pd_gate_parent" ] && [ -r "$pd_gate_parent" ] && [ -x "$pd_gate_parent" ] || exit 1
+  [ ! -e "$pd_gate_halt" ] && [ ! -L "$pd_gate_halt" ]
+)
+
+pd_require_on() {
+  pd_hook_runtime_enabled "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}" || {
+    echo "Port Daddy is Off or its control state is unknown; automatic work skipped." >&2
+    exit 0
+  }
+}
+
+pd_require_on
+
+
 REPO_URL="https://github.com/curiositech/port-daddy.git"
 TAP_FORMULA_RAW="https://raw.githubusercontent.com/curiositech/homebrew-tap/HEAD/Formula/port-daddy.rb"
 BASE="$HOME/.port-daddy/app-watch"
@@ -56,6 +87,7 @@ mkdir -p "$BASE" "$BUILD_LOGS"
 
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 notify() { # notify <title> <message> — best-effort operator toast
+  pd_require_on
   # AppleScript string escaping: backslashes FIRST, then quotes (fleet red-team:
   # tap-controlled text reaches this — never let it break out of the literal).
   local t="$1" m="$2"
@@ -90,28 +122,42 @@ fi
 
 # ── Ensure the build clone exists and is current ───────────────────────────────
 if [ ! -d "$REPO/.git" ]; then
+  pd_require_on
   log "seeding build clone → $REPO (blobless; first build will be a cold one)"
   git clone --filter=blob:none "$REPO_URL" "$REPO" || { log "✗ clone failed"; exit 1; }
 fi
+pd_require_on
 git -C "$REPO" fetch --quiet origin main --tags 2>/dev/null || { log "✗ git fetch failed (offline?)"; exit 0; }
 
 run_lanes() { # run_lanes <lane-flag> <log-slug>  → 0 iff both apps built+launched
+  pd_require_on
   local flag="$1" slug="$2" stamp blog rc=0
   stamp="$(date +%Y%m%d-%H%M%S)"
   blog="$BUILD_LOGS/$stamp-$slug.log"
+  # Old release tags can carry packagers that relaunch after a long build with
+  # no final Off check. Refuse those artifacts before executing either helper.
+  for packager in "$REPO/core/pd-console/scripts/package-console.sh" "$REPO/apps/FleetBar/scripts/package-fleetbar-lane.sh"; do
+    if ! grep -Fqx '# PD_LOCAL_OFF_GUARDED_LAUNCH_V1' "$packager" 2>/dev/null; then
+      log "✗ packager lacks the local Off launch contract: $packager"
+      return 1
+    fi
+  done
   log "building $slug lanes (log: $blog)"
   bash "$REPO/core/pd-console/scripts/package-console.sh" "$flag" >>"$blog" 2>&1 || rc=1
+  pd_require_on
   if [ -f "$REPO/apps/FleetBar/scripts/package-fleetbar-lane.sh" ]; then
     bash "$REPO/apps/FleetBar/scripts/package-fleetbar-lane.sh" "$flag" >>"$blog" 2>&1 || rc=1
   else
     log "⚠ FleetBar lane script not on this ref yet — console only" | tee -a "$blog"
   fi
+  pd_require_on
   return $rc
 }
 
 # ── LATEST: did origin/main move? ──────────────────────────────────────────────
 MAIN_SHA="$(git -C "$REPO" rev-parse origin/main)"
 if [ "$FORCE_LATEST" = 1 ] || { [ "$MAIN_SHA" != "$(state_get built-main-sha)" ] && [ "$MAIN_SHA" != "$(state_get attempted-main-sha)" ]; }; then
+  pd_require_on
   state_set attempted-main-sha "$MAIN_SHA"
   log "origin/main → ${MAIN_SHA:0:10}; refreshing latest lanes"
   # Checkout result MUST gate the build (Copilot review finding): an unchecked
@@ -133,6 +179,7 @@ if [ "$FORCE_LATEST" = 1 ] || { [ "$MAIN_SHA" != "$(state_get built-main-sha)" ]
     # temp file and mv over it, which swaps the directory entry while the
     # running shell keeps its old inode until exit.
     for f in pd-app-watch.sh install-app-watch.sh; do
+      pd_require_on
       if [ -f "$REPO/scripts/$f" ] && ! cmp -s "$REPO/scripts/$f" "$HOME/.port-daddy/bin/$f"; then
         TMPF="$HOME/.port-daddy/bin/.$f.new.$$"
         cp "$REPO/scripts/$f" "$TMPF" && chmod +x "$TMPF" && mv -f "$TMPF" "$HOME/.port-daddy/bin/$f"
@@ -146,6 +193,7 @@ if [ "$FORCE_LATEST" = 1 ] || { [ "$MAIN_SHA" != "$(state_get built-main-sha)" ]
 fi
 
 # ── PROD: did the Homebrew tap cut a new version? ──────────────────────────────
+pd_require_on
 TAP_VERSION="$(curl -fsSL --max-time 20 "$TAP_FORMULA_RAW" 2>/dev/null | sed -nE 's/^ *version "([^"]+)".*/\1/p' | head -1)"
 if [ -z "$TAP_VERSION" ]; then
   log "⚠ could not read tap formula version (offline or tap moved) — skipping prod check"
@@ -156,20 +204,25 @@ elif [ "$FORCE_PROD" = 1 ] || { [ "$TAP_VERSION" != "$(state_get built-prod-vers
   # 1. The formula itself (the pd daemon/CLI). brew upgrade is a no-op when the
   #    local install already matches.
   if command -v brew >/dev/null 2>&1; then
+    pd_require_on
     brew update --quiet >/dev/null 2>&1 || true
+    pd_require_on
     brew upgrade port-daddy >/dev/null 2>&1 || true
+    pd_require_on
     # Brew churn is exactly what unloads the daemon's launchd job (silent daemon
     # death — see pd doctor supervision-integrity). Re-start the service if the
     # upgrade left it unloaded.
     # [[:space:]] not \s — BSD grep has no \s and this net must actually fire.
     if brew services list 2>/dev/null | grep -E '^port-daddy[[:space:]]' | grep -qv started; then
       log "daemon service not running after upgrade — brew services start port-daddy"
+      pd_require_on
       brew services start port-daddy >/dev/null 2>&1 || true
     fi
   fi
 
   # 2. The prod apps, built from the release tag the cut corresponds to.
   if git -C "$REPO" rev-parse -q --verify "refs/tags/v$TAP_VERSION" >/dev/null; then
+    pd_require_on
     # Same gate as the latest-lane checkout above (Copilot review finding): a
     # failed checkout must not fall through to a build off the wrong ref while
     # still recording built-prod-version=$TAP_VERSION.

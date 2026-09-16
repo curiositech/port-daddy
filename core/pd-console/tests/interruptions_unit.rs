@@ -10,6 +10,8 @@
 
 #[path = "../src/agent.rs"]
 mod agent;
+#[path = "../src/local_control.rs"]
+mod local_control;
 // agent.rs resolves the stable-berth default via crate::berths (daemon
 // discovery's final fallback), so every target hosting agent.rs must also
 // host the berths module.
@@ -26,6 +28,9 @@ mod interruptions;
 mod interruptions_pane;
 #[path = "../src/pane.rs"]
 mod pane;
+#[allow(dead_code)]
+#[path = "../src/presentation.rs"]
+mod presentation; // headless zoom proof shares the production bounds contract
 #[path = "../src/theme.rs"]
 mod theme;
 #[path = "../src/util.rs"]

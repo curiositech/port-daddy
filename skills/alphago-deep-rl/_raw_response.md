@@ -99,7 +99,7 @@ Why do two imperfect evaluators outperform either alone?
 
 ### For Task Decomposition Systems
 
-When a WinDAGs orchestrator faces a complex task, it should employ cascading approximation:
+When a Jury-rig orchestrator faces a complex task, it should employ cascading approximation:
 
 1. **Fast heuristic evaluation**: Quickly score all possible decompositions using simple pattern matching or learned heuristics
 2. **Medium-depth evaluation**: For promising decompositions, evaluate feasibility using more sophisticated analysis
@@ -720,7 +720,7 @@ Critically, **scaling continues to help even at large resource counts**. The 64-
 
 ### For Multi-Agent Orchestration
 
-WinDAGs orchestrates multiple agents with heterogeneous speeds:
+Jury-rig orchestrates multiple agents with heterogeneous speeds:
 - **Fast skills**: Syntax checking, pattern matching, quick filters (milliseconds)
 - **Medium skills**: Code analysis, feasibility checking (seconds)
 - **Slow skills**: Formal verification, extensive testing, human review (minutes)

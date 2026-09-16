@@ -220,7 +220,7 @@ Each impossibility defines trade-offs:
 
 The meta-lesson: **every coordination mechanism has fundamental limits.** Perfect solutions don't exist—only informed choices among imperfect alternatives. Intelligent system design requires understanding which properties matter for the domain and which can be sacrificed.
 
-For WinDAGs orchestration: when allocating 180+ skills across tasks:
+For Jury-rig orchestration: when allocating 180+ skills across tasks:
 - Accept that perfect truthfulness + efficiency + budget balance is impossible
 - Choose based on domain: if efficiency paramount, use VCG (accept deficit); if budget critical, use Shapley (accept inefficiency)
 - Use asymmetric trust: designate orchestrator as trusted coordinator, skills are strategic

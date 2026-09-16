@@ -1,0 +1,90 @@
+{
+  "figure": "fig-fh-settlement",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            250.23536682128906,
+            82.62162017822266,
+            329.1528015136719,
+            91.11833953857422
+          ],
+          "other_bbox": [
+            320.9227294921875,
+            84.55936431884766,
+            346.8801574707031,
+            93.05607604980469
+          ],
+          "text": "compensate claimant",
+          "other_text": "funded",
+          "overlap_fraction": 0.245,
+          "message": "text 'compensate claimant' overlaps 'funded' by 24.5% of the smaller bbox"
+        }
+      ]
+    },
+    "T4": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1567,
+      "edge_density": 0.0924,
+      "distinct_colors": 2335,
+      "flags": [
+        "edge_density=0.092 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T3"
+    ],
+    "warned_checks": []
+  }
+}

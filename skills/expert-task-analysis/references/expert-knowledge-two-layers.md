@@ -80,7 +80,7 @@ When agents fail at complex tasks, the failure usually occurs at the art layer, 
 
 ### Design Principle: Separate the Procedural from the Perceptual
 
-For any complex capability, a WinDAGs agent system should maintain:
+For any complex capability, a Jury-rig agent system should maintain:
 
 1. **A GOMS-equivalent task graph** — the explicit hierarchical decomposition of goals into subgoals into methods into selection rules. This is the science.
 

@@ -164,22 +164,22 @@ FleetBar and Fleet Control Center should show:
 
 No summary without zoom. No green check without evidence.
 
-## WinDAGs Skill Graft By Phase
+## Jury-rig Skill Graft By Phase
 
-I ran the WinDAGs graft/search path for the parley phase plan and rejected noisy
+I ran the Jury-rig graft/search path for the parley phase plan and rejected noisy
 matches where they did not fit the phase. The useful graft is below. Each phase
 should start by loading the named skill(s), then carrying their failure modes and
 quality gates into implementation.
 
 Important tool split:
 
-- `windags_skill_graft` stays narrow: given a task, node, or phase, it attaches
-  already-known WinDAGs skills and their quality gates.
-- `windags_skill_reference` stays exact: given a selected skill and relative
+- `pd jury-rig query` stays narrow: given a task, node, or phase, it attaches
+  already-known Jury-rig skills and their quality gates.
+- `pd jury-rig reference` stays exact: given a selected skill and relative
   path, it returns the requested reference, script, template, schema, or asset.
-- `windags_skill_induct` should be a new tool: given declared roots and a task
+- `pd seamanship sync` should be a new tool: given declared roots and a task
   context, it discovers repo-local, user, machine, shared, and global skill
-  artifacts, normalizes them into WinDAGs skill cards, and emits a curated
+  artifacts, normalizes them into Jury-rig skill cards, and emits a curated
   activation plan.
 
 Do not overload graft with induction. Grafting is selection and application.
@@ -198,11 +198,11 @@ The graft also adds a process invariant: any phase that changes coordination
 architecture must update `roadmap_items` before commit. That is why Phase 0 adds
 `pd roadmap upsert/touch` and a Coordination Guard receipt check.
 
-## `windags_skill_induct` Tool Contract
+## `pd seamanship sync` Tool Contract
 
 The new tool should solve the problem the current skill flow exposes: another
 repo may carry its own skills, references, scripts, templates, and lived
-runbooks, but a global WinDAGs graft cannot safely pretend it has seen them.
+runbooks, but a global Jury-rig graft cannot safely pretend it has seen them.
 
 Proposed request:
 
@@ -213,7 +213,7 @@ Proposed request:
     { "scope": "repo", "path": "/repo/.agents/skills" },
     { "scope": "repo", "path": "/repo/skills" },
     { "scope": "user", "path": "~/.codex/skills" },
-    { "scope": "global", "path": "/opt/homebrew/Cellar/windags/2.7.0/libexec/skills" }
+    { "scope": "global", "path": "/opt/homebrew/Cellar/jury_rig/2.7.0/libexec/skills" }
   ],
   "budget": {
     "catalogTokens": 2000,
@@ -283,9 +283,9 @@ This gives agents the missing presentation layer:
 ```text
 prompt
   -> meta-skill/router
-  -> windags_skill_induct for local/global context
-  -> windags_skill_graft for phase/node selection
-  -> windags_skill_reference for exact resources
+  -> pd seamanship sync for local/global context
+  -> pd jury-rig query for phase/node selection
+  -> pd jury-rig reference for exact resources
   -> bounded excerpts or full resources
   -> execution with an unloaded-resource ledger
 ```

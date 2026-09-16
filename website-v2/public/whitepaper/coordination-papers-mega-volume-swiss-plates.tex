@@ -1,0 +1,32 @@
+% Swiss edition plates: painted Nano Banana Pro renders in a Swiss-modern
+% register (flat colour blocking, hard edges, no gradients, no outlines, no
+% type), replacing the earlier TikZ-drawn plates. Art direction is
+% docs/harbor-research/exposition/SWISS-BRIEF.md; the thirteen renders, their
+% prompts, and their post-processing are recorded in
+% website-v2/public/whitepaper/plates/swiss/PROVENANCE.json. The cover render
+% was generated first and then attached as the STYLE TEMPLATE reference to
+% every other plate so the thirteen hold together as one set.
+%
+% \pdswisscoverart draws nothing itself: it makes the cover render the page's
+% full-bleed background, leaving the reserved top-left paper for the type the
+% TeX sets over it (the cover's title sits at fixed overlay coordinates, so a
+% full-bleed image behind it is always safe). \pdswisspartplate{<numeral>}{<width>}
+% and \pdswissplate{<prefix>}{<width>} both stay real inline content
+% placed after the flowing title/blurb/question text, each at the given
+% width and the old TikZ drawing's own aspect (part: 3:2, 24x16 units;
+% chapter: 2:1, 24x12 units). There is no drawn fallback: a missing render
+% stops the build with a \PackageError naming the missing path.
+\makeatletter
+\newcommand{\pdswisscoverart}{%
+  \IfFileExists{plates/swiss/cover.jpg}{%
+    \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/swiss/cover.jpg}}}}{%
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/cover.jpg}{Generate the Swiss cover render and place it at plates/swiss/cover.jpg before building.}}}
+\newcommand{\pdswisspartplate}[2]{% #1 numeral I..IV, #2 width
+  \IfFileExists{plates/swiss/part-#1.jpg}{%
+    \includegraphics[width=#2]{plates/swiss/part-#1.jpg}}{%
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/part-#1.jpg}{Generate the Swiss part plate render and place it at plates/swiss/part-#1.jpg before building.}}}
+\newcommand{\pdswissplate}[2]{% #1 chapter prefix, #2 width
+  \IfFileExists{plates/swiss/chapter-#1.jpg}{%
+    \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{%
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}}}
+\makeatother

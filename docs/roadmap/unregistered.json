@@ -1,0 +1,36 @@
+{
+  "note": "Slugs a document schedules that the committed registry projection does not carry. This is a queue of rows to write when the roadmap authority is available, not a second registry: nothing here is scheduled work until it is a row. Regenerate with scripts/roadmap/check_unregistered.py --write.",
+  "registry_items": 318,
+  "unregistered": [
+    {
+      "slug": "fleet-cost-canary",
+      "sources": [
+        {
+          "file": "docs/adr/0098-cloud-fleet-operator-surface.md",
+          "line": 106,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "fleet-hitl-operator-queue",
+      "sources": [
+        {
+          "file": "docs/adr/0098-cloud-fleet-operator-surface.md",
+          "line": 106,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "fleetbot-pr-authorship",
+      "sources": [
+        {
+          "file": "docs/adr/0098-cloud-fleet-operator-surface.md",
+          "line": 106,
+          "how": "declared"
+        }
+      ]
+    }
+  ]
+}

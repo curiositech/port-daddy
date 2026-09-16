@@ -7,6 +7,7 @@ import {
   resolveTreeSitterRuntimeAssets,
   TREE_SITTER_GRAMMAR_FILES,
   TREE_SITTER_RUNTIME_FILE,
+  TREE_SITTER_RUNTIME_POINTER,
 } from '../../lib/tree-sitter-runtime.js';
 
 const scratchRoot = join(process.cwd(), '.scratch', 'tree-sitter-runtime-tests');
@@ -38,7 +39,7 @@ function writePublishedCargo(publicationRoot: string, marker: string): string {
       sha256: createHash('sha256').update(readFileSync(path)).digest('hex'),
     };
   });
-  writeFileSync(join(publicationRoot, 'current.json'), JSON.stringify({
+  writeFileSync(join(publicationRoot, TREE_SITTER_RUNTIME_POINTER), JSON.stringify({
     version: 1,
     cargoDir: `cargo-${marker}`,
     files,

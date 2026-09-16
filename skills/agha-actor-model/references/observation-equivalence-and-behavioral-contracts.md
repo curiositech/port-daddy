@@ -91,11 +91,11 @@ This is a precise statement about the relationship between internal state and ex
 
 This has implications for reasoning about concurrent agent behavior: external reasoning about what a skill "knows" or "has decided" must be based only on observed communications, not assumptions about its internal processing.
 
-## Application to WinDAGs
+## Application to Jury-rig
 
-**Skill substitutability contracts**: Skills in WinDAGs should be defined by their observation equivalence class, not by their implementation. Two skills are interchangeable if and only if they are observation-equivalent. The skill registry should include test suites that verify observation equivalence at sufficient depth.
+**Skill substitutability contracts**: Skills in Jury-rig should be defined by their observation equivalence class, not by their implementation. Two skills are interchangeable if and only if they are observation-equivalent. The skill registry should include test suites that verify observation equivalence at sufficient depth.
 
-**Testing strategy**: WinDAGs skill tests should include **interleaved interaction tests**, not just input-output tests. Test skill A and skill B with the same inputs, but also send follow-up messages between outputs to test whether the timing of outputs affects subsequent behavior.
+**Testing strategy**: Jury-rig skill tests should include **interleaved interaction tests**, not just input-output tests. Test skill A and skill B with the same inputs, but also send follow-up messages between outputs to test whether the timing of outputs affects subsequent behavior.
 
 **Behavioral contracts over signatures**: A skill's "interface" should not just specify its input/output types (this is the history relation). It should specify its **interactive contract**: what it is ready to accept at each point in its execution, and how its readiness changes after each output. This is the observation-equivalence contract.
 
@@ -103,6 +103,6 @@ This has implications for reasoning about concurrent agent behavior: external re
 
 **Debugging methodology**: When a workflow produces unexpected results after a skill is updated, don't just check that the skill produces the same outputs for the same inputs. Check whether the **timing** of outputs has changed. A skill that now sends output A before output B (when it used to send B before A) may break workflows that send additional inputs between the two outputs.
 
-**Composition verification**: Before deploying a composition of two skills, WinDAGs should verify that the composition behaves as expected under all observable interaction sequences — not just under "happy path" sequential execution. This requires model checking or property-based testing of the composed system.
+**Composition verification**: Before deploying a composition of two skills, Jury-rig should verify that the composition behaves as expected under all observable interaction sequences — not just under "happy path" sequential execution. This requires model checking or property-based testing of the composed system.
 
 **The open system principle in testing**: Skills should be tested as open systems — tested with unexpected inputs arriving at unexpected times, not just with the well-formed sequential inputs of the happy path. A skill that is correct in isolation may fail when deployed in a system where other skills send it messages concurrently.

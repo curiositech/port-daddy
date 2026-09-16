@@ -25,7 +25,7 @@
  * `rag-retrieval-pattern-design`), a few put it at the frontmatter top
  * level (e.g. `dag-performance-profiler`) — so both locations are checked
  * and merged. Entry shape also varies: most are `{ skill, reason }`
- * objects, but 22 skills (e.g. `wave-by-wave-parley`, the imported windags
+ * objects, but 22 skills (e.g. `wave-by-wave-parley`, the imported jury_rig
  * grafts, and several port-daddy-* skills) list bare id strings instead —
  * both shapes count as the same curated edge. Only the target id matters
  * here — `reason` is operator-facing prose this module never reads.

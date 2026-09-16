@@ -127,7 +127,7 @@ function seedFixture(db) {
   });
 
   // Other harbors and tombstones are invisible.
-  seedItem(db, { id: 'i-other', slug: 'other-board', summary: 'Different harbor', harbor: 'windags' });
+  seedItem(db, { id: 'i-other', slug: 'other-board', summary: 'Different harbor', harbor: 'jury_rig' });
   seedItem(db, {
     id: 'i-dead', slug: 'tombstoned', summary: 'Deleted', deletedAt: NOW - 10_000,
   });

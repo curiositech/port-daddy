@@ -236,7 +236,7 @@ capability caps; `swarm-coordination.ts:evaluateSwarmFit` recommends a topology
 but is a pure advisory oracle whose inputs are hand-supplied CLI flags, wired
 only to `pd parley fit`. The partition primitive, `NodeSpec.scope`
 (disjoint `files` / `symbols` / `forbiddenSurfaces` per node), is design-only
-(`work-packets/swarm-invocation-and-node-shaping.md`), and `windags_next_move`
+(`work-packets/swarm-invocation-and-node-shaping.md`), and `jury_rig_next_move`
 has zero callers in `lib/`/`cli/`.
 
 Target: a `WorkPlanner` that emits `NodeSpec[]` with **disjoint `scope.files`**
@@ -246,7 +246,7 @@ from *computed* inputs instead of flags; maps each `NodeSpec` -> `LaunchIntent`
 `NodeSpec` is created as an `AgentNode` through the WorkIntent path, not a raw
 `LaunchIntent` — see 27.11). Gate every split on
 the binder rule `split_cost + comm_cost + merge_cost < stay_cost` (04.231,
-node-shaping `:199`). Wire `windags_next_move` decomposer output as the
+node-shaping `:199`). Wire `jury_rig_next_move` decomposer output as the
 decomposition source. Handoff transfers the minimum cited context, never the
 whole harbor (04.252), and returns a summary-only result to the parent, not the
 full child transcript.
@@ -441,7 +441,7 @@ flowchart TD
   W9["W9 Eager tool2vec build step<br/>+ skill-usage logging + doctor coverage"]
   W9 --> W10
   W6 --> W10
-  W10["W10 WorkPlanner: NodeSpec.scope<br/>disjoint files, windags decomposer,<br/>evaluateSwarmFit from computed inputs"]
+  W10["W10 WorkPlanner: NodeSpec.scope<br/>disjoint files, jury_rig decomposer,<br/>evaluateSwarmFit from computed inputs"]
   DOCTOR["Tooling: pd doctor / pd setup /<br/>pd packet / pd compaction / panes"]
   W4 --> DOCTOR
   W6 --> DOCTOR

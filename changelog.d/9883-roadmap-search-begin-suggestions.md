@@ -1,3 +1,0 @@
-type: added
-
-- **Semantic roadmap-item search, and `pd begin` suggests matches instead of just rejecting.** `lib/roadmap-search.ts` embeds each roadmap item's summary/description via the shared MiniLM resolver (the same cascade `pd whois` uses: exact-slug short-circuit → BM25 → cosine rerank), with a light status boost so actionable (now/backlog) items outrank historical (done/parked) ones at equal similarity. New `GET /roadmap/search` route, `pd roadmap search <text>` and `pd roadmap reindex` CLI commands. When `pd begin "<purpose>"` hits its rent gate with no `--roadmap`/`--roadmap-new`/`--sidequest` given, it now prints ranked candidate roadmap items matched against the purpose text before failing, instead of a bare rejection.

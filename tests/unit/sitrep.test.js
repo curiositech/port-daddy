@@ -56,7 +56,7 @@ describe('/sitrep', () => {
   test('CLI uses the shared relative transport resolver for every sitrep request', () => {
     expect(sitrepCliSource).not.toContain('PORT_DADDY_URL');
     expect(sitrepCliSource).toContain('pdFetch(`/sitrep${qs}`)');
-    expect(sitrepCliSource).toContain('pdFetch(`/sessions/${sessionId}`)');
+    expect(sitrepCliSource).toContain('pdFetch(`/sessions/${encodeURIComponent(sessionId)}`)');
   });
 
   test('returns structure with defaults when harbor is empty', async () => {

@@ -153,7 +153,7 @@ The goal is **selective**, not **comprehensive**.
 
 ## Application to Multi-Agent Planning
 
-Consider a WinDAGs system planning a complex task:
+Consider a Jury-rig system planning a complex task:
 
 **Belief**: "If we allocate 10 agents to this task, it will complete in 1 hour, but will consume 100 API credits."
 
@@ -281,7 +281,7 @@ It struggles when:
 2. **Consequence-defined goals**: "I want whatever reduces suffering" (defined by consequences, not features)
 3. **Implicit representation**: The agent can't explicitly represent what is/isn't part of her goals
 
-For WinDAGs orchestration, the selective approach works well:
+For Jury-rig orchestration, the selective approach works well:
 - Goals are typically about task completion, performance metrics (defining features)
 - Consequences like resource consumption, latency side-effects can be evaluated without being goals
 - The system can explicitly represent goal-states vs. believed consequences

@@ -7,11 +7,21 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { handleSub } from './messaging.js';
 import { readCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import * as ui from '../utils/ui.js';
 import { inboxMessagePreview, inboxSenderLabel } from '../utils/message-preview.js';
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
+ *
+ * Purpose: durable direct messages have different identity requirements for
+ * reads and writes, so this one entry point makes the intent visible before
+ * any network request reaches the daemon.
+ *
+ * @param subcommand - Requested inbox operation, or undefined for the list view.
+ * @param args - Positional values consumed by the requested inbox operation.
+ * @param options - Parsed global CLI options such as agent, JSON, and quiet mode.
+ * @returns Resolves once the command has rendered its result or exited on an error.
  */
 export async function handleInbox(subcommand: string | undefined, args: string[], options: CLIOptions): Promise<void> {
   // Resolve the ACTIVE session's durable agentId before the throwaway `cli-<pid>`.
@@ -79,6 +89,25 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 
     if (!targetAgent || !message) {
       console.error('Usage: pd send <agent-id> <message>   (alias: pd inbox send …)');
+      process.exit(1);
+    }
+
+    // A context written before ADR-0040 carries a display agent/session pair
+    // but no daemon-minted bearer credential. Sending it to the daemon would
+    // only produce a generic 401 after attempting an attributed write. Do not
+    // mint, reconstruct, or otherwise recover that old principal here: a
+    // takeover creates the durable, credentialed successor explicitly.
+    const context = readCurrentContext();
+    if (
+      context?.agentId === agentId
+      && context.sessionId
+      && !resolveCliActorCredential(agentId)
+    ) {
+      ui.error(
+        `Persisted session ${context.sessionId} predates daemon-minted actor credentials and cannot send attributed messages. `
+        + `No message was sent. Create a linked successor session, then retry: `
+        + `pd session takeover ${context.sessionId} "continue after credential cutover" --lifecycle durable`,
+      );
       process.exit(1);
     }
 
@@ -259,6 +288,15 @@ export const SENT_HELP: string = [
   '                   session, else cli-<pid>)',
 ].join('\n');
 
+/**
+ * Render durable sender receipts for the current or explicitly selected agent.
+ *
+ * Purpose: receipt visibility lets an agent verify a durable handoff without
+ * inferring delivery from a terminal's successful write response.
+ *
+ * @param options - Parsed global CLI options used to select and render receipts.
+ * @returns Resolves once the sender receipt list has been rendered or an error exits.
+ */
 export async function handleSent(options: CLIOptions): Promise<void> {
   const agentId: string =
     (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;

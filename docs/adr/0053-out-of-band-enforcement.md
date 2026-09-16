@@ -588,7 +588,7 @@ so the schema is never mistaken for the vault.
   enforcement-posture dependency is the Harbor Envelope file specifically.)
 - **ADR-0050** (`docs/adr/0050-coast-guard.md`) — *The Coast Guard: agentic
   safety on the operator's machine* (sandbox + secret broker + metering plane),
-  the load-bearing dependency. Layer 2 builds on **phase 1**
+  the essential dependency. Layer 2 builds on **phase 1**
   (`scrubRawSecretsFromEnv`, shipped) and **phase 2** (`EgressMeter`, byte/request
   cap shipped; USD-MITM pending); Layer 3 **is** **phase 4** (separate-UID / VM +
   pf forced egress, backlog); the broker gate generalizes **phase 7**

@@ -33,13 +33,15 @@
  * caller's own metrics hook so repair spend is metered like any other call.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
+
 /**
  * The escalation tier for a second repair attempt. A known-good Workers AI id
  * (already used as the ships' own fallback tier in pd-fleet.yml) — never
  * derived from config, so a typo elsewhere cannot route repair to a model
  * that silently returns blank.
  */
-export const REPAIR_ESCALATION_MODEL = '@cf/openai/gpt-oss-120b';
+export const REPAIR_ESCALATION_MODEL = CF_ROLE_MODELS.repairEscalation;
 
 /** One repair attempt's audit row, recorded verbatim in the transcript. */
 export interface RepairAttempt {

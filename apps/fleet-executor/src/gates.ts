@@ -16,6 +16,7 @@
  */
 
 import type { ShipConfig } from './fleet.js';
+import { decideShipParticipation, type PullRequestProfile } from '../../shared/fleet-participation.js';
 
 /** A path is prose/docs (not code) — `.md`/`.mdx`, or anything under `docs/`. */
 const PROSE_PATH_RE = /(\.mdx?$)|(^|\/)docs\//i;
@@ -31,25 +32,45 @@ const CODE_PATH_RE = /\.(ts|tsx|js|jsx|mjs|cjs|rs|swift|go|py|rb|java|kt|c|h|cpp
 const SECURITY_SURFACE_RE =
   /(lib\/(auth|capabilities|secret-env|bonds|cost-tracker|arbiter|file-claims|salvage|note-encryption))|(routes\/(auth|bonds))|(crypto|sign|verify|hash|token|secret|auth|capabilit|key|vault|wrap|hpke)/i;
 
-/** Test-file surface for tautology-sniffer / test-author. */
-const TEST_FILE_RE = /(\.(test|spec)\.[tj]sx?$)|((^|\/)tests?\/)|(_test\.go$)|((^|\/)test_[^/]*\.py$)/i;
+const CI_RE = /(^|\/)(\.github\/workflows|ci|scripts)\/|Dockerfile|wrangler\.toml/i;
+const DEPENDENCY_RE = /(^|\/)(package\.json|Cargo\.toml|pyproject\.toml|go\.mod)$/i;
+const UI_RE = /\.(tsx|jsx|html|css|scss|swift)$|(^|\/)(website|website-v2|ui|views)\//i;
+const DATA_RE = /\.(sql)$|(^|\/)(migrations|schemas?)\//i;
 
-/** User-facing copy surface for copy-pm. */
-const COPY_SURFACE_RE = /(\.(tsx|html|mdx|md)$)|((^|\/)(website|website-v2|blog|public)\/)|((^|\/)README)/i;
-
-/** Per-ship surface gate. `null` = no gate (the ship reviews all code). */
-function shipSurfaceGate(shipName: string): RegExp | null {
-  switch (shipName) {
-    case 'red-team':
-      return SECURITY_SURFACE_RE;
-    case 'tautology-sniffer':
-    case 'test-author':
-      return TEST_FILE_RE;
-    case 'copy-pm':
-      return COPY_SURFACE_RE;
-    default:
-      return null;
-  }
+/** Deterministic, provider-neutral PR profile consumed by every ship policy. */
+export function classifyPullRequest(
+  changedPaths: string[],
+  diffBytes = 0,
+  diffText = '',
+): PullRequestProfile {
+  const has = (re: RegExp) => changedPaths.some(path => re.test(path));
+  // Bound classification work and inspect only changed lines. This is safety
+  // routing evidence, not semantic retrieval or a model-authored decision.
+  const changedContent = diffText.slice(0, 200_000).split('\n')
+    .filter(line => /^[+-](?!\+\+\+|---)/.test(line)).join('\n');
+  const contentHas = (re: RegExp) => re.test(changedContent);
+  const prClass = isDocsOnly(changedPaths) ? 'documentation'
+    : has(DEPENDENCY_RE) ? 'dependencies'
+      : has(SECURITY_SURFACE_RE) ? 'security'
+        : has(CI_RE) ? 'ci'
+          : has(DATA_RE) ? 'data'
+            : has(UI_RE) ? 'ui'
+              : changedPaths.length ? 'code' : 'unknown';
+  const riskSignals: PullRequestProfile['riskSignals'] = [];
+  if (has(/authenticat|login|oauth|oidc|session/i) || contentHas(/\b(authenticate|authentication|login|oauth|oidc|jwt|password)\b/i)) riskSignals.push('authentication');
+  if (has(/authoriz|permission|capabilit|policy|grant/i) || contentHas(/\b(authorize|authorization|permission|capability|access[_-]?control|role[_-]?binding)\b/i)) riskSignals.push('authorization');
+  if (has(/secret|token|credential|vault|keychain/i) || contentHas(/\b(secret|credential|api[_-]?key|private[_-]?key|access[_-]?token)\b/i)) riskSignals.push('secrets');
+  if (has(/crypto|encrypt|decrypt|sign|verify|hash|hpke/i)) riskSignals.push('cryptography');
+  if (has(/bill|cost|spend|credit|ledger|price/i) || contentHas(/\b(billing|invoice|charge|price|cost[_-]?microusd|spend[_-]?cap|credit[_-]?balance)\b/i)) riskSignals.push('billing');
+  if (has(/tenant|account|installation|repository.*scope/i) || contentHas(/\b(tenant[_-]?id|account[_-]?id|installation[_-]?id|repository[_-]?id|cross[_-]?tenant)\b/i)) riskSignals.push('tenant-boundary');
+  if (has(/migration|\.sql$/i) || contentHas(/\b(ALTER\s+TABLE|CREATE\s+TABLE|DROP\s+TABLE|schema[_-]?migration)\b/i)) riskSignals.push('schema-migration');
+  if (has(/deploy|workflow|wrangler|Dockerfile/i)) riskSignals.push('deployment');
+  if (changedPaths.some(path => !isReviewableForBugs(path))) riskSignals.push('generated-code');
+  if (has(/privacy|retention|redact|disclosure/i) || contentHas(/\b(privacy|retention|redact(?:ion)?|personally[_ -]?identifiable|disclosure)\b/i)) riskSignals.push('privacy');
+  if (has(/database|storage|sqlite|d1|r2|kv|persist/i) || contentHas(/\b(database|sqlite|durable[_ -]?object|object[_ -]?storage|persist(?:ence|ed)?|\bD1\b|\bR2\b|\bKV\b)\b/i)) riskSignals.push('storage');
+  if (diffBytes > 250_000 || changedPaths.length > 100) riskSignals.push('large-diff');
+  if (prClass === 'code' && riskSignals.length === 0) riskSignals.push('security-uncertain');
+  return { prClass, riskSignals: [...new Set(riskSignals)] };
 }
 
 /**
@@ -85,6 +106,11 @@ const UNREVIEWABLE_PATH_RE = new RegExp(
     '(^|/)(package-lock\\.json|pnpm-lock\\.yaml|yarn\\.lock|Cargo\\.lock|poetry\\.lock|go\\.sum|Gemfile\\.lock)$',
     // generated / derived artifacts
     '(^|/)(dist|build|out|coverage|vendor|node_modules|target)/',
+    '(^|/)docs/artifacts/',
+    // Terminal recordings are evidence, not authored program source. Their
+    // semantic checks live beside the recorder; feeding raw ANSI streams to a
+    // reviewer both wastes the context window and makes its view less useful.
+    '\\.cast$',
     '\\.(min\\.(js|css)|map|snap)$',
     '(^|/)__snapshots__/',
     '\\.snapshot\\.json$',
@@ -107,30 +133,42 @@ export function isReviewableForBugs(path: string): boolean {
 
 export interface GateDecision {
   run: boolean;
+  disposition?: 'required' | 'advisory' | 'abstain' | 'ineligible';
   /** Why the ship was skipped (for the transcript). Absent when it runs. */
   reason?: string;
 }
 
 /**
  * Decide whether a ship should run against this diff, BEFORE any AI spend.
- *
- *   1. Ideation ships always run (they propose forward work on ANY diff, and are
- *      the whole point of a docs-only planning diff).
- *   2. Reviewer ships skip a docs-only diff (nothing to review for correctness).
- *   3. A ship with a surface gate skips when the diff touches none of its surface.
- *   4. Otherwise it runs.
+ * The trusted participation policy, not the ship name, owns relevance and vote
+ * authority. An incomplete changed-file inventory is conservatively promoted to
+ * the strongest runnable disposition declared by that policy.
  */
 export function decideShipGate(
   ship: ShipConfig,
   changedPaths: string[],
-  docsOnly: boolean,
+  _docsOnly: boolean,
+  diffBytes = 0,
+  inventoryIncomplete = false,
+  diffText = '',
 ): GateDecision {
-  if (ship.ideation) return { run: true };
-  if (docsOnly) return { run: false, reason: 'docs-only diff — reviewer ships skip (ideation runs)' };
-
-  const gate = shipSurfaceGate(ship.name);
-  if (gate && !changedPaths.some(p => gate.test(p))) {
-    return { run: false, reason: `surface not touched by diff (pd-${ship.name} gate)` };
+  if (!ship.participationValid) {
+    return { run: false, disposition: 'ineligible', reason: 'invalid or unauthorized participation policy' };
   }
-  return { run: true };
+  const decision = decideShipParticipation(ship.participation, classifyPullRequest(changedPaths, diffBytes, diffText));
+  if (inventoryIncomplete && decision.disposition !== 'required' && decision.disposition !== 'advisory') {
+    const declared = [ship.participation.default, ...ship.participation.rules.map(rule => rule.disposition)];
+    const conservative = declared.includes('required') ? 'required'
+      : declared.includes('advisory') ? 'advisory' : decision.disposition;
+    return {
+      run: conservative === 'required' || conservative === 'advisory',
+      disposition: conservative,
+      reason: `changed-file inventory incomplete; conservative ${conservative} participation`,
+    };
+  }
+  return {
+    run: decision.disposition === 'required' || decision.disposition === 'advisory',
+    disposition: decision.disposition,
+    reason: decision.reason,
+  };
 }

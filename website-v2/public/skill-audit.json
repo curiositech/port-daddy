@@ -4,7 +4,7 @@
     "total": 319,
     "passing": 319,
     "failing": 0,
-    "warning_only": 115,
+    "warning_only": 122,
     "failing_skills": []
   },
   "skills": [
@@ -1493,6 +1493,16 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "giant-squid-hooks",
+      "root": "skills/giant-squid-hooks",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "git-best-practices",
       "root": "skills/git-best-practices",
       "ok": true,
@@ -1567,6 +1577,20 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "harbor-chartwork",
+      "root": "skills/harbor-chartwork",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts",
+        "tests"
+      ]
     },
     {
       "name": "harbor-exposition",
@@ -1755,6 +1779,16 @@
     {
       "name": "ipc-communication-patterns",
       "root": "skills/ipc-communication-patterns",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "jury-rig-bootstrap-lifecycle",
+      "root": "skills/jury-rig-bootstrap-lifecycle",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -2641,6 +2675,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "research-paper-submission",
+      "root": "skills/research-paper-submission",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "resilience-wiring-for-load-once-deps",
       "root": "skills/resilience-wiring-for-load-once-deps",
       "ok": true,
@@ -3079,6 +3126,20 @@
       ]
     },
     {
+      "name": "swiss-modern-website-design",
+      "root": "skills/swiss-modern-website-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts",
+        "templates"
+      ]
+    },
+    {
       "name": "tailwind-v4-expert",
       "root": "skills/tailwind-v4-expert",
       "ok": true,
@@ -3129,6 +3190,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "textbook-craft",
+      "root": "skills/textbook-craft",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "three-sided-agent-labor-market",
       "root": "skills/three-sided-agent-labor-market",
       "ok": true,
@@ -3137,6 +3211,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "tikz-figure-engineering",
+      "root": "skills/tikz-figure-engineering",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "templates"
+      ]
     },
     {
       "name": "tlaplus-practitioner",
@@ -3171,6 +3258,20 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "tufte-evidence-design",
+      "root": "skills/tufte-evidence-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "tunnels-for-agents",
       "root": "skills/tunnels-for-agents",
       "ok": true,
@@ -3189,6 +3290,18 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "root": "skills/ui-ux-pro-max",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "scripts"
+      ]
     },
     {
       "name": "ux-friction-analyzer",
@@ -3342,98 +3455,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-architect",
-      "root": "skills/windags-architect",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-curator",
-      "root": "skills/windags-curator",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-decomposer",
-      "root": "skills/windags-decomposer",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-evaluator",
-      "root": "skills/windags-evaluator",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-looking-back",
-      "root": "skills/windags-looking-back",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-mutator",
-      "root": "skills/windags-mutator",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-premortem",
-      "root": "skills/windags-premortem",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-resilience",
-      "root": "skills/windags-resilience",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-sensemaker",
-      "root": "skills/windags-sensemaker",
-      "ok": true,
-      "orphans": [],
-      "drift": [],
-      "broken_links": [],
-      "missing_indexes_failure": [],
-      "missing_indexes_warning": []
-    },
-    {
-      "name": "windags-skill-cdm-elicitation",
-      "root": "skills/windags-skill-cdm-elicitation",
+      "name": "whitepaper-figure-system",
+      "root": "skills/whitepaper-figure-system",
       "ok": true,
       "orphans": [],
       "drift": [],

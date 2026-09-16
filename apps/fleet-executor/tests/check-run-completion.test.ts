@@ -49,6 +49,7 @@ function fleetYaml(name: string): string {
     `    ${name}:`,
     '      trigger: pull_request:opened',
     '      blocking: true',
+    '      participation: { default: required, rules: [] }',
     '      fallbacks:',
     "        - backend: cloudflare",
     "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -201,7 +202,11 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
           throw new Error('socket reset after request body upload');
         }
         getCalls += 1;
-        return new Response(JSON.stringify({ status: 'completed', conclusion: 'success' }), {
+        return new Response(JSON.stringify({
+          status: 'completed',
+          conclusion: 'success',
+          output: { summary: 'all good' },
+        }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         });

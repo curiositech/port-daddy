@@ -145,11 +145,13 @@ queue = "fleet-runs"
 
 [[queues.consumers]]
 queue = "fleet-runs"
-# Isolate long reviews by batch and invocation. A one-message batch alone still
-# permits many concurrent Worker invocations, multiplying each run's model
-# fan-out and allowing obsolete/current heads to review simultaneously.
+# Isolate long reviews by batch while allowing a deliberately small global
+# drain. A single active invocation makes every checkpointed one-ship slice
+# rejoin the back of the FIFO, leaving required checks pending behind unrelated
+# PRs. Three workers are a hard global cap; the durable intent fence admits one
+# sequence per delivery and the executor rechecks the PR head before each ship.
 max_batch_size = 1
-max_concurrency = 1
+max_concurrency = 3
 max_batch_timeout = 30
 # Each successful invocation runs at most one new provider-heavy ship, records
 # a delivery-continuation step, enqueues the next checkpointed slice, and

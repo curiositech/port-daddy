@@ -20,13 +20,13 @@ The authors identify three specific ways plans constrain reasoning:
 
 ## Why This Matters for Agent Systems
 
-For multi-agent orchestration systems like WinDAGs, this architectural insight has profound implications:
+For multi-agent orchestration systems like Jury-rig, this architectural insight has profound implications:
 
 **Decomposition**: When a WinDAG agent receives a complex task, the act of forming even a partial plan (deciding on high-level approach) immediately constrains what skills need to be considered next. The partial plan doesn't solve the problem, but it transforms an intractable "consider everything" problem into a focused "how do I accomplish X?" problem.
 
 **Coordination**: When multiple agents operate, each agent's plans serve as commitment signals that other agents can rely on for their own planning. If Agent A has committed to producing data in format X by time T, Agent B can plan around this assumption without constantly checking whether A has changed its mind. The stability of plans enables distributed reasoning without constant synchronization.
 
-**Skill Selection**: The 180+ skills in WinDAGs represent an overwhelming option space. If every decision point required evaluating all skills, the system would spend more time in meta-reasoning than actual work. Plans filter this: once you've committed to "refactor this Python module," you're looking at code analysis and transformation skills, not network security audits.
+**Skill Selection**: The 180+ skills in Jury-rig represent an overwhelming option space. If every decision point required evaluating all skills, the system would spend more time in meta-reasoning than actual work. Plans filter this: once you've committed to "refactor this Python module," you're looking at code analysis and transformation skills, not network security audits.
 
 ## The Consistency Requirement
 
@@ -48,7 +48,7 @@ A crucial implication of the constraint-based view is that **plans should be str
 
 This might seem like procrastination, but it's rational resource management. The authors explain: "In addition to bounded computational resources, agents have bounded knowledge. They are neither prescient nor omniscient: the world may change around them in ways they are not in a position to anticipate. Hence highly detailed plans about the far future will often be of little use, the details not worth bothering about" (p. 9).
 
-For WinDAGs: An orchestration system receives a request to "implement OAuth authentication." A rational response is:
+For Jury-rig: An orchestration system receives a request to "implement OAuth authentication." A rational response is:
 1. **Immediate commitment**: "I will implement OAuth authentication"
 2. **Partial decomposition**: "I need to (a) choose OAuth provider, (b) implement token exchange, (c) add middleware"
 3. **Deferred details**: Specific library choices, error handling strategies, and test approaches remain unspecified
@@ -100,4 +100,4 @@ By committing to plans that constrain future reasoning, the agent accepts that i
 
 As the authors note: "Other things being equal, an agent's plans should be consistent, both internally and with her beliefs" (p. 8). That "other things being equal" is crucial — when things aren't equal (major unexpected changes), plans can be revised. But the default is stability, because stability is what enables the computational savings that make bounded rationality possible.
 
-For WinDAGs and similar systems, the lesson is clear: **don't architect agents as optimization engines that continuously re-evaluate everything. Architect them as commitment-forming systems that use plans to bound their reasoning and create tractable subproblems.** The partial plan isn't a limitation to be overcome; it's the mechanism that makes intelligent action possible under resource bounds.
+For Jury-rig and similar systems, the lesson is clear: **don't architect agents as optimization engines that continuously re-evaluate everything. Architect them as commitment-forming systems that use plans to bound their reasoning and create tractable subproblems.** The partial plan isn't a limitation to be overcome; it's the mechanism that makes intelligent action possible under resource bounds.

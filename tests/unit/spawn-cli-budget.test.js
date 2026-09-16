@@ -85,7 +85,42 @@ describe('pd spawn budget enforcement', () => {
       task: 'review the diff',
       identity: 'port-daddy:repo:cli',
       budgetUsd: 0.75,
+      workdir: process.cwd(),
     });
+  });
+
+  test('preserves an explicit workdir byte-for-byte', async () => {
+    mockPdFetch.mockResolvedValueOnce(response(true, {
+      success: true,
+      status: 'completed',
+      agentId: 'spawned-explicit-workdir',
+      backend: 'custom',
+      model: 'custom',
+      output: 'done',
+    }));
+
+    const workdir = '/Users/example/Project With Spaces/../exact-input';
+    await handleSpawn(['review the diff'], {
+      backend: 'custom',
+      budget: '0.75',
+      quiet: true,
+      workdir,
+    });
+
+    const body = JSON.parse(mockPdFetch.mock.calls[0][1].body);
+    expect(body.workdir).toBe(workdir);
+  });
+
+  test('documents the workdir option and its current-directory default', async () => {
+    await expect(handleSpawn([], {
+      backend: 'custom',
+      budget: '0.75',
+    })).rejects.toThrow('exit:1');
+
+    const usage = console.error.mock.calls.flat().join('\n');
+    expect(usage).toContain('--workdir <absolute-path>');
+    expect(usage).toContain('Defaults to the current directory');
+    expect(mockPdFetch).not.toHaveBeenCalled();
   });
 
   test('forwards model tier when requested', async () => {

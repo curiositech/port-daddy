@@ -1,4 +1,5 @@
 import { assessBackendTelemetryPolicy } from '../../lib/backend-telemetry-policy.js';
+import { resolveModel } from '../../lib/model-registry.js';
 
 describe('backend telemetry policy', () => {
   test('allows Claude only when the model has an exact rate entry', () => {
@@ -23,7 +24,7 @@ describe('backend telemetry policy', () => {
     expect(policy).toEqual(expect.objectContaining({
       backend: 'claude',
       launchAllowed: true,
-      effectiveModel: 'claude-haiku-4-5-20251001',
+      effectiveModel: 'claude-haiku-4-5',
     }));
   });
 
@@ -85,16 +86,20 @@ describe('backend telemetry policy', () => {
   });
 
   test('allows Cloudflare when the model has an exact rate entry', () => {
+    // What must hold is that the policy's effective model is the SAME id the
+    // resolver picks — otherwise launch is permitted against a model the run
+    // will not use, and the rate check blessed the wrong row. Which id fills the
+    // cheap rung is a fleet decision that moves on measurement.
     const policy = assessBackendTelemetryPolicy('cloudflare');
     expect(policy.launchAllowed).toBe(true);
-    expect(policy.effectiveModel).toBe('@cf/zai-org/glm-4.7-flash');
+    expect(policy.effectiveModel).toBe(resolveModel({ backend: 'cloudflare', capability: 'cheap' }));
   });
 
-  test('allows Gemini with the default (gemini-2.5-flash) when none is supplied', () => {
+  test('allows Gemini with the default (gemini-3.7-flash) when none is supplied', () => {
     const policy = assessBackendTelemetryPolicy('gemini');
     expect(policy.launchAllowed).toBe(true);
     expect(policy.backend).toBe('gemini');
-    expect(policy.effectiveModel).toBe('gemini-2.5-flash');
+    expect(policy.effectiveModel).toBe('gemini-3.7-flash');
   });
 
   test('blocks Gemini for a model with no known rate', () => {
@@ -123,6 +128,9 @@ describe('backend telemetry policy', () => {
   // usage (exact) with a labelled estimate fallback. The launch is allowed when
   // the model has a cost rate, and blocked only when it can't be priced.
   test('allows Claude CLI when the model has a cost rate entry', () => {
+    // An EXPLICIT model is echoed back verbatim — including a dated snapshot id.
+    // The registry's canonical form is now undated, but a caller pinning a dated
+    // id must still pass through and still price (substring match).
     const policy = assessBackendTelemetryPolicy('claude-cli', 'claude-haiku-4-5-20251001');
     expect(policy.launchAllowed).toBe(true);
     expect(policy.backend).toBe('claude-cli');
@@ -133,7 +141,7 @@ describe('backend telemetry policy', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli');
     expect(policy.launchAllowed).toBe(true);
     expect(policy.backend).toBe('claude-cli');
-    expect(policy.effectiveModel).toBe('claude-haiku-4-5-20251001');
+    expect(policy.effectiveModel).toBe('claude-haiku-4-5');
   });
 
   test('still blocks Claude CLI for a model with no known cost rate', () => {

@@ -22,7 +22,7 @@ buddies. Three expansions:
    seeing that data*, via remote harbors — nobody gets screwed. Competitive
    advantage in a skill library becomes revenue. This is the manifesto's
    economy made concrete, and it can make money *immediately*.
-3. **Quality is rateable, so trust is sellable.** WinDAGs proved skill-grafting
+3. **Quality is rateable, so trust is sellable.** Jury-rig proved skill-grafting
    raises output quality on dev tasks almost always. Neutral red-teamers and
    quality reviewers can rate agents/skills/orchestrators the same way —
    incentivizing guilds ("agentic Moody's").

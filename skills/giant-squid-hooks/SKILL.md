@@ -110,6 +110,24 @@ silently invisible to `pd squid debug status`.
 coordination fact is degraded coordination; a crashed or hung CLI loop is a
 broken product (ADR-0091 §Mitigation).
 
+**The halt sentinel comes first (ADR-0132 listening watch).** Every tentacle
+— and the gate wrapper — does `test -f "$PD_HOME/HALT"` before any matrix,
+dial, or daemon work, so a halt is heard even when the daemon is down on
+purpose. With the flag hoisted: the prompt tentacle injects a notice that
+opens `SECURITE HALT` on its own line followed by the sentinel's own text;
+`pd-hook-pre-tool` refuses `pd`/`port-daddy` (except `--help`/`--version`),
+`mcp__port-daddy__*`, `launchctl load|enable|kickstart|bootstrap|start` of a
+Port Daddy label, and `brew services start|restart port-daddy` with the same
+per-vendor block contracts as the lock gate; each session appends one
+`control SEEN` line to `$PD_HOME/DISTRESS` (and `<repo>/.portdaddy/DISTRESS`)
+and `pd-hook-stop` appends `control COMPLIED` after one prompt→stop cycle
+with no blocked call. The SITREP compulsion and verification are withheld
+during a halt (their scaffold commands are `pd` invocations), and no tentacle
+touches the daemon or runs `pd`. Per-session dedupe lives under
+`$PD_HOME/squid/halt-watch/`. Override paths: `PD_HALT_FILE`,
+`PD_DISTRESS_FILE`. The sentinel read and append are inline until phase 0's
+`lib/distress.ts` (proposed, not yet shipped) lands.
+
 **POSIX sh only.** `#!/bin/sh`, `set -u`, no bashisms. `jq` is optional with a
 `python3` or `sed` fallback; the tentacles run under dash, BSD sh, and busybox.
 
@@ -170,10 +188,13 @@ adversarial-review pipeline is the follow-up).
 The related SessionStart Pilot hook now adds a bounded, project-scoped salvage
 count. Both nudges expose counts and corrective verbs only; message bodies and
 salvage payloads stay in daemon truth until the agent explicitly runs
-`pd attention` or `pd salvage`. Chapter 28 of the Agent Harbor binder owns the
-larger lifecycle contract for Notification, SessionEnd, SubagentStop,
-PreCompact, repository PR digests, and the future Postmaster role. Do not add
-those as synchronous network-heavy tentacles: hooks emit bounded facts or
+`pd attention` or `pd salvage`. Chapter 28 of the Agent Harbor binder is useful
+provenance for the larger lifecycle proposal around Notification, SessionEnd,
+SubagentStop, PreCompact, repository PR digests, and the future Postmaster role;
+it does not own current authority. Reconcile that source with ADRs, deployed
+runtime evidence, and eventually the configured remote append-only work-event
+Oracle once remote read-back receipts prove the cutover live. Do not add those
+events as synchronous network-heavy tentacles: hooks emit bounded facts or
 durable jobs, and expensive synthesis happens behind the daemon.
 
 ## ADR ownership

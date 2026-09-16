@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" fill="none">
+  <!-- Compact optical mark for 32–64 px. -->
+  <rect x="8" y="8" width="284" height="284" rx="62" fill="#101216"/>
+  <g stroke="#7DB4FF" stroke-width="4" opacity="0.2">
+    <circle cx="150" cy="150" r="54"/>
+    <circle cx="150" cy="150" r="112"/>
+  </g>
+  <g stroke-linecap="square" stroke-width="15">
+    <path d="M50 98V50H98" stroke="#7DB4FF"/>
+    <path d="M202 50H250V98" stroke="#8FD0A7"/>
+    <path d="M250 202V250H202" stroke="#7DB4FF"/>
+    <path d="M98 250H50V202" stroke="#8FD0A7"/>
+    <path d="M202 50H250" stroke="#F2BE51"/>
+  </g>
+  <g fill="none" stroke-linecap="butt" stroke-width="18">
+    <path d="M108 106V214" stroke="#7DB4FF"/>
+    <circle cx="136" cy="135" r="27" stroke="#7DB4FF"/>
+    <path d="M192 194V86" stroke="#8FD0A7"/>
+    <circle cx="164" cy="165" r="27" stroke="#8FD0A7"/>
+  </g>
+  <circle cx="150" cy="150" r="6" fill="#F2BE51"/>
+</svg>

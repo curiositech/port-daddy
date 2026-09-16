@@ -31,10 +31,13 @@
  *     reasoning spans; {@link stripThinkSpans} removes them before parsing.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
+import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import type { Proposal } from './proposals.js';
 import type { Severity, ShipResult } from './verdict.js';
 import { extractAiText } from './ai-response.js';
 import { FleetAiCircuit, FleetAiDependencyError } from './ai-resilience.js';
+import { requireContextAdmission } from './context-admission.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -43,7 +46,7 @@ import { FleetAiCircuit, FleetAiDependencyError } from './ai-resilience.js';
  * Default XO model. A Workers AI `@cf/` reasoning model — the operator's
  * standing order is Workers AI ONLY (never the Anthropic API in product code).
  */
-export const DEFAULT_XO_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
+export const DEFAULT_XO_MODEL = CF_ROLE_MODELS.synthesisOfficer;
 
 /** How many recently tracked ideas the editor pass shows the model (context cap). */
 export const XO_RECENT_IDEAS_LIMIT = 30;
@@ -179,12 +182,9 @@ function oneLine(text: string): string {
  */
 function xoAiOptions(
   gatewayId: string | undefined,
-): { extraHeaders: Record<string, string>; gateway?: { id: string } } {
-  const opts: { extraHeaders: Record<string, string>; gateway?: { id: string } } = {
-    extraHeaders: { 'x-session-affinity': 'pd-fleet-xo' },
-  };
-  if (gatewayId) opts.gateway = { id: gatewayId };
-  return opts;
+  context?: ShipCallContext,
+) {
+  return shipAiOptions(gatewayId, 'xo', context);
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +422,7 @@ export async function runXoEditorPass(opts: {
   proposals: Proposal[];
   recentIdeas: Array<{ title: string; rationale: string }>;
   gatewayId?: string;
+  telemetryContext?: ShipCallContext;
   /** Shared per-delivery circuit; omitted by standalone callers and tests. */
   aiCircuit?: FleetAiCircuit;
 }): Promise<XoEditorOutcome> {
@@ -432,16 +433,21 @@ export async function runXoEditorPass(opts: {
   try {
     // transcript-capture: exempt (XO curation pass — run-level, not a ship
     // conversation; RFC open question #1 defers its capture)
+    const request = {
+      messages: [
+        { role: 'system', content: buildEditorSystemPrompt() },
+        { role: 'user', content: buildEditorUserMessage(proposals, recentIdeas) },
+      ],
+      max_tokens: XO_MAX_OUTPUT_TOKENS,
+    };
+    // XO is advisory, but it must still never hand an over-window request to
+    // Workers AI. The surrounding fail-open contract preserves the original
+    // proposals when admission declines this optional pass.
+    requireContextAdmission(model, request.messages, XO_MAX_OUTPUT_TOKENS);
     const call = () => ai.run(
       model as Parameters<typeof ai.run>[0],
-      {
-        messages: [
-          { role: 'system', content: buildEditorSystemPrompt() },
-          { role: 'user', content: buildEditorUserMessage(proposals, recentIdeas) },
-        ],
-        max_tokens: XO_MAX_OUTPUT_TOKENS,
-      },
-      xoAiOptions(opts.gatewayId),
+      request,
+      xoAiOptions(opts.gatewayId, opts.telemetryContext),
     );
     const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();
     const { text } = extractAiText(res);
@@ -674,6 +680,7 @@ export async function xoOrdersSection(opts: {
   advisories: AdvisoryRef[];
   changedPaths: string[];
   gatewayId?: string;
+  telemetryContext?: ShipCallContext;
   /** Shared per-delivery circuit; omitted by standalone callers and tests. */
   aiCircuit?: FleetAiCircuit;
 }): Promise<string> {
@@ -682,16 +689,21 @@ export async function xoOrdersSection(opts: {
   try {
     // transcript-capture: exempt (XO advisory pass — run-level, not a ship
     // conversation; RFC open question #1 defers its capture)
+    const request = {
+      messages: [
+        { role: 'system', content: buildTriageSystemPrompt() },
+        { role: 'user', content: buildTriageUserMessage(advisories, opts.changedPaths) },
+      ],
+      max_tokens: XO_MAX_OUTPUT_TOKENS,
+    };
+    // Same admission boundary as the editor pass. `xoOrdersSection` is
+    // intentionally fail-open, so refusal leaves the required check and its
+    // ordinary review comment untouched.
+    requireContextAdmission(opts.model, request.messages, XO_MAX_OUTPUT_TOKENS);
     const call = () => opts.ai.run(
       opts.model as Parameters<typeof opts.ai.run>[0],
-      {
-        messages: [
-          { role: 'system', content: buildTriageSystemPrompt() },
-          { role: 'user', content: buildTriageUserMessage(advisories, opts.changedPaths) },
-        ],
-        max_tokens: XO_MAX_OUTPUT_TOKENS,
-      },
-      xoAiOptions(opts.gatewayId),
+      request,
+      xoAiOptions(opts.gatewayId, opts.telemetryContext),
     );
     const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();
     const { text } = extractAiText(res);

@@ -18,7 +18,8 @@
  *     --dist dist \
  *     --out dist/latest.json \
  *     [--repo curiositech/port-daddy] \
- *     [--signed]            # mark mac artifacts as Developer-ID signed+notarized
+ *     [--signed]            # mark non-FleetBar mac artifacts signed; FleetBar
+ *                           # requires its own signed+notarized package manifest
  *
  * The download URLs are GitHub Release asset URLs:
  *   https://github.com/<repo>/releases/download/<tag>/<filename>
@@ -89,34 +90,45 @@ function classifyArtifact(filename) {
   return null;
 }
 
-function fleetbarSignedFromManifest(manifestPath) {
-  if (!existsSync(manifestPath)) return null;
+function fleetbarSignedFromManifest(manifestPath, fleetbarPaths) {
+  if (!existsSync(manifestPath)) {
+    throw new Error(`FleetBar release manifest is required at ${manifestPath}`);
+  }
 
   let manifest;
   try {
     manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   } catch {
-    console.warn(`build-latest-json: ignoring unusable FleetBar manifest at ${manifestPath}: malformed JSON`);
-    return null;
+    throw new Error(`FleetBar release manifest at ${manifestPath} is malformed JSON`);
   }
 
   if (typeof manifest.unsigned !== 'boolean') {
     const actual = Object.prototype.hasOwnProperty.call(manifest, 'unsigned') ? typeof manifest.unsigned : 'missing';
-    console.warn(`build-latest-json: ignoring unusable FleetBar manifest at ${manifestPath}: unsigned must be boolean (got ${actual})`);
-    return null;
+    throw new Error(`FleetBar release manifest unsigned must be boolean (got ${actual})`);
+  }
+  if (typeof manifest.notarized !== 'boolean') {
+    const actual = Object.prototype.hasOwnProperty.call(manifest, 'notarized') ? typeof manifest.notarized : 'missing';
+    throw new Error(`FleetBar release manifest notarized must be boolean (got ${actual})`);
   }
 
-  // Gatekeeper accepts a DOWNLOADED .app only when it is Developer ID signed
-  // AND notarized. v3.27.0 shipped signed-but-unnotarized (notary key failed
-  // validation, fail-soft) while the feed said signed:true — the fresh-install
-  // smoke caught Gatekeeper rejecting exactly what the feed advertised as good.
-  // A manifest that carries `notarized` participates in the flag; an older
-  // manifest without it keeps the signing-only semantics it was written with.
-  if (typeof manifest.notarized === 'boolean') {
-    return !manifest.unsigned && manifest.notarized;
+  if (manifest.unsigned || !manifest.notarized) {
+    throw new Error(`FleetBar release manifest is not shippable: unsigned=${manifest.unsigned} notarized=${manifest.notarized}`);
   }
 
-  return !manifest.unsigned;
+  if (fleetbarPaths.length !== 1) {
+    throw new Error(`FleetBar release requires exactly one artifact (found ${fleetbarPaths.length})`);
+  }
+  const artifactPath = fleetbarPaths[0];
+  const artifactName = basename(artifactPath);
+  if (manifest.artifact !== artifactName) {
+    throw new Error(`FleetBar release manifest artifact mismatch: expected ${artifactName}, got ${String(manifest.artifact)}`);
+  }
+  const artifactSha256 = sha256File(artifactPath);
+  if (manifest.sha256 !== artifactSha256) {
+    throw new Error(`FleetBar release manifest sha256 does not match ${artifactName}`);
+  }
+
+  return true;
 }
 
 function main() {
@@ -153,14 +165,10 @@ function main() {
   };
   walk(distDir);
 
-  // FleetBar uploads a manifest asset under dist/fleetbar/ that records whether
-  // its .app was ACTUALLY signed (`unsigned: false` once it is). Derive the feed's
-  // FleetBar `signed` flag from that truth rather than the blanket --signed flag,
-  // which only means "the daemon was signed this release" — FleetBar's build
-  // historically shipped ad-hoc while --signed marked it signed:true, so the feed
-  // advertised a Gatekeeper-quarantined app as signed. `null` means no usable
-  // manifest truth was found, so fall back to the blanket flag.
-  const fleetbarSigned = fleetbarSignedFromManifest(join(distDir, 'fleetbar', 'fleetbar-preview-manifest.json'));
+  const fleetbarPaths = found.filter((filePath) => classifyArtifact(basename(filePath))?.surface === 'fleetbar');
+  const fleetbarSigned = fleetbarPaths.length > 0
+    ? fleetbarSignedFromManifest(join(distDir, 'fleetbar', 'fleetbar-preview-manifest.json'), fleetbarPaths)
+    : null;
 
   const artifacts = [];
   for (const filePath of found) {
@@ -169,7 +177,7 @@ function main() {
     if (!cls) continue;
     const sha256 = sha256File(filePath);
     let signed = signedFlag && cls.macSigned;
-    if (cls.surface === 'fleetbar' && fleetbarSigned !== null) signed = fleetbarSigned;
+    if (cls.surface === 'fleetbar') signed = fleetbarSigned;
     artifacts.push({
       surface: cls.surface,
       filename: fn,

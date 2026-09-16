@@ -32,7 +32,7 @@ The key methodological insight is the difference between **primitive** and **der
 
 When a higher-level construct can be derived from primitives, it does not need to be added to the semantics. It is syntactic sugar — useful for expressiveness, irrelevant for theoretical analysis.
 
-This is important for WinDAGs design: the orchestration system should have a minimal kernel of primitives, and all higher-level coordination patterns (parallel fan-out, sequential pipelines, conditional routing, retry logic, etc.) should be derived from those primitives. This makes the system:
+This is important for Jury-rig design: the orchestration system should have a minimal kernel of primitives, and all higher-level coordination patterns (parallel fan-out, sequential pipelines, conditional routing, retry logic, etc.) should be derived from those primitives. This makes the system:
 - Easier to reason about formally
 - Easier to test (test the primitives, trust the derivations)
 - More extensible (new patterns can be added without changing the kernel)
@@ -96,14 +96,14 @@ The practical consequence: in a well-designed actor-based system, there is no ne
 
 ## Implications for Agent System Design
 
-**Kernel specification for WinDAGs**: WinDAGs should have a formally specified kernel of primitives: the minimum set of operations that all other patterns are built from. Candidates include: create_skill, send_message, register_continuation, and declare_external. All higher-level patterns (workflow templates, retry logic, fan-out, etc.) should be defined as compositions of these primitives.
+**Kernel specification for Jury-rig**: Jury-rig should have a formally specified kernel of primitives: the minimum set of operations that all other patterns are built from. Candidates include: create_skill, send_message, register_continuation, and declare_external. All higher-level patterns (workflow templates, retry logic, fan-out, etc.) should be defined as compositions of these primitives.
 
-**Continuation management**: The customer pattern should be explicitly supported in WinDAGs. When skill A needs the output of skill B to continue its computation, WinDAGs should create a continuation object (analogous to a customer actor) that carries A's pending state, and pass it to B as part of the task. When B completes, it sends its result to the continuation.
+**Continuation management**: The customer pattern should be explicitly supported in Jury-rig. When skill A needs the output of skill B to continue its computation, Jury-rig should create a continuation object (analogous to a customer actor) that carries A's pending state, and pass it to B as part of the task. When B completes, it sends its result to the continuation.
 
-**Lazy skill invocation**: WinDAGs should support lazy skill invocation — the ability to "reserve" a skill invocation by creating its input message, but delay actually sending it until the result is needed. This enables speculative parallelism where downstream tasks begin setting up while upstream tasks are still running.
+**Lazy skill invocation**: Jury-rig should support lazy skill invocation — the ability to "reserve" a skill invocation by creating its input message, but delay actually sending it until the result is needed. This enables speculative parallelism where downstream tasks begin setting up while upstream tasks are still running.
 
-**Eager skill pre-computation**: For skills whose inputs can be determined in advance (even if they're not yet needed), WinDAGs should support sending the invocation message immediately and letting the skill run speculatively. If the result is ultimately needed, it's already available.
+**Eager skill pre-computation**: For skills whose inputs can be determined in advance (even if they're not yet needed), Jury-rig should support sending the invocation message immediately and letting the skill run speculatively. If the result is ultimately needed, it's already available.
 
-**Deriving patterns from primitives**: WinDAGs' library of workflow patterns (scatter-gather, sequential pipeline, conditional branching, retry with backoff, etc.) should be documented as derivations from the kernel primitives. This serves as both documentation and a correctness argument: each pattern's behavior is predictable because it's built from well-understood primitives.
+**Deriving patterns from primitives**: Jury-rig' library of workflow patterns (scatter-gather, sequential pipeline, conditional branching, retry with backoff, etc.) should be documented as derivations from the kernel primitives. This serves as both documentation and a correctness argument: each pattern's behavior is predictable because it's built from well-understood primitives.
 
-**No special-casing**: The uniformity principle suggests that WinDAGs should treat all skills, agents, and orchestration logic as instances of the same underlying actor model. There should not be "special" orchestration logic that operates outside the messaging framework. Even the orchestrator itself is an actor.
+**No special-casing**: The uniformity principle suggests that Jury-rig should treat all skills, agents, and orchestration logic as instances of the same underlying actor model. There should not be "special" orchestration logic that operates outside the messaging framework. Even the orchestrator itself is an actor.

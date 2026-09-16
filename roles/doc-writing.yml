@@ -34,7 +34,7 @@ fleet:
       backend: cli:claude-code
       fallbacks:
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          capability: cheap
       graft:
         - port-daddy-expository-writer
       prompt: |

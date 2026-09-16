@@ -16,7 +16,8 @@ import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import { getWorktreeInfo } from '../../lib/worktree.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
-import { readCurrentContext } from '../utils/current-context.js';
+import { readCurrentContext, resolveCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { handleBegin } from './sugar.js';
 import * as ui from '../utils/ui.js';
 
@@ -222,6 +223,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
 
   if (sub === 'export') {
     await handleRoadmapExport(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'push') {
+    await handleRoadmapPush(args.slice(1), options);
     return;
   }
 
@@ -675,13 +681,18 @@ async function deleteRoadmapItem(slug: string, harbor?: string): Promise<Roadmap
  * `pd roadmap upsert` silently forked receipts off the project board (which
  * lives in the `<project>` harbor). Resolving the project here keeps writes on
  * the same board the operator reads.
+ * The design also lets readers pass their selected target directory, so Guard
+ * checks invoked with --dir cannot infer a different caller repository's scope.
+ * @param options - Explicit harbor selection, ahead of environment defaults.
+ * @param cwd - Target directory for canonical project and basename inference.
+ * @returns The intended harbor, or undefined when no scope can be inferred.
  */
-export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
+export function resolveRoadmapHarbor(options: CLIOptions, cwd = process.cwd()): string | undefined {
   const explicit = readOption(options, 'harbor');
   if (explicit) return explicit;
   const env = process.env.PD_HARBOR?.trim();
   if (env) return env;
-  const worktree = getWorktreeInfo(process.cwd());
+  const worktree = getWorktreeInfo(cwd);
   if (worktree) {
     const commonDir = resolve(worktree.root, worktree.commonDir);
     const canonicalRoot = basename(commonDir) === '.git'
@@ -690,7 +701,7 @@ export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
     const projectName = basename(canonicalRoot);
     if (projectName) return projectName;
   }
-  const cwdBase = basename(process.cwd());
+  const cwdBase = basename(cwd);
   return cwdBase || undefined;
 }
 
@@ -954,38 +965,73 @@ async function handleRoadmapDelete(args: string[], options: CLIOptions): Promise
 }
 
 async function handleRoadmapTouch(args: string[], options: CLIOptions): Promise<void> {
+  const fail: (message: string) => never = (message) => { ui.error(message); process.exit(1); };
   const slug = readRoadmapSlug(args, options);
-  if (!slug) {
-    ui.error('Usage: pd roadmap touch <slug> [--note <receipt>] [--as <agentId>]');
-    process.exit(1);
+  if (!slug) fail('Usage: pd roadmap touch <slug> [--harbor <harbor>] [--note <receipt>]');
+  const resolution = resolveCurrentContext();
+  if (!resolution.success) fail('CONTEXT_CONFLICT: select the intended existing caller context; no identity was substituted.');
+  const caller = resolution.context;
+  if (!caller?.agentId || !caller.sessionId) fail('CALLER_CONTEXT_REQUIRED: select an existing active session before appending a roadmap receipt.');
+  const asserted = readOption(options, 'as', 'agent', 'by', 'promotedBy');
+  if (asserted && asserted !== caller.agentId) fail('CALLER_OVERRIDE_REJECTED: attribution comes from the verified session, not --as or another display name.');
+  const credential = resolveCliActorCredential(caller.agentId);
+  if (!credential) fail('IDENTITY_CREDENTIAL_REQUIRED: no credential is available for the selected caller; no other context was substituted.');
+  const harbor = resolveRoadmapHarbor(options)?.trim();
+  if (!harbor) fail('HARBOR_REQUIRED: select the exact roadmap harbor before appending a receipt.');
+  const note = { at: Date.now(), text: readOption(options, 'note', 'receipt')?.trim() || 'roadmap touched for active work slice' };
+  const body = JSON.stringify({ sessionId: caller.sessionId, note });
+  if (Buffer.byteLength(note.text, 'utf8') > 4096 || Buffer.byteLength(body, 'utf8') > 8192) {
+    fail('VALIDATION_ERROR: a receipt must fit 4096 UTF-8 bytes and its complete request 8192 bytes; split the evidence into concise separate notes.');
   }
-
-  const harbor = readOption(options, 'harbor');
-  const actor = currentRoadmapActor(options);
+  // No GET/full-row resend: newer summaries, owners, history and links stay
+  // server-owned. A selected Unix socket must not replay an accepted append
+  // against TCP, even when its reply is lost or a response never completes.
+  let response;
   try {
-    const existing = await getRoadmapItem(slug, harbor);
-    const note = roadmapNote(actor, readOption(options, 'note', 'receipt'));
-    const item = await postRoadmapItem({
-      slug: existing.slug,
-      summaryMd: existing.summaryMd,
-      status: existing.status,
-      promotedFromFeedbackId: existing.promotedFromFeedbackId ?? undefined,
-      promotedByAgentId: actor,
-      promotedAt: existing.promotedAt ?? Date.now(),
-      dependencies: existing.dependencies,
-      notes: [...(existing.notes ?? []), note],
-      harbor: existing.harbor,
+    response = await pdFetch(`${PORT_DADDY_URL}/roadmap/items/${encodeURIComponent(slug)}/touch?${new URLSearchParams({ harbor })}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-actor-credential': credential },
+      body, retry: false, socketFallback: false, signal: AbortSignal.timeout(10_000),
     });
-    if (isJson(options)) {
-      console.log(JSON.stringify({ success: true, item }, null, 2));
-      return;
-    }
+  } catch {
+    fail('Roadmap touch transport failed. The append outcome is unknown; inspect the exact item on the selected daemon before retrying.');
+  }
+  let result: Record<string, unknown> | undefined;
+  try {
+    const parsed = await response.json();
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) result = parsed;
+  } catch { /* Never print arbitrary remote bodies or nested transport errors. */ }
+  const hints: Record<string, string> = {
+    IDENTITY_CREDENTIAL_REQUIRED: 'The selected caller credential is required.',
+    IDENTITY_CREDENTIAL_INVALID: 'The selected caller credential did not verify.',
+    IDENTITY_VERIFIER_UNAVAILABLE: 'The daemon cannot verify caller identity.',
+    SESSION_VERIFIER_UNAVAILABLE: 'The daemon cannot verify session ownership.',
+    SESSION_NOT_FOUND: 'The exact session was not found.',
+    SESSION_NOT_ACTIVE: 'The exact session is not active; no automatic resume was attempted.',
+    SESSION_OWNERSHIP_MISMATCH: 'The selected caller does not own this session.',
+    SESSION_OWNER_UNVERIFIABLE: 'The stored session has no verified owner stamp.',
+    ROADMAP_ITEM_NOT_FOUND: 'No live item exists at this exact slug and harbor.',
+    ROADMAP_HISTORY_INVALID: 'Malformed stored history was preserved; no note was appended.',
+    ROADMAP_NOTE_CLOCK_INVALID: 'The receipt timestamp is invalid or ahead of the daemon clock. No timestamp was regenerated or retry attempted.',
+    VALIDATION_ERROR: 'The daemon rejected the receipt shape or size.',
+  };
+  if (!response.ok || result?.success === false) {
+    const code = typeof result?.code === 'string' && Object.hasOwn(hints, result.code) ? result.code : null;
+    fail(`Roadmap touch failed (HTTP ${response.status}${code ? `, ${code}` : ''}). ${code ? hints[code] : 'The append outcome is unconfirmed; inspect the exact item before retrying.'}`);
+  }
+  const item = result?.item as RoadmapItem | undefined;
+  const receipt = result?.receipt as { sessionId?: unknown; actorId?: unknown; note?: { at?: unknown; by?: unknown; text?: unknown } } | undefined;
+  const written = receipt?.note;
+  if (result?.success !== true || item?.slug !== slug || item.harbor !== harbor
+    || receipt?.sessionId !== caller.sessionId || receipt.actorId !== credential.split('.')[0]
+    || written?.at !== note.at || written.text !== note.text || typeof written.by !== 'string' || !written.by
+    || !Array.isArray(item.notes) || !item.notes.some((entry) => entry?.at === note.at && entry.text === note.text && entry.by === written.by)) {
+    fail('Roadmap touch receipt is missing, malformed, or targets another source. The daemon may lack verified append support; inspect the exact item before retrying.');
+  }
+  if (isJson(options)) console.log(JSON.stringify(result, null, 2));
+  else {
     ui.success(`Roadmap item '${item.slug}' touched`);
     console.log(`  receipt: ${note.text}`);
-    console.log(`  by:      ${actor}`);
-  } catch (error) {
-    ui.error(error instanceof Error ? error.message : 'roadmap touch failed');
-    process.exit(1);
+    console.log(`  by:      ${written.by}`);
   }
 }
 
@@ -1067,6 +1113,163 @@ async function handleRoadmapReindex(_args: string[], options: CLIOptions): Promi
     return;
   }
   ui.success(`Reindexed ${data.indexed ?? 0}/${data.total ?? 0} item(s) (${data.skipped ?? 0} unchanged, skipped)`);
+}
+
+/**
+ * `pd roadmap push [--repo owner/name] [--from committed] [--dry-run]`
+ * — replace the relay's mirror of this repository's roadmap.
+ *
+ * The relay has had `PUT /v1/roadmap/snapshot` and a D1 replica behind it since
+ * 2026-08-22, with nothing on this side to feed them. This is that producer.
+ *
+ * Source order: the daemon first (it is the roadmap's single writer), the
+ * committed `docs/roadmap/roadmap.snapshot.json` when the daemon is unreachable.
+ * Either way the snapshot's own `generatedAt` travels with it, so the mirror
+ * shows the daemon clock the data was made under beside the relay's arrival
+ * clock, and a fallback push reads as old rather than as fresh.
+ */
+async function handleRoadmapPush(args: string[], options: CLIOptions): Promise<void> {
+  const {
+    toMirrorPayload,
+    checkMirrorPayloadFits,
+    pushRoadmapMirror,
+    resolveMirrorRepo,
+    MirrorTranslationError,
+  } = await import('../../lib/roadmap-mirror-push.js');
+  const { readStoredAccount } = await import('./account.js');
+
+  const account = readStoredAccount();
+  if (!account?.token) {
+    ui.error('Not signed in. Run: pd account login');
+    process.exit(1);
+    return;
+  }
+
+  const repoArg = args.find((a) => !a.startsWith('--')) ?? readOption(options, 'repo');
+  // The remote is read unconditionally and handed over; resolveMirrorRepo
+  // decides whether it is allowed to matter. Reading it is free and cannot
+  // change the answer when the operator named a repository.
+  let remote: string | null = null;
+  try {
+    remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    remote = null;
+  }
+  const resolved = resolveMirrorRepo(repoArg ?? null, remote);
+  if (resolved.repo === null) {
+    ui.error(
+      resolved.reason === 'named-unusable'
+        ? `--repo must be owner/name (got "${repoArg}")`
+        : 'Could not read owner/name from the origin remote. Pass --repo owner/name.',
+    );
+    process.exit(1);
+    return;
+  }
+  const repoFullName = resolved.repo;
+
+  const harbor = readOption(options, 'harbor') ?? process.env.PD_HARBOR ?? 'port-daddy';
+  const snapshotPath = resolve(readOption(options, 'snapshot') ?? 'docs/roadmap/roadmap.snapshot.json');
+  const forceCommitted = readOption(options, 'from') === 'committed';
+
+  let snapshot: RoadmapSnapshot | undefined;
+  let source: 'daemon' | 'committed' = 'daemon';
+  let daemonError = '';
+  if (!forceCommitted) {
+    try {
+      snapshot = await buildRoadmapSnapshot({
+        baseUrl: PORT_DADDY_URL.replace(/\/$/, ''),
+        harbor,
+        previousSnapshot: readPreviousSnapshot(snapshotPath),
+      });
+    } catch (err) {
+      daemonError = (err as Error).message;
+    }
+  }
+  if (!snapshot) {
+    const previous = readPreviousSnapshot(snapshotPath) as RoadmapSnapshot | null;
+    if (!previous?.items?.length || typeof previous.generatedAt !== 'number') {
+      ui.error(
+        forceCommitted
+          ? `No usable snapshot at ${snapshotPath}. Run: npx tsx scripts/export-roadmap-snapshot.ts`
+          : `Daemon unreachable (${daemonError}) and no usable snapshot at ${snapshotPath}.\n` +
+            '  Start the daemon, or export one: npx tsx scripts/export-roadmap-snapshot.ts',
+      );
+      process.exit(1);
+      return;
+    }
+    snapshot = previous;
+    source = 'committed';
+  }
+
+  let payload;
+  try {
+    payload = toMirrorPayload(snapshot, repoFullName, readOption(options, 'daemon-label', 'daemonLabel'));
+  } catch (err) {
+    if (err instanceof MirrorTranslationError) {
+      ui.error(err.message);
+      process.exit(1);
+      return;
+    }
+    throw err;
+  }
+
+  const fits = checkMirrorPayloadFits(payload);
+  if (!fits.ok) {
+    ui.error(fits.reason);
+    process.exit(1);
+    return;
+  }
+
+  const age = Math.max(0, Date.now() - payload.generatedAt);
+  const ageLine = `${Math.floor(age / 60000)} min old at push time`;
+
+  if (options['dry-run'] || options.dryRun) {
+    const preview = {
+      wouldPushTo: `${account.relayUrl}/v1/roadmap/snapshot`,
+      source,
+      repoFullName,
+      harbor: payload.harbor,
+      generatedAt: payload.generatedAt,
+      items: payload.items.length,
+      bytes: fits.bytes,
+    };
+    if (isJson(options)) {
+      console.log(JSON.stringify(preview, null, 2));
+      return;
+    }
+    ui.info(
+      `Would push ${payload.items.length} item(s) (${fits.bytes} bytes, from the ${source} ` +
+        `snapshot, ${ageLine}) to ${preview.wouldPushTo}`,
+    );
+    return;
+  }
+
+  const result = await pushRoadmapMirror({
+    relayUrl: account.relayUrl,
+    token: account.token,
+    payload,
+  });
+
+  if (isJson(options)) {
+    console.log(JSON.stringify({ source, repoFullName, bytes: fits.bytes, ...result }, null, 2));
+    if (!result.ok) process.exit(1);
+    return;
+  }
+  if (!result.ok) {
+    ui.error(
+      `Relay refused the push (${result.status}${result.error ? ` ${result.error}` : ''}).` +
+        (result.status === 401 ? '\n  The stored token may be revoked. Run: pd account login' : ''),
+    );
+    process.exit(1);
+    return;
+  }
+  ui.success(
+    `Mirrored ${payload.items.length} roadmap item(s) for ${repoFullName} ` +
+      `(from the ${source} snapshot, ${ageLine})`,
+  );
 }
 
 /**

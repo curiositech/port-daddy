@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Multi-Backend Lanes</title>
+<!--
+  THE MULTIPLEX LANE VIEW.
+
+  Why this file exists: `GET /agents/:id/stream` — the richest endpoint in the
+  daemon, merging status + tube + transcript into one typed envelope feed — had
+  NO consumer anywhere in the repo. The transport for a live multiplex view was
+  built and unwatched, which meant "watch several bodies work at once" was a
+  claim nobody could check.
+
+  Deliberately ONE file with no build step:
+    - it is served straight from public/ by the daemon that produces the data,
+      so a capture cannot accidentally screenshot a stale bundle;
+    - the daemon's CSP allows same-origin connect-src, which is all EventSource
+      needs;
+    - a Vite rebuild between capture and daemon restart is the classic way
+      visual evidence stops matching the commit it claims to prove.
+
+  What it renders, and why each part is load-bearing rather than decorative:
+    - one COLUMN per lane, so concurrency is visible rather than asserted;
+    - a live token stream per lane, because a lane that only shows a final
+      answer cannot distinguish a slow run from a hung one;
+    - a HEARTBEAT chip and elapsed timer — the anti-Infinite-Spinner rule: a
+      lane must show life even when the model is producing nothing;
+    - the FAILOVER CHAIN, drawn from the predecessor edge, so a succession
+      reads as one piece of work continuing rather than two unrelated runs;
+    - a SOURCE LABEL on every lane (real / fixture), because evidence that does
+      not say what it is cannot be audited.
+-->
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --ink: #16181d;
+    --muted: #5f6672;
+    --line: #e3e5ea;
+    --accent: #2f6feb;
+    --ok: #17803d;
+    --warn: #b45309;
+    --dead: #9aa1ad;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1116;
+      --panel: #171a21;
+      --ink: #e8eaee;
+      --muted: #9aa1ad;
+      --line: #262b34;
+      --accent: #6ea0ff;
+      --ok: #4ade80;
+      --warn: #fbbf24;
+      --dead: #5f6672;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px;
+    padding: 12px;
+    align-items: start;
+  }
+  .lane {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 260px;
+  }
+  .lane-head { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .lane-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 620;
+    font-size: 13px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dead); flex: none; }
+  .dot.live { background: var(--ok); animation: pulse 1.4s ease-in-out infinite; }
+  .dot.done { background: var(--accent); }
+  .dot.failed { background: var(--warn); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .meta {
+    margin-top: 6px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+  .chip {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 1px 7px;
+    white-space: nowrap;
+  }
+  .chip.real { border-color: var(--ok); color: var(--ok); }
+  .chip.fixture { border-color: var(--warn); color: var(--warn); }
+  .chain {
+    margin-top: 7px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .chain .from { text-decoration: line-through; opacity: 0.65; }
+  .chain .arrow { color: var(--accent); }
+  .stream {
+    flex: 1;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    max-height: 340px;
+  }
+  .stream .thinking { color: var(--muted); font-style: italic; }
+  .stream .tool { color: var(--accent); }
+  .stream .err { color: var(--warn); }
+  .caret {
+    display: inline-block;
+    width: 7px;
+    height: 13px;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .empty { color: var(--muted); font-style: italic; }
+  footer {
+    padding: 10px 18px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Multi-backend lanes</h1>
+  <span class="sub" id="commit">commit —</span>
+  <span class="sub" id="clock">00:00</span>
+</header>
+<main id="lanes"></main>
+<footer id="foot">waiting for lanes…</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  const laneRoot = document.getElementById('lanes');
+  const foot = document.getElementById('foot');
+  const clockEl = document.getElementById('clock');
+  const started = Date.now();
+
+  setInterval(() => {
+    // The elapsed clock is not decoration. It is the difference between "this
+    // page is live and nothing is happening" and "this page froze" — a viewer
+    // must be able to tell those apart without reading the network tab.
+    const s = Math.floor((Date.now() - started) / 1000);
+    clockEl.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }, 1000);
+
+  const params = new URLSearchParams(location.search);
+
+  /**
+   * Lane definitions come from the query string so one static page can serve
+   * any capture: `?lane=<label>|<agentId>|<backend>|<sourceLabel>` repeated.
+   * Passing them in rather than discovering them keeps the page honest — it
+   * renders exactly the lanes the capture script asked for, and cannot quietly
+   * substitute a different agent when one fails to start.
+   */
+  const lanes = params.getAll('lane').map((raw) => {
+    const [label, agentId, backend, sourceLabel] = raw.split('|');
+    return {
+      label: label || agentId || 'lane',
+      agentId: agentId || '',
+      backend: backend || 'unknown',
+      sourceLabel: (sourceLabel || 'real').toLowerCase(),
+    };
+  });
+
+  const dispatchId = params.get('dispatch') || '';
+  if (params.get('commit')) {
+    document.getElementById('commit').textContent = `commit ${params.get('commit')}`;
+  }
+
+  if (lanes.length === 0) {
+    foot.textContent =
+      'No lanes requested. Add ?lane=<label>|<agentId>|<backend>|<real|fixture> (repeatable).';
+    return;
+  }
+
+  const views = new Map();
+
+  for (const lane of lanes) {
+    const el = document.createElement('section');
+    el.className = 'lane';
+    el.innerHTML = `
+      <div class="lane-head">
+        <div class="lane-title"><span class="dot"></span><span class="name"></span></div>
+        <div class="meta">
+          <span class="chip backend"></span>
+          <span class="chip source"></span>
+          <span class="chip beat">no heartbeat yet</span>
+        </div>
+        <div class="chain" hidden></div>
+      </div>
+      <div class="stream"><span class="empty">waiting for the first token…</span></div>`;
+    el.querySelector('.name').textContent = lane.label;
+    el.querySelector('.backend').textContent = lane.backend;
+    const src = el.querySelector('.source');
+    src.textContent = lane.sourceLabel;
+    src.classList.add(lane.sourceLabel === 'real' ? 'real' : 'fixture');
+    laneRoot.appendChild(el);
+
+    views.set(lane.agentId, {
+      lane,
+      el,
+      stream: el.querySelector('.stream'),
+      dot: el.querySelector('.dot'),
+      beat: el.querySelector('.beat'),
+      chain: el.querySelector('.chain'),
+      seenText: false,
+      lastBeat: 0,
+      /** How many transcript messages this lane has already drawn. */
+      rendered: 0,
+    });
+  }
+
+  /** Append one turn to a lane, replacing the placeholder on first content. */
+  function append(view, role, text) {
+    if (!text) return;
+    if (!view.seenText) {
+      view.stream.textContent = '';
+      view.seenText = true;
+    }
+    const span = document.createElement('span');
+    if (role === 'thinking') span.className = 'thinking';
+    else if (role === 'tool') span.className = 'tool';
+    else if (role === 'error') span.className = 'err';
+    span.textContent = role === 'assistant' ? text : `\n[${role}] ${text}\n`;
+    view.stream.appendChild(span);
+    view.stream.scrollTop = view.stream.scrollHeight;
+    beat(view, 'streaming');
+  }
+
+  /** Refresh a lane's liveness chip. */
+  function beat(view, why) {
+    view.lastBeat = Date.now();
+    view.dot.classList.add('live');
+    view.dot.classList.remove('done', 'failed');
+    view.beat.textContent = why;
+  }
+
+  /** Mark a lane terminal — the caret stops, the dot stops pulsing. */
+  function settle(view, state) {
+    view.dot.classList.remove('live');
+    view.dot.classList.add(state === 'failed' ? 'failed' : 'done');
+    view.beat.textContent = state;
+    const caret = view.stream.querySelector('.caret');
+    if (caret) caret.remove();
+  }
+
+  // A lane that stops receiving events must SAY so rather than looking the same
+  // as a lane that is thinking. Silence and progress must never render alike.
+  setInterval(() => {
+    const now = Date.now();
+    for (const view of views.values()) {
+      if (!view.lastBeat) continue;
+      if (!view.dot.classList.contains('live')) continue;
+      const quiet = Math.round((now - view.lastBeat) / 1000);
+      if (quiet >= 3) view.beat.textContent = `quiet ${quiet}s`;
+    }
+  }, 1000);
+
+  for (const view of views.values()) {
+    if (!view.lane.agentId) continue;
+    const es = new EventSource(`/agents/${encodeURIComponent(view.lane.agentId)}/stream`);
+
+    es.onopen = () => beat(view, 'connected');
+
+    // The daemon writes NAMED SSE events (`event: agent.transcript`), so the
+    // default `onmessage` handler never fires for them — a subtlety that makes a
+    // lane look connected and permanently silent, which is the single most
+    // misleading state a live view can be in.
+    const onEnvelope = (evt) => {
+      let envelope;
+      try {
+        envelope = JSON.parse(evt.data);
+      } catch {
+        return; // A malformed frame is skipped, never rendered as content.
+      }
+      const { kind, body } = envelope || {};
+
+      if (kind === 'agent.transcript') {
+        const entry = body && body.entry;
+        if (!entry) return;
+        // Render by INDEX, not by envelope type. Every transcript envelope —
+        // snapshot, start, update, end — carries the whole message array, so
+        // "append the last one on each update" double-renders the tail: `end`
+        // repeats what `update` just showed, and a late `snapshot` repeats the
+        // whole run. Tracking how much this lane has already drawn makes the
+        // rendering idempotent, which is the only version that survives a
+        // reconnect (EventSource retries on its own, and a retry replays the
+        // snapshot).
+        const messages = Array.isArray(entry.messages) ? entry.messages : [];
+        for (let i = view.rendered; i < messages.length; i++) {
+          append(view, messages[i].role, messages[i].content);
+        }
+        view.rendered = Math.max(view.rendered, messages.length);
+        if (body.type === 'end') settle(view, entry.status === 'failed' ? 'failed' : 'completed');
+        return;
+      }
+
+      if (kind === 'agent.status') {
+        beat(view, (body && body.status) || 'status');
+        return;
+      }
+
+      if (kind === 'agent.tube') beat(view, 'tube');
+    };
+
+    for (const name of ['agent.status', 'agent.transcript', 'agent.tube']) {
+      es.addEventListener(name, onEnvelope);
+    }
+    // Unnamed frames too, so a future envelope that drops the event name is not
+    // silently invisible.
+    es.onmessage = onEnvelope;
+    es.addEventListener('connected', () => beat(view, 'connected'));
+
+    es.onerror = () => {
+      // A dropped stream is reported, not hidden. EventSource retries on its
+      // own; saying "reconnecting" is honest about what the viewer is seeing.
+      if (view.dot.classList.contains('live')) view.beat.textContent = 'reconnecting…';
+    };
+  }
+
+  /**
+   * Poll the dispatch chain so a succession renders as ONE piece of work.
+   *
+   * Polled rather than pushed on purpose: a dispatch row is cool state that
+   * changes a handful of times per run, and the surface rules cap cool-state
+   * polling at 30s while forbidding a second push transport. One second here is
+   * a capture-time convenience, still far below anything that needs a socket.
+   */
+  if (dispatchId) {
+    const drawChain = async () => {
+      try {
+        const res = await fetch(`/dispatches/${encodeURIComponent(dispatchId)}`);
+        if (!res.ok) return;
+        const d = await res.json();
+        const row = d && (d.dispatch || d);
+        if (!row || !row.failoverFromBackend) return;
+        for (const view of views.values()) {
+          if (view.lane.backend !== row.backend) continue;
+          view.chain.hidden = false;
+          view.chain.innerHTML = '';
+          const from = document.createElement('span');
+          from.className = 'from';
+          from.textContent = row.failoverFromBackend;
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.textContent = '→';
+          const to = document.createElement('span');
+          to.textContent = `${row.backend} (attempt ${row.failoverAttempt})`;
+          view.chain.append(from, arrow, to);
+          if (row.handoffEpisodeId) {
+            const cap = document.createElement('span');
+            cap.className = 'chip';
+            cap.textContent = `capsule ${String(row.handoffEpisodeId).slice(0, 14)}`;
+            view.chain.appendChild(cap);
+          }
+        }
+      } catch {
+        // The chain is supplementary; its absence must not break the lanes.
+      }
+    };
+    drawChain();
+    setInterval(drawChain, 1000);
+  }
+
+  foot.textContent = `${lanes.length} lane(s) · ${lanes.filter((l) => l.sourceLabel === 'real').length} real · ${lanes.filter((l) => l.sourceLabel !== 'real').length} fixture`;
+})();
+</script>
+</body>
+</html>

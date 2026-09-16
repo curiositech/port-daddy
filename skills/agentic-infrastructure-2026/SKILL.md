@@ -376,7 +376,7 @@ node scripts/infra_readiness.mjs --input examples/sample-input.json
 - **Prompt optimization and tuning** → Use `prompt-engineer` instead
   - If debugging model outputs, optimizing prompts, or few-shot learning
 
-- **DAG workflow design** → Use `windags-architect` instead
+- **DAG workflow design** → Use `jury_rig-architect` instead
   - If building data pipelines, ETL workflows, or traditional orchestration
 
 - **LLM fine-tuning or model training** → Use domain-specific skills
@@ -385,7 +385,7 @@ node scripts/infra_readiness.mjs --input examples/sample-input.json
 **Delegate to other skills when:**
 - Request involves specific agent conversation patterns → `agentic-patterns`
 - Question is about model selection or prompt engineering → `ai-engineer` + `prompt-engineer`  
-- Focus is on data workflow orchestration → `windags-architect`
+- Focus is on data workflow orchestration → `jury_rig-architect`
 - Need help with change management processes → `change-management` (if exists)
 
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->

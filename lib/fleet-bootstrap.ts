@@ -4,13 +4,14 @@ import { fileURLToPath } from 'node:url';
 import {
   isLegacyPortDaddyPostCommitHook,
   isScopedPortDaddyPostCommitHook,
+  isCurrentPortDaddyPostCommitHook,
   loadPostCommitHookTemplate,
 } from './post-commit-hook.js';
 
 export interface FleetBootstrapResult {
   fleetPath: string;
   createdFleetConfig: boolean;
-  hookStatus: 'created' | 'upgraded' | 'merged' | 'already_current' | 'skipped_no_git' | 'missing_template';
+  hookStatus: 'created' | 'upgraded' | 'merged' | 'already_current' | 'skipped_no_git' | 'missing_template' | 'needs_review';
   createdOutputDirs: string[];
   addedGitignoreEntries: string[];
   warnings: string[];
@@ -43,8 +44,11 @@ export function ensureStarterFleetProject(projectDir: string): FleetBootstrapRes
       warnings.push('Could not load the Port Daddy post-commit hook template.');
     } else if (existsSync(hookPath)) {
       const existing = readFileSync(hookPath, 'utf-8');
-      if (isScopedPortDaddyPostCommitHook(existing)) {
+      if (isCurrentPortDaddyPostCommitHook(existing)) {
         hookStatus = 'already_current';
+      } else if (isScopedPortDaddyPostCommitHook(existing)) {
+        hookStatus = 'needs_review';
+        warnings.push('Existing scoped post-commit hook lacks the current Off gate. Preserve its custom work and repair its Port Daddy blocks before re-enabling hooks.');
       } else if (isLegacyPortDaddyPostCommitHook(existing)) {
         writeFileSync(hookPath, hookTemplate);
         chmodSync(hookPath, 0o755);

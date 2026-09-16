@@ -61,7 +61,7 @@ Hono is a small router with a strong middleware model and ergonomic typing. Most
 type Bindings = {
   DB: D1Database;
   KV: KVNamespace;
-  WINDAGS_INTERNAL_TOKEN: string;
+  JURY_RIG_INTERNAL_TOKEN: string;
 };
 
 type Variables = {
@@ -148,7 +148,7 @@ Validation slots: `'json' | 'form' | 'query' | 'param' | 'header' | 'cookie'`. E
 ```ts
 app.get('/_internal/login', (c) => {
   const token = c.req.query('token');
-  if (token !== c.env.WINDAGS_INTERNAL_TOKEN) return c.text('forbidden', 403);
+  if (token !== c.env.JURY_RIG_INTERNAL_TOKEN) return c.text('forbidden', 403);
   c.header(
     'Set-Cookie',
     `session=${token}; HttpOnly; Secure; SameSite=Lax; Path=/_internal; Max-Age=${30*86400}`,
@@ -232,7 +232,7 @@ Helper-based cookies are easier to read than raw `Set-Cookie` strings; both work
 import { cors } from 'hono/cors';
 
 app.use('/v1/*', cors({
-  origin: (origin) => origin?.endsWith('.windags.ai') ? origin : null,
+  origin: (origin) => origin?.endsWith('.example.com') ? origin : null,
   credentials: true,                    // sends cookies cross-origin
   allowMethods: ['GET', 'POST', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
@@ -253,7 +253,7 @@ export type AppType = typeof route;
 
 // client
 import { hc } from 'hono/client';
-const client = hc<AppType>('https://api.windags.ai');
+const client = hc<AppType>('https://api.example.com');
 const res = await client.v1.skills[':id'].$get({ param: { id: 'foo' } });
 const data = await res.json(); // typed { id: string; name: string }
 ```

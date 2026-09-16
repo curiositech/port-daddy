@@ -131,6 +131,13 @@ export const CLI_TUBE_PROVIDER_SPECS = defineCliTubeProviderRegistry({
     emptySuccess: 'allow',
   },
   agy: {
+    // NOT STREAMED, deliberately (2026-08-23). Every other lane in this file
+    // either has a documented per-event JSON format (claude-code's stream-json,
+    // codex's --json) or falls back to whole-output print mode. Antigravity
+    // documents no streaming format, and inventing a parser for an undocumented
+    // one is how a lane silently drops turns — which is worse than an honest
+    // batch lane, because a partial stream LOOKS live. When agy publishes one,
+    // this becomes an argStyle change plus a mapper, exactly like the other two.
     defaultBinary: 'agy',
     binaryEnvOverride: 'PD_CLI_AGY_BIN',
     authNextStep: 'Run `agy --print "hello"` once interactively to confirm authentication.',

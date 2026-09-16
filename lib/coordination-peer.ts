@@ -36,12 +36,56 @@ const MAX_SYNC_INTERVAL_MS = 60_000;
 const OUTBOX_BATCH_SIZE = 256;
 const MAX_SYNC_PAGES = 20;
 const MAX_SYNC_BODY_BYTES = 1024 * 1024;
+const MAX_INCOMING_OPERATIONS = 1000;
+// Existing rooms return up to 1000 values, each serialized at <=128 KiB.
+// Reserve 8 KiB per operation for bounded IDs/clock/cursor/envelope fields,
+// plus 1 MiB for acknowledgments. This is not the outgoing 1 MiB/256 budget.
+const MAX_INCOMING_BODY_BYTES = MAX_INCOMING_OPERATIONS * (128 + 8) * 1024 + 1024 * 1024;
+const SYNC_RESPONSE_TIMEOUT_MS = 30_000;
+
+async function readBoundedSyncResponse(response: Response, signal: AbortSignal): Promise<CoordinationSyncResponse> {
+  if (!response.ok) {
+    void response.body?.cancel().catch(() => {});
+    throw new Error(`coordination sync HTTP ${response.status}`);
+  }
+  const length = response.headers.get('content-length');
+  if (length !== null && (!/^\d+$/.test(length) || !Number.isSafeInteger(Number(length)) || Number(length) > MAX_INCOMING_BODY_BYTES)) {
+    void response.body?.cancel().catch(() => {});
+    throw new Error('coordination response exceeds incoming byte budget');
+  }
+  if (!response.body) throw new Error('coordination response has no readable body');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => { void reader.cancel().catch(() => {}); reject(new Error('coordination response deadline exceeded')); };
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+  try {
+    for (;;) {
+      const chunk = await Promise.race([reader.read(), aborted]);
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > MAX_INCOMING_BODY_BYTES) throw new Error('coordination response exceeds incoming byte budget');
+      chunks.push(chunk.value);
+    }
+    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, bytes))) as CoordinationSyncResponse;
+  } catch {
+    void reader.cancel().catch(() => {});
+    throw new Error('coordination response is invalid, oversized or incomplete');
+  } finally {
+    if (onAbort) signal.removeEventListener('abort', onAbort);
+    reader.releaseLock();
+  }
+}
 
 interface SessionsReplicaApi {
   list(options?: Record<string, unknown>): Record<string, unknown>;
   get(sessionId: string): Record<string, unknown>;
   getNotes(sessionId?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
-  addNote(sessionId: string, content: string, options?: { type?: string }): Record<string, unknown>;
+  applyReplicatedPage(project: string, apply: (append: (operation: CoordinationOperation) => number) => unknown): { warnings: string[] };
   claimFiles(sessionId: string, files: string[], options?: {
     regions?: Array<{ path: string; startLine?: number; endLine?: number; symbol?: string; symbolPath?: string }>;
     agentId?: string | null;
@@ -356,6 +400,7 @@ export class CoordinationPeer {
           throw new Error('oldest coordination operation cannot fit in the 1 MiB sync envelope');
         }
         const endpoint = `${this.config.url}/v1/coordination/${encodeURIComponent(this.config.project)}/sync`;
+        const signal = AbortSignal.timeout(SYNC_RESPONSE_TIMEOUT_MS);
         const response = await this.fetchImpl(endpoint, {
           method: 'POST',
           headers: {
@@ -363,11 +408,9 @@ export class CoordinationPeer {
             'Content-Type': 'application/json',
           },
           body: requestBody,
+          signal,
         });
-        if (!response.ok) {
-          throw new Error(`coordination sync ${response.status}: ${(await response.text()).slice(0, 300)}`);
-        }
-        const result = await response.json() as CoordinationSyncResponse;
+        const result = await readBoundedSyncResponse(response, signal);
         this.applySyncResponse(
           result,
           new Set(operations.map((operation) => operation.opId)),
@@ -499,9 +542,13 @@ export class CoordinationPeer {
       : wallTime === clock.wallTime
         ? clock.counter
         : state.hlc_counter;
-    this.db.prepare(`
+    const written = this.db.prepare(`
       UPDATE coordination_peer_state SET hlc_wall = ?, hlc_counter = ?, updated_at = ? WHERE project = ?
     `).run(wallTime, counter, this.now(), this.config.project);
+    const persisted = this.state();
+    if (written.changes !== 1 || persisted.hlc_wall !== wallTime || persisted.hlc_counter !== counter || persisted.cursor !== state.cursor) {
+      throw new Error('coordination clock was not persisted');
+    }
   }
 
   private captureLocalOperations(): void {
@@ -543,12 +590,16 @@ export class CoordinationPeer {
       includeNotes: false,
       limit: 10_000,
     });
-    const sessions = Array.isArray(listed.sessions) ? listed.sessions : [];
-    const projectSessionIds = new Set<string>();
+    if (listed.success !== true || !Array.isArray(listed.sessions)) {
+      throw new Error('coordination session snapshot is unavailable');
+    }
+    const sessions = listed.sessions;
+    const notes: Array<Record<string, unknown>> = [];
     for (const raw of sessions) {
       const session = asRecord(raw);
-      if (!session || typeof session.id !== 'string' || typeof session.purpose !== 'string') continue;
-      projectSessionIds.add(session.id);
+      if (!session || typeof session.id !== 'string' || typeof session.purpose !== 'string') {
+        throw new Error('coordination session snapshot is malformed');
+      }
       const value: CoordinationSessionValue = {
         purpose: session.purpose,
         status: typeof session.status === 'string' ? session.status : 'active',
@@ -565,7 +616,25 @@ export class CoordinationPeer {
       entities.push({ kind: 'session', localKey: session.id, entityId, value });
 
       const detail = this.sessions.get(session.id);
-      const files = Array.isArray(detail.files) ? detail.files : [];
+      const detailSession = asRecord(detail.session);
+      if (detail.success !== true || detailSession?.id !== session.id
+        || detailSession.identityProject !== this.config.project
+        || !Array.isArray(detail.files) || !Array.isArray(detail.notes)
+        || detailSession.noteCount !== detail.notes.length) {
+        throw new Error('coordination session detail snapshot is incomplete');
+      }
+      // Full detail already reads and decrypts every retained note for these
+      // exact sessions. Do not turn a bounded getNotes page (or its refusal)
+      // into a supposedly complete replication snapshot.
+      for (const rawNote of detail.notes) {
+        const note = asRecord(rawNote);
+        if (!note || !Number.isSafeInteger(note.id) || (note.id as number) < 1
+          || note.sessionId !== session.id || typeof note.content !== 'string') {
+          throw new Error('coordination session note snapshot is malformed');
+        }
+        notes.push(note);
+      }
+      const files = detail.files;
       if (value.status !== 'active') continue;
       for (const rawFile of files) {
         const file = asRecord(rawFile);
@@ -583,17 +652,12 @@ export class CoordinationPeer {
       }
     }
 
-    const notesResult = this.sessions.getNotes(null, { project: this.config.project, limit: 10_000 });
-    const notes = Array.isArray(notesResult.notes) ? notesResult.notes : [];
-    for (const raw of notes) {
-      const note = asRecord(raw);
-      if (!note || typeof note.id !== 'number' || typeof note.sessionId !== 'string') continue;
-      if (!projectSessionIds.has(note.sessionId) || typeof note.content !== 'string') continue;
+    for (const note of notes) {
       const localKey = String(note.id);
       const mapped = this.binding('note', localKey);
       const value: CoordinationNoteValue = {
-        sessionId: note.sessionId,
-        content: note.content,
+        sessionId: note.sessionId as string,
+        content: note.content as string,
         type: typeof note.type === 'string' ? note.type : 'note',
         createdAt: numberOrNull(note.createdAt) ?? this.now(),
       };
@@ -685,7 +749,7 @@ export class CoordinationPeer {
   }
 
   private writeVersion(operation: CoordinationOperation): void {
-    this.db.prepare(`
+    const written = this.db.prepare(`
       INSERT INTO coordination_peer_versions
         (project, kind, entity_id, op_id, clock_wall, clock_counter, clock_replica, mutation, value_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -707,16 +771,28 @@ export class CoordinationPeer {
       operation.mutation,
       operation.value === null ? null : JSON.stringify(operation.value),
     );
+    const persisted = this.version(operation.kind, operation.entityId);
+    if (written.changes !== 1 || !persisted || persisted.op_id !== operation.opId
+      || persisted.clock_wall !== operation.clock.wallTime || persisted.clock_counter !== operation.clock.counter
+      || persisted.clock_replica !== operation.clock.replicaId || persisted.mutation !== operation.mutation
+      || persisted.value_json !== (operation.value === null ? null : JSON.stringify(operation.value))) {
+      throw new Error('coordination version was not persisted');
+    }
   }
 
   private bind(kind: CoordinationKind, localKey: string, entityId: string, snapshotHash: string): void {
-    this.db.prepare(`
+    const written = this.db.prepare(`
       INSERT INTO coordination_peer_bindings (project, kind, local_key, entity_id, snapshot_hash)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(project, kind, local_key) DO UPDATE SET
         entity_id = excluded.entity_id,
         snapshot_hash = excluded.snapshot_hash
     `).run(this.config.project, kind, localKey, entityId, snapshotHash);
+    const persisted = this.db.prepare('SELECT entity_id, snapshot_hash FROM coordination_peer_bindings WHERE project = ? AND kind = ? AND local_key = ?')
+      .get(this.config.project, kind, localKey) as { entity_id: string; snapshot_hash: string } | undefined;
+    if (written.changes !== 1 || persisted?.entity_id !== entityId || persisted.snapshot_hash !== snapshotHash) {
+      throw new Error('coordination binding was not persisted');
+    }
   }
 
   private applySyncResponse(
@@ -727,8 +803,11 @@ export class CoordinationPeer {
       !Number.isSafeInteger(result?.cursor)
       || result.cursor < 0
       || !Array.isArray(result.operations)
+      || result.operations.length > MAX_INCOMING_OPERATIONS
       || !Array.isArray(result.accepted)
       || !Array.isArray(result.pending)
+      || result.accepted.length > OUTBOX_BATCH_SIZE
+      || result.pending.length > OUTBOX_BATCH_SIZE
       || typeof result.hasMore !== 'boolean'
       || result.accepted.some((opId) => typeof opId !== 'string')
       || result.pending.some((opId) => typeof opId !== 'string')
@@ -738,6 +817,8 @@ export class CoordinationPeer {
     if (
       result.accepted.some((opId) => !submittedOperationIds.has(opId))
       || result.pending.some((opId) => !submittedOperationIds.has(opId))
+      || new Set(result.accepted).size !== result.accepted.length
+      || new Set(result.pending).size !== result.pending.length
       || result.accepted.some((opId) => result.pending.includes(opId))
     ) {
       throw new Error('coordination sync acknowledged an operation outside the submitted batch');
@@ -766,23 +847,26 @@ export class CoordinationPeer {
     if (ordered.length === 0 && result.cursor !== currentCursor) {
       throw new Error('coordination response advanced cursor without operations');
     }
-    const applyPage = this.db.transaction(() => {
+    const applied = this.sessions.applyReplicatedPage(this.config.project, (append) => {
       for (const entry of ordered) {
-        this.applyOperation(entry.operation);
+        this.applyOperation(entry.operation, append);
         this.observeClock(entry.operation.clock);
       }
       if (result.accepted.length > 0) {
         const remove = this.db.prepare('DELETE FROM coordination_peer_outbox WHERE project = ? AND op_id = ?');
-        for (const opId of result.accepted) remove.run(this.config.project, opId);
+        for (const opId of result.accepted) {
+          if (remove.run(this.config.project, opId).changes !== 1) throw new Error('coordination acknowledgment was not persisted');
+        }
       }
-      this.db.prepare(`
+      const written = this.db.prepare(`
         UPDATE coordination_peer_state SET cursor = ?, updated_at = ? WHERE project = ?
       `).run(result.cursor, this.now(), this.config.project);
+      if (written.changes !== 1 || this.state().cursor !== result.cursor) throw new Error('coordination cursor was not persisted');
     });
-    applyPage();
+    if (applied.warnings.length) this.logger.warn('coordination_peer_projection_incomplete', { warnings: applied.warnings });
   }
 
-  private applyOperation(operation: CoordinationOperation): void {
+  private applyOperation(operation: CoordinationOperation, append: (operation: CoordinationOperation) => number): void {
     const current = this.version(operation.kind, operation.entityId);
     if (current && compareVersion(current, operation) >= 0) return;
     const previous = current?.value_json ? JSON.parse(current.value_json) as CoordinationValue : null;
@@ -792,7 +876,7 @@ export class CoordinationPeer {
         this.applySession(operation, operation.value as CoordinationSessionValue | null);
         break;
       case 'note':
-        this.applyNote(operation, operation.value as CoordinationNoteValue | null);
+        this.applyNote(operation, operation.value as CoordinationNoteValue | null, append);
         break;
       case 'claim':
         this.applyClaim(operation, operation.value as CoordinationClaimValue | null, previous as CoordinationClaimValue | null);
@@ -806,13 +890,13 @@ export class CoordinationPeer {
 
   private applySession(operation: CoordinationOperation, value: CoordinationSessionValue | null): void {
     if (operation.mutation === 'remove' || !value) return;
-    const existing = this.db.prepare('SELECT identity_project FROM sessions WHERE id = ?').get(operation.entityId) as
-      | { identity_project: string | null }
+    const existing = this.db.prepare('SELECT identity_project, wrapped_session_key FROM sessions WHERE id = ?').get(operation.entityId) as
+      | { identity_project: string | null; wrapped_session_key: string | null }
       | undefined;
     if (existing && existing.identity_project !== this.config.project) {
       throw new Error(`replicated session ${operation.entityId} collides with another project`);
     }
-    this.db.prepare(`
+    const written = this.db.prepare(`
       INSERT INTO sessions (
         id, purpose, status, phase, agent_id, worktree_id, identity_project,
         created_at, updated_at, completed_at, metadata, is_durable
@@ -842,10 +926,21 @@ export class CoordinationPeer {
       value.metadata ? JSON.stringify(value.metadata) : null,
       value.durable ? 1 : 0,
     );
+    const persisted = this.db.prepare('SELECT * FROM sessions WHERE id = ?').get(operation.entityId) as Record<string, unknown> | undefined;
+    if (written.changes !== 1 || !persisted || persisted.identity_project !== this.config.project
+      || persisted.purpose !== value.purpose || persisted.status !== value.status || persisted.phase !== value.phase
+      || persisted.agent_id !== value.agentId || persisted.worktree_id !== value.worktreeId
+      || persisted.updated_at !== value.updatedAt || persisted.completed_at !== value.completedAt
+      || persisted.metadata !== (value.metadata ? JSON.stringify(value.metadata) : null)
+      || persisted.is_durable !== (value.durable ? 1 : 0)
+      || persisted.wrapped_session_key !== (existing?.wrapped_session_key ?? null)
+      || (!existing && persisted.created_at !== value.createdAt)) {
+      throw new Error('replicated session was not persisted');
+    }
     this.bind('session', operation.entityId, operation.entityId, entityFingerprint('session', value));
   }
 
-  private applyNote(operation: CoordinationOperation, value: CoordinationNoteValue | null): void {
+  private applyNote(operation: CoordinationOperation, value: CoordinationNoteValue | null, append: (operation: CoordinationOperation) => number): void {
     if (operation.mutation === 'remove' || !value) return;
     const existing = this.db.prepare(`
       SELECT local_key FROM coordination_peer_bindings WHERE project = ? AND kind = 'note' AND entity_id = ?
@@ -857,11 +952,8 @@ export class CoordinationPeer {
     if (!session || session.identity_project !== this.config.project) {
       throw new Error(`replicated note references missing session ${value.sessionId}`);
     }
-    const result = this.sessions.addNote(value.sessionId, value.content, { type: value.type });
-    if (result.success !== true || typeof result.noteId !== 'number') {
-      throw new Error(`failed to apply replicated note ${operation.entityId}: ${String(result.error ?? 'unknown error')}`);
-    }
-    this.bind('note', String(result.noteId), operation.entityId, entityFingerprint('note', value));
+    const noteId = append(operation);
+    this.bind('note', String(noteId), operation.entityId, entityFingerprint('note', value));
   }
 
   private applyClaim(

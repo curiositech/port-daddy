@@ -179,7 +179,7 @@ Recommended policy for enterprise deployment:
 - **60% ≤ conf < 80%**: Automation with audit logging
 - **conf < 60%**: Automation with mandatory human review
 
-## Application to WinDAGs: Skill-Level Scaling Policies
+## Application to Jury-rig: Skill-Level Scaling Policies
 
 For an orchestration system with 180+ skills, different skills may warrant different scaling policies:
 
@@ -325,6 +325,6 @@ The key observation: **Each additional pair of agents provides diminishing absol
 
 Dynamic scaling embodies a fundamental principle for intelligent systems: **reliability should be adaptive, not fixed**. The system invests computational resources proportional to task uncertainty, achieving optimal cost-benefit trade-offs.
 
-For WinDAGs orchestrators, the lesson is: **Don't treat all decisions equally. Detect uncertainty through contested votes, and scale verification accordingly.**
+For Jury-rig orchestrators, the lesson is: **Don't treat all decisions equally. Detect uncertainty through contested votes, and scale verification accordingly.**
 
 As the paper emphasizes: "The contested vote pattern serves as an uncertainty signal"—turning agent disagreement from a bug into a feature.

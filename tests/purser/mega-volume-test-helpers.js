@@ -20,7 +20,6 @@ export const subjectRoot = resolve(process.env.MEGA_VOLUME_SUBJECT_ROOT ?? repoR
 
 const generatorRelative = 'scripts/generate-mega-whitepaper.mjs';
 const buildScriptRelative = 'scripts/build-whitepapers.sh';
-
 export function subjectAvailable() {
   return existsSync(resolve(subjectRoot, generatorRelative));
 }
@@ -28,7 +27,9 @@ export function subjectAvailable() {
 export function fallbackAvailable() {
   if (!subjectAvailable()) return false;
   const buildScript = resolve(subjectRoot, buildScriptRelative);
-  return existsSync(buildScript) && readFileSync(buildScript, 'utf8').includes('pdflatex fallback pass');
+  // The fallback loop prints "<engine> fallback pass N/4"; the engine is a
+  // literal pdflatex in older scripts and a variable once the Book moved to xelatex.
+  return existsSync(buildScript) && /(pdflatex|\$engine) fallback pass/u.test(readFileSync(buildScript, 'utf8'));
 }
 
 function copyTexTree(from, to) {
@@ -36,7 +37,7 @@ function copyTexTree(from, to) {
     recursive: true,
     filter(path) {
       if (!existsSync(path)) return false;
-      return !path.includes('/.cache/') && (!path.includes('.') || path.endsWith('.tex'));
+      return !path.includes('/.cache/') && (!path.includes('.') || path.endsWith('.tex') || path.endsWith('.json'));
     },
   });
 }
@@ -101,18 +102,23 @@ function executableOnPath(name) {
   throw new Error(`required test command is unavailable: ${name}`);
 }
 
-export function runFallbackBuild(root) {
+/**
+ * Runs `build-whitepapers.sh <filter>` inside the fixture with `latexmk`
+ * absent from PATH, so the bounded pdflatex/xelatex fallback loop in
+ * `build_one()` is what actually renders. Every reachable row today is a
+ * Book edition (xelatex) — the eight chapters that used to build on plain
+ * pdflatex are retired — so both engine binaries are faked identically and
+ * `node` is passed through for the Book's body/bibliography generator step.
+ */
+export function runFallbackBuild(root, { filter = 'coordination-papers-mega-volume', engine = 'xelatex' } = {}) {
   const bin = resolve(root, '.cache/fake-bin');
   mkdirSync(bin, { recursive: true });
-  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'perl', 'wc']) {
+  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'wc']) {
     symlinkSync(executableOnPath(name), resolve(bin, name));
   }
 
-  const callLog = resolve(root, '.cache/pdflatex-calls.txt');
-  const fakePdflatex = resolve(bin, 'pdflatex');
-  writeFileSync(
-    fakePdflatex,
-    `#!/bin/bash
+  const callLog = resolve(root, '.cache/engine-calls.txt');
+  const fakeEngineScript = `#!/bin/bash
 set -eu
 outdir=''
 tex=''
@@ -126,19 +132,26 @@ base="\${tex%.tex}"
 mkdir -p "$outdir"
 : > "$outdir/$base.log"
 printf 'fixture pdf\n' > "$outdir/$base.pdf"
-printf '%s\n' "$*" >> "$PDLATEX_CALL_LOG"
-`,
-    'utf8',
-  );
-  chmodSync(fakePdflatex, 0o755);
+printf '%s\n' "$*" >> "$ENGINE_CALL_LOG"
+`;
+  // Both engines are faked identically regardless of which one this run
+  // targets — build_one() picks the engine from the root's own filename, and
+  // faking only the one currently in use keeps this helper correct if a
+  // future paper ever reintroduces a plain-pdflatex root.
+  for (const name of ['pdflatex', 'xelatex']) {
+    const fakeEngine = resolve(bin, name);
+    writeFileSync(fakeEngine, fakeEngineScript, 'utf8');
+    chmodSync(fakeEngine, 0o755);
+  }
 
-  const result = spawnSync('/bin/bash', [resolve(root, buildScriptRelative), 'spawn-to-person'], {
+  const result = spawnSync('/bin/bash', [resolve(root, buildScriptRelative), filter], {
     cwd: root,
     encoding: 'utf8',
-    env: { ...process.env, PATH: bin, PDLATEX_CALL_LOG: callLog },
+    env: { ...process.env, PATH: bin, ENGINE_CALL_LOG: callLog },
   });
   return {
     ...result,
+    engine,
     calls: existsSync(callLog) ? readFileSync(callLog, 'utf8').trim().split('\n').filter(Boolean) : [],
   };
 }

@@ -79,7 +79,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          capability: code
       singleton: true
       allowedTools: "Read,Grep,Glob"
       identity: "{project}:fleet:explainer"

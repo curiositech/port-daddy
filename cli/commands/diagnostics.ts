@@ -77,7 +77,7 @@ const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 // Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
 // version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
 // restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
-const EMBEDDED_PACKAGE_VERSION: string = '3.30.3';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.6';
 
 interface StatusCommandResponse {
   status?: string;
@@ -2609,7 +2609,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   try {
     let tool2Vec: Tool2VecReconcileStatus;
     if (daemonRunning) {
-      const response = await pdFetch(`${PORT_DADDY_URL}/skill-graft/status`);
+      const response = await pdFetch(`${PORT_DADDY_URL}/jury-rig/status`);
       if (!response.ok) throw new Error(`daemon returned HTTP ${response.status ?? 'unknown'}`);
       tool2Vec = await response.json() as unknown as Tool2VecReconcileStatus;
     } else {
@@ -2622,11 +2622,11 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     } else if (tool2Vec.state === 'reconciling') {
       check('Tool2Vec skill coverage', true, `${detail}; checkpointed warm-up is active`);
     } else if (tool2Vec.state === 'embedder-down') {
-      warn('Tool2Vec skill coverage', detail, 'Repair the local embedder with `pd embed prefetch`, then use FleetBar Setup or run `pd skill-graft warm`.');
+      warn('Tool2Vec skill coverage', detail, 'Repair the local embedder with `pd embed prefetch`, then use FleetBar Setup or run `pd jury-rig warm`.');
     } else if (tool2Vec.state === 'generator-down') {
       warn('Tool2Vec skill coverage', detail, 'Check the explicitly configured Tool2Vec generator, then resume the checkpointed warm-up.');
     } else {
-      warn('Tool2Vec skill coverage', detail, 'Configure local Ollama for automatic warm-up, or explicitly run `pd skill-graft warm` for a manual backend.');
+      warn('Tool2Vec skill coverage', detail, 'Configure local Ollama for automatic warm-up, or explicitly run `pd jury-rig warm` for a manual backend.');
     }
   } catch (err: unknown) {
     warn('Tool2Vec skill coverage', `Could not inspect coverage: ${(err as Error).message}`, 'Repair the daemon, then open FleetBar Setup to resume the catalog warm-up.');

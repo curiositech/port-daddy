@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
+import { CF_ADMITTED_MODELS, CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -11,18 +12,47 @@ const REAL_YAML = readFileSync(
 
 describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () => {
   const ships = parseFleetShips(REAL_YAML, 'pull_request:opened');
+  // Derivation (models, prompts, telos, class) is a property of a ship's
+  // DECLARATION, not of whether it is currently in service. A paused ship is
+  // excluded from every parse, so those assertions read the real config with
+  // the pauses stripped — which keeps them testing the parser rather than the
+  // operator's current on/off choices, and keeps them honest if a ship is
+  // un-paused later.
+  const UNPAUSED_YAML = REAL_YAML.replace(/^[ \t]*enabled:[ \t]*false[ \t]*\r?\n/gm, '');
+  const declared = parseFleetShips(UNPAUSED_YAML, 'pull_request:opened');
 
-  it('returns the full set of pull_request:opened ships (no 12KB truncation loss)', () => {
+  it('returns the full set of ENABLED pull_request:opened ships (no 12KB truncation loss)', () => {
     expect(ships).not.toBeNull();
     const names = new Set(ships!.map(s => s.name));
-    // These all declare `trigger: pull_request:opened` in pd-fleet.yml.
+    // These all declare `trigger: pull_request:opened` in pd-fleet.yml and
+    // carry no `enabled:` key, so they are in service.
     expect(names.has('code-reviewer')).toBe(true);
     expect(names.has('qa')).toBe(true);
     expect(names.has('red-team')).toBe(true);
     expect(names.has('tautology-sniffer')).toBe(true);
     expect(names.has('test-author')).toBe(true);
-    expect(names.has('spark')).toBe(true);
-    expect(names.has('spider')).toBe(true);
+  });
+
+  it('EXCLUDES the four ideation ships paused with `enabled: false`', () => {
+    // The regression this guards: `enabled: false` was honoured by the daemon's
+    // FleetConfig parser but ignored here, so pausing a cloud PR ship in
+    // pd-fleet.yml changed nothing about the comments it posts. Asserted
+    // against the REAL pd-fleet.yml, so re-enabling one in config without
+    // meaning to fails this test rather than silently resuming its comments.
+    const executing = new Set(ships!.map(s => s.name));
+    const listed = new Set((parseFleetShips(REAL_YAML, '*') ?? []).map(s => s.name));
+    for (const paused of ['spark', 'spider', 'lookout', 'snipe']) {
+      expect(executing.has(paused), `${paused} must not execute`).toBe(false);
+      expect(listed.has(paused), `${paused} must not be listed`).toBe(false);
+    }
+  });
+
+  it('pausing the ideation ships left the blocking review path armed', () => {
+    // The point of the split: proposals stop, review does not.
+    const names = new Set(ships!.map(s => s.name));
+    for (const review of ['qa', 'code-reviewer', 'red-team', 'test-author', 'tautology-sniffer']) {
+      expect(names.has(review)).toBe(true);
+    }
   });
 
   it('every parsed ship has a non-empty prompt', () => {
@@ -41,31 +71,41 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('tenderfoot')).toBe(false);
   });
 
-  it('qa is a cloud-static reviewer (needsExecution=false despite Bash(npm test*))', () => {
+  it('keeps qa sandbox execution explicit and advisory until a runner is configured', () => {
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa).toBeDefined();
-    expect(qa!.needsExecution).toBe(false);
+    expect(qa!.execution.mode).toBe('write_sandbox');
+    expect(qa!.executionConfigState).toBe('valid');
+    expect(qa!.participation.unavailableBlocks).toBe(false);
+    expect(qa!.participation.rules[0]?.disposition).toBe('advisory');
   });
 
-  it('test-author needs execution (has non-gh Bash tools) → routes to GHA', () => {
+  it('legacy test-author tool strings do not acquire execution authority', () => {
     const ta = ships!.find(s => s.name === 'test-author');
     expect(ta).toBeDefined();
-    expect(ta!.needsExecution).toBe(true);
+    expect(ta!.execution.mode).toBe('none');
+    expect(ta!.executionConfigState).toBe('absent');
+  });
+
+  it('declares Steward model-only instead of deriving authority from its command list', () => {
+    const steward = parseFleetShips(REAL_YAML, '*')?.find(ship => ship.name === 'steward');
+    expect(steward).toBeDefined();
+    expect(steward!.execution.mode).toBe('none');
+    expect(steward!.executionConfigState).toBe('valid');
+    expect(steward!.participation.default).toBe('advisory');
   });
 
   it('spark and spider are advisory PR commenters with explicit creative temperatures', () => {
-    const spark = ships!.find(s => s.name === 'spark');
-    const spider = ships!.find(s => s.name === 'spider');
+    const spark = declared!.find(s => s.name === 'spark');
+    const spider = declared!.find(s => s.name === 'spider');
 
     expect(spark).toBeDefined();
     expect(spark!.blocking).toBe(false);
-    expect(spark!.needsExecution).toBe(false);
     expect(spark!.temperature).toBe(1.25);
     expect(spark!.prompt).toContain('high-temperature product imagination');
 
     expect(spider).toBeDefined();
     expect(spider!.blocking).toBe(false);
-    expect(spider!.needsExecution).toBe(false);
     expect(spider!.temperature).toBe(0.95);
     // Spider's prompt was sharpened to a STRUCTURAL syllogism: the rationale must
     // be written verbatim as Premise A / Premise B / Therefore C.
@@ -74,13 +114,15 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(spider!.prompt).toContain('Therefore C');
   });
 
-  it('the four ideation ships (spark, spider, lookout, snipe) all parse as advisory ideation', () => {
+  it('the four ideation ships stay advisory in their declarations', () => {
+    // Read from the unpaused fixture: the pause is asserted above. This guards
+    // the other direction — that un-pausing one later cannot quietly bring back
+    // a BLOCKING ship, which would turn an advisory proposer into a merge gate.
     for (const name of ['spark', 'spider', 'lookout', 'snipe']) {
-      const ship = ships!.find(s => s.name === name);
-      expect(ship, `${name} should be present in pull_request:opened ships`).toBeDefined();
+      const ship = declared!.find(s => s.name === name);
+      expect(ship, `${name} should parse from its declaration`).toBeDefined();
       expect(ship!.ideation, `${name} should be ideation`).toBe(true);
       expect(ship!.blocking, `${name} must never block`).toBe(false);
-      expect(ship!.needsExecution).toBe(false);
     }
   });
 
@@ -90,7 +132,7 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
   });
 
   it('lookout carries the trouble-ahead telos and cross-branch awareness in its prompt', () => {
-    const lookout = ships!.find(s => s.name === 'lookout');
+    const lookout = declared!.find(s => s.name === 'lookout');
     expect(lookout).toBeDefined();
     expect(lookout!.prompt).toContain('trouble-ahead');
     expect(lookout!.prompt.toLowerCase()).toContain('branch');
@@ -111,10 +153,112 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     // expansion; spark stays on qwen3-30b as the A/B control population.
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa!.cfModel).toBe('@cf/zai-org/glm-4.7-flash');
-    const spark = ships!.find(s => s.name === 'spark');
+    const spark = declared!.find(s => s.name === 'spark');
     expect(spark!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     const redTeam = ships!.find(s => s.name === 'red-team');
     expect(redTeam!.cfModel).toBe('@cf/deepseek-ai/deepseek-v4-pro-0813');
+  });
+});
+
+describe('parseFleetShips — `enabled` is an admission boundary', () => {
+  const yamlFor = (enabledLine: string) => `
+fleet:
+  agents:
+    probe:
+${enabledLine ? `      ${enabledLine}\n` : ''}      trigger:
+        - pull_request:opened
+      prompt: |
+        A probe ship with a real prompt so it is not skipped as deterministic.
+`;
+  const parsed = (enabledLine: string) =>
+    (parseFleetShips(yamlFor(enabledLine), 'pull_request:opened') ?? []).map(s => s.name);
+
+  it('absent means enabled — every ship predating the field keeps running', () => {
+    expect(parsed('')).toContain('probe');
+  });
+
+  it('accepts every spelling YAML parses as a real boolean true', () => {
+    // true / True / TRUE are all boolean true under the yaml package's core
+    // schema, so all three enable. Asserted rather than assumed.
+    for (const good of ['enabled: true', 'enabled: True', 'enabled: TRUE']) {
+      expect(parsed(good), good).toContain('probe');
+    }
+  });
+
+  it('an explicit false takes the ship out of service', () => {
+    expect(parsed('enabled: false')).not.toContain('probe');
+    expect(parsed('enabled: False')).not.toContain('probe');
+  });
+
+  it('fails CLOSED on a malformed value — a typo must not re-enable a paused ship', () => {
+    // `enabled: flase` is the case this exists for: it is not boolean true, so
+    // the ship stays out of service rather than quietly inheriting the default.
+    for (const bad of [
+      'enabled: flase', 'enabled: yes', 'enabled: 1', 'enabled: 0',
+      'enabled: null', 'enabled: {}', "enabled: 'False'",
+    ]) {
+      expect(parsed(bad), bad).not.toContain('probe');
+    }
+  });
+
+  it('a QUOTED string fails closed, matching the daemon rather than the neighbour', () => {
+    // The one case where the obvious implementation diverges. The daemon's
+    // extractBool() takes only `typeof value === 'boolean'`, so a quoted
+    // 'true' fails closed there. Accepting it here would mean the cloud ran a
+    // ship the daemon had paused — fail-open, on an admission boundary, and
+    // the exact disagreement this predicate exists to close.
+    expect(parsed("enabled: 'true'"), "quoted 'true' must NOT enable").not.toContain('probe');
+    expect(parsed("enabled: 'false'")).not.toContain('probe');
+  });
+
+  it('matches the daemon parser, which already treated it this way', () => {
+    // lib/fleet-ast.ts: "`enabled` is an admission boundary, so a
+    // present-but-malformed value fails closed to false instead of silently
+    // inheriting the enabled default." Two parsers over one config file must
+    // not disagree about what taking a ship out of service means — and the
+    // daemon already had the field (AgentNode.enabled?: BoolNode); the cloud
+    // was the side missing it.
+    expect(parsed('enabled: false')).toEqual([]);
+    expect(parsed('')).toEqual(['probe']);
+  });
+});
+
+describe('pausing every ship falls back to the built-in roster — a real footgun', () => {
+  // fleetShipsFromDocument ends `return ships.length > 0 ? ships : null`, and
+  // execute.ts reads `parseFleetShips(...) ?? defaultPRShips()`. So a config
+  // that pauses EVERY ship matching a trigger does not disable the fleet for
+  // that trigger — it hands the executor the built-in default roster instead.
+  //
+  // Pinned rather than fixed: changing the collapse-to-null would alter how a
+  // repo with no pd-fleet.yml, or one whose ships all mismatch the trigger, is
+  // treated, which is a wider decision than this change. Anyone reaching for
+  // "turn the whole fleet off by pausing its ships" needs to read this first.
+  const allPaused = `
+fleet:
+  agents:
+    only-ship:
+      enabled: false
+      trigger:
+        - pull_request:opened
+      prompt: |
+        The sole ship, paused.
+`;
+
+  it('returns null — NOT an empty roster — when every matching ship is paused', () => {
+    expect(parseFleetShips(allPaused, 'pull_request:opened')).toBeNull();
+  });
+
+  it('so the executor falls back to defaults: pausing everything runs the defaults', () => {
+    const ships = parseFleetShips(allPaused, 'pull_request:opened') ?? defaultPRShips();
+    expect(ships.length).toBeGreaterThan(0);
+    // The fallback roster is emphatically not "nothing".
+    expect(ships).toEqual(defaultPRShips());
+  });
+
+  it('the real pd-fleet.yml is NOT in that state — review ships keep the roster non-empty', () => {
+    const real = parseFleetShips(REAL_YAML, 'pull_request:opened');
+    expect(real).not.toBeNull();
+    expect(real!.some(s => s.name === 'qa')).toBe(true);
   });
 });
 
@@ -137,6 +281,124 @@ describe('resolveCfModel — the empty-model guard', () => {
     // The #654 phantom tombstone stays OUT until a witnessed live call.
     expect(resolveCfModel('@cf/moonshotai/kimi-k2.6')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  });
+});
+
+describe('parseFleetShips — participation and execution authority', () => {
+  it('projects explicit PR-class voting and sandbox authority from trusted config', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    privacy-warden:
+      trigger: pull_request:opened
+      prompt: review privacy boundaries
+      blocking: false
+      participation:
+        default: ineligible
+        rules:
+          - disposition: required
+            riskSignals: [secrets, tenant-boundary]
+            reason: protected data boundary changed
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file, dynamic_skill_search]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+`, 'pull_request:opened');
+    expect(parsed?.[0].participation).toEqual({
+      default: 'ineligible',
+      unavailableBlocks: false,
+      rules: [{
+        disposition: 'required',
+        riskSignals: ['secrets', 'tenant-boundary'],
+        reason: 'protected data boundary changed',
+      }],
+    });
+    expect(parsed?.[0].execution).toMatchObject({
+      mode: 'read_only_sandbox',
+      repository: 'current_repository',
+      worktree: 'isolated',
+      cwd: '.',
+      toolAllowlist: ['read_file', 'dynamic_skill_search'],
+      mcpAllowlist: ['github.read'],
+      networkAllowlist: [],
+    });
+    expect(parsed?.[0].executionConfigState).toBe('valid');
+  });
+
+  it('does not infer execution authority from legacy allowedTools', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    test-author:
+      trigger: pull_request:opened
+      prompt: write tests
+      allowedTools: "Read,Write,Bash(npm test*)"
+`, 'pull_request:opened');
+    expect(parsed?.[0].execution.mode).toBe('none');
+    expect(parsed?.[0].executionConfigState).toBe('absent');
+  });
+
+  it('preserves malformed explicit execution as invalid instead of absent deny-all', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    reviewer:
+      trigger: pull_request:opened
+      prompt: review
+      participation: { default: required, rules: [] }
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+        surpriseAuthority: true
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({
+      executionConfigState: 'invalid',
+      execution: { mode: 'none' },
+    });
+  });
+
+  it('fails malformed participation policy closed and grants no legacy blocking authority', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    reviewer:
+      trigger: pull_request:opened
+      prompt: review
+      blocking: true
+      participation:
+        default: required
+        rules:
+          - disposition: required
+            prClasses: [securty]
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({
+      blocking: true,
+      participationValid: false,
+      participation: { default: 'ineligible', rules: [] },
+    });
+  });
+
+  it('requires the explicit ideation role and denies required voting to that role', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    arbitrary-ideas:
+      trigger: pull_request:opened
+      class: ideation
+      prompt: propose ideas
+      participation: { default: required, rules: [] }
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({ ideation: true, participationValid: false });
   });
 });
 
@@ -299,5 +561,39 @@ describe('defaultPRShips fallback', () => {
     expect(names.has('code-reviewer')).toBe(true);
     expect(names.has('qa')).toBe(true);
     for (const s of ships) expect(s.prompt.trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe('ship-level pins: both spellings, and admission at the resolver', () => {
+  const purser = (pin: string) =>
+    parseFleetShips(
+      `fleet:\n  agents:\n    purser:\n      class: purser\n      trigger: pull_request:opened\n${pin}\n      prompt: |\n        anything.\n`,
+      'pull_request:opened',
+    )!.find((s) => s.name === 'purser')!;
+
+  // EVERY fixture here pins something DIFFERENT from the ship default on
+  // purpose. A regression in this exact function hid behind a fixture that
+  // pinned the default value: the pin was being dropped entirely, and the
+  // assertion still passed because the fallback produced the same id. A pin
+  // test whose expected value equals the default proves nothing.
+  it('honors a ship-level `model:` literal — pd-fleet.yml\'s spelling', () => {
+    expect(CF_ROLE_MODELS.reviewBot).not.toBe(CF_ROLE_MODELS.shipDefault);
+    expect(purser(`      model: '${CF_ROLE_MODELS.reviewBot}'`).cfModel).toBe(
+      CF_ROLE_MODELS.reviewBot,
+    );
+  });
+
+  it('honors a ship-level `cf_role:` token', () => {
+    expect(purser('      cf_role: reviewBot').cfModel).toBe(CF_ROLE_MODELS.reviewBot);
+  });
+
+  it('drops an unadmitted role rather than running it', () => {
+    // `embed` resolves to a real catalogued model the fleet must never run: the
+    // ideas-store index would return vectors where a review should be. The
+    // resolver refuses it, so the ship falls back rather than being handed it.
+    expect(CF_ADMITTED_MODELS).not.toContain(CF_ROLE_MODELS.embed);
+    const cfModel = purser('      cf_role: embed').cfModel;
+    expect(cfModel).not.toBe(CF_ROLE_MODELS.embed);
+    expect(CF_ADMITTED_MODELS).toContain(cfModel);
   });
 });

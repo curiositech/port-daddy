@@ -5,6 +5,7 @@
 import { spawn as spawnChild, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { dirname, join } from 'node:path';
 import {
@@ -46,6 +47,8 @@ import {
   type SquidHookStepState,
 } from '../../lib/squid/debug.js';
 import type { CLIOptions } from '../types.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
+import { displayPathRelativeToHome } from '../utils/display-path.js';
 import * as ui from '../utils/ui.js';
 
 const LEGACY_SQUID_TOKEN = 'squid-local';
@@ -115,6 +118,12 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
     case 'tap':
       handleSquidTap(options);
       return;
+    case 'hook-precompact':
+      await handleSquidPrecompactIngress(options);
+      return;
+    case 'hook-context-pressure':
+      await handleSquidContextPressureIngress(options);
+      return;
     case 'debug':
       handleSquidDebug(rest, options);
       return;
@@ -129,6 +138,190 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
       process.exitCode = 1;
       return;
   }
+}
+
+/**
+ * Private hook transport shim. The shell tentacle deliberately does not read
+ * or print an actor credential: this CLI path reuses the canonical pdFetch
+ * resolver, which can obtain the per-worktree credential written by `pd
+ * begin` and presents it only as an HTTP header. Its only stdout is a capped,
+ * credential-free directive for the provider hook.
+ */
+export async function handleSquidPrecompactIngress(options: CLIOptions): Promise<void> {
+  await handleSquidInteractiveContextIngress(options, 'precompact');
+}
+
+/**
+ * Claude-only turn-start producer. Unlike PreCompact, UserPromptSubmit admits
+ * sanctioned `additionalContext`, so the .60/.75/.85/.92 directive can reach
+ * the next turn without pretending that PreCompact accepts `systemMessage`.
+ */
+export async function handleSquidContextPressureIngress(options: CLIOptions): Promise<void> {
+  await handleSquidInteractiveContextIngress(options, 'turn');
+}
+
+async function handleSquidInteractiveContextIngress(
+  options: CLIOptions,
+  ingress: 'precompact' | 'turn',
+): Promise<void> {
+  const provider = typeof options.provider === 'string' ? options.provider : '';
+  const hookTrigger = ingress === 'turn'
+    ? 'turn'
+    : typeof options.trigger === 'string' ? options.trigger : '';
+  const providerSessionId = typeof options['provider-session'] === 'string'
+    ? options['provider-session']
+    : typeof options.providerSession === 'string'
+      ? options.providerSession
+      : '';
+  if (
+    provider !== 'claude'
+    || (hookTrigger !== 'manual' && hookTrigger !== 'auto' && hookTrigger !== 'turn')
+    || !/^[A-Za-z0-9._:-]{1,512}$/.test(providerSessionId)
+  ) return;
+
+  try {
+    const credential = resolveCliActorCredential();
+    if (!credential) return;
+    const text = await postBoundedPrecompactIngress({
+      daemonUrl: process.env.PORT_DADDY_URL ?? process.env.PD_URL ?? '',
+      credential,
+      body: JSON.stringify({ provider, hookTrigger, providerSessionId }),
+    });
+    if (!text) return;
+    const payload = JSON.parse(text) as Record<string, unknown>;
+    const directive = payload.directive;
+    if (!directive || typeof directive !== 'object' || Array.isArray(directive)) return;
+    const raw = directive as Record<string, unknown>;
+    // PreCompact only honors an explicit block. Turn-start transport carries
+    // the same durable directive to a hook that can admit `additionalContext`.
+    const decision = raw.decision === 'block'
+      ? 'block'
+      : raw.decision === 'allow' || raw.decision === 'continue'
+        ? 'allow'
+        : null;
+    const reason = typeof raw.reason === 'string'
+      ? raw.reason.replace(/[\r\n]+/g, ' ').slice(0, 512)
+      : '';
+    const riskyWork = raw.riskyWork === 'restricted' ? 'restricted' : 'allowed';
+    const plan = ['not-required', 'prepare', 'checkpoint-required', 'checkpointed'].includes(raw.plan as string)
+      ? raw.plan
+      : 'not-required';
+    const continuation = ['normal', 'packet-ready', 'packet-withheld', 'governed-successor'].includes(raw.continuation as string)
+      ? raw.continuation
+      : 'normal';
+    const status = ['recorded', 'rejected', 'measurement-unavailable', 'provider-session-unbound', 'unsupported'].includes(payload.status as string)
+      ? payload.status
+      : 'unknown';
+    if (!decision) return;
+    // Claude discards PreCompact `systemMessage` and `continue`; keep its
+    // response strictly to a documented manual block. A turn-start hook can
+    // later render a recorded, bounded directive as additionalContext.
+    if (ingress === 'precompact' && (decision !== 'block' || !reason)) return;
+    // A rejected packet-withheld receipt is the one rejection that a Claude
+    // turn needs to see: it tells the operator not to begin risky work until
+    // a daemon witness covers the tool pair. Do not turn other rejection or
+    // measurement states into provider context.
+    const rejectedPacketWithheld = status === 'rejected'
+      && plan === 'checkpoint-required'
+      && riskyWork === 'restricted'
+      && continuation === 'packet-withheld';
+    if (ingress === 'turn' && (!reason || (status !== 'recorded' && !rejectedPacketWithheld))) return;
+    const rendered = JSON.stringify({ status, directive: { decision, reason, plan, riskyWork, continuation } });
+    if (Buffer.byteLength(rendered, 'utf8') <= 4 * 1024) process.stdout.write(`${rendered}\n`);
+  } catch {
+    // Provider compaction must fail open when the local daemon is unavailable.
+  }
+}
+
+const PRECOMPACT_HOOK_RESPONSE_BYTES = 4 * 1024;
+const PRECOMPACT_HOOK_TOTAL_TIMEOUT_MS = 180;
+
+/**
+ * Dedicated bounded transport for a provider lifecycle deadline. General
+ * pdFetch intentionally supports normal daemon responses; this ingress must
+ * instead reject a streaming or over-budget loopback peer before it ever
+ * reaches Buffer.concat. The caller controls the source URL only through the
+ * shell bridge's strict loopback parser, and this function repeats that check
+ * for direct CLI invocation.
+ */
+export function postBoundedPrecompactIngress(input: {
+  daemonUrl: string;
+  credential: string;
+  body: string;
+  maxResponseBytes?: number;
+  timeoutMs?: number;
+}): Promise<string | null> {
+  let parsed: URL;
+  try {
+    parsed = new URL(input.daemonUrl);
+  } catch {
+    return Promise.resolve(null);
+  }
+  const port = Number.parseInt(parsed.port, 10);
+  if (
+    parsed.protocol !== 'http:'
+    || (parsed.hostname !== '127.0.0.1' && parsed.hostname !== 'localhost')
+    || parsed.username
+    || parsed.password
+    || !Number.isInteger(port)
+    || port < 1
+    || port > 65_535
+  ) return Promise.resolve(null);
+  const maxResponseBytes = Math.min(Math.max(input.maxResponseBytes ?? PRECOMPACT_HOOK_RESPONSE_BYTES, 1), PRECOMPACT_HOOK_RESPONSE_BYTES);
+  const timeoutMs = Math.min(Math.max(input.timeoutMs ?? PRECOMPACT_HOOK_TOTAL_TIMEOUT_MS, 1), PRECOMPACT_HOOK_TOTAL_TIMEOUT_MS);
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer: NodeJS.Timeout | null = null;
+    const finish = (value: string | null) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolve(value);
+    };
+    const request = http.request({
+      host: '127.0.0.1',
+      port,
+      path: '/agent-harbor/interactive-context-pressure',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': Buffer.byteLength(input.body),
+        'x-actor-credential': input.credential,
+      },
+    }, (response) => {
+      if ((response.statusCode ?? 0) < 200 || (response.statusCode ?? 0) >= 300) {
+        // Do not drain an endless error stream after clearing the total
+        // deadline. A non-2xx PreCompact receipt is fail-open advice only, so
+        // close both sides immediately rather than keeping the CLI alive.
+        response.destroy();
+        request.destroy();
+        finish(null);
+        return;
+      }
+      let received = 0;
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => {
+        if (settled) return;
+        received += chunk.length;
+        if (received > maxResponseBytes) {
+          response.destroy();
+          request.destroy();
+          finish(null);
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on('end', () => finish(Buffer.concat(chunks).toString('utf8')));
+      response.on('error', () => finish(null));
+    });
+    request.on('error', () => finish(null));
+    timer = setTimeout(() => {
+      request.destroy();
+      finish(null);
+    }, timeoutMs);
+    request.write(input.body);
+    request.end();
+  });
 }
 
 /** Opt-in, sanitized per-session timing for the generated interactive hook gate. */
@@ -803,6 +996,45 @@ async function printBridgeProbe(options: CLIOptions): Promise<void> {
  * inject into the next turn from this cwd (the Suggestibility Envelope), by
  * running the real staged tentacle.
  */
+export interface SquidTapEnvelope {
+  context: string | null;
+  eventName: string | null;
+  structured: boolean;
+}
+
+/** Decode the provider transport without changing the context bytes. The
+ * old preview printed this JSON wrapper verbatim, which proved that a shell
+ * script ran but concealed what the model actually saw. */
+export function decodeSquidTapEnvelope(raw: string): SquidTapEnvelope {
+  const trimmed = raw.trim();
+  if (!trimmed) return { context: null, eventName: null, structured: false };
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    const hook = parsed && typeof parsed === 'object'
+      ? (parsed as { hookSpecificOutput?: unknown }).hookSpecificOutput
+      : null;
+    if (hook && typeof hook === 'object' && typeof (hook as { additionalContext?: unknown }).additionalContext === 'string') {
+      const output = hook as { hookEventName?: unknown; additionalContext: string };
+      return {
+        context: output.additionalContext,
+        eventName: typeof output.hookEventName === 'string' ? output.hookEventName : null,
+        structured: true,
+      };
+    }
+  } catch {
+    // Other harness adapters may emit text directly. It is still model-facing
+    // context, but the preview labels the missing structured envelope.
+  }
+  return { context: trimmed, eventName: null, structured: false };
+}
+
+/** Render the structured hook event as a human-readable panel subtitle. */
+export function squidTapSubtitle(envelope: Pick<SquidTapEnvelope, 'eventName'>): string {
+  return envelope.eventName
+    ? `${envelope.eventName}: additional context`
+    : 'direct adapter context';
+}
+
 function handleSquidTap(options: CLIOptions): void {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const home = process.env.HOME || process.env.USERPROFILE || '';
@@ -827,15 +1059,33 @@ function handleSquidTap(options: CLIOptions): void {
     return;
   }
   const D = '\x1b[2m', Z = '\x1b[0m';
+  const envelope = decodeSquidTapEnvelope(out);
+  const c = squidTokens('stdout');
   console.log('');
-  ui.info('Suggestibility Envelope — what the next turn would receive');
-  console.log(`  ${D}source: ${tentacle}${Z}`);
-  console.log(`  ${D}cwd:    ${cwd}${Z}`);
+  console.log(ui.renderLineworkPanel({
+    title: 'Harnessed Context',
+    subtitle: squidTapSubtitle(envelope),
+    tone: 'info',
+    zone: 'model sees this before its next decision',
+    rows: [
+      { state: 'confirmed', label: 'delivery', text: envelope.structured ? 'structured hook envelope decoded' : 'direct text fallback' },
+      { state: 'active', label: 'audience', text: 'agent model context — not shell stdout' },
+      { state: 'info', label: 'source', text: displayPathRelativeToHome(tentacle, home) },
+      { state: 'info', label: 'cwd', text: displayPathRelativeToHome(cwd, home) },
+    ],
+    footer: 'the block below is the exact injected context, transport wrapper removed',
+    colorLevel: ui.lineworkColorLevel('stdout'),
+  }));
   console.log('');
-  if (out.trim().length === 0) {
-    console.log(`  ${D}(empty — no steering alerts, no pheromone traces near this directory)${Z}`);
+  if (!envelope.context) {
+    console.log(`  ${D}(empty — no steering alerts, inbox work, or nearby pheromone traces)${Z}`);
   } else {
-    for (const line of out.trimEnd().split('\n')) console.log(`  ${line}`);
+    console.log(`  ${c.pilot('◆ PORT DADDY HARNESS')} ${c.dim('BEGIN MODEL CONTEXT')}`);
+    for (const line of envelope.context.trimEnd().split('\n')) {
+      const section = /^\[[A-Z][A-Z\s—-]+\]/.test(line.trim());
+      console.log(`  ${c.pilot('▌')} ${section ? c.warn(line) : line}`);
+    }
+    console.log(`  ${c.pilot('◆ PORT DADDY HARNESS')} ${c.dim('END MODEL CONTEXT')}`);
   }
   console.log('');
 }
