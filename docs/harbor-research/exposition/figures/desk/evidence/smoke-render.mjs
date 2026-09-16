@@ -38,18 +38,28 @@ setTimeout(()=>{
   ];
   for(const [n,got,want] of checks)
     if(got!==want) errs.push(`CHECK ${n}: got ${got}, want ${want}`);
-  const unpublished=qa('#list .row').find(b=>b.textContent.includes('anchor-four-phases'));
-  if(!unpublished){
-    errs.push('CHECK unpublished figure row: missing anchor-four-phases');
-  }else{
+  const unpublishedFigures=[
+    ['anchor-four-phases',94],
+    ['anchor-handshake-ladder',100],
+    ['he-succession-price',314],
+    ['bc-delta-threshold',388],
+  ];
+  for(const [id,bookPage] of unpublishedFigures){
+    const unpublished=qa('#list .row').find(b=>b.textContent.includes(id));
+    if(!unpublished){
+      errs.push(`CHECK unpublished figure row: missing ${id}`);
+      continue;
+    }
+    if(!unpublished.textContent.includes(`Book p${bookPage} · JPG pending`))
+      errs.push(`CHECK unpublished figure row ${id}: missing pending-publication label`);
     unpublished.onclick();
     const stageText=(q('#stage')&&q('#stage').textContent||'').replace(/\s+/g,' ');
     if(!stageText.includes('Page image not published'))
-      errs.push('CHECK unpublished stage: missing truthful publication state');
-    if(!stageText.includes('Book p94'))
-      errs.push('CHECK unpublished stage: missing current Book location');
+      errs.push(`CHECK unpublished stage ${id}: missing truthful publication state`);
+    if(!stageText.includes(`Book p${bookPage}`))
+      errs.push(`CHECK unpublished stage ${id}: missing current Book location`);
     if(q('#sheet'))
-      errs.push('CHECK unpublished stage: fabricated a page image sheet');
+      errs.push(`CHECK unpublished stage ${id}: fabricated a page image sheet`);
   }
   const epi=q('#epigraph'); if(epi) console.log('epigraph:', epi.textContent.slice(0,90)+'...');
   console.log('list head:', q('#listhead') && q('#listhead').textContent);
