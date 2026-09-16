@@ -16,7 +16,7 @@ jest.unstable_mockModule('node:fs', () => ({
     return { isDirectory: () => type === 'dir', isSymbolicLink: () => type === 'symlink' };
   },
 }));
-const { createLocalRuntimeGate, readLocalRuntimeControl } = await import('../../lib/local-runtime-control.js');
+const { createLocalRuntimeGate, localRuntimePostureInput, readLocalRuntimeControl } = await import('../../lib/local-runtime-control.js');
 const fakeFs = await import('node:fs');
 const fixture = { canonicalRoot: '/fixture/canonical', selectedRoot: '/fixture/selected', env: {} };
 beforeEach(() => {
@@ -27,6 +27,14 @@ beforeEach(() => {
 });
 
 describe('local Off admission', () => {
+  test('filesystem observations map to distinct On, Off, and unknown posture inputs', () => {
+    expect(localRuntimePostureInput({ enabled: true, reason: 'enabled' })).toMatchObject({ desired: 'on', control: 'enabled' });
+    expect(localRuntimePostureInput({ enabled: false, reason: 'stop_marker', path: '/fixture/HALT' }))
+      .toMatchObject({ desired: 'off', control: 'disabled' });
+    expect(localRuntimePostureInput({ enabled: false, reason: 'control_unavailable' }))
+      .toMatchObject({ desired: 'on', control: 'unknown' });
+  });
+
   test('only verified absences enable runtime, including an observably missing root', () => {
     expect(readLocalRuntimeControl(fixture).enabled).toBe(true);
     files.delete(fixture.canonicalRoot);

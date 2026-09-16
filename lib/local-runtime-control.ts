@@ -2,6 +2,7 @@
 import { accessSync, constants, lstatSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
+import { admitRuntimeEffect, type RuntimePostureInput } from './runtime-posture.js';
 
 export interface LocalRuntimeControlOptions {
   /** Fixture injection only; production always uses the OS account home. */
@@ -15,6 +16,15 @@ export interface LocalRuntimeControlState {
   enabled: boolean;
   reason: 'enabled' | 'stop_marker' | 'control_unavailable';
   path?: string;
+}
+
+/** Convert the filesystem control result without inventing readiness. */
+export function localRuntimePostureInput(state: LocalRuntimeControlState): RuntimePostureInput {
+  const now = Date.now();
+  const observation = { controlObservedAt: now, controlValidUntil: now + 1_000 };
+  if (state.enabled) return { desired: 'on', control: 'enabled', ...observation };
+  if (state.reason === 'stop_marker') return { desired: 'off', control: 'disabled', ...observation };
+  return { desired: 'on', control: 'unknown', ...observation };
 }
 
 /**
@@ -118,5 +128,6 @@ export function createLocalRuntimeGate(read: () => boolean = () => readLocalRunt
  */
 export function assertLocalRuntimeEnabled(): void {
   const state = readLocalRuntimeControl();
-  if (!state.enabled) throw new Error('Port Daddy is Off or its local control state is unavailable. No runtime was started. Only the operator may turn it back on.');
+  const admission = admitRuntimeEffect(localRuntimePostureInput(state), { effects: ['automatic_local'] });
+  if (!admission.allowed) throw new Error('Port Daddy is Off or its local control state is unavailable. No runtime was started. Only the operator may turn it back on.');
 }
