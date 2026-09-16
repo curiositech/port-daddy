@@ -55,31 +55,25 @@
     {file lock, clock, socket, supervisor};
 
   % --- audience column: a second dimension, direct-labelled ------------------
-  \node[pd axis label,anchor=east,align=right,font=\footnotesize\scshape]
-    at (\swktextr,8.40) {for the market};
-  \node[pd axis label,anchor=east,align=right,font=\footnotesize\scshape]
-    at (\swktextr,6.48) {for the operator};
-  \node[pd axis label,anchor=east,align=right,font=\footnotesize\scshape]
-    at (\swktextr,4.56) {for the agents};
-  \node[pd axis label,anchor=east,align=right,font=\footnotesize\scshape]
-    at (\swktextr,2.64) {for the machine};
-  \node[pd axis label,anchor=east,align=right,font=\footnotesize\scshape]
-    at (\swktextr,0.72) {from the host};
+  % `pd kind tag` is `pd axis label` plus the house small-caps handle -- no
+  % hand-rolled font= needed.
+  \node[pd kind tag,anchor=east] at (\swktextr,8.40) {for the market};
+  \node[pd kind tag,anchor=east] at (\swktextr,6.48) {for the operator};
+  \node[pd kind tag,anchor=east] at (\swktextr,4.56) {for the agents};
+  \node[pd kind tag,anchor=east] at (\swktextr,2.64) {for the machine};
+  \node[pd kind tag,anchor=east] at (\swktextr,0.72) {from the host};
 
   % --- badge column: which part and chapters own the rung --------------------
-  \node[pd hairline,align=center,font=\footnotesize,text=hhink,inner sep=2.4pt,
-        minimum width=1.24cm] at (\swkbadge,8.24)
+  % `pd badge` bakes in the hairline edge, house font, ink and centring.
+  \node[pd badge,minimum width=1.24cm] at (\swkbadge,8.24)
     {Part~IV\\Ch.~\csname pdchapternumberofhe\endcsname--\csname pdchapternumberoffh\endcsname};
-  \node[pd hairline,align=center,font=\footnotesize,text=hhink,inner sep=2.4pt,
-        minimum width=1.24cm] at (\swkbadge,6.32)
+  \node[pd badge,minimum width=1.24cm] at (\swkbadge,6.32)
     {Part~II\\Ch.~\csname pdchapternumberofls\endcsname};
-  \node[pd hairline,align=center,font=\footnotesize,text=hhink,inner sep=2.4pt,
-        minimum width=1.24cm] at (\swkbadge,4.40)
+  \node[pd badge,minimum width=1.24cm] at (\swkbadge,4.40)
     {Part~I\\Ch.~\csname pdchapternumberofswk\endcsname--\csname pdchapternumberofsealed\endcsname};
-  \node[pd hairline,align=center,font=\footnotesize,text=hhink,inner sep=2.4pt,
-        minimum width=1.24cm] at (\swkbadge,2.48)
+  \node[pd badge,minimum width=1.24cm] at (\swkbadge,2.48)
     {Part~I\\Ch.~\csname pdchapternumberofswk\endcsname};
-  \node[align=center,font=\footnotesize\itshape,text=hhink!72!hhgray]
+  \node[align=center,font=\pdfiglabelitalic,text=hhink!72!hhgray]
     at (\swkbadge,0.56) {assumed,\\not built};
 
   % --- the relation, at every gap, in both directions ------------------------
@@ -92,10 +86,10 @@
 
   % --- this chapter's rungs, marked outside the box --------------------------
   \draw[pd focus arrow] (9.14,2.48) -- (8.76,2.48);
-  \node[anchor=west,align=left,font=\footnotesize\bfseries,text=hhink] at (9.24,2.48)
+  \node[anchor=west,align=left,font=\pdfiglabelbold,text=hhink] at (9.24,2.48)
     {this chapter};
   \draw[pd focus arrow] (9.14,4.40) -- (8.76,4.40);
-  \node[anchor=west,align=left,font=\footnotesize\itshape,text=hhink!72!hhgray]
+  \node[anchor=west,align=left,font=\pdfiglabelitalic,text=hhink!72!hhgray]
     at (9.24,4.40) {in part};
 \end{tikzpicture}
 \caption{The four-layer coordination stack, drawn over the host floor it stands
