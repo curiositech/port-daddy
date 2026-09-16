@@ -9,12 +9,13 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
   assertOwnedSyntheticTree,
+  closeServerBoundedly,
   findAuthorityArtifacts,
   loadReleaseCandidateMatrix,
   prepareOwnedPrivateDirectory,
@@ -23,6 +24,7 @@ import {
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
   validateReleaseCandidateMatrix,
+  waitForChildExit,
 } from '../../scripts/lib/release-candidate-e2e.mjs';
 
 const repoRoot = process.cwd();
@@ -159,6 +161,22 @@ describe('release-candidate E2E contract', () => {
     }
   });
 
+  test('child-exit proof settles for fast failures and remains readable after close', async () => {
+    const child = spawn(process.execPath, ['-e', 'process.exit(7)'], {
+      stdio: 'ignore',
+      env: secretFreeBaseEnv(),
+    });
+    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
+    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
+  });
+
+  test('bounded server cleanup rejects instead of leaving the suite await unsettled', async () => {
+    const neverCloses = { close() {} };
+    await expect(closeServerBoundedly(neverCloses, 10, 'stuck fixture')).rejects.toThrow(
+      /stuck fixture did not close within 10ms/,
+    );
+  });
+
   test('cleanup proof rejects a symlink that escapes the owned synthetic root', () => {
     const base = join(homedir(), 'coding', 'tmp');
     mkdirSync(base, { recursive: true });
@@ -244,6 +262,11 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('matrixEnvRequired: false');
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
+    expect(runner).toContain("PD_HOME: join(this.root, 'control')");
+    expect(runner).not.toContain('PORT_DADDY_ISOLATED_TEST');
+    expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
+    expect(runner).toContain("'sitrep',\n          '--json'");
+    expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener')");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);

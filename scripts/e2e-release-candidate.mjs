@@ -22,6 +22,7 @@ import {
   assertOwnedSyntheticTree,
   assertExecutableArtifact,
   canonicalRecordedCommonDir,
+  closeServerBoundedly,
   findAuthorityArtifacts,
   loadReleaseCandidateMatrix,
   prepareOwnedPrivateDirectory,
@@ -31,6 +32,7 @@ import {
   selectReleaseCandidateCases,
   sha256File,
   snapshotTreeMetadata,
+  waitForChildExit,
 } from './lib/release-candidate-e2e.mjs';
 
 const SOURCE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -108,24 +110,6 @@ function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
-function processExited(child, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
-  }
-  return new Promise((resolveExit) => {
-    let timer;
-    const done = (code, signal) => {
-      clearTimeout(timer);
-      resolveExit({ code, signal });
-    };
-    child.once('exit', done);
-    timer = setTimeout(() => {
-      child.off('exit', done);
-      resolveExit(null);
-    }, timeoutMs);
-  });
-}
-
 async function reservePort() {
   const server = createServer();
   await new Promise((resolveListen, reject) => {
@@ -180,6 +164,8 @@ class ReleaseCandidateSuite {
     mkdirSync(dirname(this.resultsPath), { recursive: true });
     mkdirSync(dirname(this.logPath), { recursive: true });
     mkdirSync(join(this.root, 'tmp'), { recursive: true });
+    mkdirSync(join(this.root, 'control'), { recursive: true, mode: 0o700 });
+    chmodSync(join(this.root, 'control'), 0o700);
     this.checkoutBefore = this.checkoutAuthoritySnapshot();
   }
 
@@ -287,6 +273,7 @@ class ReleaseCandidateSuite {
       HOME: join(this.root, 'build-home'),
       NO_COLOR: '1',
       PD_SCRATCH_ROOT: join(this.root, 'build-scratch'),
+      PD_HOME: join(this.root, 'control'),
       RUSTUP_HOME: process.env.RUSTUP_HOME || join(homedir(), '.rustup'),
       TERM: 'dumb',
       TMPDIR: join(this.root, 'tmp'),
@@ -392,7 +379,9 @@ class ReleaseCandidateSuite {
       NO_COLOR: '1',
       PD_HOME: pdHome,
       PD_SCRATCH_ROOT: join(caseRoot, 'scratch'),
-      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'pd'),
+      // `pd` is a launcher that execs this companion. Drift must compare the
+      // running payload with the same on-disk payload, not launcher bytes.
+      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy'),
       PORT_DADDY_CONTEXT_DIR: contextDir,
       PORT_DADDY_DB: db,
       PORT_DADDY_DISABLE_KEYCHAIN: '1',
@@ -534,10 +523,10 @@ class ReleaseCandidateSuite {
     const child = daemon.child;
     const pid = child.pid ?? null;
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
-    let exit = await processExited(child, signal === 'SIGKILL' ? 3_000 : 10_000);
+    let exit = await waitForChildExit(child, signal === 'SIGKILL' ? 3_000 : 10_000);
     if (!exit && child.exitCode === null && child.signalCode === null) {
       child.kill('SIGKILL');
-      exit = await processExited(child, 3_000);
+      exit = await waitForChildExit(child, 3_000);
     }
     if (!exit) throw new Error(`${daemon.label} did not exit within the bounded cleanup window`);
     if (pid !== null) {
@@ -764,8 +753,16 @@ class ReleaseCandidateSuite {
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
         const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], { slot: spec.slot }), `claim ${spec.label}`);
         if (!claim.success || !claim.claimed?.includes('README.md')) throw new Error(`README claim did not land for ${spec.label}`);
-        const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep'], { slot: spec.slot });
-        if (!sitrep.stdout.includes(sessionId)) throw new Error(`sitrep did not name ${spec.label}'s active session`);
+        const sitrep = readJsonOutput(await this.runCli(runtime, spec.cwd, [
+          'sitrep',
+          '--json',
+          '--limit-notes',
+          '200',
+        ], { slot: spec.slot }), `sitrep ${spec.label}`);
+        const exactNote = Array.isArray(sitrep.notes) && sitrep.notes.some((note) =>
+          (note?.sessionId ?? note?.session_id) === sessionId
+          && (note?.content ?? note?.note) === `RC evidence ${spec.label}`);
+        if (!exactNote) throw new Error(`sitrep JSON did not carry ${spec.label}'s exact attributed note`);
         sessions.push({ ...spec, sessionId });
       }
 
@@ -987,7 +984,7 @@ class ReleaseCandidateSuite {
       this.activeChildren.add(child);
       child.stdout.on('data', (chunk) => this.appendLog('collision-daemon:stdout', chunk.toString()));
       child.stderr.on('data', (chunk) => this.appendLog('collision-daemon:stderr', chunk.toString()));
-      collisionExit = await processExited(child, 15_000);
+      collisionExit = await waitForChildExit(child, 15_000);
       if (!collisionExit) throw new Error('colliding daemon did not fail within 15 seconds');
       if (collisionExit.code === 0) throw new Error('colliding daemon reported success while the port was occupied');
     } finally {
@@ -996,7 +993,7 @@ class ReleaseCandidateSuite {
         try {
           const pid = child.pid ?? null;
           if (!collisionExit && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-          collisionExit ??= await processExited(child, 3_000);
+          collisionExit ??= await waitForChildExit(child, 3_000);
           if (!collisionExit) throw new Error(`colliding daemon ${pid ?? 'unknown'} did not exit during bounded cleanup`);
           if (pid !== null) {
             try {
@@ -1011,7 +1008,7 @@ class ReleaseCandidateSuite {
           cleanupError = error;
         }
       }
-      await new Promise((resolveClose) => blocker.close(resolveClose));
+      await closeServerBoundedly(blocker, 3_000, 'collision listener');
       if (cleanupError) throw cleanupError;
     }
 
@@ -1213,7 +1210,7 @@ class ReleaseCandidateSuite {
     for (const child of children) {
       const pid = child.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-      const exit = await processExited(child, 3_000);
+      const exit = await waitForChildExit(child, 3_000);
       if (!exit) throw new Error(`cleanup could not confirm exit for child ${pid ?? 'unknown'}`);
       if (pid !== null) {
         try {
