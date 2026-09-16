@@ -45,7 +45,7 @@ final class EndpointFailClosedTests: XCTestCase {
     }
 
     func testNoRequestIsBuiltWhenControlPlaneUnavailable() async {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         // Force an unavailable endpoint via an invalid operator selection.
         store.rebind(to: "not-a-daemon-url")
         XCTAssertFalse(store.isControlPlaneAvailable)
@@ -63,7 +63,7 @@ final class EndpointFailClosedTests: XCTestCase {
         // Positive control: with a resolved endpoint, refresh() DOES issue a
         // request (which our protocol intercepts and fails). Proves the
         // zero-count above is a real fail-closed, not a dead counter.
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         store.rebind(to: "http://127.0.0.1:59999")
         XCTAssertTrue(store.isControlPlaneAvailable)
 
@@ -75,7 +75,7 @@ final class EndpointFailClosedTests: XCTestCase {
     }
 
     func testIsCanonicalDaemonReflectsProvenanceNotPort() {
-        let store = FleetStore(autoStart: false)
+        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
         // An operator-selected berth is an explicit URL — never "canonical",
         // regardless of which port number it happens to carry.
         store.rebind(to: "http://127.0.0.1:59999")
@@ -85,7 +85,11 @@ final class EndpointFailClosedTests: XCTestCase {
 
     func testUnavailableDiscoveryRecoversWhenDaemonPublishes() async {
         var discovered: DaemonEndpoint = .unavailable(.noPublication)
-        let store = FleetStore(autoStart: false, endpointResolver: { discovered })
+        let store = FleetStore(
+            autoStart: false,
+            endpointResolver: { discovered },
+            control: fixtureRuntimeControl()
+        )
         XCTAssertNil(store.daemonURL)
 
         discovered = .available(
@@ -105,7 +109,11 @@ final class EndpointFailClosedTests: XCTestCase {
         var discovered = DaemonEndpoint.available(
             url: "http://127.0.0.1:54321",
             source: .publishedPortFile)
-        let store = FleetStore(autoStart: false, endpointResolver: { discovered })
+        let store = FleetStore(
+            autoStart: false,
+            endpointResolver: { discovered },
+            control: fixtureRuntimeControl()
+        )
 
         discovered = .available(
             url: "http://127.0.0.1:54322",
@@ -126,7 +134,11 @@ final class EndpointFailClosedTests: XCTestCase {
         var discovered = DaemonEndpoint.available(
             url: "http://127.0.0.1:54321",
             source: .publishedPortFile)
-        let store = FleetStore(autoStart: false, endpointResolver: { discovered })
+        let store = FleetStore(
+            autoStart: false,
+            endpointResolver: { discovered },
+            control: fixtureRuntimeControl()
+        )
 
         RequestCountingProtocol.reset()
         store.rebind(to: "http://127.0.0.1:59999")
