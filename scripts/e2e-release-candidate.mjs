@@ -179,6 +179,8 @@ class ReleaseCandidateSuite {
     mkdirSync(dirname(this.resultsPath), { recursive: true });
     mkdirSync(dirname(this.logPath), { recursive: true });
     mkdirSync(join(this.root, 'tmp'), { recursive: true });
+    mkdirSync(join(this.root, 'control'), { recursive: true, mode: 0o700 });
+    chmodSync(join(this.root, 'control'), 0o700);
     this.checkoutBefore = this.checkoutAuthoritySnapshot();
   }
 
@@ -281,11 +283,15 @@ class ReleaseCandidateSuite {
   isolatedEnv(extra = {}) {
     return {
       ...secretFreeBaseEnv(),
-      CI: process.env.CI || '1',
+      CI: 'true',
       CARGO_HOME: process.env.CARGO_HOME || join(homedir(), '.cargo'),
       HOME: join(this.root, 'build-home'),
+      NODE_ENV: 'test',
       NO_COLOR: '1',
       PD_SCRATCH_ROOT: join(this.root, 'build-scratch'),
+      PD_HOME: join(this.root, 'control'),
+      PORT_DADDY_ISOLATED_TEST: '1',
+      PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: join(this.root, 'control'),
       RUSTUP_HOME: process.env.RUSTUP_HOME || join(homedir(), '.rustup'),
       TERM: 'dumb',
       TMPDIR: join(this.root, 'tmp'),
@@ -381,14 +387,17 @@ class ReleaseCandidateSuite {
     const tmp = join(caseRoot, 't');
     const db = join(runtimeRoot, 'registry.db');
     for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) mkdirSync(path, { recursive: true });
+    chmodSync(pdHome, 0o700);
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
       ...secretFreeBaseEnv(),
-      CI: process.env.CI || '1',
+      CI: 'true',
       HOME: home,
       NODE_ENV: 'test',
       NO_COLOR: '1',
       PD_HOME: pdHome,
+      PORT_DADDY_ISOLATED_TEST: '1',
+      PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT: pdHome,
       PD_SCRATCH_ROOT: join(caseRoot, 'scratch'),
       PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'pd'),
       PORT_DADDY_CONTEXT_DIR: contextDir,

@@ -18,6 +18,18 @@ export interface LocalRuntimeControlState {
 }
 
 /**
+ * Hosted release-candidate tests exercise an isolated staged binary, not the
+ * operator's installed runtime. Their explicit control root is accepted only
+ * under the full test/CI contract; ordinary processes cannot use PD_HOME to
+ * hide the canonical operator stop markers.
+ */
+function isolatedTestCanonicalRoot(env: NodeJS.ProcessEnv): string | undefined {
+  const root = env.PORT_DADDY_ISOLATED_TEST_CONTROL_ROOT;
+  if (env.CI !== 'true' || env.NODE_ENV !== 'test' || env.PORT_DADDY_ISOLATED_TEST !== '1') return undefined;
+  return root && isAbsolute(root) ? root : undefined;
+}
+
+/**
  * Inspect a stop path without following symlinks or reading its contents.
  * The design treats unreadable parents as unknown, never as marker absence.
  * @param path Absolute marker path.
@@ -49,7 +61,7 @@ export function inspectLocalStopPath(path: string): 'absent' | 'present' | 'unkn
  */
 export function readLocalRuntimeControl(options: LocalRuntimeControlOptions = {}): LocalRuntimeControlState {
   const env = options.env ?? process.env;
-  const canonical = options.canonicalRoot ?? join(homedir(), '.port-daddy');
+  const canonical = options.canonicalRoot ?? isolatedTestCanonicalRoot(env) ?? join(homedir(), '.port-daddy');
   const selected = options.selectedRoot ?? env.PD_HOME ?? canonical;
   const checkedSentinels = new Set([join(canonical, 'HALT'), join(selected, 'HALT')]);
   for (const root of new Set([canonical, selected])) {

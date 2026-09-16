@@ -275,6 +275,9 @@ const knownUnreferencedFragments = [
   'website-v2/public/whitepaper/figures/fig-bc-oracle-audit-rate.tex',
   'website-v2/public/whitepaper/figures/tab-bc-settlement-rule.tex',
 ];
+const stagedUnreferencedFragments = JSON.parse(
+  readFileSync(resolve('whitepaper/figure-staging.json'), 'utf8'),
+).fragments;
 
 // The shared figure apparatus exists TWICE -- once under whitepaper/figures and
 // once under website-v2/public/whitepaper/figures -- because the standalone
@@ -351,7 +354,11 @@ test('no fragment joins the figure corpus without a chapter that inputs it', () 
       unreferenced.push(`${dir}/${entry.name}`);
     }
   }
-  assert.deepEqual(unreferenced.sort(), [...knownUnreferencedFragments].sort());
+  assert.deepEqual(
+    unreferenced.sort(),
+    [...knownUnreferencedFragments, ...stagedUnreferencedFragments].sort(),
+    'every unplaced fragment must be named in the temporary staging inventory; remove its staging entry when a chapter inputs it',
+  );
 });
 
 test('every chapter-prefix reference names a prefix textbook.json declares', () => {
