@@ -24,6 +24,7 @@ import {
   canonicalRecordedCommonDir,
   findAuthorityArtifacts,
   loadReleaseCandidateMatrix,
+  prepareOwnedPrivateDirectory,
   redactReleaseCandidateText,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
@@ -380,7 +381,8 @@ class ReleaseCandidateSuite {
     const contextDir = join(caseRoot, 'x');
     const tmp = join(caseRoot, 't');
     const db = join(runtimeRoot, 'registry.db');
-    for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) mkdirSync(path, { recursive: true });
+    for (const path of [runtimeRoot, home, contextDir, tmp]) mkdirSync(path, { recursive: true });
+    prepareOwnedPrivateDirectory(pdHome);
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
       ...secretFreeBaseEnv(),
