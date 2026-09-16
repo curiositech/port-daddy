@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "capacity-evidence",
+  "digestAlgorithm": "sha256",
+  "canonicalEncoding": "RFC8785-JCS",
+  "evidenceId": "capacity-demo-unknown",
+  "operatorScope": {
+    "operatorId": "operator-demo",
+    "provider": "provider-demo",
+    "accountId": "seat-demo",
+    "authMode": "subscription",
+    "productScope": "coding-agent"
+  },
+  "executionClass": "real-provider",
+  "evaluatedAt": "2026-09-11T18:01:00Z",
+  "observation": {
+    "sourceKind": "missing-or-unsupported",
+    "sourceRef": "fixture://subscription-window/missing",
+    "parserProfileId": "fake-capacity-observer@1.0.0",
+    "parserSchemaDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "rawEvidenceDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "observedAt": "2026-09-11T18:00:00Z",
+    "expiresAt": "2026-09-11T18:05:00Z"
+  },
+  "buckets": [
+    {
+      "capacityBucketId": "bucket:provider-demo:seat-demo:unknown",
+      "windowId": "unknown-window",
+      "unit": "opaque-provider-units",
+      "routeAliases": ["provider-demo/model-b"],
+      "quality": "unknown",
+      "observedLimit": null,
+      "observedRemaining": null,
+      "resetsAt": null,
+      "operatorReserve": 0,
+      "outstandingReservations": 0,
+      "unresolvedAttemptHolds": 0,
+      "driftMargin": 0,
+      "checkpointTailReserve": 0,
+      "allocatable": null,
+      "forecast": {
+        "route": "provider-demo/model-b",
+        "taskClass": "unknown",
+        "effort": "unknown",
+        "contextTokens": 0,
+        "toolPackDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "executionMode": "unknown",
+        "p50": null,
+        "p90": null,
+        "p95": null,
+        "sampleSize": 0,
+        "calibrationErrorP95": null
+      },
+      "risk": null,
+      "eligible": false
+    }
+  ],
+  "reservation": {
+    "state": "none",
+    "reservationId": null,
+    "atomicAcrossBucketsAndAliases": false,
+    "issuedAt": null,
+    "expiresAt": null,
+    "items": []
+  },
+  "preemptionState": "UNKNOWN",
+  "admissible": false,
+  "launchAuthority": false,
+  "discrepancies": ["provider exposes no supported native remaining-usage observation"]
+}

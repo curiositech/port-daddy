@@ -71,16 +71,28 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('tenderfoot')).toBe(false);
   });
 
-  it('qa is a cloud-static reviewer (needsExecution=false despite Bash(npm test*))', () => {
+  it('keeps qa sandbox execution explicit and advisory until a runner is configured', () => {
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa).toBeDefined();
-    expect(qa!.needsExecution).toBe(false);
+    expect(qa!.execution.mode).toBe('write_sandbox');
+    expect(qa!.executionConfigState).toBe('valid');
+    expect(qa!.participation.unavailableBlocks).toBe(false);
+    expect(qa!.participation.rules[0]?.disposition).toBe('advisory');
   });
 
-  it('test-author needs execution (has non-gh Bash tools) → routes to GHA', () => {
+  it('legacy test-author tool strings do not acquire execution authority', () => {
     const ta = ships!.find(s => s.name === 'test-author');
     expect(ta).toBeDefined();
-    expect(ta!.needsExecution).toBe(true);
+    expect(ta!.execution.mode).toBe('none');
+    expect(ta!.executionConfigState).toBe('absent');
+  });
+
+  it('declares Steward model-only instead of deriving authority from its command list', () => {
+    const steward = parseFleetShips(REAL_YAML, '*')?.find(ship => ship.name === 'steward');
+    expect(steward).toBeDefined();
+    expect(steward!.execution.mode).toBe('none');
+    expect(steward!.executionConfigState).toBe('valid');
+    expect(steward!.participation.default).toBe('advisory');
   });
 
   it('spark and spider are advisory PR commenters with explicit creative temperatures', () => {
@@ -89,13 +101,11 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
 
     expect(spark).toBeDefined();
     expect(spark!.blocking).toBe(false);
-    expect(spark!.needsExecution).toBe(false);
     expect(spark!.temperature).toBe(1.25);
     expect(spark!.prompt).toContain('high-temperature product imagination');
 
     expect(spider).toBeDefined();
     expect(spider!.blocking).toBe(false);
-    expect(spider!.needsExecution).toBe(false);
     expect(spider!.temperature).toBe(0.95);
     // Spider's prompt was sharpened to a STRUCTURAL syllogism: the rationale must
     // be written verbatim as Premise A / Premise B / Therefore C.
@@ -271,6 +281,124 @@ describe('resolveCfModel — the empty-model guard', () => {
     // The #654 phantom tombstone stays OUT until a witnessed live call.
     expect(resolveCfModel('@cf/moonshotai/kimi-k2.6')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  });
+});
+
+describe('parseFleetShips — participation and execution authority', () => {
+  it('projects explicit PR-class voting and sandbox authority from trusted config', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    privacy-warden:
+      trigger: pull_request:opened
+      prompt: review privacy boundaries
+      blocking: false
+      participation:
+        default: ineligible
+        rules:
+          - disposition: required
+            riskSignals: [secrets, tenant-boundary]
+            reason: protected data boundary changed
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file, dynamic_skill_search]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+`, 'pull_request:opened');
+    expect(parsed?.[0].participation).toEqual({
+      default: 'ineligible',
+      unavailableBlocks: false,
+      rules: [{
+        disposition: 'required',
+        riskSignals: ['secrets', 'tenant-boundary'],
+        reason: 'protected data boundary changed',
+      }],
+    });
+    expect(parsed?.[0].execution).toMatchObject({
+      mode: 'read_only_sandbox',
+      repository: 'current_repository',
+      worktree: 'isolated',
+      cwd: '.',
+      toolAllowlist: ['read_file', 'dynamic_skill_search'],
+      mcpAllowlist: ['github.read'],
+      networkAllowlist: [],
+    });
+    expect(parsed?.[0].executionConfigState).toBe('valid');
+  });
+
+  it('does not infer execution authority from legacy allowedTools', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    test-author:
+      trigger: pull_request:opened
+      prompt: write tests
+      allowedTools: "Read,Write,Bash(npm test*)"
+`, 'pull_request:opened');
+    expect(parsed?.[0].execution.mode).toBe('none');
+    expect(parsed?.[0].executionConfigState).toBe('absent');
+  });
+
+  it('preserves malformed explicit execution as invalid instead of absent deny-all', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    reviewer:
+      trigger: pull_request:opened
+      prompt: review
+      participation: { default: required, rules: [] }
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+        surpriseAuthority: true
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({
+      executionConfigState: 'invalid',
+      execution: { mode: 'none' },
+    });
+  });
+
+  it('fails malformed participation policy closed and grants no legacy blocking authority', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    reviewer:
+      trigger: pull_request:opened
+      prompt: review
+      blocking: true
+      participation:
+        default: required
+        rules:
+          - disposition: required
+            prClasses: [securty]
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({
+      blocking: true,
+      participationValid: false,
+      participation: { default: 'ineligible', rules: [] },
+    });
+  });
+
+  it('requires the explicit ideation role and denies required voting to that role', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    arbitrary-ideas:
+      trigger: pull_request:opened
+      class: ideation
+      prompt: propose ideas
+      participation: { default: required, rules: [] }
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({ ideation: true, participationValid: false });
   });
 });
 

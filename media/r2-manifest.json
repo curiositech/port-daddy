@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 783,
-    "distinctObjects": 747,
-    "bytes": 298120983,
-    "distinctBytes": 295327392
+    "assets": 794,
+    "distinctObjects": 758,
+    "bytes": 303134021,
+    "distinctBytes": 300340430
   },
   "assets": [
     {
@@ -140,6 +140,27 @@
       "bytes": 595036,
       "sha256": "ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e",
       "key": "sha256/ee/ee8138442c6c8395b62310697cbfe544cfcba998330d368ccdca4e5151e20f0e.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/after-redraw.png",
+      "bytes": 163547,
+      "sha256": "9bca0c2c34e7032ffeac829cb8d5e0ac9a4dc2e96fca5e9bdc980cdfa99447ca",
+      "key": "sha256/9b/9bca0c2c34e7032ffeac829cb8d5e0ac9a4dc2e96fca5e9bdc980cdfa99447ca.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/before-current-head.png",
+      "bytes": 86388,
+      "sha256": "a5d3bb6bf6e96f95d0896043038338aac7a8e5ecc8fc9c5d741664ea8d514ebc",
+      "key": "sha256/a5/a5d3bb6bf6e96f95d0896043038338aac7a8e5ecc8fc9c5d741664ea8d514ebc.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": ".github/assets/figure-stack-map-redraw/reference-2026-old-form.png",
+      "bytes": 234685,
+      "sha256": "f6637914054e1f33cbd2d06dd68772c5c0574242c32dea4d5fa590d4b16ab221",
+      "key": "sha256/f6/f6637914054e1f33cbd2d06dd68772c5c0574242c32dea4d5fa590d4b16ab221.png",
       "contentType": "image/png"
     },
     {
@@ -1949,6 +1970,27 @@
       "contentType": "image/png"
     },
     {
+      "path": "docs/pr-assets/pr-10177/conservation-invariant.png",
+      "bytes": 705253,
+      "sha256": "c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef",
+      "key": "sha256/c6/c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10177/worked-example-declared-dead.png",
+      "bytes": 772847,
+      "sha256": "da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad",
+      "key": "sha256/da/da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10177/worked-example-pairwise-count.png",
+      "bytes": 560255,
+      "sha256": "d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36",
+      "key": "sha256/d3/d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36.png",
+      "contentType": "image/png"
+    },
+    {
       "path": "docs/pr-assets/pr-10178/fh-xfer-ceremony-record-vs-render-1x-150dpi.png",
       "bytes": 169365,
       "sha256": "157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3",
@@ -1988,6 +2030,41 @@
       "bytes": 859038,
       "sha256": "e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667",
       "key": "sha256/e6/e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/graded-exercises.png",
+      "bytes": 607631,
+      "sha256": "f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523",
+      "key": "sha256/f2/f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/worked-example-12800-bits.png",
+      "bytes": 713705,
+      "sha256": "a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7",
+      "key": "sha256/a4/a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/worked-example-dereks-secret.png",
+      "bytes": 582710,
+      "sha256": "6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade",
+      "key": "sha256/6c/6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10184/swk-stack-map-book-1x-150dpi.png",
+      "bytes": 300697,
+      "sha256": "b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b",
+      "key": "sha256/b6/b6fa188185ece1b05db37038e644266426a2e0a873deaba2296ae2df17926a9b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10184/swk-stack-map-chapter-1x-150dpi.png",
+      "bytes": 285320,
+      "sha256": "4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631",
+      "key": "sha256/4f/4fd45a3f74e7289a61ffaa00489479fe993e60dd78d987672c96c7182dc57631.png",
       "contentType": "image/png"
     },
     {

@@ -40,6 +40,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { assertLocalRuntimeEnabled } from '../../lib/local-runtime-control.js';
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import {
@@ -62,6 +63,7 @@ const FORMULA = 'port-daddy';
 
 interface ShResult { code: number; stdout: string; stderr: string }
 function sh(cmd: string, args: string[], timeoutMs = 600_000): ShResult {
+  assertLocalRuntimeEnabled();
   const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: timeoutMs });
   return { code: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
@@ -190,6 +192,7 @@ export async function handleUpgrade(
   currentVersion: string,
   options: UpgradeOptions = {},
 ): Promise<HandleUpgradeResult> {
+  assertLocalRuntimeEnabled();
   const feedUrl = resolveFeedUrl(options.feed);
   const manifest = await fetchManifest(feedUrl);
   const decision = decideUpgrade(currentVersion, manifest);
