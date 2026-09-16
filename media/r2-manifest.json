@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 632,
-    "distinctObjects": 596,
-    "bytes": 286354140,
-    "distinctBytes": 283560549
+    "assets": 635,
+    "distinctObjects": 599,
+    "bytes": 288518798,
+    "distinctBytes": 285725207
   },
   "assets": [
     {
@@ -1029,6 +1029,27 @@
       "bytes": 108042,
       "sha256": "e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5",
       "key": "sha256/e5/e5a99bc94289d89e8e335a1fe2389e74b5df864868004e61c3e2186a7f92e1d5.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10179/adversarial-test-market.png",
+      "bytes": 760440,
+      "sha256": "11edd1c66b4e0c1260ddc7e1d478cbe350839d309a04cf8ba6f7abb9caa5336c",
+      "key": "sha256/11/11edd1c66b4e0c1260ddc7e1d478cbe350839d309a04cf8ba6f7abb9caa5336c.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10179/contents-new-sections.png",
+      "bytes": 545180,
+      "sha256": "4ff55b0dc2de034df53403a4b897c871cd65746caf56eacf51fbd5d5d40e4859",
+      "key": "sha256/4f/4ff55b0dc2de034df53403a4b897c871cd65746caf56eacf51fbd5d5d40e4859.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10179/worked-example-platform-cut.png",
+      "bytes": 859038,
+      "sha256": "e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667",
+      "key": "sha256/e6/e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667.png",
       "contentType": "image/png"
     },
     {
