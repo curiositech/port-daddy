@@ -106,7 +106,8 @@ describe('release workflow topology contracts', () => {
   });
 
   test('Harbor research rebuilds use a source-bound clock that ignores unrelated commits', () => {
-    const workflow = parseYaml(readWorkflow('harbor-research-build.yml'));
+    const workflowSource = readWorkflow('harbor-research-build.yml');
+    const workflow = parseYaml(workflowSource);
     const renderStep = workflow.jobs.build.steps.find(
       (step) => step.name === 'Render the harbor-research corpus',
     );
@@ -181,6 +182,7 @@ describe('release workflow topology contracts', () => {
         `-C ${join(scratch, 'docs', 'harbor-research')} docs`,
       ]);
       expect(renderStep.run).toBe('bash scripts/render-harbor-research.sh');
+      expect(workflowSource.match(/- 'scripts\/render-harbor-research\.sh'/g)).toHaveLength(2);
       expect(scriptSource).toContain('git -C "$repo_root" log --format=%at HEAD -- "${sources[@]}"');
       expect(scriptSource).not.toMatch(/SOURCE_DATE_EPOCH=["']?\$\(date/);
     } finally {

@@ -21,6 +21,7 @@ on:
       - 'docs/harbor-research/figures/**/*.png'
       - 'docs/harbor-research/figures/**/*.tex'
       - 'docs/harbor-research/Makefile'
+      - 'scripts/render-harbor-research.sh'
       - '.github/workflows/harbor-research-build.yml'
   pull_request:
     paths:
@@ -28,6 +29,7 @@ on:
       - 'docs/harbor-research/figures/**/*.png'
       - 'docs/harbor-research/figures/**/*.tex'
       - 'docs/harbor-research/Makefile'
+      - 'scripts/render-harbor-research.sh'
       - '.github/workflows/harbor-research-build.yml'
   merge_group:
   workflow_dispatch:
