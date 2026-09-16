@@ -55,11 +55,17 @@ export type EmbeddingStorageEncoding = 'json-number-array' | 'float32-le';
 export type EmbeddingProfileQuality = 'degraded-fallback';
 export type EmbeddingRevisionBinding = 'declared-upstream';
 export type EmbeddingRuntimeBinding = 'declarative-only';
+export type EmbeddingExecutionClass = 'local' | 'self-hosted' | 'remote';
+export type EmbeddingRetrievalRole = 'text_dense' | 'code_dense' | 'ui_multimodal_dense' | 'rerank';
+export type EmbeddingQualityTier = 'local_fast' | 'local_quality' | 'remote_quality';
 
 /** A declared vector-space target plus binding policy; inspect runtimeBinding before use as proof. */
 export interface EmbeddingProfile {
   readonly version: 2;
   readonly servingProvider: string;
+  readonly executionClass: EmbeddingExecutionClass;
+  readonly retrievalRoles: readonly EmbeddingRetrievalRole[];
+  readonly qualityTier: EmbeddingQualityTier;
   readonly modelId: string;
   readonly runtimeFamily: string;
   readonly runtimeVersion: string;
@@ -1012,6 +1018,11 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
   "embeddingProfiles": {
     "@cf/baai/bge-base-en-v1.5": {
       "servingProvider": "cloudflare-workers-ai",
+      "executionClass": "remote",
+      "retrievalRoles": [
+        "text_dense"
+      ],
+      "qualityTier": "remote_quality",
       "runtimeFamily": "workers-ai-binding",
       "runtimeVersion": "workers-ai-binding-unversioned",
       "upstreamModelId": "BAAI/bge-base-en-v1.5",
@@ -1051,6 +1062,11 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
     },
     "Xenova/all-MiniLM-L6-v2": {
       "servingProvider": "local-transformers-js",
+      "executionClass": "local",
+      "retrievalRoles": [
+        "text_dense"
+      ],
+      "qualityTier": "local_fast",
       "runtimeFamily": "transformers.js+onnxruntime-node",
       "runtimeVersion": "transformers.js@4.1.0+onnxruntime-node@1.24.3",
       "upstreamModelId": "Xenova/all-MiniLM-L6-v2",

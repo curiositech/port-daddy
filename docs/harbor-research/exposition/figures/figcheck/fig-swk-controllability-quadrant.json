@@ -1,30 +1,15 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-swk-controllability-quadrant/fig-swk-controllability-quadrant.pdf",
+  "figure": "fig-swk-controllability-quadrant",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+    "textwidth_cm": 11.43
   },
   "checks": {
     "T1": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            232.3875732421875,
-            277.3028259277344,
-            235.7290496826172,
-            283.2803955078125
-          ],
-          "text": "c",
-          "size_pt": 5.98,
-          "message": "text 'c' renders at 5.98pt, below the 7.00pt floor"
-        }
-      ]
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
     "T2": {
       "status": "pass",
@@ -38,34 +23,62 @@
     },
     "T4": {
       "status": "fail",
-      "count": 1,
+      "count": 2,
       "findings": [
         {
           "check": "T4",
           "severity": "fail",
           "page": 0,
           "bbox": [
-            488.12957763671875,
-            54.516117095947266,
-            496.0997009277344,
-            224.12808227539062
+            106.56092834472656,
+            115.26882934570312,
+            115.27835083007812,
+            128.62391662597656
           ],
-          "text": "witnessing the trigger carries a policy upward",
+          "text": "yes",
           "line_segment": [
             [
-              495.49365234375,
-              78.46066284179688
+              113.88125610351562,
+              253.7631072998047
             ],
             [
-              494.66937255859375,
-              81.05937194824219
+              113.88125610351562,
+              78.01298522949219
             ]
           ],
-          "message": "a drawn line crosses through the interior of text 'witnessing the trigger carries a policy upward'"
+          "message": "a drawn line crosses through the interior of text 'yes'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            106.56092834472656,
+            204.97862243652344,
+            115.27835083007812,
+            214.67239379882812
+          ],
+          "text": "no",
+          "line_segment": [
+            [
+              113.88125610351562,
+              253.7631072998047
+            ],
+            [
+              113.88125610351562,
+              78.01298522949219
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'no'"
         }
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -81,10 +94,20 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.2233,
+      "edge_density": 0.0947,
+      "distinct_colors": 778,
+      "flags": [
+        "edge_density=0.095 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
-      "T1",
       "T4"
     ],
     "warned_checks": []

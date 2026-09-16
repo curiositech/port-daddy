@@ -11,8 +11,11 @@ One book, *The Harbor, the Person, and the Economy: a textbook of accountable
 autonomous work*, by Erich Owens, imprint Curiositech, built from eight chapter
 sources and printed in three editions from one source. Branch
 `claude/white-paper-pr-review-uncpxg`, PR #10064 against `main`. The plan of
-record is the session plan mirrored in `TEXTBOOK-BUILD-LEDGER.md` (this
-directory); the standing instructions from the author are in §5 below.
+record is [`docs/roadmap/whitepaper-research-program.md`](../../roadmap/whitepaper-research-program.md)
+— the Book's doc-authority under `docs/roadmap/AUTHORITY.md`, and since
+2026-09-08 the only place the forward plan lives. `TEXTBOOK-BUILD-LEDGER.md`
+(this directory) records what landed; this file says how to build and resume;
+the standing instructions from the author are in §5 below.
 
 Sources of truth, in order: `whitepaper/textbook.json` (chapter order, parts,
 titles, questions, epigraphs) → `scripts/generate-mega-whitepaper.mjs` (the Book

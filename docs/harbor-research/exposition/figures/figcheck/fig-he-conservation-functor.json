@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-he-conservation-functor/fig-he-conservation-functor.pdf",
+  "figure": "fig-he-conservation-functor",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -7,66 +7,9 @@
   },
   "checks": {
     "T1": {
-      "status": "fail",
-      "count": 4,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            339.42437744140625,
-            179.59201049804688,
-            343.1227722167969,
-            185.64501953125
-          ],
-          "text": "1",
-          "size_pt": 6.05,
-          "message": "text '1' renders at 6.05pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            362.378662109375,
-            180.65538024902344,
-            365.2659606933594,
-            186.70840454101562
-          ],
-          "text": "t",
-          "size_pt": 6.05,
-          "message": "text 't' renders at 6.05pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            381.9588317871094,
-            180.76895141601562,
-            385.6572265625,
-            186.82196044921875
-          ],
-          "text": "2",
-          "size_pt": 6.05,
-          "message": "text '2' renders at 6.05pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            426.87109375,
-            86.51214599609375,
-            429.7583923339844,
-            92.56517028808594
-          ],
-          "text": "t",
-          "size_pt": 6.05,
-          "message": "text 't' renders at 6.05pt, below the 7.00pt floor"
-        }
-      ]
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
     "T2": {
       "status": "pass",
@@ -87,20 +30,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            246.6094970703125,
-            109.01029205322266,
-            250.89503479003906,
-            117.08098602294922
+            243.00320434570312,
+            106.60269165039062,
+            247.5755157470703,
+            115.49823760986328
           ],
           "text": "0",
           "line_segment": [
             [
-              248.7532958984375,
-              106.41185760498047
+              245.2888946533203,
+              104.8293685913086
             ],
             [
-              248.7532958984375,
-              122.19943237304688
+              245.2888946533203,
+              120.2970199584961
             ]
           ],
           "message": "a drawn line crosses through the interior of text '0'"
@@ -110,20 +53,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            422.6955871582031,
-            83.92792510986328,
-            490.1302490234375,
-            92.56517028808594
+            415.70635986328125,
+            83.0142593383789,
+            487.3570556640625,
+            92.2489242553711
           ],
           "text": "vt, source, instant",
           "line_segment": [
             [
-              425.86029052734375,
-              89.18939208984375
+              418.80694580078125,
+              87.95590209960938
             ],
             [
-              381.17669677734375,
-              105.2431640625
+              375.02880859375,
+              103.68435668945312
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'vt, source, instant'"
@@ -131,6 +74,11 @@
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -146,10 +94,20 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1045,
+      "edge_density": 0.0731,
+      "distinct_colors": 1627,
+      "flags": [
+        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
-      "T1",
       "T4"
     ],
     "warned_checks": []

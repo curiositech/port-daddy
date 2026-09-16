@@ -102,18 +102,23 @@ function executableOnPath(name) {
   throw new Error(`required test command is unavailable: ${name}`);
 }
 
-export function runFallbackBuild(root) {
+/**
+ * Runs `build-whitepapers.sh <filter>` inside the fixture with `latexmk`
+ * absent from PATH, so the bounded pdflatex/xelatex fallback loop in
+ * `build_one()` is what actually renders. Every reachable row today is a
+ * Book edition (xelatex) — the eight chapters that used to build on plain
+ * pdflatex are retired — so both engine binaries are faked identically and
+ * `node` is passed through for the Book's body/bibliography generator step.
+ */
+export function runFallbackBuild(root, { filter = 'coordination-papers-mega-volume', engine = 'xelatex' } = {}) {
   const bin = resolve(root, '.cache/fake-bin');
   mkdirSync(bin, { recursive: true });
-  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'perl', 'wc']) {
+  for (const name of ['awk', 'cp', 'dirname', 'find', 'grep', 'mkdir', 'node', 'perl', 'wc']) {
     symlinkSync(executableOnPath(name), resolve(bin, name));
   }
 
-  const callLog = resolve(root, '.cache/pdflatex-calls.txt');
-  const fakePdflatex = resolve(bin, 'pdflatex');
-  writeFileSync(
-    fakePdflatex,
-    `#!/bin/bash
+  const callLog = resolve(root, '.cache/engine-calls.txt');
+  const fakeEngineScript = `#!/bin/bash
 set -eu
 outdir=''
 tex=''
@@ -127,19 +132,26 @@ base="\${tex%.tex}"
 mkdir -p "$outdir"
 : > "$outdir/$base.log"
 printf 'fixture pdf\n' > "$outdir/$base.pdf"
-printf '%s\n' "$*" >> "$PDLATEX_CALL_LOG"
-`,
-    'utf8',
-  );
-  chmodSync(fakePdflatex, 0o755);
+printf '%s\n' "$*" >> "$ENGINE_CALL_LOG"
+`;
+  // Both engines are faked identically regardless of which one this run
+  // targets — build_one() picks the engine from the root's own filename, and
+  // faking only the one currently in use keeps this helper correct if a
+  // future paper ever reintroduces a plain-pdflatex root.
+  for (const name of ['pdflatex', 'xelatex']) {
+    const fakeEngine = resolve(bin, name);
+    writeFileSync(fakeEngine, fakeEngineScript, 'utf8');
+    chmodSync(fakeEngine, 0o755);
+  }
 
-  const result = spawnSync('/bin/bash', [resolve(root, buildScriptRelative), 'spawn-to-person'], {
+  const result = spawnSync('/bin/bash', [resolve(root, buildScriptRelative), filter], {
     cwd: root,
     encoding: 'utf8',
-    env: { ...process.env, PATH: bin, PDLATEX_CALL_LOG: callLog },
+    env: { ...process.env, PATH: bin, ENGINE_CALL_LOG: callLog },
   });
   return {
     ...result,
+    engine,
     calls: existsSync(callLog) ? readFileSync(callLog, 'utf8').trim().split('\n').filter(Boolean) : [],
   };
 }

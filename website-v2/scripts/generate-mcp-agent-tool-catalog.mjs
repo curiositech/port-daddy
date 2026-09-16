@@ -152,5 +152,20 @@ export const MCP_AGENT_DEFAULT_TOOL_NAMES = ${JSON.stringify(
 )}
 `
 
-fs.writeFileSync(outputPath, generated)
-console.log(`Generated ${definitions.length} MCP tool definitions at ${path.relative(repoRoot, outputPath)}`)
+// --check is what makes this generator a guard rather than a chore someone has
+// to remember. Without it the catalogue silently falls behind mcp/server.ts,
+// which is how the site came to publish a tool count that was 53 short.
+if (process.argv.includes('--check')) {
+  const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf8') : ''
+  if (existing !== generated) {
+    console.error(
+      `${path.relative(repoRoot, outputPath)} is behind mcp/server.ts.\n` +
+        `Run: npm --prefix website-v2 run generate:mcp-catalog`,
+    )
+    process.exit(1)
+  }
+  console.log(`MCP tool catalogue matches mcp/server.ts (${definitions.length} tools).`)
+} else {
+  fs.writeFileSync(outputPath, generated)
+  console.log(`Generated ${definitions.length} MCP tool definitions at ${path.relative(repoRoot, outputPath)}`)
+}

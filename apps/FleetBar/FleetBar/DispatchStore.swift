@@ -340,7 +340,7 @@ final class DispatchStore: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["intent": trimmed])
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.pdData(for: request)
             guard let http = response as? HTTPURLResponse else {
                 lastError = "Propose: no response from daemon."
                 return nil
@@ -387,7 +387,7 @@ final class DispatchStore: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.pdData(for: request)
             guard let http = response as? HTTPURLResponse else {
                 lastError = "Review: no response from daemon."
                 return
@@ -411,7 +411,7 @@ final class DispatchStore: ObservableObject {
         guard let url = components.url else { return nil }
 
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.pdData(from: url)
             guard let http = response as? HTTPURLResponse else {
                 lastError = "Daemon unreachable."
                 return nil
@@ -442,7 +442,7 @@ final class DispatchStore: ObservableObject {
                         return (env.id, nil)
                     }
                     do {
-                        let (data, response) = try await session.data(from: url)
+                        let (data, response) = try await session.pdData(from: url)
                         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                             return (env.id, nil)
                         }
@@ -464,7 +464,7 @@ final class DispatchStore: ObservableObject {
     private func fetchPopperStatus() async -> PopperStatusSnapshot? {
         guard let baseURL, let url = URL(string: "\(baseURL)/popper/status") else { return nil }
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }
@@ -483,7 +483,7 @@ final class DispatchStore: ObservableObject {
     private func fetchHarbormasterStatus() async -> HarbormasterStatusSnapshot? {
         guard let baseURL, let url = URL(string: "\(baseURL)/harbormaster/status") else { return nil }
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }

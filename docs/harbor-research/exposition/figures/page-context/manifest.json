@@ -1,0 +1,3924 @@
+{
+  "schema": 1,
+  "generator": "scripts/build-figure-page-context.py",
+  "source_pdf": {
+    "path": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+    "sha256": "a305ceccb8b7d22758584a5c7429af9ac8c4ad267ffda1ad7b16204543a92ca5",
+    "page_count": 551,
+    "trim_pt": [
+      504.0,
+      720.0
+    ],
+    "binding": "one-sided",
+    "binding_evidence": "odd and even pages share the same text-block origin (median x0 57.19 vs 57.16 pt) and the same running head, so the committed Book has no alternating gutter; spreads are paired by the printed-book convention that page 1 is a recto"
+  },
+  "render": {
+    "format": "image/webp",
+    "encoding": "lossless",
+    "figure_crop_dpi": 300,
+    "figure_crop_bleed_pt": 8.0,
+    "page_dpi": 150,
+    "spread_dpi": 110,
+    "coordinate_space": "PDF points, origin top-left, as PyMuPDF reports them; multiply by dpi/72 for pixels in the page render"
+  },
+  "counts": {
+    "floats": 61,
+    "figures": 59,
+    "listings": 2,
+    "measured": 44,
+    "measured_grown_upward": 15,
+    "measured_text": 2,
+    "guessed": 0,
+    "below_legibility_floor": 0
+  },
+  "figures": [
+    {
+      "id": "fig-swk-stack-map",
+      "pixel_judgment_id": "fig-swk-stack-map",
+      "slug": "fig-swk-stack-map",
+      "float_kind": "figure",
+      "printed_number": "1.1",
+      "printed_label": "Figure 1.1",
+      "chapter": 1,
+      "page": 19,
+      "printed_folio": "4",
+      "caption": "An architectural section through the four-layer coordination stack. This chapter is the second band from the floor: the transactional substrate, providing the one-writer record and claims that every higher layer rests on. The machine floor beneath it is the narrow dependency boundary the substrate assumes: a file lock, a clock, a socket, and a supervisor. [internal]",
+      "caption_fingerprint": "3e563a471866adf7",
+      "fragment": "whitepaper/figures/fig-swk-stack-map.tex",
+      "tex_label": "fig:swk-stack-map",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.3,
+        225.84,
+        383.28,
+        499.63
+      ],
+      "ink_bbox_pt": [
+        59.06,
+        225.84,
+        380.59,
+        432.77
+      ],
+      "caption_bbox_pt": [
+        57.3,
+        444.12,
+        383.28,
+        499.63
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 7,
+        "caption_gap_pt": 11.3,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 18,
+        "recto": 19,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 18,
+        "after": 20
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-stack-map.webp",
+        "page": "img/page/fig-swk-stack-map.webp",
+        "spread": "img/spread/fig-swk-stack-map.webp"
+      }
+    },
+    {
+      "id": "fig-swk-single-writer",
+      "pixel_judgment_id": "fig-swk-single-writer",
+      "slug": "fig-swk-single-writer",
+      "float_kind": "figure",
+      "printed_number": "1.2",
+      "printed_label": "Figure 1.2",
+      "chapter": 1,
+      "page": 25,
+      "printed_folio": "10",
+      "caption": "Four concurrent callers and one writer. Each band is a request in flight; its right edge is where the daemon commits it, and the rail shows the resulting order 1–4. A reply is sent only after the commit. A second daemon opening the same file is outside the model, not another lane. [internal]",
+      "caption_fingerprint": "7cba3740ab509d4f",
+      "fragment": "whitepaper/figures/fig-swk-single-writer.tex",
+      "tex_label": "fig:swk-single-writer",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        205.48,
+        381.6,
+        418.89
+      ],
+      "ink_bbox_pt": [
+        128.27,
+        219.5,
+        380.33,
+        355.15
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        374.83,
+        381.6,
+        418.89
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 18,
+        "caption_gap_pt": 19.7,
+        "grown_above_ink_pt": 14.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 24,
+        "recto": 25,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 24,
+        "after": 26
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-single-writer.webp",
+        "page": "img/page/fig-swk-single-writer.webp",
+        "spread": "img/spread/fig-swk-single-writer.webp"
+      }
+    },
+    {
+      "id": "fig-swk-durability-faultclass",
+      "pixel_judgment_id": "fig-swk-durability-faultclass",
+      "slug": "fig-swk-durability-faultclass",
+      "float_kind": "figure",
+      "printed_number": "1.3",
+      "printed_label": "Figure 1.3",
+      "chapter": 1,
+      "page": 29,
+      "printed_folio": "14",
+      "caption": "Durability by fault class under the two synchronization levels. The reference implementation ships synchronous=NORMAL: a process crash never loses a returned write, but an OS crash or power loss can roll back the most recent commits. synchronous=FULL buys the power-loss cell too, at the cost of an fsync on every commit. [internal]",
+      "caption_fingerprint": "c6d8abde5cc047d7",
+      "fragment": "whitepaper/figures/fig-swk-durability-faultclass.tex",
+      "tex_label": "fig:swk-durability-faultclass",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        67.66,
+        399.57,
+        289.88
+      ],
+      "ink_bbox_pt": [
+        172.18,
+        102.12,
+        399.57,
+        175.82
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        234.36,
+        381.8,
+        289.88
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 6,
+        "caption_gap_pt": 58.5,
+        "grown_above_ink_pt": 34.5,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.47,
+      "smallest_type_px_at_crop_dpi": 35.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 28,
+        "recto": 29,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 28,
+        "after": 30
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-durability-faultclass.webp",
+        "page": "img/page/fig-swk-durability-faultclass.webp",
+        "spread": "img/spread/fig-swk-durability-faultclass.webp"
+      }
+    },
+    {
+      "id": "fig-swk-claim-lifecycle",
+      "pixel_judgment_id": "fig-swk-claim-lifecycle",
+      "slug": "fig-swk-claim-lifecycle",
+      "float_kind": "figure",
+      "printed_number": "1.4",
+      "printed_label": "Figure 1.4",
+      "chapter": 1,
+      "page": 31,
+      "printed_folio": "16",
+      "caption": "The guarded claim lifecycle. Acquire is one atomic uniqueness decision that also tells a losing caller who currently holds the claim; re-claim and release are idempotent; expiry is removed lazily, on the next read, not by a background sweep. The kernel has no queued state and therefore no fairness or bounded-wait guarantee: a losing caller must retry, and nothing schedules it a turn. [internal]",
+      "caption_fingerprint": "dbedc6fe5ba30406",
+      "fragment": "whitepaper/figures/fig-swk-claim-lifecycle.tex",
+      "tex_label": "fig:swk-claim-lifecycle",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        354.98,
+        381.6,
+        575.33
+      ],
+      "ink_bbox_pt": [
+        73.52,
+        354.98,
+        365.68,
+        496.72
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        508.36,
+        381.6,
+        575.33
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 15,
+        "caption_gap_pt": 11.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Italic",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 30,
+        "recto": 31,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 30,
+        "after": 32
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-claim-lifecycle.webp",
+        "page": "img/page/fig-swk-claim-lifecycle.webp",
+        "spread": "img/spread/fig-swk-claim-lifecycle.webp"
+      }
+    },
+    {
+      "id": "lst-swk-claim-acquisition",
+      "pixel_judgment_id": null,
+      "slug": "lst-swk-claim-acquisition",
+      "float_kind": "listing",
+      "printed_number": "1.1",
+      "printed_label": "Listing 1.1",
+      "chapter": 1,
+      "page": 32,
+      "printed_folio": "17",
+      "caption": "Claim acquisition. The whole acquire is a single insert against a uniqueness constraint; the loser is handed the current holder, not an error to retry blindly.",
+      "caption_fingerprint": "984af1f9878eea0c",
+      "fragment": null,
+      "tex_label": null,
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        70.56,
+        69.95,
+        369.84,
+        314.11
+      ],
+      "ink_bbox_pt": null,
+      "caption_bbox_pt": [
+        70.56,
+        281.5,
+        369.84,
+        314.11
+      ],
+      "detection_method": "text-cluster",
+      "bbox_confidence": "measured-text",
+      "detection_notes": {
+        "text_blocks": 18,
+        "typefaces": [
+          "NewPXMI_gnu",
+          "SourceCodePro-Bold",
+          "SourceCodePro-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Regular",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 6.48,
+      "smallest_type_px_at_crop_dpi": 27.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 32,
+        "recto": 33,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 31,
+        "after": 33
+      },
+      "images": {
+        "figure": "img/figure/lst-swk-claim-acquisition.webp",
+        "page": "img/page/lst-swk-claim-acquisition.webp",
+        "spread": "img/spread/lst-swk-claim-acquisition.webp"
+      }
+    },
+    {
+      "id": "fig-swk-marker-decay",
+      "pixel_judgment_id": "fig-swk-marker-decay",
+      "slug": "fig-swk-marker-decay",
+      "float_kind": "figure",
+      "printed_number": "1.5",
+      "printed_label": "Figure 1.5",
+      "chapter": 1,
+      "page": 37,
+      "printed_folio": "22",
+      "caption": "Marker weight 𝑤(𝑡) = 𝑟𝑡for two decay rates against the prune threshold of 0.05. At 𝑟= 0.9 the marker survives 28 ticks and is pruned at tick 29; at 𝑟= 0.95 it lives until tick 59, since ln 0.05/ln 0.95 = 58.4. Moving the rate half the distance to one more than doubles the lifetime, which is the whole content of the calibration question. [internal; analytic]",
+      "caption_fingerprint": "0dd12e46f0d1650d",
+      "fragment": "whitepaper/figures/fig-swk-marker-decay.tex",
+      "tex_label": "fig:swk-marker-decay",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        127.03,
+        381.6,
+        501.76
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        127.03,
+        381.6,
+        406.06
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        444.28,
+        381.6,
+        501.76
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 9,
+        "caption_gap_pt": 38.2,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 6.97,
+      "smallest_type_px_at_crop_dpi": 29.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 36,
+        "recto": 37,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 36,
+        "after": 38
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-marker-decay.webp",
+        "page": "img/page/fig-swk-marker-decay.webp",
+        "spread": "img/spread/fig-swk-marker-decay.webp"
+      }
+    },
+    {
+      "id": "fig-swk-reference-monitor",
+      "pixel_judgment_id": "fig-swk-reference-monitor",
+      "slug": "fig-swk-reference-monitor",
+      "float_kind": "figure",
+      "printed_number": "1.6",
+      "printed_label": "Figure 1.6",
+      "chapter": 1,
+      "page": 40,
+      "printed_folio": "25",
+      "caption": "The reference-monitor test as a causal counterfactual. A true mediator decides before the commit point, so a forbidden state never exists. The present policy monitor instead subscribes after commit: the caution segment is the exposure interval in which the effect has already happened, before it can observe, halt subsequent work, and compensate. Only uniqueness constraints and fail-closed boot gates belong to the upper trace; subscriber rules belong to the lower one. [internal]",
+      "caption_fingerprint": "b0ac4799455fdc83",
+      "fragment": "whitepaper/figures/fig-swk-reference-monitor.tex",
+      "tex_label": "fig:swk-reference-monitor",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        312.47,
+        382.32,
+        554.76
+      ],
+      "ink_bbox_pt": [
+        138.43,
+        312.47,
+        363.22,
+        456.65
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        476.33,
+        382.32,
+        554.76
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 15,
+        "caption_gap_pt": 19.7,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 40,
+        "recto": 41,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 39,
+        "after": 41
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-reference-monitor.webp",
+        "page": "img/page/fig-swk-reference-monitor.webp",
+        "spread": "img/spread/fig-swk-reference-monitor.webp"
+      }
+    },
+    {
+      "id": "fig-swk-controllability-quadrant",
+      "pixel_judgment_id": "fig-swk-controllability-quadrant",
+      "slug": "fig-swk-controllability-quadrant",
+      "float_kind": "figure",
+      "printed_number": "1.7",
+      "printed_label": "Figure 1.7",
+      "chapter": 1,
+      "page": 49,
+      "printed_folio": "34",
+      "caption": "Preventable is one cell, not a spectrum. An event is preventable exactly when it is controllable (top row) and its trigger is witnessed at the mediation boundary (right column): the shaded cell, marked ⋆and tied to Theorem 1.8.3. Every other combination is detect-only. Column membership reproduces from the checker [internal, b3_controllability.py]; row mem- bership is by inspection of each trigger.",
+      "caption_fingerprint": "e97080dce6f18603",
+      "fragment": "whitepaper/figures/fig-swk-controllability-quadrant.tex",
+      "tex_label": "fig:swk-controllability-quadrant",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.3,
+        214.77,
+        383.18,
+        503.87
+      ],
+      "ink_bbox_pt": [
+        113.88,
+        224.93,
+        371.83,
+        400.67
+      ],
+      "caption_bbox_pt": [
+        57.3,
+        436.9,
+        383.18,
+        503.87
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 2,
+        "caption_gap_pt": 36.2,
+        "grown_above_ink_pt": 10.2,
+        "typefaces": [
+          "SourceCodePro-Regular",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Regular",
+          "txsym"
+        ]
+      },
+      "smallest_type_pt": 7.73,
+      "smallest_type_px_at_crop_dpi": 32.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 48,
+        "recto": 49,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 48,
+        "after": 50
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-controllability-quadrant.webp",
+        "page": "img/page/fig-swk-controllability-quadrant.webp",
+        "spread": "img/spread/fig-swk-controllability-quadrant.webp"
+      }
+    },
+    {
+      "id": "fig-swk-commitment-oracle",
+      "pixel_judgment_id": "fig-swk-commitment-oracle",
+      "slug": "fig-swk-commitment-oracle",
+      "float_kind": "figure",
+      "printed_number": "1.8",
+      "printed_label": "Figure 1.8",
+      "chapter": 1,
+      "page": 52,
+      "printed_folio": "37",
+      "caption": "Typed evidence passes through a narrow closure aperture. A com- mitment closes as done only when the daemon can re-run a check from the finite oracle vocabulary: a released claim, merged commit, passing test id, or satisfied policy sub-check. A free-text assertion is refused and the commit- ment remains open. The deadline is set by the daemon, not the agent. [inter- nal]",
+      "caption_fingerprint": "0c27834d0c905687",
+      "fragment": "whitepaper/figures/fig-swk-commitment-oracle.tex",
+      "tex_label": "fig:swk-commitment-oracle",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        174.25,
+        383.19,
+        537.73
+      ],
+      "ink_bbox_pt": [
+        81.28,
+        174.25,
+        357.92,
+        459.86
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        470.76,
+        383.19,
+        537.73
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 25,
+        "caption_gap_pt": 10.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 52,
+        "recto": 53,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 51,
+        "after": 53
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-commitment-oracle.webp",
+        "page": "img/page/fig-swk-commitment-oracle.webp",
+        "spread": "img/spread/fig-swk-commitment-oracle.webp"
+      }
+    },
+    {
+      "id": "lst-swk-closure-oracle",
+      "pixel_judgment_id": null,
+      "slug": "lst-swk-closure-oracle",
+      "float_kind": "listing",
+      "printed_number": "1.2",
+      "printed_label": "Listing 1.2",
+      "chapter": 1,
+      "page": 53,
+      "printed_folio": "38",
+      "caption": "The commitment-closure oracle. Closure requires a reference from a finite vocabulary that the daemon re-verifies at closure time; free text is rejected by construction, not by inspection.",
+      "caption_fingerprint": "ac5929776e45549d",
+      "fragment": null,
+      "tex_label": null,
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        64.4,
+        383.34,
+        602.59
+      ],
+      "ink_bbox_pt": null,
+      "caption_bbox_pt": [
+        70.56,
+        569.98,
+        368.64,
+        602.59
+      ],
+      "detection_method": "text-cluster",
+      "bbox_confidence": "measured-text",
+      "detection_notes": {
+        "text_blocks": 25,
+        "typefaces": [
+          "NewPXMI_gnu",
+          "SourceCodePro-Bold",
+          "SourceCodePro-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 6.48,
+      "smallest_type_px_at_crop_dpi": 27.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 52,
+        "recto": 53,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 52,
+        "after": 54
+      },
+      "images": {
+        "figure": "img/figure/lst-swk-closure-oracle.webp",
+        "page": "img/page/lst-swk-closure-oracle.webp",
+        "spread": "img/spread/lst-swk-closure-oracle.webp"
+      }
+    },
+    {
+      "id": "fig-swk-continuity-organs",
+      "pixel_judgment_id": "fig-swk-continuity-organs",
+      "slug": "fig-swk-continuity-organs",
+      "float_kind": "figure",
+      "printed_number": "1.9",
+      "printed_label": "Figure 1.9",
+      "chapter": 1,
+      "page": 55,
+      "printed_folio": "40",
+      "caption": "The continuity chain as an evidence-support profile. What check- point inherits from memory already drops from full to notes only; what the outcome ledger inherits from continuity drops again, to partial; identity and market inherit only that partial residue. Downstream confidence cannot ex- ceed the weakest upstream link. [internal]",
+      "caption_fingerprint": "20440709bb546a28",
+      "fragment": "whitepaper/figures/fig-swk-continuity-organs.tex",
+      "tex_label": "fig:swk-continuity-organs",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        74.5,
+        401.55,
+        277.62
+      ],
+      "ink_bbox_pt": [
+        120.26,
+        74.5,
+        401.55,
+        184.86
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        222.11,
+        383.19,
+        277.62
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 11,
+        "caption_gap_pt": 37.2,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 54,
+        "recto": 55,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 54,
+        "after": 56
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-continuity-organs.webp",
+        "page": "img/page/fig-swk-continuity-organs.webp",
+        "spread": "img/spread/fig-swk-continuity-organs.webp"
+      }
+    },
+    {
+      "id": "fig-swk-workunit-machine",
+      "pixel_judgment_id": "fig-swk-workunit-machine",
+      "slug": "fig-swk-workunit-machine",
+      "float_kind": "figure",
+      "printed_number": "1.10",
+      "printed_label": "Figure 1.10",
+      "chapter": 1,
+      "page": 60,
+      "printed_folio": "45",
+      "caption": "The work-unit machine: the six phases down the center from pro- posed to a settlement record, contested branching left off witnessed, and the four write-targets branching right. Four guards are numbered on the edge they guard; g5 (settle) is on the center spine. The legend gives each predi- cate and the shortest crime the checker finds when it is removed. The checker explores all 536 reachable states on the two-principal instance [internal, c0_ workunit.py].",
+      "caption_fingerprint": "105765cbde3bce12",
+      "fragment": "whitepaper/figures/fig-swk-workunit-machine.tex",
+      "tex_label": "fig:swk-workunit-machine",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.31,
+        104.0,
+        394.14,
+        607.98
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        104.0,
+        394.14,
+        343.53
+      ],
+      "caption_bbox_pt": [
+        57.35,
+        529.56,
+        383.19,
+        607.98
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 22,
+        "caption_gap_pt": 186.0,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.47,
+      "smallest_type_px_at_crop_dpi": 35.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 60,
+        "recto": 61,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 59,
+        "after": 61
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-workunit-machine.webp",
+        "page": "img/page/fig-swk-workunit-machine.webp",
+        "spread": "img/spread/fig-swk-workunit-machine.webp"
+      }
+    },
+    {
+      "id": "fig-swk-consistency-model",
+      "pixel_judgment_id": "fig-swk-consistency-model",
+      "slug": "fig-swk-consistency-model",
+      "float_kind": "figure",
+      "printed_number": "1.11",
+      "printed_label": "Figure 1.11",
+      "chapter": 1,
+      "page": 63,
+      "printed_folio": "48",
+      "caption": "A real-time history and its extracted linearization. Operations overlap in caller time, but each receives one commit point on the single writer’s rail, and the linearization reads: A claims, B loses, A releases, C claims. The claim is conditional on one writer, no uncommitted reads, and replies after commit. [internal]",
+      "caption_fingerprint": "d63391597c9e82e4",
+      "fragment": "whitepaper/figures/fig-swk-consistency-model.tex",
+      "tex_label": "fig:swk-consistency-model",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        61.2,
+        381.78,
+        441.3
+      ],
+      "ink_bbox_pt": [
+        58.8,
+        61.2,
+        381.6,
+        330.21
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        385.79,
+        381.78,
+        441.3
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 14,
+        "caption_gap_pt": 55.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 7.64,
+      "smallest_type_px_at_crop_dpi": 31.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 62,
+        "recto": 63,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 62,
+        "after": 64
+      },
+      "images": {
+        "figure": "img/figure/fig-swk-consistency-model.webp",
+        "page": "img/page/fig-swk-consistency-model.webp",
+        "spread": "img/spread/fig-swk-consistency-model.webp"
+      }
+    },
+    {
+      "id": "fig-anchor-capability-attenuation",
+      "pixel_judgment_id": "fig-anchor-capability-attenuation",
+      "slug": "fig-anchor-capability-attenuation",
+      "float_kind": "figure",
+      "printed_number": "2.1",
+      "printed_label": "Figure 2.1",
+      "chapter": 2,
+      "page": 91,
+      "printed_folio": "76",
+      "caption": "Nested rectangles for the capability envelope C0 (root, 60 min), C1 (15 min) and C2 (5 min): each child rectangle sits strictly inside its parent on both axes. The amber datum is an attempted re-grant of net:* at the full 60-minute root lifetime, outside C0 on the capability axis; the verifier refuses it because attenuation is conjunctive on rights and time together, not a trade between them. [internal]",
+      "caption_fingerprint": "6a8dab7c55a6feb1",
+      "fragment": "website-v2/public/whitepaper/figures/fig-anchor-capability-attenuation.tex",
+      "tex_label": "fig:anchor-capability-attenuation",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        210.4,
+        382.79,
+        504.18
+      ],
+      "ink_bbox_pt": [
+        109.69,
+        210.4,
+        376.78,
+        384.3
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        437.21,
+        382.79,
+        504.18
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 13,
+        "caption_gap_pt": 52.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI_gnu",
+          "SourceCodePro-Regular",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 7.73,
+      "smallest_type_px_at_crop_dpi": 32.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 90,
+        "recto": 91,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 90,
+        "after": 92
+      },
+      "images": {
+        "figure": "img/figure/fig-anchor-capability-attenuation.webp",
+        "page": "img/page/fig-anchor-capability-attenuation.webp",
+        "spread": "img/spread/fig-anchor-capability-attenuation.webp"
+      }
+    },
+    {
+      "id": "fig-anchor-alg-confusion",
+      "pixel_judgment_id": "fig-anchor-alg-confusion",
+      "slug": "fig-anchor-alg-confusion",
+      "float_kind": "figure",
+      "printed_number": "2.2",
+      "printed_label": "Figure 2.2",
+      "chapter": 2,
+      "page": 93,
+      "printed_folio": "78",
+      "caption": "Two verifier ladders for the same wire bytes: token sends alg=none with a tampered payload to verifier in both panels. Panel A lets the token’s own header choose the algorithm and message 2 accepts the forgery; panel B pins the algorithm to Ed25519 from issuer policy, so message 3’s signature check fails and the token is rejected. This is the design invariant behind the ProVerif v1 (HS256) query ¬ attacker(master_key) holding TRUE: the accept- ing path in panel A is exactly the path Algorithmic Pinning removes [verified, v1_refined.pv].",
+      "caption_fingerprint": "a0c4f75b9aafa0aa",
+      "fragment": "website-v2/public/whitepaper/figures/fig-anchor-alg-confusion.tex",
+      "tex_label": "fig:anchor-alg-confusion",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        148.94,
+        383.19,
+        593.75
+      ],
+      "ink_bbox_pt": [
+        96.18,
+        148.94,
+        376.2,
+        484.51
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        503.87,
+        383.19,
+        593.75
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 14,
+        "caption_gap_pt": 19.4,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "SourceCodePro-Regular",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold"
+        ]
+      },
+      "smallest_type_pt": 7.73,
+      "smallest_type_px_at_crop_dpi": 32.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 92,
+        "recto": 93,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 92,
+        "after": 94
+      },
+      "images": {
+        "figure": "img/figure/fig-anchor-alg-confusion.webp",
+        "page": "img/page/fig-anchor-alg-confusion.webp",
+        "spread": "img/spread/fig-anchor-alg-confusion.webp"
+      }
+    },
+    {
+      "id": "fig-anchor-delegation-inline",
+      "pixel_judgment_id": "fig-anchor-delegation-inline",
+      "slug": "fig-anchor-delegation-inline",
+      "float_kind": "figure",
+      "printed_number": "2.3",
+      "printed_label": "Figure 2.3",
+      "chapter": 2,
+      "page": 94,
+      "printed_folio": "79",
+      "caption": "The delegation chain as a signed provenance braid across four iden- tities id1–id4. Ordinary hops 1 and 3 bind parent, child, a fresh nonce (n1, n3), and the shared task hash h below. Hop 2 shows a splice attack: an attacker moves the legitimate signature sig3 (computed over id3, id4, and n3) into the id2–id3 position, where the verifier expects a signature over n2; the check fails at exactly that crossing, so the discontinuity is visible at one adjacent-identity boundary rather than anywhere else in the chain. [internal]",
+      "caption_fingerprint": "b465407743db2e75",
+      "fragment": "website-v2/public/whitepaper/figures/fig-anchor-delegation-inline.tex",
+      "tex_label": "fig:anchor-delegation-inline",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        379.92,
+        383.19,
+        639.81
+      ],
+      "ink_bbox_pt": [
+        60.86,
+        379.92,
+        378.34,
+        508.08
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        561.38,
+        383.19,
+        639.81
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 21,
+        "caption_gap_pt": 53.3,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 94,
+        "recto": 95,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 93,
+        "after": 95
+      },
+      "images": {
+        "figure": "img/figure/fig-anchor-delegation-inline.webp",
+        "page": "img/page/fig-anchor-delegation-inline.webp",
+        "spread": "img/spread/fig-anchor-delegation-inline.webp"
+      }
+    },
+    {
+      "id": "fig-anchor-cuckoo-inline",
+      "pixel_judgment_id": "fig-anchor-cuckoo-inline",
+      "slug": "fig-anchor-cuckoo-inline",
+      "float_kind": "figure",
+      "printed_number": "2.4",
+      "printed_label": "Figure 2.4",
+      "chapter": 2,
+      "page": 96,
+      "printed_folio": "81",
+      "caption": "Two six-bucket cuckoo filters compared before and after the design change. Top: peer 𝐴inserts c1 into bucket 2 and peer 𝐵inserts the same c1 into bucket 5, an artifact of each peer’s own insertion and eviction history; bitwise OR keeps both placements, which is a state no single filter build could have produced. Bottom: gossiping the append-only ID log instead—peer 𝐴’s c1 c7 c4 and peer 𝐵’s c2 c1 c9—and taking the ordinary set union gives c1 c2 c4 c7 c9; each daemon rebuilds one local filter with c1 in a single bucket. [internal]",
+      "caption_fingerprint": "57040a3dbbd818f4",
+      "fragment": "website-v2/public/whitepaper/figures/fig-anchor-cuckoo-inline.tex",
+      "tex_label": "fig:anchor-cuckoo-inline",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        144.3,
+        383.28,
+        574.14
+      ],
+      "ink_bbox_pt": [
+        100.49,
+        172.8,
+        345.63,
+        434.15
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        484.26,
+        383.28,
+        574.14
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 41,
+        "caption_gap_pt": 50.1,
+        "grown_above_ink_pt": 28.5,
+        "typefaces": [
+          "NewPXMI",
+          "SourceCodePro-Regular",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold"
+        ]
+      },
+      "smallest_type_pt": 7.73,
+      "smallest_type_px_at_crop_dpi": 32.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 96,
+        "recto": 97,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 95,
+        "after": 97
+      },
+      "images": {
+        "figure": "img/figure/fig-anchor-cuckoo-inline.webp",
+        "page": "img/page/fig-anchor-cuckoo-inline.webp",
+        "spread": "img/spread/fig-anchor-cuckoo-inline.webp"
+      }
+    },
+    {
+      "id": "fig-anchor-revocation-gossip",
+      "pixel_judgment_id": "fig-anchor-revocation-gossip",
+      "slug": "fig-anchor-revocation-gossip",
+      "float_kind": "figure",
+      "printed_number": "2.5",
+      "printed_label": "Figure 2.5",
+      "chapter": 2,
+      "page": 98,
+      "printed_folio": "83",
+      "caption": "A revocation advances as an observation frontier, leaving a dis- tinct stale-exposure interval on every verifier lane. This execution converges after two rounds; the protocol claim is only expected Θ(log 𝑚) dissemination under connected reliable rounds. The dashed partition marker separates that expectation from a guarantee: an unbounded partition removes every finite delivery deadline.",
+      "caption_fingerprint": "d2470e0e75cb8ab0",
+      "fragment": "website-v2/public/whitepaper/figures/fig-anchor-revocation-gossip.tex",
+      "tex_label": "fig:anchor-revocation-gossip",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        61.2,
+        383.19,
+        343.2
+      ],
+      "ink_bbox_pt": [
+        118.98,
+        61.2,
+        372.59,
+        265.33
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        276.23,
+        383.19,
+        343.2
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 12,
+        "caption_gap_pt": 10.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 98,
+        "recto": 99,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 97,
+        "after": 99
+      },
+      "images": {
+        "figure": "img/figure/fig-anchor-revocation-gossip.webp",
+        "page": "img/page/fig-anchor-revocation-gossip.webp",
+        "spread": "img/spread/fig-anchor-revocation-gossip.webp"
+      }
+    },
+    {
+      "id": "fig-anchor-card-lifecycle",
+      "pixel_judgment_id": "fig-anchor-card-lifecycle",
+      "slug": "fig-anchor-card-lifecycle",
+      "float_kind": "figure",
+      "printed_number": "2.6",
+      "printed_label": "Figure 2.6",
+      "chapter": 2,
+      "page": 99,
+      "printed_folio": "84",
+      "caption": "Acceptance is a one-way interval attached to one card ID. Card k17 stops being admissible either at explicit revocation (tick tr) or at natural expiry (tick t0+tau) and never re-enters the valid set. If revocation was a mistake, the operator issues k18 on a new lane: new authority on a new ID, with the rejected history on k17 left untouched rather than mutated. [internal]",
+      "caption_fingerprint": "ba775b8fe42dc6df",
+      "fragment": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+      "tex_label": "fig:anchor-card-lifecycle",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.29,
+        156.24,
+        385.5,
+        637.79
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        156.24,
+        385.5,
+        534.6
+      ],
+      "caption_bbox_pt": [
+        57.29,
+        582.28,
+        382.8,
+        637.79
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 18,
+        "caption_gap_pt": 47.7,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "SourceCodePro-Regular",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 7.64,
+      "smallest_type_px_at_crop_dpi": 31.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 98,
+        "recto": 99,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 98,
+        "after": 100
+      },
+      "images": {
+        "figure": "img/figure/fig-anchor-card-lifecycle.webp",
+        "page": "img/page/fig-anchor-card-lifecycle.webp",
+        "spread": "img/spread/fig-anchor-card-lifecycle.webp"
+      }
+    },
+    {
+      "id": "fig-sealed-pillar-pipeline",
+      "pixel_judgment_id": "fig-sealed-pillar-pipeline",
+      "slug": "fig-sealed-pillar-pipeline",
+      "float_kind": "figure",
+      "printed_number": "3.1",
+      "printed_label": "Figure 3.1",
+      "chapter": 3,
+      "page": 135,
+      "printed_folio": "120",
+      "caption": "One work order entering the room, mediated by two fences (the in-guest monitor, the outer gateway) and released only through two gates (Derek’s, Erin’s); solid arrows read “produces”, dashed arrows read “is checked by”. The fences are what make the channel enforceable at all; the gates, once installed on that channel, are what make it silent except through the slot, what meter everything that legitimately crosses, and what are watched for anything that evades the meter – four links in one pipeline, each closing a gap the others leave open.",
+      "caption_fingerprint": "ea732499bfe87f6e",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sealed-pillar-pipeline.tex",
+      "tex_label": "fig:sealed-pillar-pipeline",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        56.17,
+        133.94,
+        489.63,
+        578.04
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        133.94,
+        489.63,
+        477.26
+      ],
+      "caption_bbox_pt": [
+        56.17,
+        488.16,
+        382.79,
+        578.04
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 29,
+        "caption_gap_pt": 10.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "SourceCodePro-Regular",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-BoldItalic",
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 7.62,
+      "smallest_type_px_at_crop_dpi": 31.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 134,
+        "recto": 135,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 134,
+        "after": 136
+      },
+      "images": {
+        "figure": "img/figure/fig-sealed-pillar-pipeline.webp",
+        "page": "img/page/fig-sealed-pillar-pipeline.webp",
+        "spread": "img/spread/fig-sealed-pillar-pipeline.webp"
+      }
+    },
+    {
+      "id": "fig-sealed-two-worlds",
+      "pixel_judgment_id": "fig-sealed-two-worlds",
+      "slug": "fig-sealed-two-worlds",
+      "float_kind": "figure",
+      "printed_number": "3.2",
+      "printed_label": "Figure 3.2",
+      "chapter": 3,
+      "page": 138,
+      "printed_folio": "123",
+      "caption": "Two runs of the clean room, identical except Derek’s secret, driven in lockstep through the action sequence load→read→submit→release. Erin’s observable state is tied (≡) at every step; the release step is boxed as “the slot” because it is the only step the theorem lets differ at all, and here it still does not, since the two secrets share a parity. Below the slot, the leaky-gate mutation shows what a difference at that step actually looks like once caught.",
+      "caption_fingerprint": "4f63544108c4142e",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex",
+      "tex_label": "fig:sealed-two-worlds",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        56.17,
+        197.58,
+        469.41,
+        517.74
+      ],
+      "ink_bbox_pt": [
+        119.18,
+        210.24,
+        413.13,
+        331.26
+      ],
+      "caption_bbox_pt": [
+        56.17,
+        450.77,
+        383.27,
+        517.74
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 16,
+        "caption_gap_pt": 119.5,
+        "grown_above_ink_pt": 12.7,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Bold",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 7.39,
+      "smallest_type_px_at_crop_dpi": 30.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 138,
+        "recto": 139,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 137,
+        "after": 139
+      },
+      "images": {
+        "figure": "img/figure/fig-sealed-two-worlds.webp",
+        "page": "img/page/fig-sealed-two-worlds.webp",
+        "spread": "img/spread/fig-sealed-two-worlds.webp"
+      }
+    },
+    {
+      "id": "fig-sealed-mutant-grid",
+      "pixel_judgment_id": "fig-sealed-mutant-grid",
+      "slug": "fig-sealed-mutant-grid",
+      "float_kind": "figure",
+      "printed_number": "3.3",
+      "printed_label": "Figure 3.3",
+      "chapter": 3,
+      "page": 144,
+      "printed_folio": "129",
+      "caption": "The two canonical atomicity breaks against the ledger’s two invari- ants: spend-without-append (a release that adds to the balance without jour- naling it) and the torn write (a release that journals the wrong amount). Each caught cell marks the invariant broken and the shortest trace that catches it; the ledger’s balance is the invariant both mutants break immediately, but only the torn write’s deeper crime – recorded spend past the contracted maximum – takes three steps to show.",
+      "caption_fingerprint": "aee1c359444442ec",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sealed-mutant-grid.tex",
+      "tex_label": "fig:sealed-mutant-grid",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        56.65,
+        266.97,
+        395.38,
+        527.16
+      ],
+      "ink_bbox_pt": [
+        211.06,
+        266.97,
+        318.49,
+        323.38
+      ],
+      "caption_bbox_pt": [
+        56.65,
+        448.74,
+        383.19,
+        527.16
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 3,
+        "caption_gap_pt": 125.4,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 7.73,
+      "smallest_type_px_at_crop_dpi": 32.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 144,
+        "recto": 145,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 143,
+        "after": 145
+      },
+      "images": {
+        "figure": "img/figure/fig-sealed-mutant-grid.webp",
+        "page": "img/page/fig-sealed-mutant-grid.webp",
+        "spread": "img/spread/fig-sealed-mutant-grid.webp"
+      }
+    },
+    {
+      "id": "fig-sealed-composition-crossover",
+      "pixel_judgment_id": "fig-sealed-composition-crossover",
+      "slug": "fig-sealed-composition-crossover",
+      "float_kind": "figure",
+      "printed_number": "3.4",
+      "printed_label": "Figure 3.4",
+      "chapter": 3,
+      "page": 145,
+      "printed_folio": "130",
+      "caption": "The basic and advanced 𝜀-composition bounds on cumulative spend as functions of the number of releases 𝑘, at the per-release 𝜀= 0.1 the chapter uses for this comparison. At 𝑘= 32, the chapter’s reported compari- son, basic composition (3.20) is still smaller than the advanced bound (3.31): below the crossover a contract should quote the exact, 𝛿-free basic bound, and only past it the square-root-scaled advanced bound – the same rule at 𝜀= 0.05 gives 𝑘= 128: basic 6.40 versus advanced 3.30, where the advanced bound has come to pay.",
+      "caption_fingerprint": "013656cabbb47ae5",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sealed-composition-crossover.tex",
+      "tex_label": "fig:sealed-composition-crossover",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        61.2,
+        433.49,
+        491.79
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        61.2,
+        433.49,
+        361.72
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        401.35,
+        383.19,
+        491.79
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 10,
+        "caption_gap_pt": 39.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "SourceCodePro-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 8.47,
+      "smallest_type_px_at_crop_dpi": 35.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 144,
+        "recto": 145,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 144,
+        "after": 146
+      },
+      "images": {
+        "figure": "img/figure/fig-sealed-composition-crossover.webp",
+        "page": "img/page/fig-sealed-composition-crossover.webp",
+        "spread": "img/spread/fig-sealed-composition-crossover.webp"
+      }
+    },
+    {
+      "id": "fig-sealed-operating-curve",
+      "pixel_judgment_id": "fig-sealed-operating-curve",
+      "slug": "fig-sealed-operating-curve",
+      "float_kind": "figure",
+      "printed_number": "3.5",
+      "printed_label": "Figure 3.5",
+      "chapter": 3,
+      "page": 148,
+      "printed_folio": "133",
+      "caption": "Top: the power curve, detection probability against canaries car- ried, at the measured per-canary miss rate 𝛽= 0.2; the chapter’s anchor, three canaries caught with probability 0.992, is marked. Bottom: the sequential test’s expected run length at a null hit-rate of 0.001, a leak hit-rate of 0.01, a false-alarm target of 0.01, and a miss target of 0.05 – Wald’s formula gives 431.9 expected outputs under the no-leak null and 296.9 under exfiltration; simula- tion agrees up to boundary overshoot (438.1 and 359.0 respectively), which only helps the realized error rates.",
+      "caption_fingerprint": "59ec699bb5c51bb0",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sealed-operating-curve.tex",
+      "tex_label": "fig:sealed-operating-curve",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        180.84,
+        468.5,
+        534.63
+      ],
+      "ink_bbox_pt": [
+        96.21,
+        197.23,
+        468.5,
+        404.27
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        444.75,
+        383.2,
+        534.63
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 23,
+        "caption_gap_pt": 40.5,
+        "grown_above_ink_pt": 16.4,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 148,
+        "recto": 149,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 147,
+        "after": 149
+      },
+      "images": {
+        "figure": "img/figure/fig-sealed-operating-curve.webp",
+        "page": "img/page/fig-sealed-operating-curve.webp",
+        "spread": "img/spread/fig-sealed-operating-curve.webp"
+      }
+    },
+    {
+      "id": "legible-swarm-state-of-nature",
+      "pixel_judgment_id": "legible-swarm-state-of-nature",
+      "slug": "legible-swarm-state-of-nature",
+      "float_kind": "figure",
+      "printed_number": "4.1",
+      "printed_label": "Figure 4.1",
+      "chapter": 4,
+      "page": 161,
+      "printed_folio": "146",
+      "caption": "Two Gantt panels on one time axis. Top: four write requests A– D arrive between 𝑡=0.5 and 𝑡=3 with windows that all cover [3, 4], so four valid writers overlap on one artifact with no total order among them. Bottom: the same four requests under consented serialization, each band now ending at its own grant g1–g4 (𝑡=2, 3.5, 5, 6.5) on one commit spine, and every grant recording actor, claim, artifact, and reason. Consent changes the schedule, not who may participate [internal].",
+      "caption_fingerprint": "a707a22ea65d5eef",
+      "fragment": "whitepaper/figures/legible-swarm-state-of-nature.tex",
+      "tex_label": "fig:state-of-nature",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        152.65,
+        382.8,
+        576.92
+      ],
+      "ink_bbox_pt": [
+        111.87,
+        152.65,
+        337.54,
+        440.87
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        498.49,
+        382.8,
+        576.92
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 16,
+        "caption_gap_pt": 57.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 160,
+        "recto": 161,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 160,
+        "after": 162
+      },
+      "images": {
+        "figure": "img/figure/legible-swarm-state-of-nature.webp",
+        "page": "img/page/legible-swarm-state-of-nature.webp",
+        "spread": "img/spread/legible-swarm-state-of-nature.webp"
+      }
+    },
+    {
+      "id": "legible-swarm-zoom-vs-potemkin",
+      "pixel_judgment_id": "legible-swarm-zoom-vs-potemkin",
+      "slug": "legible-swarm-zoom-vs-potemkin",
+      "float_kind": "figure",
+      "printed_number": "4.2",
+      "printed_label": "Figure 4.2",
+      "chapter": 4,
+      "page": 168,
+      "printed_folio": "153",
+      "caption": "Two claim trees of identical shape. Top: the legible digest’s three named claims each resolve to one artifact — a diff, a test run, a review com- ment. Bottom: a same-shaped summary whose three claims resolve to nothing an operator can open. A safe summary is an index into evidence; a calm one that terminates early is a Potemkin digest, whichever claim count it advertises [internal].",
+      "caption_fingerprint": "9d6e9d0cdbaba483",
+      "fragment": "whitepaper/figures/legible-swarm-zoom-vs-potemkin.tex",
+      "tex_label": "fig:zoom-vs-potemkin",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        175.95,
+        383.18,
+        541.43
+      ],
+      "ink_bbox_pt": [
+        98.82,
+        175.95,
+        340.38,
+        440.92
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        474.46,
+        383.18,
+        541.43
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 30,
+        "caption_gap_pt": 33.5,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 168,
+        "recto": 169,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 167,
+        "after": 169
+      },
+      "images": {
+        "figure": "img/figure/legible-swarm-zoom-vs-potemkin.webp",
+        "page": "img/page/legible-swarm-zoom-vs-potemkin.webp",
+        "spread": "img/spread/legible-swarm-zoom-vs-potemkin.webp"
+      }
+    },
+    {
+      "id": "legible-swarm-specialization",
+      "pixel_judgment_id": "legible-swarm-specialization",
+      "slug": "legible-swarm-specialization",
+      "float_kind": "figure",
+      "printed_number": "4.3",
+      "printed_label": "Figure 4.3",
+      "chapter": 4,
+      "page": 176,
+      "printed_folio": "161",
+      "caption": "The specialization boundary at a three-agent pool. Below the Erlang–C boundary 𝑔𝐴(𝜌, 3) (teal), pooling wins; above it, sole ownership wins — the two regions are now filled and edged, not hatched. The super- seded threshold ˜𝑔(dashed) is kept for comparison: it diverges rather than sat- urating at the pool capacity ratio. The worked instance (𝜌= .556, 𝑟= 2.5) nar- rowly clears the correct boundary into the sole-owner region [internal, closed form].",
+      "caption_fingerprint": "08411f2a6c329c6d",
+      "fragment": "whitepaper/figures/legible-swarm-specialization.tex",
+      "tex_label": "fig:specialization",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        63.51,
+        383.45,
+        345.79
+      ],
+      "ink_bbox_pt": [
+        91.8,
+        63.51,
+        383.45,
+        223.0
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        267.37,
+        383.19,
+        345.79
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 11,
+        "caption_gap_pt": 44.4,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 7.64,
+      "smallest_type_px_at_crop_dpi": 31.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 176,
+        "recto": 177,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 175,
+        "after": 177
+      },
+      "images": {
+        "figure": "img/figure/legible-swarm-specialization.webp",
+        "page": "img/page/legible-swarm-specialization.webp",
+        "spread": "img/spread/legible-swarm-specialization.webp"
+      }
+    },
+    {
+      "id": "legible-swarm-sdt",
+      "pixel_judgment_id": "legible-swarm-sdt",
+      "slug": "legible-swarm-sdt",
+      "float_kind": "figure",
+      "printed_number": "4.4",
+      "printed_label": "Figure 4.4",
+      "chapter": 4,
+      "page": 181,
+      "printed_folio": "166",
+      "caption": "The operator’s forced-zoom decision as Signal Detection Theory (Def. 4.5.1). Two named densities over the evidence the operator reads: safe actions (solid) and dangerous actions (dashed), separated by sensitivity d'. Zooming triggers when evidence exceeds the criterion 𝛽; moving 𝛽left trades the caution-tinted miss region for more of the neutral-tinted false-alarm re- gion. Because a miss costs far more than a false alarm — at the chapter’s run- ning costs, 100 against 5, the inspect bar sits at 𝑎≥0.057 — the optimal cri- terion sits well to the left of the throughput optimum: idealized as two fixed Gaussians, not the fitted mixture the deployed detector would use [internal].",
+      "caption_fingerprint": "6e9bdecbfaadb7e4",
+      "fragment": "whitepaper/figures/legible-swarm-sdt.tex",
+      "tex_label": "fig:sdt",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.28,
+        64.47,
+        383.26,
+        336.2
+      ],
+      "ink_bbox_pt": [
+        128.79,
+        64.47,
+        337.47,
+        194.75
+      ],
+      "caption_bbox_pt": [
+        57.28,
+        234.87,
+        383.26,
+        336.2
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 14,
+        "caption_gap_pt": 40.1,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 180,
+        "recto": 181,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 180,
+        "after": 182
+      },
+      "images": {
+        "figure": "img/figure/legible-swarm-sdt.webp",
+        "page": "img/page/legible-swarm-sdt.webp",
+        "spread": "img/spread/legible-swarm-sdt.webp"
+      }
+    },
+    {
+      "id": "legible-swarm-readpoverty",
+      "pixel_judgment_id": "legible-swarm-readpoverty",
+      "slug": "legible-swarm-readpoverty",
+      "float_kind": "figure",
+      "printed_number": "4.5",
+      "printed_label": "Figure 4.5",
+      "chapter": 4,
+      "page": 188,
+      "printed_folio": "173",
+      "caption": "Bits an operator must read to locate the critical artifact, at the lower bound of Thm. 4.6.1 with 𝑚=8, 𝑘=2. One flat digest serving both readers jointly needs Floor(𝑁, 4, 8) bits; two split digests, one per reader, each need only Floor(𝑁, 2, 8). At 𝑁=60 the split digest costs 5.98 bits against the flat digest’s 12.77 — a 2.13× penalty, not the 2× that halving the readers would predict. The committed sweep CSV (r1-floor.csv) is not yet present, so the two curves are the chapter’s own closed-form Floor formula rather than sim- ulated points; only the 𝑁=60 values it works by hand are marked [internal].",
+      "caption_fingerprint": "1ae58fdfc631eb18",
+      "fragment": "whitepaper/figures/legible-swarm-readpoverty.tex",
+      "tex_label": "fig:readpoverty",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        61.78,
+        383.18,
+        319.22
+      ],
+      "ink_bbox_pt": [
+        131.19,
+        61.78,
+        339.73,
+        189.22
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        229.34,
+        383.18,
+        319.22
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 12,
+        "caption_gap_pt": 40.1,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 8.47,
+      "smallest_type_px_at_crop_dpi": 35.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 188,
+        "recto": 189,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 187,
+        "after": 189
+      },
+      "images": {
+        "figure": "img/figure/legible-swarm-readpoverty.webp",
+        "page": "img/page/legible-swarm-readpoverty.webp",
+        "spread": "img/spread/legible-swarm-readpoverty.webp"
+      }
+    },
+    {
+      "id": "legible-swarm-split-ranker",
+      "pixel_judgment_id": "legible-swarm-split-ranker",
+      "slug": "legible-swarm-split-ranker",
+      "float_kind": "figure",
+      "printed_number": "4.6",
+      "printed_label": "Figure 4.6",
+      "chapter": 4,
+      "page": 201,
+      "printed_folio": "186",
+      "caption": "One candidate pool under two loss functions, ranks 1–4 on both axes. Discovery ranks by fit; attention ranks by expected regret if ignored. Candidate A is the best fit but safest to skip, while B is a poor fit but the most dangerous to miss, so their ranks fully invert (1–4 against 4–1). C and D swap one adjacent pair, the same non-comonotone fact at smaller scale. Shared can- didate generation and recency decay do not make the two scoring heads inter- changeable [internal].",
+      "caption_fingerprint": "fcc8bbf6d62a9bb1",
+      "fragment": "whitepaper/figures/legible-swarm-split-ranker.tex",
+      "tex_label": "fig:split-ranker",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        203.86,
+        383.26,
+        514.57
+      ],
+      "ink_bbox_pt": [
+        84.6,
+        233.42,
+        354.6,
+        386.4
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        436.15,
+        383.26,
+        514.57
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 20,
+        "caption_gap_pt": 49.7,
+        "grown_above_ink_pt": 29.6,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 200,
+        "recto": 201,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 200,
+        "after": 202
+      },
+      "images": {
+        "figure": "img/figure/legible-swarm-split-ranker.webp",
+        "page": "img/page/legible-swarm-split-ranker.webp",
+        "spread": "img/spread/legible-swarm-split-ranker.webp"
+      }
+    },
+    {
+      "id": "legible-swarm-roles",
+      "pixel_judgment_id": "legible-swarm-roles",
+      "slug": "legible-swarm-roles",
+      "float_kind": "figure",
+      "printed_number": "4.7",
+      "printed_label": "Figure 4.7",
+      "chapter": 4,
+      "page": 212,
+      "printed_folio": "197",
+      "caption": "The grant-and-gate sequence, three lifelines and four messages, no crossing. The operator grants once (message 1: scoped grant g). Agents act under that grant (message 2), and the daemon gates or escalates every such act (message 3) rather than granting again. The override (message 4) is the one edge running straight from operator to daemon, bypassing the agents entirely. Idealized to one representative act; a live fleet repeats messages 2–3 per act, not per grant [internal].",
+      "caption_fingerprint": "9c5e87105d2a6131",
+      "fragment": "whitepaper/figures/legible-swarm-roles.tex",
+      "tex_label": "fig:roles",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        171.45,
+        383.27,
+        540.98
+      ],
+      "ink_bbox_pt": [
+        79.73,
+        171.45,
+        359.47,
+        372.47
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        462.55,
+        383.27,
+        540.98
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 11,
+        "caption_gap_pt": 90.1,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.72,
+      "smallest_type_px_at_crop_dpi": 36.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 212,
+        "recto": 213,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 211,
+        "after": 213
+      },
+      "images": {
+        "figure": "img/figure/legible-swarm-roles.webp",
+        "page": "img/page/legible-swarm-roles.webp",
+        "spread": "img/spread/legible-swarm-roles.webp"
+      }
+    },
+    {
+      "id": "fig-stp-role-vs-person",
+      "pixel_judgment_id": "fig-stp-role-vs-person",
+      "slug": "fig-stp-role-vs-person",
+      "float_kind": "figure",
+      "printed_number": "5.1",
+      "printed_label": "Figure 5.1",
+      "chapter": 5,
+      "page": 237,
+      "printed_folio": "222",
+      "caption": "A role is a slot; a person is a longitudinal record. The upper track holds one reviewer role constant while unrelated bodies fill it in sequence: the slot has obligations, capability, and authority, but no reputation of its own. The lower track follows one identity 𝜅7 through four role intervals while wit- nessed outcomes 𝑜1 . . . 𝑜8 accumulate on the same thread. A respawn may replace the body, and a reassignment may replace the role, without replacing the accountable person.",
+      "caption_fingerprint": "78015f030e8b476f",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-role-vs-person.tex",
+      "tex_label": "fig:role-person",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.3,
+        382.42,
+        453.45,
+        637.17
+      ],
+      "ink_bbox_pt": [
+        64.07,
+        409.09,
+        453.45,
+        537.89
+      ],
+      "caption_bbox_pt": [
+        57.3,
+        558.75,
+        383.27,
+        637.17
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 11,
+        "caption_gap_pt": 20.9,
+        "grown_above_ink_pt": 26.7,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 4.96,
+      "smallest_type_px_at_crop_dpi": 20.7,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 236,
+        "recto": 237,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 236,
+        "after": 238
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-role-vs-person.webp",
+        "page": "img/page/fig-stp-role-vs-person.webp",
+        "spread": "img/spread/fig-stp-role-vs-person.webp"
+      }
+    },
+    {
+      "id": "fig-stp-parfit-chain",
+      "pixel_judgment_id": "fig-stp-parfit-chain",
+      "slug": "fig-stp-parfit-chain",
+      "float_kind": "figure",
+      "printed_number": "5.2",
+      "printed_label": "Figure 5.2",
+      "chapter": 5,
+      "page": 240,
+      "printed_folio": "225",
+      "caption": "Parfitian continuity is an overlap chain, not permanent connect- edness. Incarnation 1 shares witnessed outcome 𝑜2 with incarnation 2; in- carnation 2 shares 𝑜3 with incarnation 3. No later body must directly re- member 𝑜1: the overlapping evidence establishes the transitive ledger rail 𝑜1 { 𝑜2 { 𝑜3 { 𝑜4. The dashed counterexample repeats a label without a shared witness and therefore inherits nothing.",
+      "caption_fingerprint": "b33f805d73c05cb1",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-parfit-chain.tex",
+      "tex_label": "fig:parfit",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        66.84,
+        473.45,
+        302.65
+      ],
+      "ink_bbox_pt": [
+        67.31,
+        88.75,
+        473.45,
+        223.91
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        235.68,
+        383.18,
+        302.65
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 21,
+        "caption_gap_pt": 11.8,
+        "grown_above_ink_pt": 21.9,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxsys",
+          "txsyc"
+        ]
+      },
+      "smallest_type_pt": 5.56,
+      "smallest_type_px_at_crop_dpi": 23.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 240,
+        "recto": 241,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 239,
+        "after": 241
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-parfit-chain.webp",
+        "page": "img/page/fig-stp-parfit-chain.webp",
+        "spread": "img/spread/fig-stp-parfit-chain.webp"
+      }
+    },
+    {
+      "id": "fig-stp-nomint-lineage",
+      "pixel_judgment_id": "fig-stp-nomint-lineage",
+      "slug": "fig-stp-nomint-lineage",
+      "float_kind": "figure",
+      "printed_number": "5.3",
+      "printed_label": "Figure 5.3",
+      "chapter": 5,
+      "page": 242,
+      "printed_folio": "227",
+      "caption": "Three lineages of one witnessed episode of weight 1, derived at 𝛾= 0.9. Under the budget-only phrasing every derivation stays live and the closure sums to 0.9+0.81+0.729 = 2.439 > 1: reputation minted from nothing, which is why that phrasing was refuted before proving. Under transfer each derivation grants the child 𝛾𝑤𝑝and debits the source 𝑤𝑝, so only the leaf is live and the total never exceeds what was witnessed. The copy-full mutant, which forks the undebited record, turns one episode into 8.2× its quorum weight in two operations, and the checker refuses it. [verified for the chain by hand; internal, a6_no_mint.py, seed 20260816]",
+      "caption_fingerprint": "3a1d314ca170e746",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-nomint-lineage.tex",
+      "tex_label": "fig:stp-nomint-lineage",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        204.67,
+        447.34,
+        524.74
+      ],
+      "ink_bbox_pt": [
+        98.65,
+        233.37,
+        447.34,
+        356.68
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        423.4,
+        382.79,
+        524.74
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 40,
+        "caption_gap_pt": 66.7,
+        "grown_above_ink_pt": 28.7,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 6.97,
+      "smallest_type_px_at_crop_dpi": 29.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 242,
+        "recto": 243,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 241,
+        "after": 243
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-nomint-lineage.webp",
+        "page": "img/page/fig-stp-nomint-lineage.webp",
+        "spread": "img/spread/fig-stp-nomint-lineage.webp"
+      }
+    },
+    {
+      "id": "fig-stp-probation-cliff",
+      "pixel_judgment_id": "fig-stp-probation-cliff",
+      "slug": "fig-stp-probation-cliff",
+      "float_kind": "figure",
+      "printed_number": "5.4",
+      "printed_label": "Figure 5.4",
+      "chapter": 5,
+      "page": 252,
+      "printed_folio": "237",
+      "caption": "The honest newcomer’s burden of one unit of deterrence, by the period in which it is placed, at 𝛿ℎ= 0.95, 𝛿𝑓= 0.60. Deterrence against a whitewasher discounts at 𝛿𝑓while the honest newcomer discounts at 𝛿ℎ, so a restriction placed at period 𝑡costs the honest party (𝛿ℎ/𝛿𝑓)𝑡times what the same deterrence costs at 𝑡= 0: 1.58× after one period, 62.5× after nine. The front-loaded schedule, the cliff, is undominated; the random search over 4,000 instances found no schedule below it. [internal; b6_probation.py, seed 20260816]",
+      "caption_fingerprint": "4f7d781f862cf14e",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-probation-cliff.tex",
+      "tex_label": "fig:stp-probation-cliff",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.3,
+        76.13,
+        383.27,
+        352.36
+      ],
+      "ink_bbox_pt": [
+        94.72,
+        76.13,
+        376.01,
+        221.33
+      ],
+      "caption_bbox_pt": [
+        57.3,
+        261.47,
+        383.27,
+        352.36
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 6,
+        "caption_gap_pt": 40.1,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 6.97,
+      "smallest_type_px_at_crop_dpi": 29.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 252,
+        "recto": 253,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 251,
+        "after": 253
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-probation-cliff.webp",
+        "page": "img/page/fig-stp-probation-cliff.webp",
+        "spread": "img/spread/fig-stp-probation-cliff.webp"
+      }
+    },
+    {
+      "id": "fig-stp-sybil-whitewash",
+      "pixel_judgment_id": "fig-stp-sybil-whitewash",
+      "slug": "fig-stp-sybil-whitewash",
+      "float_kind": "figure",
+      "printed_number": "5.5",
+      "printed_label": "Figure 5.5",
+      "chapter": 5,
+      "page": 254,
+      "printed_folio": "239",
+      "caption": "Non-forgeable identity changes the economics of both classic attacks. In panel A, a self-asserted label drops a sanction by respawning; a principal-bound identity carries the penalty Δ across every body lease. In panel B, free labels turn aliases into quorum weight, while principal binding keeps one accountable weight constant. The claim is deliberately local: dae- mon minting and principal binding close these attacks inside one trusted do- main; they do not solve cross-operator attestation. Newcomer friction applies to economic ceiling, not to the ability to perform work.",
+      "caption_fingerprint": "5679c736cf4f8282",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+      "tex_label": "fig:sybil",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        61.2,
+        478.83,
+        487.97
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        61.2,
+        478.83,
+        358.87
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        398.09,
+        383.18,
+        487.97
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 22,
+        "caption_gap_pt": 39.2,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Italic",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 7.75,
+      "smallest_type_px_at_crop_dpi": 32.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 254,
+        "recto": 255,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 253,
+        "after": 255
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-sybil-whitewash.webp",
+        "page": "img/page/fig-stp-sybil-whitewash.webp",
+        "spread": "img/spread/fig-stp-sybil-whitewash.webp"
+      }
+    },
+    {
+      "id": "fig-stp-multidim-reputation",
+      "pixel_judgment_id": "fig-stp-multidim-reputation",
+      "slug": "fig-stp-multidim-reputation",
+      "float_kind": "figure",
+      "printed_number": "5.6",
+      "printed_label": "Figure 5.6",
+      "chapter": 5,
+      "page": 266,
+      "printed_folio": "251",
+      "caption": "One quality vector supports legitimate preference reversal. Out- come A is strongest on accuracy and aesthetics; outcome B is strongest on ef- ficiency. Each axis is independently judged, then disclosed without a univer- sal scalar. A security-weighted buyer selects A while a cost-weighted buyer selects B. Premature averaging would erase one of these valid decisions and create a single Goodhart target. Color is redundant with solid-versus-dashed profiles and direct labels.",
+      "caption_fingerprint": "f324130f71151239",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-multidim-reputation.tex",
+      "tex_label": "fig:multidim",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        214.98,
+        459.03,
+        503.21
+      ],
+      "ink_bbox_pt": [
+        64.07,
+        227.02,
+        436.95,
+        399.7
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        424.78,
+        383.19,
+        503.21
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 21,
+        "caption_gap_pt": 25.1,
+        "grown_above_ink_pt": 12.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 5.02,
+      "smallest_type_px_at_crop_dpi": 20.9,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 266,
+        "recto": 267,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 265,
+        "after": 267
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-multidim-reputation.webp",
+        "page": "img/page/fig-stp-multidim-reputation.webp",
+        "spread": "img/spread/fig-stp-multidim-reputation.webp"
+      }
+    },
+    {
+      "id": "fig-stp-judge-market",
+      "pixel_judgment_id": "fig-stp-judge-market",
+      "slug": "fig-stp-judge-market",
+      "float_kind": "figure",
+      "printed_number": "5.7",
+      "printed_label": "Figure 5.7",
+      "chapter": 5,
+      "page": 268,
+      "printed_folio": "253",
+      "caption": "The judge market has two different proof moments. Neutrality is earned before selection: candidates sharing a principal, stake, or model fam- ily with the graded party are visibly removed, then a public draw selects from what remains. Accountability persists after selection: the judge posts a bond, grades blind, and remains exposed until a later re-audit. The ledger records the receipt, exclusions, draw, grade, bond, and audit, so “neutral” is a check- able history rather than a title attached to the chosen judge.",
+      "caption_fingerprint": "00e475ce84734508",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-judge-market.tex",
+      "tex_label": "fig:judge-market",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        150.83,
+        437.54,
+        408.94
+      ],
+      "ink_bbox_pt": [
+        78.16,
+        150.83,
+        437.54,
+        302.03
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        330.51,
+        383.19,
+        408.94
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 35,
+        "caption_gap_pt": 28.5,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 6.11,
+      "smallest_type_px_at_crop_dpi": 25.5,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 268,
+        "recto": 269,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 267,
+        "after": 269
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-judge-market.webp",
+        "page": "img/page/fig-stp-judge-market.webp",
+        "spread": "img/spread/fig-stp-judge-market.webp"
+      }
+    },
+    {
+      "id": "fig-stp-rate-the-raters",
+      "pixel_judgment_id": "fig-stp-rate-the-raters",
+      "slug": "fig-stp-rate-the-raters",
+      "float_kind": "figure",
+      "printed_number": "5.8",
+      "printed_label": "Figure 5.8",
+      "chapter": 5,
+      "page": 272,
+      "printed_folio": "257",
+      "caption": "Recursive auditing becomes finite only when corrupt oppor- tunity contracts. The parameterized example plots the chapter’s reported depths: heterogeneous sealed sampling across 𝐶= 8 cliques reaches the honest-root boundary near level 27, while a monoculture (𝐶= 1) requires roughly 53 levels. More boxes or more height would not prove this result; the governing conditions are local deterrence 𝜌𝑑𝐵≥𝐺𝑘and contraction 𝐺𝑘+1 = (1 −𝜌𝑑)𝐺𝑘. The amber floor is deliberately separate: the imported theorem bounds the tower but does not supply its exogenously honest root or the telemetry that estimates 𝑑.",
+      "caption_fingerprint": "78bce282657a30d4",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex",
+      "tex_label": "fig:rate-raters",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        126.05,
+        478.82,
+        389.86
+      ],
+      "ink_bbox_pt": [
+        84.14,
+        126.05,
+        478.82,
+        277.63
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        288.53,
+        383.18,
+        389.86
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 10,
+        "caption_gap_pt": 10.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 4.81,
+      "smallest_type_px_at_crop_dpi": 20.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 272,
+        "recto": 273,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 271,
+        "after": 273
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-rate-the-raters.webp",
+        "page": "img/page/fig-stp-rate-the-raters.webp",
+        "spread": "img/spread/fig-stp-rate-the-raters.webp"
+      }
+    },
+    {
+      "id": "fig-stp-deterrence-regime",
+      "pixel_judgment_id": "fig-stp-deterrence-regime",
+      "slug": "fig-stp-deterrence-regime",
+      "float_kind": "figure",
+      "printed_number": "5.9",
+      "printed_label": "Figure 5.9",
+      "chapter": 5,
+      "page": 275,
+      "printed_folio": "260",
+      "caption": "The deterrence frontier of the re-audit tower. A grader is deterred from selling a grade when the expected slash, re-audit probability 𝜌times detection rate 𝑑times bond 𝐵, exceeds the one-shot gain 𝐺; the frontier is 𝜌𝐵= 𝐺/𝑑, drawn for 𝐺= 10 and 𝑑= 0.8. The worked point of this section, 𝐵= 50, sits on the frontier at the threshold 𝜌= 0.25: any lower audit rate at that bond, or any smaller bond at that rate, lies where capture pays.",
+      "caption_fingerprint": "f7ba04a05631bc4a",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex",
+      "tex_label": "fig:stp-deterrence-regime",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        66.88,
+        382.79,
+        323.35
+      ],
+      "ink_bbox_pt": [
+        114.98,
+        81.04,
+        373.68,
+        212.52
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        256.38,
+        382.79,
+        323.35
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 5,
+        "caption_gap_pt": 43.9,
+        "grown_above_ink_pt": 14.2,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 7.67,
+      "smallest_type_px_at_crop_dpi": 32.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 274,
+        "recto": 275,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 274,
+        "after": 276
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-deterrence-regime.webp",
+        "page": "img/page/fig-stp-deterrence-regime.webp",
+        "spread": "img/spread/fig-stp-deterrence-regime.webp"
+      }
+    },
+    {
+      "id": "fig-stp-tombstone",
+      "pixel_judgment_id": "fig-stp-tombstone",
+      "slug": "fig-stp-tombstone",
+      "float_kind": "figure",
+      "printed_number": "5.10",
+      "printed_label": "Figure 5.10",
+      "chapter": 5,
+      "page": 277,
+      "printed_folio": "262",
+      "caption": "A tombstone changes score consumption without rewriting his- tory. The upper rail remains append-only: fraudulent outcome 𝑜3, the over- turning re-audit, and tombstone 𝑡(𝑜3) are all preserved as distinct facts. The lower trace shows what does change. The fraudulent contribution remains spendable until the tombstone reaches an importing harbor, then falls to zero. The measured interval 𝜏is the federation’s revocation-convergence obligation; the protocol bounds that interval rather than pretending it never existed.",
+      "caption_fingerprint": "dcbc738b7676c535",
+      "fragment": "website-v2/public/whitepaper/figures/fig-stp-tombstone.tex",
+      "tex_label": "fig:tombstone",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.3,
+        83.53,
+        437.02,
+        350.73
+      ],
+      "ink_bbox_pt": [
+        91.86,
+        83.53,
+        437.02,
+        251.6
+      ],
+      "caption_bbox_pt": [
+        57.3,
+        272.3,
+        383.26,
+        350.73
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 21,
+        "caption_gap_pt": 20.7,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 6.11,
+      "smallest_type_px_at_crop_dpi": 25.5,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 276,
+        "recto": 277,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 276,
+        "after": 278
+      },
+      "images": {
+        "figure": "img/figure/fig-stp-tombstone.webp",
+        "page": "img/page/fig-stp-tombstone.webp",
+        "spread": "img/spread/fig-stp-tombstone.webp"
+      }
+    },
+    {
+      "id": "fig-he-three-sided",
+      "pixel_judgment_id": "fig-he-three-sided",
+      "slug": "fig-he-three-sided",
+      "float_kind": "figure",
+      "printed_number": "6.1",
+      "printed_label": "Figure 6.1",
+      "chapter": 6,
+      "page": 296,
+      "printed_folio": "281",
+      "caption": "The three sides are three risk signatures, not three tabs. Labor exposes a principal bond and pays a fleet principal; rented capital exposes the owner’s reputation and pays rent; licensed IP exposes a version-bound con- tent claim and pays a metered fee. Line thickness redundantly distinguishes the forms of exposure. All three close through one witnessed journal, so the conservation invariant is shared even though the counterparties, private infor- mation, and reputation keys are not.",
+      "caption_fingerprint": "8a99cc58154f229e",
+      "fragment": "website-v2/public/whitepaper/figures/fig-he-three-sided.tex",
+      "tex_label": "fig:he-three-sided",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        212.52,
+        461.67,
+        447.16
+      ],
+      "ink_bbox_pt": [
+        136.36,
+        212.52,
+        461.67,
+        337.9
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        368.74,
+        383.19,
+        447.16
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 16,
+        "caption_gap_pt": 30.8,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Regular",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 8.28,
+      "smallest_type_px_at_crop_dpi": 34.5,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 296,
+        "recto": 297,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 295,
+        "after": 297
+      },
+      "images": {
+        "figure": "img/figure/fig-he-three-sided.webp",
+        "page": "img/page/fig-he-three-sided.webp",
+        "spread": "img/spread/fig-he-three-sided.webp"
+      }
+    },
+    {
+      "id": "fig-he-float-plan",
+      "pixel_judgment_id": "fig-he-float-plan",
+      "slug": "fig-he-float-plan",
+      "float_kind": "figure",
+      "printed_number": "6.2",
+      "printed_label": "Figure 6.2",
+      "chapter": 6,
+      "page": 301,
+      "printed_folio": "286",
+      "caption": "No-spawn-without-bond is a synchronized state transition. The wallet debit and escrow-row creation occur at the same commit. Only after the committed row is observable does the worker move from nonexistent to running. A signed plan or an attempted debit is insufficient: the dashed abort branch leaves all three traces in their prior state. The figure therefore locates the invariant at a transition, not at a component or message label.",
+      "caption_fingerprint": "bc69b026cc8aa442",
+      "fragment": "website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
+      "tex_label": "fig:he-float-plan",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        264.41,
+        435.85,
+        504.2
+      ],
+      "ink_bbox_pt": [
+        126.31,
+        264.41,
+        432.76,
+        391.41
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        437.23,
+        381.78,
+        504.2
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 11,
+        "caption_gap_pt": 45.8,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 8.2,
+      "smallest_type_px_at_crop_dpi": 34.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 300,
+        "recto": 301,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 300,
+        "after": 302
+      },
+      "images": {
+        "figure": "img/figure/fig-he-float-plan.webp",
+        "page": "img/page/fig-he-float-plan.webp",
+        "spread": "img/spread/fig-he-float-plan.webp"
+      }
+    },
+    {
+      "id": "fig-he-conservation-functor",
+      "pixel_judgment_id": "fig-he-conservation-functor",
+      "slug": "fig-he-conservation-functor",
+      "float_kind": "figure",
+      "printed_number": "6.3",
+      "printed_label": "Figure 6.3",
+      "chapter": 6,
+      "page": 311,
+      "printed_folio": "296",
+      "caption": "Conservation closes inside a native unit; conversion requires a named valuation boundary. Panel A is an accounting waterfall: wallet, es- crow, and commons deltas return exactly to zero. Panel B cannot close by adding unlike units. It must record the valuation function and instant, plus fee, slippage, and open exposure. Composition preserves native-unit balances; no- tation does not manufacture a unit-free portfolio total.",
+      "caption_fingerprint": "4a7273e224657e6b",
+      "fragment": "website-v2/public/whitepaper/figures/fig-he-conservation-functor.tex",
+      "tex_label": "fig:he-conservation-functor",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        91.58,
+        472.86,
+        312.93
+      ],
+      "ink_bbox_pt": [
+        79.59,
+        91.58,
+        452.21,
+        194.32
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        245.96,
+        383.18,
+        312.93
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 8,
+        "caption_gap_pt": 51.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 5.96,
+      "smallest_type_px_at_crop_dpi": 24.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 310,
+        "recto": 311,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 310,
+        "after": 312
+      },
+      "images": {
+        "figure": "img/figure/fig-he-conservation-functor.webp",
+        "page": "img/page/fig-he-conservation-functor.webp",
+        "spread": "img/spread/fig-he-conservation-functor.webp"
+      }
+    },
+    {
+      "id": "fig-he-cold-start",
+      "pixel_judgment_id": "fig-he-cold-start",
+      "slug": "fig-he-cold-start",
+      "float_kind": "figure",
+      "printed_number": "6.4",
+      "printed_label": "Figure 6.4",
+      "chapter": 6,
+      "page": 320,
+      "printed_folio": "305",
+      "caption": "Cold start separates the measured market state from the policy schedule. The upper trace is realized liquidity over settled outcomes. The lower trace is the supplier-price regime applied to that state: seed supply be- low zero, credit imported work at zero, then charge only after liquidity crosses 𝜆★. The shared vertical trigger makes the dependency explicit. Calendar time is absent, and a market that never crosses the threshold does not silently ad- vance to the charging regime.",
+      "caption_fingerprint": "b8faab043e3657e7",
+      "fragment": "website-v2/public/whitepaper/figures/fig-he-cold-start.tex",
+      "tex_label": "fig:he-cold-start",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.33,
+        83.48,
+        429.53,
+        326.8
+      ],
+      "ink_bbox_pt": [
+        95.32,
+        83.48,
+        397.73,
+        213.2
+      ],
+      "caption_bbox_pt": [
+        57.33,
+        248.38,
+        383.18,
+        326.8
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 11,
+        "caption_gap_pt": 35.2,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 5.92,
+      "smallest_type_px_at_crop_dpi": 24.7,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 320,
+        "recto": 321,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 319,
+        "after": 321
+      },
+      "images": {
+        "figure": "img/figure/fig-he-cold-start.webp",
+        "page": "img/page/fig-he-cold-start.webp",
+        "spread": "img/spread/fig-he-cold-start.webp"
+      }
+    },
+    {
+      "id": "fig-he-assurance",
+      "pixel_judgment_id": "fig-he-assurance",
+      "slug": "fig-he-assurance",
+      "float_kind": "figure",
+      "printed_number": "6.5",
+      "printed_label": "Figure 6.5",
+      "chapter": 6,
+      "page": 332,
+      "printed_folio": "317",
+      "caption": "Purchased assurance is one risk–cost trajectory. Each teal point adds one independently bonded reviewer: cumulative cost rises linearly while At 𝑑= .6, three reviewers leave residual defect risk falls geometrically. 6.4% residual risk and five leave about 1%. The dashed amber counterfac- tual charges for five correlated reviewers but delivers roughly one reviewer’s protection. Independence and Becker deterrence 𝜌𝑑𝐵≥𝐺are therefore con- ditions of the frontier, not footnotes to headcount.",
+      "caption_fingerprint": "a361ebd6da1550fc",
+      "fragment": "website-v2/public/whitepaper/figures/fig-he-assurance.tex",
+      "tex_label": "fig:he-assurance",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        427.48,
+        403.84,
+        648.17
+      ],
+      "ink_bbox_pt": [
+        97.05,
+        427.48,
+        403.84,
+        535.19
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        569.74,
+        383.19,
+        648.17
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 16,
+        "caption_gap_pt": 34.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 5.47,
+      "smallest_type_px_at_crop_dpi": 22.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 332,
+        "recto": 333,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 331,
+        "after": 333
+      },
+      "images": {
+        "figure": "img/figure/fig-he-assurance.webp",
+        "page": "img/page/fig-he-assurance.webp",
+        "spread": "img/spread/fig-he-assurance.webp"
+      }
+    },
+    {
+      "id": "fig-governance-flow",
+      "pixel_judgment_id": "fig-governance-flow",
+      "slug": "fig-governance-flow",
+      "float_kind": "figure",
+      "printed_number": "7.1",
+      "printed_label": "Figure 7.1",
+      "chapter": 7,
+      "page": 358,
+      "printed_folio": "343",
+      "caption": "Dispute resolution is an escalation staircase. The system first offers a zero-coercion exit, then waits for the claimant’s TTL, then permits priced preemption, and reaches human judgment only after the machine-readable options are exhausted. Every station can terminate the dispute, and every termination descends to the same evidence rail. Escalation therefore changes the decision cost and decision-maker without discarding the record needed for appeal.",
+      "caption_fingerprint": "3dbefbb076ef4705",
+      "fragment": "website-v2/public/whitepaper/figures/fig-governance-flow.tex",
+      "tex_label": "fig:governance-flow",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        252.11,
+        391.2,
+        498.77
+      ],
+      "ink_bbox_pt": [
+        94.07,
+        252.11,
+        391.2,
+        402.08
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        420.35,
+        381.86,
+        498.77
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 19,
+        "caption_gap_pt": 18.3,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 5.84,
+      "smallest_type_px_at_crop_dpi": 24.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 358,
+        "recto": 359,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 357,
+        "after": 359
+      },
+      "images": {
+        "figure": "img/figure/fig-governance-flow.webp",
+        "page": "img/page/fig-governance-flow.webp",
+        "spread": "img/spread/fig-governance-flow.webp"
+      }
+    },
+    {
+      "id": "fig-pareto-dominance",
+      "pixel_judgment_id": "fig-pareto-dominance.pdf",
+      "slug": "fig-pareto-dominance",
+      "float_kind": "figure",
+      "printed_number": "7.2",
+      "printed_label": "Figure 7.2",
+      "chapter": 7,
+      "page": 377,
+      "printed_folio": "362",
+      "caption": "The competitive auction’s Pareto-dominance advantage is real but narrow: it survives moderate reputation noise and a modest cartel, then col- lapses once noise crosses roughly 𝜎𝑟= 0.1, and it shrinks as more insurers are added rather than growing. Left: fraction of trials satisfying the code’s Pareto criterion versus reputation noise 𝜎𝑟at 𝑛= 5, split by cartel size. Right: the same criterion versus insurer count at 𝜎𝑟= 0 with no cartel. Error bars and seeds are recorded in the accompanying artifact; the curves are not analytical welfare bounds.",
+      "caption_fingerprint": "95686ca593826ae5",
+      "fragment": "website-v2/public/whitepaper/figures/fig-pareto-dominance.pdf",
+      "tex_label": null,
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        61.2,
+        383.18,
+        307.48
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        61.2,
+        381.6,
+        206.7
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        217.6,
+        383.18,
+        307.48
+      ],
+      "detection_method": "includegraphics-pdf",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 27,
+        "caption_gap_pt": 10.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "Palatino-Roman"
+        ]
+      },
+      "smallest_type_pt": 3.58,
+      "smallest_type_px_at_crop_dpi": 14.9,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 376,
+        "recto": 377,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 376,
+        "after": 378
+      },
+      "images": {
+        "figure": "img/figure/fig-pareto-dominance.webp",
+        "page": "img/page/fig-pareto-dominance.webp",
+        "spread": "img/spread/fig-pareto-dominance.webp"
+      }
+    },
+    {
+      "id": "fig-sybil-inline",
+      "pixel_judgment_id": "fig-sybil-inline",
+      "slug": "fig-sybil-inline",
+      "float_kind": "figure",
+      "printed_number": "7.3",
+      "printed_label": "Figure 7.3",
+      "chapter": 7,
+      "page": 377,
+      "printed_folio": "362",
+      "caption": "Deposit-only Sybil deterrence saturates. One principal can fund 𝐾 interchangeable identities, but the loss attached to a defaulting identity rises only until its deposit reaches the transaction coverage 𝐵𝑇. Past that knee, 𝑠= min(𝐵dep, 𝐵𝑇) = 𝐵𝑇: additional posted capital returns intact on no-loss transactions and cannot increase the attacker’s maximum loss. Figure 7.4 shows the corresponding simulated profit and commons-deficit sweeps.",
+      "caption_fingerprint": "ff55c46707abafb3",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sybil-inline.tex",
+      "tex_label": "fig:sybil-inline",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        426.9,
+        389.19,
+        648.3
+      ],
+      "ink_bbox_pt": [
+        75.11,
+        426.9,
+        389.19,
+        538.69
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        580.78,
+        382.79,
+        648.3
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 19,
+        "caption_gap_pt": 42.1,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 5.98,
+      "smallest_type_px_at_crop_dpi": 24.9,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 376,
+        "recto": 377,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 376,
+        "after": 378
+      },
+      "images": {
+        "figure": "img/figure/fig-sybil-inline.webp",
+        "page": "img/page/fig-sybil-inline.webp",
+        "spread": "img/spread/fig-sybil-inline.webp"
+      }
+    },
+    {
+      "id": "fig-sybil-deposit-floor",
+      "pixel_judgment_id": "fig-sybil-deposit-floor.pdf",
+      "slug": "fig-sybil-deposit-floor",
+      "float_kind": "figure",
+      "printed_number": "7.4",
+      "printed_label": "Figure 7.4",
+      "chapter": 7,
+      "page": 378,
+      "printed_folio": "363",
+      "caption": "A5 — Sybil attack: deposit-only deterrence has a coverage- bounded ceiling. Left: attacker net profit per 50-transaction trial stays posi- tive across the entire deposit sweep (𝐵dep ∈[0.5, 1000] USD). Right: commons deficit converges to zero around 𝐵dep ≈200 USD — the protocol is fully re- imbursed, but the attacker still profits because deposit slash is capped at cov- erage 𝐵𝑇= 𝜇(1 + 𝑠). Closing A5 requires a composite mechanism (𝐶kyc + reputation gating + per-class 𝐵dep); pure deposit-based deterrence is provably insufficient.",
+      "caption_fingerprint": "7847fd97522620fe",
+      "fragment": "website-v2/public/whitepaper/figures/fig-sybil-deposit-floor.pdf",
+      "tex_label": null,
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        167.94,
+        383.19,
+        415.6
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        167.94,
+        381.6,
+        314.82
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        325.72,
+        383.19,
+        415.6
+      ],
+      "detection_method": "includegraphics-pdf",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 59,
+        "caption_gap_pt": 10.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "Palatino-Roman"
+        ]
+      },
+      "smallest_type_pt": 2.9,
+      "smallest_type_px_at_crop_dpi": 12.1,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 378,
+        "recto": 379,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 377,
+        "after": 379
+      },
+      "images": {
+        "figure": "img/figure/fig-sybil-deposit-floor.webp",
+        "page": "img/page/fig-sybil-deposit-floor.webp",
+        "spread": "img/spread/fig-sybil-deposit-floor.webp"
+      }
+    },
+    {
+      "id": "fig-cartel-game-inline",
+      "pixel_judgment_id": "fig-cartel-game-inline",
+      "slug": "fig-cartel-game-inline",
+      "float_kind": "figure",
+      "printed_number": "7.5",
+      "printed_label": "Figure 7.5",
+      "chapter": 7,
+      "page": 379,
+      "printed_folio": "364",
+      "caption": "Cartel sustainability is a two-policy phase diagram. The bound- ary is the repeated-game equality 𝑉𝐶= 𝜋𝐷. Below it, the discounted collusive stream still dominates a one-shot deviation. Above it, deviation wins and the cartel is unstable. A rarer severe sampled loss and a more frequent smaller loss can lie on the same deterrence boundary. Detection frequency by itself is therefore not the mechanism; the product enters through the full discounted payoff expression.",
+      "caption_fingerprint": "026ac73e5e68fe39",
+      "fragment": "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+      "tex_label": "fig:cartel-game-inline",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        238.87,
+        387.23,
+        468.92
+      ],
+      "ink_bbox_pt": [
+        102.5,
+        238.87,
+        367.45,
+        352.89
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        390.5,
+        383.18,
+        468.92
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 10,
+        "caption_gap_pt": 37.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 5.6,
+      "smallest_type_px_at_crop_dpi": 23.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 378,
+        "recto": 379,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 378,
+        "after": 380
+      },
+      "images": {
+        "figure": "img/figure/fig-cartel-game-inline.webp",
+        "page": "img/page/fig-cartel-game-inline.webp",
+        "spread": "img/spread/fig-cartel-game-inline.webp"
+      }
+    },
+    {
+      "id": "fig-cartel-folk-theorem",
+      "pixel_judgment_id": "fig-cartel-folk-theorem.pdf",
+      "slug": "fig-cartel-folk-theorem",
+      "float_kind": "figure",
+      "printed_number": "7.6",
+      "printed_label": "Figure 7.6",
+      "chapter": 7,
+      "page": 380,
+      "printed_folio": "365",
+      "caption": "Cartel sustainability collapses sharply once per-round detection crosses a narrow threshold: at 𝛿= 0.95 the closed-form 𝑝★ 𝑑≈0.0478 and the simulated grid first flips to “collapses” at 𝑝𝑑= 0.05, a near-exact match. Left: the tested (𝑝𝑑, 𝛿) grid under the supplied grim-trigger payoff model; amber cells marked S are sustainable, teal cells marked C collapse, and the dashed curve is the analytical boundary 𝑝★ 𝑑(𝛿). Right: simulated mean rounds to first detection, the truncated-geometric expectation, and its model-derived 95% in- terval for the sample mean. Neither value transfers to a different payoff, event timing, or monitoring model without re-derivation.",
+      "caption_fingerprint": "afcbf3b5b99aa546",
+      "fragment": "website-v2/public/whitepaper/figures/fig-cartel-folk-theorem.pdf",
+      "tex_label": null,
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        61.2,
+        383.18,
+        314.82
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        61.2,
+        381.61,
+        202.59
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        213.48,
+        383.18,
+        314.82
+      ],
+      "detection_method": "includegraphics-pdf",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 83,
+        "caption_gap_pt": 10.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "Palatino-Roman",
+          "STIXGeneral-Regular"
+        ]
+      },
+      "smallest_type_pt": 2.35,
+      "smallest_type_px_at_crop_dpi": 9.8,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 380,
+        "recto": 381,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 379,
+        "after": 381
+      },
+      "images": {
+        "figure": "img/figure/fig-cartel-folk-theorem.webp",
+        "page": "img/page/fig-cartel-folk-theorem.webp",
+        "spread": "img/spread/fig-cartel-folk-theorem.webp"
+      }
+    },
+    {
+      "id": "fig-bonded-key-custody",
+      "pixel_judgment_id": "fig-bonded-key-custody",
+      "slug": "fig-bonded-key-custody",
+      "float_kind": "figure",
+      "printed_number": "7.7",
+      "printed_label": "Figure 7.7",
+      "chapter": 7,
+      "page": 392,
+      "printed_folio": "377",
+      "caption": "The custody theorem has four small attack cut sets rather than one undifferentiated trust boundary. Card forgery, evidence decryption, and forest rollback each have one sufficient secret; user impersonation is the sole conjunctive failure and requires both email and passphrase. The teal base- lines name the consequence-limiting control for each cut. Same-user code ex- ecution remains outside the theorem because that adversary can read every secret available to the user process.",
+      "caption_fingerprint": "d2409b636afbb8c7",
+      "fragment": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
+      "tex_label": "fig:bonded-key-custody",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        268.46,
+        464.29,
+        491.79
+      ],
+      "ink_bbox_pt": [
+        107.62,
+        282.15,
+        439.24,
+        337.67
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        413.36,
+        383.18,
+        491.79
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 16,
+        "caption_gap_pt": 75.7,
+        "grown_above_ink_pt": 13.7,
+        "typefaces": [
+          "NewPXMI",
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 4.89,
+      "smallest_type_px_at_crop_dpi": 20.4,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 392,
+        "recto": 393,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 391,
+        "after": 393
+      },
+      "images": {
+        "figure": "img/figure/fig-bonded-key-custody.webp",
+        "page": "img/page/fig-bonded-key-custody.webp",
+        "spread": "img/spread/fig-bonded-key-custody.webp"
+      }
+    },
+    {
+      "id": "fig-magic-link-inline",
+      "pixel_judgment_id": "fig-magic-link-inline",
+      "slug": "fig-magic-link-inline",
+      "float_kind": "figure",
+      "printed_number": "7.8",
+      "printed_label": "Figure 7.8",
+      "chapter": 7,
+      "page": 393,
+      "printed_folio": "378",
+      "caption": "Single-use redemption is a concurrency property, not a two-arrow icon. Two consumers present the same account-bound token during one over- lap window. Both requests reach the same serialized SQL update, but the token row has only one falling edge: the first transaction changes consumed_ at from NULL and returns a row; the second observes the durable state and returns none. The audit rail records the winning consumer without creating another success path.",
+      "caption_fingerprint": "08bd94e8afd15e17",
+      "fragment": "website-v2/public/whitepaper/figures/fig-magic-link-inline.tex",
+      "tex_label": "fig:magic-link-inline",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        79.53,
+        459.1,
+        327.66
+      ],
+      "ink_bbox_pt": [
+        140.06,
+        79.53,
+        459.1,
+        222.03
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        249.24,
+        383.19,
+        327.66
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 17,
+        "caption_gap_pt": 27.2,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "SourceCodePro-Regular",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 5.98,
+      "smallest_type_px_at_crop_dpi": 24.9,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 392,
+        "recto": 393,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 392,
+        "after": 394
+      },
+      "images": {
+        "figure": "img/figure/fig-magic-link-inline.webp",
+        "page": "img/page/fig-magic-link-inline.webp",
+        "spread": "img/spread/fig-magic-link-inline.webp"
+      }
+    },
+    {
+      "id": "fig-worked-example",
+      "pixel_judgment_id": "fig-worked-example",
+      "slug": "fig-worked-example",
+      "float_kind": "figure",
+      "printed_number": "7.9",
+      "printed_label": "Figure 7.9",
+      "chapter": 7,
+      "page": 402,
+      "printed_folio": "387",
+      "caption": "The worked example is a continuity braid over one task. Structural authority belongs to a process and visibly breaks at minute 12; the successor receives a new capability at minute 13. The evidence chain does not break: its salvage-parent edge binds ℎ1 . . . ℎ5 to ℎ6 . . . ℎ8. The escrow rail spans the entire task and settles at minute 24. Identity is disposable, while attribution and pre-funded cleanup exposure persist.",
+      "caption_fingerprint": "5dfa376a2fe98c8d",
+      "fragment": "website-v2/public/whitepaper/figures/fig-worked-example.tex",
+      "tex_label": "fig:worked-example",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        425.45,
+        453.99,
+        636.63
+      ],
+      "ink_bbox_pt": [
+        103.43,
+        425.45,
+        453.99,
+        538.09
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        569.66,
+        382.79,
+        636.63
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 29,
+        "caption_gap_pt": 31.6,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Bold",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 5.65,
+      "smallest_type_px_at_crop_dpi": 23.5,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 402,
+        "recto": 403,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 401,
+        "after": 403
+      },
+      "images": {
+        "figure": "img/figure/fig-worked-example.webp",
+        "page": "img/page/fig-worked-example.webp",
+        "spread": "img/spread/fig-worked-example.webp"
+      }
+    },
+    {
+      "id": "fig-fh-threat-bands",
+      "pixel_judgment_id": "fig-fh-threat-bands",
+      "slug": "fig-fh-threat-bands",
+      "float_kind": "figure",
+      "printed_number": "8.1",
+      "printed_label": "Figure 8.1",
+      "chapter": 8,
+      "page": 417,
+      "printed_folio": "402",
+      "caption": "The assurance landscape is uneven and falsifiable. Position en- codes how far each threat has moved from an acknowledged gap toward a mechanized artifact. Identity and replay have the strongest concrete evidence. Revocation, equivocation, and settlement are conditional on named connectiv- ity or custody hypotheses; the thick settlement interval shows how widely its assurance moves if the gate is bypassable. Cold start, cartel monitoring, and centralization remain open. A row advances only when the missing artifact or theorem exists.",
+      "caption_fingerprint": "88f0ef6df851f1d4",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
+      "tex_label": "fig:fh-threat-bands",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        66.95,
+        413.12,
+        351.39
+      ],
+      "ink_bbox_pt": [
+        65.69,
+        85.68,
+        401.34,
+        229.39
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        261.51,
+        383.27,
+        351.39
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 15,
+        "caption_gap_pt": 32.1,
+        "grown_above_ink_pt": 18.7,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 7.76,
+      "smallest_type_px_at_crop_dpi": 32.3,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 416,
+        "recto": 417,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 416,
+        "after": 418
+      },
+      "images": {
+        "figure": "img/figure/fig-fh-threat-bands.webp",
+        "page": "img/page/fig-fh-threat-bands.webp",
+        "spread": "img/spread/fig-fh-threat-bands.webp"
+      }
+    },
+    {
+      "id": "fig-fh-xfer-ceremony",
+      "pixel_judgment_id": "fig-fh-xfer-ceremony",
+      "slug": "fig-fh-xfer-ceremony",
+      "float_kind": "figure",
+      "printed_number": "8.2",
+      "printed_label": "Figure 8.2",
+      "chapter": 8,
+      "page": 418,
+      "printed_folio": "403",
+      "caption": "The transfer ceremony attenuates authority and then removes source reachback from the hot path. The green envelope narrows from 𝐶𝐴 to 𝐶′ 𝐵⊆𝐶𝐴as the signed offer and acknowledgement bind source and des- tination epoch roots. After message 3, Harbor B can verify and deliver the attenuated card locally. Harbor A still matters asynchronously: a later epoch root can revoke the transfer once that root reaches B’s audit surface. Transfer therefore neither copies full authority nor makes every use synchronous.",
+      "caption_fingerprint": "be7a7d2f67fffedc",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
+      "tex_label": "fig:fh-xfer",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        75.21,
+        446.66,
+        329.26
+      ],
+      "ink_bbox_pt": [
+        92.22,
+        75.21,
+        422.05,
+        204.15
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        250.83,
+        383.18,
+        329.26
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 19,
+        "caption_gap_pt": 46.7,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI",
+          "TeXGyreHeros-Regular",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 6.05,
+      "smallest_type_px_at_crop_dpi": 25.2,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 418,
+        "recto": 419,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 417,
+        "after": 419
+      },
+      "images": {
+        "figure": "img/figure/fig-fh-xfer-ceremony.webp",
+        "page": "img/page/fig-fh-xfer-ceremony.webp",
+        "spread": "img/spread/fig-fh-xfer-ceremony.webp"
+      }
+    },
+    {
+      "id": "fig-fh-revocation-gossip",
+      "pixel_judgment_id": "fig-fh-revocation-gossip",
+      "slug": "fig-fh-revocation-gossip",
+      "float_kind": "figure",
+      "printed_number": "8.3",
+      "printed_label": "Figure 8.3",
+      "chapter": 8,
+      "page": 421,
+      "printed_folio": "406",
+      "caption": "Revocation propagation is a moving staleness frontier. Alice re- fuses immediately; B remains stale until Δ and C until 2Δ in this illustrated execution. The amber area is precisely where a revoked capability can still be admitted by the named local authority. The teal staircase marks synchroniza- tion, not a global clock. Expected Θ(log 𝑚) dissemination requires connected reliable rounds; a partition can extend the amber area without bound and therefore destroys any finite deadline.",
+      "caption_fingerprint": "57eb38202dbb544a",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-revocation-gossip.tex",
+      "tex_label": "fig:fh-revocation",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.6,
+        82.73,
+        383.18,
+        304.1
+      ],
+      "ink_bbox_pt": [
+        111.01,
+        82.73,
+        375.74,
+        204.53
+      ],
+      "caption_bbox_pt": [
+        57.6,
+        225.68,
+        383.18,
+        304.1
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 14,
+        "caption_gap_pt": 21.1,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular",
+          "pxmiaX"
+        ]
+      },
+      "smallest_type_pt": 7.37,
+      "smallest_type_px_at_crop_dpi": 30.7,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 420,
+        "recto": 421,
+        "figure_side": "recto"
+      },
+      "neighbours": {
+        "before": 420,
+        "after": 422
+      },
+      "images": {
+        "figure": "img/figure/fig-fh-revocation-gossip.webp",
+        "page": "img/page/fig-fh-revocation-gossip.webp",
+        "spread": "img/spread/fig-fh-revocation-gossip.webp"
+      }
+    },
+    {
+      "id": "fig-fh-revocation-regime",
+      "pixel_judgment_id": "fig-fh-revocation-regime",
+      "slug": "fig-fh-revocation-regime",
+      "float_kind": "figure",
+      "printed_number": "8.4",
+      "printed_label": "Figure 8.4",
+      "chapter": 8,
+      "page": 422,
+      "printed_folio": "407",
+      "caption": "Which bound binds a stale card after revocation. Under a partition bound and a delivery service level, exposure is at most the two added together (Corollary 8.5.1); once that sum exceeds the card’s time to live, the expiry binds instead and the harbor fails closed. Without a partition bound the horizontal axis is unbounded and only the expiry remains (Theorem 8.5.1, item 3); the line is drawn for a time to live of eight rounds.",
+      "caption_fingerprint": "ec4b93ccef90d90c",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-revocation-regime.tex",
+      "tex_label": "fig:fh-revocation-regime",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.28,
+        165.92,
+        381.78,
+        408.23
+      ],
+      "ink_bbox_pt": [
+        117.47,
+        165.92,
+        376.18,
+        297.4
+      ],
+      "caption_bbox_pt": [
+        57.28,
+        341.26,
+        381.78,
+        408.23
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 5,
+        "caption_gap_pt": 43.9,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "TeXGyreHeros-Regular"
+        ]
+      },
+      "smallest_type_pt": 7.67,
+      "smallest_type_px_at_crop_dpi": 32.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 422,
+        "recto": 423,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 421,
+        "after": 423
+      },
+      "images": {
+        "figure": "img/figure/fig-fh-revocation-regime.webp",
+        "page": "img/page/fig-fh-revocation-regime.webp",
+        "spread": "img/spread/fig-fh-revocation-regime.webp"
+      }
+    },
+    {
+      "id": "fig-fh-cycle-vs-cut",
+      "pixel_judgment_id": "fig-fh-cycle-vs-cut",
+      "slug": "fig-fh-cycle-vs-cut",
+      "float_kind": "figure",
+      "printed_number": "8.5",
+      "printed_label": "Figure 8.5",
+      "chapter": 8,
+      "page": 426,
+      "printed_folio": "411",
+      "caption": "Cycle versus cut on six harbors, numbered 1 to 6. The same pair- wise disagreement on one overlap is placed on the cycle 𝐶6 and on the path 𝑃6. On the cycle the disagreeing edge closes a visible cycle and the consistency radius is 𝑟= 3 (1 −5/6)1/2 = 1.2247; on the path no edge closes a cycle and 𝑟= 0, so detection is exactly the visible-cycle condition of the theorem. [veri- fied; sheaf_consistency_radius.py, seed 20260816]",
+      "caption_fingerprint": "d47faf46d3ceafa2",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-cycle-vs-cut.tex",
+      "tex_label": "fig:fh-cycle-vs-cut",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        226.08,
+        454.9,
+        488.66
+      ],
+      "ink_bbox_pt": [
+        57.6,
+        253.99,
+        454.9,
+        379.67
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        421.69,
+        383.2,
+        488.66
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured-grown-upward",
+      "detection_notes": {
+        "ink_rects": 20,
+        "caption_gap_pt": 42.0,
+        "grown_above_ink_pt": 27.9,
+        "typefaces": [
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Regular"
+        ]
+      },
+      "smallest_type_pt": 6.97,
+      "smallest_type_px_at_crop_dpi": 29.0,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 426,
+        "recto": 427,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 425,
+        "after": 427
+      },
+      "images": {
+        "figure": "img/figure/fig-fh-cycle-vs-cut.webp",
+        "page": "img/page/fig-fh-cycle-vs-cut.webp",
+        "spread": "img/spread/fig-fh-cycle-vs-cut.webp"
+      }
+    },
+    {
+      "id": "fig-fh-settlement",
+      "pixel_judgment_id": "fig-fh-settlement",
+      "slug": "fig-fh-settlement",
+      "float_kind": "figure",
+      "printed_number": "8.6",
+      "printed_label": "Figure 8.6",
+      "chapter": 8,
+      "page": 432,
+      "printed_folio": "417",
+      "caption": "The custody bound is the absence of an extra transition. Panel A permits exactly one terminal move from funded custody to Clear or Refuse; with a recipient whitelist and fee cap, worst-case loss is bounded by the agreed fee 𝜑. Panel B adds one operator-controlled bypass. The visible extra edge reaches redirect or a second close, exposing the full balance. Threshold sign- ing is only one candidate implementation; the loss theorem holds only when the three authority restrictions are actually non-bypassable.",
+      "caption_fingerprint": "a6c045c886e31c27",
+      "fragment": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+      "tex_label": "fig:fh-settlement",
+      "identity_source": "identity-table",
+      "bbox_pt": [
+        57.2,
+        412.75,
+        472.84,
+        639.79
+      ],
+      "ink_bbox_pt": [
+        95.33,
+        412.75,
+        454.23,
+        531.08
+      ],
+      "caption_bbox_pt": [
+        57.2,
+        561.37,
+        383.18,
+        639.79
+      ],
+      "detection_method": "vector-ink",
+      "bbox_confidence": "measured",
+      "detection_notes": {
+        "ink_rects": 30,
+        "caption_gap_pt": 30.3,
+        "grown_above_ink_pt": 0.0,
+        "typefaces": [
+          "NewPXMI_gnu",
+          "TeXGyreHeros-Regular",
+          "TeXGyrePagellaX-Bold",
+          "pxmiaX",
+          "pxsys"
+        ]
+      },
+      "smallest_type_pt": 6.62,
+      "smallest_type_px_at_crop_dpi": 27.6,
+      "legible_at_crop_dpi": true,
+      "spread": {
+        "verso": 432,
+        "recto": 433,
+        "figure_side": "verso"
+      },
+      "neighbours": {
+        "before": 431,
+        "after": 433
+      },
+      "images": {
+        "figure": "img/figure/fig-fh-settlement.webp",
+        "page": "img/page/fig-fh-settlement.webp",
+        "spread": "img/spread/fig-fh-settlement.webp"
+      }
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 {
   "$schema": "./corpus.schema.json",
   "version": 2,
-  "scopeNote": "Rescoped from origin/codex/whitepaper-corpus-defrag (2026-08-31, commit 014d044d3 and follow-ups). That branch's corpus.json also relocated every whitepaper chapter and formal artifact into new co-located `formal/` trees and folded in a whitepaper chapter/collected-volume/research-publication/skill-satellite/atlas registry. wave-p1/proof-estate brings over only the piece it needs -- the formal-artifact and research-program manifest -- rewritten against the CURRENT (unmoved) file layout, with NO relocations. The chapter/mirror machinery is deliberately NOT carried over: whitepaper/textbook.json plus .github/workflows/library-checks.yml already are that registry's current, live source of truth on this branch (see the 'Textbook Edition' work); adding a second, divergent one here would just be a second place for it to drift. Policy: every on-disk formal artifact is WIRED (ci.status=\"wired\", naming the CI job(s) that run it) or explicitly RETIRED (ci.status=\"retired\", with a reason) -- no third state. See scripts/check-whitepaper-corpus.mjs.",
+  "scopeNote": "Rescoped from origin/codex/whitepaper-corpus-defrag (2026-08-31, commit 014d044d3 and follow-ups). That branch's corpus.json also relocated every whitepaper chapter and formal artifact into new co-located `formal/` trees and folded in a whitepaper chapter/collected-volume/research-publication/skill-satellite/atlas registry. wave-p1/proof-estate brings over only the piece it needs -- the formal-artifact and research-program manifest -- rewritten against the CURRENT file layout. That rescope performed no relocations; the one since made is the ADR-0096 guidance-envelope pair moving out of docs/adr/models/ (its only occupants, leaving the directory gone) into proofs/coordination/, beside the other model of the daemon-to-agent-body channel. The chapter/mirror machinery is deliberately NOT carried over: whitepaper/textbook.json plus .github/workflows/library-checks.yml already are that registry's current, live source of truth on this branch (see the 'Textbook Edition' work); adding a second, divergent one here would just be a second place for it to drift. Policy: every on-disk formal artifact is WIRED (ci.status=\"wired\", naming the CI job(s) that run it) or explicitly RETIRED (ci.status=\"retired\", with a reason) -- no third state. See scripts/check-whitepaper-corpus.mjs.",
   "forbiddenLegacyRoots": {
     "enabled": false,
-    "reason": "The origin/codex/whitepaper-corpus-defrag branch this manifest was recovered from relocated every formal artifact into co-located `formal/` trees and treated analyses/, proofs/, docs/adr/models/, docs/harbor-research, docs/research, and docs/whitepaper-critical-review.md as forbidden legacy roots that must no longer exist. wave-p1/proof-estate deliberately did NOT perform that relocation (out of scope; the author reviews prose/structure moves separately), so every one of those roots still holds the estate's real, current files. Keeping this rule enabled would make the checker fail permanently against the actual current layout. Flip `enabled` to true only alongside an actual relocation PR that empties these paths.",
+    "reason": "The origin/codex/whitepaper-corpus-defrag branch this manifest was recovered from relocated every formal artifact into co-located `formal/` trees and treated analyses/, proofs/, docs/adr/models/, docs/harbor-research, docs/research, and docs/whitepaper-critical-review.md as forbidden legacy roots that must no longer exist. wave-p1/proof-estate deliberately did NOT perform that wholesale relocation (out of scope; the author reviews prose/structure moves separately), so all but one of those roots still holds the estate's real, current files -- the exception is docs/adr/models/, whose only occupants were the ADR-0096 guidance-envelope pair, since moved to proofs/coordination/ next to the other daemon-to-agent-body coordination model, leaving that directory gone. Keeping this rule enabled would still make the checker fail permanently against the actual current layout of the roots that remain. Flip `enabled` to true only alongside an actual relocation PR that empties these paths.",
     "roots": [
       "docs/harbor-research",
       "docs/whitepaper-critical-review.md",
@@ -325,11 +325,11 @@
       "authority": "design-claim",
       "status": "current",
       "paths": [
-        "docs/adr/models/guidance_envelope_v0.pv"
+        "proofs/coordination/guidance_envelope_v0.pv"
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run; RESULT lines verified byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover. proofs/** is in proverif-estate's glob and path filter; lib/agent-harbor/suggestibility-authority.ts parses this transcript as the ADR-0096 suggestibility gate, so a drifted file caps that axis at C0.",
       "ci": {
         "status": "wired",
         "job": [
@@ -343,11 +343,11 @@
       "authority": "design-claim",
       "status": "current",
       "paths": [
-        "docs/adr/models/guidance_envelope_v0_unsigned_vuln.pv"
+        "proofs/coordination/guidance_envelope_v0_unsigned_vuln.pv"
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; negative control asserted to report an 'is false.' RESULT",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run; RESULT lines verified byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover. A negative control that must keep failing: both agreement queries are committed 'is false.', the filename still matches the runner's *_vuln*.pv glob, and a green run here would mean the check went vacuous.",
       "ci": {
         "status": "wired",
         "job": [
@@ -665,7 +665,7 @@
       "evidencePolicy": "a skill scaffold with open TODO queries (capability containment, revocation effectiveness, non-equivocation are all unfinished); not a claim about a real Port Daddy protocol and has no committed evidence file",
       "ci": {
         "status": "retired",
-        "reason": "skill teaching template, not a protocol claim about this repository; deliberately outside scripts/proofs/run-proverif.py's three scan roots (analyses/, proofs/**, docs/adr/models/) -- see that script's module docstring"
+        "reason": "skill teaching template, not a protocol claim about this repository; deliberately outside scripts/proofs/run-proverif.py's two scan roots (analyses/, proofs/**) -- see that script's module docstring"
       }
     }
   ],

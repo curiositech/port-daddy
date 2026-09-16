@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-stp-sybil-whitewash/fig-stp-sybil-whitewash.pdf",
+  "figure": "fig-stp-sybil-whitewash",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -25,21 +25,21 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            224.55810546875,
-            163.43092346191406,
-            256.6665954589844,
-            171.12525939941406
+            217.71661376953125,
+            159.41732788085938,
+            251.72483825683594,
+            167.83729553222656
           ],
           "other_bbox": [
-            228.23306274414062,
-            165.0765380859375,
-            232.31875610351562,
-            172.7708740234375
+            223.88726806640625,
+            161.11959838867188,
+            228.2151336669922,
+            169.53956604003906
           ],
           "text": "respawns",
           "other_text": "3",
-          "overlap_fraction": 0.786,
-          "message": "text 'respawns' overlaps '3' by 78.6% of the smaller bbox"
+          "overlap_fraction": 0.798,
+          "message": "text 'respawns' overlaps '3' by 79.8% of the smaller bbox"
         }
       ]
     },
@@ -52,20 +52,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            155.28704833984375,
-            57.06304168701172,
-            242.010009765625,
-            64.75738525390625
+            153.10693359375,
+            55.780235290527344,
+            244.99398803710938,
+            64.20020294189453
           ],
           "text": "principal-bound identity",
           "line_segment": [
             [
-              186.4910888671875,
-              158.87106323242188
+              183.45962524414062,
+              155.31033325195312
             ],
             [
-              186.4910888671875,
-              63.09006118774414
+              183.45962524414062,
+              62.14263153076172
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'principal-bound identity'"
@@ -75,20 +75,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            155.28704833984375,
-            133.61505126953125,
-            237.88583374023438,
-            141.30938720703125
+            153.10693359375,
+            130.3345489501953,
+            240.6072235107422,
+            138.7545166015625
           ],
           "text": "fresh self-asserted label",
           "line_segment": [
             [
-              186.4910888671875,
-              158.87106323242188
+              183.45962524414062,
+              155.31033325195312
             ],
             [
-              186.4910888671875,
-              63.09006118774414
+              183.45962524414062,
+              62.14263153076172
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'fresh self-asserted label'"
@@ -98,20 +98,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            382.42498779296875,
-            73.4099349975586,
-            456.2060546875,
-            81.10427856445312
+            374.04766845703125,
+            71.7720718383789,
+            452.1933288574219,
+            80.1920394897461
           ],
           "text": "one label = one vote",
           "line_segment": [
             [
-              304.1650085449219,
-              150.6611785888672
+              297.92291259765625,
+              147.324462890625
             ],
             [
-              438.25830078125,
-              61.721683502197266
+              428.35760498046875,
+              60.81159210205078
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'one label = one vote'"
@@ -119,6 +119,11 @@
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -134,6 +139,17 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1432,
+      "edge_density": 0.1024,
+      "distinct_colors": 1732,
+      "flags": [
+        "edge_density=0.102 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
