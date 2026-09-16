@@ -263,6 +263,17 @@ const knownUnreferencedFragments = [
   // Superseded by fig-anchor-four-phases; kept for out-of-tree consumers.
   'website-v2/public/whitepaper/figures/fig-anchor-phases.tex',
   'website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex',
+  // Rival-variant comparison drawings ("the six rival variants as drawable
+  // fragments", the figure-rivals-and-mermaid gallery): six candidate
+  // redraws were produced, three won and are \input by their chapters
+  // (fig-anchor-handshake-ladder, fig-bc-delta-threshold,
+  // fig-he-succession-price), and these three are the losing variants,
+  // kept on disk for the gallery's own side-by-side comparison rather than
+  // wired into the Book. Deliberately unreferenced by design, not an
+  // oversight.
+  'website-v2/public/whitepaper/figures/fig-bc-graduated-trigger.tex',
+  'website-v2/public/whitepaper/figures/fig-bc-oracle-audit-rate.tex',
+  'website-v2/public/whitepaper/figures/tab-bc-settlement-rule.tex',
 ];
 
 // The shared figure apparatus exists TWICE -- once under whitepaper/figures and
