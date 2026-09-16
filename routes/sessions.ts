@@ -249,6 +249,30 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return filePath;
   }
 
+  function mergeClaimConflicts(...groups: unknown[][]): unknown[] {
+    const merged: unknown[] = [];
+    const seen = new Set<string>();
+    for (const group of groups) {
+      for (const raw of group) {
+        if (!raw || typeof raw !== 'object') {
+          merged.push(raw);
+          continue;
+        }
+        const conflict = raw as ClaimConflictRecord;
+        const address = claimAddress(conflict);
+        const key = address
+          && typeof conflict.sessionId === 'string'
+          && Number.isSafeInteger(conflict.claimedAt)
+          ? `${conflict.sessionId}\0${address}\0${conflict.claimedAt}`
+          : null;
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        merged.push(raw);
+      }
+    }
+    return merged;
+  }
+
   function buildClaimConflictSignal(
     requesterActorId: string,
     rawConflicts: unknown[],
@@ -1357,16 +1381,18 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return routeAuth.result;
       }
 
-      if (hasFiles && !force) {
+      let repositoryConflicts: unknown[] = [];
+      if (hasFiles) {
         const conflictCheck = sessions.getFileConflicts(files, { project: routeAuth.ownerProject });
-        if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
-          evaluateClaimConflictBestEffort(requestAgent.verdict, conflictCheck.conflicts);
+        repositoryConflicts = Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [];
+        if (!force && repositoryConflicts.length > 0) {
+          evaluateClaimConflictBestEffort(requestAgent.verdict, repositoryConflicts);
           reply.code(409);
           return {
             success: false,
             error: 'File conflicts detected',
             code: 'FILE_CONFLICT',
-            conflicts: conflictCheck.conflicts,
+            conflicts: repositoryConflicts,
             hint: 'Use force=true to claim files anyway'
           };
         }
@@ -1383,8 +1409,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
       }
 
-      if (Array.isArray(result.conflicts) && result.conflicts.length > 0) {
-        evaluateClaimConflictBestEffort(requestAgent.verdict, result.conflicts);
+      const conflicts = mergeClaimConflicts(
+        repositoryConflicts,
+        Array.isArray(result.conflicts) ? result.conflicts : [],
+      );
+      result.conflicts = conflicts;
+      if (conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(requestAgent.verdict, conflicts);
       }
 
       logger.info('session_files_claimed', {

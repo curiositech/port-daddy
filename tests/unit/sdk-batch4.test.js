@@ -982,6 +982,51 @@ describe('Route error codes: sessions', () => {
     expect(wrongAgent.json().code).toBe('SESSION_AGENT_MISMATCH');
   });
 
+  test('forced file claims retain same-project conflicts across linked worktrees', async () => {
+    const stamped = (alias) => ({ identity: { verified: true, actorId: creds[alias].actorId } });
+    const owner = sessionsMod.start('alpha main owner', {
+      agentId: 'agent-owner',
+      project: 'alpha',
+      worktreeId: 'alpha-main',
+      metadata: stamped('agent-owner'),
+    });
+    const linked = sessionsMod.start('alpha linked claimant', {
+      agentId: 'agent-2',
+      project: 'alpha',
+      worktreeId: 'alpha-linked',
+      metadata: stamped('agent-2'),
+    });
+    const beta = sessionsMod.start('beta claimant', {
+      agentId: 'agent-intruder',
+      project: 'beta',
+      worktreeId: 'beta-main',
+      metadata: stamped('agent-intruder'),
+    });
+    expect(sessionsMod.claimFiles(owner.id, ['README.md'], {
+      agentId: 'agent-owner',
+    }).success).toBe(true);
+
+    const forced = await app.inject({
+      method: 'POST',
+      url: `/sessions/${linked.id}/files`,
+      headers: creds['agent-2'].headers,
+      payload: { files: ['README.md'], force: true },
+    });
+    const otherProject = await app.inject({
+      method: 'POST',
+      url: `/sessions/${beta.id}/files`,
+      headers: creds['agent-intruder'].headers,
+      payload: { files: ['README.md'], force: true },
+    });
+
+    expect(forced.statusCode).toBe(200);
+    expect(forced.json().conflicts).toEqual([
+      expect.objectContaining({ filePath: 'README.md', sessionId: owner.id }),
+    ]);
+    expect(otherProject.statusCode).toBe(200);
+    expect(otherProject.json().conflicts).toEqual([]);
+  });
+
   test('DELETE /sessions/:id/files requires the owning agent', async () => {
     const session = await app.inject({
       method: 'POST',

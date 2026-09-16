@@ -152,6 +152,63 @@ describe('authenticated claim conflict automatic Parley', () => {
     await harness.app.close();
   });
 
+  test('forced linked-worktree claims preserve repository conflict evidence and trigger Parley', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'forced-alpha-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'forced-alpha-linked');
+    const beta = mintTestActor(harness.actorSouls, 'forced-beta-owner');
+    const stamped = (actorId: string) => ({ identity: { verified: true, actorId } });
+    const ownerSession = harness.sessions.start('Alpha main owner', {
+      agentId: 'forced-alpha-owner',
+      project: 'alpha',
+      worktreeId: 'alpha-main',
+      metadata: stamped(owner.actorId),
+    });
+    const challengerSession = harness.sessions.start('Alpha linked challenger', {
+      agentId: 'forced-alpha-linked',
+      project: 'alpha',
+      worktreeId: 'alpha-linked',
+      metadata: stamped(challenger.actorId),
+    });
+    const betaSession = harness.sessions.start('Beta owner', {
+      agentId: 'forced-beta-owner',
+      project: 'beta',
+      worktreeId: 'beta-main',
+      metadata: stamped(beta.actorId),
+    });
+    expect(harness.sessions.claimFiles(ownerSession.id, ['README.md'], {
+      agentId: 'forced-alpha-owner',
+    }).success).toBe(true);
+
+    const forced = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${challengerSession.id}/files`,
+      headers: challenger.headers,
+      payload: { files: ['README.md'], force: true },
+    });
+    const otherProject = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${betaSession.id}/files`,
+      headers: beta.headers,
+      payload: { files: ['README.md'], force: true },
+    });
+
+    expect(forced.statusCode).toBe(200);
+    expect(forced.json()).toMatchObject({
+      success: true,
+      claimed: ['README.md'],
+      conflicts: [{ sessionId: ownerSession.id, filePath: 'README.md' }],
+    });
+    expect(forced.json().conflicts).toHaveLength(1);
+    expect(otherProject.statusCode).toBe(200);
+    expect(otherProject.json().conflicts).toEqual([]);
+    expect(harness.parley.list({ harbor: 'local' })).toHaveLength(1);
+    expect(harness.inbox.list(owner.actorId).messages).toHaveLength(1);
+    expect(harness.inbox.list(challenger.actorId).messages).toHaveLength(1);
+    expect(harness.inbox.list(beta.actorId).messages).toHaveLength(0);
+    await harness.app.close();
+  });
+
   test('creates exactly one indexed Parley and one inbox summons per live actor across replay and force', async () => {
     const harness = buildHarness();
     const { owner, challenger, challengerSession } = await establishConflict(harness);
