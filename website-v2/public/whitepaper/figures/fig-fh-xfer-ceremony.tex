@@ -7,13 +7,13 @@
   \node[pd panel title,anchor=west] at (-6.8,3.15)
     {authority shrinks while destination-local verification takes over};
   \foreach \x/\n/\lab in {-5.4/1/request,-1.8/2/offer,1.8/3/acknowledge,5.4/4/deliver}
-    {\draw[pd guide] (\x,-2.35)--(\x,2.30);
+    {\draw[pd lattice] (\x,-2.35)--(\x,2.30);
      \node[pd datum] at (\x,2.15) {};
      \node[pd direct label,anchor=south] at (\x,2.42) {\n. \lab};}
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.15,2.15)--(6.15,2.15);
 
   % Capability envelope narrows at each authority-changing message.
-  \fill[hhteal!10]
+  \fill[pd focus fill]
     (-5.4,1.35)--(-1.8,1.20)--(1.8,.78)--(5.4,.78)--
     (5.4,-.22)--(1.8,-.22)--(-1.8,-.70)--(-5.4,-1.05)--cycle;
   \draw[pd focus rule,line width=1.2pt]

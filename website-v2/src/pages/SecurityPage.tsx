@@ -405,7 +405,7 @@ pd note "Race condition in token refresh/retry. Starting there."
                   <Link to="/library#the-architecture-drawn" className="inline-flex items-center gap-[var(--space-1)] text-[var(--brand-primary)] hover:underline">
                     Anchor Protocol paper <ArrowRight size={14} />
                   </Link>
-                  <Link to="/library" className="inline-flex items-center gap-[var(--space-1)] text-[var(--brand-primary)] hover:underline">
+                  <Link to="/whitepaper" className="inline-flex items-center gap-[var(--space-1)] text-[var(--brand-primary)] hover:underline">
                     Federated Harbor paper <ArrowRight size={14} />
                   </Link>
                   <Link to="/whitepaper" className="inline-flex items-center gap-[var(--space-1)] text-[var(--brand-primary)] hover:underline">

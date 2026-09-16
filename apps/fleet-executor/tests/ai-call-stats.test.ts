@@ -25,7 +25,6 @@ function ship(over: Partial<ShipConfig> = {}): ShipConfig {
     role: 'r',
     telos: 't',
     blocking: false,
-    needsExecution: false,
     ideation: false,
     purser: false,
     blockWithoutSandbox: false,

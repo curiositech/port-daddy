@@ -41,6 +41,7 @@ import { createProjectSemaphoreRegistry, type ProjectSemaphoreRegistry } from '.
 import type { CostTracker } from './cost-tracker.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { TupleSpace } from './tuples.js';
+import { createLocalRuntimeGate } from './local-runtime-control.js';
 
 /**
  * Categorize fleet agents by whether their declared backend/model is currently
@@ -103,6 +104,8 @@ function logLaunchability(logger: FleetDaemonDeps['logger'], project: string, co
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface FleetDaemonDeps {
+  /** Injectable observation for deterministic tests; defaults to canonical local Off. */
+  runtimeAllowed?: () => boolean;
   /** Registered projects module (for scanning) */
   projects: {
     list(options?: { pattern?: string }): Array<{ id: string; root: string; tags?: string[] | null }>;
@@ -259,6 +262,15 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   let startedAt: number | null = null;
   let leaseRenewTimer: ReturnType<typeof setInterval> | null = null;
   let approvalSweepTimer: ReturnType<typeof setInterval> | null = null;
+  const runtimeAllowed = createLocalRuntimeGate(deps.runtimeAllowed);
+
+  /** Refuse and drain on Off; this process cannot resume by removing a marker. */
+  function admitRuntime(): boolean {
+    if (runtimeAllowed()) return true;
+    stop();
+    logger.warn('fleet_local_off', { reason: 'local_off_or_control_unavailable' });
+    return false;
+  }
 
   const daemonOwner = [
     'fleetd',
@@ -661,6 +673,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     const projectSemaphore = concurrency.for(config.name, projectCap);
 
     const runner = createFleetRunner(config, projectDir, {
+      runtimeAllowed,
       onEvent: handleEvent,
       costTracker,
       initiallyPausedAgents: [...(projectPausedAgents.get(projectDir) ?? new Set<string>())],
@@ -820,6 +833,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         // Debounce: collapse rapid saves (editor save + formatter = 2 events)
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
+          if (!admitRuntime()) return;
           logger.info('fleet_config_changed', { project: projectDir, file: configPath });
 
           // Load new config first — only stop old runner if replacement is ready
@@ -830,6 +844,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
             if (existing) {
               try { existing.runner.stopAll(); } catch {}
             }
+            if (!admitRuntime()) return;
             managed.runner.startAll();
             fleets.set(projectDir, managed);
             updateLeaseName(projectDir, managed.projectName);
@@ -874,6 +889,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
   /** Start all discovered fleets. Called from daemon onReady(). */
   function start(): void {
+    if (!admitRuntime()) return;
     if (isRunning) return;
 
     // Fail-closed TTL sweep: a gate unanswered for PD_APPROVAL_TTL_HOURS
@@ -896,12 +912,14 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     });
 
     for (const { dir } of discovered) {
+      if (!admitRuntime()) return;
       const lease = acquireProjectLease(dir, basename(dir));
       if (!lease.success) continue;
 
       loadEnvFiles(dir);
       const managed = loadProject(dir);
       if (managed) {
+        if (!admitRuntime()) return;
         managed.runner.startAll();
         fleets.set(dir, managed);
         updateLeaseName(dir, managed.projectName);
@@ -920,8 +938,6 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
   /** Stop all fleets. Called from daemon shutdown(). */
   function stop(): void {
-    if (!isRunning) return;
-
     unwatchAll();
     logger.info('fleet_daemon_stopping', { fleets: fleets.size });
     if (leaseRenewTimer) {
@@ -949,6 +965,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
   /** Reload all fleet configs (SIGHUP equivalent). */
   function reload(): void {
+    if (!admitRuntime()) return;
     logger.info('fleet_daemon_reloading');
     stop();
     start();
@@ -959,6 +976,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     projectDir: string,
     options: { enabledAgents?: string[]; allowStableInstallFleet?: boolean } = {}
   ): { success: boolean; error?: string } {
+    if (!admitRuntime()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     if (!options.allowStableInstallFleet && markProtectedStableProject(projectDir, basename(projectDir), 'manual')) {
       return { success: false, error: STABLE_INSTALL_FLEET_SKIP_REASON };
     }
@@ -1001,6 +1019,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       releaseProjectLease(projectDir);
       return { success: false, error: `Duplicate fleet name "${managed.projectName}" already running from ${duplicate.projectDir}` };
     }
+    if (!admitRuntime()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     managed.runner.startAll();
     fleets.set(projectDir, managed);
     updateLeaseName(projectDir, managed.projectName);
@@ -1170,6 +1189,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     project?: string;
     agent?: string;
   }> {
+    if (!admitRuntime()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     const resolved = resolveManagedAgent(agentId, context.project);
     if (!resolved.success) {
       return { success: false, error: resolved.error };
@@ -1205,6 +1225,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   }
 
   function resumeAgent(agentId: string, project?: string): { success: boolean; error?: string; project?: string; agent?: string } {
+    if (!admitRuntime()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     const resolved = resolveManagedAgent(agentId, project);
     if (!resolved.success) return { success: false, error: resolved.error };
     const result = resolved.managed.runner.resumeAgent(resolved.agentName);
@@ -1222,6 +1243,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   }
 
   function setProjectEnabledAgents(projectDir: string, enabledAgents?: string[]): { success: boolean; error?: string } {
+    if (!admitRuntime()) return { success: false, error: 'Local Port Daddy is Off or control state is unavailable' };
     const managed = fleets.get(projectDir);
     const config = managed?.config ?? loadFleetConfig(projectDir);
     if (!config) return { success: false, error: `No pd-fleet.yml found in ${projectDir}` };

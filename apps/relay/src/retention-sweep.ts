@@ -61,6 +61,7 @@ export interface SweepResult {
   sessionsReaped: number;
   usersHardDeleted: number;
   shipwrightChatsPruned: number;
+  shipwrightThreadMessagesPruned: number;
   seamanshipCachePruned: number;
   snipeChatsPruned: number;
   chatSpendPruned: number;
@@ -168,6 +169,13 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     now - SHIPWRIGHT_RETENTION_DAYS * DAY_SECONDS,
     errors,
     'shipwright_chats',
+  );
+  const shipwrightThreadMessagesPruned = await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_thread_messages WHERE created_at < ?',
+    now - SHIPWRIGHT_RETENTION_DAYS * DAY_SECONDS,
+    errors,
+    'shipwright_thread_messages',
   );
 
   // R1c — the Seamanship frontmatter cache. A cache with no eviction is a
@@ -291,6 +299,22 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'shipwright_chats(erased)',
   );
+  // Scoped raw messages and durable repo records are removed on account
+  // erasure. Threads cascade through messages/proposals; memory is direct.
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_repo_memory WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'shipwright_repo_memory(erased)',
+  );
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_threads WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'shipwright_threads(erased)',
+  );
   // Defensive, same shape: eraseUser already dropped the account's Seamanship
   // cache rows and its public listing. These catch anything a crash between
   // those writes left behind, so a hard-deleted user can never keep publishing.
@@ -356,6 +380,7 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     sessionsReaped,
     usersHardDeleted,
     shipwrightChatsPruned,
+    shipwrightThreadMessagesPruned,
     seamanshipCachePruned,
     snipeChatsPruned,
     chatSpendPruned,

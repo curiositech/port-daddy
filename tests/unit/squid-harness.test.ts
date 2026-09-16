@@ -2507,11 +2507,23 @@ describe('Giant Squid Harness — ADR-0132 listening watch (halt sentinel)', () 
       expect(r.stderr).toMatch(/locked by actor 'agent_alpha'/);
     });
 
-    test('stays under the 250 ms breaker line on a halted shell call', () => {
+    test('a halted shell call returns fast enough to be a breaker, not a stall', () => {
       hoist();
       const started = Date.now();
       runPre(bash('git status && pd note x', 'halt-timing'));
-      expect(Date.now() - started).toBeLessThan(250);
+      // 250 is the wrapper's PRODUCTION breaker budget: the work the hook does
+      // once it is running. What this measures is a spawnSync of the real
+      // binary, so it also pays process creation and Node startup, which are
+      // the test harness's cost and not the gate's. On GitHub's macos-latest
+      // runners that overhead alone put this at 297ms (2026-09-09) and
+      // dequeued the merge queue for a gate that had not slowed down at all.
+      // The sibling GC test above hit the same wall in August and settled on a
+      // generous multiple for the same reason; this one takes 1500ms, six
+      // times the production budget and five times the slowest observation.
+      // What it still catches is the regression worth catching: a halt gate
+      // that stops short-circuiting and starts doing work proportional to the
+      // repository takes seconds, not milliseconds.
+      expect(Date.now() - started).toBeLessThan(1_500);
     });
   });
 

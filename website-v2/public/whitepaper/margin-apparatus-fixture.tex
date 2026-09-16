@@ -1,0 +1,21 @@
+% Entry point ONLY. The pathological cases this compiles live at
+% tests/harbor-research/fixtures/margin-apparatus-fixture.tex (see its own
+% header) -- not here, so the fixture is a test asset next to the other
+% margin-apparatus tests, not a ninth chapter source in this directory. This
+% file has to sit beside the Book's own preamble and figures/ anyway:
+% tectonic resolves every \input in a compile job against the directory of
+% the file given on the command line, not against the file currently doing
+% the including, so the preamble's own \input{figures/pd-palette} (and the
+% rest) only resolve if THIS file, not the fixture, is what tectonic is
+% pointed at.
+%
+% Build (from this directory):
+%   tectonic -X compile margin-apparatus-fixture.tex --outdir OUT
+% or via the single entry point for every check that reads a rendered PDF:
+%   python3 scripts/harbor-research/run_pdf_checks.py --build-fixture
+\documentclass[11pt]{article}
+\input{coordination-papers-mega-volume-preamble.tex}
+\begin{document}
+\pagestyle{plain}
+\input{../../../tests/harbor-research/fixtures/margin-apparatus-fixture.tex}
+\end{document}

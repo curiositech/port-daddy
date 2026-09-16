@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>Port Daddy — Operator TUI v5 · Live-bound (real daemon data)</title>
+<!-- v5 = v4 + a LIVE DATA LAYER. When the daemon (:9876) is reachable, the heat
+     tree, filetree, roadmap, digest, and agent control-plane render REAL data from
+     GET /pheromone/files, /roadmap/items, /sessions, /attention. Offline, it falls
+     back to v4's representative data and says so (status pill). Live values are
+     untrusted → esc() before innerHTML. Override daemon: ?pd=http://host:port -->
+
+
+<!--
+  PORT DADDY · OPERATOR TUI MOCKUP — v4 (PARSIMONY)
+  ════════════════════════════════════════════════════════════════════════════
+  v4 builds on v3 (swiss-modern, light-first, Geist, WCAG AAA, sound engine) and
+  answers the operator's five v4 asks:
+
+  1. PARSIMONY + an UNMISSABLE AVATAR "RETREAT SPHERE."  The default screen is
+     the Avatar Sphere: a calm near-empty room with just your buddy + a one-line
+     "everything's handled" digest. All the dense surfaces (panes, control plane,
+     heat tree, editor) are OPT-IN — one keystroke (⌥0) always retreats you back
+     to the sphere. You can dive as deep as you want, then come home.
+
+  2. MY WORDS ≠ AGENT WORDS.  Distinct typographic + chromatic register:
+       - YOU  : Geist Sans, ink, right-anchored, a warm paper "operator" bubble.
+       - AVATAR (your buddy): Geist Sans medium, TEAL, left, larger, a soft
+         teal-tinted bubble with a standing presence dot — unmissable.
+       - AGENTS: Geist MONO, cooler/recessed, a "machine register" — clearly the
+         swarm talking, not your buddy.
+
+  3. IDE-STYLE EDITOR + FILETREE (its own pane).  Real syntax-highlighted code
+     with the pheromone AST/symbol heat overlay (viz Mode B), a heat gutter,
+     line-region claims with agent attribution, and operator inline annotations.
+
+  4. PHEROMONE VISUALIZATION — the full FIVE MODES from
+     .scratch/pheromone-visualization-research.md:
+       A heat-tree treemap · B AST/symbol overlay · C time sparkline strip ·
+       D glance tile · E enriched `pd sniff` JSON (the agent's-eye read).
+     Composition law: DOMINANT kind drives hue, others are corner GLYPHS
+     (color×shape is the most separable pair). Reserved always-visible set
+     (human-blocked, test-failing, cost-over-budget). Red = failure-class ONLY.
+
+  5. AGENT CONTROL PLANE — show what `pd attention` actually sends an agent,
+     from the REAL schema (lib/attention.ts AttentionItem/AttentionSummary):
+       inbox DMs · subscribed channels · pheromones it's reading (rank/trend/
+       advice) · pending SUGGESTIONS (ADR-0039 suggestibility layer, 4 kinds).
+
+  Palette: CANON only (website-v2/src/styles/tokens.semantic.css). One accent
+  (brand blue) + restricted teal (avatar). Mayday-red reserved for the human
+  gate. WCAG AAA both themes (carried from v3, verified). 14px floor; eyebrows
+  13px uppercase+700+tracked. Reduced-motion safe; opt-in sound.
+-->
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<style>
+/* ── Fonts (Geist superfamily + Departure pixel accent) — typography-expert DP-1/DP-3 */
+@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:600;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:700;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:700;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Departure Mono';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/gh/projectnoonnu/2409-1@1.0/DepartureMono-Regular.woff2) format('woff2');}
+
+/* ── Tokens — CANON (from tokens.semantic.css). Light-first + dark toggle. AAA. */
+:root, [data-theme='light']{
+  --surface-base:#f2eee6; --surface-raised:#f7f3eb; --surface-strong:#e9e2d5;
+  --surface-overlay:rgba(242,238,230,.97); --surface-sunken:#e0d9cb; --scrim-backdrop:rgba(18,18,18,.62);
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#47423a; --text-inverse:#fbf7ef;
+  --brand-primary:#003fb8; --brand-primary-on-tint:#002d83;
+  --brand-accent:#004a42; --brand-accent-on-tint:#003d36;
+  --brand-primary-foreground:#fbf7ef; --brand-accent-foreground:#fbf7ef;
+  --success-ink:#15522a; --error-ink:#8c1d1d;
+  --interactive-hover:rgba(18,18,18,.05); --interactive-active:rgba(0,85,255,.12); --interactive-focus:#0055ff;
+  --border-subtle:rgba(18,18,18,.16); --border-default:rgba(18,18,18,.42); --border-strong:#121212;
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f; --status-info:#0055ff;
+  --status-warning-on-tint:#5b3900;
+  --code-bg:#12161f; --code-header-bg:#0d1118; --code-text:#edf1f9;
+  --code-kw:#c4a6ff; --code-fn:#8dc4ff; --code-str:#9fe0b4; --code-num:#f2be77; --code-comment:#9aa6bd; --code-line-number:#a0a8ba; --code-punct:#c4cee2;
+  --mayday-slab:#a51f1f; --mayday-slab-fg:#ffffff;
+  /* avatar "you+buddy" sphere tint */
+  --you-bg:#eee7d6; --avatar-bg:#dff0ea; --avatar-ring:var(--brand-accent);
+  --dim:0.9; --dim-tint:rgba(18,18,18,.035);
+  /* pheromone KIND palette — dominant-hue-drives + glyphs. Single source: each is
+     a maritime/status family member. (Color×shape separability; red=failure only) */
+  --ph-hot:#a66f00;        /* hot:editing — ochre "busy", NOT red */
+  --ph-recent:#0055ff;     /* recent:touched — info blue */
+  --ph-cold:#6b6457;       /* cold:abandoned — muted */
+  --ph-blocked:#003fb8;    /* attention:human-blocked — cobalt (reserved glyph) */
+  --ph-test:#a66f00;       /* quality:test-failing — ochre→ but reserved glyph */
+  --ph-fail:#a51f1f;       /* experience:failed — RED (failure-class only) */
+  --ph-cost:#8c1d1d;       /* cost:burning — red-ink (reserved glyph) */
+  --ph-conflict:#a51f1f;   /* claim:contested — red */
+  --chart-yellow:#cad900;
+}
+[data-theme='dark']{
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-overlay:rgba(16,18,22,.95); --surface-sunken:#0b0d11; --scrim-backdrop:rgba(0,0,0,.68);
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#b3ad9f; --text-inverse:#121212;
+  --brand-primary:#7db4ff; --brand-primary-on-tint:#dbeaff;
+  --brand-accent:#8fd0a7; --brand-accent-on-tint:#bce8ca;
+  --brand-primary-foreground:#121212; --brand-accent-foreground:#121212;
+  --success-ink:#66d28a; --error-ink:#ff7d7d;
+  --interactive-hover:rgba(245,243,237,.07); --interactive-active:rgba(125,180,255,.16); --interactive-focus:#7db4ff;
+  --border-subtle:rgba(245,243,237,.18); --border-default:rgba(245,243,237,.44); --border-strong:#f5f3ed;
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  --status-warning-on-tint:#ffe0a0;
+  --code-bg:#0b0d11; --code-header-bg:#080a0e; --code-text:#f5f3ed;
+  --code-kw:#c4a6ff; --code-fn:#8dc4ff; --code-str:#9fe0b4; --code-num:#f2be77; --code-comment:#9aa6bd; --code-line-number:#a0a8ba; --code-punct:#c4cee2;
+  --mayday-slab:#ff7d7d; --mayday-slab-fg:#121212;
+  --you-bg:#1b1f27; --avatar-bg:#16241f; --avatar-ring:var(--brand-accent);
+  --dim:0.8; --dim-tint:rgba(0,0,0,.16);
+  --ph-hot:#f2be51; --ph-recent:#7db4ff; --ph-cold:#8a8378; --ph-blocked:#7db4ff;
+  --ph-test:#f2be51; --ph-fail:#ff7d7d; --ph-cost:#ff7d7d; --ph-conflict:#ff7d7d;
+  --chart-yellow:#cad900;
+}
+:root{
+  --signal-charlie:var(--status-success); --signal-kilo:var(--status-info);
+  --signal-uniform:var(--status-warning); --signal-lima:var(--text-muted);
+  --voice-mayday:var(--status-error);
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px; --sp7:48px;
+  --bw:1px; --radius:6px; --radius-lg:12px;
+  --sans:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --pixel:'Departure Mono','Geist Mono',ui-monospace,monospace;
+  /* type scale — design-critic rule: ≥1.25 ratio between hierarchy levels.
+     2.0/1.5=1.33 · 1.5/1.2=1.25 · 1.2/0.9375=1.28 — all clear. */
+  --t-display:clamp(1.8rem,3vw,2.6rem); --t-h1:1.5rem; --t-h2:1.2rem;
+  --t-body:0.9375rem; --t-cap:0.875rem; --t-eyebrow:0.8125rem;
+  --swoosh:cubic-bezier(.16,1,.3,1); --snap:cubic-bezier(.34,1.56,.64,1); --ease:cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box;}
+html{font-size:16px;}
+body{margin:0; background:var(--surface-base); color:var(--text-primary);
+  font-family:var(--sans); font-size:var(--t-body); line-height:1.5;
+  font-variant-ligatures:none; -webkit-font-smoothing:antialiased; overflow:hidden;}
+.mono{font-family:var(--mono); font-feature-settings:"tnum" 1,"zero" 1;}
+.eyebrow{font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted);}
+button{font:inherit; color:inherit; cursor:pointer; background:none; border:none;}
+:focus-visible{outline:2px solid var(--interactive-focus); outline-offset:2px;}
+::-webkit-scrollbar{width:10px;height:10px;} ::-webkit-scrollbar-thumb{background:var(--border-subtle);border-radius:6px;}
+
+/* ── App shell ───────────────────────────────────────────────────────────────*/
+.app{display:grid; grid-template-rows:auto 1fr auto; height:100vh;}
+
+/* TOP BAR — the mast + HiTL + parsimony toggle */
+.top{display:flex; align-items:stretch; border-bottom:var(--bw) solid var(--border-subtle); background:var(--surface-raised);}
+.mast{display:flex; align-items:center; gap:var(--sp3); padding:0 var(--sp5); border-right:var(--bw) solid var(--border-subtle);}
+.mast .anchor{font-family:var(--pixel); color:var(--brand-primary); font-size:1rem;}
+.mast b{font-family:var(--sans); font-weight:700; font-size:var(--t-cap); letter-spacing:-.01em;}
+.mast span{font-size:.75rem; color:var(--text-muted);}
+.top .hitl{flex:1; display:flex; align-items:center; gap:var(--sp4); padding:var(--sp2) var(--sp5); min-width:0;}
+.block-card{display:flex; align-items:center; gap:var(--sp3); background:var(--mayday-slab); color:var(--mayday-slab-fg); border-radius:var(--radius); padding:var(--sp2) var(--sp4); min-width:0;}
+.block-card .tag{font-family:var(--sans); font-weight:700; font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:.1em; border:1.5px solid var(--mayday-slab-fg); border-radius:4px; padding:1px 6px;}
+.block-card .msg{font-size:var(--t-cap); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.block-card .msg b{font-weight:700;}
+.block-card .act{margin-left:var(--sp2); font-family:var(--sans); font-weight:700; font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:.08em; background:var(--mayday-slab-fg); color:var(--mayday-slab); border-radius:4px; padding:3px 10px;}
+@media (prefers-reduced-motion:no-preference){ .block-card{animation:beat 1.4s ease-in-out infinite;} @keyframes beat{0%,100%{box-shadow:0 0 0 0 transparent;}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--mayday-slab) 22%,transparent);}} }
+.hitl.clear .block-card{background:transparent; color:var(--text-muted); border:var(--bw) solid var(--border-subtle); animation:none;}
+.hitl.clear .block-card .tag{border-color:var(--border-default);} .hitl.clear .block-card .act{display:none;}
+.top .right{display:flex; align-items:center; gap:var(--sp2); padding:0 var(--sp4); border-left:var(--bw) solid var(--border-subtle);}
+
+/* MODE RAIL — the parsimony spine. Sphere is home; everything else is opt-in. */
+.moderail{display:flex; gap:0; border-right:var(--bw) solid var(--border-subtle); flex-direction:column; background:var(--surface-raised); width:64px; align-items:center; padding-top:var(--sp3);}
+.mode{display:flex; flex-direction:column; align-items:center; gap:3px; width:100%; padding:var(--sp3) 0; color:var(--text-muted); border-left:2px solid transparent; transition:color .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease);}
+.mode .ic{font-family:var(--pixel); font-size:1.05rem; line-height:1;}
+.mode .lb{font-family:var(--sans); font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;}
+.mode:hover{color:var(--text-secondary); background:var(--interactive-hover);}
+.mode.on{color:var(--text-primary); border-left-color:var(--brand-primary); background:var(--interactive-active);}
+.mode.sphere.on{border-left-color:var(--brand-accent); color:var(--brand-accent);}
+.mode .badge{font-family:var(--pixel); font-size:.625rem; background:var(--mayday-slab); color:var(--mayday-slab-fg); border-radius:8px; padding:0 5px; margin-top:2px;}
+
+.body{display:flex; min-height:0;}
+.stage{flex:1; min-width:0; min-height:0; position:relative; overflow:hidden;}
+.view{position:absolute; inset:0; display:none; flex-direction:column; min-height:0;}
+.view.on{display:flex;}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VIEW: AVATAR SPHERE — the calm home. PARSIMONY. Unmissable buddy. The place
+   you retreat to when the swarm is overwhelming.
+   ════════════════════════════════════════════════════════════════════════════ */
+/* The sphere is a COMPOSITION, not a centered stack. Asymmetric left-anchored
+   column (swiss tension); grouping by a real 3:1 rhythm so the eye reads 4
+   sections, not 7 rows; a crafted avatar mark with depth. */
+.sphere{align-items:center; justify-content:center; background:
+  radial-gradient(140% 120% at 22% 18%, color-mix(in srgb,var(--avatar-bg) 70%,var(--surface-base)) 0%, var(--surface-base) 55%);}
+.sphere-inner{width:min(620px,90%); display:grid; gap:0; padding:var(--sp7) 0;}
+/* group 1: the buddy — orb + name bonded tightly, then a generous break */
+.buddy{display:grid; grid-template-columns:auto 1fr; align-items:center; column-gap:var(--sp4); margin-bottom:var(--sp7);}
+.buddy-orb{position:relative; width:60px; height:60px; border-radius:50%;
+  background:
+    radial-gradient(circle at 38% 34%, color-mix(in srgb,var(--brand-accent) 30%,var(--avatar-bg)) 0%, var(--avatar-bg) 62%);
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--brand-accent) 55%,transparent),
+             inset 0 -6px 14px color-mix(in srgb,var(--brand-accent) 14%,transparent);
+  display:flex; align-items:center; justify-content:center;}
+.buddy-orb .glyph{width:14px; height:14px; border-radius:50%;
+  background:radial-gradient(circle at 40% 38%, color-mix(in srgb,#fff 30%,var(--brand-accent)) 0%, var(--brand-accent) 70%);
+  box-shadow:0 0 14px color-mix(in srgb,var(--brand-accent) 60%,transparent);}
+.buddy-orb .pres{position:absolute; right:1px; bottom:1px; width:13px; height:13px; border-radius:50%; background:var(--signal-charlie); box-shadow:0 0 0 2.5px var(--surface-base);}
+@media (prefers-reduced-motion:no-preference){
+  .buddy-orb{animation:breathe 4.5s ease-in-out infinite;}
+  @keyframes breathe{0%,100%{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--brand-accent) 55%,transparent), inset 0 -6px 14px color-mix(in srgb,var(--brand-accent) 14%,transparent), 0 0 0 0 color-mix(in srgb,var(--brand-accent) 22%,transparent);}50%{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--brand-accent) 55%,transparent), inset 0 -6px 14px color-mix(in srgb,var(--brand-accent) 14%,transparent), 0 0 0 10px transparent;}}
+  .buddy-orb .glyph{animation:coreglow 4.5s ease-in-out infinite;}
+  @keyframes coreglow{0%,100%{opacity:.85;}50%{opacity:1;}}
+}
+.buddy .who-block{display:flex; flex-direction:column; gap:1px;}
+.buddy .name{font-family:var(--sans); font-weight:600; font-size:var(--t-h1); color:var(--text-primary); letter-spacing:-.02em; line-height:1;}
+.buddy .role{font-size:var(--t-cap); color:var(--text-muted); letter-spacing:.01em;}
+/* group 2: the digest — the one display line. asymmetric, balanced, restrained:
+   exactly ONE accent (teal), the rest is ink. no highlighter numbers. */
+.digest{font-family:var(--sans); font-weight:500; font-size:clamp(1.35rem,2.2vw,1.7rem); line-height:1.32; letter-spacing:-.015em; color:var(--text-primary); text-wrap:balance; max-width:30ch; margin-bottom:var(--sp6);}
+.digest b{color:var(--brand-accent); font-weight:600;}
+.digest .num{font-weight:600; color:var(--text-primary); font-variant-numeric:tabular-nums;}
+/* group 3: the buddy's message — a true speech surface, not a flat box.
+   left accent spine ties it to the avatar voice; roomy, hanging label. */
+.sphere-msg{position:relative; background:var(--avatar-bg); border-radius:var(--radius-lg);
+  padding:var(--sp4) var(--sp5) var(--sp4) calc(var(--sp5) + 4px);
+  font-size:1.0625rem; color:var(--text-primary); line-height:1.62; margin-bottom:var(--sp6);
+  box-shadow:inset 4px 0 0 var(--brand-accent);}
+.sphere-msg .who{font-family:var(--sans); font-weight:700; font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:.14em; color:var(--brand-accent-on-tint); margin-bottom:var(--sp3); display:block;}
+.sphere-msg code{font-family:var(--mono); background:color-mix(in srgb,var(--brand-accent) 12%,transparent); padding:1px 6px; border-radius:4px; font-size:.85em; color:var(--brand-accent-on-tint);}
+/* group 4: the ask — quiet, full-width, a single hairline underline not a box */
+.sphere-ask{display:flex; align-items:center; gap:var(--sp3); border:0; border-bottom:1.5px solid var(--border-default); border-radius:0; padding:var(--sp3) 2px; margin-bottom:var(--sp5); transition:border-color .2s var(--ease);}
+.sphere-ask:focus-within{border-bottom-color:var(--brand-accent);}
+.sphere-ask .prompt{font-family:var(--pixel); color:var(--brand-accent); opacity:.8;}
+.sphere-ask input{flex:1; background:none; border:none; color:var(--text-primary); font:inherit; font-size:1.0625rem; outline:none;}
+.sphere-ask input::placeholder{color:var(--text-muted);}
+/* peek = a quiet typographic stat row, hairline-separated. NOT pill buttons. */
+.sphere-peek{display:flex; align-items:stretch; gap:0; margin-bottom:var(--sp6); border-top:var(--bw) solid var(--border-subtle); border-bottom:var(--bw) solid var(--border-subtle);}
+.peek-chip{flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:var(--sp3) var(--sp4) var(--sp3) 0; margin-right:var(--sp4); border-right:var(--bw) solid var(--border-subtle); text-align:left; transition:background .2s var(--ease);}
+.peek-chip:last-child{border-right:0; margin-right:0;}
+.peek-chip:hover{background:var(--interactive-hover);}
+.peek-chip .n{font-family:var(--sans); font-weight:700; font-size:1.4rem; line-height:1; color:var(--text-primary); font-variant-numeric:tabular-nums; letter-spacing:-.02em;}
+.peek-chip .lbl{font-size:.78rem; color:var(--text-muted); letter-spacing:.01em;}
+.peek-chip.alert .n{color:var(--mayday-slab);}
+.peek-chip:hover .lbl{color:var(--text-secondary);}
+.sphere-hint{font-size:var(--t-eyebrow); color:var(--text-muted); letter-spacing:.01em;}
+.sphere-hint .key{font-family:var(--pixel); border:var(--bw) solid var(--border-default); border-radius:4px; padding:0 5px; color:var(--brand-primary);}
+
+/* ── Shared bubble register: YOU vs AVATAR vs AGENT (the typographic split) ──*/
+.bubble{max-width:64ch; padding:var(--sp3) var(--sp4); border-radius:var(--radius-lg); font-size:var(--t-body); line-height:1.55;}
+.bubble code{font-family:var(--mono); background:var(--surface-strong); padding:1px 5px; border-radius:3px; font-size:.9em; color:var(--code-fn);}
+.row{display:flex; flex-direction:column; gap:3px; margin-bottom:var(--sp4);}
+.row .who{font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.1em;}
+/* YOU — ink, paper bubble, right-anchored */
+.row.you{align-items:flex-end;} .row.you .who{color:var(--text-secondary);}
+.row.you .bubble{background:var(--you-bg); color:var(--text-primary); font-family:var(--sans); border:var(--bw) solid var(--border-subtle); border-bottom-right-radius:3px;}
+/* AVATAR — teal, soft teal bubble, left, larger, a presence — your buddy */
+.row.avatar .who{color:var(--brand-accent); display:flex; align-items:center; gap:var(--sp2);}
+.row.avatar .who::before{content:"◈"; font-family:var(--pixel);}
+.row.avatar .bubble{background:var(--avatar-bg); color:var(--text-primary); font-family:var(--sans); border:var(--bw) solid color-mix(in srgb,var(--brand-accent) 32%,transparent); border-bottom-left-radius:3px; font-size:1rem;}
+.row.avatar .bubble b{color:var(--brand-accent-on-tint);}
+/* AGENT — MONO, cooler, recessed: the machine register */
+.row.agent .who{color:var(--text-muted);}
+.row.agent .bubble{background:var(--surface-raised); color:var(--text-secondary); font-family:var(--mono); font-size:var(--t-cap); border:var(--bw) solid var(--border-subtle); border-left:2px solid var(--border-default);}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VIEW: SWARM (multiplex panes) — opt-in detail. Avatar pane + agent panes.
+   ════════════════════════════════════════════════════════════════════════════ */
+.swarm{flex-direction:row; background:var(--surface-base);}
+.col{display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden;}
+.col.avatar-col{flex:1 1 46%; border-right:2px solid var(--brand-accent);}
+.col.agent-col{flex:1 1 54%; background:var(--border-subtle); gap:var(--bw);}
+.pane{background:var(--surface-base); display:flex; flex-direction:column; min-height:0; min-width:0; position:relative; overflow:hidden; flex:1 1 0;}
+.pane.dim{opacity:var(--dim); background:linear-gradient(var(--dim-tint),var(--dim-tint)),var(--surface-base);}
+.pane-head{display:flex; align-items:center; gap:var(--sp2); padding:var(--sp2) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle); flex-shrink:0;}
+.pane-head .flag{font-family:var(--pixel);} .pane-head .role{font-family:var(--sans); font-weight:700; font-size:var(--t-cap);}
+.pane-head .doing{font-size:var(--t-eyebrow); color:var(--text-muted);} .pane-head .grow{flex:1;} .pane-head .pk{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted);}
+.avatar-col .pane-head .flag, .avatar-col .pane-head .role{color:var(--brand-accent);}
+.chat{flex:1; overflow-y:auto; padding:var(--sp4); min-height:0;}
+.composer{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp3) var(--sp4); border-top:var(--bw) solid var(--border-subtle); flex-shrink:0;}
+.composer .prompt{font-family:var(--pixel); color:var(--brand-accent);} .composer.agent .prompt{color:var(--text-muted);}
+.composer input{flex:1; background:none; border:none; color:var(--text-primary); font:inherit; outline:none;}
+.composer input::placeholder{color:var(--text-muted);}
+.agent-tabs{display:flex; border-bottom:var(--bw) solid var(--border-subtle); padding:0 var(--sp3); overflow-x:auto;}
+.agent-tab{display:flex; align-items:center; gap:var(--sp2); padding:var(--sp3) var(--sp3); border-bottom:2px solid transparent; color:var(--text-muted); white-space:nowrap;}
+.agent-tab .flag{font-family:var(--pixel);} .agent-tab .role{font-family:var(--sans); font-weight:500; font-size:var(--t-cap);}
+.agent-tab.on{color:var(--text-primary); border-bottom-color:var(--brand-primary);}
+.agent-tab .dot{width:7px; height:7px; border-radius:50%; background:var(--signal-charlie);}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VIEW: CONTROL PLANE — what `pd attention` sends an agent (REAL schema).
+   ════════════════════════════════════════════════════════════════════════════ */
+.cp{flex-direction:column; overflow-y:auto; background:var(--surface-base);}
+.cp-head{padding:var(--sp4) var(--sp6) var(--sp3); border-bottom:var(--bw) solid var(--border-subtle); display:flex; align-items:baseline; gap:var(--sp4);}
+.cp-head h1{margin:0; font-family:var(--sans); font-weight:700; font-size:var(--t-h1); letter-spacing:-.02em;}
+.cp-head .agent-pick{display:flex; gap:var(--sp2); margin-left:auto;}
+.cp-head .agent-pick button{font-family:var(--sans); font-size:var(--t-cap); font-weight:500; border:var(--bw) solid var(--border-subtle); border-radius:99px; padding:3px 12px; color:var(--text-secondary);}
+.cp-head .agent-pick button.on{background:var(--brand-primary); color:var(--brand-primary-foreground); border-color:transparent;}
+.cp-head .src{font-family:var(--mono); font-size:var(--t-eyebrow); color:var(--brand-primary);}
+.cp-grid{padding:var(--sp6) var(--sp7) var(--sp7); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--sp5); align-content:start;}
+.cp-card{border:var(--bw) solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden; background:var(--surface-raised); display:flex; flex-direction:column;}
+.cp-card.span2{grid-column:1 / -1;}
+.cp-card-head{display:flex; align-items:center; gap:var(--sp2); padding:var(--sp3) var(--sp5); border-bottom:var(--bw) solid var(--border-subtle); background:color-mix(in srgb,var(--surface-strong) 40%,var(--surface-raised));}
+.cp-card-head .ic{font-family:var(--pixel); color:var(--brand-primary); opacity:.85;}
+.cp-card-head h2{margin:0; font-family:var(--sans); font-weight:700; font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:.08em; color:var(--text-secondary);}
+.cp-card-head .ct{font-family:var(--sans); font-weight:700; font-size:var(--t-eyebrow); color:var(--text-muted); margin-left:auto; font-variant-numeric:tabular-nums;}
+.cp-card-body{padding:var(--sp4) var(--sp5); display:flex; flex-direction:column; gap:var(--sp4);}
+/* inbox / channel item (AttentionItem) */
+.attn{border-left:2px solid var(--brand-primary); padding:var(--sp3) var(--sp4); background:var(--surface-base); border-radius:0 var(--radius) var(--radius) 0;}
+.attn.channel{border-left-color:var(--brand-accent);}
+.attn.suggestion{border-left-color:var(--status-warning);}
+.attn .meta{display:flex; gap:var(--sp2); align-items:center; font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
+.attn .perf{font-family:var(--mono); font-size:.6875rem; border:var(--bw) solid var(--border-default); border-radius:3px; padding:0 4px; color:var(--text-secondary); text-transform:none; letter-spacing:0;}
+.attn .body{font-size:var(--t-cap); color:var(--text-secondary); margin-top:3px; font-family:var(--mono);}
+.attn .body b{color:var(--text-primary);}
+.attn .when{font-size:.6875rem; color:var(--text-muted); margin-top:2px;}
+.chan-row{display:flex; align-items:center; gap:var(--sp2); font-size:var(--t-cap); padding:var(--sp1) 0; font-family:var(--mono);}
+.chan-row .scope{color:var(--brand-primary);} .chan-row .topic{color:var(--brand-accent);} .chan-row .n{margin-left:auto; font-family:var(--pixel); color:var(--text-muted);}
+/* suggestion card (ADR-0039) */
+.sugg{border:var(--bw) solid color-mix(in srgb,var(--status-warning) 40%,transparent); border-left:3px solid var(--status-warning); border-radius:var(--radius); padding:var(--sp3); background:var(--surface-base);}
+.sugg .kind{font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--status-warning-on-tint); display:flex; align-items:center; gap:var(--sp2);}
+.sugg .conf{margin-left:auto; font-family:var(--pixel); font-size:.6875rem; color:var(--text-muted);}
+.sugg .text{font-size:var(--t-cap); color:var(--text-secondary); margin:var(--sp2) 0; line-height:1.5;}
+.sugg .text b{color:var(--text-primary);} .sugg .text code{font-family:var(--mono); color:var(--brand-primary);}
+.sugg-acts{display:flex; gap:var(--sp2);}
+.sugg-acts button{font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.06em; border-radius:4px; padding:4px 12px; transition:transform .14s var(--snap);}
+.sugg-acts .accept{background:var(--brand-primary); color:var(--brand-primary-foreground);}
+.sugg-acts .decline{border:var(--bw) solid var(--border-default); color:var(--text-secondary);}
+.sugg-acts .mute{border:var(--bw) solid var(--border-subtle); color:var(--text-muted); margin-left:auto;}
+.sugg-acts button:hover{transform:translateY(-1px);}
+/* pheromone read rows (Mode E sniff: rank/trend/advice) */
+.sniff-row{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp1) 0; font-size:var(--t-cap);}
+.sniff-row .kind{min-width:15ch; font-family:var(--mono); color:var(--text-secondary);}
+.sniff-row .bar{flex:1; height:8px; background:var(--surface-strong); border-radius:4px; overflow:hidden;}
+.sniff-row .bar i{display:block; height:100%;}
+.sniff-row .rank{font-family:var(--sans); font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; min-width:6ch;}
+.sniff-row .rank.high{color:var(--error-ink);} .sniff-row .rank.med{color:var(--status-warning-on-tint);} .sniff-row .rank.low{color:var(--text-muted);}
+.sniff-row .trend{font-family:var(--pixel); min-width:2ch;}
+.sniff-advice{font-size:var(--t-cap); color:var(--text-secondary); font-style:italic; border-top:var(--bw) dashed var(--border-subtle); padding-top:var(--sp2); margin-top:var(--sp2);}
+.sniff-advice b{color:var(--brand-primary); font-style:normal;}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VIEW: HEAT TREE (pheromone viz Mode A treemap + Mode C sparklines + Mode D tile)
+   ════════════════════════════════════════════════════════════════════════════ */
+.heat{flex-direction:column; overflow-y:auto; background:var(--surface-base);}
+.heat-head{padding:var(--sp4) var(--sp6) var(--sp3); border-bottom:var(--bw) solid var(--border-subtle); display:flex; align-items:baseline; gap:var(--sp4);}
+.heat-head h1{margin:0; font-family:var(--sans); font-weight:700; font-size:var(--t-h1); letter-spacing:-.02em;}
+.heat-head .law{font-size:var(--t-eyebrow); color:var(--text-muted); margin-left:auto; max-width:46ch; text-align:right;}
+.heat-wrap{padding:var(--sp5) var(--sp6); display:grid; grid-template-columns:1.5fr 1fr; gap:var(--sp5); align-items:start;}
+.treemap{display:flex; flex-direction:column; gap:6px;}
+.tm-row{display:flex; gap:6px;}
+.tm{position:relative; border-radius:var(--radius); padding:var(--sp3); min-height:64px; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer; overflow:hidden; border:var(--bw) solid var(--border-subtle); transition:transform .16s var(--snap);}
+.tm:hover{transform:translateY(-2px); z-index:2;}
+.tm .nm{font-family:var(--mono); font-size:var(--t-cap); font-weight:700; position:relative; z-index:2;}
+.tm .val{font-family:var(--pixel); font-size:var(--t-eyebrow); position:relative; z-index:2; display:flex; align-items:center; gap:var(--sp2);}
+.tm .glyphs{position:absolute; right:6px; bottom:6px; display:flex; gap:3px; font-family:var(--pixel); font-size:.75rem; z-index:2;}
+.tm .fill{position:absolute; inset:0; z-index:0; opacity:.92;}
+/* dominant-kind hue (data-kind sets the tint); lightness scales w/ heat via opacity layer */
+.tm[data-kind="hot"] .fill{background:color-mix(in srgb,var(--ph-hot) 26%,var(--surface-raised));}
+.tm[data-kind="recent"] .fill{background:color-mix(in srgb,var(--ph-recent) 18%,var(--surface-raised));}
+.tm[data-kind="fail"] .fill{background:color-mix(in srgb,var(--ph-fail) 24%,var(--surface-raised));}
+.tm[data-kind="cold"] .fill{background:color-mix(in srgb,var(--ph-cold) 14%,var(--surface-raised));}
+.tm[data-kind="blocked"] .fill{background:color-mix(in srgb,var(--ph-blocked) 22%,var(--surface-raised));}
+.tm .nm,.tm .val{color:var(--text-primary);}
+.glyph-block{color:var(--ph-blocked);} .glyph-test{color:var(--status-warning-on-tint);} .glyph-cost{color:var(--ph-cost);} .glyph-claim{color:var(--ph-conflict);} .glyph-flow{color:var(--brand-primary);}
+.heat-side{display:flex; flex-direction:column; gap:var(--sp5);}
+.glance{border:var(--bw) solid var(--border-subtle); border-radius:var(--radius-lg); background:var(--surface-raised); padding:var(--sp4);}
+.glance h2{margin:0 0 var(--sp3); font-family:var(--sans); font-weight:700; font-size:var(--t-cap); display:flex; align-items:center; gap:var(--sp2);}
+.glance .top-kind{font-family:var(--sans); font-size:var(--t-cap); color:var(--text-secondary); margin-top:var(--sp3); padding-top:var(--sp3); border-top:var(--bw) solid var(--border-subtle);}
+.glance .top-kind b{color:var(--text-primary);}
+.glance .summ{display:flex; gap:var(--sp4); font-family:var(--mono); font-size:var(--t-cap); color:var(--text-secondary); margin-bottom:var(--sp3);}
+.glance .summ .x b{font-family:var(--pixel); color:var(--text-primary);} .glance .summ .x.alert b{color:var(--mayday-slab);}
+.spark-row{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp1) 0; font-size:var(--t-cap);}
+.spark-row .nm{min-width:16ch; font-family:var(--mono); color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.spark{font-family:var(--mono); letter-spacing:-1px; font-size:.9rem;}
+.spark .hot{color:var(--ph-hot);} .spark .fail{color:var(--ph-fail);} .spark .cool{color:var(--text-muted);}
+.spark-row .tag{font-family:var(--sans); font-size:.6875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; min-width:9ch; text-align:right;}
+.legend{font-size:var(--t-eyebrow); color:var(--text-muted); display:flex; flex-wrap:wrap; gap:var(--sp3); padding:var(--sp3) var(--sp6); border-top:var(--bw) solid var(--border-subtle);}
+.legend span{display:flex; align-items:center; gap:4px;} .legend .g{font-family:var(--pixel);}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VIEW: EDITOR — IDE-style code + filetree + AST/symbol heat overlay (Mode B)
+   ════════════════════════════════════════════════════════════════════════════ */
+.editor{flex-direction:row; background:var(--surface-base); min-height:0;}
+.ftree{width:264px; flex-shrink:0; border-right:var(--bw) solid var(--border-subtle); display:flex; flex-direction:column; min-height:0; background:var(--surface-raised);}
+.ftree-head{padding:var(--sp3) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle); display:flex; align-items:baseline; justify-content:space-between;}
+.ftree-head h2{margin:0; font-family:var(--sans); font-weight:700; font-size:var(--t-cap);} .ftree-head .ct{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted);}
+.ftree-scroll{overflow-y:auto; flex:1; padding:var(--sp2) 0; font-family:var(--mono); font-size:var(--t-cap);}
+.fnode{display:flex; align-items:center; gap:var(--sp2); padding:3px var(--sp4); cursor:pointer; transition:background .15s var(--ease);}
+.fnode:hover{background:var(--interactive-hover);}
+.fnode.sel{background:var(--interactive-active);}
+.fnode .ind{color:var(--text-muted);} .fnode .nm{color:var(--text-secondary);} .fnode.dir .nm{color:var(--text-primary);}
+.fnode.sel .nm{color:var(--text-primary); font-weight:700;}
+.fnode .glyph{font-family:var(--pixel); flex-shrink:0;}
+.fnode .glyph.read{color:var(--brand-primary);} .fnode .glyph.edit{color:var(--signal-charlie);} .fnode .glyph.note{color:var(--status-warning);}
+.fnode .heat{margin-left:auto; width:34px; height:6px; border-radius:3px; background:var(--surface-strong); overflow:hidden; flex-shrink:0;}
+.fnode .heat i{display:block; height:100%;}
+@media (prefers-reduced-motion:no-preference){ .fnode .glyph.edit{animation:pulse 1.3s ease-in-out infinite;} @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}} }
+.editor-main{flex:1; display:flex; flex-direction:column; min-width:0; min-height:0;}
+.eb-head{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp2) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle); background:var(--surface-raised); flex-shrink:0;}
+.eb-head .path{font-family:var(--mono); font-size:var(--t-cap); color:var(--code-fn);}
+.eb-head .ph-pill{font-family:var(--mono); font-size:var(--t-eyebrow); border:var(--bw) solid var(--border-default); border-radius:99px; padding:1px 9px; color:var(--text-secondary);}
+.eb-head .ph-pill b{color:var(--ph-hot);}
+.eb-head .grow{flex:1;}
+.eb-head .symtoggle{font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--brand-primary); border:var(--bw) solid var(--border-default); border-radius:4px; padding:2px 8px;}
+.code{flex:1; overflow:auto; background:var(--code-bg); min-height:0; position:relative;}
+.code pre{margin:0; font-family:var(--mono); font-size:var(--t-cap); line-height:1.6;}
+.ln{display:flex; align-items:stretch;}
+.ln .gutter-heat{width:4px; flex-shrink:0;}
+.ln .num{width:3.2ch; text-align:right; padding:0 var(--sp2); color:var(--code-line-number); user-select:none; flex-shrink:0;}
+.ln .claim{width:3px; flex-shrink:0; background:transparent;}
+.ln .src{padding:0 var(--sp3); color:var(--code-text); white-space:pre; flex:1;}
+.ln.h1{background:color-mix(in srgb,var(--ph-hot) 8%,transparent);}
+.ln.h2{background:color-mix(in srgb,var(--ph-hot) 16%,transparent);}
+.ln.h3{background:color-mix(in srgb,var(--ph-hot) 26%,transparent);}
+.ln .gutter-heat.g1{background:color-mix(in srgb,var(--ph-hot) 45%,transparent);} .ln .gutter-heat.g2{background:var(--ph-hot);} .ln .gutter-heat.g3{background:var(--ph-fail);}
+.ln .claim.c-helm{background:var(--signal-kilo);} .ln .claim.c-lookout{background:var(--signal-charlie);}
+.tok-kw{color:var(--code-kw);} .tok-fn{color:var(--code-fn);} .tok-str{color:var(--code-str);} .tok-num{color:var(--code-num);} .tok-co{color:var(--code-comment);} .tok-pu{color:var(--code-punct);}
+.inline-note{margin:2px 0 4px 6.2ch; padding:var(--sp1) var(--sp3); border-left:2px solid var(--status-warning); background:color-mix(in srgb,var(--status-warning) 12%,var(--code-bg)); border-radius:0 4px 4px 0; font-family:var(--mono); font-size:.8125rem; color:var(--code-text);}
+.inline-note .lbl{color:var(--status-warning); font-weight:700;}
+.claim-pill{display:inline-flex; align-items:center; gap:4px; margin-left:var(--sp3); font-family:var(--mono); font-size:.75rem; color:var(--code-comment);}
+.claim-pill .swatch{width:8px;height:8px;border-radius:2px;display:inline-block;}
+/* AST symbol rail (Mode B) — overlaid on the right of the code */
+.symrail{width:260px; flex-shrink:0; border-left:var(--bw) solid var(--border-subtle); background:var(--surface-raised); overflow-y:auto; display:flex; flex-direction:column;}
+.symrail-head{padding:var(--sp3) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle); font-family:var(--sans); font-weight:700; font-size:var(--t-cap);}
+.sym{padding:var(--sp2) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle); cursor:pointer; transition:background .15s var(--ease);}
+.sym:hover{background:var(--interactive-hover);}
+.sym .nm{font-family:var(--mono); font-size:var(--t-cap); color:var(--text-primary); display:flex; align-items:center; gap:var(--sp2);}
+.sym .bar{height:6px; border-radius:3px; background:var(--surface-strong); overflow:hidden; margin:4px 0;}
+.sym .bar i{display:block; height:100%; background:var(--ph-hot);}
+.sym .bar i.fail{background:var(--ph-fail);}
+.sym .claim{font-family:var(--mono); font-size:.75rem; color:var(--code-comment);}
+.sym .claim .a-helm{color:var(--signal-kilo);} .sym .claim .a-lookout{color:var(--success-ink);}
+.sym .overlap{font-family:var(--sans); font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--mayday-slab); margin-top:2px;}
+
+/* ── STATUS BAR ───────────────────────────────────────────────────────────── */
+.statusbar{display:flex; align-items:center; border-top:var(--bw) solid var(--border-subtle); background:var(--surface-raised);}
+.seg{display:flex; align-items:center; gap:var(--sp2); padding:var(--sp2) var(--sp4); border-right:var(--bw) solid var(--border-subtle); font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
+.seg .key{font-family:var(--pixel); color:var(--brand-primary); border:var(--bw) solid var(--border-default); border-radius:4px; padding:0 5px; font-weight:400; text-transform:none; letter-spacing:0;}
+.seg.grow{flex:1; justify-content:flex-end; color:var(--success-ink); border-right:none;}
+
+/* toast */
+.toast{position:fixed; bottom:var(--sp7); left:50%; transform:translateX(-50%) translateY(20px); z-index:50; background:var(--surface-strong); border:var(--bw) solid var(--brand-primary); border-radius:var(--radius); padding:var(--sp3) var(--sp5); font-size:var(--t-cap); color:var(--text-primary); opacity:0; pointer-events:none; transition:transform .38s var(--swoosh), opacity .38s var(--swoosh); max-width:60ch;}
+.toast.on{transform:translateX(-50%) translateY(0); opacity:1;} .toast b{color:var(--brand-primary);} .toast code{font-family:var(--mono);}
+
+@media (prefers-reduced-motion:reduce){ *{animation:none !important;} }
+@media (max-width:1100px){ .cp-grid,.heat-wrap{grid-template-columns:1fr;} .symrail{display:none;} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══ TOP BAR — mast + HiTL (reserved mayday) ═══ -->
+  <header class="top">
+    <div class="mast"><span class="anchor">&#9875;&#65038;</span><span><b>PORT DADDY</b><br><span>operator · port-daddy</span></span></div>
+    <div class="hitl" id="hitl">
+      <span class="eyebrow" style="flex-shrink:0">Needs you</span>
+      <div class="block-card" role="button" tabindex="0" onclick="resolveBlock()">
+        <span class="tag">BLOCK</span>
+        <span class="msg"><b>helmsman</b> wants to <b>merge PR #231</b> — cost $0.31/$0.50 · landlock enforced</span>
+        <button class="act" onclick="event.stopPropagation();resolveBlock()">Approve · a</button>
+      </div>
+    </div>
+    <div class="right">
+      <button class="seg" style="border:none" onclick="toggleTheme()"><span class="key">t</span> <span id="themeSeg">light</span></button>
+      <button class="seg" style="border:none" onclick="toggleSound()"><span class="key">m</span> <span id="soundSeg">sound off</span></button>
+    </div>
+  </header>
+
+  <div class="body">
+    <!-- ═══ MODE RAIL — the parsimony spine. Sphere = home; rest is opt-in. ═══ -->
+    <nav class="moderail" aria-label="Workspace mode">
+      <button class="mode sphere on" data-view="sphere" onclick="go('sphere')"><span class="ic">&#9673;</span><span class="lb">Sphere</span></button>
+      <button class="mode" data-view="swarm" onclick="go('swarm')"><span class="ic">&#9707;</span><span class="lb">Swarm</span></button>
+      <button class="mode" data-view="cp" onclick="go('cp')"><span class="ic">&#9636;</span><span class="lb">Control</span><span class="badge" id="cpBadge">3</span></button>
+      <button class="mode" data-view="heat" onclick="go('heat')"><span class="ic">&#9638;</span><span class="lb">Heat</span></button>
+      <button class="mode" data-view="editor" onclick="go('editor')"><span class="ic">&#9783;</span><span class="lb">Editor</span></button>
+    </nav>
+
+    <div class="stage">
+
+      <!-- ════════ VIEW: AVATAR SPHERE (home / parsimony) ════════ -->
+      <section class="view sphere on" data-view="sphere" aria-label="Avatar sphere">
+        <div class="sphere-inner">
+          <div class="buddy">
+            <div class="buddy-orb"><span class="glyph"></span><span class="pres" title="present"></span></div>
+            <div class="who-block">
+              <div class="name">Avatar</div>
+              <div class="role">your operator-buddy · conducting the fleet</div>
+            </div>
+          </div>
+          <div class="digest">Everything's handled. <span class="num">5</span> agents working, <b>nothing</b> needs you right now — except <b>one merge</b> waiting on your yes.</div>
+          <div class="sphere-msg">
+            <span class="who">Avatar</span>
+            I took <code>adr-0046-phase-3</code> to a clean PR. Tests green, <code>pd&nbsp;attest</code> passed — it's parked at the merge gate up top. Spider and lookout are still crawling; gardener is pruning worktrees under budget. Nothing's on fire. Want the details, or shall I keep going?
+          </div>
+          <div class="sphere-ask">
+            <span class="prompt">&#9875;&#65038;</span>
+            <input id="sphereInput" placeholder="Talk to your buddy — or just press Enter to let it keep going" onkeydown="if(event.key==='Enter')sphereSend(this)" />
+          </div>
+          <div class="sphere-peek">
+            <button class="peek-chip" onclick="go('cp')"><span class="n" id="peekAttn">3</span><span class="lbl">flagged by agents</span></button>
+            <button class="peek-chip" onclick="go('heat')"><span class="n">0.94</span><span class="lbl">swarm heat</span></button>
+            <button class="peek-chip alert" onclick="resolveBlock()"><span class="n">1</span><span class="lbl">awaiting you</span></button>
+            <button class="peek-chip" onclick="go('swarm')"><span class="n">5</span><span class="lbl">live agents</span></button>
+          </div>
+          <div class="sphere-hint">Press <span class="key">&#8997;0</span> anywhere to retreat here. The detail is always one keystroke away — never in your face.</div>
+        </div>
+      </section>
+
+      <!-- ════════ VIEW: SWARM (multiplex, opt-in detail) ════════ -->
+      <section class="view swarm" data-view="swarm" aria-label="Swarm multiplex">
+        <div class="col avatar-col">
+          <div class="pane">
+            <div class="pane-head"><span class="flag">&#9673;</span><span class="role">Avatar</span><span class="doing">· your buddy · conducting 5</span><span class="grow"></span><span class="pk">&#8997;0 retreat</span></div>
+            <div class="chat">
+              <div class="row you"><span class="who">You</span><div class="bubble">Take adr-0046-phase-3 to merge. Loop me in only at the gate.</div></div>
+              <div class="row avatar"><span class="who">Avatar</span><div class="bubble">On it. I put <b>helmsman</b> on the worktree+PR, <b>caulker</b> on <code>pd attest</code>, and have <b>spider</b> crawling precedent. I'll keep their chatter out of your way — ask me and I'll summarise, or open <b>Swarm</b> to watch them directly.</div></div>
+              <div class="row avatar"><span class="who">Avatar</span><div class="bubble">Gate reached. It's on your top bar. Everything else is green.</div></div>
+            </div>
+            <div class="composer"><span class="prompt">&#9875;&#65038;</span><input placeholder="Talk to your buddy" /></div>
+          </div>
+        </div>
+        <div class="col agent-col">
+          <div class="agent-tabs">
+            <button class="agent-tab on"><span class="flag" style="color:var(--signal-kilo)">&#9612;&#9616;</span><span class="role">Helmsman</span><span class="dot"></span></button>
+            <button class="agent-tab"><span class="flag" style="color:var(--signal-charlie)">&#9600;&#9604;</span><span class="role">Caulker</span><span class="dot"></span></button>
+            <button class="agent-tab"><span class="flag" style="color:var(--status-warning)">&#9698;&#9700;</span><span class="role">Spider</span><span class="dot"></span></button>
+          </div>
+          <div class="pane dim">
+            <div class="pane-head"><span class="flag" style="color:var(--signal-kilo)">&#9612;&#9616;</span><span class="role">Helmsman</span><span class="doing">· PR #231 · at gate</span><span class="grow"></span><button class="pk" onclick="go('cp')" style="border:var(--bw) solid var(--border-default);border-radius:4px;padding:0 6px">control plane</button></div>
+            <div class="chat">
+              <div class="row agent"><span class="who">Helmsman</span><div class="bubble">worktree clean · jest 142/142 · CI green · attest PASS. parked at merge gate, need human approve. sprayed hot:editing on routes/attention.ts.</div></div>
+              <div class="row agent"><span class="who">Helmsman</span><div class="bubble">heads-up from substrate: lookout is editing the same route. opened a region claim on L44-47 to avoid the overlap.</div></div>
+            </div>
+            <div class="composer agent"><span class="prompt">&#10551;</span><input placeholder="Message helmsman directly" /></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ VIEW: CONTROL PLANE (what pd attention sends an agent) ════════ -->
+      <section class="view cp" data-view="cp" aria-label="Agent control plane">
+        <div class="cp-head">
+          <h1>Control plane</h1>
+          <span class="src mono">GET /attention?agentId=helmsman&amp;peek=1 → AttentionSummary</span>
+          <div class="agent-pick">
+            <button class="on" onclick="pickAgent(this,'helmsman')">helmsman</button>
+            <button onclick="pickAgent(this,'lookout')">lookout</button>
+            <button onclick="pickAgent(this,'spider')">spider</button>
+          </div>
+        </div>
+        <div class="cp-grid" id="cpGrid"><!-- filled by JS per agent --></div>
+      </section>
+
+      <!-- ════════ VIEW: HEAT TREE (pheromone viz Modes A/C/D) ════════ -->
+      <section class="view heat" data-view="heat" aria-label="Pheromone heat tree">
+        <div class="heat-head">
+          <h1>Swarm heat</h1>
+          <span class="law">Dominant kind drives hue; other kinds are corner glyphs (color×shape is the most separable pair). Headline = <code class="mono">max</code> per directory. Red is reserved for failure-class kinds only.</span>
+        </div>
+        <div class="heat-wrap">
+          <!-- Mode A: heat-tree treemap -->
+          <div class="treemap" id="treemap"></div>
+          <div class="heat-side">
+            <!-- Mode D: glance tile -->
+            <div class="glance">
+              <h2><span style="font-family:var(--pixel);color:var(--ph-hot)">&#9638;</span> Glance &middot; one screen</h2>
+              <div class="summ"><span class="x"><b>3</b> hot files</span><span class="x alert"><b>2</b> conflicts</span><span class="x alert"><b>1</b> burning $</span></div>
+              <div class="spark-row"><span class="nm">lib/sugar.ts</span><span class="spark" id="sp1"></span></div>
+              <div class="spark-row"><span class="nm">routes/attention.ts</span><span class="spark" id="sp2"></span></div>
+              <div class="spark-row"><span class="nm">lib/pheromone.ts</span><span class="spark" id="sp3"></span></div>
+              <div class="top-kind">Top kind: <b>hot:editing</b> (3 of 3) — the swarm is <b>busy, not on fire</b>. Cost burn $0.18/10m (acceptable). Human-blocked: 0.</div>
+            </div>
+            <!-- Mode C: time sparklines -->
+            <div class="glance">
+              <h2><span style="font-family:var(--pixel);color:var(--brand-primary)">&#9201;&#65038;</span> Last 60 min &middot; which way the fever moves</h2>
+              <div class="spark-row"><span class="nm">routes/attention.ts</span><span class="spark" id="sp4"></span><span class="tag">re-flared</span></div>
+              <div class="spark-row"><span class="nm">lib/pheromone.ts</span><span class="spark" id="sp5"></span><span class="tag">cooling</span></div>
+              <div class="spark-row"><span class="nm">lib/db.ts</span><span class="spark" id="sp6"></span><span class="tag">steady</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><span class="g" style="color:var(--ph-hot)">&#9608;</span> hot:editing</span>
+          <span><span class="g" style="color:var(--ph-recent)">&#9608;</span> recent:touched</span>
+          <span><span class="g" style="color:var(--ph-fail)">&#9608;</span> experience:failed</span>
+          <span><span class="g glyph-block">&#9670;</span> human-blocked</span>
+          <span><span class="g glyph-test">&#9888;&#65038;</span> test-failing</span>
+          <span><span class="g glyph-cost">$</span> cost burning</span>
+          <span><span class="g glyph-claim">&#9650;</span> claim contested</span>
+        </div>
+      </section>
+
+      <!-- ════════ VIEW: EDITOR (IDE code + filetree + AST heat overlay, Mode B) ════════ -->
+      <section class="view editor" data-view="editor" aria-label="Code editor">
+        <!-- filetree -->
+        <aside class="ftree">
+          <div class="ftree-head"><h2>port-daddy</h2><span class="ct">live</span></div>
+          <div class="ftree-scroll" id="ftree"></div>
+        </aside>
+        <!-- editor main -->
+        <div class="editor-main">
+          <div class="eb-head">
+            <span class="path">routes/attention.ts</span>
+            <span class="ph-pill">heat <b>0.86</b> · hot:editing</span>
+            <span class="grow"></span>
+            <button class="symtoggle" onclick="toast('Symbol heat = pheromone viz <b>Mode B</b> — per-function heat + region claims')">AST heat ▸</button>
+          </div>
+          <div class="code"><pre id="codePre"></pre></div>
+        </div>
+        <!-- AST symbol rail (Mode B) -->
+        <aside class="symrail">
+          <div class="symrail-head">Symbols · who's where</div>
+          <div class="sym"><div class="nm"><span class="tok-co">▸</span> imports <span style="margin-left:auto;color:var(--text-muted);font-size:.75rem">L1–14</span></div><div class="bar"><i style="width:8%"></i></div><div class="claim">cold</div></div>
+          <div class="sym"><div class="nm"><span class="tok-kw">ƒ</span> createAttention <span style="margin-left:auto;color:var(--text-muted);font-size:.75rem">L16–40</span></div><div class="bar"><i style="width:38%"></i></div><div class="claim">recent:touched</div></div>
+          <div class="sym" style="background:var(--interactive-active)"><div class="nm"><span class="tok-kw">ƒ</span> GET /attention <span style="margin-left:auto;color:var(--text-muted);font-size:.75rem">L44–48</span></div><div class="bar"><i style="width:94%"></i></div><div class="claim"><span class="a-helm">⚡ helmsman</span> L44–47</div><div class="claim"><span class="a-lookout">⚡ lookout</span> L46 (your note)</div><div class="overlap">⚠ overlap risk · L46 contested</div></div>
+          <div class="sym"><div class="nm"><span class="tok-kw">ƒ</span> subscribe <span style="margin-left:auto;color:var(--text-muted);font-size:.75rem">L60–88</span></div><div class="bar"><i class="fail" style="width:40%"></i></div><div class="claim" style="color:var(--error-ink)">experience:failed · 1 revert</div></div>
+        </aside>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ═══ STATUS BAR ═══ -->
+  <footer class="statusbar">
+    <div class="seg"><span class="key">&#8997;0</span> retreat to sphere</div>
+    <div class="seg"><span class="key">1-5</span> modes</div>
+    <div class="seg"><span class="key">a</span> approve</div>
+    <div class="seg"><span class="key">?</span> help</div>
+    <div class="seg" style="color:var(--text-muted)"><span style="font-size:1.1em">○</span> <span id="liveSeg">offline · sample</span></div>
+    <div class="seg grow">&#9656; fleet nominal · $2.50 cap · suggestions on</div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════ DATA — honest PD shapes ════════════════════════════════════════════
+// Control plane = the REAL lib/attention.ts AttentionSummary, per agent.
+const CONTROL = {
+  helmsman: {
+    counts:{total:5, inbox:2, channels:1, suggestions:2},
+    inbox:[
+      {from:'lookout', type:'inform', perf:'INFORM', body:'I also need <b>routes/attention.ts</b> — claiming L46 only. Yield L44-45?', when:'2m ago'},
+      {from:'avatar', type:'request', perf:'REQUEST', body:'Hold the merge until the human approves at the gate.', when:'5m ago'},
+    ],
+    channels:[
+      {scope:'harbor:port-daddy', topic:'role:backend', n:3},
+    ],
+    sniff:[
+      {kind:'hot:editing', v:94, rank:'high', trend:'▲', cls:'hot'},
+      {kind:'recent:touched', v:48, rank:'med', trend:'▶', cls:'recent'},
+      {kind:'claim:contested', v:36, rank:'med', trend:'▲', cls:'fail'},
+    ],
+    advice:'high contention on this file — consider a <b>symbol-region claim</b> (L44-47) rather than whole-file; lookout edited L46 90s ago, coordinate via inbox before re-editing.',
+    suggestions:[
+      {kind:'group-chat-proposal', conf:0.91, text:'<b>lookout</b> and <b>spider</b> are on materially the same surface (<code>routes/attention.ts</code>, cosine 0.89). Spin up an ad-hoc group so you stop racing on L46?'},
+      {kind:'prior-art-doc', conf:0.87, text:'You\'re wiring an attention aggregator — <code>docs/adr/0039-suggestibility-layer.md</code> and <code>lib/attention.ts</code> already define the AttentionItem schema. Read before re-deriving?'},
+    ],
+  },
+  lookout: {
+    counts:{total:3, inbox:1, channels:1, suggestions:1},
+    inbox:[{from:'helmsman', type:'inform', perf:'INFORM', body:'I claimed L44-47 of routes/attention.ts. You take L46+ but mind the overlap.', when:'2m ago'}],
+    channels:[{scope:'harbor:port-daddy', topic:'role:backend', n:3}],
+    sniff:[
+      {kind:'recent:touched', v:71, rank:'high', trend:'▲', cls:'recent'},
+      {kind:'claim:contested', v:44, rank:'med', trend:'▲', cls:'fail'},
+    ],
+    advice:'you and helmsman both want L46. The operator dropped a note there ("keep peek read-only"). Honor it; ping helmsman before editing L46.',
+    suggestions:[
+      {kind:'claim-overlap-headsup', conf:0.93, text:'<b>helmsman</b> already holds a region claim overlapping yours on <code>routes/attention.ts:46</code>. Promote to a shared claim or yield?'},
+    ],
+  },
+  spider: {
+    counts:{total:2, inbox:0, channels:2, suggestions:1},
+    inbox:[],
+    channels:[{scope:'harbor:port-daddy', topic:'role:research', n:5},{scope:'harbor:port-daddy', topic:'precedent', n:2}],
+    sniff:[{kind:'flow:hot-path', v:62, rank:'med', trend:'▶', cls:'recent'},{kind:'cold:abandoned', v:20, rank:'low', trend:'▼', cls:'cold'}],
+    advice:'no contention; you are read-only. surfaced 3 prior ratatui impls — log to episodic memory and inform the avatar.',
+    suggestions:[
+      {kind:'prior-art-doc', conf:0.88, text:'Your precedent crawl overlaps <code>.scratch/pheromone-visualization-research.md</code> (cosine 0.86) — already surveys CodeScene / Gource / flame-graph prior art.'},
+    ],
+  },
+};
+const SUGG_ICON = {'group-chat-proposal':'◫','prior-art-doc':'▤','claim-overlap-headsup':'▲','salvage-candidate':'⚓'};
+
+function renderCP(agent){
+  const d=CONTROL[agent]; const g=document.getElementById('cpGrid');
+  const inbox = d.inbox.length? d.inbox.map(m=>`<div class="attn"><div class="meta"><span class="perf">${m.perf}</span> from ${m.from}</div><div class="body">${m.body}</div><div class="when">${m.when}</div></div>`).join('') : '<div class="attn" style="border-left-color:var(--border-subtle)"><div class="body" style="color:var(--text-muted)">inbox empty</div></div>';
+  const chans = d.channels.map(c=>`<div class="chan-row"><span class="scope">${c.scope}</span><span style="color:var(--text-muted)">:</span><span class="topic">${c.topic}</span><span class="n">${c.n} new</span></div>`).join('');
+  const sniff = d.sniff.map(s=>`<div class="sniff-row"><span class="kind">${s.kind}</span><span class="bar"><i style="width:${s.v}%;background:var(--ph-${s.cls})"></i></span><span class="rank ${s.rank}">${s.rank}</span><span class="trend">${s.trend}</span></div>`).join('');
+  const suggs = d.suggestions.map((s,i)=>`<div class="sugg"><div class="kind"><span style="font-family:var(--pixel)">${SUGG_ICON[s.kind]||'◆'}</span>${s.kind}<span class="conf">conf ${s.conf.toFixed(2)}</span></div><div class="text">${s.text}</div><div class="sugg-acts"><button class="accept" onclick="suggAct('accept','${s.kind}')">Accept</button><button class="decline" onclick="suggAct('decline','${s.kind}')">Decline</button><button class="mute" onclick="suggAct('mute','${s.kind}')">Mute kind</button></div></div>`).join('');
+  g.innerHTML = `
+    <div class="cp-card"><div class="cp-card-head"><span class="ic">&#9993;&#65038;</span><h2>Inbox · DMs</h2><span class="ct">${d.counts.inbox}</span></div><div class="cp-card-body">${inbox}</div></div>
+    <div class="cp-card"><div class="cp-card-head"><span class="ic">&#9678;</span><h2>Subscribed channels</h2><span class="ct">${d.counts.channels}</span></div><div class="cp-card-body">${chans}</div></div>
+    <div class="cp-card span2"><div class="cp-card-head"><span class="ic">&#9638;</span><h2>Pheromones it reads · <span class="mono" style="font-weight:400;font-size:.8125rem;color:var(--text-muted)">pd sniff (Mode E: rank + trend + advice)</span></h2></div><div class="cp-card-body">${sniff}<div class="sniff-advice"><b>advice →</b> ${d.advice}</div></div></div>
+    <div class="cp-card span2"><div class="cp-card-head"><span class="ic">&#9888;&#65038;</span><h2>Suggestions · <span class="mono" style="font-weight:400;font-size:.8125rem;color:var(--text-muted)">ADR-0039 suggestibility layer</span></h2><span class="ct">${d.counts.suggestions} pending</span></div><div class="cp-card-body">${suggs}</div></div>`;
+}
+let cpAgent='helmsman';
+function pickAgent(btn,agent){ cpAgent=agent; document.querySelectorAll('.agent-pick button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); document.querySelector('.cp-head .src').textContent=`GET /attention?agentId=${agent}&peek=1 → AttentionSummary`; renderCP(agent); sfx('tick'); }
+function suggAct(act,kind){ const v={accept:'Accepted',decline:'Declined',mute:'Muted'}[act];
+  const w={accept:'→ <code>pd suggestion accept</code> (creates channel / opens doc / pings holder)',decline:'→ primes the 4h cooldown',mute:'→ <code>pd attention --mute kind:'+kind+' --until +24h</code>'}[act];
+  toast(`<b>${v}</b> ${kind} ${w}`); sfx(act==='accept'?'ack':'tick'); }
+
+// ════════ HEAT TREE (Mode A treemap + sparklines) ════════
+const TREE = [
+  [{nm:'lib/',val:'0.94',kind:'hot',w:42,glyphs:['claim','cost']},{nm:'routes/',val:'0.86',kind:'hot',w:34,glyphs:['block','claim']},{nm:'cli/',val:'0.42',kind:'recent',w:24,glyphs:[]}],
+  [{nm:'lib/sugar.ts',val:'0.94',kind:'hot',w:30,glyphs:['claim']},{nm:'lib/db.ts',val:'0.40',kind:'cold',w:20,glyphs:[]},{nm:'routes/attention.ts',val:'0.86',kind:'hot',w:28,glyphs:['claim']},{nm:'subscribe()',val:'0.55',kind:'fail',w:22,glyphs:['test']}],
+  [{nm:'tests/',val:'0.55',kind:'recent',w:30,glyphs:[]},{nm:'docs/',val:'0.18',kind:'cold',w:24,glyphs:[]},{nm:'apps/',val:'0.31',kind:'cold',w:22,glyphs:[]},{nm:'public/',val:'0.10',kind:'cold',w:24,glyphs:['block']}],
+];
+const GLYPH={block:['glyph-block','&#9670;'],test:['glyph-test','&#9888;&#65038;'],cost:['glyph-cost','$'],claim:['glyph-claim','&#9650;'],flow:['glyph-flow','&#9655;']};
+function renderTree(){
+  document.getElementById('treemap').innerHTML = TREE.map(row=>
+    `<div class="tm-row">${row.map(t=>`<div class="tm" data-kind="${t.kind}" style="flex:${t.w}" onclick="toast('Drill into <b>${t.nm}</b> → Mode B symbol overlay')"><div class="fill"></div><div class="nm">${t.nm}</div><div class="val">${t.val}</div><div class="glyphs">${t.glyphs.map(g=>`<span class="${GLYPH[g][0]}">${GLYPH[g][1]}</span>`).join('')}</div></div>`).join('')}</div>`
+  ).join('');
+}
+// sparklines (Mode C) — color shifts hue along length = dominant kind in window
+function spark(el, pattern){ // pattern: array of [char, cls]
+  const blocks='▁▂▃▄▅▆▇█';
+  el.innerHTML = pattern.map(([h,c])=>`<span class="${c}">${blocks[h]}</span>`).join('');
+}
+function rampSpark(el,vals,cls){ spark(el, vals.map(v=>[v,cls])); }
+function initSparks(){
+  rampSpark(document.getElementById('sp1'),[0,1,2,3,4,5,6,7,7,7,7,6,5,4,3,2,1],'hot');
+  rampSpark(document.getElementById('sp2'),[0,1,2,4,6,7,7,7,6,5,4,5,6,7,7],'hot');
+  rampSpark(document.getElementById('sp3'),[1,2,3,5,7,6,4,3,2,1,1,1,1],'hot');
+  // re-flared: hot, cooled, hot again — and the LAST stretch turns red (test-failing)
+  document.getElementById('sp4').innerHTML='<span class="hot">▁▂▄▆█▇▅▃▂▁▁</span><span class="fail">▂▄▆██▇</span>';
+  rampSpark(document.getElementById('sp5'),[7,6,5,4,3,2,1,1,1,1,1,1],'cool');
+  rampSpark(document.getElementById('sp6'),[2,2,2,2,2,2,2,2,2,2,2,2],'cool');
+}
+
+// ════════ EDITOR — syntax-highlit code + AST heat overlay (Mode B) + claims + notes
+// Pre-tokenised lines as html strings (h = heat band; g = gutter heat;
+// c = region-claim color; note = operator inline annotation).
+const LINES = [
+  {n:42, src:'<span class="tok-co">// one call returns "everything new for this agent"</span>'},
+  {n:43, src:''},
+  {n:44, h:'h1', g:'g1', c:'c-helm', src:'<span class="tok-kw">export function</span> <span class="tok-fn">registerAttentionRoute</span><span class="tok-pu">(</span>app<span class="tok-pu">) {</span>'},
+  {n:45, h:'h2', g:'g2', c:'c-helm', src:'  app<span class="tok-pu">.</span><span class="tok-fn">get</span><span class="tok-pu">(</span><span class="tok-str">\'/attention\'</span><span class="tok-pu">, async (</span>req<span class="tok-pu">) => {</span>'},
+  {n:46, h:'h3', g:'g3', c:'c-lookout', src:'    <span class="tok-kw">const</span> items <span class="tok-pu">=</span> <span class="tok-kw">await</span> <span class="tok-fn">aggregate</span><span class="tok-pu">(</span>req<span class="tok-pu">.</span>query<span class="tok-pu">.</span>agentId<span class="tok-pu">)</span>', note:'keep <span class="tok-co">peek</span> read-only — don\'t mark-on-render. @a4f1b9 · expires when PR #231 merges'},
+  {n:47, h:'h2', g:'g2', c:'c-helm', src:'    <span class="tok-kw">return</span> <span class="tok-pu">{</span> ok<span class="tok-pu">:</span> <span class="tok-num">true</span><span class="tok-pu">,</span> items<span class="tok-pu">,</span> peeked<span class="tok-pu">:</span> req<span class="tok-pu">.</span>query<span class="tok-pu">.</span>peek <span class="tok-pu">}</span>'},
+  {n:48, h:'h1', g:'g1', c:'', src:'  <span class="tok-pu">})</span>'},
+  {n:49, src:'<span class="tok-pu">}</span>'},
+  {n:50, src:''},
+  {n:51, src:'<span class="tok-co">// subscribe() — flaky: reverted once (experience:failed)</span>'},
+  {n:60, src:'<span class="tok-kw">function</span> <span class="tok-fn">subscribe</span><span class="tok-pu">(</span>agentId<span class="tok-pu">,</span> channel<span class="tok-pu">) {</span>'},
+];
+function renderCode(){
+  let html='';
+  for(const l of LINES){
+    html += `<div class="ln ${l.h||''}"><span class="gutter-heat ${l.g||''}"></span><span class="num">${l.n}</span><span class="claim ${l.c||''}"></span><span class="src">${l.src||' '}</span></div>`;
+    if(l.note) html += `<div class="inline-note"><span class="lbl">✎ you</span> ${l.note}</div>`;
+  }
+  // a claim legend line under the hot region
+  html += `<div class="ln"><span class="gutter-heat"></span><span class="num"></span><span class="claim"></span><span class="src"><span class="claim-pill"><span class="swatch" style="background:var(--signal-kilo)"></span>helmsman L44–47</span><span class="claim-pill"><span class="swatch" style="background:var(--signal-charlie)"></span>lookout L46</span><span class="tok-co">  ← overlap risk, contested</span></span></div>`;
+  document.getElementById('codePre').innerHTML=html;
+}
+
+// filetree (alive: ▸ read, ◆ edit, ✎ note)
+const FTREE=[
+  {d:0,dir:true,nm:'routes/',heat:86,kind:'hot'},
+  {d:1,nm:'attention.ts',glyph:'edit',who:'helmsman',heat:86,kind:'hot',sel:true},
+  {d:1,nm:'spawn.ts',glyph:'read',who:'lookout',heat:42,kind:'recent'},
+  {d:0,dir:true,nm:'lib/',heat:94,kind:'hot'},
+  {d:1,nm:'sugar.ts',glyph:'edit',who:'helmsman',heat:94,kind:'hot'},
+  {d:1,nm:'attention.ts',glyph:'read',who:'spider',heat:48,kind:'recent'},
+  {d:1,nm:'pheromone.ts',glyph:'read',who:'spider',heat:55,kind:'recent'},
+  {d:1,nm:'db.ts',heat:40,kind:'cold'},
+  {d:0,dir:true,nm:'docs/adr/',heat:18,kind:'cold'},
+];
+function renderFtree(){
+  document.getElementById('ftree').innerHTML = FTREE.map(f=>{
+    const ind = f.dir? '▾' : '';
+    const pad = (f.d*16+12);
+    const glyph = f.glyph? `<span class="glyph ${f.glyph}">${f.glyph==='edit'?'&#9670;':f.glyph==='read'?'&#9656;':'&#9998;&#65038;'}</span>` : '';
+    const who = f.who? `<span style="color:var(--text-muted);font-size:.75rem">${f.who}</span>`:'';
+    const hue = `var(--ph-${f.kind})`;
+    return `<div class="fnode ${f.dir?'dir':''} ${f.sel?'sel':''}" style="padding-left:${pad}px" onclick="selectFile(this,'${f.nm}')"><span class="ind">${ind}</span>${glyph}<span class="nm">${f.nm}</span>${who}<span class="heat"><i style="width:${f.heat}%;background:${hue}"></i></span></div>`;
+  }).join('');
+}
+function selectFile(el,nm){ document.querySelectorAll('.fnode').forEach(n=>n.classList.remove('sel')); el.classList.add('sel'); sfx('tick'); if(nm!=='attention.ts') toast('Opening <b>'+nm+'</b> — would load its symbol heat overlay'); }
+
+// ════════ NAV — parsimony: sphere is home, ⌥0 always retreats ════════
+const VIEWS=['sphere','swarm','cp','heat','editor'];
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on', s.dataset.view===v));
+  document.querySelectorAll('.mode').forEach(m=>m.classList.toggle('on', m.dataset.view===v));
+  if(v==='sphere'){ sfx('home'); } else { sfx('open'); }
+}
+function sphereSend(inp){ const t=inp.value.trim(); inp.value='';
+  if(!t){ toast('Aye — carrying on. I\'ll surface only what needs you.'); sfx('ack'); return; }
+  const msg=document.querySelector('.sphere-msg'); msg.querySelector('.who').nextSibling;
+  msg.innerHTML=`<span class="who">Avatar</span>You said: “${t.replace(/</g,'&lt;')}”. On it — I'll keep it in my sphere and only pull you in if something needs your call. Open <b>Control</b> to see exactly what I'm telling the agents.`;
+  sfx('ack');
+}
+
+// ════════ HiTL ════════
+let awaiting=1;
+function resolveBlock(){ if(awaiting===0) return; awaiting=0;
+  document.getElementById('hitl').classList.add('clear');
+  document.querySelector('.block-card .msg').innerHTML='All clear — the fleet is humming. Nothing needs you.';
+  document.querySelector('.block-card .tag').textContent='CLEAR';
+  document.getElementById('cpBadge').style.display='none';
+  toast('Approved — avatar merging PR #231, will <b>prune + mark done</b>'); sfx('approve');
+}
+
+// ════════ SOUND ENGINE (designed ship's-bridge cues; opt-in; reduced-motion=mute) ══
+let soundOn=false, ac;
+function toggleSound(){ soundOn=!soundOn; document.getElementById('soundSeg').textContent=soundOn?'sound on':'sound off'; if(soundOn) sfx('open'); }
+function toggleTheme(){ const h=document.documentElement, n=h.getAttribute('data-theme')==='light'?'dark':'light'; h.setAttribute('data-theme',n); document.getElementById('themeSeg').textContent=n; sfx('tick'); }
+function actx(){ ac=ac||new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended')ac.resume(); return ac; }
+function tone(f0,f1,t,type,peak,off){ const c=actx(),now=c.currentTime+(off||0),o=c.createOscillator(),g=c.createGain(); o.type=type||'sine'; o.frequency.setValueAtTime(f0,now); if(f1)o.frequency.exponentialRampToValueAtTime(f1,now+t); o.connect(g);g.connect(c.destination); g.gain.setValueAtTime(.0001,now); g.gain.exponentialRampToValueAtTime(peak||.05,now+.012); g.gain.exponentialRampToValueAtTime(.0001,now+t); o.start(now);o.stop(now+t+.02); }
+function noiseSweep(up,t,peak){ const c=actx(),now=c.currentTime,n=c.sampleRate*t,buf=c.createBuffer(1,n,c.sampleRate),d=buf.getChannelData(0); for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n); const s=c.createBufferSource();s.buffer=buf; const bp=c.createBiquadFilter();bp.type='bandpass';bp.Q.value=.8; bp.frequency.setValueAtTime(up?500:2400,now); bp.frequency.exponentialRampToValueAtTime(up?2600:480,now+t); const g=c.createGain();g.gain.setValueAtTime(peak||.04,now);g.gain.exponentialRampToValueAtTime(.0001,now+t); s.connect(bp);bp.connect(g);g.connect(c.destination);s.start(now);s.stop(now+t); }
+function sfx(kind){ if(!soundOn) return; if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  try{ switch(kind){
+    case 'open': noiseSweep(true,.16,.04); break;
+    case 'home': tone(587,392,.22,'sine',.05); tone(392,0,.18,'sine',.03,.06); break; // descending = settle home
+    case 'tick': tone(1200,0,.03,'square',.03); break;
+    case 'approve': tone(784,0,.20,'sine',.06); tone(1568,0,.20,'sine',.02,.005); break;
+    case 'ack': tone(523,0,.08,'triangle',.05); tone(622,0,.10,'triangle',.05,.07); break;
+    default: tone(520,0,.1,'sine',.04);
+  }}catch(e){}
+}
+
+// ════════ keyboard ════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'){ if(e.key==='Escape')e.target.blur(); return; }
+  if(e.altKey && e.key==='0'){ go('sphere'); e.preventDefault(); }
+  else if(/^[1-5]$/.test(e.key)){ go(VIEWS[parseInt(e.key,10)-1]); e.preventDefault(); }
+  else if(e.key==='a'){ resolveBlock(); }
+  else if(e.key==='t'){ toggleTheme(); }
+  else if(e.key==='m'){ toggleSound(); }
+  else if(e.key==='?'){ toast('<b>⌥0</b> retreat to sphere · <b>1-5</b> modes · <b>a</b> approve · <b>t</b> theme · <b>m</b> sound. Parsimony: the sphere is home; detail is opt-in.'); }
+  else if(e.key==='Escape'){ go('sphere'); }
+});
+
+// ════════ LIVE DATA LAYER ════════════════════════════════════════════════════
+// Bind the mockup to the running daemon. Honest-not-Potemkin: when :9876 is up we
+// render REAL /pheromone/files, /roadmap/items, /attention, /sessions. When it is
+// not reachable (file opened standalone), we fall back to the v4 representative
+// data so the mockup still opens and demonstrates the design. A status pill shows
+// which mode we're in — we never pretend offline sample data is live.
+// Default to SAME-ORIGIN (the real pd tui web surface is served by the daemon, so
+// /pheromone/... resolves with no CORS). Override for cross-origin/dev with
+// ?pd=http://host:port. When opened as file:// with no override, fetches fail the
+// CORS/origin check and we fall back to sample data (status pill says so).
+// toast — was referenced in v4 but never defined (latent no-op bug; surfaced now
+// that hydrate() calls it on load). Defined here so every toast actually shows.
+let _toastT;
+function toast(html){ const t=document.getElementById('toast'); if(!t) return; t.innerHTML=html; t.classList.add('on'); clearTimeout(_toastT); _toastT=setTimeout(()=>t.classList.remove('on'),2800); }
+const PD = decodeURIComponent((location.search.match(/[?&]pd=([^&]+)/)||[])[1] || '');
+let LIVE = false;
+async function pdGet(path){
+  const c = new AbortController(); const t = setTimeout(()=>c.abort(), 1200);
+  try{ const r = await fetch(PD+path, {signal:c.signal}); clearTimeout(t); if(!r.ok) throw 0; return await r.json(); }
+  catch(e){ clearTimeout(t); return null; }
+}
+// LIVE DATA IS UNTRUSTED INPUT — agent ids, file paths, and inbox/DM content from
+// other agents can contain markup. Escape every live value before it touches
+// innerHTML. (For a real ratatui/Tauri build, render via textContent / a sanitizer.)
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function setLive(on, note){
+  LIVE = on;
+  const seg = document.getElementById('liveSeg');
+  if(seg){ seg.textContent = on ? 'live · :9876' : 'offline · sample'; seg.previousElementSibling.textContent = on ? '●' : '○'; seg.parentElement.style.color = on ? 'var(--success-ink)' : 'var(--text-muted)'; }
+  if(note) toast(note);
+}
+// dominant-kind classifier for a live file (the composition law: pick one hue) —
+// honest mapping from the real fields /pheromone/files gives us today.
+function kindOf(f){
+  if(f.conflict || f.activeClaims>1) return 'fail';      // contested → red (failure-class)
+  if(f.heat>=0.55) return 'hot';                         // hot:editing → ochre
+  if(f.heat>=0.25) return 'recent';                      // recent:touched → blue
+  return 'cold';
+}
+function glyphsOf(f){ const g=[]; if(f.conflict||f.activeClaims>1) g.push('claim'); if(f.activeClaims>=1) g.push('flow'); return g.slice(0,3); }
+function topDir(path){ const i=path.indexOf('/'); return i>0 ? path.slice(0,i+1) : path; }
+
+async function hydrate(){
+  // On file:// with no ?pd= override, same-origin daemon routes can't resolve —
+  // skip the fetch entirely (keeps the console clean) and stay on sample data.
+  if(!PD && location.protocol==='file:'){ setLive(false); return; }
+  const [ph, rm, ses] = await Promise.all([
+    pdGet('/pheromone/files'), pdGet('/roadmap/items?status=now'), pdGet('/sessions'),
+  ]);
+  if(!ph && !rm && !ses){ setLive(false); return; } // fully offline → keep v4 sample
+  setLive(true, 'Bound to the live daemon — heat, roadmap & agents are <b>real</b>');
+
+  // 1) HEAT TREE (Mode A) + FILETREE from real /pheromone/files
+  if(ph && ph.files && ph.files.length){
+    const files = ph.files.slice().sort((a,b)=>b.heat-a.heat);
+    // roll up to top-level dirs (max headline — the research's aggregation rule)
+    const dirs = {};
+    for(const f of files){ const d=topDir(f.path); if(!dirs[d]||f.heat>dirs[d].heat){ dirs[d]={heat:f.heat,kind:kindOf(f),glyphs:glyphsOf(f)}; } }
+    const dirRow = Object.entries(dirs).sort((a,b)=>b[1].heat-a[1].heat).slice(0,3)
+      .map(([nm,d])=>({nm:esc(nm),val:d.heat.toFixed(2),kind:d.kind,w:Math.max(20,Math.round(d.heat*44)+18),glyphs:d.glyphs}));
+    const fileRow = files.slice(0,4).map(f=>({nm:esc(f.path.split('/').slice(-2).join('/')),val:f.heat.toFixed(2),kind:kindOf(f),w:Math.max(20,Math.round(f.heat*30)+16),glyphs:glyphsOf(f)}));
+    TREE.length=0; TREE.push(dirRow, fileRow); renderTree();
+    // alive filetree from the hottest real files (▸ read / ◆ edit by claims/agents)
+    FTREE.length=0;
+    for(const f of files.slice(0,9)){
+      const nm=esc(f.path.split('/').pop());
+      FTREE.push({d:1, nm, glyph: f.activeClaims? 'edit':(f.agents&&f.agents.length?'read':''), who:esc((f.agents&&f.agents[0])||''), heat:Math.round(f.heat*100), kind:kindOf(f)});
+    }
+    renderFtree();
+    // glance summary line
+    const hot=files.filter(f=>f.heat>=0.55).length, conf=files.filter(f=>f.conflict).length;
+    const summ=document.querySelector('.glance .summ');
+    if(summ) summ.innerHTML=`<span class="x"><b>${hot}</b> hot files</span><span class="x ${conf?'alert':''}"><b>${conf}</b> conflicts</span><span class="x"><b>${files.length}</b> tracked</span>`;
+  }
+
+  // 2) ROADMAP peek chip from real /roadmap/items?status=now
+  if(rm && rm.items){
+    const n=rm.items.length;
+    const chip=document.querySelector('.sphere-peek .peek-chip:nth-child(1) .n');
+    document.querySelectorAll('.sphere-peek .peek-chip').forEach(c=>{ if(c.textContent.includes('flagged')) c.querySelector('.n').textContent=n; });
+    // refresh the digest with the real now-count
+    const dig=document.querySelector('.digest');
+    if(dig) dig.innerHTML=`Everything's handled. <span class="num">${(ses&&ses.sessions?ses.sessions.length:5)}</span> sessions live, <span class="num">${n}</span> roadmap items in <b>now</b> — I'm working the pile.`;
+  }
+
+  // 3) CONTROL PLANE agent picker from real /sessions; bind /attention live
+  if(ses){
+    const list=(ses.sessions||ses||[]).filter(s=>(s.agentId||s.agent_id));
+    const real=list.slice(0,3).map(s=>s.agentId||s.agent_id);
+    if(real.length){
+      const pick=document.querySelector('.cp-head .agent-pick');
+      if(pick){ pick.innerHTML=real.map((a,i)=>`<button class="${i?'':'on'}" title="${esc(a)}" data-agent="${esc(a)}">${esc(a.replace(/^spawned-/,'').slice(0,14))}</button>`).join('');
+        pick.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>pickLiveAgent(b,b.dataset.agent))); }
+      cpAgent=real[0]; renderLiveCP(real[0]);
+    }
+  }
+}
+// live control plane: real GET /attention for an agent, mapped to the card renderer
+async function renderLiveCP(agent){
+  const a = await pdGet('/attention?agentId='+encodeURIComponent(agent)+'&peek=1');
+  document.querySelector('.cp-head .src').textContent=`GET /attention?agentId=${agent}&peek=1 → AttentionSummary`; // textContent = safe
+  if(!a || !a.success){ renderCP('helmsman'); return; }
+  // adapt the REAL AttentionSummary into the existing card model. All live strings
+  // (from / content / subscriptions) are UNTRUSTED → esc() before they hit innerHTML.
+  const inbox=(a.items||[]).filter(i=>i.source==='inbox').map(i=>({from:esc(i.from||'?'),perf:esc((i.type||'inform').toUpperCase()),body:esc(typeof i.content==='string'?i.content:JSON.stringify(i.content)),when:esc(timeAgo(i.receivedAt))}));
+  const chans=(a.subscriptions||[]).map(s=>{const p=String(s).split(':');return {scope:esc(p.slice(0,2).join(':')),topic:esc(p.slice(2).join(':')||'—'),n:0};});
+  const d={counts:{inbox:a.counts.inbox,channels:a.counts.channels,suggestions:0},inbox,channels:chans,
+    sniff:[{kind:'(live sniff endpoint pending)',v:0,rank:'low',trend:'▶',cls:'cold'}],
+    advice:`Live AttentionSummary for <b>${esc(agent)}</b>: ${a.counts.total} items (${a.counts.inbox} inbox, ${a.counts.channels} channel). Enriched sniff (rank/trend/advice) lands when GET /pheromone/sniff ships — research §2 Mode E.`,
+    suggestions: a.counts.total===0 ? [] : []};
+  CONTROL[agent]=d; renderCP(agent);
+}
+function pickLiveAgent(btn,agent){ document.querySelectorAll('.agent-pick button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); cpAgent=agent; if(LIVE) renderLiveCP(agent); else renderCP(agent); sfx('tick'); }
+function timeAgo(ts){ if(!ts) return ''; const s=Math.round((Date.now()-ts)/1000); if(s<60)return s+'s ago'; if(s<3600)return Math.round(s/60)+'m ago'; return Math.round(s/3600)+'h ago'; }
+
+// ════════ init ════════
+renderCP('helmsman'); renderTree(); initSparks(); renderCode(); renderFtree();
+hydrate(); // upgrade to live data if the daemon is reachable
+</script>
+</body>
+</html>

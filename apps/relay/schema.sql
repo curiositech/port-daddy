@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
   created_at         INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
+CREATE INDEX IF NOT EXISTS fleet_runs_repo_created_idx
+  ON fleet_runs (repo_full_name COLLATE NOCASE, created_at DESC, id DESC);
 
 -- Durable queue-admission truth, written before the queue consumer starts.
 -- One PR can have many immutable generations as new heads arrive; only the
@@ -389,6 +391,8 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
   created_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_run_created_idx
+  ON fleet_run_spend (run_id, created_at DESC);
 
 -- Aggregate, per-ship Workers AI call stats (ADR none; see
 -- apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql for full design
@@ -1051,3 +1055,97 @@ CREATE UNIQUE INDEX IF NOT EXISTS apns_tokens_token_idx
   ON apns_device_tokens (token);
 CREATE INDEX IF NOT EXISTS apns_tokens_user_live_idx
   ON apns_device_tokens (user_id, dead_at, last_seen_at);
+
+-- Admin-authored repository ship gates; never cascade from personal settings.
+CREATE TABLE IF NOT EXISTS repo_ship_controls (
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  ship TEXT NOT NULL,
+  enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+  revision INTEGER NOT NULL CHECK (revision >= 1),
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (repo_full_name, ship)
+);
+CREATE TABLE IF NOT EXISTS repo_ship_control_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo_full_name TEXT NOT NULL,
+  ship TEXT NOT NULL,
+  enabled INTEGER NOT NULL,
+  revision INTEGER NOT NULL,
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS repo_ship_controls_insert_audit AFTER INSERT ON repo_ship_controls
+BEGIN
+  INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
+  VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
+END;
+CREATE TRIGGER IF NOT EXISTS repo_ship_controls_update_audit AFTER UPDATE ON repo_ship_controls
+BEGIN
+  INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
+  VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
+END;
+
+-- Repository-scoped Shipwright context (migration 2026-09-14).
+CREATE TABLE IF NOT EXISTS shipwright_threads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_threads_scope_idx
+  ON shipwright_threads (user_id, installation_id, repo_full_name, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS shipwright_threads_one_repo_idx
+  ON shipwright_threads (user_id, installation_id, repo_full_name);
+CREATE TRIGGER IF NOT EXISTS shipwright_threads_quota_guard
+BEFORE INSERT ON shipwright_threads
+WHEN (SELECT COUNT(*) FROM shipwright_threads WHERE user_id = NEW.user_id) >= 100
+ AND NOT EXISTS (
+   SELECT 1 FROM shipwright_threads
+    WHERE user_id = NEW.user_id AND installation_id = NEW.installation_id
+      AND repo_full_name = NEW.repo_full_name
+ )
+BEGIN
+  SELECT RAISE(ABORT, 'shipwright thread quota exceeded');
+END;
+CREATE TABLE IF NOT EXISTS shipwright_thread_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  thread_id TEXT NOT NULL REFERENCES shipwright_threads(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_thread_messages_scope_idx
+  ON shipwright_thread_messages (user_id, thread_id, id);
+CREATE INDEX IF NOT EXISTS shipwright_thread_messages_created_idx
+  ON shipwright_thread_messages (created_at);
+CREATE TABLE IF NOT EXISTS shipwright_repo_memory (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  kind TEXT NOT NULL,
+  body_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (user_id, installation_id, repo_full_name, kind)
+);
+CREATE INDEX IF NOT EXISTS shipwright_repo_memory_scope_idx
+  ON shipwright_repo_memory (user_id, installation_id, repo_full_name, updated_at DESC);
+CREATE TABLE IF NOT EXISTS shipwright_proposals (
+  id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL REFERENCES shipwright_threads(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  yaml TEXT NOT NULL,
+  origin TEXT NOT NULL DEFAULT 'assistant_conversation'
+    CHECK (origin IN ('assistant_conversation', 'deterministic_onboarding')),
+  created_at INTEGER NOT NULL,
+  UNIQUE (thread_id, yaml)
+);
+CREATE INDEX IF NOT EXISTS shipwright_proposals_scope_idx
+  ON shipwright_proposals (user_id, installation_id, repo_full_name, thread_id, created_at DESC);

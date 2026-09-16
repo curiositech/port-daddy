@@ -53,6 +53,7 @@ for the dogfooded coordination vocabulary.
 | `--print-swiss-blue` | `#001489` | Reflex Blue — the Book's Swiss edition, Part I ink (print only; nearest Pantone Reflex Blue C) |
 | `--print-swiss-violet` | `#582c83` | Konkret Violet — the Book's Swiss edition, Part III ink (print only; nearest Pantone 268 C) |
 | `--print-swiss-red` | `#da291c` | Signal red — the Book's Swiss edition, one reserved mark (print only; Pantone 485 C) |
+| `--print-maritime-gold` | `#805a14` | Antique gold — the Book's maritime edition, trim and rules (print only; a flat stand-in for a metallic gold pass, Pantone 872 C). 5.35:1 on `--surface-base` #f2eee6 and 5.80:1 on the plate paper #fbf7ef, and ΔE2000 15.6 from `--story-gold`, which it never sits beside: gold-the-ink is plate trim and opener ornament, gold-the-story-colour is the market. |
 
 ### Dark theme
 

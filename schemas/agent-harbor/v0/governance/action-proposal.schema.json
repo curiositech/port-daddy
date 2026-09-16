@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/governance/action-proposal.schema.json",
+  "title": "ActionProposal",
+  "description": "Canonical, content-addressed proposal for one consequential effect. It describes intent and inputs; it is not permission.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.action-proposal.v0" },
+    "actionId": { "type": "string", "minLength": 1 },
+    "actionClass": { "type": "string", "minLength": 1 },
+    "operation": { "type": "string", "minLength": 1 },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "actorId": { "type": "string", "minLength": 1 },
+        "bodyId": { "type": ["string", "null"] },
+        "sessionId": { "type": ["string", "null"] },
+        "executionEnvelopeDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "required": ["actorId", "bodyId", "sessionId", "executionEnvelopeDigest"],
+      "additionalProperties": true
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "scopeDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "required": ["kind", "id", "scopeDigest"],
+      "additionalProperties": true
+    },
+    "parametersDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "policyInputDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "requestedAt": { "type": "string", "minLength": 1 },
+    "expiresAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "actionId", "actionClass", "operation", "subject", "target", "parametersDigest", "policyInputDigest", "requestedAt", "expiresAt"],
+  "additionalProperties": true
+}

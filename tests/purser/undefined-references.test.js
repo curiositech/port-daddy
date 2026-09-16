@@ -4,7 +4,12 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const logPath = 'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf.log';
+// The Book's build log. This used to name legible-swarm-whitepaper.pdf.log,
+// at a path no build ever wrote to; with the per-chapter PDFs retired, the
+// only log there is is the one scripts/build-whitepapers.sh leaves under
+// .cache/whitepaper-build/ after compiling the Book. Still quarantined --
+// the log is not committed -- but reachable now: build the Book, then run it.
+const logPath = '.cache/whitepaper-build/coordination-papers-mega-volume/coordination-papers-mega-volume.log';
 
 describe('Undefined references check', () => {
   test('No undefined references in final PDF logs', () => {
