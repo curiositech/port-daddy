@@ -69,6 +69,13 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('runs stale reservation cleanup from the scheduled trigger', async () => {
+    const db=memoryD1();
+    const ctx=capturingCtx();
+    await handler.scheduled!({} as ScheduledController, makeEnv({DB:db.db}), ctx);
+    await Promise.all(ctx.waited);
+    expect(db.staleSweepQueries).toBe(1);
+  });
   it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {
     // A GitHub 5xx from the raw-diff endpoint used to become an empty diff and
     // let a clean, zero-source review complete. It is infrastructure failure:
@@ -504,8 +511,10 @@ describe('queue consumer', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const intent = { state: 'queued', error: null as string | null };
+    const billingD1 = memoryD1();
     const db = {
       prepare(sql: string) {
+        if (!sql.includes('fleet_run_intents')) return billingD1.db.prepare(sql);
         let bound: unknown[] = [];
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
