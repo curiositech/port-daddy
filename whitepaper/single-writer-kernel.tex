@@ -1714,7 +1714,7 @@ transition deposits a coordination marker and a notification). \Built.
 \end{property}
 
 This is the honesty discipline of the rest of the series turned on the kernel
-itself, and it is the right posture for a trusted computing base: when integrity is
+itself. It is also the right posture for a trusted computing base: when integrity is
 unknown, deny. The drift and liveness self-checks exist precisely because a second
 copy of the daemon \emph{can} come up against the same file --- a packaged install
 lagging the development tree is a recurring hazard --- and the kernel must know
@@ -2053,7 +2053,7 @@ primitive). We say so plainly rather than let advisory claims be read as isolati
 \label{sec:enforcement-gap}
 
 The same boundary problem reappears one level up, at the kernel's
-\emph{enforcement} ambition, and it is the paper's most consequential
+\emph{enforcement} ambition. This is the paper's most consequential
 ``\emph{specified}, not \emph{implemented}'' caveat. The kernel ships a real
 cryptographic gate --- a \textbf{macaroon}~\pdcite{birgisson2014macaroons} discharge
 primitive (a bearer credential whose authority can only ever \emph{narrow}, since
