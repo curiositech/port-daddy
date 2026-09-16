@@ -13,14 +13,14 @@
   pd figure,
   phase/.style={draw=hhink,line width=.62pt,rounded corners=2.5pt,
     inner xsep=6pt,inner ysep=6pt,align=left,text width=3.05cm,
-    font=\footnotesize,minimum height=4.3cm,anchor=north},
+    font=\pdfiglabel,minimum height=4.3cm,anchor=north},
   phase13/.style={phase,fill=hhsand!45},
   phase4/.style={phase,fill=hhcobalt!12,draw=hhcobalt!65},
-  needs/.style={pd focus fill,rounded corners=5pt,font=\footnotesize,
+  needs/.style={pd focus fill,rounded corners=5pt,font=\pdfiglabel,
     inner sep=2.5pt,align=center,text width=2.5cm,anchor=south},
   forecloses/.style={draw=hhcobalt!55,line width=.5pt,fill=hhcobalt!8,
     rounded corners=2pt,inner xsep=5pt,inner ysep=4pt,align=left,
-    text width=3.05cm,font=\footnotesize,text=hhink,anchor=north},
+    text width=3.05cm,font=\pdfiglabel,text=hhink,anchor=north},
   status/.style={pd direct label,align=left,text width=3.05cm,anchor=north,
     fill=none,inner sep=0pt},
 ]
@@ -77,18 +77,22 @@
    disciplined card that should die before its natural TTL.};
 
 % ---------- mechanized-status strip, hairline well below the tallest box ----------
-\draw[pd hairline] (\xa,-7.7) -- (\xd,-7.7);
-\node[pd panel title,anchor=west] at (\xa,-8.05)
+% The Book's Palatino wraps "Forecloses:" text one line taller than the
+% standalone chapter's Latin Modern at the same 3.05cm box width, so the
+% hairline sits 0.5cm further down than the chapter-only geometry needs --
+% that margin is for the widest edition, not this one.
+\draw[pd hairline] (\xa,-8.2) -- (\xd,-8.2);
+\node[pd panel title,anchor=west] at (\xa,-8.55)
   {Mechanized status (ProVerif 2.05, \S\ref{sec:correct}):};
 
-\node[status,text=hhteal] (s1) at (\xa,-8.45)
+\node[status,text=hhteal] (s1) at (\xa,-8.95)
   {\textbf{TRUE} --- \texttt{v1\_refined.pv}: secrecy + authentication};
-\node[status,text=hhteal] (s2) at (\xb,-8.45)
+\node[status,text=hhteal] (s2) at (\xb,-8.95)
   {\textbf{TRUE} --- \texttt{v2\_asymmetric.pv}: secrecy + authentication};
-\node[status,text=hhteal] (s3) at (\xc,-8.45)
+\node[status,text=hhteal] (s3) at (\xc,-8.95)
   {\textbf{TRUE} --- \texttt{v3\_delegation.pv}: authentication
    correspondence (attenuation modeled separately, App.~\ref{app:phase3})};
-\node[status,text=hhamber] (s4) at (\xd,-8.45)
+\node[status,text=hhamber] (s4) at (\xd,-8.95)
   {\textbf{not modeled} --- soundness argued by inspection only
    (\S\ref{sec:revocation})};
 
