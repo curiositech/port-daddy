@@ -412,7 +412,7 @@ TrueSkill~\pdcite{herbrich2007trueskill} & pairwise, few games & calibrated $\si
 EigenTrust~\pdcite{kamvar2003eigentrust} & who-trusts-whom graph & resists collusive cliques & signal is per-task quality, not trust \\
 \bottomrule
 \end{tabularx}
-\caption{Estimators by signal type. Choosing the wrong estimator for the signal is
+\pdmargincaption{Estimators by signal type. Choosing the wrong estimator for the signal is
 a real error; choosing \emph{any} estimator before securing the substrate is the
 larger one (\S\ref{sec:substrate}).}
 \label{tab:estimators}
@@ -461,7 +461,7 @@ How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, ju
 Who grades the graders? & LLM-as-judge (debias only) & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
 \bottomrule
 \end{tabularx}
-\caption{Where this paper departs from its closest prior art. The contributions are
+\pdmargincaption{Where this paper departs from its closest prior art. The contributions are
 the impossibility/cost theorems, the multi-dimensional vector with a judge per
 axis, and treating the grader's incentive-compatibility as a first-class hole.}
 \label{tab:contributions}
@@ -832,7 +832,7 @@ We use the neutral maturity scale throughout (\BUILT~/
 % --- FIGURE 4: the three continuity subsystems ---
 \begin{table}[H]
 \centering
-\caption{The three continuity subsystems have different survival depths. A successor inherits what each subsystem stores, and each stores less than the running predecessor held: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
+\pdmargincaption{The three continuity subsystems have different survival depths. A successor inherits what each subsystem stores, and each stores less than the running predecessor held: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
 \label{tab:stp-organs}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -963,7 +963,7 @@ checkpoint organ can be graded on the ladder rather than described against it.
 
 \begin{table}[H]
 \centering
-\caption{The agent-death ladder, and where the checkpoint organ sits on it.
+\pdmargincaption{The agent-death ladder, and where the checkpoint organ sits on it.
 Rungs are ordered by what survives the death, not by how bad it feels. The organ
 reaches rung~2 and specifies rung~3; rung~5 is not a gap in the implementation
 but a property of the artifact, which is why OP-4b
@@ -1074,7 +1074,7 @@ Strong record, free minting & $90$ & $60$ & $\max(60,50)=60$ &
 Yes --- abandoning costs it $60-50=10$, so it keeps the identity and eats the $30$. \\
 \bottomrule
 \end{tabularx}
-\caption{Free identity minting does not defeat \emph{every} sanction --- it defeats
+\pdmargincaption{Free identity minting does not defeat \emph{every} sanction --- it defeats
 every sanction that would push the actor below the newcomer floor $r_0$. That is
 the whole content of Theorem~\ref{thm:necessity}: the floor, not the penalty, is
 what an attacker optimizes against.}
@@ -1221,7 +1221,7 @@ Surplus $\pi(\kappa_t)$ & $2.8$ & $4.6$ & $6.4$ & $8.2$ & $10.0$ & --- \\
 Gap $\pi(\kappa^\star)-\pi(\kappa_t)$ & $7.2$ & $5.4$ & $3.6$ & $1.8$ & $0.0$ & $\mathbf{W=18.0}$ \\
 \bottomrule
 \end{tabular}
-\caption{The whitewasher's bill, computed. Re-entering as a newcomer forgoes
+\pdmargincaption{The whitewasher's bill, computed. Re-entering as a newcomer forgoes
 $W=18.0$ of surplus over the maturation window; any single-outcome fraud gain below
 that is not worth the reset.}
 \label{tab:whitewash-numbers}
@@ -1849,7 +1849,7 @@ Table~\ref{tab:stp-not-bandit} lines the four bandit assumptions up against the 
 reality that breaks each.
 \begin{table}[H]
 \centering
-\caption{Why public reputation is not a bandit problem. Each row is an assumption the bandit model needs, the market fact that breaks it, and what a reputation substrate keeps instead. [internal]}
+\pdmargincaption{Why public reputation is not a bandit problem. Each row is an assumption the bandit model needs, the market fact that breaks it, and what a reputation substrate keeps instead. [internal]}
 \label{tab:stp-not-bandit}
 \small
 \renewcommand{\arraystretch}{1.15}
