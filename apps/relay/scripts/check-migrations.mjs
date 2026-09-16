@@ -67,6 +67,74 @@ requireTable('fleet_runs');
 requireTable('fleet_run_steps');
 requireTable('events');
 requireTable('users');
+const fleetAccountsSql = requireTable('fleet_accounts');
+const fleetMembersSql = requireTable('fleet_account_members');
+const fleetTenantRepositoriesSql = requireTable('fleet_tenant_repositories');
+for (const column of ['id', 'status', 'created_at', 'updated_at']) requireColumn('fleet_accounts', column);
+for (const column of ['tenant_account_id', 'user_id', 'role']) requireColumn('fleet_account_members', column);
+for (const column of [
+  'tenant_account_id', 'installation_id', 'repository_id', 'github_account_id', 'active',
+]) requireColumn('fleet_tenant_repositories', column);
+if (!fleetAccountsSql.includes("'active'") || !fleetAccountsSql.includes("'suspended'")) {
+  throw new Error('fleet_accounts.status lost its closed lifecycle CHECK');
+}
+if (!fleetMembersSql.includes("'owner'") || !fleetMembersSql.includes("'member'")) {
+  throw new Error('fleet_account_members.role lost its closed role CHECK');
+}
+for (const id of ['installation_id', 'repository_id', 'github_account_id']) {
+  if (!fleetTenantRepositoriesSql.includes(`typeof(${id}) = 'integer'`)
+    || !fleetTenantRepositoriesSql.includes(`${id} > 0`)) {
+    throw new Error(`fleet_tenant_repositories.${id} lost its positive-integer CHECK`);
+  }
+}
+const activeTenantIdentityIndex = db.prepare(
+  "SELECT sql FROM sqlite_schema WHERE type = 'index' AND name = 'fleet_tenant_repositories_active_identity_idx'",
+).get();
+if (!String(activeTenantIdentityIndex?.sql ?? '').includes('WHERE active = 1')) {
+  throw new Error('fleet tenant identity lost its one-active-binding unique index');
+}
+for (const trigger of [
+  'fleet_accounts_immutable_id',
+  'fleet_account_members_immutable_ids',
+  'fleet_tenant_repositories_immutable_ids',
+]) {
+  if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'trigger' AND name = ?").get(trigger)) {
+    throw new Error(`relay migration chain did not create immutable identity trigger ${trigger}`);
+  }
+}
+const onboardingSql = requireTable('fleet_repository_onboarding');
+const proposalsSql = requireTable('fleet_configuration_proposals');
+for (const column of [
+  'tenant_account_id', 'installation_id', 'repository_id', 'requested_by_user_id',
+  'desired_outcomes_json', 'customer_budget_microusd', 'provider_cost_cap_microusd',
+  'margin_floor_bps', 'config_status', 'execution_status',
+]) requireColumn('fleet_repository_onboarding', column);
+for (const column of ['tenant_account_id', 'installation_id', 'repository_id', 'proposal_json', 'status']) {
+  requireColumn('fleet_configuration_proposals', column);
+}
+if (!onboardingSql.includes("execution_status = 'blocked_pending_executor'")) {
+  throw new Error('fleet onboarding can activate without executor tenant validation');
+}
+if (!onboardingSql.includes('margin_floor_bps BETWEEN 7500 AND 10000')) {
+  throw new Error('fleet onboarding lost the platform 75 percent margin floor');
+}
+if (!onboardingSql.includes('provider_cost_cap_microusd * 10000')) {
+  throw new Error('fleet onboarding lost the budget-to-provider-cost constraint');
+}
+if (!proposalsSql.includes("'accepted'") || !proposalsSql.includes("'superseded'")) {
+  throw new Error('fleet proposal lifecycle lost its closed status set');
+}
+if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'index' AND name = 'fleet_configuration_proposals_one_accepted_idx'").get()) {
+  throw new Error('fleet proposals lost their one-accepted-per-repository index');
+}
+for (const trigger of [
+  'fleet_repository_onboarding_immutable_scope',
+  'fleet_configuration_proposals_immutable_scope',
+]) {
+  if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'trigger' AND name = ?").get(trigger)) {
+    throw new Error(`fleet onboarding lost immutable authority trigger ${trigger}`);
+  }
+}
 requireColumn('parleys', 'convened_by');
 requireColumn('parleys', 'outcome_json');
 requireColumn('harbor_helms', 'parley_expiry_default');
