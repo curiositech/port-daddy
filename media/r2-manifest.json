@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 623,
-    "distinctObjects": 587,
-    "bytes": 283914938,
-    "distinctBytes": 281121347
+    "assets": 624,
+    "distinctObjects": 588,
+    "bytes": 284523161,
+    "distinctBytes": 281729570
   },
   "assets": [
     {
@@ -1064,6 +1064,13 @@
       "bytes": 314897,
       "sha256": "9840080aca03e3f1ffe3a2367c865ad70f01558ea26e9a3400e39e81fa68673f",
       "key": "sha256/98/9840080aca03e3f1ffe3a2367c865ad70f01558ea26e9a3400e39e81fa68673f.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-unify-maturity-macros/legible-swarm-p62-honest-labels-1x-150dpi.png",
+      "bytes": 608223,
+      "sha256": "560457f5250bf595bf5ee4967ec9e0ac3008a2ae20b20df1fdf6221b4c0ad139",
+      "key": "sha256/56/560457f5250bf595bf5ee4967ec9e0ac3008a2ae20b20df1fdf6221b4c0ad139.png",
       "contentType": "image/png"
     },
     {
