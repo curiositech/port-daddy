@@ -27,7 +27,7 @@ metadata:
     sourceRepo: workgroup-ai
     recoveredAt: "2026-04-19T03:51:26-07:00"
     recoveredFrom: /Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/agentic-calendar-coordination
-    ctaOverlay: /Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/agentic-calendar-coordination/after.md
+    ctaOverlay: /Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/agentic-calendar-coordination/after.md
   authorship:
     maintainers:
       - some-claude-skills

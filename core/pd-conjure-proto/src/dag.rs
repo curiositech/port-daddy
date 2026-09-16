@@ -4,7 +4,7 @@
 //! pull the gpui crate; the field names match the JSON exactly, so
 //! `conjure::fixture()` serialized to JSON (see `fixture.json`) deserializes
 //! straight in. All optional fields carry `#[serde(default)]` so a partial
-//! windags `next_move` payload still yields a renderable DAG.
+//! jury_rig `next_move` payload still yields a renderable DAG.
 
 use serde::Deserialize;
 
@@ -72,7 +72,7 @@ pub struct PredictedNode {
     pub ask_user_before_proceeding: bool,
 }
 
-/// Parse a windags-shaped JSON payload into a [`PredictedDag`]. Tolerant of
+/// Parse a jury_rig-shaped JSON payload into a [`PredictedDag`]. Tolerant of
 /// missing optionals (all `#[serde(default)]`).
 pub fn parse(json: &str) -> anyhow::Result<PredictedDag> {
     Ok(serde_json::from_str::<PredictedDag>(json)?)

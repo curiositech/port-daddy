@@ -1,0 +1,228 @@
+{
+  "figure": "fig-magic-link-inline",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T2",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            192.7919921875,
+            124.23712921142578,
+            253.09646606445312,
+            133.63450622558594
+          ],
+          "container_bbox": [
+            191.29754638671875,
+            123.57330322265625,
+            254.59164428710938,
+            132.7393035888672
+          ],
+          "text": "available: NULL",
+          "message": "text 'available: NULL' escapes its containing rect (191.3, 123.6, 254.6, 132.7)"
+        }
+      ]
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "fail",
+      "count": 6,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            225.4515380859375,
+            56.00042724609375,
+            322.4796447753906,
+            64.96707153320312
+          ],
+          "text": "request intervals overlap",
+          "line_segment": [
+            [
+              306.0030517578125,
+              62.06941223144531
+            ],
+            [
+              306.0030517578125,
+              184.53106689453125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'request intervals overlap'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            312.05352783203125,
+            80.9637680053711,
+            321.0201721191406,
+            165.07089233398438
+          ],
+          "text": "ATOMIC DRAIN",
+          "line_segment": [
+            [
+              150.65797424316406,
+              109.69328308105469
+            ],
+            [
+              475.23858642578125,
+              109.69328308105469
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'ATOMIC DRAIN'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            452.83709716796875,
+            73.37313842773438,
+            497.11236572265625,
+            81.34349060058594
+          ],
+          "text": "SUCCESS",
+          "line_segment": [
+            [
+              150.65797424316406,
+              76.8103256225586
+            ],
+            [
+              475.23858642578125,
+              76.8103256225586
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'SUCCESS'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            452.83709716796875,
+            106.25609588623047,
+            491.8041687011719,
+            114.22644805908203
+          ],
+          "text": "REJECT",
+          "line_segment": [
+            [
+              150.65797424316406,
+              109.69328308105469
+            ],
+            [
+              475.23858642578125,
+              109.69328308105469
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'REJECT'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            443.765625,
+            169.39427185058594,
+            503.6375732421875,
+            178.52650451660156
+          ],
+          "text": "receipt tk 7\u2192A",
+          "line_segment": [
+            [
+              150.65797424316406,
+              174.3258819580078
+            ],
+            [
+              475.23858642578125,
+              174.3258819580078
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'receipt tk 7\u2192A'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            167.2497100830078,
+            179.7379150390625,
+            390.743408203125,
+            188.70455932617188
+          ],
+          "text": "the rejected consumer creates no second state transition",
+          "line_segment": [
+            [
+              306.0030517578125,
+              62.06941223144531
+            ],
+            [
+              306.0030517578125,
+              184.53106689453125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'the rejected consumer creates no second state transition'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1614,
+      "edge_density": 0.0877,
+      "distinct_colors": 2064,
+      "flags": [
+        "edge_density=0.088 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T2",
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

@@ -63,7 +63,7 @@
     },
     "test-concurrency-idempotency.js": {
       "runner": "quarantined",
-      "reason": "imports the nonexistent '../test-utils' repository fixture while probing concurrent build idempotency, so the test cannot initialize"
+      "reason": "imports the nonexistent '../test-utils' repository fixture while probing concurrent build idempotency, so the test cannot initialize. Its PDF path was repointed from spawn-to-person-whitepaper.pdf to the Book when the per-chapter PDFs were retired, so it names a real artifact again; determinism itself is covered live by whitepaper-build.yml, which builds twice and sha256sum --checks"
     },
     "test-edge-cases-paper-epoch.js": {
       "runner": "quarantined",
@@ -79,7 +79,7 @@
     },
     "undefined-references.test.js": {
       "runner": "quarantined",
-      "reason": "reads website-v2/public/whitepaper/legible-swarm-whitepaper.pdf.log, a pdflatex build log that is not committed; it can only pass inside the whitepaper-build job, never in unit-tests"
+      "reason": "reads the Book's xelatex build log under .cache/whitepaper-build/, which is not committed, so it can only pass after a local or CI build of the Book and never in unit-tests. It named legible-swarm-whitepaper.pdf.log until the per-chapter PDFs were retired -- a path no build ever wrote to, so this was unreachable before and is merely uncommitted now"
     },
     "whitepaper-figure-validation.test.js": {
       "runner": "quarantined",
@@ -87,7 +87,7 @@
     },
     "implementation-status-contracts.test.js": {
       "runner": "quarantined",
-      "reason": "superseded by tests/unit/whitepaper-implementation-status.test.js, and wrong: expects the substring 'BuiltWeak substrate' where the source reads '\\BuiltWeak{}' followed by a newline then 'substrate'"
+      "reason": "superseded by tests/unit/whitepaper-implementation-status.test.js, and wrong: expects the substring 'BuiltWeak substrate' where the source reads '\\BuiltWeak{}' followed by a newline then 'substrate'. Its harbor-economy path was repointed from the retired harbor-economy-whitepaper.pdf to the chapter .tex it was always reaching for"
     },
     "whitepaper-metadata.test.js": {
       "runner": "quarantined",

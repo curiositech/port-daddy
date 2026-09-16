@@ -128,7 +128,7 @@ export function Fleet() {
     qa:
       trigger: git:committed             # Fires when someone commits
       backend: cloudflare
-      model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      capability: cheap
       prompt: |
         Review the most recent commit. Read every changed file.
         If you find bugs, write a test that exposes each one.
@@ -140,7 +140,7 @@ export function Fleet() {
     docs:
       trigger: git:committed             # Same trigger, different job
       backend: cloudflare
-      model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      capability: cheap
       prompt: |
         Check if docs match the code. Update anything stale.
       identity: "{project}:fleet:docs"
@@ -287,7 +287,7 @@ exit 0`}</CodeBlock>
               <CodeBlock copyable={false} language="yaml">{`qa:
   trigger: git:committed
   backend: cloudflare
-  model: '@cf/qwen/qwen3-30b-a3b-fp8'`}</CodeBlock>
+  capability: cheap`}</CodeBlock>
             </Surface>
             <Surface depth="raised" radius="none" className="p-8 space-y-4">
               <Surface

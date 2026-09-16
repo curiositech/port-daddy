@@ -1,0 +1,88 @@
+{
+  "$comment": "pd-vault known-answer vectors, v1 — copied byte-for-byte from the canonical Rust kernel crate core/kernel/pd-vault (branch claude/pd-vault-crate, PR #9313: src/kdf.rs and src/seal.rs test constants). Provenance, stated plainly (same words as the Rust source): the bytes came out of that implementation and were pasted back in; they are NOT RFC vectors. They were reproduced once during pd-vault development by a throwaway reference implementation written straight from RFC 8439 / draft-irtf-cfrg-xchacha, which is why they are believed correct rather than merely self-consistent. Per the ADR-0120 rule (no second implementation without a shared fixture), every non-Rust twin of the vault — the daemon's pure-TS reference seal in lib/pd-vault-ts.ts today, Workers or Swift later — asserts these exact vectors, so the implementations can only drift loudly.",
+  "derivation": {
+    "kdf": "channel_key = HKDF-SHA256(salt = channel_key_label, ikm = harbor_secret, info = unambiguous_encoding([channel_key_label, channel_id, u64_be(epoch)]), len = 32)",
+    "encoding": "unambiguous_encoding(components) = u32_be(count) || for each component: u32_be(len) || bytes — prefix-free, no reserved separator byte",
+    "seal": "XChaCha20-Poly1305(key = channel_key, nonce = 24 bytes, aad = unambiguous_encoding([seal_aad_label, harbor_id, channel_id, u64_be(epoch), u64_be(seq)])), ciphertext = body || 16-byte tag"
+  },
+  "labels": {
+    "channel_key_label": "pd-vault/v1/channel",
+    "seal_aad_label": "pd-vault/v1/seal"
+  },
+  "encoding_layout": {
+    "$comment": "Byte-for-byte layout pin from pd-vault lib.rs test encoding_layout_is_stable: components ['hi', 0xff00] encode as count, then len||bytes per component.",
+    "components_hex": ["6869", "ff00"],
+    "encoded_hex": "0000000200000002686900000002ff00"
+  },
+  "channel_key": {
+    "harbor_secret_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "channel_id": "harbor/alpha",
+    "epoch": 7,
+    "key_hex": "eecdca153c0521429707dd6ed523314c6faff8060928b731738214cef69b4c35",
+    "rotated_epoch": 8,
+    "rotated_key_hex": "c80f75976ac60d87e08aa8e22ce26dd74a46ea514824a4ddc518f1e956e25c5b"
+  },
+  "seal": {
+    "harbor_secret_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "harbor_id": "harbor-kat",
+    "channel_id": "harbor/alpha",
+    "epoch": 7,
+    "seq": 42,
+    "nonce_hex": "000102030405060708090a0b0c0d0e0f1011121314151617",
+    "plaintext_utf8": "pd-vault known-answer payload v1",
+    "aad_hex": "000000050000001070642d7661756c742f76312f7365616c0000000a686172626f722d6b61740000000c686172626f722f616c70686100000008000000000000000700000008000000000000002a",
+    "ciphertext_hex": "8a0df028d33f1b412d8203db5b459600c432b7718f27653b846d194c8026f07a64f66592b2ea4677a8f9269def4e41df"
+  },
+  "hpke_wrap": {
+    "$comment": "RFC 9180 HPKE base-mode key-wrap KAT, v1 (ADR-0123 A4/B3) — added alongside channel_key/seal above, same rule and the same words: SELF-GENERATED from the canonical Rust kernel crate core/kernel/pd-vault (src/hpke.rs, wrap_channel_key_for_device/unwrap_channel_key_for_device, test wrap_kat_is_stable). These bytes came out of that implementation and were pasted back in; they are NOT RFC vectors, NOT from an official test suite. What IS independently validated against an official source (a from-scratch conformance check against the IRTF CFRG working group's own reference test-vectors.json — https://raw.githubusercontent.com/cfrg/draft-irtf-cfrg-hpke/master/test-vectors.json, mode=0/kem_id=32/kdf_id=1/aead_id=2, entry index 4 of 128 — rfc-editor.org/datatracker.ietf.org were unreachable from this crate's build sandbox) is the HPKE core underneath this KAT: LabeledExtract/LabeledExpand, DHKEM(X25519,HKDF-SHA256) Encap/Decap (a real X25519 ECDH, not a stand-in), KeySchedule, and AES-256-GCM Seal — see src/hpke.rs test rfc9180_official_vector for the full trace of intermediate values (shared_secret, key_schedule_context, secret, key, base_nonce, exporter_secret) checked against that file. A non-Rust twin should validate its own HPKE core against that same official file directly, then assert the KAT below to pin wrap_channel_key_for_device/unwrap_channel_key_for_device specifically — the info/aad double-use, the KeyWrapAad encoding, and the full wrap pipeline end-to-end.",
+    "ciphersuite": {
+      "kem_id": 32,
+      "kdf_id": 1,
+      "aead_id": 2,
+      "kem": "DHKEM(X25519, HKDF-SHA256)",
+      "kdf": "HKDF-SHA256",
+      "aead": "AES-256-GCM",
+      "mode": "base (0x00)"
+    },
+    "derivation": {
+      "hpke_v1_label": "HPKE-v1",
+      "kem_suite_id_hex": "4b454d0020",
+      "hpke_suite_id_hex": "48504b45002000010002",
+      "wrap": "enc, shared_secret = Encap(pkR) [fresh ephemeral X25519 keypair, HPKE §4.1]; info = aad = KeyWrapAad.encode(); key, base_nonce = KeySchedule(mode_base, shared_secret, info) [HPKE §5.1, Nk=32, Nn=12]; ciphertext = AES-256-GCM-Seal(key, base_nonce, aad, plaintext=channel_key bytes) [HPKE §5.2 seq=0, so nonce = base_nonce unmodified]",
+      "unwrap": "shared_secret = Decap(enc, skR); key, base_nonce = KeySchedule(mode_base, shared_secret, info); channel_key bytes = AES-256-GCM-Open(key, base_nonce, aad, ciphertext)"
+    },
+    "labels": {
+      "key_wrap_aad_label": "pd-vault/keywrap/v1"
+    },
+    "aad_field_order": [
+      "label",
+      "account_id",
+      "harbor_id",
+      "authority_epoch (u64_be, 8 bytes)",
+      "recipient_device_id",
+      "grant",
+      "key_purpose",
+      "key_id"
+    ],
+    "kat": {
+      "channel_key_hex": "eecdca153c0521429707dd6ed523314c6faff8060928b731738214cef69b4c35",
+      "$comment_channel_key": "same 32-byte key as the channel_key section above (harbor_secret 0x5a*32 / channel_id \"harbor/alpha\" / epoch 7) — reused deliberately so a wrap KAT and a derive KAT can cross-check the same plaintext.",
+      "sender_ephemeral_secret_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+      "$comment_sender_ephemeral_secret": "HPKE's skE — pinned to a fixed value ONLY for KAT determinism. Production wrap_channel_key_for_device draws this fresh from the OS CSPRNG on every call (see hpke.rs Encap); reusing an ephemeral secret across wraps is never done outside this fixture.",
+      "recipient_secret_hex": "0202020202020202020202020202020202020202020202020202020202020202",
+      "recipient_public_hex": "ce8d3ad1ccb633ec7b70c17814a5c76ecd029685050d344745ba05870e587d59",
+      "aad": {
+        "account_id": "acct-kat",
+        "harbor_id": "harbor-kat",
+        "authority_epoch": 7,
+        "recipient_device_id": "device-kat",
+        "grant": "use",
+        "key_purpose": "channel",
+        "key_id": "harbor/alpha"
+      },
+      "aad_hex": "000000080000001370642d7661756c742f6b6579777261702f763100000008616363742d6b61740000000a686172626f722d6b61740000000800000000000000070000000a6465766963652d6b617400000003757365000000076368616e6e656c0000000c686172626f722f616c706861",
+      "enc_hex": "a4e09292b651c278b9772c569f5fa9bb13d906b46ab68c9df9dc2b4409f8a209",
+      "ciphertext_hex": "a80babcec0b2cea3e013d52667bd621d1c7c7024e6dd46b968c2e0554caf8f67f73b8d4d7798247a063507c276ce911f"
+    }
+  }
+}

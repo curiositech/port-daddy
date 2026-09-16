@@ -1,73 +1,35 @@
-% Figure — the consistency-model theorem made visible: a real-time history of
-% claim operations with one linearization point per commit. The theorem itself
-% is stated in the body (Theorem: consistency model), not repeated here.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 11 — real-time intervals and extracted commit order.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  lane/.style={font=\footnotesize\bfseries},
-  op/.style={draw=hhebony,thick,rounded corners=2pt,minimum height=7mm,align=center,font=\scriptsize},
-  lp/.style={circle,fill=hhcobalt,inner sep=1.6pt},
-]
+\begin{tikzpicture}[pd figure,x=.8cm,y=.85cm]
+  \foreach \y/\a in {5.4/A,4.4/B,3.4/C} {
+    \node[pd row label] at (-.25,\y) {agent \a};
+    \draw[pd hairline] (0,\y)--(10.4,\y);
+  }
+  \fill[pd neutral fill] (.6,5.2) rectangle (4.3,5.6);
+  \node[pd direct label,anchor=south,text width=1.2cm,align=center] at (2.45,5.7) {claim};
+  \fill[pd neutral fill] (1.9,4.2) rectangle (6.0,4.6);
+  \node[pd direct label,anchor=south,text width=1.9cm,align=center] at (2.9,4.7) {loses to A};
+  \fill[pd neutral fill] (6.4,5.2) rectangle (8.0,5.6);
+  \node[pd direct label,anchor=south,text width=1.1cm,align=center] at (7.2,5.7) {release};
+  \fill[pd neutral fill] (8.4,3.2) rectangle (10.3,3.6);
+  \node[pd direct label,anchor=south,text width=.9cm,align=center] at (9.35,3.7) {wins};
 
-% time axis
-\draw[->,>=Latex,thick,hhebony] (0,-0.0) -- (118mm,0) node[right,font=\footnotesize]{real time};
+  \foreach \x/\lbl in {4.3/{A claim},6.0/{B loses},8.0/{A release},10.3/{C claim}} {
+    \draw[pd guide] (\x,1.55)--(\x,5.75);
+    \node[pd focus datum] at (\x,1.9) {};
+    \node[pd axis label,anchor=north,align=center] at (\x,1.65) {\lbl};
+  }
+  \draw[pd focus arrow,line width=1.3pt] (1.1,1.9)--(10.5,1.9);
+  \node[pd panel title,anchor=east,text width=1.6cm,align=right] at (.7,1.9) {commit order};
 
-% Agent A: claim(port) ----- success
-\node[lane,anchor=east] at (-2mm,18mm) {Agent A};
-\node[op,fill=hhsand!30,minimum width=34mm,anchor=west] (a) at (8mm,18mm) {claim(port 7421)};
-\node[lp] (lpa) at ($(a.east)+(2mm,0)$) {};
-\node[font=\scriptsize,above=0.5mm of lpa,text=hhink] {commit (LP)};
-
-% Agent B: claim(port) -- overlaps -- loses
-\node[lane,anchor=east] at (-2mm,9mm) {Agent B};
-\node[op,fill=hhsand!30,minimum width=44mm,anchor=west] (b) at (24mm,9mm) {claim(port 7421) $\to$ holder=A};
-\node[lp] (lpb) at ($(b.east)+(2mm,0)$) {};
-
-% Agent C: claim after release
-\node[lane,anchor=east] at (-2mm,0mm) {Agent C};
-
-% Agent A: release
-\node[op,fill=hhsand!30,minimum width=22mm,anchor=west] (rel) at (70mm,18mm) {release};
-\node[lp] (lprel) at ($(rel.east)+(2mm,0)$) {};
-
-% Agent C re-claim succeeds after release LP
-\node[op,fill=hhsand!30,minimum width=30mm,anchor=west] (c) at (84mm,0mm) {claim(7421) $\to$ OK};
-\node[lp] (lpc) at ($(c.east)+(2mm,0)$) {};
-
-% vertical guides at LPs
-\foreach \p in {lpa,lpb,lprel,lpc} {
-  \draw[hhcobalt,dotted] (\p) -- (\p|-0,-6mm);
-}
-
-% the linearization order strip
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      font=\scriptsize,align=center,anchor=north,text width=120mm] at (58mm,-10mm)
-  {\textbf{single linearization:}\quad
-   $A.\text{claim} \prec B.\text{claim(loses)} \prec A.\text{release} \prec C.\text{claim(wins)}$};
-
-\end{tikzpicture}%
-}
-\caption{The consistency-model theorem --- the formal property the single-writer
-choice buys, made visible. Because all mutations serialize through one writer over
-one WAL file, transactions are \textbf{serializable}; because that writer is the
-sole decider, the observable history of claims and locks is \textbf{linearizable}:
-every operation takes effect atomically at its commit (its \emph{linearization
-point}, the cobalt dots), and the commit order coincides with real time. The trace
-shows A winning a port, B losing cleanly to the holder, A releasing, and C then
-winning --- one unambiguous order with no agreement protocol in sight. This
-linearizability is exactly what lets the coordination layer treat ``who holds
-this'' as ground truth.}
+  \node[pd note,anchor=north,text width=10.4cm,align=center] at (5.2,.75)
+    {$A.claim \prec B.claim\text{ (loses)} \prec A.release \prec C.claim$};
+\end{tikzpicture}
+\caption{A real-time history and its extracted linearization. Operations
+overlap in caller time, but each receives one commit point on the single
+writer's rail, and the linearization reads: A claims, B loses, A releases,
+C claims. The claim is conditional on one writer, no uncommitted reads, and
+replies after commit. [internal]}
 \label{fig:swk-consistency-model}
 \end{figure}

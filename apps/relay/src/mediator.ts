@@ -81,6 +81,7 @@
  * parley channel turns; symbol-level conflict prediction and auto-convening.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import type { Env } from './types.js';
 import {
   listParleyPositions,
@@ -97,7 +98,7 @@ import {
  * reasoning, and a cheap model keeps a per-signature call affordable enough
  * that the honest answer to "should this be async?" stays "no".
  */
-export const DEFAULT_MEDIATOR_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+export const DEFAULT_MEDIATOR_MODEL = CF_ROLE_MODELS.mediator;
 
 /** Hard cap on a recorded observation — this is a margin note, not an essay. */
 export const MAX_OBSERVATION_CHARS = 600;

@@ -12,7 +12,7 @@ The product should not be "launch agents from a Mac app." That is too small. The
 
 > Pick work from the roadmap, let Port Daddy plan it, skill-graft the right agent abilities, launch bounded agents across local and hosted backends, enforce coordination before mutation, and leave a perfect evidence trail of what changed, who touched it, what was merged, what was collapsed, and where the human had to decide.
 
-The current repo already has the pieces: roadmap ledgers, Fleet Control Center, FleetBar, `pd spawn`, the `pd agent` registry/inbox namespace, Tube, file and symbol claims, salvage, backend readiness, Cloudflare/Codex/Claude backends, and Windags skills. The next product step is to make those pieces feel like one operating room.
+The current repo already has the pieces: roadmap ledgers, Fleet Control Center, FleetBar, `pd spawn`, the `pd agent` registry/inbox namespace, Tube, file and symbol claims, salvage, backend readiness, Cloudflare/Codex/Claude backends, and Jury-rig skills. The next product step is to make those pieces feel like one operating room.
 
 ## The Core Loop
 
@@ -107,8 +107,8 @@ Before any agent launches, Port Daddy should run a real planning pass:
 
 1. classify the task and halt on ambiguity
 2. decompose into 3-7 nodes
-3. narrow skills through the Windags MCP skill search path
-4. call `windags_skill_graft` for every executable node
+3. narrow skills through the Jury-rig MCP skill search path
+4. call `pd jury-rig query` for every executable node
 5. attach the selected skill, runner-up skills, references, output contract, and failure pre-mortem to the node
 6. store the plan as a sortie proposal, not loose prose
 
@@ -384,7 +384,7 @@ That proves the loop. Multi-agent Cloudflare/Codex/Claude fanout can come after 
 ## Open Product Questions
 
 - Should the cockpit be a new top-level `surface=cockpit`, or should it be the evolved `sorties` surface?
-- What is the first honest `windags_skill_graft` storage shape in Port Daddy: tuple, mission-node field, or both?
+- What is the first honest `pd jury-rig query` storage shape in Port Daddy: tuple, mission-node field, or both?
 - Should ChatGPT/Claude Chat via Tube be read-only collaborators by default, or can they receive attenuated mutation authority through a local body lease?
 - What is the minimum viable worktree collapse operation: merge only, or merge/cherry-pick/archive from the first slice?
 - How aggressive should automatic roadmap assignment be before the user explicitly approves a mission plan?

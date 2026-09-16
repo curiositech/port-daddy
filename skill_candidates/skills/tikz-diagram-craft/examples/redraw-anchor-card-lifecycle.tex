@@ -1,0 +1,59 @@
+% Redraw of fig-anchor-card-lifecycle to the tikz-diagram-craft standard: three
+% lanes on one time axis, each lane an interval of admissibility in the chapter
+% hue, the inadmissible remainder dashed in the breach hue, and the correction
+% card issued on its own lane in the ready hue.  Facts from
+% website-v2/public/whitepaper/anchor-protocol-whitepaper.tex, the revocation
+% section and thm:injective [internal].
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdindigo}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid -----------------------------------------------------------
+  \def\t0{3.45}   \def\tr{6.10}   \def\te{8.60}   \def\tend{10.80}
+  \def\la{3.00}   \def\lb{1.90}   \def\lc{0.80}   \def\axy{-0.55}
+  % ---- the key: every hue on the page, named ------------------------------
+  \foreach \x/\y/\s/\w in {\t0/4.42/{pd focus rule}/{admissible},
+                            7.30/4.42/{pd ready rule}/{the replacement card},
+                            \t0/3.92/{pd breach rule}/{never admissible again}}{
+    \draw[\s,line width=2.2pt] (\x,\y) -- ({\x+.55},\y);
+    \node[pd label,anchor=west] at ({\x+.68},\y) {\w};}
+  % ---- the two instants the chapter names, as guides ----------------------
+  \foreach \x in {\tr,\te}{\draw[pd guide] (\x,3.42) -- (\x,{\axy+.12});}
+  % ---- lane 1: the card is revoked before it would have expired -----------
+  \node[pd title,anchor=east,text width=3.1cm,align=right] at ({\t0-.28},\la) {card k17, revoked};
+  \draw[pd hairline] (\t0,\la) -- (\tend,\la);
+  \draw[pd focus rule,line width=2.6pt] (\t0,\la) -- (\tr,\la);
+  \draw[pd breach rule,line width=2.0pt] (\tr,\la) -- (\tend,\la);
+  \node[pd breach datum] at (\tr,\la) {};
+  \node[pd tag,anchor=south] at ({(\tr+\te)/2},{\la+.30}) {never returns};
+  % ---- lane 2: the same card, left to reach its natural expiry ------------
+  \node[pd title,anchor=east,text width=3.1cm,align=right] at ({\t0-.28},\lb) {card k17, expiry};
+  \draw[pd hairline] (\t0,\lb) -- (\tend,\lb);
+  \draw[pd focus rule,line width=2.6pt] (\t0,\lb) -- (\te,\lb);
+  \draw[pd breach rule,line width=2.0pt] (\te,\lb) -- (\tend,\lb);
+  \node[pd breach datum] at (\te,\lb) {};
+  % ---- lane 3: the correction, on a new identity --------------------------
+  \node[pd title,anchor=east,text width=3.1cm,align=right] at ({\t0-.28},\lc) {correction card k18};
+  \draw[pd hairline] (\t0,\lc) -- (\tend,\lc);
+  \draw[pd ready rule,line width=2.6pt] (\tr,\lc) -- (\tend,\lc);
+  \node[pd ready datum] at (\tr,\lc) {};
+  \node[pd tag,anchor=south] at ({(\tr+\te)/2},{\lc+.30}) {new authority};
+  % ---- the time axis, with the two named instants -------------------------
+  \pdfigaxis{\t0}{\axy}{\tend}{time}
+  \foreach \x/\l in {\t0/{\texttt{t0}}, \tr/{\texttt{tr}}, \te/{\texttt{t0+tau}}}{
+    \draw[pd tick] (\x,{\axy+.10}) -- (\x,{\axy-.10});
+    \node[pd label,anchor=north] at (\x,{\axy-.20}) {\l};}
+  \node[pd note,anchor=north west,text width=10.7cm] at (0.07,-1.55)
+    {revocation strictly narrows the accepted set; k17's rejected history is
+     left untouched, never mutated};
+\end{tikzpicture}
+\caption{Acceptance is a one-way interval attached to one card ID. Card k17
+stops being admissible either at explicit revocation (tick \texttt{tr}, top
+lane) or at natural expiry (tick \texttt{t0+tau}, middle lane), and after
+either instant it never re-enters the valid set --- indigo is the admissible
+interval, red the interval no verifier will accept. If the revocation was a
+mistake the operator issues k18 on a new lane in green: new authority on a new
+ID, with the rejected history on k17 left untouched rather than mutated.
+[internal]}
+\label{fig:anchor-card-lifecycle}
+\end{figure}

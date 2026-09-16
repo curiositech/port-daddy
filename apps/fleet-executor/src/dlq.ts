@@ -1,12 +1,11 @@
 /**
  * Dead-letter queue consumer for the fleet executor.
  *
- * The main queue creates the 'Port Daddy Fleet' check run `in_progress` BEFORE
- * any ship runs, so a job lost to exhausted retries leaves an unresolved gate
- * (never green, never absent) — fail-closed. The index.ts docblock promised a
- * "separate DLQ handler [that] MUST complete that check run as 'failure'", but
- * none existed: a dead-lettered blocking job left the check stuck `in_progress`
- * FOREVER, and nothing told the operator. This is that handler.
+ * For an admitted generation, the main queue creates a creator-run-bound Fleet
+ * check before model work. A dead-lettered delivery can therefore leave that
+ * exact check pending. This handler conditionally claims the still-active D1
+ * intent and mutates only the matching App-owned check; missing or degraded
+ * authority is reported and leaves GitHub untouched.
  *
  * For each dead-lettered {@link FleetRunJob} it: mints an installation token,
  * finds the stuck check run for the PR head SHA, completes it as **failure**, and
@@ -34,7 +33,7 @@ import {
   runIdForDelivery,
 } from './delivery-failure.js';
 import { countShipCheckpoints } from './ship-checkpoint.js';
-import { markFleetIntentTerminal } from './run-intent.js';
+import { claimFleetIntentForDlq } from './run-intent.js';
 
 export const DLQ_CHECK_OUTPUT_TITLE = 'Port Daddy Fleet — infrastructure failure (no verdict)';
 const DLQ_NO_VERDICT_PREAMBLE =
@@ -63,12 +62,28 @@ function targetOf(job: FleetRunJob): DlqTarget | null {
  * Never throws.
  */
 export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
-  await markFleetIntentTerminal(
-    env,
-    job?.deliveryId ?? '',
-    'failure',
-    'delivery exhausted queue retries and entered the dead-letter queue',
-  );
+  if (!env.DB) {
+    console.warn(
+      `[fleet-executor] DLQ: generation ledger unavailable delivery=${job?.deliveryId}; ` +
+        'degraded exact creator-run check lookup only',
+    );
+  }
+  try {
+    const claimed = await claimFleetIntentForDlq(
+      env,
+      job?.deliveryId ?? '',
+      'delivery exhausted queue retries and entered the dead-letter queue',
+    );
+    if (!claimed) {
+      console.log(`[fleet-executor] DLQ: delivery=${job?.deliveryId} not active/current; no GitHub mutation`);
+      return;
+    }
+  } catch (error) {
+    console.error(
+      `[fleet-executor] DLQ: intent authority unavailable delivery=${job?.deliveryId}; no GitHub mutation: ${String(error)}`,
+    );
+    return;
+  }
   const target = targetOf(job);
   if (!target) {
     console.error(`[fleet-executor] DLQ: unparseable job delivery=${job?.deliveryId}`);
@@ -102,7 +117,15 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       installationId,
       env.FLEET_TOKENS,
     );
-    const checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token);
+    const checkRunId = await findFleetCheckRun(
+      owner,
+      repo,
+      headSha,
+      CHECK_NAME,
+      token,
+      env.GITHUB_APP_ID,
+      runId,
+    );
     if (checkRunId) {
       const detailsUrl = await runDetailsUrl(env, runId);
       // This path never calls recordRunStart at all, so without this the

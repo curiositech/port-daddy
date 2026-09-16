@@ -126,7 +126,7 @@ not to either component alone.
 
 ---
 
-## Selection Functions in WinDAGs
+## Selection Functions in Jury-rig
 
 Translating this to a DAG-based orchestration system with 180+ skills:
 
@@ -256,6 +256,6 @@ These functions should be:
 - **Formally analyzable**: agent properties (liveness, safety, fairness) depend on
   selection functions and should be provable from their specifications
 
-In WinDAGs, the event router, skill selector, and thread scheduler are the concrete
+In Jury-rig, the event router, skill selector, and thread scheduler are the concrete
 manifestations of SE, SO, and SI respectively. They deserve as much design attention
 as the skills themselves.

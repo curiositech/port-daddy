@@ -9,6 +9,21 @@ const migrations = readdirSync(MIGRATIONS_DIR)
   .filter(name => name.endsWith('.sql'))
   .sort();
 
+// The chain's order IS the sort above, so the filenames carry the order and a
+// name without a date silently jumps the queue: `add-work-notes.sql` sorts
+// before every dated migration and would run ahead of the baseline that
+// creates the tables it references. Every one of the migrations here is
+// ISO-prefixed today, and two days already use a letter after the date
+// (`-x3-`, `-y1-`, `-z-`) to fix order within one day, so the convention is
+// real and relied upon -- it was simply never asserted.
+const undated = migrations.filter(name => !/^\d{4}-\d{2}-\d{2}-/.test(name));
+if (undated.length > 0) {
+  throw new Error(
+    'every relay migration must start with an ISO date, because the apply order is the ' +
+      `filename sort and an undated name runs first: ${undated.join(', ')}`,
+  );
+}
+
 const baseline = '2026-08-08-relay-baseline.sql';
 const firstDependent = '2026-08-09-executor-identity.sql';
 if (!migrations.includes(baseline) || migrations.indexOf(baseline) >= migrations.indexOf(firstDependent)) {
@@ -111,8 +126,8 @@ for (const et of ['parent_of', 'depends_on']) {
 }
 const mirrorActivitySql = requireTable('roadmap_mirror_activity');
 // `at` is the watermark AND part of the PK AND the tail/cap sort key — the
-// CHECK that keeps a text or negative timestamp out is load-bearing for
-// ordering, not cosmetic.
+// CHECK that keeps a text or negative timestamp out is what makes the
+// ordering hold, not cosmetic.
 if (!mirrorActivitySql.includes("typeof(at) = 'integer'") || !mirrorActivitySql.includes('at > 0')) {
   throw new Error('roadmap_mirror_activity.at lost its typeof/positivity CHECK');
 }
@@ -154,6 +169,86 @@ db.exec(`INSERT INTO roadmap_mirror_activity (user_id, repo_full_name, at, slug,
 db.exec("DELETE FROM roadmap_mirror_activity WHERE user_id = 'u_rm_chk'");
 db.exec("DELETE FROM roadmap_mirror_items WHERE user_id = 'u_rm_chk'");
 db.exec("DELETE FROM users WHERE id = 'u_rm_chk'");
+
+// Harbor Work Register task grants: browser approval stores no raw credential,
+// and an exchange cannot be represented as half-minted state.
+const registerGrantsSql = requireTable('work_register_grants');
+for (const column of [
+  'pairing_code_hash', 'token_hash', 'repo_full_name', 'agent', 'owner',
+  'exchange_expires_at', 'exchanged_at', 'token_expires_at', 'revoked_at',
+]) requireColumn('work_register_grants', column);
+if (!registerGrantsSql.includes('token_expires_at > exchanged_at')) {
+  throw new Error('work_register_grants lost the complete-exchange CHECK');
+}
+db.exec("INSERT INTO users (id, github_user_id, login, created_at) VALUES ('u_wrg_chk', 4, 'wrgchk', 0)");
+for (const bad of [
+  `INSERT INTO work_register_grants
+     (id, user_id, repo_full_name, agent, owner, pairing_code_hash, created_at, exchange_expires_at)
+   VALUES ('wrg_bad1', 'u_wrg_chk', 'a/b', '', '@wrgchk', 'pair1', 1, 2)`,
+  `INSERT INTO work_register_grants
+     (id, user_id, repo_full_name, agent, owner, pairing_code_hash, token_hash,
+      created_at, exchange_expires_at)
+   VALUES ('wrg_bad2', 'u_wrg_chk', 'a/b', 'task', '@wrgchk', 'pair2', 'token2', 1, 2)`,
+]) {
+  let rejected = false;
+  try { db.exec(bad); } catch { rejected = true; }
+  if (!rejected) throw new Error('work_register_grants CHECK constraints admitted invalid authority state');
+}
+db.exec(`INSERT INTO work_register_grants
+  (id, user_id, repo_full_name, agent, owner, pairing_code_hash, created_at, exchange_expires_at)
+ VALUES ('wrg_chk', 'u_wrg_chk', 'a/b', 'task', '@wrgchk', 'pair', 1, 2)`);
+let duplicatePairRejected = false;
+try {
+  db.exec(`INSERT INTO work_register_grants
+    (id, user_id, repo_full_name, agent, owner, pairing_code_hash, created_at, exchange_expires_at)
+   VALUES ('wrg_chk2', 'u_wrg_chk', 'a/b', 'task2', '@wrgchk', 'pair', 1, 2)`);
+} catch { duplicatePairRejected = true; }
+if (!duplicatePairRejected) throw new Error('work_register_grants pairing hash is not unique');
+db.exec("DELETE FROM work_register_grants WHERE user_id = 'u_wrg_chk'");
+db.exec("DELETE FROM users WHERE id = 'u_wrg_chk'");
+
+// Harbor invites + the ADR-0122 §4 authority-epoch clock (2026-08-23):
+// single-use is CAS on consumed_at IS NULL in the Worker, but the storage
+// layer carries its own guarantees — prove each one bites, not just parses.
+const invitesSql = requireTable('harbor_invites');
+requireColumn('harbor_invites', 'token_hash');   // only the hash is ever stored
+requireColumn('harbor_invites', 'consumed_at');  // the CAS column
+requireColumn('harbor_invites', 'revoked_at');   // invariant I3: revocable
+requireColumn('harbor_invites', 'expires_at');   // invariant I3: bounded by exp
+requireColumn('harbors', 'authority_epoch');     // the membership-change clock
+if (!invitesSql.includes("role = 'member'")) {
+  throw new Error("harbor_invites.role lost its CHECK (role = 'member') — invariant I4");
+}
+db.exec("INSERT INTO users (id, github_user_id, login, created_at) VALUES ('u_hi_chk', 3, 'hichk', 0)");
+db.exec("INSERT INTO harbors (id, namespace, name, pubkey, created_by, created_at) VALUES ('h_hi_chk', 'hichk', 'dock', 'ab', 'u_hi_chk', 0)");
+// A harbor row inserted WITHOUT naming the new column lands at epoch 1 — a
+// rolled-back Worker keeps writing harbors and every row still has a clock.
+const epoch = db.prepare("SELECT authority_epoch AS e FROM harbors WHERE id = 'h_hi_chk'").get().e;
+if (Number(epoch) !== 1) throw new Error(`harbors.authority_epoch default is ${epoch}, expected 1`);
+for (const bad of [
+  // an invite may only ever grant plain membership (invariant I4)
+  `INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, role, created_at, expires_at)
+     VALUES ('hi_bad', 'h_hi_chk', 'th_bad', 'u_hi_chk', 'owner', 0, 10)`,
+  // an invite without an expiry is unmintable (invariant I3)
+  `INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, created_at)
+     VALUES ('hi_bad2', 'h_hi_chk', 'th_bad2', 'u_hi_chk', 0)`,
+]) {
+  let rejected = false;
+  try { db.exec(bad); } catch { rejected = true; }
+  if (!rejected) throw new Error('harbor_invites CHECK/NOT NULL constraints did not reject an invalid row');
+}
+// token_hash is UNIQUE: two invites can never share a bearer token.
+db.exec(`INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, created_at, expires_at)
+     VALUES ('hi_chk1', 'h_hi_chk', 'th_chk', 'u_hi_chk', 0, 10)`);
+let dupRejected = false;
+try {
+  db.exec(`INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, created_at, expires_at)
+     VALUES ('hi_chk2', 'h_hi_chk', 'th_chk', 'u_hi_chk', 0, 10)`);
+} catch { dupRejected = true; }
+if (!dupRejected) throw new Error('harbor_invites.token_hash UNIQUE did not reject a duplicate');
+db.exec("DELETE FROM harbor_invites WHERE harbor_id = 'h_hi_chk'");
+db.exec("DELETE FROM harbors WHERE id = 'h_hi_chk'");
+db.exec("DELETE FROM users WHERE id = 'u_hi_chk'");
 
 const tableCount = Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_schema WHERE type = 'table'").get().n);
 console.log(`relay migration chain PASS: ${migrations.length} files, ${tableCount} tables`);

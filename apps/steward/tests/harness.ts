@@ -92,8 +92,28 @@ export class FakeStorage {
    * @returns The most recent setAlarm value, or null when never armed.
    */
   async getAlarm(): Promise<number | null> {
-    return this.alarms.length ? this.alarms[this.alarms.length - 1] : null;
+    return this.alarms.length > this.cleared ? this.alarms[this.alarms.length - 1] : null;
   }
+
+  /**
+   * Clear the live alarm — mirrors the platform's `deleteAlarm()`.
+   *
+   * WHY THE FAKE NEEDS IT: on the real platform `getAlarm()` returns null once
+   * an alarm has been delivered, and an alarm can also be lost outright (a
+   * failed delivery, an evicted object, a migration). Without a way to reach
+   * the un-armed state, the watchdog path in `handlePulse` — the whole subject
+   * of P1 PR 5 — could only ever be tested on a brand-new seat, which is the
+   * one case that is not the interesting one. The `alarms` history is kept so
+   * assertions about earlier arming arithmetic still hold.
+   *
+   * @returns Resolves once the live alarm is cleared.
+   */
+  async deleteAlarm(): Promise<void> {
+    this.cleared = this.alarms.length;
+  }
+
+  /** Count of alarms already delivered/lost; entries before it are history. */
+  private cleared = 0;
 }
 
 /**

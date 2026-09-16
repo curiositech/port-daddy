@@ -48,6 +48,16 @@ export interface Env {
    * (ADR-0109's single-approver property, structurally).
    */
   STEWARD_LAND_TOKEN?: string;
+  /**
+   * Comma-separated `owner/repo` list the cron pulse keeps alive (P1 PR 5).
+   *
+   * WHY A PLAIN VAR, NOT A SECRET: repository names are not credentials, and
+   * this one must be readable in the committed deploy config — a seat that
+   * silently serves nobody is exactly the failure this var exists to prevent,
+   * so the roster belongs where a reader can see it. Unset means the cron has
+   * no seats to pulse and says so loudly rather than succeeding vacuously.
+   */
+  STEWARD_REPOS?: string;
 }
 
 /**

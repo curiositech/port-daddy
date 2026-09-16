@@ -20,7 +20,7 @@ The paper's limitations are as instructive as its contributions. Several importa
 
 Rao acknowledges that "success and failure events for actions, plans, goals, and intentions" can be added as extensions. But in the base formalism, failure produces a dead state — the event was selected, no applicable plan was found (or the found plan failed during execution), and the system has no recovery mechanism.
 
-**For WinDAGs**: Every skill invocation must have an explicit failure handling path. When a skill fails (no applicable plan, action execution error, context becomes false during execution), the orchestration system must be able to:
+**For Jury-rig**: Every skill invocation must have an explicit failure handling path. When a skill fails (no applicable plan, action execution error, context becomes false during execution), the orchestration system must be able to:
 1. Record the failure
 2. Propagate it up the task hierarchy
 3. Trigger alternative plans at the parent level
@@ -77,7 +77,7 @@ The convergence strategy Rao employs — starting from the implemented system an
 
 **The specification must be grounded in what the system actually does**, not in what we wish it did. Specifications that abstract away all computational concerns may be elegant, but they cannot guide implementation. Specifications derived from implementation can be expanded, refined, and verified incrementally.
 
-For WinDAGs, this means: the formal specification of orchestration behavior should be derived from — and continuously validated against — the actual orchestration engine. When the engine changes, the specification must change. When the specification changes, tests derived from it must be updated. The gap between specification and implementation should be measured and minimized as a system health metric, not accepted as normal.
+For Jury-rig, this means: the formal specification of orchestration behavior should be derived from — and continuously validated against — the actual orchestration engine. When the engine changes, the specification must change. When the specification changes, tests derived from it must be updated. The gap between specification and implementation should be measured and minimized as a system health metric, not accepted as normal.
 
 ## Summary: Failure Mode Taxonomy for BDI Systems
 

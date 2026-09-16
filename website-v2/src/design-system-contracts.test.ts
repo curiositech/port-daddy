@@ -212,9 +212,18 @@ describe('design system contracts', () => {
     expect(install).toContain("from '@/components/site/primitives'")
     expect(install).toContain('PageContainer')
     expect(install).toContain('SurfacePanel')
-    expect(install).toContain('DocsCodeBlock')
     expect(install).toContain('CopyableCommandBlock')
     expect(install).not.toContain('import { Surface }')
+    // This used to require DocsCodeBlock, which the surface has no use for --
+    // it shows commands to run, not documentation listings, so the assertion
+    // could only ever be satisfied by importing a primitive and not using it.
+    // What the contract was reaching for is underneath: the interaction comes
+    // from the design system rather than being written out again here. It had
+    // in fact been written out again -- a second clipboard handler with its
+    // own acknowledgement timer and its own error handling, beside three uses
+    // of the shared block in the same file.
+    expect(install).not.toMatch(/navigator\.clipboard/)
+    expect(install).toContain('useCopyToClipboard')
     // No raw color literals or inline color styles — tokenized roles only.
     expect(install).not.toMatch(/style=\{\{[^}]*\b(?:color|background|border|boxShadow):/)
     expect(install).not.toMatch(colorLiteral)

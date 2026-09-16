@@ -154,6 +154,11 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
    transcripts. Keep evidence production daemon-owned and in-process until a
    one-use broker-redeemed action boundary is actually wired; remove the old
    route instead of preserving a downgrade.
+8. **Evidence-producer laundering.** A body or imported snapshot that names an
+   internal producer, trusted tier, automatic trigger, or spawned-agent id is
+   still caller data. Canonical lifecycle code stamps reserved provenance
+   itself; legacy rows stay explicitly untrusted instead of being upgraded by
+   inference.
 
 ## Quality gates
 
@@ -162,7 +167,7 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
 - [ ] Every outbound-URL sink calls `assertSafeOutboundUrl`.
 - [ ] Every file sink/trigger path goes through `containPath`.
 - [ ] Each new attack vector gets a named regression test.
-- [ ] Macaroon tool/tier caveats covered by ProVerif before they are load-bearing.
+- [ ] Macaroon tool/tier caveats covered by ProVerif before they are foundational.
 - [ ] Durable evidence sinks publish immutable artifacts from unique private
       temps; shared append rollback is not process-safe. Fsync only after the
       complete write, atomically publish, clamp directories/files to least
@@ -181,6 +186,9 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
 - [ ] Public transcript HTTP/CLI surfaces are read-only unless the action
       service directly redeems a one-use capability. Every retired mutator has
       a hostile 404/405 regression and no compatibility fallback.
+- [ ] Producer provenance is daemon-stamped at the in-process boundary; forged
+      producer-shaped fields and pre-migration rows never acquire trusted
+      provenance by declaration or inference.
 
 ## Residual (sound fixes not yet shipped — see ADR-0093 §10)
 

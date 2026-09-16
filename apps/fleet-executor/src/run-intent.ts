@@ -4,9 +4,9 @@
  * The relay writes `fleet_run_intents` before queueing.  A consumer consults
  * that row before any GitHub fetch or model call: superseded/terminal messages
  * are acknowledged without spend, while active messages publish attempt and
- * terminal progress.  Every D1 operation is fail-soft so a migration rollout
- * gap can only fall back to the legacy execution path, never drop a required
- * check.
+ * terminal progress. Missing rows/D1 errors still enter an explicitly degraded
+ * legacy path for rollout compatibility; that mode does not provide
+ * single-generation concurrency guarantees.
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
@@ -24,6 +24,66 @@ const TERMINAL_OR_SUPERSEDED = new Set([
   'neutral',
   'cancelled',
 ]);
+
+export class FleetIntentOwnershipError extends Error {
+  readonly retryable = true;
+  constructor(readonly deliveryId: string, readonly state: string) {
+    super(`Fleet intent ${deliveryId} is not the current running generation (state=${state})`);
+    this.name = 'FleetIntentOwnershipError';
+  }
+}
+
+/** Read one intent state without mutating admission ownership. */
+export async function readFleetIntentState(
+  env: ExecutorEnv,
+  deliveryId: string,
+): Promise<string | null> {
+  if (!env.DB || !deliveryId) return null;
+  const row = await env.DB
+    .prepare('SELECT state FROM fleet_run_intents WHERE delivery_id = ?')
+    .bind(deliveryId)
+    .first<IntentStateRow>();
+  return row?.state ?? null;
+}
+
+/** Atomically claim the right for a DLQ delivery to fail its own GitHub gate. */
+export async function claimFleetIntentForDlq(
+  env: ExecutorEnv,
+  deliveryId: string,
+  error: string,
+): Promise<boolean> {
+  // Degraded installations without the ledger can only fall back to the exact
+  // creator-run GitHub receipt. This is not generation-safe and is logged by
+  // the DLQ caller. Production D1 normally reports `meta.changes`; adapters
+  // without it remain degraded and the caller must not describe that path as
+  // generation-safe.
+  if (!env.DB || !deliveryId) return true;
+  const now = Math.floor(Date.now() / 1000);
+  const updated = await env.DB
+    .prepare(
+      `UPDATE fleet_run_intents
+         SET state = 'failure', finished_at = ?, last_progress_at = ?, last_error = ?
+       WHERE delivery_id = ?
+         AND state IN ('admitting','queued','running','retrying','enqueue_failed')`,
+    )
+    .bind(now, now, error.slice(0, 600), deliveryId)
+    .run();
+  return (updated.meta?.changes ?? 1) === 1;
+}
+
+/** Strict hot-boundary proof for a delivery already admitted by the ledger. */
+export async function assertFleetIntentCurrent(env: ExecutorEnv, job: FleetRunJob): Promise<void> {
+  if (!env.DB || !job.deliveryId) {
+    throw new FleetIntentOwnershipError(job.deliveryId ?? '<missing>', 'authority-unavailable');
+  }
+  const row = await env.DB
+    .prepare('SELECT state FROM fleet_run_intents WHERE delivery_id = ?')
+    .bind(job.deliveryId)
+    .first<IntentStateRow>();
+  if (row?.state !== 'running') {
+    throw new FleetIntentOwnershipError(job.deliveryId, row?.state ?? 'missing');
+  }
+}
 
 /**
  * Decide whether this delivery is current and claim its attempt before spend.
@@ -118,8 +178,8 @@ export async function markFleetIntentRetrying(
 }
 
 /**
- * Copy the authoritative fleet_runs conclusion into the logical intent row.
- * The purpose is to keep transcript truth and admission truth convergent.
+ * Copy the mutable fleet_runs conclusion projection into the logical intent
+ * row. The GitHub App-owned check receipt remains the verdict authority.
  *
  * @param env - Executor bindings, including the shared D1 ledger.
  * @param job - Completed Fleet queue job.

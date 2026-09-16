@@ -34,7 +34,7 @@ describe('Coordination Papers implementation-status contract', () => {
       'Neutral graded outcome events,\nsanctions, identity binding, and reputation updates remain absent.',
     );
     expect(economyPaper).toMatch(
-      /Outcome ledger \(organ 3 --- reputation keys here\) & \\BuiltWeak\{\}/,
+      /Outcome ledger \(subsystem 3 --- reputation keys here\) & \\BuiltWeak\{\}/,
     );
     expect(roadmap).toContain(
       'Neutral graded outcomes, sanctions, and reputation binding do not.',
@@ -66,7 +66,11 @@ describe('Coordination Papers implementation-status contract', () => {
       'full write gating does not ship',
     );
     expect(roadmap).toContain(
-      'Universal write-boundary enforcement and legacy migration do not.',
+      // No terminal period: the row may carry a cross-reference to the section
+      // that owns the remaining work (it gained "(§9)" when the plan absorbed
+      // the research programme). The claim is that the two do not ship; the
+      // punctuation after it is not the claim.
+      'Universal write-boundary enforcement and legacy migration do not',
     );
   });
 

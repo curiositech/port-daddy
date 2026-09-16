@@ -153,6 +153,18 @@ export interface LaunchIntent {
   /** Opt-in: agent genuinely needs a shared/main checkout (read-only observers). */
   allowSharedCheckout?: boolean;
 
+  // runtime witnesses — in-process only, never persisted as intent data.
+  // Dispatch uses these to bind its durable row before the body finishes, so
+  // operator surfaces can follow the exact launch/transcript in real time.
+  onAdmitted?: (launch: Launch) => void;
+  onAgentStarted?: (receipt: {
+    agentId: string;
+    transcriptId: string | null;
+    backend: string;
+    model: string;
+    startedAt: number;
+  }) => void;
+
   // provenance —
   source: LaunchSource;
 }
@@ -847,6 +859,19 @@ export function createConductor(deps: ConductorDeps) {
       return { launch: admitted, admitted: false, refusedReason: admitted.refusedReason, spawn: null };
     }
     emit('fleet:launch', { launchId: admitted.id, rootId: admitted.rootId, depth: admitted.depth, state: 'admitted' });
+    try {
+      intent.onAdmitted?.(admitted);
+    } catch (err) {
+      if (reserved > 0) {
+        breaker.release(lineageScope(admitted.rootId), reserved);
+        breaker.release(GLOBAL_SCOPE, reserved);
+      }
+      setState(admitted.id, 'failed', {
+        errorMessage: `launch witness failed: ${err instanceof Error ? err.message : String(err)}`,
+        settledAt: now(),
+      });
+      return { launch: get(admitted.id)!, admitted: true, refusedReason: null, spawn: null };
+    }
 
     // ── Embodiment ──────────────────────────────────────────────────────────
     // I2 — NO_SPAWN_ON_MAIN. For `worktree:'create'`, mint an off-main worktree;
@@ -899,6 +924,22 @@ export function createConductor(deps: ConductorDeps) {
     // Forward the ADMITTED launch's effective caps (inherited/floored/bounded),
     // not the raw intent caps — see intentToSpawnSpec.
     const spec = intentToSpawnSpec(intent, workdir, admitted.capabilities);
+    if (intent.onAgentStarted) {
+      spec.onStarted = (receipt: {
+        agentId: string;
+        transcriptId: string | null;
+        backend: string;
+        model: string;
+        startedAt: number;
+      }) => {
+        // Persist the body identity on the launch while it is still running,
+        // then let the caller bind its own projection. If the caller rejects
+        // the witness, the spawner refuses backend execution rather than run an
+        // untraceable body.
+        setState(admitted.id, 'running', { agentId: receipt.agentId });
+        intent.onAgentStarted?.(receipt);
+      };
+    }
     let spawnResult: Awaited<ReturnType<ConductorSpawner['spawn']>>;
     try {
       spawnResult = await spawner.spawn(spec);

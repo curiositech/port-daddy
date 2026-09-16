@@ -22,6 +22,8 @@ The read-only HTTP surface lives at `/transcripts*`. See
   - The full assistant response
   - The status, ended_at, cost_usd, tokens_in/out at finalization
   - An "outputs" row summarizing the result (`message` for success, `noop` for failure)
+  - Daemon-owned producer provenance: reserved producer id, `INTERNAL` trust
+    tier, and the daemon timestamp that first recorded it
 - The dashboard panel polls + subscribes via SSE so new rows appear live.
 - Costs are aggregated in the panel header and via `pd transcripts cost`.
 - Storage cost is ~5KB per typical ship run (one system + user + assistant
@@ -115,6 +117,11 @@ upsert, message/output append, delete, and archive-backfill routes are not
 registered; there is no loopback, Unix-socket, header, reusable-credential, or
 other compatibility fallback, and the transcript module exports no delete
 primitive. Trusted daemon producers call the in-process API.
+
+Producer provenance is not self-asserted. `start()` and trusted
+`recordTranscript()` imports overwrite producer-shaped input with the reserved
+daemon value; pre-migration rows read back with `null` provenance. The stored
+producer string is audit evidence only and never grants mutation authority.
 
 A future delete/backfill action must redeem a one-use
 action/resource/actor-scoped capability directly in the action service. A

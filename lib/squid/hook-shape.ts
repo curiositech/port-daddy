@@ -18,7 +18,7 @@
 
 // ─── Tentacle identity ────────────────────────────────────────────────────────
 
-export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const;
+export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const;
 export type TentacleName = (typeof TENTACLES)[number];
 
 /**
@@ -29,8 +29,40 @@ export type TentacleName = (typeof TENTACLES)[number];
  * A synchronous process after every tool multiplied a parallel Codex batch into
  * a visible queue and duplicated the cumulative evidence already carried by
  * session claims and notes.
+ *
+ * `pd-hook-stop` (ADR-0092 L4 closeout gate) IS registered: it fires once per
+ * turn on each vendor's end-of-turn event, verifies the standing SITREP
+ * contract the prompt tentacle compels, and is loop-guarded twice over
+ * (stop_hook_active plus a one-shot per-session marker), so it cannot fan out
+ * the way per-tool observation did.
  */
-export const REGISTERED_TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool'] as const;
+export const REGISTERED_TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-stop'] as const;
+
+/** Claude Code alone has the verified PreCompact lifecycle event in this slice. */
+export const CLAUDE_REGISTERED_TENTACLES = [...REGISTERED_TENTACLES, 'pd-hook-precompact'] as const;
+
+/**
+ * A lifecycle-shaped `interactive:<provider>` label is not enough to mint or
+ * replay a context-compaction packet. This is the shared issuance authority
+ * for the hook installer, direct packet builder, and durable replay paths.
+ * Add a provider only alongside a verified native lifecycle witness and its
+ * daemon-owned usage/tool-pair evidence contract.
+ */
+export const INTERACTIVE_COMPACTION_PACKET_PROVIDERS = ['claude'] as const;
+
+export function supportsInteractiveCompactionPacketProvider(provider: string): boolean {
+  return (INTERACTIVE_COMPACTION_PACKET_PROVIDERS as readonly string[]).includes(provider.toLowerCase());
+}
+
+/**
+ * Provider-specific wiring authority. Do not infer a PreCompact event merely
+ * because a provider accepts some other lifecycle hook syntax.
+ */
+export function registeredTentaclesForProvider(
+  provider: 'claude' | 'codex' | 'gemini' | 'agy',
+): readonly TentacleName[] {
+  return provider === 'claude' ? CLAUDE_REGISTERED_TENTACLES : REGISTERED_TENTACLES;
+}
 
 /** Every interactive hook must either finish or become visibly overdue within one second. */
 export const SQUID_HOOK_DEADLINE_MS = 1_000;
@@ -111,17 +143,38 @@ export function removeJsonHooks(config: Record<string, unknown>): boolean {
 
 // ─── Claude Code ──────────────────────────────────────────────────────────────
 
-export const CLAUDE_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', postTool: 'PostToolUse' } as const;
-export const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
+export const CLAUDE_EVENTS = {
+  prompt: 'UserPromptSubmit',
+  preTool: 'PreToolUse',
+  postTool: 'PostToolUse',
+  stop: 'Stop',
+  // Verified lifecycle event; see ADR-0091 and the vendor reference linked in
+  // the adapter. Do not infer equivalent names for other vendors.
+  preCompact: 'PreCompact',
+} as const;
+/**
+ * Claude Code PreToolUse matcher. The four edit tools feed the ADR-0092 lock
+ * gate. `Bash` and `mcp__port-daddy__.*` were added for the ADR-0132 listening
+ * watch: during a halt the pre-tool tentacle must be able to refuse a `pd` /
+ * `port-daddy` shell invocation, a launchctl/brew relaunch of a Port Daddy
+ * label, or a Port Daddy MCP call — none of which it can see through an
+ * edit-only matcher (the gap ADR-0108 names as the highest-leverage change).
+ * Outside a halt the tentacle exits 0 immediately for a shell/MCP call with
+ * no file target, so the added cost is one filesystem-only gate spawn.
+ * Gemini and Codex keep their edit-only matchers: their zero-shell-hook
+ * budget is a pinned product decision (see tests/unit/hooks-install.test.ts)
+ * and needs an operator call before widening.
+ */
+export const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__port-daddy__.*';
 
 // ─── Gemini CLI (native event names) ──────────────────────────────────────────
 
-export const GEMINI_EVENTS = { prompt: 'BeforeAgent', preTool: 'BeforeTool', postTool: 'AfterTool' } as const;
+export const GEMINI_EVENTS = { prompt: 'BeforeAgent', preTool: 'BeforeTool', postTool: 'AfterTool', stop: 'AfterAgent' } as const;
 export const GEMINI_TOOL_MATCHER = 'replace|write_file|edit';
 
 // ─── Antigravity (agy) — Claude-shaped engine, broad matcher ─────────────────
 
-export const AGY_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', postTool: 'PostToolUse' } as const;
+export const AGY_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', postTool: 'PostToolUse', stop: 'Stop' } as const;
 export const AGY_TOOL_MATCHER =
   'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch';
 
@@ -138,10 +191,22 @@ export function buildJsonHookMap(
   // https://github.com/google-gemini/gemini-cli/blob/main/docs/hooks/reference.md
   // https://www.agy.dev/docs/ide/hooks/
   const timeout = vendor === 'gemini' ? SQUID_HOOK_DEADLINE_MS : SQUID_HOOK_DEADLINE_MS / 1_000;
-  return {
-    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, timeout)],
+  // Claude alone gets the daemon-witnessed turn-start refresh. It is an
+  // explicit argument on the existing prompt tentacle, not an inferred
+  // cross-vendor lifecycle capability or a second packaged binary.
+  const promptCommand = vendor === 'claude'
+    ? `${resolve('pd-hook-prompt')} --interactive-context-pressure`
+    : resolve('pd-hook-prompt');
+  const hooks: Record<string, HookMatcher[]> = {
+    [ev.prompt]: [hookEntry(promptCommand, undefined, timeout)],
     [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, timeout)],
+    // End-of-turn SITREP closeout gate fires unconditionally — no tool matcher.
+    [ev.stop]: [hookEntry(resolve('pd-hook-stop'), undefined, timeout)],
   };
+  if (vendor === 'claude') {
+    hooks[CLAUDE_EVENTS.preCompact] = [hookEntry(resolve('pd-hook-precompact'), undefined, timeout)];
+  }
+  return hooks;
 }
 
 // ─── Codex CLI (TOML, hand-emitted — no TOML lib) ─────────────────────────────
@@ -264,6 +329,9 @@ export function codexHooksTomlBlock(
   L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked');
   L.push('# file (exit 2 + stderr, OR exit 0 + permissionDecision:"deny" JSON on stdout).');
   L.push('# Per-tool PostToolUse tracing is intentionally retired; claims and notes are cumulative.');
+  L.push('# Stop is synchronous so pd-hook-stop can verify the end-of-turn SITREP once');
+  L.push('# per turn (exit 2 + the directive on stderr; loop-guarded by stop_hook_active');
+  L.push('# plus a one-shot per-session marker).');
   L.push('');
   L.push('[[hooks.UserPromptSubmit]]');
   L.push('[[hooks.UserPromptSubmit.hooks]]');
@@ -277,6 +345,13 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
+  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
+  L.push('async = false');
+  L.push('');
+  L.push('[[hooks.Stop]]');
+  L.push('[[hooks.Stop.hooks]]');
+  L.push('type = "command"');
+  L.push(`command = ${tomlString(resolve('pd-hook-stop'))}`);
   L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);

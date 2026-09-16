@@ -63,19 +63,27 @@ describe('daemon profiles', () => {
         PORT_DADDY_PLANE: 'prod',
       },
       port: 9888,
+      sourceDir: '/code/port-daddy',
     });
 
     expect(env.PD_URL).toBeUndefined();
     expect(env.PD_ACTIVE_DAEMON).toBe('dogfood');
     expect(env.PORT_DADDY_URL).toBe('http://127.0.0.1:9888');
-    expect(env.PORT_DADDY_DB).toBeUndefined();
-    expect(env.PORT_DADDY_SOCK).toBeUndefined();
-    expect(env.PORT_DADDY_PORT_FILE).toBeUndefined();
+    expect(env.PORT_DADDY_DB).toBe(profile.dbPath);
+    expect(env.PORT_DADDY_SOCK).toBe(profile.sockPath);
+    expect(env.PORT_DADDY_IPC).toBe(profile.ipcPath);
+    expect(env.PORT_DADDY_PID_FILE).toBe(profile.pidFile);
+    expect(env.PORT_DADDY_PORT_FILE).toBe(profile.portFile);
+    expect(env.PORT_DADDY_HEARTBEAT_FILE).toBe(profile.heartbeatFile);
     // An inherited plane override must never leak into a child berth — it
     // would poison the new daemon's state-plane classification.
     expect(env.PORT_DADDY_PLANE).toBeUndefined();
     expect(env.PORT_DADDY_PROFILE).toBe('dogfood');
     expect(env.PORT_DADDY_PREFIX).toBe(profile.runtimeDir);
+    expect(env.PD_DAEMON_TIER).toBe('codebase');
+    expect(env.PD_DAEMON_LABEL).toBe('dogfood');
+    expect(env.PD_DAEMON_COLOR).toBe('#A855F7');
+    expect(env.PD_DAEMON_SOURCE_DIR).toBe('/code/port-daddy');
     expect(env.PORT_DADDY_PORT).toBe('9888');
     expect(env.PORT_DADDY_NO_FLEET).toBe('1');
     expect(env.PORT_DADDY_NO_FLEETBAR).toBe('1');

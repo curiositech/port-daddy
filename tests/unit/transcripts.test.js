@@ -5,6 +5,7 @@
  *   - schema creation + idempotency
  *   - start/appendMessage/appendOutput/finalize lifecycle
  *   - recordTranscript() upsert path
+ *   - daemon-owned producer provenance across start and snapshot import
  *   - filter coverage on listTranscripts (ship/pr/agentId/status/since/limit)
  *   - getTranscript returns full conversation (messages + outputs)
  *   - costRollup aggregates correctly across ships and days
@@ -20,6 +21,7 @@ import {
   createTranscripts,
   describeTranscriptArchiveArtifact,
   redactSecrets,
+  TRANSCRIPT_PRODUCER_SPAWNER,
 } from '../../lib/transcripts.js';
 
 function archiveSuccess(entry, locator = `test://transcripts/${entry.id}`) {
@@ -437,6 +439,9 @@ describe('transcripts module', () => {
           'requested_model',
           'effective_model',
           'backend_override_source',
+          'producer',
+          'producer_trust_tier',
+          'producer_recorded_at',
         ]));
 
         const oldTx = migrated.getTranscript('tx_old_runtime');
@@ -448,6 +453,9 @@ describe('transcripts module', () => {
           requested_model: 'gpt-5-mini',
           effective_model: 'gpt-5-mini',
           backend_override_source: 'none',
+          producer: null,
+          producer_trust_tier: null,
+          producer_recorded_at: null,
         }));
 
         const newId = migrated.start({
@@ -492,8 +500,31 @@ describe('transcripts module', () => {
       const tx = store.getTranscript(id);
       expect(tx.status).toBe('running');
       expect(tx.started_at).toBe(clock);
+      expect(tx.producer).toBe(TRANSCRIPT_PRODUCER_SPAWNER);
+      expect(tx.producer_trust_tier).toBe('INTERNAL');
+      expect(tx.producer_recorded_at).toBe(clock);
       expect(tx.messages).toEqual([]);
       expect(tx.outputs).toEqual([]);
+    });
+
+    it('ignores producer-shaped caller fields and stamps daemon provenance', () => {
+      const id = store.start({
+        id: 'tx_no_producer_laundering',
+        ship: 'qa',
+        spawned_agent_id: 'spawn-42',
+        trigger: 'manual',
+        backend: 'claude',
+        model: 'claude-haiku-4-5',
+        producer: 'forged:external',
+        producer_trust_tier: 'INTERNAL',
+        producer_recorded_at: 1,
+      });
+
+      expect(store.getTranscript(id)).toEqual(expect.objectContaining({
+        producer: TRANSCRIPT_PRODUCER_SPAWNER,
+        producer_trust_tier: 'INTERNAL',
+        producer_recorded_at: clock,
+      }));
     });
 
     it('respects an explicit id from start()', () => {
@@ -586,6 +617,35 @@ describe('transcripts module', () => {
   // ───────────────────────────────────────────────────────────────────────────
 
   describe('recordTranscript', () => {
+    it('re-stamps imported snapshots and preserves the first daemon record time on retry', () => {
+      const snapshot = {
+        id: 'tx_import_provenance',
+        ship: 'qa',
+        session_id: null,
+        spawned_agent_id: 'spawn-42',
+        trigger: 'manual',
+        backend: 'claude',
+        model: 'claude-haiku-4-5',
+        status: 'running',
+        started_at: clock,
+        messages: [],
+        outputs: [],
+        producer: 'forged:external',
+        producer_trust_tier: 'INTERNAL',
+        producer_recorded_at: 1,
+      };
+
+      store.recordTranscript(snapshot);
+      clock += 250;
+      store.recordTranscript(snapshot);
+
+      expect(store.getTranscript(snapshot.id)).toEqual(expect.objectContaining({
+        producer: TRANSCRIPT_PRODUCER_SPAWNER,
+        producer_trust_tier: 'INTERNAL',
+        producer_recorded_at: clock - 250,
+      }));
+    });
+
     it('inserts a full transcript in one call', () => {
       store.recordTranscript({
         id: 'tx_one_shot',
@@ -613,6 +673,11 @@ describe('transcripts module', () => {
       expect(tx.messages).toHaveLength(2);
       expect(tx.outputs).toHaveLength(1);
       expect(tx.cost_usd).toBeCloseTo(0.002, 5);
+      expect(tx).toEqual(expect.objectContaining({
+        producer: TRANSCRIPT_PRODUCER_SPAWNER,
+        producer_trust_tier: 'INTERNAL',
+        producer_recorded_at: clock,
+      }));
     });
 
     it('upsert overwrites header fields', () => {

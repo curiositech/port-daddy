@@ -150,6 +150,35 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     const res = await spawner.spawn({ backend: 'custom', task: 'echo hi', workdir: worktree });
     expect(JSON.stringify(res.coastGuard)).not.toContain('PD_COAST_GUARD_OFF');
   });
+
+  test('a completed normal spawn keeps its receipt in spawned-agent history', async () => {
+    const spawner = createSpawner();
+    const res = await spawner.spawn({ backend: 'custom', task: 'echo hi', workdir: worktree });
+
+    expect(res.status).toBe('completed');
+    const history = spawner.list().find((agent) => agent.agentId === res.agentId);
+    expect(history).toEqual(expect.objectContaining({
+      status: 'completed',
+      coastGuard: expect.objectContaining({
+        mechanism: res.coastGuard.mechanism,
+        egress: res.coastGuard.egress,
+      }),
+    }));
+  });
+
+  test('history leaves Coast Guard evidence absent when a backend provides none', async () => {
+    const spawner = createSpawner({
+      runnerOverrides: {
+        openai: async () => ({ output: 'completed without a subprocess receipt', error: null }),
+      },
+    });
+    const res = await spawner.spawn({ backend: 'openai', task: 'hello', workdir: worktree });
+
+    expect(res.status).toBe('completed');
+    expect(res.coastGuard).toBeNull();
+    const history = spawner.list().find((agent) => agent.agentId === res.agentId);
+    expect(history).not.toHaveProperty('coastGuard');
+  });
 });
 
 describe('bond pricing is logged for operator visibility (the scope-proportional path)', () => {

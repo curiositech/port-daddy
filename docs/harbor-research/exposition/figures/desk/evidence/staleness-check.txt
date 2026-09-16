@@ -1,0 +1,106 @@
+==============================================================
+ STALENESS EVIDENCE  --  build_figure_desk.py --check
+ base commit 49cfd7825
+ Every step below mutates a SOURCE only; no generated file is
+ ever hand-edited, which is the property the check exists to
+ enforce.
+==============================================================
+
+### 0. baseline
+All 9 figure-desk data files are fresh.
+   exit=0   (expect 0)
+
+### 1. a DERIVED markdown source: FIGURE-TRIAGE.md
+    row 1.5 fig-swk-claim-lifecycle: restyle -> redraw
+1	1	docs/harbor-research/exposition/figures/FIGURE-TRIAGE.md
+STALE (run --write to regenerate):
+  docs/harbor-research/exposition/figures/desk/data/TRIAGE.js
+   exit=1   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 2. a DERIVED markdown source: PIXEL-JUDGMENT.md
+    the epigraph's number: Nineteen -> Twenty
+STALE (run --write to regenerate):
+  docs/harbor-research/exposition/figures/desk/data/FINDINGS.js
+   exit=1   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 3. a DERIVED JSON source: whitepaper/textbook.json
+    chapter 4's title
+STALE (run --write to regenerate):
+  docs/harbor-research/exposition/figures/desk/data/CHAPTERS.js
+   exit=1   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 4. a DERIVED JSON source: blockers.json
+Traceback (most recent call last):
+  File "<string>", line 5, in <module>
+AssertionError: needle appears 61 times
+All 9 figure-desk data files are fresh.
+   exit=0   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 5. a CURATED source: desk-curated/CRIT.json
+    curated data is checked exactly like derived data
+Traceback (most recent call last):
+  File "<string>", line 5, in <module>
+AssertionError: needle appears 56 times
+All 9 figure-desk data files are fresh.
+   exit=0   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 6. a DERIVED .tex source: a figure fragment's caption
+    fig-swk-marker-decay's caption -- changes FIGS.js AND the
+    doctrine's caption-states-a-claim verdict for that figure
+STALE (run --write to regenerate):
+  docs/harbor-research/exposition/figures/desk/data/FIGS.js
+  docs/harbor-research/exposition/figures/desk/data/FINDINGS.js
+  docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js
+   exit=1   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 7. a DERIVED style source: pd-figure-language-swiss.tex
+    restore the edge on pd focus fill -- the over-erased list
+    must shrink, which is the counter-check working
+    over-erased before/after: 20 figures still fail (was 22)
+STALE (run --write to regenerate):
+  docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js
+   exit=1   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 8. final state
+D  docs/harbor-research/exposition/figures/desk-data/CHAPTERS.js
+D  docs/harbor-research/exposition/figures/desk-data/CRIT.js
+D  docs/harbor-research/exposition/figures/desk-data/DOCTRINE.js
+D  docs/harbor-research/exposition/figures/desk-data/FIGS.js
+D  docs/harbor-research/exposition/figures/desk-data/FINDINGS.js
+All 9 figure-desk data files are fresh.
+   exit=0   (expect 0)
+### 4. a DERIVED JSON source: blockers.json  (redone with a unique needle)
+    fig-anchor-alg-confusion's waiver expiry: 2026-10-31 -> 2027-01-31
+    mutated 1 waiver
+STALE (run --write to regenerate):
+  docs/harbor-research/exposition/figures/desk/data/FINDINGS.js
+   exit=1   (expect 1)
+   restored, exit=0   (expect 0)
+
+### 5. a CURATED source: desk-curated/CRIT.json  (redone)
+    curated data is checked exactly like derived data: flip one
+    lens verdict on fig-swk-stack-map from keep to redraw
+    lensA on fig-swk-stack-map: keep -> redraw
+STALE (run --write to regenerate):
+  docs/harbor-research/exposition/figures/desk/data/PIXEL.js
+  docs/harbor-research/exposition/figures/desk/data/DOCTRINE.js
+  docs/harbor-research/exposition/figures/desk/data/CRIT.js
+   exit=1   (expect 1)
+    -- and note it moves the rubric-vs-lenses list too, because that
+       list is DERIVED from the curated verdicts, not maintained beside them:
+       rubric-vs-lenses count now 38 (was 38)
+       fig-swk-stack-map still listed? True
+   restored, exit=0   (expect 0)
+
+### 9. how long --check takes (it runs in CI on every PR)
+/bin/bash: line 99: /usr/bin/time: No such file or directory
+
+### 9. how long --check takes (CI runs it on every PR)
+    13.136235788 s wall (dominated by extracting text from the 551-page Book PDF)

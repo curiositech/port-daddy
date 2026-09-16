@@ -17,6 +17,19 @@
 set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+# Operator emergency kill switch. This must precede argument parsing, stdin,
+# logging, HALT handling, daemon probes, and every child process.
+[ -e "$PD_HOME/hooks.disabled" ] && exit 0
+
+# Only Claude's explicitly configured UserPromptSubmit command passes this
+# flag. It provides the context-admitting companion to PreCompact: pressure is
+# refreshed at turn start, where Claude accepts additionalContext, rather than
+# pretending a PreCompact systemMessage would be delivered.
+INTERACTIVE_CONTEXT_PRESSURE=0
+case "${1:-}" in
+  --interactive-context-pressure) INTERACTIVE_CONTEXT_PRESSURE=1 ;;
+esac
+
 MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
 # Prompt context is a scarce resource. Two actionable facts plus one heading is
 # the hard product budget: three lines / 512 bytes. Callers may lower these
@@ -45,6 +58,119 @@ CWD="$PWD"
 if command -v jq >/dev/null 2>&1 && [ -n "$EVENT" ]; then
   J="$(printf '%s' "$EVENT" | jq -r '.cwd // .workspace // empty' 2>/dev/null || true)"
   [ -n "$J" ] && CWD="$J"
+fi
+
+# ── ADR-0132 listening watch: sentinel first, before any daemon-facing work ──
+# `test -f ~/.port-daddy/HALT` is the entire detector (Area A0). When hoisted,
+# this turn-start tentacle (a) appends one registry-format SEEN line per
+# session to the distress file, (b) marks the start of an event cycle so
+# pd-hook-stop can emit COMPLIED after a full cycle with no blocked call, and
+# (c) injects the registered A4 opening — a notice beginning `SECURITE HALT`
+# on its own line plus the halt's own text — into the model's context. It
+# also suppresses every path below that would touch the daemon or run `pd`
+# (context-pressure shim, inbox probe, the SITREP compulsion whose scaffold
+# commands are `pd` invocations): during a halt those are forbidden traffic.
+# TODO(ADR-0132 phase 0): switch to lib/distress.ts / bin/pd-distress once
+# that lands; until then the sentinel read and the O_APPEND write are inline.
+PD_HALT_SENTINEL="${PD_HALT_FILE:-$PD_HOME/HALT}"
+PD_DISTRESS="${PD_DISTRESS_FILE:-$PD_HOME/DISTRESS}"
+HALT_ACTIVE=0
+HALT_LINE=""
+HALT_REF="sentinel"
+HALT_NOTICE=""
+if [ -f "$PD_HALT_SENTINEL" ]; then
+  HALT_ACTIVE=1
+  HALT_LINE="$(head -c 1024 "$PD_HALT_SENTINEL" 2>/dev/null | tr -d '\r' | sed -n '/[^[:space:]]/{p;q;}')"
+  HALT_TOKEN="${HALT_LINE%% *}"
+  case "$HALT_TOKEN" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*) HALT_REF="$HALT_TOKEN" ;;
+  esac
+  [ -n "$HALT_LINE" ] || HALT_LINE="SECURITE HALT (sentinel present, no text)"
+  halt_sanitize() { printf '%s' "$1" | tr -c 'A-Za-z0-9._:-' '_' | cut -c1-96; }
+  HALT_SESSION=""
+  if command -v jq >/dev/null 2>&1; then
+    HALT_SESSION="$(printf '%s' "$EVENT" | jq -r '.session_id // .sessionId // .thread_id // .conversationId // empty' 2>/dev/null || true)"
+  fi
+  [ -n "$HALT_SESSION" ] || HALT_SESSION="$(printf '%s' "$EVENT" \
+    | sed -n -E 's/.*"(session_id|sessionId|thread_id|conversationId)"[[:space:]]*:[[:space:]]*"([^"]*)".*/\2/p' | head -n1)"
+  [ -n "$HALT_SESSION" ] || HALT_SESSION="${PD_ACTOR:-unknown}"
+  HALT_SESSION="$(halt_sanitize "$HALT_SESSION")"
+  HALT_SELF="$(halt_sanitize "agent:${PD_HOOK_PROVIDER:-hook}:${PD_ACTOR:-$HALT_SESSION}")"
+  HALT_REPO_ROOT=""
+  d="$CWD"
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    if [ -d "$d/.portdaddy" ]; then HALT_REPO_ROOT="$d"; break; fi
+    d="$(dirname "$d" 2>/dev/null || true)"
+  done
+  halt_distress_append() {
+    HALT_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
+    HALT_OUT="${HALT_TS} ${HALT_SELF} control $1 ref=${HALT_REF}${2:+ $2}"
+    mkdir -p "$(dirname "$PD_DISTRESS")" 2>/dev/null || true
+    printf '%s\n' "$HALT_OUT" >> "$PD_DISTRESS" 2>/dev/null || true
+    if [ -n "$HALT_REPO_ROOT" ] && [ -d "$HALT_REPO_ROOT/.portdaddy" ]; then
+      printf '%s\n' "$HALT_OUT" >> "$HALT_REPO_ROOT/.portdaddy/DISTRESS" 2>/dev/null || true
+    fi
+  }
+  HALT_MARKER="$PD_HOME/squid/halt-watch/${HALT_SESSION}.$(halt_sanitize "$HALT_REF")"
+  mkdir -p "$PD_HOME/squid/halt-watch" 2>/dev/null || true
+  if mkdir "$HALT_MARKER" 2>/dev/null; then
+    halt_distress_append SEEN "hook=prompt"
+  fi
+  # A turn start after SEEN opens an event cycle; pd-hook-stop closes it.
+  : > "$HALT_MARKER/cycle" 2>/dev/null || true
+  HALT_NOTICE="SECURITE HALT
+${HALT_LINE}
+[PORT DADDY — HALT, ADR-0132] Port Daddy is halted by operator order. Listening watch only: do not run pd/port-daddy (only --help/--version are permitted), do not call mcp__port-daddy__* tools, do not start/restart/enable/kickstart any com.portdaddy.* or brew port-daddy service, do not spawn subagents, fleets, or sorties. Work solo with git, tests, and files. Only a signed operator ALL-CLEAR lifts this halt; the sentinel's absence is not all-clear."
+fi
+
+# ── Claude turn-start context-pressure refresh ─────────────────────────────
+#
+# PreCompact can block a manual compaction, but Claude explicitly discards its
+# systemMessage/continue fields. The same daemon-owned pressure observation is
+# therefore refreshed through this Claude-only UserPromptSubmit invocation,
+# whose additionalContext is admitted on the next turn. No transcript, plan,
+# usage number, provider token, or BufferedOutputRef passes through this shell
+# boundary: only a provider session id reaches the authenticated CLI shim.
+CONTEXT_PRESSURE_OUT=""
+# The shim below is a `pd` invocation against the daemon — forbidden traffic
+# during a halt (ADR-0132 SEELONCE), so the halt gate precedes it.
+if [ "$HALT_ACTIVE" -eq 0 ] && [ "$INTERACTIVE_CONTEXT_PRESSURE" -eq 1 ] 2>/dev/null && command -v jq >/dev/null 2>&1; then
+  CONTEXT_SESSION_ID="$(printf '%s' "$EVENT" | jq -r '.session_id // empty' 2>/dev/null || true)"
+  case "$CONTEXT_SESSION_ID" in ''|*[!A-Za-z0-9._:-]*) CONTEXT_SESSION_ID="" ;; esac
+  if [ -n "$CONTEXT_SESSION_ID" ]; then
+    CONTEXT_DAEMON_SOURCE="${PD_URL:-${PORT_DADDY_URL:-http://127.0.0.1:9876}}"
+    case "$CONTEXT_DAEMON_SOURCE" in
+      http://localhost:*) CONTEXT_DAEMON_PORT="${CONTEXT_DAEMON_SOURCE#http://localhost:}" ;;
+      http://127.0.0.1:*) CONTEXT_DAEMON_PORT="${CONTEXT_DAEMON_SOURCE#http://127.0.0.1:}" ;;
+      *) CONTEXT_DAEMON_PORT="" ;;
+    esac
+    case "$CONTEXT_DAEMON_PORT" in ''|*[!0-9]*) CONTEXT_DAEMON_PORT="" ;; esac
+    if [ -n "$CONTEXT_DAEMON_PORT" ] && [ "$CONTEXT_DAEMON_PORT" -ge 1 ] 2>/dev/null && [ "$CONTEXT_DAEMON_PORT" -le 65535 ] 2>/dev/null; then
+      CONTEXT_CLI="${PD_SQUID_CLI:-}"
+      if [ -z "$CONTEXT_CLI" ]; then
+        CONTEXT_CLI="$(command -v pd 2>/dev/null || command -v port-daddy 2>/dev/null || true)"
+      fi
+      if [ -n "$CONTEXT_CLI" ]; then
+        CONTEXT_RESPONSE="$(PORT_DADDY_URL="http://127.0.0.1:${CONTEXT_DAEMON_PORT}" "$CONTEXT_CLI" squid hook-context-pressure \
+          --provider claude --provider-session "$CONTEXT_SESSION_ID" 2>/dev/null \
+          | head -c 4096 2>/dev/null || true)"
+        CONTEXT_STATUS="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.status // empty' 2>/dev/null || true)"
+        CONTEXT_REASON="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.reason // empty' 2>/dev/null || true)"
+        CONTEXT_PLAN="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.plan // empty' 2>/dev/null || true)"
+        CONTEXT_RISK="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.riskyWork // empty' 2>/dev/null || true)"
+        CONTEXT_CONTINUATION="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.continuation // empty' 2>/dev/null || true)"
+        case "$CONTEXT_STATUS:$CONTEXT_PLAN:$CONTEXT_RISK:$CONTEXT_CONTINUATION" in
+          # A freshly read durable plan is already `checkpointed` at .60; it
+          # must remain visible as the preparation instruction rather than
+          # waiting until packet issuance at .75.
+          recorded:prepare:*:*|recorded:checkpointed:*:*|recorded:checkpoint-required:*:packet-withheld|recorded:*:restricted:*|recorded:*:*:governed-successor|rejected:checkpoint-required:restricted:packet-withheld)
+            CONTEXT_REASON="$(printf '%s' "$CONTEXT_REASON" | tr '\r\n' ' ' | cut -c 1-320)"
+            [ -z "$CONTEXT_REASON" ] || CONTEXT_PRESSURE_OUT="[PORT DADDY — CONTEXT PRESSURE]\n${CONTEXT_REASON}"
+            ;;
+        esac
+      fi
+    fi
+  fi
 fi
 
 # Relevance: use the exact pd project root (or cwd when no marker is available),
@@ -201,11 +327,52 @@ $PHER
 EOF
 fi
 
+# Inbox/parley awareness: message bodies never enter prompt context here. The
+# hook asks only for the unread count, consumes one of the existing two bounded
+# coordination slots, and leaves read/acknowledgement to `pd attention`.
+SELF="${PD_ACTOR:-${PD_AGENT_ID:-}}"
+DAEMON_URL="${PD_URL:-${PORT_DADDY_URL:-http://127.0.0.1:9876}}"
+case "$DAEMON_URL" in */) DAEMON_URL="${DAEMON_URL%/}" ;; esac
+case "$DAEMON_URL" in
+  http://localhost:*) DAEMON_URL="http://127.0.0.1:${DAEMON_URL##*:}" ;;
+  http://127.0.0.1:*) : ;;
+  *) DAEMON_URL="" ;; # hooks never wait on DNS or a remote coordination plane
+esac
+if [ "$HALT_ACTIVE" -eq 0 ] && [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null && [ -n "$SELF" ] && [ -n "$DAEMON_URL" ] && command -v curl >/dev/null 2>&1; then
+  case "$SELF" in
+    *[!A-Za-z0-9._:-]*) : ;;
+    ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????*) : ;;
+    *)
+      # Capture one immutable response. Parse failure is deliberately silent:
+      # hooks fail open and must never turn malformed optional telemetry into a
+      # prompt warning or a second daemon request.
+      STATS="$(curl -fsS --connect-timeout 0.10 --max-time 0.20 \
+        "${DAEMON_URL}/agents/${SELF}/inbox/stats" 2>/dev/null || true)"
+      UNREAD=""
+      if command -v jq >/dev/null 2>&1; then
+        UNREAD="$(printf '%s' "$STATS" | jq -r '.unread // empty' 2>/dev/null || true)"
+      elif command -v sed >/dev/null 2>&1; then
+        UNREAD="$(printf '%s' "$STATS" | sed -nE 's/.*"unread"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' | head -n1)"
+      fi
+      case "$UNREAD" in
+        ''|*[!0-9]*|0) : ;;
+        *)
+          ENTRIES="${ENTRIES}- ${UNREAD} unread inbox/parley item(s); run pd attention before continuing.\n"
+          COUNT=$((COUNT + 1))
+          ;;
+      esac
+      ;;
+  esac
+fi
+
 # Coordination content: the common case stays deliberately zero bytes. Only a
 # fresh alert or an exact-project pheromone earns context, and even then the
 # envelope stays concise under the #8059 bound below.
 OUT=""
 [ -z "$ENTRIES" ] || OUT="[PORT DADDY — ACTIONABLE COORDINATION near ${BASENAME}]\n${ENTRIES}"
+if [ -n "$CONTEXT_PRESSURE_OUT" ]; then
+  if [ -n "$OUT" ]; then OUT="${CONTEXT_PRESSURE_OUT}\n${OUT}"; else OUT="$CONTEXT_PRESSURE_OUT"; fi
+fi
 
 # SITREP compulsion (operator doctrine, 2026-08-22): the end-of-turn SITREP is
 # the harness's visible value surface. When the dial is suggest/enforce every
@@ -217,6 +384,11 @@ OUT=""
 SITREP="$(normalize_sitrep "${PD_SITREP:-}")"
 [ -n "$SITREP" ] || SITREP="$(config_sitrep_level)"
 [ -n "$SITREP" ] || SITREP="enforce"
+# During a halt the SITREP compulsion is withheld: its scaffold commands
+# (`pd sitrep --template`, `pd roadmap upsert`) are exactly the traffic the
+# halt forbids, and pd-hook-stop withholds the matching verification so no
+# turn is burned on a block. The halt notice is the turn's standing contract.
+[ "$HALT_ACTIVE" -eq 0 ] || SITREP="off"
 SITREP_OUT=""
 if [ "$SITREP" != "off" ]; then
   SITREP_OUT="[PORT DADDY — SITREP ${SITREP}]\n"
@@ -239,7 +411,7 @@ fi
 # injected content, which is why Claude Code balked at it as prompt injection.
 # Same structured shape the pre-tool tentacle already uses.
 # Fail-open: no jq → fall back to raw stdout (degraded framing, still advisory).
-if [ -n "$OUT" ] || [ -n "$SITREP_OUT" ]; then
+if [ -n "$OUT" ] || [ -n "$SITREP_OUT" ] || [ -n "$HALT_NOTICE" ]; then
   BLOCK=""
   [ -z "$OUT" ] || BLOCK="$(printf '%b' "$OUT" | head -c "$MAX_BYTES" 2>/dev/null)"
   if [ -n "$SITREP_OUT" ]; then
@@ -248,6 +420,15 @@ if [ -n "$OUT" ] || [ -n "$SITREP_OUT" ]; then
       BLOCK="$(printf '%s\n%s' "$SITREP_BLOCK" "$BLOCK")"
     else
       BLOCK="$SITREP_BLOCK"
+    fi
+  fi
+  # The halt notice is the registered A4 opening (ADR-0132 §2 rung 20): it
+  # leads the envelope, constant-size, outside the coordination byte cap.
+  if [ -n "$HALT_NOTICE" ]; then
+    if [ -n "$BLOCK" ]; then
+      BLOCK="$(printf '%s\n%s' "$HALT_NOTICE" "$BLOCK")"
+    else
+      BLOCK="$HALT_NOTICE"
     fi
   fi
   if command -v jq >/dev/null 2>&1; then

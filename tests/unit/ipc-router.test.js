@@ -58,6 +58,10 @@ function createMockDeps() {
       done: jest.fn((opts) => ({ success: true, sessionId: opts.sessionId || 'sess-001' })),
       whoami: jest.fn((opts) => ({ success: true, active: true, agentId: opts.agentId, sessionId: 'sess-001' })),
     },
+    resurrection: {
+      pending: jest.fn(() => ({ entries: [] })),
+      claim: jest.fn((deadAgentId, claimedBy) => ({ success: true, deadAgentId, claimedBy })),
+    },
     fleet: {
       promptLine: jest.fn((project, since) => `[${project}] since=${since ?? 'none'}`),
     },
@@ -116,36 +120,33 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.port).toBe(3001);
   });
 
-  test('lock.acquire passes name and is auth-gated', () => {
+  test('credential-required lock and salvage mutations refuse raw IPC before dispatch', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
 
-    router.handleFrame(
-      { type: Performative.REQUEST, convId: 7, payload: { action: IpcAction.LOCK_ACQUIRE, name: 'db-migrations', agentId: 'registered-a1' } },
-      mockConn('registered-a1'),
-      (f) => replies.push(f),
-    );
+    for (const [convId, action, payload] of [
+      [7, IpcAction.LOCK_ACQUIRE, { name: 'db-migrations' }],
+      [8, IpcAction.LOCK_RELEASE, { name: 'db-migrations' }],
+      [12, IpcAction.LOCK_EXTEND, { name: 'db-migrations', ttl: 60_000 }],
+      [14, IpcAction.SALVAGE_CLAIM, { deadAgentId: 'dead-agent' }],
+    ]) {
+      router.handleFrame(
+        { type: Performative.REQUEST, convId, payload: { action, ...payload, agentId: 'registered-a1' } },
+        mockConn('registered-a1'),
+        (frame) => replies.push(frame),
+      );
+    }
 
-    expect(deps.locks.acquire).toHaveBeenCalledWith('db-migrations', expect.any(Object));
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
-    expect(replies[0].payload.result.acquired).toBe(true);
-  });
-
-  test('lock.release passes name and is auth-gated', () => {
-    const deps = createMockDeps();
-    const router = createIpcRouter(deps);
-    const replies = [];
-
-    router.handleFrame(
-      { type: Performative.REQUEST, convId: 8, payload: { action: IpcAction.LOCK_RELEASE, name: 'db-migrations', agentId: 'registered-a1' } },
-      mockConn('registered-a1'),
-      (f) => replies.push(f),
-    );
-
-    expect(deps.locks.release).toHaveBeenCalledWith('db-migrations', expect.any(Object));
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
-    expect(replies[0].payload.result.released).toBe(true);
+    expect(deps.locks.acquire).not.toHaveBeenCalled();
+    expect(deps.locks.release).not.toHaveBeenCalled();
+    expect(deps.locks.extend).not.toHaveBeenCalled();
+    expect(deps.resurrection.claim).not.toHaveBeenCalled();
+    expect(replies).toHaveLength(4);
+    expect(replies.every((frame) => (
+      frame.type === Performative.REFUSE
+      && frame.payload.error === 'actor_credential_transport_required'
+    ))).toBe(true);
   });
 
   test('lock.check delegates to locks.check', () => {
@@ -161,21 +162,6 @@ describe('IPC Router', () => {
 
     expect(deps.locks.check).toHaveBeenCalledWith('db-migrations');
     expect(replies[0].payload.result.held).toBe(false);
-  });
-
-  test('lock.extend delegates to locks.extend', () => {
-    const deps = createMockDeps();
-    const router = createIpcRouter(deps);
-    const replies = [];
-
-    router.handleFrame(
-      { type: Performative.REQUEST, convId: 12, payload: { action: IpcAction.LOCK_EXTEND, name: 'db-migrations', ttl: 60000, agentId: 'any-agent' } },
-      mockConn('any-agent'),
-      (f) => replies.push(f),
-    );
-
-    expect(deps.locks.extend).toHaveBeenCalledWith('db-migrations', expect.objectContaining({ ttl: 60000 }));
-    expect(replies[0].payload.result.success).toBe(true);
   });
 
   test('lock.list delegates to locks.list', () => {
@@ -206,7 +192,7 @@ describe('IPC Router', () => {
     expect(deps.pheromones.spray).toHaveBeenCalledWith('agents', 'a1', 'busy', 0.8);
   });
 
-  test('session.note uses quickNote so session and agent resolution stay canonical', () => {
+  test('session.note refuses raw IPC before note mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -217,15 +203,12 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.quickNote).toHaveBeenCalledWith('progress update', expect.objectContaining({
-      sessionId: 'sess-123',
-      agentId: 'registered-x',
-    }));
-    expect(deps.sessions.addNote).not.toHaveBeenCalled();
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(deps.sessions.quickNote).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
-  test('session.note without sessionId resolves through quickNote with connection agent', () => {
+  test('session.note without sessionId is still refused before implicit resolution', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -236,14 +219,12 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.quickNote).toHaveBeenCalledWith('agent scoped note', expect.objectContaining({
-      sessionId: null,
-      agentId: 'registered-x',
-    }));
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(deps.sessions.quickNote).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
-  test('session.start delegates to sessions.start', () => {
+  test('session.start refuses raw IPC before creating an unstamped session', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -264,14 +245,12 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.start).toHaveBeenCalledWith('Clean up parity', expect.objectContaining({
-      files: ['src/auth.ts'],
-      force: true,
-    }));
-    expect(replies[0].payload.result.purpose).toBe('Clean up parity');
+    expect(deps.sessions.start).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
-  test('session.end delegates to sessions.end', () => {
+  test('session.end refuses raw IPC before invoking the mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -292,11 +271,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.end).toHaveBeenCalledWith('session-123', expect.objectContaining({
-      status: 'completed',
-      note: 'wrapped up',
-    }));
-    expect(replies[0].payload.result.ended).toBe(true);
+    expect(deps.sessions.end).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
   test('session.list delegates to sessions.list', () => {
@@ -328,7 +305,7 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.count).toBe(0);
   });
 
-  test('session.remove delegates to sessions.remove', () => {
+  test('session.remove refuses raw IPC before invoking the mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -347,11 +324,12 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.remove).toHaveBeenCalledWith('session-123');
-    expect(replies[0].payload.result.removed).toBe(true);
+    expect(deps.sessions.remove).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
-  test('session.takeover delegates to sessions.takeover with connection agent', () => {
+  test('session.takeover refuses raw IPC before lineage mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -371,11 +349,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.takeover).toHaveBeenCalledWith('session-123', expect.objectContaining({
-      note: 'taking over',
-      agentId: 'registered-x',
-    }));
-    expect(replies[0].payload.result.successorId).toBe('session-new');
+    expect(deps.sessions.takeover).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
   test('sugar.whoami delegates to sugar service', () => {
@@ -394,7 +370,7 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.sessionId).toBe('sess-001');
   });
 
-  test('session.files.claim passes paths array', () => {
+  test('session.files.claim refuses raw IPC before claim mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -406,12 +382,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.claimFiles).toHaveBeenCalledWith('sess-123', paths, {
-      regions: undefined,
-      force: false,
-      agentId: 'registered-x',
-    });
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(deps.sessions.claimFiles).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
   test('session.files.claim refuses payload agent spoofing on a bound connection', () => {
@@ -436,7 +409,7 @@ describe('IPC Router', () => {
 
     expect(deps.sessions.claimFiles).not.toHaveBeenCalled();
     expect(replies[0].type).toBe(Performative.REFUSE);
-    expect(replies[0].payload.error).toBe('agent_mismatch');
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
   test('session.files.claim refuses missing agent instead of recovering the session owner', () => {
@@ -461,10 +434,10 @@ describe('IPC Router', () => {
     expect(deps.sessions.get).not.toHaveBeenCalled();
     expect(deps.sessions.claimFiles).not.toHaveBeenCalled();
     expect(replies[0].type).toBe(Performative.REFUSE);
-    expect(replies[0].payload.error).toBe('no_agent_id');
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
-  test('session.files.claim preserves regions and force over IPC', () => {
+  test('session.files.claim with regions is refused before mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -487,15 +460,12 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.claimFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
-      regions,
-      force: true,
-      agentId: 'registered-x',
-    });
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(deps.sessions.claimFiles).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
-  test('session.files.release passes paths array', () => {
+  test('session.files.release refuses raw IPC before release mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -506,13 +476,12 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.releaseFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
-      regions: undefined,
-      agentId: 'registered-x',
-    });
+    expect(deps.sessions.releaseFiles).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
-  test('session.files.release preserves regions over IPC', () => {
+  test('session.files.release with regions is refused before mutation', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -534,11 +503,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.releaseFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
-      regions,
-      agentId: 'registered-x',
-    });
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(deps.sessions.releaseFiles).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
   test('tuple.out delegates to tuple space', () => {
@@ -747,7 +714,7 @@ describe('IPC Router', () => {
     expect(replies).toHaveLength(0);
   });
 
-  test('REFUSE when unregistered agent tries protected action', () => {
+  test('session.begin is HTTP-only before registration or handler dispatch', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -760,13 +727,13 @@ describe('IPC Router', () => {
 
     expect(replies).toHaveLength(1);
     expect(replies[0].type).toBe(Performative.REFUSE);
-    expect(replies[0].payload.error).toBe('agent_not_registered');
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
     expect(replies[0].payload.action).toBe(IpcAction.BEGIN);
     // Service was NOT called
     expect(deps.sessions.start).not.toHaveBeenCalled();
   });
 
-  test('registered agent passes auth gate for session.begin', () => {
+  test('registered agent still cannot bypass the HTTP mint boundary for session.begin', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -778,15 +745,12 @@ describe('IPC Router', () => {
     );
 
     expect(replies).toHaveLength(1);
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
-    expect(deps.sugar.begin).toHaveBeenCalledWith(expect.objectContaining({
-      action: IpcAction.BEGIN,
-      agentId: 'registered-a1',
-      purpose: 'testing',
-    }));
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
+    expect(deps.sugar.begin).not.toHaveBeenCalled();
   });
 
-  test('session.done recovers from missing agent registration when session ownership matches', () => {
+  test('session.done refuses raw IPC before any recovery lookup or mutation', () => {
     const deps = createMockDeps();
     deps.sessions.get.mockReturnValue({
       success: true,
@@ -810,16 +774,11 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.get).toHaveBeenCalledWith('sess-stale');
-    expect(deps.sugar.done).toHaveBeenCalledWith(expect.objectContaining({
-      action: IpcAction.DONE,
-      agentId: 'stale-agent',
-      sessionId: 'sess-stale',
-      note: 'wrapped up after daemon restart',
-    }));
+    expect(deps.sessions.get).not.toHaveBeenCalled();
+    expect(deps.sugar.done).not.toHaveBeenCalled();
     expect(replies).toHaveLength(1);
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
-    expect(replies[0].payload.result.success).toBe(true);
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
   test('session.done refuses recovery when explicit agent does not own the session', () => {
@@ -845,11 +804,11 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.get).toHaveBeenCalledWith('sess-stale');
+    expect(deps.sessions.get).not.toHaveBeenCalled();
     expect(deps.sugar.done).not.toHaveBeenCalled();
     expect(replies).toHaveLength(1);
     expect(replies[0].type).toBe(Performative.REFUSE);
-    expect(replies[0].payload.error).toBe('agent_not_registered');
+    expect(replies[0].payload.error).toBe('actor_credential_transport_required');
   });
 
   test('unregistered agent can heartbeat (open action)', () => {

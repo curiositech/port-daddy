@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
   created_at         INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
+CREATE INDEX IF NOT EXISTS fleet_runs_repo_created_idx
+  ON fleet_runs (repo_full_name COLLATE NOCASE, created_at DESC, id DESC);
 
 -- Durable queue-admission truth, written before the queue consumer starts.
 -- One PR can have many immutable generations as new heads arrive; only the
@@ -163,6 +165,30 @@ CREATE INDEX IF NOT EXISTS fleet_run_intents_pr_generation_idx
   ON fleet_run_intents (repo_full_name, pr_number, generation DESC);
 CREATE INDEX IF NOT EXISTS fleet_run_intents_state_queued_idx
   ON fleet_run_intents (state, queued_at ASC);
+
+-- Raw ship session transcripts — the pd-transcript.v1 INDEX (Phase 1 of
+-- docs/FLEET-SESSION-TRANSCRIPTS.md). Bytes live in R2 (`fleet-transcripts`,
+-- one JSONL object per (run, ship, attempt)); these rows are what the run
+-- page and the transcript read route join against, and they double as the
+-- per-ship × per-model outcome ledger. Mirrors
+-- migrations/2026-08-24-fleet-run-transcripts.sql.
+CREATE TABLE IF NOT EXISTS fleet_run_transcripts (
+  run_id            TEXT    NOT NULL,
+  ship              TEXT    NOT NULL,
+  attempt           INTEGER NOT NULL,
+  r2_key            TEXT    NOT NULL,
+  turns             INTEGER NOT NULL,
+  bytes             INTEGER NOT NULL,
+  models_csv        TEXT,
+  prompt_tokens     INTEGER,
+  completion_tokens INTEGER,
+  cost_usd          REAL,
+  incomplete        INTEGER NOT NULL DEFAULT 0,
+  created_at        INTEGER NOT NULL,
+  PRIMARY KEY (run_id, ship, attempt)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_transcripts_run_idx
+  ON fleet_run_transcripts (run_id);
 CREATE INDEX IF NOT EXISTS fleet_run_intents_state_finished_idx
   ON fleet_run_intents (state, finished_at ASC);
 
@@ -365,6 +391,28 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
   created_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_run_created_idx
+  ON fleet_run_spend (run_id, created_at DESC);
+
+-- Aggregate, per-ship Workers AI call stats (ADR none; see
+-- apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql for full design
+-- notes). ONE row per (run_id, ship), flushed once when the ship finishes —
+-- not per Workers AI call — accumulated in memory by FleetAiCircuit.runForShip.
+CREATE TABLE IF NOT EXISTS fleet_ai_call_stats (
+  run_id          TEXT    NOT NULL,
+  ship            TEXT    NOT NULL,
+  calls           INTEGER NOT NULL DEFAULT 0,
+  ok_calls        INTEGER NOT NULL DEFAULT 0,
+  timeout_calls   INTEGER NOT NULL DEFAULT 0,
+  error_calls     INTEGER NOT NULL DEFAULT 0,
+  total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
+  max_elapsed_ms  INTEGER NOT NULL DEFAULT 0,
+  deadline_ms     INTEGER NOT NULL,
+  created_at      INTEGER NOT NULL,
+  PRIMARY KEY (run_id, ship)
+);
+CREATE INDEX IF NOT EXISTS idx_fleet_ai_call_stats_ship
+  ON fleet_ai_call_stats(ship, created_at DESC);
 
 -- One Stripe customer per installation (created lazily at first checkout/portal).
 CREATE TABLE IF NOT EXISTS stripe_customers (
@@ -762,7 +810,6 @@ CREATE TABLE IF NOT EXISTS parley_positions (
   PRIMARY KEY (parley_id, party_kind, party_id)
 );
 
-
 -- ──────────────────────────────────────────────────────────────────────────
 -- MEDIATOR BODY (grand-plan DAG node mediator-body; plan §X4 second half;
 -- src/mediator-body.ts; migration 2026-08-09-mediator-body.sql).
@@ -824,3 +871,281 @@ CREATE TABLE IF NOT EXISTS parley_gates (
   modify_text      TEXT,                        -- the Modify free text (re-injection payload)
   created_at       INTEGER NOT NULL
 );
+
+-- ── SEAMANSHIP (src/seamanship.ts; migration 2026-08-22-seamanship-listings.sql)
+--
+-- The operator's own skill catalog (/account/seamanship) and the opt-in public
+-- directory (/skills). The repo is the source of truth; NEITHER table mirrors
+-- the corpus, and neither has a `body` column — structurally, not by convention.
+--
+--   seamanship_skill_cache — short-TTL (5 min) cache of parsed SKILL.md
+--     FRONTMATTER, scoped to the user who read it under their own GitHub App
+--     installation. Fully reconstructible from the repo.
+--   skill_listings — the listed-tier projection: one row per skill whose author
+--     wrote `visibility: listed`/`public` into the SKILL.md and published. The
+--     row IS the listed payload (name + description); the repo coordinates ride
+--     along for the on-demand public-tier body fetch and are never serialized
+--     into a public response.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS seamanship_skill_cache (
+  user_id         TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name  TEXT    NOT NULL,
+  source_path     TEXT    NOT NULL,
+  skill_id        TEXT    NOT NULL,
+  name            TEXT    NOT NULL,
+  description     TEXT    NOT NULL,
+  category        TEXT    NOT NULL DEFAULT '',
+  tags_json       TEXT    NOT NULL DEFAULT '[]',
+  owner           TEXT,
+  repos_json      TEXT    NOT NULL DEFAULT '[]',
+  visibility      TEXT    NOT NULL DEFAULT 'private',
+  pairs_with_json TEXT    NOT NULL DEFAULT '[]',
+  fetched_at      INTEGER NOT NULL,
+  PRIMARY KEY (user_id, repo_full_name, source_path)
+);
+CREATE INDEX IF NOT EXISTS seamanship_skill_cache_age_idx
+  ON seamanship_skill_cache (fetched_at);
+
+CREATE TABLE IF NOT EXISTS skill_listings (
+  namespace      TEXT    NOT NULL,
+  skill_id       TEXT    NOT NULL,
+  name           TEXT    NOT NULL,
+  description    TEXT    NOT NULL,
+  repo_full_name TEXT    NOT NULL,
+  source_path    TEXT    NOT NULL,
+  updated_at     INTEGER NOT NULL,
+  PRIMARY KEY (namespace, skill_id)
+);
+CREATE INDEX IF NOT EXISTS skill_listings_updated_idx ON skill_listings (updated_at);
+
+-- ── Snipe: suggestions, the approval gate, and the Engineman's chat ──────────
+--
+-- Schema-of-record mirror of migrations/2026-08-22-seamanship-suggestions.sql
+-- and migrations/2026-08-22-snipe-chat-spend.sql. Read those files for the
+-- reasoning; the short version is the rule these tables enforce:
+--
+--   No approval ⇒ no build ⇒ no pull request, structurally.
+--
+--   seamanship_suggestions      the proposals. `status`'s CHECK is the outer
+--                               fence; the legal transitions between its values
+--                               are enforced by conditional UPDATEs naming the
+--                               required prior state (src/snipe-suggestions.ts).
+--   seamanship_build_grants     the capability. One per suggestion, forever
+--                               (suggestion_id is the PK), minted only by the
+--                               approval transition, spent by a conditional
+--                               UPDATE on `consumed_at IS NULL`, and revocable
+--                               until it is spent.
+--   seamanship_suggestion_jobs  the async admission receipt, written BEFORE any
+--                               work starts (the fleet_run_intents idiom).
+--   agent_chats / agent_chat_spend  the shared chat store and its per-user
+--                               daily budget. Generic in `agent` so a third
+--                               surface is a new column value, not a migration.
+--
+-- There is no `body` column anywhere below: a built skill lives in the
+-- operator's repo behind a pull request they merged, and a column that does not
+-- exist cannot become a second, divergent catalog.
+
+CREATE TABLE IF NOT EXISTS seamanship_suggestions (
+  id              TEXT    PRIMARY KEY,
+  user_id         TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name  TEXT    NOT NULL,
+  skill_name      TEXT    NOT NULL,
+  description     TEXT    NOT NULL,
+  rationale       TEXT    NOT NULL,
+  status          TEXT    NOT NULL DEFAULT 'proposed'
+                    CHECK (status IN ('proposed', 'approved', 'dismissed', 'built')),
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  approved_at     INTEGER,
+  approved_by     TEXT,
+  pr_url          TEXT,
+  build_error     TEXT,
+  job_id          TEXT,
+  -- Dedup at the storage layer: the same skill cannot be proposed twice for one
+  -- repo, including by two jobs racing each other.
+  UNIQUE (user_id, repo_full_name, skill_name)
+);
+CREATE INDEX IF NOT EXISTS seamanship_suggestions_scope_idx
+  ON seamanship_suggestions (user_id, repo_full_name, status);
+CREATE INDEX IF NOT EXISTS seamanship_suggestions_created_idx
+  ON seamanship_suggestions (created_at);
+
+CREATE TABLE IF NOT EXISTS seamanship_build_grants (
+  suggestion_id   TEXT    PRIMARY KEY REFERENCES seamanship_suggestions(id),
+  grant_id        TEXT    NOT NULL UNIQUE,
+  user_id         TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name  TEXT    NOT NULL,
+  -- Ownership proven by the APPROVING SESSION and recorded here, because the
+  -- build runs later on a sweep where no session exists to re-prove it.
+  installation_id INTEGER NOT NULL,
+  issued_at       INTEGER NOT NULL,
+  issued_by       TEXT    NOT NULL,
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  consumed_at     INTEGER,
+  revoked_at      INTEGER
+);
+CREATE INDEX IF NOT EXISTS seamanship_build_grants_open_idx
+  ON seamanship_build_grants (user_id, consumed_at);
+
+CREATE TABLE IF NOT EXISTS seamanship_suggestion_jobs (
+  job_id          TEXT    PRIMARY KEY,
+  user_id         TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name  TEXT    NOT NULL,
+  state           TEXT    NOT NULL DEFAULT 'queued'
+                    CHECK (state IN ('queued', 'running', 'done', 'failed')),
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  requested_at    INTEGER NOT NULL,
+  started_at      INTEGER,
+  finished_at     INTEGER,
+  produced          INTEGER NOT NULL DEFAULT 0,
+  rejected_dupe     INTEGER NOT NULL DEFAULT 0,
+  rejected_boundary INTEGER NOT NULL DEFAULT 0,
+  rejected_capped   INTEGER NOT NULL DEFAULT 0,
+  error           TEXT
+);
+-- One active job per (account, repo), structurally.
+CREATE UNIQUE INDEX IF NOT EXISTS seamanship_suggestion_jobs_active_idx
+  ON seamanship_suggestion_jobs (user_id, repo_full_name)
+  WHERE state IN ('queued', 'running');
+CREATE INDEX IF NOT EXISTS seamanship_suggestion_jobs_state_idx
+  ON seamanship_suggestion_jobs (state, requested_at);
+
+CREATE TABLE IF NOT EXISTS agent_chats (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  agent      TEXT    NOT NULL,
+  user_id    TEXT    NOT NULL REFERENCES users(id),
+  role       TEXT    NOT NULL CHECK (role IN ('user', 'assistant')),
+  content    TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS agent_chats_scope_idx ON agent_chats (agent, user_id, id);
+CREATE INDEX IF NOT EXISTS agent_chats_created_idx ON agent_chats (created_at);
+
+CREATE TABLE IF NOT EXISTS agent_chat_spend (
+  agent        TEXT    NOT NULL,
+  user_id      TEXT    NOT NULL REFERENCES users(id),
+  -- UTC midnight of the day this row counts. Rollover is key arithmetic, not a
+  -- scheduled job: a new day reads a row that does not exist and counts zero.
+  window_start INTEGER NOT NULL,
+  messages     INTEGER NOT NULL DEFAULT 0,
+  est_tokens   INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (agent, user_id, window_start)
+);
+CREATE INDEX IF NOT EXISTS agent_chat_spend_window_idx ON agent_chat_spend (window_start);
+-- ──────────────────────────────────────────────────────────────────────────
+-- APNs DEVICE TOKENS — iOS push registry for operator interruptions
+-- (src/push-apns.ts; migration 2026-08-20-apns-device-tokens.sql). One row
+-- per (account, device); the interruption nag sweep fans DELIVERED page
+-- decisions out to the account's live rows. An APNs 410 Unregistered (or 400
+-- BadDeviceToken) sets dead_at; re-registration clears it. `token` is
+-- globally unique — one APNs token = one live device+app instance.
+
+CREATE TABLE IF NOT EXISTS apns_device_tokens (
+  user_id      TEXT    NOT NULL,             -- account scope (users.id)
+  device_id    TEXT    NOT NULL,             -- app-chosen stable device id (e.g. identifierForVendor)
+  token        TEXT    NOT NULL,             -- hex APNs device token (lowercased)
+  platform     TEXT    NOT NULL DEFAULT 'ios'
+                       CHECK (platform IN ('ios','ipados','macos')),
+  created_at   INTEGER NOT NULL,             -- unix seconds, first registration
+  last_seen_at INTEGER NOT NULL,             -- bumped on every re-registration
+  dead_at      INTEGER,                      -- set on APNs 410/BadDeviceToken; NULL = live
+  PRIMARY KEY (user_id, device_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS apns_tokens_token_idx
+  ON apns_device_tokens (token);
+CREATE INDEX IF NOT EXISTS apns_tokens_user_live_idx
+  ON apns_device_tokens (user_id, dead_at, last_seen_at);
+
+-- Admin-authored repository ship gates; never cascade from personal settings.
+CREATE TABLE IF NOT EXISTS repo_ship_controls (
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  ship TEXT NOT NULL,
+  enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+  revision INTEGER NOT NULL CHECK (revision >= 1),
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (repo_full_name, ship)
+);
+CREATE TABLE IF NOT EXISTS repo_ship_control_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo_full_name TEXT NOT NULL,
+  ship TEXT NOT NULL,
+  enabled INTEGER NOT NULL,
+  revision INTEGER NOT NULL,
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS repo_ship_controls_insert_audit AFTER INSERT ON repo_ship_controls
+BEGIN
+  INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
+  VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
+END;
+CREATE TRIGGER IF NOT EXISTS repo_ship_controls_update_audit AFTER UPDATE ON repo_ship_controls
+BEGIN
+  INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
+  VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
+END;
+
+-- Repository-scoped Shipwright context (migration 2026-09-14).
+CREATE TABLE IF NOT EXISTS shipwright_threads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_threads_scope_idx
+  ON shipwright_threads (user_id, installation_id, repo_full_name, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS shipwright_threads_one_repo_idx
+  ON shipwright_threads (user_id, installation_id, repo_full_name);
+CREATE TRIGGER IF NOT EXISTS shipwright_threads_quota_guard
+BEFORE INSERT ON shipwright_threads
+WHEN (SELECT COUNT(*) FROM shipwright_threads WHERE user_id = NEW.user_id) >= 100
+ AND NOT EXISTS (
+   SELECT 1 FROM shipwright_threads
+    WHERE user_id = NEW.user_id AND installation_id = NEW.installation_id
+      AND repo_full_name = NEW.repo_full_name
+ )
+BEGIN
+  SELECT RAISE(ABORT, 'shipwright thread quota exceeded');
+END;
+CREATE TABLE IF NOT EXISTS shipwright_thread_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  thread_id TEXT NOT NULL REFERENCES shipwright_threads(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_thread_messages_scope_idx
+  ON shipwright_thread_messages (user_id, thread_id, id);
+CREATE INDEX IF NOT EXISTS shipwright_thread_messages_created_idx
+  ON shipwright_thread_messages (created_at);
+CREATE TABLE IF NOT EXISTS shipwright_repo_memory (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  kind TEXT NOT NULL,
+  body_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (user_id, installation_id, repo_full_name, kind)
+);
+CREATE INDEX IF NOT EXISTS shipwright_repo_memory_scope_idx
+  ON shipwright_repo_memory (user_id, installation_id, repo_full_name, updated_at DESC);
+CREATE TABLE IF NOT EXISTS shipwright_proposals (
+  id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL REFERENCES shipwright_threads(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  installation_id INTEGER NOT NULL,
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  yaml TEXT NOT NULL,
+  origin TEXT NOT NULL DEFAULT 'assistant_conversation'
+    CHECK (origin IN ('assistant_conversation', 'deterministic_onboarding')),
+  created_at INTEGER NOT NULL,
+  UNIQUE (thread_id, yaml)
+);
+CREATE INDEX IF NOT EXISTS shipwright_proposals_scope_idx
+  ON shipwright_proposals (user_id, installation_id, repo_full_name, thread_id, created_at DESC);

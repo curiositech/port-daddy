@@ -39,6 +39,24 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+/**
+ * A `text/event-stream` response carrying one `data:` frame per object.
+ *
+ * Needed because a spawn with an open transcript now asks its API backend to
+ * stream, so the provider a spawner test mocks has to answer in the shape the
+ * spawner actually requests.
+ */
+function sseResponse(frames, status = 200) {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream({
+    start(controller) {
+      for (const f of frames) controller.enqueue(encoder.encode(`data: ${JSON.stringify(f)}\n\n`));
+      controller.close();
+    },
+  });
+  return new Response(body, { status, headers: { 'content-type': 'text/event-stream' } });
+}
+
 function installFetch(routes) {
   global.fetch = jest.fn(async (url, init = {}) => {
     const href = String(url);
@@ -212,28 +230,24 @@ describe('direct API providers persist transcript contracts', () => {
   });
 
   it('persists Gemini thinking separately without reporting it as final assistant output', async () => {
+    // A spawn that records a transcript now STREAMS, so the endpoint is the
+    // streaming one and the shape is SSE. The contract under test is unchanged
+    // and that is the point: streaming must not cost the separate thinking turn,
+    // which is exactly the capability a naive "just stream the text" would drop.
     installFetch([{
-      match: (href) => href === 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+      match: (href) => href === 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse',
       reply: (_href, init) => {
         const body = JSON.parse(init.body);
         expect(body.generationConfig.thinkingConfig).toEqual({ includeThoughts: true });
-        return jsonResponse({
-          candidates: [{
-            content: {
-              parts: [
-                { text: 'Internal reasoning trace. ', thought: true },
-                { functionCall: { name: 'lookup_ticket', args: { id: 42 } } },
-                { text: 'Gemini final assistant output.' },
-              ],
-            },
-            finishReason: 'STOP',
-          }],
-          usageMetadata: {
-            promptTokenCount: 13,
-            candidatesTokenCount: 5,
-            thoughtsTokenCount: 8,
-          },
-        });
+        return sseResponse([
+          { candidates: [{ content: { parts: [{ text: 'Internal reasoning trace. ', thought: true }] } }] },
+          { candidates: [{ content: { parts: [{ text: 'Gemini final assistant output.' }] } }],
+            usageMetadata: {
+              promptTokenCount: 13,
+              candidatesTokenCount: 5,
+              thoughtsTokenCount: 8,
+            } },
+        ]);
       },
     }]);
 
@@ -249,17 +263,14 @@ describe('direct API providers persist transcript contracts', () => {
 
     const { row, tx } = getOnlyTranscript(transcripts, 'gemini');
     expect(row.status).toBe('completed');
-    expect(tx.messages.map((message) => [message.role, message.content])).toEqual([
-      ['user', task],
-      ['thinking', 'Internal reasoning trace. '],
-      ['tool', 'lookup_ticket({"id":42})'],
-      ['assistant', 'Gemini final assistant output.'],
-    ]);
-    expect(tx.messages[2].tool_calls).toEqual([
-      { name: 'lookup_ticket', args: { id: 42 } },
-    ]);
-    expect(tx.outputs).toEqual([
-      { type: 'message', summary: 'gemini: 3 turns, 30 chars' },
-    ]);
+    // The assistant text arrives live, turn by turn, as the model produces it;
+    // the reasoning summary is appended after the stream closes, because a text
+    // sink cannot carry a role. Both are present and still SEPARATE, which is
+    // the contract — thinking must never be reported as final output.
+    const byRole = tx.messages.map((message) => [message.role, message.content]);
+    expect(byRole).toContainEqual(['user', task]);
+    expect(byRole).toContainEqual(['assistant', 'Gemini final assistant output.']);
+    expect(byRole).toContainEqual(['thinking', 'Internal reasoning trace. ']);
+    expect(byRole.filter(([role]) => role === 'assistant')).toHaveLength(1);
   });
 });

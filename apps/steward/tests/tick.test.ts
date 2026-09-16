@@ -133,13 +133,25 @@ describe('runTick — decide and record, never throw, never land', () => {
   });
 
   it('an unarmed seat records LAND but reports it holds no landing capability', async () => {
+    // The safety property is not "it says unarmed" — it is that an unarmed
+    // seat NEVER REACHES GITHUB. A seat that called the API and then reported
+    // the token was unset would pass a reason-only assertion while doing the
+    // exact thing the gate exists to prevent, so the call count is asserted
+    // directly rather than left to `undefined as never` throwing by luck.
+    let calls = 0;
+    const countingFetch = (async (...args: unknown[]) => {
+      calls += 1;
+      void args;
+      return new Response('{}', { status: 200 });
+    }) as never;
     const env = makeEnv({ STEWARD_GITHUB_TOKEN: 'tok', DB: memoryD1().db });
-    const r = await runTick(env, REPO, NOW, undefined as never, async () => [
+    const r = await runTick(env, REPO, NOW, countingFetch, async () => [
       pr({ number: 12, approved: true, checks: 'green', mergeable: true }),
     ]);
     expect(r.verdict?.verdict).toBe('LAND');
     expect(r.landing).toMatchObject({ attempted: false, landed: false });
     expect(r.landing?.reason).toContain('no landing capability');
+    expect(calls).toBe(0);
   });
 
   it('reports a failed ledger write instead of pretending it recorded', async () => {
@@ -167,6 +179,16 @@ describe('the landing arm — armed ticks execute LAND, gated and honest', () =>
    * @param merge - Status + body for the merge PUT.
    * @returns The fetch fake plus a counter of merge attempts.
    */
+  /**
+   * Fake the two calls a landing makes: the REST protected-path file list, and
+   * the GraphQL pair (resolve node id, then enqueue).
+   *
+   * `merges.count` counts ENQUEUE ATTEMPTS — the mutation, not the lookup — so
+   * the "did the seat try to land?" assertions keep meaning what they meant
+   * when landing was a direct merge. The name is kept for the same reason:
+   * these tests assert whether the seat REACHED for the merge button, and that
+   * question is unchanged by which button it is.
+   */
   function ghLandFake(
     files: string[],
     merge: { status: number; body: Record<string, unknown> },
@@ -174,13 +196,28 @@ describe('the landing arm — armed ticks execute LAND, gated and honest', () =>
     const merges = { count: 0 };
     return {
       merges,
-      fetchImpl: async (url: string) => {
+      fetchImpl: async (url: string, init?: RequestInit) => {
         if (url.includes('/files')) {
           return new Response(JSON.stringify(files.map(filename => ({ filename }))), { status: 200 });
         }
-        if (url.includes('/merge')) {
+        if (url.includes('/graphql')) {
+          const body = String(init?.body);
+          if (body.includes('pullRequest(number:')) {
+            return new Response(
+              JSON.stringify({
+                data: { repository: { pullRequest: { id: 'PR_node', headRefOid: String(merge.body.sha ?? 'headoid') } } },
+              }),
+              { status: 200 },
+            );
+          }
           merges.count++;
-          return new Response(JSON.stringify(merge.body), { status: merge.status });
+          if (merge.status !== 200) {
+            return new Response(JSON.stringify({ message: merge.body.message }), { status: merge.status });
+          }
+          return new Response(
+            JSON.stringify({ data: { enqueuePullRequest: { mergeQueueEntry: { position: 1, state: 'QUEUED' } } } }),
+            { status: 200 },
+          );
         }
         return new Response('{}', { status: 404 });
       },
@@ -411,5 +448,115 @@ describe('surveyOpenPrs — GitHub reads into snapshots', () => {
     await expect(
       surveyOpenPrs('o', 'r', 'tok', async () => new Response('nope', { status: 500 })),
     ).rejects.toThrow('500');
+  });
+});
+
+describe('the docket walk — one opinion per PR, recorded once', () => {
+  // WHAT THIS IS AND IS NOT. An earlier reading of production called this a
+  // head-of-line livelock: #6419 (tier 3, red, fleet-owned) sat at the docket
+  // head across two wakes and the tick judged only `docket[0]`, so the claim
+  // was that a landable PR behind it could never be reached. That claim was
+  // WRONG, and the first draft of these tests is what disproved it —
+  // `classifyPr` puts approved + green + mergeable at TIER 2, which outranks
+  // tier 3, so anything landable jumps the queue by construction. #6419 at the
+  // head means only that nothing in the repo is currently landable.
+  //
+  // Two real defects remain, and they are what these pin:
+  //   1. The seat recorded the SAME verdict for the SAME PR on every wake —
+  //      four identical rows a day, forever, in the ledger that is supposed to
+  //      be the repo's readable merge history.
+  //   2. It formed an opinion on exactly one PR, so the ledger described the
+  //      docket head rather than the repo.
+
+  const redHead = pr({ number: 6419, checks: 'red', fleetOwned: true });
+  const landable = pr({ number: 7777, checks: 'green', approved: true, mergeable: true });
+
+  it('confirms tier order already protects a landable PR — no walk required', async () => {
+    // Stated as a test so the disproved claim cannot quietly come back.
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const res = await runTick(env, REPO, NOW, undefined, async () => [redHead, landable]);
+    expect(res.verdict?.verdict).toBe('LAND');
+    expect(res.verdict?.prNumber).toBe(7777);
+    expect(d1.mergeLedger[0].pr_number).toBe(7777);
+  });
+
+  it('now forms an opinion on the whole docket, not just its head', async () => {
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const res = await runTick(env, REPO, NOW, undefined, async () =>
+      [redHead, pr({ number: 8, checks: 'red' }), pr({ number: 9, changesRequested: true })]);
+    expect(res.scanned).toBe(3);
+    expect(res.ledgered).toBe(3);
+    expect(d1.mergeLedger.map(r => r.pr_number).sort()).toEqual([8, 9, 6419].sort());
+  });
+
+  it('records a verdict once, then goes quiet while the answer is unchanged', async () => {
+    // The defect that made the ledger unreadable: identical rows every wake.
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const survey = async () => [redHead, pr({ number: 8, checks: 'red' })];
+
+    const first = await runTick(env, REPO, NOW, undefined, survey);
+    expect(first.ledgered).toBe(2);
+    const afterFirst = d1.mergeLedger.length;
+
+    const second = await runTick(env, REPO, NOW + 60_000, undefined, survey);
+    expect(second.unchanged).toBe(2);
+    expect(second.ledgered).toBe(0);
+    expect(d1.mergeLedger.length).toBe(afterFirst);
+  });
+
+  it('speaks up again the moment a verdict actually changes', async () => {
+    // Silence must mean "nothing changed", never "stopped looking".
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    await runTick(env, REPO, NOW, undefined, async () => [pr({ number: 42, checks: 'red' })]);
+    const before = d1.mergeLedger.length;
+
+    const res = await runTick(env, REPO, NOW + 60_000, undefined, async () =>
+      [pr({ number: 42, checks: 'green', approved: true, mergeable: true })]);
+    expect(res.ledgered).toBe(1);
+    expect(res.verdict?.verdict).toBe('LAND');
+    expect(d1.mergeLedger.length).toBe(before + 1);
+  });
+
+  it('reports an all-unchanged tick honestly instead of naming one PR', async () => {
+    // The old line named `docket[0]` unconditionally, so a seat with nothing
+    // new to say looked identical to one that had just decided something.
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const survey = async () => [redHead];
+    await runTick(env, REPO, NOW, undefined, survey);
+    const res = await runTick(env, REPO, NOW + 60_000, undefined, survey);
+    expect(res.verdict).toBeUndefined();
+    expect(res.scanned).toBe(1);
+    expect(res.unchanged).toBe(1);
+  });
+});
+
+describe('verdict memory — the tick must never die on a bad read', () => {
+  it('re-records instead of throwing when the ledger read blows up', async () => {
+    // The promise this pins is §5.3's: a wake ALWAYS reaches its deck-log
+    // write. If reading the seat's own past verdicts could throw, runTick
+    // would die before that write and the vital sign would be lost — the seat
+    // going silent is the one failure the whole phase exists to make
+    // impossible. `readStewardMergeLedger` swallows its own errors today, so
+    // this path is unreachable through it; the guarantee is claimed at this
+    // boundary, so it is enforced at this boundary.
+    const exploding = {
+      prepare() { throw new Error('D1 unreachable'); },
+    } as unknown as D1Database;
+    const env = makeEnv({ DB: exploding, STEWARD_GITHUB_TOKEN: 'tok' });
+
+    const res = await runTick(env, REPO, NOW, undefined, async () =>
+      [pr({ number: 5, checks: 'red' })]);
+
+    expect(res.ran).toBe(true);
+    expect(res.scanned).toBe(1);
+    // Empty memory means "assume nothing was held", so the verdict is
+    // re-offered rather than suppressed. Losing a verdict to a failed read
+    // would be the unrecoverable direction.
+    expect(res.unchanged).toBe(0);
   });
 });

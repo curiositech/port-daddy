@@ -2,21 +2,21 @@
  * Skill Graft — native, local skill-injection for Port Daddy's autonomous
  * fleet ships.
  *
- * Mirrors the windags MCP tool pattern (`windags_skill_graft` /
- * `windags_skill_reference` / `windags_skill_inventory`): given a task
+ * Mirrors the jury_rig MCP tool pattern (`pd jury-rig query` /
+ * `pd jury-rig reference` / `pd seamanship list`): given a task
  * description, return a CHEAP ranked shortlist of candidate skills (id +
  * one-line description + similarity) across every scanned skill, plus the
  * FULL `SKILL.md` body for only the top few (context-cost capped). A
  * companion function fetches one specific reference/example/script file
  * from a skill's own directory on demand — the local equivalent of
- * `windags_skill_reference`.
+ * `pd jury-rig reference`.
  *
- * Deliberately local, deliberately not a windags client: no MCP call, no
- * network dependency on the windags server being configured. This exists
+ * Deliberately local, deliberately not a jury_rig client: no MCP call, no
+ * network dependency on the jury_rig server being configured. This exists
  * because `apps/fleet-executor` (autonomous ships spawned from
- * `pd-fleet.yml`) has zero windags integration today — windags only covers
+ * `pd-fleet.yml`) has zero jury_rig integration today — jury_rig only covers
  * interactive sessions where it happens to be wired in as an MCP server.
- * Borrows windags' *design*, not windags itself, matching the
+ * Borrows jury_rig' *design*, not jury_rig itself, matching the
  * shared-library-not-hard-runtime-dependency precedent this repo already
  * applies elsewhere (see the M8 semantic-conflict-predictor architecture
  * recommendation, `docs/architecture/agent-harbor-technical-binder/
@@ -48,8 +48,8 @@
  * skill is exactly right — comparing a shovel to a bonsai tree. Both sides
  * need to live in the same semantic space for cosine to mean anything.
  *
- * Fixed the way windags' Tool2Vec cascade fixes it (see
- * https://windags.ai/blog/the-skill-matching-cascade): `./skill-graft-tool2vec.js`
+ * Fixed the way jury_rig' Tool2Vec cascade fixes it (see
+ * https://example.com/blog/the-skill-matching-cascade): `./skill-graft-tool2vec.js`
  * generates ~15 synthetic user-phrased task descriptions per skill via a
  * cheap LLM call, embeds them with the shared local embedder, and averages
  * them into a centroid — comparing the task against "what would you use
@@ -64,7 +64,7 @@
  * 'lexical-only'`) rather than silently reintroducing the cosine-vs-
  * description bug as a "fallback."
  *
- * Scoped deliberately: windags' full cascade also has cross-encoder
+ * Scoped deliberately: jury_rig' full cascade also has cross-encoder
  * reranking, local attribution k-NN, and cross-installation global priors.
  * None of those are built here — they need a second (reranker) model, an
  * outcomes-tracking DB, and a multi-installation telemetry population
@@ -87,7 +87,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { createLocalEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
+import { createLocalTextEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
 import {
   loadSkillCatalog,
   type SkillEmbedder,
@@ -96,6 +96,7 @@ import {
 import { containPath, PathEscapeError } from './fleet/path-guard.js';
 import type { LLMClient } from './llm-call.js';
 import { bm25Rank } from './skill-graft-bm25.js';
+import { extractPairsWithTargets } from './skill-pairs-with.js';
 import {
   createLLMClientSyntheticQueryGenerator,
   createTool2VecStore,
@@ -198,7 +199,7 @@ export interface SkillGraftOptions extends SkillGraftCraftOptions {
   roots?: SkillGraftRoot[];
   /** Used to compute the default root when `roots` is omitted. Defaults to `process.cwd()`. */
   projectRoot?: string;
-  /** Inject a fake embedder for deterministic tests. Defaults to `createLocalEmbedder()`. */
+  /** Inject a fake embedder for deterministic tests. Defaults to the corpus-bound shared embedder. */
   embedder?: SkillEmbedder;
   /**
    * Synthetic-query generator for the Tool2Vec semantic tier (see
@@ -263,11 +264,10 @@ export interface SkillGraftIndex {
   craft(query: string, options?: SkillGraftCraftOptions): Promise<SkillGraftResult>;
   /**
    * Fetch one file from within a specific skill's own directory — the
-   * on-demand companion to `craft()`, mirroring `windags_skill_reference`.
+   * on-demand companion to `craft()`, mirroring `pd jury-rig reference`.
    * Guards against the requested path escaping the skill's directory.
-   * Requires `craft()` or `refresh()` to have run at least once (so the
-   * catalog is populated); returns `found: false` otherwise rather than
-   * throwing.
+   * Lazily scans the catalog when needed; fetching one reference must never
+   * trigger the expensive centroid build.
    */
   getReference(skillId: string, filePath: string): SkillReferenceResult;
   /** Skill ids known as of the last scan (empty until `craft()`/`refresh()` runs). */
@@ -300,7 +300,7 @@ const MIN_MAX_BODY_CHARS = 500;
 const MAX_MAX_BODY_CHARS = 50000;
 
 /** Just this repo's `skills/` directory — "start with this repo's skills/
- *  dir" per the task brief. Callers who want the fuller windags/workgroup-ai/
+ *  dir" per the task brief. Callers who want the fuller jury_rig/workgroup-ai/
  *  user-level catalog can pass `lib/skill-sync.ts`'s `defaultSkillCatalogRoots()`
  *  as `roots` explicitly; Skill Graft does not reach for those on its own so
  *  a bare `createSkillGraftIndex()` call never depends on another tool being
@@ -317,12 +317,9 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     : defaultSkillGraftRoots(options.projectRoot);
   // Default embedder reuses the ONE shared, already-downloaded local MiniLM
   // cache (`~/.port-daddy/transformers-cache`, ADR-0061) — NOT
-  // `createLocalEmbedder()`'s own bare default of `<cwd>/.cache/transformers`,
-  // which would silently re-download the model per-repo/per-cwd instead of
-  // reusing what every other reader (the resolver, the daemon, the
-  // shipwright skill index) already paid for.
+  // the same shared cache used by every other corpus producer.
   const embedder: SkillEmbedder = options.embedder
-    ?? createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+    ?? createLocalTextEmbedder('pd.skill-catalog.graft', { cacheDir: defaultTransformersCacheDir() });
   const defaultShortlistLimit = clampLimit(options.shortlistLimit, DEFAULT_SHORTLIST_LIMIT);
   const defaultTopLimit = clampLimit(options.topLimit, DEFAULT_TOP_LIMIT);
   const maxBodyChars = clampBodyChars(options.maxBodyChars, DEFAULT_MAX_BODY_CHARS);
@@ -475,6 +472,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     },
 
     getReference(skillId, filePath) {
+      ensureScanned();
       const skill = catalogById.get(skillId);
       if (!skill) {
         return {
@@ -483,7 +481,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
           found: false,
           content: null,
           absolutePath: null,
-          error: `unknown skill id "${skillId}" (call craft()/refresh() first, or check the id)`,
+          error: `unknown skill id "${skillId}" (check the id and configured skill roots)`,
         };
       }
 
@@ -660,35 +658,6 @@ function escapeRegExpLiteral(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Pull `pairs-with` targets out of one skill's already-YAML-parsed
- * frontmatter. Real SKILL.md files in this repo disagree on where the
- * field lives — most nest it under `metadata:` (e.g.
- * `rag-retrieval-pattern-design`), a few put it at the frontmatter top
- * level (e.g. `dag-performance-profiler`) — so both locations are checked
- * and merged. Entry shape also varies: most are `{ skill, reason }`
- * objects, but 22 skills (e.g. `wave-by-wave-parley`, the imported windags
- * grafts, and several port-daddy-* skills) list bare id strings instead —
- * both shapes count as the same curated edge. Only the target id matters
- * here — `reason` is operator-facing prose this module never reads.
- */
-function extractPairsWithTargets(frontmatter: Record<string, unknown>, selfId: string): string[] {
-  const metadata = (frontmatter.metadata && typeof frontmatter.metadata === 'object')
-    ? frontmatter.metadata as Record<string, unknown>
-    : {};
-  const rawEntries = [
-    ...(Array.isArray(frontmatter['pairs-with']) ? frontmatter['pairs-with'] as unknown[] : []),
-    ...(Array.isArray(metadata['pairs-with']) ? metadata['pairs-with'] as unknown[] : []),
-  ];
-  const targets: string[] = [];
-  for (const entry of rawEntries) {
-    const id = typeof entry === 'string'
-      ? entry
-      : (entry && typeof entry === 'object') ? (entry as Record<string, unknown>).skill : undefined;
-    if (typeof id === 'string' && id.trim() && id.trim() !== selfId) targets.push(id.trim());
-  }
-  return targets;
-}
 
 /**
  * Re-read one skill's SKILL.md — `loadSkillCatalog` already parsed the
@@ -760,8 +729,8 @@ function extractSkillEdges(
  *
  * Known, accepted limitation: `\b`-bounded matching treats a hyphen as a
  * word-boundary character, so a skill id that is itself a hyphenated
- * PREFIX of a longer compound id (e.g. `windags-ops` inside a mention of
- * `windags-ops-extended`) can still match. The operator directive calls
+ * PREFIX of a longer compound id (e.g. `jury_rig-ops` inside a mention of
+ * `jury_rig-ops-extended`) can still match. The operator directive calls
  * for plain word-boundary matching with a hyphen-presence guard against
  * common-word false positives, not a longest-match / prefix-free scheme —
  * that's what this implements.
@@ -772,7 +741,7 @@ export function buildSkillAdjacency(skills: readonly SkillEntry[]): SkillAdjacen
 
   const hyphenatedIds = skills.map((s) => s.id).filter((id) => ID_HAS_HYPHEN.test(id));
   // Hyphen-aware boundaries, NOT plain \b: a hyphen IS a \b word boundary,
-  // so `\bwindags-ops\b` would match inside `windags-ops-extended` — a false
+  // so `\bjury_rig-ops\b` would match inside `jury_rig-ops-extended` — a false
   // edge to the shorter id, and (with the g-flag cursor advanced past it)
   // the longer id's own mention consumed and missed. Lookarounds excluding
   // [\w-] make an id match only when it is not embedded in a longer

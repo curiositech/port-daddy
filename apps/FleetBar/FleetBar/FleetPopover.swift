@@ -41,6 +41,7 @@ struct FleetPopover: View {
     @ObservedObject var interruptionsStore: InterruptionsStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @StateObject private var approvalStore = SpawnApprovalStore()
+    @StateObject private var coastGuardReceiptStore: CoastGuardReceiptStore
     @StateObject private var berthStore = BerthStore()
     @StateObject private var cloudFleetStore = CloudFleetStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
@@ -52,13 +53,15 @@ struct FleetPopover: View {
         costStore: CostStore,
         secretsStore: SecretsStore = SecretsStore(autoStart: false),
         backendStore: BackendStore = BackendStore(),
-        interruptionsStore: InterruptionsStore = InterruptionsStore(autoStart: false)
+        interruptionsStore: InterruptionsStore = InterruptionsStore(autoStart: false),
+        coastGuardReceiptStore: CoastGuardReceiptStore = CoastGuardReceiptStore()
     ) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
         self.backendStore = backendStore
         self.interruptionsStore = interruptionsStore
+        _coastGuardReceiptStore = StateObject(wrappedValue: coastGuardReceiptStore)
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -106,17 +109,21 @@ struct FleetPopover: View {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
             approvalStore.start()
+            coastGuardReceiptStore.start()
             Task { await interruptionsStore.refresh() }
         }
         .onDisappear {
             budgetStore.stop()
             approvalStore.stop()
+            coastGuardReceiptStore.stop()
         }
     }
 
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            LocalOffSection(compact: true)
+            Divider().opacity(0.5)
             // HITL first: operator interruptions (docs/hitl-interruptions.md §4)
             // and spawns held by the trust gate lead everything else in the
             // dropdown — a pending human gate is unmissable.
@@ -131,6 +138,10 @@ struct FleetPopover: View {
                     }
                 }
             )
+            if !coastGuardReceiptStore.receipts.isEmpty {
+                Divider().opacity(0.5)
+                CoastGuardReceiptSection(store: coastGuardReceiptStore)
+            }
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)
@@ -846,22 +857,7 @@ struct FleetPopover: View {
             EmptyView()
 
         case let .appBehindDaemon(app, daemon):
-            versionSkewCard(
-                icon: "arrow.down.circle.fill",
-                tint: Fleet.Color.warning,
-                title: "FleetBar is out of date",
-                detail: "This app is \(app); the daemon is already \(daemon). Download the latest FleetBar to match.",
-                versionLine: "app \(app)  →  daemon \(daemon)",
-                primaryLabel: "Download FleetBar \(daemon)",
-                primaryAction: { NSWorkspace.shared.open(FleetVersion.downloadPageURL) },
-                // A Developer-ID-signed build means the release pipeline signs +
-                // notarizes every artifact, so the download needs no manual
-                // checksum ritual — Gatekeeper verifies it. Only unsigned/ad-hoc
-                // builds keep the caveat.
-                footnote: FleetVersion.isSignedBuild
-                    ? "Signed & notarized — Gatekeeper verifies the download automatically."
-                    : "Unsigned build — the download page lists the checksum to verify."
-            )
+            FleetBarUpdateCard(appVersion: app, daemonVersion: daemon)
 
         case let .daemonBehindApp(app, daemon):
             // FleetBar can't run `brew` or kill a live daemon itself, so we hand

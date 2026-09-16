@@ -27,6 +27,8 @@ describe('buildQueries', () => {
     expect(q.purser).toContain('purser-author-repair');
     expect(q.purser).toContain('NON-EXECUTABLE');
     expect(q.runs).toContain('FROM fleet_runs');
+    expect(q.aiCalls).toContain('FROM fleet_ai_call_stats');
+    expect(q.aiCalls).toContain('GROUP BY ship');
   });
 
   test('rejects a non-positive or fractional window (the inlined-SQL guard)', () => {
@@ -59,6 +61,10 @@ describe('renderShipStats', () => {
       { kind: 'purser-author-repair', outcome: 'healed', n: 22 },
       { kind: 'purser-tests', outcome: 'non-executable', n: 121 },
     ],
+    aiCalls: [
+      { ship: 'purser', calls: 40, timeouts: 3, errors: 5, total_ms: 400000, max_ms: 301000 },
+      { ship: 'qa', calls: 20, timeouts: 0, errors: 1, total_ms: 100000, max_ms: 12000 },
+    ],
   };
 
   test('flags a token-bearing $0 row as UNPRICED and leaves priced rows unflagged', () => {
@@ -83,6 +89,20 @@ describe('renderShipStats', () => {
     expect(text).toContain('purser-author-repair');
     expect(text).toContain('failed');
     expect(text).toContain('83');
+  });
+
+  test('flags a ship that hit its AI call deadline and points at the fix', () => {
+    const text = renderShipStats(data);
+    const purserAiLine = text.split('\n').find(l => l.startsWith('purser') && l.includes('/account/repos'));
+    expect(purserAiLine).toContain('← hit the deadline');
+    const qaAiLine = text.split('\n').find(l => /^qa\s+20\s/.test(l));
+    expect(qaAiLine).not.toContain('/account/repos');
+  });
+
+  test('renders correctly with no aiCalls rows (older fixtures/callers)', () => {
+    const { aiCalls, ...withoutAiCalls } = data;
+    expect(() => renderShipStats(withoutAiCalls)).not.toThrow();
+    expect(renderShipStats(withoutAiCalls)).toContain('WORKERS AI CALL LATENCY');
   });
 });
 

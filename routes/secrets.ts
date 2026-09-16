@@ -237,5 +237,6 @@ function backendForKey(key: string): string {
   if (key.startsWith('CLOUDFLARE_') || key.startsWith('CF_')) return 'cloudflare';
   if (key === 'NGROK_AUTHTOKEN') return 'ngrok';
   if (key === 'VOYAGE_API_KEY') return 'voyage';
+  if (key.startsWith('PD_JIRA_')) return 'jira';
   return 'other';
 }

@@ -21,6 +21,7 @@ import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
 import { appendEvent, type HarborPayload } from '../../lib/agent-harbor/event-ledger.js';
 import { validateAgainstSchema } from '../../lib/agent-harbor/schema-validate.js';
 import { createLocalEmbedder } from '../../lib/semantic-resolver.js';
+import { localTextCorpusPolicy } from '../../lib/retrieval-policy.js';
 import {
   ensureMemoryEpisodeSchema,
   extractEpisodesFromSession,
@@ -487,7 +488,10 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
       // (ADR-0061) plugs straight into recall — no cast, no wrapper, no
       // adapter. This assignment alone is the compile-time proof: it would
       // fail to type-check if Embedder still declared a sync `embed`.
-      const shared: Embedder = createLocalEmbedder();
+      const shared: Embedder = createLocalEmbedder({
+        corpusPolicy: localTextCorpusPolicy('pd.test.memory-episodes'),
+        role: 'text_dense',
+      });
       const opts: RecallOptions = { embedder: shared };
       expect(typeof opts.embedder?.embed).toBe('function');
       expect(typeof opts.embedder?.modelId).toBe('string');

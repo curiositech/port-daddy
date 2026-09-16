@@ -50,7 +50,7 @@ The simplest AID naming convention constructs the name as `agent-name@hap` where
 
 This is significant because it means an agent that has migrated to a completely different platform still carries its origin in its name. You can always trace an agent back to its point of creation. For distributed systems this is invaluable for debugging, auditing, and accountability.
 
-## Application to WinDAGs Skill Routing
+## Application to Jury-rig Skill Routing
 
 ### Problem: Hard-coded Skill Endpoints Break
 
@@ -58,7 +58,7 @@ The most common failure mode in skill-based orchestration systems is routing tha
 
 ### Solution: Skill Identifiers Separate from Skill Endpoints
 
-Apply the AID principle: every skill in WinDAGs should have a stable symbolic identifier (e.g., `skill:code-review@platform-v1`) that never changes, and a separately maintained routing table that maps that identifier to current invocation endpoints. The routing table is the `:addresses` equivalent — mutable, platform-managed, updated when skills move or scale.
+Apply the AID principle: every skill in Jury-rig should have a stable symbolic identifier (e.g., `skill:code-review@platform-v1`) that never changes, and a separately maintained routing table that maps that identifier to current invocation endpoints. The routing table is the `:addresses` equivalent — mutable, platform-managed, updated when skills move or scale.
 
 ### Resolver Chains for Skill Discovery
 
@@ -76,12 +76,12 @@ Apply the same principle to tasks: a task spawned by an orchestrator gets an imm
 
 **When this principle adds unnecessary overhead**: In a closed, non-migratory system where agents never move and endpoints never change, the indirection layer of name resolution adds latency for no benefit. If your system is a small set of fixed services that you control completely, hard-coded endpoints may be simpler and faster.
 
-**When resolver chains can become a single point of failure**: If all resolution goes through a single AMS and that AMS fails, no new connections can be established. FIPA's response is to allow multiple resolvers in the sequence, and to allow the AMS to be replicated. WinDAGs should similarly ensure that the skill registry is highly available and that agents cache resolved addresses with appropriate TTLs so they can operate even when the registry is temporarily unreachable.
+**When resolver chains can become a single point of failure**: If all resolution goes through a single AMS and that AMS fails, no new connections can be established. FIPA's response is to allow multiple resolvers in the sequence, and to allow the AMS to be replicated. Jury-rig should similarly ensure that the skill registry is highly available and that agents cache resolved addresses with appropriate TTLs so they can operate even when the registry is temporarily unreachable.
 
-**The stale address problem**: A cached `:addresses` value may become stale if the agent has moved since the last resolution. Systems must either accept occasional failed deliveries (and then re-resolve) or implement push notification from the AMS when agent addresses change. FIPA's MTS handles this by buffering messages to agents in Transit state — a pattern WinDAGs can replicate by queueing invocations to skills that are being redeployed.
+**The stale address problem**: A cached `:addresses` value may become stale if the agent has moved since the last resolution. Systems must either accept occasional failed deliveries (and then re-resolve) or implement push notification from the AMS when agent addresses change. FIPA's MTS handles this by buffering messages to agents in Transit state — a pattern Jury-rig can replicate by queueing invocations to skills that are being redeployed.
 
 ## Summary Principle
 
 > Identify by name. Route by address. Resolve name to address on demand. Never conflate the two.
 
-This principle, if consistently applied throughout WinDAGs, eliminates an entire class of fragility: the system becomes robust to skill migration, versioning, replication, and platform evolution because no agent ever holds a hard reference to a location — only a stable reference to an identity.
+This principle, if consistently applied throughout Jury-rig, eliminates an entire class of fragility: the system becomes robust to skill migration, versioning, replication, and platform evolution because no agent ever holds a hard reference to a location — only a stable reference to an identity.

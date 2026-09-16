@@ -18,6 +18,13 @@ import { autoIdentityFromPackageJson } from './services.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { KNOWN_BACKEND_IDS } from '../../lib/backend-catalog.js';
 
+/**
+ * Parse a CLI budget without accepting non-finite values. The design keeps
+ * validation at the command boundary so the request body has one numeric shape.
+ *
+ * @param value - Raw budget option supplied by the CLI parser.
+ * @returns The finite numeric budget, or undefined when the input is unusable.
+ */
 function parseBudgetValue(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
@@ -31,6 +38,14 @@ function parseBudgetValue(value: unknown): number | undefined {
 // handleSpawn — pd spawn --backend ollama -- "my task"
 // =============================================================================
 
+/**
+ * Launch or terminate a spawned agent through the daemon. The intent is to
+ * preserve each CLI output mode while sending one explicit admission request.
+ *
+ * @param args - Positional spawn arguments or the kill target.
+ * @param options - Parsed CLI flags controlling admission and presentation.
+ * @returns A promise that resolves after the daemon response is presented.
+ */
 export async function handleSpawn(
   args: string[],
   options: CLIOptions,
@@ -109,6 +124,8 @@ export async function handleSpawn(
     console.error('  --identity <id>       PD semantic identity (project:stack:context)');
     console.error('  --purpose <text>      Human-readable task description');
     console.error('  --budget <usd>        Required spend ceiling for this launch');
+    console.error('  --workdir <absolute-path> Spawn workdir');
+    console.error('                            Defaults to the current directory');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
     console.error('  --inject-squid-hooks  Install Giant Squid tentacles before launching supported CLI backends');
@@ -153,7 +170,7 @@ export async function handleSpawn(
     }
   }
 
-  if (options.workdir) body.workdir = options.workdir;
+  body.workdir = options.workdir ?? process.cwd();
   if (options.timeout) body.timeout = parseInt(options.timeout as string, 10);
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
@@ -223,6 +240,14 @@ export async function handleSpawn(
 // handleSpawned — pd spawned
 // =============================================================================
 
+/**
+ * List spawned agents in the caller's requested output format. The purpose is
+ * to keep human, quiet, and JSON views projected from the same daemon response.
+ *
+ * @param _args - Reserved positional arguments for command-router consistency.
+ * @param options - Parsed CLI flags controlling output presentation.
+ * @returns A promise that resolves after the current agent list is rendered.
+ */
 export async function handleSpawned(
   _args: string[],
   options: CLIOptions,
@@ -297,6 +322,14 @@ export async function handleSpawned(
 // handleWatch — pd watch <channel> --exec <script>
 // =============================================================================
 
+/**
+ * Subscribe a command to a resolved channel and execute it for each message.
+ * The design centralizes channel resolution and lifecycle handling in one loop.
+ *
+ * @param channel - Declared logical channel, or undefined to show command usage.
+ * @param options - Parsed execution, concurrency, timeout, and output flags.
+ * @returns A promise that remains pending until the watcher completes or exits.
+ */
 export async function handleWatch(
   channel: string | undefined,
   options: CLIOptions,
@@ -368,6 +401,12 @@ export async function handleWatch(
   const handle = watcher.watch(resolvedChannel.physicalChannel, { exec, once, maxConcurrent, timeout, minInterval });
 
   // Handle SIGINT/SIGTERM gracefully
+  /**
+   * Stop the active watcher on process termination. The intent is to close the
+   * subscription before exiting while retaining the established CLI messaging.
+   *
+   * @returns Nothing; this routine terminates the process after cleanup.
+   */
   const cleanup = () => {
     handle.stop();
     if (IS_TTY && !isQuiet(options)) {

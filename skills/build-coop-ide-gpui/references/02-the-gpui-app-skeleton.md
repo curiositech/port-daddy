@@ -1,7 +1,7 @@
 # The gpui App Skeleton
 
 > *Capstone reference 02 of the "Build an M-Agent + N-Human Cooperative IDE in Rust gpui" skill.*
-> This is the **structural** chapter: how to lay out a large gpui app so the Harbor Editor — agents and humans as co-equal Loro replicas, governed by Port Daddy claims — has a place to live. Motion, shaders, sound, and visual polish are **out of scope here**; they are owned by the sibling skills this capstone composes (see *Dependencies*). What follows is the load-bearing scaffold: the pane tree, the one object-safe surface contract, the background-refresh pipeline, and the end-to-end recipe for adding a new surface.
+> This is the **structural** chapter: how to lay out a large gpui app so the Harbor Editor — agents and humans as co-equal Loro replicas, governed by Port Daddy claims — has a place to live. Motion, shaders, sound, and visual polish are **out of scope here**; they are owned by the sibling skills this capstone composes (see *Dependencies*). What follows is the critical scaffold: the pane tree, the one object-safe surface contract, the background-refresh pipeline, and the end-to-end recipe for adding a new surface.
 
 Everything below is grounded in the **real, shipping** pd-console at `/Users/erichowens/coding/tmp/pd-operator-console/core/pd-console/src` — `mux.rs`, `pane.rs`, `app.rs`, `main.rs`, `editor.rs`, `palette.rs`. Every `file:line` is quoted from that tree, not invented. Where the *Harbor Editor battle plan* (`docs/strategy/harbor-editor-battle-plan.md`) and the *interaction model* (`docs/design/harbor-interaction-model.md`) describe a primitive that does not exist yet, it is flagged **[planned]** so you never mistake the spec for the code. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 
@@ -114,7 +114,7 @@ pub enum SurfaceKind {
 }
 ```
 
-Two design moves here are load-bearing and worth stealing:
+Two design moves here are pivotal and worth stealing:
 
 1. **`Panel { nav: String }`** (`mux.rs:59`) is the *escape hatch*. Rather than minting a variant per data pane (fleet, cockpit, claims, peek, adrs…), one variant addresses any of them by nav id. The doc calls it *"the bridge to the live data the shell already fetches: every pane the old static console had is summonable into any split."* **Decision Point:** when a surface is just "render these blocks the background thread already fetches," it does **not** need its own `SurfaceKind` — it routes through `Panel`. Reserve dedicated variants for surfaces with *distinct interaction* (Editor selects/scrolls; FileTree is clickable; AgentTranscript steers).
 
@@ -374,7 +374,7 @@ To close the loop with the battle plan, the skeleton-to-Harbor map:
 | P1 buffer + Loro | `EditorPane`'s backing store | Swap disk `lines` → `LoroDoc`/`LoroText`; gutter colors by PeerID. **Same `Pane` impl, same `Block` output.** |
 | P2 LAN multiplayer | `Subscription`/`on_stream` (`pane.rs:71`/`:118`) + the lane SSE pipeline (`main.rs:277`) | Loro Protocol frames ride the existing tube SSE; `on_stream` folds remote ops. |
 | P3 claims (the wedge) | `Editor { region }` + `Tone::Conflicted`/`Gated` (`pane.rs:16`) + `ControlMsg` | `region` becomes the claimed range; a `ControlMsg::ClaimRegion` [planned] POSTs the claim; overlap paints a `Conflicted` band. |
-| P3.5 salvage | `ControlMsg` + `control_flash` | `ControlMsg::Salvage` [planned] → `/recovery/consume`. |
+| P3.5 salvage | `ControlMsg` + `control_flash` | Future only: a recovery action may be added after the typed receipt, canonical Rust Loro, verified scope, and atomic P3 transfer authorities land. The current `/editor/recovery/{request,prepare,replay,finalize}` routes are 503-only scaffolding, so no enabled `ControlMsg::Salvage` exists. |
 | Track B viz | a custom-paint `SurfaceKind` hosting a `canvas()`/wgpu pass | Owned by `gpui-shaders`; the skeleton only supplies the leaf. |
 
 The discipline that makes this map cheap is the one this whole doc argues for: **a pure pane tree, one object-safe surface contract, and a two-channel membrane between data and render.** Build those right and the Harbor Editor is assembly, not invention.

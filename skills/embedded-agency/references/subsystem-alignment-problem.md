@@ -120,7 +120,7 @@ For embedded agents, this is critical because:
 
 4. **Limited scope**: Restrict subsystem capabilities so they **cannot** effectively pursue misaligned objectives, even if they wanted to. This trades off against subsystem usefulness.
 
-### For Orchestration in WinDAGs
+### For Orchestration in Jury-rig
 
 When decomposing a task across multiple skills/agents:
 
@@ -215,7 +215,7 @@ But the paper argues this isn't possible for embedded agents:
 
 The question isn't "how do we avoid subsystem alignment problems?" It's "how do we build systems where misaligned subsystems fail gracefully rather than catastrophically?"
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core principle**: Every time you decompose a task, you're creating subsystems with their own effective objectives. These will not perfectly align with your overall objective.
 

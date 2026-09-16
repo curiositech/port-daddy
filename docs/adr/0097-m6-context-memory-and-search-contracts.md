@@ -34,8 +34,8 @@ ADR-0095 froze the eleven F0 contracts and ADR-0096 added the twelfth
 (binder ch07) — is next on the milestone DAG (M4 → M6, M5 → M6), and its gate is
 concrete:
 
-> - force context threshold and see compaction packet;
-> - resume successor from packet and transcript;
+> - force context threshold and, in an adapter-equipped daemon with a provider-session → plan binding, daemon-owned measurement, a current plan checkpoint, and tool-pair coverage, see a cited compaction packet;
+> - explicitly resume or take over from the packet, last plan, and bounded cited handles after hash-chain verification;
 > - search "how did we deploy X" and get cited results;
 > - memory retrieval never exceeds configured budget.
 
@@ -195,7 +195,7 @@ the ADR-0095 package exactly as ADR-0096 was.
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
 | 0 | adr-0097-m6-context-memory-search-contracts | now | ADR-0095, ADR-0096 | This freeze: five v0 schemas, fixtures, contract tests (ships with this ADR's PR). |
-| 1 | adr-0097-phase-1-compaction-chain | later | Phase 0 | Context-pressure wiring + Longshoreman compactor: ContextEnvelope thresholds trigger a validated CompactionPacket; successor resume verifies `sourceTranscript` against the session hash chain (M6 gate lines 1–2). |
+| 1 | adr-0097-phase-1-compaction-chain | partial | Phase 0 | Terminal-spawner has ContextEnvelope/packet machinery; Claude-only interactive ingress registers a `UserPromptSubmit` turn-time pressure refresh plus the verified `PreCompact` checkpoint. It fails closed without a daemon-owned provider-session → active-plan binding, returning `provider-session-unbound` and no packet. After binding, an adapter-equipped daemon needs a daemon-owned measurement watermark, a current durable plan checkpoint, and complete tool-pair coverage before it can record a validated packet; the hook accepts neither usage nor raw transcript text. The turn path gives the .60 prepare, .75 cited-packet, .85 restriction, and .92 governed-successor directive only through Claude's bounded `additionalContext`; PreCompact does not pretend its discarded system message is a warning. The observation key includes the plan revision and watermark, so a later source observation with unchanged rounded usage gets a new packet while an exact retry replays. The default daemon wires no operational binding or witnesses, so it issues no interactive packet. An explicit packet-derived resume re-verifies `sourceTranscript` against the session hash chain and starts from the last plan plus bounded handles. Universal provider hooks, automatic successor execution, retrieval, and W8/W12 remain separate work. |
 | 2 | adr-0097-phase-2-transcript-search | later | Phase 0 | Hybrid search service over events/notes/files/PRs/outcomes honoring query budgets and returning cited results (M6 gate lines 3–4). |
 | 3 | adr-0097-phase-3-episode-extraction | later | Phase 0 | Longshoreman episode/graph-fact extraction with bi-temporal validity, supersession closure, and distilled-source tombstones. |
 | 4 | adr-0097-phase-4-blackboard-projection | later | Phases 1–3 | Read-only blackboard projection over ledger + memory facts, rendered as cards/badges/search/timeline (write/parley semantics stay M8). |
@@ -211,10 +211,20 @@ the ADR-0095 package exactly as ADR-0096 was.
 - **Cost:** runtime validators must enforce the citation cross-field rules and
   the packet validator semantics the keyword subset cannot express; the search
   engine must meter token estimates to honor `maxContextTokens` honestly.
-- **Honest limitation:** these are contracts, not implementations. No compactor,
-  search index, episode extractor, or blackboard projection exists yet; the
-  fixtures are narrative, not runtime output. The M6 gate is passed by the
-  implementation wave, not by this freeze.
+- **Honest limitation:** Phase 1 is partial, not universal. Claude's registered
+  `UserPromptSubmit` pressure refresh and `PreCompact` checkpoint are first
+  fail-closed on a daemon-owned provider-session → active-plan
+  binding (`provider-session-unbound` and no packet), then on a trusted
+  measurement (`measurement-unavailable`), then on complete tool-pair coverage
+  (`packet-withheld`). The default daemon wires no operational binding or
+  witnesses, so the interactive path issues no packet. An adapter-equipped
+  path also needs a current durable plan checkpoint. The turn-time directive is
+  Claude-only because it relies on its admitted `additionalContext`; `PreCompact`
+  does not claim to deliver a discarded warning. No provider hook is simulated.
+  A `governed-successor` directive requires an explicit
+  packet-derived continuation and never resurrects or launches a process.
+  Search, episode extraction, blackboard projection, universal heartbeats, and
+  W8/W12 durable output references remain open.
 - **Deferred:** blackboard write/parley semantics (M8, per ch05); Longshoreman
   scheduling policy (ch04's 80/15/5 reactive split is operational guidance, not
   schema); embedding-model choice and index topology (implementation concerns
@@ -227,6 +237,9 @@ the ADR-0095 package exactly as ADR-0096 was.
 2. The M6 implementation chains build against the frozen shapes: compactor +
    context-pressure wiring (ContextEnvelope → CompactionPacket), transcript
    search service, episode extraction, read-only blackboard projection.
-3. M6 gate proof: forced-threshold compaction artifact, successor resume from
-   packet + hash-chain verification, a cited "how did we deploy X" search run,
-   and a budget-compliance check on every retrieval in the proof transcript.
+3. M6 gate proof: an adapter-equipped, evidence-gated forced-threshold
+   compaction artifact with a daemon-owned provider-session → plan binding and a
+   current `pd plan` checkpoint; an explicit packet-derived resume from the last
+   plan plus bounded handles with hash-chain verification; a cited "how did we
+   deploy X" search run; and a budget-compliance check on every retrieval in the
+   proof transcript.

@@ -1,0 +1,3 @@
+type: added
+
+- **Embedding vector spaces now have one canonical declared identity target.** `config/models.yaml` binds exact model, tokenizer, preprocessing, and logical coordinate facts into a fixed-order, length-framed, domain-separated `embed-v2` SHA-256 profile shared byte-for-byte by daemon and Workers artifacts. Serving aliases, artifact paths, transport details, and policy stay outside the logical hash; both current profiles remain explicitly degraded and declarative until a separate signed producer attestation proves the runtime and artifacts before persistence or similarity. The Transformers skill and roadmap decision schema now consume this opaque v2 registry contract instead of minting a competing v1 identity.

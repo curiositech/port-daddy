@@ -41,9 +41,16 @@ function semanticProject(session: SessionRecord): string | null {
   const metadata = metadataRecord(session.metadata);
   const identity = typeof metadata?.semanticIdentity === 'string'
     ? metadata.semanticIdentity
-    : typeof metadata?.identity === 'string'
-      ? metadata.identity
-      : null;
+    // `pd begin` now stores the display `project:stack:context` string under
+    // `identityString`; the `identity` slot is the daemon's verified verdict
+    // object (lib/identity-write-boundary.ts `stampIdentityMetadata`). Keep the
+    // string-typed `identity` read as a fallback for sessions written by other
+    // paths — the `typeof … === 'string'` guard skips the verdict object.
+    : typeof metadata?.identityString === 'string'
+      ? metadata.identityString
+      : typeof metadata?.identity === 'string'
+        ? metadata.identity
+        : null;
   if (!identity) return null;
   const parsed = parseIdentity(identity);
   return parsed.valid ? parsed.project : null;

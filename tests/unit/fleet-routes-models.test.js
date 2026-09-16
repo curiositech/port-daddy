@@ -40,6 +40,35 @@ jest.unstable_mockModule('../../lib/secret-env.js', () => ({
 }));
 
 const { fleetPlugin } = await import('../../routes/fleet.js');
+const { modelsForBackend, resolveModel } = await import('../../lib/model-registry.js');
+
+/**
+ * The models a registry-backed backend advertises, in ladder order.
+ *
+ * Derived rather than spelled out because this route's whole job is to advertise
+ * exactly what the resolver will pick. The literal list this replaces had gone
+ * stale in the worst possible way: it named `@cf/moonshotai/kimi-k2-instruct`,
+ * an id Cloudflare had retired, so the test was asserting the presence of the
+ * phantom that hangs `ai.run()` — enforcing the bug rather than catching it.
+ * Backends whose lineup is not registry-owned (ollama discovers from the running
+ * daemon, custom is operator-defined) keep their literals below.
+ *
+ * @param backend Registry backend key.
+ * @returns Concrete ids, cheap rung first.
+ */
+const registryModels = (backend) => modelsForBackend(backend);
+
+/**
+ * The low/mid/high tier map the route exposes for a registry-backed backend.
+ *
+ * @param backend Registry backend key.
+ * @returns The three legacy tier names mapped to concrete ids.
+ */
+const registryTiers = (backend) => ({
+  low: resolveModel({ backend, tier: 'low' }),
+  mid: resolveModel({ backend, tier: 'mid' }),
+  high: resolveModel({ backend, tier: 'high' }),
+});
 
 function commitTempRepo(projectDir) {
   spawnSync('git', ['init'], { cwd: projectDir, stdio: 'ignore' });
@@ -102,8 +131,8 @@ describe('fleet routes /fleet/models', () => {
       expect.objectContaining({
         id: 'codex',
         supported: true,
-        models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'],
-        modelTiers: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
+        models: registryModels('codex'),
+        modelTiers: registryTiers('codex'),
         readinessStatus: 'ready',
         readinessSummary: 'codex summary',
         setupCommand: 'setup codex',
@@ -124,19 +153,8 @@ describe('fleet routes /fleet/models', () => {
       }),
       expect.objectContaining({
         id: 'cloudflare',
-        models: [
-          '@cf/zai-org/glm-4.7-flash',
-          '@cf/openai/gpt-oss-120b',
-          '@cf/moonshotai/kimi-k2-instruct',
-          '@cf/qwen/qwen3-30b-a3b-fp8',
-          '@cf/nvidia/nemotron-3-120b-a12b',
-          '@cf/meta/llama-4-scout-17b-16e-instruct',
-        ],
-        modelTiers: {
-          low: '@cf/zai-org/glm-4.7-flash',
-          mid: '@cf/openai/gpt-oss-120b',
-          high: '@cf/moonshotai/kimi-k2-instruct',
-        },
+        models: registryModels('cloudflare'),
+        modelTiers: registryTiers('cloudflare'),
         setupLinks: [expect.objectContaining({ label: 'Create pd-ai-stack token' })],
         adapter: expect.objectContaining({
           family: 'cloudflare-workers-ai',
@@ -157,8 +175,8 @@ describe('fleet routes /fleet/models', () => {
       }),
       expect.objectContaining({
         id: 'aider',
-        models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5'],
-        modelTiers: { low: 'gpt-4.1-mini', mid: 'gpt-4.1', high: 'gpt-5' },
+        models: registryModels('aider'),
+        modelTiers: registryTiers('aider'),
       }),
       expect.objectContaining({
         id: 'custom',

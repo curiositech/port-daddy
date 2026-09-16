@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startEphemeralDaemon } from '../helpers/ephemeral-daemon.js';
+import { TRANSCRIPT_PRODUCER_SPAWNER } from '../../lib/transcripts.js';
 import {
   LAUNCHD_RESTRICTED_PATH,
   actualExecutionBackend,
@@ -24,6 +25,11 @@ async function getTranscriptForSpawn(daemon, backend, agentId) {
 
   const full = await daemon.request(`/transcripts/${encodeURIComponent(row.id)}`);
   expect(full.ok).toBe(true);
+  expect(full.data.transcript).toEqual(expect.objectContaining({
+    producer: TRANSCRIPT_PRODUCER_SPAWNER,
+    producer_trust_tier: 'INTERNAL',
+    producer_recorded_at: expect.any(Number),
+  }));
   return full.data.transcript;
 }
 

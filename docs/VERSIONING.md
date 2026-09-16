@@ -12,7 +12,7 @@ This document covers **what to bump and when**. For **how to actually cut a rele
 
 ## Version surfaces
 
-A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` now handles **all** of them — the JSON manifests, the MCP/server TypeScript constants, and the website reference constant. The only manual surface left is `CHANGELOG.md` (see [Known gaps](#known-gaps-in-sync-versionts) below).
+A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` now handles **all** of them — the JSON manifests, the MCP/server TypeScript constants, and the website reference constant. `CHANGELOG.md` is no longer a manual surface either: it is **assembled** from `changelog.d/` fragments by `scripts/assemble-changelog.mjs` and gated in CI (see [The changelog is generated too](#the-changelog-is-generated-too) below).
 
 | Surface | Updated by | Notes |
 |---|---|---|
@@ -27,7 +27,7 @@ A bump must update **every file** the build, MCP, and plugin metadata read from.
 | `public/samples/manifest.json` (`packageVersion`) | `sync-version.ts` | Bundled sample manifest version |
 | `VERSION` (plain text) | `sync-version.ts` | Human-facing product stamp. No code reads it, but it used to lie at `3.7.0`; now kept honest |
 | `core/pd-console/Cargo.toml` (`[package] version`) | `sync-version.ts` | The GPU-native app's `CARGO_PKG_VERSION` → `pd-console`'s in-app build stamp AND its `.app` `CFBundleShortVersionString`. The **only** Rust crate that is a user-facing product surface |
-| `CHANGELOG.md` | manual | Rename `[Unreleased]` → `[<version>] - YYYY-MM-DD`, prepend a fresh `[Unreleased]` |
+| `CHANGELOG.md` | `assemble-changelog.mjs --release` | Splices the `changelog.d/` fragments into a dated `[<version>] - YYYY-MM-DD` section and deletes them. Run by the release train; `--check` gated by the `changelog-guard` CI job |
 
 The kernel library crates (`core/kernel/*`, `core/Cargo.toml` `[workspace.package]`) keep their **own independent library semver** — they ride *inside* the daemon/console and are not user-facing version surfaces, so `sync-version.ts` deliberately does not touch them.
 
@@ -42,13 +42,23 @@ The kernel library crates (`core/kernel/*`, `core/Cargo.toml` `[workspace.packag
 
 `scripts/sync-version.ts` now touches the plugin/MCP/Gemini JSON surfaces, the MCP/server TypeScript constants, the website reference constant, and the public samples manifest. `tests/unit/distribution-freshness.test.js` gates those surfaces against `package.json`.
 
-The remaining manual surface is `CHANGELOG.md`: pick the version section and release date deliberately so humans can read what changed.
+### The changelog is generated too
+
+`CHANGELOG.md` used to be the last hand-edited surface, and that cost real entries. `## [Unreleased]` is line 8 and `### Added` is line 10, so every feature PR inserted its bullet at line 11 — 29 of the last 200 commits wrote those same three lines. Two branches cut from the same base conflict on nearly every pair, and a resolver taking "ours" drops the other PR's entry with **nothing failing**: no test reads the file, and the release gate only greps for a heading, not for content.
+
+So the `[Unreleased]` section is now **assembled** from one file per PR:
+
+- Contributors add `changelog.d/<pr>-<slug>.md` (format: `changelog.d/README.md`). Two branches never touch the same file, so there is no conflict to mis-resolve.
+- `scripts/assemble-changelog.mjs --check` runs as the `changelog-guard` CI job (wired into `ci-gate`'s `needs:`), and rule (4) of `scripts/check-pr-requirements.mjs` fails a PR that changes a user-visible surface and adds no fragment.
+- `.github/workflows/release-train.yml` calls `--release "$NEXT" --date "$(date -u +%F)"` in the version-bump step, which splices the fragments into a dated section and deletes them in the same `chore(release): bump to $NEXT` commit.
+
+The one thing still chosen deliberately by a human is the fragment's **prose** — the gate checks presence and shape, never whether the entry is honest or well-scoped.
 
 ## A release without a version bump is a release bug
 
 The release tag, the binary `--version` output, the brew formula version, and the CHANGELOG entry must all agree. If they don't, the `--version` users see after `brew upgrade port-daddy` lies about what's installed, and rollback diagnostics get harder.
 
-`tests/unit/distribution-freshness.test.js` enforces the package.json / mcp-server.json / plugin.json / mcp/server.ts agreement in CI. `scripts/check-version-drift.mjs` (run by the `version-drift-guard` CI job and `tests/unit/version-drift-gate.test.js`) extends that to **every** surface in the table above incl. `VERSION` and `core/pd-console/Cargo.toml`, and adds the deep (embedded-artifact) check at release time. The remaining surface is `CHANGELOG.md`, which relies on the recipe in [`RELEASING.md`](RELEASING.md).
+`tests/unit/distribution-freshness.test.js` enforces the package.json / mcp-server.json / plugin.json / mcp/server.ts agreement in CI. `scripts/check-version-drift.mjs` (run by the `version-drift-guard` CI job and `tests/unit/version-drift-gate.test.js`) extends that to **every** surface in the table above incl. `VERSION` and `core/pd-console/Cargo.toml`, and adds the deep (embedded-artifact) check at release time. `CHANGELOG.md` has its own gate: `scripts/assemble-changelog.mjs --check` (the `changelog-guard` CI job, `tests/unit/changelog-fragments.test.js`), which pins the assembled output against the literal `grep -Fq "## [$version] -"` that `release-train.yml`'s `tag-and-publish` runs before it will tag.
 
 ## What you do NOT do anymore
 

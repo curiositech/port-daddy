@@ -39,7 +39,7 @@ const lanes = [
     title: 'Cheap remote inference when a seat is wrong.',
     copy:
       'Cloudflare Workers AI is the remote fallback when you do not want to spend a local subscription seat or when the job belongs off-machine.',
-    command: 'pd spawn --backend cloudflare --model @cf/qwen/qwen3-30b-a3b-fp8 -- "triage flaky tests"',
+    command: 'pd spawn --backend cloudflare --model @cf/zai-org/glm-4.7-flash -- "triage flaky tests"',
   },
 ] as const
 

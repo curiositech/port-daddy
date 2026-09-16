@@ -1,3 +1,23 @@
+<!-- RETIRED-BY: ADR-0126 -->
+> ## ⚓ Retired — superseded, kept as history
+>
+> **The critical path in this document is dead as a plan.** It runs
+> XVIII → I → XVII → II/III, and Part XVII (the daemon sync protocol) was
+> rejected by [ADR-0049](docs/adr/0049-relay-architecture.md)'s non-goals. A
+> critical path through a rejected node orders nothing.
+>
+> The surviving fragment is [ADR-0115](docs/adr/0115-database-distribution-and-sync.md)
+> — replication classes, the sync spine, the co-signed PairingReceipt — which
+> absorbed what Part XVII got right. The dependency notation and the
+> per-part descriptions remain useful history; the ORDER does not.
+>
+> **Authority:** [ADR-0126 — Shared-Harbors Re-sequencing](docs/adr/0126-shared-harbors-resequencing.md), § Formal supersessions.
+> This document is retained deliberately: the 2026-06-05 operator rule is
+> demote by default, delete only a merged twin. Read it for the reasoning
+> that was current when it was written, not for what to build now.
+
+---
+
 # Port Daddy V4: Implementation DAG
 
 This document defines the dependency graph and implementation order for all 27 parts

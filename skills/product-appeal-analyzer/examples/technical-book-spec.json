@@ -1,0 +1,105 @@
+{
+  "surfaceKind": "technical-document",
+  "personas": [
+    {
+      "name": "Second-year PhD student looking for a reference on the method",
+      "identityFit": {
+        "visual": 6,
+        "language": 7,
+        "impliedUser": 4
+      },
+      "problemUrgency": {
+        "painAcknowledged": 8,
+        "emotionalResonance": 5,
+        "solutionClarity": 6
+      },
+      "trustSignals": {
+        "execution": 8,
+        "socialProof": 7,
+        "riskReduction": 4
+      }
+    },
+    {
+      "name": "Practitioner who needs the recipe, not the proof",
+      "identityFit": {
+        "visual": 5,
+        "language": 4,
+        "impliedUser": 2
+      },
+      "problemUrgency": {
+        "painAcknowledged": 7,
+        "emotionalResonance": 6,
+        "solutionClarity": 3
+      },
+      "trustSignals": {
+        "execution": 8,
+        "socialProof": 7,
+        "riskReduction": 5
+      }
+    }
+  ],
+  "fiveSecondTest": {
+    "category": true,
+    "forWho": false,
+    "promise": false,
+    "cta": true
+  },
+  "technicalDocument": {
+    "shelfTest": {
+      "subject": true,
+      "audience": false,
+      "promise": true,
+      "cost": false,
+      "differentiation": false
+    },
+    "returnOnEffort": {
+      "timeToFirstInsightSeconds": 4500,
+      "patienceBudgetSeconds": 900,
+      "costTransparency": 3,
+      "payoffVisibility": 4
+    },
+    "audienceDeclared": false,
+    "prerequisitesDeclared": false,
+    "prerequisitesHonest": false,
+    "resultStatedInAbstract": false,
+    "contributionLocatable": false,
+    "figuresSelfContained": false,
+    "limitationsStated": false,
+    "reproducibilityArtifacts": "none",
+    "typographicCraft": 8,
+    "readerMap": {
+      "declared": true,
+      "discoverable": false,
+      "paths": [
+        {
+          "id": "practitioner",
+          "persona": "Practitioner who needs the recipe, not the proof",
+          "payoffReachProbability": 0.6,
+          "completion": 0.61,
+          "timeToFirstInsightSeconds": 1800,
+          "patienceBudgetSeconds": 3600,
+          "brokenPrerequisiteCount": 2,
+          "payoffMatchesPersona": false
+        }
+      ]
+    }
+  },
+  "surfer": {
+    "readerMode": "skim",
+    "payoffReachProbability": 0.42,
+    "completion": 0.31
+  },
+  "objectionsAddressed": {
+    "trust": true,
+    "skepticism": false,
+    "value": false,
+    "effort": false,
+    "identity": false,
+    "risk": false,
+    "urgency": false
+  },
+  "trustLadderViolation": false,
+  "identityMismatch": false,
+  "featureSoupHeadline": false,
+  "screenshotHero": false
+}

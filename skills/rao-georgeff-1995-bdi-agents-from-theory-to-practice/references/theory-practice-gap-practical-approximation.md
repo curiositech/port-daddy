@@ -170,7 +170,7 @@ Translate the formalized approximation into executable code, making additional s
 **Step 6: Verify preservation of properties**
 Use formal methods (model checking) or empirical validation (real applications) to confirm that the implementation exhibits the behaviors specified by the formalization.
 
-## For WinDAGs: Applying Principled Approximation
+## For Jury-rig: Applying Principled Approximation
 
 A DAG-based orchestration system faces similar tradeoffs:
 

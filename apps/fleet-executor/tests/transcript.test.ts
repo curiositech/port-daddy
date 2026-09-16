@@ -35,6 +35,7 @@ function fleetYaml(
   const body = ships
     .map(s => {
       const lines = [`    ${s.name}:`, `      trigger: pull_request:opened`];
+      lines.push(`      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`);
       if (s.blocking) lines.push('      blocking: true');
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');
@@ -119,7 +120,7 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(d1.steps.map(s => s.kind)).toEqual(['delivery-attempt', 'check-completed']);
   });
 
-  it('paused ⇒ reuses an existing check run for the same head SHA (idempotent retry)', async () => {
+  it('paused ⇒ creates a distinct gate for a distinct webhook delivery on the same head', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -129,13 +130,13 @@ describe('kill switch (KV fleet:paused)', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
     expect(state.checkRunsCreated).toBe(1);
 
-    // A retried delivery for the SAME head SHA must reuse the check run, not
-    // create a second one.
+    // A different webhook delivery is a new generation even on the same head;
+    // only a queue retry with the exact same delivery/run may reuse a check.
     await executeFleet(
       makeJob({ deliveryId: 'delivery-retry' }),
       makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }),
     );
-    expect(state.checkRunsCreated).toBe(1);
+    expect(state.checkRunsCreated).toBe(2);
     expect(state.completed).toHaveLength(2);
     expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
   });
@@ -307,12 +308,13 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'map-chunk',
       'ship-verdict',
       'review-posted',
+      'ship-participation',
       'ship-spend',
       'ship-checkpoint',
       'check-completed',
     ]);
     // seq is monotonic from 0 for the recorder's own steps.
-    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
@@ -325,7 +327,6 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(JSON.parse(String(config?.detail ?? '{}'))).toMatchObject({
       cfModel: '@cf/qwen/qwen2.5-coder-32b-instruct',
       blocking: true,
-      needsExecution: false,
       purser: false,
       ideation: false,
     });
@@ -339,11 +340,11 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     // about "2 map calls" failing for a reason with nothing to do with
     // map-reduce. A fixture that encodes a constant is a fixture that expires.
     //
-    // Sized against the LARGEST budget any known model yields, so the diff
-    // fans out whichever model the ship under test resolves to -- and stays
-    // correct if a model with a bigger window is added later.
-    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
-    const linesPerFile = Math.ceil((budget * 0.6) / '+line\n'.length);
+    // The ship under test uses the Qwen MAP model. Size this fixture against
+    // that model's real admission budget, including prompt framing, so each
+    // file is admitted while the pair still requires one REDUCE step.
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
       '+line\n'.repeat(linesPerFile);
@@ -370,6 +371,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'reduce',
       'ship-verdict',
       'review-posted',
+      'ship-participation',
       'ship-spend',
       'ship-checkpoint',
       'check-completed',

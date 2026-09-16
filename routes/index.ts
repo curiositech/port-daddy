@@ -32,6 +32,7 @@ import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
 import { sessionsPlugin } from './sessions.js';
 import { resurrectionPlugin } from './resurrection.js';
+import { editorRecoveryPlugin } from './editor-recovery.js';
 import { changelogPlugin } from './changelog.js';
 import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
@@ -94,6 +95,7 @@ import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
 import { harvestPlugin } from './harvest.js';
 import { custodianPlugin } from './custodian.js';
+import { skillGraftPlugin } from './skill-graft.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -169,6 +171,9 @@ export async function registerAllRoutes(
           accepted_channels: [],
           relay_version: null,
         })),
+      // Optional: server.ts supplies this so a runtime relay config write or a
+      // freshly exchanged card restarts the live connection lifecycle.
+      onConfigChanged: (deps as { notifyRelayConfigChanged?: () => void }).notifyRelayConfigChanged,
     },
   } as any);
 
@@ -176,6 +181,7 @@ export async function registerAllRoutes(
   await fastify.register(projectsPlugin, { deps } as any);
   await fastify.register(sessionsPlugin, { deps } as any);
   await fastify.register(resurrectionPlugin, { deps } as any);
+  await fastify.register(editorRecoveryPlugin, { deps } as any);
   await fastify.register(changelogPlugin, { deps } as any);
   await fastify.register(tunnelPlugin, { deps } as any);
   await fastify.register(dnsPlugin, { deps } as any);
@@ -391,6 +397,10 @@ export async function registerAllRoutes(
   // Context health overview — mounts when contextTracker dep is present.
   if ((deps as { contextTracker?: unknown }).contextTracker) {
     await fastify.register(contextPlugin, { deps } as any);
+  }
+
+  if ((deps as { tool2VecReconciler?: unknown }).tool2VecReconciler) {
+    await fastify.register(skillGraftPlugin, { deps } as any);
   }
 
   // Session harvest — mounts when episodicMemory dep is present (already gated above for memoryPlugin).

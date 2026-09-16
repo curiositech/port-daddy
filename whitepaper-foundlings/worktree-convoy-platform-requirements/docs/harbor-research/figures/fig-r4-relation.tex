@@ -1,0 +1,78 @@
+% R4 relation-map: the zoom correspondence only (twenty questions -> group
+% splitting), transcribed from row 3 of the r4_relation.png block in
+% figures/src/r4_figures.py.
+%
+% SPLIT (noted): rows 1-2 of the script's figure -- the rate-distortion
+% constraint upgrade and the delta=0 entropy corner -- are about the previous
+% subsection and now live in fig-rdf-relation.tex, cited from sec:rdf. This
+% fragment keeps only the relation its caption actually describes and that
+% sec:zoom actually cites.
+%
+% TARGET CELL CORRECTED (not reproduced): the script's target cell states the
+% zoom cost as "k*log2(F/k) opens" -- the IDEAL, not Theorem 4's deployed
+% 2k*ceil(log2(F/k)) + 4k. That is the very quantity the caption says the
+% theorem corrects, and the factor-of-two-plus gap between them is the whole
+% content of sec:zoom's "Positioning against group testing". The cell now
+% carries the deployed bound with the ideal named as the thing it sits a
+% factor ~2 above.
+%
+% FORK DRAWN (new): the caption promises to preempt the misread "log2(F)
+% questions suffice", and nothing in the script's figure showed the fork that
+% makes it false. A three-level halving tree is drawn below, schematic rather
+% than instantiated at a particular (F,k): what matters is that both children
+% of a positive node can be positive, so below the fan-out 2k nodes stay
+% alive per level instead of 1. Numbers on the map: the deployed bound and
+% the ideal are closed forms [verified]; 15.3x is the simulated mean
+% [internal, b1_frontier.py].
+% [internal, script r4_figures.py]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.78cm,y=0.78cm]
+\node[align=center,font=\small\bfseries,text=harborblue,text width=11.5cm] at (6,10.15)
+  {R4b --- twenty questions, forked: what $k$ answers cost instead of one};
+
+% Base domain (left): twenty questions
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,4.9) rectangle (3.8,9.3);
+\node[align=center,font=\small\bfseries] at (2.0,8.95) {Base: Twenty Questions};
+\node[align=center,font=\scriptsize] at (2.0,6.60) {$F$ candidates,\\exactly ONE answer,\\$\log_2 F$ questions ---\\each halves the set\\(if answers are RARE)};
+
+% Target domain (right): group-splitting zoom
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,4.9) rectangle (11.8,9.3);
+\node[align=center,font=\small\bfseries] at (10.0,8.95) {Target: group-splitting zoom};
+\node[align=center,font=\scriptsize] at (10.0,6.75) {$F$ flagged, $k$ criticals:\\$\le 2k\lceil\log_2(F/k)\rceil+4k$\\group opens versus $F$ flat\\(Thm.~4) --- the ideal\\$k\log_2(F/k)$ sits a factor\\$\approx2$ below [verified];\\measured $15.3\times$ at $(2500,10)$\\{[internal, \texttt{b1\_frontier.py}]}};
+
+\draw[<->,>=Stealth,thick,shipred] (3.9,6.60) -- (8.1,6.60);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,8.10) {one question halves the set\\ONLY when positives are rare};
+
+% The fork, drawn: a schematic halving tree, three levels.
+\node[align=center,font=\scriptsize\bfseries,text=black!70] at (6.0,4.35) {the fork the base analogy hides};
+% level 0
+\draw[thick,draw=shipred,fill=shipred,fill opacity=0.18,rounded corners=2pt] (4.85,3.35) rectangle (7.15,3.85);
+\node[font=\tiny] at (6.0,3.60) {flagged set: positive $\Rightarrow$ split};
+% level 1
+\draw[thick,draw=shipred,fill=shipred,fill opacity=0.18,rounded corners=2pt] (3.30,2.15) rectangle (5.10,2.65);
+\node[font=\tiny] at (4.20,2.40) {positive};
+\draw[thick,draw=shipred,fill=shipred,fill opacity=0.18,rounded corners=2pt] (6.90,2.15) rectangle (8.70,2.65);
+\node[font=\tiny] at (7.80,2.40) {positive};
+\draw[-{Stealth[length=1.6mm]},thick,black!60] (5.40,3.35) -- (4.20,2.65);
+\draw[-{Stealth[length=1.6mm]},thick,black!60] (6.60,3.35) -- (7.80,2.65);
+% level 2
+\draw[thick,draw=black!40,fill=black!6,rounded corners=2pt] (2.50,0.95) rectangle (3.80,1.45);
+\node[font=\tiny,text=black!55] at (3.15,1.20) {negative: cut};
+\draw[thick,draw=shipred,fill=shipred,fill opacity=0.18,rounded corners=2pt] (4.60,0.95) rectangle (5.90,1.45);
+\node[font=\tiny] at (5.25,1.20) {positive};
+\draw[thick,draw=shipred,fill=shipred,fill opacity=0.18,rounded corners=2pt] (6.10,0.95) rectangle (7.40,1.45);
+\node[font=\tiny] at (6.75,1.20) {positive};
+\draw[thick,draw=black!40,fill=black!6,rounded corners=2pt] (8.20,0.95) rectangle (9.50,1.45);
+\node[font=\tiny,text=black!55] at (8.85,1.20) {negative: cut};
+\draw[-{Stealth[length=1.6mm]},thick,black!60] (3.90,2.15) -- (3.15,1.45);
+\draw[-{Stealth[length=1.6mm]},thick,black!60] (4.50,2.15) -- (5.25,1.45);
+\draw[-{Stealth[length=1.6mm]},thick,black!60] (7.50,2.15) -- (6.75,1.45);
+\draw[-{Stealth[length=1.6mm]},thick,black!60] (8.10,2.15) -- (8.85,1.45);
+
+\node[align=center,font=\scriptsize,text width=11cm] at (6.0,0.02)
+  {\itshape With one answer the tree is a path and $\log_2 F$ questions suffice. With $k$ answers it forks: below the fan-out $2k$ nodes stay alive per level, and both children of every surviving node must be queried. That doubling, not the depth, is what Theorem 4's constants are counting.};
+\end{tikzpicture}
+\caption{The relation-map for zoom: twenty questions (base) against group-split inspection of the flagged set (target). The correspondence that does the work is ``one question halves the candidate set \emph{when answers are rare}''; the misread it invites --- that $\log_2 F$ questions suffice --- is exactly what Theorem 4's $2k\lceil\log_2(F/k)\rceil+4k$ accounting corrects for $k>1$, and the drawn fork is where the extra factor comes from. Note the target cell states the \emph{deployed} bound: the ideal $k\log_2(F/k)$ is a factor $\approx2$ cheaper and is not what the digest architecture runs.}
+\label{fig:r4rel}
+\end{figure}

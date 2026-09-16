@@ -7,7 +7,7 @@ Use this file when the work has explicit approvals, rejections, or conditional r
 - The Workflow Patterns work by van der Aalst, ter Hofstede, Kiepuszewski, and Barros established a reusable control-flow vocabulary for process systems, including sequence, AND/XOR/OR branching, joins, deferred choice, discriminators, and arbitrary cycles.
 - Their later note "Workflow patterns put into context" reiterates that the patterns are for describing and evaluating real workflow capabilities, not for decorative diagrams.
 
-## Practical implications for WinDAGs planning
+## Practical implications for Jury-rig planning
 
 ### Use workflow when routing is verdict-driven
 

@@ -212,7 +212,7 @@ Interpreted: The worst consequences of not loving (death) are worse than the wor
 
 **Distributed Task Allocation with Conflicting Constraints**:
 
-In WinDAGs, an orchestrator must assign subtasks to agents, but faces constraints:
+In Jury-rig, an orchestrator must assign subtasks to agents, but faces constraints:
 - Agent A: Fast at task X, but currently overloaded
 - Agent B: Slower at task X, available
 - Deadline: Tight

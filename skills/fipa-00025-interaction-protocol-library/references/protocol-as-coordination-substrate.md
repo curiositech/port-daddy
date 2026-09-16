@@ -10,7 +10,7 @@ The alternative—pre-specified interaction protocols—represents a profound sh
 
 ## Implications for DAG-Based Agent Orchestration
 
-This distinction maps directly onto questions facing WinDAGs and similar orchestration systems. When should coordination intelligence live in individual agent capabilities versus in the orchestration patterns themselves?
+This distinction maps directly onto questions facing Jury-rig and similar orchestration systems. When should coordination intelligence live in individual agent capabilities versus in the orchestration patterns themselves?
 
 **Pattern-Level Intelligence**: If coordination is encoded in interaction protocols, agents need only implement protocol compliance, not coordination reasoning. An agent invoking a "contract-net" negotiation protocol doesn't need to understand auction theory—it just needs to correctly respond to CFP (call for proposals), generate proposals, and handle accept/reject messages according to specification.
 

@@ -55,7 +55,7 @@ const COMPARISON_ROWS: readonly ComparisonRow[] = [
     composesWithPd: 'Yes — sits beside the coordinator agent',
   },
   {
-    tool: 'WinDAGs',
+    tool: 'Jury-rig',
     isolation: 'ProcessExecutor / WorktreeExecutor',
     coordination: 'Wave-based (parallel inside wave, serial across)',
     agents: 'Per wave',
@@ -104,7 +104,7 @@ const ARCHITECTURE_LAYERS: readonly LayerSpec[] = [
     id: '01',
     label: 'Isolation',
     role: 'Where each agent does its work without stomping the others.',
-    occupants: 'Git worktrees. Container sandboxes. Docker. Cursor backgrounds. WinDAGs executors.',
+    occupants: 'Git worktrees. Container sandboxes. Docker. Cursor backgrounds. Jury-rig executors.',
     tone: 'paper',
     icon: Workflow,
   },
@@ -189,7 +189,7 @@ export default function LandscapePage() {
                   Port Daddy is not a rival. It is the layer underneath.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[60ch] text-[length:var(--text-lg)]">
-                  Cursor, Claude Code Task, ccswarm, and WinDAGs each solve one
+                  Cursor, Claude Code Task, ccswarm, and Jury-rig each solve one
                   problem: how to keep several agents from editing the same files
                   at once. Port Daddy solves the next problem over. It keeps the
                   record — who is doing what, what already happened, and what to do

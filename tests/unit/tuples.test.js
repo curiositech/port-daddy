@@ -79,28 +79,28 @@ describe('outOnce (durable idempotent write)', () => {
     }
   });
 
-  test('keeps internal authority rows exact-key-only across every generic public surface', () => {
+  test('keeps internal projection rows exact-key-only across every generic public surface', () => {
     const notified = [];
-    tuples.subscribe(['parley:auto:lineage'], undefined, (tuple) => notified.push(tuple.id));
-    const authority = tuples.outOnce(
-      ['parley:auto:lineage', 'lineage-1', 'signal-1', Date.now()],
+    tuples.subscribe(['coordination:internal:lineage'], undefined, (tuple) => notified.push(tuple.id));
+    const projection = tuples.outOnce(
+      ['coordination:internal:lineage', 'lineage-1', 'signal-1', Date.now()],
       {
         harbor: ' fleet ',
-        idempotencyKey: 'parley:auto:lineage:lineage-1',
+        idempotencyKey: 'coordination:internal:lineage:lineage-1',
         internalOnly: true,
       },
     );
 
-    expect(authority.inserted).toBe(true);
-    expect(authority.tuple.idempotencyKey).toBe('parley:auto:lineage:lineage-1');
+    expect(projection.inserted).toBe(true);
+    expect(projection.tuple.idempotencyKey).toBe('coordination:internal:lineage:lineage-1');
     expect(notified).toEqual([]);
-    expect(tuples.rd(['parley:auto:lineage'], { harbor: 'fleet' })).toEqual([]);
-    expect(tuples.poll(['parley:auto:lineage'], { harbor: 'fleet' }).tuple).toBeNull();
+    expect(tuples.rd(['coordination:internal:lineage'], { harbor: 'fleet' })).toEqual([]);
+    expect(tuples.poll(['coordination:internal:lineage'], { harbor: 'fleet' }).tuple).toBeNull();
     expect(tuples.scan('fleet')).toEqual([]);
     expect(tuples.count(undefined, 'fleet')).toBe(0);
-    expect(tuples.take(['parley:auto:lineage'], { harbor: 'fleet' })).toEqual([]);
-    expect(tuples.getByIdempotencyKey('parley:auto:lineage:lineage-1', { harbor: 'fleet' }))
-      .toEqual(authority.tuple);
+    expect(tuples.take(['coordination:internal:lineage'], { harbor: 'fleet' })).toEqual([]);
+    expect(tuples.getByIdempotencyKey('coordination:internal:lineage:lineage-1', { harbor: 'fleet' }))
+      .toEqual(projection.tuple);
   });
 
   test('redacts reservation keys from generic reads, polls, scans, and takes', () => {

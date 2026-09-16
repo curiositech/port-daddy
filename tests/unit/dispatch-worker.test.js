@@ -36,8 +36,53 @@ afterEach(() => {
 });
 
 function createDispatchWorker(opts) {
-  return createDispatchWorkerBase({ workIntentService, ...opts });
+  return createDispatchWorkerBase({ runtimeAllowed: () => true, workIntentService, ...opts });
 }
+
+describe('DispatchWorker local Off admission', () => {
+  test.each([false, undefined])('Off/unknown refuses recovery and direct nudge (%s)', async (allowed) => {
+    const recover = jest.spyOn(queue, 'recoverStranded');
+    const adapter = settlingAdapter();
+    const worker = createDispatchWorker({ queue, spawnAdapter: adapter, reaper: jest.fn(), runtimeAllowed: () => allowed });
+    queue.propose({ goal: 'do not execute' });
+    worker.start();
+    expect(await worker.poll()).toBe(0);
+    expect(recover).not.toHaveBeenCalled();
+    expect(adapter).not.toHaveBeenCalled();
+    expect(worker.getStatus().running).toBe(false);
+  });
+
+  test('control errors latch Off even if the next observation would succeed', async () => {
+    let failing = true;
+    const adapter = settlingAdapter();
+    const worker = createDispatchWorker({ queue, spawnAdapter: adapter, reaper: jest.fn(), runtimeAllowed: () => {
+      if (failing) throw new Error('EACCES');
+      return true;
+    } });
+    queue.propose({ goal: 'do not resume' });
+    expect(await worker.poll()).toBe(0);
+    failing = false;
+    worker.start();
+    expect(await worker.poll()).toBe(0);
+    expect(adapter).not.toHaveBeenCalled();
+  });
+
+  test('Off while claiming is checked again before the backend adapter', async () => {
+    let allowed = true;
+    const originalClaim = queue.claimProposed.bind(queue);
+    jest.spyOn(queue, 'claimProposed').mockImplementation((request) => {
+      const claimed = originalClaim(request);
+      allowed = false;
+      return claimed;
+    });
+    const adapter = settlingAdapter();
+    const worker = createDispatchWorker({ queue, spawnAdapter: adapter, reaper: jest.fn(), runtimeAllowed: () => allowed });
+    queue.propose({ goal: 'deny the admitted backend' });
+    await worker.poll();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(adapter).not.toHaveBeenCalled();
+  });
+});
 
 /**
  * A fake spawn adapter that drives the FULL lifecycle the real adapter drives:
@@ -79,6 +124,59 @@ describe('DispatchWorker — autonomous drain', () => {
     expect(status.totalClaimed).toBe(1);
     expect(status.totalSettled).toBe(1);
     expect(status.inFlight).toBe(0);
+  });
+
+  test('a dispatch that names a backend runs on THAT backend, not the daemon default', async () => {
+    // The worker's `backend` option is a DEFAULT, not an override. It used to be
+    // applied as `this.backend ?? claimed.backend`, so a daemon-wide setting
+    // silently won over the per-dispatch column — which makes cross-backend
+    // failover impossible by construction, since a successor's entire identity
+    // is "the same work, on the NEXT backend".
+    const d = queue.propose({ goal: 'run me on claude-code', backend: 'cli:claude-code' });
+    const seen = [];
+    const adapter = jest.fn(async ({ plan, queue: q }) => {
+      seen.push(plan.backend);
+      q.start(plan.dispatch.id);
+      q.produce({ id: plan.dispatch.id });
+      q.requestReview(plan.dispatch.id);
+      return { state: 'settled' };
+    });
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: adapter,
+      reaper: async () => {},
+      backend: 'cli:codex', // daemon-wide default, must NOT shadow the dispatch
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(seen).toEqual(['cli:claude-code']);
+    expect(queue.get(d.id).state).toBe('settled');
+  });
+
+  test('the worker backend applies when the dispatch names none', async () => {
+    queue.propose({ goal: 'no backend named' });
+    const seen = [];
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: jest.fn(async ({ plan, queue: q }) => {
+        seen.push(plan.backend);
+        q.start(plan.dispatch.id);
+        q.produce({ id: plan.dispatch.id });
+        q.requestReview(plan.dispatch.id);
+        return { state: 'settled' };
+      }),
+      reaper: async () => {},
+      backend: 'cli:claude-code',
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(seen).toEqual(['cli:claude-code']);
   });
 
   test('bounds concurrency to maxConcurrency', async () => {

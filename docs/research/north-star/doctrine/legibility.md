@@ -78,7 +78,7 @@ another active Port Daddy session."* (`:406`), and — when the daemon is down �
 'kill-armed'`. Authority that refuses *silently* or *opaquely* is illegible; this
 authority states its reason.
 
-**L3 — No-advertise-bypass [BUILT].** A subtle but load-bearing legibility property:
+**L3 — No-advertise-bypass [BUILT].** A subtle but structural legibility property:
 a refusal must point **only** to the correct action, **never** to the override that
 would skip the check. An agent takes whatever exit the error hands it, so naming the
 bypass in an agent-facing message is handing it the bypass. The guard's refusals

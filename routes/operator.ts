@@ -19,6 +19,11 @@ import { signalFor, ICS_MEANING } from '../lib/maritime-signals.js';
 import type { createBonds } from '../lib/bonds.js';
 import type { Transcripts } from '../lib/transcripts.js';
 import {
+  buildOperatorSessionDirectory,
+  type OperatorSessionDirectory,
+} from '../lib/operator-session-directory.js';
+import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
+import {
   buildTranscriptEmergencyFromSources,
   parseTranscriptEmergencyPositiveIntQuery,
   TRANSCRIPT_EMERGENCY_STATE,
@@ -98,6 +103,9 @@ interface OperatorRouteDeps {
   bonds?: BondsManager;
   transcripts?: Pick<Transcripts, 'listTranscripts' | 'getTranscript'>;
   cloudAppTelemetry?: TranscriptEmergencySourceDeps['cloudAppTelemetry'];
+  daemonBerth?: DaemonBerthIdentity;
+  /** Test/embedding seam; production uses the local multi-berth discovery. */
+  sessionDirectory?: () => Promise<OperatorSessionDirectory>;
 }
 
 interface OpenFileBody {
@@ -1763,6 +1771,30 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to build operator actor lens.',
+      };
+    }
+  });
+
+  /**
+   * GET /operator/session-directory
+   *
+   * A daemon-authored, cross-berth directory for the pd-console Agents surface.
+   * Running daemons remain the only interpreters of their session ledgers. A
+   * stopped berth is listed as ledger-preserved/offline rather than having its
+   * SQLite file opened behind that daemon's back.
+   */
+  fastify.get('/operator/session-directory', async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      return await (opts.deps.sessionDirectory?.() ?? buildOperatorSessionDirectory({
+        currentBerth: opts.deps.daemonBerth,
+      }));
+    } catch (error) {
+      logger?.error?.({ err: error }, 'operator_session_directory_failed');
+      reply.code(500);
+      return {
+        success: false,
+        schema: 'pd.operator.session-directory.v0',
+        error: error instanceof Error ? error.message : 'Failed to build session directory.',
       };
     }
   });

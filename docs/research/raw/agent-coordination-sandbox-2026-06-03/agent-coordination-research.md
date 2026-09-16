@@ -123,7 +123,7 @@ Source: [LangGraph Multi-Agent Supervisor](https://reference.langchain.com/pytho
 
 `GroupChatManager` picks the next speaker via `speaker_selection_method ∈ {auto, manual, random, round_robin, custom}`. The `auto` method is itself an LLM call ("which agent should speak next?") — explicit acknowledgment that **selection is a model decision when there is no obvious rule.** `SelectorGroupChat` extends this with conversation-context-aware selection over agent descriptions.
 
-For PD: the `pd whois`-style ranker should expose a `method` knob with at least `{semantic, recency, success_rate, llm}` — and the LLM method should be a cheap Haiku call when the cheap rankers tie. This mirrors the windags skill-search cascade pattern the operator already uses.
+For PD: the `pd whois`-style ranker should expose a `method` knob with at least `{semantic, recency, success_rate, llm}` — and the LLM method should be a cheap Haiku call when the cheap rankers tie. This mirrors the jury_rig skill-search cascade pattern the operator already uses.
 
 Source: [AutoGen GroupChat — AG2 docs](https://docs.ag2.ai/latest/docs/api-reference/autogen/GroupChat/), [Selector Group Chat — AutoGen](https://microsoft.github.io/autogen/dev//user-guide/agentchat-user-guide/selector-group-chat.html).
 
@@ -134,7 +134,7 @@ Each agent has `role`, `goal`, `backstory`, and `allow_delegation`. When delegat
 - **Buck-passing loops.** Agents delegate back and forth until budget exhausts. Fix: limit `max_iter` and turn off `allow_delegation` for executors.
 - **Vague role boundaries.** "Researcher" vs "Senior Data Researcher" matters — the model uses the role string as a routing prior.
 
-For PD, the takeaway is: **the directory entry's identity_context / purpose / agent_card text is load-bearing.** Whatever the agent self-declares becomes the routing prior. Generic identities will round-robin; specific ones will get hits.
+For PD, the takeaway is: **the directory entry's identity_context / purpose / agent_card text is essential.** Whatever the agent self-declares becomes the routing prior. Generic identities will round-robin; specific ones will get hits.
 
 Source: [CrewAI Collaboration docs](https://docs.crewai.com/en/concepts/collaboration), [Hierarchical AI Agents — ActiveWizards](https://activewizards.com/blog/hierarchical-ai-agents-a-guide-to-crewai-delegation).
 
@@ -255,7 +255,7 @@ The phonebook entry for an agent that died 3 days ago is gracefully degraded, no
 
 ### 2.4 Ranking — cascade
 
-Default `pd whois <query>` cascade (mirrors windags skill-search):
+Default `pd whois <query>` cascade (mirrors jury_rig skill-search):
 
 1. **Exact match** on `agent_capabilities.term` → return immediately, ranked by `effective_strength DESC`.
 2. **Lexical (BM25/TF-IDF)** over `agents.purpose`, `agents.agent_card`, `agents.skills` joined. Cheap, fast.
@@ -326,7 +326,7 @@ pd.capability.earn(agentId: string, term: string, evidence: { sortieId?: string;
 
 **C. Conscripted / drafted.** The daemon (or orchestrator, or an operator-blessed agent) decides "you three are now a group" based on detected concern (an incident, a stuck claim, a roadmap escalation). Members are *notified*, not auto-consented.
 
-**D. Hybrid.** Auto-detected groups have a "promote to explicit" option — if the implicit group becomes load-bearing, an agent can call `pd group promote` to give it a name and TTL.
+**D. Hybrid.** Auto-detected groups have a "promote to explicit" option — if the implicit group becomes structural, an agent can call `pd group promote` to give it a name and TTL.
 
 ### 3.2 Default: hybrid, biased toward implicit
 

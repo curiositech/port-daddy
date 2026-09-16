@@ -164,17 +164,41 @@ export interface LandResult {
 }
 
 /**
- * Execute one squash merge via GitHub's merge API.
+ * Land one PR by ADDING IT TO THE MERGE QUEUE — never by merging directly.
  *
- * WHY SQUASH AND ONLY SQUASH: this repo disallows merge commits (proven live:
- * the merge method 405s; squash succeeds), and one landing method means one
- * auditable history shape. WHY NEVER THROW: the tick's deck-log write must
- * always be reached — every failure path returns `{landed: false, reason}`
- * carrying the API's status and message so the deck log names exactly why
- * (405 method/protection, 409 head-changed, 403 forbidden, 404 gone).
+ * WHY ENQUEUE AND NOT MERGE (the 2026-08-26 correction). This function used to
+ * `PUT /repos/{owner}/{repo}/pulls/{n}/merge` with `merge_method: 'squash'`. On
+ * a repository whose branch protection requires a merge queue — as this one's
+ * does — that is the wrong verb twice over: GitHub rejects it outright
+ * (observed live: `405 Pull Request is in the merge queue`), and in the
+ * configurations where it would succeed it would be *bypassing* the very queue
+ * the protection exists to enforce. A merge authority whose landing verb skips
+ * the queue is not enforcing the repo's rules, it is outranking them. So the
+ * seat asks to join the queue and lets the queue land it.
+ *
+ * WHY `expectedHeadOid` IS NOT OPTIONAL HERE, though GraphQL marks it so. The
+ * tick renders its verdict against a specific head: it read those checks, those
+ * files, that diff. Between the verdict and this call the author can push.
+ * Passing the head the seat actually judged makes GitHub refuse to enqueue a
+ * commit the seat never saw, which turns a race into a clean, logged failure.
+ * Without it the seat could land a diff it never reviewed — the one outcome
+ * ADR-0109's single-approver property must never produce.
+ *
+ * WHY TWO ROUND TRIPS: `enqueuePullRequest` takes a node ID, not a PR number,
+ * so the lookup query resolves `number -> {id, headRefOid}` and returns the
+ * head in the same request. That also means the head used for the guard is the
+ * one GitHub reports at enqueue time rather than one carried from earlier in
+ * the tick, which is the narrower and more honest window.
+ *
+ * WHY NEVER THROW: the tick's deck-log write must always be reached — every
+ * failure path returns `{landed: false, reason}` carrying status and message so
+ * the deck log names exactly why (protection unsatisfied, head moved, queue not
+ * enabled, token lacks scope).
  *
  * @param opts - Repo coordinates, PR number, the land token, injectable fetch.
- * @returns The attempt's outcome; never rejects.
+ * @returns The attempt's outcome; never rejects. `landed: true` means
+ * ACCEPTED INTO THE QUEUE, not merged — the queue merges later, on its own
+ * clock, and the deck log says so rather than implying the PR is on main.
  */
 export async function landPr(opts: {
   /** Repo owner. */
@@ -190,28 +214,125 @@ export async function landPr(opts: {
 }): Promise<LandResult> {
   const { owner, repo, prNumber, token, fetchImpl = fetch } = opts;
   try {
-    const res = await fetchImpl(
-      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/merge`,
-      {
-        method: 'PUT',
-        headers: {
-          authorization: `Bearer ${token}`,
-          accept: 'application/vnd.github+json',
-          'user-agent': 'pd-steward',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({ merge_method: 'squash' }),
-      },
+    const found = await lookUpPr(owner, repo, prNumber, token, fetchImpl);
+    if ('reason' in found) return { landed: false, reason: found.reason };
+
+    const res = await graphql(
+      token,
+      fetchImpl,
+      `mutation($id: ID!, $head: GitObjectID!) {
+         enqueuePullRequest(input: { pullRequestId: $id, expectedHeadOid: $head }) {
+           mergeQueueEntry { position state }
+         }
+       }`,
+      { id: found.id, head: found.headOid },
     );
-    const body = (await res.json().catch(() => ({}))) as { sha?: string; message?: string };
-    if (res.ok && body.sha) {
-      return { landed: true, sha: body.sha, reason: `squash-merged @ ${body.sha}` };
+    if ('reason' in res) return { landed: false, reason: res.reason };
+
+    const entry = (res.data as GraphQlEnqueue | undefined)?.enqueuePullRequest?.mergeQueueEntry;
+    if (!entry) {
+      // A 200 with no entry and no error is not success. Saying so keeps the
+      // deck log from recording a landing that did not happen.
+      return { landed: false, reason: 'enqueue returned no merge-queue entry' };
     }
     return {
-      landed: false,
-      reason: `merge API ${res.status}: ${String(body.message ?? 'no message').slice(0, 200)}`,
+      landed: true,
+      sha: found.headOid,
+      reason: `enqueued at position ${entry.position} (${entry.state}) @ ${found.headOid.slice(0, 9)}`,
     };
   } catch (err) {
-    return { landed: false, reason: `merge request failed: ${String(err).slice(0, 200)}` };
+    return { landed: false, reason: `enqueue request failed: ${String(err).slice(0, 200)}` };
   }
+}
+
+/** Shape of a successful `enqueuePullRequest` payload. */
+interface GraphQlEnqueue {
+  enqueuePullRequest?: { mergeQueueEntry?: { position: number; state: string } | null } | null;
+}
+
+/**
+ * POST one GraphQL operation, folding every failure into a `reason`.
+ *
+ * DESIGN — GraphQL reports errors two ways: a non-2xx status, and a 200 whose
+ * body carries an `errors` array. Treating only the first as failure is the
+ * classic way to record a success that never happened, so both collapse to the
+ * same shape here and the caller cannot accidentally ignore one.
+ *
+ * @param token - The land capability.
+ * @param fetchImpl - Injectable fetch.
+ * @param query - The operation document.
+ * @param variables - Its variables.
+ * @returns `{data}` on success, or `{reason}` describing the failure.
+ */
+async function graphql(
+  token: string,
+  fetchImpl: FetchLike,
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<{ data: unknown } | { reason: string }> {
+  const res = await fetchImpl('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: 'application/vnd.github+json',
+      'user-agent': 'pd-steward',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const body = (await res.json().catch(() => ({}))) as {
+    data?: unknown;
+    errors?: Array<{ message?: string }>;
+    message?: string;
+  };
+  if (!res.ok) {
+    return { reason: `graphql ${res.status}: ${String(body.message ?? 'no message').slice(0, 200)}` };
+  }
+  if (body.errors?.length) {
+    return { reason: `graphql error: ${String(body.errors[0]?.message ?? 'unknown').slice(0, 200)}` };
+  }
+  return { data: body.data };
+}
+
+/**
+ * Resolve a PR number to the node ID and head SHA the enqueue needs.
+ *
+ * WHY BOTH IN ONE QUERY: `enqueuePullRequest` addresses PRs by node ID, and the
+ * head is wanted for the `expectedHeadOid` guard. Fetching them together means
+ * the guard uses the head GitHub reports at this instant rather than one
+ * carried from earlier in the tick — the narrowest honest window between "the
+ * head I checked" and "the head I am enqueuing".
+ *
+ * @param owner - Repo owner.
+ * @param repo - Repo name.
+ * @param prNumber - The PR number.
+ * @param token - The land capability.
+ * @param fetchImpl - Injectable fetch.
+ * @returns `{id, headOid}` or `{reason}` when the PR cannot be resolved.
+ */
+async function lookUpPr(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+  fetchImpl: FetchLike,
+): Promise<{ id: string; headOid: string } | { reason: string }> {
+  const res = await graphql(
+    token,
+    fetchImpl,
+    `query($owner: String!, $repo: String!, $n: Int!) {
+       repository(owner: $owner, name: $repo) {
+         pullRequest(number: $n) { id headRefOid }
+       }
+     }`,
+    { owner, repo, n: prNumber },
+  );
+  if ('reason' in res) return res;
+  const pr = (res.data as {
+    repository?: { pullRequest?: { id?: string; headRefOid?: string } | null } | null;
+  } | undefined)?.repository?.pullRequest;
+  if (!pr?.id || !pr.headRefOid) {
+    return { reason: `pull request #${prNumber} not found or has no head` };
+  }
+  return { id: pr.id, headOid: pr.headRefOid };
 }

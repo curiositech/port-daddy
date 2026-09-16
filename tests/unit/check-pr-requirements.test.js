@@ -4,6 +4,12 @@
  * UI diffs). Pins the structural gate against committed fixtures: a full body passes,
  * a thin body fails naming the weak sections, and a visual-surface diff fails unless
  * it ships a screenshot + a motion artifact (or is explicitly visual-exempt).
+ *
+ * Rule (4) — a user-visible diff must add a `changelog.d/` fragment — was added
+ * later. The cases below that are ABOUT rules 1-3 therefore carry a fragment path in
+ * their `--changed` list so rule (4) is satisfied for the right reason and cannot mask
+ * the behaviour under test. Rule (4)'s own RED/GREEN cases live in
+ * tests/unit/changelog-fragments.test.js.
  */
 import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
@@ -33,7 +39,7 @@ describe('check-pr-requirements guard', () => {
   });
 
   test('a full body with summary + test plan passes (non-visual diff)', () => {
-    const { code, stdout } = run('--body-file', fixture('good-body.md'), '--changed', 'lib/relay-client.ts');
+    const { code, stdout } = run('--body-file', fixture('good-body.md'), '--changed', 'lib/relay-client.ts,changelog.d/9900-relay.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -60,7 +66,7 @@ describe('check-pr-requirements guard', () => {
   });
 
   test('a visual-surface diff WITH screenshot + GIF passes', () => {
-    const { code, stdout } = run('--body-file', fixture('visual-with-artifacts.md'), '--changed', 'fleet-config-ui/src/HealthPane.tsx');
+    const { code, stdout } = run('--body-file', fixture('visual-with-artifacts.md'), '--changed', 'fleet-config-ui/src/HealthPane.tsx,changelog.d/9901-health-pane.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -68,13 +74,13 @@ describe('check-pr-requirements guard', () => {
   test('a committed image + committed gif in the diff satisfies the visual rule', () => {
     const { code } = run(
       '--body-file', fixture('visual-no-artifacts.md'),
-      '--changed', 'fleet-config-ui/src/HealthPane.tsx,fleet-config-ui/docs/pane.png,fleet-config-ui/docs/pane.gif',
+      '--changed', 'fleet-config-ui/src/HealthPane.tsx,fleet-config-ui/docs/pane.png,fleet-config-ui/docs/pane.gif,changelog.d/9902-pane.md',
     );
     expect(code).toBe(0);
   });
 
   test('visual-exempt marker bypasses only the visual rule', () => {
-    const { code, stdout } = run('--body-file', fixture('visual-exempt.md'), '--changed', 'fleet-config-ui/src/types.ts');
+    const { code, stdout } = run('--body-file', fixture('visual-exempt.md'), '--changed', 'fleet-config-ui/src/types.ts,changelog.d/9903-types.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -104,11 +110,46 @@ describe('check-pr-requirements guard', () => {
     expect(stderr).toMatch(/Visual surface changed/);
   });
 
+  // Regression: the changelog-fragment rule (rule 4) must not be disabled by the
+  // PR template's OWN text. An earlier draft pasted a live `<!-- changelog-exempt:
+  // <reason> -->` EXAMPLE into a checklist line; the comment scanner matched it as
+  // a real marker, so every PR opened from the template auto-exempted the changelog
+  // gate (and a live `pr-requirements-exempt` would have skipped the whole gate).
+  // The template must describe every marker in prose, never as a live comment.
+  test('the real PR template does NOT self-exempt any gate', () => {
+    const template = join(repo, '.github', 'PULL_REQUEST_TEMPLATE.md');
+    const { code, stdout, stderr } = run('--body-file', template, '--changed', 'lib/relay-client.ts');
+    // Not skipped whole-gate (no live pr-requirements-exempt), and the changelog
+    // rule actually fires for a user-visible change with no fragment.
+    expect(code).toBe(1);
+    expect(stdout).not.toMatch(/skipping/);
+    expect(stderr).toMatch(/adds no changelog fragment/);
+  });
+
   test('an exempt marker with no reason does not count', () => {
     const body = '## Summary\nLong enough summary prose to clear the floor for sure here today.\n## Test Plan\nRan everything and checked the edges carefully across many inputs here.\n<!-- visual-exempt -->';
     const { code, stderr } = run('--body', body, '--changed', 'website-v2/src/x.tsx');
     expect(code).toBe(1);
     expect(stderr).toMatch(/Visual surface changed/);
+  });
+
+  // Regression: hasMarker() matched `\S` against the RAW comment, and `\S` matched
+  // the `-` of the closing `-->`. So `<!-- visual-exempt: -->` — a marker with a
+  // completely empty reason — exempted the gate, defeating the "auditable, not
+  // blank" property the source comment claims. The colon-less `<!-- visual-exempt -->`
+  // form was already covered by the test above, which is how this one survived.
+  test('an exempt marker with a colon but an EMPTY reason does not count', () => {
+    const body = '## Summary\nLong enough summary prose to clear the floor for sure here today.\n## Test Plan\nRan everything and checked the edges carefully across many inputs here.\n<!-- visual-exempt: -->';
+    const { code, stderr } = run('--body', body, '--changed', 'website-v2/src/x.tsx');
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/Visual surface changed/);
+  });
+
+  test('a real reason still exempts (the fix does not break the marker)', () => {
+    const body = '## Summary\nLong enough summary prose to clear the floor for sure here today.\n## Test Plan\nRan everything and checked the edges carefully across many different inputs here today.\n<!-- visual-exempt: type-only change, nothing renders differently -->';
+    const { code, stdout } = run('--body', body, '--changed', 'website-v2/src/x.tsx,changelog.d/9905-x.md');
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/meets the contract/);
   });
 
   test('a heading inside a fenced code block does not truncate the Test Plan', () => {
@@ -122,7 +163,7 @@ describe('check-pr-requirements guard', () => {
       '```',
       'All green; exercised the empty-input and oversize-input edges too.',
     ].join('\n');
-    const { code, stdout } = run('--body', body, '--changed', 'lib/x.ts');
+    const { code, stdout } = run('--body', body, '--changed', 'lib/x.ts,changelog.d/9904-x.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -140,6 +181,443 @@ describe('check-pr-requirements guard', () => {
     expect(code).toBe(1);
     expect(stderr).toMatch(/GIF or screen recording/);
     expect(stderr).not.toMatch(/screenshot \(image\)/);
+  });
+
+  // --- Rule 3b: figure/print territory ---------------------------------------
+  //
+  // #10190 (three new Book figures) and #10191 (fifteen restyled Book figures)
+  // both passed every check in this repo while shipping no image of the thing
+  // they changed, both by writing `<!-- visual-exempt: ... -->`. Entirely visual
+  // work took the marker that exists to say "there is no visual change here".
+  // The cases below pin the rule that closes it AND the scope that keeps the
+  // marker valid where it is legitimate.
+  describe('figure/print territory', () => {
+    // The exact shape of #10190: whitepaper sources + a figure fragment, and a
+    // visual-exempt marker in place of a picture.
+    const FIGURE_DIFF = 'website-v2/public/whitepaper/figures/fig-bc-delta-threshold.tex,website-v2/public/whitepaper/harbor-economy.tex,changelog.d/9910-figures.md';
+
+    test('a whitepaper diff with visual-exempt FAILS, and the error says what to do instead', () => {
+      const { code, stderr } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', FIGURE_DIFF);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/`visual-exempt` is not available/);
+      expect(stderr).toMatch(/figure or print territory/);
+      // The message must teach the convention, not merely refuse.
+      expect(stderr).toMatch(/1\.0× \/ 150 dpi/);
+      expect(stderr).toMatch(/phone PDF viewer/);
+      // ...and name the accepted forms concretely.
+      expect(stderr).toMatch(/markdown image/);
+      expect(stderr).toMatch(/GitHub Actions run or artifact URL/);
+    });
+
+    test('the same body with a page-scale render in Visual Proof PASSES', () => {
+      const { code, stdout } = run('--body-file', fixture('figure-with-render.md'), '--changed', FIGURE_DIFF);
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // An accepted form that the error message and CONTRIBUTING both advertise,
+    // and that nothing here exercised until QA asked about it. The claim was
+    // false — the live path has matched HTML media since it was written — but
+    // the coverage gap was real, and an accepted form whose correctness lives
+    // only in a report is the defect this whole branch exists to stop.
+    test.each([
+      ['an <img> with a source', '<img src="https://x.test/fig.png" width="600">'],
+      ['an upper-case <IMG>', '<IMG SRC="https://x.test/fig.png">'],
+      ['an <img> split across lines', '<img\n  src="https://x.test/fig.png"\n  alt="render at 1.0x">'],
+      ['a <video>', '<video src="https://x.test/tour.mp4" controls></video>'],
+      ['a <picture> with a source', '<picture><source srcset="https://x.test/a.avif"><img src="https://x.test/a.png"></picture>'],
+      ['a single-quoted src', "<img src='https://x.test/fig.png'>"],
+      ['an unquoted src', '<img src=https://x.test/fig.png>'],
+    ])('%s in Visual Proof satisfies the render rule', (_label, embed) => {
+      const body = [
+        '## Summary',
+        'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+        '## Test Plan',
+        'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+        '## Visual Proof',
+        embed,
+      ].join('\n');
+      const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // ...and the same tags with nothing in them are an empty gesture, which is
+    // the one thing rule 3b must never accept. `![sheet]()` was already guarded
+    // for exactly this reason; these are its HTML twins. A reader typing `<img>`
+    // in prose to talk ABOUT embedding is the realistic way this arrives.
+    test.each([
+      ['a bare <img> with no source', 'I would embed the render here: <img>'],
+      ['an <img> with an empty src', '<img src="">'],
+      ['a bare <picture> on its own', '<picture>'],
+      ['a bare <video> with no source', '<video></video>'],
+    ])('%s is NOT a render', (_label, embed) => {
+      const body = [
+        '## Summary',
+        'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+        '## Test Plan',
+        'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+        '## Visual Proof',
+        embed,
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    test('a CI-artifact link to published renders PASSES', () => {
+      const body = [
+        '## Summary',
+        'Restyle fifteen Book figures onto the shared style names so one edition override reaches all of them.',
+        '## Test Plan',
+        'Compiled all 37 fragments under both preambles; 74 compiles and zero failures, then rendered fifteen of them.',
+        '## Visual Proof',
+        'Before/after contact sheet at 1.0x / 150 dpi, published by the figure gates:',
+        'https://github.com/curiositech/port-daddy/actions/runs/1234567890',
+      ].join('\n');
+      const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // The scope test: the hatch stays valid where it is legitimate. A pure CI /
+    // script change touches no figure path, so `visual-exempt` still works —
+    // this is #10186's shape, and this very PR's shape.
+    test('a PR touching no figure path keeps visual-exempt (pure CI / script change)', () => {
+      const body = [
+        '## Summary',
+        'Add a repo-root Node script that finds committed assets nothing references, plus its mutation test.',
+        '## Test Plan',
+        'node --test scripts/check-orphan-assets.test.mjs — 20 of 20 pass, covering both directions of the mutation table.',
+        '<!-- visual-exempt: a Node script, its test and two CI steps; no rendered surface changes -->',
+      ].join('\n');
+      const { code, stdout } = run(
+        '--body', body,
+        '--changed', 'scripts/check-orphan-assets.mjs,scripts/check-orphan-assets.test.mjs,.github/workflows/library-checks.yml',
+      );
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // Rule 3b must not be satisfiable by an empty gesture. Each of these is a
+    // Visual Proof section that LOOKS filled in and contains no picture.
+    test('a Visual Proof section of "N/A" + a bare checkbox + an empty bullet FAILS', () => {
+      const { code, stderr } = run('--body-file', fixture('figure-empty-gesture.md'), '--changed', FIGURE_DIFF);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+      expect(stderr).toMatch(/"N\/A", a bare checkbox, an empty bullet/);
+    });
+
+    // The case both #10190 and #10191 actually shipped: an articulate account of
+    // having looked at the pixels, with figcheck and ink_audit output, and no
+    // picture. A claim about looking is not a thing to look at.
+    test('prose about rendering, with figcheck and ink_audit output, is NOT evidence', () => {
+      const { code, stderr } = run('--body-file', fixture('figure-prose-only.md'), '--changed', FIGURE_DIFF);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    // #10192's shape, and the sharpest case of the three. Its Visual Proof reads
+    // like thorough diligence — sixteen page numbers, read at 1.0x, three defects
+    // found by looking and fixed — and contains no picture. A reviewer cannot
+    // check any of it without rebuilding a 562-page book themselves. A list of
+    // pages you looked at is a description of looking, not a thing to look at.
+    test('a list of inspected page numbers at 1.0x is NOT evidence', () => {
+      const { code, stderr } = run('--body-file', fixture('figure-page-list.md'), '--changed', FIGURE_DIFF);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+      // No marker in this body, so the full teaching text must be present here.
+      expect(stderr).toMatch(/a list of page numbers/);
+      expect(stderr).toMatch(/1\.0× \/ 150 dpi/);
+    });
+
+    // #10192's marker verbatim. Its reasoning is the one the rule has to refuse:
+    // "the Book PDF is built by a workflow, not a web surface" is a true sentence
+    // about rule (3)'s territory and an irrelevant one — print work is not
+    // exempt for failing to be a web surface, it is the other kind of visual
+    // work, with its own evidence.
+    test('"built by a workflow, not a web surface" does not exempt LaTeX chapter sources', () => {
+      const body = [
+        '## Summary',
+        'Apply the manuscript critique to eight chapter sources: two theorems gain hypotheses, one section title is withdrawn.',
+        '## Test Plan',
+        'Book builds under tectonic: 562 pages, zero undefined references, zero undefined citations in the log.',
+        '<!-- visual-exempt: LaTeX chapter sources and research-ledger data; the Book PDF is built by whitepaper-build.yml, not a web surface. -->',
+      ].join('\n');
+      const { code, stderr } = run(
+        '--body', body,
+        '--changed', 'website-v2/public/whitepaper/spawn-to-person.tex,whitepaper/single-writer-kernel.tex,changelog.d/9913-critique.md',
+      );
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/`visual-exempt` is not available/);
+      expect(stderr).toMatch(/figure or print territory/);
+      // A print diff must never be told to attach a recording.
+      expect(stderr).not.toMatch(/GIF or screen recording/);
+    });
+
+    test('a missing Visual Proof section FAILS on a figure diff', () => {
+      const body = [
+        '## Summary',
+        'Redraw the stack map around the provides/assumes relation so the bracket stops straddling two bands.',
+        '## Test Plan',
+        'Compiled under both preambles and ran figcheck T1 through T8; all clean at page scale.',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/no `## Visual Proof` section at all/);
+    });
+
+    // A render somewhere else in the body is not proof: the section is where a
+    // reviewer looks, and a stray badge or logo elsewhere must not clear the bar.
+    test('an image OUTSIDE the Visual Proof section does not satisfy the rule', () => {
+      const body = [
+        '## Summary',
+        'Redraw the stack map around the provides/assumes relation so the bracket stops straddling two bands.',
+        '![build badge](https://img.shields.io/badge/build-passing.svg)',
+        '## Test Plan',
+        'Compiled under both preambles and ran figcheck T1 through T8; all clean at page scale.',
+        '## Visual Proof',
+        'Rendered at 150 dpi and inspected by eye; nothing regressed.',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    // A printed page has nothing to record. Rule 3 must not demand a GIF of it —
+    // `website-v2/public/whitepaper/` matches VISUAL_SURFACE_RE, so without the
+    // subtraction this body would fail for a missing "GIF or screen recording".
+    test('a printed page is never asked for a GIF or screen recording', () => {
+      const { code, stdout, stderr } = run('--body-file', fixture('figure-with-render.md'), '--changed', FIGURE_DIFF);
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+      expect(stderr).not.toMatch(/GIF or screen recording/);
+    });
+
+    // The marker is void on a mixed diff too — otherwise a PR that touches a
+    // figure AND a pane could still exempt the pane half.
+    test('visual-exempt is void for the app-surface half of a mixed diff', () => {
+      const { code, stderr } = run(
+        '--body-file', fixture('figure-visual-exempt.md'),
+        '--changed', 'whitepaper/figures/fig-swk-stack-map.tex,fleet-config-ui/src/HealthPane.tsx,changelog.d/9911-mixed.md',
+      );
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/`visual-exempt` is not available/);
+      expect(stderr).toMatch(/Visual surface changed/);
+      expect(stderr).toMatch(/GIF or screen recording/);
+    });
+
+    // The template now names `visual-exempt` several times in prose to explain
+    // that it is unavailable here. If any of that were written as a LIVE comment
+    // the guidance would become the marker, and every PR opened from the template
+    // would report the very error the text is warning about. Same failure mode as
+    // the two self-exemption regressions above, one level more embarrassing.
+    test('the real PR template does not self-trigger the figure rule', () => {
+      const template = join(repo, '.github', 'PULL_REQUEST_TEMPLATE.md');
+      const { code, stderr } = run('--body-file', template, '--changed', 'whitepaper/figures/fig-swk-stack-map.tex');
+      expect(code).toBe(1);
+      // It fails for the honest reason — an unfilled template has no render —
+      // and NOT because the template's own prose read as a live marker.
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+      expect(stderr).not.toMatch(/`visual-exempt` is not available/);
+    });
+
+    // The territory is defined by shape, not by an enumerated tree alone — a new
+    // `figures/` or plate directory is in scope the day it is created.
+    test.each([
+      ['a figures/ directory at any depth', 'docs/harbor-research/exposition/figures/FIGURE-REGISTER.md'],
+      ['a plate directory', 'website-v2/public/whitepaper/plates/swiss/chapter-swk.jpg'],
+      ['a hyphenated plate pipeline', 'scripts/whitepaper-plates/plates_pipeline.py'],
+      ['any .tex file', 'docs/harbor-research/tex/appendix.tex'],
+      ['the chartwork skill', 'skills/harbor-chartwork/scripts/tikz_precheck.py'],
+      ['the figure-system skill', 'skills/whitepaper-figure-system/references/semantic-figure-atlas.md'],
+    ])('%s is figure territory', (_label, path) => {
+      const { code, stderr } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', `${path},changelog.d/9912-x.md`);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/`visual-exempt` is not available/);
+    });
+
+    // Git stores paths case-sensitively, so `Figures/` and `figures/` are two
+    // different directories on this filesystem. A contributor who capitalises a
+    // directory would otherwise create a figure tree the rule cannot see — the
+    // exact gap the shape-based tests exist to close. Today's corpus is all
+    // lowercase, so every one of these is latent rather than live.
+    test.each([
+      ['an upper-case figures dir', 'docs/x/FIGURES/b.png'],
+      ['a mixed-case figures dir', 'docs/x/Figures/b.png'],
+      ['a mixed-case hyphenated plate dir', 'docs/pr-assets/Swiss-Plates/d.jpg'],
+      ['an upper-case plates dir', 'docs/x/PLATES/d.jpg'],
+      ['a capitalised whitepaper tree', 'Whitepaper/corpus.json'],
+      ['a capitalised chartwork skill', 'skills/Harbor-Chartwork/SKILL.md'],
+    ])('%s is still figure territory', (_label, path) => {
+      const { code, stderr } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', `${path},changelog.d/9914-x.md`);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/`visual-exempt` is not available/);
+    });
+
+    // ...and `templates/` contains the letters "plates". A looser plate pattern
+    // matches every one of the ~90 template directories in this repo, which
+    // would make the rule fire on skill scaffolding that renders nothing.
+    test.each([
+      ['a templates/ directory is NOT a plate directory', 'skills/agent-pr-authoring/templates/pr-body.md'],
+      ['a repo-root templates/ directory is not either', 'templates/agent-brief.md'],
+      ['nor is a capitalised Templates/', 'skills/x/Templates/pr-body.md'],
+    ])('%s', (_label, path) => {
+      const { code, stdout } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', path);
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+  });
+
+  // --- Section boundaries: the fence state machine ---------------------------
+  //
+  // Rule 3b asks "is there a render in THIS section", so where the section ends
+  // is now a question with a pass/fail attached to it. A fence tracker that
+  // desynchronises can move that boundary, and it moves it in both directions:
+  // a section truncated early loses evidence that is really there (a false
+  // failure), and a section that swallows the next heading counts evidence that
+  // belongs to a different section (a bypass). The second is the one that
+  // matters, and it is reachable: a four-backtick fence whose body contains a
+  // three-backtick line is ordinary in a repo whose PR bodies quote markdown.
+  describe('fenced code blocks do not move a section boundary', () => {
+    const HEAD = [
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+      '',
+    ].join('\n');
+    const FIG = 'whitepaper/figures/fig-swk-stack-map.tex';
+
+    // THE BYPASS. The Visual Proof section has no render. If the fence tracker
+    // desynchronises on the inner ``` line it never leaves the fence, so the
+    // `## Appendix` heading below stops terminating the section and the logo in
+    // the appendix is read as this section's evidence.
+    test('a nested fence does not let a LATER section supply the render', () => {
+      const body = HEAD + [
+        '## Visual Proof',
+        '',
+        'Rendered and inspected; see the log below.',
+        '',
+        '````',
+        '```',
+        '````',
+        '',
+        '## Appendix',
+        '',
+        '![unrelated logo](https://x.test/logo.png)',
+        '',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    test('a tilde fence containing backticks does not leak a later section in', () => {
+      const body = HEAD + [
+        '## Visual Proof',
+        '',
+        '~~~',
+        '```',
+        '~~~',
+        '',
+        '## Appendix',
+        '',
+        '![unrelated logo](https://x.test/logo.png)',
+        '',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    // ...and the other direction: a real render inside a section that also
+    // quotes fenced output must still count. These are the four shapes a PR body
+    // in this repo actually contains.
+    test.each([
+      ['a plain fenced block', ['```', 'some log output', '```']],
+      ['a fence with a language tag', ['```sh', 'figcheck --dpi 150 fig.pdf', '```']],
+      ['two consecutive fences', ['```', '```', '```', 'more', '```']],
+      ['a four-backtick fence quoting a three-backtick one', ['````', '```', 'inner', '```', '````']],
+      ['a tilde fence quoting backticks', ['~~~', '```', '~~~']],
+    ])('%s before the render still passes', (_label, fenceLines) => {
+      const body = HEAD + [
+        '## Visual Proof',
+        '',
+        ...fenceLines,
+        '',
+        '![render](https://x.test/fig.png)',
+        '',
+      ].join('\n');
+      const { code, stdout } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // A heading inside a fenced block must not be mistaken for the section
+    // itself. Without correct fence tracking on the SEARCH loop, this quoted
+    // heading-plus-image would be found as the Visual Proof section.
+    test('a quoted "## Visual Proof" inside a code block is not the section', () => {
+      const body = HEAD + [
+        '## Test evidence',
+        '',
+        'The template block a figure PR has to fill in looks like this:',
+        '',
+        '```md',
+        '## Visual Proof',
+        '',
+        '![your render here](https://example.invalid/render.png)',
+        '```',
+        '',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/no `## Visual Proof` section at all/);
+    });
+  });
+
+  // Finding refuted rather than fixed, pinned so the refutation is checkable.
+  // `HTML_COMMENT_RE` is non-greedy to the FIRST `-->`, which is exactly what an
+  // HTML comment is: per the HTML standard a comment's text may not contain
+  // `-->`, so the first one always ends it. A body carrying `-->` inside a
+  // fenced code block is the case that looks alarming, and it is fine: each
+  // comment still ends at its own terminator, and the stray `-->` is just text.
+  test('a stray --> in a code block does not break comment stripping', () => {
+    const body = [
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+      '',
+      '```',
+      'the marker ends with --> and this line is not a comment',
+      '```',
+      '',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+      '## Visual Proof',
+      '![render](https://x.test/fig.png)',
+    ].join('\n');
+    const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/meets the contract/);
+  });
+
+  // The same shape, but the stray `-->` sits between a real marker's `<!--` and
+  // its own `-->`. Greedy matching would swallow to the LAST `-->` and silently
+  // delete the Summary; non-greedy keeps the body intact.
+  test('a real marker is not extended past its own terminator', () => {
+    const body = [
+      '<!-- changelog-exempt: CI-only change -->',
+      'the word --> appears here as ordinary prose',
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+      '## Visual Proof',
+      '![render](https://x.test/fig.png)',
+    ].join('\n');
+    const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex,lib/relay-client.ts');
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/meets the contract/);
   });
 
   test('an .avif still does not satisfy the motion requirement', () => {

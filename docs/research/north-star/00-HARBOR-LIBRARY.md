@@ -4,7 +4,7 @@ Seven co-equal chapters, one argument. **Four chapters *explain* the system** to
 someone who has never heard of it — self-contained, pedagogic. **Three chapters
 *prove* it** — mechanized, formally verified. They are chapters of one book, not a
 front-of-house volume with subordinate companions: each explaining chapter names
-which proving chapter discharges its load-bearing claim, and each proving chapter
+which proving chapter discharges its critical claim, and each proving chapter
 names the explaining claim it proves. Read the explaining four in ladder order for
 the argument; reach for the matching proof chapter when you want it machine-checked.
 

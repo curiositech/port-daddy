@@ -1,0 +1,19 @@
+{
+  "schema": "pd.relay.envelope.v1",
+  "v": 1,
+  "classification": "sealed",
+  "harbor": "aaaabbbbccccddddeeeeffff00001111222233334444555566667777888899aa",
+  "channel": "aaaabbbbccccddddeeeeffff00001111222233334444555566667777888899aa:ops:deploys",
+  "sender": "0d7e19e21a9f2b04f1f2b71b7f0c8a53a9c19a7de1d0f4d2c8b6a5e4f3d2c1b0",
+  "seq": 7,
+  "iat": 1755648000,
+  "alg": "aes-256-gcm",
+  "epoch": 3,
+  "nonce": "AAAAAAAAAAAAAAAB",
+  "ciphertext": "kx3fO2ZQm1sVJb9tYc4hRw7nE8pLdAq6uG5iT0XyBjM",
+  "sig": {
+    "alg": "ed25519",
+    "key_id": "0d7e19e21a9f2b04f1f2b71b7f0c8a53a9c19a7de1d0f4d2c8b6a5e4f3d2c1b0",
+    "value": "00ffeeddd2c1b0a9f8e7d6c5b4a3928170f6e5d4c3b2a190887766554433221100ffeeddd2c1b0a9f8e7d6c5b4a3928170f6e5d4c3b2a1908877665544332211"
+  }
+}

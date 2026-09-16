@@ -93,7 +93,7 @@ Check overhead: if (traceTimeMs / totalExecutionMs) > 0.02 → reduce granularit
 **Detection rule**: If `tracer.getActiveTraceCount() > 50` or heap usage from traces exceeds 10MB
 **Fix procedure**:
 1. Set MAX_TRACES = 50, evict oldest completed trace when adding new one
-2. Archive traces >100 spans to disk (~/.windags/traces/{traceId}.json)
+2. Archive traces >100 spans to disk (~/.skill-runtime-archive/traces/{traceId}.json)
 3. Implement tracer.gc() called after each DAG completion
 4. Monitor: trace memory should never exceed 10MB total
 

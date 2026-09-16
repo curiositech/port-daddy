@@ -6,25 +6,30 @@ import { createParleyAutoTrigger } from '../../lib/parley-auto-trigger.js';
 import { createParley } from '../../lib/parley.js';
 import { CONFLICT_SIGNAL_LIMITS } from '../../lib/parley-trigger.js';
 import { createSessions } from '../../lib/sessions.js';
-import { createTupleSpace } from '../../lib/tuples.js';
 import { sessionsPlugin } from '../../routes/sessions.js';
 import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 import { createTestDb } from '../setup-unit.js';
+
+const PARLEY_TENANT = 'claim-integration-test';
+const PARLEY_HARBOR = 'local';
 
 function buildHarness(options: { throwFromTrigger?: boolean } = {}) {
   const db = createTestDb();
   const sessions = createSessions(db, undefined, { requireAgentForFileClaims: true });
   const actorSouls = createTestActorSouls(db);
-  const tuples = createTupleSpace(db);
   const published: Array<ReturnType<typeof inboxMessageForMessaging>> = [];
   const inbox = createAgentInbox(db, (_agentId, message) => {
     published.push(inboxMessageForMessaging(message));
   });
-  const parley = createParley({ tuples, agentInbox: inbox });
+  const parley = createParley({
+    db,
+    tenantId: PARLEY_TENANT,
+    defaultHarbor: PARLEY_HARBOR,
+    agentInbox: inbox,
+  });
   const activityLog = createActivityLog(db);
   const logs: Array<{ level: 'info' | 'error'; message: string; metadata?: Record<string, unknown> }> = [];
   const trigger = createParleyAutoTrigger({
-    tuples,
     parley,
     activityLog,
     resolveLiveParty: (candidate) => {
@@ -63,7 +68,23 @@ function buildHarness(options: { throwFromTrigger?: boolean } = {}) {
         : trigger,
     },
   });
-  return { app, db, sessions, actorSouls, tuples, inbox, parley, logs, published };
+  return { app, db, sessions, actorSouls, inbox, parley, logs, published };
+}
+
+function authorityCount(
+  harness: ReturnType<typeof buildHarness>,
+  table: 'parley_records' | 'parley_participants' | 'parley_auto_signals',
+  parleyId?: string,
+): number {
+  const whereParley = parleyId ? ' AND parley_id = ?' : '';
+  const params = parleyId
+    ? [PARLEY_TENANT, PARLEY_HARBOR, parleyId]
+    : [PARLEY_TENANT, PARLEY_HARBOR];
+  const row = harness.db.prepare(`
+    SELECT COUNT(*) AS count FROM ${table}
+    WHERE tenant_id = ? AND harbor = ?${whereParley}
+  `).get(...params) as { count: number };
+  return Number(row.count);
 }
 
 async function establishConflict(harness: ReturnType<typeof buildHarness>) {
@@ -85,7 +106,7 @@ async function establishConflict(harness: ReturnType<typeof buildHarness>) {
 }
 
 describe('authenticated claim conflict automatic Parley', () => {
-  test('creates exactly one tuple-backed Parley and one inbox summons per live actor across replay and force', async () => {
+  test('creates exactly one indexed Parley and one inbox summons per live actor across replay and force', async () => {
     const harness = buildHarness();
     const { owner, challenger, challengerSession } = await establishConflict(harness);
     const request = {
@@ -112,8 +133,8 @@ describe('authenticated claim conflict automatic Parley', () => {
     const parleys = harness.parley.list({ harbor: 'local' });
     expect(parleys).toHaveLength(1);
     const parleyId = parleys[0].parley.parleyId;
-    expect(harness.tuples.rd(['parley:opened', parleyId, '*'], { harbor: 'local' })).toHaveLength(1);
-    expect(harness.tuples.rd(['parley:summons', parleyId, '*', '*'], { harbor: 'local' })).toHaveLength(2);
+    expect(authorityCount(harness, 'parley_records', parleyId)).toBe(1);
+    expect(authorityCount(harness, 'parley_participants', parleyId)).toBe(3);
     expect(harness.inbox.list(owner.actorId).messages).toHaveLength(1);
     expect(harness.inbox.list(challenger.actorId).messages).toHaveLength(1);
     expect(harness.inbox.list(owner.actorId).messages[0]).not.toHaveProperty('deliveryKey');
@@ -249,8 +270,8 @@ describe('authenticated claim conflict automatic Parley', () => {
     const parleys = harness.parley.list({ harbor: 'local' });
     expect(parleys).toHaveLength(1);
     const parleyId = parleys[0].parley.parleyId;
-    expect(harness.tuples.rd(['parley:opened', parleyId, '*'], { harbor: 'local' })).toHaveLength(1);
-    expect(harness.tuples.rd(['parley:summons', parleyId, '*', '*'], { harbor: 'local' })).toHaveLength(2);
+    expect(authorityCount(harness, 'parley_records', parleyId)).toBe(1);
+    expect(authorityCount(harness, 'parley_participants', parleyId)).toBe(3);
     expect(harness.inbox.list(owner.actorId).messages).toHaveLength(1);
     expect(harness.inbox.list(challenger.actorId).messages).toHaveLength(1);
     await harness.app.close();
@@ -275,7 +296,7 @@ describe('authenticated claim conflict automatic Parley', () => {
     });
     expect(response.statusCode).toBe(409);
     expect(response.json().code).toBe('FILE_CONFLICT');
-    expect(harness.tuples.rd(['parley:auto:reservation', '*', '*'], { harbor: 'local' })).toHaveLength(0);
+    expect(authorityCount(harness, 'parley_auto_signals')).toBe(0);
     expect(harness.parley.list({ harbor: 'local' })).toHaveLength(0);
     expect(harness.logs).toContainEqual(expect.objectContaining({
       level: 'info',
@@ -325,8 +346,8 @@ describe('authenticated claim conflict automatic Parley', () => {
     const parleys = harness.parley.list({ harbor: 'local' });
     expect(parleys).toHaveLength(1);
     const parleyId = parleys[0].parley.parleyId;
-    expect(harness.tuples.rd(['parley:opened', parleyId, '*'], { harbor: 'local' })).toHaveLength(1);
-    expect(harness.tuples.rd(['parley:summons', parleyId, '*', '*'], { harbor: 'local' })).toHaveLength(2);
+    expect(authorityCount(harness, 'parley_records', parleyId)).toBe(1);
+    expect(authorityCount(harness, 'parley_participants', parleyId)).toBe(3);
     expect(harness.inbox.list(owner.actorId).messages).toHaveLength(1);
     expect(harness.inbox.list(newcomer.actorId).messages).toHaveLength(1);
     await harness.app.close();
@@ -360,7 +381,7 @@ describe('authenticated claim conflict automatic Parley', () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json().code).toBe('FILE_CONFLICT');
-    expect(harness.tuples.rd(['parley:auto:reservation', '*', '*'], { harbor: 'local' })).toHaveLength(0);
+    expect(authorityCount(harness, 'parley_auto_signals')).toBe(0);
     expect(harness.parley.list({ harbor: 'local' })).toHaveLength(0);
     expect(harness.logs).toContainEqual(expect.objectContaining({
       level: 'error',
@@ -396,7 +417,7 @@ describe('authenticated claim conflict automatic Parley', () => {
     expect(response.statusCode).toBe(409);
     expect(response.json().code).toBe('FILE_CONFLICT');
     expect(response.json().conflicts).toHaveLength(CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs + 1);
-    expect(harness.tuples.rd(['parley:auto:reservation', '*', '*'], { harbor: 'local' })).toHaveLength(0);
+    expect(authorityCount(harness, 'parley_auto_signals')).toBe(0);
     expect(harness.parley.list({ harbor: 'local' })).toHaveLength(0);
     expect(harness.logs).toContainEqual(expect.objectContaining({
       level: 'error',

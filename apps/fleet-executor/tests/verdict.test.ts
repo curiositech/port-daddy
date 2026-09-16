@@ -141,11 +141,39 @@ describe('aggregateConclusion', () => {
     );
   });
 
+  it('keeps advisory execution unavailability visible without blocking by default', () => {
+    expect(aggregateConclusion([
+      r({ ship: 'reviewer', blocking: true, participation: 'required', voteOutcome: 'approve' }),
+      r({ ship: 'qa', participation: 'advisory', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        verdict: 'UNAVAILABLE', errored: true, brokenAdjudicated: { scope: 'fleet', reason: 'runner absent' } }),
+    ])).toBe('success');
+  });
+
+  it('fails when repository policy explicitly makes advisory unavailability blocking', () => {
+    expect(aggregateConclusion([
+      r({ ship: 'reviewer', blocking: true, participation: 'required', voteOutcome: 'approve' }),
+      r({ ship: 'qa', participation: 'advisory', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        unavailableBlocks: true, verdict: 'UNAVAILABLE', errored: true }),
+    ])).toBe('failure');
+  });
+
   it('neutral when only a non-blocking ship objects', () => {
     expect(
       aggregateConclusion([r({ blocking: true, verdict: 'PASS' }), r({ verdict: 'BLOCK' })]),
     ).toBe('neutral');
   });
+
+  it.each(['partial', 'none'] as const)(
+    'neutral when otherwise-passing review coverage is %s',
+    reviewCoverage => {
+      expect(
+        aggregateConclusion([
+          r({ blocking: true, verdict: 'PASS', reviewCoverage }),
+          r({ ship: 'peer', verdict: 'PASS' }),
+        ]),
+      ).toBe('neutral');
+    },
+  );
 
   // Broken-ship doctrine (operator ruling, 2026-08-19): "advisory" scopes a
   // ship's JUDGMENT, not its machinery. A ship that errored or returned

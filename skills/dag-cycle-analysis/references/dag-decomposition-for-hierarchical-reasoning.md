@@ -53,7 +53,7 @@ When an agent sees a DAG task decomposition, it should ask: "What transitive rel
 
 ## Practical Application: Analyzing Orchestration DAGs
 
-Consider a WinDAGs orchestration where tasks form a DAG. An agent analyzing this should:
+Consider a Jury-rig orchestration where tasks form a DAG. An agent analyzing this should:
 
 1. **Extract the undirected graph**: Ignore task ordering temporarily, focus on which tasks are connected
 2. **Compute minimal cycle basis**: Find the fundamental cycles in connectivity

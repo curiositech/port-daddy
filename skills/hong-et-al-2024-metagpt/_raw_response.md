@@ -145,7 +145,7 @@ MetaGPT's deepest insight is that **structure doesn't constrain intelligence—i
 
 This inverts a common assumption in agent system design: that flexibility and structure are in tension. MetaGPT shows they're complementary. The more complex your task, the more you need structure to manage complexity. The paper's 100% success rate on complex software tasks versus near-total failure of unstructured approaches isn't a small effect—it's the difference between "toy demos" and "production systems."
 
-For builders of WinDAGs-like orchestration systems, the lesson is clear: design your inter-agent protocols with the same rigor you'd design APIs for microservices. Structured communication isn't overhead—it's the foundation that makes complex coordination possible.
+For builders of Jury-rig-like orchestration systems, the lesson is clear: design your inter-agent protocols with the same rigor you'd design APIs for microservices. Structured communication isn't overhead—it's the foundation that makes complex coordination possible.
 ```
 
 ### FILE: sops-as-decomposition-frameworks.md
@@ -230,7 +230,7 @@ Each role addition improves outcomes because each adds a decomposition step. The
 
 ## Application to Agent Orchestration Systems
 
-For WinDAGs and similar systems, SOPs offer a powerful paradigm for task routing and decomposition:
+For Jury-rig and similar systems, SOPs offer a powerful paradigm for task routing and decomposition:
 
 **Principle 1: Curate Domain-Specific SOPs**
 Don't try to create a general-purpose decomposition engine. Instead, identify the domains your system operates in (e.g., data analysis, API integration, document generation) and encode the standard procedures for each. For data analysis:
@@ -255,7 +255,7 @@ Better yet, make SOPs composable. A "build web application" SOP might invoke "da
 MetaGPT hints at this in Appendix A.1 (p.15): "agents review previous feedback and make necessary adjustments to their constraint prompts... continuously learn from past project experiences." Track which SOPs succeed or fail, which steps are bottlenecks, and refine accordingly. This is organizational learning encoded in process.
 
 **Principle 4: Humans Can Inject Domain SOPs**
-One of WinDAGs' strengths should be letting domain experts contribute SOPs without coding. Provide a SOP definition language where experts specify:
+One of Jury-rig' strengths should be letting domain experts contribute SOPs without coding. Provide a SOP definition language where experts specify:
 ```
 SOP: Security Audit
 Roles:
@@ -302,7 +302,7 @@ This makes SOPs vastly more efficient for domains with established practices. Th
 - Efficiency matters more than theoretical generality
 - Domain expertise is valuable, not a limitation
 
-## Implementing SOP-Based Routing in WinDAGs
+## Implementing SOP-Based Routing in Jury-rig
 
 Concrete implementation sketch:
 
@@ -489,7 +489,7 @@ The QA Engineer role in MetaGPT (p.8) hints at this—generating test cases to "
 
 ## Application to Agent Systems: Design Principles
 
-For systems like WinDAGs that orchestrate agents for various tasks, executable feedback offers several design patterns:
+For systems like Jury-rig that orchestrate agents for various tasks, executable feedback offers several design patterns:
 
 **Pattern 1: Execution as Standard Skill**
 Make "execute code/query/API call in sandbox" a primitive operation available to agents. When an agent produces an artifact that *can* be executed (code, SQL, API spec), automatically attempt execution and provide feedback. This works for:
@@ -526,7 +526,7 @@ Different tasks need different execution environments:
 - Web scraping: Sandboxed browser
 - System administration: Docker container with OS
 
-WinDAGs should maintain a library of execution contexts and select appropriate ones based on task type. The executable feedback mechanism must include environment setup as a first-class concern.
+Jury-rig should maintain a library of execution contexts and select appropriate ones based on task type. The executable feedback mechanism must include environment setup as a first-class concern.
 
 **Pattern 4: Multi-Level Testing**
 Executable feedback in MetaGPT tests at unit level (individual functions). Real systems need:
@@ -769,7 +769,7 @@ The tradeoff: more sophisticated subscriptions require more specification effort
 
 ## Implementing Pub-Sub in Agent Orchestration Systems
 
-For WinDAGs-like systems, pub-sub offers a clean coordination primitive:
+For Jury-rig-like systems, pub-sub offers a clean coordination primitive:
 
 ### Architecture Sketch
 
@@ -925,9 +925,9 @@ This is vastly superior to point-to-point systems where communication is ephemer
 
 For regulated domains (healthcare, finance) or safety-critical systems, this auditability may be a requirement, not just nice-to-have.
 
-## Application to WinDAGs: Skill Coordination via Pub-Sub
+## Application to Jury-rig: Skill Coordination via Pub-Sub
 
-WinDAGs has 180+ skills (specialized capabilities). Pub-sub enables skill coordination:
+Jury-rig has 180+ skills (specialized capabilities). Pub-sub enables skill coordination:
 
 **Pattern: Skills as Subscribers**
 ```python
@@ -956,7 +956,7 @@ Skills coordinate without knowing about each other—they only know message type
 - **Skill composition**: Complex pipelines emerge from simple subscriptions (load → validate → transform → analyze)
 - **Parallel skill execution**: Skills operating on different data can run simultaneously
 
-The pub-sub pattern makes WinDAGs' 180 skills *composable* rather than requiring explicit orchestration of 180 different tools.
+The pub-sub pattern makes Jury-rig' 180 skills *composable* rather than requiring explicit orchestration of 180 different tools.
 
 ## Conclusion: Communication Infrastructure as Cognitive Infrastructure
 
@@ -967,7 +967,7 @@ Pub-sub isn't the only solution—other patterns (actor model, CSP channels, tup
 - Context windows are limited (filtering matters)
 - Reproducibility is important (message history matters)
 
-For WinDAGs and similar orchestration systems, the lesson is: invest in communication infrastructure as much as agent capability. A system with mediocre agents but excellent coordination can outperform a system with excellent agents but poor coordination—as MetaGPT's 2x improvement over ChatDev demonstrates.
+For Jury-rig and similar orchestration systems, the lesson is: invest in communication infrastructure as much as agent capability. A system with mediocre agents but excellent coordination can outperform a system with excellent agents but poor coordination—as MetaGPT's 2x improvement over ChatDev demonstrates.
 
 The message pool isn't just a technical implementation detail; it's the foundation that makes complex multi-agent coordination tractable.
 ```
@@ -1106,7 +1106,7 @@ This suggests **not all role divisions are equally valuable**. The Project Manag
 
 This reveals a principle: **specialize roles that involve distinct skill domains and produce verifiable artifacts**. Architect qualifies (design is distinct from coding, produces verifiable architecture). Project Manager is borderline (task decomposition overlaps with architecture, output is less verifiable—"good task breakdown" is subjective).
 
-For WinDAGs with 180+ skills, this suggests: don't create 180 agent roles. Create roles that group related skills into coherent expertise domains:
+For Jury-rig with 180+ skills, this suggests: don't create 180 agent roles. Create roles that group related skills into coherent expertise domains:
 - **Data Processing Specialist**: Groups data loading, cleaning, transformation, validation skills
 - **Analysis Expert**: Groups statistical analysis, visualization, interpretation skills
 - **Security Auditor**: Groups vulnerability scanning, code review, penetration testing skills
@@ -1158,7 +1158,7 @@ architecture, test_plan = await [architect_task, qa_task]
 
 This is only possible because roles are **loosely coupled**—Architect and QA Engineer don't need to coordinate; they work independently on their specialized tasks.
 
-For WinDAGs orchestrating 180+ skills, this is critical. Specialized skills with clear interfaces can execute in parallel, dramatically reducing latency. A monolithic "do everything" agent must be sequential.
+For Jury-rig orchestrating 180+ skills, this is critical. Specialized skills with clear interfaces can execute in parallel, dramatically reducing latency. A monolithic "do everything" agent must be sequential.
 
 ## Failure Modes of Poor Specialization
 
@@ -1195,9 +1195,9 @@ MetaGPT's five roles work for 90% of software projects. They don't handle exotic
 **Principle 5: Roles Should Enable Incremental Verification**
 After each role completes, system state should be checkable. This enables early error detection. If Product Manager's PRD is garbage, catch it before Architect spends tokens on design.
 
-## Application to WinDAGs: Skill Grouping via Roles
+## Application to Jury-rig: Skill Grouping via Roles
 
-WinDAGs has 180+ skills across domains (debugging, code review, architecture design, task decomposition, security auditing, frontend development, etc.). How to organize?
+Jury-rig has 180+ skills across domains (debugging, code review, architecture design, task decomposition, security auditing, frontend development, etc.). How to organize?
 
 **Option 1: Skill = Role (180 roles)**
 Too granular—coordination overhead would dominate.
@@ -1216,7 +1216,7 @@ Roles defined by position in workflow:
 
 The paper's approach is Option 2 (domain-based). This seems optimal: domains are stable (code quality skills cluster naturally), while workflows vary by task.
 
-For WinDAGs, consider:
+For Jury-rig, consider:
 ```python
 class CodeQualityExpert(Role):
     skills = [
@@ -1249,7 +1249,7 @@ MetaGPT's role specialization isn't just about dividing work—it's about **mana
 
 The experimental evidence is compelling: moving from 1 generalist agent (executability 1.0) to 4 specialized agents (executability 4.0) is a 4x improvement. That's not incremental—it's transformative.
 
-For WinDAGs and similar orchestration systems, the lesson is: **don't fight specialization—embrace it as a design principle**. Resist the urge to create omni-capable agents. Instead, create agents with bounded, deep expertise in narrow domains, and coordinate them through clear protocols.
+For Jury-rig and similar orchestration systems, the lesson is: **don't fight specialization—embrace it as a design principle**. Resist the urge to create omni-capable agents. Instead, create agents with bounded, deep expertise in narrow domains, and coordinate them through clear protocols.
 
 Specialization isn't a limitation—it's the foundation that makes complex multi-agent coordination tractable. As the paper demonstrates, the path to general capability runs through specialized agents, not through generalist agents.
 ```
@@ -1399,9 +1399,9 @@ The pattern is identical to MetaGPT: identify a human workflow with specialized 
 
 The "meta" in meta-programming isn't just "code about code"—it's **systems that encode and execute expert processes**.
 
-## Implications for WinDAGs: Orchestration as Meta-Capability
+## Implications for Jury-rig: Orchestration as Meta-Capability
 
-For WinDAGs with 180+ skills, the meta-programming perspective suggests a different architecture than traditional orchestration:
+For Jury-rig with 180+ skills, the meta-programming perspective suggests a different architecture than traditional orchestration:
 
 **Traditional Orchestration**:
 ```
@@ -1490,7 +1490,7 @@ Meta-programming beats programming when you can automate not just the implementa
 ## CROSS-DOMAIN CONNECTIONS
 
 ### Agent Orchestration
-MetaGPT's pub-sub message pool with subscriptions provides a scalable coordination primitive for large agent systems. Instead of hardcoding communication paths (Agent A talks to Agent B), define message types and let agents subscribe to relevant types. This decouples agents (they don't need to know about each other) and enables dynamic system evolution (add new agent, define its subscriptions, done). For WinDAGs' 180+ skills, organizing them into roles that subscribe to message types from other roles creates a flexible, maintainable orchestration architecture.
+MetaGPT's pub-sub message pool with subscriptions provides a scalable coordination primitive for large agent systems. Instead of hardcoding communication paths (Agent A talks to Agent B), define message types and let agents subscribe to relevant types. This decouples agents (they don't need to know about each other) and enables dynamic system evolution (add new agent, define its subscriptions, done). For Jury-rig' 180+ skills, organizing them into roles that subscribe to message types from other roles creates a flexible, maintainable orchestration architecture.
 
 ### Task Decomposition
 SOPs encode expert decomposition strategies. Instead of asking "how should I break down this task?" each time, maintain a library of SOPs for common domains (software dev, data analysis, research, content creation). When a task arrives, classify it, retrieve the appropriate SOP, and follow its decomposition structure. This leverages centuries of human organizational learning about how to break down complex work. The MetaGPT results (100% task completion vs. near-total failure for non-SOP approaches) show this isn't just incrementally better—it's transformative.

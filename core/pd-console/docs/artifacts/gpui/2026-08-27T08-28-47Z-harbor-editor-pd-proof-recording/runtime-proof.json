@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-08-27T11:27:50Z",
+  "kind": "native-gpui-exact-window-recording",
+  "source": {
+    "gitCommit": "86fc95709103545d47a3434dc42d6e0c24a9873a",
+    "refVerified": "origin/main",
+    "worktree": "/Users/erichowens/.codex/worktrees/2ec1/port-daddy"
+  },
+  "binary": {
+    "path": "/Users/erichowens/.codex/worktrees/2ec1/port-daddy/core/target/release/pd-console",
+    "version": "pd-console v3.30.3",
+    "sha256": "d24b35f205904be3edf5bcd41f2383df9d5f9896e5f66a3f05224b7b86d62df3",
+    "buildCommand": "cargo build --release --features gpui --bin pd-console"
+  },
+  "display": {
+    "name": "pd-proof",
+    "gpuiDisplayIndex": 1,
+    "uuid": "f0bfb810-67d4-4f0e-8b37-7714c415bea3",
+    "logicalSize": "2560x1440",
+    "physicalSize": "5120x2880",
+    "primary": false
+  },
+  "window": {
+    "applicationPid": 19494,
+    "windowId": 333311,
+    "initialPane": "Harbor Editor JSON document",
+    "PORT_DADDY_URL": "http://127.0.0.1:65534",
+    "canonicalDaemonTouched": false
+  },
+  "recording": {
+    "target": "exact pd-console window on pd-proof",
+    "command": "screencapture -x -l333311 -v -V6 <artifact>/pd-console-window.mov",
+    "durationSeconds": 6,
+    "artifact": {
+      "path": "pd-console-window.mov",
+      "sha256": "5a639a0887aeb72a514bf9e6ed5a34b7db9a00cb0b37133c0e2d05e0a46c7534"
+    },
+    "inspectionFrame": {
+      "path": "pd-console-window-frame.png",
+      "dimensions": "2538x1736",
+      "sha256": "87d6bde7615c62a5645cd4463c6040d95825b610ea7862ac0003007f1237f346",
+      "visuallyInspected": true,
+      "result": "non-blank; pd-console only; no desktop or unrelated windows"
+    },
+    "discarded": {
+      "reason": "An initial display-wide attempt included desktop content and was moved to Trash rather than retained as evidence."
+    }
+  },
+  "observedInRecording": [
+    "Harbor Editor JSON document",
+    "Syntax JSON status",
+    "Visible WRAP OFF and BLAME OFF controls",
+    "Operator and agent-replica authorship rows",
+    "Narrow native window capture with no clipping or blank frame"
+  ],
+  "limitations": [
+    "This capture records the initial editor state only; it does not prove subsequent interaction states."
+  ]
+}

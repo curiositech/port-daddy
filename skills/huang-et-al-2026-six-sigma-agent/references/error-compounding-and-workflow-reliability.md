@@ -50,7 +50,7 @@ This "vastly exceeds practical workflow lengths, demonstrating Six Sigma per-act
 
 ## Application to Agent Orchestration
 
-For WinDAGs orchestration systems, this analysis reveals several critical design imperatives:
+For Jury-rig orchestration systems, this analysis reveals several critical design imperatives:
 
 1. **Length-Aware Routing**: The system must track workflow depth (m) and adjust reliability requirements accordingly. A 100-step workflow requires fundamentally different guarantees than a 10-step workflow—not 10× better, but exponentially better.
 
@@ -85,7 +85,7 @@ The exponential decay formula reveals why atomic decomposition is essential:
 - **Verification points reset accumulation**: Each consensus vote "resets" the error accumulation, preventing propagation
 - **Parallel redundancy changes the mathematics**: When k parallel paths execute the same computation, the probability all k fail is p^k (exponential improvement)
 
-The WinDAGs system should therefore:
+The Jury-rig system should therefore:
 1. Decompose long sequential chains into shorter verified segments
 2. Insert consensus verification at dependency boundaries
 3. Use parallel execution with voting wherever possible

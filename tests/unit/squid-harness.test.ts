@@ -18,10 +18,11 @@
 
 import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync, copyFileSync, readdirSync, utimesSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
 
 import {
   setLock,
@@ -43,16 +44,29 @@ import {
   tentaclePath,
 } from '../../lib/squid/adapter.js';
 import { handleSquid, installHeadlessSquidHooks } from '../../cli/commands/squid.js';
+import { stageTentacles } from '../../cli/commands/hooks-install.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
-const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool') =>
+const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop' | 'pd-hook-precompact') =>
   join(repoRoot, 'bin', n);
 
 // Isolated scratch under ~/coding/tmp (NEVER /tmp — macOS purges /tmp).
 const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-selftest', `jest-${process.pid}`);
 const WORKSPACE = join(SCRATCH, 'workspace');
 const MATRIX = join(SCRATCH, 'matrix.env');
+
+function runPromptAsync(env: NodeJS.ProcessEnv): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolveRun) => {
+    const child = spawn(bin('pd-hook-prompt'), [], { env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk) => { stdout += String(chunk); });
+    child.stderr?.on('data', (chunk) => { stderr += String(chunk); });
+    child.on('close', (status) => resolveRun({ status, stdout, stderr }));
+    child.stdin?.end(JSON.stringify({ cwd: WORKSPACE }));
+  });
+}
 
 // Both layers honor PD_MATRIX_FILE: lib/squid/matrix.ts reads it via matrixPath()
 // and the pd-hook-* tentacles read it directly. Pointing both at ONE scratch file
@@ -126,7 +140,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
   function pathWithoutJq(): string {
     const dir = join(SCRATCH, 'no-jq-bin');
     mkdirSync(dir, { recursive: true });
-    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3']) {
+    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3', 'curl']) {
       const target = join(dir, name);
       if (!existsSync(target)) symlinkSync(commandPath(name), target);
     }
@@ -629,6 +643,147 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(Buffer.byteLength(r.stderr)).toBe(0);
   });
 
+  test('prompt hook surfaces a bounded unread inbox/parley count without message content', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((req, res) => {
+      expect(req.url).toBe('/agents/agent_test/inbox/stats');
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ success: true, total: 9, unread: 3, secret: 'must-not-leak' }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+      expect(ctx).toContain('3 unread inbox/parley item(s)');
+      expect(ctx).toContain('pd attention');
+      expect(ctx).not.toContain('must-not-leak');
+      expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(1);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe is silent and fail-open without an actor or live daemon', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const noActor = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(noActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const down = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(down).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const remote = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'https://coordination.example.invalid',
+    });
+    expect(remote).toMatchObject({ status: 0, stdout: '', stderr: '' });
+  });
+
+  test('prompt inbox probe rejects malformed actors and ignores malformed or timed-out responses', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    let requests = 0;
+    const server = createServer((_req, res) => {
+      requests += 1;
+      if (requests === 1) {
+        res.setHeader('content-type', 'application/json');
+        res.end('{"unread":"not-a-number"}');
+        return;
+      }
+      setTimeout(() => res.end('{"unread":4}'), 500);
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    const daemonUrl = `http://127.0.0.1:${(address as { port: number }).port}`;
+    try {
+      const malformedActor = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent/../../secret',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+      expect(requests).toBe(0);
+
+      const malformedJson = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedJson).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+      const timedOut = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(timedOut).toMatchObject({ status: 0, stdout: '', stderr: '' });
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe parses numeric unread count without jq', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((_req, res) => res.end('{"unread":2}'));
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PATH: pathWithoutJq(),
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain('2 unread inbox/parley item(s)');
+    } finally {
+      server.close();
+    }
+  });
+
   // ── SITREP dial (per-repo end-of-turn compulsion; operator doctrine 2026-08-22) ──
   // The end-of-turn SITREP table is the harness's visible value surface. The
   // dial resolves PD_SITREP env override → agent.config.json →
@@ -1098,8 +1253,358 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
   });
 });
 
+describe('Giant Squid Harness — pd-hook-stop closeout gate (ADR-0092 L4)', () => {
+  // The Stop tentacle verifies the SITREP contract pd-hook-prompt compels. It
+  // reads the SAME sitrep dial (PD_SITREP env → agent.config.json →
+  // .portdaddy/sitrep.json → .portdaddy/project.json, default enforce), so the
+  // dial parent-walk proofs above cover resolution; these tests pin the STOP
+  // behaviors: loop guards, per-vendor payload shapes, and the block contract.
+  const TABLE_TURN = 'Work done.\n## SITREP\n| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |\n| shipped stop hook | Agent | done | #1 | none |';
+  const BARE_TURN = 'Work done, yielding without any table.';
+
+  const runStop = (event: Record<string, unknown>, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, ...event }),
+      env: { ...process.env, PD_HOME: SCRATCH, ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('enforce (default): a turn ending without the SITREP table blocks with exit 2 + the directive on stderr', () => {
+    const r = runStop({ session_id: 'stop-enforce-1', last_assistant_message: BARE_TURN });
+    expect(r.status).toBe(2);
+    // The reason IS the model's next prompt — it must state the same contract
+    // pd-hook-prompt compels, and must never be empty (Codex rejects that).
+    expect(r.stderr).toContain('SITREP enforce');
+    expect(r.stderr).toContain('| Idea / Suggestion / Remediation |');
+    expect(r.stderr).toContain('pd sitrep --template');
+    expect(r.stdout).toBe('');
+  });
+
+  test('one-shot marker: the SAME session never blocks twice inside the TTL window', () => {
+    const first = runStop({ session_id: 'stop-oneshot', last_assistant_message: BARE_TURN });
+    expect(first.status).toBe(2);
+    const second = runStop({ session_id: 'stop-oneshot', last_assistant_message: BARE_TURN });
+    expect(second.status).toBe(0);
+    expect(second.stderr).toBe('');
+    // A DIFFERENT session still owns its own one shot.
+    const other = runStop({ session_id: 'stop-other-session', last_assistant_message: BARE_TURN });
+    expect(other.status).toBe(2);
+  });
+
+  test('stop_hook_active:true short-circuits before any dial or marker work', () => {
+    const r = runStop({ session_id: 'stop-active', stop_hook_active: true, last_assistant_message: BARE_TURN });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('a SITREP-bearing final message passes silently (zero bytes, exit 0)', () => {
+    const r = runStop({ session_id: 'stop-compliant', last_assistant_message: TABLE_TURN });
+    expect(r.status).toBe(0);
+    expect(Buffer.byteLength(r.stdout)).toBe(0);
+    expect(Buffer.byteLength(r.stderr)).toBe(0);
+  });
+
+  test('gemini AfterAgent payload: prompt_response is the final-text source', () => {
+    const pass = runStop({ session_id: 'stop-gem-ok', prompt_response: TABLE_TURN, stop_hook_active: false });
+    expect(pass.status).toBe(0);
+    const block = runStop({ session_id: 'stop-gem-miss', prompt_response: BARE_TURN, stop_hook_active: false });
+    expect(block.status).toBe(2);
+  });
+
+  test('agy camelCase Stop payload NEVER blocks (observe-only vendor)', () => {
+    // agy carries no final-message field, no stop_hook_active guard, and a
+    // different block dialect — the tentacle must stay observe-only even when
+    // the dial is enforce and no SITREP is verifiable.
+    const r = runStop({
+      conversationId: 'agy-stop-1',
+      workspacePaths: [WORKSPACE],
+      transcriptPath: join(WORKSPACE, 'transcript.jsonl'),
+      terminationReason: 'completed',
+      fullyIdle: true,
+      executionNum: 4,
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('an empty/null final message is UNVERIFIABLE and never blocks (Codex null contract)', () => {
+    const r = runStop({ session_id: 'stop-null', last_assistant_message: null, transcript_path: null, turn_id: 't-1' });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toBe('');
+  });
+
+  test('dial off: the closeout gate stays silent even without a SITREP', () => {
+    const r = runStop({ session_id: 'stop-off', last_assistant_message: BARE_TURN }, { PD_SITREP: 'off' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('dial suggest: non-blocking; only the Claude provider gets structured stdout context', () => {
+    // Codex treats raw non-JSON stdout on exit 0 as invalid, so every
+    // non-Claude provider must stay byte-silent under suggest.
+    const codex = runStop({ session_id: 'stop-suggest-codex', last_assistant_message: BARE_TURN }, { PD_SITREP: 'suggest', PD_HOOK_PROVIDER: 'codex' });
+    expect(codex.status).toBe(0);
+    expect(codex.stdout).toBe('');
+
+    const claude = runStop({ session_id: 'stop-suggest-claude', last_assistant_message: BARE_TURN }, { PD_SITREP: 'suggest', PD_HOOK_PROVIDER: 'claude' });
+    expect(claude.status).toBe(0);
+    const parsed = JSON.parse(claude.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('Stop');
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('SITREP suggest');
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('| Idea / Suggestion / Remediation |');
+  });
+
+  test('garbage stdin fails open (exit 0, no output)', () => {
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: 'not json at all {{{',
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+});
+
+describe('Giant Squid Harness — pd-hook-stop event byte budget (review finding 1, 2026-08-24)', () => {
+  // bin/pd-hook-stop used to capture the ENTIRE Stop event (including the
+  // whole final assistant message) into one unbounded shell variable, then
+  // copied it again through printf | jq and two grep passes — several full
+  // in-memory copies of a payload with no upper bound. The fix reads stdin
+  // through a hard byte budget BEFORE any shell-variable capture and fails
+  // open (with a sanitized receipt) rather than ever building the jq/grep
+  // pipeline over an oversized blob.
+  //
+  // A small overridden budget keeps these boundary fixtures tiny and fast;
+  // the separate multi-megabyte test below proves the SAME contract at the
+  // real production default (262144 bytes).
+  const BUDGET = 4096;
+  const oversizeLog = () => join(SCRATCH, 'squid', 'oversize-events.log');
+
+  // Build a Stop event whose JSON-serialized byte length is EXACTLY totalLen,
+  // padding the final assistant message field (never containing a SITREP
+  // table, so a within-budget case takes the normal "block" path — proving
+  // the budget check ran and then correctly fell through to real logic).
+  const paddedEvent = (totalLen: number, sessionId: string): string => {
+    const base = { cwd: WORKSPACE, session_id: sessionId, last_assistant_message: '' };
+    const baseLen = Buffer.byteLength(JSON.stringify(base));
+    const pad = totalLen - baseLen;
+    if (pad < 0) throw new Error('fixture too small for requested length');
+    const withPad = { ...base, last_assistant_message: 'x'.repeat(pad) };
+    const out = JSON.stringify(withPad);
+    expect(Buffer.byteLength(out)).toBe(totalLen); // fixture sanity, not the assertion under test
+    return out;
+  };
+
+  const runRaw = (input: string, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input,
+      env: { ...process.env, PD_HOME: SCRATCH, PD_SQUID_STOP_EVENT_BUDGET_BYTES: String(BUDGET), ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('exactly at budget: processes normally (no oversize receipt)', () => {
+    const r = runRaw(paddedEvent(BUDGET, 'budget-exact'));
+    expect(r.status).toBe(2); // BARE final message, no SITREP table -> normal enforce block
+    expect(r.stderr).toContain('SITREP enforce');
+    expect(existsSync(oversizeLog())).toBe(false);
+  });
+
+  test('one byte under budget: processes normally (no oversize receipt)', () => {
+    const r = runRaw(paddedEvent(BUDGET - 1, 'budget-minus-one'));
+    expect(r.status).toBe(2);
+    expect(existsSync(oversizeLog())).toBe(false);
+  });
+
+  test('one byte over budget: fails open with a sanitized oversize receipt, never blocks', () => {
+    const r = runRaw(paddedEvent(BUDGET + 1, 'budget-plus-one'));
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+    expect(existsSync(oversizeLog())).toBe(true);
+    const receipt = readFileSync(oversizeLog(), 'utf8').trim();
+    expect(receipt).toContain('pd-hook-stop');
+    expect(receipt).toContain('budget-plus-one'); // session id extracted from the bounded prefix
+    expect(receipt).toContain(String(BUDGET));
+    // The receipt is sanitized: never the event content itself.
+    expect(receipt).not.toContain('x'.repeat(64));
+  });
+
+  test('a multi-megabyte final response fails open fast at the real production budget (262144 bytes)', () => {
+    const hugeMessage = `Work done.\n## SITREP\n${'y'.repeat(5_000_000)}`;
+    const event = JSON.stringify({ cwd: WORKSPACE, session_id: 'huge-turn', last_assistant_message: hugeMessage });
+    expect(Buffer.byteLength(event)).toBeGreaterThan(5_000_000);
+    const startedAt = Date.now();
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: event,
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+    expect(elapsedMs).toBeLessThan(2_000); // no multi-copy amplification over the 5 MB payload
+    const receipt = readFileSync(oversizeLog(), 'utf8').trim();
+    expect(receipt).toContain('huge-turn');
+    expect(receipt).toContain('262144');
+  });
+
+  test('debug mode: the gate wrapper never re-buffers the full oversized event either', () => {
+    // Finding 1 also named cli/commands/hooks-install.ts's debug-mode gate
+    // wrapper: it used to capture the FULL event into `pd_input`, then piped
+    // that whole captured copy into the real tentacle — a second unbounded
+    // copy on top of the tentacle's own. Debug mode now buffers only a small
+    // bounded probe for the session-id label and streams the rest straight
+    // through, so even a multi-megabyte event stays fast and bounded.
+    const pdHome = join(SCRATCH, 'debug-oversize-home');
+    const binDir = join(pdHome, 'bin');
+    const srcBin = join(SCRATCH, 'debug-oversize-src');
+    mkdirSync(srcBin, { recursive: true });
+    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
+      copyFileSync(bin(name), join(srcBin, name));
+      chmodSync(join(srcBin, name), 0o755);
+    }
+    stageTentacles(srcBin, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    writeFileSync(join(pdHome, 'daemon.pid'), '4242');
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'projects'), `${WORKSPACE}\n`);
+
+    const hugeMessage = `Work done.\n## SITREP\n${'z'.repeat(5_000_000)}`;
+    const event = JSON.stringify({ cwd: WORKSPACE, session_id: 'debug-huge-turn', last_assistant_message: hugeMessage });
+    const startedAt = Date.now();
+    const r = spawnSync(join(binDir, 'pd-hook-stop'), [], {
+      cwd: WORKSPACE,
+      input: event,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'claude' },
+      encoding: 'utf8',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(0); // this final message DOES carry a SITREP table -> compliant pass
+    expect(elapsedMs).toBeLessThan(3_000);
+    const events = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8');
+    // The debug session-id probe only ever buffers a SMALL bounded prefix
+    // (independent of the tentacle's own 256 KiB event budget), so a session
+    // id past that prefix on a 5 MB event is unparsable from the truncated
+    // JSON — the SAME documented degrade-to-$PPID fallback already used when
+    // the field is absent or unparsable, never a second unbounded capture.
+    expect(events).toMatch(/claude:\d+/);
+    expect(events).not.toContain('claude:debug-huge-turn');
+    expect(events).not.toContain('z'.repeat(64)); // the giant payload never lands in the sanitized log
+    expect(Buffer.byteLength(events)).toBeLessThan(10_000); // log stays tiny despite the 5 MB input
+  });
+});
+
+describe('Giant Squid Harness — pd-hook-stop marker garbage collection (review finding 3, 2026-08-24)', () => {
+  // $PD_HOME/squid/stop-blocks/ bounds markers PER SESSION (one recycled only
+  // when that same session id returns) but not the directory as a WHOLE: an
+  // abandoned session id, or hundreds of synthetic ones, would grow it
+  // forever. PD_SQUID_STOP_MARKER_GC_EVERY=1 forces the (normally
+  // probabilistic) GC pass to run on every call, for a deterministic test.
+  const markerRoot = () => join(SCRATCH, 'squid', 'stop-blocks');
+
+  const seedMarkers = (count: number, ageSeconds: number): void => {
+    mkdirSync(markerRoot(), { recursive: true });
+    const stamp = new Date(Date.now() - ageSeconds * 1000);
+    for (let i = 0; i < count; i += 1) {
+      const dir = join(markerRoot(), `synthetic-session-${i}.blocked`);
+      mkdirSync(dir);
+      utimesSync(dir, stamp, stamp);
+    }
+  };
+
+  const runStop = (event: Record<string, unknown>, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, ...event }),
+      env: { ...process.env, PD_HOME: SCRATCH, PD_SQUID_STOP_MARKER_GC_EVERY: '1', ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('age-based pruning: hundreds of long-abandoned session markers are collected', () => {
+    seedMarkers(300, 24 * 60 * 60); // 300 markers, all a full day old
+    expect(readdirSync(markerRoot())).toHaveLength(300);
+
+    // PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS overridden low so the day-old
+    // seeded markers are unambiguously past it (the default is 10x the 300s
+    // TTL = 3000s, which the seeded age already exceeds, but an explicit
+    // override keeps this assertion independent of that default).
+    const r = runStop(
+      { session_id: 'gc-age-trigger', last_assistant_message: 'Work done, no table.' },
+      { PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS: '3600' },
+    );
+    expect(r.status).toBe(2); // the triggering call still blocks normally
+
+    const remaining = readdirSync(markerRoot());
+    // Every seeded marker aged out; only the fresh one this call just created
+    // (plus this pass's own now-cleaned-up scratch files) should remain.
+    expect(remaining.filter((name) => name.startsWith('synthetic-session-'))).toHaveLength(0);
+    expect(remaining).toContain('gc-age-trigger.blocked');
+  });
+
+  test('hard cap: hundreds of FRESH markers (none old enough to age out) are bounded to the cap', () => {
+    seedMarkers(400, 5); // fresh markers, well under any age threshold
+    expect(readdirSync(markerRoot())).toHaveLength(400);
+
+    const r = runStop(
+      { session_id: 'gc-cap-trigger', last_assistant_message: 'Work done, no table.' },
+      { PD_SQUID_STOP_MARKER_MAX_ENTRIES: '50', PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS: '999999' },
+    );
+    expect(r.status).toBe(2);
+
+    const remaining = readdirSync(markerRoot()).filter((name) => name.endsWith('.blocked'));
+    // Bounded to the cap (oldest-by-mtime evicted first) — never left to grow
+    // to the full 401 (400 seeded + this call's own marker) unboundedly.
+    expect(remaining.length).toBeLessThanOrEqual(51); // cap + this call's own fresh marker
+    expect(remaining).toContain('gc-cap-trigger.blocked');
+  });
+
+  test('GC stays well under the breaker slow budget even scanning hundreds of stale entries', () => {
+    seedMarkers(500, 24 * 60 * 60);
+    const startedAt = Date.now();
+    const r = runStop({ session_id: 'gc-perf-trigger', last_assistant_message: 'Work done, no table.' });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(2);
+    // The wrapper's own production breaker budget is 250ms; this ceiling is a
+    // deliberately generous multiple of that, not a tight perf assertion. The
+    // GC pass's CORRECTNESS (age pruning, hard cap) is proven by the two
+    // tests above regardless of platform speed — this test only guards
+    // against a real algorithmic blowup (e.g. an accidental O(n^2) pass),
+    // not CI hardware variance. 1_000ms was measured tight enough to fail on
+    // GitHub's macos-latest runners (1917ms observed, 2026-08-24) purely from
+    // slower subprocess/filesystem overhead there, not a logic defect. 3_000ms
+    // still left only a ~1.56x margin over that observation (review finding,
+    // 2026-08-26) — widened further to 6_000ms, which still fails fast on a
+    // real O(n^2)-style blowup (500 markers taking multiple seconds) while
+    // giving a slower or contended runner much more room before flaking.
+    expect(elapsedMs).toBeLessThan(6_000);
+  });
+
+  test('the probabilistic gate is truly off by default at PD_SQUID_STOP_MARKER_GC_EVERY=1 scale: a normal call without the override does not force a full sweep every time', () => {
+    // Sanity check that the feature is opt-in-forced only via the env
+    // override used above, not unconditionally expensive on every call.
+    seedMarkers(50, 24 * 60 * 60);
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, session_id: 'gc-default-rate', last_assistant_message: 'Work done, no table.' }),
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    // No assertion on whether GC happened to fire this particular call (it's
+    // pid-modulo probabilistic) — only that the call itself still completes
+    // correctly with the default (non-forced) rate.
+    expect(existsSync(join(markerRoot(), 'gc-default-rate.blocked'))).toBe(true);
+  });
+});
+
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
-  test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
+  test('wires the verified Claude PreCompact checkpoint and decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
     expect(adapter.verified).toBe(true);
     await adapter.injectHooks(WORKSPACE);
@@ -1109,8 +1614,14 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
 
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('UserPromptSubmit')).toBe(`${hookCommandPath('pd-hook-prompt')} --interactive-context-pressure`);
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
+    // This fixture proves only the provider-native lifecycle registration. It
+    // does not simulate a context packet: the daemon must first bind the
+    // provider session and independently witness usage/tool-pair coverage.
+    expect(cmd('PreCompact')).toBe(hookCommandPath('pd-hook-precompact'));
+    expect(settings.hooks.Stop[settings.hooks.Stop.length - 1].matcher).toBeUndefined();
     expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
     expect(settings.hooks.PostToolUse).toBeUndefined();
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
@@ -1120,6 +1631,10 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
     expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
     expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
+    const preCompact = settings.hooks.PreCompact[settings.hooks.PreCompact.length - 1];
+    expect(preCompact.name).toBe(SQUID_HOOK_METADATA.preCompact.displayName);
+    expect(preCompact.description).toBe(SQUID_HOOK_METADATA.preCompact.description);
+    expect(preCompact.privacy).toBe(SQUID_HOOK_METADATA.preCompact.privacy);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate PD entries)', async () => {
@@ -1179,6 +1694,7 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('BeforeAgent')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('BeforeTool')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('AfterAgent')).toBe(hookCommandPath('pd-hook-stop'));
     expect(cfg.hooks.AfterTool).toBeUndefined();
     // The BeforeTool matcher covers direct edits but deliberately excludes shell.
     const matcher = cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].matcher as string;
@@ -1242,15 +1758,19 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/async = false/);
     expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
     expect(toml).not.toContain('/Cellar/');
-    // UserPromptSubmit is present; observational PostToolUse is deliberately absent.
+    // UserPromptSubmit and the Stop closeout gate are present; observational
+    // PostToolUse is deliberately absent.
     expect(toml).not.toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
+    expect(toml).toMatch(/\[\[hooks\.Stop\]\]/);
+    expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-stop')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
     expect(toml).not.toMatch(/async = true/);
     expect(toml).not.toContain('statusMessage');
-    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
+    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
+    expect(toml).toContain(SQUID_HOOK_METADATA.stop.displayName);
     expect(toml).not.toContain(SQUID_HOOK_METADATA.postTool.displayName);
   });
 
@@ -1357,6 +1877,7 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
     expect(cfg.hooks.PostToolUse).toBeUndefined();
     // The matcher must cover agy's edit tool names (write_to_file/replace_file_content).
     const matcher = cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].matcher as string;
@@ -1714,4 +2235,362 @@ describe('tentaclePath resolution (regression: compiled-binary /bin/ bug)', () =
       expect(p.endsWith(`/bin/${name}`)).toBe(true); // repo bin/, absolute
     });
   }
+});
+
+describe('Giant Squid Harness — ADR-0132 listening watch (halt sentinel)', () => {
+  // Every tentacle consults ~/.port-daddy/HALT ($PD_HOME/HALT) BEFORE any
+  // matrix, dial, or daemon work. These tests pipe real vendor payloads
+  // through the real shell binaries with the sentinel present and absent,
+  // and read back the distress file + the per-session markers.
+  const HALT_LINE = '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/2026-09-05-port-daddy-halt.md';
+  const SENTINEL = join(SCRATCH, 'HALT');
+  const DISTRESS = join(SCRATCH, 'DISTRESS');
+
+  function hoist(text: string = `${HALT_LINE}\n`) {
+    writeFileSync(SENTINEL, text);
+  }
+  function distressLines(): string[] {
+    return existsSync(DISTRESS) ? readFileSync(DISTRESS, 'utf8').trim().split('\n').filter(Boolean) : [];
+  }
+  const env = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
+    ...process.env,
+    PD_HOME: SCRATCH,
+    PD_MATRIX_FILE: MATRIX,
+    PD_HOOK_PROVIDER: 'claude',
+    ...extra,
+  });
+  const runPre = (event: Record<string, unknown>, extra: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-pre-tool'), [], { input: JSON.stringify(event), env: env(extra), encoding: 'utf8' });
+  const runPrompt = (event: Record<string, unknown>, extra: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-prompt'), [], { input: JSON.stringify(event), env: env(extra), encoding: 'utf8' });
+  const runStop = (event: Record<string, unknown>, extra: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], { input: JSON.stringify({ cwd: WORKSPACE, ...event }), env: env(extra), encoding: 'utf8' });
+  const bash = (command: string, session = 'halt-s1') => ({ tool_name: 'Bash', tool_input: { command }, cwd: WORKSPACE, session_id: session });
+
+  test('global disable marker makes every direct tentacle a zero-work no-op', () => {
+    writeFileSync(join(SCRATCH, 'hooks.disabled'), 'operator halt\n');
+    hoist();
+    writeFileSync(MATRIX, 'PD_ALERT_TEST=must-not-be-read\n');
+
+    for (const hook of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
+      const result = spawnSync(bin(hook), ['unread-argument'], {
+        input: JSON.stringify(bash('pd status', `disabled-${hook}`)),
+        env: env({ PD_SITREP: 'enforce' }),
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+    }
+
+    expect(existsSync(DISTRESS)).toBe(false);
+    expect(existsSync(join(SCRATCH, 'squid'))).toBe(false);
+    expect(readFileSync(MATRIX, 'utf8')).toBe('PD_ALERT_TEST=must-not-be-read\n');
+  });
+
+  function pathWithoutJqHalt(): string {
+    const dir = join(SCRATCH, 'no-jq-bin-halt');
+    mkdirSync(dir, { recursive: true });
+    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'date', 'mkdir', 'wc', 'tail', 'basename', 'stat', 'rm']) {
+      const target = join(dir, name);
+      const r = spawnSync('sh', ['-c', `command -v ${name}`], { encoding: 'utf8' });
+      if (r.status === 0 && !existsSync(target)) symlinkSync(r.stdout.trim(), target);
+    }
+    return dir;
+  }
+
+  test('sentinel absent: every tentacle is byte-for-byte its pre-halt self (no distress file, no markers)', () => {
+    const pre = runPre(bash('pd status'));
+    expect(pre.status).toBe(0);
+    expect(pre.stdout).toBe('');
+    expect(pre.stderr).toBe('');
+    const prompt = runPrompt({ prompt: 'hi', cwd: WORKSPACE, session_id: 'halt-s1' }, { PD_SITREP: 'off' });
+    expect(prompt.status).toBe(0);
+    expect(prompt.stdout).toBe('');
+    const stop = runStop({ session_id: 'halt-s1', last_assistant_message: 'done' }, { PD_SITREP: 'off' });
+    expect(stop.status).toBe(0);
+    expect(stop.stdout).toBe('');
+    expect(existsSync(DISTRESS)).toBe(false);
+    expect(existsSync(join(SCRATCH, 'squid', 'halt-watch'))).toBe(false);
+  });
+
+  test('prompt tentacle: SECURITE HALT notice on its own line with the halt text, SEEN once per session, no SITREP compulsion', () => {
+    hoist();
+    const first = runPrompt({ prompt: 'refactor', cwd: WORKSPACE, session_id: 'halt-p1' });
+    expect(first.status).toBe(0);
+    const parsed = JSON.parse(first.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(ctx.split('\n')[0]).toBe('SECURITE HALT');
+    expect(ctx.split('\n')[1]).toBe(HALT_LINE);
+    expect(ctx).toMatch(/only --help\/--version are permitted/);
+    // The SITREP block's scaffold commands are `pd` invocations: withheld under halt.
+    expect(ctx).not.toMatch(/SITREP enforce/);
+    expect(ctx).not.toMatch(/pd sitrep --template/);
+
+    const lines = distressLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z agent:claude:halt-p1 control SEEN ref=2026-09-05T14:02:11Z hook=prompt$/);
+    // Cycle marker opened for pd-hook-stop; SEEN not repeated on the next turn.
+    const marker = join(SCRATCH, 'squid', 'halt-watch', 'halt-p1.2026-09-05T14:02:11Z');
+    expect(existsSync(join(marker, 'cycle'))).toBe(true);
+    const second = runPrompt({ prompt: 'again', cwd: WORKSPACE, session_id: 'halt-p1' });
+    expect(second.status).toBe(0);
+    expect(distressLines()).toHaveLength(1);
+    // A different session answers its own SEEN.
+    runPrompt({ prompt: 'x', cwd: WORKSPACE, session_id: 'halt-p2' });
+    expect(distressLines()).toHaveLength(2);
+  });
+
+  test('prompt tentacle: the halt notice does not need jq, and the coordination alerts still ride beneath it', () => {
+    hoist();
+    process.env.PD_MATRIX_FILE = MATRIX;
+    setAlert('steer-halt', 'STEERING DM: stop and ack before any edit');
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ prompt: 'x', cwd: WORKSPACE, session_id: 'halt-nojq' }),
+      env: { ...env(), PATH: pathWithoutJqHalt() },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout.startsWith('SECURITE HALT\n')).toBe(true);
+    expect(r.stdout).toContain(HALT_LINE);
+    expect(r.stdout).toContain('stop and ack');
+    expect(distressLines()[0]).toContain('agent:claude:halt-nojq control SEEN');
+  });
+
+  describe('pre-tool tentacle block list (each forbidden shape blocks; ordinary work does not)', () => {
+    const blocked: Array<[string, string]> = [
+      ['bare pd', 'pd'],
+      ['pd status', 'pd status'],
+      ['pd begin', 'pd begin --identity port-daddy:x --lifecycle sidequest'],
+      ['port-daddy start', 'port-daddy start'],
+      ['env prefix', 'PORT_DADDY_URL=http://127.0.0.1:1 pd note "x"'],
+      ['chained after ordinary command', 'git status && pd note "x"'],
+      ['piped', 'echo x | pd sitrep'],
+      ['multiline', 'ls\npd spawn something'],
+      ['npx', 'npx port-daddy status'],
+      ['repo bin', './bin/pd dispatch x'],
+      ['node dist', 'node dist/bin/pd.js fleet up'],
+      ['sh -c', "sh -c 'pd status'"],
+      ['sudo', 'sudo pd restart'],
+      ['launchctl load', 'launchctl load ~/Library/LaunchAgents/com.portdaddy.bosun.plist'],
+      ['launchctl enable', 'launchctl enable gui/501/com.portdaddy.daemon'],
+      ['launchctl kickstart', 'launchctl kickstart -k gui/501/com.portdaddy.daemon'],
+      ['launchctl bootstrap', 'launchctl bootstrap gui/501 ~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist'],
+      ['brew services start', 'brew services start port-daddy'],
+      ['brew services restart', 'brew services restart port-daddy'],
+    ];
+    const allowed: Array<[string, string]> = [
+      ['git status', 'git status'],
+      ['pd --help', 'pd --help'],
+      ['pd --version', 'pd --version'],
+      ['port-daddy --version', 'port-daddy --version'],
+      ['pd -h', 'pd -h'],
+      ['echo mentioning pd', 'echo pd status'],
+      ['grep for pd', 'grep -rn "pd begin" docs/'],
+      ['cat the sentinel', 'cat ~/.port-daddy/HALT'],
+      ['launchctl print (read-only)', 'launchctl print gui/501/com.portdaddy.daemon'],
+      ['launchctl disable (the halt direction)', 'launchctl disable gui/501/com.portdaddy.daemon'],
+      ['launchctl kickstart of an unrelated label', 'launchctl kickstart -k gui/501/com.apple.Finder'],
+      ['brew services list', 'brew services list'],
+      ['brew services stop port-daddy', 'brew services stop port-daddy'],
+      ['npm test', 'npm test -- tests/unit/halt-watch.test.ts'],
+    ];
+
+    test.each(blocked)('BLOCKS %s → exit 2, reason opens with SECURITE HALT and names the halt', (_label, command) => {
+      hoist();
+      const r = runPre(bash(command, 'halt-block'));
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      const lines = r.stderr.split('\n');
+      expect(lines[0]).toBe('SECURITE HALT');
+      expect(lines[1]).toBe(HALT_LINE);
+      expect(r.stderr).toMatch(/BLOCKED Bash:/);
+      expect(r.stderr).toMatch(/ref=2026-09-05T14:02:11Z/);
+      // The blocked marker withholds COMPLIED for this cycle.
+      expect(existsSync(join(SCRATCH, 'squid', 'halt-watch', 'halt-block.2026-09-05T14:02:11Z', 'blocked'))).toBe(true);
+    });
+
+    test.each(allowed)('ALLOWS %s → exit 0 with the halt notice as PreToolUse additionalContext', (_label, command) => {
+      hoist();
+      const r = runPre(bash(command, 'halt-allow'));
+      expect(r.status).toBe(0);
+      expect(r.stderr).toBe('');
+      const parsed = JSON.parse(r.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+      expect(parsed.hookSpecificOutput.hookEventName).toBe('PreToolUse');
+      expect(parsed.hookSpecificOutput.additionalContext.startsWith('SECURITE HALT\n')).toBe(true);
+      expect(existsSync(join(SCRATCH, 'squid', 'halt-watch', 'halt-allow.2026-09-05T14:02:11Z', 'blocked'))).toBe(false);
+    });
+
+    test('the allowed-call notice is once per cycle, and silent when the prompt tentacle already carried it', () => {
+      hoist();
+      const first = runPre(bash('git status', 'halt-notice'));
+      expect(JSON.parse(first.stdout).hookSpecificOutput.additionalContext).toMatch(/^SECURITE HALT\n/);
+      const second = runPre(bash('git diff', 'halt-notice'));
+      expect(second.status).toBe(0);
+      expect(second.stdout).toBe('');
+      // The stop tentacle closes the cycle; the next turn may notify once more.
+      runStop({ session_id: 'halt-notice', last_assistant_message: 'x' });
+      expect(runPre(bash('git log', 'halt-notice')).stdout).toMatch(/SECURITE HALT/);
+      // Once the prompt tentacle has opened a cycle it owns the notice: pre-tool stays silent.
+      runPrompt({ prompt: 'x', cwd: WORKSPACE, session_id: 'halt-prompted' });
+      const after = runPre(bash('git status', 'halt-prompted'));
+      expect(after.status).toBe(0);
+      expect(after.stdout).toBe('');
+    });
+
+    test('BLOCKS every mcp__port-daddy__* tool regardless of input', () => {
+      hoist();
+      for (const tool of ['mcp__port-daddy__begin_session', 'mcp__port-daddy__spawn', 'mcp__port-daddy__whoami']) {
+        const r = runPre({ tool_name: tool, tool_input: { identity: 'x' }, cwd: WORKSPACE, session_id: 'halt-mcp' });
+        expect(r.status).toBe(2);
+        expect(r.stderr.split('\n')[0]).toBe('SECURITE HALT');
+        expect(r.stderr).toContain(`BLOCKED ${tool}:`);
+      }
+      // An unrelated MCP server is ordinary work.
+      const other = runPre({ tool_name: 'mcp__github__get_pull_request', tool_input: { n: 1 }, cwd: WORKSPACE, session_id: 'halt-mcp' });
+      expect(other.status).toBe(0);
+    });
+
+    test('Codex argv-array shell tool (["bash","-lc","pd status"]) is blocked; non-Claude providers get no stdout notice', () => {
+      hoist();
+      const r = runPre(
+        { tool_name: 'shell', tool_input: { command: ['bash', '-lc', 'pd status'] }, cwd: WORKSPACE, session_id: 'halt-codex' },
+        { PD_HOOK_PROVIDER: 'codex' },
+      );
+      expect(r.status).toBe(2);
+      expect(r.stderr.split('\n')[0]).toBe('SECURITE HALT');
+      const ok = runPre(
+        { tool_name: 'shell', tool_input: { command: ['bash', '-lc', 'git status'] }, cwd: WORKSPACE, session_id: 'halt-codex' },
+        { PD_HOOK_PROVIDER: 'codex' },
+      );
+      expect(ok.status).toBe(0);
+      expect(ok.stdout).toBe(''); // Codex: no raw stdout on exit 0
+      expect(distressLines()[0]).toContain('agent:codex:halt-codex control SEEN');
+    });
+
+    test('camelCase app-server / agy shape → exit 0 + deny JSON whose reason opens with SECURITE HALT', () => {
+      hoist();
+      const r = runPre({ toolName: 'Bash', toolInput: { command: 'pd status' }, cwd: WORKSPACE, sessionId: 'halt-camel' }, { PD_HOOK_PROVIDER: 'agy' });
+      expect(r.status).toBe(0);
+      const parsed = JSON.parse(r.stdout) as { hookSpecificOutput: Record<string, string> };
+      expect(parsed.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(parsed.hookSpecificOutput.decision).toBe('block');
+      expect(parsed.hookSpecificOutput.permissionDecisionReason.startsWith('SECURITE HALT\n')).toBe(true);
+      expect(parsed.hookSpecificOutput.message).toContain(HALT_LINE);
+    });
+
+    test('the block list works without jq (string command and argv array)', () => {
+      hoist();
+      const noJq = { ...env(), PATH: pathWithoutJqHalt() };
+      const s = spawnSync(bin('pd-hook-pre-tool'), [], { input: JSON.stringify(bash('git fetch && pd guard status', 'halt-nojq-pre')), env: noJq, encoding: 'utf8' });
+      expect(s.status).toBe(2);
+      expect(s.stderr.split('\n')[0]).toBe('SECURITE HALT');
+      const a = spawnSync(bin('pd-hook-pre-tool'), [], {
+        input: JSON.stringify({ tool_name: 'shell', tool_input: { command: ['bash', '-lc', 'pd status'] }, cwd: WORKSPACE, session_id: 'halt-nojq-pre' }),
+        env: noJq, encoding: 'utf8',
+      });
+      expect(a.status).toBe(2);
+      const ok = spawnSync(bin('pd-hook-pre-tool'), [], { input: JSON.stringify(bash('git status', 'halt-nojq-pre')), env: noJq, encoding: 'utf8' });
+      expect(ok.status).toBe(0);
+    });
+
+    test('the halt gate runs before the matrix early-exit and the lock gate still applies to allowed edits', () => {
+      hoist();
+      rmSync(MATRIX, { force: true }); // no matrix at all → the old first line would have exited 0
+      expect(runPre(bash('pd status', 'halt-nomatrix')).status).toBe(2);
+      // With a foreign lock, an allowed Edit during the halt is still lock-gated.
+      process.env.PD_MATRIX_FILE = MATRIX;
+      setLock('/repo/src/auth.ts', 'agent_alpha');
+      const r = runPre({ tool_name: 'Edit', tool_input: { file_path: '/repo/src/auth.ts' }, cwd: '/repo', session_id: 'halt-lock' }, { PD_ACTOR: 'agent_beta' });
+      expect(r.status).toBe(2);
+      expect(r.stderr).toMatch(/locked by actor 'agent_alpha'/);
+    });
+
+    test('a halted shell call returns fast enough to be a breaker, not a stall', () => {
+      hoist();
+      const started = Date.now();
+      runPre(bash('git status && pd note x', 'halt-timing'));
+      // 250 is the wrapper's PRODUCTION breaker budget: the work the hook does
+      // once it is running. What this measures is a spawnSync of the real
+      // binary, so it also pays process creation and Node startup, which are
+      // the test harness's cost and not the gate's. On GitHub's macos-latest
+      // runners that overhead alone put this at 297ms (2026-09-09) and
+      // dequeued the merge queue for a gate that had not slowed down at all.
+      // The sibling GC test above hit the same wall in August and settled on a
+      // generous multiple for the same reason; this one takes 1500ms, six
+      // times the production budget and five times the slowest observation.
+      // What it still catches is the regression worth catching: a halt gate
+      // that stops short-circuiting and starts doing work proportional to the
+      // repository takes seconds, not milliseconds.
+      expect(Date.now() - started).toBeLessThan(1_500);
+    });
+  });
+
+  test('stop tentacle: closes the cycle — COMPLIED after a clean prompt→stop cycle, withheld after a blocked call, once per session', () => {
+    hoist();
+    // Turn 1: prompt opens the cycle, a pd call is blocked, stop consumes the marker silently.
+    runPrompt({ prompt: 'a', cwd: WORKSPACE, session_id: 'halt-cycle' });
+    expect(runPre(bash('pd status', 'halt-cycle')).status).toBe(2);
+    let stop = runStop({ session_id: 'halt-cycle', last_assistant_message: 'no table here' });
+    expect(stop.status).toBe(0); // no SITREP block during a halt
+    expect(distressLines().filter((l) => l.includes('COMPLIED'))).toHaveLength(0);
+    // Turn 2: clean cycle → COMPLIED exactly once; the Claude notice rides along.
+    runPrompt({ prompt: 'b', cwd: WORKSPACE, session_id: 'halt-cycle' });
+    expect(runPre(bash('git status', 'halt-cycle')).status).toBe(0);
+    stop = runStop({ session_id: 'halt-cycle', last_assistant_message: 'no table here' });
+    expect(stop.status).toBe(0);
+    const notice = JSON.parse(stop.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+    expect(notice.hookSpecificOutput.hookEventName).toBe('Stop');
+    expect(notice.hookSpecificOutput.additionalContext.startsWith('SECURITE HALT\n')).toBe(true);
+    const lines = distressLines();
+    expect(lines.filter((l) => l.includes('agent:claude:halt-cycle control SEEN'))).toHaveLength(1);
+    expect(lines.filter((l) => l.includes('agent:claude:halt-cycle control COMPLIED ref=2026-09-05T14:02:11Z hook=stop'))).toHaveLength(1);
+    // Turn 3: no second COMPLIED.
+    runPrompt({ prompt: 'c', cwd: WORKSPACE, session_id: 'halt-cycle' });
+    runStop({ session_id: 'halt-cycle', last_assistant_message: 'x' });
+    expect(distressLines().filter((l) => l.includes('COMPLIED'))).toHaveLength(1);
+  });
+
+  test('stop tentacle: a stop with no prior prompt this session emits SEEN but not COMPLIED (no full cycle yet); non-Claude stays silent', () => {
+    hoist();
+    const r = runStop({ session_id: 'halt-stop-only', last_assistant_message: 'x' }, { PD_HOOK_PROVIDER: 'codex' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    const lines = distressLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('agent:codex:halt-stop-only control SEEN ref=2026-09-05T14:02:11Z hook=stop');
+  });
+
+  test('precompact and post-tool tentacles answer SEEN and never reach the daemon shim', () => {
+    hoist();
+    const pre = spawnSync(bin('pd-hook-precompact'), [], {
+      input: JSON.stringify({ session_id: 'halt-compact', trigger: 'manual', cwd: WORKSPACE }),
+      env: env({ PD_SQUID_CLI: '/nonexistent/pd-must-not-run' }),
+      encoding: 'utf8',
+    });
+    expect(pre.status).toBe(0);
+    expect(pre.stdout).toBe('');
+    const post = spawnSync(bin('pd-hook-post-tool'), [], {
+      input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: `${WORKSPACE}/x.ts` }, cwd: WORKSPACE, session_id: 'halt-post' }),
+      env: env(),
+      encoding: 'utf8',
+    });
+    expect(post.status).toBe(0);
+    const lines = distressLines();
+    expect(lines.some((l) => l.includes('agent:claude:halt-compact control SEEN') && l.endsWith('hook=precompact'))).toBe(true);
+    expect(lines.some((l) => l.includes('agent:claude:halt-post control SEEN') && l.endsWith('hook=post-tool'))).toBe(true);
+  });
+
+  test('repo-scoped distress: a cwd inside a .portdaddy project also gets the line; a bare touch sentinel still halts', () => {
+    hoist('');
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const r = runPre(bash('pd status', 'halt-repo'));
+    expect(r.status).toBe(2);
+    expect(r.stderr.split('\n')[1]).toMatch(/^SECURITE HALT \(sentinel present, no text\)/);
+    const repoLines = readFileSync(join(WORKSPACE, '.portdaddy', 'DISTRESS'), 'utf8').trim().split('\n');
+    expect(repoLines).toHaveLength(1);
+    expect(repoLines[0]).toContain('agent:claude:halt-repo control SEEN ref=sentinel');
+    expect(distressLines()).toEqual(repoLines);
+  });
 });

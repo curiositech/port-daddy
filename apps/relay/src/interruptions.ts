@@ -38,6 +38,14 @@
  *     breaker (KV 'interruptions:breaker'): 3 consecutive failures open it for
  *     one sweep cycle; ≤2 in-call retries with full jitter; 4xx is NEVER
  *     retried; Retry-After on 429/503 is honored (breaker opens that long).
+ *   - TWO TRANSPORTS, ONE SCHEDULE: each page decision fans out to the JSON
+ *     webhook AND to APNs (src/push-apns.ts — the operator's registered iOS
+ *     devices). "Delivered" for stage advancement / the page ledger means AT
+ *     LEAST ONE transport delivered; pushes therefore ride the SAME decaying
+ *     jittered next_nag_at, never a cadence of their own. The breaker is
+ *     webhook-scoped: APNs failures never trip it, and an open breaker never
+ *     silences APNs. With neither transport configured, asks are still
+ *     recorded and expired — nobody is paged (the mercy contract).
  *   - KILL SWITCH: KV 'interruptions:paused' truthy ⇒ the sweep no-ops.
  *
  * CREATION RATE LIMIT: at most CREATE_LIMIT_PER_HOUR interruptions per
@@ -50,6 +58,7 @@ import type { Env } from './types.js';
 import { randomHex } from './crypto.js';
 import { resolveSession, isSameOrigin } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
+import { apnsConfigured, sendInterruptionPushes, type ApnsPushMessage } from './push-apns.js';
 import { HEAD, TOKENS } from './account-page.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -444,19 +453,38 @@ export async function runInterruptionNagSweep(
   ];
 
   const url = env.MERCY_PAGE_WEBHOOK;
-  if (!url || candidates.length === 0) {
-    // No webhook ⇒ asks are still recorded, expired, and visible on /account —
-    // nobody is paged (the mercy contract). Nothing due ⇒ done.
+  const apnsOn = apnsConfigured(env);
+  if ((!url && !apnsOn) || candidates.length === 0) {
+    // No transport at all ⇒ asks are still recorded, expired, and visible on
+    // /account — nobody is paged (the mercy contract). Nothing due ⇒ done.
+    //
+    // Say so when there is something that WOULD have been paged. Inert is the
+    // correct state for a deployment with no secrets set, so logging it on
+    // every empty sweep would be noise; logging it when asks were actually
+    // waiting answers the operator question this silence otherwise raises —
+    // "I have open interruptions and my phone never rang."
+    if (!url && !apnsOn && candidates.length > 0) {
+      console.info(
+        `[interruptions] ${candidates.length} ask(s) due but no transport configured ` +
+          '(MERCY_PAGE_WEBHOOK unset, APNs secrets unset); recording only, nobody paged',
+      );
+    }
     await prune(env, now, result.errors);
     return result;
   }
 
-  // 4. Circuit breaker: open ⇒ skip ALL posting this sweep (fail fast).
-  const breaker = await readBreaker(env);
-  if (now < breaker.openUntil) {
+  // 4. Circuit breaker — WEBHOOK-scoped: open ⇒ no webhook posts this sweep
+  //    (fail fast), but APNs (its own transport with its own failure handling)
+  //    still delivers when configured. With no APNs that is the old early out.
+  let breaker: BreakerState = { failures: 0, openUntil: 0 };
+  if (url) breaker = await readBreaker(env);
+  const webhookAllowed = Boolean(url) && now >= breaker.openUntil;
+  if (url && !webhookAllowed) {
     result.breakerOpen = true;
-    await prune(env, now, result.errors);
-    return result;
+    if (!apnsOn) {
+      await prune(env, now, result.errors);
+      return result;
+    }
   }
 
   // 5. Group by operator and enforce the per-operator page budget.
@@ -470,8 +498,46 @@ export async function runInterruptionNagSweep(
   let consecutiveFailures = breaker.failures;
   let breakerTrippedUntil = 0;
 
+  /**
+   * One page decision, fanned out over both transports. "Delivered" means AT
+   * LEAST ONE transport delivered — that single bit advances the stage and
+   * writes the ledger row, so the decay schedule stays transport-agnostic:
+   * APNs pushes ride the SAME jittered next_nag_at, never a schedule of their
+   * own. Webhook outcomes feed the webhook breaker exactly as before; APNs
+   * outcomes never touch it (a dead Apple endpoint must not silence the
+   * webhook, and an open webhook breaker must not silence APNs). A tripped
+   * breaker stops further webhook posts mid-sweep via the guard below.
+   */
+  const deliverPage = async (
+    userId: string,
+    webhookBody: Record<string, unknown>,
+    push: ApnsPushMessage,
+  ): Promise<boolean> => {
+    let delivered = false;
+    if (webhookAllowed && url && breakerTrippedUntil === 0) {
+      const outcome = await postPageOnce(url, webhookBody, rand, sleep);
+      if (outcome.delivered) {
+        consecutiveFailures = 0;
+        delivered = true;
+      } else {
+        consecutiveFailures++;
+        if (outcome.retryAfterSec != null) {
+          breakerTrippedUntil = now + Math.max(outcome.retryAfterSec, SWEEP_INTERVAL_SECONDS);
+        } else if (consecutiveFailures >= BREAKER_FAILURE_THRESHOLD) {
+          breakerTrippedUntil = now + SWEEP_INTERVAL_SECONDS;
+        }
+      }
+    }
+    if (apnsOn) {
+      const pushed = await sendInterruptionPushes(env, userId, push);
+      if (pushed.delivered) delivered = true;
+    }
+    return delivered;
+  };
+
   for (const [userId, list] of byUser) {
-    if (breakerTrippedUntil > 0) break; // tripped mid-sweep — stop hammering
+    // Webhook breaker tripped mid-sweep AND no APNs ⇒ nothing left to deliver.
+    if (breakerTrippedUntil > 0 && !apnsOn) break;
     try {
       const sent = await pagesInWindow(env, userId, now - BUDGET_WINDOW_SECONDS);
       const overBudget = sent + list.length > PAGE_BUDGET_PER_HOUR;
@@ -482,8 +548,8 @@ export async function runInterruptionNagSweep(
         if (digests > 0) continue; // digest already sent — stay quiet; dues stay pending
         const summary = await openInterruptionsSummary(env.DB, userId);
         const top = summary.top;
-        const outcome = await postPageOnce(
-          url,
+        const delivered = await deliverPage(
+          userId,
           {
             source: 'port-daddy-relay/interruptions',
             kind: 'digest',
@@ -493,11 +559,16 @@ export async function runInterruptionNagSweep(
             top_urgency: top?.urgency ?? null,
             at: now,
           },
-          rand,
-          sleep,
+          {
+            kind: 'digest',
+            title: `${summary.count} asks waiting on you`,
+            body: top ? `Top: ${top.title}` : undefined,
+            urgency: top?.urgency ?? 'normal',
+            interruptionId: top?.id ?? null,
+            openCount: summary.count,
+          },
         );
-        if (outcome.delivered) {
-          consecutiveFailures = 0;
+        if (delivered) {
           result.digestsSent++;
           await insertPageLedger(env, userId, 'digest', now);
           // Digest delivery counts as delivery for every collapsed candidate:
@@ -509,22 +580,15 @@ export async function runInterruptionNagSweep(
                 .bind(now, c.row.id)
                 .run();
           }
-        } else {
-          consecutiveFailures++;
-          if (outcome.retryAfterSec != null) {
-            breakerTrippedUntil = now + Math.max(outcome.retryAfterSec, SWEEP_INTERVAL_SECONDS);
-          } else if (consecutiveFailures >= BREAKER_FAILURE_THRESHOLD) {
-            breakerTrippedUntil = now + SWEEP_INTERVAL_SECONDS;
-          }
         }
         continue;
       }
 
       // Within budget: one page per due candidate.
       for (const c of list) {
-        if (breakerTrippedUntil > 0) break;
-        const outcome = await postPageOnce(
-          url,
+        if (breakerTrippedUntil > 0 && !apnsOn) break;
+        const delivered = await deliverPage(
+          userId,
           {
             source: 'port-daddy-relay/interruptions',
             kind: c.kind,
@@ -537,11 +601,19 @@ export async function runInterruptionNagSweep(
             created_at: c.row.created_at,
             at: now,
           },
-          rand,
-          sleep,
+          {
+            kind: c.kind,
+            title: c.row.title,
+            body:
+              c.kind === 'nag'
+                ? `${c.row.source_agent} is blocked — nag ${c.row.nag_count + 1}/${MAX_NAGS}`
+                : `Gave up after ${c.row.nag_count} nags — expired unanswered`,
+            urgency: c.row.urgency,
+            interruptionId: c.row.id,
+            nagCount: c.row.nag_count,
+          },
         );
-        if (outcome.delivered) {
-          consecutiveFailures = 0;
+        if (delivered) {
           await insertPageLedger(env, userId, c.kind, now);
           if (c.kind === 'nag') {
             result.nagsSent++;
@@ -552,13 +624,6 @@ export async function runInterruptionNagSweep(
               .bind(now, now, c.row.id)
               .run();
           }
-        } else {
-          consecutiveFailures++;
-          if (outcome.retryAfterSec != null) {
-            breakerTrippedUntil = now + Math.max(outcome.retryAfterSec, SWEEP_INTERVAL_SECONDS);
-          } else if (consecutiveFailures >= BREAKER_FAILURE_THRESHOLD) {
-            breakerTrippedUntil = now + SWEEP_INTERVAL_SECONDS;
-          }
         }
       }
     } catch (e) {
@@ -566,10 +631,15 @@ export async function runInterruptionNagSweep(
     }
   }
 
-  await writeBreaker(env, {
-    failures: consecutiveFailures,
-    openUntil: breakerTrippedUntil,
-  });
+  // Persist webhook breaker state only when webhook posting was permitted this
+  // sweep — an APNs-only pass (breaker open, or no webhook configured) must
+  // never clobber the parked openUntil.
+  if (webhookAllowed) {
+    await writeBreaker(env, {
+      failures: consecutiveFailures,
+      openUntil: breakerTrippedUntil,
+    });
+  }
 
   await prune(env, now, result.errors);
   return result;

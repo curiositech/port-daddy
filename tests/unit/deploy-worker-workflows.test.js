@@ -59,7 +59,11 @@ describe('worker deploy workflows', () => {
 });
 
 describe('committed wrangler.deploy.toml files carry no credentials', () => {
-  const SECRETY = /^(?!\s*#).*\b\w*(TOKEN|SECRET|PASSWORD|PRIVATE_KEY|API_KEY)\w*\s*=/i;
+  // TOKEN(?!S\b) excludes a plural "...TOKENS" key (a count, e.g. a chat
+  // budget) from the credential-shaped match, while still catching every
+  // singular TOKEN key ("TOKEN=", "API_TOKEN=", "AUTH_TOKEN_VALUE=") and any
+  // TOKEN that isn't immediately followed by a lone trailing "S".
+  const SECRETY = /^(?!\s*#).*\b\w*(TOKEN(?!S\b)|SECRET|PASSWORD|PRIVATE_KEY|API_KEY)\w*\s*=/i;
   const appsDir = resolve('apps');
   const committed = readdirSync(appsDir)
     .map(app => join(appsDir, app, 'wrangler.deploy.toml'))

@@ -42,8 +42,9 @@ fn first_s(v: &Value, keys: &[&str]) -> String {
 }
 
 /// One session point on the map: a `fleet_transcripts` row the daemon embedded
-/// and projected. `id` is the transcript id (the key for `GET /galaxy/session/:id`);
-/// `agent_id` is the PARLEY party id (`spawned_agent_id`) — never the session id.
+/// and projected. `id` is the transcript id (the key for `GET /galaxy/session/:id`).
+/// Parley calls send `session_id`; the daemon resolves actor, inbox, and lineage
+/// authority from that durable session instead of trusting client-supplied parties.
 #[derive(Debug, Clone)]
 pub struct GalaxyPoint {
     pub id: String,
@@ -326,6 +327,24 @@ pub fn distinct_agents(points: &[GalaxyPoint], selected: &HashSet<String>) -> Ve
     for p in points.iter().filter(|p| selected.contains(&p.id)) {
         if !p.agent_id.is_empty() && seen.insert(p.agent_id.clone()) {
             out.push(p.agent_id.clone());
+        }
+    }
+    out
+}
+
+/// Distinct durable session ids across the selected transcript points.
+///
+/// These are the only participant references a manual Parley call may send.
+/// Points without a session id remain inspectable but cannot grant participant
+/// authority, so they are omitted rather than downgraded to an agent id.
+pub fn distinct_sessions(points: &[GalaxyPoint], selected: &HashSet<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for p in points.iter().filter(|p| selected.contains(&p.id)) {
+        if let Some(session_id) = p.session_id.as_ref().filter(|id| !id.is_empty()) {
+            if seen.insert(session_id.clone()) {
+                out.push(session_id.clone());
+            }
         }
     }
     out
@@ -1250,6 +1269,23 @@ mod tests {
         let two = distinct_agents(&points, &selected(&["tr-1", "tr-2", "tr-3"]));
         assert_eq!(two, vec!["agent-a".to_string(), "agent-b".to_string()]);
         assert!(distinct_agents(&points, &HashSet::new()).is_empty());
+    }
+
+    #[test]
+    fn distinct_sessions_is_the_manual_parley_authority_input() {
+        let (mut points, _, _) = from_value(&map_fixture());
+        points[1].session_id = Some("sess-2".into());
+        points[2].session_id = Some("sess-1".into());
+
+        let sessions = distinct_sessions(&points, &selected(&["tr-1", "tr-2", "tr-3"]));
+        assert_eq!(sessions, vec!["sess-1".to_string(), "sess-2".to_string()]);
+
+        points[1].session_id = None;
+        assert_eq!(
+            distinct_sessions(&points, &selected(&["tr-1", "tr-2"])),
+            vec!["sess-1".to_string()],
+            "an unbound transcript never falls back to its client-visible agent id"
+        );
     }
 
     #[test]

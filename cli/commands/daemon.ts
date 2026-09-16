@@ -46,6 +46,8 @@ import {
   type LaunchdSupervisorSnapshot,
   type RuntimeIdentityAssessment,
 } from '../../lib/daemon-runtime.js';
+import { displayPathRelativeToHome } from '../utils/display-path.js';
+import { assertLocalRuntimeEnabled } from '../../lib/local-runtime-control.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -76,12 +78,27 @@ function isBunCompiledBinary(): boolean {
  * analyzer to bundle server.ts (and its transitive imports) into the binary.
  */
 export async function runDaemonInProcess(): Promise<never> {
+  assertLocalRuntimeEnabled();
   await import('../../server.js');
   return new Promise<never>(() => {});
 }
 
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const PROFILE_STARTUP_TIMEOUT_MS = 30000;
+
+/**
+ * Keeps daemon-profile provenance legible without printing a user's full home
+ * path. Delegating to the shared formatter keeps Squid's model-context panel
+ * and daemon lifecycle output honest about the same local path.
+ *
+ * @param path runtime path supplied by a daemon profile, including a missing
+ *   legacy field when a degraded profile still needs a readable status line.
+ * @param home optional home override used by deterministic display tests.
+ * @returns a home-collapsed path or `-` when the runtime field is absent.
+ */
+export function displayDaemonPath(path: string | null | undefined, home?: string): string {
+  return displayPathRelativeToHome(path, home);
+}
 
 interface DaemonCommandOptions {
   [key: string]: unknown;
@@ -441,6 +458,7 @@ function daemonLaunchCommand(libDir: string): DaemonLaunchCommand {
 }
 
 function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof spawn>[2] = {}): ChildProcess {
+  assertLocalRuntimeEnabled();
   return spawn(command.program, command.args, {
     ...options,
     env: mergeJscSafeModeEnv(
@@ -452,6 +470,7 @@ function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof sp
 }
 
 export async function handleDaemonCommand(positional: string[], options: DaemonCommandOptions = {}): Promise<void> {
+  if (['start', 'restart', 'create'].includes(positional[0])) assertLocalRuntimeEnabled();
   const action = positional[0] || 'list';
   const libDir: string = join(__dirname, '..', '..');
 
@@ -531,6 +550,7 @@ export async function handleDaemonCommand(positional: string[], options: DaemonC
             port: preferredPort,
             enableFleet: options.fleet === true,
             enableFleetBar: options.fleetbar === true,
+            sourceDir: libDir,
           }),
           stdio: ['ignore', logFd, logFd],
           detached: true,
@@ -573,9 +593,9 @@ export async function handleDaemonCommand(positional: string[], options: DaemonC
         console.log(JSON.stringify({ success: true, profile: state }, null, 2));
       } else {
         ui.success(`Daemon profile "${profile.name}" running (PID ${state.pid})`);
-        console.log(`  Runtime: ${state.runtimeDir}`);
-        console.log(`  Socket: ${state.socketPath}`);
-        console.log(`  Log: ${profile.logFile}`);
+        console.log(`  Runtime: ${displayDaemonPath(state.runtimeDir)}`);
+        console.log(`  Socket: ${displayDaemonPath(state.socketPath)}`);
+        console.log(`  Log: ${displayDaemonPath(profile.logFile)}`);
         console.log(`  URL: ${profileUrl(state) ?? '-'}`);
         console.log(`  Use: eval "$(pd daemon env ${profile.name})"`);
       }
@@ -764,6 +784,7 @@ async function attemptDaemonStart(command: DaemonLaunchCommand): Promise<boolean
  * Handle `pd start|stop|restart|install|uninstall` command
  */
 export async function handleDaemon(action: string, options: Record<string, unknown> = {}): Promise<void> {
+  if (action !== 'stop' && action !== 'uninstall') assertLocalRuntimeEnabled();
   const libDir: string = join(__dirname, '..', '..');
   const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
   const installScript: string = join(libDir, 'install-daemon.ts');
@@ -968,6 +989,7 @@ export async function handleDaemon(action: string, options: Record<string, unkno
  * Handle `pd dev` command — development mode with file watching
  */
 export async function handleDev(): Promise<void> {
+  assertLocalRuntimeEnabled();
   const libDir: string = join(__dirname, '..', '..');
 
   const filesToWatch: string[] = listRuntimeSourceFiles(libDir);

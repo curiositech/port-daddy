@@ -37,7 +37,7 @@ Both advance time. Both represent e being attempted. But they lead to different 
 
 ## Why This Matters: Committed Action Under Uncertainty
 
-Consider a WinDAGs agent tasked with calling an external API. The agent forms the intention:
+Consider a Jury-rig agent tasked with calling an external API. The agent forms the intention:
 
 `INTEND(does(call_api))`
 
@@ -137,7 +137,7 @@ This is **NOT** requiring true beliefs. It's requiring **belief coherence**:
 
 ## Application: Multi-Step Task Orchestration
 
-Consider a WinDAGs orchestration task with three steps:
+Consider a Jury-rig orchestration task with three steps:
 
 1. Route request to agent A
 2. Agent A processes request  
@@ -229,7 +229,7 @@ This is a strong architectural constraint: no reactive behaviors, no unexpected 
 
 ## Practical Guidance for Skill Systems
 
-When designing a WinDAGs skill invocation system:
+When designing a Jury-rig skill invocation system:
 
 ### 1. Separate Attempt from Success in Skill Signatures
 

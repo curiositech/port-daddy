@@ -3,7 +3,7 @@
 Load when justifying a style decision, teaching the style, or proposing template changes. Each principle: statement, source, one-line justification.
 
 1. **Concrete before abstract; examples before definitions.** Sanderson/3Blue1Brown (SoME principles, 3blue1brown.com/about): "Concrete before abstract... typically backwards to how we think about things once we understand them." Novices generalize from populated examples, not the reverse.
-2. **Say one thing, to someone.** Halmos, "How to Write Mathematics," L'Enseignement Mathématique 1970: have one main point; address one real reader. One load-bearing idea is what survives.
+2. **Say one thing, to someone.** Halmos, "How to Write Mathematics," L'Enseignement Mathématique 1970: have one main point; address one real reader. One governing idea is what survives.
 3. **Rigor is a stage, not the start.** Tao, "There's more to mathematics than rigour and proofs" (blog): pre-rigorous → rigorous → post-rigorous. Meet readers pre-rigorous; carry them up.
 4. **Analogies map relations, not attributes.** Gentner, "Structure-Mapping," Cognitive Science 7(2), 1983: relations between objects map; systematicity governs which. A structural analogy lets the reader derive new facts; a surface one misleads.
 5. **Worked examples beat unguided problem-solving for newcomers.** Sweller & Cooper, Cognition & Instruction 2(1), 1985: ~half the time, ~1/5 the errors on transfer. Worked steps build the schema without search-thrashing.

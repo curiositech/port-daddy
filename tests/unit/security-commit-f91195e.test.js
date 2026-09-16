@@ -12,6 +12,8 @@
 
 import { jest } from '@jest/globals';
 import { randomBytes, createHmac } from 'node:crypto';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 // =============================================================================
 // Shared node:fs mock — affects both note-encryption and webhooks imports
@@ -32,6 +34,10 @@ jest.unstable_mockModule('node:fs', () => ({
   statSync: mockStatSync,
   chmodSync: mockChmodSync,
 }));
+
+// Keep this default-install regression suite on its mocked filesystem even when
+// the test runner deliberately selects a private PD_HOME for other suites.
+jest.unstable_mockModule('../../shared/paths.js', () => ({ PD_HOME: join(homedir(), '.port-daddy') }));
 
 // Import AFTER mock registration
 const { createNoteEncryption } = await import('../../lib/note-encryption.js');
@@ -114,16 +120,17 @@ describe('note-encryption: verifyPermissions', () => {
     expect(createNoteEncryption().isEnabled()).toBe(false);
   });
 
-  // FIXED: `masterKey = null` in catch block covers the regen path too.
-  test('isEnabled() returns false when regen write fails after wrong-length key', () => {
+  // Existing key corruption is never a request to replace encryption identity.
+  test('invalid existing key throws without any regeneration write', () => {
     mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(randomBytes(16)); // 16 bytes → triggers regen
+    mockReadFileSync.mockReturnValue(randomBytes(16));
     mockMkdirSync.mockImplementation(() => {});
     mockWriteFileSync.mockImplementation(() => {
       throw new Error('Read-only filesystem');
     });
 
-    expect(createNoteEncryption().isEnabled()).toBe(false);
+    expect(() => createNoteEncryption()).toThrow(/invalid.*length/i);
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
   });
 
   // FIXED: unwritten ephemeral key. masterKey is null after catch, so isEnabled()

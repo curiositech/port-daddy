@@ -10,7 +10,6 @@ import { jest } from '@jest/globals';
 import { createAgentInbox } from '../../lib/agent-inbox.js';
 import { createMessaging } from '../../lib/messaging.js';
 import { createAttention } from '../../lib/attention.js';
-import { createTupleSpace } from '../../lib/tuples.js';
 import { createParley } from '../../lib/parley.js';
 import {
   rankAttentionSuggestions,
@@ -273,8 +272,12 @@ describe('attention.compose', () => {
 
   test('parley summons are delivered through inbox and surface in attention', () => {
     const { db, attention, inbox } = setup();
-    const tuples = createTupleSpace(db);
-    const parley = createParley({ tuples, agentInbox: inbox, now: () => 1_700_000_000_000 });
+    const parley = createParley({
+      db,
+      tenantId: 'attention-test',
+      agentInbox: inbox,
+      now: () => 1_700_000_000_000,
+    });
 
     const opened = parley.call({
       surface: 'lib/sessions.ts',
@@ -302,8 +305,12 @@ describe('attention.compose', () => {
 
   test('parley turns are fanned out through inbox and surface in attention', () => {
     const { db, attention, inbox } = setup();
-    const tuples = createTupleSpace(db);
-    const parley = createParley({ tuples, agentInbox: inbox, now: () => 1_700_000_000_000 });
+    const parley = createParley({
+      db,
+      tenantId: 'attention-test',
+      agentInbox: inbox,
+      now: () => 1_700_000_000_000,
+    });
 
     const opened = parley.call({
       surface: 'lib/sessions.ts',

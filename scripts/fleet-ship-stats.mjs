@@ -14,6 +14,13 @@
  * live evidence — see the standing rule in
  * skills/port-daddy-internal-dev/references/cloudflare-model-roster.md.
  *
+ * Also reads `fleet_ai_call_stats` (2026-08-23): one aggregate row per
+ * (run_id, ship) recording Workers AI call count/timeouts/errors/elapsed time
+ * for that ship, written once per ship by `recordShipAiCallStats` in
+ * apps/fleet-executor/src/execute.ts. A ship that keeps hitting its
+ * configured deadline (`timeouts > 0` here) is the signal to raise that
+ * repository's AI call timeout on `/account/repos`, not to guess.
+ *
  * Usage:
  *   node scripts/fleet-ship-stats.mjs [--days 14] [--database port-daddy-relay] \
  *     [--config apps/fleet-executor/wrangler.deploy.toml]
@@ -38,9 +45,10 @@ import { execFileSync } from 'node:child_process';
  * inlining cannot be an injection surface.
  *
  * @param {number} days trailing window in days (positive integer)
- * @returns {{spend: string, health: string, purser: string, runs: string}}
+ * @returns {{spend: string, health: string, purser: string, runs: string, aiCalls: string}}
  *   named SQL strings: spend by ship×model, step-health by ship, the purser
- *   authoring funnel, and the run-verdict mix
+ *   authoring funnel, the run-verdict mix, and aggregate Workers AI call
+ *   latency/timeout stats by ship
  */
 export function buildQueries(days) {
   if (!Number.isInteger(days) || days <= 0) {
@@ -53,6 +61,11 @@ export function buildQueries(days) {
       `SUM(output_tokens) AS out_tok, ROUND(SUM(cost_usd), 4) AS usd ` +
       `FROM fleet_run_spend WHERE created_at > ${since} ` +
       `GROUP BY ship, model ORDER BY ship, calls DESC`,
+    aiCalls:
+      `SELECT ship, SUM(calls) AS calls, SUM(timeout_calls) AS timeouts, SUM(error_calls) AS errors, ` +
+      `SUM(total_elapsed_ms) AS total_ms, MAX(max_elapsed_ms) AS max_ms ` +
+      `FROM fleet_ai_call_stats WHERE created_at > ${since} ` +
+      `GROUP BY ship ORDER BY timeouts DESC, max_ms DESC`,
     health:
       `SELECT ship, kind, COUNT(*) AS n FROM fleet_run_steps ` +
       `WHERE created_at > ${since} AND kind IN ` +
@@ -89,10 +102,12 @@ export function buildQueries(days) {
  * @param {Array<object>} data.health rows from the health query
  * @param {Array<object>} data.purser rows from the purser-funnel query
  * @param {Array<object>} data.runs rows from the run-verdict query
+ * @param {Array<object>} [data.aiCalls] rows from the AI-call-latency query
+ *   (optional so older callers/fixtures without it still render)
  * @param {number} data.days the window, echoed in headers
  * @returns {string} the rendered scoreboard
  */
-export function renderShipStats({ spend, health, purser, runs, days }) {
+export function renderShipStats({ spend, health, purser, runs, aiCalls = [], days }) {
   const out = [];
   const pad = (v, w) => String(v ?? '').padEnd(w);
   const num = (v, w) => String(v ?? 0).padStart(w);
@@ -132,6 +147,19 @@ export function renderShipStats({ spend, health, purser, runs, days }) {
         k['ship-repair'],
         8,
       )}`,
+    );
+  }
+  out.push('');
+
+  out.push('WORKERS AI CALL LATENCY BY SHIP (aggregate, not per-call — see FleetAiCircuit.runForShip)');
+  out.push(`${pad('ship', 20)}${num('calls', 7)}${num('timeouts', 9)}${num('errors', 8)}${num('avg_ms', 8)}${num('max_ms', 8)}`);
+  for (const r of aiCalls) {
+    const avgMs = r.calls > 0 ? Math.round(Number(r.total_ms) / Number(r.calls)) : 0;
+    out.push(
+      `${pad(r.ship, 20)}${num(r.calls, 7)}${num(r.timeouts, 9)}${num(r.errors, 8)}${num(avgMs, 8)}${num(
+        r.max_ms,
+        8,
+      )}${Number(r.timeouts) > 0 ? '  ← hit the deadline; consider raising it on /account/repos' : ''}`,
     );
   }
   out.push('');
@@ -230,6 +258,7 @@ function main() {
       health: runQuery(opts, q.health),
       purser: runQuery(opts, q.purser),
       runs: runQuery(opts, q.runs),
+      aiCalls: runQuery(opts, q.aiCalls),
     };
     console.log(renderShipStats(data));
   } catch (err) {

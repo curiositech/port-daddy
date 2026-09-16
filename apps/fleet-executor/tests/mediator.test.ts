@@ -8,7 +8,7 @@
  *   - plus the supporting contracts: deterministic symbol extraction from
  *     unified diffs, the fixed scoring function (one shared symbol lands
  *     EXACTLY on the 0.7 floor), pair capping + recency prioritization +
- *     draft exclusion, tenant-consent parsing, re-injection consume-once,
+ *     draft exclusion, tenant-consent parsing, crash-safe re-injection,
  *     and the convene event's mediator/1 wire shape.
  *
  * Idiom: the scan's I/O is injected (MediatorScanIo), so every gate is
@@ -21,7 +21,8 @@ import {
   scoreConflict,
   selectCandidatePairs,
   isMediatorKilled,
-  consumeMediatorReinjection,
+  peekMediatorReinjection,
+  acknowledgeMediatorReinjection,
   renderMediatorOrders,
   runMediatorScan,
   MEDIATOR_CONFIDENCE_FLOOR,
@@ -272,9 +273,9 @@ describe('parseFleetMediator', () => {
   });
 });
 
-// ── Re-injection consume-once ────────────────────────────────────────────────
+// ── Crash-safe re-injection ─────────────────────────────────────────────────
 
-describe('consumeMediatorReinjection', () => {
+describe('Mediator reinjection acknowledgement', () => {
   const payload: MediatorReinjection = {
     parleyId: 'p_1',
     repo: 'o/r',
@@ -285,19 +286,22 @@ describe('consumeMediatorReinjection', () => {
     at: 1000,
   };
 
-  it('reads AND DELETES the key (consume-once)', async () => {
+  it('peeks without deletion, then acknowledges the exact frozen order', async () => {
     const store = new Map<string, string>([[`mediator:reinjection:o/r:7`, JSON.stringify(payload)]]);
     const env = { CONTROL_KV: kvWith(store) };
-    const first = await consumeMediatorReinjection(env, 'o/r', 7);
+    const first = await peekMediatorReinjection(env, 'o/r', 7);
     expect(first?.modifyText).toBe(payload.modifyText);
-    expect(store.has('mediator:reinjection:o/r:7')).toBe(false);
-    expect(await consumeMediatorReinjection(env, 'o/r', 7)).toBeNull();
+    expect(store.has('mediator:reinjection:o/r:7')).toBe(true);
+    await expect(acknowledgeMediatorReinjection(env, first!)).resolves.toBe(true);
+    expect(store.has('mediator:reinjection:o/r:7')).toBe(true);
+    expect(await peekMediatorReinjection(env, 'o/r', 7)).toBeNull();
   });
 
-  it('returns null when absent, malformed, or KV-less', async () => {
-    expect(await consumeMediatorReinjection({ CONTROL_KV: undefined }, 'o/r', 7)).toBeNull();
+  it('distinguishes absence from malformed authority', async () => {
+    expect(await peekMediatorReinjection({ CONTROL_KV: undefined }, 'o/r', 7)).toBeNull();
     const store = new Map<string, string>([[`mediator:reinjection:o/r:7`, '{{{']]);
-    expect(await consumeMediatorReinjection({ CONTROL_KV: kvWith(store) }, 'o/r', 7)).toBeNull();
+    await expect(peekMediatorReinjection({ CONTROL_KV: kvWith(store) }, 'o/r', 7))
+      .rejects.toThrow(/cannot read pending Mediator order/);
   });
 
   it('renderMediatorOrders quotes the human verbatim inside a labeled frame', () => {

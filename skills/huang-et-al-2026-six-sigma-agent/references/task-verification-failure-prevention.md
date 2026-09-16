@@ -304,7 +304,7 @@ The paper is explicit about when verification fails:
 2. **Use specialized tools**: Formal verification systems (Coq, Lean)
 3. **Escalate**: Route to frontier models or human experts
 
-## Application to WinDAGs: Skill-Level Verification
+## Application to Jury-rig: Skill-Level Verification
 
 For an orchestration system with 180+ skills, verification policies can be customized per skill:
 
@@ -395,6 +395,6 @@ Six Sigma Agent:
 3. Implement redundancy and consensus as verification mechanism
 4. **Result**: Verification is guaranteed by architecture
 
-For WinDAGs builders: **Start with the question "How will this be verified?" before designing agents or orchestration.**
+For Jury-rig builders: **Start with the question "How will this be verified?" before designing agents or orchestration.**
 
 As the paper emphasizes: "The architecture guarantees reliable outputs through redundancy, independent of detection accuracy."

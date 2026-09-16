@@ -13,6 +13,12 @@
  * change the merge gate beyond the explicit neutral circuit-breaker skip.
  */
 
+import { CF_ROLE_MODELS, CF_PRICES } from '../../shared/model-registry.generated.js';
+
+/** Expected spend for a model at the catalog's own rate, rounded as the meter rounds. */
+const costAt = (id: string, inTok: number, outTok: number) =>
+  Math.round(((inTok / 1e6) * CF_PRICES[id]!.input + (outTok / 1e6) * CF_PRICES[id]!.output) * 1e6) / 1e6;
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { executeFleet, mapChunkCharLimit } from '../src/execute.js';
 import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
@@ -33,6 +39,7 @@ function fleetYaml(ships: Array<{ name: string; blocking?: boolean }>): string {
   const body = ships
     .map(s => {
       const lines = [`    ${s.name}:`, `      trigger: pull_request:opened`];
+      lines.push(`      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`);
       if (s.blocking) lines.push('      blocking: true');
       // No `@cf/` model pin ⇒ deriveCfModel uses the ROLE default: code-reviewer
       // → gpt-oss-120b, every other ship → qwen3-30b (both priced).
@@ -89,7 +96,11 @@ describe('AI Gateway routing (env.AI_GATEWAY_ID)', () => {
     const opts = runOptions(ai);
     expect(opts.length).toBeGreaterThan(0);
     for (const o of opts) {
-      expect(o.gateway).toEqual({ id: 'pd-fleet-gw' });
+      expect(o.gateway).toEqual({ id: 'pd-fleet-gw', metadata: {
+        ship: 'code-reviewer', repo: makeJob().repoFullName,
+        run: `run:${makeJob().deliveryId}`, attempt: expect.any(Number),
+      } });
+      expect(o.extraHeaders?.['cf-aig-collect-log-payload']).toBe('false');
       // The prefix-cache affinity header is preserved, not clobbered.
       expect(o.extraHeaders?.['x-session-affinity']).toBe('pd-fleet-code-reviewer');
     }
@@ -129,7 +140,13 @@ describe('AI Gateway routing (env.AI_GATEWAY_ID)', () => {
     expect(ai.calls.filter(c => c.phase === 'reduce')).toHaveLength(1);
     const opts = runOptions(ai);
     expect(opts.length).toBe(3); // 2 map + 1 reduce
-    for (const o of opts) expect(o.gateway).toEqual({ id: 'gw-1' });
+    for (const o of opts) {
+      expect(o.gateway).toEqual({ id: 'gw-1', metadata: {
+        ship: 'code-reviewer', repo: makeJob().repoFullName,
+        run: `run:${makeJob().deliveryId}`, attempt: expect.any(Number),
+      } });
+      expect(o.extraHeaders?.['cf-aig-collect-log-payload']).toBe('false');
+    }
   });
 
   it('AI_GATEWAY_ID UNSET ⇒ no gateway key (exactly today\'s behavior)', async () => {
@@ -176,16 +193,14 @@ describe('per-run spend recording (fleet_run_spend)', () => {
     const reviewer = d1.spend.find(s => s.ship === 'code-reviewer')!;
     expect(reviewer.runId).toBe('run:delivery-abc');
     expect(reviewer.installationId).toBe(42);
-    expect(reviewer.model).toBe('@cf/openai/gpt-oss-120b');
+    expect(reviewer.model).toBe(CF_ROLE_MODELS.reviewBot);
     expect(reviewer.inputTokens).toBe(100);
     expect(reviewer.outputTokens).toBe(20);
-    // 100/1e6*0.35 + 20/1e6*0.75 = 0.00005
-    expect(reviewer.costUsd).toBeCloseTo(0.00005, 8);
+    expect(reviewer.costUsd).toBeCloseTo(costAt(CF_ROLE_MODELS.reviewBot, 100, 20), 6);
 
     const qa = d1.spend.find(s => s.ship === 'qa')!;
-    expect(qa.model).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    // 100/1e6*0.051 + 20/1e6*0.335 = 0.0000118, rounded to 6 decimals ⇒ 0.000012
-    expect(qa.costUsd).toBeCloseTo(0.000012, 7);
+    expect(qa.model).toBe(CF_ROLE_MODELS.shipDefault);
+    expect(qa.costUsd).toBeCloseTo(costAt(CF_ROLE_MODELS.shipDefault, 100, 20), 6);
   });
 
   it('a ship whose model reports no usage records tokens 0 and cost 0', async () => {

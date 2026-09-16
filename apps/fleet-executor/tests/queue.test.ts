@@ -19,6 +19,8 @@ import {
   runIdForDelivery,
 } from '../src/delivery-failure.js';
 
+const ONE_SHIP_YAML = 'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      participation: { default: required, rules: [] }\n      blocking: true\n      prompt: code-reviewer ship\n';
+
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
     `github_inst_${installationId}`,
@@ -32,6 +34,11 @@ function fakeMessage(body: FleetRunJob, attempts = 1) {
 
 function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
+}
+
+/** Build a dead-letter delivery using the same message shape as the main queue. */
+function fakeDlqBatch(messages: ReturnType<typeof fakeMessage>[]) {
+  return { queue: 'fleet-runs-dlq', messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
 interface CapturingCtx extends ExecutionContext {
@@ -62,6 +69,86 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {
+    // A GitHub 5xx from the raw-diff endpoint used to become an empty diff and
+    // let a clean, zero-source review complete. It is infrastructure failure:
+    // retry the delivery, preserve an in-progress required check, and let the
+    // DLQ turn that check red after retry exhaustion.
+    state.prDiffStatus = 503;
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db });
+    const first = fakeMessage(makeJob(), 1);
+
+    await handler.queue!(fakeBatch([first]), env, capturingCtx());
+
+    expect(first.retry).toHaveBeenCalledTimes(1);
+    expect(first.ack).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
+    expect(state.existingCheckRuns).toMatchObject([
+      { name: 'Port Daddy Fleet', status: 'in_progress', headSha: 'HEADSHA' },
+    ]);
+
+    const deadLetter = fakeMessage(makeJob(), 3);
+    await handler.queue!(fakeDlqBatch([deadLetter]), env, capturingCtx());
+
+    expect(deadLetter.ack).toHaveBeenCalledTimes(1);
+    expect(deadLetter.retry).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('infrastructure failed before review completed');
+    expect(state.completed).not.toContainEqual(expect.objectContaining({ conclusion: 'success' }));
+    expect(state.completed).not.toContainEqual(expect.objectContaining({ conclusion: 'neutral' }));
+  });
+
+  it('retries a trusted ship-contract outage instead of treating it as an absent contract', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  name: test',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
+        '      blocking: true',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+        '      prompt: code-reviewer ship: review the diff.',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes('/contents/fleet/ships/code-reviewer.md?ref=main')) {
+          return new Response('contract authority unavailable', { status: 503 });
+        }
+        return realFetch(input as RequestInfo, init);
+      }) as unknown as typeof fetch,
+    );
+    const message = fakeMessage(makeJob(), 1);
+
+    await handler.queue!(fakeBatch([message]), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }), capturingCtx());
+
+    expect(message.retry).toHaveBeenCalledTimes(1);
+    expect(message.ack).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
+    expect(state.existingCheckRuns).toMatchObject([
+      { name: 'Port Daddy Fleet', status: 'in_progress', headSha: 'HEADSHA' },
+    ]);
+  });
+
   it('slices a multi-ship run into visible cumulative continuations, then acks the verdict', async () => {
     state.files.set(
       'main:pd-fleet.yml',
@@ -70,6 +157,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -77,6 +165,7 @@ describe('queue consumer', () => {
         '      prompt: review',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: advisory, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -131,6 +220,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -138,6 +228,7 @@ describe('queue consumer', () => {
         '      prompt: review',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: advisory, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -296,6 +387,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         '        - backend: cloudflare',
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
@@ -330,12 +422,12 @@ describe('queue consumer', () => {
   });
 
   it('acks a message on successful run', async () => {
-    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
       fleetParser: JSON.stringify([
-        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '', participation: { default: 'required', rules: [] } },
       ]),
       perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
     }).ai;
@@ -407,6 +499,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      blocking: true',
         '      fallbacks:',
         '        - backend: cloudflare',
@@ -473,10 +566,10 @@ describe('queue consumer', () => {
     expect(state.reviews).toHaveLength(0);
   });
 
-  it('closes an execution-only fleet as cancelled instead of looking for a missing run', async () => {
+  it('closes an execution-only fleet as failed while no runner consumes sandbox grants', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      `fleet:\n  name: execution-only\n  agents:\n    test-author:\n      trigger: pull_request:opened\n      allowedTools: "Read,Write,Bash(npm test*)"\n      fallbacks:\n        - backend: cloudflare\n          model: '@cf/qwen/qwen3-30b-a3b-fp8'\n      prompt: |\n        test-author ship: execute repository tests.\n`,
+      `fleet:\n  name: execution-only\n  agents:\n    test-author:\n      trigger: pull_request:opened\n      participation: { default: required, rules: [] }\n      allowedTools: "Read,Write,Bash(npm test*)"\n      execution:\n        mode: write_sandbox\n        repository: current_repository\n        worktree: isolated\n        cwd: .\n        toolAllowlist: [read_file, run_tests]\n        mcpAllowlist: [github.read]\n        networkAllowlist: []\n        writePathAllowlist: [.]\n        maxWallClockMs: 300000\n        maxCostMicrousd: 1000000\n      fallbacks:\n        - backend: cloudflare\n          model: '@cf/qwen/qwen3-30b-a3b-fp8'\n      prompt: |\n        test-author ship: execute repository tests.\n`,
     );
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -490,7 +583,9 @@ describe('queue consumer', () => {
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
-            if (sql.includes('SELECT conclusion FROM fleet_runs')) return null;
+            if (sql.includes('SELECT conclusion FROM fleet_runs')) {
+              return { conclusion: 'failure' } as T;
+            }
             return null;
           },
           async all<T>() { return { results: [] as T[] }; },
@@ -517,8 +612,8 @@ describe('queue consumer', () => {
 
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
-    expect(intent.state).toBe('cancelled');
-    expect(intent.error).toContain('no Cloud-executable review ships');
+    expect(intent.state).toBe('failure');
+    expect(intent.error).toBeNull();
   });
 
   it('retries a message when the orchestrator throws (recoverable infra error)', async () => {
@@ -543,22 +638,29 @@ describe('queue consumer', () => {
 
   it('retries instead of acking when the required check cannot be completed', async () => {
     vi.useFakeTimers();
-    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
       fleetParser: JSON.stringify([
-        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '', participation: { default: 'required', rules: [] } },
       ]),
       perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
     }).ai;
 
     const realFetch = globalThis.fetch;
+    let resolveFirstCompletionPatch: (() => void) | undefined;
+    const firstCompletionPatch = new Promise<void>(resolve => {
+      resolveFirstCompletionPatch = resolve;
+    });
+    let completionPatchAttempts = 0;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (/\/check-runs\/\d+$/.test(url) && (init?.method ?? 'GET') === 'PATCH') {
+          completionPatchAttempts += 1;
+          if (completionPatchAttempts === 1) resolveFirstCompletionPatch?.();
           return new Response('completion unavailable', { status: 503 });
         }
         return realFetch(input as RequestInfo, init);
@@ -568,9 +670,18 @@ describe('queue consumer', () => {
     const msg = fakeMessage(makeJob());
     const ctx = capturingCtx();
     const handling = handler.queue!(fakeBatch([msg]), makeEnv({ FLEET_TOKENS: kv, AI: ai }), ctx);
+    // Wait for the first real completion response, then flush exactly the
+    // response/read-back boundary that schedules completeCheckRun's retry
+    // timer. The trusted snapshot adds ordinary awaits before this point;
+    // advancing all timers before the first PATCH is observed races that
+    // legitimate setup work and masks the retry behavior this test verifies.
+    await firstCompletionPatch;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
     await vi.runAllTimersAsync();
     await handling;
 
+    expect(completionPatchAttempts).toBe(3);
     expect(msg.retry).toHaveBeenCalledTimes(1);
     expect(msg.retry).toHaveBeenCalledWith();
     expect(msg.ack).not.toHaveBeenCalled();
@@ -580,12 +691,12 @@ describe('queue consumer', () => {
   });
 
   it('carries a long provider Retry-After into the Cloudflare redelivery delay', async () => {
-    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
       fleetParser: JSON.stringify([
-        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '', participation: { default: 'required', rules: [] } },
       ]),
       perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
     }).ai;
@@ -624,6 +735,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -656,7 +768,7 @@ describe('queue consumer', () => {
     expect(state.completed).toHaveLength(0);
   });
 
-  it('stops after three provider attempts and completes neutral as a fleet fault', async () => {
+  it('stops after three provider attempts and fails closed when the required voter is unavailable', async () => {
     state.files.set(
       'main:pd-fleet.yml',
       [
@@ -664,6 +776,7 @@ describe('queue consumer', () => {
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -689,10 +802,10 @@ describe('queue consumer', () => {
     expect(msg.retry).not.toHaveBeenCalled();
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(ai.run).toHaveBeenCalledTimes(1);
-    expect(state.completed[0]?.conclusion).toBe('neutral');
+    expect(state.completed[0]?.conclusion).toBe('failure');
     expect(state.completed[0]?.summary).toContain('HTTP 429, code 3040');
     expect(state.completed[0]?.summary).toContain('adjudicated FLEET-WIDE fault');
-    expect(state.completed[0]?.summary).toContain('not gating this PR');
+    expect(state.completed[0]?.summary).toContain('required vote remains unmet and gates this PR');
   });
 });
 

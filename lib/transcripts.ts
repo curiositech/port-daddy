@@ -23,9 +23,11 @@
  *     out of prompts).
  *   - Tool args containing string fields > 10KB are truncated to 1KB plus
  *     a SHA-256 hash for later auditability.
- *   - The in-process spawner lifecycle is the canonical producer path.
+ *   - The in-process spawner lifecycle is the canonical producer path. The
+ *     daemon stamps reserved producer evidence; caller-shaped metadata is
+ *     ignored and never becomes authority.
  *   - Full-entry snapshot import is in-process only. It is deliberately not
- *     exposed as an HTTP mutation boundary.
+ *     exposed as an HTTP mutation boundary and re-stamps daemon provenance.
  */
 
 import { createHash } from 'node:crypto';
@@ -42,6 +44,10 @@ import type Database from 'better-sqlite3';
 export type TranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 'thinking';
 export type OutputType = 'pr-comment' | 'issue' | 'draft-pr' | 'commit' | 'noop' | 'message' | 'other';
 export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+
+/** Reserved producer stamped only by daemon-owned transcript lifecycle code. */
+export const TRANSCRIPT_PRODUCER_SPAWNER = 'port-daddy:spawner-transcript' as const;
+export type TranscriptProducerTrustTier = 'INTERNAL';
 
 export interface TranscriptMessage {
   role: TranscriptRole;
@@ -82,7 +88,26 @@ export interface TranscriptEntry {
   error?: string | null;
   project?: string | null;
   identity?: string | null;
+  /** Audit evidence only. A matching string never grants mutation authority. */
+  producer: typeof TRANSCRIPT_PRODUCER_SPAWNER | null;
+  /** Only exact INTERNAL records stamped in-process are trusted producer evidence. */
+  producer_trust_tier: TranscriptProducerTrustTier | null;
+  /** Daemon clock when the producer reservation was first recorded. */
+  producer_recorded_at: number | null;
 }
+
+/**
+ * Trusted snapshot-import input. Producer-shaped fields may be present on
+ * historical snapshots, but recordTranscript() ignores them and stamps its own
+ * daemon-owned provenance.
+ */
+export type TranscriptRecordInput = Omit<
+  TranscriptEntry,
+  'producer' | 'producer_trust_tier' | 'producer_recorded_at'
+> & Partial<Pick<
+  TranscriptEntry,
+  'producer' | 'producer_trust_tier' | 'producer_recorded_at'
+>>;
 
 export const TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT = 'port-daddy.transcript-jsonl.v1' as const;
 
@@ -211,7 +236,7 @@ export interface TranscriptsModule {
   /** Mark transcript as completed/failed/killed and finalize cost+tokens. */
   finalize(id: string, finalize: TranscriptFinalizeInput): void;
   /** Trusted in-process full-entry import; atomically replaces only a running snapshot. */
-  recordTranscript(entry: TranscriptEntry): void;
+  recordTranscript(entry: TranscriptRecordInput): void;
   /** List recent transcripts (without messages — lightweight). */
   listTranscripts(filter?: TranscriptFilter): TranscriptEntry[];
   /** Get a single transcript with full messages + outputs. */
@@ -312,7 +337,10 @@ const SCHEMA_STATEMENTS = [
     tokens_out INTEGER,
     error TEXT,
     project TEXT,
-    identity TEXT
+    identity TEXT,
+    producer TEXT,
+    producer_trust_tier TEXT,
+    producer_recorded_at INTEGER
   )`,
   `CREATE INDEX IF NOT EXISTS idx_fleet_transcripts_ship_started
      ON fleet_transcripts(ship, started_at DESC)`,
@@ -439,6 +467,9 @@ const FLEET_TRANSCRIPT_RUNTIME_COLUMNS: Array<{ name: string; definition: string
   { name: 'requested_model', definition: 'TEXT' },
   { name: 'effective_model', definition: 'TEXT' },
   { name: 'backend_override_source', definition: "TEXT NOT NULL DEFAULT 'none'" },
+  { name: 'producer', definition: 'TEXT' },
+  { name: 'producer_trust_tier', definition: 'TEXT' },
+  { name: 'producer_recorded_at', definition: 'INTEGER' },
 ];
 
 const TRANSCRIPT_ARCHIVE_RECEIPT_RUNTIME_COLUMNS: Array<{ name: string; definition: string }> = [
@@ -568,8 +599,9 @@ export function createTranscripts(
       trigger, backend, model, requested_backend, effective_backend,
       requested_model, effective_model, backend_override_source,
       status, started_at, ended_at,
-      cost_usd, tokens_in, tokens_out, error, project, identity
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      cost_usd, tokens_in, tokens_out, error, project, identity,
+      producer, producer_trust_tier, producer_recorded_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const upsertTranscriptStmt = db.prepare(`
@@ -578,8 +610,9 @@ export function createTranscripts(
       trigger, backend, model, requested_backend, effective_backend,
       requested_model, effective_model, backend_override_source,
       status, started_at, ended_at,
-      cost_usd, tokens_in, tokens_out, error, project, identity
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      cost_usd, tokens_in, tokens_out, error, project, identity,
+      producer, producer_trust_tier, producer_recorded_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       ship = excluded.ship,
       session_id = excluded.session_id,
@@ -602,7 +635,13 @@ export function createTranscripts(
       tokens_out = excluded.tokens_out,
       error = excluded.error,
       project = excluded.project,
-      identity = excluded.identity
+      identity = excluded.identity,
+      producer = excluded.producer,
+      producer_trust_tier = excluded.producer_trust_tier,
+      producer_recorded_at = COALESCE(
+        fleet_transcripts.producer_recorded_at,
+        excluded.producer_recorded_at
+      )
     WHERE fleet_transcripts.status = 'running'
   `);
 
@@ -771,6 +810,13 @@ export function createTranscripts(
       error: (row.error as string | null) ?? null,
       project: (row.project as string | null) ?? null,
       identity: (row.identity as string | null) ?? null,
+      producer: row.producer === TRANSCRIPT_PRODUCER_SPAWNER
+        ? TRANSCRIPT_PRODUCER_SPAWNER
+        : null,
+      producer_trust_tier: row.producer_trust_tier === 'INTERNAL'
+        ? 'INTERNAL'
+        : null,
+      producer_recorded_at: (row.producer_recorded_at as number | null) ?? null,
       messages: [],
       outputs: [],
     };
@@ -811,7 +857,8 @@ export function createTranscripts(
 
   function start(input: TranscriptStartInput): string {
     const id = input.id ?? newId();
-    const startedAt = input.started_at ?? now();
+    const producerRecordedAt = now();
+    const startedAt = input.started_at ?? producerRecordedAt;
     insertTranscriptStmt.run(
       id,
       input.ship,
@@ -836,6 +883,9 @@ export function createTranscripts(
       null,
       input.project ?? null,
       input.identity ?? null,
+      TRANSCRIPT_PRODUCER_SPAWNER,
+      'INTERNAL',
+      producerRecordedAt,
     );
     const row = getTranscriptRowStmt.get(id) as Record<string, unknown>;
     const entry = rowToHeader(row);
@@ -971,10 +1021,11 @@ export function createTranscripts(
     if (refreshed) emit({ type: 'end', entry: refreshed });
   }
 
-  function recordTranscript(entry: TranscriptEntry): void {
+  function recordTranscript(entry: TranscriptRecordInput): void {
     // A full-entry import is a complete snapshot, not an append. Replace the
     // children while the row is running so retries are idempotent, commit header
     // and children together, and never reopen or rewrite a terminal row.
+    const producerRecordedAt = now();
     const writeImport = db.transaction(() => {
       const result = upsertTranscriptStmt.run(
         entry.id,
@@ -1000,6 +1051,9 @@ export function createTranscripts(
         entry.error ?? null,
         entry.project ?? null,
         entry.identity ?? null,
+        TRANSCRIPT_PRODUCER_SPAWNER,
+        'INTERNAL',
+        producerRecordedAt,
       );
       if (result.changes !== 1) throwTranscriptMutationError(entry.id);
       deleteImportedMessagesStmt.run(entry.id);

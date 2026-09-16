@@ -4,7 +4,7 @@
 
 The workflow patterns paper provides a systematic taxonomy of control flow patterns—the recurring structures by which work is routed through a system. This is not merely academic categorization; it is a **functional decomposition of coordination itself**. By identifying distinct patterns with precise semantics, the taxonomy reveals what coordination primitives an orchestration system must provide.
 
-For agent orchestration systems like WinDAGs, this taxonomy is a design specification: **these are the coordination structures you must support to handle real-world task decomposition and routing**.
+For agent orchestration systems like Jury-rig, this taxonomy is a design specification: **these are the coordination structures you must support to handle real-world task decomposition and routing**.
 
 ## The Basic Patterns: Foundation of Sequential Coordination
 
@@ -170,7 +170,7 @@ The taxonomy's deepest insight is that **patterns interact**. A system supportin
 
 **Discriminator + Deferred Choice**: First-completion semantics with external choice creates race conditions. What if two external events occur nearly simultaneously? Who wins?
 
-For WinDAGs, this means: **evaluate not just individual patterns but their combinations**. A DAG formalism that handles each pattern separately may collapse when patterns nest or compose.
+For Jury-rig, this means: **evaluate not just individual patterns but their combinations**. A DAG formalism that handles each pattern separately may collapse when patterns nest or compose.
 
 ## The Implicit Hierarchy: From Simple to Complex
 
@@ -198,7 +198,7 @@ This hierarchy reveals: **as patterns become more advanced, static DAG represent
 
 ### Orchestration Primitive Selection
 
-When designing WinDAGs's orchestration layer, the taxonomy provides a checklist:
+When designing Jury-rig's orchestration layer, the taxonomy provides a checklist:
 - Which patterns are first-class DAG constructs?
 - Which require extension mechanisms (metadata, annotations)?
 - Which require escape hatches (custom code, external orchestrators)?
@@ -240,7 +240,7 @@ The patterns assume normal execution. Exception handling, compensation (undoing 
 **Not Covered: Probabilistic Coordination**
 The patterns assume deterministic routing. Probabilistic decisions (route to agent A with 70% probability) require extensions.
 
-For WinDAGs, these exclusions mean: **the workflow patterns taxonomy is necessary but not sufficient**. You also need data flow patterns, resource patterns, and exception patterns.
+For Jury-rig, these exclusions mean: **the workflow patterns taxonomy is necessary but not sufficient**. You also need data flow patterns, resource patterns, and exception patterns.
 
 ## Conclusion: The Taxonomy as Coordination Lingua Franca
 
@@ -253,6 +253,6 @@ For agent orchestration systems, the taxonomy is:
 
 The irreplaceable value is **precision in a domain historically characterized by vagueness**. Coordination complexity is no longer a gestalt feeling—it is a specific set of patterns with specific semantics.
 
-For WinDAGs, the taxonomy provides a roadmap: map your DAG formalism to the pattern taxonomy. Where are the gaps? Where are the workarounds? Where does the abstraction fight the problem?
+For Jury-rig, the taxonomy provides a roadmap: map your DAG formalism to the pattern taxonomy. Where are the gaps? Where are the workarounds? Where does the abstraction fight the problem?
 
 Those answers guide architectural evolution and honest capability assessment.

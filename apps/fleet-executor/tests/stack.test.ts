@@ -3,8 +3,8 @@
  * that codes its own fix gets a branch cut FROM THE PR HEAD sha
  * (`fleet/<ship>-pr-<n>-<slug>`) and a PR whose BASE IS THE REVIEWED PR'S HEAD
  * BRANCH — the fix lands stacked on top of the review diff. Guards under test:
- * same-repo only, ≤5 files / ≤16KB caps, path safety, sandbox validation when
- * the binding exists, max 1 stack PR per ship per run, and the 'stack-posted'
+ * same-repo only, ≤5 files / ≤16KB caps, path safety, mandatory passing sandbox
+ * validation, max 1 stack PR per ship per run, and the 'stack-posted'
  * transcript trail for every outcome.
  */
 
@@ -47,6 +47,7 @@ const SPARK_YAML = [
   '    spark:',
   '      trigger: pull_request:opened',
   '      class: ideation',
+  '      participation: { default: advisory, rules: [] }',
   '      fallbacks:',
   '        - backend: cloudflare',
   "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
@@ -112,6 +113,7 @@ async function runSpark(opts: {
   output?: string;
   job?: ReturnType<typeof makeJob>;
   sandbox?: unknown;
+  withoutSandbox?: boolean;
   db?: ReturnType<typeof memoryD1>;
 } = {}) {
   state.files.set('main:pd-fleet.yml', SPARK_YAML);
@@ -121,7 +123,9 @@ async function runSpark(opts: {
   const env = makeEnv({
     FLEET_TOKENS: kv,
     AI: ai,
-    ...(opts.sandbox !== undefined ? { SANDBOX: opts.sandbox } : {}),
+    ...(!opts.withoutSandbox
+      ? { SANDBOX: opts.sandbox ?? { exec: async () => sandboxExecResult(0, 'ok') } }
+      : {}),
     ...(opts.db ? { DB: opts.db.db } : {}),
   });
   await executeFleet(opts.job ?? jobWithHeadRef(), env);
@@ -164,8 +168,8 @@ describe('stack proposals — happy path', () => {
     const bodies = commentBodiesOf(state);
     expect(bodies.some(b => b.includes('#8001') && b.includes('coded this solution itself'))).toBe(true);
 
-    // Advisory as ever: the gate is untouched.
-    expect(state.completed[0].conclusion).toBe('success');
+    // The proposal remains advisory, but an advisory-only roster has no voting quorum.
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('opens at most ONE stack PR per ship per run (first valid stack proposal wins)', async () => {
@@ -196,6 +200,18 @@ describe('stack proposals — happy path', () => {
 });
 
 describe('stack proposals — guards degrade honestly (no PR, transcript note)', () => {
+  it('missing sandbox validation keeps the proposal advisory-only', async () => {
+    const db = memoryD1();
+    await runSpark({ db, withoutSandbox: true });
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
+    const step = db.steps.find(s => s.kind === 'stack-posted')!;
+    expect(String(step.title)).toContain('NOT posted');
+    expect(JSON.parse(String(step.detail))).toMatchObject({ stacked: false });
+    expect(JSON.parse(String(step.detail)).degraded).toContain('sandbox validation unavailable');
+    expect(commentBodiesOf(state).some(b => b.includes('no stacked PR was opened this run'))).toBe(true);
+  });
+
   it('fork PR: never writes to the repo', async () => {
     const db = memoryD1();
     // isFork is computed from the LIVE PR fetch (head.repo vs base.repo), not
@@ -244,8 +260,7 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
     expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail)).degraded).toContain('sandbox validation FAILED');
-    // Advisory ship: the gate is still success.
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('a 403 on git writes degrades to a named-permission transcript note', async () => {
@@ -255,7 +270,7 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail)).degraded).toContain('contents: write');
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('a missing head branch name degrades instead of opening a misbased PR', async () => {

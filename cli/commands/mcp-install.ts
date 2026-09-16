@@ -244,7 +244,7 @@ function printPilotInstallSummary(result: PilotInstallResult | null, dryRun: boo
   const changed = result.written.filter((w) => w.changed).length;
   console.log('  Pilot agent definitions:');
   console.log(
-    `    \x1b[32m✓\x1b[0m ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
+    `    ${result.errors.length ? '!' : '✓'} ${result.outcome}: ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
     (changed ? ` (${changed} updated)` : ' (all current)'),
   );
   for (const err of result.errors.slice(0, 3)) {
@@ -388,10 +388,12 @@ export async function handleMcpInstall(options: Record<string, unknown>, _home =
     }
 
     if (!options['no-agents']) {
-      printPilotInstallSummary(
-        installPilotDefinitions(_home, { dryRun: !!options['dry-run'] }),
-        !!options['dry-run'],
-      );
+      const pilot = installPilotDefinitions(_home, { dryRun: !!options['dry-run'] });
+      printPilotInstallSummary(pilot, !!options['dry-run']);
+      if (!pilot || pilot.errors.length) {
+        process.exitCode = 1;
+        return;
+      }
     }
   }
 

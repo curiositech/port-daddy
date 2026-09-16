@@ -23,16 +23,41 @@ if [ "$#" -lt 2 ]; then
   exit 1
 fi
 
+if ! command -v asciinema >/dev/null 2>&1; then
+  echo "record-porthole-cast: asciinema is required to record a Porthole cast" >&2
+  exit 127
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "record-porthole-cast: node is required to run the repo-local Port Daddy CLI" >&2
+  exit 127
+fi
+
+if [ ! -f "$ROOT_DIR/bin/port-daddy-cli.js" ]; then
+  echo "record-porthole-cast: missing repo-local bin/port-daddy-cli.js; build Port Daddy before recording" >&2
+  exit 1
+fi
+
 SLUG="$1"
 shift
 
-DRIVER="$(mktemp /tmp/porthole-drive-XXXXXX.sh)"
+for cmd in "$@"; do
+  if [[ "$cmd" == \#* ]]; then
+    echo "record-porthole-cast: narration comments are not evidence; record a real command or a real wait" >&2
+    exit 2
+  fi
+done
+
+SCRATCH_ROOT="${PORT_DADDY_SCRATCH_ROOT:-$HOME/coding/tmp}"
+mkdir -p "$SCRATCH_ROOT"
+DRIVER="$(mktemp "$SCRATCH_ROOT/porthole-drive-XXXXXX.sh")"
 trap 'rm -f "$DRIVER"' EXIT
 
 {
   echo '#!/usr/bin/env bash'
   echo 'set -uo pipefail'
   echo "ROOT_DIR=$(printf '%q' "$ROOT_DIR")"
+  echo 'cd "$ROOT_DIR"'
   echo 'pd() { node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"; }'
   echo 'type_cmd() {'
   echo '  local text="$1" i'
@@ -44,14 +69,8 @@ trap 'rm -f "$DRIVER"' EXIT
   echo 'sleep 0.3'
   for cmd in "$@"; do
     echo "type_cmd $(printf '%q' "$cmd")"
-    if [[ "$cmd" == \#* ]]; then
-      # Typed for narration but never executed — honestly inert, not a
-      # fake command with fabricated output.
-      echo 'printf "\n"'
-    else
-      echo "$cmd"' 2>&1'
-      echo 'printf "\n"'
-    fi
+    echo "$cmd"' 2>&1'
+    echo 'printf "\n"'
     echo 'sleep 0.8'
   done
   echo 'sleep 1.0'
@@ -59,6 +78,19 @@ trap 'rm -f "$DRIVER"' EXIT
 chmod +x "$DRIVER"
 
 CAST_PATH="$OUT_DIR/$SLUG.cast"
-asciinema rec --cols 100 --rows 28 --overwrite -q -c "$DRIVER" "$CAST_PATH"
+(
+  # Keep the recording metadata public-safe too: asciinema records the
+  # command string verbatim, so execute a relative driver name from its
+  # durable scratch directory instead of embedding a local home path.
+  cd "$(dirname "$DRIVER")"
+  asciinema record \
+    --window-size 100x28 \
+    --headless \
+    --return \
+    --overwrite \
+    --quiet \
+    --command "./$(basename "$DRIVER")" \
+    "$CAST_PATH"
+)
 
 echo "wrote $CAST_PATH"

@@ -285,7 +285,7 @@ The paper is advocating for a shift in how we think about intelligence:
 
 This is conceptually harder—which is why we gravitate toward dualistic frameworks. But for building truly capable embedded agents (which includes any sufficiently advanced AI), we need to confront these complications.
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core principle**: Most orchestration patterns implicitly assume dualism. Be aware when embedded complications matter.
 

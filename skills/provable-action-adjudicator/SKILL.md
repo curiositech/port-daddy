@@ -11,7 +11,7 @@ description: >
   latency via aspect-woven join points at tool-call boundaries. The adjudicator
   is the provable containment layer for multi-agent systems: complete mediation,
   isolation, and formal correctness are the three non-negotiable properties.
-author: soma-windags-graft
+author: soma-jury_rig-graft
 tags: [formal-verification, policy-enforcement, reference-monitor, lean4, datalog, active-inference, agent-safety, containment]
 pairs-with: []
 license: Apache-2.0
@@ -19,7 +19,7 @@ allowed-tools: Read,Write,Edit,Glob,Grep
 metadata:
   provenance:
     kind: imported
-    source: workgroup-ai / windags skill library (rehomed 2026-07-04)
+    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
 ---
 
 # Provable Action Adjudicator

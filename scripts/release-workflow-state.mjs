@@ -5,8 +5,13 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const STABLE_VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
-const STABLE_TAG = /^v([0-9]+\.[0-9]+\.[0-9]+)$/;
+const CANONICAL_NUMERIC_IDENTIFIER = '(?:0|[1-9][0-9]*)';
+const STABLE_VERSION = new RegExp(
+  `^${CANONICAL_NUMERIC_IDENTIFIER}\\.${CANONICAL_NUMERIC_IDENTIFIER}\\.${CANONICAL_NUMERIC_IDENTIFIER}$`,
+);
+const STABLE_TAG = new RegExp(
+  `^v(${CANONICAL_NUMERIC_IDENTIFIER}\\.${CANONICAL_NUMERIC_IDENTIFIER}\\.${CANONICAL_NUMERIC_IDENTIFIER})$`,
+);
 export const RELEASE_TRAIN_TOKEN_SOURCE = 'RELEASE_TRAIN_TOKEN';
 export const HOMEBREW_TAP_TOKEN_SOURCE = 'HOMEBREW_TAP_TOKEN';
 export const GITHUB_PERMISSION_PROBE_TIMEOUT_MS = 10_000;
@@ -15,7 +20,7 @@ export function parseStableVersion(value) {
   if (!STABLE_VERSION.test(value)) {
     throw new Error(`'${value}' is not a stable x.y.z version`);
   }
-  return value.split('.').map(Number);
+  return value.split('.').map(BigInt);
 }
 
 export function stableVersionFromTag(tag) {
@@ -31,10 +36,21 @@ export function compareStableVersions(left, right) {
   const rightParts = parseStableVersion(right);
   for (let index = 0; index < 3; index += 1) {
     if (leftParts[index] !== rightParts[index]) {
-      return leftParts[index] - rightParts[index];
+      return leftParts[index] < rightParts[index] ? -1 : 1;
     }
   }
   return 0;
+}
+
+export function latestStableTag(tags) {
+  const stableTags = tags.filter((tag) => STABLE_TAG.test(tag));
+  if (stableTags.length === 0) return null;
+  return stableTags.reduce((best, candidate) => {
+    if (!best) return candidate;
+    return compareStableVersions(stableVersionFromTag(candidate), stableVersionFromTag(best)) > 0
+      ? candidate
+      : best;
+  }, null);
 }
 
 function parseBooleanFlag(value, label) {
@@ -194,6 +210,12 @@ function runGit(args, { allowFailure = false } = {}) {
   }
 }
 
+export function findLatestStableTag(git = runGit, pattern = 'v*') {
+  const listed = git(['tag', '--list', pattern]);
+  const tags = listed ? listed.split('\n').filter(Boolean) : [];
+  return latestStableTag(tags);
+}
+
 export function findVersionTransition(version, range, git = runGit) {
   parseStableVersion(version);
   const revisions = git(['rev-list', '--reverse', range, '--', 'package.json'])
@@ -214,6 +236,7 @@ function usage() {
     '  release-workflow-state.mjs validate-version <x.y.z>',
     '  release-workflow-state.mjs validate-tag <vx.y.z>',
     '  release-workflow-state.mjs newer-than <candidate> <previous>',
+    '  release-workflow-state.mjs latest-stable-tag [git-pattern]',
     '  release-workflow-state.mjs find-transition <version> <git-range>',
     '  release-workflow-state.mjs formula-matches <tag> <formula-path>',
     '  release-workflow-state.mjs wait-for-formula <tag> <formula-url> [run-id]',
@@ -247,6 +270,12 @@ async function main(args) {
       throw new Error(`${candidate} is not newer than ${previous}`);
     }
     process.stdout.write(`${candidate}\n`);
+    return;
+  }
+  if (command === 'latest-stable-tag') {
+    const pattern = args[1] || 'v*';
+    const tag = findLatestStableTag(runGit, pattern);
+    if (tag) process.stdout.write(`${tag}\n`);
     return;
   }
   if (command === 'find-transition') {

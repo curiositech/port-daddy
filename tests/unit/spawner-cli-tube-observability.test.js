@@ -20,9 +20,20 @@
  */
 
 import { jest } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
+
+// A mocked backend still leaves real spawner coordination HTTP unless fetch is
+// isolated separately. Never forward to the original fetch, and pin a synthetic
+// target before exercise rather than trusting the fixture HOME after imports.
+const coordinationUrl = 'http://spawner-tube.test.invalid';
+const originalFetch = global.fetch;
+const originalDaemonUrl = process.env.PORT_DADDY_URL;
+const coordinationFetch = jest.fn(async () => ({
+  ok: true,
+  json: async () => ({ success: true }),
+}));
 
 // Capture every call into the cli-tube backend so we can inspect what the
 // spawner forwarded. Return a minimal, valid claude-code result so the spawner's
@@ -56,6 +67,8 @@ let restoreCoastGuard;
 let restoreHome;
 let fixtureHome;
 beforeAll(() => {
+  global.fetch = coordinationFetch;
+  process.env.PORT_DADDY_URL = coordinationUrl;
   restoreIsolation = process.env.PD_SPAWN_ISOLATION_OFF;
   restoreCoastGuard = process.env.PD_COAST_GUARD_OFF;
   restoreHome = process.env.HOME;
@@ -63,13 +76,18 @@ beforeAll(() => {
   // fallback ~/.port-daddy-env so its keys reach the Coast Guard scrub list.
   // Point HOME at a fixture home carrying exactly that file; loadDotenvOnce is
   // lazy (first spawn) and cached, so setting HOME here is early enough.
-  fixtureHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-secret-scrub-'));
+  const fixtureParent = join(homedir(), 'coding', 'tmp');
+  mkdirSync(fixtureParent, { recursive: true });
+  fixtureHome = mkdtempSync(join(fixtureParent, 'pd-cli-tube-secret-scrub-'));
   writeFileSync(join(fixtureHome, '.port-daddy-env'), 'PORT_DADDY_REVIEW_SECRET=must-not-reach-child\n');
   process.env.HOME = fixtureHome;
   process.env.PD_SPAWN_ISOLATION_OFF = '1';
   process.env.PD_COAST_GUARD_OFF = '1';
 });
 afterAll(() => {
+  global.fetch = originalFetch;
+  if (originalDaemonUrl === undefined) delete process.env.PORT_DADDY_URL;
+  else process.env.PORT_DADDY_URL = originalDaemonUrl;
   if (restoreIsolation === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
   else process.env.PD_SPAWN_ISOLATION_OFF = restoreIsolation;
   if (restoreCoastGuard === undefined) delete process.env.PD_COAST_GUARD_OFF;
@@ -77,6 +95,15 @@ afterAll(() => {
   if (restoreHome === undefined) delete process.env.HOME;
   else process.env.HOME = restoreHome;
   if (fixtureHome) rmSync(fixtureHome, { recursive: true, force: true });
+});
+afterEach(() => {
+  expect(global.fetch).toBe(coordinationFetch);
+  for (const [url, options] of coordinationFetch.mock.calls) {
+    expect(new URL(url).origin).toBe(coordinationUrl);
+    expect(options.method).toBe('POST');
+  }
+  expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
+    .toEqual(expect.arrayContaining(['/agents', '/sugar/begin', '/sugar/done']));
 });
 
 beforeEach(() => {

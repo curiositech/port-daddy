@@ -1,34 +1,102 @@
-% Fig 12 — the rate-the-raters conjecture, stated as a proof obligation.
+% Audit tower for Sec. stp-rate-the-raters ("Numbers by hand": the audit tower).
+% Small multiples on one shared audit-level axis, so the three closing depths are
+% read as three lengths on a common scale. Every point is the chapter's own
+% two-phase recurrence at the chapter's own parameters -- G_0 = 400, B = 50,
+% rho*d = 0.2, beta = rho*d*B = 10: while G_k > C*B bribing all C cliques still
+% pays and value bleeds LINEARLY by C*beta per level; below that threshold it
+% decays GEOMETRICALLY by lambda = 1-rho*d = 0.8. The three depths (27, 36, 53)
+% and the three bond totals ($1,350 / $1,800 / $2,650) are the chapter's own.
+% Every region carries an explicit drawn edge because the Swiss edition's
+% pd caution fill override sets draw=none.
+% Data: whitepaper/figures/data/audit-tower-depth.csv, emitted by
+% whitepaper/figures/data/make-figure-data.py (deterministic, no seed) [verified].
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=62mm] (l0) at (-3.8,-1.8)
-    {\textbf{agent performs work}\\{\scriptsize first-order incentive to cheat}};
-  \node[stp box,minimum width=54mm] (l1) at (-3.8,0)
-    {\textbf{bonded judge grades it}};
-  \node[stp box,minimum width=46mm] (l2) at (-3.8,1.8)
-    {\textbf{bonded re-auditor}};
-  \node[stp box,minimum width=38mm] (l3) at (-3.8,3.6)
-    {\textbf{next audit level}};
-  \draw[stp arrow] (l0) -- (l1);
-  \draw[stp arrow] (l1) -- (l2);
-  \draw[stp arrow] (l2) -- (l3);
-  \node[stp status,anchor=south] at ([yshift=3mm]l3.north)
-    {conjectured contraction toward an honest fixed point};
+\pgfplotsset{
+  every axis/.append style={
+    pd axis,
+    width=8.55cm,height=2.30cm,
+    axis lines=left,
+    ymode=log,log basis y=10,
+    xmin=0,xmax=57,ymin=0.7,ymax=560,
+    ytick={1,10,100},yticklabels={1,10,100},
+    xlabel={},ylabel={},
+    scale only axis,
+    clip=false,
+  }}
+\begin{tikzpicture}[pd figure]
 
-  \node[stp accent box,text width=67mm,align=left,anchor=west] (conditions) at (0.3,0.9)
-    {\textbf{Candidate contraction conditions} (Conj.~\ref{conj:contract})\\[3pt]
-     \textbf{1.} $q_k=\rho_k d_k$: sample and detect a corrupt grade.\\
-     \textbf{2.} $q_k B_k>G_k$: expected forfeiture beats total corrupt gain.\\
-     \textbf{3.} Derive $G_{k+1}\leq\lambda G_k$, $0\leq\lambda<1$, from the pool model.\\[3pt]
-     \emph{Unproved obligation: establish both deterrence and contraction.}};
-\end{tikzpicture}}
-\caption{\textbf{The rate-the-raters recursion.} Conjecture~\ref{conj:contract}
-separates two obligations that a recursive audit design must prove: expected
-forfeiture $\rho_k d_k B_k$ must exceed the judge's total corrupt gain $G_k$ at
-each level, and the pool model must make the remaining corruption opportunity
-shrink by a uniform factor $\lambda<1$. A bond larger than one bribe is not enough
-when re-audit is probabilistic. Neither obligation is depicted as established.}
+  % ---------------- C = 8: heterogeneous, geometric from level 0 --------------
+  \begin{axis}[name=top,xtick=\empty,anchor=north west,at={(0cm,0cm)}]
+    \addplot[pd rule,draw=hhink,line width=.62pt,forget plot,domain=0:57,samples=2]{1};
+    \addplot[pd focus rule,draw=hhteal,line width=1.15pt,forget plot]
+      coordinates {(0,400) (1,320) (2,256) (3,204.8) (4,163.8) (6,104.9) (8,67.11)
+        (10,42.95) (12,27.49) (14,17.59) (16,11.26) (18,7.206) (20,4.612)
+        (22,2.951) (24,1.889) (26,1.209) (27,0.967)};
+    \node[pd focus datum] at (axis cs:27,0.967) {};
+    \node[pd direct label,text=hhteal,anchor=west] at (axis cs:29,2.4)
+      {closes at 27 levels, \$1,350};
+    \node[pd row label,anchor=north east] at (axis cs:56.5,320)
+      {eight cliques};
+    \node[pd direct label,text=hhteal,anchor=west] at (axis cs:2.2,2.0)
+      {no bribery phase};
+  \end{axis}
+
+  % ---------------- C = 2: 15 levels of bribery, then geometric ---------------
+  \begin{axis}[name=mid,xtick=\empty,anchor=north west,at={(0cm,-2.72cm)}]
+    \addplot[pd caution fill,draw=hhamber!75,line width=.4pt,forget plot]
+      coordinates {(0,0.7) (15,0.7) (15,560) (0,560)} \closedcycle;
+    \addplot[pd rule,draw=hhink,line width=.62pt,forget plot,domain=0:57,samples=2]{1};
+    \addplot[pd rule,draw=hhink,line width=1.0pt,forget plot]
+      coordinates {(0,400) (1,380) (2,360) (3,340) (4,320) (6,280) (8,240)
+        (10,200) (12,160) (14,120) (15,100) (16,80) (18,51.2) (20,32.77)
+        (22,20.97) (24,13.42) (26,8.59) (28,5.498) (30,3.518) (32,2.252)
+        (34,1.441) (36,0.9219)};
+    \node[pd focus datum] at (axis cs:36,0.9219) {};
+    \node[pd direct label,anchor=west] at (axis cs:38,2.4) {36 levels, \$1,800};
+    \node[pd row label,anchor=north east] at (axis cs:56.5,320) {two cliques};
+    \node[pd direct label,text=hhamber,anchor=west] at (axis cs:1.0,4.0)
+      {bribery phase};
+  \end{axis}
+
+  % ---------------- C = 1: 35 levels of bribery, then geometric ---------------
+  \begin{axis}[name=bot,anchor=north west,at={(0cm,-5.44cm)},
+      xtick={0,10,20,27,36,53},
+      xlabel={audit level $k$ \ (one bond $B=50$ posted per level)},
+      xlabel style={pd axis label}]
+    \addplot[pd caution fill,draw=hhamber!75,line width=.4pt,forget plot]
+      coordinates {(0,0.7) (35,0.7) (35,560) (0,560)} \closedcycle;
+    \addplot[pd rule,draw=hhink,line width=.62pt,forget plot,domain=0:57,samples=2]{1};
+    \addplot[pd caution rule,draw=hhamber,line width=1.15pt,dash pattern=on 3pt off 2pt,forget plot]
+      coordinates {(0,400) (2,380) (4,360) (6,340) (8,320) (10,300) (12,280)
+        (14,260) (16,240) (18,220) (20,200) (22,180) (24,160) (26,140) (28,120)
+        (30,100) (32,80) (34,60) (35,50) (36,40) (38,25.6) (40,16.38) (42,10.49)
+        (44,6.711) (46,4.295) (48,2.749) (50,1.759) (52,1.126) (53,0.9008)};
+    \node[pd focus datum] at (axis cs:53,0.9008) {};
+    \node[pd direct label,text=hhamber,anchor=east] at (axis cs:56.5,45)
+      {53 levels, \$2,650};
+    \node[pd direct label,text=hhamber,anchor=west] at (axis cs:1.0,4.0)
+      {bribery phase};
+    \node[pd row label,anchor=north east,yshift=-4pt] at (axis cs:56.5,320) {one clique};
+  \end{axis}
+
+  \node[pd axis label,rotate=90,anchor=south] at (-1.35,-3.85)
+    {surviving corrupt value $G_k$};
+\end{tikzpicture}
+\caption{\textbf{A recursive audit closes at a depth set by how the judge pool is
+sampled, not by how tall the tower is drawn.} Surviving corrupt value against
+audit level, one panel per clique count, on one shared level axis, at the
+chapter's running parameters $G_0=400$, $B=50$, $\rho d=0.2$, so $\beta=\rho
+dB=10$ and $\lambda=1-\rho d=0.8$. Bribing all $C$ cliques pays while $G_k>CB$,
+and in that shaded phase value bleeds \emph{linearly} by $C\beta$ per level;
+only past it does it contract geometrically, which on a log axis is the straight
+stretch. A heterogeneous pool at $C=8$ has no bribery phase at all
+($CB=400\not<G_0$) and closes in $27$ levels for \$1,350; two cliques bleed for
+$15$ levels first and need $36$ for \$1,800; a monoculture bleeds for $35$ and
+needs $53$ for \$2,650. Buying cliques is worth more than buying bond. The
+contraction bounds the tower; it does not supply the exogenously honest root the
+tower terminates in, nor the telemetry that estimates $d$. [verified against the
+chapter's own arithmetic; \texttt{figures/data/audit-tower-depth.csv} from
+\texttt{figures/data/make-figure-data.py}, deterministic]}
 \label{fig:rate-raters}
 \end{figure}

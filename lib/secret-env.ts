@@ -76,6 +76,13 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
   'VOYAGE_API_KEY',
   'DEEPSEEK_API_KEY',
   'XAI_API_KEY',
+  // Jira Cloud roadmap read/export configuration. Keeping the complete
+  // connection tuple in the managed store gives FleetBar one operator-facing
+  // configuration surface and prevents launchd environment drift.
+  'PD_JIRA_BASE_URL',
+  'PD_JIRA_PROJECT_KEY',
+  'PD_JIRA_EMAIL',
+  'PD_JIRA_API_TOKEN',
   'PORT_DADDY_COORDINATION_MACAROON',
 ]);
 

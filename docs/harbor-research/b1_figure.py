@@ -32,10 +32,17 @@ ax.set_xlabel('flag rate $f$ (open budget)'); ax.set_ylabel('rate $R$ (bits/symb
 ax.set_title('Panel A — zero-miss rate vs open budget\nmore opens $\\Rightarrow$ fewer digest bits',fontsize=11)
 ax.legend(fontsize=9); ax.grid(alpha=0.25)
 
-# Panel B: R vs delta at fixed f, for several p
+# Panel B: R vs delta at fixed f, for several p.
+# The pinned closed form is only valid while f0 < 1-delta/p (both constraints
+# bind); past that boundary an X-independent flagger already meets the miss
+# budget on its own and the true rate is exactly 0. Evaluating the pinned
+# formula past the boundary anyway produces a spurious uptick (paper1.tex's
+# "geometric honesty note") -- clip the plotted curve at the boundary instead.
 ax=axes[1]
 for pp,c in zip([0.02,0.05,0.1],['#1f6e46','#1e466e','#8c1e1e']):
-    f0=min(0.12,2*pp); dg=np.linspace(0,pp,30); R=[rate_general(pp,f0,d) for d in dg]
+    f0=min(0.12,2*pp); dg=np.linspace(0,pp,30)
+    d_bound=pp*(1-f0)
+    R=[rate_general(pp,f0,d) if d<=d_bound else 0.0 for d in dg]
     ax.plot(dg/pp,R,'-',color=c,lw=1.8,label=f'p={pp}, f={f0:.2f}')
 ax.set_xlabel('miss tolerance $\\delta/p$'); ax.set_ylabel('rate $R$ (bits/symbol)')
 ax.set_title('Panel B — rate vs miss tolerance\ntolerating misses is cheaper',fontsize=11)

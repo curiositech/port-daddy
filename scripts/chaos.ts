@@ -122,7 +122,16 @@ async function chaos() {
   
   // 7. Inbox Messaging
   console.log('Sending inbox messages...');
-  await req('POST', '/agents/agent-api-2/inbox', { content: 'DB migration finished, safe to start.', from: 'agent-db-1', type: 'handoff' });
+  // #8877 / ADR-0122: an inbox send is a credentialed write, and `from` must
+  // be a name the credential's soul owns. agent-db-1's alias was bound at
+  // mint time above, so presenting its credential is what makes the handoff
+  // attributable rather than merely asserted.
+  await req(
+    'POST',
+    '/agents/agent-api-2/inbox',
+    { content: 'DB migration finished, safe to start.', from: 'agent-db-1', type: 'handoff' },
+    credentials.get('agent-db-1'),
+  );
 
   console.log('Chaos generation complete. Check the dashboard!');
 }
