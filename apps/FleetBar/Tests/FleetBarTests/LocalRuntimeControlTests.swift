@@ -27,21 +27,9 @@ final class LocalRuntimeControlTests: XCTestCase {
     }
 
     func testControlPresentationDoesNotCollapseOpenOffAndUnknown() {
-        XCTAssertEqual(LocalOffStore.statusTitle(for: nil), "Local start gate is open")
-        XCTAssertEqual(LocalOffStore.statusTitle(for: "Local Off is set (HALT)."), "Local starts are off")
-        XCTAssertEqual(LocalOffStore.statusTitle(for: "Local Off is set (hooks.disabled)."), "Local starts are off")
-        XCTAssertEqual(
-            LocalOffStore.statusTitle(for: "Local Off was requested. This app will not restart Port Daddy."),
-            "Local starts are off"
-        )
-        XCTAssertEqual(
-            LocalOffStore.statusTitle(for: "Local control state is unavailable. Local starts are blocked."),
-            "Start state unknown — blocked"
-        )
-        XCTAssertEqual(
-            LocalOffStore.statusTitle(for: "Unexpected text containing Local Off"),
-            "Start state unknown — blocked"
-        )
+        XCTAssertEqual(LocalOffStore.statusTitle(for: .open), "Local start gate is open")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: .off), "Local starts are off")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: .unknown), "Start state unknown — blocked")
     }
 
     @MainActor
@@ -49,12 +37,30 @@ final class LocalRuntimeControlTests: XCTestCase {
         let canonical = try root("store-refresh")
         let control = LocalRuntimeControl(canonicalRoot: canonical)
         let store = LocalOffStore(control: control)
+        XCTAssertEqual(store.controlState, .open)
         XCTAssertNil(store.blockedReason)
 
         try marker("HALT", canonical)
         store.refresh()
 
+        XCTAssertEqual(store.controlState, .off)
         XCTAssertEqual(store.blockedReason, "Local Off is set (HALT).")
+    }
+
+    @MainActor
+    func testCustomNamedStopMarkerPresentsAsConfirmedOff() throws {
+        let canonical = try root("custom-marker-canonical")
+        let custom = fixture.appendingPathComponent("maintenance.stop")
+        try Data("maintenance\n".utf8).write(to: custom)
+        let control = LocalRuntimeControl(
+            canonicalRoot: canonical,
+            environment: ["PD_HALT_FILE": custom.path]
+        )
+        let store = LocalOffStore(control: control)
+
+        XCTAssertEqual(store.controlState, .off)
+        XCTAssertEqual(store.blockedReason, "Local Off is set (maintenance.stop).")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: store.controlState), "Local starts are off")
     }
 
     func testCanonicalAndSelectedStopsAreAdditiveAndSticky() throws {
