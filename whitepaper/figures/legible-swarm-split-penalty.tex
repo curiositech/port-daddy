@@ -29,9 +29,25 @@
 \addplot[hhink,mark=*,mark size=1.6pt,mark options={fill=hhink,draw=hhpaper,line width=.5pt}]
   coordinates {(1,1.016)(2,1.033)(3,1.053)(4,1.075)(5,1.101)(6,1.132)(7,1.170)(8,1.218)(9,1.283)(10,1.392)};
 \addlegendentry{$m=20$ (extended range)}
-\node[pd direct label,text=hhteal,anchor=north west,inner sep=1pt] at (axis cs:4.28,1.224) {\scriptsize $k{=}4{:}~1.224$};
-\node[pd direct label,text=hhink,anchor=north west,inner sep=1pt] at (axis cs:1.15,1.016) {\scriptsize $k{=}1{:}~1.016$};
-\node[pd direct label,text=hhink,anchor=south east,inner sep=1pt] at (axis cs:9.72,1.392) {\scriptsize $k{=}10{:}~1.392$};
+% inner sep left at the "pd direct label" style's own 1.5pt default, not
+% tightened to 1pt: at 1pt the fill box measured 0.7-1.5pt shorter than the
+% actual rendered glyph height of these three labels (figcheck T2, built
+% Book), so the text's own descenders/ascenders broke out of their own
+% background fill. The default clears it with no visible size change at
+% this label's scale.
+\node[pd direct label,text=hhteal,anchor=north west] at (axis cs:4.28,1.224) {\scriptsize $k{=}4{:}~1.224$};
+% Not anchored on the curve itself: this label is nearly a full x-unit
+% wide, and the k=1 corner has no unit of clear ground anywhere near the
+% datum -- the y-axis line sits 0.5 units to the left, the m=20 curve
+% rises away to the right starting at the datum itself, and the "no
+% penalty" dashed reference sits 0.016 below it. A box hanging from
+% (1.15,1.016) crossed the axis line moved left, the curve moved right,
+% and dashed line moved down (figcheck T4, built Book, tried all three).
+% Floating it in the plot's own open ground above both curves at this x
+% -- nothing else is drawn above y=1.04 before k=2 -- clears all three at
+% once; the value is still named in the label text itself.
+\node[pd direct label,text=hhink,anchor=south] at (axis cs:1.3,1.075) {\scriptsize $k{=}1{:}~1.016$};
+\node[pd direct label,text=hhink,anchor=south east] at (axis cs:9.72,1.392) {\scriptsize $k{=}10{:}~1.392$};
 \end{axis}
 \end{tikzpicture}
 \caption{The joint zero-miss digest's penalty over twice the single-reader

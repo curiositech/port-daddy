@@ -40,7 +40,15 @@
   % overlapping ("...section closes the[[signed epoch roots...]]deferred
   % one." printing as one run of ink), PDF p. 406. Wrapping to two lines
   % keeps the note inside the figure's own width.
-  \node[pd note,text=hhteal,anchor=west,text width=3.9cm,align=left] at (2.20,2.35)
+  %
+  % anchor=south west, not west: `west` vertically centers a wrapped,
+  % multi-line node on its anchor point, and this anchor sits on the same
+  % focus-rule datum row (y=2.35) as the three datum dots and the rule
+  % above -- centering put the wrapped text's own top line across that
+  % rule (figcheck T2/T4, built Book: the rule drawn straight through the
+  % text). `south west` hangs the two lines upward from (2.20,2.35)
+  % instead, clear of the rule and the datum row it marks.
+  \node[pd note,text=hhteal,anchor=south west,text width=3.9cm,align=left] at (2.20,2.35)
     {signed epoch roots make the illustrated history auditable};
   \draw[pd caution rule,<->] (-4.65,-2.45)--(1.80,-2.45);
   \node[pd note,text=pdinkmuted] at (-1.42,-2.72)
