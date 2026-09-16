@@ -279,13 +279,20 @@
   pd row label/.style={font=\pdfiglabelbold,text=hhink,anchor=east},
   pd panel title/.style={font=\pdfiglabelbold,text=hhink,align=left},
   pd axis label/.style={font=\pdfiglabel,text=hhink!80!hhgray},
-  % inner ysep is deliberately larger than inner xsep: at 1.5pt the descenders
-  % of a last line (q, y, p, g) reach the bottom of the cream backing under
-  % Computer Modern, where they clear it under Palatino. A label should not
-  % need its own patch to hold its own tails, and the sensitivity is the
-  % face's, not the fragment's.
+  % No fill: page grammar (this file's header, and textbook-craft) is content
+  % kind signalled by typography and the margin, never a tinted rectangle, and
+  % a direct label is no exception -- it used to carry fill=hhpaper as a
+  % knockout patch so a crossing line or curve would not run through its text,
+  % but that patch is the Wave-12 F2 mistake in miniature: it paints as a
+  % cream box wherever the page under it is not exactly hhpaper (a pgfplots
+  % axis interior, which defaults to white, is exactly that case), which is
+  % the tinted-rectangle-behind-a-label the maintainers were shown and asked
+  % to remove. inner xsep/ysep are kept asymmetric regardless: at 1.5pt the
+  % descenders of a last line (q, y, p, g) reach the edge of the label's own
+  % bounding box under Computer Modern, where they clear it under Palatino --
+  % that governs the anchor footprint whether or not the box is ever painted.
   pd direct label/.style={font=\pdfiglabel,text=hhink,align=left,
-    inner xsep=1.5pt,inner ysep=2.5pt,fill=hhpaper},
+    inner xsep=1.5pt,inner ysep=2.5pt,fill=none},
   pd note/.style={font=\pdfiglabelitalic,text=hhink!80!hhgray,align=left},
   pd tick/.style={draw=hhgray,line width=.45pt},
   pd datum/.style={circle,fill=hhink,draw=none,inner sep=2.1pt},

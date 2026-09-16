@@ -28,7 +28,12 @@
   pd row label/.append style={text=hhink,anchor=east},
   pd panel title/.append style={text=hhink,align=left},
   pd axis label/.append style={text=hhink},
-  pd direct label/.append style={text=hhink,align=left,fill=hhpaper},
+  % No fill here either -- see the base style's comment in
+  % pd-figure-language.tex. This edition used to restate fill=hhpaper on top
+  % of the base style's own fill=hhpaper; now the base carries fill=none and
+  % this edition has nothing to contradict, so it names only what it actually
+  % changes (family already comes from \pdfiglabelfamily above).
+  pd direct label/.append style={text=hhink,align=left},
   pd note/.append style={font=\pdfiglabel,text=hhink!70!hhgray,align=left},
   pd tick/.append style={draw=hhink,line width=.6pt},
   % Three forms, not three colours of one form. This edition used to make all
