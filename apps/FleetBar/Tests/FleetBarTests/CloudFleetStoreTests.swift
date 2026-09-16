@@ -145,6 +145,7 @@ final class CloudFleetStoreTests: XCTestCase {
         let store = CloudFleetStore(
             autoStart: false,
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             loadAccount: { account },
             now: { Date(timeIntervalSince1970: 1787412050) }
         )
@@ -188,6 +189,7 @@ final class CloudFleetStoreTests: XCTestCase {
         let store = CloudFleetStore(
             autoStart: false,
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             loadAccount: { account }
         )
 
@@ -226,6 +228,7 @@ final class CloudFleetStoreTests: XCTestCase {
         let store = CloudFleetStore(
             autoStart: false,
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             loadAccount: { account }
         )
 
@@ -247,6 +250,7 @@ final class CloudFleetStoreTests: XCTestCase {
         let store = CloudFleetStore(
             autoStart: false,
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             loadAccount: { nil }
         )
 
@@ -270,6 +274,7 @@ final class CloudFleetStoreTests: XCTestCase {
         let store = CloudFleetStore(
             autoStart: false,
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             loadAccount: { account }
         )
 
@@ -295,6 +300,7 @@ final class CloudFleetStoreTests: XCTestCase {
             let store = CloudFleetStore(
                 autoStart: false,
                 session: StubURLProtocol.makeSession(),
+                control: fixtureRuntimeControl(),
                 loadAccount: { account }
             )
 

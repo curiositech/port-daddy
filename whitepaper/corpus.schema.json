@@ -70,7 +70,7 @@
         "kind": { "type": "string", "minLength": 1 },
         "authority": {
           "enum": ["design-claim", "product-runtime"],
-          "description": "design-claim: backs a whitepaper/ADR-level claim, not necessarily 1:1 with shipped code (analyses/, docs/adr/models/). product-runtime: models an actually-shipped code path (proofs/**, core/harbor-card-rs)."
+          "description": "design-claim: backs a whitepaper/ADR-level claim, not necessarily 1:1 with shipped code (most of analyses/). product-runtime: models an actually-shipped code path (most of proofs/**, core/harbor-card-rs). The directories are the usual case, not the rule -- what decides it is whether the model tracks code that ships. The ADR-0096 guidance-envelope pair is a design-claim living under proofs/coordination/ because that is where its subject belongs, and docs/adr/models/ (once the third ProVerif root) no longer exists."
         },
         "status": { "enum": ["current", "partial", "historical"] },
         "paths": {

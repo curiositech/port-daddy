@@ -217,3 +217,204 @@ class TestP14RowLabels(NewRuleTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# --------------------------------------------------------------------------- #
+# P15-P17: caption/drawing integrity and identifier consistency.
+#
+# Every rule below gets a failing fixture and a passing one. The passing
+# fixture is the point: a check that only ever fires is a check nobody can
+# ship behind.
+# --------------------------------------------------------------------------- #
+
+_DOTTED_PROMISE = (
+    "%% source\n"
+    "\\begin{figure}\n\\begin{tikzpicture}\n"
+    "  \\draw[%s] (0,0) -- (0,-3);\n"
+    "\\end{tikzpicture}\n"
+    "\\caption{The issuer drops out, which is why its lifeline is dotted "
+    "from that point down.}\n"
+    "\\end{figure}\n"
+)
+
+
+class TestP15CaptionPromise(NewRuleTestCase):
+    def test_promise_with_no_directive_fails(self):
+        report = self.run_on(_DOTTED_PROMISE % "pd hairline")
+        findings = self.findings_for(report, "caption-promise")
+        self.assertTrue(findings, "a caption promising 'dotted' over a solid drawing must fail")
+        self.assertEqual(findings[0]["id"], "P15")
+        self.assertEqual(findings[0]["severity"], "fail")
+        self.assertIn("dotted", findings[0]["message"])
+
+    def test_promise_backed_by_a_directive_passes(self):
+        report = self.run_on(_DOTTED_PROMISE % "densely dotted")
+        self.assertEqual(self.findings_for(report, "caption-promise"), [])
+
+    def test_promise_backed_by_a_house_style_passes(self):
+        # `pd guide` IS the house dotted style; naming it satisfies the promise.
+        report = self.run_on(_DOTTED_PROMISE % "pd guide")
+        self.assertEqual(self.findings_for(report, "caption-promise"), [])
+
+    def test_negated_styling_word_is_not_a_promise(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\draw[pd neutral fill] (0,0) rectangle (2,2);\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{The two regions are filled and edged, not hatched.}\n"
+            "\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "caption-promise"), [])
+
+    def test_a_caption_saying_nothing_about_style_is_never_checked(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\draw[pd hairline] (0,0) -- (0,-3);\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{Two participants and one message. [internal]}\n"
+            "\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "caption-promise"), [])
+
+
+class TestP16IdentifierConsistency(NewRuleTestCase):
+    def test_underscore_and_bare_spellings_of_one_identifier_fail(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {\\texttt{card\\_0}};\n"
+            "  \\node[pd actor] at (3,0) {\\texttt{card0} again};\n"
+            "\\end{tikzpicture}\n\\caption{Two names for one card.}\n\\end{figure}\n"
+        )
+        findings = self.findings_for(report, "identifier-consistency")
+        self.assertTrue(findings)
+        self.assertEqual(findings[0]["id"], "P16")
+        self.assertEqual(findings[0]["severity"], "fail")
+        self.assertIn("card0", findings[0]["message"])
+
+    def test_register_mixing_is_out_of_scope_and_stays_a_human_rule(self):
+        """`$card_0$` and `\\texttt{card\\_0}` print in two faces but reduce to
+        one spelling here. P16 does not claim to see that -- craft-rules.md 7.3
+        keeps it as a human rule. This test pins the limitation so nobody
+        "fixes" it with a heuristic that floods the corpus."""
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {card$_0$};\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{The root card \\texttt{card\\_0} is signed once.}\n\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "identifier-consistency"), [])
+
+    def test_bare_digit_suffix_against_underscore_subscript_fails(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {card$_0$};\n"
+            "  \\node[pd actor] at (3,0) {\\texttt{card0}};\n"
+            "\\end{tikzpicture}\n\\caption{Two names for one card.}\n\\end{figure}\n"
+        )
+        findings = self.findings_for(report, "identifier-consistency")
+        self.assertTrue(findings, "card$_0$ against card0 is a split that survives any face")
+        self.assertEqual(findings[0]["id"], "P16")
+
+    def test_skA_against_sk_underscore_A_fails(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {signed \\texttt{sk\\_A}};\n"
+            "  \\node[pd actor] at (3,0) {signed \\texttt{skA}};\n"
+            "\\end{tikzpicture}\n\\caption{One key.}\n\\end{figure}\n"
+        )
+        self.assertTrue(self.findings_for(report, "identifier-consistency"))
+
+    def test_one_spelling_everywhere_passes(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {\\texttt{card\\_0}};\n"
+            "  \\node[pd actor] at (3,0) {\\texttt{card\\_1}};\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{\\texttt{card\\_1} narrows \\texttt{card\\_0}.}\n\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "identifier-consistency"), [])
+
+    def test_distinct_identifiers_are_not_merged(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {\\texttt{cap\\_0} and \\texttt{cap\\_1}};\n"
+            "\\end{tikzpicture}\n\\caption{Two capability sets.}\n\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "identifier-consistency"), [])
+
+    def test_case_is_preserved_not_merged(self):
+        # X_1 and x_1 are different objects in more than one figure here.
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {$X_1$ versus $x_1$};\n"
+            "\\end{tikzpicture}\n\\caption{A variable and its realisation.}\n\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "identifier-consistency"), [])
+
+
+class TestP17CaptionVocabulary(NewRuleTestCase):
+    def test_caption_identifier_absent_from_the_drawing_warns(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {\\texttt{card\\_0}};\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{The card binds a fresh \\texttt{jti}.}\n\\end{figure}\n"
+        )
+        findings = self.findings_for(report, "caption-vocabulary")
+        self.assertTrue(findings)
+        self.assertEqual(findings[0]["id"], "P17")
+        self.assertEqual(findings[0]["severity"], "warn")
+        self.assertIn("jti", findings[0]["message"])
+
+    def test_caption_identifier_present_in_a_label_passes(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {\\texttt{card\\_0}, \\texttt{jti}};\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{The card binds a fresh \\texttt{jti}.}\n\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "caption-vocabulary"), [])
+
+    def test_an_all_caps_operator_is_not_a_label(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {two filters};\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{A bitwise \\texttt{OR} keeps both placements.}\n\\end{figure}\n"
+        )
+        self.assertEqual(self.findings_for(report, "caption-vocabulary"), [])
+
+    def test_a_warning_does_not_fail_the_fragment(self):
+        report = self.run_on(
+            "% source\n\\begin{figure}\n\\begin{tikzpicture}\n"
+            "  \\node[pd actor] at (0,0) {\\texttt{card\\_0}};\n"
+            "\\end{tikzpicture}\n"
+            "\\caption{The card binds a fresh \\texttt{jti}.}\n\\end{figure}\n"
+        )
+        self.assertEqual(report["summary"]["result"], "warn")
+        self.assertEqual(report["summary"]["hard_count"], 0)
+
+
+class TestVisiblePlain(unittest.TestCase):
+    """The normaliser the three rules above share: what a reader sees, with
+    the markup that spells it removed."""
+
+    def test_markup_variants_reduce_to_one_string(self):
+        for spelling in ("\\texttt{card\\_0}", "$\\mathrm{card}_0$", "card$_0$", "card\\_0"):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(
+                    tikz_precheck.visible_plain(spelling).strip(), "card_0"
+                )
+
+    def test_canonical_identifier_drops_only_underscores(self):
+        self.assertEqual(tikz_precheck.canonical_identifier("card_0"), "card0")
+        self.assertEqual(tikz_precheck.canonical_identifier("sk_A"), "skA")
+        self.assertEqual(tikz_precheck.canonical_identifier("X_1"), "X1")
+        self.assertNotEqual(
+            tikz_precheck.canonical_identifier("X_1"),
+            tikz_precheck.canonical_identifier("x_1"),
+        )
+
+    def test_prose_words_are_not_identifiers(self):
+        spellings = dict(tikz_precheck.identifier_spellings("the daemon issues a card"))
+        self.assertEqual(spellings, {})

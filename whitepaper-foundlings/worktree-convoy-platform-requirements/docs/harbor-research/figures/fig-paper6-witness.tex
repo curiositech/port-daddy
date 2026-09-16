@@ -1,0 +1,79 @@
+% Paper 6: the witness, drawn. Structural/interval diagram (the horizontal scale
+% is the policy's own integer tick index, not a plotted series), per
+% figures/CONVENTION.md "relation maps / structural diagrams" -- plain
+% tikzpicture on the shared regimebox / relarrow styles in ../tex/preamble.tex.
+%
+% Numeric provenance: this figure plots no computed data. The instance drawn is
+% the canonical mutant-miss policy restated verbatim from paper6.tex's Part I
+% "Numbers by hand": fact agent_deployed; Horn rule agent_deployed ->
+% prod_access; deontic rule prod_access -> O(write_prod, s, [0,10]); standing
+% F(write_prod, s, [5,15]). The intersection [0,10] n [5,15] = [5,10] is the
+% witness the keyed sweep-line returns, and the ghosted lane is what the
+% propagation-free mutant sees. Both the instance and the mutant's silence on
+% it are printed by [internal, b4_deontic_fragment.py, seed 20260816].
+%
+% Layout note: the witness callout sits in the empty band between the
+% derivation lane (y=4.4) and the top of the obligation bar (y=2.6), with a
+% short vertical leader, so no arrow crosses a text node. The row labels hang
+% off the left at negative x; total picture width is ~14.7cm against ~16cm of
+% text block at this class/geometry.
+% [verified: instance and interval arithmetic transcribed from paper6.tex]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.82cm,y=0.9cm]
+
+% ---- Tick axis ----
+\draw[black!45,thick] (0,0) -- (15.4,0);
+\foreach \t in {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}{
+  \draw[black!45] (\t,0) -- (\t,-0.12);
+  \node[font=\tiny,text=black!55,anchor=north,inner sep=1.5pt] at (\t,-0.12) {\t};
+}
+\node[font=\scriptsize,text=black!55,anchor=west] at (15.55,0) {tick};
+
+% ---- Lane 1: the derivation the propagation-free checker never performs ----
+\node[anchor=east,font=\scriptsize\bfseries] at (-0.3,4.4) {derivation};
+\node[regimebox,draw=harborblue,fill=harborblue!8,font=\scriptsize,inner sep=3pt] (d1) at (1.7,4.4)
+  {\texttt{agent\_deployed}};
+\node[regimebox,draw=harborblue,fill=harborblue!8,font=\scriptsize,inner sep=3pt] (d2) at (6.2,4.4)
+  {\texttt{prod\_access}};
+\node[regimebox,draw=harborblue,fill=harborblue!8,font=\scriptsize,inner sep=3pt] (d3) at (11.6,4.4)
+  {$\Ob$ fires on $[0,10]$};
+\draw[relarrow,harborblue] (d1) -- node[above,font=\tiny,text=black!55]{Horn} (d2);
+\draw[relarrow,harborblue] (d2) -- node[above,font=\tiny,text=black!55]{deontic rule} (d3);
+
+% ---- The witness callout, in the empty band ----
+\node[regimebox,draw=black,fill=white,font=\scriptsize\bfseries,inner sep=3pt] (wit) at (7.5,3.3)
+  {the witness returned: $[0,10]\cap[5,15]=[5,10]$};
+\draw[black,thick,-{Stealth[length=2.2mm]}] (7.5,3.05) -- (7.5,2.66);
+
+% ---- Lane 2: the derived obligation's interval ----
+\node[anchor=east,font=\scriptsize\bfseries] at (-0.3,2.3) {obliged};
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.18,rounded corners=1pt] (0,2.0) rectangle (10,2.6);
+\node[font=\scriptsize,text=harborblue,anchor=west] at (0.3,2.3) {$\Ob(\texttt{write\_prod},s)$ on $[0,10]$};
+
+% ---- Lane 3: the standing prohibition ----
+\node[anchor=east,font=\scriptsize\bfseries] at (-0.3,1.25) {forbidden};
+\draw[draw=shipred,thick,dashed,fill=shipred,fill opacity=0.18,rounded corners=1pt] (5,0.95) rectangle (15,1.55);
+\node[font=\scriptsize,text=shipred,anchor=east] at (14.7,1.25) {standing $\Fb(\texttt{write\_prod},s)$ on $[5,15]$};
+
+% ---- The overlap column, hatched (greyscale-safe, not a hue) ----
+\draw[black!25,dotted] (5,0) -- (5,0.95);
+\draw[black!25,dotted] (10,0) -- (10,0.95);
+\draw[pattern=north east lines,pattern color=black!70,draw=black,very thick] (5,0.95) rectangle (10,2.6);
+
+% ---- Ghost lane: what the propagation-free mutant sees ----
+\node[anchor=east,font=\scriptsize\bfseries,text=black!45] at (-0.3,-0.95) {mutant's view};
+\draw[black!35,thick,dotted,rounded corners=1pt] (0,-1.3) rectangle (15,-0.6);
+\node[font=\scriptsize,text=black!45] at (7.5,-0.95)
+  {no \emph{directly stated} obligation: the standing $\Fb$ has nothing to pair with --- silence};
+
+\end{tikzpicture}
+\caption{The witness, drawn --- the canonical instance the propagation-free mutant misses. Unit propagation forces
+\texttt{prod\_access} from the deployed fact, which fires $\Ob(\texttt{write\_prod},s,[0,10])$; the standing prohibition covers
+$[5,15]$; and the keyed sweep-line hands back the hatched overlap $[5,10]$ together with the two fired rules --- an object a
+human can argue with, not a verdict. The dotted lane is the same policy set as seen by a checker that never propagates: the
+obligation is never derived, so there is no pair to clash and the scanner stays silent. This is the species of conflict whose
+absence flips the verdict on 100 of the 885 conflicting policy sets in the sweep [internal, \texttt{b4\_deontic\_fragment.py},
+seed 20260816].}
+\label{fig:witness}
+\end{figure}

@@ -28,6 +28,7 @@ final class InterruptionsStoreTests: XCTestCase {
         InterruptionsStore(
             autoStart: false,
             session: StubURLProtocol.makeSession(),
+            control: fixtureRuntimeControl(),
             loadAccount: { account },
             now: now
         )

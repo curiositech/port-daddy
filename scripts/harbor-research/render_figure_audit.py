@@ -100,6 +100,21 @@ STEM_OVERRIDES = {
 WAIVER_DISPOSITIONS = {"delete", "table"}
 WAIVER_REASON = "retired by triage"
 WAIVER_EXPIRES = "2026-10-31"
+# A second waiver class, and the distinction is the whole point. A figure the
+# triage marked `delete` or `table` is leaving the Book, so its mechanical
+# failure will never be fixed and must not block: that is WAIVER_DISPOSITIONS
+# above. A figure marked `redraw` or `restyle` is staying, and its failure is a
+# real outstanding defect -- but one the triage has already judged and
+# scheduled, so it is a backlog rather than news. It gets a waiver that says
+# so, on the same expiry, and goes red again if the redraw has not happened.
+# `keep` gets nothing: a figure the triage passed on the rubric and the machine
+# fails on is a contradiction between two judgements, and somebody should look
+# at it rather than wave it through.
+BACKLOG_DISPOSITIONS = {"redraw", "restyle", "keep+note"}
+BACKLOG_REASON = (
+    "condemned by Wave 11 triage and scheduled for redraw; the mechanical "
+    "failure is the condition the redraw exists to end"
+)
 
 TRIAGE_ROW_RE = re.compile(r"^\|\s*(\d+\.\d+|add)\s*\|")
 SHARED_SUFFIX_RE = re.compile(r"\s*\(shared with[^)]*\)\s*$")
@@ -175,6 +190,16 @@ def load_triage_dispositions() -> dict[str, set[str]]:
         if frag in ("—", "-", ""):
             continue
         token = disposition.replace("*", "").strip().split(" ")[0].split("(")[0].strip()
+        # A disposition often carries a parenthetical naming the work it
+        # requires -- "keep (labels bigger)", "keep (labels \\footnotesize;
+        # drop diamonds for text AND)". That is scheduled work, not a clean
+        # bill, and reading only the leading token loses the difference: both
+        # of those figures were marked keep and both fail figcheck on exactly
+        # the defect their own parenthetical names. A keep with a note is
+        # recorded as `keep+note` so the waiver rules can tell it from a keep
+        # that claims the figure is finished.
+        if token == "keep" and "(" in disposition:
+            token = "keep+note"
         out.setdefault(frag, set()).add(token)
     return out
 
@@ -321,6 +346,8 @@ def render_blockers(records: list[tuple[str, dict]]) -> list[dict]:
         stem_dispositions = dispositions.get(stem, set())
         if stem_dispositions & WAIVER_DISPOSITIONS:
             waiver = {"reason": WAIVER_REASON, "expires": WAIVER_EXPIRES}
+        elif stem_dispositions & BACKLOG_DISPOSITIONS:
+            waiver = {"reason": BACKLOG_REASON, "expires": WAIVER_EXPIRES}
         blockers.append({
             "id": stem,
             "fragment": fragment_path,

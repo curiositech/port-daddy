@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+export { isCurrentPortDaddyPostCommitHook } from '../../lib/post-commit-hook.js';
 
 const LEGACY_GIT_CHANNEL = '/msg/git:committed';
 const SCOPED_CHANNEL_MARKER = 'CHANNEL="project:';

@@ -169,7 +169,7 @@ B7 escalation signaling (single-crossing threshold; tuning band from measured va
 ## 5. DELTA v4 (2026-08-23) — #9450 omnibus, artifact rescue, next-session plan
 - **Merged head under review:** the reconciliation (24052b84d) is pushed to `purser/pr-7278-tests` = PR **#9450**, now the omnibus publish vehicle. CI is red on that head with three diagnosed causes; the fix list and full resume plan live in `docs/harbor-research/plan-2026-08-23-merge-and-resume.md` (Part 0 = land #9450; Parts 1–7 = resume the program in ledger wave order W5 → W6 → W13 → W1–W3 → W8 → lifts).
 - **F4 partially discharged:** `pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (the W8-gating artifact — experiment matrix, Stage-1 COMMIT/CUT gates, three theorem candidates) and `pdf/The-Harbor-After-the-Harbor.pdf` (the rigor review behind doc1's adjudications; correctness audit + full exercise solution key + build sequence) are now committed, user-supplied renders. Only the theorem-proving-stack SotA report remains extract-only (§3.2).
-- **New stale-mechanization finding (fix before arXiv/publicity):** CI's `proofs.yml` still green-gates the VOID δ*≈0.2531 game — `proofs/economics/delta-threshold.z3` (cubic 3δ³+3δ²+3δ−1), `claim_signaling.tla/.cfg` (old bimatrix, DeltaNum=26), `sweep-delta.sh`, and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx` — while the corrected treatise (2δ³+2δ²+2δ−1=0, δ*≈0.3423, grim δ≥1/3) cites those files as its mechanization (agent-transactions:801) and its own §1402 table still says "IC holds at δ=0.26". Sync all surfaces together (plan Part 2). Also: B6's "0/4000 dominating schedules" number has NO generating script anywhere — write it.
+- **Stale-mechanization finding — RESOLVED, verified 2026-09-14. Do not act on this; it is kept as history.** As written on 2026-08-23 it read: *"CI's `proofs.yml` still green-gates the VOID δ\*≈0.2531 game — `proofs/economics/delta-threshold.z3` (cubic 3δ³+3δ²+3δ−1), `claim_signaling.tla/.cfg` (old bimatrix, DeltaNum=26), `sweep-delta.sh`, and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx` — while the corrected treatise (2δ³+2δ²+2δ−1=0, δ\*≈0.3423, grim δ≥1/3) cites those files as its mechanization (agent-transactions:801) and its own §1402 table still says 'IC holds at δ=0.26'. Sync all surfaces together (plan Part 2). Also: B6's '0/4000 dominating schedules' number has NO generating script anywhere — write it."* Every surface it names was since corrected, each re-checked on 2026-09-14: `delta-threshold.z3` carries `2δ³+2δ²+2δ−1=0` and proves the root unique in [0.34, 0.35] at δ\*≈0.3425080314; `claim_signaling.tla` carries the genuine PD payoffs (3,3)/(0,4)/(4,0)/(1,1); `claim_signaling.cfg` is DeltaNum=35, not 26; `sweep-delta.sh` sweeps δ ∈ {0.30…0.40} and expects the crossover at ≈0.35, citing δ\*≈0.3425; `HowWeProveGameTheory.tsx` prints δ\*≈0.3425 throughout; and the treatise carries 0.3425080314 with no surviving "IC holds at δ=0.26" table. B6's number now has its generating script — `skills/harbor-results/scripts/b6_probation.py` (`N_INSTANCES = 4000`, random domination search), wired into the `harbor-results-estate` CI job. The only surviving mentions of 0.253 are ledger and critique records that correctly describe it as void; `docs/research/north-star/doctrine/game-theory.md` is the model for how to cite it.
 - **Note:** §0's "PDFs are intentionally NOT committed" is stale — commit bfc49dda1 committed all nine analysis PDFs (plus these two rescues); README.md:4 has the same stale line.
 
 ---
@@ -228,3 +228,114 @@ Liu–Skrzypacz venue correction the reviews flagged was already applied. Every 
 (Part III), and `LR-4xx` (Part IV) — see the ledger's "Outside literature review" section for the full per-idea disposition
 (`DONE`, or `DECLINED` with the reason: already fully cited, no citable source exists, or a self-reported open item in the
 Book itself). No theorem statement, number, or label changed.
+
+---
+## 9. WHAT TO DO NEXT — written 2026-09-08, for whoever picks this up cold
+
+Four things landed today that are only half-useful until somebody else uses
+them. Each one is written here as a job with a first command, because the
+failure mode for all four is the same: they sit there, correct and unread, and
+the next agent solves the problem they already solve.
+
+### 9.1 `pd roadmap push` exists now. Somebody has to run it, on a schedule.
+
+`lib/roadmap-mirror-push.ts` + `pd roadmap push` fill the relay's roadmap mirror
+(`apps/relay/src/roadmap-mirror.ts`, migration `2026-08-22-roadmap-mirror.sql`,
+applied in staging). That mirror shipped in August as "PR 1 of 4" and **nothing
+ever pushed to it** — PR 2 was never written — so it was a well-tested empty
+table for a fortnight, and every reader built since went and found the roadmap
+somewhere else instead. That is the shape of failure to watch for here: the
+storage is convincing enough that people assume the pipeline exists.
+
+The job: run it on `git:committed`, the way `scripts/export-roadmap-snapshot.ts`
+was always meant to be run — its own docstring names "a `pd-fleet.yml`
+Cartographer trigger" as the intended automation and nobody built that either.
+Same trigger, both verbs.
+
+    pd roadmap push --dry-run          # prints source, item count, bytes, age
+    pd roadmap push                    # needs `pd account login` first
+
+**The one invariant not to break.** `generatedAt` is the DAEMON's clock and it
+travels with the data, so a fallback push of a fortnight-old committed snapshot
+arrives in the mirror reading as a fortnight old. Re-stamping it with
+`Date.now()` is a one-character "fix" that turns the only staleness signal the
+mirror has into a lie. Two tests in `tests/unit/roadmap-mirror-push.test.js`
+hold that line; if one of them ever looks like an obstacle, it is not.
+
+### 9.2 The Work Register is PR 3 of 4. Say so, and finish it.
+
+`apps/relay/src/work-register.ts` now reads `roadmap_mirror_items` rather than a
+`work_registry_cache` of its own (that table and its meta table are gone, along
+with the GitHub round trip and the `refresh` verb, which answers 410 with the
+command). The register was built beside the roadmap programme without either
+knowing about the other; now they share a table, and the honest move is to stop
+treating them as two projects. `docs/reports/relay-roadmap-mirror/MANIFEST.md`
+says the board pages were PR 3 — the register IS those pages.
+
+What is left:
+- The site surface. The author asked for "an API only my account can talk to,
+  and a web viewer only I can see". The mirror is account-scoped, so that is
+  already the shape; `/register?repo=owner/name` is the page.
+- The limitation, which is written into `2026-09-08-work-register.sql` where the
+  deleted tables used to be: claims are per-repository and shared, the registry
+  half is per-account. One operator with many agents is one set. Two operators
+  are not. Do not "fix" this by reaching around the mirror's tenancy rule —
+  `apps/relay/tests/roadmap-mirror.test.ts` asserts a cross-account read is a
+  404 and that assertion is correct.
+
+### 9.3 `\ifpdbook` is the tool for every Book/paper divergence from here on.
+
+Declared in `figures/pd-hyperlinks.tex` (false), set true in the Book preamble
+immediately after that file loads. Not a two-argument macro — the generator
+inlines every `\input`, so a figure branch is a whole table environment and a
+macro argument is scanned as one token list whether or not it is used. Not
+guarded with `\ifdefined` either: a conditional token inside skipped text counts
+as a nested `\if` and desynchronises `\fi` matching. Ordering is cheaper than
+cleverness, and the three failed attempts are written out in commit `76d18bf82`
+so nobody has to rediscover them.
+
+Use it whenever a chapter and its standalone twin should say different things.
+The next instance is already known: `thm:fh-escrow-bound` is stated in BOTH
+chapter 6 and chapter 8 under two numbers, and `check_duplicate_figures.py`
+catches duplicated drawings but nothing catches a duplicated theorem.
+
+**Whoever generalises that checker: read only the `\ifpdbook` branch**, the way
+`check_duplicate_figures.py` already does, with a scanner rather than a regex —
+the branches contain prose and nested `\ifnum` from other macros.
+
+### 9.4 One D1 test adapter, and it earned its keep in ten minutes.
+
+`apps/relay/tests/helpers/d1-sqlite.ts` is now the only D1-over-`node:sqlite`
+adapter; `roadmap-mirror.test.ts`'s `makeRealDb` delegates to it. Use
+`applyAllMigrations()`, not `migration('one-file.sql')`. A suite that loads a
+single migration is testing a schema that has never existed anywhere: the table
+is there but the foreign keys pointing at the rest of the database are not, so a
+constraint that bites in production cannot bite in the test. Switching the
+register's surface suite over immediately caught two rows production would have
+refused — a `users` insert with no `github_user_id` and no `created_at`, and a
+`work_board_members` row pointing at a user id that did not exist — both of
+which had been passing green.
+
+### 9.5 The half-fix, as a habit rather than an anecdote
+
+Twice today a correct-looking fix was half of one, and both halves cost a CI
+round trip:
+
+- Chapter 6 stopped re-inputting drawings chapters 7 and 8 develop. True, and it
+  silently removed five figures from `harbor-economy-whitepaper.pdf`, a
+  submission artifact whose reader has no other chapters to be pointed at.
+- The five atlas rows for those figures were deleted. Also true at the time, and
+  wrong within a day, because the figures never left the corpus — they moved
+  into the `\else` branch.
+
+The generalisable check, which does not exist yet and should:
+**no edit to a twin source may change the standalone paper's figure count.**
+Both failures would have been caught at the desk instead of in CI.
+
+**Superseded — do not build that check.** It was built
+(`check_standalone_figures.py`), and it has since been retired along with the
+thing it protected: the eight per-chapter PDFs are gone and the Book is the one
+document, so no chapter source is a twin any more and there is no second figure
+count to preserve. The half-fix lesson stands as a habit; this particular
+instance of it does not. The Book-side half — a drawing must not print twice —
+is still enforced, by `check_duplicate_figures.py`.

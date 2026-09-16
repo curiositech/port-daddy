@@ -10,6 +10,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive
 import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
 import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
 import { resolveRoadmapHarbor } from './roadmap.js';
+import { HOOK_READY_GATE } from '../../lib/hook-runtime-gate.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -410,16 +411,32 @@ function dirtyFiles(cwd = process.cwd()): string[] {
   return normalizeFiles(files);
 }
 
+function guardHookAvailabilityFunction(): string[] {
+  // Embed the shared pre-invocation boundary; foreign hook bodies still run.
+  return [
+    HOOK_READY_GATE,
+    'pd_guard_available() {',
+    '  pd_hook_runtime_ready "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}" || return 1',
+    '  pd_guard_root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1',
+    '  pd_guard_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1',
+    '  [ -f "$pd_guard_root/.portdaddy/coordination-guard.json" ] || [ -f "$pd_guard_common/port-daddy/coordination-guard.json" ]',
+    '}',
+  ];
+}
+
 function guardHookBlock(): string {
   return [
     HOOK_START,
-    'if command -v pd >/dev/null 2>&1; then',
-    '  pd guard check --staged --hook || exit $?',
-    'elif command -v port-daddy >/dev/null 2>&1; then',
-    '  port-daddy guard check --staged --hook || exit $?',
-    'else',
-    '  echo "Coordination Guard: pd command not found." >&2',
-    '  exit 1',
+    ...guardHookAvailabilityFunction(),
+    'if pd_guard_available; then',
+    '  if command -v pd >/dev/null 2>&1; then',
+    '    pd guard check --staged --hook || exit $?',
+    '  elif command -v port-daddy >/dev/null 2>&1; then',
+    '    port-daddy guard check --staged --hook || exit $?',
+    '  else',
+    '    echo "Coordination Guard: pd command not found." >&2',
+    '    exit 1',
+    '  fi',
     'fi',
     HOOK_END,
   ].join('\n');
@@ -435,10 +452,13 @@ function guardHookBlock(): string {
 function guardPostCommitBlock(): string {
   return [
     HOOK_START,
-    'if command -v pd >/dev/null 2>&1; then',
-    '  pd guard check --post-commit --hook || true',
-    'elif command -v port-daddy >/dev/null 2>&1; then',
-    '  port-daddy guard check --post-commit --hook || true',
+    ...guardHookAvailabilityFunction(),
+    'if pd_guard_available; then',
+    '  if command -v pd >/dev/null 2>&1; then',
+    '    pd guard check --post-commit --hook || true',
+    '  elif command -v port-daddy >/dev/null 2>&1; then',
+    '    port-daddy guard check --post-commit --hook || true',
+    '  fi',
     'fi',
     HOOK_END,
   ].join('\n');

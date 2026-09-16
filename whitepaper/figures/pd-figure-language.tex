@@ -2,40 +2,361 @@
 % This file defines marks, not layouts: every figure must still choose a grammar
 % from its reader question.  The duplicate under whitepaper/figures is kept in
 % lockstep for standalone Chapter I/II builds.
-\usetikzlibrary{matrix,patterns.meta}
+\usetikzlibrary{matrix,patterns.meta,shapes.geometric}
+
+% ===========================================================================
+% THE TYPOGRAPHIC LAW
+% ===========================================================================
+% Companion to the line-weight law in figures/pd-palette.tex (1px texture,
+% 1.5px linework, 2px enclosure). Same shape of rule: name the roles, fix the
+% values, one place.
+%
+% ONE SIZE. Every named text role in a figure is \pdfiglabelsize
+% (= \footnotesize). Roles separate by WEIGHT, SLOPE, FAMILY and INK -- never
+% by size. A fragment never writes a size command of its own; if a distinction
+% needs making, it takes the role that makes it.
+%
+% Where the size comes from. Measured, not chosen:
+%   \tiny  \scriptsize  \footnotesize  \small  \normalsize
+%   5.23    6.97          8.72           9.55    10.46  pt   Book (10.5pt
+%                                                            Pagella, 4.5in
+%                                                            column, 7x10in)
+%   5.98    7.97          8.97           9.96    10.91  pt   standalone chapter
+%                                                            (11pt Latin Modern)
+% \scriptsize renders at 6.97pt in the Book -- under figcheck's 7pt T1 floor
+% before a single width promotion, so it is illegal by measurement, not taste.
+% \footnotesize holds 8.72pt and still clears the floor at the 0.85 \resizebox
+% limit craft-rules sets (7.41pt). It is also what the corpus already voted
+% for: 78 of the 91 local font= declarations this law replaces were already
+% \footnotesize, \footnotesize\bfseries or \footnotesize\itshape.
+%
+% \pdfigbasesize (= \small) is the tikzpicture's ambient size only, so an
+% unstyled node is never SMALLER than a styled one; every named role steps
+% down exactly one notch from it and none steps down twice.
+%
+% ONE FACE, AND IT IS THE DOCUMENT'S. \pdfiglabelfamily is empty by default,
+% which means figure type inherits whatever face the document is setting --
+% Palatino in the Book, Computer Modern in a standalone chapter. Figures
+% agreeing with EACH OTHER is not the goal; figures agreeing with the
+% paragraph beside them is. A fragment therefore never names a family. Not
+% \sffamily (which resolves to Latin Modern Sans against a Computer Modern
+% page and reads as a foreign object on it), not \rmfamily, not
+% \fontfamily{...}. P18 in tikz_precheck.py is an error for exactly that.
+% An edition MAY substitute a face -- the Swiss and technical editions set
+% \pdfiglabelfamily to \pdgrotesk, because grotesk display is their declared
+% character -- and it does so in ONE command in ONE file, so the substitution
+% is a decision on the record rather than an accident in a fragment. The
+% only family a fragment may ask for is the identifier one, and it asks for
+% it by role (pd mono label / \pdfiglabelmono), never by \ttfamily.
+%
+% What the roles are, and what each one is for:
+%   pd panel title        bold        the name of a panel
+%   pd row label          bold        an actor/row name east of its lane
+%   pd reverse row label  bold, cream a row name sitting on a dark band
+%   pd axis label         regular     an axis title or a tick numeral
+%   pd direct label       regular     a value or name riding its own mark
+%   pd reverse label      regular, cream  a direct label on a dark band
+%   pd mono label         mono        an identifier, path, or literal
+%   pd verdict            bold        a terminal outcome stamp (CLEAR, REJECT)
+%   pd note               italic      one aside per figure
+%   pd legend             regular     a pgfplots legend entry
+%   pd state / terminal / actor / artifact / decision   node text
+%   pd axis               the whole pgfplots typographic block, one key
+%   \pdfigsub             a gloss line under a heading INSIDE a node
+%   \pdfigmath            math carrying a sub/superscript, inside a label
+%
+% A fragment that needs a compound style of its own composes it from a role
+% above (`gate/.style={pd decision,minimum width=2cm}`), or, where no role
+% fits, from the \pdfiglabel* handles here. It never writes a raw size
+% command: P16 in skills/harbor-chartwork/scripts/tikz_precheck.py is an
+% error for exactly that, and P10/P11 have been errors for \tiny and
+% \scriptsize since before this law.
+%
+% What does NOT transfer from the screen rules these roles otherwise follow.
+% The dataviz method those rules come from assumes an interactive chart: a
+% tooltip carries any value a label could not fit, a filter row rescopes the
+% view, hover lifts the hovered mark. A printed page has none of that, and the
+% absence is not a defect to design around. The INTENT of the tooltip rule --
+% "every value is reachable without gating" -- does transfer, and on this page
+% it is discharged somewhere else: the value is in the caption, in the margin
+% apparatus, or in the chapter's own worked example. So a label that will not
+% fit inside its mark moves outside the mark or is dropped to the caption; it
+% is never shrunk to fit, because there is no size below \footnotesize to shrink
+% to, and never clipped. Do not add a hover affordance, a legend toggle, or a
+% filter to a figure in this book.
+%
+% IDENTIFIERS GET ONE SPELLING. A key, a cell id, a file name or any other
+% literal a reader could type is set in `pd mono label` (or \pdfiglabelmono
+% inside a compound style), spelled exactly as the code spells it: sk_A, not
+% skA and not sk with a subscript A; card0, not card-nought and not a Unicode
+% subscript zero. A figure that shows the same identifier two ways has told
+% the reader they are two things. The subscripted form belongs to MATHEMATICS
+% ($\kappa_7$, an index into a sequence) and the literal form to CODE -- one
+% figure may use both, for different objects, but never both for the same
+% one. (A precheck for two spellings of one identifier inside a fragment is
+% being added on another branch; this is the convention it will enforce.)
+%
+% SHAPE IS A CHANNEL, AND IT HAS TO SURVIVE THE PRINT SIZE. pd datum, pd
+% focus datum and pd caution datum carry three different forms, because the
+% house palette is three low-chroma print inks and every distinction it makes
+% has to be doubled by something that is not colour. That only counts if the
+% form is still legible at 2.1-2.7 pt: an edition that flattens all three to
+% one form has removed the second channel and left the figure separating its
+% classes by hue alone, which fails in greyscale and for a colour-blind
+% reader. Any edition override that restyles a datum must keep three
+% distinguishable forms, and must be checked on a render at 1.0x, not
+% reasoned about from the point sizes.
+%
+% One screen rule that does NOT bind here, and why. "Text never wears the data
+% colour" exists because a light categorical hue is illegible as text on a
+% light surface. The house figure hues are print inks, not screen hues --
+% hhink #1B1712, hhteal #00564C, hhamber #6B4500 -- and all three clear text
+% contrast on cream, so a label MAY wear its series' ink to bind itself to a
+% curve, which is direct labelling and saves a legend. The rule that survives
+% is the reason behind it: text wears one of those three inks at full
+% strength, or hhink!80!hhgray for recessive furniture, and nothing else. A
+% tint of an ink (text=hhgray, text=hhteal!60) is not a role; it is a fade.
+% ===========================================================================
+
+\providecommand{\pdfiglabelfamily}{}            % an edition may set \pdgrotesk
+\providecommand{\pdfiglabelsize}{\footnotesize} % every named text role
+\providecommand{\pdfigbasesize}{\small}         % the picture's ambient size
+\providecommand{\pdfiglabel}{\pdfiglabelfamily\pdfiglabelsize}
+\providecommand{\pdfiglabelbold}{\pdfiglabel\bfseries}
+\providecommand{\pdfiglabelitalic}{\pdfiglabel\itshape}
+\providecommand{\pdfiglabelmono}{\pdfiglabelsize\ttfamily}
+% The one role that is not a node style, because it lives INSIDE a node's text:
+% the second line under a heading that glosses it ("reviewer role / obligation +
+% capability + authority"). Every fragment that needed it reached for \tiny or
+% \scriptsize, which is how seven \tiny and twelve \scriptsize survived P10/P11
+% as hard errors in the corpus. It steps down by SLOPE and WEIGHT, not size, so
+% it stays legible and stays legal, and it touches neither family nor ink --
+% which is what lets it sit on a reversed node without vanishing.
+\providecommand{\pdfigsub}{\mdseries\itshape}
+% The one place the law's own size is not the right size.
+%
+% Measured, both preambles, on a subscripted label inside `pd direct label`:
+%
+%              base glyph   subscript   subscript as % of base
+%   chapter      8.97pt       5.98pt            66.7%
+%   Book         8.72pt       6.36pt            72.9%
+%   promoted    10.91/10.46   7.97/7.64
+%
+% An earlier version of this comment said those subscripts are "under figcheck's
+% 7pt T1 floor". They are not, and the correction is worth more than the claim
+% was. T1 has TWO bands: running text is held to 7.0pt, and a span of three
+% glyphs or fewer -- a sub/superscript, a tick numeral -- is held to 5.9pt
+% (T1_SHORT_SPAN_PT). That second band is not a loophole. A subscript is set at
+% roughly 70% of its base by every typesetter that has ever existed; holding one
+% to the running-text floor would mean either no subscripts in figures at all,
+% or a figure whose base type is 10pt against 8.72pt body text.
+%
+% So \pdfigmath is NOT a T1 remedy, and using it as one is how a rule gets
+% applied where it does not belong. It exists because 5.98pt clears the
+% short-span band by 0.08pt, and 0.08pt is not a margin: a font substitution, an
+% edition that nudges \pdfigbasesize, or a chapter that loads a different math
+% font puts that subscript under the band with nobody having decided anything.
+% Promotion puts it at 7.97/7.64pt -- over even the running-text floor -- while
+% the base glyph stays close enough to its neighbours that the label still reads
+% as one label.
+%
+% Use it ONLY for a math group that carries a sub- or superscript. Plain math
+% takes the label's own size like any other text, and P22 in tikz_precheck.py is
+% an error if it does not.
+\providecommand{\pdfigmath}{\normalsize}
+
+% ---------------------------------------------------------------------------
+% THE GUIDE DASH, IN ABSOLUTE POINTS, IN ONE PLACE.
+%
+% `pd guide` used to read `line width=.45pt,densely dotted`. `densely dotted`
+% expands to `dash pattern=on \pgflinewidth off 1pt`, and \pgflinewidth is read
+% when the KEY is processed, not when the path is stroked. So the Swiss
+% edition's `pd guide/.append style={draw=hhink!40,line width=.5pt}` widened the
+% stroke and left the dash at the .45pt already baked into it. The canonical
+% Book therefore shipped a 0.448pt dot on a 0.498pt stroke.
+%
+% MEASURED IN THE SHIPPED ARTIFACT, not in a probe: 50 guide strokes sampled
+% pixel by pixel in the committed coordination-papers-mega-volume.pdf, at 150
+% dpi / 1.0x.
+%
+%   on 0.448pt = 0.93 device px -- UNDER ONE PIXEL; off 0.996pt = 2.08 px
+%   the dash DECLARES 69% of each line's length as gap
+%   only 34% of each line's pixels actually reach paper
+%   35.4% of three-period windows contain NO pixel that reaches paper at all
+%
+% That last number is the defect. The gap (2.08 px) is narrower than the
+% antialias spread of a 0.93 px stroke, so as the pattern's phase drifts along a
+% line the gaps fill in: over a third of every guide's length there is no gap
+% left and it is a continuous grey stroke, while the rest of the same line still
+% reads as dots. The ink arrives. The DOTTEDNESS does not. A reader sees one
+% line that is dotted here and solid there, and no author chose that.
+%
+% Twenty-five of the corpus's thirty-six guide draws use dottedness to mean
+% "this line is not a drawn edge", so twenty-five of them were making a
+% distinction the page does not carry.
+%
+% After, same measurement, same probe geometry, Book preamble:
+%   on 1.2pt = 2.50 px, off 2.0pt = 4.17 px, stroke .7pt = 1.45 px
+%   0.0% of three-period windows are without paper -- every gap survives,
+%     at every phase
+%   50% of pixels reach paper against 62.5% declared, the shortfall now being
+%     the stroke's antialias skirt rather than the whole signal
+%
+% ON THE INK, because the obvious reading of this change is wrong. The BASE pair
+% was never the problem: hhgray!62 against the hairline's hhgray!78 is 0.411
+% against 0.517 of nominal ink, well apart. The problem is that the Book renders
+% the SWISS edition (\pdedition defaults to swiss; the committed Book PDF is
+% full of hhink!40 guides), where the pair was hhink!40 against hhink!45 -- 4.6%
+% of the grey scale. Deleting the Swiss override, which is the right fix for the
+% geometry, makes the base ink govern the Book too -- and hhgray!62 is 0.411
+% against the Book hairline's 0.410. The same grey, to a thousandth. So the base
+% ink has to move, or the dash would go back to carrying the whole distinction
+% by itself, which is how this started.
+%
+% hhink!70 measured against the hairline, mean ink on the page at 150 dpi:
+%   chapter  guide 0.0502  hairline 0.0790   guide is 64% of the hairline
+%   Book     guide 0.0545  hairline 0.0671   guide is 81% of the hairline
+% Per DOT it is 0.638 against 0.410 -- unmistakably a different mark. In MEAN it
+% is still lighter than the hairline -- so it still recedes. Two channels, both
+% working, instead of one that does not.
+%
+% The replacement is stated absolutely and measures phase-STABLE: every dot
+% renders at the same weight wherever it falls on the grid (peak column ink
+% 0.808, invariant across twelve sub-pixel offsets). It is a macro rather than
+% three numbers because an edition that restates one of them and not the others
+% is how this defect happened. The geometry is a LEGIBILITY FLOOR, not an
+% edition's character: an edition may move the guide's ink, and states the
+% geometry through these two macros so it cannot half-restate it.
+%
+% Any dash in this corpus is stated in absolute points. The `dotted` family
+% (`dotted`, `densely dotted`, `loosely dotted`) derives its on-length from the
+% line width and is therefore banned -- P23 in tikz_precheck.py. `dashed` and
+% its relatives are absolute (on 3pt off 3pt) and are fine.
+\providecommand{\pdguidewidth}{.7pt}
+% Three lengths, not one macro holding the whole key: pgfkeys splits a key list
+% on `,` and `=` before expanding anything (so a macro carrying `dash
+% pattern=...` is read as one key NAME), and TikZ's dash-pattern scanner reads
+% the literal words `on`/`off` without expanding a macro that hides them. A
+% dimension after each word does expand, which is the seam that works.
+\providecommand{\pdguideon}{1.2pt}
+\providecommand{\pdguideoff}{2.0pt}
 
 \tikzset{
-  pd figure/.style={font=\small,text=hhink},
+  pd figure/.style={font=\pdfiglabelfamily\pdfigbasesize,text=hhink},
   pd hairline/.style={draw=hhgray!78,line width=.5pt},
   pd rule/.style={draw=hhink,line width=.62pt},
   pd focus rule/.style={draw=hhteal,line width=1.05pt},
   pd caution rule/.style={draw=hhamber,line width=1.05pt},
-  pd guide/.style={draw=hhgray!62,line width=.45pt,densely dotted},
+  % Darker per dot than the hairline, lighter in mean ink than it: a guide is a
+  % construction line the reader traces from a mark to an axis, so each dot has
+  % to be a definite mark, while the line as a whole has to recede behind the
+  % data. The hairline is the opposite -- continuous and faint. Those are the
+  % two axes that now separate them, instead of 4.6% of the grey scale.
+  pd guide/.style={draw=hhink!70,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
+  % A LATTICE is the rule work a figure stands on: column separators, row
+  % baselines, a time grid. It is NOT dotted, and that is the point. Dotted
+  % versus solid is a semantic channel -- it distinguishes a construction line
+  % from a drawn edge -- and thirteen fragments were spending it on background
+  % grid where it distinguishes nothing. A dash that carries no meaning is the
+  % first ink a rasteriser is entitled to lose, and it did. A lattice is
+  % continuous and quiet; a guide is discontinuous and definite. Use `pd guide`
+  % only where the reader must see that the line is not a drawn edge.
+  pd lattice/.style={draw=hhgray!52,line width=.4pt},
   pd arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhink,line width=.68pt},
   pd focus arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhteal,line width=.88pt},
   pd caution arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhamber,line width=.88pt,dashed},
-  pd row label/.style={font=\footnotesize\bfseries,text=hhink,anchor=east},
-  pd panel title/.style={font=\footnotesize\bfseries,text=hhink,align=left},
-  pd axis label/.style={font=\footnotesize,text=hhink!80!hhgray},
-  pd direct label/.style={font=\footnotesize,text=hhink,align=left,inner sep=1.5pt,fill=hhpaper},
-  pd note/.style={font=\footnotesize\itshape,text=hhink!80!hhgray,align=left},
+  % Four named mark families share one construction (rule/arrow/fill/datum at
+  % the same line weights and the same same-hue edge): hairline (no colour of
+  % its own), focus (hhteal, "the thing to notice"), caution (hhamber, "the
+  % thing to watch"), and danger (pderror, "the thing that broke"). Danger is
+  % the only family wired to a figures/pd-palette.tex colour rather than an
+  % hh* one -- every file that \input{figures/pd-figure-language} loads
+  % figures/pd-palette first, so pderror is always already defined. Reserve it
+  % for genuine breach/refusal/attack content; a plain data series with no
+  % danger meaning should use ink, navy, or a neutral grey, not this family.
+  pd danger rule/.style={draw=pderror,line width=1.05pt},
+  pd danger arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=pderror,line width=.88pt,dashed},
+  pd row label/.style={font=\pdfiglabelbold,text=hhink,anchor=east},
+  pd panel title/.style={font=\pdfiglabelbold,text=hhink,align=left},
+  pd axis label/.style={font=\pdfiglabel,text=hhink!80!hhgray},
+  % inner ysep is deliberately larger than inner xsep: at 1.5pt the descenders
+  % of a last line (q, y, p, g) reach the bottom of the cream backing under
+  % Computer Modern, where they clear it under Palatino. A label should not
+  % need its own patch to hold its own tails, and the sensitivity is the
+  % face's, not the fragment's.
+  pd direct label/.style={font=\pdfiglabel,text=hhink,align=left,
+    inner xsep=1.5pt,inner ysep=2.5pt,fill=hhpaper},
+  pd note/.style={font=\pdfiglabelitalic,text=hhink!80!hhgray,align=left},
   pd tick/.style={draw=hhgray,line width=.45pt},
   pd datum/.style={circle,fill=hhink,draw=none,inner sep=2.1pt},
   pd focus datum/.style={circle,fill=hhteal,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
   pd caution datum/.style={diamond,fill=hhamber,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
+  pd danger datum/.style={diamond,fill=pderror,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
   pd state/.style={draw=hhink,line width=.62pt,fill=hhsand!30,rounded corners=1.5pt,
-    inner xsep=8pt,inner ysep=6pt,align=center,minimum height=9mm},
+    font=\pdfiglabel,inner xsep=8pt,inner ysep=6pt,align=center,minimum height=9mm},
   pd terminal/.style={pd state,double,double distance=1.2pt},
   pd actor/.style={draw=hhink,line width=.62pt,fill=hhpaper,rounded corners=1.5pt,
-    inner xsep=8pt,inner ysep=5pt,align=center},
+    font=\pdfiglabel,inner xsep=8pt,inner ysep=5pt,align=center},
   pd artifact/.style={draw=hhgray!80,line width=.55pt,fill=hhsand!30,
-    inner xsep=8pt,inner ysep=5pt,align=center},
+    font=\pdfiglabel,inner xsep=8pt,inner ysep=5pt,align=center},
   pd boundary/.style={draw=hhgray!70,line width=.55pt,dashed,rounded corners=2pt},
-  pd focus fill/.style={fill=hhteal!24,draw=hhteal!65,line width=.4pt},
-  pd caution fill/.style={fill=hhamber!26,draw=hhamber!70,line width=.4pt},
-  pd neutral fill/.style={fill=hhsand!40,draw=hhgray!65,line width=.4pt},
+  % These three are pale washes: they are frequently layered on top of `pd
+  % state` (directly, or via a compound style like `cell`), whose swiss-edition
+  % override (figures/pd-figure-language-swiss.tex) appends text=hhpaper for the
+  % common case of a solid, saturated fill. A pale wash is the opposite case --
+  % text must stay dark ink regardless of what came before it in the style
+  % list, so each one restates text=hhink explicitly rather than relying on
+  % whatever was inherited.
+  pd focus fill/.style={fill=hhteal!24,draw=hhteal!65,line width=.4pt,text=hhink},
+  pd caution fill/.style={fill=hhamber!26,draw=hhamber!70,line width=.4pt,text=hhink},
+  pd danger fill/.style={fill=pderror!26,draw=pderror!70,line width=.4pt,text=hhink},
+  pd neutral fill/.style={fill=hhsand!40,draw=hhgray!65,line width=.4pt,text=hhink},
+  pd ink fill/.style={fill=hhink,draw=hhink,line width=.4pt,text=hhpaper},
   pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhgray!55},
+  % --- roles the corpus was inventing locally, now named -------------------
+  % Each is built ON TOP of the role it varies, so an edition's .append style
+  % on the parent reaches it without the edition file having to list it.
+  pd decision/.style={pd state,diamond,aspect=1.55,font=\pdfiglabelbold,
+    minimum height=0pt,inner xsep=3pt,inner ysep=3pt},
+  % A shade more side bearing than its parent: a monospace glyph box overhangs
+  % its own advance width, so the cream backing at the parent's 1.5pt clipped
+  % the last character of a long identifier.
+  pd mono label/.style={pd direct label,font=\pdfiglabelmono,inner xsep=2.5pt,inner ysep=2.5pt},
+  pd verdict/.style={pd direct label,font=\pdfiglabelbold},
+  pd reverse label/.style={pd direct label,text=hhpaper,fill=none},
+  pd reverse row label/.style={pd row label,text=hhpaper},
+  pd legend/.style={font=\pdfiglabel,text=hhink,draw=none,fill=none},
+  % A KIND TAG names what a row or column IS, rather than what it says: an
+  % audience ("for the operator"), a category, a running head. craft-rules S6
+  % already reserves small caps for exactly this, and small caps is the
+  % smallest effective difference that marks a change in kind -- it needs no
+  % size drop, no second colour and no box.
+  pd kind tag/.style={pd axis label,font=\pdfiglabel\scshape,align=right},
+  % A BADGE is a short boxed fact riding beside a row -- a part and chapter
+  % range, a version, a count. Hairline edge, no fill: it is a label with a
+  % boundary, not a region.
+  pd badge/.style={pd hairline,font=\pdfiglabel,text=hhink,align=center,
+    inner sep=2.4pt,fill=none},
 }
+
+% The pgfplots half of the same law. Before this existed, every plot fragment
+% restated title style/label style/tick label style by hand, and they disagreed
+% -- four said the tick numerals were hhink!80!hhgray, three said hhgray, and
+% the axis rule was drawn four different ways. `pd axis` is the one place now.
+% The axis line is `pd hairline` because an axis is reference furniture, not
+% data: heavy for data, light for the frame that carries it.
+\ifdefined\pgfplotsset
+\pgfplotsset{
+  pd axis/.style={
+    title style={font=\pdfiglabelbold,text=hhink,yshift=-2pt},
+    label style={font=\pdfiglabel,text=hhink!80!hhgray},
+    tick label style={font=\pdfiglabel,text=hhink!80!hhgray},
+    legend style={pd legend},
+    axis line style={pd hairline},
+    tick style={pd tick},
+  },
+}
+\fi
 
 % Small reusable marks.  They deliberately avoid prose-bearing boxes.
 \newcommand{\pdfigaxis}[4]{%
@@ -50,6 +371,8 @@
 % ---------------------------------------------------------------------------
 % Editions. The Book sets \pdedition (maritime | swiss | technical) and the
 % matching override file restyles the same names, so one drawing renders in
-% each edition's character. Standalone chapters have no edition.
+% each edition's character. Standalone chapters have no edition. An edition
+% changes the FAMILY (via \pdfiglabelfamily) and the character of the marks;
+% it never changes the size, because the size is the law above.
 % ---------------------------------------------------------------------------
 \ifdefined\pdedition\IfFileExists{figures/pd-figure-language-\pdedition.tex}{\input{figures/pd-figure-language-\pdedition}}{}\fi

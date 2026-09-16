@@ -73,9 +73,15 @@ class FixtureRepo:
     """A minimal two-chapter repo the checker can run against via --repo-root."""
 
     def __init__(self, tmp: Path, register_rows: str, triage_rows: str,
-                 include_fragment: bool = True):
+                 include_fragment: bool = True, chapter_body: str = "",
+                 extra_fragments: dict[str, str] | None = None):
         self.root = tmp
         write(tmp / "whitepaper" / "textbook.json", textbook_json())
+        # The chapter sources textbook.json points at. Checks 6/7 read these
+        # for `\input{figures/...}` sites and for chapter-declared labels, so
+        # a fixture that exercises them needs the files to exist.
+        write(tmp / "whitepaper" / "chone.tex", chapter_body or "% chapter one\n")
+        write(tmp / "whitepaper" / "chtwo.tex", "% chapter two\n")
         write(
             tmp / "docs" / "harbor-research" / "exposition" / "figures" / "FIGURE-REGISTER.md",
             "# Figure register\n\n"
@@ -89,7 +95,13 @@ class FixtureRepo:
             "## Chapter 2 — Chapter Two\n\n" + TRIAGE_HEADER,
         )
         if include_fragment:
-            write(tmp / "whitepaper" / "figures" / "fig-c1-thing.tex", "% a fragment\n")
+            # A real fragment declares the id the register names it by.
+            write(
+                tmp / "whitepaper" / "figures" / "fig-c1-thing.tex",
+                "% a fragment\n\\label{fig:c1-thing}\n",
+            )
+        for name, body in (extra_fragments or {}).items():
+            write(tmp / "whitepaper" / "figures" / f"{name}.tex", body)
 
     def run(self) -> subprocess.CompletedProcess:
         return subprocess.run(
@@ -194,6 +206,140 @@ class TestCheckFigureRegister(unittest.TestCase):
             self.assertTrue(
                 any("chapter 9" in line and "not in" in line for line in result.stdout.split("\n"))
             )
+
+
+DRAWING = "\\begin{tikzpicture}\\end{tikzpicture}\n"
+
+
+class TestRegisterFigureIds(unittest.TestCase):
+    """Checks 6 and 7 -- the two directions of the register's figure join.
+
+    Direction one: an id the register names must be declared somewhere.
+    Direction two: a drawing a chapter ships must be named by the register.
+    Both are mutation-tested here; a check that only ever runs on a clean tree
+    is indistinguishable from no check at all."""
+
+    # --- direction one: every id in the register resolves -------------------
+
+    def test_phantom_label_id_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="fig:not-a-real-figure"),
+                "",
+            )
+            result = repo.run()
+            self.assertEqual(result.returncode, 1, msg=result.stdout)
+            self.assertIn("fig:not-a-real-figure", result.stdout)
+            self.assertIn("no \\label", result.stdout)
+
+    def test_phantom_fragment_stem_fails(self) -> None:
+        """The spelling the real register actually drifted on: a bare fragment
+        stem, not a `fig:` id, naming a file the triage had deleted."""
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="fig-swk-long-deleted"),
+                "",
+            )
+            result = repo.run()
+            self.assertEqual(result.returncode, 1, msg=result.stdout)
+            self.assertIn("fig-swk-long-deleted.tex", result.stdout)
+
+    def test_declared_label_resolves(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp), register_row("ch1-01", existing="fig:c1-thing"), "",
+            )
+            self.assertEqual(repo.run().returncode, 0)
+
+    def test_listings_label_resolves(self) -> None:
+        """`alg:` ids are declared by the listings `label=` option inside a
+        chapter source, never by `\\label` -- check 6 has to read both."""
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="alg:acquire"),
+                "",
+                chapter_body="\\begin{lstlisting}[caption={A},label={alg:acquire}]\n"
+                             "\\end{lstlisting}\n",
+            )
+            self.assertEqual(repo.run().returncode, 0, msg=repo.run().stdout)
+
+    def test_none_is_the_explicit_status_for_an_undrawn_row(self) -> None:
+        """A row that wants a figure nobody has drawn is legitimate -- it says
+        `none`. That is what separates 'not drawn yet' from 'names a ghost'."""
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(Path(tmp), register_row("ch1-01", existing="none"), "")
+            self.assertEqual(repo.run().returncode, 0)
+
+    def test_cell_naming_nothing_and_not_saying_none_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp), register_row("ch1-01", existing="already implemented"), "",
+            )
+            result = repo.run()
+            self.assertEqual(result.returncode, 1, msg=result.stdout)
+            self.assertIn("must say 'none' explicitly", result.stdout)
+
+    # --- direction two: every shipped drawing is registered -----------------
+
+    def test_unregistered_shipped_drawing_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="none"),
+                "",
+                chapter_body="\\input{figures/fig-c1-orphan}\n",
+                extra_fragments={"fig-c1-orphan": DRAWING + "\\label{fig:c1-orphan}\n"},
+            )
+            result = repo.run()
+            self.assertEqual(result.returncode, 1, msg=result.stdout)
+            self.assertIn("fig-c1-orphan", result.stdout)
+            self.assertIn("no register row names it", result.stdout)
+
+    def test_registered_shipped_drawing_passes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="fig:c1-orphan"),
+                "",
+                chapter_body="\\input{figures/fig-c1-orphan}\n",
+                extra_fragments={"fig-c1-orphan": DRAWING + "\\label{fig:c1-orphan}\n"},
+            )
+            self.assertEqual(repo.run().returncode, 0, msg=repo.run().stdout)
+
+    def test_inputted_non_drawing_is_not_required_to_be_registered(self) -> None:
+        """A `\\input`ed fragment that opens no tikzpicture is a preamble
+        include, a verbatim session or a tabular. It is not a drawing and the
+        register does not owe it a row -- both conjuncts are properties of the
+        files, so there is no skip list to maintain."""
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="none"),
+                "",
+                chapter_body="\\input{figures/tab-c1-lookup}\n",
+                extra_fragments={"tab-c1-lookup": "\\begin{tabular}{c}x\\end{tabular}\n"},
+            )
+            self.assertEqual(repo.run().returncode, 0, msg=repo.run().stdout)
+
+    def test_both_directions_fail_together_and_are_both_named(self) -> None:
+        """The case a count comparison would miss: one register id points at
+        nothing and one shipped drawing is unnamed, so the two lists are the
+        same length and still wrong."""
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                register_row("ch1-01", existing="fig:not-a-real-figure"),
+                "",
+                chapter_body="\\input{figures/fig-c1-orphan}\n",
+                extra_fragments={"fig-c1-orphan": DRAWING + "\\label{fig:c1-orphan}\n"},
+            )
+            result = repo.run()
+            self.assertEqual(result.returncode, 1, msg=result.stdout)
+            self.assertIn("fig:not-a-real-figure", result.stdout)
+            self.assertIn("fig-c1-orphan", result.stdout)
 
 
 if __name__ == "__main__":

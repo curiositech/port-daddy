@@ -1,0 +1,43 @@
+schema_version: 1
+nodes:
+  - id: identity
+    contract: GH-C-001
+    proofs: [GH-P-001]
+  - id: chartroom
+    contracts: [GH-C-002, GH-C-009, GH-C-011]
+    depends_on: [identity]
+    proofs: [GH-P-002, GH-P-003]
+  - id: action_kernel
+    contracts: [GH-C-004, GH-C-005, GH-C-006, GH-C-007, GH-C-008]
+    depends_on: [identity, chartroom]
+    proofs: [GH-P-004, GH-P-012]
+  - id: confinement
+    contract_status: not_yet_promoted
+    adjacent_contracts: [GH-C-001, GH-C-007]
+    depends_on: [identity, action_kernel]
+    proofs: [GH-P-008]
+  - id: evidence
+    contracts: [GH-C-008, GH-C-011]
+    depends_on: [action_kernel]
+    proofs: [GH-P-006]
+  - id: coordination
+    contract: GH-C-010
+    depends_on: [identity, chartroom]
+    proofs: [GH-P-005]
+  - id: relay
+    contract: GH-C-003
+    depends_on: [identity, action_kernel, evidence]
+    proofs: [GH-P-009]
+  - id: outcomes
+    contract_status: not_yet_promoted
+    adjacent_contracts: [GH-C-008, GH-C-012]
+    depends_on: [identity, evidence]
+    proofs: [GH-P-010]
+  - id: market
+    contract: GH-C-012
+    depends_on: [relay, outcomes, confinement]
+    proofs: [GH-P-011]
+funded_cuts:
+  - id: GH-CUT-001
+    document: CUT-001-first-vertical-proof.md
+    crosses: [identity, chartroom, action_kernel, confinement, evidence, coordination]

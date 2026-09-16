@@ -15,18 +15,28 @@ prose quality -- only mechanically checkable structure:
   - exercise clusters (old-style `\exercises{...}` macro calls and new-style
     `\pdexercisesfor`/`\pdexercise`), and whether each sits inside a
     chapter-end "Exercises" section or interrupts the body mid-argument
-    (Wave 12 finding F1, READING-FLOW-AUDIT.md)
+    (Wave 12 finding F1, READING-FLOW-AUDIT.md). Which section counts as
+    "the" Exercises section is decided by exact title first, then by which
+    candidate actually contains the clusters -- not by substring, which
+    mistook a section merely *mentioning* exercises for the real one and
+    reported every correctly-placed cluster in the chapter as misplaced
+    (see find_final_exercises_section)
   - claim-like environments (theorem/lemma/definition/property/corollary,
     and the new-style `pdclaim{KIND}{...}`) and whether each carries a
     nearby epistemic-kind tag from the honesty ledger (Theorem / Design
-    invariant / Model-checked property / Empirical hypothesis, or this
-    project's own maturity macros: \\Built \\BuiltWeak \\Designed \\Vision
-    \\NotGuar \\Closed \\Partial \\Open \\pdassurance{...})
+    invariant / Model-checked property / Empirical hypothesis, or one of the
+    project's own status macros from figures/pd-pedagogy.tex: \\Built
+    \\BuiltWeak \\Designed \\Vision and their capitalised aliases, \\NotGuar,
+    \\Closed \\Partial \\Open \\SpecOnly, \\Verified \\Proved \\Unproved,
+    \\pdassurance{...})
   - legacy tinted-box macro definitions (a `\\newcommand` whose body draws a
     `fill=` node) -- the page-grammar anti-pattern pd-pedagogy.tex replaced
     with typography-and-margin ("no page paints a background")
-  - interludes (a section/subsection titled "Interlude...") -- at most one
-    is the template's rule, not "the more the richer"
+  - LABELLED interludes (a section/subsection titled "Interlude...") -- at
+    most one is the template's rule, not "the more the richer". Two or more
+    is a measured violation and blocks; one or none is reported REVIEW, not
+    PASS, because an aside woven unlabelled into ordinary prose is invisible
+    to any script and this floor must not certify what it cannot see
   - chapter-close apparatus: a Review-of-Key-Ideas-equivalent, a
     History-and-references-equivalent, and a boundary/handoff section,
     each detected by title keyword since chapters predate a fixed heading
@@ -55,6 +65,11 @@ Book's chapters have not been relocated to the template's chapter-end-only
 rule yet) and `chapter_opener_and_claim_labeling` (no chapter yet opens with
 an epigraph macro). Every other floor is blocking.
 
+One floor, `at_most_one_labelled_interlude`, has no PASS state at all: what
+it can measure (titled interludes) is only part of the rule it is named
+after, so a clean count is reported REVIEW -- "this is what was measured",
+not "this chapter is fine". See floor_status.
+
 Exit code: 0 always, unless --strict is given and at least one BLOCKING
 floor is violated (then 1), or a chapter file cannot be found/read/parsed
 (then 2). stdlib only.
@@ -82,10 +97,22 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CLAIM_ENVS = ("theorem", "lemma", "definition", "property", "corollary", "proposition")
 PDCLAIM_KINDS = ("Theorem", "Design invariant", "Model-checked property", "Empirical hypothesis")
 # Epistemic-kind tags this project actually uses near a claim, beyond the
-# pdclaim kind words themselves: research-maturity grades (seen in
-# whitepaper/single-writer-kernel.tex) and the pdassurance vocabulary.
+# pdclaim kind words themselves: the honesty ledger's four status scales and
+# the pdassurance vocabulary.
+#
+# This list must stay a superset of the status macros defined in
+# figures/pd-pedagogy.tex. It is a second copy of that vocabulary, and the two
+# used to be free to drift: the four capitalised spellings below are the ones
+# chapter 5 uses at every one of its status call sites, and because they were
+# missing here the chapter scored 14/17 on claims_carry_epistemic_kind while
+# actually tagging 17. tests/harbor-research/test_epistemic_tag_vocabulary.py
+# fails if pd-pedagogy defines a status macro this regex does not match.
 EPISTEMIC_TAG_RE = re.compile(
-    r"\\(Built|BuiltWeak|Designed|Vision|NotGuar|Closed|Partial|Open|pdassurance)\b"
+    r"\\(Built|BuiltWeak|Designed|Vision"
+    r"|BUILT|BUILTWEAK|DESIGNED|VISION"
+    r"|NotGuar|Closed|Partial|Open|SpecOnly"
+    r"|Verified|Proved|Unproved"
+    r"|pdassurance)\b"
 )
 TINTED_BOX_MACROS = ("keyidea", "pitfall", "exercises", "scene", "xrefbox", "pullquote", "scene")
 CHAPTER_CLOSE_KEYWORDS = {
@@ -96,8 +123,48 @@ CHAPTER_CLOSE_KEYWORDS = {
         re.I,
     ),
 }
+# Two tiers, deliberately. The loose pattern is a CANDIDATE filter (the
+# title mentions exercises at all); the exact one is what actually names a
+# chapter's closing Exercises section. Substring matching alone mistook
+# spawn-to-person.tex's "Open problems (the starred exercises, collected)"
+# -- a genuine, correctly-placed collection section that merely mentions the
+# word -- for the chapter's Exercises section, and then reported all 50 of
+# its correctly-placed clusters as mid-body. See find_final_exercises_section.
 EXERCISES_SECTION_TITLE_RE = re.compile(r"exercises?\b", re.I)
+EXERCISES_SECTION_TITLE_EXACT_RE = re.compile(
+    r"^(?:\d+(?:\.\d+)*\.?\s*)?(?:the\s+)?exercises?"
+    r"(?:\s+and\s+(?:solutions?|answers?|problems?))?$",
+    re.I,
+)
 INTERLUDE_TITLE_RE = re.compile(r"\binterlude\b", re.I)
+
+# A section title as written in the .tex carries markup (\emph{...},
+# \texttt{...}, \S, ties, stray braces) that has nothing to do with whether
+# the title IS "Exercises". Flatten it before an exact-title comparison.
+_TITLE_MACRO_WITH_ARG_RE = re.compile(r"\\[A-Za-z@]+\s*\{([^{}]*)\}")
+_TITLE_BARE_MACRO_RE = re.compile(r"\\[A-Za-z@]+\s*")
+# TeX's spacing control symbols -- `\ `, `\,`, `\;`, `\!`, `\:` -- are not
+# control WORDS, so the pattern above never sees them; "12.\ Exercises" kept
+# a stray backslash and missed the exact-title match.
+_TITLE_SPACING_MACRO_RE = re.compile(r"\\[ ,;!:]")
+
+
+def normalize_section_title(title: str) -> str:
+    """A section title flattened for comparison: markup macros replaced by
+    their argument (\\emph{Exercises} -> Exercises), bare control sequences
+    dropped, braces removed, surrounding punctuation and whitespace
+    trimmed, whitespace collapsed. Case is preserved; the callers'
+    patterns are case-insensitive."""
+    prev = None
+    out = title
+    while prev != out:
+        prev = out
+        out = _TITLE_MACRO_WITH_ARG_RE.sub(r"\1", out)
+    out = _TITLE_SPACING_MACRO_RE.sub(" ", out)
+    out = _TITLE_BARE_MACRO_RE.sub(" ", out)
+    out = out.replace("{", " ").replace("}", " ").replace("~", " ")
+    out = re.sub(r"\s+", " ", out).strip()
+    return out.strip(" .:;,-\u2014\u2013")
 
 
 # Same idiom as scripts/harbor-research/check_plate_provenance.py's
@@ -302,67 +369,166 @@ def find_examples(text: str, sections):
     return counts, sessions
 
 
-def find_final_exercises_section(sections):
-    """The chapter's own closing-sequence Exercises section (chapter-
-    template.md's order: Review -> Exercises -> History and references ->
-    handoff -- Exercises is NOT literally the document's last \\section,
-    since History/references and the handoff follow it). "Final" means the
-    LAST top-level section whose title matches Exercises, not the last
-    \\section overall -- guards against an early, unrelated section that
-    happens to share the word without accidentally requiring Exercises to
-    be the literal end of the document. Returns None if no section's title
-    matches at all."""
-    top_sections = [s for s in sections if s.kind == "section"]
-    matches = [s for s in top_sections if EXERCISES_SECTION_TITLE_RE.search(s.title)]
-    return matches[-1] if matches else None
-
-
-def find_exercise_clusters(text: str, sections):
-    # The template's rule (chapter-template.md §Chapter close) is not merely
-    # "inside *a* section titled Exercises" but that specific closing-
-    # sequence section -- see find_final_exercises_section. Comparing
-    # Section objects (not title strings) avoids a false match against an
-    # earlier, differently-purposed section that happens to share the word
-    # "exercises" in its title.
-    exercises_section = find_final_exercises_section(sections)
-
-    def in_final_exercises(pos: int) -> bool:
-        return bool(exercises_section and enclosing_top_section_obj(sections, pos) is exercises_section)
-
-    clusters = []
+def exercise_cluster_positions(text: str):
+    """Every exercise-cluster marker in the chapter as (macro_name, offset),
+    in source order. Split out of find_exercise_clusters so the chapter's
+    Exercises section can be chosen with the clusters' own positions in hand
+    (find_final_exercises_section) before each cluster is classified against
+    it."""
+    found = []
     # Old-style: \exercises{...} macro call with a balanced-brace body.
     for m in re.finditer(r"\\exercises\{", text):
         # Guard against matching the macro's own \newcommand{\exercises} definition.
         prefix = text[max(0, m.start() - 20) : m.start()]
         if "newcommand" in prefix:
             continue
-        title = enclosing_top_section(sections, m.start())
-        clusters.append(
-            ExerciseCluster(
-                macro="\\exercises",
-                line=line_of(text, m.start()),
-                in_exercises_section=in_final_exercises(m.start()),
-                enclosing_section_title=title,
-            )
-        )
+        found.append(("\\exercises", m.start()))
     # New-style chapter-end grouping marker and per-item exercise environment.
     for macro in ("pdexercisesfor", "pdexercise"):
         for m in re.finditer(r"\\begin\{" + macro + r"\}|\\" + macro + r"\{", text):
-            title = enclosing_top_section(sections, m.start())
-            clusters.append(
-                ExerciseCluster(
-                    macro="\\" + macro,
-                    line=line_of(text, m.start()),
-                    in_exercises_section=in_final_exercises(m.start()),
-                    enclosing_section_title=title,
-                )
-            )
+            found.append(("\\" + macro, m.start()))
+    found.sort(key=lambda p: p[1])
+    return found
+
+
+def find_final_exercises_section(sections, cluster_positions=()):
+    """The chapter's own closing-sequence Exercises section (chapter-
+    template.md's order: Review -> Exercises -> History and references ->
+    handoff -- Exercises is NOT literally the document's last \\section,
+    since History/references and the handoff follow it).
+
+    Picking the LAST top-level section whose title merely *contains* the
+    word was wrong, and wrong in the direction that costs the most: in
+    website-v2/public/whitepaper/spawn-to-person.tex a later section titled
+    "Open problems (the starred exercises, collected)" outranked the real
+    \\section{Exercises}, and all 50 correctly-placed clusters were then
+    reported as sitting outside it. Fifty false positives is worse than no
+    check at all, because someone acts on them.
+
+    Selection now scores every top-level section whose title mentions
+    exercises on, in order of weight:
+
+      1. exact title -- the normalized title IS "Exercises" (optionally
+         numbered, optionally "Exercises and solutions"), rather than a
+         sentence that happens to contain the word. An exactly-titled
+         section always outranks a merely-mentioning one, even an empty
+         exactly-titled one: clusters living in "Starred exercises" instead
+         of the chapter's own Exercises section is precisely the
+         misplacement this floor exists to report.
+      2. how many exercise clusters the section actually CONTAINS -- the
+         \\pdexercisesfor/\\pdexercise grouping the page grammar defines
+         (pd-pedagogy.tex §"chapter's closing \\section{Exercises}, grouped
+         under \\pdexercisesfor heads"). This is what settles a tie among
+         same-tier titles, and what keeps a merely-mentioning title from
+         being adopted unless the exercises are genuinely in it.
+      3. position -- the later section, preserving the original "final"
+         rule as the last tiebreak.
+
+    The candidate set is still only title-matching sections: a chapter with
+    no Exercises-titled section at all returns None, and every cluster in it
+    is reported mid-body, exactly as before. Pass `cluster_positions` (from
+    exercise_cluster_positions) to enable criterion 2; without it the
+    function degrades to title-only selection.
+    Returns None if no section's title matches at all."""
+    top_sections = [s for s in sections if s.kind == "section"]
+    candidates = [s for s in top_sections if EXERCISES_SECTION_TITLE_RE.search(s.title)]
+    if not candidates:
+        return None
+    positions = [p for _, p in cluster_positions]
+
+    def score(idx_and_section):
+        idx, s = idx_and_section
+        exact = bool(EXERCISES_SECTION_TITLE_EXACT_RE.match(normalize_section_title(s.title)))
+        contained = sum(1 for p in positions if s.start <= p < s.end)
+        return (exact, contained, idx)
+
+    return max(enumerate(candidates), key=score)[1]
+
+
+def find_exercise_clusters(text: str, sections):
+    """(clusters, exercises_section) -- every exercise cluster, each flagged
+    with whether it sits inside the chapter's closing Exercises section, and
+    the Section object that was taken to BE that section (None if the
+    chapter has none), so the report can name it and a reader can see at a
+    glance which section the floor judged against."""
+    positions = exercise_cluster_positions(text)
+    # The template's rule (chapter-template.md §Chapter close) is not merely
+    # "inside *a* section titled Exercises" but that specific closing-
+    # sequence section -- see find_final_exercises_section. Comparing
+    # Section objects (not title strings) avoids a false match against an
+    # earlier, differently-purposed section that happens to share the word
+    # "exercises" in its title.
+    exercises_section = find_final_exercises_section(sections, positions)
+
+    def in_final_exercises(pos: int) -> bool:
+        return bool(exercises_section and enclosing_top_section_obj(sections, pos) is exercises_section)
+
+    clusters = [
+        ExerciseCluster(
+            macro=macro,
+            line=line_of(text, pos),
+            in_exercises_section=in_final_exercises(pos),
+            enclosing_section_title=enclosing_top_section(sections, pos),
+        )
+        for macro, pos in positions
+    ]
     clusters.sort(key=lambda c: c.line)
-    return clusters
+    return clusters, exercises_section
 
 
 def find_interludes(sections):
+    """Sections/subsections whose TITLE says Interlude. This is the whole of
+    what the script can see: an aside woven unlabelled into ordinary prose
+    leaves no mechanical trace, and no amount of regex makes one appear. The
+    floor built on this count says so in its own status rather than printing
+    a bare PASS -- see build_report's at_most_one_labelled_interlude."""
     return [s.title for s in sections if INTERLUDE_TITLE_RE.search(s.title)]
+
+
+# \pdcite is this project's own citation macro (pd-pedagogy.tex) and is what
+# the Book's chapters actually use -- ~60-110 calls each, against one or zero
+# plain \cite. A pattern that missed it reported "1 distinct work cited" for a
+# chapter with 108 citations, which is the kind of confidently-wrong number
+# this whole change exists to stop printing.
+_CITE_RE = re.compile(
+    r"\\(?:pdcite|cite|citep|citet|citeal[pt]|citeyear|autocite|parencite|textcite)"
+    r"\s*(?:\[[^\]]*\])*\{([^}]*)\}"
+)
+_BIBLIOGRAPHY_START_RE = re.compile(r"\\begin\{thebibliography\}")
+_BIBITEM_RE = re.compile(r"\\bibitem(?:\[[^\]]*\])?\{([^}]*)\}")
+
+
+def citation_spread(text: str, sections):
+    """A measurement, not an inference: (n_bibitems, n_cited_in_body,
+    n_single_section_keys).
+
+      n_bibitems           entries in the chapter's own thebibliography
+      n_cited_in_body      distinct bibliography keys cited anywhere before
+                           the bibliography starts
+      n_single_section_keys how many of those are cited from exactly ONE
+                           top-level section
+
+    That last number is the only one with any bearing on the interlude
+    question, and even then only as a hint: a source imported for one
+    passage and never used again is the citation footprint an aside tends to
+    leave. It is NOT evidence that an aside is present -- a single-site
+    citation is equally what an ordinary supporting reference looks like --
+    so nothing in this function may set a floor's verdict. It exists so a
+    reviewer deciding whether a human read is worth scheduling has a number
+    instead of a hunch. Deliberately NOT a list of philosopher names: a
+    keyword list would be a guess wearing a measurement's clothes."""
+    bib = _BIBLIOGRAPHY_START_RE.search(text)
+    bib_start = bib.start() if bib else len(text)
+    n_bibitems = len(set(_BIBITEM_RE.findall(text)))
+    per_key_sections: dict[str, set] = {}
+    for m in _CITE_RE.finditer(text, 0, bib_start):
+        where = enclosing_top_section(sections, m.start())
+        for key in m.group(1).split(","):
+            key = key.strip()
+            if key:
+                per_key_sections.setdefault(key, set()).add(where)
+    n_single = sum(1 for v in per_key_sections.values() if len(v) == 1)
+    return n_bibitems, len(per_key_sections), n_single
 
 
 def find_tinted_box_macros(text: str):
@@ -433,13 +599,18 @@ def neutralized_macro_names(pd_pedagogy_path) -> set:
     if pd_pedagogy_path is None or not pd_pedagogy_path.is_file():
         return set()
     text = strip_comments(pd_pedagogy_path.read_text(encoding="utf-8", errors="replace"))
-    m = _ATBEGINDOCUMENT_RE.search(text)
-    if not m:
-        return set()
-    body, _ = balanced_brace_arg(text, m.end() - 1)
-    if not body:
-        return set()
-    return set(_LONG_DEF_RE.findall(body))
+    # Every \\AtBeginDocument block, not the first one. pd-pedagogy.tex has
+    # more than one: the margin apparatus opens a block of its own to hook
+    # \\section for the pending-pointer check, and it happens to come first,
+    # so searching for a single block returned that one, found no \\long\\def
+    # in it and reported that nothing is neutralized -- which reads as "every
+    # fill-drawing macro is live" and is wrong in the direction that matters.
+    names = set()
+    for m in _ATBEGINDOCUMENT_RE.finditer(text):
+        body, _ = balanced_brace_arg(text, m.end() - 1)
+        if body:
+            names |= set(_LONG_DEF_RE.findall(body))
+    return names
 
 
 _TABLE_START_RE = re.compile(r"\\begin\{(table\*?|tabular\*?|longtable)\}")
@@ -500,7 +671,7 @@ def build_report(path: Path) -> ChapterReport:
 
     claims = find_claims(text, sections)
     examples_per_section, session_count = find_examples(text, sections)
-    exercise_clusters = find_exercise_clusters(text, sections)
+    exercise_clusters, exercises_section = find_exercise_clusters(text, sections)
     interludes = find_interludes(sections)
     tinted = find_tinted_box_macros(text)
     chapter_close = check_chapter_close(text, sections)
@@ -545,22 +716,31 @@ def build_report(path: Path) -> ChapterReport:
     # match this yet (Wave 12 finding F1 named the defect; the relocation
     # itself is still open per-chapter work), so this must report without
     # gating --strict.
-    exercises_section = find_final_exercises_section(sections)
     mid_body = [c for c in exercise_clusters if not c.in_exercises_section]
+    # Name the section the floor judged against, always. When this floor
+    # misfired on spawn-to-person.tex it reported 50 mid-body clusters
+    # without ever saying WHICH section it had taken for the chapter's
+    # Exercises section -- so the report gave no way to see that the
+    # judgment, not the chapter, was wrong.
+    taken_as = (
+        f"taken as the chapter's Exercises section: \"{exercises_section.title}\" (line {exercises_section.line})"
+        if exercises_section
+        else "no section titled 'Exercises' was found at all"
+    )
     report.floors["exercises_at_chapter_end"] = {
         "ok": not mid_body,
         "advisory": True,
         "detail": (
             f"{len(mid_body)}/{len(exercise_clusters)} exercise clusters sit outside the chapter's "
             "closing \\section titled 'Exercises' (Wave 12 finding F1: this is the exact defect the "
-            "chapter-end apparatus was built to fix). "
-            + ("No section titled 'Exercises' was found at all. " if not exercises_section else "")
+            f"chapter-end apparatus was built to fix). {taken_as}. "
             + "Lines: " + ", ".join(str(c.line) for c in mid_body[:12])
             + (" ..." if len(mid_body) > 12 else "")
         )
         if mid_body
         else (
-            f"all {len(exercise_clusters)} exercise clusters sit inside the chapter's closing 'Exercises' section"
+            f"all {len(exercise_clusters)} exercise clusters sit inside the chapter's closing "
+            f"'Exercises' section ({taken_as})"
             if exercise_clusters
             else "no exercise clusters found"
         ),
@@ -661,9 +841,48 @@ def build_report(path: Path) -> ChapterReport:
         ),
     }
 
-    report.floors["at_most_one_interlude"] = {
+    # This floor can only ever see a LABELLED interlude -- a section or
+    # subsection whose title says so. The template's actual rule ("at most
+    # one philosophical frame per chapter, explicitly labelled, bounded,
+    # skippable") also forbids the unlabelled kind, and the unlabelled kind
+    # is the common one: whitepaper/legible-swarm.tex runs Hobbes as its
+    # spine and Scott as its governing warning, both woven through ordinary
+    # prose, and this floor counted 0 and printed PASS -- a clean verdict on
+    # the worst instance of the thing it checks. No regex fixes that, and a
+    # keyword list of philosopher names would be a guess dressed as a
+    # measurement. So the floor stops claiming a verdict it does not have:
+    #   >=2 labelled  -> FAIL, blocking. A measured violation, sound.
+    #   <=1 labelled  -> REVIEW, never PASS. States what was counted and
+    #                    that the unlabelled kind is out of its reach.
+    # The citation numbers ride along as an explicitly-marked hint and never
+    # touch the verdict -- see citation_spread.
+    n_bibitems, n_cited, n_single_site = citation_spread(text, sections)
+    labelled_detail = (
+        f"{len(interludes)} LABELLED interlude(s) (section/subsection titled 'Interlude'): "
+        + "; ".join(interludes)
+        if interludes
+        else "0 LABELLED interludes (no section or subsection is titled 'Interlude')"
+    )
+    hint = (
+        f" Hint, not a verdict and not evidence: {n_bibitems} bibliography entries, "
+        f"{n_cited} distinct works cited in the body, {n_single_site} of them cited from a single "
+        "section only -- a source imported for one passage and dropped is the footprint an aside "
+        "tends to leave, and equally what an ordinary supporting citation looks like. Use it to "
+        "decide whether a human read is worth scheduling, nothing more."
+    )
+    report.floors["at_most_one_labelled_interlude"] = {
         "ok": len(interludes) <= 1,
-        "detail": f"{len(interludes)} interlude(s): " + "; ".join(interludes) if interludes else "0 interludes",
+        "needs_human_read": True,
+        "detail": (
+            labelled_detail
+            + (
+                "; the template allows one. "
+                if len(interludes) > 1
+                else ". An unlabelled philosophical aside woven into ordinary prose is not "
+                "detectable here and needs a human read, so this is a measurement, not a pass."
+            )
+            + hint
+        ),
     }
 
     missing_close = [k for k, v in chapter_close.items() if not v["present"]]
@@ -680,10 +899,20 @@ def build_report(path: Path) -> ChapterReport:
 
 
 def floor_status(f: dict) -> str:
-    """PASS, FAIL, or WARN -- WARN is an advisory floor that is not met
-    (reported, but never the reason --strict exits 1; see is_blocking)."""
+    """PASS, REVIEW, WARN, or FAIL.
+
+      PASS    the floor is met, and the floor can actually see the whole
+              rule it states.
+      REVIEW  everything the script CAN measure came back clean, but the
+              rule is only partly mechanically visible, so a clean
+              measurement is not a pass -- a human still has to read
+              (`needs_human_read`). Never blocks --strict.
+      WARN    an advisory floor that is not met (reported, never the reason
+              --strict exits 1; see is_blocking).
+      FAIL    a blocking floor that is not met.
+    """
     if f["ok"]:
-        return "PASS"
+        return "REVIEW" if f.get("needs_human_read") else "PASS"
     return "WARN" if f.get("advisory") else "FAIL"
 
 
@@ -702,7 +931,8 @@ def render_text(report: ChapterReport) -> str:
     lines.append("Floors:")
     for name, f in report.floors.items():
         mark = floor_status(f)
-        lines.append(f"  [{mark}] {name}")
+        # ljust so PASS/FAIL/WARN/REVIEW rows stay in one column.
+        lines.append(f"  [{mark}]".ljust(11) + name)
         lines.append(f"         {f['detail']}")
     lines.append("")
     lines.append(f"Claims: {len(report.claims)} total, "
@@ -724,7 +954,11 @@ def render_text(report: ChapterReport) -> str:
         loc = "chapter-end" if c["in_exercises_section"] else "MID-BODY"
         lines.append(f"    line {c['line']:5d}  {c['macro']:<20} [{loc}]  in \"{c['enclosing_section_title']}\"")
     lines.append("")
-    lines.append(f"Interludes: {len(report.interludes)}" + (": " + "; ".join(report.interludes) if report.interludes else ""))
+    lines.append(
+        f"Labelled interludes: {len(report.interludes)}"
+        + (": " + "; ".join(report.interludes) if report.interludes else "")
+        + " (unlabelled asides are not counted and cannot be)"
+    )
     lines.append(f"Tinted-box macros: {len(report.tinted_box_macros)}"
                  + (": " + ", ".join(t["macro"] for t in report.tinted_box_macros) if report.tinted_box_macros else ""))
     return "\n".join(lines)
@@ -770,10 +1004,13 @@ def render_consolidated_text(reports: list) -> str:
         lines.append(f"{path:<{chapter_w}}  {name:<{floor_w}}  {status:<6}  {detail}")
     n_blocking = sum(1 for r in reports for f in r.floors.values() if is_blocking(f))
     n_advisory_unmet = sum(1 for r in reports for f in r.floors.values() if f.get("advisory") and not f["ok"])
+    n_review = sum(1 for r in reports for f in r.floors.values() if floor_status(f) == "REVIEW")
     lines.append("")
     lines.append(
         f"{len(reports)} chapter(s), {len(rows)} floor row(s): "
-        f"{n_blocking} blocking failure(s), {n_advisory_unmet} advisory floor(s) not met."
+        f"{n_blocking} blocking failure(s), {n_advisory_unmet} advisory floor(s) not met, "
+        f"{n_review} floor(s) REVIEW (measured clean as far as the script can see, which is not a "
+        "pass -- a human still has to read)."
     )
     return "\n".join(lines)
 
@@ -789,8 +1026,12 @@ def render_consolidated_md(reports: list) -> str:
             lines.append(f"| `{r.path}` | `{name}` | {floor_status(f)} | {f['detail']} |")
     n_blocking = sum(1 for r in reports for f in r.floors.values() if is_blocking(f))
     n_advisory_unmet = sum(1 for r in reports for f in r.floors.values() if f.get("advisory") and not f["ok"])
+    n_review = sum(1 for r in reports for f in r.floors.values() if floor_status(f) == "REVIEW")
     lines.append("")
-    lines.append(f"**{n_blocking} blocking failure(s), {n_advisory_unmet} advisory floor(s) not met.**")
+    lines.append(
+        f"**{n_blocking} blocking failure(s), {n_advisory_unmet} advisory floor(s) not met, "
+        f"{n_review} floor(s) REVIEW (not a pass -- a human still has to read).**"
+    )
     return "\n".join(lines)
 
 

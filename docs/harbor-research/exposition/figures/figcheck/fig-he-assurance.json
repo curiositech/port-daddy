@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-he-assurance/fig-he-assurance.pdf",
+  "figure": "fig-he-assurance",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -15,42 +15,42 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            495.58343505859375,
-            161.78810119628906,
-            500.72607421875,
-            167.33572387695312
+            495.5464172363281,
+            159.1201934814453,
+            500.58953857421875,
+            164.56045532226562
           ],
           "text": "B",
-          "size_pt": 5.55,
-          "message": "text 'B' renders at 5.55pt, below the 7.00pt floor"
+          "size_pt": 5.44,
+          "message": "text 'B' renders at 5.44pt, below the 7.00pt floor"
         },
         {
           "check": "T1",
           "severity": "fail",
           "page": 0,
           "bbox": [
-            356.88739013671875,
-            132.0531768798828,
-            360.5543518066406,
-            137.60079956054688
+            353.0583801269531,
+            130.07403564453125,
+            356.6543884277344,
+            135.51429748535156
           ],
           "text": "k",
-          "size_pt": 5.55,
-          "message": "text 'k' renders at 5.55pt, below the 7.00pt floor"
+          "size_pt": 5.44,
+          "message": "text 'k' renders at 5.44pt, below the 7.00pt floor"
         },
         {
           "check": "T1",
           "severity": "fail",
           "page": 0,
           "bbox": [
-            395.3023681640625,
-            128.1379852294922,
-            398.9693298339844,
-            133.68560791015625
+            393.7159118652344,
+            125.6402359008789,
+            397.3119201660156,
+            131.08050537109375
           ],
           "text": "k",
-          "size_pt": 5.55,
-          "message": "text 'k' renders at 5.55pt, below the 7.00pt floor"
+          "size_pt": 5.44,
+          "message": "text 'k' renders at 5.44pt, below the 7.00pt floor"
         }
       ]
     },
@@ -74,6 +74,11 @@
       "count": 0,
       "findings": []
     },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
     "T6": {
       "status": "pass",
       "count": 0,
@@ -85,6 +90,17 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1247,
+      "edge_density": 0.0878,
+      "distinct_colors": 1776,
+      "flags": [
+        "edge_density=0.088 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
