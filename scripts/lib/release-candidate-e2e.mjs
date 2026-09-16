@@ -354,6 +354,28 @@ export function secretFreeBaseEnv(env = process.env) {
   return Object.fromEntries(Object.entries(env).filter(([name, value]) => keep.has(name) && typeof value === 'string'));
 }
 
+/** Build the private environment shared by release-candidate build and run phases. */
+export function releaseCandidateIsolatedEnv(root, extra = {}, { env = process.env, home = homedir() } = {}) {
+  const resolvedRoot = resolve(root);
+  return {
+    ...secretFreeBaseEnv(env),
+    CI: env.CI || '1',
+    CARGO_HOME: env.CARGO_HOME || join(home, '.cargo'),
+    HOME: join(resolvedRoot, 'build-home'),
+    NO_COLOR: '1',
+    PD_SCRATCH_ROOT: join(resolvedRoot, 'build-scratch'),
+    PD_HOME: join(resolvedRoot, 'control'),
+    RUSTUP_HOME: env.RUSTUP_HOME || join(home, '.rustup'),
+    TERM: 'dumb',
+    TMPDIR: join(resolvedRoot, 'tmp'),
+    USERPROFILE: join(resolvedRoot, 'build-home'),
+    ...extra,
+    // A private PD_HOME must never consult or mutate the operator's canonical
+    // Keychain identity. Its mandatory note key is generated inside PD_HOME.
+    PORT_DADDY_DISABLE_KEYCHAIN: '1',
+  };
+}
+
 /**
  * Metadata-only tree snapshot. It never reads file content, which keeps an
  * operator context or credential file out of test memory and artifacts.

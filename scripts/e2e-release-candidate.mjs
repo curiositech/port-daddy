@@ -27,6 +27,7 @@ import {
   loadReleaseCandidateMatrix,
   prepareOwnedPrivateDirectory,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
@@ -266,20 +267,7 @@ class ReleaseCandidateSuite {
   }
 
   isolatedEnv(extra = {}) {
-    return {
-      ...secretFreeBaseEnv(),
-      CI: process.env.CI || '1',
-      CARGO_HOME: process.env.CARGO_HOME || join(homedir(), '.cargo'),
-      HOME: join(this.root, 'build-home'),
-      NO_COLOR: '1',
-      PD_SCRATCH_ROOT: join(this.root, 'build-scratch'),
-      PD_HOME: join(this.root, 'control'),
-      RUSTUP_HOME: process.env.RUSTUP_HOME || join(homedir(), '.rustup'),
-      TERM: 'dumb',
-      TMPDIR: join(this.root, 'tmp'),
-      USERPROFILE: join(this.root, 'build-home'),
-      ...extra,
-    };
+    return releaseCandidateIsolatedEnv(this.root, extra);
   }
 
   async buildAndStage() {

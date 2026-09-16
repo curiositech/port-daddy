@@ -20,6 +20,7 @@ import {
   loadReleaseCandidateMatrix,
   prepareOwnedPrivateDirectory,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
@@ -144,6 +145,31 @@ describe('release-candidate E2E contract', () => {
     }
   });
 
+  test('the build environment uses private key storage without ambient credentials or canonical Keychain access', () => {
+    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
+    const env = releaseCandidateIsolatedEnv(root, {
+      PORT_DADDY_DISABLE_KEYCHAIN: '0',
+      PORT_DADDY_RESOURCE_DIR: join(root, 'resources'),
+    }, {
+      env: {
+        CI: '1',
+        PATH: '/usr/bin:/bin',
+        CARGO_HOME: '/fixture/cargo',
+        RUSTUP_HOME: '/fixture/rustup',
+        GITHUB_TOKEN: 'must-not-survive',
+      },
+      home: '/fixture/home',
+    });
+
+    expect(env.PD_HOME).toBe(join(root, 'control'));
+    expect(env.HOME).toBe(join(root, 'build-home'));
+    expect(env.PORT_DADDY_DISABLE_KEYCHAIN).toBe('1');
+    expect(env.PORT_DADDY_RESOURCE_DIR).toBe(join(root, 'resources'));
+    expect(env.GITHUB_TOKEN).toBeUndefined();
+    expect(env.CARGO_HOME).toBe('/fixture/cargo');
+    expect(env.RUSTUP_HOME).toBe('/fixture/rustup');
+  });
+
   test('private runtime fixture preparation rejects a symlink without changing its target', () => {
     const base = join(homedir(), 'coding', 'tmp');
     mkdirSync(base, { recursive: true });
@@ -262,7 +288,7 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('matrixEnvRequired: false');
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
-    expect(runner).toContain("PD_HOME: join(this.root, 'control')");
+    expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra)');
     expect(runner).not.toContain('PORT_DADDY_ISOLATED_TEST');
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
     expect(runner).toContain("'sitrep',\n          '--json'");
