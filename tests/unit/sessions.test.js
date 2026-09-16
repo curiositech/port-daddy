@@ -85,6 +85,25 @@ describe('Sessions Module', () => {
       expect(result.error).toMatch(/agentId/);
     });
 
+    it('should reserve the projectless claim sentinel at the canonical session writer', () => {
+      for (const project of ['@projectless', ' @projectless ', '', '   ']) {
+        const result = sessions.start('Work item', { project });
+        expect(result.success).toBe(false);
+        expect(result.code).toBe('VALIDATION_ERROR');
+        expect(result.error).toMatch(/project/);
+      }
+      expect(sessions.list({}).sessions).toHaveLength(0);
+    });
+
+    it('should reject non-string projects from untyped callers', () => {
+      const result = sessions.start('Work item', { project: 42 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('VALIDATION_ERROR');
+      expect(result.error).toMatch(/project/);
+      expect(sessions.list({}).sessions).toHaveLength(0);
+    });
+
     it('should accept metadata option', () => {
       const metadata = { branch: 'feature/x', priority: 'high' };
       const result = sessions.start('Work item', { metadata });
@@ -428,6 +447,27 @@ describe('Sessions Module', () => {
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('SESSION_NOT_FOUND');
+    });
+
+    it('should atomically reject a successor that requests the projectless claim sentinel', () => {
+      const started = sessions.start('Reserved scope predecessor', {
+        agentId: 'old-agent',
+        project: 'port-daddy',
+        files: ['src/a.ts'],
+      });
+      sessions.abandon(started.id);
+
+      const result = sessions.takeover(started.id, {
+        agentId: 'old-agent',
+        project: '@projectless',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('VALIDATION_ERROR');
+      expect(result.error).toMatch(/projectless/);
+      expect(sessions.list({}).sessions).toHaveLength(1);
+      expect(sessions.get(started.id).session.status).toBe('abandoned');
+      expect(sessions.get(started.id).files.filter(file => file.releasedAt === null)).toHaveLength(0);
     });
   });
 

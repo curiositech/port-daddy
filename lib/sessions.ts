@@ -16,7 +16,7 @@ import type { NoteEncryption } from './note-encryption.js';
 import type { SemanticIndex } from './semantic-index.js';
 import type { EpisodicMemory } from './episodic-memory.js';
 import type { Symbol as IndexedSymbol, SymbolIndex } from './symbol-index.js';
-import { createClaimForest, type ClaimForestClaim } from './claim-forest.js';
+import { createClaimForest, PROJECTLESS_REPO_ID, type ClaimForestClaim } from './claim-forest.js';
 import { isCoordinationScopeId, validateCoordinationOperation, type CoordinationOperation, type CoordinationNoteValue } from './coordination-ledger.js';
 
 const MAX_NOTES_PER_SESSION = 500;
@@ -906,6 +906,27 @@ export function createSessions(
     return agentId.trim();
   }
 
+  function normalizeSessionProject(project: unknown):
+    | { success: true; project: string | null }
+    | { success: false; error: string; code: 'VALIDATION_ERROR' } {
+    if (project === null || project === undefined) return { success: true, project: null };
+    if (typeof project !== 'string') {
+      return { success: false, error: 'project must be a string', code: 'VALIDATION_ERROR' };
+    }
+    const normalized = project.trim();
+    if (!normalized) {
+      return { success: false, error: 'project must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
+    }
+    if (normalized === PROJECTLESS_REPO_ID) {
+      return {
+        success: false,
+        error: `${PROJECTLESS_REPO_ID} is reserved for internal projectless claim scope`,
+        code: 'VALIDATION_ERROR',
+      };
+    }
+    return { success: true, project: normalized };
+  }
+
   function authorizeFileMutation(
     session: SessionRow,
     callerAgentId: string | null | undefined,
@@ -1090,7 +1111,7 @@ export function createSessions(
   /**
    * Start a new session
    */
-  function start(purpose: string, options: StartOptions = {}) {
+  function start(purpose: string, options: StartOptions = {}): Record<string, unknown> {
     if (!purpose || typeof purpose !== 'string') {
       return { success: false, error: 'purpose must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
@@ -1113,7 +1134,9 @@ export function createSessions(
     // Omission may auto-detect for local callers. Explicit null is a verified
     // projectless admission, never permission to borrow the daemon's Git world.
     const resolvedWorktreeId = options.worktreeId === undefined ? getWorktreeId() ?? null : worktreeId;
-    const identityProject = project || null;
+    const projectAdmission = normalizeSessionProject(project);
+    if (!projectAdmission.success) return projectAdmission;
+    const identityProject = projectAdmission.project;
 
     // Validate agentId if provided
     if (agentId !== null && typeof agentId !== 'string') {
@@ -1500,6 +1523,10 @@ export function createSessions(
   function takeover(sessionId: string, options: TakeoverOptions = {}) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+    if (options.project !== undefined) {
+      const projectAdmission = normalizeSessionProject(options.project);
+      if (!projectAdmission.success) return projectAdmission;
     }
 
     // There is no commit notification for a caller-owned transaction. Refuse
