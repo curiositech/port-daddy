@@ -1319,6 +1319,10 @@ describe('CLI Integration Tests', () => {
       const mintedContext = JSON.parse(
         readFileSync(join(contextDir, 'contexts', `${slot}.json`), 'utf8'),
       );
+      // The begin above already asserted success, so the daemon must have
+      // written this slot's context file — fail loudly, not with a TypeError
+      // on the next line, if that invariant is ever wrong.
+      expect(mintedContext).toBeTruthy();
 
       writeTestCurrentContext({
         agentId: beginData.agentId,
