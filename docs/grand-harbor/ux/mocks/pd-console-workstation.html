@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grand Harbor workstation — UX proposal</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --gh-bone: light-dark(#f4f0e5, #171814);
+      --gh-paper: light-dark(#fffdf6, #20211d);
+      --gh-ink: light-dark(#18201e, #edf1e9);
+      --gh-muted: light-dark(#66716b, #a7b0a7);
+      --gh-line: light-dark(#c8cdc3, #41473f);
+      --gh-line-strong: light-dark(#8e9a91, #68736a);
+      --gh-emerald: light-dark(#086a55, #69d7b2);
+      --gh-emerald-soft: light-dark(#d9eee5, #163a30);
+      --gh-purple: light-dark(#5c3ca3, #b99cec);
+      --gh-purple-soft: light-dark(#ece4f9, #322645);
+      --gh-saffron: light-dark(#8d5700, #ffc65b);
+      --gh-saffron-soft: light-dark(#f6e8c4, #453518);
+      --gh-vermilion: light-dark(#a63a2b, #ff8b76);
+      --gh-vermilion-soft: light-dark(#f7dfd8, #452720);
+      --gh-blue: light-dark(#1f5e84, #7fc6ee);
+      --gh-shadow: 0 14px 44px light-dark(rgb(41 49 43 / 10%), rgb(0 0 0 / 34%));
+      --gh-radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--gh-bone); color: var(--gh-ink); }
+    body { font-family: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .gh-shell { min-height: 100vh; display: grid; grid-template-rows: 52px minmax(0, 1fr) 42px; }
+    .gh-scope { display: grid; grid-template-columns: minmax(260px, 1fr) auto auto; gap: 12px; align-items: center; padding: 0 14px 0 18px; border-bottom: 1px solid var(--gh-line-strong); background: var(--gh-paper); position: sticky; top: 0; z-index: 20; }
+    .gh-scope-path { display: flex; align-items: center; min-width: 0; gap: 9px; font-weight: 630; letter-spacing: -.01em; }
+    .gh-scope-path span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gh-slash { color: var(--gh-line-strong); font-weight: 400; }
+    .gh-truth { display: flex; gap: 7px; align-items: center; color: var(--gh-muted); white-space: nowrap; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; }
+    .gh-live-dot { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--gh-emerald); box-shadow: 0 0 0 3px var(--gh-emerald-soft); }
+    .gh-stop { border: 1px solid var(--gh-vermilion); background: transparent; color: var(--gh-vermilion); padding: 7px 10px; border-radius: 6px; font-weight: 650; cursor: pointer; }
+    .gh-stop:hover, .gh-stop:focus-visible { background: var(--gh-vermilion-soft); outline: 2px solid color-mix(in srgb, var(--gh-vermilion) 30%, transparent); outline-offset: 2px; }
+    .gh-main { min-height: 0; display: grid; grid-template-columns: 210px minmax(640px, 1fr) 330px; }
+    .gh-rail { border-right: 1px solid var(--gh-line); background: color-mix(in srgb, var(--gh-paper) 76%, var(--gh-bone)); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; }
+    .gh-wordmark { padding: 4px 10px 15px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--gh-line); margin-bottom: 7px; }
+    .gh-wordmark strong { font-size: 15px; letter-spacing: -.03em; }
+    .gh-wordmark small { color: var(--gh-muted); font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: .08em; }
+    .gh-nav { border: 0; background: transparent; text-align: left; padding: 9px 10px; border-radius: 6px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; align-items: center; color: var(--gh-muted); }
+    .gh-nav:hover { background: color-mix(in srgb, var(--gh-line) 24%, transparent); color: var(--gh-ink); }
+    .gh-nav[aria-selected="true"] { background: var(--gh-purple-soft); color: var(--gh-purple); box-shadow: inset 3px 0 0 var(--gh-purple); font-weight: 650; }
+    .gh-count { min-width: 20px; text-align: center; border: 1px solid currentColor; border-radius: 99px; font-family: "IBM Plex Mono", monospace; font-size: 10px; padding: 1px 4px; }
+    .gh-rail-section { color: var(--gh-muted); font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; padding: 18px 10px 6px; }
+    .gh-signal-control { margin-top: auto; border-top: 1px solid var(--gh-line); padding: 13px 10px 4px; display: grid; gap: 9px; }
+    .gh-signal-control label { display: flex; justify-content: space-between; align-items: center; color: var(--gh-muted); cursor: pointer; }
+    .gh-switch { appearance: none; inline-size: 30px; block-size: 17px; border: 1px solid var(--gh-line-strong); border-radius: 99px; background: var(--gh-line); position: relative; cursor: pointer; }
+    .gh-switch::after { content: ""; position: absolute; inset: 2px auto auto 2px; inline-size: 11px; block-size: 11px; border-radius: 50%; background: var(--gh-paper); transition: transform 160ms ease; }
+    .gh-switch:checked { background: var(--gh-saffron); }
+    .gh-switch:checked::after { transform: translateX(13px); }
+    .gh-canvas { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) 194px; background: var(--gh-bone); }
+    .gh-intent-head { padding: 17px 20px 14px; border-bottom: 1px solid var(--gh-line); background: var(--gh-paper); display: grid; grid-template-columns: 1fr auto; gap: 16px; }
+    .gh-eyebrow { color: var(--gh-purple); font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .gh-intent-head h1 { margin: 5px 0 3px; font-family: "IBM Plex Serif", Georgia, serif; font-size: clamp(20px, 2vw, 28px); line-height: 1.14; font-weight: 600; letter-spacing: -.025em; }
+    .gh-intent-head p { color: var(--gh-muted); margin: 0; max-width: 760px; line-height: 1.45; }
+    .gh-chips { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+    .gh-chip { border: 1px solid var(--gh-line-strong); border-radius: 99px; padding: 4px 7px; font-size: 10px; font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+    .gh-chip.intent { color: var(--gh-purple); border-color: var(--gh-purple); background: var(--gh-purple-soft); }
+    .gh-chip.claim { color: var(--gh-emerald); border-color: var(--gh-emerald); background: var(--gh-emerald-soft); }
+    .gh-chip.risk { color: var(--gh-saffron); border-style: dashed; border-color: var(--gh-saffron); background: var(--gh-saffron-soft); }
+    .gh-view { display: none; min-height: 0; overflow: auto; }
+    .gh-view.active { display: block; }
+    .gh-work-grid { min-height: 100%; display: grid; grid-template-columns: 275px minmax(360px, 1fr); }
+    .gh-claims { border-right: 1px solid var(--gh-line); background: color-mix(in srgb, var(--gh-paper) 76%, transparent); padding: 15px 14px; }
+    .gh-panel-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+    .gh-panel-title h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .gh-panel-title span { font-family: "IBM Plex Mono", monospace; font-size: 9px; color: var(--gh-muted); }
+    .gh-tree { list-style: none; margin: 0; padding: 0; font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+    .gh-tree li { position: relative; margin: 2px 0; padding: 6px 7px 6px calc(8px + var(--depth, 0) * 15px); border-radius: 5px; }
+    .gh-tree li::before { content: ""; position: absolute; left: calc(8px + var(--depth, 0) * 15px - 7px); top: 0; bottom: 0; border-left: 1px solid var(--gh-line); }
+    .gh-tree .active-claim { border: 1px solid var(--gh-emerald); background: var(--gh-emerald-soft); color: var(--gh-emerald); }
+    .gh-tree .conflict { border: 1px double var(--gh-vermilion); background: var(--gh-vermilion-soft); color: var(--gh-vermilion); }
+    .gh-tree .signal-risk { outline: 1px dashed var(--gh-saffron); outline-offset: -3px; }
+    .gh-tree .meta { display: block; color: var(--gh-muted); margin-top: 3px; font-size: 9px; }
+    .gh-signals-off .signal-risk, .gh-signals-off .gh-signal-row, .gh-signals-off .gh-risk-band { display: none !important; }
+    .gh-artifact { padding: 16px; display: grid; grid-template-rows: 35px minmax(0, 1fr); min-height: 0; }
+    .gh-tabs { display: flex; align-items: end; gap: 3px; border-bottom: 1px solid var(--gh-line); }
+    .gh-tab { border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 8px 10px; cursor: pointer; color: var(--gh-muted); }
+    .gh-tab.active { color: var(--gh-ink); border-color: var(--gh-purple); font-weight: 650; }
+    .gh-editor { position: relative; min-height: 320px; background: var(--gh-paper); border: 1px solid var(--gh-line); border-top: 0; overflow: hidden; box-shadow: var(--gh-shadow); }
+    .gh-code { margin: 0; padding: 18px 18px 70px 53px; counter-reset: line; font: 12px/1.75 "IBM Plex Mono", ui-monospace, monospace; white-space: pre-wrap; }
+    .gh-code span { display: block; position: relative; }
+    .gh-code span::before { counter-increment: line; content: counter(line); position: absolute; right: calc(100% + 15px); width: 24px; text-align: right; color: var(--gh-line-strong); }
+    .gh-code .plus { background: var(--gh-emerald-soft); color: var(--gh-emerald); margin-inline: -8px; padding-inline: 8px; }
+    .gh-code .focus { box-shadow: inset 3px 0 0 var(--gh-purple); margin-inline: -8px; padding-inline: 8px; background: var(--gh-purple-soft); }
+    .gh-risk-band { position: absolute; right: 12px; top: 77px; width: 8px; height: 86px; border: 1px dashed var(--gh-saffron); background: repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--gh-saffron) 20%, transparent) 4px 7px); border-radius: 4px; }
+    .gh-editor-foot { position: absolute; left: 14px; right: 14px; bottom: 12px; display: flex; gap: 7px; align-items: center; padding: 9px 10px; border: 1px solid var(--gh-line); background: color-mix(in srgb, var(--gh-paper) 92%, transparent); backdrop-filter: blur(8px); border-radius: 7px; color: var(--gh-muted); }
+    .gh-editor-foot strong { color: var(--gh-emerald); }
+    .gh-dock { border-top: 1px solid var(--gh-line-strong); background: var(--gh-paper); display: grid; grid-template-columns: 105px 1fr; min-height: 0; }
+    .gh-lane-labels { border-right: 1px solid var(--gh-line); padding: 31px 9px 8px; display: grid; grid-template-rows: repeat(5, 25px); color: var(--gh-muted); font-family: "IBM Plex Mono", monospace; font-size: 9px; }
+    .gh-timeline { position: relative; overflow: auto; padding: 25px 16px 8px; min-width: 680px; }
+    .gh-time-rule { position: absolute; left: 16px; right: 16px; top: 20px; border-top: 1px solid var(--gh-line); }
+    .gh-event { position: absolute; top: calc(37px + var(--lane) * 25px); left: var(--x); transform: translateY(-50%); inline-size: 11px; block-size: 11px; border-radius: 50%; background: var(--gh-paper); border: 2px solid var(--event-color, var(--gh-purple)); cursor: pointer; }
+    .gh-event::after { content: attr(data-label); position: absolute; left: 14px; top: -4px; white-space: nowrap; font: 9px "IBM Plex Mono", monospace; color: var(--gh-muted); }
+    .gh-event.indeterminate { border-radius: 1px; transform: translateY(-50%) rotate(45deg); border-color: var(--gh-vermilion); }
+    .gh-event.indeterminate::after { transform: rotate(-45deg); left: 13px; top: -13px; color: var(--gh-vermilion); }
+    .gh-inspector { border-left: 1px solid var(--gh-line); background: var(--gh-paper); padding: 16px; overflow: auto; }
+    .gh-inspector h2 { margin: 4px 0 3px; font-size: 18px; letter-spacing: -.02em; }
+    .gh-sub { color: var(--gh-muted); font-family: "IBM Plex Mono", monospace; font-size: 10px; line-height: 1.45; }
+    .gh-rule { border: 0; border-top: 1px solid var(--gh-line); margin: 15px 0; }
+    .gh-kv { display: grid; grid-template-columns: 92px 1fr; gap: 7px 10px; margin: 0; }
+    .gh-kv dt { color: var(--gh-muted); }
+    .gh-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+    .gh-status-callout { padding: 11px; border: 1px solid var(--gh-purple); background: var(--gh-purple-soft); border-radius: 7px; line-height: 1.45; }
+    .gh-status-callout strong { display: block; color: var(--gh-purple); margin-bottom: 2px; }
+    .gh-status-callout.warn { border-color: var(--gh-vermilion); background: var(--gh-vermilion-soft); }
+    .gh-status-callout.warn strong { color: var(--gh-vermilion); }
+    .gh-actions { display: grid; gap: 7px; margin-top: 12px; }
+    .gh-primary, .gh-secondary, .gh-danger { border-radius: 6px; padding: 9px 10px; cursor: pointer; text-align: left; font-weight: 630; }
+    .gh-primary { border: 1px solid var(--gh-purple); background: var(--gh-purple); color: white; }
+    .gh-secondary { border: 1px solid var(--gh-line-strong); background: transparent; }
+    .gh-danger { border: 1px solid var(--gh-vermilion); background: transparent; color: var(--gh-vermilion); }
+    .gh-primary:hover, .gh-primary:focus-visible { filter: brightness(1.08); outline: 2px solid color-mix(in srgb, var(--gh-purple) 35%, transparent); outline-offset: 2px; }
+    .gh-secondary:hover, .gh-secondary:focus-visible { background: color-mix(in srgb, var(--gh-line) 26%, transparent); outline: 2px solid color-mix(in srgb, var(--gh-line-strong) 35%, transparent); outline-offset: 2px; }
+    .gh-action-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--gh-line); }
+    .gh-action-row strong { display: block; }
+    .gh-action-row small { color: var(--gh-muted); line-height: 1.4; }
+    .gh-state { align-self: start; border: 1px solid currentColor; border-radius: 99px; padding: 3px 6px; font: 9px "IBM Plex Mono", monospace; color: var(--gh-saffron); }
+    .gh-proposal { margin: 12px 0; padding: 13px; border-left: 3px solid var(--gh-purple); background: var(--gh-purple-soft); }
+    .gh-proposal h3 { margin: 0 0 5px; color: var(--gh-purple); }
+    .gh-proposal p { margin: 4px 0; line-height: 1.5; }
+    .gh-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .gh-table th, .gh-table td { text-align: left; vertical-align: top; padding: 9px 7px; border-bottom: 1px solid var(--gh-line); }
+    .gh-table th { color: var(--gh-muted); font: 9px "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .06em; }
+    .gh-pass { color: var(--gh-emerald); font-weight: 650; }
+    .gh-judge { color: var(--gh-saffron); font-weight: 650; }
+    .gh-view-body { padding: 18px 20px 28px; max-width: 980px; }
+    .gh-view-body h2 { font-size: 20px; margin: 0 0 3px; }
+    .gh-view-body > p { color: var(--gh-muted); margin: 0 0 16px; line-height: 1.5; }
+    .gh-evidence-chain { display: grid; grid-template-columns: repeat(5, minmax(115px, 1fr)); gap: 8px; margin: 16px 0; }
+    .gh-evidence-node { border: 1px solid var(--gh-line); padding: 10px; border-radius: 7px; background: var(--gh-paper); min-height: 82px; }
+    .gh-evidence-node::after { content: attr(data-edge); display: block; color: var(--gh-muted); font: 8px "IBM Plex Mono", monospace; margin-top: 8px; text-transform: uppercase; }
+    .gh-evidence-node strong { display: block; margin-bottom: 4px; }
+    .gh-evidence-node.missing { border-color: var(--gh-vermilion); border-style: dashed; background: var(--gh-vermilion-soft); }
+    .gh-footer { border-top: 1px solid var(--gh-line-strong); display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 0 14px 0 18px; background: var(--gh-paper); color: var(--gh-muted); font: 10px "IBM Plex Mono", monospace; }
+    .gh-footer strong { color: var(--gh-ink); }
+    .gh-modal-backdrop { display: none; position: fixed; inset: 0; z-index: 40; background: rgb(13 18 16 / 58%); backdrop-filter: blur(3px); place-items: center; padding: 20px; }
+    .gh-modal-backdrop.open { display: grid; }
+    .gh-modal { width: min(720px, 100%); max-height: min(820px, 92vh); overflow: auto; background: var(--gh-paper); border: 1px solid var(--gh-line-strong); border-radius: 12px; box-shadow: 0 28px 90px rgb(0 0 0 / 35%); }
+    .gh-modal-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--gh-line); display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+    .gh-modal-head h2 { margin: 3px 0; font-size: 22px; }
+    .gh-close { border: 1px solid var(--gh-line); background: transparent; border-radius: 6px; padding: 6px 9px; cursor: pointer; align-self: start; }
+    .gh-modal-body { padding: 18px 20px; }
+    .gh-modal-actions { padding: 14px 20px 18px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--gh-line); }
+    .gh-toast { position: fixed; right: 18px; bottom: 58px; z-index: 60; background: var(--gh-ink); color: var(--gh-paper); padding: 10px 13px; border-radius: 7px; box-shadow: var(--gh-shadow); transform: translateY(20px); opacity: 0; pointer-events: none; transition: 180ms ease; }
+    .gh-toast.show { transform: translateY(0); opacity: 1; }
+    @media (max-width: 1100px) {
+      .gh-main { grid-template-columns: 164px minmax(520px, 1fr); }
+      .gh-inspector { position: fixed; right: 0; top: 52px; bottom: 42px; width: 330px; z-index: 15; box-shadow: var(--gh-shadow); }
+      .gh-scope { grid-template-columns: minmax(180px,1fr) auto; }
+      .gh-truth { display: none; }
+    }
+    @media (max-width: 760px) {
+      .gh-shell { grid-template-rows: auto 1fr 42px; }
+      .gh-scope { min-height: 58px; grid-template-columns: 1fr auto; }
+      .gh-scope-path { flex-wrap: wrap; gap: 4px 7px; padding-block: 7px; }
+      .gh-main { grid-template-columns: 1fr; }
+      .gh-rail { display: grid; grid-template-columns: repeat(5, 1fr); position: sticky; top: 58px; z-index: 12; border-right: 0; border-bottom: 1px solid var(--gh-line); padding: 5px; }
+      .gh-wordmark, .gh-rail-section, .gh-signal-control, .gh-nav:nth-of-type(n+6) { display: none; }
+      .gh-nav { padding: 7px 4px; text-align: center; display: block; font-size: 10px; }
+      .gh-count { display: none; }
+      .gh-canvas { grid-template-rows: auto auto 180px; }
+      .gh-work-grid { grid-template-columns: 1fr; }
+      .gh-claims { border-right: 0; border-bottom: 1px solid var(--gh-line); }
+      .gh-inspector { display: none; }
+      .gh-chips { justify-content: flex-start; }
+      .gh-intent-head { grid-template-columns: 1fr; }
+      .gh-evidence-chain { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="gh-shell" id="grandHarborMock">
+    <header class="gh-scope" aria-label="Authority scope">
+      <div class="gh-scope-path"><span>Erich's Harbor</span><b class="gh-slash">/</b><span>Port Daddy</span><b class="gh-slash">/</b><span>Grand Harbor</span></div>
+      <div class="gh-truth"><i class="gh-live-dot" aria-hidden="true"></i> LIVE · seq 18,406 · main@5e438c7 · pol_7</div>
+      <button class="gh-stop" id="stopButton">Issue stop…</button>
+    </header>
+    <main class="gh-main">
+      <nav class="gh-rail" aria-label="Grand Harbor projections">
+        <div class="gh-wordmark"><strong>pd-console</strong><small>PROPOSAL</small></div>
+        <button class="gh-nav" data-view="bridge" aria-selected="true"><span>Bridge</span><span class="gh-count">3</span></button>
+        <button class="gh-nav" data-view="chartroom" aria-selected="false"><span>Chartroom</span><span class="gh-count">2</span></button>
+        <button class="gh-nav" data-view="work" aria-selected="false"><span>Work</span><span class="gh-count">4</span></button>
+        <button class="gh-nav" data-view="actors" aria-selected="false"><span>Actors</span><span class="gh-count">1</span></button>
+        <button class="gh-nav" data-view="actions" aria-selected="false"><span>Actions</span><span class="gh-count">1</span></button>
+        <div class="gh-rail-section">Evidence and protocol</div>
+        <button class="gh-nav" data-view="porthole" aria-selected="false"><span>Porthole</span><span class="gh-count">2</span></button>
+        <button class="gh-nav" data-view="parleys" aria-selected="false"><span>Parleys</span><span class="gh-count">1</span></button>
+        <button class="gh-nav" data-view="relay" aria-selected="false"><span>Relay</span><span class="gh-count">1</span></button>
+        <button class="gh-nav" data-view="budgets" aria-selected="false"><span>Budgets</span><span class="gh-count">1</span></button>
+        <div class="gh-signal-control">
+          <label>Advisory signals <input class="gh-switch" id="signalToggle" type="checkbox" checked aria-label="Show advisory pheromone signals"></label>
+          <small>Signals may change suggestions, never authority.</small>
+        </div>
+      </nav>
+
+      <section class="gh-canvas">
+        <header class="gh-intent-head">
+          <div>
+            <div class="gh-eyebrow" id="viewEyebrow">Accepted intention · int_441</div>
+            <h1 id="viewTitle">Persist Grand Harbor as reviewable shared state</h1>
+            <p id="viewDescription">Preserve older motivation, exact authority, open seams, full product flows, and a code-grounded proof program without pretending the draft is production Chartroom authority.</p>
+          </div>
+          <div class="gh-chips">
+            <span class="gh-chip intent">ACTIVE INTENTION</span>
+            <span class="gh-chip claim">4 HARD CLAIMS</span>
+            <span class="gh-chip risk gh-signal-row">RISK 0.64 · 2H</span>
+          </div>
+        </header>
+
+        <section class="gh-view active" data-view-panel="bridge">
+          <div class="gh-work-grid">
+            <aside class="gh-claims">
+              <div class="gh-panel-title"><h2>Work topology</h2><span>claim forest</span></div>
+              <ul class="gh-tree">
+                <li style="--depth:0">port-daddy <span class="meta">main@5e438c7</span></li>
+                <li class="active-claim" style="--depth:1">docs/grand-harbor/** <span class="meta">CLAIM · Builder · WRITE · clm_82f</span></li>
+                <li class="signal-risk" style="--depth:2">14-performance-and-cedar.md <span class="meta gh-signal-row">RISK · unbenchmarked target · 0.64</span></li>
+                <li class="active-claim" style="--depth:2">ux/** <span class="meta">CLAIM · Designer · WRITE · clm_831</span></li>
+                <li class="conflict" style="--depth:2">ledger.yaml <span class="meta">CONFLICT · Builder / Reviewer</span></li>
+                <li style="--depth:1">lib/agent-harbor/** <span class="meta">READ · no active write claim</span></li>
+                <li style="--depth:1">core/pd-console/** <span class="meta">OPPORTUNITY · no authority</span></li>
+              </ul>
+            </aside>
+            <section class="gh-artifact">
+              <div class="gh-tabs" role="tablist"><button class="gh-tab active">Ledger diff</button><button class="gh-tab">Browser embodiment</button><button class="gh-tab">Accessible outline</button></div>
+              <div class="gh-editor" aria-label="Proposed architecture diff">
+                <pre class="gh-code"><span># GH-C-004 — Action adjudication</span><span></span><span class="focus">Authority: decide whether an exact typed effect may receive a permit.</span><span>Not for: authenticating the person, performing the effect, or declaring outcome.</span><span></span><span class="plus">+ Permit binds policy, entity, resource and budget versions.</span><span class="plus">+ Any evaluator diagnostic becomes indeterminate / deny.</span><span class="plus">+ External state is observed before retry after uncertainty.</span><span></span><span>Proof: UpdatePullRequestBody with read-after-write evidence.</span></pre>
+                <i class="gh-risk-band gh-signal-row" title="Advisory risk signal"></i>
+                <div class="gh-editor-foot"><strong>Selected</strong> GH-C-004 · source `keystone amendment` · status proposed · 2 open questions</div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="gh-view" data-view-panel="chartroom"><div class="gh-view-body">
+          <div class="gh-eyebrow">Interpretation proposal · ip_204</div><h2>Make the new UX request durable without erasing the roadmap</h2><p>Raw source `utt_991` was captured 14 seconds ago. No program mutation has occurred.</p>
+          <div class="gh-proposal"><h3>Three transitions proposed</h3><p><strong>Add</strong> `E-014 — Full Grand Harbor UX flows`.</p><p><strong>Depends on</strong> `E-003 — pd-console workstation`.</p><p><strong>Question</strong> whether “afterwards” means after reconciliation or publication.</p></div>
+          <table class="gh-table"><thead><tr><th>Check</th><th>Result</th><th>Evidence</th></tr></thead><tbody><tr><td>Silent supersession</td><td class="gh-pass">None</td><td>Original M5 retained in archive</td></tr><tr><td>Constitutional effect</td><td class="gh-pass">None</td><td>Product projection only</td></tr><tr><td>Ambiguity</td><td class="gh-judge">Preserved</td><td>Proposed GH-Q-039</td></tr></tbody></table>
+          <div class="gh-actions" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:620px"><button class="gh-primary" data-toast="3 Chartroom transitions committed at proposed revision 442">Commit 3 transitions</button><button class="gh-secondary" data-toast="Proposal left uncommitted; source utterance retained">Keep ambiguity as question</button></div>
+        </div></section>
+
+        <section class="gh-view" data-view-panel="work"><div class="gh-view-body"><div class="gh-eyebrow">Hard coordination + advisory sensing</div><h2>Claim Forest does the owning. Signals do the suggesting.</h2><p>Toggle advisory signals in the rail. Hard claim and conflict rows remain unchanged, which is the visual version of the no-signal invariance test.</p><table class="gh-table"><thead><tr><th>Scope</th><th>Hard state</th><th>Advisory state</th><th>Next</th></tr></thead><tbody><tr><td>docs/grand-harbor/**</td><td class="gh-pass">Builder · WRITE · clm_82f</td><td class="gh-signal-row">freshness 0.82</td><td>continue</td></tr><tr><td>ledger.yaml</td><td style="color:var(--gh-vermilion)">CONFLICT · clm_82f / clm_920</td><td class="gh-signal-row">contention 0.71</td><td>narrow or Parley</td></tr><tr><td>core/pd-console/**</td><td>unclaimed</td><td class="gh-signal-row">opportunity 0.48 · 3h</td><td>request claim</td></tr></tbody></table></div></section>
+
+        <section class="gh-view" data-view-panel="actors"><div class="gh-view-body"><div class="gh-eyebrow">Durable person · agn_7M2F</div><h2>Builder remains accountable; Body `body_018` stopped</h2><p>Open obligations and claims did not disappear with the provider session.</p><div class="gh-status-callout warn"><strong>Unembodied with unobserved interval</strong>Last heartbeat 10:42:13 · 1 intention · 2 obligations · 3 claims · 1 submitted action. External state after event #18,311 is unknown.</div><table class="gh-table"><thead><tr><th>Continuity item</th><th>Disposition</th><th>Required check</th></tr></thead><tbody><tr><td>Accepted intention</td><td class="gh-pass">Inherited</td><td>Chartroom revision unchanged</td></tr><tr><td>GitHub target state</td><td class="gh-judge">Revalidate</td><td>request was submitted before body loss</td></tr><tr><td>Provider scratch chain</td><td>Unavailable</td><td>not a portability promise</td></tr><tr><td>Existing permit</td><td style="color:var(--gh-vermilion)">Unknown</td><td>transfer contract unresolved</td></tr></tbody></table><button class="gh-primary" data-toast="Replacement Body proposal opened; no session restoration implied">Create new Body and resume after checks</button></div></section>
+
+        <section class="gh-view" data-view-panel="actions"><div class="gh-view-body"><div class="gh-eyebrow">ActionIntent · air_901</div><h2>Builder requests UpdatePullRequestBody once</h2><p>`curiositech/port-daddy#9987` · expected ETag `9bd4…` · expires in 3m · idempotency `gh-ledger-9987-1`.</p><table class="gh-table"><thead><tr><th>Predicate</th><th>Result</th><th>Evidence</th></tr></thead><tbody><tr><td>Actor credential</td><td class="gh-pass">Pass</td><td>agn_7M2F · verifier epoch 9</td></tr><tr><td>Grant covers exact target</td><td class="gh-pass">Pass</td><td>grt_44A · expires 15:42</td></tr><tr><td>Expected remote state</td><td class="gh-pass">Pass</td><td>observed 8s ago</td></tr><tr><td>Protected sections unchanged</td><td class="gh-pass">Pass</td><td>deterministic diff rule 3.1</td></tr><tr><td>Execution budget</td><td class="gh-pass">Pass</td><td>res_21C · max $0.06</td></tr><tr><td>Architecture-source impact</td><td class="gh-judge">Judgment</td><td>operator required</td></tr></tbody></table><div class="gh-actions" style="grid-template-columns:repeat(3,minmax(0,1fr));"><button class="gh-primary" id="openAction">Authorize exact action once</button><button class="gh-danger" data-toast="Request denied; immutable intent retained">Deny and record reason</button><button class="gh-secondary" data-toast="New draft created; issued request remains immutable">Revise request</button></div></div></section>
+
+        <section class="gh-view" data-view-panel="porthole"><div class="gh-view-body"><div class="gh-eyebrow">Evidence query</div><h2>Prove the ledger was published at the reviewed head</h2><p>Assertion scoped to pull request #9987 and artifact digest `88fc…`. Replay is inert.</p><div class="gh-status-callout warn"><strong>Partial evidence · 4/5</strong>Publication was observed, but exact-head validation is missing. “Published” may be asserted; “validated and accepted” may not.</div><div class="gh-evidence-chain"><div class="gh-evidence-node" data-edge="motivates"><strong>Requirement</strong>int_441<br><small>accepted</small></div><div class="gh-evidence-node" data-edge="implements"><strong>Artifact</strong>tree 88fc…<br><small>observed</small></div><div class="gh-evidence-node" data-edge="authorized"><strong>Permit</strong>ap_702<br><small>bound</small></div><div class="gh-evidence-node" data-edge="observed-by"><strong>Receipt</strong>rcp_910<br><small>matched</small></div><div class="gh-evidence-node missing" data-edge="required"><strong>Exact-head proof</strong>Missing<br><small>current policy blocks outcome</small></div></div></div></section>
+
+        <section class="gh-view" data-view-panel="parleys"><div class="gh-view-body"><div class="gh-eyebrow">Parley · par_17 · deliberation</div><h2>Should pheromone state influence AgentMatcher selection?</h2><p>Protocol roles precede actor bindings. Delivery does not imply understanding or agreement.</p><table class="gh-table"><thead><tr><th>Role</th><th>Bound actor</th><th>State</th></tr></thead><tbody><tr><td>Proposer</td><td>Builder</td><td>submitted</td></tr><tr><td>Challenger</td><td>Nemesis</td><td>requested evidence</td></tr><tr><td>Historian</td><td>Historian</td><td>prior decision supplied</td></tr><tr><td>Decision authority</td><td>Erich</td><td>not invoked</td></tr></tbody></table><div class="gh-proposal"><h3>Compatible resolution candidate</h3><p>Pheromones may influence candidate ranking. They cannot confer assignment, capability, claim, or completion. Whether the default matcher enables the feature remains unresolved.</p></div></div></section>
+
+        <section class="gh-view" data-view-panel="relay"><div class="gh-view-body"><div class="gh-eyebrow">Sovereign boundary · one divergence</div><h2>Erich's Harbor ⇄ Alice's Harbor</h2><p>Transport encrypted · identities verified · three directional grants. Connection is not ambient authority.</p><div class="gh-status-callout"><strong>Incoming authenticated request; not locally authorized</strong>Alice's Harbor asks Erich's Harbor to run `rfc-proof` at exact head `5e438c7…`.</div><div class="gh-actions" style="grid-template-columns:repeat(3,minmax(0,1fr));max-width:650px"><button class="gh-primary" data-toast="Request entered local adjudication; no permit implied">Evaluate under local policy</button><button class="gh-secondary">Inspect disclosure terms</button><button class="gh-danger">Decline</button></div></div></section>
+
+        <section class="gh-view" data-view-panel="budgets"><div class="gh-view-body"><div class="gh-eyebrow">ExecutionBudget · boundary observed</div><h2>Cost authority is not buyer revenue</h2><p>Harbor → Convoy → intention → person/office → provider/actuator → reservation → measured usage.</p><table class="gh-table"><thead><tr><th>Measure</th><th>Amount</th><th>Truth source</th></tr></thead><tbody><tr><td>Authorized ceiling</td><td>$8.00</td><td>EconomicAuthority ea_14</td></tr><tr><td>Held reservations</td><td>$1.20</td><td>atomic budget store</td></tr><tr><td>Boundary-observed COGS</td><td>$4.83</td><td>credential broker</td></tr><tr><td>Released</td><td>$0.41</td><td>reservation settlement</td></tr><tr><td>Delayed / unattributed</td><td class="gh-judge">$0.07</td><td>provider statement pending</td></tr></tbody></table><p style="margin-top:15px">Illustrative policy: a $10 sale may mint at most $8 of execution-cost authority, retaining at least $2. This is configurable, not constitutional.</p></div></section>
+
+        <section class="gh-dock" aria-label="Evidence timeline">
+          <div class="gh-lane-labels"><span>Operator</span><span>Chartroom</span><span>Builder</span><span>Actuator</span><span>External</span></div>
+          <div class="gh-timeline"><div class="gh-time-rule"></div><button class="gh-event" style="--lane:0;--x:5%;--event-color:var(--gh-purple)" data-label="captured"></button><button class="gh-event" style="--lane:1;--x:21%;--event-color:var(--gh-purple)" data-label="intent accepted"></button><button class="gh-event" style="--lane:2;--x:43%;--event-color:var(--gh-vermilion)" data-label="body lost"></button><button class="gh-event" style="--lane:2;--x:55%;--event-color:var(--gh-emerald)" data-label="new Body"></button><button class="gh-event" style="--lane:3;--x:72%;--event-color:var(--gh-saffron)" data-label="permit pending"></button><button class="gh-event indeterminate" style="--lane:4;--x:89%" data-label="not observed"></button></div>
+        </section>
+      </section>
+
+      <aside class="gh-inspector" aria-label="Selected object inspector">
+        <div class="gh-eyebrow">Durable person</div><h2>Builder</h2><div class="gh-sub">agn_7M2F · Implementation lead<br>body_019 · provider B · Harbor verified</div><hr class="gh-rule">
+        <div class="gh-status-callout"><strong>Continuity revalidated</strong>New Body acknowledged 2 obligations. GitHub target state still requires observation.</div><hr class="gh-rule">
+        <dl class="gh-kv"><dt>Intention</dt><dd>int_441 · active</dd><dt>Claims</dt><dd>3 active · 1 conflict</dd><dt>Budget</dt><dd>res_21C · max $0.06</dd><dt>Blocked on</dt><dd>action judgment air_901</dd><dt>Last receipt</dt><dd>rcp_905 · test observed</dd><dt>Lineage</dt><dd>body_018 → body_019</dd></dl><hr class="gh-rule">
+        <div class="gh-panel-title"><h2>Attention</h2><span>3 items</span></div>
+        <div class="gh-action-row"><div><strong>Action judgment</strong><small>Exact GitHub effect awaits operator authority.</small></div><span class="gh-state">JUDGE</span></div>
+        <div class="gh-action-row gh-signal-row"><div><strong>Advisory risk</strong><small>Cedar latency target is unbenchmarked.</small></div><span class="gh-state">0.64</span></div>
+        <div class="gh-action-row"><div><strong>Evidence gap</strong><small>External state after body loss not observed.</small></div><span class="gh-state">GAP</span></div>
+        <div class="gh-actions"><button class="gh-primary" data-view-jump="actions">Review exact GitHub action</button><button class="gh-secondary" data-view-jump="porthole">Trace evidence chain</button></div>
+      </aside>
+    </main>
+    <footer class="gh-footer"><span><strong>UX PROPOSAL</strong> · fixture data · no live effects</span><span>Chartroom intended authority · this mock is a projection</span></footer>
+  </div>
+
+  <div class="gh-modal-backdrop" id="actionModal" role="dialog" aria-modal="true" aria-labelledby="actionModalTitle">
+    <section class="gh-modal">
+      <header class="gh-modal-head"><div><div class="gh-eyebrow">Exact action judgment</div><h2 id="actionModalTitle">Authorize UpdatePullRequestBody once?</h2><div class="gh-sub">air_901 → prospective permit ap_702 · expires in 3m</div></div><button class="gh-close" data-close-modal>Close</button></header>
+      <div class="gh-modal-body"><div class="gh-status-callout"><strong>Authority, not effect</strong>Issuing a permit will not mean the GitHub write happened. The actuator must admit the permit and read the target back.</div><dl class="gh-kv" style="margin-top:16px;grid-template-columns:120px 1fr"><dt>Person / Body</dt><dd>Builder agn_7M2F / body_019</dd><dt>Target</dt><dd>curiositech/port-daddy#9987 · PR body summary section</dd><dt>Expected state</dt><dd>ETag 9bd4… · observed 8s ago</dd><dt>Payload</dt><dd>Append architecture-ledger draft link and authority disclaimer</dd><dt>Grant</dt><dd>grt_44A · summary-only · expires 15:42</dd><dt>Budget</dt><dd>res_21C · max $0.06 execution COGS</dd><dt>Permit binding</dt><dd>pol_7 · schema_3 · entity ep_88 · nonce n_104 · idempotency gh-ledger-9987-1</dd></dl></div>
+      <footer class="gh-modal-actions"><button class="gh-danger" data-close-modal>Deny</button><button class="gh-secondary" data-close-modal>Revise request</button><button class="gh-primary" id="authorizeButton">Authorize exact action once</button></footer>
+    </section>
+  </div>
+
+  <div class="gh-modal-backdrop" id="stopModal" role="dialog" aria-modal="true" aria-labelledby="stopModalTitle">
+    <section class="gh-modal"><header class="gh-modal-head"><div><div class="gh-eyebrow">Governed stop</div><h2 id="stopModalTitle">Issue stop and revocation requests</h2></div><button class="gh-close" data-close-modal>Close</button></header><div class="gh-modal-body"><div class="gh-status-callout warn"><strong>Not every external effect can stop immediately</strong>2 active Bodies can lose local capabilities now. One GitHub request is submitted but not permitted. Remote grant revocation requires a receipt. No irreversible actuator is currently admitted.</div><table class="gh-table"><thead><tr><th>Scope</th><th>Known effect</th></tr></thead><tbody><tr><td>Current Convoy scheduling</td><td>stop new work locally</td></tr><tr><td>Body capabilities</td><td>revoke local endpoints</td></tr><tr><td>Outstanding permits</td><td>epoch invalidation under proposed policy</td></tr><tr><td>Remote grants</td><td>send revocation; await receipt</td></tr></tbody></table></div><footer class="gh-modal-actions"><button class="gh-secondary" data-close-modal>Cancel</button><button class="gh-danger" id="issueStop">Issue Convoy stop and revocation requests</button></footer></section>
+  </div>
+  <div class="gh-toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('grandHarborMock');
+      const viewCopy = {
+        bridge: ['Accepted intention · int_441', 'Persist Grand Harbor as reviewable shared state', 'Preserve older motivation, exact authority, open seams, full product flows, and a code-grounded proof program without pretending the draft is production Chartroom authority.'],
+        chartroom: ['Chartroom · interpretation proposal', 'What changes in the program—and what does not?', 'Raw utterances remain durable. Model interpretation proposes typed relationships; only the governing authority commits them.'],
+        work: ['Work · claim forest + advisory overlay', 'Hard ownership and weak environmental signals coexist', 'Claims coordinate exact scopes. Pheromones expose attention, risk and opportunity with source and decay, but confer nothing.'],
+        actors: ['Actors · continuity', 'One accountable person across replaceable Bodies', 'Body loss preserves obligations and outcome lineage while making inherited, omitted, unavailable and unknown context explicit.'],
+        actions: ['Actions · exact authority', 'A permit is not an effect', 'Review actor, target, payload, versions, grant, budget, expiry and observation obligations before authorizing one exact action.'],
+        porthole: ['Porthole · evidence explorer', 'Walk backwards from assertion to exact proof', 'Causal links, observations and attachments show what happened; the first missing or stale link remains visible.'],
+        parleys: ['Parley · protocol', 'Disagreement gets roles, evidence and terminal semantics', 'Delivery, understanding, acceptance, agreement and downstream program mutation remain separate.'],
+        relay: ['Relay · sovereign Harbors', 'Authenticated transport is not ambient authority', 'Directional grants and local adjudication let independent Harbors cooperate without pretending they share a database or consensus.'],
+        budgets: ['Budgets · economic authority', 'Revenue, execution COGS and outcomes stay separate', 'Reserve, execute, measure, commit or release at the credential boundary; failure does not erase real cost.']
+      };
+      const toast = document.getElementById('toast');
+      let toastTimer;
+      function showToast(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2600); }
+      function selectView(view) {
+        document.querySelectorAll('.gh-nav[data-view]').forEach((button) => button.setAttribute('aria-selected', String(button.dataset.view === view)));
+        document.querySelectorAll('[data-view-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.viewPanel === view));
+        const copy = viewCopy[view]; document.getElementById('viewEyebrow').textContent = copy[0]; document.getElementById('viewTitle').textContent = copy[1]; document.getElementById('viewDescription').textContent = copy[2];
+      }
+      document.querySelectorAll('.gh-nav[data-view]').forEach((button) => button.addEventListener('click', () => selectView(button.dataset.view)));
+      document.querySelectorAll('[data-view-jump]').forEach((button) => button.addEventListener('click', () => selectView(button.dataset.viewJump)));
+      document.getElementById('signalToggle').addEventListener('change', (event) => { root.classList.toggle('gh-signals-off', !event.target.checked); showToast(event.target.checked ? 'Advisory signals visible; hard state unchanged' : 'Signals hidden; claims and authority unchanged'); });
+      function openModal(id) { const modal = document.getElementById(id); modal.classList.add('open'); modal.querySelector('button').focus(); }
+      function closeModal(target) { target.closest('.gh-modal-backdrop').classList.remove('open'); }
+      document.getElementById('openAction').addEventListener('click', () => openModal('actionModal'));
+      document.getElementById('stopButton').addEventListener('click', () => openModal('stopModal'));
+      document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => closeModal(button)));
+      document.querySelectorAll('[data-toast]').forEach((button) => button.addEventListener('click', () => showToast(button.dataset.toast)));
+      document.getElementById('authorizeButton').addEventListener('click', (event) => { closeModal(event.target); showToast('Permit candidate issued; no external effect observed'); });
+      document.getElementById('issueStop').addEventListener('click', (event) => { closeModal(event.target); showToast('Stop and revocation requests issued; external receipts pending'); });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') document.querySelectorAll('.gh-modal-backdrop.open').forEach((modal) => modal.classList.remove('open')); });
+    })();
+  </script>
+</body>
+</html>

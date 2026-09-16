@@ -1,5 +1,28 @@
 # Merge #9450 and Resume the Harbor Research Program
 
+> **Status banner added 2026-09-14 — three of this plan's headline findings are
+> discharged. The body below is preserved verbatim as the record of what was
+> planned on 2026-08-23; do not action these three from it.**
+>
+> 1. **"Stale mechanization (headline)"** — resolved. Every surface it names now
+>    carries the corrected game: `proofs/economics/delta-threshold.z3` has
+>    `2δ³+2δ²+2δ−1=0` and proves the root unique in [0.34, 0.35] at
+>    δ\*≈0.3425080314; `proofs/economics/claim_signaling.tla` has the genuine PD
+>    payoffs (3,3)/(0,4)/(4,0)/(1,1); `proofs/economics/claim_signaling.cfg` is
+>    DeltaNum=35; `proofs/economics/sweep-delta.sh` expects the crossover at
+>    ≈0.35; and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx`
+>    prints δ\*≈0.3425 throughout.
+> 2. **"B6 discharged-as-sketch, no script for its '0/4000' number"** — resolved.
+>    `skills/harbor-results/scripts/b6_probation.py` generates it
+>    (`N_INSTANCES = 4000`, random domination search).
+> 3. **"The R1–R9 scripts have zero CI coverage"** — resolved. All 19 executed-
+>    results scripts under `skills/harbor-results/scripts/` run in the
+>    `harbor-results-estate` job in `.github/workflows/proofs.yml`, pinned to
+>    seed 20260816, and are registered `wired` in `whitepaper/corpus.json`.
+>
+> See `proofs/README.md` for the current estate map and
+> `docs/harbor-research/HANDOFF.md` §5 for the same resolution in context.
+
 ## Context
 
 The whitepaper chain has landed (#7344 renderer pin → #7278 collected volume → carrier branch), and PR **#9450** (`purser/pr-7278-tests`, head `24052b84d`) is now the omnibus publish vehicle: 72 files, +2606/−986, carrying the collected volume, the One Spine appendix, the treatise adjudications, and the entire `docs/harbor-research/` corpus. The user's instruction: **merge #9450, then resume the actual research program** (proofs, simulation, verification, expansion), informed by five agent-critique PDFs they uploaded.
@@ -40,7 +63,7 @@ Push (`git push -u origin` to the PR head branch), wait for CI + Fleet gate (do 
 Copy into the repo and commit (on the same branch pre-merge if timing allows, else a follow-up PR on the designated branch `claude/white-paper-pr-review-uncpxg`):
 - `docs/harbor-research/pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (upload `e0de2c53…`) — replaces the `research/sheaf-assessment-notes.md` stub's "not yet rescued" status; contains the experiment matrix + three theorem candidates gating W8.
 - `docs/harbor-research/pdf/The-Harbor-After-the-Harbor.pdf` (upload `312d5943…`) — the rigor review (correctness audit, exercise solution key, build sequence) cited by doc1.
-- Update `research/sheaf-assessment-notes.md`, `HANDOFF.md` (§3.7 rescue status, delta v4), and `pr7698-reconciliation.md` F4 → discharged. The remaining chat-only artifact ("Theorem-Proving Stack SotA") stays flagged — HANDOFF §3.2 already extracts its load-bearing content.
+- Update `research/sheaf-assessment-notes.md`, `HANDOFF.md` (§3.7 rescue status, delta v4), and `pr7698-reconciliation.md` F4 → discharged. The remaining chat-only artifact ("Theorem-Proving Stack SotA") stays flagged — HANDOFF §3.2 already extracts its critical content.
 - Fix the two documented doc inconsistencies while here: `docs/harbor-research/README.md:4` self-contradiction (PDFs *are* committed) and `HANDOFF.md:10` same claim.
 
 ## Part 2 — Correctness repairs: sync the stale δ\* mechanization

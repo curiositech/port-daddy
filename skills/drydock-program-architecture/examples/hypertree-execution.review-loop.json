@@ -1,0 +1,556 @@
+{
+  "$schema": "../schemas/hypertree-execution.schema.json",
+  "schemaVersion": 1,
+  "kind": "DrydockHypertreeExecution",
+  "executionId": "drydock-observatory-review-loop-fixture",
+  "status": "fixture-static-design",
+  "plan": {
+    "id": "drydock-resurrection-capacity-context-control",
+    "digest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+    "topology": {
+      "eligibility": "dag",
+      "qualityRouting": "bounded-workflow",
+      "staffing": "manager-driven-rounds",
+      "observation": "append-only-event-projection"
+    }
+  },
+  "scope": {
+    "nodeIds": ["DD-070"],
+    "fixturePurpose": "Prove that a deficient candidate cannot pass review, receives one named bounded rework edge, and is projected identically to HTML, Swift, and Rust clients."
+  },
+  "contracts": {
+    "inputEnvelopeSchema": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json",
+    "outputEnvelopeSchema": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json",
+    "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+    "nodeContracts": [
+      {
+        "id": "dd-070-contract-v1",
+        "nodeId": "DD-070",
+        "input": {
+          "schema": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json",
+          "requiredArtifactKinds": [
+            "lifecycle states",
+            "capacity states",
+            "capability states",
+            "operator-control contract"
+          ],
+          "undeclaredInputs": "deny"
+        },
+        "output": {
+          "schema": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json",
+          "requiredArtifactKinds": [
+            "authority split",
+            "state reel",
+            "two-action evidence paths",
+            "responsive rules"
+          ],
+          "undeclaredOutputs": "quarantine"
+        },
+        "riskClasses": ["authority"],
+        "requiredReviewerClasses": ["low-cost-independent", "specialist"],
+        "reviewPolicyId": "drydock-bounded-review-v1"
+      }
+    ]
+  },
+  "reviewPolicy": {
+    "id": "drydock-bounded-review-v1",
+    "floor": {
+      "kind": "deterministic",
+      "requiredBeforeReview": true,
+      "requiredChecks": [
+        "control-projection-separation",
+        "fixture-label-visible",
+        "stale-unknown-honesty",
+        "reduced-motion-contract"
+      ]
+    },
+    "independentReview": {
+      "required": true,
+      "routing": "lowest-capable-reviewed-tier",
+      "reviewerMustDifferFromProducer": true,
+      "reservationUnit": "provider-native-units",
+      "maxUnitsPerReview": 20
+    },
+    "specialistReview": {
+      "trigger": "failureProbability*downstreamWaste>reviewCost",
+      "mandatoryRiskClasses": [
+        "identity",
+        "authority",
+        "money",
+        "security",
+        "lifecycle",
+        "release",
+        "destructive-effect"
+      ],
+      "uncertainMeans": "escalate",
+      "reservationUnit": "provider-native-units",
+      "maxUnitsPerReview": 30
+    },
+    "managerGate": {
+      "mode": "risk-triggered-and-terminal",
+      "managerMustDifferFromProducerAndReviewer": true,
+      "mayWaiveChecks": false,
+      "maySelfApprove": false,
+      "requiredEvidence": [
+        "schema-valid output",
+        "all deterministic checks PASS",
+        "independent review APPROVE",
+        "no unresolved blocking finding"
+      ]
+    },
+    "rework": {
+      "verdicts": ["APPROVE", "REWORK", "ESCALATE"],
+      "targetMustBeNamed": true,
+      "findingIdsRequired": true,
+      "sameFindingRepeatLimit": 1
+    }
+  },
+  "limits": {
+    "maxNodeAttempts": 3,
+    "maxReworkRounds": 2,
+    "maxManagerRounds": 3,
+    "maxTopologyMutations": 3,
+    "maxWallClockSeconds": 600,
+    "maxReviewUnitsTotal": 70,
+    "maxRecursiveBirths": 0,
+    "retryOwner": "external-controller",
+    "retryLayers": 1
+  },
+  "clientBindings": [
+    {
+      "id": "browser-observatory",
+      "implementation": "html",
+      "transport": "sse-json",
+      "decoder": "json-schema-2020-12",
+      "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+      "authority": "projection-only",
+      "commandPath": "separate-signed-control-api",
+      "resumeCursor": "sequence-and-event-id",
+      "activityMotion": "one-shot-edge-cue-then-calm"
+    },
+    {
+      "id": "fleetbar-and-ios",
+      "implementation": "swift",
+      "transport": "relay-sse-json",
+      "decoder": "swift-codable",
+      "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+      "authority": "projection-only",
+      "commandPath": "separate-signed-control-api",
+      "resumeCursor": "sequence-and-event-id",
+      "activityMotion": "one-shot-edge-cue-then-calm"
+    },
+    {
+      "id": "pd-console",
+      "implementation": "rust",
+      "transport": "in-process-json-or-sse",
+      "decoder": "rust-serde",
+      "projectionSchema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+      "authority": "projection-only",
+      "commandPath": "separate-signed-control-api",
+      "resumeCursor": "sequence-and-event-id",
+      "activityMotion": "one-shot-edge-cue-then-calm"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "eventId": "evt-001",
+      "previousEventId": null,
+      "type": "RUN_OPENED",
+      "occurredAt": "2026-09-14T12:00:00Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": null,
+      "attempt": null,
+      "payload": {
+        "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+        "scopeNodeIds": ["DD-070"]
+      }
+    },
+    {
+      "sequence": 2,
+      "eventId": "evt-002",
+      "previousEventId": "evt-001",
+      "type": "NODE_STARTED",
+      "occurredAt": "2026-09-14T12:00:01Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": "DD-070",
+      "attempt": 1,
+      "payload": {
+        "workerIdentity": "agent/ux-worker-1",
+        "managerRound": 1,
+        "input": {
+          "schema": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json",
+          "nodeContractId": "dd-070-contract-v1",
+          "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+          "artifacts": [
+            {
+              "id": "lifecycle-states-v1",
+              "kind": "lifecycle states",
+              "mediaType": "application/json",
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "evidenceUri": "evidence://inputs/lifecycle-states-v1"
+            },
+            {
+              "id": "capacity-states-v1",
+              "kind": "capacity states",
+              "mediaType": "application/json",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "evidenceUri": "evidence://inputs/capacity-states-v1"
+            },
+            {
+              "id": "capability-states-v1",
+              "kind": "capability states",
+              "mediaType": "application/json",
+              "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "evidenceUri": "evidence://inputs/capability-states-v1"
+            },
+            {
+              "id": "operator-control-contract-v1",
+              "kind": "operator-control contract",
+              "mediaType": "application/json",
+              "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "evidenceUri": "evidence://inputs/operator-control-contract-v1"
+            }
+          ],
+          "priorAttemptArtifactIds": [],
+          "capabilitySetDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "capacityReservationIds": ["review-capacity-round-1"]
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "eventId": "evt-003",
+      "previousEventId": "evt-002",
+      "type": "OUTPUT_PRODUCED",
+      "occurredAt": "2026-09-14T12:00:08Z",
+      "witnessClass": "GUEST_ASSERTED",
+      "nodeId": "DD-070",
+      "attempt": 1,
+      "payload": {
+        "schema": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json",
+        "producerIdentity": "agent/ux-worker-1",
+        "result": "CANDIDATE",
+        "artifacts": [
+          {
+            "id": "authority-split-a1",
+            "kind": "authority split",
+            "mediaType": "application/json",
+            "digest": "sha256:2111111111111111111111111111111111111111111111111111111111111111",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/authority-split"
+          },
+          {
+            "id": "state-reel-a1",
+            "kind": "state reel",
+            "mediaType": "application/json",
+            "digest": "sha256:3111111111111111111111111111111111111111111111111111111111111111",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/state-reel"
+          },
+          {
+            "id": "zoom-paths-a1",
+            "kind": "two-action evidence paths",
+            "mediaType": "application/json",
+            "digest": "sha256:4111111111111111111111111111111111111111111111111111111111111111",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/zoom-paths"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 4,
+      "eventId": "evt-004",
+      "previousEventId": "evt-003",
+      "type": "CHECKS_COMPLETED",
+      "occurredAt": "2026-09-14T12:00:09Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": "DD-070",
+      "attempt": 1,
+      "payload": {
+        "checks": [
+          { "id": "control-projection-separation", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/control-projection-separation" },
+          { "id": "fixture-label-visible", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/fixture-label-visible" },
+          { "id": "stale-unknown-honesty", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/stale-unknown-honesty" },
+          { "id": "reduced-motion-contract", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/1/check/reduced-motion-contract" }
+        ]
+      }
+    },
+    {
+      "sequence": 5,
+      "eventId": "evt-005",
+      "previousEventId": "evt-004",
+      "type": "REVIEW_COMPLETED",
+      "occurredAt": "2026-09-14T12:00:10Z",
+      "witnessClass": "MODEL_CHECKED",
+      "nodeId": "DD-070",
+      "attempt": 1,
+      "payload": {
+        "reviewerIdentity": "agent/low-cost-reviewer-1",
+        "reviewerClass": "low-cost-independent",
+        "producerIdentity": "agent/ux-worker-1",
+        "verdict": "REWORK",
+        "reservedUnits": 20,
+        "usedUnits": 8,
+        "findings": [
+          {
+            "id": "missing-responsive-rules",
+            "severity": "blocking",
+            "summary": "The candidate omits the required responsive-rules artifact, so no client can prove layout behavior across view sizes.",
+            "evidenceUri": "evidence://run/dd-070/attempt/1/review/missing-responsive-rules"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 6,
+      "eventId": "evt-006",
+      "previousEventId": "evt-005",
+      "type": "REWORK_REQUESTED",
+      "occurredAt": "2026-09-14T12:00:11Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": "DD-070",
+      "attempt": 1,
+      "payload": {
+        "targetNodeId": "DD-070",
+        "targetAttempt": 2,
+        "findingIds": ["missing-responsive-rules"],
+        "requiredEvidence": ["responsive rules artifact with desktop, compact, and reduced-motion states"]
+      }
+    },
+    {
+      "sequence": 7,
+      "eventId": "evt-007",
+      "previousEventId": "evt-006",
+      "type": "NODE_STARTED",
+      "occurredAt": "2026-09-14T12:00:12Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": "DD-070",
+      "attempt": 2,
+      "payload": {
+        "workerIdentity": "agent/ux-worker-1",
+        "managerRound": 2,
+        "input": {
+          "schema": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json",
+          "nodeContractId": "dd-070-contract-v1",
+          "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+          "artifacts": [
+            {
+              "id": "lifecycle-states-v1",
+              "kind": "lifecycle states",
+              "mediaType": "application/json",
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "evidenceUri": "evidence://inputs/lifecycle-states-v1"
+            },
+            {
+              "id": "capacity-states-v1",
+              "kind": "capacity states",
+              "mediaType": "application/json",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "evidenceUri": "evidence://inputs/capacity-states-v1"
+            },
+            {
+              "id": "capability-states-v1",
+              "kind": "capability states",
+              "mediaType": "application/json",
+              "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "evidenceUri": "evidence://inputs/capability-states-v1"
+            },
+            {
+              "id": "operator-control-contract-v1",
+              "kind": "operator-control contract",
+              "mediaType": "application/json",
+              "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "evidenceUri": "evidence://inputs/operator-control-contract-v1"
+            }
+          ],
+          "priorAttemptArtifactIds": ["authority-split-a1", "state-reel-a1", "zoom-paths-a1"],
+          "capabilitySetDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "capacityReservationIds": ["review-capacity-round-2"]
+        }
+      }
+    },
+    {
+      "sequence": 8,
+      "eventId": "evt-008",
+      "previousEventId": "evt-007",
+      "type": "OUTPUT_PRODUCED",
+      "occurredAt": "2026-09-14T12:00:18Z",
+      "witnessClass": "GUEST_ASSERTED",
+      "nodeId": "DD-070",
+      "attempt": 2,
+      "payload": {
+        "schema": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json",
+        "producerIdentity": "agent/ux-worker-1",
+        "result": "CANDIDATE",
+        "artifacts": [
+          {
+            "id": "authority-split-a2",
+            "kind": "authority split",
+            "mediaType": "application/json",
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/authority-split"
+          },
+          {
+            "id": "state-reel-a2",
+            "kind": "state reel",
+            "mediaType": "application/json",
+            "digest": "sha256:3222222222222222222222222222222222222222222222222222222222222222",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/state-reel"
+          },
+          {
+            "id": "zoom-paths-a2",
+            "kind": "two-action evidence paths",
+            "mediaType": "application/json",
+            "digest": "sha256:4222222222222222222222222222222222222222222222222222222222222222",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/zoom-paths"
+          },
+          {
+            "id": "responsive-rules-a2",
+            "kind": "responsive rules",
+            "mediaType": "application/json",
+            "digest": "sha256:5222222222222222222222222222222222222222222222222222222222222222",
+            "evidenceUri": "evidence://run/dd-070/attempt/2/responsive-rules"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 9,
+      "eventId": "evt-009",
+      "previousEventId": "evt-008",
+      "type": "CHECKS_COMPLETED",
+      "occurredAt": "2026-09-14T12:00:19Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": "DD-070",
+      "attempt": 2,
+      "payload": {
+        "checks": [
+          { "id": "control-projection-separation", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/control-projection-separation" },
+          { "id": "fixture-label-visible", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/fixture-label-visible" },
+          { "id": "stale-unknown-honesty", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/stale-unknown-honesty" },
+          { "id": "reduced-motion-contract", "status": "PASS", "evidenceUri": "evidence://run/dd-070/attempt/2/check/reduced-motion-contract" }
+        ]
+      }
+    },
+    {
+      "sequence": 10,
+      "eventId": "evt-010",
+      "previousEventId": "evt-009",
+      "type": "REVIEW_COMPLETED",
+      "occurredAt": "2026-09-14T12:00:20Z",
+      "witnessClass": "MODEL_CHECKED",
+      "nodeId": "DD-070",
+      "attempt": 2,
+      "payload": {
+        "reviewerIdentity": "agent/low-cost-reviewer-2",
+        "reviewerClass": "low-cost-independent",
+        "producerIdentity": "agent/ux-worker-1",
+        "verdict": "APPROVE",
+        "reservedUnits": 20,
+        "usedUnits": 7,
+        "findings": []
+      }
+    },
+    {
+      "sequence": 11,
+      "eventId": "evt-011",
+      "previousEventId": "evt-010",
+      "type": "REVIEW_COMPLETED",
+      "occurredAt": "2026-09-14T12:00:21Z",
+      "witnessClass": "MODEL_CHECKED",
+      "nodeId": "DD-070",
+      "attempt": 2,
+      "payload": {
+        "reviewerIdentity": "agent/authority-specialist-1",
+        "reviewerClass": "specialist",
+        "producerIdentity": "agent/ux-worker-1",
+        "verdict": "APPROVE",
+        "reservedUnits": 30,
+        "usedUnits": 12,
+        "findings": []
+      }
+    },
+    {
+      "sequence": 12,
+      "eventId": "evt-012",
+      "previousEventId": "evt-011",
+      "type": "MANAGER_DECIDED",
+      "occurredAt": "2026-09-14T12:00:22Z",
+      "witnessClass": "MODEL_CHECKED",
+      "nodeId": "DD-070",
+      "attempt": 2,
+      "payload": {
+        "managerIdentity": "agent/drydock-manager-1",
+        "decision": "APPROVE_NODE",
+        "reasoningEvidenceIds": [
+          "control-projection-separation",
+          "fixture-label-visible",
+          "stale-unknown-honesty",
+          "reduced-motion-contract",
+          "responsive-rules-a2"
+        ],
+        "bypassedGateIds": [],
+        "assignments": []
+      }
+    },
+    {
+      "sequence": 13,
+      "eventId": "evt-013",
+      "previousEventId": "evt-012",
+      "type": "NODE_APPROVED",
+      "occurredAt": "2026-09-14T12:00:23Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": "DD-070",
+      "attempt": 2,
+      "payload": {
+        "approvalEvidenceIds": ["evt-009", "evt-010", "evt-011", "evt-012"]
+      }
+    },
+    {
+      "sequence": 14,
+      "eventId": "evt-014",
+      "previousEventId": "evt-013",
+      "type": "RUN_COMPLETED",
+      "occurredAt": "2026-09-14T12:00:24Z",
+      "witnessClass": "HOST_OBSERVED",
+      "nodeId": null,
+      "attempt": null,
+      "payload": {
+        "terminalNodeIds": ["DD-070"],
+        "evidenceRoot": "sha256:6222222222222222222222222222222222222222222222222222222222222222"
+      }
+    }
+  ],
+  "expectedProjection": {
+    "schema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+    "asOfSequence": 14,
+    "asOfEventId": "evt-014",
+    "runState": "COMPLETED",
+    "topology": {
+      "eligibility": "dag",
+      "qualityRouting": "bounded-workflow",
+      "staffing": "manager-driven-rounds",
+      "observation": "append-only-event-projection"
+    },
+    "nodes": [
+      {
+        "nodeId": "DD-070",
+        "state": "APPROVED",
+        "attempt": 2,
+        "reworkRounds": 1,
+        "latestEventId": "evt-013",
+        "checkStatus": "PASS",
+        "reviewVerdict": "APPROVE",
+        "managerDecision": "APPROVE_NODE",
+        "artifactIds": [
+          "authority-split-a2",
+          "state-reel-a2",
+          "zoom-paths-a2",
+          "responsive-rules-a2"
+        ]
+      }
+    ],
+    "staleAfter": "2026-09-14T12:05:24Z",
+    "truthState": "FIXTURE"
+  },
+  "executionDigest": "sha256:bc1d21bf071cd1be503b615fcfdeb66161f43699802d184667b1c555aeba81b1"
+}

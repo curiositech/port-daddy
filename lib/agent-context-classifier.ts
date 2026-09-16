@@ -11,7 +11,7 @@
 import { createHash } from 'node:crypto';
 import {
   cosineSimilarity,
-  createLocalEmbedder,
+  createLocalTextEmbedder,
   defaultTransformersCacheDir,
   isEmbeddingModelCached,
   type LocalEmbedder,
@@ -514,9 +514,9 @@ function inputFingerprint(bounded: BoundedAgentContext): string {
  */
 function createStrictSharedMiniLMEmbedder(): LocalEmbedder {
   const cacheDir = defaultTransformersCacheDir();
-  const embedder = createLocalEmbedder({ cacheDir });
+  const embedder = createLocalTextEmbedder('pd.agent-context.classification', { cacheDir });
   return {
-    modelId: embedder.modelId,
+    ...embedder,
     /**
      * Refuse an uncached model before the generic embedder can evaluate any
      * download opt-in. The design keeps periodic work local and predictable.
@@ -650,7 +650,7 @@ function createAgentContextClassifierWithEmbedder(
 /**
  * Create the production local-only topical classifier. The embedder is not an
  * option: every production caller goes through the cache-presence gate and the
- * one shared `createLocalEmbedder` MiniLM implementation. Design intent: make
+ * one shared corpus-bound local embedder implementation. Design intent: make
  * the one-model, no-download boundary structural rather than advisory.
  *
  * @param options Clock and staleness policy only.

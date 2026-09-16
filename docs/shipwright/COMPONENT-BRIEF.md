@@ -117,7 +117,7 @@ Pure presentational SVG. No props beyond `kind` and `size`. 5 kinds:
 `battleship | cruiser | frigate | sloop | ghost`. Monochrome, currentColor.
 
 This is the only component that may be imported from an `icons/` barrel. It is
-load-bearing for visual identity — iterate with the designer, not 21st.dev.
+structural for visual identity — iterate with the designer, not 21st.dev.
 
 ---
 

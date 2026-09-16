@@ -151,7 +151,7 @@ fi
 echo ""
 echo "== prompt envelope (UserPromptSubmit) =="
 OUT="$(printf '{"prompt":"refactor auth","cwd":"/repo"}' | "$BIN/pd-hook-prompt" 2>/dev/null)"
-case "$OUT" in *"STEERING ALERTS"*"stop and ack"*) ok "prompt hook injects the seeded ALERT";; *) bad "prompt hook missing alert. Got: $OUT";; esac
+case "$OUT" in *"ACTIONABLE COORDINATION"*"stop and ack"*) ok "prompt hook injects the seeded ALERT";; *) bad "prompt hook missing alert. Got: $OUT";; esac
 case "$OUT" in *"deprecated v1_hook"*) ok "prompt hook injects the relevant PHEROMONE";; *) bad "prompt hook missing pheromone. Got: $OUT";; esac
 
 echo ""
@@ -357,6 +357,50 @@ printf '{"session_id":"st-4","cwd":"%s","last_assistant_message":null,"transcrip
   | "$BIN/pd-hook-stop" >/dev/null 2>&1
 STOPCODE=$?
 if [ "$STOPCODE" -eq 0 ]; then ok "[stop] null final message is unverifiable → never blocks (codex contract)"; else bad "[stop] expected exit 0 on null message, got $STOPCODE"; fi
+
+echo ""
+echo "== ADR-0132 listening watch (halt sentinel) =="
+# Every tentacle does `test -f $PD_HOME/HALT` before any matrix, dial, or
+# daemon work. With the flag hoisted: the prompt tentacle injects a notice that
+# opens `SECURITE HALT` on its own line, pd-hook-pre-tool refuses pd/launchctl/
+# brew/MCP shapes with the same exit-2 contract, both answer SEEN once per
+# session in the distress file, and pd-hook-stop closes a clean cycle with
+# COMPLIED. Nothing here needs jq, node, or a daemon.
+HALT_LINE='2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/2026-09-05-port-daddy-halt.md'
+printf '%s\n' "$HALT_LINE" > "$SCRATCH/HALT"
+halt_pre() { # $1=command $2=session → exit code; stderr in $HERR
+  HERR="$(printf '{"tool_name":"Bash","tool_input":{"command":"%s"},"cwd":"/repo","session_id":"%s"}' "$1" "$2" \
+    | PD_HOOK_PROVIDER=claude "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+}
+halt_pre 'pd status' halt-1; HCODE=$?
+if [ "$HCODE" -eq 2 ]; then ok "[halt] pre-tool EXIT 2 on 'pd status'"; else bad "[halt] expected exit 2 on pd status, got $HCODE"; fi
+case "$HERR" in "SECURITE HALT
+$HALT_LINE"*) ok "[halt] block reason opens 'SECURITE HALT' + the halt's own line";; *) bad "[halt] block reason wrong: $HERR";; esac
+halt_pre 'pd --version' halt-1; HCODE=$?
+if [ "$HCODE" -eq 0 ]; then ok "[halt] pre-tool EXIT 0 on 'pd --version' (escape hatch)"; else bad "[halt] expected exit 0 on pd --version, got $HCODE"; fi
+halt_pre 'git status' halt-1; HCODE=$?
+if [ "$HCODE" -eq 0 ]; then ok "[halt] pre-tool EXIT 0 on ordinary 'git status'"; else bad "[halt] expected exit 0 on git status, got $HCODE"; fi
+halt_pre 'launchctl kickstart -k gui/501/com.portdaddy.daemon' halt-1; HCODE=$?
+if [ "$HCODE" -eq 2 ]; then ok "[halt] pre-tool EXIT 2 on launchctl kickstart of a Port Daddy label"; else bad "[halt] expected exit 2 on kickstart, got $HCODE"; fi
+halt_pre 'brew services restart port-daddy' halt-1; HCODE=$?
+if [ "$HCODE" -eq 2 ]; then ok "[halt] pre-tool EXIT 2 on brew services restart port-daddy"; else bad "[halt] expected exit 2 on brew restart, got $HCODE"; fi
+printf '{"tool_name":"mcp__port-daddy__begin_session","tool_input":{"identity":"x"},"cwd":"/repo","session_id":"halt-1"}' \
+  | "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
+HCODE=$?
+if [ "$HCODE" -eq 2 ]; then ok "[halt] pre-tool EXIT 2 on mcp__port-daddy__* tool"; else bad "[halt] expected exit 2 on MCP tool, got $HCODE"; fi
+HSEEN=$(grep -c 'agent:claude:halt-1 control SEEN ref=2026-09-05T14:02:11Z' "$SCRATCH/DISTRESS" 2>/dev/null || echo 0)
+if [ "$HSEEN" -eq 1 ]; then ok "[halt] exactly one SEEN line per session in the distress file"; else bad "[halt] expected 1 SEEN line, got $HSEEN"; fi
+HOUT="$(printf '{"prompt":"x","cwd":"/repo","session_id":"halt-2"}' | PD_HOOK_PROVIDER=claude "$BIN/pd-hook-prompt" 2>/dev/null)"
+case "$HOUT" in *'SECURITE HALT'*) ok "[halt] prompt tentacle injects the SECURITE HALT notice";; *) bad "[halt] prompt notice missing: $HOUT";; esac
+case "$HOUT" in *'pd sitrep --template'*) bad "[halt] prompt tentacle still compels SITREP (pd commands) under halt";; *) ok "[halt] SITREP compulsion withheld under halt";; esac
+printf '{"session_id":"halt-2","cwd":"/repo","last_assistant_message":"no table"}' | PD_HOOK_PROVIDER=claude "$BIN/pd-hook-stop" >/dev/null 2>&1
+HCODE=$?
+if [ "$HCODE" -eq 0 ]; then ok "[halt] stop tentacle never blocks under halt (no burned turn)"; else bad "[halt] expected exit 0 from stop under halt, got $HCODE"; fi
+HDONE=$(grep -c 'agent:claude:halt-2 control COMPLIED ref=2026-09-05T14:02:11Z' "$SCRATCH/DISTRESS" 2>/dev/null || echo 0)
+if [ "$HDONE" -eq 1 ]; then ok "[halt] clean prompt→stop cycle answers COMPLIED once"; else bad "[halt] expected 1 COMPLIED line, got $HDONE"; fi
+rm -f "$SCRATCH/HALT"
+halt_pre 'pd status' halt-3; HCODE=$?
+if [ "$HCODE" -eq 0 ]; then ok "[halt] sentinel lowered → pre-tool back to its ordinary self"; else bad "[halt] expected exit 0 after lowering the flag, got $HCODE"; fi
 
 echo ""
 echo "== G5: K=8 concurrent appends (Jamie Madrox) =="

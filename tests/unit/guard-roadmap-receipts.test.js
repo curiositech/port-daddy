@@ -222,7 +222,11 @@ describe('Guard command receipt plumbing — actual handler in an isolated Git f
     }));
     sessionLink = linked.roadmapLink;
     expectedHarbor = linked.harbor;
-    item = receipt({ lastTouchedAt: Date.now() });
+    const fixtureNow = Date.now();
+    item = receipt({
+      lastTouchedAt: fixtureNow,
+      notes: [{ at: fixtureNow, by: 'fixture-agent', text: 'Exact own receipt' }],
+    });
     itemStatus = 200;
     seen.length = 0;
     server = createServer((req, res) => {

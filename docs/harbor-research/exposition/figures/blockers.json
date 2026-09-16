@@ -1,0 +1,317 @@
+[
+  {
+    "id": "fig-anchor-card-lifecycle",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T2",
+      "T3"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-bonded-key-custody",
+    "fragment": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
+    "chapter": 7,
+    "checks_failed": [
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-cartel-game-inline",
+    "fragment": "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+    "chapter": 6,
+    "checks_failed": [
+      "T1"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-fh-settlement",
+    "fragment": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+    "chapter": 8,
+    "checks_failed": [
+      "T3"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-fh-threat-bands",
+    "fragment": "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
+    "chapter": 8,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-fh-xfer-ceremony",
+    "fragment": "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
+    "chapter": 8,
+    "checks_failed": [
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-governance-flow",
+    "fragment": "website-v2/public/whitepaper/figures/fig-governance-flow.tex",
+    "chapter": 7,
+    "checks_failed": [
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-he-assurance",
+    "fragment": "website-v2/public/whitepaper/figures/fig-he-assurance.tex",
+    "chapter": 6,
+    "checks_failed": [
+      "T1"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-he-cold-start",
+    "fragment": "website-v2/public/whitepaper/figures/fig-he-cold-start.tex",
+    "chapter": 6,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-he-conservation-functor",
+    "fragment": "website-v2/public/whitepaper/figures/fig-he-conservation-functor.tex",
+    "chapter": 6,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-he-float-plan",
+    "fragment": "website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
+    "chapter": 6,
+    "checks_failed": [
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-magic-link-inline",
+    "fragment": "website-v2/public/whitepaper/figures/fig-magic-link-inline.tex",
+    "chapter": 7,
+    "checks_failed": [
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-deterrence-regime",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": null
+  },
+  {
+    "id": "fig-stp-judge-market",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-judge-market.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-multidim-reputation",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-multidim-reputation.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-parfit-chain",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-parfit-chain.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-rate-the-raters",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-role-vs-person",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-role-vs-person.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-sybil-whitewash",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-tombstone",
+    "fragment": "website-v2/public/whitepaper/figures/fig-stp-tombstone.tex",
+    "chapter": 5,
+    "checks_failed": [
+      "T2",
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-controllability-quadrant",
+    "fragment": "whitepaper/figures/fig-swk-controllability-quadrant.tex",
+    "chapter": 1,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-sybil-inline",
+    "fragment": "website-v2/public/whitepaper/figures/fig-sybil-inline.tex",
+    "chapter": 7,
+    "checks_failed": [
+      "T4",
+      "T5"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-worked-example",
+    "fragment": "website-v2/public/whitepaper/figures/fig-worked-example.tex",
+    "chapter": 7,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  }
+]

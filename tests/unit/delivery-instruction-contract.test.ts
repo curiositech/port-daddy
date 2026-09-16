@@ -62,11 +62,19 @@ function projectFixture(): string {
  * @returns The emitted Claude context, not a source-string approximation.
  */
 function hookContext(dir: string, extra: NodeJS.ProcessEnv = {}): string {
+  const home = join(dir, '.fixture-home');
+  const state = join(home, '.port-daddy');
+  mkdirSync(state, { recursive: true });
+  writeFileSync(join(state, 'daemon.ready'), '4242\n');
+  writeFileSync(join(state, 'daemon.pid'), '4242\n');
+  writeFileSync(join(state, 'heartbeat'), 'fixture only\n');
   const output = execFileSync(process.execPath, [join(REPO, 'hooks/sessionstart-pilot.mjs')], {
     input: JSON.stringify({ cwd: dir }),
     encoding: 'utf8',
     env: {
       ...process.env,
+      HOME: home,
+      PD_HOME: state,
       PD_PILOT_DISABLE: '',
       PD_SITREP: 'enforce',
       PD_URL: 'http://127.0.0.1:1',
@@ -200,6 +208,23 @@ describe('delivery instruction contract', () => {
     expect(finish).toContain('does not undo Git');
     expect(text).toContain('a caller-supplied reason is not operator authority');
     expect(text).toContain('This verifier runs even when the branch is fully pushed');
+  });
+
+  test('GitHub mutation instructions require the App actuator and reject personal credentials', () => {
+    const agents = source('AGENTS.md');
+    const skill = source('skills/github-app-actuator/SKILL.md');
+    const compactSkill = skill.replace(/\s+/g, ' ');
+    for (const phrase of [
+      'GitHub mutations use the Fleetbot actuator only',
+      "must not use the operator's GitHub identity or credentials",
+      'Never fall back to the operator identity',
+    ]) expect(agents).toContain(phrase);
+    for (const phrase of [
+      "operator's PAT, OAuth token, `pdu_` account bearer",
+      'separate OS identity or remote service',
+      'Local `gh auth logout` alone is not remote revocation',
+      "does **not** satisfy this skill's boundary",
+    ]) expect(compactSkill).toContain(phrase);
   });
 
   test('contributor lifecycle and decision tree cannot turn PR creation or missing context into done', () => {

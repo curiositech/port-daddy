@@ -1,0 +1,20 @@
+{
+  "pass": false,
+  "score": 78,
+  "findings": [
+    {
+      "id": "primary-action-not-obvious",
+      "severity": "medium",
+      "message": "Primary user action is not obvious within 3 seconds of page load."
+    },
+    {
+      "id": "ia-collapse",
+      "severity": "high",
+      "message": "Navigation does not match the user mental model (task completion rate is not confirmed above 80%)."
+    }
+  ],
+  "recommendations": [
+    "Give the primary CTA the strongest visual weight above the fold; remove competing calls to action.",
+    "Run card sorting or a task-completion study on navigation; restructure until >80% complete the primary task."
+  ]
+}

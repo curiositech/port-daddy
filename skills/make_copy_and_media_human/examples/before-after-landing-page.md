@@ -31,19 +31,28 @@
 </body>
 ```
 
-## What the structural layer flags
+### What the structural layer actually flags
 
-| Token | Ism | Severity |
+Verified by running `scripts/humanize_review.py` against the Before block above.
+Four findings, not seven. An earlier version of this table listed detections the
+script does not make, which is exactly the kind of unverified claim this skill
+exists to catch.
+
+| Token in the markup | Ism | Severity |
 |---|---|---|
-| `Inter` (Google Fonts) | ai-default-typeface | high |
-| `#6366f1`, `from-indigo-500 to-violet-500` | ai-default-accent-color | high |
-| `✨ Now in beta` badge pill | sparkle-motif + badge-pill-hero | high |
-| `🚀 🔒 📊` in feature cards | emoji-as-icon | high |
-| `rounded-2xl` ×4, `backdrop-blur` ×3 | glassmorphism-default | medium |
-| gradient `bg-clip-text` headline word | gradient-headline-default | medium |
-| dark `bg-gray-950` default | dark-mode-default-landing | low |
+| `Inter` via Google Fonts | `inter-geist-default-typeface` | high |
+| `#6366f1` | `tailwind-indigo-default-palette` | high |
+| `rounded-2xl` x3 | `ai-default-token-repetition` | medium |
+| emoji inside a feature card heading | `emoji-as-ui-icons` | high |
 
-## What the judge pass flags
+Three things a reader would clock that the script does not, because they need
+eyes or a threshold this sample never reaches: the sparkle glyph on the beta
+badge, the gradient `bg-clip-text` headline word (one occurrence, and the token
+detector wants three), and the centered-hero-plus-three-cards skeleton. Those
+belong to the judge pass below, which is the normal division of labor rather
+than a gap.
+
+**What the judge pass flags**
 
 - Centered-hero + badge + two-button + 3-column-feature-grid is the entire v0 layout grammar, unmodified.
 - "Empower your team to do more with less" — zero information; "Blazing Fast / Lightning-quick" — the adjective says fast, the copy says fast, nothing says *how fast at what*.

@@ -12,6 +12,17 @@ name: Whitepaper PDF Build & Deploy
 #   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
 #       protected and should only ever receive fresh PDFs via merged PRs.
 #
+# The regen commit carries its own derived metadata. publication-digests.json
+# and whitePapers.ts record the byte length, SHA-256 and page count of each
+# committed PDF, so a commit that moves a PDF and leaves them behind publishes a
+# tree that fails its own tests. whitepaper-metadata.yml can heal that, but it is
+# a SEPARATE workflow run on the SAME event: on PR #10162 its heal finished at
+# 10:05 and this job pushed new PDFs at 10:10, and nothing re-healed — the regen
+# push is made with GITHUB_TOKEN, which by design starts no further workflow
+# runs. Four PDFs sat adrift until a person ran --fix by hand. So the heal now
+# happens HERE, between the render and the commit, and the artifact and the
+# record of it move in one commit or not at all.
+#
 # Builds are reproducible WITHIN one renderer version: build-whitepapers.sh pins
 # SOURCE_DATE_EPOCH per paper, so rebuilding unchanged source in the same
 # container is byte-identical, and timestamp noise is fully excluded.
@@ -31,6 +42,8 @@ on:
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
+      - 'whitepaper/textbook.json'
+      - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
@@ -38,13 +51,26 @@ on:
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
+      - 'whitepaper/textbook.json'
+      - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
   # skipped job reports success — so this healing/advisory workflow can never
   # hang the merge queue, and no 30-min TeXLive build runs inside the queue.
   merge_group:
+  # The Book's refresh valve. Ordinary runs build it and throw it away (see
+  # "Keep the Book out of the diff" below); this is how a new Book is actually
+  # published. Dispatch it on a BRANCH cut from main, not on main itself: it
+  # commits the rebuilt Book and its derived metadata to that branch, which then
+  # opens one ordinary pull request. main stays protected and receives the Book
+  # the same way it receives everything else.
   workflow_dispatch:
+    inputs:
+      refresh_book:
+        description: 'Rebuild coordination-papers-mega-volume.pdf and commit it to this branch (do not run on main)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -86,8 +112,9 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
-      # The TeX container has no JavaScript runtime; generate the collected
-      # body and bibliography from the seven canonical sources first.
+      # The TeX container has no JavaScript runtime; generate the Book's body,
+      # front-matter map, and bibliography from the canonical chapter sources
+      # and whitepaper/textbook.json first.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -176,35 +203,199 @@ jobs:
             fi
           fi
 
-      - name: Commit rebuilt PDFs (same-repo branch)
-        # Heal configured feature-branch pushes and same-repository PR heads.
-        # Fork PRs retain a read-only token and stay advisory; main is protected
-        # and receives the already-healed artifact through the merge queue.
-        if: >-
-          (github.event_name == 'push' && github.ref_name != 'main') ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository)
+      # The cover's type is set at fixed coordinates over a full-bleed plate, so
+      # whether it collides with the artwork is a property of the built page and
+      # of nothing else. That check needs the PDFs this job just made -- the
+      # committed ones lag their own source by exactly this job -- but it also
+      # needs Pillow, NumPy and PyMuPDF, and the pinned TeX Live image has no
+      # pip on PATH (the first run of this step died at `pip: not found`). So
+      # the freshly built covers ride out as an artifact and the check runs in
+      # the cover-band job below, on ubuntu-latest, where the figure-gates job
+      # already installs the same three wheels.
+      # Only the Book that this job actually built rides out. The maritime and
+      # technical drivers are switchable but unbuilt, so their committed PDFs
+      # (still in the tree) are the last render of an older source. Uploading
+      # one would hand the cover-band job a stale page and let it report a
+      # green it had not earned -- the same fail-open the --expect flag below
+      # exists to close.
+      - name: Hand the freshly built Book to the type-over-art check
+        uses: actions/upload-artifact@v4
+        with:
+          name: freshly-built-editions
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
+
+      # THE BOOK IS BUILT ON EVERY RUN AND COMMITTED ON ALMOST NONE.
+      #
+      # The Book collates every chapter, so ANY chapter edit moves this one
+      # binary. While PR runs committed it, every whitepaper PR carried a diff
+      # on the same ~9 MiB file -- and this repository merges by REBASE with
+      # linear history, which replays that commit onto a base whose copy has
+      # also moved. A binary has no hunks to merge, so the replay conflicts and
+      # the PR can only be landed by hand.
+      #
+      # Measured on 2026-09-14 across the open whitepaper cluster: 23 of 23 PRs
+      # touched this PDF, 23 touched publication-digests.json and 20 touched
+      # whitePapers.ts -- the same three files, every time, because the latter
+      # two only record this PDF's size and page count. One merge therefore
+      # conflicted the other 22, and merging the cluster was strictly serial at
+      # one PR per full rebuild.
+      #
+      # So the render still happens on every run (it is the only proof the Book
+      # still compiles, and the cover-band job above judges the page this step
+      # just made), but outside a deliberate refresh the artifact is restored
+      # before anything can stage it. Freezing the PDF also freezes its derived
+      # metadata for free: the --fix step and the digests both read the file on
+      # DISK, so a restored Book reproduces exactly the values already
+      # committed, and check-whitepaper-metadata stays green because it
+      # compares the record against the artifact, never against the .tex.
+      #
+      # The cost is that main's Book lags its sources between refreshes. That
+      # is deliberate and bounded: `workflow_dispatch` with refresh_book=true
+      # (and the weekly schedule) rebuilds it and opens ONE pull request, so
+      # the Book moves in a single reviewable commit instead of in 23 racing
+      # ones. Chapter PDFs are untouched by this rule -- they are chapter-
+      # scoped, and two PRs collide on one only when they edit the same
+      # chapter, which is a real conflict a person should see.
+      - name: Keep the Book out of the diff unless this run is its refresh
         env:
-          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+          REFRESHING_BOOK: ${{ github.event_name == 'workflow_dispatch' && inputs.refresh_book }}
         run: |
           set -euo pipefail
+          book=website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
+          if [ "$REFRESHING_BOOK" = "true" ]; then
+            echo "::notice::Book refresh run — the rebuilt Book will be committed."
+            exit 0
+          fi
+          if git diff --quiet -- "$book"; then
+            echo "Book render matches the committed artifact; nothing to restore."
+            exit 0
+          fi
+          git checkout -- "$book"
+          echo "::notice::Restored $book — it compiled, and it stays out of this diff. Run this workflow with refresh_book=true to publish a new Book."
+
+      # ONE decision, read by the four steps below. The loop-breaker subject and
+      # the may-this-job-commit condition each appear exactly once in this file,
+      # so healing, staging and committing can never disagree about whether this
+      # run is a regen that owns derived output.
+      - name: Decide whether this run has derived output to own
+        id: regen
+        env:
+          # Heal configured feature-branch pushes and same-repository PR heads.
+          # Fork PRs retain a read-only token and stay advisory; main is protected
+          # and receives the already-healed artifact through the merge queue.
+          # A refresh_book dispatch commits too, on the branch it was dispatched
+          # on -- that is the one path that publishes a new Book, and it is
+          # refused on main for the same reason every other write here is.
+          COMMITTABLE: ${{ (github.event_name == 'push' && github.ref_name != 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.refresh_book && github.ref_name != 'main') }}
+        run: |
+          set -euo pipefail
+          emit() { echo "carry=$1" >> "$GITHUB_OUTPUT"; echo "$2"; exit 0; }
+          if [ "$COMMITTABLE" != "true" ]; then
+            emit false "This event cannot commit (fork PR, or main) — the render stays advisory."
+          fi
           # Loop-breaker: never stack a second build commit on our own. This
           # bounds the build->commit->build chain to a single extra commit even
           # if a render is not perfectly reproducible, so no [skip ci] is needed
           # (and the resulting commit's PR/main checks see the fresh tree).
+          # Unchanged from when it guarded the commit step alone: the subject it
+          # matches is still the subject committed below, and it is still the
+          # ONLY subject this job skips on — a heal commit from
+          # whitepaper-metadata.yml does not match it and never has.
           case "$(git log -1 --format=%s)" in
             "build(whitepaper): regenerate PDFs from source"*)
-              echo "HEAD is already a build commit — nothing to do."; exit 0;;
+              emit false "HEAD is already a build commit — nothing to do.";;
           esac
           if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
-            echo "PDFs already match source — nothing to commit."; exit 0
+            emit false "PDFs already match source — nothing to commit."
           fi
+          emit true "The render moved a committed PDF; its derived metadata travels with it."
+
+      # pdfinfo reads the page count the digests record, and the metadata script
+      # is TypeScript. Both are installed only on the path that actually commits,
+      # so the ordinary no-op run still costs this job nothing.
+      - name: Install poppler (provides pdfinfo) in the TeX container
+        if: steps.regen.outputs.carry == 'true'
+        run: |
+          set -eu
+          command -v pdfinfo >/dev/null 2>&1 || (apt-get update && apt-get install -y poppler-utils)
+          pdfinfo -v 2>&1 | head -1 || true
+
+      - name: Install website-v2 dependencies (tsx and ts-morph for the metadata script)
+        if: steps.regen.outputs.carry == 'true'
+        working-directory: website-v2
+        env:
+          # The metadata script needs tsx, ts-morph and the two data modules.
+          # Nothing here opens a browser, and the download is ~100 MB of nothing.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm ci --no-audit --no-fund
+
+      - name: Carry the derived metadata onto the PDFs this job just built
+        # THE FIX. publication-digests.json, whitePapers.ts and researchPapers.ts
+        # are derived: page count, byte size and SHA-256 of the committed PDFs and
+        # nothing else. Staging a regenerated PDF without them commits a tree whose
+        # own tests fail on `expect(pdf.length).toBe(manifest.bytes)`. Recomputing
+        # here, before the commit, is the whole point: it can only restore the truth
+        # about what this job is about to stage, and the two can no longer be
+        # separated by a workflow boundary, a scheduling gap, or a push that starts
+        # no new run.
+        if: steps.regen.outputs.carry == 'true'
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          # `|| true` for the same reason whitepaper-metadata.yml gives: --fix
+          # returns non-zero on paths that are not failures. It is safe because
+          # the very next line is the gate — a crashed or partial --fix cannot
+          # reach the commit, because the plain check recomputes from the PDFs on
+          # disk and fails this job if anything is still adrift.
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts --fix ) || true
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts )
+
+      - name: Commit rebuilt PDFs and their derived metadata (same-repo branch)
+        if: steps.regen.outputs.carry == 'true'
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add website-v2/public/whitepaper/*.pdf
-          echo "Changed PDFs:"; git diff --cached --stat
+          # Every file --fix is allowed to write, so nothing it healed above can
+          # be left behind in the worktree while the PDF it describes ships.
+          # researchPapers.ts is in the list because --fix rewrites whole
+          # registries: this job never moves a research PDF, but if that registry
+          # was already adrift the step above healed it on disk, and a healed file
+          # that is not committed is the same lag this change exists to close.
+          git add -- website-v2/public/whitepaper/publication-digests.json \
+                     website-v2/src/data/whitePapers.ts \
+                     website-v2/src/data/researchPapers.ts
+          echo "Changed PDFs and the derived metadata that describes them:"
+          git diff --cached --stat
           git commit -m "build(whitepaper): regenerate PDFs from source"
-          git push origin "HEAD:$TARGET_BRANCH"
+          # The branch moves while the Book compiles -- five to eight minutes in
+          # which a session can push four commits -- so a bare push loses the
+          # race and the job reports red for a build that succeeded. Rebase the
+          # one PDF commit onto whatever arrived and try again, a few times,
+          # because the same race can be lost twice. No force: if the rebase
+          # cannot replay the commit, that is a real conflict over the PDFs and
+          # a person should see it.
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$TARGET_BRANCH"; then
+              echo "pushed the regenerated PDFs on attempt $attempt"; exit 0
+            fi
+            echo "push rejected (attempt $attempt) — the branch moved; rebasing onto it"
+            git fetch origin "$TARGET_BRANCH"
+            git rebase "origin/$TARGET_BRANCH" || {
+              git rebase --abort || true
+              echo "::error::the regenerated PDFs conflict with $TARGET_BRANCH and cannot be replayed automatically"
+              exit 1
+            }
+          done
+          echo "::error::could not push the regenerated PDFs after three attempts; the branch is moving faster than the Book builds"
+          exit 1
 
       - name: Freshness check (advisory on PRs, enforced on main)
         # Feature-branch pushes are skipped; PRs verify the clean worktree after
@@ -224,3 +415,374 @@ jobs:
           fi
           echo "::notice::Advisory only — PDFs are regenerated and committed on the"
           echo "feature branch, so the merge carries fresh artifacts to main."
+
+  cover-band:
+    # The page half of the type-over-art check: for every page of every
+    # edition that sets type over a plate, render the page with its type taken
+    # out, measure the ground each line lands on, and fail below WCAG AA. The
+    # plate half runs in library-checks and needs no build; this half needs
+    # the PDFs the build job just made, which arrive as the
+    # freshly-built-editions artifact. Runs even when the build failed only at
+    # the commit step, and is skipped (not failed) when there is no artifact
+    # to check -- a build that produced nothing has already reported itself.
+    needs: build
+    if: github.event_name != 'merge_group' && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # One pin file for every job that measures a page, so "the same reader
+      # everywhere" is a fact about the repository rather than a comment
+      # asking two workflows to stay in step. The rationale for each version
+      # lives in the file.
+      - name: Install the readers every page measurement is taken with
+        run: pip install --quiet -r scripts/harbor-research/requirements-pdf.txt
+
+      # No continue-on-error here, and no quiet exit below when the directory
+      # is empty. Both were in place, and together they meant a build that
+      # failed to upload its editions produced a green cover-band that had
+      # checked nothing -- the fail-open the type-over-art manifest was written
+      # to forbid. The page half of the check (the one that found the Part IV
+      # opener at 2.56:1) runs only here, so "the plate half still ran in
+      # library-checks" was never a reason to pass.
+      - name: Fetch the freshly built editions
+        id: editions
+        uses: actions/download-artifact@v4
+        with:
+          name: freshly-built-editions
+          path: /tmp/editions
+
+      # One command for every check that reads a rendered PDF -- the page
+      # half of type-over-art (illegible type over a plate) and page_overflow
+      # (ink past the paper edge, a picture set past its column, two margin
+      # notes printed on top of each other, text placed outside the paper,
+      # column text over the running foot). Before this script the two lived
+      # as separate steps naming scripts one at a time, which is exactly how
+      # check_plate_provenance.py sat unwired in library-checks until this
+      # round: a checker that exists is not a checker that runs. Adding a
+      # third page-reading check now means one line in
+      # run_pdf_checks.py's registry, not a new step here to remember.
+      # run_pdf_checks.py itself fails if handed no PDFs, so the empty-
+      # artifact case is still covered without a separate check for it.
+      - name: Nothing on any page is where a reader cannot read it
+        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir /tmp/editions --expect 1
+
+  figure-gates:
+    # Born from the PR #10069 review: figcheck.py existed and caught real
+    # mechanical failures (a line through text, content off the page, text
+    # below the print floor), but nothing in CI ran it. This job compiles
+    # only what a PR actually touches (plus every fragment blockers.json
+    # already knows about), under the Book's own preamble — the only
+    # context a chapter figure is actually printed in — and fails on a T1-T5 or T9
+    # finding unless docs/harbor-research/exposition/figures/blockers.json
+    # already waives it. It never touches a TikZ fragment itself; it only
+    # reads and reports. Runs on ubuntu-latest, not the texlive container:
+    # compile_fragment.sh drives tectonic, a different, self-contained TeX
+    # engine, not the pdflatex/xelatex the texlive image ships.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Same file, same reason: figcheck's T1-T8 findings are geometry read
+      # out of PyMuPDF, so the reader is part of the gate's definition.
+      - name: Install the readers every page measurement is taken with
+        run: pip install --quiet -r scripts/harbor-research/requirements-pdf.txt
+
+      - name: Determine whether this PR touches figure-gates scope
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          touched="$(git diff --name-only "$BASE_SHA"...HEAD -- \
+            'whitepaper/figures/**' \
+            'website-v2/public/whitepaper/figures/**' \
+            'whitepaper/*.tex' \
+            'website-v2/public/whitepaper/*.tex' || true)"
+          if [ -n "$touched" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            echo "PR touches figure-gates scope:"
+            echo "$touched"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "PR touches none of the figure/chapter paths — skipping."
+          fi
+
+      - name: Install tectonic
+        if: steps.scope.outputs.relevant == 'true'
+        run: |
+          set -euo pipefail
+          # Retried, and to a file rather than into a pipe. This was the one
+          # tool download in the repository fetched with a bare `curl -fsSL`
+          # while proofs.yml and deploy-relay-do-migration.yml already retry
+          # theirs -- so a blip on a third-party host reddened figure-gates
+          # with a network error dressed up as a figure finding.
+          #
+          # Piping the installer straight into `sh` is what makes the retry
+          # worth spelling out: on a mid-stream failure curl would retry, and
+          # sh would already have been fed the truncated first attempt, so the
+          # second copy arrives appended to a half-executed script. Landing it
+          # in a file first means a retry replaces the download instead of
+          # continuing it, and sh sees one whole script or nothing.
+          # THE RETRY ABOVE COVERS THE FIRST HOP ONLY, and the failure it was
+          # written for arrived on the second. Fetching this script from
+          # drop-sh.fullyjustified.net is one download; the script then fetches
+          # the tectonic TARBALL from GitHub's release CDN with its own
+          # downloader, which has no retry of its own. On 2026-09-14 that second
+          # hop returned a 504 and the step died:
+          #
+          #   tectonic(drop-installer.sh): downloading version 0.17.0 ...
+          #   curl: (22) The requested URL returned error: 504
+          #   tectonic(drop-installer.sh): command failed: downloader
+          #     https://github.com/.../tectonic-0.17.0-...tar.gz
+          #
+          # Nothing compiled, no figcheck JSON was written, the artifact upload
+          # found no files, and figure-gates reported red on a pull request
+          # whose figures were fine -- which is precisely the "network error
+          # dressed up as a figure finding" the comment above says this step
+          # exists to prevent. It prevented it on one host out of two.
+          #
+          # So the whole installer run is retried, with a widening backoff. `if`
+          # rather than a bare call because `set -e` is on and errexit is
+          # suspended inside a condition; the explicit exit on the last attempt
+          # keeps a genuine outage loud instead of leaving a half-installed tree
+          # to fail two hundred lines later.
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
+            -o /tmp/install-tectonic.sh https://drop-sh.fullyjustified.net
+          for attempt in 1 2 3 4 5; do
+            if sh /tmp/install-tectonic.sh; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "::error::tectonic could not be installed after 5 attempts. This is a network failure on the release CDN, NOT a figure finding -- no fragment was compiled and no figcheck result exists for this run."
+              exit 1
+            fi
+            echo "tectonic install attempt $attempt failed; retrying in $((attempt * 5))s"
+            sleep "$((attempt * 5))"
+          done
+          # A partial install is worse than a failed one: it leaves the step
+          # green and every compile below failing for a reason that looks like
+          # TeX. Assert the thing we are about to name in TECTONIC actually runs.
+          if [ ! -x "$PWD/tectonic" ]; then
+            echo "::error::the tectonic installer reported success but left no executable at $PWD/tectonic"
+            exit 1
+          fi
+          "$PWD/tectonic" --version
+          echo "TECTONIC=$PWD/tectonic" >> "$GITHUB_ENV"
+
+      - name: Determine which fragments to compile (changed in this PR, plus every current blocker)
+        if: steps.scope.outputs.relevant == 'true'
+        id: fragments
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD -- whitepaper/figures website-v2/public/whitepaper/figures \
+            | grep -E '\.tex$' | xargs -r -n1 basename | sed 's/\.tex$//' || true)"
+          # Not everything in figures/ is a figure. The Book's preamble \inputs
+          # its apparatus from the same directory -- the palette, the hyperlink
+          # setup, the pedagogy environments, the figure language, the chapter
+          # map -- and those are preamble files, not drawings. Compiled as
+          # fragments they fail on their own nature: "Can be used only in
+          # preamble", or "\pd@chaptercolor already defined" because the
+          # wrapper's preamble has already loaded them. The exclusion is read
+          # from the preamble rather than listed here, so an apparatus file
+          # added later stops being mistaken for a drawing without anyone
+          # remembering to come back and edit this.
+          #
+          # TRANSITIVELY, which the first version of this was not. Apparatus
+          # \inputs apparatus: pd-pedagogy pulls in pd-cite-shortforms and
+          # pd-discharges, both GENERATED, so regenerating a citation map --
+          # an ordinary consequence of editing a bibliography -- put a table of
+          # \newcommands into the figure gate, where it compiled to "No pages
+          # of output" and failed the build. Reading only the preamble's own
+          # \inputs sees the first level and misses the second. Follow the
+          # edges to a fixed point instead; five rounds is far more than the
+          # two the tree has, and the loop exits as soon as nothing is added.
+          apparatus="$(grep -oE '\\input\{figures/[a-z0-9-]+\}' \
+            website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex \
+            | sed 's|.*figures/||; s|}||' | sort -u)"
+          # `if`, not `[ -f ... ] && grep`, and `|| true` on the grep: this step
+          # runs under `set -euo pipefail`, where a test that fails on the last
+          # iteration, or a grep that matches nothing, takes the whole step down
+          # with it. That is the same errexit trap that swallowed a test-count
+          # floor's output earlier today -- worth writing out rather than
+          # rediscovering a third time.
+          for _ in 1 2 3 4 5; do
+            more="$(for f in $apparatus; do
+              for d in website-v2/public/whitepaper/figures whitepaper/figures; do
+                if [ -f "$d/$f.tex" ]; then
+                  grep -oE '\\input\{figures/[a-z0-9-]+\}' "$d/$f.tex" \
+                    | sed 's|.*figures/||; s|}||' || true
+                fi
+              done
+            done | sort -u)"
+            # `|| true` because an all-empty list makes grep exit 1, which
+            # pipefail turns into a failed assignment and errexit into a dead
+            # step -- swallowing the explicit "refusing to guess" error below,
+            # which is the message that actually tells you what went wrong.
+            next="$(printf '%s\n%s\n' "$apparatus" "$more" | grep -v '^$' | sort -u || true)"
+            [ "$next" = "$apparatus" ] && break
+            apparatus="$next"
+          done
+          echo "apparatus (not drawings): $(printf '%s ' $apparatus)"
+          if [ -n "$apparatus" ]; then
+            changed="$(printf '%s\n' "$changed" | grep -vxF "$apparatus" || true)"
+          else
+            echo "::error::could not read the apparatus list from the Book preamble; refusing to guess which files are drawings"
+            exit 1
+          fi
+          # A fragment that is not ONE figure cannot be measured by a checker
+          # whose contract is one figure per PDF. figcheck says so in its own
+          # docstring ("mechanical geometry QA on one compiled figure PDF"), and
+          # it shows: on appendix-figures.tex -- six \begin{figure} environments
+          # in one file, floating onto two pages -- find_caption_lines returns
+          # TWO captions per page, and T3 compares every text line on a page
+          # against every other, so two unrelated figures get compared to each
+          # other. That is the tool being asked the wrong question, not a defect
+          # in the drawing.
+          #
+          # By shape, not by name, and with a notice rather than silence: this is
+          # the only such file in all three corpora today, and if a second
+          # appears the notice says so on the run that introduces it. Its real
+          # remedy is a FIGURE-TRIAGE.md row -- it has none, and no figcheck
+          # record either, so the audit has never assessed it. A waiver would be
+          # the wrong instrument twice over: blockers.json is GENERATED from the
+          # figcheck records plus the triage, so a hand-written entry there is
+          # erased by the next `render_figure_audit.py --write`.
+          multifig=""
+          for stem in $changed; do
+            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+              [ -f "$d/$stem.tex" ] || continue
+              count=$(grep -c '\\begin{figure' "$d/$stem.tex" || true)
+              if [ "${count:-0}" -gt 1 ]; then
+                echo "::notice::$stem holds $count figure environments in one file; figcheck measures one figure per PDF, so it is out of this gate's scope. It needs a FIGURE-TRIAGE.md row, not a waiver."
+                multifig="$multifig $stem"
+              fi
+              break
+            done
+          done
+          for stem in $multifig; do
+            changed="$(printf '%s\n' "$changed" | grep -vxF "$stem" || true)"
+          done
+          blocked="$(python3 -c "import json; print(chr(10).join(e['id'] for e in json.load(open('docs/harbor-research/exposition/figures/blockers.json'))))")"
+          { printf '%s\n' "$changed"; printf '%s\n' "$blocked"; } | grep -v '^$' | sort -u > /tmp/figure-gate-scope.txt
+          count="$(wc -l < /tmp/figure-gate-scope.txt)"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "compiling $count fragment(s):"
+          cat /tmp/figure-gate-scope.txt
+
+      # The loop must not stop at the first finding. figcheck.py exits 1 when a
+      # fragment has a T1-T5 finding -- and it writes its JSON first -- so
+      # under `set -e` the step died on the first blocker in the scope list.
+      # That took the whole design down with it: the remaining fragments were
+      # never compiled, the contact sheet step was skipped so reviewers had no
+      # artifact to look at, and "Fail on any unwaived T1-T5 failure" -- the
+      # step that reads blockers.json and is the only thing that knows which
+      # findings are waived -- never ran at all. The job reported a hard red
+      # for a backlog it was explicitly built to hold open.
+      #
+      # So findings do not abort the loop; the evaluator judges them at the
+      # end. A fragment that fails to COMPILE is different -- there is no JSON
+      # for the evaluator to read and nothing waivable about a broken
+      # fragment -- so those are collected and the step fails on them once,
+      # after every other fragment has had its turn.
+      #
+      # `set -e` stays on. The two commands allowed to fail are the two inside
+      # `if !` conditions, and errexit does not apply inside a condition, so
+      # nothing else in the block gets to fail quietly -- in particular a
+      # missing scope file, which without -e would leave the loop unrun and the
+      # step green having checked nothing.
+      - name: Compile each in-scope fragment under the Book preamble and run figcheck
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/figure-gate/pdf /tmp/figure-gate/json
+          uncompilable=""
+          findings=0
+          while IFS= read -r stem; do
+            [ -n "$stem" ] || continue
+            frag=""
+            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+              if [ -f "$d/$stem.tex" ]; then frag="$d/$stem.tex"; break; fi
+            done
+            if [ -z "$frag" ]; then
+              echo "::notice::$stem has no fragment on disk (already retired) — skipping compile"
+              continue
+            fi
+            # Three outcomes, not two. compile_fragment.sh exits 3 when LaTeX
+            # reported no error and no pages -- a file under figures/ that
+            # defines style or apparatus and draws nothing. That is not a
+            # broken fragment and must not redden the gate; it is also not
+            # silent, because a notice is how the next person finds out that
+            # the gate's scope has picked up a non-drawing.
+            #
+            # This is the shape-based half of the pair. The step above still
+            # subtracts the apparatus the Book preamble \inputs by name, which
+            # catches pd-figure-language.tex (it fails with a REAL error,
+            # "already defined", because the wrapper's preamble has loaded it
+            # once already). It could not catch the per-edition overrides:
+            # pd-figure-language.tex pulls those in as
+            # \input{figures/pd-figure-language-\pdedition}, a name built from
+            # a macro, which no grep for a literal path will ever see. Exit 3
+            # catches them without anyone having to predict the next one.
+            set +e
+            skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf
+            rc=$?
+            set -e
+            if [ "$rc" -eq 3 ]; then
+              echo "::notice::$stem defines style or apparatus and draws nothing — no picture to check, skipping"
+              continue
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo "::error::$stem failed to compile under the Book preamble"
+              uncompilable="$uncompilable $stem"
+              continue
+            fi
+            if ! python3 skills/harbor-chartwork/scripts/figcheck.py "/tmp/figure-gate/pdf/$stem.pdf" \
+                 --textwidth-cm 11.43 --json "/tmp/figure-gate/json/$stem.json"; then
+              findings=$((findings + 1))
+            fi
+          done < /tmp/figure-gate-scope.txt
+          echo "$findings fragment(s) have a figcheck finding; blockers.json decides which are waived."
+          if [ -n "$uncompilable" ]; then
+            echo "::error::fragments that would not compile:$uncompilable"
+            exit 1
+          fi
+
+      - name: Build a contact sheet of every compiled fragment
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          pdfs=(/tmp/figure-gate/pdf/*.pdf)
+          if [ "${#pdfs[@]}" -gt 0 ]; then
+            python3 skills/harbor-chartwork/scripts/contact_sheet.py "${pdfs[@]}" --out /tmp/figure-gate/contact-sheet.png
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scope.outputs.relevant == 'true'
+        with:
+          name: figure-gate-results
+          path: |
+            /tmp/figure-gate/json/*.json
+            /tmp/figure-gate/contact-sheet.png
+          if-no-files-found: ignore
+
+      - name: Fail on any unwaived T1-T5 or T9 failure
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: python3 scripts/harbor-research/check_figure_gate_results.py --results-dir /tmp/figure-gate/json

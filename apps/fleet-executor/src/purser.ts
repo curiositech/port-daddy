@@ -70,6 +70,7 @@
  */
 
 import type { ExecutorEnv } from './env.js';
+import { shipAiOptions } from './ship-ai-options.js';
 import type { ShipConfig } from './fleet.js';
 import type { ShipResult, Verdict } from './verdict.js';
 import {
@@ -1032,17 +1033,6 @@ function repairPrBlock(prCtx: PRContext, path: string): string {
 // AI plumbing (mirrors execute.ts's aiOptions/accumulateUsage, kept local so
 // the purser stays importable without execute.ts's private helpers)
 
-function aiOptions(
-  env: ExecutorEnv,
-  shipName: string,
-): { extraHeaders: Record<string, string>; gateway?: { id: string } } {
-  const opts: { extraHeaders: Record<string, string>; gateway?: { id: string } } = {
-    extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` },
-  };
-  if (env.AI_GATEWAY_ID) opts.gateway = { id: env.AI_GATEWAY_ID };
-  return opts;
-}
-
 function accumulate(metrics: PurserMetrics, res: unknown, text: string): void {
   const u = extractWorkersAiUsage(res);
   metrics.inputTokens += u.inputTokens ?? 0;
@@ -1096,7 +1086,7 @@ async function purserAiCall(
       env.AI.run(
         model as Parameters<typeof env.AI.run>[0],
         request,
-        aiOptions(env, ship.name),
+        shipAiOptions(env.AI_GATEWAY_ID, ship.name, capture),
       ),
     ),
   );

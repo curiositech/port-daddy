@@ -1,0 +1,38 @@
+{
+  "_comment": "Pinned per PROTOCOL.md S2.1. Pinned at first fetch on 2026-09-07. Ranges are first-parent chains on the default branch: start_sha is the oldest commit of the raw window, end_sha is the newest (HEAD at pin time). corpus.py enumerates the raw window via `git rev-list --first-parent --reverse <start_sha>^..<end_sha>`, then drops merges/binary-touching/oversize commits per S2.1, and computes each KEPT task's patch as the bridging diff from the previous kept task's sha (or the window base) rather than the commit's own git parent, so a dropped commit never leaves a gap the simulated tree can't apply across (see CHANGELOG.md). `raw_window_commits` is the size of that pre-filter window; `nominal_commit_count` is what S2.1's table calls 600 and is the number of KEPT tasks S2.4's per-cell design expects to have available.",
+  "corpora": {
+    "ts-service": {
+      "role": "mid-size TypeScript service (product's own shape)",
+      "repo_url": "https://github.com/nestjs/nest.git",
+      "default_branch": "master",
+      "start_sha": "9b11c861752b167a548f91befb848d59318bc33d",
+      "end_sha": "39fbddae51281ca56bf2fed9123d98e61509066c",
+      "pinned_at": "2026-09-07",
+      "raw_window_commits": 6500,
+      "nominal_commit_count": 600,
+      "kept_task_count": 722
+    },
+    "py-library": {
+      "role": "Python library with a wide contributor base (high file-overlap regime)",
+      "repo_url": "https://github.com/psf/requests.git",
+      "default_branch": "main",
+      "start_sha": "f2fe7358469cf844bce04bf04478b8f95fd634f9",
+      "end_sha": "dae7ef63b4df6eded86637f251fc4e3a06c3b479",
+      "pinned_at": "2026-09-07",
+      "raw_window_commits": 950,
+      "nominal_commit_count": 600,
+      "kept_task_count": 634
+    },
+    "docs-heavy": {
+      "role": "documentation-heavy repository (low overlap, many small files)",
+      "repo_url": "https://github.com/rust-lang/book.git",
+      "default_branch": "main",
+      "start_sha": "b4d2acfb15126ecf067c13f4c952139a6aed0f5d",
+      "end_sha": "1500248d8f230566e4ec9f27fcbb8fe9e2898ab1",
+      "pinned_at": "2026-09-07",
+      "raw_window_commits": 850,
+      "nominal_commit_count": 600,
+      "kept_task_count": 608
+    }
+  }
+}

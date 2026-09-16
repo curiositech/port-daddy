@@ -9,6 +9,7 @@
  *   GET  /v1/subscribe/:session_id          (SSE)
  *   POST /v1/publish
  *   POST /v1/github/webhook                  (GitHub webhook ingress; HMAC-gated)
+ *   POST /v1/fleetbot/publish                (account bearer; governed GitHub App actions)
  *   GET  /v1/fleet/config                     (operator; fleet control-plane read)
  *   POST /v1/fleet/validate                   (operator; deterministic YAML validate)
  *   POST /v1/fleet/smoke-test                 (operator; run one ship on Workers AI)
@@ -75,9 +76,15 @@
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
- *   GET  /v1/shipwright/history                 (session; own chat history)
- *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
- *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   POST /v1/shipwright/thread                  (session; issue repo-bound thread)
+ *   GET  /v1/shipwright/threads                 (session; bounded resume inventory)
+ *   GET  /v1/shipwright/context                 (session; durable context preview)
+ *   POST /v1/shipwright/onboarding              (session; save scoped answers + draft)
+ *   POST /v1/shipwright/ai-context-consent      (session; record/revoke explicit AI-context request)
+ *   GET  /v1/shipwright/history                 (session; scoped thread history)
+ *   POST /v1/shipwright/chat                    (session; scoped Workers AI, SSE)
+ *   POST /v1/shipwright/clear                   (session; delete raw thread history)
+ *   POST /v1/shipwright/repo-clear              (session; clear durable repo context)
  *   POST /v1/shipwright/open-pr                 (session; PR into the user's own
  *                                                installation's repo — validated
  *                                                rosters only, server re-checks)
@@ -95,6 +102,16 @@
  *                                               2026-08-22, PR 1)
  *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
  *                                               board / item detail / activity)
+ *   GET  /account/register?repo=                (session + live GitHub repo ACL;
+ *                                               shared Harbor Work Register)
+ *   POST /account/register/authorize            (session + same-origin; mint a
+ *                                               one-use repo/task pairing code)
+ *   POST /account/register/revoke               (session + same-origin; revoke
+ *                                               one task grant)
+ *   POST /v1/register/exchange                  (one-use pairing code → short-lived,
+ *                                               Register-only pdr_ bearer)
+ *   GET|POST /v1/register/*                     (session/pdu/pdr; shared occupancy,
+ *                                               pdr exact-repo and actor bound)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
@@ -150,6 +167,8 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import { handleFleetbotPublisher } from './github-publisher.js';
+import { handleRepoShips } from './repo-ships-page.js';
 import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
 import { handleRunReport } from './run-report.js';
 import { recordSloSample } from './mercy-hooks.js';
@@ -233,6 +252,7 @@ import {
   handleParleyDetailPage,
   handleParleySignForm,
   handleParleyVerdictForm,
+  parleyNotFoundPage,
 } from './parleys-page.js';
 import { handleHarborsPage, handleHarborDetailPage, harborNotFoundPage } from './harbors-page.js';
 import {
@@ -248,11 +268,18 @@ import {
   handleRepoSettingsRemove,
   handleRepoSettingsApi,
 } from './repo-settings-page.js';
+import { handleRegisterPage, handleRegisterPageAction, handleRegisterApi } from './work-register.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
+  handleShipwrightCreateThread,
+  handleShipwrightThreads,
+  handleShipwrightContext,
+  handleShipwrightOnboarding,
+  handleShipwrightAiContextConsent,
+  handleShipwrightRepoClear,
   handleShipwrightOpenPr,
 } from './shipwright.js';
 import { handleBillingPage } from './billing-page.js';
@@ -477,6 +504,11 @@ export default {
       response = await handleGithubWebhook(request, env);
     }
 
+    // ── Governed GitHub App publication ────────────────────────────────────
+    else if (pathname === '/v1/fleetbot/publish' && method === 'POST') {
+      response = await handleFleetbotPublisher(request, env);
+    }
+
     // ── Fleet control-plane (operator-gated) ─────────────────────────────────
     else if (pathname === '/v1/fleet/config' && method === 'GET') {
       response = await handleFleetConfig(request, env);
@@ -659,6 +691,9 @@ export default {
     }
     // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
     // dial lives here; src/repo-settings-page.ts).
+    else if ((pathname === '/account/ships' && method === 'GET') || (pathname === '/account/ships/set' && method === 'POST')) {
+      response = await handleRepoShips(request, env);
+    }
     else if (pathname === '/account/repos' && method === 'GET') {
       response = await handleRepoSettingsPage(request, env);
     }
@@ -671,6 +706,22 @@ export default {
     // Device-facing read path for per-repo settings (pdu_ bearer or cookie).
     else if (pathname === '/v1/repo-settings' && method === 'GET') {
       response = await handleRepoSettingsApi(request, env);
+    }
+    // The Harbor Work Register: who is on what, for the agents sharing a repo.
+    // The page is session + live GitHub repo ACL. It can mint a one-use exchange
+    // for a short-lived, repo-bound `pdr_` bearer; the JSON paths also retain
+    // the account-wide pdu_ device path. The narrower bearer is resolved only
+    // by work-register.ts and cannot authorize another Relay API.
+    // The register owns occupancy only — what work EXISTS stays the roadmap
+    // registry's to say, and this Worker never writes it (src/work-register.ts).
+    else if (pathname === '/account/register' && method === 'GET') {
+      response = await handleRegisterPage(request, env);
+    }
+    else if (pathname.startsWith('/account/register/') && method === 'POST') {
+      response = await handleRegisterPageAction(request, env);
+    }
+    else if (pathname.startsWith('/v1/register/')) {
+      response = await handleRegisterApi(request, env);
     }
     // Billing storefront (session + GitHub installation ownership; ADR-0116).
     else if (pathname === '/account/billing' && method === 'GET') {
@@ -761,18 +812,35 @@ export default {
     else if (pathname === '/account/parleys' && method === 'GET') {
       response = await handleParleysIndex(request, env);
     } else if (pathname.startsWith('/account/parleys/')) {
-      const seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
-      const [pns, pname, pid, pverb] = seg;
-      if (pns && pname && seg.length === 2 && method === 'GET') {
+      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). Left
+      // unguarded, that threw past the routing into the global boundary, which
+      // answers 500 INTERNAL_ERROR — a visibly different reply from the 404
+      // every other unservable parley URL gets. This surface answers 404 for
+      // everything it will not serve precisely so a non-member and a
+      // nonexistent parley are one response; an undecodable segment joins them
+      // rather than announcing itself with a different status. Same guard the
+      // /account/harbors/ branch below already carries.
+      let seg: string[] | null = null;
+      try {
+        seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      } catch {
+        seg = null;
+      }
+      const [pns, pname, pid, pverb] = seg ?? [];
+      if (seg && pns && pname && seg.length === 2 && method === 'GET') {
         response = await handleParleyListPage(request, env, pns, pname);
-      } else if (pns && pname && pid && seg.length === 3 && method === 'GET') {
+      } else if (seg && pns && pname && pid && seg.length === 3 && method === 'GET') {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
-      } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
+      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
-      } else if (pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
+      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
         response = await handleParleyVerdictForm(request, env, pns, pname, pid);
       } else {
-        response = new Response('Not Found', { status: 404 });
+        // The SAME page a nonexistent parley gets, byte for byte — not a bare
+        // `new Response('Not Found')`. That plaintext 9-byte answer was
+        // distinguishable on sight from the real 404, and carried none of this
+        // surface's headers: no no-store, no noindex, no CSP.
+        response = parleyNotFoundPage();
       }
     }
 
@@ -817,15 +885,28 @@ export default {
         // existence oracle the page's own text refuses to be. It also carried
         // none of this surface's headers — no no-store, no noindex, no CSP.
         //
-        // NOTE: the parleys branch above (the `else` at the end of the
-        // /account/parleys/ dispatch) still has the bare form and the same
-        // doctrine in parleys-page.ts. Same defect, different surface; it needs
-        // its own change and its own tests rather than a drive-by here.
+        // The parleys branch above carried the same defect and now carries the
+        // same fix, with its own tests (apps/relay/tests/parleys-page.test.ts).
         response = harborNotFoundPage();
       }
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
+    else if (pathname === '/v1/shipwright/thread' && method === 'POST') {
+      response = await handleShipwrightCreateThread(request, env);
+    }
+    else if (pathname === '/v1/shipwright/threads' && method === 'GET') {
+      response = await handleShipwrightThreads(request, env);
+    }
+    else if (pathname === '/v1/shipwright/context' && method === 'GET') {
+      response = await handleShipwrightContext(request, env);
+    }
+    else if (pathname === '/v1/shipwright/onboarding' && method === 'POST') {
+      response = await handleShipwrightOnboarding(request, env);
+    }
+    else if (pathname === '/v1/shipwright/ai-context-consent' && method === 'POST') {
+      response = await handleShipwrightAiContextConsent(request, env);
+    }
     else if (pathname === '/v1/shipwright/history' && method === 'GET') {
       response = await handleShipwrightHistory(request, env);
     }
@@ -834,6 +915,9 @@ export default {
     }
     else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
       response = await handleShipwrightClear(request, env);
+    }
+    else if (pathname === '/v1/shipwright/repo-clear' && method === 'POST') {
+      response = await handleShipwrightRepoClear(request, env);
     }
     else if (pathname === '/v1/shipwright/open-pr' && method === 'POST') {
       response = await handleShipwrightOpenPr(request, env);

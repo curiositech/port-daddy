@@ -104,7 +104,7 @@ set -l __pd_commands \
     'bench' 'benchmark' 'demo' 'fleet' 'backend' 'squid' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
-    'start' 'stop' 'restart' 'status' 'install' 'install-bosun' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
+    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
     'setup' 'init' 'cut' 'batten' 'hooks' \
     'plan' 'version' 'help'
 
@@ -494,7 +494,6 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a restart -d 'Restart the daemon'
     complete -c $prog -n __pd_needs_command -a status -d 'Show daemon status'
     complete -c $prog -n __pd_needs_command -a install -d 'Install as system service'
-    complete -c $prog -n __pd_needs_command -a install-bosun -d 'Wire only the Bosun watchdog (brew-managed daemon)'
     complete -c $prog -n __pd_needs_command -a uninstall -d 'Uninstall system service'
     complete -c $prog -n __pd_needs_command -a dev -d 'Daemon berths: up/down/list (ADR-0055)'
     complete -c $prog -n __pd_needs_command -a use -d 'Target this shell at a daemon berth (eval "$(pd use dev)")'
@@ -693,6 +692,11 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'done' -d 'End a session (alias for end)'
     complete -c $prog -n "__pd_using_command session" -x -a 'abandon' -d 'Abandon a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'takeover' -d 'Create successor session; preserve notes'
+    complete -c $prog -n "__pd_using_command session" -x -a 'find' -d 'Recover my session by begin key or identity'
+    complete -c $prog -n "__pd_using_command session" -l key -d 'Begin idempotency key to recover' -x
+    complete -c $prog -n "__pd_using_command session" -l identity -d 'Identity to search (project:stack:context)' -x
+    complete -c $prog -n "__pd_using_command session" -l all-worktrees -d 'Search every worktree'
+    complete -c $prog -n "__pd_using_command session" -l no-adopt -d 'Do not write the recovered context locally'
     complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Archive a session; preserve notes'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'

@@ -4,7 +4,10 @@
     1. pr-requirements-guard → a real `## Summary` (≥10 words) and `## Test Plan`
        (≥12 words: commands + their output) below. A visual-surface change also
        needs a screenshot AND a Porthole recording (or a visual-exempt marker — see
-       the Visual Proof section / CONTRIBUTING.md). A user-visible change also
+       the Visual Proof section / CONTRIBUTING.md). A FIGURE or PRINT change
+       (whitepaper/, any figures/ or plate dir, any .tex, harbor-chartwork) needs a
+       page-scale render in the Visual Proof section and CANNOT take that marker —
+       there it is an error, not an escape hatch. A user-visible change also
        needs a changelog fragment at `changelog.d/<pr>-<slug>.md` (or a
        changelog-exempt marker — see the Changelog section / changelog.d/README.md).
     2. roadmap-link → exactly one `Roadmap-Item:` trailer near the bottom: a known
@@ -16,7 +19,7 @@
 -->
 
 <!--
-  Port Daddy PR template. The headings below are load-bearing: the
+  Port Daddy PR template. The headings below are structural: the
   `pr-requirements-guard` CI job (scripts/check-pr-requirements.mjs) parses
   ## Summary and ## Test Plan and FAILS the merge queue if either is missing or
   trivially short, or if a visual surface changed without screenshot + motion
@@ -93,9 +96,33 @@
   An agent will review these and reason about whether they show ideal
   behavior or an error — sparse/ambiguous evidence is treated as failure.
 
-  Not a visual change? Delete this guidance and add an HTML comment whose FIRST
-  token is  visual-exempt:  followed by a one-line reason. For the exact syntax to
-  copy, see CONTRIBUTING.md (a reason is required; a bare marker is ignored).
+  ── FIGURE AND PRINT WORK: THE EXEMPTION DOES NOT EXIST HERE ──
+  If this PR changes figure or print territory — whitepaper/, website-v2/public/
+  whitepaper/, any figures/ or plate directory, any .tex file, skills/
+  harbor-chartwork/ or skills/whitepaper-figure-system/ — then `visual-exempt` is
+  an ERROR, not an escape hatch, and pr-requirements-guard fails the PR. The
+  marker means "there is no visual change here"; a PR that redraws a figure IS
+  the visual change. Two PRs shipped entirely visual work behind that marker with
+  no image of what they changed, which is why this is now mechanical.
+
+  What to attach instead, in THIS section (the checker reads this section only):
+    - an image embedded in the body — a markdown image, an <img>, or a screenshot
+      dragged straight into the PR; or
+    - a link to published page-scale renders — a GitHub Actions run or artifact
+      URL, e.g. the figure-gates contact sheet.
+  Render at 1.0× / 150 dpi. That is page scale — what a phone PDF viewer shows —
+  and it is the standard the figure work already uses (see
+  skills/harbor-chartwork/references/craft-rules.md §1.4).
+
+  A figcheck or ink_audit table, a compile log, a list of page numbers, or a
+  paragraph saying you looked at the pixels is NOT a render, and neither is
+  "N/A", a bare checkbox, or an empty bullet. The reviewer has to be able to open
+  the thing and see it. A printed page is never asked for a GIF or a recording.
+
+  Not a visual change and not figure/print work? Delete this guidance and add an
+  HTML comment whose FIRST token is  visual-exempt:  followed by a one-line
+  reason. For the exact syntax to copy, see CONTRIBUTING.md (a reason is
+  required; a bare marker is ignored).
 -->
 
 ## Surface Parity & Docs

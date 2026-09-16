@@ -22,6 +22,7 @@ import { resolveDaemonTcpTarget, resolvePublishedDaemonUrl } from '../shared/dae
 import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
+import { generateBeginIdempotencyKey } from './begin-idempotency.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
 import type { SalvageQueueStatus } from './resurrection.js';
 
@@ -2747,6 +2748,11 @@ class PortDaddy {
     if (options.requireLinkedWorktree) body.requireLinkedWorktree = true;
     if (options.allowMainWorktree) body.allowMainWorktree = true;
     body.lifecycle = options.lifecycle;
+    // One key per logical begin: `_request` re-sends the same body on a
+    // socket reset, and the daemon replays the original session for a known
+    // key instead of minting a second one. Callers retrying across processes
+    // pass their own key so those retries replay too.
+    body.idempotencyKey = options.idempotencyKey ?? generateBeginIdempotencyKey();
 
     const result = await this._request('POST', '/sugar/begin', body) as BeginSugarResponse;
 
@@ -3808,10 +3814,18 @@ interface BeginSugarOptions {
   worktree?: Record<string, unknown>;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
+  /**
+   * Idempotency key for this logical begin (UUID v4 / ULID, 16..128 URL-safe
+   * chars). Send the same key on every retry of the same begin; the daemon
+   * replays the original session for a known key. Auto-generated when omitted.
+   */
+  idempotencyKey?: string;
 }
 
 interface BeginSugarResponse {
   success: boolean;
+  /** True when this response replays a begin the daemon had already committed. */
+  replayed?: boolean;
   agentId: string;
   agentName?: string;
   name?: string;

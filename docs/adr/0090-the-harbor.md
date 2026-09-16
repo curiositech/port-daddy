@@ -105,7 +105,7 @@ theme once; it propagates. (Design system + surface specs:
 - **Positive:** one coherent product the whole crew steers by; each ambition has a layer, an
   anchor, and a maturity, so we always know what is real versus aspirational; the design
   system makes every helm surface "render the matrix in the chosen theme."
-- **The keystone:** the load-bearing first cut is the Giant Squid `hook-tentacles` slice
+- **The keystone:** the critical first cut is the Giant Squid `hook-tentacles` slice
   (Claude-Code-first) — it makes the harness *real* and earns its SMART proofs (per-turn
   suggestibility, the `exit 2` lock/steering gate, demonstrably working). Every helm surface
   above is then a projection of that substrate.

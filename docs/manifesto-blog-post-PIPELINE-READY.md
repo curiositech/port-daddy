@@ -20,7 +20,7 @@ website-v2/src/. To ship it through the real blog pipeline, do the following thr
        title: 'A Profit Incentive for Solving Anything',
        date: '2026-06-03',
        author: 'Erich Owens',
-       excerpt: "Two agents, one file, 3 a.m. — the second write wins and an hour of work is gone. That collision is not a bug; it is a 1651 political-philosophy problem wearing a Git hat. This post walks from that small pain to a large claim: the institution that stops file collisions is, structurally, the missing market microstructure for an economy where machines buy and sell ideas — with the one honest caveat (finding the functor is the whole problem) kept load-bearing.",
+       excerpt: "Two agents, one file, 3 a.m. — the second write wins and an hour of work is gone. That collision is not a bug; it is a 1651 political-philosophy problem wearing a Git hat. This post walks from that small pain to a large claim: the institution that stops file collisions is, structurally, the missing market microstructure for an economy where machines buy and sell ideas — with the one honest caveat (finding the functor is the whole problem) kept essential.",
        tags: ['Manifesto', 'Bonded Commons', 'Category Theory', 'Agent Economy', 'Whitepaper'],
        heroImage: '/img/generated/manifesto/hero-state-of-nature.png',
        heroAlt: 'A dark harbor at 3 a.m. — two luminous autonomous vessels reach for the same single glowing artifact on a pier, rim-lit fog, electric near-collision: the war of all against all.',
@@ -57,7 +57,7 @@ Here is the thing nobody quite says out loud: we are about to have millions of a
 
 The rails are, suddenly, real. Google shipped an Agent Payments Protocol; Coinbase shipped x402 so an agent can satisfy an HTTP 402 with a stablecoin; Anthropic's MCP is becoming the substrate agents talk *over*. Two serious economists, Gillian Hadfield and Andrew Koh, wrote a paper this year literally titled *An Economy of AI Agents* and meant it. The plumbing is being laid. The question is whether we lay any **institutions** under it — or whether we let the agent economy relive the entire 19th century, the bucket shops and the wildcat banks and the runs, at machine speed.
 
-That is what Port Daddy is. Not a feature. An institution. The boring, load-bearing, *deeply unsexy* kind: a permit office and a bonded commons for software agents. And the reason I wrote three formal papers about something this unglamorous is that institutions only work if their guarantees are not a matter of opinion.
+That is what Port Daddy is. Not a feature. An institution. The boring, structural, *deeply unsexy* kind: a permit office and a bonded commons for software agents. And the reason I wrote three formal papers about something this unglamorous is that institutions only work if their guarantees are not a matter of opinion.
 
 ## The Leviathan you can check
 
@@ -73,7 +73,7 @@ That is the trilogy, and each paper is one beam.
 ![An architectural cross-section: three labeled blueprint beams reading "I Bonded Commons" (one process), "II Anchor Protocol" (one machine), "III Federated Harbor" (many machines), drawn with hand-lettered italic labels and hatching.](/img/generated/manifesto/trilogy-arc.png)
 
 - **I — The Bonded Commons** asks the question everyone skips: *why should there be a coordinator at all?* It's the economics. Agents post bonds, leave an immutable evidence trail, and operate under a conservation law that says value is never created or destroyed by surprise — only posted, cleared, or refunded. The Leviathan does not decide what you build; it enforces what *cannot* be done.
-- **II — The Anchor Protocol** is *how a single agent proves who it is and exactly what it is allowed to do* to the local daemon. This is the cryptographic floor — capability tokens that attenuate, so a token can only ever grant *less* than the token it came from — verified with ProVerif under an unbounded-session Dolev–Yao attacker, and with Kani against the deployed Rust. Not "we tested it." *We proved the class of attack cannot land.*
+- **II — The Anchor Protocol** is *how a single agent proves who it is and exactly what it is allowed to do* to the local daemon. This is the cryptographic floor — capability tokens that attenuate, so a token can only ever grant *less* than the token it came from — verified with ProVerif under an unbounded-session Dolev–Yao attacker, and bounded with Kani harnesses over the deployed Rust core. Not "we tested it." *The model excludes the class of attack; the harnesses pin the code to the model as far as they reach.*
 - **III — The Federated Harbor** is what happens when the sovereign is not single — your laptop and my laptop, neither one a root of authority for the other. Capability transfer across the trust boundary, revocation that gossips between machines with a named convergence bound, and a bond posted on my machine that can settle against damage measured on yours through an escrow that is *structurally* unable to steal.
 
 Three papers, one arc: **one process → one machine → many machines.** The unglamorous permit office, proven correct, all the way up.
@@ -109,7 +109,7 @@ The purest neoliberal fantasy ever written, and it is sitting on top of a 1960s 
 
 Okay. Deep breath. Because if I stopped there, I would be doing the exact thing this manifesto exists to refuse.
 
-## The honest caveat is the entire load-bearing beam
+## The honest caveat is the entire foundational beam
 
 Here is the sentence that separates this from every breathless thread you have scrolled past:
 
@@ -175,7 +175,7 @@ So: a profit incentive for solving any problem. I believe it. But notice what ha
 |---|---|---|
 | Agents that can transact at all — identity, capability, settlement — without a knife fight | Papers I–III (Bonded Commons, Anchor, Federated Harbor) | Built; formally verified |
 | A claim that "this solution transports to your domain" that is **cheap to verify, expensive to fake** | The bond + the checkable receipt | The microstructure; buildable on the existing ledger |
-| Ruthless honesty that the scarce, valuable thing is the **verified functor**, not the solution or the marketplace | The caveat, kept load-bearing | Hard-won by humans, at great cost — and that's the point |
+| Ruthless honesty that the scarce, valuable thing is the **verified functor**, not the solution or the marketplace | The caveat, kept critical | Hard-won by humans, at great cost — and that's the point |
 
 Get those three and the fantasy stops being a fantasy and starts being plumbing. Elinor Ostrom spent a career showing that commons don't need a tyrant *or* a tragedy — they need rules, monitoring, and graduated stakes. That is what we are building, for the strangest commons yet: the space of ideas, traded by machines, priced by how much structure they actually carry.
 

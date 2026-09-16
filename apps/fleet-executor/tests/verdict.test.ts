@@ -141,6 +141,22 @@ describe('aggregateConclusion', () => {
     );
   });
 
+  it('keeps advisory execution unavailability visible without blocking by default', () => {
+    expect(aggregateConclusion([
+      r({ ship: 'reviewer', blocking: true, participation: 'required', voteOutcome: 'approve' }),
+      r({ ship: 'qa', participation: 'advisory', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        verdict: 'UNAVAILABLE', errored: true, brokenAdjudicated: { scope: 'fleet', reason: 'runner absent' } }),
+    ])).toBe('success');
+  });
+
+  it('fails when repository policy explicitly makes advisory unavailability blocking', () => {
+    expect(aggregateConclusion([
+      r({ ship: 'reviewer', blocking: true, participation: 'required', voteOutcome: 'approve' }),
+      r({ ship: 'qa', participation: 'advisory', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        unavailableBlocks: true, verdict: 'UNAVAILABLE', errored: true }),
+    ])).toBe('failure');
+  });
+
   it('neutral when only a non-blocking ship objects', () => {
     expect(
       aggregateConclusion([r({ blocking: true, verdict: 'PASS' }), r({ verdict: 'BLOCK' })]),

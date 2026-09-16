@@ -1,0 +1,201 @@
+% Figure 0.1 --- the one reader's map the Book keeps: five archetypes, drawn as
+% flowing paths of varying width through the Book's four parts, replacing the
+% six per-chapter Reader's Map sections and abstracts this edition used to
+% carry (and promise standalone editions would keep).
+%
+% TWO-PAGE SPREAD, not one full-width figure. The first drawing here squeezed
+% all four parts into one \pgfsys@typesetpicturebox-rescaled figure (about
+% 7.17in of native content resized down to \pdfullwidth, 6in, by the
+% preamble's overflow safety net -- coordination-papers-mega-volume-preamble.tex,
+% "Overflow safety net"). A from-scratch xelatex render of that exact source
+% (both a standalone harness and the real front matter, truncated after the
+% figure) laid the rescaled figure out cleanly, comfortably inside the trim --
+% but the PDF actually committed alongside it (built by CI's whitepaper-build
+% workflow, the one PR #10230 stops from writing PDF bytes onto every PR head)
+% showed Part III's header clipped mid-word ("What Survives the Resta[rt]")
+% with Part IV missing entirely, which is what the author's screenshot caught.
+% That gap between "renders clean from this source" and "the committed PDF is
+% visibly broken" was not resolved here -- the two most likely explanations are
+% a stale/mismatched committed PDF (built from an earlier revision of this
+% file, before the hand-rolled adjustwidth+resizebox wrapper mentioned below
+% was removed) and a font-substitution difference between this container and
+% CI that changes the picture's native width enough to matter -- and it does
+% not need to be resolved, because the fix below does not depend on the
+% rescale hook at all. Four parts at native size do not fit one page's
+% \textwidth (4.5in) without either claiming the margin column or shrinking;
+% two parts at native size do (each half is about 4.2in), so the two-page
+% spread sidesteps the hook, and with it the entire class of bug, rather than
+% trusting the hook harder.
+%
+% The split falls at the Part II / Part III seam, the book's own natural
+% break (Part I-II is the machine and the operator; Part III-IV is the person
+% and the market -- see whitepaper/textbook.json). The first \begin{figure}
+% below carries Parts I-II and is not captioned (no \caption means no
+% \refstepcounter{figure}, so this does not consume a figure number the rest
+% of the book would then have to renumber around); a \clearpage lands it on
+% its own page; the second \begin{figure} carries Parts III-IV, repeats every
+% row's archetype label so a reader opening straight to the second page still
+% knows which lane is which, and carries the one \caption and \label for the
+% pair. Note for anyone tightening the page model later: this book is a plain
+% (oneside) article-class document with fixed left/right margins, not a
+% genuine twoside book class with inner/outer margins -- so "verso" and
+% "recto" below are used loosely, for the reading convention, not a binding
+% guarantee that these two pages will fall on an actual left/right facing
+% pair when printed. A \cleardoublepage plus true twoside geometry would be
+% the next step if that guarantee is ever needed; it is a book-wide change
+% and deliberately out of scope for a two-chapter-column figure fix.
+%
+% At the cut, each lane's line runs a little past the column it belongs to
+% (into the gutter, atlas-style) and a light dotted rule with corner ticks
+% marks the seam on both pages, so the eye has something to hand off to
+% rather than a line that simply stops.
+%
+% Encoding, deliberately, unchanged from the one-page design: position (which
+% lane) and width/line-style (fat solid = read closely; medium solid = read;
+% thin dashed = skim) carry the archetype distinction, and every path is
+% labelled directly on the page -- no legend. Colour is used only for the
+% four PART headers (an axis label, exactly the \pd@chaptercolor already used
+% for the margin glyph elsewhere in this book), never to distinguish one
+% archetype's path from another's: the Book's seven story colours have
+% measured pairs below the legibility floor for full-colour readers (a
+% separate branch, claude/figure-palette-separation, is re-stepping them), so
+% a figure that leaned on hue to tell two paths apart would have to be
+% redrawn once that lands. This one does not depend on it either way.
+
+% ---- shared lane geometry (both pages use the same row and rule spec) -----
+\def\yTop{10.55}\def\yHead{10.15}\def\ySub{9.60}\def\yBase{0.55}
+\def\yPrac{8.55}\def\yEng{6.90}\def\ySec{5.25}\def\yEcon{3.60}\def\yPhil{1.95}
+\def\wFat{9.0}\def\wMed{5.0}\def\wThin{2.0}
+% A river segment: #1 x start, #2 x end, #3 y, #4 line width, #5 extra style.
+\newcommand{\rmseg}[5]{\draw[pd rule,line cap=round,line width=#4pt,#5] (#1,#3) -- (#2,#3);}
+% A direct label naming the path, set once, at the far left of each page.
+\newcommand{\rmlabel}[2]{\node[pd direct label,anchor=east,align=right,text width=3.05cm,font=\bfseries\footnotesize] at (-0.30,#1) {#2};}
+% A short note pinned just above a fat segment, naming what it is fat for.
+\newcommand{\rmnote}[3]{\node[pd note,anchor=south,font=\scriptsize\itshape] at (#1,#2+0.28) {#3};}
+% The gutter mark: a light dotted rule with top/bottom corner ticks, at the
+% page's cut edge -- the printed equivalent of a map's graticule continuing
+% across a fold.
+\newcommand{\rmgutter}[1]{%
+  \draw[hhgray!55,line width=0.5pt,dash pattern=on 1.4pt off 1.6pt] (#1,\yBase-0.15) -- (#1,\yTop+0.15);
+  \draw[hhgray!55,line width=0.5pt] (#1-0.07,\yBase-0.15) -- (#1+0.07,\yBase-0.15);
+  \draw[hhgray!55,line width=0.5pt] (#1-0.07,\yTop+0.15) -- (#1+0.07,\yTop+0.15);
+}
+
+% ═══════════════════════════════════════════════════════════════════════════
+% Page one (verso, loosely): Parts I-II. No \caption -- see header comment.
+% ═══════════════════════════════════════════════════════════════════════════
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+  % ---- column geometry: two parts, touching, no gap ---------------------
+  \def\bA{0}\def\bB{3.65}\def\bC{7.30}
+  \def\cA{1.825}\def\cB{5.475}
+
+  \draw[pd hairline] (\bB,\yBase) -- (\bB,\yTop);
+  \draw[pd hairline] (\bA,\yTop) -- (\bC,\yTop);
+  \node[pd panel title,text=pdcobalt,align=center] at (\cA,\yHead) {Part I\\[1pt]\footnotesize\normalfont Ground Truth};
+  \node[pd panel title,text=pdteal,align=center] at (\cB,\yHead) {Part II\\[1pt]\footnotesize\normalfont The Cost of Seeing};
+  \node[pd note] at (\cA,\ySub) {1 \textperiodcentered\ 2 \textperiodcentered\ 3};
+  \node[pd note] at (\cB,\ySub) {4};
+  \rmgutter{\bC}
+
+  % 1. The Practitioner (buyer, solo developer, founder, newcomer) ---------
+  \rmlabel{\yPrac}{THE PRACTITIONER}
+  \rmseg{\bA}{\bB}{\yPrac}{\wThin}{dashed}
+  \rmseg{\bB}{\bC+0.35}{\yPrac}{\wFat}{}
+  \rmnote{\cB}{\yPrac}{digest-with-zoom, consent}
+
+  % 2. The Systems Engineer (builds and verifies the mechanism) -----------
+  \rmlabel{\yEng}{THE SYSTEMS ENGINEER}
+  \rmseg{\bA}{\bB}{\yEng}{\wFat}{}
+  \rmseg{\bB}{\bC+0.35}{\yEng}{\wFat}{}
+  \rmnote{\cA}{\yEng}{single-writer proof, attenuation}
+
+  % 3. The Security / Formal-Methods Reviewer ------------------------------
+  \rmlabel{\ySec}{THE SECURITY REVIEWER}
+  \rmseg{\bA}{\bB}{\ySec}{\wFat}{}
+  \rmseg{\bB}{\bC+0.35}{\ySec}{\wThin}{dashed}
+  \rmnote{\cA}{\ySec}{threat model, deontic split}
+
+  % 4. The Mechanism Designer / Economist ----------------------------------
+  \rmlabel{\yEcon}{THE MECHANISM DESIGNER}
+  \rmseg{\bA}{\bB}{\yEcon}{\wThin}{dashed}
+  \rmseg{\bB}{\bC+0.35}{\yEcon}{\wMed}{}
+
+  % 5. The Institutional Theorist (legitimacy, personhood, morality) ------
+  \rmlabel{\yPhil}{THE INSTITUTIONAL THEORIST}
+  \rmseg{\bA}{\bB}{\yPhil}{\wThin}{dashed}
+  \rmseg{\bB}{\bC+0.35}{\yPhil}{\wMed}{}
+\end{tikzpicture}
+\end{figure}
+
+\clearpage
+
+% ═══════════════════════════════════════════════════════════════════════════
+% Page two (recto, loosely): Parts III-IV. Carries the caption and label for
+% the pair. Row labels repeat so this page stands on its own.
+% ═══════════════════════════════════════════════════════════════════════════
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+  % ---- column geometry: the other two parts, touching, no gap -----------
+  \def\bA{0}\def\bB{3.65}\def\bC{7.30}
+  \def\cA{1.825}\def\cB{5.475}
+
+  \draw[pd hairline] (\bB,\yBase) -- (\bB,\yTop);
+  \draw[pd hairline] (\bA,\yTop) -- (\bC,\yTop);
+  \node[pd panel title,text=pdviolet,align=center] at (\cA,\yHead) {Part III\\[1pt]\footnotesize\normalfont What Survives the Restart};
+  \node[pd panel title,text=pdgold,align=center] at (\cB,\yHead) {Part IV\\[1pt]\footnotesize\normalfont Trade Between Strangers};
+  \node[pd note] at (\cA,\ySub) {5};
+  \node[pd note] at (\cB,\ySub) {6 \textperiodcentered\ 7 \textperiodcentered\ 8};
+  \rmgutter{\bA}
+
+  % 1. The Practitioner -----------------------------------------------------
+  \rmlabel{\yPrac}{THE PRACTITIONER}
+  \rmseg{\bA}{\bB}{\yPrac}{\wFat}{}
+  \rmseg{\bB}{\bC}{\yPrac}{\wMed}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cA}{\yPrac}{role vs.\ person}
+
+  % 2. The Systems Engineer --------------------------------------------------
+  \rmlabel{\yEng}{THE SYSTEMS ENGINEER}
+  \rmseg{\bA}{\bB}{\yEng}{\wMed}{}
+  \rmseg{\bB}{\bC}{\yEng}{\wFat}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cB}{\yEng}{transfer ceremony, settlement}
+
+  % 3. The Security / Formal-Methods Reviewer -------------------------------
+  \rmlabel{\ySec}{THE SECURITY REVIEWER}
+  \rmseg{\bA}{\bB}{\ySec}{\wThin}{dashed}
+  \rmseg{\bB}{\bC}{\ySec}{\wFat}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cB}{\ySec}{ProVerif / TLA+ status}
+
+  % 4. The Mechanism Designer / Economist ------------------------------------
+  \rmlabel{\yEcon}{THE MECHANISM DESIGNER}
+  \rmseg{\bA}{\bB}{\yEcon}{\wMed}{}
+  \rmseg{\bB}{\bC}{\yEcon}{\wFat}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cB}{\yEcon}{three-sided market, conservation}
+
+  % 5. The Institutional Theorist -------------------------------------------
+  \rmlabel{\yPhil}{THE INSTITUTIONAL THEORIST}
+  \rmseg{\bA}{\bB}{\yPhil}{\wFat}{}
+  \rmseg{\bB}{\bC}{\yPhil}{\wMed}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cA}{\yPhil}{Locke, Parfit, personhood}
+\end{tikzpicture}
+\caption{\textbf{One reader's map for the whole book, spread across two
+pages.} Five archetypes, each a single flowing path left to right through
+Parts I--IV, continuing across the facing page at the dotted seam; line width
+is the encoding that matters --- fat where that reader should read closely,
+thin and dashed where the part is safe to skim without losing the argument
+--- and every path is named on the page, on both halves of the spread,
+rather than in a legend. Position and width carry the distinction; colour
+marks only the four parts themselves (the same per-part hue used throughout
+this edition), never one archetype against another, so the figure does not
+depend on the categorical palette currently being re-stepped for full-colour
+legibility (\texttt{claude/figure-palette-separation}). A sixth reader, the
+instructor checking exercises, is deliberately not drawn as a sixth lane:
+every chapter's own closing \textsc{Exercises} section is that reader's
+route, in every part at once, and a sixth flat line spanning the full width
+would say nothing a reader could not already infer. Five paths is close to
+the legibility ceiling for one spread; a design that needed a sixth or
+seventh would be better split into three pages than crowded onto two.}
+\label{fig:book-reader-map}
+\end{figure}

@@ -29,7 +29,7 @@ the operating curve, and the latency sweep. The independence assumption is
 then BROKEN deliberately (an adversary who obtains the canary list with
 probability rho strips all of them): measured power falls below 1 - beta^k,
 demonstrating that the bound's stated regime - uniform planting unknown to
-the adversary - is load-bearing, not decorative.
+the adversary - is critical, not decorative.
 """
 import numpy as np
 from math import lgamma, log, exp
@@ -148,6 +148,6 @@ outputs before a leak of given intensity is called, with realized error
 rates at or below their targets. This re-scopes the exfiltration bond to its
 honest job (funding detection and response, not unbounded breach damage) and
 gives thm:cleanroom claim 3 its executed backing. The stated regime is
-load-bearing: secret uniform planting and per-canary independence - an
+critical: secret uniform planting and per-canary independence - an
 adversary who can identify canaries strips them and the guarantee voids, so
 canary secrecy is part of the security boundary, priced here explicitly.''')

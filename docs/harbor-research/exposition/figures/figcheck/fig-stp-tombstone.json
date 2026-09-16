@@ -1,0 +1,174 @@
+{
+  "figure": "fig-stp-tombstone",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "fail",
+      "count": 3,
+      "findings": [
+        {
+          "check": "T2",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            124.65550231933594,
+            58.90513610839844,
+            133.7896270751953,
+            69.38614654541016
+          ],
+          "container_bbox": [
+            122.97305297851562,
+            60.765594482421875,
+            136.03375244140625,
+            69.59837341308594
+          ],
+          "text": "o1",
+          "message": "text 'o1' escapes its containing rect (123.0, 60.8, 136.0, 69.6)"
+        },
+        {
+          "check": "T2",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            182.09922790527344,
+            58.90513610839844,
+            191.2333526611328,
+            69.38614654541016
+          ],
+          "container_bbox": [
+            180.41677856445312,
+            60.765594482421875,
+            193.47747802734375,
+            69.59837341308594
+          ],
+          "text": "o2",
+          "message": "text 'o2' escapes its containing rect (180.4, 60.8, 193.5, 69.6)"
+        },
+        {
+          "check": "T2",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            303.10205078125,
+            57.503082275390625,
+            507.2948303222656,
+            70.12127685546875
+          ],
+          "container_bbox": [
+            342.4973449707031,
+            56.13883972167969,
+            414.35772705078125,
+            69.59837341308594
+          ],
+          "text": "re-audit t(o3) appended imported tombstone",
+          "message": "text 're-audit t(o3) appended imported tombstone' escapes its containing rect (342.5, 56.1, 414.4, 69.6)"
+        }
+      ]
+    },
+    "T3": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            81.163818359375,
+            120.9698486328125,
+            301.6773376464844,
+            132.18597412109375
+          ],
+          "other_bbox": [
+            78.99989318847656,
+            101.40496826171875,
+            89.09442138671875,
+            183.0999298095703
+          ],
+          "text": "contribution of o3 to spendable reputation",
+          "other_text": "score contribution",
+          "overlap_fraction": 0.108,
+          "message": "text 'contribution of o3 to spendable reputation' overlaps 'score contribution' by 10.8% of the smaller bbox"
+        }
+      ]
+    },
+    "T4": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            268.6374206542969,
+            142.29788208007812,
+            507.59503173828125,
+            152.3924102783203
+          ],
+          "text": "fraud remains spendable while correction propagates",
+          "line_segment": [
+            [
+              378.42755126953125,
+              219.8155975341797
+            ],
+            [
+              378.42755126953125,
+              93.43881225585938
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'fraud remains spendable while correction propagates'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.147,
+      "edge_density": 0.0836,
+      "distinct_colors": 1750,
+      "flags": [
+        "edge_density=0.084 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T2",
+      "T3",
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}
