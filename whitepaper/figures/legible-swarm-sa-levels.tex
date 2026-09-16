@@ -1,0 +1,43 @@
+% Brief (tikz-diagram-craft), breaking the sec:sa desert (no register row;
+% assignment names 4.5.2-4.5.5 as no-visual runs to break).
+% Reader question: which of Endsleys three levels of situation awareness
+%   does digest-with-zoom actually reach, and which is missing?
+% Claim: SA has three levels (perception, comprehension, projection);
+%   digest-with-zoom is a perceive-and-comprehend instrument, so projection
+%   -- what the swarm will do next -- is the missing, needed third level,
+%   validated by a freeze-probe.
+% Evidence: sec:sa, whitepaper/legible-swarm.tex (Endsley 1995, Endsley and
+%   Kiris 1995), this pass.
+% Must distinguish: the two levels digest-with-zoom already reaches from
+%   the one it does not; that the missing level is forward-looking, the
+%   named complement to the backward-looking forensic time axis.
+% Grammar chosen: block stack, three levels with a bracket for the missing
+%   one, since the claim is a containment/coverage relation (which levels
+%   a given instrument reaches), not a quantity or a sequence of events.
+% Grammar rejected: a timeline of past/present/future (already the chosen
+%   grammar for Sec. timeaxis, fig ch4-58) would restate the temporal axis
+%   rather than Endsleys own perceive/comprehend/project hierarchy, which
+%   is a level of processing, not a point in time.
+% Five-second test: how many of the three levels does digest-with-zoom
+%   reach today, and which one is still missing?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd ready state,minimum width=5.4cm,minimum height=1.0cm] (P1) at (3.20,0.60) {perception};
+  \node[pd ready state,minimum width=5.4cm,minimum height=1.0cm] (P2) at (3.20,1.85) {comprehension};
+  \node[pd warn state,minimum width=5.4cm,minimum height=1.0cm]  (P3) at (3.20,3.10) {projection};
+  \draw[pd rule] (6.15,0.15) -- (6.55,0.15) -- (6.55,2.30) -- (6.15,2.30);
+  \node[pd focus label,anchor=west,text width=2.6cm,align=left] at (6.70,1.23)
+    {digest-with-zoom: built};
+  \node[pd label,anchor=west,text width=3.0cm,align=left] at (6.15,3.10)
+    {missing; validated by a freeze-probe};
+\end{tikzpicture}
+\caption{Endsleys three levels of situation awareness (1995), stacked from
+the ground up. Digest-with-zoom is overwhelmingly a perceive-and-comprehend
+instrument: it reaches the bottom two levels today. Projection -- what the
+swarm is about to do, and what the state will be in ten minutes -- is the
+missing third level, validated by a freeze-probe that pauses the swarm and
+scores the operators prediction of the next three merges. [internal]}
+\label{fig:sa-levels}
+\end{figure}

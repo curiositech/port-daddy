@@ -1,0 +1,67 @@
+% Brief (tikz-diagram-craft), register row ch4-33.
+% Reader question: given a flagged set that still contains a few true
+%   positives, how many fewer opens does adaptive group-testing need than
+%   reading every flag, and at what density does that stop paying?
+% Claim: the guaranteed advantage adv(d)=1/(d(2*ceil(log2(1/d))+4)) crosses
+%   1 at flagged-set density d=1/12: below that density zoom guarantees a
+%   win, above it flat inspection can no longer be beaten on the worst case.
+% Evidence: adv(1/12)=1.00 (crossing); adv(10/2500)=12.5, the F=2500,k=10
+%   configuration whose realized mean was 162.6 opens (15.3x, better than
+%   the 12.5x guarantee); adv(32/4096)=7.11 at the F=4096,k=32 tightness
+%   config, where the exact tight formula lands on 511 queries, measured
+%   511 exactly [internal, zoom_bound_check.py, run this pass].
+% Must distinguish: the crossing point (adv=1, breakeven) from the two
+%   worked configurations; that adv(d) is a genuine step function (the
+%   ceiling), not a smooth curve, so no interpolation is drawn between
+%   its jumps.
+% Grammar chosen: threshold/regime plot, log-x density against guaranteed
+%   advantage, a step curve (const plot) with a breakeven guide at adv=1.
+% Grammar rejected: a bar chart of adv at the two named (F,k) configurations
+%   would state the two numbers but hide the crossing itself -- the
+%   chapter's point that d<=1/12 is a real, continuous threshold, not a
+%   property of the two worked examples alone.
+% Five-second test: "at the chapter's own F=2500,k=10 point, is the density
+%   left or right of the d=1/12 crossing, and by how much?"
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=7.8cm,height=5.2cm,
+  xmode=log,
+  xmin=0.002,xmax=0.4,ymin=0,ymax=23,
+  xtick={0.002,0.004,0.00781,0.0833,0.4},
+  xticklabels={0.002,0.004,1/128,1/12,0.4},
+  ytick={0,5,10,20},
+  xlabel={flagged-set density $d=k/F$ (log scale)},
+  ylabel={guaranteed advantage $\mathrm{adv}(d)$},
+  clip=false,axis on top]
+  \addplot[pd warn series,line width=.9pt,domain=0.002:0.4,samples=2] {1};
+  \node[pd label,anchor=south east] at (axis cs:0.4,1) {breakeven: adv $=1$};
+  \addplot[pd focus rule,line width=1.05pt,const plot,domain=0.002:0.4,samples=140,smooth=false]
+    {1/(x*(2*ceil(ln(1/x)/ln(2))+4))};
+  \draw[pd guide] (axis cs:0.0833,0) -- (axis cs:0.0833,1);
+  \node[pd focus datum] at (axis cs:0.0833,1) {};
+  \node[pd focus label,anchor=south west] at (axis cs:0.10,4.5) {$d{=}1/12$};
+  \node[pd datum] at (axis cs:0.004,12.5) {};
+  \node[pd label,anchor=south west,text width=2.8cm,align=left] at (axis cs:0.0043,14.0)
+    {$F{=}2500,k{=}10$: $12.5\times$};
+  \node[pd datum] at (axis cs:0.00781,7.11) {};
+  \node[pd label,anchor=north west,text width=2.5cm,align=left] at (axis cs:0.011,6.0)
+    {$F{=}4096,k{=}32$: $7.1\times$};
+\end{axis}
+\end{tikzpicture}
+\caption{The zoom-advantage theorem's guaranteed worst-case advantage
+against flagged-set density $d=k/F$ (log scale), a genuine step function
+from the ceiling: $\mathrm{adv}(d)=1/(d(2\lceil\log_2(1/d)\rceil+4))$. The
+guarantee crosses $1$ at $d=1/12$: at any sparser density, adaptive halving
+is guaranteed to beat flat inspection, and at any denser one the worst case
+can lose. At the chapter's own $F{=}2500,k{=}10$ point ($d{=}0.004$) the
+guarantee is $12.5\times$, comfortably left of the crossing, and the
+harness's realized mean of $162.6$ opens is a better-than-guaranteed
+$15.3\times$; the $F{=}4096,k{=}32$ tightness configuration ($d{=}1/128$)
+guarantees $7.1\times$ and lands exactly on its own tight closed form, $511$
+queries measured against $511$ predicted. [internal,
+\texttt{zoom\_bound\_check.py}]}
+\label{fig:zoom-advantage}
+\end{figure}

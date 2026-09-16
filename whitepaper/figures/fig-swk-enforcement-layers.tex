@@ -1,0 +1,47 @@
+% Brief (tikz-diagram-craft). Register row ch1-42 [should], desert
+% Sec. 13.2 "The enforcement gate proves; it does not yet compel".
+% Reader question: which layer of enforcement actually stops a
+%   non-cooperating same-user agent, and which merely proves what happened?
+% Claim: only the top layer -- a separate-user (or separate-VM) kernel
+%   process -- is a real wall; the three layers below it are proofs and
+%   tripwires a determined same-user agent can still step around.
+% Evidence: whitepaper/single-writer-kernel.tex sec:enforcement-gap: the
+%   Coordination Guard, shim and hook harness (Built, in-band, advisory);
+%   a server-side branch-protection-plus-push-broker (Designed); a
+%   credential broker (Vision); a separate-user kernel (Vision, the only
+%   layer that removes the capability rather than refusing the verb).
+% Must distinguish: what each layer stops, in one clause, so a reader
+%   cannot mistake "verified" for "compulsory"; that only the top band is
+%   built from a different primitive (removes capability, not verb).
+% Grammar: maturity stack, full-width bands, the one real wall highlighted
+%   at the top. Rejected: a 2x2 (proves x compels), which would flatten
+%   four distinct layers into one boolean and lose the "only the top layer"
+%   claim.
+% Five-second test: "four bands stacked by maturity; only the top one, still
+%   Vision, is shaded as the real wall".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\w{9.95}  \def\h{2.20}
+  \foreach \i/\name/\grade/\stops/\s in {%
+    3/{separate-user (or separate-VM) kernel, forced egress}/{Vision}/{removes the capability itself: the only real wall}/{pd focus fill},
+    2/{credential broker: meters and injects credentials per request}/{Vision}/{narrows the ambient-token surface}/{pd neutral fill},
+    1/{server-side branch-protection-plus-push-broker}/{Designed}/{most direct-push incidents, not same-user tricks}/{pd neutral fill},
+    0/{advisory guard, shim, hook harness -- in-band, same user}/{Built}/{nothing from an agent that declines them: advisory only}/{pd neutral fill}}{
+      \draw[\s] (0,{\i*\h}) rectangle (\w,{\i*\h+\h});
+      \node[pd title,anchor=west,text width=5.5cm,align=left] at (0.22,{\i*\h+\h/2}) {\name};
+      \node[pd kind,anchor=west] at (6.15,{\i*\h+\h/2+.68}) {\grade};
+      \node[pd label,anchor=west,text width=3.55cm,align=left] at (6.15,{\i*\h+\h/2-.28}) {\stops};}
+  \node[pd note,anchor=south west] at (0.00,{4*\h+.15}) {only the shaded layer removes the capability rather than refusing the verb};
+\end{tikzpicture}
+\caption{Enforcement closes as a layered program, and only the top layer is
+a real wall. Today's advisory guard, shim, and hook harness (\textsc{built})
+run in-band as the same user: a same-user agent has documented escapes that
+defeat no cryptography. A server-side broker (\textsc{designed}) and a
+credential broker (\textsc{vision}) each narrow the surface further, but
+only a separate-user or separate-VM kernel process (\textsc{vision}, the
+shaded band) confines a malicious same-user holder, because it is the first
+layer that removes the capability rather than refusing the verb. [internal]}
+\label{fig:swk-enforcement-layers}
+\end{figure}

@@ -1,45 +1,79 @@
-% Regime diagram for Sec. sealed-detection ("Canaries with a power curve and a clock"): detection power 1-beta^k at beta=0.2 (Theorem sealed-power), and the two Wald expected run lengths of the sequential test (Theorem sealed-latency). All values copied from website-v2/public/whitepaper/sealed-harbor.tex, Sec. sealed-detection, "Verification" and "Numbers by hand" paragraphs [internal, a4_canary_sprt.py].
+% Restyle of fig-sealed-operating-curve to the tikz-diagram-craft v2 standard
+% (both plots are unchanged; only roles and column width are new).
+%
+% Reader question: how fast does detection power climb with canaries carried,
+% and how long does the sequential test run?
+% Claim: power climbs fast (three canaries already catch 99.2% of leaks) and
+% the sequential test resolves in a few hundred outputs either way.
+% Evidence: Theorem sealed-power, Theorem sealed-latency, website-v2/public/
+% whitepaper/sealed-harbor.tex, Sec.~sealed-detection, "Verification" and
+% "Numbers by hand" [internal, a4_canary_sprt.py].
+% Must distinguish: the marked anchor (k=3, 0.992) on the power curve from
+% the rest of the climb; the null run length from the leak run length.
+% Grammar chosen: two-panel measured plot (pgfplots) -- power against k with
+% the anchor marked, expected run length under null and leak as a bar pair.
+% Grammar rejected: a single unlabeled curve would lose the worked anchor;
+% a pie of outcomes has no axis for a run-length comparison.
+% Five-second test: how many canaries reach 99%, and which run is longer.
+% NOTE for the author: pgfplots centers `title=` on the axis without
+% constraining its width, so a long bold title silently overflows the column
+% independent of the axis `width=` (found via this figure: an un-constrained
+% title alone pushed technical ink to 4.75in against a 6.6cm-wide axis).
+% Fixed here with an explicit `text width` on `title style`; worth a QA-script
+% check (figcheck T7/ink) if other pgfplots fragments carry long titles.
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure]
-  \begin{axis}[pd axis,
-    width=13.8cm,height=6.0cm,
+  \begin{axis}[
+    width=5.9cm,height=4.2cm,
     axis lines=left,
     title={detection power climbs fast in the number of canaries carried},
+    title style={font=\pdfiglabelbold,text=pdink,yshift=-2pt,align=center,text width=5.3cm},
     xmin=0.5,xmax=8.5,ymin=0,ymax=1.05,
     xlabel={smuggled canaries $k$ (per-canary miss rate $\beta=0.2$)},
     ylabel={detection probability},
+    xlabel style={font=\pdfiglabel,text=pdinkmuted,align=center,text width=5.6cm},
+    ylabel style={font=\pdfiglabel,text=pdinkmuted},
+    tick label style={font=\pdfiglabel,text=pdinkmuted},
+    axis line style={pd hairline},
+    tick style={pd tick},
     xtick={1,2,3,4,5,6,7,8},
     ytick={0,0.25,0.5,0.75,1.0},
     clip=false,
   ]
-    \addplot[pd rule,domain=1:8,samples=8,line width=.9pt,mark=*,mark size=1.1pt,mark options={fill=hhink}] {1-0.2^x};
-    \addplot[pd focus rule,only marks,mark=*,mark size=1.7pt] coordinates {(3,0.992)};
+    \addplot[domain=1:8,samples=8,pd rule,mark=*,mark size=1.1pt,mark options={fill=pdink}] {1-0.2^x};
+    \addplot[only marks,mark=*,mark size=1.7pt,draw=pdfocus,fill=pdfocus] coordinates {(3,0.992)};
     \draw[pd guide] (axis cs:3,0) -- (axis cs:3,0.992);
-    \node[pd direct label,text=hhteal,anchor=south west,align=left] at (axis cs:3.25,0.86) {$k=3$: caught with probability $0.992$};
+    \node[pd focus label,anchor=north west,align=left,text width=3.2cm] at (axis cs:4.4,0.62) {$k=3$: caught with probability $0.992$};
   \end{axis}
 \end{tikzpicture}
 
 \vspace{4pt}
 \begin{tikzpicture}[pd figure]
-  \begin{axis}[pd axis,
+  \begin{axis}[
     xbar,
-    width=13.8cm,height=3.1cm,
+    width=5.9cm,height=2.6cm,
     bar width=9pt,
     axis lines=left,
     xmin=0,xmax=520,ymin=0.4,ymax=2.6,
     ytick={1,2},
     yticklabels={{under the null},{under a leak}},
+    y tick label style={font=\pdfiglabel,text=pdink,text width=2.1cm,align=right},
     xlabel={expected outputs to a stopping decision, $\mathbb{E}[N]$ (Wald)},
+    xlabel style={font=\pdfiglabel,text=pdinkmuted,align=center,text width=5.6cm},
+    tick label style={font=\pdfiglabel,text=pdinkmuted},
+    axis line style={pd hairline},
+    tick style={pd tick},
     xtick={0,100,200,300,400,500},
     clip=false,
   ]
     \addplot[pd neutral fill] coordinates {(431.9,1)};
     \addplot[pd focus fill] coordinates {(296.9,2)};
-    \node[pd direct label,anchor=west,text=hhink] at (axis cs:436,1) {$431.9$};
-    \node[pd direct label,anchor=west,text=hhink] at (axis cs:301,2) {$296.9$};
+    \node[pd label,anchor=west,text=pdink] at (axis cs:436,1) {$431.9$};
+    \node[pd label,anchor=west,text=pdink] at (axis cs:301,2) {$296.9$};
   \end{axis}
 \end{tikzpicture}
-\caption{Top: the power curve, detection probability against canaries carried, at the measured per-canary miss rate $\beta=0.2$; the chapter's anchor, three canaries caught with probability $0.992$, is marked. Bottom: the sequential test's expected run length at a null hit-rate of $0.001$, a leak hit-rate of $0.01$, a false-alarm target of $0.01$, and a miss target of $0.05$ -- Wald's formula gives $431.9$ expected outputs under the no-leak null and $296.9$ under exfiltration; simulation agrees up to boundary overshoot ($438.1$ and $359.0$ respectively), which only helps the realized error rates.}
+\caption{Top: the power curve, detection probability against canaries carried, at the measured per-canary miss rate $\beta=0.2$; the chapter's anchor, three canaries caught with probability $0.992$, is marked. Bottom: the sequential test's expected run length at a null hit-rate of $0.001$, a leak hit-rate of $0.01$, a false-alarm target of $0.01$, and a miss target of $0.05$ -- Wald's formula gives $431.9$ expected outputs under the no-leak null and $296.9$ under exfiltration, idealized against a simulated overshoot of $438.1$ and $359.0$ respectively, which only helps the realized error rates.}
 \label{fig:sealed-operating-curve}
 \end{figure}

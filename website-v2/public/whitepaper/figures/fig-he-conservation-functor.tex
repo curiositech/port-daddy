@@ -1,57 +1,96 @@
 % Figure IV.5 --- accounting quantities, not architecture boxes.
+%
+% Reader question: what is conserved inside one accounting unit, and exactly
+% where does cross-currency exposure enter the books?
+% Claim: a native-unit waterfall returns to zero by construction; a
+% conversion waterfall cannot, because it must add a valuation function, a
+% fee, slippage, and an open risk leg that is conserved only per unit, not
+% in aggregate.
+% Evidence: the wallet/escrow/commons deltas of prop:conservation (panel A)
+% against the priced-conversion terms this section derives (panel B).
+% Must distinguish: panel A's net bar actually closing at zero from panel
+% B's dashed risk leg, which is the one term that does not close.
+% Grammar chosen: paired accounting waterfalls, stacked (not side by side) so
+% panel B's five terms get the full column and no longer crowd each other --
+% the v1 defect. Bars are edged boxes on a drawn zero baseline, each signed by
+% a +/- mark, not bare strokes. Grammar rejected: an abstract commutative
+% diagram (atlas reject) -- it would show that a diagram commutes, not that
+% specific signed quantities sum to zero.
+% Five-second test: a reader can see panel A's last bar return to the zero
+% line and panel B's last bar hang open, dashed, off that line.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.9,3.0) {A. native unit closes exactly};
-  \node[pd panel title,anchor=west] at (.65,3.0) {B. conversion introduces priced terms};
-
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-.30,-1.65);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-6.35,2.25);
-  \draw[pd caution rule,line width=8pt] (-5.45,0)--(-5.45,-1.10);
-  \draw[pd focus rule,line width=8pt] (-3.95,-1.10)--(-3.95,.15);
-  \draw[pd focus rule,line width=8pt] (-2.45,.15)--(-2.45,.55);
-  \draw[pd rule,line width=8pt] (-.95,.55)--(-.95,0);
-  \draw[pd guide] (-5.45,-1.10)--(-3.95,-1.10);
-  \draw[pd guide] (-3.95,.15)--(-2.45,.15);
-  \draw[pd guide] (-2.45,.55)--(-.95,.55);
-  \node[pd axis label,anchor=north] at (-5.45,-1.82) {$\Delta W$};
-  \node[pd axis label,anchor=north] at (-3.95,-1.82) {$\Delta E$};
-  \node[pd axis label,anchor=north] at (-2.45,-1.82) {$\Delta C$};
-  \node[pd axis label,anchor=north] at (-.95,-1.82) {net};
-  \node[pd direct label,text=hhteal,anchor=south] at (-.95,.18) {$0$};
-  \node[pd note] at (-3.65,2.00) {$\Delta W+\Delta E+\Delta C=0$};
-
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(7.05,-1.65);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(1.15,2.25);
-  \draw[pd caution rule,line width=8pt] (2.00,0)--(2.00,-1.10);
-  \draw[pd focus rule,line width=8pt] (3.35,-1.10)--(3.35,.35);
-  \draw[pd caution rule,line width=8pt] (4.70,.35)--(4.70,.05);
-  \draw[pd caution rule,line width=8pt] (5.75,.05)--(5.75,-.15);
-  \draw[pd caution rule,dashed,line width=2pt] (6.60,-.15)--(6.60,.75);
-  \draw[pd guide] (2.00,-1.10)--(3.35,-1.10);
-  \draw[pd guide] (3.35,.35)--(4.70,.35);
-  \draw[pd guide] (4.70,.05)--(5.75,.05);
-  \node[pd axis label,anchor=north] at (2.00,-1.82) {$-a u_1$};
-  \node[pd axis label,anchor=north] at (3.35,-1.82) {$v_t(a)u_2$};
-  \node[pd axis label,anchor=north] at (4.70,-1.82) {fee};
-  \node[pd axis label,anchor=north] at (5.75,-1.82) {slip.};
-  \node[pd axis label,anchor=north] at (6.60,-1.82) {risk};
-  \node[pd direct label,text=hhamber,anchor=west,align=left] at (5.05,1.35)
-    {valuation passport\\$v_t$, source, instant};
-  \draw[pd caution arrow] (5.22,1.15)--(3.55,.55);
-
-  \draw[pd focus rule] (-6.15,-2.60)--(-.55,-2.60);
-  \node[pd note,text=hhteal] at (-3.35,-2.86) {conserved by construction};
-  \draw[pd caution rule] (1.35,-2.60)--(6.85,-2.60);
-  \node[pd note,text=hhamber] at (4.10,-2.86)
-    {conserved per unit; portfolio value is assumed and time-indexed};
-\end{tikzpicture}}
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ==== panel A: native unit closes exactly =================================
+  \begin{scope}
+    \node[pd title,anchor=west] at (-0.30,2.65) {A. native unit closes exactly};
+    \node[pd label,anchor=west] at (4.60,2.65) {$\Delta W+\Delta E+\Delta C=0$};
+    \draw[pd rule,->] (-0.30,-1.55) -- (8.80,-1.55);
+    \draw[pd rule,->] (-0.30,-1.55) -- (-0.30,2.20);
+    \draw[pd hairline] (-0.30,0) -- (8.80,0);
+    \draw[pd rule,fill=pdpage] (0.60,0) rectangle (1.40,-1.05);
+    \node[pd label,anchor=east] at (0.50,-.53) {$-$};
+    \draw[pd rule,fill=pdpage] (2.80,-1.05) rectangle (3.60,.20);
+    \node[pd label,anchor=west] at (3.70,-.43) {$+$};
+    \draw[pd rule,fill=pdpage] (5.00,.20) rectangle (5.80,.55);
+    \node[pd label,anchor=west] at (5.90,.38) {$+$};
+    \draw[pd focus rule,fill=pdfocus!24]
+      (7.20,.55) rectangle (8.00,0);
+    \draw[pd guide] (1.40,-1.05) -- (2.80,-1.05);
+    \draw[pd guide] (3.60,.20) -- (5.00,.20);
+    \draw[pd guide] (5.80,.55) -- (7.20,.55);
+    \node[pd label,anchor=north] at (1.0,-2.05) {$\Delta W$};
+    \node[pd label,anchor=north] at (3.2,-2.05) {$\Delta E$};
+    \node[pd label,anchor=north] at (5.4,-2.05) {$\Delta C$};
+    \node[pd label,anchor=north] at (7.6,-2.05) {net};
+    \node[pd focus label,anchor=west] at (8.10,.275) {$=0$};
+    \draw[pd focus rule] (-0.30,-2.75) -- (8.80,-2.75);
+    \node[pd label,anchor=north west,text width=8.9cm] at (-0.30,-2.95)
+      {conserved by construction: the three deltas are the same unit};
+  \end{scope}
+  % ==== panel B: conversion introduces priced terms ==========================
+  \begin{scope}[yshift=-6.85cm]
+    \node[pd title,anchor=west] at (-0.30,2.65) {B. conversion introduces priced terms};
+    \draw[pd rule,->] (-0.30,-1.55) -- (8.80,-1.55);
+    \draw[pd rule,->] (-0.30,-1.55) -- (-0.30,2.20);
+    \draw[pd hairline] (-0.30,0) -- (8.80,0);
+    \draw[pd rule,fill=pdpage] (0.50,0) rectangle (1.30,-1.05);
+    \node[pd label,anchor=east] at (0.40,-.53) {$-$};
+    \draw[pd rule,fill=pdpage] (2.40,-1.05) rectangle (3.20,.30);
+    \node[pd label,anchor=west] at (3.30,-.38) {$+$};
+    \draw[pd rule,fill=pdpage] (4.30,.30) rectangle (5.10,.05);
+    \node[pd label,anchor=south] at (4.70,.42) {$-$};
+    \draw[pd rule,fill=pdpage] (6.20,.05) rectangle (7.00,-.20);
+    \node[pd label,anchor=north] at (6.60,-.32) {$-$};
+    \draw[pd warn rule,fill=pdpage]
+      (8.10,-.20) rectangle (8.90,.75);
+    \node[pd label,anchor=west] at (9.00,.28) {?};
+    \draw[pd guide] (1.30,-1.05) -- (2.40,-1.05);
+    \draw[pd guide] (3.20,.30) -- (4.30,.30);
+    \draw[pd guide] (5.10,.05) -- (6.20,.05);
+    \draw[pd guide] (7.00,-.20) -- (8.10,-.20);
+    \node[pd label,anchor=north] at (0.9,-2.05) {$-a\,u_1$};
+    \node[pd label,anchor=north] at (2.8,-2.05) {$v_t(a)\,u_2$};
+    \node[pd label,anchor=north] at (4.7,-2.05) {fee};
+    \node[pd label,anchor=north] at (6.6,-2.05) {slippage};
+    \node[pd label,anchor=north] at (8.5,-2.05) {risk};
+    \node[pd label,anchor=west,align=left,text width=3.0cm] at (3.55,1.85)
+      {valuation passport: $v_t$, source, instant};
+    \draw[pd thin arrow] (3.55,1.60) -- (2.90,.55);
+    \node[pd note,anchor=north west,text width=8.9cm] at (-0.30,-2.95)
+      {conserved only per unit -- portfolio value is assumed and
+       time-indexed, and the dashed risk leg stays open};
+    \draw[pd warn rule] (-0.30,-2.75) -- (8.80,-2.75);
+  \end{scope}
+\end{tikzpicture}
 \caption{\textbf{Conservation closes inside a native unit; conversion requires a
 named valuation boundary.} Panel A is an accounting waterfall: wallet, escrow,
-and commons deltas return exactly to zero. Panel B cannot close by adding unlike
-units. It must record the valuation function and instant, plus fee, slippage, and
-open exposure. Composition preserves native-unit balances; notation does not
-manufacture a unit-free portfolio total.}
+and commons deltas return exactly to zero (the gold bar, each leg signed $+$ or
+$-$ against the zero baseline). Panel B cannot close by adding unlike units: it
+must record the valuation function and instant, plus fee and slippage, and it
+leaves one dashed, amber, unconserved leg -- open exposure to $v_t$.
+Composition preserves native-unit balances; notation does not manufacture a
+unit-free portfolio total. [internal]}
 \label{fig:he-conservation-functor}
 \end{figure}

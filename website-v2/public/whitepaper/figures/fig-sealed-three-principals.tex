@@ -1,0 +1,63 @@
+% Fragment: fig-sealed-three-principals.tex -- the three parties who must
+% never see each other's plaintext, and the one boundary that seals all
+% three lines of sight at once.
+%
+% Reader question: which three parties must never see each other's
+% plaintext, and what single mechanism seals all three lines of sight?
+% Claim: Derek, Erin, and the cloud operator form a triangle of mutual
+% "must not see" constraints, and one boundary (not three separate ones)
+% seals every edge of that triangle at once.
+% Evidence: "The scene" paragraph, website-v2/public/whitepaper/
+% sealed-harbor.tex, Sec. sealed-problem ("Derek owns sensitive financial
+% data D. Erin owns a valuable agent system M... Derek must not receive
+% M, Erin must not receive D, and the cloud operator hosting the
+% computation must receive neither.").
+% Must distinguish: three named parties, not two -- the counter-read this
+% figure exists to correct is a reader who thinks only Derek-versus-Erin
+% needs separating and forgets the host; and one enclosing boundary, not
+% three pairwise fences, since the room seals all three sight-lines with a
+% single mechanism.
+% Grammar chosen: relation map, three principal nodes in a triangle with
+% explicit "must not see" edges on every side, the whole triangle enclosed
+% by one trust-boundary rectangle (the S12 Dolev-Yao convention already
+% used for the room elsewhere in this chapter).
+% Grammar rejected: three separate two-party boxes (Derek|Erin,
+% Derek|cloud, Erin|cloud) -- that draws three fences where the chapter's
+% claim is exactly that one mechanism does the sealing, not three.
+% Five-second test: count the boundaries drawn -- one rectangle, around
+% all three parties and all three edges, not a fence per pair.
+% QA: beauty_lint warns B7 (sub-point near-alignment noise between
+% rotated edge-tags and node centres); justified, not fixed.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd focus outline,minimum width=2.6cm,align=center]
+    (DEREK) at (0,3.6) {Derek\\\itshape holds $D$};
+  \node[pd focus outline,minimum width=2.6cm,align=center]
+    (ERIN) at (6.2,3.6) {Erin\\\itshape holds $M$};
+  \node[pd focus outline,minimum width=2.9cm,align=center]
+    (CLOUD) at (3.1,0.4) {cloud operator\\\itshape holds neither};
+  \draw[pd breach rule] (DEREK) -- (ERIN);
+  \node[pd tag,anchor=south] at ($(DEREK)!0.5!(ERIN)$) {must not see};
+  \draw[pd breach rule] (DEREK) -- (CLOUD);
+  \node[pd tag,anchor=east,rotate=52] at ($(DEREK)!0.5!(CLOUD)$) {must not see};
+  \draw[pd breach rule] (ERIN) -- (CLOUD);
+  \node[pd tag,anchor=west,rotate=-52] at ($(ERIN)!0.5!(CLOUD)$) {must not see};
+  \begin{scope}[on background layer]
+    \node[pd trust boundary,fit={(DEREK)(ERIN)(CLOUD)},inner sep=16pt]
+      (ROOM) {};
+  \end{scope}
+  \node[pd title,anchor=south west] at (ROOM.north west) {the sealed room};
+  \node[pd note,anchor=north,align=center,text width=6.6cm]
+    at (3.1,-1.55) {one boundary seals all three sight-lines at once};
+\end{tikzpicture}
+\caption{The three parties a sealed room must separate, and the single
+boundary that separates them. Derek must not receive Erin's model $M$;
+Erin must not receive Derek's data $D$; the cloud operator hosting the
+computation must receive neither. All three constraints are edges of one
+triangle, and one enclosing mechanism, the sealed room of
+Sec.~\ref{sec:sealed-design}, seals every edge at once rather than fencing
+each pair separately. [internal]}
+\label{fig:sealed-three-principals}
+\end{figure}

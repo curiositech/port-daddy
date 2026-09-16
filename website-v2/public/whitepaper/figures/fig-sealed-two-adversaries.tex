@@ -1,0 +1,79 @@
+% Fragment: fig-sealed-two-adversaries.tex -- the same ledger mechanism,
+% read against two different adversaries, paired accounting panels.
+%
+% Reader question: which of the two accounting mechanisms, the privacy
+% ledger or the bit-capacity budget, actually bounds a given adversary?
+% Claim: for an honest worker the ledger's sigma <= epsilon_max bound
+% governs; for a malicious worker choosing its own reported spend, that
+% same inequality certifies nothing, and the q*b capacity account of
+% Sec. sealed-budget governs instead.
+% Evidence: "Whom the certificate binds" paragraph, website-v2/public/
+% whitepaper/sealed-harbor.tex, Sec. sealed-conservation ("Against the
+% malicious worker...such a worker is not running a private mechanism...
+% sigma <= epsilon_max certifies nothing, and the q*b capacity account...
+% is the operative bound. The two accounts are for two different
+% adversaries and the chapter owns both.").
+% Must distinguish: the ledger mechanism itself is drawn IDENTICALLY in
+% both panels (same guard, same arithmetic) -- what differs is only
+% whether the recorded epsilon_i can be trusted to be what it claims;
+% the figure must not suggest the ledger behaves differently for the two
+% adversaries, only that its guarantee MEANS something different.
+% Grammar chosen: paired accounting panels, left honest / right malicious,
+% joined by one shared label naming both as one design -- the register
+% row's own recommended form.
+% Grammar rejected: a single flowchart with an if/else on worker honesty
+% -- that draws a runtime branch the ledger itself never takes (the
+% ledger runs the same code either way); the difference this figure must
+% show is in what the SAME output means, not in what the mechanism does.
+% Five-second test: the two ledger boxes are identical; only the verdict
+% below each differs.
+% QA: beauty_lint warns B7 in swiss/technical (sub-point near-alignment
+% noise between the two panels' mirrored node centres); justified, not
+% fixed.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{1.55}
+  \def\xA{0}   \def\xB{6.0}
+  \node[pd focus state,minimum width=3.55cm,align=center] (WA) at (\xA,{2*\dy})
+    {runs an $\varepsilon_i$-private mechanism};
+  \node[pd breach state,minimum width=3.55cm,align=center] (WB) at (\xB,{2*\dy})
+    {declares its own $\varepsilon_i$};
+  \node[pd state,minimum width=3.55cm,align=center] (LA) at (\xA,{1*\dy})
+    {ledger: $\sigma\le\varepsilon_{\max}$?};
+  \node[pd state,minimum width=3.55cm,align=center] (LB) at (\xB,{1*\dy})
+    {ledger: $\sigma\le\varepsilon_{\max}$?};
+  \node[pd ready state,minimum width=3.55cm,align=center] (VA) at (\xA,0)
+    {ledger governs: $(\varepsilon_{\max},0)$-DP};
+  \node[pd breach state,minimum width=3.55cm,align=center] (VB) at (\xB,0)
+    {certifies nothing};
+  \node[pd ready state,minimum width=3.55cm,align=center] (QB) at (\xB,{-1*\dy})
+    {$q\cdot b$ governs instead};
+  \draw[pd focus arrow] (WA) -- (LA);
+  \draw[pd breach arrow] (WB) -- (LB);
+  \draw[pd focus arrow] (LA) -- (VA);
+  \draw[pd breach arrow] (LB) -- (VB);
+  \draw[pd focus arrow] (VB) -- (QB);
+  \begin{scope}[on background layer]
+    \node[pd panel,fit={(WA)(LA)(VA)},inner xsep=9pt,inner ysep=9pt] (PA) {};
+    \node[pd panel,fit={(WB)(LB)(VB)(QB)},inner xsep=9pt,inner ysep=9pt] (PB) {};
+  \end{scope}
+  \node[pd title,anchor=south] at (PA.north) {honest worker};
+  \node[pd title,anchor=south] at (PB.north) {malicious worker};
+  \draw[pd guide] (PA.north) ++(0,0.62) -- ++(0,0.55) -| node[pd tag,pos=0.5,anchor=south]
+    {one design, two adversaries} ($(PB.north)+(0,0.62)$);
+\end{tikzpicture}
+\caption{The same ledger code, read against two adversaries. Left, an
+honest worker's recorded $\varepsilon_i$ is the true cost of an
+$\varepsilon_i$-private mechanism, so the ledger's guard
+$\sigma\le\varepsilon_{\max}$ licenses genuine $(\varepsilon_{\max},0)$-differential
+privacy (Theorem~\ref{thm:sealed-conservation}). Right, a malicious worker
+declares whatever $\varepsilon_i$ it likes, so the identical guard
+certifies nothing about real leakage; the operative bound for that
+adversary is instead the $q\cdot b$ capacity account of
+Sec.~\ref{sec:sealed-budget}. The ledger box is drawn identically in both
+panels because it runs identically in both cases --- only what its output
+is entitled to mean changes. [internal]}
+\label{fig:sealed-two-adversaries}
+\end{figure}

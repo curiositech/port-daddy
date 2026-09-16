@@ -1,0 +1,51 @@
+% Figure IV.new --- skill v2 lineage: ancestry proved, similarity discounted.
+% ch6-39 (register: could).
+%
+% Reader question: when a licensed skill ships a new version, how much of
+% its old track record should the new version inherit?
+% Claim: a v2 leaf's portfolio proof includes its v1 parent's leaf plus
+% v2's own evaluation root, and v2's reputation prior is initialized at a
+% predeclared discount gamma*n_v1 of v1's sample size, fixed before seeing
+% any v2 outcomes -- never a straight copy of v1's settled outcomes.
+% Evidence: ex:he-portfolio-version-binding, leaf tuple (skill_id, version,
+% content_hash, parent_hash, build/dependency hashes, license, evaluation
+% root); prior = gamma * n_v1, gamma predeclared in [0,1].
+% Must distinguish: the LINEAGE edge (proves ancestry, always true) from
+% the PRIOR the discount factor sets (a policy choice, not a proof of
+% behavioral similarity) -- gamma<1 exists precisely because ancestry does
+% not imply similarity.
+% Grammar chosen: provenance tree/DAG, time left to right (SKILL.md "what
+% derives from what"), the same idiom as fig-he-conflict-witness. Grammar
+% rejected: a state machine -- there is no transition, only one static
+% parent-child proof relationship.
+% Five-second test: a reader can see the edge names a discount, not a full
+% inheritance, and that v2 keeps its own evaluation root.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=west,text width=9.6cm] at (-0.20,2.55)
+    {ancestry is proved; behavioral similarity is only ever assumed by
+     a declared discount};
+  \node[pd state,minimum width=3.6cm,align=left,text width=3.2cm] (V1)
+    at (0,0) {\textbf{v1 leaf}\\content\_hash, license,\\evaluation root};
+  \node[pd focus state,minimum width=3.8cm,align=left,text width=3.4cm] (V2)
+    at (6.60,0) {\textbf{v2 leaf}\\parent\_hash $=$ v1,\\own evaluation root};
+  \draw[pd focus arrow] (V1) -- node[pd tag,align=center] {$\gamma$ discount} (V2);
+  \node[pd label,anchor=north,align=center,text width=5.2cm] at (3.30,-0.95)
+    {prior $=\gamma\, n_{v1}$, $\gamma\in[0,1]$ predeclared before any v2
+     outcome};
+  \node[pd note,anchor=north west,text width=9.6cm] at (-0.20,-1.85)
+    {lineage proves ancestry; it does not by itself prove behavioral
+     similarity, which is exactly what $\gamma<1$ discounts -- v2 never
+     simply inherits v1's settled outcomes};
+\end{tikzpicture}
+\caption{\textbf{A new version inherits a discounted prior, not a copied
+record.} The v2 portfolio leaf includes its v1 parent's leaf by hash, but
+opens its own evaluation root: v2's reputation prior is $\gamma\,n_{v1}$, a
+predeclared discount of v1's sample size fixed before any v2 outcome is
+observed. The edge names the discount, not a full inheritance, because
+ancestry alone does not establish that the new version behaves like the old
+one. [internal; hand-worked, no script]}
+\label{fig:he-skill-lineage}
+\end{figure}

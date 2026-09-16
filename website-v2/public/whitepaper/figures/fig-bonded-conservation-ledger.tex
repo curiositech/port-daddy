@@ -1,0 +1,97 @@
+% Brief (tikz-diagram-craft). Register row ch7-47 (must).
+% Reader question: where does money sit at every step of a settlement, and
+%   which single operation is allowed to create more of it?
+% Claim: every operation redistributes value among exactly three buckets
+%   (wallet, escrow, commons pool); only topUp changes the total supply S_P.
+%   The worked partial-breach settlement in the text -- before (4,6,0), a
+%   slash of p=2, after (8,0,2) -- instantiates this concretely.
+% Evidence: website-v2/public/whitepaper/agent-transactions-whitepaper.tex
+%   sec:conservation, Theorem (Conservation) and its proof sketch: topUp(u)
+%   grows W_P by u; escrow(b) moves W_P to E_P; markRunning is a state
+%   change inside E_P with no monetary movement; refund(id) moves E_P back
+%   to W_P; slash(id,p) splits E_P into W_P (b-p) and C_P (p). The in-text
+%   worked instance: before (W,E,C)=(4,6,0), slash p=2, after (8,0,2), both
+%   summing to S_P=10 [verified].
+% Must distinguish: the one edge that creates supply (topUp) from the four
+%   that only redistribute it; the two-way split slash performs from the
+%   single-target escrow and refund edges; the before/after instance from
+%   the general grammar.
+% Grammar chosen: typed stock-flow ledger (S12: buckets joined by pipes,
+%   conserved sum set under the rails), operation badges keyed to an
+%   aligned legend, with the worked numbers annotated under each bucket.
+%   Rejected: a Sankey-width-proportional flow, which would need five
+%   simultaneous widths the chapter never gives and would imply a
+%   precision the model does not claim.
+% Five-second test: "three buckets, one gold pipe creates money, four
+%   plain pipes only move it, and 4+6+0 still equals 8+0+2."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\clwx{1.6}   % wallet x
+  \def\clex{5.1}   % escrow x
+  \def\clcx{8.6}   % commons pool x
+  \tikzset{cl bucket/.style={pd bucket,minimum width=2.7cm,minimum height=1.3cm}}
+  \node[cl bucket] (wallet) at (\clwx,0) {wallet\\$W_P$};
+  \node[cl bucket] (escrow) at (\clex,0) {escrow\\$E_P$};
+  \node[cl bucket] (commons) at (\clcx,0) {commons pool\\$C_P$};
+  % topUp: the one edge that creates supply
+  \draw[pd focus pipe] (\clwx-2.0,1.95) -- (wallet.north west);
+  \node[pd focus label,anchor=south west] at (\clwx-2.05,2.05) {topUp$(u)$};
+  \node[pd focus badge] at (\clwx-1.55,1.42) {1};
+  % escrow(b): wallet -> escrow, top rail y=1.5
+  \draw[pd pipe] ({\clwx+0.9},0.65) -- ({\clwx+0.9},1.5) -- ({\clex-0.9},1.5) -- ({\clex-0.9},0.65);
+  \node[pd label,anchor=south] at ({(\clwx+\clex)/2},1.58) {escrow$(b)$};
+  \node[pd badge] at ({(\clwx+\clex)/2},1.05) {2};
+  % markRunning: self-loop above escrow only, no monetary movement
+  \draw[pd hairline,densely dashed,->] (escrow.100) .. controls +(100:1.35) and +(80:1.35) .. (escrow.80);
+  \node[pd note,anchor=south] at (\clex,2.28) {markRunning: no flow};
+  \node[pd badge] at ({\clex+1.35},0.95) {3};
+  % refund(id): escrow -> wallet, bottom rail y=-1.5
+  \draw[pd pipe] ({\clex-0.9},-0.65) -- ({\clex-0.9},-1.5) -- ({\clwx+0.9},-1.5) -- ({\clwx+0.9},-0.65);
+  \node[pd label,anchor=north] at ({(\clwx+\clex)/2},-1.58) {refund};
+  \node[pd badge] at ({(\clwx+\clex)/2},-1.05) {4};
+  % slash(id,p): escrow -> wallet, second bottom rail y=-2.4 (distinct
+  % height from refund's); escrow -> commons, symmetric rail on the right
+  \draw[pd pipe,draw=pderror,dash pattern=on 3.2pt off 2.2pt]
+    ({\clex-0.5},-0.65) -- ({\clex-0.5},-2.4) -- ({\clwx+0.5},-2.4) -- ({\clwx+0.5},-0.65);
+  \node[pd badge] at ({(\clwx+\clex)/2-.45},-2.80) {5};
+  \node[pd breach label,anchor=west] at ({(\clwx+\clex)/2-.15},-2.80) {slash};
+  \draw[pd pipe,draw=pderror,dash pattern=on 3.2pt off 2.2pt]
+    ({\clex+0.5},-0.65) -- ({\clex+0.5},-1.5) -- ({\clcx-0.5},-1.5) -- ({\clcx-0.5},-0.65);
+  \node[pd breach label,anchor=north] at ({(\clex+\clcx)/2},-1.58) {slash: $p\to C_P$};
+  \node[pd badge] at ({(\clex+\clcx)/2},-1.05) {5};
+  % worked instance, well clear of every rail
+  \node[pd note,anchor=north] at (\clwx,-3.45) {$4 \to 8$};
+  \node[pd note,anchor=north] at (\clex,-3.45) {$6 \to 0$};
+  \node[pd note,anchor=north] at (\clcx,-3.45) {$0 \to 2$};
+\end{tikzpicture}
+
+\medskip
+{\footnotesize\centering
+$S_P := W_P + E_P + C_P$: before $4+6+0=10$, after $8+0+2=10$ --- unchanged.
+\par}
+
+\medskip
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}c l >{\raggedright\arraybackslash}X c@{}}
+\toprule
+ & operation & effect on the buckets & $\Delta S_P$ \\
+\midrule
+1 & topUp$(u)$ & $W_P \mathrel{+}= u$ & $+u$ \\
+2 & escrow$(b)$ & $W_P \mathrel{-}= b$, $E_P \mathrel{+}= b$ & $0$ \\
+3 & markRunning & state change inside $E_P$'s contributing set; no transfer & $0$ \\
+4 & refund$(\mathit{id})$ & $E_P \mathrel{-}= b$, $W_P \mathrel{+}= b$ & $0$ \\
+5 & slash$(\mathit{id},p)$ & $E_P \mathrel{-}= b$, $W_P \mathrel{+}= (b{-}p)$, $C_P \mathrel{+}= p$ & $0$ \\
+\bottomrule
+\end{tabularx}}
+\caption{The conservation ledger of Theorem~\ref{thm:conservation}: three
+buckets per project, joined by five named operations. Only \texttt{topUp}
+(gold) grows the supply $S_P$; the other four, including the two-way split
+that \texttt{slash} performs (red, dashed, two rails for one operation),
+only move money between buckets. The instance under each bucket is the
+chapter's own worked partial breach: before $(W_P,E_P,C_P)=(4,6,0)$, a
+slash of $p=2$ retires the full escrow, and after $(8,0,2)$ --- $S_P=10$
+both times. [internal, \texttt{Conservation.tla}]}
+\label{fig:bonded-conservation-ledger}
+\end{figure}

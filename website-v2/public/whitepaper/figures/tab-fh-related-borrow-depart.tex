@@ -1,0 +1,37 @@
+% Table for ch8-46 -- Related Work (S11), a borrow/depart table mirroring
+% the companion Bonded Commons chapter's own tab:related-borrow-depart
+% (agent-transactions-whitepaper.tex), closing an apparatus inconsistency
+% between sibling chapters.
+%
+% Reader question: for each of five lineages, what does this chapter
+%   borrow, depart from, and why?
+% Claim: five bodies of work each contribute one specific mechanism; the
+%   chapter's departure from each is a named, motivated choice, not an
+%   oversight.
+% Evidence: S11's own five paragraphs (federated identity, capability-based
+%   federation, transparency logs, cross-domain settlement, agentic-commerce
+%   discovery and mandates).
+% Grammar rejected: none -- this is the direct atlas-prescribed table for a
+%   five-item x three-property classification, and the companion chapter
+%   already sets the exact column contract to match.
+% Five-second test: which lineage's departure is explicitly "not closed,"
+%   i.e. an open question rather than a settled design choice?
+\begin{table}[H]
+\centering\small
+\caption{What the Federated Harbor borrows from each prior body of work,
+where it departs, and why. Mirrors the companion chapter own
+\texttt{tab:related-borrow-depart} (\pdchapref{bonded}{The Bonded
+Commons}). [internal]}
+\label{tab:fh-related-borrow-depart}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Body of work} & \textbf{Borrowed} & \textbf{Departure} & \textbf{Why} \\
+\midrule
+Federated identity (OpenID Federation) & the trust-anchor pattern: signed statements, trust chains assembled upward & adds a capability layer; no HTTP fetching & daemons cannot reliably expose HTTP endpoints \\
+Capability federation (Macaroons, UCAN) & \mbox{third-party-caveat} attenuation chains; public-key principals & keeps the daemon a structural authority; prices delegation with bonds & delegation needs a price, not just a constraint \\
+Transparency logs (CT, \mbox{Sigstore/Rekor}) & the append-only Merkle history tree, CT own model & applied to capability tokens instead of certificates & the witness log needs the same tamper-evidence CT gives certificates \\
+Cross-domain settlement (Herlihy, IBC) & a \mbox{trusted-third-party} settlement comparison point & not trustless in Herlihy sense; no \mbox{consensus-backed} state machine underneath & bonds are \mbox{non-fungible} and \mbox{reputation-priced}, not fungible assets \\
+Agentic commerce (UCP, ACP, AP2) & the well-known discovery profile; SD-JWT/JWS mandate formats & adds the bonding and settlement enforcement those protocols leave out by design & they standardize discovery, not counterparty trustworthiness \\
+\bottomrule
+\end{tabularx}
+\end{table}

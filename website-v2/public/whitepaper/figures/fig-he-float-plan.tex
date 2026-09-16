@@ -1,41 +1,78 @@
-% Figure IV.3 --- atomicity shown as synchronized state traces.
+% Figure IV.3 --- atomicity shown as synchronized state traces on a commit rail.
+%
+% Reader question: at what instant does a worker become admissible to run --
+% a signed plan, an attempted debit, or something else?
+% Claim: the wallet debit and the escrow-row write happen at the same
+% serialized commit; the worker only starts later, once it has verified that
+% committed row exists.
+% Evidence: Protocol~escrow (prot:escrow), the three numbered steps, and
+% Design Invariant conservation (prop:conservation).
+% Must distinguish: the commit instant (wallet+escrow, atomic) from the
+% worker's own later transition (gated on a signed check), and both from the
+% abort branch, where none of the three traces move.
+% Grammar chosen: swimlane Gantt over a commit rail (three lanes, one spine)
+% -- the reader question is squarely "what overlaps in time, what order comes
+% out" (SKILL.md grammar table), and the ceremony is already three actors
+% over one clock. Grammar rejected: a three-step actor sequence diagram (the
+% atlas' first-choice) would show messages, not the fact that two traces
+% change in the SAME transaction while the third lags -- exactly what this
+% page argues.
+% Five-second test: a reader can point to the one vertical rule where wallet
+% and escrow both jump, and see the worker jump only later, at its own mark.
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.7,3.0)
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- the grid ---------------------------------------------------------
+  \def\lx{-0.40}   % row-label column (anchor east)
+  \def\x0{0}       % lane start
+  \def\xe{8.70}    % lane end
+  \def\tzero{0.30} \def\tone{2.60} \def\tcommit{5.30}
+  \def\tworker{6.30} \def\tclear{8.40}
+  % ---- title --------------------------------------------------------------
+  \node[pd title,anchor=west] at (\lx,5.30)
     {execution becomes admissible at one committed transition};
-  \foreach \x/\lab in {-5.4/signed plan,-1.8/transaction begins,1.3/commit,5.2/clearance}
-    {\draw[pd lattice] (\x,-2.2)--(\x,2.25);
-     \node[pd axis label,anchor=north] at (\x,-2.35) {\lab};}
-  \node[pd axis label,anchor=east] at (-6.05,1.65) {wallet};
-  \node[pd axis label,anchor=east] at (-6.05,.15) {escrow row};
-  \node[pd axis label,anchor=east] at (-6.05,-1.35) {worker state};
-
-  \draw[pd rule,line width=1.2pt] (-5.75,2.00)--(1.30,2.00)--(1.30,1.35)--(5.75,1.35);
-  \draw[pd focus rule,line width=1.4pt] (-5.75,-.15)--(1.30,-.15)--(1.30,.55)--(5.75,.55);
-  \node[pd direct label,anchor=west] at (3.05,1.62) {debited};
-  \node[pd direct label,text=hhteal,anchor=west] at (3.05,.82) {row exists};
-
-  \draw[pd rule,line width=1.2pt] (-5.75,-1.05)--(2.25,-1.05)--(2.25,-1.72)--(5.75,-1.72);
-  \node[pd direct label,anchor=north west] at (-4.95,-1.18) {no process};
-  \node[pd direct label,text=hhteal,anchor=west] at (3.05,-1.45) {running};
-  \draw[pd focus arrow] (1.42,.50) to[out=-30,in=150] (2.15,-1.62);
-  \node[pd note,text=hhteal,anchor=west] at (1.75,-.35) {signed row check};
-
-  \draw[pd caution rule,dashed] (-1.80,-.58)--(.55,-.58);
-  \node[pd caution datum] at (.55,-.58) {};
-  \node[pd note,text=pdinkmuted,anchor=north] at (-.60,-.69)
-    {abort: all three traces unchanged};
-  \draw[pd caution rule,line width=1pt] (1.30,-2.05)--(1.30,2.35);
-  \node[pd direct label,text=pdinkmuted,anchor=south] at (1.30,2.48)
-    {atomic commit boundary};
-\end{tikzpicture}}
+  % ---- the commit rail: the figure's subject ----------------------------
+  \draw[pd spine] (\tcommit,-1.55) -- (\tcommit,4.30);
+  \node[pd tag,anchor=south] at (\tcommit,4.35) {atomic commit boundary};
+  % ---- wallet: steps down at commit, neutral ------------------------------
+  \node[pd title,anchor=east] at (\lx,3.60) {wallet};
+  \draw[pd rule] (\x0,3.85) -- (\tcommit,3.85) -- (\tcommit,3.35) -- (\xe,3.35);
+  \node[pd label,anchor=south west] at ({\tcommit+.15},{3.35+.14}) {debited};
+  % ---- escrow row: steps up at commit, the settlement concept -------------
+  \node[pd title,anchor=east] at (\lx,2.10) {escrow row};
+  \draw[pd rule] (\x0,1.85) -- (\tcommit,1.85);
+  \draw[pd focus rule,line width=1.4pt] (\tcommit,2.35) -- (\xe,2.35);
+  \draw[pd rule] (\tcommit,1.85) -- (\tcommit,2.35);
+  \node[pd focus label,anchor=south west] at ({\tcommit+.15},{2.35+.14}) {row exists};
+  % ---- worker state: steps up only after its own verification -------------
+  \node[pd title,anchor=east] at (\lx,0.60) {worker state};
+  \draw[pd rule] (\x0,0.35) -- (\tworker,0.35);
+  \draw[pd ready rule,line width=1.4pt] (\tworker,0.85) -- (\xe,0.85);
+  \draw[pd rule] (\tworker,0.35) -- (\tworker,0.85);
+  \node[pd label,anchor=north west] at (\x0,0.20) {no process};
+  \node[pd ready label,anchor=south west] at ({\tworker+.15},{0.85+.14}) {running};
+  \draw[pd thin arrow] (\tcommit,2.20) to[out=-45,in=140] (\tworker,0.95);
+  \node[pd label,anchor=south west] at ({\tcommit+.25},1.55) {signed row check};
+  % ---- the abort branch: a window, not an instant, and nothing moves ------
+  \node[pd title,anchor=east] at (\lx,-0.75) {if aborted};
+  \draw[pd breach rule] (\tone,-0.75) -- (\tcommit,-0.75);
+  \node[pd breach datum] at (\tcommit,-0.75) {};
+  \node[pd note,anchor=north east,text width=3.3cm] at ({\tcommit-.15},-1.00)
+    {all three traces stay in their prior state};
+  % ---- the ceremony's clock -----------------------------------------------
+  \draw[pd rule,->] (\x0,-2.15) -- ({\xe+.25},-2.15);
+  \foreach \x/\lab in {\tzero/{signed plan},\tone/{transaction begins},
+                       \tcommit/{commit},\tclear/{clearance}}{
+    \draw[pd tick] (\x,-2.07) -- (\x,-2.23);
+    \node[pd label,anchor=north] at (\x,-2.30) {\lab};}
+\end{tikzpicture}
 \caption{\textbf{No-spawn-without-bond is a synchronized state transition.}
-The wallet debit and escrow-row creation occur at the same commit. Only after the
-committed row is observable does the worker move from nonexistent to running. A
-signed plan or an attempted debit is insufficient: the dashed abort branch leaves
-all three traces in their prior state. The figure therefore locates the invariant
-at a transition, not at a component or message label.}
+The wallet debit and the escrow-row write happen at the same commit (the gold
+spine): both traces jump on the same serialized transaction. Only after that
+committed row is observable, once the worker verifies the signed row check,
+does worker state move from nonexistent to running (green) -- strictly later,
+never earlier. In the abort window before the commit, no trace moves: the
+invariant lives at the transition, not at a component or a message label. [internal]}
 \label{fig:he-float-plan}
 \end{figure}

@@ -1,0 +1,52 @@
+% Figure IV.new --- the four conflict kinds, by frequency. ch6-11 (register:
+% should).
+%
+% Reader question: how common is each of the four conflict kinds, and do
+% they overlap?
+% Claim: of 3,000 random in-fragment policies, 885 carry at least one
+% conflict; claim overlaps dominate (484), ahead of temporal cycles (213),
+% O/F clashes (195), and derivable-bot (121); most conflicting policies
+% carry exactly one kind (764), a minority two (114), rarely three (7).
+% Evidence: b4_deontic_fragment.py sweep, seed 20260816.
+% Must distinguish: the four kind-counts (which sum past 885, to 1,013,
+% because of overlap) from the overlap breakdown itself (764/114/7), which
+% explains the discrepancy rather than contradicting it.
+% Grammar chosen: bar chart, one bar per conflict kind, computed via
+% pgfplots ybar (SKILL.md "quantity against a parameter"). Grammar
+% rejected: a stacked bar by overlap-count -- it would need double-counting
+% logic the reader cannot easily undo, whereas four plain bars plus one
+% overlap note keeps the two facts separately readable.
+% Five-second test: a reader can rank the four conflict kinds by frequency
+% and see why the counts sum past 885.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=8.6cm,height=4.6cm,
+  ybar,bar width=0.85cm,
+  symbolic x coords={BOT,O/F,claims,temporal},
+  enlarge x limits=0.18,
+  xtick=data,
+  ymin=0,ymax=560,
+  ytick={100,200,300,400,500},
+  yticklabel style={xshift=-5pt},
+  ylabel={policies out of 3{,}000},
+  nodes near coords,
+  every node near coord/.append style={pd label,anchor=south,yshift=2pt}]
+  \addplot[pd focus fill] coordinates {(BOT,121) (O/F,195) (claims,484) (temporal,213)};
+\end{axis}
+\node[pd note,anchor=north west,text width=9.4cm] at (-0.30,-3.35)
+  {885 policies carry at least one conflict; the four counts sum to
+   $1{,}013$ because some carry more than one kind -- $764$ carry exactly
+   one, $114$ carry two, and $7$ carry all three co-occurring kinds};
+\end{tikzpicture}
+\caption{\textbf{Claim overlaps are the most common conflict, temporal
+cycles the second.} Counts from the $3{,}000$-policy sweep (seed
+$20260816$): a derivable $\bot$ ($121$), an obligation/prohibition clash
+($195$), an exclusive-claim overlap ($484$), and a negative-cycle deadline
+system ($213$). The four counts sum past the $885$ conflicting policies
+because a policy can carry more than one kind at once, most often exactly
+one. [verified, \texttt{b4\_deontic\_fragment.py}]}
+\label{fig:he-conflict-kinds}
+\end{figure}

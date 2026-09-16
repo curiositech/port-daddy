@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 794,
-    "distinctObjects": 758,
-    "bytes": 309426677,
-    "distinctBytes": 306633086
+    "assets": 795,
+    "distinctObjects": 759,
+    "bytes": 329008823,
+    "distinctBytes": 326215232
   },
   "assets": [
     {
@@ -2199,6 +2199,13 @@
       "sha256": "efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739",
       "key": "sha256/ef/efdba3abbbd04846188e7c59da79278c00c49ddf5bf5d13cf720a27907fcc739.png",
       "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10274/book-figures-old-v-new.pdf",
+      "bytes": 19582146,
+      "sha256": "292708b7bc6028eef8c0943f75e6d45639c6081c984be2db9ad1aeac5599dbe8",
+      "key": "sha256/29/292708b7bc6028eef8c0943f75e6d45639c6081c984be2db9ad1aeac5599dbe8.pdf",
+      "contentType": "application/pdf"
     },
     {
       "path": "docs/pr-assets/pr-729/wedge-editor-face.png",

@@ -1,34 +1,76 @@
-% Figure 5 — guarded claim lifecycle; absent fairness is made visible.
+% Brief (tikz-diagram-craft).
+% Reader question: what states can a claim enter, and what moves it between
+%   them?
+% Claim: three states and five transitions, three of them carrying a fact
+%   that is not obvious from the name alone; there is no queued state, which
+%   is the gap the next section is about.
+% Evidence: whitepaper/single-writer-kernel.tex sec:claim-lifecycle,
+%   alg:acquire (the insert-against-a-uniqueness-constraint acquire path);
+%   the sentence immediately after the figure names the missing queued state.
+% Must distinguish: which transitions are a plain rename vs. one with a
+%   non-obvious guarantee (badged, keyed to the table); that lazy sweep is
+%   deferred to the next read, not scheduled; that no queued state exists.
+% Grammar: automaton (circles, initial arrow, self-loop) with numbered
+%   badges on the three transitions that carry a fact, keyed to a legend
+%   table (S12). Rejected: the v1 rounded-rectangle flowchart with a sweep
+%   label set on its own line, which read as a step sequence rather than a
+%   state machine a caller can be denied out of.
+% Five-second test: "three circles, one loop, three numbered facts in the
+%   table -- and no fourth, queued circle".
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd state] (free) at (1.0,2.6) {FREE};
-  \node[pd state,draw=hhteal,line width=1pt] (held) at (5.4,2.6) {HELD by $a$};
-  \node[pd state] (expired) at (9.8,2.6) {EXPIRED};
+  \node[pd automaton state,minimum size=14.5mm] (free) at (1.3,0) {free};
+  \node[pd automaton focus,minimum size=14.5mm] (held) at (5.7,0) {held};
+  \node[pd automaton state,minimum size=14.5mm] (expired) at (10.1,0) {expired};
+  \draw[pd initial] (-.3,0) -- (free.west);
 
-  \draw[pd focus arrow] (free)--(held);
-  \node[pd direct label,anchor=south,align=center,text width=2.9cm] at (3.2,2.8)
-    {acquire\\{\itshape loser is told the current holder}};
+  % acquire: the uniqueness decision that also tells the loser who holds it
+  \draw[pd focus arrow] (free.east) -- (held.west)
+    node[pd label,midway,above=2pt] {acquire};
+  \node[pd focus badge] at (3.5,.95) {1};
 
-  \draw[pd arrow] (held)--(expired) node[midway,above,pd direct label] {TTL elapses};
+  % re-claim: idempotent self-loop on held
+  \draw[pd focus arrow] (held.115) .. controls +(115:1.1) and +(65:1.1) .. (held.65);
+  \node[pd label,anchor=base] at (5.7,1.62) {re-claim};
+  \node[pd focus badge] at (6.55,1.30) {2};
 
-  \draw[pd focus arrow] (held.north) to[out=120,in=60,looseness=6] (held.north);
-  \node[pd direct label,anchor=south,text width=2.6cm,align=center] at (5.4,3.85)
-    {re-claim,\\idempotent};
+  % TTL elapses: held to expired, a plain rename, no badge
+  \draw[pd arrow] (held.east) -- (expired.west)
+    node[pd label,midway,above=2pt] {TTL elapses};
 
-  \draw[pd arrow] (held.south) to[out=-100,in=-80,looseness=1.25] (free.south);
-  \node[pd direct label,anchor=north] at (3.2,1.55) {release};
+  % release: held back to free, routed below so it does not cross acquire
+  \draw[pd arrow] (held.south) .. controls +(-100:1.0) and +(-80:1.0) .. (free.south);
+  \node[pd label] at (3.5,-1.80) {release};
 
-  \draw[pd caution arrow,dashed,rounded corners=10pt]
-    (expired.south) -- ++(0,-2.35) -- ($(free.south)+(0,-2.35)$) -- (free.south);
-  \node[pd direct label,anchor=north,text width=4.2cm,align=center] at (5.4,.72)
-    {lazy sweep on next read};
+  % lazy sweep: expired back to free, on the next read, not on a schedule
+  \draw[pd focus arrow,rounded corners=8pt]
+    (expired.south) -- ++(0,-1.55) -- ($(free.south)+(0,-1.55)$) -- (free.south);
+  \node[pd label,anchor=north] at (5.7,-2.40) {lazy sweep};
+  \node[pd focus badge] at (5.7,-1.70) {3};
+
+  \node[pd note,anchor=north west,text width=8.4cm] at (-.3,-2.85)
+    {there is no queued state: a losing acquire is simply denied, and
+    nothing schedules it a turn.};
 \end{tikzpicture}
-\caption{The guarded claim lifecycle. Acquire is one atomic uniqueness
-decision that also tells a losing caller who currently holds the claim;
-re-claim and release are idempotent; expiry is removed lazily, on the next
-read, not by a background sweep. The kernel has no queued state and
-therefore no fairness or bounded-wait guarantee: a losing caller must
-retry, and nothing schedules it a turn. [internal]}
+
+\medskip
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}X@{}}
+\toprule
+ & what the badge adds to the transition name \\
+\midrule
+1 & one atomic uniqueness decision; a losing caller is told the current holder, not handed a bare error \\
+2 & idempotent: the same holder renews its TTL, it does not create a second claim \\
+3 & expiry is removed lazily, on the next read that touches the row, not by a background sweep \\
+\bottomrule
+\end{tabularx}}
+\caption{The guarded claim lifecycle as a state machine. Acquire is a single
+insert against a uniqueness constraint; re-claim and release are idempotent;
+expiry moves a claim to \emph{expired}, from which the next read lazily
+sweeps it back to \emph{free}. There is no \emph{queued} state and therefore
+no fairness or bounded-wait guarantee: a losing caller must retry, and
+nothing schedules it a turn. [internal]}
 \label{fig:swk-claim-lifecycle}
 \end{figure}

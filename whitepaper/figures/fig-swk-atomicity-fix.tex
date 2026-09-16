@@ -1,0 +1,51 @@
+% Brief (tikz-diagram-craft). Register row ch1-40 [could].
+% Reader question: what state is left inconsistent if the third of three
+%   writes fails, and how does one transaction fix it?
+% Claim: "claim a port, open a session, record a commitment" is three
+%   separate local writes today, so a failure on the third leaves the
+%   first two committed and orphaned; wrapping all three in one local
+%   transaction (BEGIN IMMEDIATE) gives all-or-nothing for free, because
+%   the durable primitive already exists.
+% Evidence: whitepaper/single-writer-kernel.tex sec:atomicity: "nothing at
+%   the kernel's interface boundary wraps them in one transaction... a
+%   buildable defect: the durable primitive is present; what is missing is
+%   the wrapping."
+% Must distinguish: today's three independent commit points (a real
+%   failure gap) from the fix's one commit point (no gap); that this is a
+%   cheap local fix, not a research frontier (no remote steps, no Saga).
+% Grammar: before/after pair on identical geometry (S\ref{tpl-before-after}).
+%   Rejected: a Saga-style compensating-transaction diagram, which would
+%   import a research vocabulary the section explicitly declines.
+% Five-second test: "three separate dots with a failure gap, above one dot
+%   with none".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=west] at (0.00,3.55) {today: three separate writes};
+  \draw[pd hairline] (0.00,2.60) -- (9.9,2.60);
+  \node[pd datum] at (1.4,2.60) {};
+  \node[pd label,anchor=south,text width=1.6cm,align=center] at (1.4,2.75) {claim port};
+  \node[pd datum] at (4.5,2.60) {};
+  \node[pd label,anchor=south,text width=1.9cm,align=center] at (4.5,2.75) {open session};
+  \node[pd breach datum] at (7.6,2.60) {};
+  \node[pd label,anchor=south,text width=2.1cm,align=center] at (7.6,2.75) {record commitment: fails};
+  \draw[pd breach rule] (4.5,2.34) -- (7.6,2.34);
+  \node[pd breach label,anchor=north,text width=3.3cm,align=center] at (6.05,2.14)
+    {failure gap: two commits stand, orphaned};
+
+  \node[pd title,anchor=west] at (0.00,-0.10) {fix: one wrapped transaction};
+  \draw[pd hairline] (0.00,-0.95) -- (9.9,-0.95);
+  \node[pd focus datum] at (8.9,-0.95) {};
+  \node[pd label,anchor=south] at (8.9,-0.80) {\texttt{COMMIT}};
+  \node[pd label,anchor=north,text width=7.6cm,align=center] at (4.45,-1.20)
+    {\texttt{BEGIN IMMEDIATE}: claim port, open session, record commitment};
+\end{tikzpicture}
+\caption{The same three writes, one local fix. Today (top), each write
+commits on its own; if the third fails, the first two stand, orphaned --- a
+real failure gap. Wrapped in one local transaction, begun in immediate mode
+(bottom), all three commit together or not at all: no remote step, no Saga,
+because the durable transaction primitive already exists and every step is
+a local write to one file. [internal, OP-11]}
+\label{fig:swk-atomicity-fix}
+\end{figure}

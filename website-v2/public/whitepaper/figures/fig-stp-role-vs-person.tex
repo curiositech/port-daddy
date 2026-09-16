@@ -1,49 +1,62 @@
-% Figure --- roles persist as slots; persons persist as accountable threads.
+% Reader question: what differs between a temporary role and a continuous
+% person? Claim: a role is a slot that keeps no history of its fillers; a
+% person is one identity that carries witnessed outcomes across role changes.
+% Evidence: the chapter's worked identity kappa_7, its four role intervals
+% (navigator, cartographer, reviewer, lookout) and its eight witnessed
+% outcomes o_1..o_8 (Sec. role-person). Must distinguish: slot continuity
+% (the reviewer role survives, but is empty of history) from identity
+% continuity (kappa_7 carries the witnesses). Grammar: two aligned timelines
+% on one grid, rejected: a Venn diagram (identity is not overlap, it is one
+% continuous rail) and two portraits (no comparison field, no time axis).
+% Five-second test: a reader points at the lower rail and says "one thread,
+% four roles, eight witnesses."
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,2.75) {ROLE: one slot, replaceable fillers};
-  \node[pd panel title,anchor=west] at (-6.8,-.05) {PERSON: one identity, changing roles};
-
-  % Role track: the specification is stable while fillers are unrelated.
-  \draw[pd hairline,line width=2.4pt] (-5.6,1.45) -- (6.4,1.45);
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (-5.85,1.45)
-    {reviewer role\\[-1pt]{\pdfigsub obligation + capability + authority}};
-  \foreach \x/\body in {-4.25/A,-1.35/B,1.55/C,4.45/D} {
-    \draw[pd rule] (\x,1.08) -- (\x,1.82);
-    \node[pd actor,circle,minimum size=7.5mm,inner sep=0pt] at (\x,1.45) {\body};
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\x0{3.00}  \def\xe{10.20}
+  % ---- ROLE panel: a slot, refilled by unrelated bodies --------------------
+  \node[pd title,anchor=west] at (0.00,7.40) {role: one slot, replaceable fillers};
+  \node[pd label,anchor=east,align=right,text width=4.1cm] at ({\x0-.20},6.10)
+    {reviewer role\\obligation, capability, authority};
+  \foreach \x/\body in {4.30/A,6.10/B,7.90/C,9.70/D} {
+    \draw[pd rule] (\x,6.55) -- (\x,6.475);
+    \draw[pd rule] (\x,5.725) -- (\x,5.65);
+    \node[pd state,circle,minimum size=7.5mm,inner sep=0pt] (r\body) at (\x,6.10) {\body};
   }
-  \node[pd note,anchor=west] at (-4.75,.72)
+  \draw[pd hairline,line width=2.4pt] (\x0,6.10) -- (rA.west);
+  \draw[pd hairline,line width=2.4pt] (rA.east) -- (rB.west);
+  \draw[pd hairline,line width=2.4pt] (rB.east) -- (rC.west);
+  \draw[pd hairline,line width=2.4pt] (rC.east) -- (rD.west);
+  \draw[pd hairline,line width=2.4pt] (rD.east) -- (\xe,6.10);
+  \node[pd note,anchor=west,text width=7.2cm,align=left] at (\x0,5.25)
     {the slot survives; no outcome history moves between fillers};
-
-  % Person track: one identity crosses role boundaries and accumulates witnesses.
-  \draw[pd focus rule,line width=2.0pt] (-5.6,-1.25) -- (6.4,-1.25);
-  \node[pd direct label,anchor=east,text=hhteal,text width=2.7cm,align=right] at (-5.85,-1.25)
-    {$\kappa_7$\\[-1pt]{\pdfigsub non-forgeable identity}};
-  \foreach \xa/\xb/\role in {-5.6/-2.7/navigator,-2.7/.25/cartographer,.25/3.25/reviewer,3.25/6.4/lookout} {
-    \draw[pd lattice] (\xa,-1.82) -- (\xa,-.68);
-    \node[pd direct label,anchor=south] at ({(\xa+\xb)/2},-.68) {\role};
+  % ---- PERSON panel: one identity crossing role boundaries -----------------
+  \node[pd title,anchor=west] at (0.00,4.45) {person: one identity, changing roles};
+  \node[pd focus label,anchor=east,align=right,text width=3.3cm] at ({\x0-.20},3.10)
+    {$\kappa_7$\\non-forgeable identity};
+  \draw[pd focus rule,line width=2.0pt] (\x0,3.10) -- (\xe,3.10);
+  \foreach \x in {3.00,4.80,6.60,8.40,10.20} \draw[pd guide] (\x,3.00) -- (\x,1.95);
+  \foreach \a/\role in {3.90/navigator,5.70/cartographer,7.50/reviewer,9.30/lookout}
+    \node[pd label,anchor=north] at (\a,2.80) {\role};
+  \foreach \x/\mark in {3.45/$o_1$,4.35/$o_2$,5.25/$o_3$,6.15/$o_4$,7.05/$o_5$,
+                        7.95/$o_6$,8.85/$o_7$,9.75/$o_8$} {
+    \draw[pd focus rule] (\x,3.25) -- (\x,2.95);
+    \node[pd label,anchor=north] at (\x,1.75) {\mark};
   }
-  \draw[pd lattice] (6.4,-1.82) -- (6.4,-.68);
-
-  \foreach \x/\mark in {-4.75/$o_1$,-3.45/$o_2$,-1.65/$o_3$,-.45/$o_4$,1.05/$o_5$,2.25/$o_6$,4.25/$o_7$,5.55/$o_8$} {
-    \draw[pd focus rule] (\x,-1.25) -- (\x,-1.72);
-    \node[pd axis label,anchor=north] at (\x,-1.77) {\mark};
-  }
-  \node[pd note,anchor=west,text=hhteal] at (-4.75,-2.38)
+  \node[pd focus label,anchor=west,text width=7.2cm,align=left] at (\x0,0.80)
     {witnessed outcomes accumulate on the identity across every role change};
-
-  \node[pd axis label,anchor=west] at (-6.8,-2.95) {earlier};
-  \node[pd axis label,anchor=east] at (6.8,-2.95) {later};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.9,-2.90) -- (5.9,-2.90);
-\end{tikzpicture}}
+  % ---- one shared time axis --------------------------------------------------
+  \draw[pd rule,-{Stealth[length=1.9mm,width=1.2mm]}] (\x0,-0.15) -- (\xe,-0.15);
+  \node[pd label,anchor=east] at ({\x0-.15},-0.15) {earlier};
+  \node[pd label,anchor=west] at ({\xe+.15},-0.15) {later};
+\end{tikzpicture}
 \caption{\textbf{A role is a slot; a person is a longitudinal record.} The upper
 track holds one reviewer role constant while unrelated bodies fill it in sequence:
 the slot has obligations, capability, and authority, but no reputation of its own.
 The lower track follows one identity $\kappa_7$ through four role intervals while
 witnessed outcomes $o_1\ldots o_8$ accumulate on the same thread. A respawn may
 replace the body, and a reassignment may replace the role, without replacing the
-accountable person.}
+accountable person. [internal]}
 \label{fig:role-person}
 \end{figure}

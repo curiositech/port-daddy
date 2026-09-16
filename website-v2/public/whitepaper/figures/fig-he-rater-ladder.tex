@@ -1,0 +1,56 @@
+% Figure IV.new --- the rate-the-raters ladder: appeal only ever moves down.
+% ch6-38 (register: should).
+%
+% Reader question: why does asking "who judges the judges" not go on
+% forever in this design?
+% Claim: appeal only ever moves down one rank at a time from a starting
+% rank K, and rank 0 is a protected oracle or a named final authority;
+% since ranks are natural numbers, no infinite ascending chain of judges
+% judging judges is possible.
+% Evidence: hand-worked exercise solution (ex:he-rate-the-raters); the
+% well-founded-order argument, deliberately distinct from a convergence
+% proof (none exists for this base case).
+% Must distinguish: this well-founded-ORDER argument from an actual
+% contraction/convergence proof -- the figure must not overclaim a theorem
+% the text explicitly says does not exist.
+% Grammar chosen: ladder / spine, one arrow per rank pointing down only
+% (SKILL.md "what state can this be in and what moves it"). Grammar
+% rejected: a recursive contraction tower (Chapter 5's rho,d,B machinery)
+% -- a different, stronger argument for a different fix; drawing it here
+% would overclaim.
+% Five-second test: a reader can see every arrow points down, never up,
+% and the ladder ends at rank 0, not at infinity.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{1.35}
+  \node[pd title,anchor=west,text width=10.4cm] at (-1.10,5.35)
+    {appeal moves down one rank at a time, and stops at rank 0};
+  \node[pd state,minimum width=3.2cm] (K) at (0,{3*\dy}) {rank $K$};
+  \node[pd state,minimum width=3.2cm] (K1) at (0,{2*\dy}) {rank $K-1$};
+  \node[pd label] (dots) at (0,{1*\dy}) {$\vdots$};
+  \node[pd state,minimum width=3.2cm] (R1) at (0,{0}) {rank $1$};
+  \node[pd ready state,minimum width=3.2cm] (R0) at (0,{-1*\dy}) {rank $0$};
+  \draw[pd focus arrow] (K) -- node[pd tag] {appeal} (K1);
+  \draw[pd focus arrow] (K1) -- (dots);
+  \draw[pd focus arrow] (dots) -- (R1);
+  \draw[pd focus arrow] (R1) -- node[pd tag] {appeal} (R0);
+  \node[pd label,anchor=west,align=left,text width=4.6cm] at (2.10,{-1*\dy})
+    {protected oracle (objective), or named final authority / quorum
+     (preference)};
+  \node[pd note,anchor=north west,text width=8.6cm] at (-1.10,{-1.9*\dy})
+    {ranks are natural numbers, so no infinite ascending chain of judges
+     judging judges is possible -- this is a well-founded order, not a
+     convergence proof};
+\end{tikzpicture}
+\caption{\textbf{Appeal is a well-founded descent, not an unbounded
+regress.} An appeal from rank $K$ reaches only rank $K-1$, never a new rank
+above $K$, and the chain stops at rank $0$: a protected oracle for an
+objective predicate, or a named final authority or quorum for a matter of
+preference. No theorem shows subjective judging bottoms out in
+machine-checkable truth; what grounds the recursion is that ranks are
+natural numbers, so the descent cannot continue forever, whatever rank $0$
+turns out to mean. [internal; hand-worked, no script]}
+\label{fig:he-rater-ladder}
+\end{figure}

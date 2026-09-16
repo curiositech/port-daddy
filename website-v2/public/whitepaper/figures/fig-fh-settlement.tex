@@ -1,76 +1,83 @@
-% Figure IV.8 --- the custody theorem is tested against its bypass counterfactual.
+% Figure IV.8 --- the custody bound is the absence of an extra transition;
+% the theorem is tested against its own bypass counterfactual.
+%
+% Reader question: what exactly does "non-bypassable custody" buy, and what
+%   breaks the bound?
+% Claim: the bound holds only because the custody ledger exposes exactly one
+%   terminal transition; a single extra operator-controlled edge changes the
+%   worst case from the agreed fee to the full balance.
+% Evidence: Design Invariant (thm:fh-escrow-bound)'s four hypotheses; the two
+%   terminal outcomes CLEAR/REFUSE; the extra redirect/second-close edge.
+% Must distinguish: the one-edge difference between the two panels from
+%   everything else, which is held identical.
+% Grammar chosen: two panels on one grid (tpl-before-after.tex idiom), applied
+%   to a hypothesis-present/hypothesis-absent counterfactual rather than a
+%   time change -- the point is topological (one extra edge), so identical
+%   geometry carries it. Grammar rejected: a single diagram with a dashed
+%   "optional" edge would blur which panel obeys the theorem's hypothesis; a
+%   table would lose the shape of the extra edge.
+% Five-second test: which single edge is present in B but not A, and what
+%   does it change the worst case to?
+\pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.9,3.0) {A. non-bypassable custody};
-  \node[pd panel title,anchor=west] at (.55,3.0) {B. operator bypass exists};
-  \node[pd note,anchor=west] at (-6.9,2.64) {one terminal transition};
-  \node[pd note,text=hhamber,anchor=west] at (.55,2.64) {same ceremony, weaker authority boundary};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\ax{0.00}   \def\bx{4.95}
+  \node[pd title,anchor=west,text width=4.6cm,align=left] at (\ax,2.75) {A. non-bypassable custody};
+  \node[pd label,text=pdinkmuted,anchor=north west,text width=5.3cm,align=left] at (\ax,2.20) {one terminal transition};
+  \node[pd title,anchor=west,text width=4.6cm,align=left] at (\bx,2.75) {B. operator bypass exists};
+  \node[pd label,text=pdinkmuted,anchor=north west,text width=3.9cm,align=left] at (\bx,2.20) {same ceremony, weaker boundary};
 
-  % Safe outcome graph.
-  \node[pd datum] (fundeda) at (-6.0,.65) {};
-  \node[pd decision] (gatea) at (-4.25,.65) {criteria};
-  \node[pd focus datum] (cleara) at (-2.15,1.45) {};
-  \node[pd datum] (refusea) at (-2.15,-.15) {};
-  \draw[pd arrow] (fundeda)--(gatea);
-  \draw[pd focus arrow] (gatea)--(cleara);
-  \draw[pd arrow] (gatea)--(refusea);
-  \node[pd direct label,anchor=south] at (-6.0,.87) {funded};
-  \node[pd direct label,text=hhteal,anchor=west] at (-1.90,1.45) {CLEAR};
-  \node[pd direct label,anchor=west] at (-1.90,-.15) {REFUSE};
-  % text width, not a bare single-line anchor=west run-on: at this picture's
-  % scale "compensate claimant" set on one line ran past x=1.1, into panel
-  % B's "funded" label at x=1.35 -- built and measured overlapping, PDF
-  % p. 418 ("compensate claim[ant]funded" printing as one run of ink).
-  % Wrapping to two lines keeps the note inside panel A's own half.
-  % anchor=north west (not west): west centers the taller two-line box on
-  % its own anchor point and the first fix's build pushed the top line up
-  % into CLEAR at y=1.45; north west grows the box downward from the
-  % anchor instead, the same direction the one-line version already used.
-  \node[pd note,anchor=north west,text width=2.1cm,align=left] at (-1.90,1.20) {compensate claimant};
-  \node[pd note,anchor=west] at (-1.90,-.52) {return bond};
-  \draw[pd focus rule] (-6.15,-1.15)--(-1.05,-1.15);
-  \node[pd direct label,text=hhteal] at (-3.60,-1.45)
-    {worst-case custody loss $\leq\varphi$};
+  % ---- panel A: funded -> criteria -> Clear / Refuse ---------------------
+  \node[pd datum] (fundeda) at (\ax+0.30,0) {};
+  \node[pd label,anchor=north] at (\ax+0.30,-0.28) {funded};
+  \node[draw=pdinkmuted!70,line width=.9pt,fill=pdpage,diamond,
+    minimum width=1.55cm,minimum height=0.95cm,inner sep=0pt,pd label]
+    (gatea) at (\ax+1.55,0) {criteria};
+  \node[pd focus datum] (cleara) at (\ax+2.85,0.95) {};
+  \node[pd datum] (refusea) at (\ax+2.85,-0.95) {};
+  \draw[pd arrow] (fundeda) -- (gatea);
+  \draw[pd focus arrow] (gatea) -- (cleara);
+  \draw[pd arrow] (gatea) -- (refusea);
+  \node[pd focus label,anchor=west] at (\ax+3.10,0.95) {\textbf{Clear}};
+  \node[pd label,anchor=west] at (\ax+3.10,-0.95) {\textbf{Refuse}};
+  \draw[pd focus rule] (\ax+0.05,-1.65) -- (\ax+4.55,-1.65);
+  \node[pd focus label,anchor=north west,text width=4.5cm,align=left] at (\ax+0.05,-1.85)
+    {worst-case loss $\leq\varphi$};
 
-  % Panel B shifted right by 0.55: panel A's `compensate claimant` note is
-  % 2.8cm of grotesk running east from x=-1.90, and panel B's `funded` label
-  % began at x=0.75, so the two overlapped by 17.7% of the smaller box (20.8%
-  % at the merge base -- pre-existing, not introduced here). Wrapping the note
-  % instead was tried and is worse: CLEAR sits 0.37 units above it and the
-  % second line lands on that. The picture is inside \resizebox{0.95\textwidth},
-  % so widening it costs nothing on the page.
-  % Counterfactual graph with an extra unauthorized transition.
-  \node[pd datum] (fundedb) at (1.90,.65) {};
-  \node[pd decision] (gateb) at (3.65,.65) {criteria};
-  \node[pd focus datum] (clearb) at (5.75,1.45) {};
-  \node[pd datum] (refuseb) at (5.75,-.15) {};
-  \node[pd danger datum] (lossb) at (7.10,-1.50) {};
-  \draw[pd arrow] (fundedb)--(gateb);
-  \draw[pd focus arrow] (gateb)--(clearb);
-  \draw[pd arrow] (gateb)--(refuseb);
-  \draw[pd danger arrow]
-    (fundedb) to[out=-50,in=170] (lossb);
-  \node[pd direct label,anchor=south] at (1.90,.87) {funded};
-  \node[pd direct label,text=hhteal,anchor=west] at (6.00,1.45) {CLEAR};
-  \node[pd direct label,anchor=west] at (6.00,-.15) {REFUSE};
-  \node[pd direct label,text=pderror,anchor=east,align=right] at (6.77,-1.34)
-    {redirect / second close\\full balance exposed};
-  \node[pd note,text=pderror,anchor=west] at (2.65,-.70) {unauthorized transition};
-  \draw[pd danger rule] (.95,-2.10)--(7.30,-2.10);
-  \node[pd direct label,text=pderror] at (4.40,-2.40)
+  % ---- panel B: identical graph, plus one operator-controlled edge -------
+  \node[pd datum] (fundedb) at (\bx+0.30,0) {};
+  \node[pd label,anchor=north] at (\bx+0.30,-0.28) {funded};
+  \node[draw=pdinkmuted!70,line width=.9pt,fill=pdpage,diamond,
+    minimum width=1.55cm,minimum height=0.95cm,inner sep=0pt,pd label]
+    (gateb) at (\bx+1.55,0) {criteria};
+  \node[pd focus datum] (clearb) at (\bx+2.85,0.95) {};
+  \node[pd datum] (refuseb) at (\bx+2.85,-0.95) {};
+  \node[pd breach datum] (lossb) at (\bx+2.85,-2.55) {};
+  \draw[pd arrow] (fundedb) -- (gateb);
+  \draw[pd focus arrow] (gateb) -- (clearb);
+  \draw[pd arrow] (gateb) -- (refuseb);
+  \draw[pd breach arrow,line width=1.25pt] (fundedb) to[out=-75,in=150] (lossb);
+  \node[pd focus label,anchor=west] at (\bx+3.10,0.95) {\textbf{Clear}};
+  \node[pd label,anchor=west] at (\bx+3.10,-0.95) {\textbf{Refuse}};
+  \node[pd breach label,anchor=north,text width=4.2cm,align=center] at (\bx+2.85,-2.95)
+    {redirect / second close: full balance exposed};
+  \draw[pd breach rule] (\bx+0.05,-4.35) -- (\bx+4.55,-4.35);
+  \node[pd breach label,anchor=north west,text width=3.9cm,align=left] at (\bx+0.05,-4.55)
     {worst case $=$ full custody balance};
 
-  \node[pd axis label] at (0,-3.05)
-    {Custody Assumption: whitelist $+$ fee cap $+$ one terminal transition are the theorem's hypothesis, not decoration};
-\end{tikzpicture}}
+  \node[pd note,anchor=north west,text width=10.6cm] at (\ax,-6.10)
+    {the custody assumption: whitelist, fee cap, one terminal transition are
+    the theorem's hypothesis, not decoration};
+\end{tikzpicture}
 \caption{\textbf{The custody bound is the absence of an extra transition.}
 Panel A permits exactly one terminal move from funded custody to \textbf{Clear}
-or \textbf{Refuse}; with a recipient whitelist and fee cap, worst-case loss is
-bounded by the agreed fee $\varphi$. Panel B adds one operator-controlled bypass.
-The visible extra edge reaches redirect or a second close, exposing the full
-balance. Threshold signing is only one candidate implementation; the loss theorem
-holds only when the three authority restrictions are actually non-bypassable.}
+or \textbf{Refuse}: pay the whitelisted beneficiary or return the bond. With a
+recipient whitelist and fee cap, worst-case loss is bounded by the agreed fee
+$\varphi$. Panel B holds the same ceremony but drops the non-bypassability
+hypothesis: one operator-controlled edge reaches redirect or a second close,
+and the worst case becomes the full custody balance. Threshold signing
+(\S\ref{sec:fh-escrow}) is only one candidate way to make panel A's absence of
+that edge structural; the bound holds only when it actually is. [internal]}
 \label{fig:fh-settlement}
 \end{figure}

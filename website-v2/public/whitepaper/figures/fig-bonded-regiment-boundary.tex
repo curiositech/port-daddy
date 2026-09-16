@@ -1,0 +1,57 @@
+% Brief (tikz-diagram-craft). Register row ch7-12 (should).
+% Reader question: which rules can be prevented before the fact, and which
+%   are only caught after?
+% Claim: Synchronous State Decidability is the exact boundary. A rule
+%   decidable against deterministic local DB state and the transaction
+%   payload is regimented (its violation cannot occur at all); a rule
+%   needing async checks, external I/O, or non-deterministic oracles is
+%   relegated to post-commit enforcement (violation occurs, then is caught
+%   and salvaged).
+% Evidence: website-v2/public/whitepaper/agent-transactions-whitepaper.tex
+%   OP-2 paragraph (Regimentation vs. Enforcement), citing Jones and Sergot
+%   1993's regimentation/enforcement distinction; the three named compiled
+%   invariants NoteMonotonicity, EscrowInvariant, LockOwnerValid map
+%   directly to sec:tlaplus's safety properties; Arbiter-detected
+%   violations are the enforced side, triggering the salvage protocol.
+% Must distinguish: which of the two mechanisms is structurally impossible
+%   to violate (regimented) from which is possible-but-caught (enforced).
+% Grammar chosen: two-cell boundary, mirroring
+%   whitepaper/figures/fig-swk-controllability-quadrant.tex's grammar (a
+%   shaded marked cell, one concrete rule set per cell) collapsed to the
+%   one real axis this rule actually has -- Synchronous State Decidability
+%   -- rather than forcing a second, unsupported axis into a fake 2x2.
+%   Rejected: a literal four-cell quadrant with sync-decidability crossed
+%   against pre/post-commit, which the chapter's own text states are the
+%   SAME distinction restated, not two independent axes; two empty or
+%   duplicate cells would violate S8's no-empty-box rule.
+% Five-second test: a reader sees three named invariants on the left
+%   (structurally impossible to violate) and the Arbiter on the right
+%   (violation possible, then caught).
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  cell/.style={font=\pdfiglabel,align=center,text width=4.35cm}]
+  \fill[pd focus fill] (0,0) rectangle (4.55,4.6);
+  \draw[pd rule] (0,0) rectangle (9.1,4.6);
+  \draw[pd spine] (4.55,0) -- (4.55,4.6);
+  \node[pd title,anchor=south] at (2.28,4.75) {regimented (pre-commit)};
+  \node[pd title,anchor=south] at (6.83,4.75) {enforced (post-commit)};
+  \node[pd axis label,anchor=north,text width=8.6cm,align=center] at (4.55,-.25)
+    {Synchronous State Decidability: decidable against local DB state $\Rightarrow$ regimented; needs async I/O or an oracle $\Rightarrow$ enforced};
+  \node[cell] at (2.28,2.9) {$\bigstar$ structurally impossible to violate};
+  \node[cell] at (2.28,1.5) {\texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, \texttt{LockOwnerValid}};
+  \node[cell] at (6.83,2.9) {violation occurs, then caught};
+  \node[cell] at (6.83,1.5) {Arbiter-detected violations $\to$ salvage protocol};
+\end{tikzpicture}
+\caption{Regimentation versus enforcement, in the sense of Jones and
+Sergot's normative-systems distinction: a rule falls on one side or the
+other of Synchronous State Decidability, never both. The three compiled
+invariants (left, shaded, marked $\bigstar$) are checked against
+deterministic local state and the transaction payload alone, so their
+violation cannot occur at all. Every other invariant needs an async check,
+external I/O, or a non-deterministic oracle, so the Arbiter (right) can
+only detect a violation after the fact and route it to the salvage
+protocol. [internal]}
+\label{fig:bonded-regiment-boundary}
+\end{figure}

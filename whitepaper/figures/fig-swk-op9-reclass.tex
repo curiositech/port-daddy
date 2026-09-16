@@ -1,0 +1,48 @@
+% Brief (tikz-diagram-craft). Register row ch1-43 [could], desert
+% Sec. 13.4 "Hash-chain tamper-evidence, and the hardening OP-9 would need".
+% Reader question: which threat-table row does the same-machine adversary
+%   occupy before and after the OP-9 hardening ships?
+% Claim: OS-level ephemeral namespaces would move the adversary from the
+%   same-user row (out of scope, defended by nobody) to the different-uid
+%   row (in scope, partially defended) -- a real improvement, and still not
+%   "impossible": shared kernel surfaces stay in scope either way.
+% Evidence: whitepaper/single-writer-kernel.tex tab:threat-model (the two
+%   rows verbatim), sec:merkle (the OP-9 design and its own three caveats).
+% Must distinguish: this is a reclassification of one row, not a new
+%   defense; the row's own words (in/out, what defends) travel with it.
+% Grammar: before/after excerpt reusing the threat table's own vocabulary,
+%   one row moving. Rejected: redrawing the full five-row threat table,
+%   which would repeat a schema the chapter already owns once (S13: no
+%   schema drawn twice).
+% Five-second test: "one row, two boxes, one arrow between them labelled
+%   with the one thing that has to ship".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=south west] at (0.00,3.30) {today};
+  \node[pd panel,text width=3.95cm,align=left,inner sep=7pt] (before) at (2.15,1.55)
+    {\textbf{same-user process}\\[3pt] \textbf{out} of scope\\[3pt]
+     defends against nobody under this exclusion};
+
+  \node[pd title,anchor=south west] at (6.30,3.30) {after OP-9 ships};
+  \node[pd focus fill,text width=3.95cm,align=left,inner sep=7pt,draw=pdfocus,line width=.9pt,rounded corners=2.5pt] (after) at (8.50,1.55)
+    {\textbf{different-uid process}\\[3pt] \textbf{in} (partial)\\[3pt]
+     kernel-verified peer credential binds to the spawn's ephemeral uid};
+
+  \draw[pd focus arrow] (before.east) -- (after.west)
+    node[pd tag,midway,above=1pt,text width=2.0cm,align=center] {OS-level ephemeral namespaces};
+  \node[pd kind,anchor=north] at (5.325,-0.30) {OP-9, designed};
+
+  \node[pd note,anchor=north west,text width=10.4cm] at (0.00,-1.35)
+    {a real improvement, and still not ``impossible'': shared kernel surfaces and the sandbox implementation itself stay in scope either way};
+\end{tikzpicture}
+\caption{One threat-table row reclassified, not a new defense. Today the
+same-user process sits in the out-of-scope row, defended by nobody. OS-level
+ephemeral namespaces (OP-9, \textsc{designed}) would move it to the
+different-uid row, where the kernel-verified peer credential partially
+defends it -- a real improvement, and, per \S\ref{sec:merkle}'s own three
+caveats, not a claim that the boundary becomes impossible to cross.
+[internal]}
+\label{fig:swk-op9-reclass}
+\end{figure}

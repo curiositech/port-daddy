@@ -1,0 +1,45 @@
+% Brief (tikz-diagram-craft). Register row ch1-44 [could], desert
+% Sec. 13.3 "Partial actor-soul identity bounds every other invariant".
+% Reader question: which invariants become unsound if identity enforcement
+%   stays incomplete?
+% Claim: I12 (non-forgeable identity) is a hard precondition for I7, I8 and
+%   I9 -- each is only as strong as its least-protected identity path, so a
+%   gap in I12 propagates to all three, not just to identity checks.
+% Evidence: whitepaper/single-writer-kernel.tex sec:invariants (the
+%   invariant table: I7 no-amnesia/note monotonicity, I8 forbidden-state
+%   handling, I9 tamper-evidence of the audit log, I12 non-forgeable
+%   identity, all \BuiltWeak); the paragraph naming I12 as the hard
+%   precondition; Exercise~\ref{ex:swk-forged-release} (a self-asserted
+%   identity lets a forged release through because I12 failed to
+%   authenticate the input, not because the lock rule was wrong).
+% Must distinguish: I12 is the one root, not a peer; the dependency is one
+%   direction (I12 bounds the others, not the reverse).
+% Grammar: one node fanning out to three (S13: one iconic drawing, no
+%   internal mechanism repeated -- I12's own mechanism lives in
+%   sec:invariants and is not redrawn here). Rejected: a 2x2 of invariant
+%   pairs, which has no natural cell for a one-root, three-dependent claim.
+% Five-second test: "one box, three arrows out, one line each on what
+%   breaks".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd focus state,minimum width=3.0cm,text width=2.6cm,align=center]
+    (i12) at (1.55,1.55) {I12\\non-forgeable identity};
+  \foreach \i/\n/\t/\d in {%
+    0/i7/{I7 -- no-amnesia}/{note monotonicity unsound with a forged actor},
+    1/i8/{I8 -- forbidden-state handling}/{a forged identity clears a check meant for someone else},
+    2/i9/{I9 -- tamper-evidence}/{the audit log names the wrong author}}{
+      \node[pd state,minimum width=3.2cm,text width=2.9cm,align=center] (\n) at (7.9,{4.35-\i*2.95}) {\t};
+      \draw[pd focus arrow] (i12.east) -- (\n.west);
+      \node[pd label,anchor=north,text width=3.0cm,align=center] at (7.9,{3.65-\i*2.95}) {\d};}
+\end{tikzpicture}
+\caption{Complete I12 enforcement is a hard precondition for I7, I8 and I9:
+each is only as strong as its least-protected identity path. With I12
+\textsc{builtweak} (a bounded actor-soul gate, not yet universal write
+gating), a legacy path with a self-asserted identity lets a forged release
+clear a lock-owner check meant for someone else -- the monitor rule is
+correct relative to its input; I12 failed to authenticate the input.
+[internal]}
+\label{fig:swk-i12-dependency}
+\end{figure}

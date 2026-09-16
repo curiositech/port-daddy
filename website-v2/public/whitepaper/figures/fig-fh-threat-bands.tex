@@ -1,62 +1,96 @@
-% Figure IV.10 --- assurance maturity as position, not a prose matrix.
+% Figure IV.10 --- assurance position, not a prose matrix; position is the
+% one channel a reader reads accurately (Cleveland-McGill).
+%
+% Reader question: which threats are mechanized, which are only bounded
+%   under a stated model, and which remain open?
+% Claim: assurance advances only when a threat acquires a concrete artifact
+%   or theorem; most rows are conditional on a named hypothesis, and three
+%   remain open.
+% Evidence: the seven threat rows and their own evidence phrase (signed
+%   card, the Theta(log m) bound, the settlement gate, ...) from S:fh-limitations.
+% Must distinguish: OPEN (acknowledged gap) from CONDITIONAL (bound holds
+%   under a named hypothesis) from MECHANIZED (artifact exists).
+% Grammar chosen: position on one shared axis, seven rows (a banded ledger).
+%   Grammar rejected: a checklist table loses the ORDERING claim (rows are
+%   not equally mechanized); a decorative shield/lock icon per row asserts
+%   security the paper does not claim.
+% Five-second test: which single row is closest to MECHANIZED, and which
+%   three rows have not moved off OPEN?
+\pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.9,3.45)
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\lx{1.85}   \def\x0{2.05}   \def\pw{8.35}
+  \node[pd title,anchor=north west,text width=10.6cm,align=left] at (0,5.15)
     {assurance advances only when a threat acquires an artifact or theorem};
-  \foreach \y/\lab in {2.55/identity + replay,1.75/revocation,.95/equivocation,.15/settlement,-.65/cold-start admission,-1.45/cartel monitoring,-2.25/centralization}
-    {\node[pd direct label,anchor=east] at (-4.35,\y) {\lab};
-     \draw[pd lattice] (-4.05,\y)--(6.35,\y);}
 
-  % Evidence positions and uncertainty intervals.
-  \draw[pd focus rule,line width=1.2pt] (-4.05,2.55)--(5.15,2.55);
-  \node[pd focus datum] at (5.15,2.55) {};
-  \node[pd note,anchor=west] at (5.42,2.55) {signed card + epoch root};
+  \foreach \y/\lab in {3.30/{identity + replay},1.90/{revocation},0.50/{equivocation},
+    -0.90/{settlement},-2.30/{cold-start admission},-3.70/{cartel monitoring},
+    -5.40/{centralization}}
+    {\node[pd label,anchor=east,text width=1.75cm,align=right] at (\lx,\y) {\lab};
+     \draw[pd hairline] (\x0,\y) -- (\x0+\pw,\y);}
 
-  \draw[pd caution rule,line width=1.2pt] (-4.05,1.75)--(1.95,1.75);
-  \node[pd caution datum] at (1.95,1.75) {};
-  \node[pd note,anchor=west] at (2.22,1.75) {$\Theta(\log m)$ only under reliable rounds};
+  % identity + replay -- strongest evidence: chapter's own exemplar
+  \draw[pd focus rule,line width=1.2pt] (\x0,3.30) -- (10.05,3.30);
+  \node[pd focus datum] at (10.05,3.30) {};
+  \node[pd focus label,anchor=south east,text width=3.4cm,align=right] at (10.05,3.48)
+    {signed card $+$ epoch root};
 
-  \draw[pd caution rule,line width=1.2pt] (-4.05,.95)--(1.55,.95);
-  \node[pd caution datum] at (1.55,.95) {};
-  \node[pd note,anchor=west] at (1.82,.95) {proof after roots co-locate};
+  % revocation -- literally the concept; breach hue
+  \draw[pd breach rule,line width=1.2pt] (\x0,1.90) -- (7.27,1.90);
+  \node[pd breach datum] at (7.27,1.90) {};
+  \node[pd breach label,anchor=south east,text width=3.6cm,align=right] at (7.27,2.08)
+    {$\Theta(\log m)$ only under reliable rounds};
 
-  \draw[pd caution rule,line width=2.0pt] (-.55,.15)--(2.05,.15);
-  \draw[pd caution rule,line width=1.2pt] (-4.05,.15)--(1.35,.15);
-  \node[pd caution datum] at (1.35,.15) {};
-  \node[pd note,anchor=west] at (2.28,.15) {bound ranges from bypassable to gated};
+  % equivocation -- conditional, neutral ink
+  \draw[pd rule,line width=1.2pt] (\x0,0.50) -- (6.92,0.50);
+  \node[pd datum] at (6.92,0.50) {};
+  \node[pd label,anchor=south east,text width=3.4cm,align=right] at (6.92,0.68)
+    {proof after roots co-locate};
 
-  \draw[pd caution rule,line width=1.2pt] (-4.05,-.65)--(-.70,-.65);
-  \node[pd caution datum] at (-.70,-.65) {};
-  \node[pd note,anchor=west] at (-.43,-.65) {thin reputation cannot yet price bond};
+  % settlement -- wide uncertainty interval, neutral ink (thick = range)
+  \draw[pd rule,line width=1.2pt] (\x0,-0.90) -- (6.75,-0.90);
+  \draw[pd rule,line width=2.2pt] (5.09,-0.90) -- (7.35,-0.90);
+  \node[pd datum] at (6.75,-0.90) {};
+  \node[pd label,anchor=south east,text width=3.6cm,align=right] at (6.75,-0.72)
+    {bypassable to gated: gate-dependent};
 
-  \draw[pd caution rule,line width=1.2pt] (-4.05,-1.45)--(-1.05,-1.45);
-  \node[pd caution datum] at (-1.05,-1.45) {};
-  \node[pd note,anchor=west] at (-.78,-1.45) {monitoring game incomplete};
+  % cold-start admission -- open, neutral ink
+  \draw[pd rule,line width=1.2pt] (\x0,-2.30) -- (4.96,-2.30);
+  \node[pd datum] at (4.96,-2.30) {};
+  \node[pd label,anchor=south east,text width=3.4cm,align=right] at (4.96,-2.12)
+    {thin reputation cannot price a bond};
 
-  \draw[pd caution rule,line width=1.2pt] (-4.05,-2.25)--(-1.55,-2.25);
-  \node[pd caution datum] at (-1.55,-2.25) {};
-  \node[pd note,anchor=west] at (-1.28,-2.25) {pushback is not a bound};
+  % cartel monitoring -- open, neutral ink
+  \draw[pd rule,line width=1.2pt] (\x0,-3.70) -- (4.66,-3.70);
+  \node[pd datum] at (4.66,-3.70) {};
+  \node[pd label,anchor=south east,text width=3.4cm,align=right] at (4.66,-3.52)
+    {monitoring game incomplete};
 
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.05,-2.85)--(6.15,-2.85);
-  \foreach \x/\lab in {-4.05/OPEN,.75/CONDITIONAL,5.55/MECHANIZED}
-    {\draw[pd rule] (\x,-2.96)--(\x,-2.74);
-     \node[pd axis label,anchor=north] at (\x,-3.02) {\lab};}
-  % anchor=south at y=-2.74 put this title ABOVE the axis line, inside the
-  % plot area, where it collided with the centralization row's own note
-  % "pushback is not a bound" (y=-2.25, the row directly above) -- built and
-  % measured overlapping, PDF p. 402. An axis title belongs below its tick
-  % labels, not floating inside the plot: anchor=north, y=-3.35, clear under
-  % OPEN/CONDITIONAL/MECHANIZED at y=-3.02.
-  \node[pd axis label,anchor=north] at (.75,-3.35) {assurance position};
-\end{tikzpicture}}
+  % centralization -- open, neutral ink; the pushback point (S:fh-limitations)
+  \draw[pd rule,line width=1.2pt] (\x0,-5.40) -- (4.22,-5.40);
+  \node[pd datum] at (4.22,-5.40) {};
+  \node[pd label,anchor=south east,text width=3.4cm,align=right] at (4.22,-5.22)
+    {pushback is design discipline, not a bound};
+
+  % ---- assurance-position axis --------------------------------------------
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\x0,-6.40) -- (\x0+\pw+0.05,-6.40);
+  \foreach \x/\lab in {2.05/OPEN,6.15/CONDITIONAL,10.25/MECHANIZED}
+    {\draw[pd tick] (\x,-6.40) -- (\x,-6.55);
+     \node[pd label,anchor=north] at (\x,-6.60) {\lab};}
+  \node[pd note,anchor=north west,text width=10.2cm] at (0,-7.05)
+    {position, not colour, carries the claim: each row advances only when the
+    missing artifact or theorem exists};
+\end{tikzpicture}
 \caption{\textbf{The assurance landscape is uneven and falsifiable.} Position
-encodes how far each threat has moved from an acknowledged gap toward a mechanized
-artifact. Identity and replay have the strongest concrete evidence. Revocation,
-equivocation, and settlement are conditional on named connectivity or custody
-hypotheses; the thick settlement interval shows how widely its assurance moves if
-the gate is bypassable. Cold start, cartel monitoring, and centralization remain
-open. A row advances only when the missing artifact or theorem exists.}
+encodes how far each threat has moved from an acknowledged gap toward a
+mechanized artifact. Identity and replay (gold) have the strongest concrete
+evidence. Revocation (red) is conditional on connected reliable rounds
+(Theorem~\ref{thm:fh-conv}); equivocation and settlement are conditional on
+named connectivity or custody hypotheses, and the wide settlement interval
+shows how far its assurance moves if the custody gate is bypassable
+(\S\ref{sec:fh-escrow}). Cold-start admission, cartel monitoring, and
+centralization remain open. A row advances only when the missing artifact or
+theorem exists. [internal]}
 \label{fig:fh-threat-bands}
 \end{figure}

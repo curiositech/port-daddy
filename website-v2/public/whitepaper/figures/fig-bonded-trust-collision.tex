@@ -1,0 +1,66 @@
+% Brief (tikz-diagram-craft). Register row ch7-01 (could).
+% Reader question: what actually collides between Agent A and Agent B, and
+%   when?
+% Claim: two agents with no way to know of each other edit the same file
+%   ninety seconds apart; both commit and push independently, and the
+%   second push collides with the first, producing a merge conflict that a
+%   hallucinated resolution then corrupts.
+% Evidence: website-v2/public/whitepaper/agent-transactions-whitepaper.tex
+%   sec:tlaplus's opening scene (Section 1): Agent A asked to refactor the
+%   authentication middleware; Agent B spawned 90 seconds later from a
+%   sibling worktree, asked to add a rate-limiter to the same middleware;
+%   neither knows the other exists; both edit, both commit, both push; one
+%   gets an uninterpretable merge conflict, hallucinates a resolution, and
+%   corrupts the file. The only hard number in the scene is the 90-second
+%   spawn gap.
+% Must distinguish: the two agents' independent, unsynchronized timelines
+%   from the single shared file both timelines write to; which push lands
+%   first (clean) and which lands second (collides).
+% Grammar chosen: two-lane swimlane over wall-clock time, both lanes
+%   converging on a single shared-file rail (mirroring
+%   templates/tpl-swimlane-gantt.tex), the second landing marked as a
+%   breach. Rejected: a sequence diagram with explicit messages between A
+%   and B, which would misstate the scene -- the whole point is that
+%   neither agent ever sends the other anything.
+% Five-second test: a reader sees two lanes that never touch each other,
+%   both landing on the same rail, with the second landing shown as the
+%   breach.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\x0{2.35}   \def\xe{10.80}   \def\h{0.32}
+  % the 90-second gap, set well above both lanes to clear their own labels
+  \draw[pd guide] (\x0,1.55) -- (\x0,1.00);
+  \draw[pd guide] ({\x0+2.3},1.55) -- ({\x0+2.3},1.00);
+  \draw[pd rule,|-|] (\x0,1.40) -- ({\x0+2.3},1.40);
+  \node[pd label,anchor=south] at ({\x0+1.15},1.45) {90 s};
+  % Agent A: spawned at t=0, works, pushes cleanly
+  \node[pd title,anchor=east,text width=1.55cm,align=right] at ({\x0-.25},0) {Agent A};
+  \draw[pd hairline] (\x0,0) -- (\xe,0);
+  \draw[pd focus fill] ({\x0+0},{-\h}) rectangle ({\x0+4.5},{\h});
+  \node[pd label,anchor=south west] at (\x0,{\h+.10}) {spawn: refactor auth middleware};
+  % Agent B: spawned 90s later, same file, pushes second
+  \node[pd title,anchor=east,text width=1.55cm,align=right] at ({\x0-.25},-1.55) {Agent B};
+  \draw[pd hairline] (\x0,-1.55) -- (\xe,-1.55);
+  \draw[pd focus fill] ({\x0+2.3},{-1.55-\h}) rectangle ({\x0+7.0},{-1.55+\h});
+  \node[pd label,anchor=south west] at ({\x0+2.3},{-1.55+\h+.10}) {spawn: add rate-limiter, same file};
+  % the shared file: a single rail both agents write to, never to each other
+  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}] (\x0,-3.20) -- (\xe,-3.20);
+  \node[pd label,anchor=west] at (\xe,-3.20) {time};
+  \node[pd title,anchor=east,text width=1.55cm,align=right] at ({\x0-.25},-3.20) {shared file};
+  \node[pd focus datum] at ({\x0+4.5},-3.20) {};
+  \node[pd label,anchor=north east,text width=2.3cm,align=right] at ({\x0+4.35},-3.40) {A pushes: clean};
+  \draw[pd breach rule] ({\x0+7.0},-1.55) -- ({\x0+7.0},-3.20);
+  \node[pd breach datum] at ({\x0+7.0},-3.20) {};
+  \node[pd label,anchor=north west,text width=2.55cm,align=left] at ({\x0+6.55},-3.40) {B pushes: merge conflict $\to$ hallucinated resolution $\to$ corruption};
+\end{tikzpicture}
+\caption{The opening scene collision. Agent A
+and Agent B never communicate --- each lane runs independently, ninety
+seconds apart, the only hard number given. Both edit the same file; both
+commit; both push to the shared rail below. A's push lands first and
+commits cleanly. B's push lands second against a file A has already
+changed, produces a merge conflict neither agent can interpret, and a
+hallucinated resolution corrupts the file. [internal]}
+\label{fig:bonded-trust-collision}
+\end{figure}
