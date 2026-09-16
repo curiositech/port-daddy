@@ -1,27 +1,46 @@
-% Figure 11 — real-time intervals and extracted commit order.
+% Brief (tikz-diagram-craft).
+% Reader question: given four overlapping requests, what is the one
+%   commit order the single writer actually produces?
+% Claim: a concrete three-agent race -- A claims, B loses and is told who
+%   holds it, A releases, C claims -- linearizes to one total order on the
+%   writer's rail, even though the requests overlap in caller time.
+% Evidence: whitepaper/single-writer-kernel.tex thm:consistency (the
+%   conditional consistency model: committed transactions admit a serial
+%   order, claim/lock operations are linearizable with commit as the
+%   linearization point).
+% Must distinguish: caller-time overlap (the bands) from the one commit
+%   order (the rail); that a losing claim still gets a definite outcome
+%   (told who holds it), not a stall.
+% Grammar: swimlane bands over a shared commit rail, the worked instance's
+%   own linearization written under it (S13's K&R register: a concrete
+%   record, not a schematic). Rejected: a formal transition-system diagram,
+%   which would state the theorem again rather than show one witness to it.
+% Five-second test: "three overlapping bars, one rail, four commit points in
+%   order, and the one linearization written out".
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=.8cm,y=.85cm]
   \foreach \y/\a in {5.4/A,4.4/B,3.4/C} {
-    \node[pd row label] at (-.25,\y) {agent \a};
+    \node[pd title,anchor=east] at (-.25,\y) {agent \a};
     \draw[pd hairline] (0,\y)--(10.4,\y);
   }
   \fill[pd neutral fill] (.6,5.2) rectangle (4.3,5.6);
-  \node[pd direct label,anchor=south,text width=1.2cm,align=center] at (2.45,5.7) {claim};
+  \node[pd label,anchor=south,text width=1.2cm,align=center] at (2.45,5.7) {claim};
   \fill[pd neutral fill] (1.9,4.2) rectangle (6.0,4.6);
-  \node[pd direct label,anchor=south,text width=1.9cm,align=center] at (2.9,4.7) {loses to A};
+  \node[pd label,anchor=north,text width=1.9cm,align=center] at (2.9,4.10) {loses to A};
   \fill[pd neutral fill] (6.4,5.2) rectangle (8.0,5.6);
-  \node[pd direct label,anchor=south,text width=1.1cm,align=center] at (7.2,5.7) {release};
+  \node[pd label,anchor=south,text width=1.1cm,align=center] at (7.2,5.7) {release};
   \fill[pd neutral fill] (8.4,3.2) rectangle (10.3,3.6);
-  \node[pd direct label,anchor=south,text width=.9cm,align=center] at (9.35,3.7) {wins};
+  \node[pd label,anchor=south,text width=.9cm,align=center] at (9.35,3.7) {wins};
 
   \foreach \x/\lbl in {4.3/{A claim},6.0/{B loses},8.0/{A release},10.3/{C claim}} {
     \draw[pd guide] (\x,1.55)--(\x,5.75);
     \node[pd focus datum] at (\x,1.9) {};
-    \node[pd axis label,anchor=north,align=center] at (\x,1.65) {\lbl};
+    \node[pd label,anchor=north,align=center] at (\x,1.65) {\lbl};
   }
-  \draw[pd focus arrow,line width=1.3pt] (1.1,1.9)--(10.5,1.9);
-  \node[pd panel title,anchor=east,text width=1.6cm,align=right] at (.7,1.9) {commit order};
+  \draw[pd focus arrow] (1.1,1.9)--(10.5,1.9);
+  \node[pd title,anchor=east,text width=1.6cm,align=right] at (.7,1.9) {commit order};
 
   \node[pd note,anchor=north,text width=10.4cm,align=center] at (5.2,.75)
     {$A.claim \prec B.claim\text{ (loses)} \prec A.release \prec C.claim$};
@@ -30,6 +49,6 @@
 overlap in caller time, but each receives one commit point on the single
 writer's rail, and the linearization reads: A claims, B loses, A releases,
 C claims. The claim is conditional on one writer, no uncommitted reads, and
-replies after commit. [internal]}
+replies after commit [internal, thm:consistency].}
 \label{fig:swk-consistency-model}
 \end{figure}

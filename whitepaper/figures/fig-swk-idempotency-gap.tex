@@ -1,0 +1,58 @@
+% Brief (tikz-diagram-craft). Register row ch1-18 [should].
+% Reader question: what does the operator see when a message is
+%   redelivered, with and without an idempotency key?
+% Claim: today, a redelivered message is deduplicated by recognizing the
+%   same semantic effect -- silent, but conventional, not explicit. An
+%   envelope idempotency key would make retry safety explicit: a stored
+%   receipt, not a convention.
+% Evidence: whitepaper/single-writer-kernel.tex sec:comm keyidea (benign
+%   transport nondeterminism must be deduplicated silently; an idempotency
+%   key is currently absent, the coordination layer's debt);
+%   Exercise~\ref{ex:swk-redelivery} and its solution.
+% Must distinguish: both panels reach the same operator-visible outcome
+%   (one act); what changes is HOW the duplicate is recognized, and that
+%   even the fixed version does not guarantee exactly-once for an
+%   unbrokered external effect.
+% Grammar: two small lanes reusing one request/redeliver/consumer
+%   vocabulary. Rejected: a full sequence diagram with the bus as a
+%   participant, which would spend a lifeline on infrastructure that is not
+%   what changes between the two panels.
+% Five-second test: "same redelivery, two lanes: one dedups by convention,
+%   one by a stored receipt".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd title,anchor=west] at (0.00,6.10) {today: dedup by semantic effect};
+  \draw[pd hairline] (0.00,5.00) -- (10.3,5.00);
+  \node[pd datum] at (0.85,5.00) {};
+  \node[pd label,anchor=south] at (0.85,5.18) {request};
+  \node[pd datum] at (3.15,5.00) {};
+  \node[pd label,anchor=south] at (3.15,5.18) {redelivered};
+  \node[pd focus datum] at (6.55,5.00) {};
+  \node[pd label,anchor=south,text width=3.2cm,align=center] at (6.55,5.18)
+    {consumer recognizes the same effect: a convention};
+  \node[pd label,anchor=north] at (9.85,4.80) {one act};
+
+  \node[pd title,anchor=west,text width=9.8cm,align=left] at (0.00,3.30)
+    {with an idempotency key: the coordination layer's debt};
+  \draw[pd hairline] (0.00,1.45) -- (10.3,1.45);
+  \node[pd datum] at (0.85,1.45) {};
+  \node[pd label,anchor=south,text width=1.9cm,align=center] at (0.85,1.63) {request, key $k_1$};
+  \node[pd datum] at (3.15,1.45) {};
+  \node[pd label,anchor=south,text width=2.1cm,align=center] at (3.15,1.63) {redelivered, key $k_1$};
+  \node[pd ready datum] at (6.55,1.45) {};
+  \node[pd label,anchor=south,text width=3.2cm,align=center] at (6.55,1.63)
+    {stored receipt for $k_1$: an explicit no-op};
+  \node[pd label,anchor=north] at (9.85,1.25) {one act};
+\end{tikzpicture}
+\caption{The idempotency gap, drawn as one redelivery on two lanes. Today
+(top), the consumer deduplicates by recognizing it already applied the same
+semantic effect -- silent, but a convention. With an envelope idempotency
+key (bottom, not yet shipped -- the coordination layer's debt), the consumer
+instead checks a stored receipt for that key: the same operator-visible
+outcome, but retry safety is now explicit rather than conventional.
+Exactly-once is still not guaranteed for an unbrokered external effect.
+[internal, Exercise~\ref{ex:swk-redelivery}]}
+\label{fig:swk-idempotency-gap}
+\end{figure}

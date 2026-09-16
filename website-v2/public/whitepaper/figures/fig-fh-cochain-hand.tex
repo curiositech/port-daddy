@@ -1,0 +1,90 @@
+% Figure IV.13 --- the cochain by hand (S5.4, pdexample "one ring, one
+% chain, one dark link"), drawn as three small 4-node panels: full ring,
+% chain, ring with a different link severed.
+%
+% Reader question: does breaking a ring's loop always make a lie invisible,
+%   even without severing the specific lied-about edge?
+% Claim: the same size-3 lie on link 3-0 gives r=1.5 on the full ring,
+%   r=0 on the chain (missing link 2-3), and r=0 again on the ring with a
+%   DIFFERENT link (1-2) severed -- the loop through the lie is what
+%   matters, not which specific link is missing.
+% Evidence: the chapter's own hand-worked numbers: g=(0,0,0,3) on the ring,
+%   least squares x=(0,0.75,1.5,2.25), r=1.5=3/sqrt(4); on the chain,
+%   x=(0,0,0,-3) reproduces g=(0,0,3) exactly, r=0; on the ring with 1-2
+%   severed, g_K=(0,0,3) on the three visible links, x=(0,0,3,3)
+%   reproduces it exactly, r=0.
+% Must distinguish: panel C's severed link (1-2) from the lied-about link
+%   (3-0) -- the reader must see they are different edges, which is the
+%   whole point of the visibility clause.
+% Grammar chosen: small multiples, three aligned 4-node panels on one
+%   shared layout (no pgfplots axes needed -- the "axis" here is graph
+%   topology, not a numeric scale), matching tpl-small-multiples.tex's
+%   discipline of one shared scale and aligned panels without its
+%   groupplot machinery. Grammar rejected: a single 4-panel table of
+%   numbers would lose the topology that r=0 depends on; the reader must
+%   see the loop close or break, not just read a residual.
+% Five-second test: in panel C, is the severed link the same one carrying
+%   the lie?
+\pdfigurehue{pdgold}%
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\pw{4.85}   \def\s{2.00}   \def\topY{2.30}   \def\botY{0.30}
+  % ---- panel A: full ring, lie on 3-0 -----------------------------------
+  \def\oA{0.00}
+  \node[pd title,anchor=south,text width=\pw cm,align=center] at ({\oA+\pw/2},{\topY+0.85}) {A. full ring};
+  \node[pd automaton state] (a0) at ({\oA+1.10},\topY) {0};
+  \node[pd automaton state] (a1) at ({\oA+1.10+\s},\topY) {1};
+  \node[pd automaton state] (a2) at ({\oA+1.10+\s},\botY) {2};
+  \node[pd automaton state] (a3) at ({\oA+1.10},\botY) {3};
+  \draw[pd rule] (a0) -- (a1);  \node[pd tag,anchor=south] at ({\oA+1.10+\s/2},\topY) {0};
+  \draw[pd rule] (a1) -- (a2);  \node[pd tag,anchor=west] at ({\oA+1.10+\s},{(\topY+\botY)/2}) {0};
+  \draw[pd rule] (a2) -- (a3);  \node[pd tag,anchor=north] at ({\oA+1.10+\s/2},\botY) {0};
+  \draw[pd breach arrow] (a3) -- (a0);
+  \node[pd breach label,anchor=east] at ({\oA+0.95},{(\topY+\botY)/2}) {$s{=}3$};
+  \node[pd focus label,anchor=north,text width=\pw cm,align=center] at ({\oA+\pw/2},{\botY-0.55}) {$r=1.5$};
+
+  % ---- panel B: chain, lie on the end link 2-3 --------------------------
+  \def\oB{5.15}
+  \node[pd title,anchor=south,text width=\pw cm,align=center] at ({\oB+\pw/2},{\topY+0.85}) {B. chain};
+  \def\midY{1.30}
+  \node[pd automaton state] (b0) at ({\oB+0.55},\midY) {0};
+  \node[pd automaton state] (b1) at ({\oB+0.55+1.25},\midY) {1};
+  \node[pd automaton state] (b2) at ({\oB+0.55+2.50},\midY) {2};
+  \node[pd automaton state] (b3) at ({\oB+0.55+3.75},\midY) {3};
+  \draw[pd rule] (b0) -- (b1);  \node[pd tag,anchor=south] at ({\oB+0.55+0.625},\midY) {0};
+  \draw[pd rule] (b1) -- (b2);  \node[pd tag,anchor=south] at ({\oB+0.55+1.875},\midY) {0};
+  \draw[pd breach arrow] (b2) -- (b3);
+  \node[pd breach label,anchor=south] at ({\oB+0.55+3.125},{\midY+0.20}) {$s{=}3$};
+  \node[pd focus label,anchor=north,text width=\pw cm,align=center] at ({\oB+\pw/2},{\midY-0.85}) {$r=0$};
+
+  % ---- panel C: ring, same lie on 3-0, but 1-2 severed (unobserved) ------
+  \def\oC{10.30}
+  \node[pd title,anchor=south,text width=\pw cm,align=center] at ({\oC+\pw/2},{\topY+0.85}) {C. ring, 1--2 severed};
+  \node[pd automaton state] (c0) at ({\oC+1.10},\topY) {0};
+  \node[pd automaton state] (c1) at ({\oC+1.10+\s},\topY) {1};
+  \node[pd automaton state] (c2) at ({\oC+1.10+\s},\botY) {2};
+  \node[pd automaton state] (c3) at ({\oC+1.10},\botY) {3};
+  \draw[pd rule] (c0) -- (c1);  \node[pd tag,anchor=south] at ({\oC+1.10+\s/2},\topY) {0};
+  \draw[pd guide,dashed] (c1) -- (c2);
+  \node[pd label,text=pdinkmuted,anchor=west,text width=1.3cm,align=left] at ({\oC+1.10+\s+0.12},{(\topY+\botY)/2}) {severed};
+  \draw[pd rule] (c2) -- (c3);  \node[pd tag,anchor=north] at ({\oC+1.10+\s/2},\botY) {0};
+  \draw[pd breach arrow] (c3) -- (c0);
+  \node[pd breach label,anchor=east] at ({\oC+0.95},{(\topY+\botY)/2}) {$s{=}3$};
+  \node[pd focus label,anchor=north,text width=\pw cm,align=center] at ({\oC+\pw/2},{\botY-0.55}) {$r=0$};
+\end{tikzpicture}
+
+\caption{\textbf{Same lie, three topologies, two different verdicts.} A
+relay 0 equivocates by $s=3$ on one link in every panel. On the full ring
+(A) the loop cannot absorb the lie without leaving a residual on every
+link, giving $r=1.5$. Breaking the loop makes the lie invisible
+two different ways: as a chain (B), the assignment $x=(0,0,0,-3)$
+reproduces the visible disagreement exactly, so $r=0$; as a ring with a
+\emph{different} link (1--2, not the lied-about 3--0) severed (C), the
+three still-visible links admit the same free completion, so $r=0$ again.
+The severed link in panel C is not the lying link -- visibility of the
+\emph{loop through the equivocator}, not of the lie itself, is what the
+theorem's clause turns on. [verified, closed form; matches
+\texttt{sheaf\_consistency\_radius.py}]}
+\label{fig:fh-cochain-hand}
+\end{figure*}

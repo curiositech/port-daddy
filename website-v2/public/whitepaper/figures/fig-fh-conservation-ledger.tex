@@ -1,0 +1,64 @@
+% Figure IV.12 --- the Cross-Harbor Bucket Partition (S6.2, prop:fh-cross-cons),
+% drawn as a typed stock-flow ledger: four buckets, directed pipes, the
+% conservation equation aligned beneath, using the chapter's own $100 worked
+% instance.
+%
+% Reader question: where does a bond's value sit at every step of a
+%   cross-harbor settlement, and can it ever go missing or double-count?
+% Claim: a funded bond occupies exactly one of four buckets at any time, and
+%   every valid transition moves the whole amount from one bucket to
+%   another -- never splitting it, never losing it.
+% Evidence: prop:fh-cross-cons's own notation (P_b, E_b, C_b, R_b) and the
+%   chapter's $100 worked instance: (100,0,0,0) -> (0,100,0,0) ->
+%   (0,0,100,0) with C=90+10, or -> (0,0,0,100) on the refuse branch.
+% Must distinguish: the two terminal outcomes (cleared vs refunded) share
+%   the same escrow bucket as their common predecessor, and the fee is an
+%   explicit cleared recipient, not a silent subtraction.
+% Grammar chosen: typed stock-flow ledger (pd bucket, pd pipe, S12's own
+%   ledger convention), conserved-sum equation under the rails. Grammar
+%   rejected: a state machine would suggest the bond itself has behaviour;
+%   it is inert value moved by the protocol, which a ledger of buckets and
+%   pipes says directly and a state machine would only imply.
+% Five-second test: how many buckets are nonzero at once, and what happens
+%   to the fee?
+\pdfigurehue{pdgold}%
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xP{0.55}  \def\xE{3.60}  \def\xC{6.65}
+  \def\by{0}      \def\ry{-2.85}  \def\bw{2.4cm} \def\bh{1.55cm}
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (P) at (\xP,\by) {posted\\[1pt]$P_b$};
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (E) at (\xE,\by) {escrow\\[1pt]$E_b$};
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (C) at (\xC,\by) {cleared\\[1pt]$C_b$};
+  \node[pd bucket,minimum width=2.4cm,minimum height=1.55cm] (R) at (\xC,\ry) {refunded\\[1pt]$R_b$};
+
+  \draw[pd focus pipe] (P) -- (E);
+  \draw[pd focus pipe] (E) -- (C);
+  \draw[pd pipe,dash pattern=on 4pt off 2.4pt] (E) -- (R);
+  \node[pd focus label,anchor=south,text width=3.0cm,align=center] at ({(\xP+\xE)/2},0.95)
+    {transfer: locks \$100};
+  \node[pd focus label,anchor=south,text width=3.0cm,align=center] at ({(\xE+\xC)/2},0.95)
+    {\textbf{clear}: \$90 $+$ \$10 fee};
+  \node[pd label,anchor=west,text width=2.6cm,align=left] at (\xC+1.25,{(\by+\ry)/2})
+    {\textbf{refuse}: returns \$100};
+
+  \draw[pd rule] (0.00,-3.75) -- (9.35,-3.75);
+  \node[pd label,anchor=north west,text width=9.3cm,align=left] at (0.00,-3.95)
+    {$P_b+E_b+C_b+R_b=100$, and exactly one term is nonzero at any time};
+  \node[pd note,anchor=north west,text width=9.3cm,align=left] at (0.00,-4.95)
+    {worked instance: $(100,0,0,0)\to(0,100,0,0)\to(0,0,100,0)$ with $C{=}90{+}10$,
+    or the refuse branch $\to(0,0,0,100)$};
+\end{tikzpicture}
+\caption{\textbf{One bond, one bucket, at any time.} A funded bond of amount
+$a_b$ moves through exactly one path: posted at $A$, locked in escrow, then
+either \textbf{clear} (paid out, with the fee an explicit second cleared
+recipient rather than a silent subtraction) or \textbf{refuse} (returned to
+$A$). Design Invariant~\ref{prop:fh-cross-cons}'s own worked instance is
+annotated on the pipes: a \$100 bond clears as \$90 to the counterparty plus
+\$10 in fees, or refunds the whole \$100 on the dashed branch. The four
+buckets always sum to $a_b$, and only one is ever nonzero -- a fee that
+vanished from the row would be the first sign of a broken partition. The
+\texttt{Bucket} partition is model-checked by Apalache at $|F|=4$ harbors and
+bond depth 16 (\S\ref{sec:fh-tla-ext}). [internal]}
+\label{fig:fh-conservation-ledger}
+\end{figure}

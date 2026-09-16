@@ -1,0 +1,59 @@
+% Reader question (a): if nobody can see which engine is actually running,
+% why does the market spiral toward the cheap one? Reader question (b): does
+% attesting the engine force everyone onto the expensive model, or does it
+% align incentive with efficiency? Claim: unattested, the one-period swap
+% gain Delta c is constant in price, so no price deters it, and pooling
+% survives only above the committed-share threshold mu*; attested with full
+% price pass-through, the same gain becomes Delta c - Delta theta, which
+% flips negative exactly when the cheap engine is the efficient one. Evidence:
+% theta_H=1, theta_L=0.4, c_H=0.5, c_L=0.2 => Delta c=0.3, mu*=1/6 approx
+% 0.167; attested keep=0.50 vs swap=0.20 => flip=-0.3 (thm:engine-swap,
+% b5_engine_substitution.py, seed 20260816, 4000 draws, 0 violations). Must
+% distinguish: the gain is price-independent (a flat line, not a slope) in
+% both regimes; only its sign and the collapse threshold change. Grammar: a
+% paired regime plot, one panel per regime on identical axes, rejected: one
+% panel with two lines superimposed (hides that mu* and the flip are
+% different mechanisms) and a bare pair of numbers (states the flip but not
+% that it holds at every price). Five-second test: a reader says "the same
+% gain that survives every price without attestation flips negative once
+% the engine is attested."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure]
+\begin{groupplot}[
+  group style={group size=2 by 1,horizontal sep=1.05cm},
+  pd axis,width=4.05cm,height=4.0cm,
+  xmin=0,xmax=1,ymin=-0.5,ymax=0.5,
+  xtick={0,0.5,1},ytick={-0.5,-0.3,0,0.3,0.5},
+  xlabel={committed share $\mu$}]
+\nextgroupplot[title={(a) unattested},ylabel={swap gain}]
+  \addplot[pd hairline,domain=0:1] {0};
+  \addplot[pd breach series,mark=none,domain=0:1,samples=2] {0.3};
+  \draw[pd guide] (axis cs:0.167,-0.5) -- (axis cs:0.167,0.3);
+  \node[pd breach datum] at (axis cs:0.167,0.3) {};
+  \node[pd label,anchor=north west,text width=2.9cm] at (axis cs:0.20,-0.10)
+    {$\mu^\star\approx 0.167$: pool collapses below here};
+  \node[pd breach label,anchor=south west] at (axis cs:0.02,0.34) {$\Delta c=0.3$};
+\nextgroupplot[title={(b) attested, full pass-through},yticklabels={,,,,}]
+  \addplot[pd hairline,domain=0:1] {0};
+  \addplot[pd ready series,mark=none,domain=0:1,samples=2] {-0.3};
+  \node[pd ready datum] at (axis cs:0.5,-0.3) {};
+  \node[pd ready label,anchor=south west,text width=2.2cm] at (axis cs:0.58,0.02)
+    {$\Delta c-\Delta\theta=-0.3$: keeping $\theta_H$ now pays};
+\end{groupplot}
+\end{tikzpicture}
+\caption{The engine-swap gain (Theorem~\ref{thm:engine-swap}), at
+$\theta_H=1$, $\theta_L=0.4$, $c_H=0.5$, $c_L=0.2$. In (a), unattended, the
+one-period swap gain is the flat line $\Delta c=0.3$ at every committed share
+$\mu$; the pool of $\theta_H$ sellers survives only above
+$\mu^\star=(c_H-\theta_L)/\Delta\theta\approx 0.167$, below which the market
+spirals to $\theta_L$. In (b), the engine is attested and the price schedule
+passes the quality gap through in full: the same gain becomes
+$\Delta c-\Delta\theta=-0.3$, so swapping no longer pays and keeping the
+strong engine is now the efficient choice, at zero audit stake. Both lines
+are flat because the gain does not depend on price; the sign is what changes.
+[verified; \texttt{b5\_engine\_substitution.py}, seed 20260816, 4{,}000 draws,
+0 violations]}
+\label{fig:stp-engine-swap-regime}
+\end{figure}

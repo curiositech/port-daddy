@@ -1,0 +1,59 @@
+% Brief (tikz-diagram-craft). Register row ch7-11 (should).
+% Reader question: how do the three isolation tiers order, and what does
+%   each buy or cost?
+% Claim: the three tiers strictly order by strength (I0 subset I1 subset
+%   I2); I1 is the default; choosing I1 vs I2 is an economics decision
+%   (Section 5), not a security one.
+% Evidence: website-v2/public/whitepaper/agent-transactions-whitepaper.tex
+%   Definition (Isolation Levels), sec:isolation: I0 none (shared working
+%   directory, no conflict detection, maximum parallelism, no safety); I1
+%   advisory (shared directory, file claims registered, conflicts detected
+%   and reported but not enforced -- the default); I2 structural (separate
+%   git worktrees, filesystem-level isolation, conflicts deferred to
+%   sequential merge).
+% Must distinguish: the strict ordering by strength from what each rung
+%   adds relative to the one below; I1 as the default from I0/I2 as
+%   deliberate choices; the I1-vs-I2 choice as economic, forward-pointing
+%   to Section 5's Sen-grounded argument.
+% Grammar chosen: three-rung ordered ladder (Hasse-style containment), each
+%   rung naming what it adds and its cost, weakest at the bottom. Rejected:
+%   a plain enumerated list, which the chapter already gives in prose and
+%   would not show the strict-subset ordering the definition states.
+% Five-second test: a reader reads bottom-to-top as "less safety, more
+%   parallelism" and top-to-bottom as the reverse, with I1 marked default.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\ldy{2.05}  % rung pitch
+  \def\ldw{7.6}   % rung width
+  \tikzset{rung/.style={pd label,minimum width=\ldw cm,minimum height=1.55cm,
+    draw,line width=.9pt,align=left,text width=6.9cm,inner xsep=8pt}}
+  \node[rung,pd focus fill,line width=1.6pt] (i2) at (0,{2*\ldy})
+    {\textbf{$I_2$ Structural} --- separate git worktrees; filesystem-level
+     isolation, agents cannot observe each other's intermediate state;
+     conflicts deferred to sequential merge};
+  \node[rung] (i1) at (0,\ldy)
+    {\textbf{$I_1$ Advisory} --- shared working directory; file claims
+     registered with the commons authority; conflicts detected and
+     reported, not enforced};
+  \node[rung] (i0) at (0,0)
+    {\textbf{$I_0$ None} --- shared working directory; no conflict
+     detection; maximum parallelism, no safety};
+  \draw[pd focus arrow] (i0.north) -- (i1.south);
+  \draw[pd focus arrow] (i1.north) -- (i2.south);
+  \node[pd tag] at (0,{.5*\ldy}) {stronger};
+  \node[pd tag] at (0,{1.5*\ldy}) {stronger};
+  \node[pd kind,anchor=west] at ({\ldw/2+.35},\ldy) {the default};
+  \draw[pd hairline,densely dashed,->] (i1.east) .. controls +(0:1.1) and +(180:0.4) .. ({\ldw/2+.05},{\ldy-.45});
+  \node[pd note,anchor=north west,text width=3.0cm] at ({\ldw/2+.35},{\ldy-.55})
+    {choosing $I_1$ versus $I_2$: an economics decision, Section 5};
+\end{tikzpicture}
+\caption{The three isolation tiers order strictly by strength, weakest to
+strongest: none, advisory, structural. $I_1$ (advisory) is the default --- file claims
+are registered and reported but never block. Moving up buys more safety at
+the cost of parallelism; the choice between $I_1$ and $I_2$ specifically
+is not a security decision but an economics one, argued in Section 5.
+[internal]}
+\label{fig:bonded-isolation-ladder}
+\end{figure}

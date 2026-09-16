@@ -1,0 +1,49 @@
+% Brief (tikz-diagram-craft), breaking the sec:hayek desert (no register
+% row; assignment names 4.9.3 as a no-visual run to break).
+% Reader question: are the political-theory warning (Scott) and the
+%   economics warning (Hayek) two separate cautions, or one claim reached
+%   from two poles?
+% Claim: Scotts legibility-destroys-metis warning and Hayeks dispersed,
+%   non-aggregable knowledge argument converge on one shared claim -- the
+%   binding constraint is decentralized, non-spawnable knowledge held in
+%   one head -- and Scotts own constructive sequel supplies the one
+%   prescription: preserve the spaces where metis lives.
+% Evidence: sec:hayek, whitepaper/legible-swarm.tex (Hayek 1945, Scott
+%   1998, Scott 2012), this pass.
+% Must distinguish: the two independent source arguments from the one
+%   claim they converge on; the claim from the prescription that follows
+%   it, which is a distinct, later, constructive move.
+% Grammar chosen: provenance/convergence chain, two named sources into one
+%   claim into one prescription, since the point is literally that two
+%   argument threads land on the same conclusion.
+% Grammar rejected: a two-column comparison table (Scott vs Hayek) would
+%   state each argument's content but hide the convergence itself, which
+%   is the sentence's whole claim ("the same warning at two scales" /
+%   "the other half of Scotts argument from the opposite pole").
+% Five-second test: do the two named sources support different claims, or
+%   the same one?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state,minimum width=3.9cm,text width=3.5cm,align=center] (S)
+    at (2.30,4.50) {Scott 1998: legibility flattens the metis that made the system work};
+  \node[pd state,minimum width=3.9cm,text width=3.5cm,align=center] (H)
+    at (7.10,4.50) {Hayek 1945: knowledge is dispersed, particular, non-aggregable};
+  \node[pd focus state,minimum width=7.0cm,text width=6.4cm,align=center] (C)
+    at (4.70,2.30) {the binding constraint is decentralized, non-spawnable knowledge held in one head};
+  \node[pd ready state,minimum width=7.0cm,text width=6.4cm,align=center] (P)
+    at (4.70,0.30) {Scott 2012: preserve the spaces where metis lives; do not flatten them};
+  \draw[pd focus arrow] (S) -- (C);
+  \draw[pd focus arrow] (H) -- (C);
+  \draw[pd ready arrow] (C) -- (P);
+\end{tikzpicture}
+\caption{Scotts legibility warning and Hayeks dispersed-knowledge argument
+converge on one claim from two independent poles -- political anthropology
+and economics -- rather than stating two separate cautions. Scotts own
+later book supplies the constructive sequel: preserve the spaces where
+metis lives, rather than flattening them for legibilitys sake. That two
+routes this far apart arrive at a compatible object is itself evidence for
+the claim, not decoration. [internal]}
+\label{fig:hayek-scott}
+\end{figure}

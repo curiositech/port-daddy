@@ -1,65 +1,74 @@
-% Minimal compromise sets for the four federated-security guarantees.
+% Reader question: Which single key holder, if compromised, breaks which
+%   custody guarantee?
+% Claim: three of the four guarantees have one sufficient secret; only user
+%   impersonation needs a conjunction of two secrets.
+% Evidence: the custody theorem four minimum compromise sets (daemon signing
+%   key, harbor session key, email AND passphrase, KMS witness signature)
+%   from this chapter section on key custody [internal].
+% Must distinguish: a single-point cut (one secret suffices) from the one
+%   conjunctive cut (both secrets are required together).
+% Grammar chosen: custody-by-guarantee threat matrix, four columns each with
+%   its own minimum cut set and mitigation. Rejected: a node-link graph of
+%   custodians, because it would hide which cuts are conjunctive.
+% Five-second test: a reader names the one guarantee that needs two secrets
+%   at once, and the mitigation under each column.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
+\pdfigurehue{pdgold}%
 \begin{tikzpicture}[
-  pd figure,
-  secret/.style={circle,draw=hhink,line width=.65pt,fill=hhpaper,minimum size=7mm,inner sep=1pt},
-  breach/.style={diamond,aspect=1.25,draw=hhamber,line width=1pt,fill=hhamber!10,minimum size=8mm,inner sep=1pt},
-  condition/.style={pd direct label,align=center,fill=none},
+  pd figure,x=1cm,y=1cm,
+  secret/.style={pd identity state,circle,minimum size=7mm,inner sep=1pt},
+  breach/.style={pd breach state,diamond,aspect=1.35,minimum size=8mm,inner sep=1pt},
 ]
-  \node[pd panel title,anchor=west] at (-.15,4.20)
-    {minimum compromise sets: one conjunction, three single points};
-
-  \foreach \x in {3.75,7.55,11.35}
-    \draw[pd lattice] (\x,.05)--(\x,3.72);
-
-  % Guarantee headings.
-  \node[pd panel title,align=center] at (1.85,3.54) {FORGE\\A CARD};
-  \node[pd panel title,align=center] at (5.65,3.54) {READ\\EVIDENCE};
-  \node[pd panel title,align=center] at (9.45,3.54) {IMPERSONATE\\USER};
-  \node[pd panel title,align=center] at (13.25,3.54) {ROLL BACK\\FOREST};
-
-  % Single-key cut: daemon signing key.
-  \node[breach] (b1) at (1.85,2.95) {};
-  \node[secret] (s1) at (1.85,1.70) {$sk_D$};
-  \draw[pd caution arrow] (s1.north)--(b1.south);
-  \node[condition] at (1.85,1.03) {daemon signing key};
-  \draw[pd focus rule] (.55,.52)--(3.15,.52);
-  \node[pd note,text=hhteal,align=center] at (1.85,.22) {rotation + revocation};
-
-  % Single-key cut: harbor session key.
-  \node[breach] (b2) at (5.65,2.95) {};
-  \node[secret] (s2) at (5.65,1.70) {$k_H$};
-  \draw[pd caution arrow] (s2.north)--(b2.south);
-  \node[condition] at (5.65,1.03) {harbor session key};
-  \draw[pd focus rule] (4.35,.52)--(6.95,.52);
-  \node[pd note,text=hhteal,align=center] at (5.65,.22) {keyring + host sandbox};
-
-  % The only conjunctive cut: email AND passphrase.
-  \node[breach] (b3) at (9.45,2.95) {AND};
-  \node[secret] (email) at (8.78,1.70) {@};
-  \node[secret] (pass) at (10.12,1.70) {$\phi$};
-  \draw[pd caution arrow] (email.north)--(b3.south west);
-  \draw[pd caution arrow] (pass.north)--(b3.south east);
-  \node[condition] at (8.78,1.03) {email};
-  \node[condition] at (10.12,1.03) {passphrase};
-  \draw[pd focus rule] (8.15,.52)--(10.75,.52);
-  \node[pd note,text=hhteal,align=center] at (9.45,.22) {two-factor recovery};
-
-  % Single-witness cut: equivocation or deletion by the KMS witness.
-  \node[breach] (b4) at (13.25,2.95) {};
-  \node[secret] (s4) at (13.25,1.70) {$\sigma_K$};
-  \draw[pd caution arrow] (s4.north)--(b4.south);
-  \node[condition] at (13.25,1.03) {KMS witness signature};
-  \draw[pd focus rule] (11.95,.52)--(14.55,.52);
-  \node[pd note,text=hhteal,align=center] at (13.25,.22) {cross-witness roots};
-
-  \node[pd note,align=center,text width=11.8cm] at (7.55,-.45)
-    {diamonds are sufficient cut sets; gold baselines name consequence-limiting controls\\
-     scope excludes same-user code execution on the daemon host};
-\end{tikzpicture}%
-}
-\caption{The custody theorem has four small attack cut sets rather than one undifferentiated trust boundary. Card forgery, evidence decryption, and forest rollback each have one sufficient secret; user impersonation is the sole conjunctive failure and requires both email and passphrase. The gold baselines name the consequence-limiting control for each cut. Same-user code execution remains outside the theorem because that adversary can read every secret available to the user process.}
+  \def\xa{0.30}  \def\xb{2.65}  \def\xc{4.99}  \def\xd{7.33}  \def\xe{9.65}
+  \def\ca{1.475}  \def\cb{3.82}  \def\cc{6.16}  \def\cd{8.49}
+  \node[pd title,anchor=west] at (\xa,4.55)
+    {minimum compromise sets: one conjunction, three points};
+  \foreach \x in {\xb,\xc,\xd} {\draw[pd guide] (\x,.05)--(\x,4.05);}
+  % ---- column headers, mixed case (S2: no all-caps state names) -----------
+  \node[pd title,align=center,text width=2.3cm] at (\ca,3.90) {Forge a card};
+  \node[pd title,align=center,text width=2.3cm] at (\cb,3.90) {Read evidence};
+  \node[pd title,align=center,text width=2.3cm] at (\cc,3.90) {Impersonate user};
+  \node[pd title,align=center,text width=2.3cm] at (\cd,3.90) {Roll back forest};
+  % ---- column 1: daemon signing key ----------------------------------------
+  \node[breach] (b1) at (\ca,2.80) {};
+  \node[secret] (s1) at (\ca,1.75) {$sk_D$};
+  \draw[pd breach arrow] (s1.north)--(b1.south);
+  \node[pd label,anchor=north,align=center,text width=2.1cm] at (\ca,1.30) {daemon signing key};
+  \draw[pd ready rule] ({\ca-.95},-.05)--({\ca+.95},-.05);
+  \node[pd ready label,anchor=north,align=center,text width=2.1cm] at (\ca,-.30) {rotation and revocation};
+  % ---- column 2: harbor session key ----------------------------------------
+  \node[breach] (b2) at (\cb,2.80) {};
+  \node[secret] (s2) at (\cb,1.75) {$k_H$};
+  \draw[pd breach arrow] (s2.north)--(b2.south);
+  \node[pd label,anchor=north,align=center,text width=2.1cm] at (\cb,1.30) {harbor session key};
+  \draw[pd ready rule] ({\cb-.95},-.05)--({\cb+.95},-.05);
+  \node[pd ready label,anchor=north,align=center,text width=2.1cm] at (\cb,-.30) {keyring and host sandbox};
+  % ---- column 3: the one conjunctive cut ------------------------------------
+  \node[breach] (b3) at (\cc,2.80) {AND};
+  \node[secret] (em) at ({\cc-.75},1.75) {@};
+  \node[secret] (pw) at ({\cc+.75},1.75) {$\phi$};
+  \draw[pd breach arrow] (em.north)--(b3.south west);
+  \draw[pd breach arrow] (pw.north)--(b3.south east);
+  \node[pd label,anchor=north,align=center,text width=2.1cm] at (\cc,1.30) {email and passphrase};
+  \draw[pd ready rule] ({\cc-.95},-.05)--({\cc+.95},-.05);
+  \node[pd ready label,anchor=north,align=center,text width=2.1cm] at (\cc,-.30) {two-factor recovery};
+  % ---- column 4: KMS witness signature --------------------------------------
+  \node[breach] (b4) at (\cd,2.80) {};
+  \node[secret] (s4) at (\cd,1.75) {$\sigma_K$};
+  \draw[pd breach arrow] (s4.north)--(b4.south);
+  \node[pd label,anchor=north,align=center,text width=2.1cm] at (\cd,1.30) {KMS witness signature};
+  \draw[pd ready rule] ({\cd-.95},-.05)--({\cd+.95},-.05);
+  \node[pd ready label,anchor=north,align=center,text width=2.1cm] at (\cd,-.30) {cross-witness roots};
+  \node[pd note,anchor=west,text width=9.35cm] at (\xa,-2.10)
+    {diamonds are sufficient cut sets; green baselines name the consequence-limiting control. Scope excludes same-user code execution on the daemon host.};
+\end{tikzpicture}
+\caption{The custody theorem has four small attack cut sets rather than one
+undifferentiated trust boundary. Card forgery, evidence decryption, and
+forest rollback each have one sufficient secret; user impersonation is the
+sole conjunctive failure and requires both email and passphrase. Each
+baseline names the consequence-limiting control for that cut. Same-user code
+execution stays outside the theorem because that adversary can read every
+secret the user process can read. [internal]}
 \label{fig:bonded-key-custody}
 \end{figure}

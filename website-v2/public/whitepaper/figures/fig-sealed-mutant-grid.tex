@@ -1,31 +1,57 @@
-% Ledger grid for Sec. sealed-conservation ("The budget is a ledger, and the ledger conserves"): which conservation invariant each mutant breaks, and in how many steps. Numbers copied from website-v2/public/whitepaper/sealed-harbor.tex, the "Model-checked property" claim (Property sealed-ledger-checked) [internal, a3_epsilon_ledger.py].
+% Redraw of fig-sealed-mutant-grid to the tikz-diagram-craft v2 standard.
+%
+% Reader question: which mutant breaks which conservation invariant, and how
+% fast is it caught?
+% Claim: both mutants break the ledger's balance invariant immediately (1
+% step); only the torn write's deeper crime, a recorded spend past the
+% contracted cap, takes three steps to surface.
+% Evidence: Property sealed-ledger-checked ("the budget is a ledger, and the
+% ledger conserves"), website-v2/public/whitepaper/sealed-harbor.tex,
+% Sec.~sealed-conservation [internal, a3_epsilon_ledger.py].
+% Must distinguish: which of the 2 mutants x 2 invariants cells is caught
+% (and in how many steps) from the one cell that is not exercised at all.
+% Grammar chosen: grid matrix (tpl-grid-matrix) -- 2 mutants x 2 invariants,
+% membership (caught / not exercised) read off position, step count named in
+% the cell. NOTE for the author: this is a 2x2 classification, which the
+% house style otherwise sends to a booktabs table; it is kept as the atlas's
+% prescribed grid because the atlas row (fig:sealed-mutant-grid) explicitly
+% rejects a table as the alternative -- flagged for review, not resolved here.
+% Grammar rejected: a bar chart of the two "caught" step counts would drop
+% the not-exercised cell, which is exactly the fact that motivates checking
+% the budget cap under the torn write specifically.
+% Five-second test: which cell is empty, and which one takes 3 steps.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  hdr/.style={pd panel title,align=center},
-  rowhdr/.style={pd panel title,align=left},
-  cell/.style={pd direct label,align=center,fill=none},
-  blankcell/.style={pd note,align=center}]
-  \node[pd panel title,anchor=west] at (-0.2,6.15) {which mutant breaks which invariant, and how fast};
-  % --- grid rules (ledger ruling) ---
-  \foreach \y in {5.6,4.4,2.6,0.8} {\draw[pd hairline] (-0.2,\y) -- (11.6,\y);}
-  \foreach \x in {-0.2,4.4,8.0,11.6} {\draw[pd hairline] (\x,0.8) -- (\x,5.6);}
-  % --- headers ---
-  \node[hdr,text width=3.0cm] at (6.2,5.0) {spend-without-\\append};
-  \node[hdr,text width=3.0cm] at (9.8,5.0) {torn write};
-  \node[blankcell,text width=3.8cm] at (2.1,5.0) {mutant $\rightarrow$};
-  \node[rowhdr,text width=4.0cm] at (2.1,3.5) {ledger balance\\(the recorded sum)};
-  \node[rowhdr,text width=4.0cm] at (2.1,1.7) {budget cap\\(spend at or under the limit)};
-  % --- data cells ---
-  \node[pd caution datum] at (5.3,3.5) {};
-  \node[cell,text width=1.9cm] at (6.75,3.5) {caught, 1 step};
-  \node[blankcell,text width=3.0cm] at (6.2,1.7) {not exercised};
-  \node[pd caution datum] at (8.9,3.5) {};
-  \node[cell,text width=1.9cm] at (10.3,3.5) {caught, 1 step};
-  \node[pd caution datum] at (8.9,1.7) {};
-  \node[cell,text width=1.9cm] at (10.3,1.7) {caught, 3 steps};
-  \node[pd note,anchor=north west,text width=11.8cm] at (-0.2,0.35) {Model-checked instance: two concurrent clients racing programs $(2,2)$ and $(1,2)$ against a budget cap of $4$. All 15 reachable states (order-sensitive; 11 as a multiset) satisfy both invariants under every interleaving, and 2000 random instances of program, budget, and interleaving show no violation. The torn write logs the correct amount but adds one unit less: by 3 steps the recorded ledger reaches a total of $5$, over the cap of $4$ -- an auditable over-spend. Reverting either mutation restores both invariants and the 15 states [internal, \texttt{a3\_epsilon\_ledger.py}].};
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\cw{2.85}   % cell width
+  \def\ch{1.55}   % cell height
+  \def\rx{2.95}   % row-header column width
+  \def\ca{2.95}    % left edge of the first data column (= \rx)
+  \def\cb{5.80}    % left edge of the second data column (= \rx+\cw)
+  \def\ytop{1.55}
+  \def\ymid{0}
+  \def\ybot{-1.55}
+  % --- headers ---------------------------------------------------------------
+  \node[pd title,align=center,text width=2.6cm] at ({\ca+\cw/2},{\ytop+.85}) {spend-without-\\append};
+  \node[pd title,align=center,text width=2.6cm] at ({\cb+\cw/2},{\ytop+.85}) {torn write};
+  \node[pd title,anchor=east,align=right,text width=2.6cm] at (\rx-.20,{\ymid+\ch/2}) {ledger balance\\\footnotesize\itshape the recorded sum};
+  \node[pd title,anchor=east,align=right,text width=2.6cm] at (\rx-.20,{\ymid-\ch/2}) {budget cap\\\footnotesize\itshape spend at or under the limit};
+  % --- grid rules --------------------------------------------------------
+  \draw[pd hairline] (0,\ytop) -- ({\cb+\cw},\ytop);
+  \draw[pd hairline] (0,\ymid) -- ({\cb+\cw},\ymid);
+  \draw[pd hairline] (0,\ybot) -- ({\cb+\cw},\ybot);
+  \draw[pd hairline] (\rx,\ytop) -- (\rx,\ybot);
+  \draw[pd hairline] ({\rx+\cw},\ytop) -- ({\rx+\cw},\ybot);
+  % --- the four cells ------------------------------------------------------
+  \node[pd breach datum] at ({\ca+.55},{\ymid+\ch/2}) {};
+  \node[pd label,anchor=west,align=left] at ({\ca+.95},{\ymid+\ch/2}) {caught\\1 step};
+  \node[pd note,text=pdink,anchor=west,align=left,text=pdinkmuted] at ({\ca+.55},{\ybot+\ch/2}) {not exercised};
+  \node[pd breach datum] at ({\cb+.55},{\ymid+\ch/2}) {};
+  \node[pd label,anchor=west,align=left] at ({\cb+.95},{\ymid+\ch/2}) {caught\\1 step};
+  \node[pd breach datum] at ({\cb+.55},{\ybot+\ch/2}) {};
+  \node[pd label,anchor=west,align=left] at ({\cb+.95},{\ybot+\ch/2}) {caught\\3 steps};
 \end{tikzpicture}
-\caption{The two canonical atomicity breaks against the ledger's two invariants: spend-without-append (a release that adds to the balance without journaling it) and the torn write (a release that journals the wrong amount). Each caught cell marks the invariant broken and the shortest trace that catches it; the ledger's balance is the invariant both mutants break immediately, but only the torn write's deeper crime -- recorded spend past the contracted maximum -- takes three steps to show.}
+\caption{The two canonical atomicity breaks against the ledger's two invariants: spend-without-append (a release that adds to the balance without journaling it) and the torn write (a release that journals the wrong amount). Each marked cell gives the shortest trace that catches the break; the ledger's balance is the invariant both mutants break immediately, but only the torn write's deeper crime -- recorded spend past the contracted maximum -- takes three steps to show, and spend-without-append never exercises the cap at all. Model-checked instance: two concurrent clients racing programs $(2,2)$ and $(1,2)$ against a budget cap of $4$. All 15 reachable states (order-sensitive; 11 as a multiset) satisfy both invariants under every interleaving, and 2000 random instances of program, budget and interleaving show no violation; the torn write logs the correct amount but adds one unit less, so by 3 steps the recorded ledger reaches a total of $5$, over the cap of $4$ -- an auditable over-spend. Reverting either mutation restores both invariants and the 15 states [internal, \texttt{a3\_epsilon\_ledger.py}].}
 \label{fig:sealed-mutant-grid}
 \end{figure}

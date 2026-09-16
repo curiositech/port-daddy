@@ -1,0 +1,63 @@
+% Reader question: is a constant audit rate the cheapest way to sustain
+% deterrence over time, and by how much do the alternatives save? Claim:
+% letting the audit rate fall as accumulated stake grows spends
+% Theta(log T) instead of Theta(T); letting cheats surface on their own
+% spends O(1), eventually needing zero new audits, but it is NOT uniformly
+% cheaper -- at the chapter's own horizon T=200 it has spent more than the
+% logarithmic schedule. Evidence: G=10, d=0.8, B=50, a=1, rho*=G/(dB)=0.25;
+% flat spend at T=200 is 50.00; model A (loss-if-audited) is 25.58; model B
+% (delayed revelation, rate r=0.05) is 35.08 at T=200, converging to
+% aG^2/(2dBrv)=41.67 and reaching zero audit at t*=G/(rv)=333 (b2_tower.py,
+% seed 20260816). Must distinguish: three different asymptotic classes
+% (linear, logarithmic, bounded), and that "eventually free" (model B) is
+% not the same claim as "cheaper at every horizon" -- model A is cheaper
+% than model B at T=200 even though model B's total is bounded. Grammar: an
+% xy plot, three schedules on one axis with the worked horizon marked,
+% rejected: three numbers in a paragraph (states the totals but hides the
+% shapes that explain them) and a bar chart at T=200 alone (hides that
+% model B is still climbing past its rivals at that horizon).
+% Five-second test: a reader says "B ends lowest eventually, but A is
+% cheapest at the horizon this chapter actually uses."
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=6.9cm,height=4.3cm,
+  xmin=0,xmax=400,ymin=0,ymax=100,
+  xtick={0,100,200,300,400},ytick={0,25,50,75,100},
+  xlabel={period $T$},
+  ylabel={cumulative audit spend}]
+  \addplot[pd series,mark=none,domain=0:400,samples=2] {0.25*x};
+  \addplot[pd focus series,mark=none,domain=0:400,samples=120]
+    {(1*10/(0.8*0.6))*ln(1+0.6*x/50)};
+  \addplot[pd ready series,mark=none,domain=0:333.33,samples=120]
+    {(1/(0.8*50))*(10*x-(0.05*0.6/2)*x^2)};
+  \addplot[pd ready series,mark=none,domain=333.33:400,samples=2] {41.67};
+  \draw[pd guide] (axis cs:200,0) -- (axis cs:200,72);
+  \node[pd label,anchor=south west,text width=2.3cm] at (axis cs:203,74) {$T{=}200$: this chapter's horizon};
+  \node[pd datum] at (axis cs:200,50.00) {};
+  \node[pd focus datum] at (axis cs:200,25.58) {};
+  \node[pd ready datum] at (axis cs:200,35.08) {};
+  \node[pd label,anchor=west] at (axis cs:405,90) {flat: $\Theta(T)$};
+  \node[pd focus label,anchor=west] at (axis cs:405,60) {model A: $\Theta(\log T)$};
+  \node[pd ready label,anchor=west] at (axis cs:405,41.67) {model B: $O(1)$};
+  \draw[pd guide] (axis cs:333.33,0) -- (axis cs:333.33,10);
+  \node[pd ready label,anchor=south west,text width=2.3cm] at (axis cs:337,2)
+    {$t^\star{=}333$: audit rate hits zero};
+\end{axis}
+\end{tikzpicture}
+{\linespread{1.18}\selectfont
+\caption{Cumulative audit spend over $T=200$ periods, at $G=10$, $d=0.8$,
+$B=50$, $a=1$, $\rho^*=0.25$. A flat rate spends $\Theta(T)$, reaching
+$50.00$. Letting the audit rate fall
+as accumulated stake $v t$ grows (model A) spends $\Theta(\log T)$, reaching
+only $25.58$. Letting cheats also surface on their own at rate $r=0.05$
+(model B) spends $35.08$ by $T{=}200$ but is bounded: the audit rate hits
+zero at $t^*=G/(rv)=333$ and total spend converges to
+$aG^2/(2dBrv)=41.67$. The three curves are different asymptotic classes, not
+a ranking: model B is eventually the cheapest schedule in total, but model A
+is cheaper at the horizon this chapter actually reports. [verified;
+\texttt{b2\_tower.py}, seed 20260816]}
+\label{fig:stp-audit-amortization}}
+\end{figure}

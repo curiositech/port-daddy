@@ -1,0 +1,105 @@
+% Fragment: fig-sealed-dual-attestation.tex -- the dual-attested key release
+% ceremony of Sec. sealed-design as a full sequence diagram.
+%
+% Reader question: in what order do the two owners verify attestation and
+% release keys, and what state exists once both have released?
+% Claim: one attestation is produced once, forwarded once, but appraised
+% TWICE -- once against Derek's approved measurement, once against Erin's,
+% independently -- and each key broker releases its own key only off its
+% own appraisal; the job then runs with no ambient network or credentials.
+% Evidence: "Dual-attested key release" paragraph, website-v2/public/
+% whitepaper/sealed-harbor.tex, Sec. sealed-design ("fresh attestation
+% evidence binding runtime, policy, worker image, key, nonce, and epoch...
+% Derek and Erin independently verify the attestation... the attester,
+% verifier, and relying-party pattern of IETF RATS") [internal, rats].
+% Must distinguish: the RATS roles by name (attester = the init agent that
+% produces and forwards evidence; verifier = the appraisal step; relying
+% party = each key broker's release decision) from the hardware root of
+% trust that actually signs the evidence, which RATS treats as part of the
+% attesting environment but the ceremony gives its own lifeline; above all,
+% that messages 4 and 5 are two INDEPENDENT appraisals of the SAME evidence,
+% not one shared verification step fanned out to two recipients -- the
+% counter-read this figure is drawn to preempt.
+% Grammar chosen: message-sequence ladder, five lifelines, numbered
+% forward-sloped messages keyed to a ruled legend naming what each one
+% binds (tpl-message-ladder), full width (6.0 in) -- five lifelines do not
+% fit the 4.5 in column at a legible pitch, and a wide sequence is the
+% declared exception of Standard S1.
+% Grammar rejected: a 3-lifeline ladder (CVM, Derek's broker, Erin's
+% broker) matching the register row's original recommendation -- collapses
+% the hardware root of trust into the CVM and the verifier into each
+% broker, exactly the "one shared verification step" misreading this
+% figure exists to correct.
+% Five-second test: count the appraisal arrows leaving the verifier --
+% there are two, one per broker, not one arrow that forks.
+% QA: beauty_lint warns B7 (sub-point table-column justification noise,
+% under 1.4pt, the usual artifact of ragged-vs-justified cells at
+% different lengths), B8 (5.3-5.5in tall against the 5.2in guideline --
+% seven messages across five lifelines is inherently tall; the same
+% Standard S1 exception that licenses this figure's full 6in width
+% licenses its height), and in the technical edition only, B1 (badge
+% numerals 0.9pt short of the ideal moat under Heros bold) and B4 (the
+% legend's booktabs rules carry their own weights alongside the three
+% tikz weights, as in every figure that pairs a tikzpicture with a
+% ruled legend). All justified, not fixed.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{0.95}   \def\gap{2.85}   \def\rows{7}
+  \foreach \i/\name/\role in {%
+    0/{hardware}/{root of trust},
+    1/{init agent}/{attester (CVM)},
+    2/{verifier}/{RATS appraisal}}{
+    \node[pd state,minimum width=2.5cm] (h\i) at ({\i*\gap},0) {\name};
+    \node[pd label,text=pdinkmuted,anchor=north] at ({\i*\gap},-0.52) {\role};
+    \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},{-\rows*\dy-0.55});}
+  \foreach \i/\name/\role in {%
+    3/{Derek}/{relying party},
+    4/{Erin}/{relying party}}{
+    \node[pd state,minimum width=2.5cm] (h\i) at ({\i*\gap},0) {\name};
+    \node[pd label,text=pdinkmuted,anchor=north] at ({\i*\gap},-0.52) {\role};
+    \draw[pd guide] ({\i*\gap},-1.30) -- ({\i*\gap},{-\rows*\dy-0.55});}
+  \foreach \a/\b/\k in {1/0/1, 0/1/2, 1/2/3, 2/3/4, 2/4/5, 3/1/6, 4/1/7}{
+    \pgfmathsetmacro{\ytail}{-\k*\dy-0.43}
+    \pgfmathsetmacro{\yhead}{-\k*\dy-0.67}
+    \node[pd focus badge] (m\k) at ({(\a+\b)*\gap/2},{-\k*\dy-0.55}) {\k};
+    \draw[pd focus arrow,pd to badge] ({\a*\gap},\ytail) -- (m\k);
+    \draw[pd focus arrow,pd from badge] (m\k) -- ({\b*\gap},\yhead);}
+  \begin{scope}[on background layer]
+    \node[pd panel,fit={(m4)(m5)},inner xsep=10pt,inner ysep=7pt] (appraisals) {};
+  \end{scope}
+  \node[pd tag,anchor=west] at (appraisals.east) {independent};
+  \node[pd terminal,minimum width=3.6cm,align=center,text width=3.2cm]
+    (SEALED) at ({1*\gap},{-\rows*\dy-1.55})
+    {job runs: no ambient network or credentials};
+  \draw[pd guide] ({1*\gap},{-\rows*\dy-0.55}) -- (SEALED);
+\end{tikzpicture}
+\vspace{4pt}
+\footnotesize
+\hyphenpenalty=10000\exhyphenpenalty=10000
+\begin{tabular}{@{}c >{\raggedright\arraybackslash}p{3.3cm} >{\raggedright\arraybackslash}p{7.2cm}@{}}
+\toprule
+\# & binds & value \\
+\midrule
+1 & the quote request & a digest of the booting measurement: runtime, policy, worker image \\
+2 & $a$, the attestation evidence & runtime, policy, worker image, key, nonce, epoch --- signed by the hardware root of trust \\
+3 & the forwarded evidence & $a$, relayed unchanged to the verifier \\
+4 & Derek's appraisal & $a$ checked against Derek's approved measurement \\
+5 & Erin's appraisal & $a$ checked against Erin's approved measurement, independently of message 4 \\
+6 & the data key & released to the job only if appraisal 4 matched \\
+7 & the model and skill key & released to the job only if appraisal 5 matched \\
+\bottomrule
+\end{tabular}
+\caption{The dual-attested key release ceremony of Sec.~\ref{sec:sealed-design},
+five lifelines wide: the hardware root of trust, the confidential VM's init
+agent (the RATS \emph{attester}), the RATS \emph{verifier}, and Derek's and
+Erin's key brokers, each a RATS \emph{relying party} for its own key. One
+attestation evidence bundle is produced (2) and forwarded once (3), but
+appraised twice, independently (4, 5, boxed) --- against Derek's approved
+measurement and against Erin's, separately, never one shared verification
+step fanned out to both. Each broker releases its own key only off its own
+appraisal (6, 7); only once both have released does the job run, with no
+ambient network or credentials. [internal]}
+\label{fig:sealed-dual-attestation}
+\end{figure}

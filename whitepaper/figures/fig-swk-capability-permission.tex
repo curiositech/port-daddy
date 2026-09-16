@@ -1,0 +1,51 @@
+% Brief (tikz-diagram-craft). Register row ch1-15 [could].
+% Reader question: can an agent be able to do something and still be
+%   forbidden to do it?
+% Claim: capability (ability, what the sandbox makes possible) and
+%   permission (normative status, what the deontic layer allows) are
+%   independent axes; the interesting cell is capable-but-forbidden, which
+%   collapsing the two into one word makes inexpressible.
+% Evidence: whitepaper/single-writer-kernel.tex sec:enforcement: the
+%   dangerous override flag a tool exposes for emergencies -- it exists
+%   (capable) but must not be used (forbidden).
+% Must distinguish: which cell is the one the chapter's discipline exists
+%   to keep expressible; that the other three cells are ordinary, not the
+%   claim.
+% Grammar: 2x2 quadrant, one cell carrying the concrete instance.
+%   Rejected: a Venn diagram, which would suggest capability and
+%   permission overlap rather than being independently axed.
+% Five-second test: "capable-but-forbidden is one cell, named with the
+%   override-flag example; the other three stay abstract".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  cell/.style={pd label,align=center,text width=3.9cm}]
+  \def\w{4.10}  \def\h{2.35}  \def\ox{2.30}  \def\oy{0.00}
+  \draw[pd focus fill] ({\ox+\w},{\oy+\h}) rectangle ({\ox+2*\w},{\oy+2*\h});
+  \draw[pd rule] (\ox,\oy) rectangle ({\ox+2*\w},{\oy+2*\h});
+  \draw[pd rule] ({\ox+\w},\oy) -- ({\ox+\w},{\oy+2*\h});
+  \draw[pd rule] (\ox,{\oy+\h}) -- ({\ox+2*\w},{\oy+\h});
+
+  \node[cell] at ({\ox+.5*\w},{\oy+1.5*\h}) {ordinary allowed action};
+  \node[cell] at ({\ox+1.5*\w},{\oy+1.5*\h}) {\textbf{capable, forbidden} -- the override flag: it exists, it must not be used};
+  \node[cell] at ({\ox+.5*\w},{\oy+.5*\h}) {unreachable: permitted in principle, the sandbox never offers it};
+  \node[cell] at ({\ox+1.5*\w},{\oy+.5*\h}) {ordinary forbidden action: sandbox already excludes it};
+
+  \node[pd label,anchor=south,text width=8.2cm,align=center] at ({\ox+\w},{\oy+2*\h+.55})
+    {permitted: the deontic layer allows it};
+  \foreach \cx/\l in {0/yes, 1/no}{
+    \node[pd label,anchor=south] at ({\ox+\cx*\w+\w/2},{\oy+2*\h+.15}) {\l};}
+  \node[pd label,rotate=90,anchor=south,text width=4.4cm,align=center]
+    at ({\ox-1.85},{\oy+\h}) {capable: the sandbox makes it possible};
+  \foreach \cy/\l in {0/no, 1/yes}{
+    \node[pd label,rotate=90,anchor=south] at ({\ox-.42},{\oy+\cy*\h+\h/2}) {\l};}
+\end{tikzpicture}
+\caption{Capability and permission are independent axes, not one word.
+The shaded cell -- capable but forbidden -- is the one collapsing them
+makes inexpressible: a dangerous override flag a tool exposes for
+emergencies exists (the agent is capable of invoking it) but must not be
+used (it is forbidden). The other three cells are ordinary; only this one
+is why the chapter keeps the two distinct. [internal]}
+\label{fig:swk-capability-permission}
+\end{figure}

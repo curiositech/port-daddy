@@ -1,47 +1,60 @@
-% Figure --- principal binding changes attacker payoffs in two dimensions.
+% Reader question: why does minted identity resist Sybil and whitewash
+% attacks? Claim: principal-bound identity changes the payoff of both classic
+% attacks -- a respawn can no longer shed a sanction, and an alias can no
+% longer mint quorum weight. Evidence: panel A, the penalty Delta retained by
+% a principal-bound identity across every respawn versus a self-asserted
+% label shedding it at each respawn; panel B, quorum weight staying constant
+% under one accountable principal versus growing linearly with each minted
+% alias under one-label-one-vote. Must distinguish: the two different attack
+% shapes (persistence over time vs inflation over count) and which line is
+% defeated. Grammar: paired threat traces, two small axes side by side,
+% rejected: a crowd of identical avatars (no measured quantity) and a shield
+% icon (asserts safety without showing the mechanism). Five-second test: a
+% reader says "the dashed line is the attack, and it never rises above the
+% solid one."
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,2.75) {A. sanction persistence};
-  \node[pd note,anchor=west] at (-6.8,2.42) {whitewashing across body leases};
-  \node[pd panel title,anchor=west] at (1.0,2.75) {B. quorum inflation};
-  \node[pd note,anchor=west] at (1.0,2.42) {Sybil aliases under one principal};
-
-  % Panel A axes.
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (-5.85,-1.75) -- (.1,-1.75);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (-5.85,-1.75) -- (-5.85,2.15);
-  \node[pd axis label,anchor=north east] at (-.05,-1.88) {respawns};
-  \node[pd axis label,rotate=90,anchor=south] at (-6.18,.15) {penalty retained};
-  \foreach \x/\lab in {-4.35/1,-2.75/2,-1.15/3} {
-    \draw[pd lattice] (\x,-1.75) -- (\x,1.75);
-    \node[pd axis label,anchor=north] at (\x,-1.88) {\lab};
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\pw{3.70}  \def\ph{3.60}  \def\bx{5.70}
+  % ---- panel A: sanction persistence across respawns ------------------------
+  \node[pd title,anchor=west] at (0,4.55) {A. sanction persistence};
+  \node[pd note,anchor=west] at (0,4.18) {whitewashing across body leases};
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (\pw,0);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (0,\ph);
+  \node[pd label,anchor=north west] at ({\pw+0.15},-.16) {respawns};
+  \node[pd label,rotate=90,anchor=south] at (-.68,{\ph/2}) {penalty retained};
+  \foreach \x/\lab in {1.15/1,2.30/2,3.45/3} {
+    \draw[pd tick] (\x,0) -- (\x,-.12);
+    \node[pd label,anchor=north] at (\x,-.16) {\lab};
   }
-  \draw[pd danger rule,dashed]
-    (-5.85,1.55) -- (-4.35,1.55) -- (-4.35,-1.25) -- (-2.75,-1.25) -- (-2.75,-1.45) -- (-1.15,-1.45) -- (-1.15,-1.55) -- (-.15,-1.55);
-  \draw[pd focus rule,line width=1.45pt] (-5.85,1.55) -- (-.15,1.55);
-  \node[pd direct label,text=hhteal,anchor=west] at (-3.95,1.82) {principal-bound identity};
-  \node[pd direct label,text=pderror,anchor=west] at (-3.95,-.95) {fresh self-asserted label};
-  \node[pd caution datum] at (-5.85,1.55) {};
-  \node[pd axis label,anchor=east] at (-6.02,1.55) {$\Delta$};
-
-  % Panel B axes and response curves.
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (1.35,-1.75) -- (6.85,-1.75);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (1.35,-1.75) -- (1.35,2.15);
-  \node[pd axis label,anchor=west] at (6.95,-1.75) {aliases minted};
-  \node[pd axis label,rotate=90,anchor=south] at (1.02,.15) {quorum weight};
-  \draw[pd danger rule,dashed] (1.55,-1.45) -- (6.45,1.80);
-  \draw[pd focus rule,line width=1.45pt] (1.55,-.60) -- (6.45,-.60);
-  \node[pd direct label,text=pderror,anchor=west] at (4.35,1.25) {one label = one vote};
-  \node[pd direct label,text=hhteal,anchor=west] at (4.15,-.40) {one principal = one accountable weight};
-  \foreach \x in {2.2,3.3,4.4,5.5,6.45}
-    \node[pd danger datum,inner sep=1.5pt] at (\x,{-.98 + .66*(\x-1.55)}) {};
-  \foreach \x in {2.2,3.3,4.4,5.5,6.45}
-    \node[pd focus datum,inner sep=1.5pt] at (\x,-.60) {};
-
-  \node[pd note,anchor=west] at (-5.85,-2.55)
+  \draw[pd breach rule,line width=1.25pt]
+    (0,3.20) -- (1.15,3.20) -- (1.15,0.55) -- (2.30,0.55) -- (2.30,0.30) -- (\pw,0.30);
+  \draw[pd focus rule,line width=1.45pt] (0,3.20) -- (\pw,3.20);
+  \node[pd focus label,anchor=south west,text width=4.2cm] at (0.15,3.40) {principal-bound identity};
+  \node[pd breach label,anchor=west,text width=2.7cm] at (1.55,2.15) {fresh self-asserted label};
+  \node[pd breach datum] at (0,3.20) {};
+  \node[pd label,anchor=east] at (-.18,3.20) {$\Delta$};
+  % ---- panel B: quorum inflation under free aliasing -------------------------
+  \begin{scope}[xshift=\bx cm]
+  \node[pd title,anchor=west] at (0,4.55) {B. quorum inflation};
+  \node[pd note,anchor=west] at (0,4.18) {Sybil aliases under one principal};
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (\pw,0);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (0,0) -- (0,\ph);
+  \node[pd label,anchor=north east] at (\pw,-.16) {aliases minted};
+  \node[pd label,rotate=90,anchor=south] at (-.68,{\ph/2}) {quorum weight};
+  \draw[pd breach rule,line width=1.25pt] (0.20,0.30) -- (\pw,3.40);
+  \draw[pd focus rule,line width=1.45pt] (0.20,1.40) -- (\pw,1.40);
+  \node[pd breach label,anchor=north west,text width=2.3cm] at (0.25,3.55) {one label = one vote};
+  \node[pd focus label,anchor=north east,text width=2.3cm,align=right] at (\pw,1.15) {one principal = one accountable weight};
+  \foreach \x in {0.60,1.25,1.90,2.55,3.20,3.90}
+    \node[pd breach datum,inner sep=1.5pt] at (\x,{0.30+0.795*(\x-0.20)}) {};
+  \foreach \x in {0.60,1.25,1.90,2.55,3.20,3.90}
+    \node[pd focus datum,inner sep=1.5pt] at (\x,1.40) {};
+  \end{scope}
+  \node[pd note,anchor=west,text width=10.4cm] at (0,-1.15)
     {scope: one trusted daemon and one bound principal; federation still owes cross-operator attestation};
-\end{tikzpicture}}
+\end{tikzpicture}
 \caption{\textbf{Non-forgeable identity changes the economics of both classic
 attacks.} In panel A, a self-asserted label drops a sanction by respawning; a
 principal-bound identity carries the penalty $\Delta$ across every body lease. In
@@ -49,6 +62,6 @@ panel B, free labels turn aliases into quorum weight, while principal binding ke
 one accountable weight constant. The claim is deliberately local: daemon minting
 and principal binding close these attacks inside one trusted domain; they do not
 solve cross-operator attestation. Newcomer friction applies to economic ceiling,
-not to the ability to perform work.}
+not to the ability to perform work. [internal]}
 \label{fig:sybil}
 \end{figure}

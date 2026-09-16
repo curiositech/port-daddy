@@ -1,0 +1,68 @@
+% Figure IV.11 --- the bonded-sponsor admission lifecycle (S7.1), a state
+% machine using the chapter's own vocabulary (newcomer N, sponsor S).
+%
+% Reader question: what states does a new harbor pass through before it can
+%   price its own risk?
+% Claim: a newcomer with no reputation passes through exactly one
+%   intermediate state (probationary, under a sponsor's at-risk bond) before
+%   reaching one of two terminal states, and only one of the two guards is
+%   the newcomer's own doing.
+% Evidence: the chapter's own four-step enumeration in S:fh-sponsor: the
+%   sponsor S posts a bond sized to the federation's worst-case loss; N
+%   joins under probation with its evidence trail witness-logged; misbehavior
+%   forfeits the sponsor bond; at probation's end N's own reputation prices
+%   its own bond and the sponsor bond releases.
+% Must distinguish: the one state a newcomer can get stuck in
+%   (unsponsored, no path forward without a sponsor) from the two ways
+%   probation ends, and that expulsion cost falls on the sponsor, not N.
+% Grammar chosen: state machine (tpl-state-machine.tex): spine of states,
+%   guarded transitions as numbered badges keyed to a ruled legend.
+%   Grammar rejected: a swimlane sequence would suggest a fixed cast of two
+%   named parties exchanging messages, but this is a lifecycle a harbor
+%   passes through over an epoch, not a protocol exchange -- the register's
+%   own state vocabulary (unsponsored, probationary, graduated, expelled)
+%   is the reader's actual question.
+% Five-second test: which of the two terminal states costs the sponsor its
+%   bond, and which one is the newcomer's own success?
+\pdfigurehue{pdgold}%
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{1.35}   \def\sx{4.60}   \def\gx{2.85}   \def\R{10.90}
+  \node[pd focus state,minimum width=3.3cm] (S0) at (\sx,{2*\dy}) {unsponsored $N$};
+  \node[pd focus state,minimum width=3.3cm] (S1) at (\sx,{1*\dy}) {probationary};
+  \node[pd terminal,minimum width=3.3cm]    (S2) at (\sx,0)       {graduated};
+  \draw[pd focus arrow] (S0) -- (S1);
+  \draw[pd focus arrow] (S1) -- (S2);
+  \foreach \i/\t in {1.5/{$S$ posts bond}, 0.5/{reputation suffices}}{
+    \node[pd label,anchor=east,text width=2.3cm,align=right] at ({\gx-.55},{\i*\dy}) {\t};}
+  \foreach \i/\n in {1.5/1, 0.5/2}{\node[pd badge] at ({\gx-.22},{\i*\dy}) {\n};}
+  % the one branch off the honest path: misbehavior forfeits the sponsor bond
+  \node[pd breach state,minimum width=2.8cm] (X) at (8.60,0.60) {expelled};
+  \draw[pd breach arrow,rounded corners=3pt]
+    (S1.east) -- (6.85,{1*\dy}) -- (6.85,0.60) -- (X.west);
+  \node[pd breach label,anchor=south,text width=2.0cm,align=center] at (6.85,{1*\dy+0.48}) {misbehaves};
+  \node[pd badge,draw=pderror,line width=.9pt] at (6.85,{1*\dy-0.32}) {3};
+  \def\ly{-1.35}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.16}) {guard};
+  \node[pd title,anchor=north west] at (5.90,{\ly-.16}) {what it costs};
+  \draw[pd hairline] (0,{\ly-.80}) -- (\R,{\ly-.80});
+  \foreach \i/\n/\g/\c in {0/1/{sponsor $S$ posts bond, sized to worst-case loss}/{$S$'s capital at risk},
+                           1/2/{$N$'s own reputation suffices, sponsor bond released}/{nothing -- $N$ now prices its own risk},
+                           2/3/{$N$ forges, equivocates, or refuses a settled bond}/{sponsor bond forfeit, not $N$'s}}{
+    \node[pd badge] at (.28,{\ly-1.20-\i*1.05}) {\n};
+    \node[pd label,anchor=west,align=left,text width=4.5cm] at (.62,{\ly-1.20-\i*1.05}) {\g};
+    \node[pd label,anchor=west,align=left,text width=4.6cm] at (5.90,{\ly-1.20-\i*1.05}) {\c};}
+\end{tikzpicture}
+
+\caption{\textbf{Two terminal states, one asymmetric cost.} A newcomer $N$
+with no prior reputation enters probationary under sponsor $S$'s bond (guard
+1); probation ends either at graduated, once $N$'s own reputation suffices
+to price its own bond (guard 2), or at expelled, in red, if $N$ misbehaves
+during probation (guard 3). Only the expelled branch costs anyone besides
+$N$: it is the sponsor's bond, not $N$'s, that is forfeit, which is exactly
+the incentive the pattern relies on to make sponsors vet before they sponsor
+(\S\ref{sec:fh-sponsor}). [internal]}
+\label{fig:fh-sponsor-lifecycle}
+\end{figure}

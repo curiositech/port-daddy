@@ -1,77 +1,74 @@
-% The escalation threshold's tuning band (Thm.~\ref{thm:escalation-threshold}):
-% the feasible dismissal-debit interval [delta_min, delta_max] at two attention
-% budgets, drawn on one shared delta axis. Both rows use only the worked
-% example's own verified closed-form numbers (A=3.3: [0.0350,0.0720]; A=2.0:
-% delta_min=0.396 > delta_max=0.072, empty). x = 20*delta cm, a linear,
-% undistorted scale shared by both rows. [internal; analytic]
-%
-% \delta_{\text{\scriptsize min/max}}, not \delta_{\min/\max}: a subscript
-% is set in script style regardless of content, so \min/\max (already-
-% upright operator names) still shrink to ~70% of the surrounding size --
-% and amsmath's \text{...} does NOT exempt its argument from that shrink
-% either (\text tracks the enclosing math style on purpose, so it matches
-% ordinary prose-in-a-formula conventions). At this figure's \scriptsize
-% the scriptstyle shrink measured 5.09pt in the built Book, under
-% figcheck's 7pt print floor (T1). The explicit \scriptsize INSIDE \text
-% overrides that automatic downshift (a literal size-selection command
-% wins over the implicit one \text applied first), landing "min"/"max"
-% at the same \scriptsize as the rest of the label -- comfortably over
-% the floor, same upright shape \min/\max already had.
+% Brief (tikz-diagram-craft), register row ch4-22.
+% Reader question: at a given attention budget, does any dismissal debit
+%   exist that keeps the distress lane both uncrowded and low-miss, or is
+%   the feasible band empty?
+% Claim: the feasible debit interval [delta_min,delta_max] is bounded below
+%   by the alarm-load wall (decreasing in A) and above by a fixed miss-loss
+%   wall; the band is empty below A*~3.108 and opens above it, exactly as
+%   at the chapter's own A=2.0 (empty) and A=3.3 ([0.035,0.072]) points.
+% Evidence: delta_max=0.071975 (constant, R3 constants); delta_min(2.0)=
+%   0.395644, delta_min(3.3)=0.034993 [verified closed forms,
+%   b7_escalation_band.py, run this pass].
+% Must distinguish: the empty-band regime (delta_min>delta_max) from the
+%   feasible band; that delta_max does not move with A while delta_min does.
+% Grammar chosen: threshold/regime plot, feasible band shaded between the
+%   two walls (fillbetween naturally splits at their crossing), two worked
+%   points marked.
+% Grammar rejected: a bar chart of the two named A values' band widths would
+%   state the two cases but hide that emptiness is a real, continuous
+%   threshold in A, not a property of the two examples alone -- the
+%   chapter's own point that the fix is capacity, not tuning.
+% Five-second test: "at A=2.0, does the alarm-load wall sit above or below
+%   the miss-loss wall, and what does that mean for delta?"
 \begin{figure}[H]
 \centering
-% x=0.8cm (not the drawn-content default 1cm): the x-axis label "dismissal
-% debit delta" at (8.55,0), anchor=west, is wide enough that at x=1cm its
-% true right edge lands at local x~=13.6cm -- past the 11.43cm (4.5in) text
-% column, invisibly, because pgf's own bounding box does not count a `pd
-% axis label' node's overlay-style extent, so the wide-picture safety net in
-% the Book preamble never sees it and never promotes or rescales this
-% figure. It bled unclipped into the margin column with nothing else there
-% to show it; measured colliding with a Recall block once the margin
-% apparatus started centering on this figure's real span (built Book,
-% 2026-09). Scaling the picture's own x coordinate is the fix, not a
-% \resizebox: \resizebox cannot reach this, because pgf hands the finished,
-% unscaled box straight to the preamble's \pgfsys@typesetpicturebox hook
-% before \resizebox's argument ever gets control.
-\begin{tikzpicture}[pd figure,x=0.8cm,y=1cm]
-  % --- row 1 (top): A = 3.3, band exists ---
-  \node[pd row label,anchor=east,text width=2.4cm,align=right] at (-.25,3.6) {attention\\budget $A=3.3$};
-  \draw[pd hairline] (0,3.6) -- (8.4,3.6);
-  \fill[pd focus fill] (0.70,3.4) rectangle (1.44,3.8);
-  \node[pd focus datum] at (0.70,3.6) {};
-  \node[pd focus datum] at (1.44,3.6) {};
-  \node[pd direct label,text=hhteal,anchor=south east,inner sep=1pt] at (0.55,4.05) {\scriptsize $\delta_{\text{\scriptsize min}}{=}0.035$};
-  \node[pd direct label,text=hhteal,anchor=south west,inner sep=1pt] at (1.60,4.05) {\scriptsize $\delta_{\text{\scriptsize max}}{=}0.072$};
-  \node[pd note,anchor=south,align=center] at (1.07,4.45) {\scriptsize a real, narrow band};
-
-  % --- row 2 (bottom): A = 2.0, band empty (walls crossed) ---
-  \node[pd row label,anchor=east,text width=2.4cm,align=right] at (-.25,1.55) {attention\\budget $A=2.0$};
-  \draw[pd hairline] (0,1.55) -- (8.4,1.55);
-  \draw[pd caution fill] (1.44,1.35) rectangle (7.92,1.75);
-  \node[pd caution datum] at (1.44,1.55) {};
-  \node[pd caution datum] at (7.92,1.55) {};
-  \node[pd direct label,text=hhamber,anchor=south,align=center] at (1.44,1.95)
-    {\scriptsize $\delta_{\text{\scriptsize max}}{=}0.072$\\[1pt]alarm-load wall};
-  \node[pd direct label,text=hhamber,anchor=south,align=center] at (7.92,1.95)
-    {\scriptsize $\delta_{\text{\scriptsize min}}{=}0.396$\\[1pt]miss-loss wall};
-  \node[pd note,anchor=north,align=center,text width=7.6cm] at (4.6,1.05)
-    {\scriptsize the walls have crossed --- no $\delta$ satisfies both --- band empty};
-
-  % --- shared delta axis, well clear of both rows and the note above ---
-  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (0,0) -- (8.4,0);
-  \node[pd axis label,anchor=west] at (8.55,0) {dismissal debit $\delta$};
-  \foreach \d in {0,0.1,0.2,0.3,0.4}{
-    \pgfmathsetmacro{\x}{20*\d}
-    \draw[pd tick] (\x,-.08) -- (\x,.08);
-    \node[pd axis label,anchor=north] at (\x,-.2) {\d};
-  }
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,
+  declare function={
+    xA(\A) = (-1+sqrt(1+10*\A))/5;
+    dmin(\A) = max(0,(1-xA(\A))/xA(\A));
+  }]
+\begin{axis}[pd axis,
+  width=7.8cm,height=5.2cm,
+  xmin=1.9,xmax=6,ymin=0,ymax=0.45,
+  xtick={2.0,3.3,4,5,6},
+  xticklabels={2.0,3.3,4,5,6},
+  ytick={0,0.072,0.2,0.3,0.4},
+  yticklabels={0,0.072,0.2,0.3,0.4},
+  xlabel={attention budget $A$},
+  ylabel={dismissal debit $\delta$}]
+  \addplot[name path=dmaxline,draw=none,forget plot,domain=1.9:6,samples=2] {0.071975};
+  \addplot[name path=dminline,draw=none,forget plot,domain=1.9:6,samples=80] {min(dmin(x),0.45)};
+  \addplot[pd focus fill,forget plot] fill between[of=dmaxline and dminline,soft clip={domain=3.108:6}];
+  \addplot[pd rule,line width=.9pt,domain=1.9:6,samples=2] {0.071975};
+  \addplot[pd focus rule,line width=1.05pt,domain=1.9:6,samples=80] {min(dmin(x),0.45)};
+  \draw[pd guide,dashed] (axis cs:3.108,0) -- (axis cs:3.108,0.37);
+  \node[pd label,anchor=south west] at (axis cs:4.1,0.40) {$\delta_{\max}$ (miss-loss wall)};
+  \node[pd focus label,anchor=north west,text width=2.3cm,align=left] at (axis cs:4.1,0.335) {$\delta_{\min}(A)$ (alarm-load wall)};
+  \node[pd label,anchor=west,text width=1.9cm,align=left] at (axis cs:3.15,0.20)
+    {band opens at $A^\star{\approx}3.11$};
+  \node[pd datum] at (axis cs:2.0,0.395644) {};
+  \draw[pd guide] (axis cs:2.0,0.395644) -- (axis cs:2.12,0.425);
+  \node[pd label,anchor=south west] at (axis cs:2.15,0.425)
+    {$A{=}2.0$: empty};
+  \node[pd focus datum] at (axis cs:3.3,0.034993) {};
+  \draw[pd guide] (axis cs:3.3,0.034993) -- (axis cs:3.42,0.105);
+  \node[pd focus label,anchor=south west] at (axis cs:3.45,0.105)
+    {$A{=}3.3$: $[0.035,0.072]$};
+\end{axis}
 \end{tikzpicture}
-\caption{The feasible dismissal-debit interval $[\delta_{\min},\delta_{\max}]$ of
-Thm.~\ref{thm:escalation-threshold}, drawn on one shared $\delta$ axis at the two
-attention budgets the worked example computes. At $A{=}3.3$ the alarm-load wall
-sits below the miss-loss wall and a real, if narrow, band of usable debits
-exists. At $A{=}2.0$ the two walls trade places --- the alarm-load wall now
-exceeds the miss-loss wall --- so the interval inverts and no debit satisfies
-both constraints at once: an empty band is the geometry of the walls crossing,
-not a numerical coincidence. [internal; analytic]}
+\caption{The escalation threshold feasible dismissal-debit band of
+Theorem~\ref{thm:escalation-threshold}, on attention budget $A$ (R3
+constants $C_{\mathrm{miss}}{=}100$, $c_{\mathrm{att}}{=}1$,
+$C_{\mathrm{fa}}{=}5$). The miss-loss wall $\delta_{\max}$ is fixed at
+$0.071975$; the alarm-load wall $\delta_{\min}(A)$ falls as the budget
+widens and reaches $0$ at $A{=}3.5$. The two walls cross at
+$A^\star{\approx}3.11$: below it $\delta_{\min}>\delta_{\max}$ and no debit
+satisfies both walls at once (the point named in the chapter text at
+$A{=}2.0$, where $\delta_{\min}{=}0.396$), and above it the tinted band is
+the feasible interval (the point named at $A{=}3.3$,
+$[0.035,0.072]$). An empty band is the honest diagnosis that the fix is
+capacity or evidence quality, not a better $\delta$. [verified closed
+forms, \texttt{b7\_escalation\_band.py}]}
 \label{fig:escalation-band}
 \end{figure}

@@ -1,51 +1,82 @@
-% Figure IV.6 --- authority attenuates over the transfer ceremony; source
-% reachback disappears after the destination acknowledgement.
+% Figure IV.6 --- the four-message transfer ceremony, drawn as the sequence
+% diagram the prose (S:fh-xfer-ceremony) says it is; two wire crossings, then
+% B verifies alone.
+%
+% Reader question: who sends what to whom, in what order, and at which
+%   message does Harbor A stop being needed synchronously?
+% Claim: two messages cross the trust boundary (offer, ack); after the third,
+%   Harbor B verifies and delivers the attenuated card without calling A.
+% Evidence: the four message names and their bound fields from
+%   S:fh-xfer-ceremony (xfer_req, xfer_offer<C_A,att_A,R_A^(e)>,
+%   xfer_ack<C'_B,R_B^(e)>, xfer_deliver<C'_B>).
+% Must distinguish: which messages are local (no boundary crossing) from
+%   which cross the wire, and where the hot path stops needing A.
+% Grammar chosen: sequence diagram, two lifelines, four numbered messages
+%   (tpl-sequence.tex) -- matches what S:fh-xfer-ceremony already tells the
+%   reader they are looking at. Grammar rejected: the v1 authority-envelope
+%   area chart stacked over a timeline stacked over a caution/focus band
+%   (three devices in one picture) is why it had a T3/T4 collision and ran
+%   wider than the column; an area chart also asserts a continuous quantity
+%   the paper never computes.
+% Five-second test: which two messages cross from one harbor to the other,
+%   and after which message does B stop needing A synchronously?
+\pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,3.15)
-    {authority shrinks while destination-local verification takes over};
-  \foreach \x/\n/\lab in {-5.4/1/request,-1.8/2/offer,1.8/3/acknowledge,5.4/4/deliver}
-    {\draw[pd lattice] (\x,-2.35)--(\x,2.30);
-     \node[pd datum] at (\x,2.15) {};
-     \node[pd direct label,anchor=south] at (\x,2.42) {\n. \lab};}
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.15,2.15)--(6.15,2.15);
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xA{1.45}   \def\xB{9.15}   \def\dy{1.3}
+  \node[pd title,anchor=west,text width=10.4cm] at (0.00,1.00)
+    {two wire crossings, then $B$ verifies alone};
+  \node[pd state,minimum width=2.7cm] (hA) at (\xA,0) {Harbor $A$};
+  \node[pd label,text=pdinkmuted,anchor=north] at (\xA,-0.42) {daemon $D_A$};
+  \node[pd state,minimum width=2.7cm] (hB) at (\xB,0) {Harbor $B$};
+  \node[pd label,text=pdinkmuted,anchor=north] at (\xB,-0.42) {daemon $D_B$};
+  \draw[pd guide] (\xA,-1.05) -- (\xA,-7.10);
+  \draw[pd guide] (\xB,-1.05) -- (\xB,-7.10);
+  \draw[pd arrow] (\xA,-1.70) -- (\xA+0.80,-1.70) -- (\xA+0.80,-2.00) -- (\xA,-2.00);
+  \node[pd badge] at (\xA+0.40,-1.38) {1};
+  \node[pd tag,anchor=west] at (\xA+1.00,-1.85)
+    {$\mathsf{xfer\_req}$: agent $\to D_A$};
+  \node[pd badge] (m2) at (5.30,-3.10) {2};
+  \draw[pd protocol arrow,pd to badge] (\xA,-3.10) -- (m2);
+  \draw[pd protocol arrow,pd from badge] (m2) -- (\xB,-3.10);
+  \node[pd tag,anchor=south] at (5.30,-2.86)
+    {$\mathsf{xfer\_offer}\langle C_A,\mathrm{att}_A,R_A{}^{(e)}\rangle$};
+  \node[pd badge] (m3) at (5.30,-4.80) {3};
+  \draw[pd protocol arrow,pd to badge] (\xB,-4.80) -- (m3);
+  \draw[pd protocol arrow,pd from badge] (m3) -- (\xA,-4.80);
+  \node[pd tag,anchor=south] at (5.30,-4.56)
+    {$\mathsf{xfer\_ack}\langle C_B{}',R_B{}^{(e)}\rangle$};
+  \draw[pd focus rule] (\xB,-4.80) -- (\xB,-7.10);
+  \draw[pd focus arrow] (\xB,-6.15) -- (\xB-0.80,-6.15) -- (\xB-0.80,-6.45) -- (\xB,-6.45);
+  \node[pd focus badge] at (\xB-0.40,-5.83) {4};
+  \node[pd tag,anchor=east,inner ysep=4pt] at (\xB-1.00,-6.30)
+    {$\mathsf{xfer\_deliver}\langle C_B{}'\,\rangle$: $D_B\to$ agent};
+  \node[pd note,anchor=north west,text width=9.2cm] at (\xA-0.05,-7.35)
+    {after message 3, $B$ verifies $C_B'$ under $\mathit{sk}_B$ alone: no synchronous call to $A$};
+\end{tikzpicture}
 
-  % Capability envelope narrows at each authority-changing message.
-  \fill[pd focus fill]
-    (-5.4,1.35)--(-1.8,1.20)--(1.8,.78)--(5.4,.78)--
-    (5.4,-.22)--(1.8,-.22)--(-1.8,-.70)--(-5.4,-1.05)--cycle;
-  \draw[pd focus rule,line width=1.2pt]
-    (-5.4,1.35)--(-1.8,1.20)--(1.8,.78)--(5.4,.78);
-  \draw[pd focus rule,line width=1.2pt]
-    (-5.4,-1.05)--(-1.8,-.70)--(1.8,-.22)--(5.4,-.22);
-  \node[pd direct label,text=hhteal] at (-4.35,.25) {$C_A$: source authority};
-  \node[pd direct label,text=hhteal] at (3.55,.28) {$C'_B\subseteq C_A$};
-  \node[pd note,anchor=south] at (-1.8,1.48) {$R_A^{(e)}$ bound into offer};
-  \node[pd note,anchor=north] at (1.8,-.48) {$R_B^{(e)}$ + attenuated card};
-
-  % Hot-path source dependency ends at message 3.
-  \draw[pd caution rule,line width=1.2pt] (-5.4,-1.72)--(1.8,-1.72);
-  \draw[pd focus rule,line width=1.2pt] (1.8,-1.72)--(5.4,-1.72);
-  \node[pd caution datum] at (-5.4,-1.72) {};
-  \node[pd focus datum] at (1.8,-1.72) {};
-  \node[pd focus datum] at (5.4,-1.72) {};
-  \node[pd direct label,text=hhamber,anchor=south] at (-1.8,-1.58)
-    {Harbor A still participates};
-  \node[pd direct label,text=hhteal,anchor=south] at (3.6,-1.58)
-    {destination verifies locally};
-  \node[pd axis label,anchor=north] at (0,-2.05)
-    {revocation remains an asynchronous epoch-root dependency, not a hot-path call};
-  \node[pd note,anchor=north] at (0,-2.45)
-    {deferred to the settlement and witness rails --- Conditionally bounded escrow custody; dispute evidence};
-\end{tikzpicture}}
-\caption{\textbf{The transfer ceremony attenuates authority and then removes
-source reachback from the hot path.} The green envelope narrows from $C_A$ to
-$C'_B\subseteq C_A$ as the signed offer and acknowledgement bind source and
-destination epoch roots. After message 3, Harbor B can verify and deliver the
-attenuated card locally. Harbor A still matters asynchronously: a later epoch
-root can revoke the transfer once that root reaches B's audit surface. Transfer
-therefore neither copies full authority nor makes every use synchronous.}
+\vspace{2pt}
+\footnotesize
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{@{}l p{8.7cm}@{}}
+\toprule
+\textbf{Forecloses} & identity spoofing of $\mathit{sk}_A$ across the boundary; capability inflation across the transfer; replay at $B$ against a stale $R_A{}^{(e)}$ \\
+\textbf{Defers} & revocation latency (\S\ref{sec:fh-revocation}); settlement disputes (\S\ref{sec:fh-settlement}); admission of unbonded harbors (\S\ref{sec:fh-admission}) \\
+\bottomrule
+\end{tabular}
+\normalsize
+\caption{\textbf{The transfer ceremony crosses the wire twice, then $B$ is on
+its own.} Message (1) is local: the agent presents $C_A$ to $D_A$. Messages
+(2) and (3), drawn in indigo, are the only ones that cross the trust boundary:
+the signed offer binds $\mathrm{att}_A$ and $A$'s epoch root, and the signed
+acknowledgement returns the attenuated card
+$C_B'=\mathrm{att}_B(\mathrm{att}_A(C_A))\subseteq C_A$
+(Theorem~\ref{lem:fh-att}) with $B$'s epoch root. After (3), gold marks the hot
+path: $D_B$ delivers $C_B'$ locally (4) and every later presentation verifies
+under $\mathit{sk}_B$ alone. Harbor $A$ still matters asynchronously --- a
+later $R_A{}^{(e+1)}$ can revoke the transfer once it reaches $B$'s audit surface
+(Figure~\ref{fig:fh-revocation}) --- but that path is not on the hot path drawn
+here. [internal]}
 \label{fig:fh-xfer}
 \end{figure}

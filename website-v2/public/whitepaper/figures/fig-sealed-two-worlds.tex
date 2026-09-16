@@ -1,52 +1,68 @@
-% Two-run lockstep for Sec. sealed-noninterference ("Silence except through the slot"), Theorem sealed-noninterference: secrets s=0 and s=2 (equal parity, g(s)=s mod 2), the honest gate's step-by-step trace load/read/submit/release, and the leaky-gate mutation's 4-step witness at the release slot. Numbers copied from website-v2/public/whitepaper/sealed-harbor.tex, Theorem sealed-noninterference, its proof idea, and "Numbers by hand" [internal, c1_noninterference.py].
+% Redraw of fig-sealed-two-worlds to the tikz-diagram-craft v2 standard.
+%
+% Reader question: do two runs that differ only in Derek's secret look
+% identical to Erin, the observer?
+% Claim: yes at every step but the declared release, and even there, for two
+% secrets of equal parity, the release still agrees.
+% Evidence: Theorem sealed-noninterference and its proof idea, and "Numbers by
+% hand" (both s=0 and s=2 give g(s)=0), website-v2/public/whitepaper/
+% sealed-harbor.tex, Sec.~sealed-noninterference [internal, c1_noninterference.py].
+% Must distinguish: the four lockstep steps where Erin's view is tied (=)
+% from the one step (release, boxed as "the slot") the theorem actually lets
+% differ; the honest run (ties hold) from the mutation (a leaky gate, where
+% they would not).
+% Grammar chosen: two-run lockstep, before/after on identical geometry
+% (tpl-before-after) -- one time axis, two lanes, so the same step compares
+% directly across worlds.
+% Grammar rejected: a single trace with a branch would hide that the compared
+% quantity is Erin's view of two SEPARATE runs, not one run's two options.
+% Five-second test: which step is the only one allowed to differ, and does it.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  lane/.style={pd state,minimum width=1.9cm,minimum height=0.72cm,align=center},
-  worldlabel/.style={pd panel title},
-  tie/.style={draw=hhteal,line width=0.9pt,densely dashed},
-  tiemark/.style={pd direct label,text=hhteal,align=center,fill=none},
-  outlab/.style={pd direct label,fill=none}]
-  % --- the two worlds, identical except Derek's secret ---
-  \node[worldlabel,text width=1.8cm] (LA) at (-2.2,7.2) {World A\\$s=0$};
-  \node[worldlabel,text width=1.8cm] (LB) at (-2.2,4.6) {World B\\$s=2$};
-  \node[lane] (A1) at (0,7.2) {load};
-  \node[lane] (A2) at (2.8,7.2) {read};
-  \node[lane] (A3) at (5.6,7.2) {submit};
-  \node[lane] (B1) at (0,4.6) {load};
-  \node[lane] (B2) at (2.8,4.6) {read};
-  \node[lane] (B3) at (5.6,4.6) {submit};
-  \draw[pd arrow] (A1) -- (A2); \draw[pd arrow] (A2) -- (A3);
-  \draw[pd arrow] (B1) -- (B2); \draw[pd arrow] (B2) -- (B3);
-  % --- Erin's observable state, tied identical at every non-release step ---
-  % (each tie is drawn as two short segments so the equals-mark it frames
-  % never sits on a stroked path: figcheck's T4 flags any line through text.)
-  \foreach \x in {0,2.8,5.6} {
-    \draw[tie] (\x,6.84) -- (\x,6.30);
-    \draw[tie] (\x,5.50) -- (\x,4.96);
-    \node[tiemark] at (\x,5.9) {$\equiv$};
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\lx{0}      % load column
+  \def\rx{1.46}   % read column
+  \def\sx{2.92}   % submit column
+  \def\gx{4.54}   % release column, inside the slot
+  \def\yA{6.6}    % World A lane
+  \def\yB{3.4}    % World B lane
+  % --- the two worlds, identical except Derek's secret ---------------------
+  \node[pd title,anchor=east,align=center,text width=1.0cm] at (-0.50,\yA) {World A\\$s=0$};
+  \node[pd title,anchor=east,align=center,text width=1.0cm] at (-0.50,\yB) {World B\\$s=2$};
+  \node[pd state,minimum width=1.42cm] (A1) at (\lx,\yA) {load};
+  \node[pd state,minimum width=1.42cm] (A2) at (\rx,\yA) {read};
+  \node[pd state,minimum width=1.42cm] (A3) at (\sx,\yA) {submit};
+  \node[pd state,minimum width=1.42cm] (B1) at (\lx,\yB) {load};
+  \node[pd state,minimum width=1.42cm] (B2) at (\rx,\yB) {read};
+  \node[pd state,minimum width=1.42cm] (B3) at (\sx,\yB) {submit};
+  \draw[pd focus arrow] (A1) -- (A2); \draw[pd focus arrow] (A2) -- (A3);
+  \draw[pd focus arrow] (B1) -- (B2); \draw[pd focus arrow] (B2) -- (B3);
+  % --- Erin's observable state, tied at every step ($\equiv$), drawn as two
+  % short segments so the mark they frame never sits on a stroked path -----
+  \foreach \x in {\lx,\rx,\sx} {
+    \draw[pd hairline] (\x,{\yA-.36}) -- (\x,{\yA-.90});
+    \draw[pd hairline] (\x,{\yB+.90}) -- (\x,{\yB+.36});
+    \node[pd label] at (\x,{(\yA+\yB)/2}) {$\equiv$};
   }
-  \node[outlab,text width=6.2cm,align=center] at (2.8,3.55) {Erin's observed trace is identical here, under every interleaving to depth 7};
-  % --- the slot: the one declared release step ---
-  \draw[pd boundary] (7.3,3.85) rectangle (9.9,7.95);
-  \node[pd note,anchor=south west] at (7.35,7.98) {the slot};
-  \node[lane,pd terminal] (A4) at (8.6,7.2) {release\\$g=0$};
-  \node[lane,pd terminal] (B4) at (8.6,4.6) {release\\$g=0$};
-  \draw[pd arrow] (A3) -- (A4); \draw[pd arrow] (B3) -- (B4);
-  % Started lower than the ties at x=0/2.8/5.6, and for a reason those do not
-  % have: A4 and B4 are `pd terminal`, whose double border puts a second rule
-  % 1.2pt inside the box, so their two-line text sits lower in the node than a
-  % plain `lane`'s single line does. At 6.84 this tie ran 1.0pt into the font
-  % box of `$g=0$` -- which figcheck T4 reports and which is pre-existing, not
-  % introduced by the typography pass.
-  \draw[tie] (8.6,6.66) -- (8.6,6.30);
-  \draw[tie] (8.6,5.50) -- (8.6,5.14);
-  \node[tiemark] at (8.6,5.9) {$\equiv$};
-  % --- the mutation: honest gate replaced by one that leaks the raw secret ---
-  \draw[pd caution arrow] (8.6,3.85) -- (8.6,3.42);
-  \node[pd note,anchor=north,text=pdinkmuted,text width=8.0cm,align=center] at (8.6,3.40) {mutation: a gate that leaks the raw secret would emit leak $0$ from World A and leak $2$ from World B -- now distinguishable, caught at this same 4-step witness};
-  \node[pd note,anchor=north west,text width=14.7cm] at (-3.0,1.15) {Model check on the finite clean-room transition system, secrets $s\in\{0,1,2,3\}$, $g(s)=s\bmod 2$: exhaustive over all interleavings to depth 7 and all secret pairs, zero distinguishing observations in the honest model. Both mutations caught: the leaked-secret gate above (4 steps), and a worker that bypasses the gate entirely (3 steps) [internal, \texttt{c1\_noninterference.py}].};
+  % --- the slot: the one declared release step ------------------------------
+  \node[pd focus state,line width=1.6pt,minimum width=1.42cm,align=center] (A4) at (\gx,\yA) {release\\$g=0$};
+  \node[pd focus state,line width=1.6pt,minimum width=1.42cm,align=center] (B4) at (\gx,\yB) {release\\$g=0$};
+  \begin{scope}[on background layer]
+    \node[pd panel,fit={(A4)(B4)},inner xsep=2pt] (slot) {};
+  \end{scope}
+  \node[pd title,anchor=south] at (slot.north) {the slot};
+  \draw[pd focus arrow] (A3) -- (A4); \draw[pd focus arrow] (B3) -- (B4);
+  \draw[pd hairline] (\gx,{\yA-.60}) -- (\gx,{\yA-.90});
+  \draw[pd hairline] (\gx,{\yB+.90}) -- (\gx,{\yB+.60});
+  \node[pd label] at (\gx,{(\yA+\yB)/2}) {$\equiv$};
+  \node[pd note,anchor=north west,align=left,text width=3.3cm] at (-0.50,1.95)
+    {Erin's trace is identical at every step, to depth 7};
+  % --- the mutation: honest gate replaced by one that leaks the raw secret -
+  \draw[pd breach arrow] (\gx,{\yB-1.05}) -- (\gx,0.75);
+  \node[pd breach state,text width=1.55cm,align=center] (LEAK) at (\gx,-0.05)
+    {leaky gate:\\caught here};
 \end{tikzpicture}
-\caption{Two runs of the clean room, identical except Derek's secret, driven in lockstep through the action sequence \texttt{load}$\to$\texttt{read}$\to$\texttt{submit}$\to$\texttt{release}. Erin's observable state is tied ($\equiv$) at every step; the release step is boxed as ``the slot'' because it is the only step the theorem lets differ at all, and here it still does not, since the two secrets share a parity. Below the slot, the leaky-gate mutation shows what a difference at that step actually looks like once caught.}
+\caption{Two runs of the clean room, identical except Derek's secret ($s{=}0$ against $s{=}2$, equal parity so $g(s){=}0$ either way), driven in lockstep through \texttt{load}$\to$\texttt{read}$\to$\texttt{submit}$\to$\texttt{release}. Erin's observable state is tied ($\equiv$) at every step; the release step is boxed as ``the slot'' because it is the only step the theorem lets differ at all, and here it still does not. Below the slot, replacing the honest gate with one that leaks the raw secret breaks the tie at this same step -- leak $0$ from World A against leak $2$ from World B, now distinguishable. The finite clean-room model, secrets $s\in\{0,1,2,3\}$ with $g(s)=s\bmod 2$, passes this check exhaustively to depth 7 over every interleaving and secret pair; both mutations are caught -- the leaked-secret gate shown here (4 steps) and a worker that bypasses the gate entirely (3 steps) [internal, \texttt{c1\_noninterference.py}].}
 \label{fig:sealed-two-worlds}
 \end{figure}

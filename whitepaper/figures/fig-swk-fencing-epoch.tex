@@ -1,0 +1,47 @@
+% Brief (tikz-diagram-craft). Register row ch1-14 [should].
+% Reader question: how does a holder who is asleep past reassignment get
+%   blocked from acting?
+% Claim: the epoch, not the lock, rejects the stale holder: A's late
+%   effect still names a real lease it once held, but it presents the
+%   epoch that lease had when A held it, and the effect broker rejects
+%   anything below the resource's current epoch.
+% Evidence: whitepaper/single-writer-kernel.tex thm:exclusion (every
+%   granted lease carries a strictly monotonic fencing epoch; downstream
+%   effect brokers reject any operation bearing an expired epoch); the
+%   work-unit machine's guard 1 (admit-effect: current epoch only),
+%   shortest crime: propose-authorize, start_exec, reassign_role,
+%   admit_effect(STALE), 4 steps.
+% Must distinguish: the epoch increments on reassignment, not on every
+%   write; the rejection compares the effect's carried epoch to the
+%   resource's current epoch, not to a wall-clock deadline.
+% Grammar: a four-step spine, epoch value named at each step, the stale
+%   effect crossing in from the side. Rejected: the full work-unit machine
+%   (536 states), which would bury this one guard in the machine it
+%   belongs to; this figure isolates the guard as a 3-actor sequence.
+% Five-second test: "epoch ticks 0 to 1 at reassignment; A's effect still
+%   says 0 and is rejected".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\sx{2.2}
+  \node[pd focus state,minimum width=3.6cm] (s1) at (\sx,5.6) {holder A, epoch $e=0$};
+  \node[pd state,minimum width=3.6cm] (s2) at (\sx,3.8) {reassign: epoch increments};
+  \node[pd focus state,minimum width=3.6cm] (s3) at (\sx,2.0) {holder B, epoch $e=1$};
+  \foreach \a/\b in {s1/s2,s2/s3}{\draw[pd focus arrow] (\a)--(\b);}
+  \node[pd breach state,minimum width=4.2cm] (lateeffect) at (8.2,3.8) {A's late effect: carries $e{=}0$};
+  \draw[pd breach arrow] (lateeffect.west) -- (s2.east);
+  \node[pd breach state,minimum width=4.2cm,text width=3.9cm,align=center] (rej) at (8.2,1.2) {rejected: carried epoch 0 is behind the resource's current epoch 1};
+  \draw[pd breach arrow] (lateeffect) -- (rej);
+\end{tikzpicture}
+\caption{The epoch, not the lock, rejects the paused holder. A acquires a
+lease at epoch $e=0$; reassignment increments the resource's fencing epoch
+to $e=1$ and grants it to B. A's late effect still names a real lease it
+once held, but it carries the epoch $e=0$ it was issued -- the effect broker
+compares that carried epoch to the resource's current epoch and rejects it,
+independent of any deadline. This is guard~1 of the work-unit machine
+(admit-effect: current epoch only), whose shortest violating trace without
+it is exactly this four-step sequence [internal, Thm.~\ref{thm:exclusion},
+c0\_workunit.py].}
+\label{fig:swk-fencing-epoch}
+\end{figure}

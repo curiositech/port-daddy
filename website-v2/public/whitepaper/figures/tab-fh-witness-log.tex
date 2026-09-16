@@ -1,0 +1,38 @@
+% Table for ch8-06 -- the Witness-Log Admissibility properties (S2.3,
+% prop:fh-witness), a classification (property x what it prevents) per the
+% whitepaper figure system's own rule: a classification is a table, not a
+% figure, mirroring Bonded's own Admissible KMS treatment.
+%
+% Reader question: what must the shared log guarantee for no harbor to
+%   become sovereign over the others?
+% Claim: five independent properties, each closing one specific failure;
+%   dropping any one reopens a distinct way a harbor (or the log itself)
+%   could become sovereign over the others.
+% Evidence: prop:fh-witness's own five-item enumeration.
+% Grammar rejected: a figure of the log as a chain of boxes would show
+%   append-only alone; the other four properties are not structural, they
+%   are guarantees about what the log lets an auditor conclude, which a
+%   table's "prevents" column states directly.
+% Five-second test: which property is the one that makes equivocation
+%   provable, not just detectable?
+\begin{table}[H]
+\centering
+\caption{The five properties Witness-Log Admissibility (Design
+Invariant~\ref{prop:fh-witness}) requires, and the specific failure each one
+closes. \mbox{Transfer}, revocation, and \mbox{settlement} all attach to this log, so
+a missing property here reopens a failure in every one of them. [internal]}
+\label{tab:fh-witness-log}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{property} & \textbf{what it prevents} \\
+\midrule
+append-only & retracting or reordering a published root after the fact \\
+per-harbor latest-root binding & a harbor silently publishing two roots for one epoch \\
+auditable consistency & an inconsistent history between two epochs going unverifiable \\
+equivocation evidence & a proven contradiction requiring anything beyond the two signed roots \\
+threshold publishability & publication itself requiring another daemon's permission \\
+\bottomrule
+\end{tabularx}
+\end{table}

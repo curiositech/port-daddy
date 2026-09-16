@@ -1,0 +1,59 @@
+% Brief (tikz-diagram-craft). Register row ch1-25 (must).
+% Reader question: how can "no egress after reading a secret" be enforced when
+%   the read itself cannot be refused?
+% Claim: the policy is regimentable because it never refuses the uncontrollable
+%   read -- it records it as taint -- and disables only net_egress, which is
+%   controllable. Gate the channel, never the token.
+% Evidence: whitepaper/single-writer-kernel.tex sec:gate-the-channel; the policy
+%   automaton P3 (states ok, tainted); Schneider 2000 Fig. 1 relabelled;
+%   b3_controllability.py classifies the compound policy "regiment".
+% Must distinguish: the two states; which event is uncontrollable; that the read
+%   is enabled in BOTH states; that the only disabled event is egress.
+% Grammar: automaton (circles, initial arrow, self-loops) plus an aligned
+%   event table. Rejected: a flowchart "read -> check -> block", which invites
+%   the false reading that the read is intercepted.
+% Five-second test: "reading is always allowed; only egress is shut, and only after".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd automaton state,minimum size=14.5mm] (ok) at (2.2,0) {\texttt{ok}};
+  \node[pd automaton focus,minimum size=14.5mm] (t) at (6.6,0) {\texttt{tainted}};
+  \draw[pd initial] (0.5,0) -- (ok.west);
+  % the uncontrollable read: moves ok to tainted, and stays enabled after
+  \draw[pd arrow] (ok.east) -- (t.west)
+    node[pd label,midway,above=2pt] {\texttt{in\_context\_read}}
+    node[pd kind,midway,below=2pt] {uncontrollable};
+  \draw[pd arrow] (t.115) .. controls +(115:1.1) and +(65:1.1) .. (t.65);
+  \node[pd label,anchor=base] at (6.6,1.62) {\texttt{in\_context\_read}};
+  % egress: enabled in ok, disabled in tainted
+  \draw[pd arrow] (ok.115) .. controls +(115:1.1) and +(65:1.1) .. (ok.65);
+  \node[pd label,anchor=base] at (2.2,1.62) {\texttt{net\_egress}};
+  \draw[pd spine] (10.0,-0.62) -- (10.0,0.62);
+  \draw[pd breach arrow,-] (t.east) -- (9.92,0);
+  \node[pd breach datum] at (9.92,0) {};
+  \node[pd label,anchor=south] at (8.55,0.06) {\texttt{net\_egress}};
+  \node[pd kind,anchor=north] at (8.55,-0.06) {controllable};
+  \node[pd label,anchor=north] at (10.0,-0.68) {gate};
+\end{tikzpicture}
+
+\medskip
+{\footnotesize
+\begin{tabular}{@{}l l l l@{}}
+\toprule
+event & alphabet & in \texttt{ok} & in \texttt{tainted} \\
+\midrule
+\texttt{in\_context\_read} & $\Sigma_u$, uncontrollable & enabled, to \texttt{tainted} & enabled \\
+\texttt{net\_egress} & $\Sigma_c$, controllable & enabled & disabled \\
+\bottomrule
+\end{tabular}}
+\caption{The taint automaton behind the sealed room: Schneider's two-state
+security automaton for ``no egress after an in-context read of a secret'', with
+his states relabelled. The read is uncontrollable, and the policy never tries
+to refuse it: it is enabled in both states and only records the taint. The one
+event the tainted state disables is \texttt{net\_egress}, which the daemon
+mediates, so every uncontrollable event stays enabled and the policy is
+regimentable. Gate the channel, never the token [internal,
+\texttt{b3\_controllability.py}].}
+\label{fig:swk-taint-automaton}
+\end{figure}

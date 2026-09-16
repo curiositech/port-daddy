@@ -1,45 +1,74 @@
-% Ordered dispute escalation shown as a cost staircase with a common evidence rail.
+% Reader question: When does a dispute escalate from local handling to a
+%   stronger intervention, and what is preserved at every stage?
+% Claim: dispute resolution is an ordered four-stage escalation ladder --
+%   direct release, TTL expiry, bonded preemption, human ruling -- and every
+%   stage's outcome discharges onto the same evidence-bound resolution rail.
+% Evidence: the four stages, their escalation triggers and their outcomes are
+%   named in the dispute-governance section of this chapter [internal].
+% Must distinguish: which condition escalates a dispute past a stage, and
+%   that every stage's termination writes to one evidence rail regardless of
+%   which stage resolved it.
+% Grammar chosen: escalation spine with numbered badges keyed to a ruled
+%   legend (state-machine idiom). Rejected: the v1 quantitative staircase
+%   plotted against "intervention cost" and "elapsed dispute path" axes,
+%   because neither axis carried a measured unit -- a schematic curve with
+%   no data behind it is a sentence, and the atlas explicitly rejects a
+%   "decorative staircase" for this row.
+% Five-second test: a reader names the four stages in order and says that
+%   every one of them discharges to the same evidence rail.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-.25,4.12)
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid -------------------------------------------------------------
+  \def\xa{0.35}  \def\xb{2.91}  \def\xc{5.48}  \def\xd{8.04}  \def\xe{10.60}
+  \def\ya{0.55}  \def\yb{1.35}  \def\yc{2.15}  \def\yd{2.95}
+  \def\yrail{-0.35}
+  \def\ma{1.63}  \def\mb{4.195}  \def\mc{6.76}  \def\md{9.32}
+  \node[pd title,anchor=west] at (\xa,3.85)
     {intervention rises only when the cheaper exit fails};
-
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-.35,-.02)--(12.20,-.02);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-.35,-.02)--(-.35,3.85);
-  \node[pd axis label,anchor=west] at (12.30,-.02) {elapsed dispute path};
-  \node[pd axis label,rotate=90,anchor=south] at (-.67,1.92) {intervention cost};
-
-  \draw[pd caution rule,line width=1.5pt]
-    (.10,.36)--(2.70,.36)--(2.70,1.10)--(5.55,1.10)--(5.55,2.02)--(8.55,2.02)--(8.55,3.28)--(11.85,3.28);
-  \foreach \x/\y in {1.35/.36,4.15/1.10,7.05/2.02,10.15/3.28}
-    \node[pd caution datum] at (\x,\y) {};
-
-  \node[pd direct label,anchor=south,align=center] at (1.35,.62)
-    {1  DIRECT RELEASE\\[-1pt]\pdfigsub claimant yields};
-  \node[pd direct label,anchor=south,align=center] at (4.15,1.36)
-    {2  TTL EXPIRY\\[-1pt]\pdfigsub heartbeat absent};
-  \node[pd direct label,anchor=south,align=center] at (7.05,2.28)
-    {3  BONDED PREEMPTION\\[-1pt]\pdfigsub waiting cost exceeds bond};
-  \node[pd direct label,anchor=south,align=center] at (10.15,3.54)
-    {4  HUMAN RULING\\[-1pt]\pdfigsub ambiguous or high stakes};
-
-  \node[pd note,text=pdinkmuted,anchor=west] at (2.82,.68) {no heartbeat};
-  \node[pd note,text=pdinkmuted,anchor=west] at (5.68,1.58) {preemption justified};
-  \node[pd note,text=pdinkmuted,anchor=west] at (8.68,2.84) {machine limit reached};
-
-  \draw[pd focus rule,line width=1.35pt] (.55,-1.25)--(11.55,-1.25);
-  \foreach \x/\y/\outcome in {1.35/.36/released,4.15/1.10/expired,7.05/2.02/preempted,10.15/3.28/ruled} {
-    \draw[pd focus arrow] (\x,\y-.13)--(\x,-1.12);
-    \node[pd direct label,text=hhteal,anchor=north] at (\x,-1.36) {\outcome};
-  }
-  \node[pd panel title,text=hhteal,anchor=east] at (11.55,-.98)
-    {one evidence-bound resolution rail};
-  \node[pd note,anchor=west] at (.55,-1.88)
-    {actor $\cdot$ reason $\cdot$ artifact $\cdot$ outcome $\rightarrow$ Merkle forest $\rightarrow$ appeal window};
-\end{tikzpicture}%
-}
-\caption{Dispute resolution is an escalation staircase. The system first offers a zero-coercion exit, then waits for the claimant's TTL, then permits priced preemption, and reaches human judgment only after the machine-readable options are exhausted. Every station can terminate the dispute, and every termination descends to the same evidence rail. Escalation therefore changes the decision cost and decision-maker without discarding the record needed for appeal.}
+  % ---- the escalation spine: four landings, three risers, gapped at badges -
+  \draw[pd focus rule] (\xa,\ya)--({\ma-.30},\ya);
+  \draw[pd focus rule] ({\ma+.30},\ya)--(\xb,\ya)--(\xb,\yb)--({\mb-.30},\yb);
+  \draw[pd focus rule] ({\mb+.30},\yb)--(\xc,\yb)--(\xc,\yc)--({\mc-.30},\yc);
+  \draw[pd focus rule] ({\mc+.30},\yc)--(\xd,\yc)--(\xd,\yd)--({\md-.30},\yd);
+  \draw[pd focus rule] ({\md+.30},\yd)--(\xe,\yd);
+  \foreach \x/\y/\n/\kind in {%
+    \ma/\ya/1/{direct release},
+    \mb/\yb/2/{TTL expiry},
+    \mc/\yc/3/{bonded preemption},
+    \md/\yd/4/{human ruling}}{
+      \node[pd focus badge] (bg\n) at (\x,\y) {\n};
+      \node[pd kind,anchor=south,text width=2.3cm,align=center] at (\x,{\y+.30}) {\kind};}
+  \draw[pd focus rule] (\xa,\yrail)--(\xe,\yrail);
+  \foreach \n/\outcome/\bx/\by in {1/released/\ma/\ya,2/expired/\mb/\yb,
+                                    3/preempted/\mc/\yc,4/ruled/\md/\yd}{
+    \draw[pd thin arrow] (\bx,{\by-.25})--(\bx,{\yrail+.14});
+    \node[pd ready datum] at (\bx,\yrail) {};
+    \node[pd ready label,anchor=north] at (\bx,{\yrail-.45}) {\outcome};}
+  \node[pd note,anchor=west,text width=10.25cm] at (\xa,{\yrail-1.45})
+    {every stage discharges to one evidence rail: actor $\cdot$ reason $\cdot$
+     artifact $\cdot$ outcome $\rightarrow$ Merkle forest $\rightarrow$ appeal window};
+  % ---- the legend: each badge, its escalation trigger ----------------------
+  \def\ly{-2.35}  \def\lc{4.65}
+  \draw[pd rule] (\xa,\ly) -- (\xe,\ly);
+  \node[pd title,anchor=north west] at (\xa,{\ly-.42}) {stage};
+  \node[pd title,anchor=north west] at (\lc,{\ly-.42}) {escalation trigger};
+  \draw[pd hairline] (\xa,{\ly-1.20}) -- (\xe,{\ly-1.20});
+  \foreach \i/\n/\kind/\trig in {%
+    0/1/{direct release}/{claimant yields voluntarily},
+    1/2/{TTL expiry}/{heartbeat absent past its TTL},
+    2/3/{bonded preemption}/{waiting cost exceeds the posted bond},
+    3/4/{human ruling}/{ambiguous claim or high stakes}}{
+      \node[pd badge] at ({\xa+.28},{\ly-1.55-\i*.55}) {\n};
+      \node[pd label,anchor=west] at ({\xa+.62},{\ly-1.55-\i*.55}) {\kind};
+      \node[pd label,anchor=west,align=left] at (\lc,{\ly-1.55-\i*.55}) {\trig};}
+\end{tikzpicture}
+\caption{Dispute resolution is an ordered four-stage escalation ladder. Each
+stage badge is keyed to the escalation trigger in the legend, and every
+stage outcome -- released, expired, preempted, or ruled -- discharges onto
+the same evidence rail regardless of which stage resolved the dispute.
+Escalation therefore changes only the decision cost and decision-maker,
+never the record kept for appeal. [internal]}
 \label{fig:governance-flow}
 \end{figure}

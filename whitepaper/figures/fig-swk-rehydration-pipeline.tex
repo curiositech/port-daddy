@@ -1,0 +1,50 @@
+% Brief (tikz-diagram-craft). Register row ch1-32 [should].
+% Reader question: what does replay actually restore, and what does it
+%   explicitly not restore?
+% Claim: event-sourced rehydration restores the durable half -- a commit,
+%   a message log, open claims and commitments -- by replaying inputs into
+%   a fresh agent; it does not and cannot restore the model's inference
+%   state, which is bound to a particular model, sampler and session.
+% Evidence: whitepaper/single-writer-kernel.tex sec:continuity (Event-
+%   sourced rehydration, Designed): pin the working tree to the
+%   predecessor's commit, truncate the durable message log to the recorded
+%   failure point, replay into a fresh agent; "a replayed prefix
+%   reconstructs the inputs to that state, not the state."
+% Must distinguish: durable inputs (restored) from inference state (not
+%   restored, and named as the open half of OP-4); that this is a
+%   direction with an unestablished completeness claim, not a closure.
+% Grammar: a four-step pipeline with a dashed exclusion box around what is
+%   not restored (S8: remove one element and the claim survives -- here
+%   the exclusion box IS the claim, so it stays). Rejected: a before/after
+%   pair, which would need two full agent states drawn and would suggest
+%   the "after" is a faithful restoration rather than a reconstruction of
+%   inputs only.
+% Five-second test: "four boxes in a row; a dashed box below the last one
+%   says what never comes back".
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state,minimum width=2.25cm,text width=2.0cm,align=center] (s1) at (1.15,0) {predecessor state};
+  \node[pd focus state,minimum width=2.25cm,text width=2.0cm,align=center] (s2) at (3.90,0) {pin commit; truncate log};
+  \node[pd focus state,minimum width=2.25cm,text width=2.0cm,align=center] (s3) at (6.65,0) {replay into a fresh agent};
+  \node[pd ready state,minimum width=2.25cm,text width=2.0cm,align=center] (s4) at (9.40,0) {successor context};
+  \foreach \a/\b in {s1/s2,s2/s3,s3/s4}{\draw[pd focus arrow] (\a)--(\b);}
+  \node[pd label,anchor=north,text width=2.6cm,align=center] at (9.40,-0.70)
+    {restored: commit, message log, open claims and commitments};
+
+  \draw[pd breach rule] (0.70,-2.45) rectangle (4.35,-1.00);
+  \node[pd breach label,anchor=center,text width=3.35cm,align=center] at (2.525,-1.725)
+    {not restored: the model's inference state};
+\end{tikzpicture}
+\caption{Event-sourced rehydration (\textsc{designed}), as a pipeline with
+its own exclusion drawn in. Pinning the predecessor's commit and truncating
+the message log to the recorded failure point, then replaying it into a
+fresh agent, restores the durable half: a commit identifier, a message log,
+an open-claim and commitment set. The dashed box names what this does not
+restore -- a language model's inference state is bound to a particular
+model, sampler and session, so a replayed prefix reconstructs the inputs to
+that state, not the state itself. This is a direction for OP-4 with an
+unestablished completeness claim, not a closure of it. [internal]}
+\label{fig:swk-rehydration-pipeline}
+\end{figure}

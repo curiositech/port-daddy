@@ -1,0 +1,63 @@
+% Fragment: fig-sealed-work-order-schema.tex -- the work order C's
+% thirteen fields, grouped by role, as an annotated record schema.
+%
+% Reader question: what exactly does the one contract both principals
+% sign pin down, and what forces a re-sign?
+% Claim: the work order's thirteen fields fall into five roles -- pins,
+% permissions, recipients, bounds, and remedies -- and changing any one
+% field changes the hash, which invalidates both signatures.
+% Evidence: "The work order" paragraph, website-v2/public/whitepaper/
+% sealed-harbor.tex, Sec. sealed-design (the tuple C, and "Read the tuple
+% in order..."; "Any change makes a new hash and requires both
+% signatures.").
+% Must distinguish: the chapter's own five-way grouping (not a flat list
+% of thirteen fields); and, within "pins," that a hash pins the runtime's
+% attested MEASUREMENT, not its live state -- the counter-read this
+% figure exists to preempt.
+% Grammar chosen: block stack (tpl-block-stack), one band per role, the
+% record's own field names on the right, a one-line gloss closing each
+% band -- fields "sit inside" a role the way a block stack's layers sit
+% on each other, and no arrows are needed since containment is the claim.
+% Grammar rejected: a flat itemized list of thirteen fields -- loses the
+% five-way grouping that is the chapter's own organizing idea and that
+% Exercise-level readers are expected to reproduce from memory.
+% Five-second test: name the one field that pins the runtime, and say
+% what it pins (a measurement, not a live state).
+% QA: beauty_lint warns B2 in maritime/technical (row-divider hairlines
+% 1.0-1.4pt from the last wrapped line of a gloss) and B7 (sub-point
+% alignment noise across the five bands' left-column baselines);
+% justified, not fixed.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\w{11.2}  \def\h{2.15}
+  \foreach \i/\name/\fields/\gloss/\s in {%
+    4/{pins}/{$H(\text{data})$, $H(\text{agent})$, $H(\text{runtime})$, $H(\text{policy})$}/{four hashes -- each pins an attested measurement, not the live thing}/{pd focus fill},
+    3/{permissions}/{function, tools}/{fixes what may run and what it may call}/{pd neutral fill},
+    2/{recipients}/{recipients, output schemas}/{fixes who may receive a result, and in what shape}/{pd neutral fill},
+    1/{bounds}/{budgets, retention}/{bounds output bits, queries, and time; retention fixes key destruction}/{pd neutral fill},
+    0/{remedies}/{validators, payment, liability}/{validators name the success evidence and dispute procedure; payment and liability are the guarantee}/{pd neutral fill}}{
+      \draw[\s] (0,{\i*\h}) rectangle (\w,{\i*\h+\h});
+      \node[pd title,anchor=north west,text width=2.3cm] at (0.22,{\i*\h+\h-0.18}) {\name};
+      \node[pd label,anchor=north west,text width=3.55cm,align=left]
+        at (2.75,{\i*\h+\h-0.18}) {\fields};
+      \node[pd label,text=pdinkmuted,anchor=north west,text width=4.55cm,align=left]
+        at (6.55,{\i*\h+\h-0.18}) {\gloss};}
+  \node[pd kind] at (1.35,{5*\h+0.35}) {role};
+  \node[pd kind] at (4.5,{5*\h+0.35}) {fields};
+  \node[pd kind] at (8.8,{5*\h+0.35}) {what it fixes};
+  \node[pd note,anchor=north west,align=left,text width=10.9cm]
+    at (0.22,-0.42) {any change to any field makes a new hash for $C$ and requires both Derek's and Erin's signatures again};
+\end{tikzpicture}
+\caption{The work order $C$'s thirteen fields, grouped by the five roles
+the chapter itself names. The four hashes (shaded, top) pin an attested
+\emph{measurement} of each named object -- the data manifest, the agent
+bundle, the runtime, and the policy -- not the object's live state at
+query time; function and tools fix what may run; recipients and output
+schemas fix who may receive a result and in what shape; budgets and
+retention bound the engagement; validators, payment, and liability are
+the remedy if something goes wrong. Any change to any field produces a
+new hash for $C$, so both principals must sign again. [internal]}
+\label{fig:sealed-work-order-schema}
+\end{figure}

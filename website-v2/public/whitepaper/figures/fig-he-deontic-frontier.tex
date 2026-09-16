@@ -1,0 +1,60 @@
+% Figure IV.new --- the deontic-conflict frontier: one feature, a cliff not a
+% slope. ch6-09 (register: must).
+%
+% Reader question: exactly which single language feature turns a free
+% polynomial check into an NP-complete one?
+% Claim: every rule kind already inside L_c keeps conflict detection
+% polynomial with a witness (Thm. B4.1); adding ONE feature -- letting one
+% obligation be disjunctive -- makes conflict-freedom NP-complete via a
+% 3-SAT reduction (Thm. B4.2), and the boundary is a cliff, not a slope.
+% Evidence: O(H+T log T+C log C+V*E) membership; the 3-SAT reduction (one
+% disjunctive obligation per clause, two matched O/F rules per literal on
+% identical scope/interval); verified on 16 seeded instances (8 SAT + 8
+% UNSAT), conflict-freedom <=> satisfiability on all 16.
+% Must distinguish: the identical rule vocabulary shared by both columns
+% from the one added rule kind that is the entire cause of the jump.
+% Grammar chosen: before/after on identical geometry (SKILL.md: "what one
+% change changes") -- same vocabulary column, one row added, the verdict
+% badge flips. Grammar rejected: a Venn diagram of the two fragments, which
+% would suggest a fuzzy overlap where the theorem's whole point is a sharp
+% boundary with no partial credit.
+% Five-second test: a reader can name the one added rule kind and see the
+% verdict badge flip from green to red because of it.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\lx{0.60}
+  \def\rx{5.80}
+  \def\dy{0.72}
+  \node[pd title,anchor=west] at (\lx,4.35) {inside $L_c$};
+  \node[pd title,anchor=west] at (\rx,4.35) {$L_c$ + one disjunctive obligation};
+  \foreach \x in {\lx,\rx}{
+    \node[pd label,anchor=west] at (\x,{4.35-1*\dy}) {Horn rules ($\to$ head, or $\bot$)};
+    \node[pd label,anchor=west] at (\x,{4.35-2*\dy}) {O/F: fixed scope + interval};
+    \node[pd label,anchor=west] at (\x,{4.35-3*\dy}) {exclusive interval claims};
+    \node[pd label,anchor=west] at (\x,{4.35-4*\dy}) {difference constraints};}
+  \node[pd breach label,anchor=west] at (\rx,{4.35-5*\dy})
+    {$+O(\ell_1\vee\ell_2\vee\cdots)$: disjunctive obligation};
+  \draw[pd rule,->] (\lx,{4.35-5.55*\dy}) -- (\lx,{4.35-6.35*\dy});
+  \draw[pd breach rule,->] (\rx,{4.35-5.55*\dy}) -- (\rx,{4.35-6.35*\dy});
+  \node[pd ready state,minimum width=4.6cm,text width=4.2cm,align=center] at ({\lx+2.2},{4.35-7.15*\dy})
+    {\textbf{polynomial, witness-producing} --- three engines: Horn propagation, sweep-line overlap, Bellman-Ford};
+  \node[pd breach state,minimum width=4.6cm,text width=4.2cm,align=center] at ({\rx+2.2},{4.35-7.15*\dy})
+    {\textbf{NP-complete} --- selection guessed, verified by the same three engines (3-SAT reduction)};
+  \node[pd note,anchor=north west,text width=9.7cm] at (\lx,{4.35-9.1*\dy})
+    {verified on 16 seeded instances (8 satisfiable, 8 unsatisfiable, seed
+     20260816): conflict-freedom $\Leftrightarrow$ satisfiability on all 16};
+\end{tikzpicture}
+\caption{\textbf{One added rule kind turns a polynomial check into an
+NP-complete one.} Both columns share the identical rule vocabulary of
+$L_c$: Horn rules, deontic obligations/prohibitions on scope and interval,
+exclusive claims, and difference constraints, decided in
+$O(H+T\log T+C\log C+VE)$ with a polynomial witness per conflict
+(the in-fragment theorem, left). Letting exactly one obligation become disjunctive
+(right) is enough: the extended fragment's conflict-freedom is
+NP-complete by reduction from 3-SAT (the frontier theorem), so the boundary is the
+presence of that one feature, not a graded notion of expressiveness.
+[verified, \texttt{b4\_deontic\_fragment.py}]}
+\label{fig:he-deontic-frontier}
+\end{figure}

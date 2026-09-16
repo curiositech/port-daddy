@@ -1,0 +1,92 @@
+% Brief (tikz-diagram-craft).
+% Reader question: why does a stale marker never need cleaning up?
+% Claim: a marker lives exactly as long as someone keeps renewing it; a crashed
+%   agent's markers are gone 90 minutes after its last mark, deleted by nobody.
+% Evidence: lib/pheromone.ts as shipped (server.ts uses the defaults):
+%   decayRate 0.95 per 60 s interval; deleted when below 0.01; spray() SETS the
+%   strength, so a re-mark resets it to 1. 0.95^89 = .0104 > .01 > .0099 =
+%   0.95^90. Live agent re-marks every 25 min (illustrative cadence): its
+%   strength never falls below 0.95^25 = .277. [analytic, from the code]
+% Must distinguish: renewed vs abandoned; the deletion threshold; when.
+% Grammar: snapshots of the shared board (dot area = strength) on the same time
+%   axis as the strength traces, log y so decay is a straight line.
+%   Rejected: the w(t) curve alone (fig-swk-marker-decay) -- it shows the
+%   arithmetic, not that renewal is what keeps a signal alive.
+% Five-second test: "the blue dots stay, the grey dots fade out by minute 90".
+% CAPTION IS A DRAFT FOR THE AUTHOR.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure]
+\begin{axis}[pd axis,
+  width=8.2cm,height=4.6cm,
+  xmin=0,xmax=100,ymode=log,ymin=0.002,ymax=1.4,
+  xtick={0,30,60,90},ytick={0.01,0.1,1},yticklabels={0.01,0.1,1},
+  xlabel={minutes},
+  ylabel={marker strength},
+  clip=false]
+  % guides from each board snapshot down to its minute, behind the data
+  \draw[pd guide] (axis cs:0,1.4) -- (axis cs:0,0.002);
+  \draw[pd guide] (axis cs:30,1.4) -- (axis cs:30,0.002);
+  \draw[pd guide] (axis cs:60,1.4) -- (axis cs:60,0.002);
+  \draw[pd guide] (axis cs:90,1.4) -- (axis cs:90,0.002);
+  % the deletion threshold
+  \addplot[pd warn series,line width=.9pt,domain=0:100] {0.01};
+  \node[pd tag,anchor=south west] at (axis cs:1,0.0122) {deleted below 0.01};
+  % the crashed agent: last marked at minute 0, never again
+  \addplot[pd series,mark=none,domain=0:90,samples=46] {0.95^x};
+  \node[pd datum] at (axis cs:90,0.0099) {};
+  \node[pd tag,anchor=north east] at (axis cs:88,0.0080) {gone at minute 90};
+  \node[pd label,anchor=center] at (axis cs:45,0.03) {crashed agent};
+  % the live agent: re-marks every 25 minutes, each mark resets it to 1
+  \addplot[pd focus series,mark=none,domain=0:25,samples=13] {0.95^(x-0)};
+  \addplot[pd focus series,mark=none,domain=25:50,samples=13] {0.95^(x-25)};
+  \addplot[pd focus series,mark=none,domain=50:75,samples=13] {0.95^(x-50)};
+  \addplot[pd focus series,mark=none,domain=75:100,samples=13] {0.95^(x-75)};
+  \draw[pd focus rule] (axis cs:25,0.2774) -- (axis cs:25,1);
+  \draw[pd focus rule] (axis cs:50,0.2774) -- (axis cs:50,1);
+  \draw[pd focus rule] (axis cs:75,0.2774) -- (axis cs:75,1);
+  \node[pd focus label,anchor=west] at (axis cs:100.5,0.2774) {live agent};
+  % snapshots of the shared board on the same clock; dot area = strength
+  \draw[pd artifact] (axis cs:0,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
+  \fill[pdcobalt] (axis cs:0,1.4) ++(-8pt,18pt) circle[radius=3.10pt];
+  \fill[black!55] (axis cs:0,1.4) ++(-8pt,6.5pt) circle[radius=3.10pt];
+  \fill[pdcobalt] (axis cs:0,1.4) ++(0pt,18pt) circle[radius=3.10pt];
+  \fill[black!55] (axis cs:0,1.4) ++(0pt,6.5pt) circle[radius=3.10pt];
+  \fill[pdcobalt] (axis cs:0,1.4) ++(8pt,18pt) circle[radius=3.10pt];
+  \fill[black!55] (axis cs:0,1.4) ++(8pt,6.5pt) circle[radius=3.10pt];
+  \draw[pd artifact] (axis cs:30,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
+  \fill[pdcobalt] (axis cs:30,1.4) ++(-8pt,18pt) circle[radius=2.73pt];
+  \fill[black!55] (axis cs:30,1.4) ++(-8pt,6.5pt) circle[radius=1.44pt];
+  \fill[pdcobalt] (axis cs:30,1.4) ++(0pt,18pt) circle[radius=2.73pt];
+  \fill[black!55] (axis cs:30,1.4) ++(0pt,6.5pt) circle[radius=1.44pt];
+  \fill[pdcobalt] (axis cs:30,1.4) ++(8pt,18pt) circle[radius=2.73pt];
+  \fill[black!55] (axis cs:30,1.4) ++(8pt,6.5pt) circle[radius=1.44pt];
+  \draw[pd artifact] (axis cs:60,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
+  \fill[pdcobalt] (axis cs:60,1.4) ++(-8pt,18pt) circle[radius=2.40pt];
+  \fill[black!55] (axis cs:60,1.4) ++(-8pt,6.5pt) circle[radius=0.67pt];
+  \fill[pdcobalt] (axis cs:60,1.4) ++(0pt,18pt) circle[radius=2.40pt];
+  \fill[black!55] (axis cs:60,1.4) ++(0pt,6.5pt) circle[radius=0.67pt];
+  \fill[pdcobalt] (axis cs:60,1.4) ++(8pt,18pt) circle[radius=2.40pt];
+  \fill[black!55] (axis cs:60,1.4) ++(8pt,6.5pt) circle[radius=0.67pt];
+  \draw[pd artifact] (axis cs:90,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
+  \fill[pdcobalt] (axis cs:90,1.4) ++(-8pt,18pt) circle[radius=2.11pt];
+  \draw[pd hairline,dash pattern=on \pdguideon off \pdguideoff] (axis cs:90,1.4) ++(-8pt,6.5pt) circle[radius=2.2pt];
+  \fill[pdcobalt] (axis cs:90,1.4) ++(0pt,18pt) circle[radius=2.11pt];
+  \draw[pd hairline,dash pattern=on \pdguideon off \pdguideoff] (axis cs:90,1.4) ++(0pt,6.5pt) circle[radius=2.2pt];
+  \fill[pdcobalt] (axis cs:90,1.4) ++(8pt,18pt) circle[radius=2.11pt];
+  \draw[pd hairline,dash pattern=on \pdguideon off \pdguideoff] (axis cs:90,1.4) ++(8pt,6.5pt) circle[radius=2.2pt];
+  \path (axis cs:90,1.4) ++(15pt,18pt) node[pd focus label,anchor=west] {live};
+  \path (axis cs:90,1.4) ++(15pt,6.5pt) node[pd label,anchor=west] {crashed};
+\end{axis}
+\end{tikzpicture}
+\caption{Draft. Markers on the shared board, from the kernel's shipped
+settings: every minute a marker keeps 95\,\% of its strength, and it is deleted
+once it falls below 0.01. The live agent marks its files again every 25
+minutes, and each mark resets them to full strength, so they never fall below
+0.28. The crashed agent's last mark was at minute~0; its dots shrink and are
+deleted at minute~90 without anyone removing them. The top row shows the board
+at the four times on the axis; dot area is strength. [analytic; from the
+kernel's source]}
+\label{fig:swk-marker-renewal}
+\end{figure}

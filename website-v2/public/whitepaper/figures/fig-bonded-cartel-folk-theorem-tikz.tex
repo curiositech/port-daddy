@@ -1,0 +1,97 @@
+% Brief (tikz-diagram-craft).
+% Reader question: which per-round detection probability / patience pairs
+%   keep a bid-rigging cartel sustainable, and which collapse it?
+% Claim: cartel sustainability is a narrow band -- at delta=0.95 the
+%   closed-form threshold p_d*=0.0478 and the simulated grid first flips
+%   from sustainable to collapsed at p_d=0.05, a near-exact match; higher
+%   patience (larger delta) widens the sustainable band only slightly.
+% Evidence: proofs/bonded/pareto/simulation-cartel.run.log
+%   (trials_per_config=5000, rounds=200, cartel_size=3), the sustainable
+%   column across the full 8x4 (p_d, delta) grid tested
+%   [verified, simulation-cartel.mjs]; the closed-form boundary
+%   p_d^star(delta) = (pi_c-(1-delta)pi_d) / (L+delta*pi_d) from
+%   sec:youle:a6, evaluated at each tested delta with pi_c=5/3, pi_d=4.95,
+%   L=25. A faithful redraw of
+%   website-v2/public/whitepaper/figures/fig-cartel-folk-theorem.pdf (its
+%   left panel; the right panel, simulated mean rounds to first detection,
+%   is not reproduced here -- see note below).
+% Must distinguish: sustainable (S, amber, cartel persists) from collapsed
+%   (C, teal, cartel fails) cells; the closed-form p_d* value at each
+%   tested delta from the simulated flip point.
+% Grammar chosen: categorical grid matrix (S12-adjacent: a matched/flagged
+%   grid, mirroring the atlas's own heatmap prescription for ch7-36's
+%   threat-band sweep), each cell a concrete tested instance, with the
+%   closed-form p_d* row set beneath as an aligned tabularx legend.
+%   Rejected: a continuous pgfplots log-axis heatmap with an overlaid
+%   analytical boundary curve, matching the matplotlib original pixel for
+%   pixel -- the curve threads eight unevenly log-spaced categories that a
+%   discrete grid already states exactly, and forcing continuous pgfplots
+%   axes onto eight named categories would misrepresent them as measured
+%   on a continuum the sweep does not interpolate between.
+% Five-second test: a reader sees the S/C frontier step rightward by at
+%   most one column as delta rises, and reads off p_d*(0.95)=0.048 beside
+%   the row where the grid itself flips at p_d=0.05.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\ccx{0.78}   % first column centre
+  \def\ccw{1.11}   % column pitch
+  \def\ccy{0}      % top row centre
+  \def\cch{.92}    % row pitch
+  \tikzset{cell/.style={pd label,minimum width=.98cm,minimum height=.75cm,
+    draw,line width=.5pt}}
+  % column headers: p_d
+  \foreach \j/\pd in {0/0.01,1/0.03,2/0.05,3/0.10,4/0.15,5/0.20,6/0.30,7/0.50}
+    {\node[pd title,anchor=south] at ({\ccx+\j*\ccw},{\ccy+.56}) {\pd};}
+  \node[pd label,anchor=south] at ({\ccx+3.5*\ccw},1.02) {per-round detection probability $p_d$};
+  % row headers: delta, top to bottom 0.99, 0.95, 0.90, 0.80
+  \foreach \i/\dl in {0/0.99,1/0.95,2/0.90,3/0.80}
+    {\node[pd title,anchor=east] at ({\ccx-.70},{\ccy-\i*\cch}) {\dl};}
+  \node[pd label,rotate=90,anchor=south] at (-1.42,{\ccy-1.5*\cch}) {discount factor $\delta$};
+  % the tested grid: S = sustainable (amber), C = collapses (teal); every
+  % cell drawn exactly once, never overlaid
+  \foreach \i in {0,...,3}{
+    \foreach \j in {0,...,7}{
+      \ifnum\i=0 \ifnum\j<3 \node[cell,pd warn fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {S};
+        \else \node[cell,pd ready fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {C}; \fi
+      \fi
+      \ifnum\i=1 \ifnum\j<2 \node[cell,pd warn fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {S};
+        \else \node[cell,pd ready fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {C}; \fi
+      \fi
+      \ifnum\i=2 \ifnum\j<2 \node[cell,pd warn fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {S};
+        \else \node[cell,pd ready fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {C}; \fi
+      \fi
+      \ifnum\i=3 \ifnum\j<1 \node[cell,pd warn fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {S};
+        \else \node[cell,pd ready fill] at ({\ccx+\j*\ccw},{\ccy-\i*\cch}) {C}; \fi
+      \fi
+    }
+  }
+\end{tikzpicture}
+
+\medskip
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}X c c@{}}
+\toprule
+$\delta$ & closed-form $(p_d)^{\star}$ & grid flips at \\
+\midrule
+0.80 & 0.0234 & 0.03 \\
+0.90 & 0.0398 & 0.05 \\
+0.95 & 0.0478 & 0.05 \\
+0.99 & 0.0541 & 0.10 \\
+\bottomrule
+\end{tabularx}}
+\caption{A6 --- cartel sustainability under the grim-trigger folk theorem,
+the tested $(p_d,\delta)$ grid ($5{,}000$ trials/configuration, $200$
+rounds, cartel size $3$). \colorbox{pdamber!24}{S} marks a sustainable
+cell; \colorbox{pdhealth!24}{C} marks one that collapses. The sustainable
+band widens by at most one column as patience $\delta$ rises, and the
+simulated flip point matches the closed-form threshold $(p_d)^\star(\delta)$
+of \S\ref{sec:youle:a6} to within one tested grid step at every $\delta$ (table
+below) --- at $\delta=0.95$, $(p_d)^\star\approx0.0478$ against a simulated
+flip at $p_d=0.05$. The matplotlib original right panel (mean rounds to
+first detection) is not redrawn
+here; the sustainability frontier above is the section's load-bearing
+result. [verified, proofs/bonded/pareto/simulation-cartel.mjs]}
+\label{fig:cartel-folk}
+\end{figure}

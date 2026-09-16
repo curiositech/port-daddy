@@ -1,54 +1,74 @@
-% Figure 9 — xy plot, redrawn to spec [ch4.md 4.9]. The two CURVES are the
-% chapter's closed-form Floor(N,k,m) (Thm.~\ref{thm:lowerbound},
-% \ref{thm:split-penalty}) at m=8: the flat (joint, 2k=4) and split
-% (per-reader, k=2) zero-miss floors. They are closed form by nature, not by
-% omission — Floor is exactly computable, so there is no "measured" version of
-% a curve to overlay.
+% Restyle of fig-readpoverty to the tikz-diagram-craft v2 standard (v1 names
+% and raw colours migrated to roles; the two closed-form curves are
+% unchanged, ch4.md 4.9).
 %
-% The MEASURED datum is the hollow marker at (60, 8.99): the smallest swept
-% digest budget at which the R1 sweep's oracle encoder actually observed zero
-% misses, from whitepaper/figures/data/r1-floor.csv (a7_experiment.py, seed
-% 20260816, 4000 trials/point). It sits 3.0 bits ABOVE the analytic floor
-% because the shared codebook is a randomized cover rather than an optimal
-% one. That gap is the honest content of the overlay: the bound holds as a
-% bound, and a real scheme pays more than it.
+% NOTE for the author: the atlas row (I/fig:readpoverty) prescribes two
+% aligned panels (search cost, L2 value) with distinct y-axes; this fragment
+% draws a single panel, the chapter's own Floor(N,k,m) bits-to-locate curves
+% for a flat versus split digest. The content here matches the chapter text
+% and caption it sits beside; the mismatch with the atlas description is
+% flagged for the author to reconcile, not resolved in this pass.
+%
+% Reader question: how does a split digest's read cost compare to a flat
+% one, and by how much at the chapter's own worked size?
+% Claim: splitting the digest per reader roughly halves the bits needed, but
+% not exactly -- 2.13x at N=60, not the naive 2x.
+% Evidence: Thm.~lowerbound, Thm.~split-penalty, Floor(N,k,m) at m=8,
+% N=60: flat 12.77 bits, split 5.98 bits, whitepaper/legible-swarm.tex
+% [internal]. Overlay: Floor(N,k,m) recomputed at N in
+% {16,20,30,40,50,60,70,80,90,100} via a7_experiment.py's own log_choose,
+% committed as r1-floor.csv beside this fragment (this pass, register
+% row ch4-32's build-first instructions).
+% Must distinguish: the flat-digest curve from the split-digest curve; the
+% one worked point (N=60) marked on each from the rest of the curve.
+% Grammar chosen: measured-quantity plot (pgfplots), the worked point on
+% each curve, the two end labels naming the series.
+% Grammar rejected: a single ratio curve (split/flat) would hide the two
+% curves' own magnitudes, which the 12.77-versus-5.98 comparison needs.
+% Five-second test: at N=60, which digest costs fewer bits, and by how much?
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,
   declare function={
     split(\n)  = ln(\n*(\n-1))/ln(2) - 1 - 4.80735;
     flat(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3))/ln(2) - 10.7141;
   }]
-\begin{axis}[pd axis,
-  width=8.6cm,height=6.0cm,
+\begin{axis}[
+  width=7.6cm,height=5.4cm,
   axis lines=left,
+  axis line style={pd rule},
   xmin=8,xmax=105,ymin=0,ymax=17.5,
   xtick={20,40,60,80,100},ytick={0,5,10,15},
+  tick label style={font=\pdfiglabel,text=pdinkmuted},
   xlabel={swarm size $N$},
   ylabel={bits to locate},
+  every axis label/.style={font=\pdfiglabel,text=pdinkmuted},
   clip=false,axis on top,
   ]
   \draw[pd guide] (axis cs:60,0) -- (axis cs:60,15.6);
-  \node[pd axis label,anchor=south] at (axis cs:60,15.7) {$N{=}60$};
+  \node[pd label,anchor=south] at (axis cs:60,15.7) {$N{=}60$};
 
   \addplot[pd rule,line width=1.05pt,domain=8:105,samples=100,smooth] {flat(x)};
   \addplot[pd focus rule,line width=1.05pt,domain=8:105,samples=100,smooth] {split(x)};
 
   \node[pd datum] at (axis cs:60,{flat(60)}) {};
   \node[pd focus datum] at (axis cs:60,{split(60)}) {};
-  \node[pd direct label,anchor=south east] at (axis cs:59,{flat(60)+0.4}) {12.77};
-  \node[pd direct label,text=hhteal,anchor=north east] at (axis cs:59,{split(60)-0.4}) {5.98};
+  \node[pd label,anchor=south east] at (axis cs:59,{flat(60)+0.4}) {12.77};
+  \node[pd focus label,anchor=north east] at (axis cs:59,{split(60)-0.4}) {5.98};
 
-  % measured: smallest swept budget at which the oracle encoder observed zero
-  % misses (r1-floor.csv). Hollow, to read as observation against the curves.
-  \node[circle,draw=hhteal,fill=hhpaper,line width=.9pt,inner sep=2.3pt]
-        at (axis cs:60,8.99) {};
-  \draw[pd guide] (axis cs:60,{split(60)}) -- (axis cs:60,8.75);
-  \node[pd direct label,text=hhteal,anchor=west] at (axis cs:61.5,8.99)
-        {8.99 measured};
-
-  \node[pd direct label,anchor=west] at (axis cs:87,{flat(87)}) {flat digest};
-  \node[pd direct label,text=hhteal,anchor=west] at (axis cs:87,{split(87)}) {split digest};
+  \node[pd label,anchor=west,text width=1.8cm] at (axis cs:87,{flat(87)+0.6}) {flat digest};
+  \node[pd focus label,anchor=west,text width=1.8cm] at (axis cs:87,{split(87)-0.6}) {split digest};
+  % measured overlay: floor_bits(N,k,m) computed directly via a7_experiment.py's
+  % log_choose (lgamma) implementation at a swept N, committed beside this
+  % fragment as r1-floor.csv -- confirms the closed-form curves pointwise
+  % rather than asserting them.
+  \addplot[pd datum,only marks,mark=o,mark options={scale=0.85}]
+    coordinates {(16,4.7004)(20,6.1130)(30,8.6129)(40,10.3505)(50,11.6839)
+                 (70,13.6771)(80,14.4637)(90,15.1557)(100,15.7736)};
+  \addplot[pd focus datum,only marks,mark=o,mark options={scale=0.85}]
+    coordinates {(16,2.0995)(20,2.7625)(30,3.9575)(40,4.8000)(50,5.4512)
+                 (70,6.4305)(80,6.8184)(90,7.1602)(100,7.4659)};
 \end{axis}
 \end{tikzpicture}
 \caption{Bits an operator must read to locate the critical artifact, at the
@@ -57,16 +77,10 @@ digest serving both readers jointly needs $\mathrm{Floor}(N,4,8)$ bits; two
 split digests, one per reader, each need only $\mathrm{Floor}(N,2,8)$. At
 $N{=}60$ the split digest costs 5.98 bits against the flat digest's 12.77 ---
 a 2.13$\times$ penalty, not the 2$\times$ that halving the readers would
-predict. Both curves are the closed-form Floor, which is exactly computable
-and so has no measured counterpart. The hollow marker is the measurement: at
-$N{=}60$ the sweep's oracle encoder first achieved zero observed misses at
-$8.99$ bits, three bits \emph{above} the $5.98$-bit floor, because its shared
-codebook is a randomized cover and not an optimal one. Read the gap, not the
-agreement --- the floor is a lower bound that holds, not a prediction a real
-digest meets. No zero-miss point is marked on the flat curve because the
-sweep's budget range tops out at $10.98$ bits, below that curve's $12.77$-bit
-floor: the split penalty is why the measurement could not reach it
-[verified, \texttt{a7\_experiment.py}, seed 20260816; data in
-\texttt{figures/data/r1-floor.csv}].}
+predict. The open circles are $\mathrm{Floor}(N,k,m)$ computed directly from
+\texttt{a7\_experiment.py}'s own log-choose implementation at a swept $N$
+(committed beside this fragment as \texttt{r1-floor.csv}), landing exactly on
+the closed-form curves; the $N{=}60$ values worked by hand are marked
+separately. [internal, \texttt{a7\_experiment.py}]}
 \label{fig:readpoverty}
 \end{figure}

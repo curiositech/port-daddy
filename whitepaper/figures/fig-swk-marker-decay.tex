@@ -1,36 +1,47 @@
-% Stigmergic marker weight under exponential decay: the arithmetic of the worked
-% example in the communication subsystem, drawn. [internal; analytic]
+% Brief (tikz-diagram-craft).
+% Reader question: how long does a marker live, and how sensitive is that to r?
+% Claim: moving the decay rate from 0.9 to 0.95 more than doubles a marker's
+%   life (pruned at tick 29 vs tick 59) against the 0.05 prune threshold.
+% Evidence: w(t) = r^t, threshold 0.05; 0.9^28 = .052 > .05 > .047 = 0.9^29;
+%   0.95^58 = .051 > .05 > .0485 = 0.95^59; ln .05 / ln .95 = 58.4. [analytic]
+% Must distinguish: the two rates; where each crosses the threshold; lifetime.
+% Grammar: xy plot with the crossing marked and dropped to the tick axis, the two
+%   lifetimes as brackets under the axis. Rejected: a table of (r, lifetime),
+%   which states the numbers but hides that the curve is flat near the
+%   threshold -- the reason small changes in r move the crossing so far.
+% Five-second test: "the flatter curve crosses the dashed line twice as late".
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure]
 \begin{axis}[pd axis,
-  width=\linewidth, height=0.55\linewidth,
-  xlabel={ticks since the marker was deposited}, ylabel={marker weight $w(t)$},
-  xmin=0, xmax=64, ymin=0, ymax=1.02,
-  xtick={0,10,20,29,40,50,59}, ytick={0,0.05,0.25,0.5,0.75,1},
-  yticklabels={0,0.05,0.25,0.5,0.75,1},
-  axis lines=left, axis line style={pd hairline},
-  legend style={pd legend,at={(0.97,0.95)},anchor=north east},
-  every axis plot/.append style={line width=1.05pt},
-]
-% Both curves carry the same weight on purpose: r=0.9 and r=0.95 are two
-% readings of one quantity, and the comparison IS the figure. The styles give
-% them their inks (and make them editionable); the weight stays equal, because
-% a heavier line here would be design variation, not data variation.
-\addplot[pd focus rule,line width=1.05pt,domain=0:64,samples=129] {0.9^x};
-\addlegendentry{$r=0.9$: pruned at tick 29}
-\addplot[pd rule,line width=1.05pt,domain=0:64,samples=129] {0.95^x};
-\addlegendentry{$r=0.95$: pruned at tick 59}
-\addplot[pd caution rule,dashed,line width=0.7pt,domain=0:64] {0.05};
-\addlegendentry{prune threshold $0.05$}
-\addplot[pd focus rule,only marks,mark=*,mark size=2.3pt] coordinates {(29,0.047)};
-\addplot[pd rule,only marks,mark=*,mark size=2.3pt] coordinates {(59,0.048)};
+  width=7.7cm,height=4.4cm,
+  xmin=0,xmax=64,ymin=0,ymax=1,
+  xtick={0,10,20,29,40,50,59},ytick={0,0.25,0.5,0.75,1},
+  yticklabels={0,.25,.5,.75,1},
+  xlabel={ticks since the marker was deposited},
+  ylabel={marker weight $w(t)$}]
+  % the threshold: a warning rule, labelled in ink
+  \addplot[pd warn series,line width=.9pt,domain=0:64] {0.05};
+  \node[pd label,anchor=west,align=left] at (axis cs:64,0.05) {prune at\\ $w<0.05$};
+  % the two rates
+  \addplot[pd series,mark=none,domain=0:64,samples=129] {0.9^x};
+  \addplot[pd focus series,mark=none,domain=0:64,samples=129] {0.95^x};
+  \node[pd label,anchor=north east] at (axis cs:11,{0.9^11}) {$r=0.9$};
+  \node[pd focus label,anchor=south west] at (axis cs:17,{0.95^17}) {$r=0.95$};
+  % the crossings, dropped to their ticks
+  \draw[pd guide] (axis cs:29,0.047) -- (axis cs:29,0);
+  \draw[pd guide] (axis cs:59,0.0485) -- (axis cs:59,0);
+  \node[pd datum] at (axis cs:29,0.047) {};
+  \node[pd focus datum] at (axis cs:59,0.0485) {};
 \end{axis}
 \end{tikzpicture}
-\caption{Marker weight $w(t)=r^{t}$ for two decay rates against the prune threshold
-of $0.05$. At $r=0.9$ the marker survives $28$ ticks and is pruned at tick $29$; at
-$r=0.95$ it lives until tick $59$, since $\ln 0.05/\ln 0.95 = 58.4$. Moving the rate
-half the distance to one more than doubles the lifetime, which is the whole content of
-the calibration question. [internal; analytic]}
+\caption{Marker weight $w(t)=r^{t}$ for two decay rates against the prune
+threshold of $0.05$ (dashed). At $r=0.9$ the marker survives $28$ ticks and is
+pruned at tick $29$; at $r=0.95$ it lives until tick $59$, since
+$\ln 0.05/\ln 0.95 = 58.4$. Both curves are nearly flat where they meet the
+threshold, which is why moving the rate half the distance to one more than
+doubles the lifetime: that is the whole content of the calibration question.
+[internal; analytic]}
 \label{fig:swk-marker-decay}
 \end{figure}

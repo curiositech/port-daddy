@@ -1,0 +1,61 @@
+% Fragment: fig-sealed-receipt-provenance.tex -- the receipt R's bound
+% fields as a provenance tree, one child flagged as reported, not true.
+%
+% Reader question: what does a receipt actually prove, and what does it
+% not prove about the answer inside it?
+% Claim: the receipt binds several named things by hash or value, and one
+% of them, the output ciphertext, is bound as WHAT WAS RELEASED, not as
+% proof the release was correct.
+% Evidence: the receipt formula R = Sign(H(C), H(attestation), H(inputs),
+% H(M), H(output ciphertext), labels, declassifications, counters, nonce,
+% epoch) and "The receipt proves what the measured system reported under
+% a policy; it does not prove the answer is true," website-v2/public/
+% whitepaper/sealed-harbor.tex, Sec. sealed-design.
+% Must distinguish: the five hash-bound fields that establish PROVENANCE
+% (what ran, under what policy, with what evidence) from the one field,
+% output ciphertext, whose presence in the receipt proves only that IT
+% was the thing released, not that its content is correct; the five
+% scalar policy/session fields (labels, declassifications, counters,
+% nonce, epoch) are bundled into one closing leaf since none of them,
+% individually, is this figure's claim -- only the flagged leaf is.
+% Grammar chosen: provenance tree, one root, one row of six children --
+% the register row's "receipt with its bound fields as children" as a
+% single level, not stacked rows, so a straight edge from the root never
+% has to cross a sibling to reach a child.
+% Grammar rejected: a full 3-row grid with all ten Sign() arguments drawn
+% separately -- geometrically forces every second- and third-row edge to
+% cross a first-row sibling's box, which no amount of styling fixes
+% honestly; a single flat row is the shape that has no such edge at all.
+% Five-second test: find the one dashed leaf, and read what it warns.
+% QA: beauty_lint warns B4 in swiss/maritime (the breach edge's dashed
+% pattern reads as an extra stroke weight against the ladder's three)
+% and B7 (sub-point alignment noise); justified, not fixed.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\cx{2.20}
+  \node[pd focus state,minimum width=2.9cm] (R) at ({2.5*\cx},1.55) {receipt $R$};
+  \node[pd artifact,minimum width=2.05cm,align=center] (C1) at (0,0) {$H(C)$\\work order};
+  \node[pd artifact,minimum width=2.05cm,align=center] (C2) at (\cx,0) {$H(\text{attest.})$};
+  \node[pd artifact,minimum width=2.05cm,align=center] (C3) at ({2*\cx},0) {$H(\text{inputs})$};
+  \node[pd artifact,minimum width=2.05cm,align=center] (C4) at ({3*\cx},0) {$H(M)$\\model};
+  \node[pd breach state,minimum width=2.05cm,align=center] (C5) at ({4*\cx},0) {$H(\text{output}$\\$\text{ciphertext})$};
+  \node[pd artifact,align=center,text width=2.35cm]
+    (C6) at ({5.35*\cx},0) {labels, declassifications, counters, nonce, epoch};
+  \foreach \c in {C1,C2,C3,C4,C6}{
+    \draw[pd focus arrow] (R) -- (\c);}
+  \draw[pd breach arrow] (R) -- (C5);
+  \node[pd tag,text=pderror,anchor=north] at (C5.south) {proves reported, not true};
+\end{tikzpicture}
+\caption{The receipt $R=\mathrm{Sign}(\ldots)$ of Sec.~\ref{sec:sealed-design},
+drawn as a provenance tree. Four leaves are hashes that establish
+provenance: the work order, the attestation, the inputs, and the model.
+A fifth bundles the release's declared policy state -- labels,
+declassifications, counters, and the freshness pair nonce/epoch. The
+sixth leaf, dashed, is different in kind: the hash of the output
+ciphertext binds only \emph{what was released}, not that it was correct.
+A receipt proves what the measured system reported under a policy; it
+proves nothing about whether the answer inside it was true. [internal]}
+\label{fig:sealed-receipt-provenance}
+\end{figure}

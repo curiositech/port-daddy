@@ -1,15 +1,35 @@
-% Figure 10 — what the next link can inherit steps down twice.
+% Brief (tikz-diagram-craft).
+% Reader question: how much evidence does each downstream link actually
+%   inherit from the one before it?
+% Claim: support drops at the first hop (memory to checkpoint: full to notes
+%   only) and drops again at the second (continuity to the outcome ledger:
+%   notes only to partial); identity and market can never exceed that
+%   partial residue, because downstream confidence cannot exceed the
+%   weakest upstream link.
+% Evidence: whitepaper/single-writer-kernel.tex sec:continuity, the memory
+%   (Built) / checkpoint (BuiltWeak, notes not execution state) / outcome
+%   ledger (BuiltWeak, commitments and oracle-bound closure, not neutral
+%   graded outcomes) status classification.
+% Must distinguish: the two drops, and that identity/market are capped at
+%   the outcome ledger's own level, not independently graded.
+% Grammar: computed step plot in pd axis, direct labels, the worked drops
+%   dropped to their ticks (S11). Rejected: a bare status table (Built /
+%   BuiltWeak per organ), which states the grade but not that it composes
+%   downstream as a maximum.
+% Five-second test: "a staircase down at hop one, flat, down again at hop
+%   two, then flat to the end".
 \begin{figure}[H]
 \centering
+\pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure]
 \begin{axis}[pd axis,
-  width=\linewidth,
-  height=5.4cm,
+  width=8.6cm,
+  height=5.0cm,
   axis lines=left,
   symbolic x coords={memory,checkpoint,continuity,outcome,identity,market},
   xtick=data,
-  xticklabels={memory,check-\\point,continuity,outcome\\ledger,identity,market},
-  xticklabel style={align=center,text width=1.6cm},
+  xticklabels={memory,check\\point,continuity,outcome\\ledger,identity,market},
+  xticklabel style={align=center,text width=1.55cm,pd label},
   ytick={0,1,2,3},
   yticklabels={none,partial,{notes only},full},
   ymin=-.3,ymax=3.6,
@@ -17,23 +37,23 @@
   ylabel={evidence the next link can inherit},
   clip=false,
 ]
-\addplot[const plot,color=hhteal,line width=1.3pt,mark=*,
-  mark options={fill=hhteal,draw=hhpaper,line width=.5pt}] coordinates
+\addplot[pd focus series,const plot,mark=*] coordinates
   {(memory,3) (checkpoint,2) (continuity,2) (outcome,1) (identity,1) (market,1)};
 \coordinate (cp) at (axis cs:checkpoint,2);
 \coordinate (oc) at (axis cs:outcome,1);
 \end{axis}
-\draw[pd guide] (cp) -- ++(0,.85cm);
-\node[pd note,anchor=south,text=hhamber,text width=3.4cm,align=center]
-  at ($(cp)+(0,.95cm)$) {recovery restores notes, not execution state};
-\draw[pd guide] (oc) -- ++(0,.85cm);
-\node[pd note,anchor=south,text=hhamber,text width=3.4cm,align=center]
-  at ($(oc)+(0,.95cm)$) {outcomes witnessed only in part};
+\draw[pd guide] (cp) -- ++(0,1.55cm);
+\node[pd label,anchor=south,text width=2.9cm,align=center] at ($(cp)+(0,1.65cm)$)
+  {recovery restores notes, not execution state};
+\draw[pd guide] (oc) -- ++(0,1.55cm);
+\node[pd label,anchor=south,text width=2.9cm,align=center] at ($(oc)+(0,1.65cm)$)
+  {outcomes witnessed only in part};
 \end{tikzpicture}
-\caption{The continuity chain as an evidence-support profile. What checkpoint
-inherits from memory already drops from full to notes only; what the outcome
-ledger inherits from continuity drops again, to partial; identity and market
-inherit only that partial residue. Downstream confidence cannot exceed the
-weakest upstream link. [internal]}
+\caption{The continuity chain as an evidence-support profile, computed from
+the chapter's own status grades. What checkpoint inherits from memory
+already drops from full to notes only; what the outcome ledger inherits from
+continuity drops again, to partial; identity and market inherit only that
+partial residue, not an independent grade of their own. Downstream
+confidence cannot exceed the weakest upstream link. [internal]}
 \label{fig:swk-continuity-organs}
 \end{figure}

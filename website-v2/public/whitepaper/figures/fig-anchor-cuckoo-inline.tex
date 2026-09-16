@@ -1,80 +1,95 @@
-% Semantic contract: lossy filter encodings do not have a safe union operation;
-% authoritative IDs do. A before/after pair, same six-bucket geometry in both
-% panels, so the reader compares bucket occupancy directly, not a metaphor.
+% Brief (grammar: before/after on identical six-bucket geometry; atlas
+%   V/fig:anchor-cuckoo-inline). Fixes the audit defect: v1 filled every
+%   bucket with a heavy solid navy cell, so the one fact (where c1 lands)
+%   could not out-shout the five empty buckets around it. Here every empty
+%   bucket is a plain white pd artifact cell; only a bucket that actually
+%   holds c1 is filled, in the hue that names why it is there.
+% Reader question: why can two daemons not merge cuckoo filters by OR-ing
+%   their bit arrays, and what do they gossip instead?
+% Claim: OR-ing keeps every placement either peer ever made, which is a state
+%   no single filter build could produce; gossiping the ID log and rebuilding
+%   locally keeps c1 in exactly one bucket.
+% Evidence: peer A's c1 at bucket 2, peer B's c1 at bucket 5 (\S "Withdrawing
+%   a card before it expires"); log union c1 c2 c4 c7 c9 [internal].
+% Must distinguish: an empty bucket (plain, uninformative) from a bucket that
+%   holds c1 (breach hue when the state is invalid, focus hue when rebuilt).
+% Grammar chosen: before/after (tpl-before-after), same six-bucket geometry in
+%   both panels. Rejected: heavy fills on every bucket (the v1 defect) --
+%   equal weight for five empty cells and the one occupied one erases the
+%   fact the figure exists to show.
+% Five-second test: "OR keeps c1 in two buckets at once; the rebuilt log
+%   keeps it in exactly one."
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-    % A bucket holds a cell id, so its text takes the identifier role.
-    bucket/.style={pd state,minimum width=.82cm,minimum height=.82cm,
-      inner sep=0pt,font=\pdfiglabelmono,rounded corners=1pt},
-    idtext/.style={font=\pdfiglabelmono,text=hhpaper}]
-  \newcommand{\rowlabelnode}[2]{\node[pd row label,anchor=east] at (-.3,#1) {#2};}
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=.78cm,y=1cm,
+    bucket/.style={pd state,minimum width=.78cm,minimum height=.78cm,
+      inner sep=0pt,font=\pdfiglabelbold,rounded corners=1pt}]
+  \newcommand{\rowlabelnode}[2]{\node[pd label,anchor=east,text width=1.7cm,align=right] at (-.35,#1) {#2};}
 
-  % ---------- panel 1: filters do not merge ----------
-  \node[pd panel title,anchor=west] at (-.3,8.85) {filters do not merge};
+  % ---------- panel 1: filters do not merge ---------------------------------
+  \node[pd title,anchor=west] at (-.35,8.75) {filters do not merge};
 
-  \rowlabelnode{7.55}{peer $A$}
+  \rowlabelnode{7.55}{peer A}
   \foreach \i in {1,...,6} \node[bucket] (a\i) at (\i-1,7.55) {};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (a2) {c1};
+  \node[bucket,pd focus fill] at (a2) {c1};
 
-  \rowlabelnode{6.35}{peer $B$}
+  \rowlabelnode{6.35}{peer B}
   \foreach \i in {1,...,6} \node[bucket] (b\i) at (\i-1,6.35) {};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (b5) {c1};
+  \node[bucket,pd focus fill] at (b5) {c1};
 
-  \rowlabelnode{5.15}{$A$ OR $B$}
+  \rowlabelnode{5.15}{A OR B}
   \foreach \i in {1,...,6} \node[bucket] (o\i) at (\i-1,5.15) {};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (o2) {c1};
-  \node[bucket,pd caution fill,idtext,text=hhink] at (o5) {c1};
+  \node[bucket,pd breach fill] at (o2) {c1};
+  \node[bucket,pd breach fill] at (o5) {c1};
 
   \foreach \i in {1,...,6} {
     \draw[pd tick] (\i-1,4.7) -- (\i-1,4.58);
-    \node[pd axis label,anchor=north] at (\i-1,4.55) {\i};
+    \node[pd label,anchor=north] at (\i-1,4.55) {\i};
   }
-  \node[pd note,align=center,text width=8.6cm,anchor=north] at (2.5,4.05)
+  \node[pd note,align=center,text width=6.6cm,anchor=north] at (2.5,4.0)
     {two placements, one id: not a filter anyone built};
 
-  % ---------- divider ----------
-  \draw[pd hairline] (-.9,3.3) -- (5.9,3.3);
+  % ---------- divider --------------------------------------------------------
+  \draw[pd hairline] (-.9,3.25) -- (5.9,3.25);
 
-  % ---------- panel 2: the log merges ----------
-  \node[pd panel title,anchor=west] at (-.3,2.75) {the log merges};
+  % ---------- panel 2: the log merges ----------------------------------------
+  \node[pd title,anchor=west] at (-.35,2.65) {the log merges};
 
-  \node[pd mono label,anchor=west,inner sep=3pt] (lA) at (-.3,1.9)
-    {A: c1 c7 c4};
-  \node[pd mono label,anchor=west,inner sep=3pt] (lB) at (-.3,1.15)
-    {B: c2 c1 c9};
-  \draw[pd focus arrow] (lA.east) ++(2.55,.375) to[out=0,in=160] (5.2,1.9);
-  \draw[pd focus arrow] (lB.east) ++(2.55,-.375) to[out=0,in=200] (5.2,1.9);
-  \node[pd mono label,anchor=west,text=hhteal] at (5.35,1.9)
-    {union: c1 c2 c4 c7 c9};
+  \node[pd mono label,fill=none,anchor=west] (lA) at (-.35,1.85) {A: c1 c7 c4};
+  \node[pd mono label,fill=none,anchor=west] (lB) at (-.35,1.10) {B: c2 c1 c9};
+  \draw[pd focus arrow] (lA.east) ++(2.35,.375) to[out=0,in=160] (3.55,1.85);
+  \draw[pd focus arrow] (lB.east) ++(2.35,-.375) to[out=0,in=200] (3.55,1.85);
+  \node[pd title,text=pdfocus!85!pdink,anchor=west] at (3.95,1.85)
+    {c1 c2 c4 c7 c9};
 
-  \draw[pd focus arrow] (2.5,.65) -- (2.5,-.15);
-  \node[pd note,anchor=north,align=center,text width=5.1cm] at (7.6,1.55)
-    {\hyphenpenalty=10000\exhyphenpenalty=10000
-     set union over IDs is always well defined};
+  \draw[pd focus arrow] (2.5,.55) -- (2.5,-.25);
+  \node[pd note,anchor=north,align=center,text width=2.5cm] at (6.15,1.30)
+    {set union over IDs is always well defined};
 
-  \rowlabelnode{-.85}{rebuilt}
-  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.85) {};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r1) {c2};
-  \node[bucket,pd focus fill,idtext,text=hhink] at (r2) {c1};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r3) {c4};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r4) {c7};
-  \node[bucket,pd neutral fill,idtext,text=hhink] at (r5) {c9};
+  \rowlabelnode{-.95}{rebuilt}
+  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.95) {};
+  \node[bucket,pd neutral fill] at (r1) {c2};
+  \node[bucket,pd focus fill] at (r2) {c1};
+  \node[bucket,pd neutral fill] at (r3) {c4};
+  \node[bucket,pd neutral fill] at (r4) {c7};
+  \node[bucket,pd neutral fill] at (r5) {c9};
   \foreach \i in {1,...,6} {
-    \draw[pd tick] (\i-1,-1.3) -- (\i-1,-1.42);
-    \node[pd axis label,anchor=north] at (\i-1,-1.45) {\i};
+    \draw[pd tick] (\i-1,-1.40) -- (\i-1,-1.52);
+    \node[pd label,anchor=north] at (\i-1,-1.55) {\i};
   }
-  \node[pd note,align=center,text width=8.6cm,anchor=north] at (2.5,-1.95)
+  \node[pd note,align=center,text width=6.6cm,anchor=north] at (2.5,-2.05)
     {c1 occupies one bucket once: one valid local projection};
 \end{tikzpicture}
 \caption{Two six-bucket cuckoo filters compared before and after the design
 change. Top: peer $A$ inserts \texttt{c1} into bucket 2 and peer $B$ inserts
 the same \texttt{c1} into bucket 5, an artifact of each peer's own insertion
-and eviction history; bitwise \texttt{OR} keeps both placements, which is a
-state no single filter build could have produced. Bottom: gossiping the
-append-only ID log instead---peer $A$'s \texttt{c1 c7 c4} and peer $B$'s
-\texttt{c2 c1 c9}---and taking the ordinary set union gives \texttt{c1 c2 c4
-c7 c9}; each daemon rebuilds one local filter with \texttt{c1} in a single
-bucket. [internal]}
+and eviction history; every other bucket is empty, and bitwise \texttt{OR}
+keeps both \texttt{c1} placements, a state no single filter build could have
+produced. Bottom: gossiping the append-only ID log instead---peer $A$'s
+\texttt{c1 c7 c4} and peer $B$'s \texttt{c2 c1 c9}---and taking the ordinary
+set union gives \texttt{c1 c2 c4 c7 c9}; each daemon rebuilds one local
+filter with \texttt{c1} in a single bucket, the rest in gold as ordinary
+occupants. [internal]}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

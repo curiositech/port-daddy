@@ -1,54 +1,65 @@
-% Coverage-bounded Sybil deterrence as replicated entry plus a saturation response.
+% Reader question: If one principal can fund many fake identities, how does
+%   the mechanism keep a defaulting identity loss bounded?
+% Claim: replicating identities multiplies entry cost, never the loss the
+%   mechanism attaches to one default, because slash equals the lesser of the
+%   posted deposit and the transaction coverage ceiling.
+% Evidence: K interchangeable identities, each depositing B_dep; the closed
+%   form s = min(B_dep, B_T) from this chapter section on Sybil deterrence
+%   [internal, closed form].
+% Must distinguish: entry cost (which rises with K) from attacker loss
+%   (which does not rise past B_T no matter how many identities enter).
+% Grammar chosen: identity fan-out beside its closed-form response curve.
+%   Rejected: the atlas row prescribes an actor sequence with an accounting
+%   rail; this page argues a bound on a formula, not an ordered sequence of
+%   attacker actions, so the sequence grammar would misstate what this
+%   fragment proves. Flagged for the author.
+% Five-second test: a reader says slash stops rising once the deposit passes
+%   the transaction coverage ceiling, no matter how many identities exist.
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-5.25,3.45)
-    {replicating identities multiplies entry, not the loss attached to one default};
-
-  % One principal fans out into fungible identities.
-  % The amber ring and wash already separate the principal from the identities
-  % it spawns; a bold weight on one italic letter is a second cue doing the
-  % same job, which is the distinction the law asks to be the smallest one.
-  \node[pd state,pd caution fill,circle,line width=1.1pt,minimum size=10mm,
-        inner sep=0pt] (p) at (-4.45,1.15) {$P$};
-  \foreach \y/\lab in {2.55/1,1.85/2,1.15/3,.45/$\cdots$,-.25/$K$} {
-    \node[pd state,circle,line width=.65pt,fill=hhpaper,minimum size=7mm,
-          inner sep=0pt] at (-2.30,\y) {\lab};
-    \draw[pd caution rule,dashed] (p.east)--(-2.65,\y);
-    \draw[pd rule,line width=1.5pt] (-1.75,\y-.16)--(-1.75,\y+.16);
-  }
-  \node[pd direct label,anchor=south] at (-2.30,2.92) {$K$ insurer identities};
-  \node[pd note,anchor=north,align=center] at (-2.30,-.72)
-    {$K\!\times\!B_{\mathrm{dep}}$ posted\\each identity can re-enter};
-  \draw[pd arrow] (-1.30,1.15)--(.15,1.15);
-
-  % The protocol response saturates at the transaction coverage ceiling.
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.55,-.70)--(6.45,-.70);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.55,-.70)--(.55,3.05);
-  \node[pd axis label,anchor=west] at (6.55,-.70) {posted deposit $B_{\mathrm{dep}}$};
-  \node[pd axis label,rotate=90,anchor=south] at (.22,1.20) {slash $s$};
-
-  \draw[pd focus rule,line width=1.55pt] (.75,-.48)--(3.25,2.12);
-  \draw[pd caution rule,line width=1.55pt] (3.25,2.12)--(6.15,2.12);
-  \draw[pd guide] (3.25,-.70)--(3.25,2.12);
-  \draw[pd guide] (.55,2.12)--(6.15,2.12);
-  \node[pd caution datum] at (3.25,2.12) {};
-  \node[pd axis label,anchor=north] at (3.25,-.82) {$B_T$};
-  \node[pd axis label,anchor=east] at (.43,2.12) {$B_T$};
-
-  \node[pd direct label,text=hhteal,anchor=south,rotate=43] at (1.90,.75)
-    {$s=B_{\mathrm{dep}}$};
-  \node[pd direct label,text=hhamber,anchor=south] at (4.75,2.26)
-    {$s=B_T$};
-  \fill[pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhamber!45]
-    (3.25,-.55) rectangle (6.15,1.98);
-  \node[pd direct label,text=hhamber,align=center] at (4.75,.76)
-    {added deposit returns intact\\maximum loss no longer rises};
-  \node[pd note,anchor=west] at (.75,-1.32)
-    {structural response: $s=\min(B_{\mathrm{dep}},B_T)$};
-\end{tikzpicture}%
-}
-\caption{Deposit-only Sybil deterrence saturates. One principal can fund $K$ interchangeable identities, but the loss attached to a defaulting identity rises only until its deposit reaches the transaction coverage $B_T$. Past that knee, $s=\min(B_{\mathrm{dep}},B_T)=B_T$: additional posted capital returns intact on no-loss transactions and cannot increase the attacker's maximum loss. Figure~\ref{fig:sybil-mc-inline} shows the corresponding simulated profit and commons-deficit sweeps.}
+\pdfigurehue{pdgold}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- one grid -------------------------------------------------------------
+  \def\px{0.85}  \def\py{1.35}
+  \def\ix{2.75}
+  \def\ax{3.55}  \def\bx{4.15}
+  \def\ox{4.75}  \def\oy{0.15}
+  \def\rx{7.35}  \def\xmax{7.75}  \def\ymax{2.40}
+  \def\kx{6.45}  \def\ky{1.85}
+  \node[pd title,anchor=north west,text width=6.0cm] at (0,4.45)
+    {replicating identities multiplies entry, not one default loss};
+  % ---- panel A: one principal fans out into K identities -------------------
+  \node[pd identity state,circle,minimum size=8mm,inner sep=1pt] (pp) at (\px,\py) {$P$};
+  \foreach \y/\lab in {2.55/1,1.95/2,1.35/3,0.75/{$\ldots$},0.15/{$K$}} {
+    \node[pd identity state,circle,minimum size=6.5mm,inner sep=.5pt] at (\ix,\y) {\lab};
+    \draw[pd identity rule,dashed] (pp.east) -- ({\ix-.42},\y);}
+  \node[pd label,anchor=south] at (\ix,2.90) {$K$ insurer identities};
+  \node[pd note,anchor=north,text width=3.6cm,align=center] at (\ix,-.30)
+    {$K \times B_{\mathrm{dep}}$ posted; each identity can re-enter};
+  \draw[pd focus arrow] (\ax,\py) -- (4.25,\py);
+  % ---- panel B: the closed-form response, s = min(B_dep, B_T) --------------
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\ox,\oy) -- (\xmax,\oy);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\ox,\oy) -- (\ox,\ymax);
+  \node[pd label,anchor=west] at (\xmax,\oy) {deposit};
+  \node[pd label,anchor=west] at ({\ox+.08},{\ymax+.16}) {slash $s$};
+  \draw[pd guide] (\kx,\oy) -- (\kx,\ky);
+  \draw[pd guide] (\ox,\ky) -- (\kx,\ky);
+  \node[pd label,anchor=north] at (\kx,{\oy-.10}) {$B_T$};
+  \node[pd label,anchor=east] at ({\ox-.10},\ky) {$B_T$};
+  \fill[pd neutral fill] (\kx,\oy) rectangle (\rx,\ky);
+  \draw[pd focus rule] (\ox,\oy) -- (\kx,\ky);
+  \draw[pd focus rule] (\kx,\ky) -- (\rx,\ky);
+  \node[pd focus datum] at (\kx,\ky) {};
+  \node[pd label,anchor=south] at ({(\kx+\rx)/2},{\ky+.14}) {$s=B_T$};
+  \node[pd note,anchor=north,text width=3.1cm,align=center] at ({(\ox+\rx)/2},{\oy-.30})
+    {extra deposit returns intact past $B_T$};
+\end{tikzpicture}
+\caption{Deposit-only Sybil deterrence saturates. One principal can fund $K$
+interchangeable identities, but the loss attached to a defaulting identity
+rises only until its deposit reaches the transaction coverage $B_T$. Past
+that knee, $s=\min(B_{\mathrm{dep}},B_T)=B_T$: additional posted capital
+returns intact on no-loss transactions and cannot increase the attacker
+maximum loss. Figure~\ref{fig:sybil-mc-inline} shows the corresponding
+simulated profit and commons-deficit sweeps. [internal, closed form]}
 \label{fig:sybil-inline}
 \end{figure}

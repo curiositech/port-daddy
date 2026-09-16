@@ -1,0 +1,70 @@
+% Brief (tikz-diagram-craft), register row ch4-08.
+% Reader question: through what states does one consent grant pass, and
+%   what closes off its legitimate action set?
+% Claim: a grant is ISSUED, then ACTIVE; each candidate action is ADMITTED
+%   only if it clears a three-clause guard (in scope, under the stakes
+%   ceiling, above the reversibility floor), else it ESCALATES -- both
+%   outcomes return the grant to ACTIVE -- until TTL or revocation moves it
+%   to EXPIRED/REVOKED, a terminal state that shrinks the daemons legitimate
+%   action set.
+% Evidence: Protocol Consent-grant lifecycle (Issue/Act/Witness/Expire),
+%   Def. consent, whitepaper/legible-swarm.tex sec 4.2.2 (this pass).
+% Must distinguish: the per-action guard on ADMIT (three clauses) from the
+%   separate TTL/revoke guard that ends the grants life; that both ADMIT
+%   and ESCALATE return to ACTIVE rather than ending the grant.
+% Grammar chosen: state machine with a per-action guarded loop back to
+%   ACTIVE, keyed to a ruled legend, reusing the swk workunit-machine spine.
+% Grammar rejected: a flat four-step protocol ladder (issue, act, witness,
+%   expire) would draw the four prose steps in order but hide that act is a
+%   repeatable loop returning to ACTIVE, not a one-shot step between issue
+%   and expiry.
+% Five-second test: does a single escalated action end the grant, or does
+%   the grant stay active for the next one?
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdteal}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd focus state,minimum width=2.4cm] (I) at (1.60,5.60) {issued};
+  \node[pd focus state,minimum width=2.4cm] (A) at (1.60,3.60) {active};
+  \node[pd terminal,minimum width=2.9cm]    (X) at (1.60,0.30) {expired / revoked};
+  \node[pd ready state,minimum width=2.5cm] (D) at (7.90,4.80) {admitted};
+  \node[pd warn state,minimum width=2.5cm]  (E) at (7.90,2.40) {escalated};
+  \draw[pd focus arrow] (I) -- (A);
+  \node[pd label,anchor=west] at (2.15,4.60) {issue};
+  \draw[pd ready arrow] (A) to[bend left=12] (D);
+  \draw[pd ready arrow] (D) to[bend left=12] (A);
+  \draw[pd warn arrow] (A) to[bend right=12] (E);
+  \draw[pd warn arrow] (E) to[bend right=12] (A);
+  \draw[pd focus arrow] (A) -- (X);
+  \node[pd badge] at (4.65,4.95) {1};
+  \node[pd label,anchor=south] at (4.65,5.20) {action $x$: admit?};
+  \node[pd label,anchor=north] at (4.65,2.75) {else};
+  \node[pd badge] at (2.20,1.95) {2};
+  \node[pd label,anchor=west,text width=2.4cm,align=left] at (2.50,1.95) {ttl or revoke};
+  \def\ly{-1.55}
+  \draw[pd rule] (0,\ly) -- (10.40,\ly);
+  \node[pd title,anchor=north west] at (0.05,{\ly-.35}) {guard};
+  \node[pd title,anchor=north west] at (5.20,{\ly-.35}) {what breaks without it};
+  \draw[pd hairline] (0,{\ly-1.00}) -- (10.40,{\ly-1.00});
+  \node[pd badge] at (.28,{\ly-1.45}) {1};
+  \node[pd label,anchor=west,align=left,text width=4.5cm] at (.62,{\ly-1.45})
+    {in scope, stakes$\le s_{\max}$,\\reversibility$\ge v_{\min}$};
+  \node[pd label,anchor=west,align=left,text width=4.9cm,text=pderror] at (5.20,{\ly-1.45})
+    {an out-of-scope or high-stakes\\action executes unsupervised};
+  \node[pd badge] at (.28,{\ly-2.55}) {2};
+  \node[pd label,anchor=west,align=left,text width=4.5cm] at (.62,{\ly-2.55})
+    {ttl elapsed, or operator revokes};
+  \node[pd label,anchor=west,align=left,text width=4.9cm,text=pderror] at (5.20,{\ly-2.55})
+    {a stale or revoked grant keeps\\admitting actions};
+\end{tikzpicture}
+\caption{The consent-grant lifecycle of Def.~\ref{def:consent} and the
+Consent-grant lifecycle protocol. A grant is issued, then active. Each
+candidate action is admitted only if it clears the three-clause guard
+(scope, stakes ceiling, reversibility floor); any clause it fails sends the
+action to escalation instead. Both outcomes leave the grant active for the
+next action -- a single escalated action does not end the grant. Only ttl
+expiry or an operator revocation moves the grant to its terminal state,
+after which the daemons legitimate action set shrinks by exactly that
+grant. [internal]}
+\label{fig:consent-lifecycle}
+\end{figure}
