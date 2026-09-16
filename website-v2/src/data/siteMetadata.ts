@@ -151,7 +151,11 @@ function sourceImageForRoute(path: string, section: SiteMetadataSection) {
   if (path === '/manifesto') return OG_SOURCE_IMAGES.manifesto
   if (path === '/pd-tube') return OG_SOURCE_IMAGES.pdTube
   if (path === '/blog') return OG_SOURCE_IMAGES.blog
+  // Both: /whitepaper is the page, /library the redirect that still gets a
+  // card for the moment a crawler or an unfurler spends on it.
+  if (path === '/whitepaper') return OG_SOURCE_IMAGES.library
   if (path === '/library') return OG_SOURCE_IMAGES.library
+  if (path === '/research') return OG_SOURCE_IMAGES.library
   if (path === '/landscape') return OG_SOURCE_IMAGES.landscape
   if (path === '/mac-preview') return OG_SOURCE_IMAGES.fleetbarInstall
   if (path === '/scout') return OG_SOURCE_IMAGES.scout
@@ -349,16 +353,19 @@ const productRoutes: SiteMetadata[] = [
     'Run Claude Code with Codex and your ChatGPT Pro subscription through the Giant Squid local bridge, with Port Daddy hooks, agent skill, MCP tools, budgets, claims, and recovery wrapped around the run.',
     { section: 'product', ogSourceImage: OG_SOURCE_IMAGES.agentRuntime, ogSectionLabel: 'Giant Squid' },
   ),
+  // The Book's page is /whitepaper; /library is the redirect into it. This
+  // entry sat on /library until the deck landed, which put a redirect in the
+  // sitemap and left the real page with no title, description or card at all.
   metadata(
-    '/library',
-    'The Harbor Library',
-    'The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.',
+    '/whitepaper',
+    'The Harbor, the Person, and the Economy',
+    'The Port Daddy whitepaper, read as one book: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.',
     { section: 'whitepaper' },
   ),
   metadata(
-    '/whitepaper',
-    'Whitepaper',
-    'Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.',
+    '/research',
+    'The Harbor Research Program',
+    'What the whitepaper proves, what it measures, and what it does not know yet: seven conference-form papers, every executed result and where it lives, the mechanized proof estate, the studies still running, and the open problems the book names for itself.',
     { section: 'whitepaper' },
   ),
   ...WHITE_PAPERS.map((paper) =>

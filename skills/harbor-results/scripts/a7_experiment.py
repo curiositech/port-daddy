@@ -4,7 +4,7 @@ A7 v2 — The Information-Floor Falsification Experiment (corrected model)
 =======================================================================
 The v1 bug (instructive, and exactly what falsification-first catches): I gave the
 oracle a PERFECT score vector and only charged bits for tie-resolution. But the
-floor charges bits for *identifying which items are load-bearing at all*. So v1's
+floor charges bits for *identifying which items are critical at all*. So v1's
 "violations" were a model/theory mismatch, not a refutation. Fix: the digest is a
 literal B-bit message; the operator's opened m-set is a deterministic decode of
 that message. Now bits gate identification, exactly as the theorem intends.
@@ -13,7 +13,7 @@ Correct model
 -------------
 A digest scheme is an ENCODER e: (observed features of the swarm) -> {0,1}^B and a
 fixed DECODER d: {0,1}^B -> (an m-subset to open). The scheme catches the true
-load-bearing set T iff T subseteq d(e(features)). Zero-miss over all placements is
+critical set T iff T subseteq d(e(features)). Zero-miss over all placements is
 possible iff the 2^B decoded m-subsets cover every k-subset, i.e. iff
     2^B * C(m,k) >= C(N,k)   <=>   B >= B* = log2 C(N,k) - log2 C(m,k).
 
@@ -226,3 +226,47 @@ ax.legend(fontsize=9);ax.set_ylim(-0.03,1.03);ax.grid(alpha=0.25)
 plt.tight_layout()
 plt.savefig('a7_figure.png',dpi=150,bbox_inches='tight')
 print("\nFigure saved to a7_figure.png")
+
+# ------------------------------------------------------------------
+# EMIT THE SWEEP (r1-floor.csv)
+# ------------------------------------------------------------------
+# Figure 4.5 in The Legible Swarm drew only the closed-form Floor(N,k,m)
+# curves, with a caption admitting the sweep's own CSV was never committed.
+# This block commits it. Read the semantics carefully before plotting it:
+#
+#   * `floor_analytic` is a CLOSED FORM. It is not measured and cannot be:
+#     Floor(N,k,m) = log2 C(N,k) - log2 C(m,k) is exactly computable, so an
+#     "empirical point" for it would be arithmetic, not evidence.
+#   * `miss_*` columns ARE measured -- Monte-Carlo miss rates for three
+#     encoders against a shared data-independent codebook, at N=60.
+#   * The evidence the sweep actually carries is therefore that no encoder
+#     beats the floor, and that a real encoder pays MORE than the floor.
+#     That is a one-point-on-the-N-axis result (N=60), not an N-series.
+import csv, os, sys
+out = os.environ.get("R1_FLOOR_CSV", "r1-floor.csv")
+os.makedirs(os.path.dirname(out), exist_ok=True) if os.path.dirname(out) else None
+with open(out, "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["# R1 information-floor sweep; emitted by a7_experiment.py, "
+                f"seed 20260816, N={N}, k={k}, m={m}"])
+    w.writerow(["# floor_analytic is closed form (log2 C(N,k) - log2 C(m,k)); "
+                "miss_* columns are measured Monte-Carlo rates"])
+    w.writerow(["N","k","m","B_bits","floor_analytic","miss_oracle","miss_noisy",
+                "miss_random","trials_oracle","trials_noisy","trials_random"])
+    for B, mo, mn, mr in zip(Bsched, oracle, noisy, randb):
+        w.writerow([N, k, m, f"{B:.6f}", f"{Bstar:.6f}",
+                    f"{mo:.6f}", f"{mn:.6f}", f"{mr:.6f}", 4000, 4000, 2000])
+
+# The measured quantity the figure can honestly mark: the smallest SWEPT budget
+# at which the oracle encoder observed zero misses. It sits ABOVE the floor,
+# because the shared codebook is a randomized cover rather than an optimal one.
+zero_miss_B = next((B for B, mo in zip(Bsched, oracle) if mo == 0.0), None)
+joint_zero_B = next((B for B, mj in zip(Bsched, panel3['none']) if mj == 0.0), None)
+print(f"\nSweep written to {out}")
+print(f"  analytic floor      (k={k}):   {Bstar:.2f} bits")
+print(f"  smallest swept B with zero observed miss (oracle, k={k}): "
+      f"{'none in swept range' if zero_miss_B is None else f'{zero_miss_B:.2f} bits'}")
+print(f"  analytic joint floor (2k={2*k}): {floor_none:.2f} bits")
+print(f"  smallest swept B with zero observed JOINT miss (disjoint readers): "
+      f"{'none in swept range' if joint_zero_B is None else f'{joint_zero_B:.2f} bits'}"
+      f"   [swept range tops out at {Bsched[-1]:.2f}]")

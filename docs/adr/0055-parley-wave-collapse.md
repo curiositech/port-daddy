@@ -326,7 +326,7 @@ The core data model is:
   guard copy must be excellent — a confused agent in a frozen lane is the
   main UX risk.
 - Parley spam is the main mechanism risk; debounce/dedup/cooldown in phase 3
-  are load-bearing, not polish.
+  are decisive, not polish.
 - N-party parleys (3+) are supported by the same unanimity rule; if live
   experience shows convergence stalls at N≥3, escalation budgets can tighten
   with party count rather than weakening unanimity.
@@ -344,7 +344,7 @@ implied.
 The discipline's through-line: *memory + checkpoint → continuity → a person
 (not a spawn) → outcomes closed against an oracle → reputation → a market*.
 A parley is a conversation **between persons over time**, so every link in
-that chain is load-bearing for it. Graded against current `origin/main`:
+that chain is core for it. Graded against current `origin/main`:
 
 | Link | Substrate (verified) | Verdict for parley |
 |---|---|---|

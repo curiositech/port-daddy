@@ -81,11 +81,11 @@ the relay's per-sender publish rate limit. The economic layer is advisory.
   harbor membership (tenant isolation, proven in `github_ingress_tenant_isolation.pv`)
   and the per-sender publish rate limit, so 10 identities ≈ 10× a linear, rate-capped
   amount — not more. **Linear Sybil, per-identity value capped** by the 60/min limit.
-- **Where it bites:** reputation farming once reputation becomes load-bearing in bond
-  pricing. Today reputation is 1.0× (not load-bearing) → not yet exploitable.
+- **Where it bites:** reputation farming once reputation becomes foundational in bond
+  pricing. Today reputation is 1.0× (not critical) → not yet exploitable.
 - **Social defense degradation plan:** the only Sybil-resistance is Anchor's per-principal
   onboarding cost (web-of-trust-like). It is **not built**, so today there is *no* Sybil
-  cost. Until Anchor lands, do not make reputation load-bearing for any
+  cost. Until Anchor lands, do not make reputation pivotal for any
   value-at-stake decision (doing so would be exploitable for ~$0).
 
 ## Class 5 — Front-running
@@ -107,7 +107,7 @@ the relay's per-sender publish rate limit. The economic layer is advisory.
    daily burst) — re-eval when the per-installation cap (below) ships, or sooner if a
    real cost incident occurs — owner: Erich.
 3. **Free Sybil identities** — high · low-now / medium-later (reputation farming) — re-eval
-   when Anchor lands or reputation becomes load-bearing in pricing — owner: Erich.
+   when Anchor lands or reputation becomes central in pricing — owner: Erich.
 4. **Channel-name metadata leak** — certain · low (repo names to relay operator) — re-eval
    if the relay hosts third-party tenants with sensitive private-repo names — owner: Erich.
 

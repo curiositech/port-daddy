@@ -27,7 +27,7 @@ export default function App() {
           by link instead of by scroll. LibraryBanner (2026-08-27 add) sits
           outside this numbering on purpose — it's a thin signage strip
           below the nav, not a content section, naming and linking the two
-          seven-part collections (the Volume, the Proofs) that neither the
+          collections (the eight-chapter Book, the seven standalone papers) that neither the
           home page nor — until the 2026-08-26 /library fix — the library
           page itself ever distinguished by name:
             1. Hero                    — what is this, why should I care

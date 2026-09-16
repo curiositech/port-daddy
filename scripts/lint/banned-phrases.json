@@ -1,0 +1,48 @@
+{
+  "phrases": [
+    "held to account",
+    "load-bearing",
+    "load bearing"
+  ],
+  "paths": [
+    "skills/**",
+    "docs/**/*.md",
+    "*.md",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    ".github/**/*.md",
+    "website-v2/src/**/*.ts",
+    "website-v2/src/**/*.tsx",
+    "website-v2/src/**/*.md",
+    "website-v2/src/**/*.mdx",
+    "website-v2/public/**/*.md",
+    "website-v2/public/**/*.txt",
+    "website-v2/public/**/*.html",
+    "whitepaper/**/*.tex",
+    "website-v2/public/whitepaper/**/*.tex",
+    "docs/harbor-research/**/*.tex",
+    "docs/harbor-research/library-index.json",
+    "docs/harbor-research/program.json",
+    "website-v2/src/data/*.json",
+    "website-v2/public/whitepaper/plates/**/*.json",
+    "whitepaper/textbook.json",
+    "whitepaper/figures/figure-register.json",
+    "docs/harbor-research/exposition/**/*.json",
+    "changelog.d/**/*.md"
+  ],
+  "exclude": [
+    "**/CHANGELOG*.md",
+    "changelog.d/10077-banned-phrases.md",
+    "**/*.pv",
+    "**/*.tla",
+    "**/*.cfg",
+    "**/*.z3",
+    "**/*.ec",
+    "apps/**",
+    "lib/**",
+    "src/**",
+    "core/**",
+    "tests/**",
+    "**/*.test.*",
+    ".scratch/**"
+  ]
+}

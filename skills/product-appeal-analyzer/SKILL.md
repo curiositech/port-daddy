@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: product-appeal-analyzer
-description: Evaluate product desirability, market positioning, and emotional resonance—the complement to friction analysis. Assess whether users will WANT a product (not just use it), identity fit, trust signals, and value proposition clarity. Activate on "will they like it", "market positioning", "appeal analysis", "product desirability", "value proposition", "why would someone choose this", "landing page review", "conversion optimization", "messaging strategy". NOT for UX friction analysis (use ux-friction-analyzer), visual design implementation (use web-design-expert), or A/B test setup (use frontend-developer).
+description: Evaluate desirability, positioning, and emotional resonance for products AND for technical documents - landing pages, wireframes, papers, monographs, textbooks, and whitepapers. Assess whether someone will WANT this (not just be able to use it) via identity fit, problem urgency, trust signals, and - for anything whose price is measured in hours rather than seconds - return on effort: time to first insight, cost transparency, payoff visibility. Activate on "will they like it", "market positioning", "appeal analysis", "product desirability", "value proposition", "why would someone choose this", "landing page review", "will anyone read this book", "is this paper compelling", "does the abstract sell the result", "wireframe appeal", "messaging strategy". NOT for UX friction analysis (use ux-friction-analyzer), visual design implementation (use web-design-expert), or A/B test setup (use frontend-developer).
 allowed-tools: Read,Write,Edit,Bash,WebFetch
 metadata:
   category: Content & Marketing
@@ -11,6 +11,8 @@ metadata:
     - market-fit
     - user-research
     - positioning
+    - technical-documents
+    - scientific-writing
   provenance:
     kind: first-party
     owners:
@@ -23,7 +25,13 @@ metadata:
     - skill: agentic-coding-ux-designer
       reason: Turns this skill's appeal recommendations into concrete flows (prompt-to-diff, onboarding, checkpoint rollback) for agentic coding product surfaces.
     - skill: ux-friction-analyzer
-      reason: The complement — appeal answers "do they want it", friction answers "can they use it"; run both on the same surface.
+      reason: The complement, and the other readout of the same random-surfer chain - friction is the terms that raise the abandon hazard, appeal is the terms that lower it. It also owns scripts/surfer_model.mjs, which computes the time-to-first-insight and payoff-reach numbers this skill's returnOnEffort and surfer blocks consume.
+    - skill: textbook-craft
+      reason: Executes the pedagogical structure this skill's technical-document findings call for - motivation before formalism, worked examples, honest prerequisites.
+    - skill: latex-whitepaper-engineering
+      reason: Owns the typographic craft that is the trust triangle's "professional execution" row on technical material.
+    - skill: tufte-evidence-design
+      reason: Figures are the hero image for scientific work; this is where self-contained, finding-stating figures get built.
     - skill: web-design-expert
       reason: Executes the visual identity and layout the desirability triangle's identity-fit vertex calls for.
   io-contract:
@@ -31,9 +39,15 @@ metadata:
     consumes:
       - kind: landing-page-or-product-page
         format: markdown
+      - kind: technical-document
+        format: pdf
+      - kind: wireframe
+        format: any
       - kind: target-personas
         format: markdown
       - kind: appeal-audit-spec
+        format: json
+      - kind: surfer-readout
         format: json
     produces:
       - kind: appeal-analysis-and-recommendations
@@ -51,10 +65,12 @@ Evaluate whether users will *want* a product—not just use it. The complement t
 
 ✅ **Use for:**
 - Evaluating landing pages, product pages, app store listings
-- Positioning a product against alternatives
+- Evaluating **technical documents**: papers, monographs, textbooks, whitepapers, API references
+- Evaluating **wireframes** — with the honesty guard below
+- Positioning a product, or a book, against alternatives
 - Crafting messaging, tone, visual identity direction
 - Assessing emotional resonance with target personas
-- Pre-launch "will this convert?" analysis
+- Pre-launch "will this convert?" / pre-publication "will anyone finish this?" analysis
 
 ❌ **NOT for:**
 - UX friction audits (→ use ux-friction-analyzer)
@@ -117,6 +133,157 @@ Within 5 seconds of landing, a visitor should know:
 | 3 of 4 clear | 5-6 | Fix the gap |
 | 2 or fewer clear | 2-4 | Significant rework |
 | Confusing/unclear | 0-1 | Start over |
+
+---
+
+## Technical Documents and Scientific Books
+
+The triangle transfers to papers, monographs, and textbooks almost unchanged.
+What does not transfer is the **price**. A landing page asks for thirty seconds
+and maybe a credit card. A monograph asks for forty hours, spent before the
+reader finds out whether it was worth it. Nothing in the triangle prices
+effort, so on technical material it systematically flatters documents that are
+fascinating, rigorous, trustworthy, and finished by nobody.
+
+So the triangle grows a fourth vertex and becomes a tetrahedron:
+
+```
+                  IDENTITY FIT
+              "written for someone like me"
+                       /|                      / |                      /  |                      /  ★|★                     / DESIRE                     /  /      \          PROBLEM  /__/________\__\  TRUST
+        URGENCY     \   ..   /      "correct, and careful"
+   "this matters"    \      /
+                      \    /
+                 RETURN ON EFFORT
+             "I can see what I get, and
+              roughly what it costs me"
+```
+
+**Return on Effort**, scored 0-10 from three components:
+
+| Component | Question | Failure looks like |
+|---|---|---|
+| Time to first insight | How long until this pays me *anything*? | 200 pages of machinery before the first usable result. |
+| Cost transparency | Does it say what it costs — length, difficulty, background? | "Assumes only basic familiarity with measure theory." |
+| Payoff visibility | Can I see the destination from here? | A table of contents of nouns, with no sign which chapters carry the goods. |
+
+The single most actionable number is **time to first insight against the
+patience budget**. `ux-friction-analyzer`'s `surfer_model.mjs` computes
+it exactly, for the readers who actually arrive.
+
+### The 30-Second Shelf Test
+
+The technical analogue of the 5-Second Test. Five questions, not four, because
+a technical reader has both a real alternative (the standard reference) and a
+real cost.
+
+1. **What is this about?** (subject)
+2. **Who is it for, and am I that person?** (level and prerequisites)
+3. **What will I be able to do after?** (the promise, as a capability)
+4. **What does it cost me?** (length, difficulty, assumed background)
+5. **Why this one and not the standard reference?** (differentiation)
+
+| Result | Score | Action |
+|---|---|---|
+| All 5 clear | 9-10 | Ship it |
+| 4 of 5 | 7-8 | Fix the gap — usually (5) |
+| 3 of 5 | 5-6 | The preface is doing a job the cover should do |
+| 2 or fewer | 0-4 | Nobody is choosing this on purpose |
+
+Then the **random-page test**: open to a random middle page for fifteen
+seconds. Can you tell what is going on? Most readers of searchable technical
+material enter mid-document and never see page one.
+
+### Anti-patterns, mapped from the originals
+
+| Landing-page anti-pattern | Technical-document analogue |
+|---|---|
+| Feature Soup Headline | **Theorem dump** — results listed with no intuition or reason to care |
+| Screenshot Hero | **Non-self-contained figure** — a caption that labels instead of stating the finding |
+| Trust Ladder Violation | **Front-loaded formalism** — machinery demanded before the motivation that justifies it |
+| Identity Mismatch | **"For researchers and practitioners alike"** — an audience of everyone |
+
+Four more have no landing-page ancestor: the **structural abstract** ("In
+Section 2 we introduce…" instead of the result), the **unlocatable
+contribution**, the **definition avalanche**, and the **citation wall** as
+social proof. Full treatment of all of these, the technical trust ladder, the
+trust-signal/cheap-fake table, and how to measure appeal here at all:
+`references/technical-document-appeal.md`.
+
+### Reader maps: does each persona have a route, and is it worth walking?
+
+Many technical books print a **Reader's Map**: *practitioners read 1, 3, 7, 9;
+theorists read 1, 2, 4-6.* Docs sites do it with role tiles. Every route is a
+promise made to a named vocational identity, which makes it an appeal object,
+not just a navigation aid.
+
+Match your personas to the routes the document actually prints, then walk each
+one. The two halves divide cleanly:
+
+| Question | Skill |
+|---|---|
+| Does this route *work*? Does it carry its own prerequisites, reach a payoff, fit in this reader's budget? | `ux-friction-analyzer`, via `readerPaths` in the surface graph |
+| Was it *worth walking*? Does what it delivers match what this persona came for? Does every persona even have one? | This skill, via `technicalDocument.readerMap` |
+
+Four appeal findings come out of the matching:
+
+- **`reader-map-persona-unserved`** — you are scoring a persona the map never
+  routes. They will read the book in the order it happens to be printed, which
+  is the order written for somebody else.
+- **`reader-path-persona-unmatched`** — a route addressed to nobody you are
+  targeting. It was invented because the structure suggested it, and it costs
+  the map credibility for the routes that are real.
+- **`reader-path-payoff-mismatch`** — the route names a reader and rewards a
+  different one. A promise broken in public.
+- **`reader-path-over-budget`** — the route pays off after this reader's
+  attention runs out. **The book's overall budget is nobody's**: a practitioner
+  track promising four hours to someone with one is broken even if every
+  chapter on it is excellent.
+
+Persona names are joined to routes as a **key**, not a search: `paths[].persona`
+must correspond to a `personas[].name` exactly, up to case and whitespace. An
+unmatched name is reported rather than guessed at.
+
+The pairing produces the report sentence usually worth the whole audit:
+*"The practitioner route is the one your practitioners will take, it skips the
+two chapters that define what it needs, and it reaches the result twelve
+minutes after their attention budget runs out."*
+
+Where to score each field: `references/technical-document-appeal.md`. Full
+doctrine on extracting a map and the four ways one breaks lives in
+`ux-friction-analyzer`, in its `reader-maps.md` reference.
+
+### Figures are the hero image
+
+Readers of scientific material go **abstract → figures → conclusions →
+methods**. For a large share of readers the figures *are* the encounter with
+the argument, which makes a self-contained figure the strongest appeal signal
+available — and a figure that needs the body text a discarded entry point.
+Captions state the finding, not the file name.
+
+---
+
+## Wireframes
+
+> **A wireframe can fail appeal. It cannot pass it.**
+
+A structural appeal defect found in a wireframe is real and cheap to fix now.
+A wireframe with no defects has told you nothing, because the three things that
+most drive appeal — words, images, and craft — are not present.
+
+| Vertex | Assessable from a wireframe? |
+|---|---|
+| Identity fit | **Structural signals only** (density, option count, complexity). Language, visual identity, and tone are not there to score. |
+| Problem urgency | Whether a slot *exists* for the problem statement, and where it sits. Not whether the words land. |
+| Trust signals | Whether trust slots exist and where. Not whether the proof convinces. |
+| **Trust ladder** | **Fully assessable, and this is the wireframe's strongest signal.** Count the frames between arrival and the first ask, versus arrival and the first demonstration of value. |
+
+**Score `null` for what you cannot see, never a guess.** A confident 7/10 on
+"language resonance" for a page of lorem ipsum is a fabrication, and it is the
+kind that survives into a summary slide. The audit script rejects a persona
+with a missing sub-score rather than averaging an invented number into a
+vertex; that rejection is the feature. Details and the wireframe checklist:
+`references/surface-appeal-adapters.md`.
 
 ---
 
@@ -272,20 +439,43 @@ This is a deterministic complement to `appeal_scorer.py`, not a duplicate:
 `appeal_audit.mjs` re-checks an already-scored, structured spec against this
 skill's own gates (any triangle vertex &lt;5, a failed 5-second test,
 trust-ladder violation, identity mismatch, feature-soup headline, screenshot
-hero) and returns `{ pass, findings, recommendations }` with no text/keyword
-matching involved — every flag it checks is a number or boolean the analyst
-already decided. See `examples/sample-input.json` for a passing spec.
+hero) and returns `{ pass, findings, recommendations, scorecard }` with no
+text/keyword matching involved — every flag it checks is a number or boolean
+the analyst already decided. See `examples/sample-input.json` for a passing
+spec.
+
+Two optional blocks extend it beyond landing pages, and are simply absent for
+one:
+
+- **`technicalDocument`** — the 30-Second Shelf Test, Return on Effort,
+  declared audience and prerequisites, structural abstract, figure
+  self-containment, reproducibility artifacts, limitations, typographic craft,
+  and the reader map with its per-route persona matching.
+  See `examples/technical-book-spec.json` for a monograph that fails on most of
+  them, and `references/technical-document-appeal.md` for what each field
+  means.
+- **`surfer`** — paste `payoffReachProbability` and `completion` straight from
+  `ux-friction-analyzer`'s `surfer_model.mjs` run on the same surface.
+  Appeal cannot be fixed downstream of where people stop, so a payoff reached
+  by under half of arrivals gates here too.
+
+Setting `surfaceKind: "wireframe"` adds the honesty guard to the
+recommendations: a clean result means "no structural appeal defect found",
+never "this will appeal".
 
 ### Reference Files (See for deep dives)
 
 | File | When to Use |
 |------|-------------|
+| `references/technical-document-appeal.md` | Evaluating a paper, monograph, textbook, or whitepaper: the fourth vertex, the shelf test, the technical trust ladder, trust signals and their cheap fakes, and how to measure appeal here at all |
+| `references/surface-appeal-adapters.md` | Evaluating a wireframe, prototype, or deck: what you may score and what you must leave `null` |
 | `references/scoring-templates.md` | Full scoring matrices and templates |
 | `references/trust-ladder.md` | Deep dive on trust building stages |
 | `references/identity-signals.md` | Visual/verbal identity signal catalog |
 | `references/objection-catalog.md` | Common objections by product type |
 | `schemas/appeal-spec.schema.json` | Validate a structured appeal-audit input programmatically |
 | `examples/sample-input.json` | A complete spec that `appeal_audit.mjs` scores `pass: true` |
+| `examples/technical-book-spec.json` | A monograph spec exercising every technical-document and surfer gate — it fails, loudly |
 | `examples/expected-output.md` | Shape of a finished appeal analysis + scorecard |
 | `templates/output-template.md` | Reusable appeal-analysis template to fill in |
 | `agents/openai.yaml` | Subagent descriptor for delegated appeal analysis |
@@ -297,10 +487,17 @@ already decided. See `examples/sample-input.json` for a passing spec.
 When running this skill, produce:
 
 1. **Executive Summary** - 3 bullet key findings
-2. **Desirability Triangle Scores** - Per persona
-3. **5-Second Test Assessment** - What's clear, what's not
+2. **Desirability Triangle Scores** - Per persona (four vertices for a technical document)
+3. **5-Second Test Assessment** — or, for a technical document, the **30-Second Shelf Test** and the random-page test
 4. **Top 3 Objections** - And how to address them
 5. **Priority Recommendations** - Immediate / Medium / Long-term
+
+For a technical document, also report **time to first insight against the
+patience budget**, and say where the budget number came from. For a wireframe,
+state which vertices are unscored and why — "a wireframe can fail appeal but
+cannot pass it" belongs in the summary, not a footnote. Any number taken from
+the surfer model is a model output, not a measurement; say so in the sentence
+that uses it.
 
 ---
 
@@ -317,6 +514,28 @@ When running this skill, produce:
 
 **Run both**: High appeal + high friction = frustrated users. Low friction + low appeal = abandoned product.
 
+### They are two readouts of one chain
+
+This is not just a slogan about complementary skills. In the random-surfer
+reader model that `ux-friction-analyzer` owns, the per-node probability of
+quitting is:
+
+```
+hazard = base + load·(comprehension) + load·(perceptual)   ← friction raises it
+              − hook − payoff                              ← appeal lowers it
+```
+
+Friction is the positive terms; appeal is the negative ones. Build **one**
+surface graph, run `ux-friction-analyzer`'s `surfer_model.mjs` on it, and both skills read the
+same output for different purposes: friction reads the median exit node and the
+regression churn, appeal reads the payoff reach probability and the time to
+first insight. Paste the latter two into this skill's `surfer` block.
+
+The practical consequence is a rule worth remembering: **appeal cannot be fixed
+downstream of where people stop.** A brilliant Chapter 9 in a book whose median
+reader quits in Chapter 2 is not an appeal asset. Fix the shedding point first,
+then the promise.
+
 ---
 
 **Philosophy**: A product with low friction but low appeal gets abandoned. A product with high appeal but high friction gets frustrated users. You need both.
@@ -329,7 +548,7 @@ When running this skill, produce:
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Changelog — All notable changes to this skill will be documented here.
-- [`README.md`](README.md) — Product Appeal Analyzer — Evaluate whether users will *want* a product — not just whether they can use it.
+- [`README.md`](README.md) — Product Appeal Analyzer — Evaluate whether someone will *want* this — not just whether they can use it.
 
 **`agents/`**
 - [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
@@ -337,11 +556,14 @@ When running this skill, produce:
 **`examples/`**
 - [`examples/expected-output.md`](examples/expected-output.md) — Example Output: Product Appeal Analysis — **Scenario**: Reviewing a developer-tools landing page ahead of launch, for two personas — a solo indie hacker and a staff engineer evaluati
 - [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+- [`examples/technical-book-spec.json`](examples/technical-book-spec.json) — technical book spec (data/schema)
 
 **`references/`**
 - [`references/identity-signals.md`](references/identity-signals.md) — Identity Signals Catalog — People choose products that reinforce who they are or want to be.
 - [`references/objection-catalog.md`](references/objection-catalog.md) — Objection Catalog — Every user has objections.
 - [`references/scoring-templates.md`](references/scoring-templates.md) — Scoring Templates — Detailed templates for comprehensive product appeal analysis.
+- [`references/surface-appeal-adapters.md`](references/surface-appeal-adapters.md) — Surface Appeal Adapters — Load this when the thing to evaluate is not a finished live page — a wireframe, a prototype, a deck — and you need to know which parts of th
+- [`references/technical-document-appeal.md`](references/technical-document-appeal.md) — Appeal in Technical Documents and Scientific Books — Load this when the thing being evaluated is a paper, a monograph, a textbook, an API reference, or a technical whitepaper rather than a land
 - [`references/trust-ladder.md`](references/trust-ladder.md) — The Trust Ladder — Trust builds in predictable stages.
 
 **`schemas/`**

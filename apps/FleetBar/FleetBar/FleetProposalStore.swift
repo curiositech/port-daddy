@@ -188,7 +188,7 @@ final class FleetProposalStore: ObservableObject {
         guard let url = components.url else { return }
 
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.pdData(from: url)
             guard let http = response as? HTTPURLResponse else {
                 lastError = "Daemon unreachable."
                 return
@@ -245,7 +245,7 @@ final class FleetProposalStore: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.pdData(for: request)
             guard let http = response as? HTTPURLResponse else {
                 lastError = "Fleet proposal \(action): no response from daemon."
                 return

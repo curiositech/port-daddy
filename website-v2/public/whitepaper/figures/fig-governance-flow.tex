@@ -17,17 +17,17 @@
     \node[pd caution datum] at (\x,\y) {};
 
   \node[pd direct label,anchor=south,align=center] at (1.35,.62)
-    {1  DIRECT RELEASE\\[-1pt]\normalfont\scriptsize claimant yields};
+    {1  DIRECT RELEASE\\[-1pt]\pdfigsub claimant yields};
   \node[pd direct label,anchor=south,align=center] at (4.15,1.36)
-    {2  TTL EXPIRY\\[-1pt]\normalfont\scriptsize heartbeat absent};
+    {2  TTL EXPIRY\\[-1pt]\pdfigsub heartbeat absent};
   \node[pd direct label,anchor=south,align=center] at (7.05,2.28)
-    {3  BONDED PREEMPTION\\[-1pt]\normalfont\scriptsize waiting cost exceeds bond};
+    {3  BONDED PREEMPTION\\[-1pt]\pdfigsub waiting cost exceeds bond};
   \node[pd direct label,anchor=south,align=center] at (10.15,3.54)
-    {4  HUMAN RULING\\[-1pt]\normalfont\scriptsize ambiguous or high stakes};
+    {4  HUMAN RULING\\[-1pt]\pdfigsub ambiguous or high stakes};
 
-  \node[pd note,text=hhamber,anchor=west] at (2.82,.68) {no heartbeat};
-  \node[pd note,text=hhamber,anchor=west] at (5.68,1.58) {preemption justified};
-  \node[pd note,text=hhamber,anchor=west] at (8.68,2.84) {machine limit reached};
+  \node[pd note,text=pdinkmuted,anchor=west] at (2.82,.68) {no heartbeat};
+  \node[pd note,text=pdinkmuted,anchor=west] at (5.68,1.58) {preemption justified};
+  \node[pd note,text=pdinkmuted,anchor=west] at (8.68,2.84) {machine limit reached};
 
   \draw[pd focus rule,line width=1.35pt] (.55,-1.25)--(11.55,-1.25);
   \foreach \x/\y/\outcome in {1.35/.36/released,4.15/1.10/expired,7.05/2.02/preempted,10.15/3.28/ruled} {

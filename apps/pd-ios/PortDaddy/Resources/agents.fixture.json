@@ -1,0 +1,98 @@
+{
+  "note": "Hand-authored fixture — no generator. The durable-agent roster endpoint and actor-subscription (follow) streams are not built on the relay yet; every view renders this behind a fixture provenance bar and keeps controls disabled-with-reason.",
+  "agents": [
+    {
+      "id": "cartographer",
+      "name": "Cartographer",
+      "initials": "Ca",
+      "state": "claim-active",
+      "statusLine": "Indexing src/ · 412/1,840 · needs you",
+      "ageSeconds": 134,
+      "following": true,
+      "durable": true,
+      "lineage": "resumed from rcpt_7c19 · 3rd session",
+      "body": "Claude Code",
+      "contextPercent": 61,
+      "costUSD": 0.04,
+      "transcript": [
+        { "id": "e1", "timestamp": "21:46:05", "kind": "tool", "text": "read_file src/routes/feedback.ts → 284 lines" },
+        { "id": "e2", "timestamp": "21:47:31", "kind": "denied", "text": "shell git checkout -- src/ — blocked · recorded → receipt" },
+        { "id": "e3", "timestamp": "21:48:02", "kind": "agent", "text": "412/1,840 indexed. Rebuilt branch needs a force-push — asking you." },
+        { "id": "e4", "timestamp": "21:48:12", "kind": "ok", "text": "git push --force-with-lease → ok · approved from phone" },
+        { "id": "e5", "timestamp": "21:48:13", "kind": "agent", "text": "Resuming index at src/lib/" }
+      ]
+    },
+    {
+      "id": "qa",
+      "name": "QA",
+      "initials": "QA",
+      "state": "affirmative",
+      "statusLine": "Done · 14/14 passed · codex",
+      "ageSeconds": 8,
+      "following": false,
+      "durable": true,
+      "lineage": "resumed from rcpt_5a02 · 7th session",
+      "body": "Codex",
+      "contextPercent": 22,
+      "costUSD": 0.02,
+      "transcript": [
+        { "id": "q1", "timestamp": "21:47:50", "kind": "tool", "text": "run_tests PortDaddyKitTests → 14 cases" },
+        { "id": "q2", "timestamp": "21:47:58", "kind": "ok", "text": "14/14 passed in 3.1s" },
+        { "id": "q3", "timestamp": "21:47:59", "kind": "agent", "text": "Suite green. Handing back to the roadmap item." }
+      ]
+    },
+    {
+      "id": "approver",
+      "name": "Approver",
+      "initials": "Ap",
+      "state": "awaiting-human",
+      "statusLine": "Needs you · PR #91",
+      "ageSeconds": 240,
+      "following": true,
+      "durable": true,
+      "lineage": "resumed from rcpt_2c88 · 12th session",
+      "body": "Claude Code",
+      "contextPercent": 40,
+      "costUSD": 0.03,
+      "transcript": [
+        { "id": "a1", "timestamp": "21:44:02", "kind": "tool", "text": "open_pr #91 feedback route hardening" },
+        { "id": "a2", "timestamp": "21:44:10", "kind": "agent", "text": "CI green, 0 unresolved. Waiting on your merge call." }
+      ]
+    },
+    {
+      "id": "spark",
+      "name": "Spark",
+      "initials": "Sp",
+      "state": "blocked",
+      "statusLine": "Error · workers-ai 401",
+      "ageSeconds": 23,
+      "following": false,
+      "durable": false,
+      "lineage": null,
+      "body": "Claude Code",
+      "contextPercent": 8,
+      "costUSD": 0.01,
+      "transcript": [
+        { "id": "s1", "timestamp": "21:47:40", "kind": "tool", "text": "workers-ai infer → HTTP 401" },
+        { "id": "s2", "timestamp": "21:47:41", "kind": "denied", "text": "auth expired — cannot proceed without a fresh token" }
+      ]
+    },
+    {
+      "id": "documentarian",
+      "name": "Documentarian",
+      "initials": "Do",
+      "state": "idle",
+      "statusLine": "Idle · last run 28m ago",
+      "ageSeconds": null,
+      "following": false,
+      "durable": true,
+      "lineage": "resumed from rcpt_9f10 · 4th session",
+      "body": "Claude Code",
+      "contextPercent": 0,
+      "costUSD": 0.0,
+      "transcript": [
+        { "id": "d1", "timestamp": "21:20:11", "kind": "ok", "text": "wrote docs/adr/0121-durable-agent-roster.md" }
+      ]
+    }
+  ]
+}

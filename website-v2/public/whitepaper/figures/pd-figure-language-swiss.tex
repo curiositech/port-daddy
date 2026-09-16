@@ -1,0 +1,62 @@
+% Swiss edition overrides: grotesk labels, flat colour blocks in the chapter's
+% hue, no outlines, heavy marks, right angles. Loaded by pd-figure-language.tex.
+%
+% An edition changes the FAMILY and the character of the marks. It does not
+% change the size: \pdfiglabelsize is the law, set once in pd-figure-language.tex
+% and measured there. Setting the family here, in one command, is why none of
+% the styles below has to restate a font size.
+\renewcommand{\pdfiglabelfamily}{\pdgrotesk}
+\renewcommand{\pdfigbasesize}{\footnotesize}
+\tikzset{
+  pd figure/.append style={text=hhink},
+  pd hairline/.append style={draw=hhink!45,line width=.5pt},
+  pd rule/.append style={draw=hhink,line width=.9pt},
+  pd focus rule/.append style={draw=\pdcurrentchaptercolor,line width=2pt},
+  pd caution rule/.append style={draw=pderror,line width=2pt},
+  % NO pd guide override. This edition used to append `draw=hhink!40,line
+  % width=.5pt` to it, which is what widened the stroke under a dash pattern the
+  % base had already baked from the OLD width -- the 0.93px dot the Book shipped.
+  % The base guide's geometry is a legibility floor, not this edition's
+  % character, and hhink!70 is already the ink this edition would have asked for.
+  % An edition that does want to move the guide's ink changes `draw=` only and
+  % takes \pdguidewidth / \pdguideon / \pdguideoff for the rest; it never restates a width
+  % without restating the dash that was derived from it.
+  pd lattice/.append style={draw=hhink!28,line width=.4pt},
+  pd arrow/.append style={-{Triangle[length=2.4mm,width=2.2mm]},draw=hhink,line width=1.1pt},
+  pd focus arrow/.append style={-{Triangle[length=2.4mm,width=2.2mm]},draw=\pdcurrentchaptercolor,line width=1.5pt},
+  pd caution arrow/.append style={-{Triangle[length=2.4mm,width=2.2mm]},draw=pderror,line width=1.5pt},
+  pd row label/.append style={text=hhink,anchor=east},
+  pd panel title/.append style={text=hhink,align=left},
+  pd axis label/.append style={text=hhink},
+  pd direct label/.append style={text=hhink,align=left,fill=hhpaper},
+  pd note/.append style={font=\pdfiglabel,text=hhink!70!hhgray,align=left},
+  pd tick/.append style={draw=hhink,line width=.6pt},
+  % Three forms, not three colours of one form. This edition used to make all
+  % three a square, which at 2.3-2.7pt left hue as the only thing separating a
+  % focus mark from a caution mark -- no second channel, nothing in greyscale.
+  % Square, circle and diamond are all flat right-angle-or-primitive Swiss
+  % forms; verified on a 600 dpi render of the Book preamble, not inferred.
+  pd datum/.append style={rectangle,fill=hhink,draw=none,inner sep=2.3pt},
+  pd focus datum/.append style={circle,fill=\pdcurrentchaptercolor,draw=none,inner sep=2.7pt},
+  pd caution datum/.append style={diamond,fill=pderror,draw=none,inner sep=2.7pt},
+  % A Swiss state is a solid block of the chapter's hue with reversed type, so
+  % this one keeps a weight of its own -- family and size still come from the law.
+  pd state/.append style={draw=none,fill=\pdcurrentchaptercolor,text=hhpaper,rounded corners=0pt,
+    font=\pdfiglabelbold,inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
+  pd terminal/.append style={pd state,fill=hhink},
+  pd actor/.append style={draw=hhink,line width=.9pt,fill=hhpaper,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt},
+  pd artifact/.append style={draw=none,fill=hhsand,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt},
+  pd boundary/.append style={draw=hhink,line width=.9pt,rounded corners=0pt},
+  pd focus fill/.append style={fill=\pdcurrentchaptercolor!22,draw=none},
+  pd caution fill/.append style={fill=pderror!20,draw=none},
+  pd neutral fill/.append style={fill=hhsand,draw=none},
+  pd ink fill/.append style={fill=hhink,draw=none,text=hhpaper},
+  pd hatch/.append style={fill=hhink!12,draw=none},
+  % pd decision, pd mono label, pd verdict, pd reverse label, pd reverse row
+  % label and pd legend are compositions of the roles above, so each already
+  % carries this edition's character; only the ones that need to CONTRADICT
+  % their parent are listed. A Swiss decision node is a solid block like its
+  % parent state, so its outline has to go too.
+  pd decision/.append style={draw=none,rounded corners=0pt},
+  pd reverse label/.append style={fill=none,text=hhpaper},
+}

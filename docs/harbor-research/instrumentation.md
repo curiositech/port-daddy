@@ -49,7 +49,7 @@ stated confidence or a click/dwell-time proxy. This is explicit in the W12 spec 
 signals are gameable and correlate poorly with actual judgment quality).
 
 **Estimator:** `g` is a map, not a scalar — fit as an isotonic regression of
-`P(downstream_outcome=load-bearing | model_confidence_bucket)` over confidence
+`P(downstream_outcome=critical | model_confidence_bucket)` over confidence
 buckets, refit periodically as more labeled pairs accumulate. Report calibration
 error (e.g. Brier score or ECE) alongside the fitted map so drift is visible.
 
@@ -66,7 +66,7 @@ conditions on.
 
 **Estimator:** `V̂(u_bucket) = validated / (validated + dismissed)` per `u_score`
 bucket, monitored for monotonicity (R14's boundary is explicit: **monotone V is
-load-bearing** — a non-monotone validator breaks the separating-threshold argument
+critical** — a non-monotone validator breaks the separating-threshold argument
 entirely, not just its calibration). A monotonicity violation here is not a data
 artifact to smooth over; it's the theorem's own precondition failing and should page
 whoever owns the escalation design, the same way a mutation-test failure would.

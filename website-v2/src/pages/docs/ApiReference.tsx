@@ -835,6 +835,23 @@ const ENDPOINTS: Endpoint[] = [
   "session": { "id": "sess_abc123", "purpose": "Building auth", ... }
 }`,
   },
+  {
+    group: 'Sugar',
+    method: 'GET',
+    path: '/sugar/find',
+    description: 'Recover "my session" after a lost begin response. With key=<idempotencyKey> the daemon returns the session that begin created and re-opens its sealed credential for the key holder; with identity=<project:stack:context> it lists the most recent live sessions (ids only).',
+    curl: `$ curl "${BASE}/sugar/find?key=7f0e2c4a-1b3d-4e5f-8a9b-0c1d2e3f4a5b"`,
+    responseBody: `{
+  "success": true,
+  "foundBy": "key",
+  "sessionId": "sess_abc123",
+  "agentId": "agent-1",
+  "status": "active",
+  "driveable": true,
+  "credential": "<actor>.<secret>",
+  "hint": "Session recovered with its credential; continue working (pd note / pd done)."
+}`,
+  },
 
   // ── Pheromone ───────────────────────────────────────────────
   {

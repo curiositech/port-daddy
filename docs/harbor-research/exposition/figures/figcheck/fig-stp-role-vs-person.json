@@ -1,0 +1,431 @@
+{
+  "figure": "fig-stp-role-vs-person",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "fail",
+      "count": 16,
+      "findings": [
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            77.23336791992188,
+            72.44930267333984,
+            106.95504760742188,
+            78.02142333984375
+          ],
+          "text": "obligation",
+          "size_pt": 5.57,
+          "message": "text 'obligation' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            109.27304077148438,
+            72.44930267333984,
+            114.48297882080078,
+            78.02142333984375
+          ],
+          "text": "+",
+          "size_pt": 5.57,
+          "message": "text '+' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            116.80654907226562,
+            72.44930267333984,
+            146.17161560058594,
+            78.02142333984375
+          ],
+          "text": "capability",
+          "size_pt": 5.57,
+          "message": "text 'capability' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            148.48959350585938,
+            72.44930267333984,
+            153.69952392578125,
+            78.02142333984375
+          ],
+          "text": "+",
+          "size_pt": 5.57,
+          "message": "text '+' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            156.02313232421875,
+            72.44930267333984,
+            183.79457092285156,
+            78.02142333984375
+          ],
+          "text": "authority",
+          "size_pt": 5.57,
+          "message": "text 'authority' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            123.20001220703125,
+            134.3562774658203,
+            126.60458374023438,
+            139.92840576171875
+          ],
+          "text": "7",
+          "size_pt": 5.57,
+          "message": "text '7' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            118.25027465820312,
+            142.7144775390625,
+            158.3639678955078,
+            148.28660583496094
+          ],
+          "text": "non-forgeable",
+          "size_pt": 5.57,
+          "message": "text 'non-forgeable' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            160.68194580078125,
+            142.7144775390625,
+            183.78395080566406,
+            148.28660583496094
+          ],
+          "text": "identity",
+          "size_pt": 5.57,
+          "message": "text 'identity' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            214.5643310546875,
+            158.65647888183594,
+            217.96890258789062,
+            164.22860717773438
+          ],
+          "text": "1",
+          "size_pt": 5.57,
+          "message": "text '1' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            248.91567993164062,
+            158.65647888183594,
+            252.32025146484375,
+            164.22860717773438
+          ],
+          "text": "2",
+          "size_pt": 5.57,
+          "message": "text '2' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            296.4790344238281,
+            158.65647888183594,
+            299.88360595703125,
+            164.22860717773438
+          ],
+          "text": "3",
+          "size_pt": 5.57,
+          "message": "text '3' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            328.18780517578125,
+            158.65647888183594,
+            331.5923767089844,
+            164.22860717773438
+          ],
+          "text": "4",
+          "size_pt": 5.57,
+          "message": "text '4' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            367.8238525390625,
+            158.65647888183594,
+            371.2284240722656,
+            164.22860717773438
+          ],
+          "text": "5",
+          "size_pt": 5.57,
+          "message": "text '5' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            399.5326232910156,
+            158.65647888183594,
+            402.93719482421875,
+            164.22860717773438
+          ],
+          "text": "6",
+          "size_pt": 5.57,
+          "message": "text '6' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            452.3807067871094,
+            158.65647888183594,
+            455.7852783203125,
+            164.22860717773438
+          ],
+          "text": "7",
+          "size_pt": 5.57,
+          "message": "text '7' renders at 5.57pt, below the 7.00pt floor"
+        },
+        {
+          "check": "T1",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            486.7320556640625,
+            158.65647888183594,
+            490.1366271972656,
+            164.22860717773438
+          ],
+          "text": "8",
+          "size_pt": 5.57,
+          "message": "text '8' renders at 5.57pt, below the 7.00pt floor"
+        }
+      ]
+    },
+    "T2": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T2",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            118.25027465820312,
+            131.25021362304688,
+            126.60458374023438,
+            139.92840576171875
+          ],
+          "container_bbox": [
+            116.85722351074219,
+            132.79054260253906,
+            185.1675567626953,
+            149.54580688476562
+          ],
+          "text": "\u03ba7",
+          "message": "text '\u03ba7' escapes its containing rect (116.9, 132.8, 185.2, 149.5)"
+        }
+      ]
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "fail",
+      "count": 5,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            224.14932250976562,
+            65.76416778564453,
+            231.11447143554688,
+            75.0510482788086
+          ],
+          "text": "A",
+          "line_segment": [
+            [
+              191.9593048095703,
+              69.8233642578125
+            ],
+            [
+              509.0478515625,
+              69.8233642578125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'A'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            300.9725341796875,
+            65.76416778564453,
+            307.5476379394531,
+            75.0510482788086
+          ],
+          "text": "B",
+          "line_segment": [
+            [
+              191.9593048095703,
+              69.8233642578125
+            ],
+            [
+              509.0478515625,
+              69.8233642578125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'B'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            377.5379333496094,
+            65.76416778564453,
+            384.2430419921875,
+            75.0510482788086
+          ],
+          "text": "C",
+          "line_segment": [
+            [
+              191.9593048095703,
+              69.8233642578125
+            ],
+            [
+              509.0478515625,
+              69.8233642578125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'C'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            453.97381591796875,
+            65.76416778564453,
+            461.0690002441406,
+            75.0510482788086
+          ],
+          "text": "D",
+          "line_segment": [
+            [
+              191.9593048095703,
+              69.8233642578125
+            ],
+            [
+              509.0478515625,
+              69.8233642578125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'D'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            163.82566833496094,
+            182.43576049804688,
+            187.2620086669922,
+            190.7939453125
+          ],
+          "text": "earlier",
+          "line_segment": [
+            [
+              184.0324249267578,
+              184.76768493652344
+            ],
+            [
+              492.901611328125,
+              184.76768493652344
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'earlier'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1527,
+      "edge_density": 0.0884,
+      "distinct_colors": 1792,
+      "flags": [
+        "edge_density=0.088 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T1",
+      "T2",
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

@@ -170,7 +170,7 @@ _port_daddy() {
     # Project onboarding
     setup init cut batten
     # Daemon lifecycle
-    start stop restart install install-bosun uninstall dev use daemon ci-gate self-update upgrade mcp
+    start stop restart install uninstall dev use daemon ci-gate self-update upgrade mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
@@ -768,7 +768,7 @@ _port_daddy() {
     # session  <subcommand> [args]
     # -----------------------------------------------------------------------
     session)
-      local session_subcommands='start end done abandon takeover rm files phase'
+      local session_subcommands='start end done abandon takeover find rm files phase'
       # Find which subcommand (if any) has been typed after "session".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -805,6 +805,9 @@ _port_daddy() {
           ;;
         takeover)
           _pd_opts '--purpose -P --note -n --lifecycle --no-files --no-claims'
+          ;;
+        find)
+          _pd_opts '--key --identity --all-worktrees --all --no-adopt'
           ;;
         files)
           # files has sub-subcommands: add, rm

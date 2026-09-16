@@ -1,0 +1,19 @@
+{
+  "subject": "Ada Lovelace",
+  "commons_file_page": "https://commons.wikimedia.org/wiki/File:Ada_Lovelace_portrait.jpg",
+  "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Ada_Lovelace_portrait.jpg",
+  "sha1": "9a05c6fb45fe1ff706c7bd5a903d0124fafe46ef",
+  "width": 2439,
+  "height": 3504,
+  "artist": "Alfred Edward Chalon (watercolour painting)",
+  "credit": "Science Museum Group (https://collection.sciencemuseum.org.uk/objects/co67823)",
+  "licence_short": "Public domain",
+  "licence_url": null,
+  "attribution_required": false,
+  "usage_terms": "Public domain",
+  "retrieved": "2026-09-07",
+  "solo_portrait": true,
+  "framing": "three-quarter formal watercolour portrait, seated, holding a fan",
+  "background_clutter": "minimal — plain painted brown backdrop",
+  "crop": "cropped the 2439x3504 watercolour to box (300,200)-(2100,2450), a head-and-torso frame that drops the lower skirt"
+}

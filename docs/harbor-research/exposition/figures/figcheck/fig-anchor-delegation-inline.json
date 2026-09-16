@@ -1,0 +1,66 @@
+{
+  "figure": "fig-anchor-delegation-inline",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1475,
+      "edge_density": 0.0921,
+      "distinct_colors": 1984,
+      "flags": [
+        "edge_density=0.092 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "pass",
+    "failed_checks": [],
+    "warned_checks": []
+  }
+}

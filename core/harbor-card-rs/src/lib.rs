@@ -617,12 +617,17 @@ mod stubs {
     }
 }
 
+// `#[kani::unwind(128)]` below: the bound must clear the per-byte loops that run over the 32-byte
+// symbolic token: `from_utf8` validation and the (stubbed-input) base64
+// decode. 128 leaves headroom above 32 without making the parser harness,
+// which is the nightly job, take hours; the two fast harnesses below have
+// no data-dependent loops and use the default bound.
 #[cfg(kani)]
 #[kani::proof]
 #[kani::stub(HarborCardVerifier::internal_pk_from_bytes, stubs::pk_from_bytes_stub)]
 #[kani::stub(HarborCardVerifier::internal_decode_b64, stubs::decode_b64_stub)]
 #[kani::stub(HarborCardVerifier::internal_verify_sig, stubs::verify_sig_stub)]
-#[kani::unwind(10)]
+#[kani::unwind(128)]
 fn proof_verify_logic_only() {
     let pk_bytes: [u8; 32] = kani::any();
     if let Ok(verifier) = HarborCardVerifier::new(pk_bytes) {

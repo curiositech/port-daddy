@@ -196,7 +196,7 @@ Mechanics:
 
 - The WorkPlanner appends a **review stage** to any plan whose shape is wider
   than single-node, and to single-node plans whose contracts mark the output
-  load-bearing (`acceptance.doneWhen` present, PR-bound, or receipt-leased).
+  decisive (`acceptance.doneWhen` present, PR-bound, or receipt-leased).
   Reviewers are ordinary `nodeSpecs` with `kind: "reviewer"` (already in the
   v0 schema) — they materialize as Agent Nodes under the same Articles,
   budgets, and transcripts as workers. No shadow machinery.

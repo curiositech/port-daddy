@@ -1,0 +1,66 @@
+{
+  "schema": "pd.porthole.perspective.v1",
+  "perspectiveId": "pov_01JZPORT0001",
+  "stageId": "stage_01JZPORT0001",
+  "streamId": "stream_01JZPORT0001",
+  "harborId": "harbor_local",
+  "participantId": "person_erich",
+  "actor": {
+    "kind": "person",
+    "role": "operator",
+    "personId": "person_erich"
+  },
+  "agentNodeId": null,
+  "bodyId": "body_pd_console_erich_1",
+  "sessionId": "session_checkout_repair",
+  "runId": null,
+  "surface": {
+    "surfaceId": "surface_01JZPORT0001",
+    "kind": "browser",
+    "descriptor": {
+      "state": "sealed",
+      "envelopeRef": "sealed-descriptor:pov_01JZPORT0001",
+      "commitment": "sha256:a111111111111111111111111111111111111111111111111111111111111111"
+    }
+  },
+  "capture": {
+    "adapter": "pd-scout",
+    "adapterVersion": "0.2.0",
+    "modalities": ["visual", "dom", "accessibility"],
+    "sourceClock": "wall",
+    "visibleIndicator": true
+  },
+  "captureSchedule": {
+    "scheduleId": "schedule_01JZPORT0001",
+    "mode": "fixed-interval",
+    "samplingIntervalMs": 5000,
+    "boundary": {
+      "kind": "fixed-duration",
+      "durationMs": 30000,
+      "terminalEventKind": null
+    },
+    "committedAt": "2026-08-30T17:59:59.000Z",
+    "commitmentHash": "sha256:a222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "privacy": {
+    "scope": "device-only",
+    "redaction": "adapter",
+    "semanticPayload": "encrypted",
+    "hiddenReasoningCaptured": false
+  },
+  "encryption": {
+    "suite": "pd-vault-xchacha20-poly1305-v1",
+    "channelId": "porthole:pov_01JZPORT0001",
+    "epoch": 1,
+    "keyCustody": "os-keychain"
+  },
+  "retention": {
+    "unitType": "perspective-channel",
+    "unitId": "pov_01JZPORT0001",
+    "channelId": "porthole:pov_01JZPORT0001",
+    "policyId": "porthole-device-30d",
+    "deleteAsUnit": true
+  },
+  "startedAt": "2026-08-30T18:00:00.000Z",
+  "parentPerspectiveId": null
+}

@@ -47,7 +47,7 @@ Screenshots referenced were taken 2026-07-04 from the shipped builds.
 **What it is for** (binder ch. 19): the intake wedge — *"the operator is looking at their running product, sees the defect, and files it from inside the viewport with the evidence already attached."* Intake and observation only; honest daemon chip; deep-links to console.
 
 **Critique of the current build:**
-- Functionally correct, visually a fourth brand: ad-hoc palette (blue `#2f7df6`, its own greens/ambers), 10px rounded corners, drop shadows, Inter — every one of these is explicitly banned by the shipped token law ("flat, not skeuomorphic… hard borders are load-bearing").
+- Functionally correct, visually a fourth brand: ad-hoc palette (blue `#2f7df6`, its own greens/ambers), 10px rounded corners, drop shadows, Inter — every one of these is explicitly banned by the shipped token law ("flat, not skeuomorphic… hard borders are core").
 - The screenshot — the evidence, Scout's entire reason to exist — is a small preview below the fold of the form. Evidence should be the hero.
 - Light-only (`color-scheme: light`); no dark parity.
 - The marketing imagery already targets the correct brand (warm paper, cobalt, editorial) — the product ships something else.

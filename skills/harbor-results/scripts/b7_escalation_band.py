@@ -288,7 +288,7 @@ print(f"  excessive-debit mutant delta={d_big:.1f} (~{d_big/d_max:.0f}x delta_ma
 check(mlb > M_BUDGET + TOL, "excessive-debit mutant CAUGHT: genuine distress "
                             f"silenced (ML={mlb:.2f} >> {M_BUDGET})")
 check(L_closed(d_big) <= A, "  (and it 'passes' the fatigue wall alone — one-sided "
-                            "tuning would MISS it: both walls are load-bearing)")
+                            "tuning would MISS it: both walls are critical)")
 
 # ---------- verdict -------------------------------------------------------
 print("\n=== VERDICT ===")

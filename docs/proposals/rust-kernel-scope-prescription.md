@@ -33,7 +33,7 @@ Priority order, in one line each:
    FFI surface, zero callers, unclear purpose. Pick a real owner and a real consumer for
    each, or delete them.
 3. **Port `transcript-search.ts`'s BM25/RRF loop to Rust** — the one clean, CPU-bound,
-   currently-pure-TS, self-documented-as-load-bearing greenfield target in the whole
+   currently-pure-TS, self-documented-as-critical greenfield target in the whole
    estate.
 4. **Build the hot/cool bus in Rust**, in-process inside the daemon, to actually hit the
    binder's own p95 numbers instead of leaving them as unenforced aspiration.
@@ -86,7 +86,7 @@ scaffold"` (`pd-tui/src/lib.rs:26`).
 This is not automatically a problem — a crate can be a correctly-scoped internal
 dependency of other crates with no FFI surface of its own (`pd-core` looks like this: the
 other five crates depend on it internally). But `pd-eventlog`, `pd-mesh`, and `pd-runtime`
-have names that imply they're supposed to be load-bearing infrastructure — an event log, a
+have names that imply they're supposed to be pivotal infrastructure — an event log, a
 mesh/transport layer, a runtime — and none of the three is depended on by anything, Rust
 or TS. That's not "internal library," that's four names for one thing: nothing calling it.
 
@@ -127,7 +127,7 @@ every candidate inside `bm25Rank()` on every call (`:427,449-478`) — no cachin
 queries. `denseRank()` does per-row cosine dot products in a JS loop (`:483-503`). The
 corpus query has **no LIMIT** — the full scoped corpus loads into memory on every search
 (`:640-641`). `indexPending()` runs synchronously on backlog rows by default (`:604-606`).
-The file's own docstring calls hybrid search load-bearing: "Never ship lexical-only
+The file's own docstring calls hybrid search central: "Never ship lexical-only
 search."
 
 This is the cleanest port candidate in the entire TS estate for a specific reason none of

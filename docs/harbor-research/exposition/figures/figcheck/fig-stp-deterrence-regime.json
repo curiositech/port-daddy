@@ -1,0 +1,92 @@
+{
+  "figure": "fig-stp-deterrence-regime",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            306.36865234375,
+            59.774139404296875,
+            456.7939147949219,
+            70.65008544921875
+          ],
+          "text": "deterrence holds: the expected",
+          "line_segment": [
+            [
+              483.95062255859375,
+              61.685394287109375
+            ],
+            [
+              183.0919189453125,
+              61.685394287109375
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'deterrence holds: the expected'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.3106,
+      "edge_density": 0.0632,
+      "distinct_colors": 1609,
+      "flags": [
+        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

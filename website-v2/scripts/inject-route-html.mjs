@@ -8,6 +8,7 @@ import {
   siteMetadataRoutes,
   structuredDataForRoute,
 } from '../src/data/siteMetadata.ts'
+import { composeRedirects } from './compose-redirects.mjs'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const websiteRoot = resolve(scriptDir, '..')
@@ -96,17 +97,11 @@ for (const route of routes) {
   }
 }
 
-const rewrites = [
-  ...routes
-    .filter((route) => route.path !== '/')
-    .flatMap((route) => [
-      `${route.path}  ${route.path}/index.html  200`,
-      `${route.path}/  ${route.path}/index.html  200`,
-    ]),
-  '/*  /index.html  200',
-  '',
-].join('\n')
-
-await writeFile(resolve(distDir, '_redirects'), rewrites)
+// Vite copies public/_redirects into dist; this step used to overwrite it from
+// the route list alone, which discarded every hand-authored rule without
+// saying so. Compose instead, so the two sources add up and the catch-all
+// stays last. See scripts/compose-redirects.mjs.
+const handAuthored = await readFile(resolve(websiteRoot, 'public/_redirects'), 'utf8')
+await writeFile(resolve(distDir, '_redirects'), composeRedirects(routes, handAuthored))
 
 console.log(`Injected route-specific HTML metadata for ${routes.length} route(s).`)

@@ -27,7 +27,7 @@ If you cannot write a script that reads a JSON description of the deliverable an
 pass/fail with findings, this archetype does not fit — do not bolt a Potemkin scorer onto a
 how-to skill just to match the pattern.
 
-## Anatomy — the four load-bearing parts
+## Anatomy — the four critical parts
 
 1. **`SKILL.md`** — the decision framing: Use / Don't-Use, a Mermaid decision flow, a numbered
    process, an Output Contract naming the spec fields, and **exactly 3 anti-patterns** in
