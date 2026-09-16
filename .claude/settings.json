@@ -44,5 +44,27 @@
       "mcp__github__pull_request_read",
       "mcp__github__actions_list"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle\" attention"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle\" sync-skills"
+          }
+        ]
+      }
+    ]
   }
 }

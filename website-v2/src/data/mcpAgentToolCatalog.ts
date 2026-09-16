@@ -56,6 +56,19 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
     ]
   },
   {
+    "id": "roster",
+    "label": "Roster",
+    "description": "Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation",
+    "tools": [
+      "durable_agent_roster",
+      "create_durable_agent",
+      "promote_session_to_durable_agent",
+      "attach_durable_agent_handoff",
+      "continue_durable_agent",
+      "harness_continuation_matrix"
+    ]
+  },
+  {
     "id": "session-lifecycle",
     "label": "Session Lifecycle",
     "description": "Start/end sessions, manage agent registration (sugar commands)",
@@ -71,6 +84,14 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
     "description": "Honest self-report (ADR-0045): verify the daemon actually enforces what it claims before relying on it",
     "tools": [
       "attest"
+    ]
+  },
+  {
+    "id": "safety",
+    "label": "Safety",
+    "description": "Host-safety posture audit (ADR-0088): a read-only scan of what an agent running as the operator could reach right now (secrets at rest, world-readable crown jewels, unsigned binaries, unpinned MCP fetches, egress flows)",
+    "tools": [
+      "safe_scan"
     ]
   },
   {
@@ -111,7 +132,9 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
       "claim_symbols",
       "release_files",
       "list_file_claims",
-      "who_owns_file"
+      "who_owns_file",
+      "claim_region",
+      "release_region"
     ]
   },
   {
@@ -293,7 +316,7 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
   {
     "id": "system",
     "label": "System",
-    "description": "Daemon status, version, metrics, config, and launch hints",
+    "description": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "tools": [
       "daemon_status",
       "get_version",
@@ -301,7 +324,10 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
       "get_config",
       "wait_for_service",
       "get_launch_hints",
-      "relay_status"
+      "relay_status",
+      "coordination_status",
+      "harbormaster_status",
+      "harness_continuation_matrix"
     ]
   },
   {
@@ -384,13 +410,15 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
   {
     "id": "roadmap",
     "label": "Roadmap",
-    "description": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item",
+    "description": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
     "tools": [
       "roadmap_progress",
       "roadmap_claims",
       "roadmap_list",
       "roadmap_get",
-      "roadmap_promote"
+      "roadmap_promote",
+      "roadmap_search",
+      "roadmap_export"
     ]
   },
   {
@@ -427,8 +455,9 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
   {
     "id": "knowledge",
     "label": "Knowledge",
-    "description": "Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "description": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
     "tools": [
+      "jury_rig_status",
       "semantic_search",
       "semantic_resolve",
       "find_symbols",
@@ -475,9 +504,10 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryLabel": "Session Lifecycle",
     "categoryDescription": "Start/end sessions, manage agent registration (sugar commands)",
     "exposure": "default",
-    "description": "[Essential] Register agent + start session in one atomic step. Use this at the start of every coding session instead of calling register_agent and start_session separately. Returns agentId, sessionId, and a salvageHint if dead agents need attention. Usage: begin_session({purpose: \"Building auth system\", identity: \"myapp:api:main\"})",
+    "description": "[Essential] Register agent + start session in one atomic step. Use this at the start of every coding session instead of calling register_agent and start_session separately. Returns agentId, sessionId, and a salvageHint if dead agents need attention. Rent-at-claim: exactly ONE of roadmap / roadmap_new / sidequest is REQUIRED. Usage: begin_session({purpose: \"Building auth system\", identity: \"myapp:api:main\", lifecycle: \"ephemeral\", roadmap: \"adr-0090-database-distribution\"})",
     "required": [
-      "purpose"
+      "purpose",
+      "lifecycle"
     ],
     "parameters": [
       {
@@ -485,6 +515,16 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "type": "string",
         "required": true,
         "description": "What you are working on (e.g. \"Implementing OAuth flow\")"
+      },
+      {
+        "name": "lifecycle",
+        "type": "enum<durable | ephemeral>",
+        "required": true,
+        "description": "Session lifecycle: \"ephemeral\" for one-off task sessions (most agent work), \"durable\" for long-lived staff agents that persist across tasks",
+        "enum": [
+          "durable",
+          "ephemeral"
+        ]
       },
       {
         "name": "identity",
@@ -510,6 +550,24 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "required": false,
         "description": "Files to claim for this session (advisory — shows conflicts to other agents)",
         "itemType": "string"
+      },
+      {
+        "name": "roadmap",
+        "type": "string",
+        "required": false,
+        "description": "Rent-at-claim: slug of an EXISTING roadmap item to link this session to. Mutually exclusive with sidequest and roadmap_new."
+      },
+      {
+        "name": "sidequest",
+        "type": "string",
+        "required": false,
+        "description": "Rent-at-claim opt-out: one-line reason this work is off-roadmap (min 12 chars). Mutually exclusive with roadmap and roadmap_new."
+      },
+      {
+        "name": "roadmap_new",
+        "type": "string",
+        "required": false,
+        "description": "Rent-at-claim genesis: title for a NEW draft roadmap item to create and link. Mutually exclusive with roadmap and sidequest."
       }
     ],
     "inputSchema": {
@@ -518,6 +576,14 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "purpose": {
           "type": "string",
           "description": "What you are working on (e.g. \"Implementing OAuth flow\")"
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": [
+            "durable",
+            "ephemeral"
+          ],
+          "description": "Session lifecycle: \"ephemeral\" for one-off task sessions (most agent work), \"durable\" for long-lived staff agents that persist across tasks"
         },
         "identity": {
           "type": "string",
@@ -537,10 +603,23 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
             "type": "string"
           },
           "description": "Files to claim for this session (advisory — shows conflicts to other agents)"
+        },
+        "roadmap": {
+          "type": "string",
+          "description": "Rent-at-claim: slug of an EXISTING roadmap item to link this session to. Mutually exclusive with sidequest and roadmap_new."
+        },
+        "sidequest": {
+          "type": "string",
+          "description": "Rent-at-claim opt-out: one-line reason this work is off-roadmap (min 12 chars). Mutually exclusive with roadmap and roadmap_new."
+        },
+        "roadmap_new": {
+          "type": "string",
+          "description": "Rent-at-claim genesis: title for a NEW draft roadmap item to create and link. Mutually exclusive with roadmap and sidequest."
         }
       },
       "required": [
-        "purpose"
+        "purpose",
+        "lifecycle"
       ]
     }
   },
@@ -649,12 +728,66 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     }
   },
   {
+    "name": "safe_scan",
+    "categoryId": "safety",
+    "categoryLabel": "Safety",
+    "categoryDescription": "Host-safety posture audit (ADR-0088): a read-only scan of what an agent running as the operator could reach right now (secrets at rest, world-readable crown jewels, unsigned binaries, unpinned MCP fetches, egress flows)",
+    "exposure": "default",
+    "description": "[Safety] READ-ONLY host-safety posture audit (ADR-0088 Phase A). Returns a 0-100 score, a Safe Room state (green/amber/red), and a blast-radius list: what an agent running as the operator could reach RIGHT NOW (plaintext secrets at rest, world-readable crown jewels, unsigned running binaries, unpinned MCP fetches, live egress flows). green = \"cooperative-case sensors clear\", NOT a sandbox — the report footer carries the verbatim HONEST_LIMITS. NEVER returns a raw secret: findings carry only path/line/ruleId/last4. Optional `allow`: comma-separated allowlisted egress hosts. Usage: safe_scan()",
+    "required": [],
+    "parameters": [
+      {
+        "name": "allow",
+        "type": "string",
+        "required": false,
+        "description": "Comma-separated allowlisted egress hosts. A live flow to a host not on this list is a deduction; empty means egress flows are reported as evidence but never deducted."
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "allow": {
+          "type": "string",
+          "description": "Comma-separated allowlisted egress hosts. A live flow to a host not on this list is a deduction; empty means egress flows are reported as evidence but never deducted."
+        }
+      }
+    }
+  },
+  {
     "name": "relay_status",
     "categoryId": "system",
     "categoryLabel": "System",
-    "categoryDescription": "Daemon status, version, metrics, config, and launch hints",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "exposure": "discoverable",
     "description": "[System] Relay federation status (ADR-0049). Returns whether this daemon is connected to the cloud relay, its session, last handshake, and which channels are accepted — so an agent can tell if cross-machine pub/sub is live before relying on it. Read-only. Usage: relay_status()",
+    "required": [],
+    "parameters": [],
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "coordination_status",
+    "categoryId": "system",
+    "categoryLabel": "System",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
+    "exposure": "discoverable",
+    "description": "[System] Offline-first coordination peer status (ADR-0092 section 4). Returns whether federation is enabled and connected plus the project, actor, stable replica id, durable room cursor, pending local outbox count, last sync, and last error. A disconnected peer does not mean local coordination is unavailable: the local SQLite ledger remains writable and reconverges later. Read-only. Usage: coordination_status()",
+    "required": [],
+    "parameters": [],
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "harbormaster_status",
+    "categoryId": "system",
+    "categoryLabel": "System",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
+    "exposure": "discoverable",
+    "description": "[System] Harbormaster actor status (ADR-0037). Returns the read-only merge-owner body liveness, schema readiness, and queue summary from GET /harbormaster/status. Does not start, stop, or merge anything. Usage: harbormaster_status()",
     "required": [],
     "parameters": [],
     "inputSchema": {
@@ -1065,7 +1198,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "roadmap_progress",
     "categoryId": "roadmap",
     "categoryLabel": "Roadmap",
-    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item",
+    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
     "exposure": "discoverable",
     "description": "[Roadmap] Cartographer projection of roadmap progress — phase/horizon rollups. Usage: roadmap_progress()",
     "required": [],
@@ -1079,7 +1212,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "roadmap_claims",
     "categoryId": "roadmap",
     "categoryLabel": "Roadmap",
-    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item",
+    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
     "exposure": "discoverable",
     "description": "[Roadmap] Which agents currently hold which roadmap items (atomic-claim ledger). Usage: roadmap_claims()",
     "required": [],
@@ -1093,7 +1226,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "roadmap_list",
     "categoryId": "roadmap",
     "categoryLabel": "Roadmap",
-    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item",
+    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
     "exposure": "discoverable",
     "description": "[Roadmap] List roadmap items of record, optionally filtered by status or harbor. Usage: roadmap_list({status: \"now\"})",
     "required": [],
@@ -1129,7 +1262,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "roadmap_get",
     "categoryId": "roadmap",
     "categoryLabel": "Roadmap",
-    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item",
+    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
     "exposure": "discoverable",
     "description": "[Roadmap] Fetch one roadmap item by slug. Usage: roadmap_get({slug: \"harbor-envelope\"})",
     "required": [
@@ -1160,7 +1293,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "roadmap_promote",
     "categoryId": "roadmap",
     "categoryLabel": "Roadmap",
-    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item",
+    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
     "exposure": "discoverable",
     "description": "[Roadmap] Atomically promote a piece of feedback into a roadmap item of record. Usage: roadmap_promote({slug: \"fix-x\", summaryMd: \"...\", feedbackId: \"fb-1\", promotedBy: \"agent-1\"})",
     "required": [
@@ -1224,6 +1357,160 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       },
       "required": [
         "slug"
+      ]
+    }
+  },
+  {
+    "name": "roadmap_search",
+    "categoryId": "roadmap",
+    "categoryLabel": "Roadmap",
+    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
+    "exposure": "discoverable",
+    "description": "[Roadmap] Rank roadmap items against free text (BM25 -> cosine over shared MiniLM embeddings, same cascade as pd whois). Use before pd_begin when you know what you are about to work on but not the exact --roadmap slug. Usage: roadmap_search({query: \"fix the login timeout\"})",
+    "required": [
+      "query"
+    ],
+    "parameters": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true,
+        "description": "Free text describing the work"
+      },
+      {
+        "name": "harbor",
+        "type": "string",
+        "required": false,
+        "description": "Restrict to one harbor (optional)"
+      },
+      {
+        "name": "limit",
+        "type": "number",
+        "required": false,
+        "description": "Max candidates to return (default 5)"
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Free text describing the work"
+        },
+        "harbor": {
+          "type": "string",
+          "description": "Restrict to one harbor (optional)"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max candidates to return (default 5)"
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "roadmap_export",
+    "categoryId": "roadmap",
+    "categoryLabel": "Roadmap",
+    "categoryDescription": "Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item",
+    "exposure": "discoverable",
+    "description": "[Roadmap] Push one roadmap item to an external tracker (GitHub Issues, Linear, or Jira). One-way, repeatable push, not two-way sync. Credentials come from server env vars only. Usage: roadmap_export({slug: \"fix-x\", target: \"github\", repo: \"acme/widgets\"})",
+    "required": [
+      "slug",
+      "target"
+    ],
+    "parameters": [
+      {
+        "name": "slug",
+        "type": "string",
+        "required": true,
+        "description": "Roadmap item slug to export"
+      },
+      {
+        "name": "target",
+        "type": "enum<github | linear | jira>",
+        "required": true,
+        "description": "Which tracker",
+        "enum": [
+          "github",
+          "linear",
+          "jira"
+        ]
+      },
+      {
+        "name": "repo",
+        "type": "string",
+        "required": false,
+        "description": "GitHub only: \"owner/repo\""
+      },
+      {
+        "name": "teamId",
+        "type": "string",
+        "required": false,
+        "description": "Linear only: team id to file the issue under"
+      },
+      {
+        "name": "baseUrl",
+        "type": "string",
+        "required": false,
+        "description": "Jira only: e.g. https://your-org.atlassian.net"
+      },
+      {
+        "name": "projectKey",
+        "type": "string",
+        "required": false,
+        "description": "Jira only: project key, e.g. \"ROAD\""
+      },
+      {
+        "name": "issueType",
+        "type": "string",
+        "required": false,
+        "description": "Jira only: issue type name (default \"Task\")"
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "Roadmap item slug to export"
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "github",
+            "linear",
+            "jira"
+          ],
+          "description": "Which tracker"
+        },
+        "repo": {
+          "type": "string",
+          "description": "GitHub only: \"owner/repo\""
+        },
+        "teamId": {
+          "type": "string",
+          "description": "Linear only: team id to file the issue under"
+        },
+        "baseUrl": {
+          "type": "string",
+          "description": "Jira only: e.g. https://your-org.atlassian.net"
+        },
+        "projectKey": {
+          "type": "string",
+          "description": "Jira only: project key, e.g. \"ROAD\""
+        },
+        "issueType": {
+          "type": "string",
+          "description": "Jira only: issue type name (default \"Task\")"
+        }
+      },
+      "required": [
+        "slug",
+        "target"
       ]
     }
   },
@@ -1593,7 +1880,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryLabel": "Parley",
     "categoryDescription": "Forced reconciliation for overlapping agents — summon, inspect, respond to, and resolve bounded parleys",
     "exposure": "discoverable",
-    "description": "[Parley] Fetch a parley summary, including turns, missing parties, and outcome. Usage: get_parley({id: \"...\"})",
+    "description": "[Parley] Fetch a parley summary, including turns, read receipts, missing parties, and outcome. Pass \"as\" with your agent id to record your read receipt. Usage: get_parley({id: \"...\", as: \"agent-a\"})",
     "required": [
       "id"
     ],
@@ -1603,6 +1890,12 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "type": "string",
         "required": true,
         "description": "Parley id"
+      },
+      {
+        "name": "as",
+        "type": "string",
+        "required": false,
+        "description": "Your agent/session id — records a read receipt (optional)"
       }
     ],
     "inputSchema": {
@@ -1611,6 +1904,10 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "id": {
           "type": "string",
           "description": "Parley id"
+        },
+        "as": {
+          "type": "string",
+          "description": "Your agent/session id — records a read receipt (optional)"
         }
       },
       "required": [
@@ -1799,10 +2096,24 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     }
   },
   {
+    "name": "jury_rig_status",
+    "categoryId": "knowledge",
+    "categoryLabel": "Knowledge",
+    "categoryDescription": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "exposure": "discoverable",
+    "description": "[Knowledge] Read-only Tool2Vec catalog coverage and checkpoint state. Reports current, cold, reconciling, embedder-down, or generator-down without generating centroids or calling an LLM. Usage: jury_rig_status()",
+    "required": [],
+    "parameters": [],
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
     "name": "semantic_search",
     "categoryId": "knowledge",
     "categoryLabel": "Knowledge",
-    "categoryDescription": "Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "categoryDescription": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
     "exposure": "discoverable",
     "description": "[Knowledge] Semantic search over the embedding store (tasks, notes, docs). Usage: semantic_search({q: \"css design tokens\", limit: 5})",
     "required": [
@@ -1843,7 +2154,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "semantic_resolve",
     "categoryId": "knowledge",
     "categoryLabel": "Knowledge",
-    "categoryDescription": "Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "categoryDescription": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
     "exposure": "discoverable",
     "description": "[Knowledge] Resolve a fuzzy identity/term against the semantic graph for a project. Usage: semantic_resolve({q: \"design-system CSS tasks\", projectDir: \"/path/to/repo\"})",
     "required": [
@@ -1884,7 +2195,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "find_symbols",
     "categoryId": "knowledge",
     "categoryLabel": "Knowledge",
-    "categoryDescription": "Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "categoryDescription": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
     "exposure": "discoverable",
     "description": "[Knowledge] Query the tree-sitter symbol index by name/type/file. Usage: find_symbols({ \"name\": \"createSugar\", \"exported\": true })",
     "required": [],
@@ -1940,7 +2251,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "symbol_stats",
     "categoryId": "knowledge",
     "categoryLabel": "Knowledge",
-    "categoryDescription": "Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "categoryDescription": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
     "exposure": "discoverable",
     "description": "[Knowledge] Summary stats of the symbol index (files parsed, symbols, dependencies). Usage: symbol_stats()",
     "required": [],
@@ -1954,7 +2265,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "predict_conflicts",
     "categoryId": "knowledge",
     "categoryLabel": "Knowledge",
-    "categoryDescription": "Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "categoryDescription": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
     "exposure": "discoverable",
     "description": "[Knowledge] Predict file/symbol conflicts before claiming, given a set of files or a directory. Usage: predict_conflicts({files: [\"lib/sugar.ts\", \"routes/sugar.ts\"]})",
     "required": [],
@@ -2004,7 +2315,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "blast_radius",
     "categoryId": "knowledge",
     "categoryLabel": "Knowledge",
-    "categoryDescription": "Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
+    "categoryDescription": "Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming",
     "exposure": "discoverable",
     "description": "[Knowledge] Reverse-dependency closure of a symbol — everything that breaks if you change it, plus a ready-to-reserve claim set (modify the target, read everything downstream). Usage: blast_radius({file: \"lib/server.ts\", symbol: \"createRoutes\", depth: 3})",
     "required": [
@@ -2559,7 +2870,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryLabel": "Notes",
     "categoryDescription": "Add and list session notes",
     "exposure": "default",
-    "description": "[Essential] Add a note to the current session or create a quick standalone note. Notes are immutable — once added, they cannot be edited or deleted. Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. Usage: add_note({content: \"Switched to PKCE flow for SPAs\", type: \"decision\"})",
+    "description": "[Essential] Add a note to the current session or create a quick standalone note. Notes are immutable — once added, they cannot be edited or deleted. Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. If this MCP process has no cached begin_session attachment and multiple sessions are active, pass agent_id (from your begin_session response) or session_id to avoid AMBIGUOUS_ACTIVE_SESSION. Usage: add_note({content: \"Switched to PKCE flow for SPAs\", type: \"decision\", agent_id: \"agent-abc123\"})",
     "required": [
       "content"
     ],
@@ -2588,7 +2899,13 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "name": "session_id",
         "type": "string",
         "required": false,
-        "description": "Session ID to add note to (omit for active session or quick note)"
+        "description": "Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note."
+      },
+      {
+        "name": "agent_id",
+        "type": "string",
+        "required": false,
+        "description": "Your agent ID (from begin_session response). Disambiguates which session to write to when multiple sessions are active in this worktree — otherwise omitting session_id fails with AMBIGUOUS_ACTIVE_SESSION."
       }
     ],
     "inputSchema": {
@@ -2612,7 +2929,11 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         },
         "session_id": {
           "type": "string",
-          "description": "Session ID to add note to (omit for active session or quick note)"
+          "description": "Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note."
+        },
+        "agent_id": {
+          "type": "string",
+          "description": "Your agent ID (from begin_session response). Disambiguates which session to write to when multiple sessions are active in this worktree — otherwise omitting session_id fails with AMBIGUOUS_ACTIVE_SESSION."
         }
       },
       "required": [
@@ -2699,7 +3020,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "name": "session_id",
         "type": "string",
         "required": false,
-        "description": "Session ID (omit for recent notes)"
+        "description": "Session ID. Omit to use the session this process attached to via begin_session; if none, recent notes."
       },
       {
         "name": "limit",
@@ -2719,7 +3040,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "properties": {
         "session_id": {
           "type": "string",
-          "description": "Session ID (omit for recent notes)"
+          "description": "Session ID. Omit to use the session this process attached to via begin_session; if none, recent notes."
         },
         "limit": {
           "type": "number",
@@ -2739,15 +3060,13 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryDescription": "Detailed session management (start, end, phases, file claims)",
     "exposure": "discoverable",
     "description": "[Standard] Claim whole files or symbol/line regions for the active session (advisory locking). Prefer regions with symbolPath for function-scoped code edits.",
-    "required": [
-      "session_id"
-    ],
+    "required": [],
     "parameters": [
       {
         "name": "session_id",
         "type": "string",
-        "required": true,
-        "description": "Session ID"
+        "required": false,
+        "description": "Session ID. Omit to use the session this process attached to via begin_session."
       },
       {
         "name": "paths",
@@ -2807,7 +3126,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "properties": {
         "session_id": {
           "type": "string",
-          "description": "Session ID"
+          "description": "Session ID. Omit to use the session this process attached to via begin_session."
         },
         "paths": {
           "type": "array",
@@ -2849,10 +3168,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
           "type": "boolean",
           "description": "Claim despite conflicts"
         }
-      },
-      "required": [
-        "session_id"
-      ]
+      }
     }
   },
   {
@@ -2861,17 +3177,16 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryLabel": "Sessions",
     "categoryDescription": "Detailed session management (start, end, phases, file claims)",
     "exposure": "discoverable",
-    "description": "[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. Usage: claim_symbols({session_id, claims: [{filePath: \"lib/server.ts\", symbolPath: \"createRoutes\", type: \"modify\"}]})",
+    "description": "[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. Usage: claim_symbols({claims: [{filePath: \"lib/server.ts\", symbolPath: \"createRoutes\", type: \"modify\"}]}) — session_id optional, defaults to the session begin_session attached.",
     "required": [
-      "session_id",
       "claims"
     ],
     "parameters": [
       {
         "name": "session_id",
         "type": "string",
-        "required": true,
-        "description": "Session ID"
+        "required": false,
+        "description": "Session ID. Omit to use the session this process attached to via begin_session."
       },
       {
         "name": "claims",
@@ -2918,7 +3233,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "properties": {
         "session_id": {
           "type": "string",
-          "description": "Session ID"
+          "description": "Session ID. Omit to use the session this process attached to via begin_session."
         },
         "claims": {
           "type": "array",
@@ -2955,7 +3270,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         }
       },
       "required": [
-        "session_id",
         "claims"
       ]
     }
@@ -2967,15 +3281,13 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryDescription": "Detailed session management (start, end, phases, file claims)",
     "exposure": "discoverable",
     "description": "[Standard] Release whole-file or symbol/line region claims from a session.",
-    "required": [
-      "session_id"
-    ],
+    "required": [],
     "parameters": [
       {
         "name": "session_id",
         "type": "string",
-        "required": true,
-        "description": "Session ID"
+        "required": false,
+        "description": "Session ID. Omit to use the session this process attached to via begin_session."
       },
       {
         "name": "files",
@@ -3023,7 +3335,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "properties": {
         "session_id": {
           "type": "string",
-          "description": "Session ID"
+          "description": "Session ID. Omit to use the session this process attached to via begin_session."
         },
         "files": {
           "type": "array",
@@ -3057,10 +3369,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
             }
           }
         }
-      },
-      "required": [
-        "session_id"
-      ]
+      }
     }
   },
   {
@@ -3071,15 +3380,14 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "exposure": "discoverable",
     "description": "[Standard] Set the lifecycle phase of a session (planning, in_progress, testing, reviewing, completed, abandoned).",
     "required": [
-      "session_id",
       "phase"
     ],
     "parameters": [
       {
         "name": "session_id",
         "type": "string",
-        "required": true,
-        "description": "Session ID"
+        "required": false,
+        "description": "Session ID. Omit to use the session this process attached to via begin_session."
       },
       {
         "name": "phase",
@@ -3101,7 +3409,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "properties": {
         "session_id": {
           "type": "string",
-          "description": "Session ID"
+          "description": "Session ID. Omit to use the session this process attached to via begin_session."
         },
         "phase": {
           "type": "string",
@@ -3117,7 +3425,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         }
       },
       "required": [
-        "session_id",
         "phase"
       ]
     }
@@ -3879,12 +4186,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "description": "Message content to queue."
       },
       {
-        "name": "from",
-        "type": "string",
-        "required": false,
-        "description": "Sender agent id or operator label."
-      },
-      {
         "name": "type",
         "type": "string",
         "required": false,
@@ -3913,10 +4214,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "content": {
           "type": "string",
           "description": "Message content to queue."
-        },
-        "from": {
-          "type": "string",
-          "description": "Sender agent id or operator label."
         },
         "type": {
           "type": "string",
@@ -4228,12 +4525,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "description": "Message content"
       },
       {
-        "name": "from",
-        "type": "string",
-        "required": false,
-        "description": "Sender agent ID (optional)"
-      },
-      {
         "name": "type",
         "type": "string",
         "required": false,
@@ -4250,10 +4541,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "content": {
           "type": "string",
           "description": "Message content"
-        },
-        "from": {
-          "type": "string",
-          "description": "Sender agent ID (optional)"
         },
         "type": {
           "type": "string",
@@ -5727,7 +6014,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "daemon_status",
     "categoryId": "system",
     "categoryLabel": "System",
-    "categoryDescription": "Daemon status, version, metrics, config, and launch hints",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "exposure": "discoverable",
     "description": "[Standard] Check Port Daddy daemon status including version, uptime, active ports, and health.",
     "required": [],
@@ -5741,7 +6028,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "get_version",
     "categoryId": "system",
     "categoryLabel": "System",
-    "categoryDescription": "Daemon status, version, metrics, config, and launch hints",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "exposure": "discoverable",
     "description": "[Standard] Get daemon version, code hash, start time, and Node.js info.",
     "required": [],
@@ -5755,7 +6042,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "get_metrics",
     "categoryId": "system",
     "categoryLabel": "System",
-    "categoryDescription": "Daemon status, version, metrics, config, and launch hints",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "exposure": "discoverable",
     "description": "[Standard] Get daemon metrics including active ports, uptime, and error counts.",
     "required": [],
@@ -5769,7 +6056,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "get_config",
     "categoryId": "system",
     "categoryLabel": "System",
-    "categoryDescription": "Daemon status, version, metrics, config, and launch hints",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "exposure": "discoverable",
     "description": "[Standard] Get the resolved .portdaddyrc configuration for a directory.",
     "required": [],
@@ -5795,7 +6082,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "wait_for_service",
     "categoryId": "system",
     "categoryLabel": "System",
-    "categoryDescription": "Daemon status, version, metrics, config, and launch hints",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "exposure": "discoverable",
     "description": "[Standard] Wait for a service to become healthy (polling until it responds). Useful for startup coordination.",
     "required": [],
@@ -6310,7 +6597,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "get_launch_hints",
     "categoryId": "system",
     "categoryLabel": "System",
-    "categoryDescription": "Daemon status, version, metrics, config, and launch hints",
+    "categoryDescription": "Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility",
     "exposure": "discoverable",
     "description": "[Essential] Get context-aware startup hints for the current project: salvage queue summary (dead agents whose work can be resumed), whether the folder is new to Port Daddy, and ordered onboarding nudges. Call at the start of a session to check for dead agents before starting fresh work.",
     "required": [],
@@ -6411,12 +6698,551 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     }
   },
   {
+    "name": "harness_continuation_matrix",
+    "categoryId": "roster",
+    "categoryLabel": "Roster",
+    "categoryDescription": "Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation",
+    "exposure": "discoverable",
+    "description": "[Standard] Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale daemon-witnessed spawn, live-control, native-resume, and handoff evidence; never a scalar compliance badge.",
+    "required": [],
+    "parameters": [],
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "durable_agent_roster",
+    "categoryId": "roster",
+    "categoryLabel": "Roster",
+    "categoryDescription": "Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation",
+    "exposure": "default",
+    "description": "[Essential] Find durable named agents by expertise, list a system/repo roster, or inspect one AgentNode. Search always combines BM25 with the shared local MiniLM embedder when available and labels any lexical fallback.",
+    "required": [],
+    "parameters": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": false,
+        "description": "Expertise or task query. Omit to list."
+      },
+      {
+        "name": "agent_node_id",
+        "type": "string",
+        "required": false,
+        "description": "Exact daemon-minted AgentNode id. Takes precedence over query."
+      },
+      {
+        "name": "repo_root",
+        "type": "string",
+        "required": false,
+        "description": "Limit list/search to the canonical Git repository scope."
+      },
+      {
+        "name": "include_retired",
+        "type": "boolean",
+        "required": false,
+        "description": "Include retired durable identities."
+      },
+      {
+        "name": "limit",
+        "type": "number",
+        "required": false,
+        "description": "Maximum results (1-50 for search, 1-500 for list)."
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Expertise or task query. Omit to list."
+        },
+        "agent_node_id": {
+          "type": "string",
+          "description": "Exact daemon-minted AgentNode id. Takes precedence over query."
+        },
+        "repo_root": {
+          "type": "string",
+          "description": "Limit list/search to the canonical Git repository scope."
+        },
+        "include_retired": {
+          "type": "boolean",
+          "description": "Include retired durable identities."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum results (1-50 for search, 1-500 for list)."
+        }
+      }
+    }
+  },
+  {
+    "name": "create_durable_agent",
+    "categoryId": "roster",
+    "categoryLabel": "Roster",
+    "categoryDescription": "Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation",
+    "exposure": "discoverable",
+    "description": "[Standard] Mint a durable named AgentNode from an operator-authored profile. The slug is a unique human alias; permissions and triggers remain explicitly declaration-only until a witnessed runtime enforces them.",
+    "required": [
+      "slug",
+      "remit",
+      "instructions",
+      "scope"
+    ],
+    "parameters": [
+      {
+        "name": "slug",
+        "type": "string",
+        "required": true,
+        "description": "Meaningful hyphenated name, e.g. portdaddy-typography-expert."
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "remit",
+        "type": "string",
+        "required": true,
+        "description": "Bounded responsibility and expertise."
+      },
+      {
+        "name": "instructions",
+        "type": "string",
+        "required": true,
+        "description": "Durable operating prompt; fail-closed secret scanned."
+      },
+      {
+        "name": "scope",
+        "type": "enum<system | repo>",
+        "required": true,
+        "description": "",
+        "enum": [
+          "system",
+          "repo"
+        ]
+      },
+      {
+        "name": "repo_root",
+        "type": "string",
+        "required": false,
+        "description": "Required for repo scope."
+      },
+      {
+        "name": "skills",
+        "type": "string[]",
+        "required": false,
+        "description": "",
+        "itemType": "string"
+      },
+      {
+        "name": "tools",
+        "type": "string[]",
+        "required": false,
+        "description": "",
+        "itemType": "string"
+      },
+      {
+        "name": "backends",
+        "type": "string[]",
+        "required": false,
+        "description": "Ordered backend preferences.",
+        "itemType": "string"
+      },
+      {
+        "name": "models",
+        "type": "string[]",
+        "required": false,
+        "description": "Optional models parallel to backends.",
+        "itemType": "string"
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "Meaningful hyphenated name, e.g. portdaddy-typography-expert."
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "remit": {
+          "type": "string",
+          "description": "Bounded responsibility and expertise."
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Durable operating prompt; fail-closed secret scanned."
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "system",
+            "repo"
+          ]
+        },
+        "repo_root": {
+          "type": "string",
+          "description": "Required for repo scope."
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "backends": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ordered backend preferences."
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional models parallel to backends."
+        }
+      },
+      "required": [
+        "slug",
+        "remit",
+        "instructions",
+        "scope"
+      ]
+    }
+  },
+  {
+    "name": "promote_session_to_durable_agent",
+    "categoryId": "roster",
+    "categoryLabel": "Roster",
+    "categoryDescription": "Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation",
+    "exposure": "discoverable",
+    "description": "[Standard] Promote a great Port Daddy session into a durable named AgentNode using an already-sanitized handoff episode. The daemon verifies that the capsule and coordination session lineage agree.",
+    "required": [
+      "source_session_id",
+      "handoff_episode_id",
+      "slug",
+      "remit",
+      "instructions",
+      "scope"
+    ],
+    "parameters": [
+      {
+        "name": "source_session_id",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "handoff_episode_id",
+        "type": "number",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "slug",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "remit",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "instructions",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "scope",
+        "type": "enum<system | repo>",
+        "required": true,
+        "description": "",
+        "enum": [
+          "system",
+          "repo"
+        ]
+      },
+      {
+        "name": "repo_root",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "skills",
+        "type": "string[]",
+        "required": false,
+        "description": "",
+        "itemType": "string"
+      },
+      {
+        "name": "tools",
+        "type": "string[]",
+        "required": false,
+        "description": "",
+        "itemType": "string"
+      },
+      {
+        "name": "backends",
+        "type": "string[]",
+        "required": false,
+        "description": "",
+        "itemType": "string"
+      },
+      {
+        "name": "models",
+        "type": "string[]",
+        "required": false,
+        "description": "",
+        "itemType": "string"
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source_session_id": {
+          "type": "string"
+        },
+        "handoff_episode_id": {
+          "type": "number"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "remit": {
+          "type": "string"
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "system",
+            "repo"
+          ]
+        },
+        "repo_root": {
+          "type": "string"
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "backends": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "source_session_id",
+        "handoff_episode_id",
+        "slug",
+        "remit",
+        "instructions",
+        "scope"
+      ]
+    }
+  },
+  {
+    "name": "attach_durable_agent_handoff",
+    "categoryId": "roster",
+    "categoryLabel": "Roster",
+    "categoryDescription": "Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation",
+    "exposure": "discoverable",
+    "description": "[Standard] Attach a new sanitized handoff episode to the matching durable AgentNode for later continuation.",
+    "required": [
+      "agent_node_id",
+      "handoff_episode_id"
+    ],
+    "parameters": [
+      {
+        "name": "agent_node_id",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "handoff_episode_id",
+        "type": "number",
+        "required": true,
+        "description": ""
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "agent_node_id": {
+          "type": "string"
+        },
+        "handoff_episode_id": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "agent_node_id",
+        "handoff_episode_id"
+      ]
+    }
+  },
+  {
+    "name": "continue_durable_agent",
+    "categoryId": "roster",
+    "categoryLabel": "Roster",
+    "categoryDescription": "Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation",
+    "exposure": "discoverable",
+    "description": "[Standard] Continue the same durable AgentNode in a chosen backend. Same-family native resume is used only with a fresh daemon witness; every other path uses the sanitized successor brief and durable continuation receipt.",
+    "required": [
+      "agent_node_id",
+      "target_backend",
+      "idempotency_key"
+    ],
+    "parameters": [
+      {
+        "name": "agent_node_id",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "target_backend",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "mode",
+        "type": "enum<auto | native | handoff>",
+        "required": false,
+        "description": "",
+        "enum": [
+          "auto",
+          "native",
+          "handoff"
+        ]
+      },
+      {
+        "name": "model",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "handoff_episode_id",
+        "type": "number",
+        "required": false,
+        "description": "Override the profile latest handoff episode."
+      },
+      {
+        "name": "idempotency_key",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "timeout_ms",
+        "type": "number",
+        "required": false,
+        "description": ""
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "agent_node_id": {
+          "type": "string"
+        },
+        "target_backend": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "native",
+            "handoff"
+          ]
+        },
+        "model": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "handoff_episode_id": {
+          "type": "number",
+          "description": "Override the profile latest handoff episode."
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "agent_node_id",
+        "target_backend",
+        "idempotency_key"
+      ]
+    }
+  },
+  {
     "name": "swarm_awareness",
     "categoryId": "magic",
     "categoryLabel": "Magic",
     "categoryDescription": "High-level composed tools: fleet setup, swarm awareness, situation reports, spawning, file heat maps, agent messaging",
     "exposure": "default",
-    "description": "[Magic] Who else is working here? Returns all active agents with their identities, purposes, file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.",
+    "description": "[Magic] Who else is working here? Returns all active agents with their identities, purposes, file claims, latest session note, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm. Output is a bounded digest (hard character budget, explicit omission counters); the full-fidelity roster lives at GET /agent-roster on the daemon.",
     "required": [],
     "parameters": [
       {
@@ -6652,7 +7478,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "name": "backend",
         "type": "string",
         "required": false,
-        "description": "LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend"
+        "description": "LLM backend: cloudflare, claude, claude-cli, gemini, codex, cli:claude-code, cli:codex, cli:agy, aider, custom, or another setup-ready backend"
       },
       {
         "name": "model",
@@ -6683,7 +7509,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "name": "workdir",
         "type": "string",
         "required": false,
-        "description": "Optional working directory override"
+        "description": "Existing absolute working directory, required for local CLI/file-capable agents. Omit only for API-only projectless runs; never defaults to the daemon directory."
       },
       {
         "name": "timeout",
@@ -6721,7 +7547,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         },
         "backend": {
           "type": "string",
-          "description": "LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend"
+          "description": "LLM backend: cloudflare, claude, claude-cli, gemini, codex, cli:claude-code, cli:codex, cli:agy, aider, custom, or another setup-ready backend"
         },
         "model": {
           "type": "string",
@@ -6744,7 +7570,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         },
         "workdir": {
           "type": "string",
-          "description": "Optional working directory override"
+          "description": "Existing absolute working directory, required for local CLI/file-capable agents. Omit only for API-only projectless runs; never defaults to the daemon directory."
         },
         "timeout": {
           "type": "number",
@@ -7981,6 +8807,196 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "decision"
       ]
     }
+  },
+  {
+    "name": "claim_region",
+    "categoryId": "sessions",
+    "categoryLabel": "Sessions",
+    "categoryDescription": "Detailed session management (start, end, phases, file claims)",
+    "exposure": "discoverable",
+    "description": "[Standard] Claim a REGION (a 1-based inclusive line span) of one file for the active session — the editor-coordination primitive. Region-scoped, never a whole-file lock: two actors edit adjacent regions of one file concurrently. First-class for every backend (agent-neutral). On contention the first-granted live claim wins; a contender is refused with a typed note offering handoff / parley / another region — never a bypass.",
+    "required": [
+      "session_id",
+      "agent_id",
+      "path",
+      "start_line",
+      "end_line",
+      "symbol"
+    ],
+    "parameters": [
+      {
+        "name": "session_id",
+        "type": "string",
+        "required": true,
+        "description": "Session ID"
+      },
+      {
+        "name": "agent_id",
+        "type": "string",
+        "required": true,
+        "description": "Acting agent identity (required — the daemon authorizes the claim on it)"
+      },
+      {
+        "name": "path",
+        "type": "string",
+        "required": true,
+        "description": "File path the region lives in"
+      },
+      {
+        "name": "start_line",
+        "type": "number",
+        "required": true,
+        "description": "First claimed line, 1-based inclusive"
+      },
+      {
+        "name": "end_line",
+        "type": "number",
+        "required": true,
+        "description": "Last claimed line, 1-based inclusive"
+      },
+      {
+        "name": "symbol",
+        "type": "string",
+        "required": true,
+        "description": "The work symbol/label for this region (e.g. \"parse_header\")"
+      },
+      {
+        "name": "symbol_path",
+        "type": "string",
+        "required": false,
+        "description": "Optional canonical tree-sitter symbol path"
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Session ID"
+        },
+        "agent_id": {
+          "type": "string",
+          "description": "Acting agent identity (required — the daemon authorizes the claim on it)"
+        },
+        "path": {
+          "type": "string",
+          "description": "File path the region lives in"
+        },
+        "start_line": {
+          "type": "number",
+          "description": "First claimed line, 1-based inclusive"
+        },
+        "end_line": {
+          "type": "number",
+          "description": "Last claimed line, 1-based inclusive"
+        },
+        "symbol": {
+          "type": "string",
+          "description": "The work symbol/label for this region (e.g. \"parse_header\")"
+        },
+        "symbol_path": {
+          "type": "string",
+          "description": "Optional canonical tree-sitter symbol path"
+        }
+      },
+      "required": [
+        "session_id",
+        "agent_id",
+        "path",
+        "start_line",
+        "end_line",
+        "symbol"
+      ]
+    }
+  },
+  {
+    "name": "release_region",
+    "categoryId": "sessions",
+    "categoryLabel": "Sessions",
+    "categoryDescription": "Detailed session management (start, end, phases, file claims)",
+    "exposure": "discoverable",
+    "description": "[Standard] Release a previously claimed region of a file for the active session. Agent-neutral; releasing frees the span for any actor to claim next.",
+    "required": [
+      "session_id",
+      "agent_id",
+      "path",
+      "start_line",
+      "end_line"
+    ],
+    "parameters": [
+      {
+        "name": "session_id",
+        "type": "string",
+        "required": true,
+        "description": "Session ID"
+      },
+      {
+        "name": "agent_id",
+        "type": "string",
+        "required": true,
+        "description": "Acting agent identity (required — the daemon authorizes the release on it)"
+      },
+      {
+        "name": "path",
+        "type": "string",
+        "required": true,
+        "description": "File path the region lives in"
+      },
+      {
+        "name": "start_line",
+        "type": "number",
+        "required": true,
+        "description": "First claimed line, 1-based inclusive"
+      },
+      {
+        "name": "end_line",
+        "type": "number",
+        "required": true,
+        "description": "Last claimed line, 1-based inclusive"
+      },
+      {
+        "name": "symbol_path",
+        "type": "string",
+        "required": false,
+        "description": "Optional canonical tree-sitter symbol path"
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Session ID"
+        },
+        "agent_id": {
+          "type": "string",
+          "description": "Acting agent identity (required — the daemon authorizes the release on it)"
+        },
+        "path": {
+          "type": "string",
+          "description": "File path the region lives in"
+        },
+        "start_line": {
+          "type": "number",
+          "description": "First claimed line, 1-based inclusive"
+        },
+        "end_line": {
+          "type": "number",
+          "description": "Last claimed line, 1-based inclusive"
+        },
+        "symbol_path": {
+          "type": "string",
+          "description": "Optional canonical tree-sitter symbol path"
+        }
+      },
+      "required": [
+        "session_id",
+        "agent_id",
+        "path",
+        "start_line",
+        "end_line"
+      ]
+    }
   }
 ]
 
@@ -7988,6 +9004,7 @@ export const MCP_AGENT_DEFAULT_TOOL_NAMES = [
   "begin_session",
   "end_session_full",
   "whoami",
+  "safe_scan",
   "coordination_preflight",
   "claim_port",
   "release_port",
@@ -7996,6 +9013,7 @@ export const MCP_AGENT_DEFAULT_TOOL_NAMES = [
   "acquire_lock",
   "fleet_init",
   "active_agent_roster",
+  "durable_agent_roster",
   "swarm_awareness",
   "sitrep",
   "catch_me_up",

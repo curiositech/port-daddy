@@ -14,14 +14,14 @@
 
   \foreach \y/\a/\xa/\xb in {3.05/A/0.5/4,2.25/B/1/5.5,1.45/C/2/6,0.65/D/3/7.5}{
     \node[pd row label] at (-0.25,\y) {\a};
-    \draw[pd guide] (0,\y) -- (8,\y);
+    \draw[pd lattice] (0,\y) -- (8,\y);
     \fill[pd neutral fill] (\xa,\y-0.24) rectangle (\xb,\y+0.24);
   }
   % re-stroke the overlap edges on top so the bands do not erase them
   \draw[pd caution rule] (3,0.41) -- (3,3.29);
   \draw[pd caution rule] (4,0.41) -- (4,3.29);
 
-  \node[pd direct label,text=hhamber,anchor=south] at (3.5,3.52)
+  \node[pd direct label,text=pdinkmuted,anchor=south] at (3.5,3.52)
     {four valid writes overlap};
   \draw[pd hairline] (3.5,3.44) -- (3.5,3.30);
 
@@ -37,7 +37,7 @@
 
   \foreach \y/\a/\xa/\xg in {3.05/A/0.5/2,2.25/B/1/3.5,1.45/C/2/5,0.65/D/3/6.5}{
     \node[pd row label] at (-0.25,\y-6.0) {\a};
-    \draw[pd guide] (0,\y-6.0) -- (8,\y-6.0);
+    \draw[pd lattice] (0,\y-6.0) -- (8,\y-6.0);
     \fill[pd neutral fill] (\xa,\y-0.24-6.0) rectangle (\xg,\y+0.24-6.0);
     \draw[pd hairline] (\xg,\y-0.24-6.0) -- (\xg,-6.0);
   }

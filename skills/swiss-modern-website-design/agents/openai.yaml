@@ -1,0 +1,5 @@
+interface:
+  display_name: "Swiss Modern Website Design"
+  short_description: "Swiss grids for rigorous web apps"
+  brand_color: "#DD1F26"
+  default_prompt: "Use $swiss-modern-website-design to redesign this website or product app with typography-first hierarchy, disciplined grids, restrained color, and visual QA."

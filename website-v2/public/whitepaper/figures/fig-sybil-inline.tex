@@ -7,11 +7,14 @@
     {replicating identities multiplies entry, not the loss attached to one default};
 
   % One principal fans out into fungible identities.
-  \node[circle,draw=hhamber,line width=1.1pt,fill=hhamber!9,minimum size=10mm,
-        font=\footnotesize\bfseries] (p) at (-4.45,1.15) {$P$};
+  % The amber ring and wash already separate the principal from the identities
+  % it spawns; a bold weight on one italic letter is a second cue doing the
+  % same job, which is the distinction the law asks to be the smallest one.
+  \node[pd state,pd caution fill,circle,line width=1.1pt,minimum size=10mm,
+        inner sep=0pt] (p) at (-4.45,1.15) {$P$};
   \foreach \y/\lab in {2.55/1,1.85/2,1.15/3,.45/$\cdots$,-.25/$K$} {
-    \node[circle,draw=hhink,line width=.65pt,fill=hhpaper,minimum size=7mm,
-          font=\scriptsize] at (-2.30,\y) {\lab};
+    \node[pd state,circle,line width=.65pt,fill=hhpaper,minimum size=7mm,
+          inner sep=0pt] at (-2.30,\y) {\lab};
     \draw[pd caution rule,dashed] (p.east)--(-2.65,\y);
     \draw[pd rule,line width=1.5pt] (-1.75,\y-.16)--(-1.75,\y+.16);
   }

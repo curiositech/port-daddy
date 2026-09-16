@@ -39,6 +39,7 @@ function fleetYaml(ships: Array<{ name: string; blocking?: boolean }>): string {
   const body = ships
     .map(s => {
       const lines = [`    ${s.name}:`, `      trigger: pull_request:opened`];
+      lines.push(`      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`);
       if (s.blocking) lines.push('      blocking: true');
       // No `@cf/` model pin ⇒ deriveCfModel uses the ROLE default: code-reviewer
       // → gpt-oss-120b, every other ship → qwen3-30b (both priced).
@@ -95,7 +96,11 @@ describe('AI Gateway routing (env.AI_GATEWAY_ID)', () => {
     const opts = runOptions(ai);
     expect(opts.length).toBeGreaterThan(0);
     for (const o of opts) {
-      expect(o.gateway).toEqual({ id: 'pd-fleet-gw' });
+      expect(o.gateway).toEqual({ id: 'pd-fleet-gw', metadata: {
+        ship: 'code-reviewer', repo: makeJob().repoFullName,
+        run: `run:${makeJob().deliveryId}`, attempt: expect.any(Number),
+      } });
+      expect(o.extraHeaders?.['cf-aig-collect-log-payload']).toBe('false');
       // The prefix-cache affinity header is preserved, not clobbered.
       expect(o.extraHeaders?.['x-session-affinity']).toBe('pd-fleet-code-reviewer');
     }
@@ -135,7 +140,13 @@ describe('AI Gateway routing (env.AI_GATEWAY_ID)', () => {
     expect(ai.calls.filter(c => c.phase === 'reduce')).toHaveLength(1);
     const opts = runOptions(ai);
     expect(opts.length).toBe(3); // 2 map + 1 reduce
-    for (const o of opts) expect(o.gateway).toEqual({ id: 'gw-1' });
+    for (const o of opts) {
+      expect(o.gateway).toEqual({ id: 'gw-1', metadata: {
+        ship: 'code-reviewer', repo: makeJob().repoFullName,
+        run: `run:${makeJob().deliveryId}`, attempt: expect.any(Number),
+      } });
+      expect(o.extraHeaders?.['cf-aig-collect-log-payload']).toBe('false');
+    }
   });
 
   it('AI_GATEWAY_ID UNSET ⇒ no gateway key (exactly today\'s behavior)', async () => {

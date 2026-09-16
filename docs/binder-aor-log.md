@@ -142,3 +142,174 @@ next Architect of Record run after that merge should check this specifically.
 - GitHub API `pull_request_read` on #7279, #9639, #9667, #9764 (`curiositech/port-daddy`) — full bodies and merge/base state read live at run time (2026-08-23T17:02Z), not recalled.
 - `git merge-base` / `git merge-base --is-ancestor` across `origin/main`, `origin/purser/pr-9639-tests`, `origin/claude/port-daddy-ios-server-fna9dy` — confirms the WS-H merge landed downstream of an unmerged PR, not on `main`.
 - `docs/adr/0128-mandatory-harbors.md` at `origin/claude/mandatory-harbors-adr` (not yet shipped to `main` — that is this finding's point) — full text read; Decision section quoted directly above.
+
+---
+
+## 2026-09-08 — first mechanized coverage run: the binder enters its own framework
+
+binder-aor-log: 2026-09-08T10:55Z | window 2026-08-23T17:02Z..now |
+documents scanned: 30 | capabilities: 0/94 owner+gate+evidence complete |
+contradictions: 1/4 resolved (CR-1, CR-2, CR-3 open) | ambitions classified:
+0/36 | coverage axes: 0/3 complete | confidence: 0/100 | handover: the
+ambition sweep chapter 17 reserves, then owners for the 24 ungated chapters.
+
+### What this run did that prior runs did not
+
+Every prior entry, including 2026-08-23's, reconciled specific claims by hand.
+None produced a `binder-coverage-spec`, so `binder_coverage_audit.mjs` had
+never been run against this binder at all: the framework had a schema and a
+scorer, and the binder had never been through either. This run closes that.
+
+`scripts/binder/build_coverage_spec.mjs` reads the binder every run and emits
+`binder-coverage-spec.json`. It is a generator, not a hand-typed file, because
+the binder grows: it has gone from 17 documents to 30, and a spec typed once
+would have reported a clean binder while a third of it went unread.
+
+**Score: 0/100, pass: false, 136 critical findings.** That is the honest state,
+not a failure of the run. The findings:
+
+**94 capabilities without owner + gate + evidence (of 94).** Not one claimed
+capability in the binder carries all three. 69 have a gate but no owner and no
+evidence link; 4 have none of the three; 1 lacks only an owner.
+
+**23 of 30 documents contain no acceptance gate at all.** The 70 gates in the
+binder live in seven documents (00, 07, 12, 13, 15, 18, 19). The chapters with
+none are the substance: 01 product and surfaces, 02 runtime authority, 03 agent
+contract, 04 context/memory/skills, 05 governance, 06 security/privacy/billing,
+09 data model and API, 10 operator control panel, 14 work intake, and every
+chapter from 20 to 28. The binder's planning and review chapters are gated; the
+chapters that say what the product *is* are not.
+
+**36 ambition families unclassified (of 36).** The sweep chapter 17 reserves
+("Status: pending Harbor Architect of Record baseline run") has still not run.
+Every entry in the baseline work packet's corpus — the V4 plans, the ideas
+trove, the shipwright vision, the north-star research, the website data
+modules, the examples — sits at `classification: null`, which the framework
+names accidental amnesia and never a valid resting state.
+
+**3 of 4 contradictions still open.** CR-1 and CR-2 (shipped-vs-target: the
+pd-console control buttons POST to a contract with no counterparty; the live
+interrupt route is lease-less against the control-gate doctrine) and CR-3
+(authority: no single system of record for the roadmap) were recorded on
+2026-07-10 and are unresolved two months later. CR-4 is closed.
+
+**All 3 coverage axes incomplete.** Chapter 16 names 10 customer types, 15
+technical contingencies and 10 architecture axes, each needing six answers.
+None of the three matrices has been filled. The booleans are read from
+`coverage-matrix.json`, which does not exist, so they cannot be hand-set to
+true in the spec to make a run pass.
+
+### A defect in this run's own tooling, found and fixed before it shipped
+
+The first generated spec reported "contradictions: 4/4 resolved" on a binder
+with three open ones. The extractor tested `/resolved/i` against the register's
+state text, and "unresolved" contains "resolved". That is coverage theater
+produced by the instrument meant to detect it. The test is now anchored
+(`/^resolved\b/i`) and the three open contradictions surface correctly. Worth
+recording rather than quietly fixing: a checker that fails open is worse than
+no checker, because it certifies.
+
+### The universe the binder claims to cover has drifted from the binder
+
+`work-packets/harbor-architect-baseline-ambition-archaeology.md` lists chapters
+01 through 17 as required reading. Twelve documents that exist today are outside
+that declared universe: **00** — the PRD, roadmap and test plan, the chapter a
+completeness sweep most needs — and **18 through 28** (build prescription,
+operator surface triad, design system, automations, orchestration, onboarding,
+cross-platform, the two runtime-refactor chapters, context/memory wiring, and
+postmaster). The packet has not been revised as the binder grew, so the baseline
+run it specifies would, if executed literally, miss 40 per cent of the binder.
+
+This is not a finding against any chapter's text. It is a finding against the
+sweep's own scope, and it has to be fixed before the sweep runs, or the sweep
+will certify a universe smaller than the binder.
+
+### Escalation
+
+Tier: record, not block. Nothing here is a new defect in the product; it is the
+binder's accumulated distance from its own completeness standard, now measured
+instead of asserted. No chapter was patched by this run — the run's output is
+the measurement and this entry.
+
+Operator decision requested (one): the ambition sweep is 36 families across
+plans, research, website data and examples. It is a substantial pass and its
+output is chapter 17. It has been pending since the binder was written. Either
+it gets scheduled, or chapter 17's reservation should be withdrawn and the
+promise struck, because a chapter that has said "pending" since inception is
+itself an unclassified ambition.
+
+### Evidence
+
+- `node scripts/binder/build_coverage_spec.mjs` → 30 documents, 94 capabilities
+  (70 gated, 24 ungated), 4 contradictions, 36 ambition families.
+- `binder_coverage_audit.mjs` on that spec → `pass:false score:0`, 136 findings:
+  94 `capability-without-owner-gate-evidence`, 36 `ambition-unclassified`,
+  3 `coverage-axis-incomplete`, 3 `unresolved-contradiction`.
+- Gate census, per document, by `grep -cE '^ *(Gate|Acceptance gates?|Human gate|Proof gate):'` — 7 documents carry all 70.
+- `comm -13` of the work packet's required-reading chapter list against the
+  binder's actual chapter files — 12 documents outside the declared universe.
+
+---
+
+## Entry — 2026-09-13: portable source discovery, not completed reconciliation
+
+`binder-aor-log:` Scoped implementation checkpoint on
+`codex/reconciliation-distribution-20260913`, based on main `c92efaa5c`.
+The local runtime remains halted. This is not a full Architect of Record sweep,
+and no prior unresolved ambition, proof gate or roadmap row is marked complete.
+
+- **Outcome owner:** Codex task `01a0728f-99e2-7051-95a5-69e5ae8c21c3`,
+  implementing the operator's within-repository reconciliation priority.
+- **Reuse:** [the existing reconciliation skill](../skills/project-epistemology-reconciliation/SKILL.md)
+  and Harbor Clearance now share one bounded census. The
+  [portable package and delivery checklist](../skills/project-epistemology-reconciliation/README.md)
+  are implementation artifacts, not a rival roadmap or obligation store.
+- **Measured discovery checkpoint:** before final documentation edits, the
+  uncommitted source tree census contained 4,730 text artifacts: 3,041 Markdown,
+  355 skills, 226 HTML and 1,108 structured-text files, with 287 exact-copy
+  groups. Report digest:
+  `dd2a386dfeb38882e2833929a69db02ab3ccfe28682d194f8e4c8445263cc445`.
+  These are inventory counts, not ideas read, duplicates approved for removal,
+  or a source-head-complete semantic audit.
+- **Registry evidence:** the explicitly supplied committed Harbor export has
+  318 records and digest
+  `69c4889b72b2ad64a33918cae43d0468a0f086c907721eca5fe5ceeaba0230d1`.
+  Its authority stays unverified. Native harbors, slugs, dependencies and
+  histories are retained; a newer timestamp cannot silently win a dispute.
+  The remote work register reported no mirrored registry and admitted the
+  reconciliation claim as proposed. Neither that claim nor the named program
+  lineage establishes a canonical roadmap row.
+- **Coverage gaps:** live registry shards, unselected refs/PRs, code semantics,
+  PDF/rendered content and the actual semantic reading of the planning corpus.
+  All ambition classifications remain unassessed. The three completeness axes
+  have not been re-audited. No contradiction count is inferred from file hashes.
+- **Verification:** focused inventory/Clearance regressions pass on Node 22
+  and 26; offline npm pack/install in an unrelated synthetic repo exercises the
+  installed bin with network/subprocess denial. The package is five files with
+  zero dependencies. This is source-built and locally tested, not deployed,
+  publicly published or user-validated.
+- **Product reality:** the structured first-run review reports build-ready for
+  this no-account/no-provider inventory only. Semantic usefulness, commercial
+  demand, pricing, review UI and human task testing remain unproved. No new
+  license was selected.
+- **Handover:** complete evidence extraction across the full source families and
+  supplied registry exports; use existing typed relations and loss audits to
+  preserve valuable alternatives; surface necessary owner decisions before
+  materializing a separate, smaller repo. No deletion or provider run is
+  authorized by this checkpoint.
+
+Follow-up evidence: adversarial source review found and then approved fixes for
+installed-bin symlink entry, unsafe output creation (removed from the portable
+package), partial traversal, overlapping filters, registry numeric fidelity,
+Clearance partial-result reporting and BOM byte preservation. Final verdict:
+SHIP for the bounded source-inventory slice only. Inventory/Clearance now pass
+32 regressions; the existing declaration audit adds 50 passing cases.
+
+Publication is pending, not delivered. The current
+[GitHub App actuator skill](../skills/github-app-actuator/SKILL.md) disallows the
+older task-local key-reading helper; the inspected Relay publisher still
+requires an operator bearer and daemon capability. No protected non-human
+publication grant/tool is exposed in this task. A read-only unauthenticated
+GET returned 404, which does not establish the state of its POST route.
+Do not solve this admission gap by reading App keys, using personal credentials
+or restarting the runtime.

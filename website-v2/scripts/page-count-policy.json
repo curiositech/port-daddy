@@ -1,0 +1,12 @@
+{
+  "$comment": "Page-count policy of record. Read by page-count-policy.ts (vitest, tsx) and, because jest cannot load TypeScript from website-v2/, parsed directly by tests/unit/spawn-whitepaper-contract.test.js and tests/purser/whitepaper-hashes.test.js. One file so the numbers cannot disagree with themselves. Changing a number here is a deliberate, reviewable act: say why in the pull request.",
+  "driftBandPct": 0.05,
+  "driftMinPages": 4,
+  "defaultFloorPages": 8,
+  "floorPages": {
+    "coordination-papers-mega-volume": 400
+  },
+  "floorPagesByArtifact": {
+    "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": 400
+  }
+}

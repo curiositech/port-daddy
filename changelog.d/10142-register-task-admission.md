@@ -1,0 +1,3 @@
+type: added
+
+- **The Harbor Work Register can admit one task without turning Port Daddy on.** A signed-in operator can mint a ten-minute one-use pairing code for one named task and repository, exchange yields an eight-hour `pdr_` bearer, and the operator can revoke it from the Register page. Only credential hashes are stored; the bearer is actor- and repository-bound and cannot become general Relay account authority. Halted and stale boards now direct tasks to visibly `proposed` claims and FleetBar instead of telling the operator to run `pd roadmap push`; the daemon remains the roadmap's only writer.

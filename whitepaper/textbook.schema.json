@@ -110,11 +110,11 @@
           "prefix",
           "title",
           "source",
-          "pdf",
           "role",
           "formerNumeral",
           "oneLine",
           "question",
+          "teaser",
           "epigraph"
         ],
         "properties": {
@@ -138,10 +138,6 @@
           "source": {
             "type": "string",
             "pattern": "\\.tex$"
-          },
-          "pdf": {
-            "type": "string",
-            "pattern": "\\.pdf$"
           },
           "role": {
             "type": "string",
@@ -167,6 +163,11 @@
             "type": "string",
             "minLength": 1,
             "description": "The question the chapter answers; set large on the chapter opener and repeated as the rail heading on its first page."
+          },
+          "teaser": {
+            "type": "string",
+            "minLength": 1,
+            "description": "One paragraph of why a reader would want this chapter, in the author's voice. The question states what the chapter answers; the teaser is the reason to care. Shown on the site outline under the chapter title."
           },
           "epigraph": {
             "type": "object",
