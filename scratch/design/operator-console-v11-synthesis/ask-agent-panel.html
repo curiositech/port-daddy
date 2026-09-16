@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetBar — Ask a Fleet Agent</title>
+<!--
+  FleetBar: "Ask a Fleet Agent" panel
+  ─────────────────────────────────────
+  Design language: Port Daddy neobrutalist / Swiss-modern
+  Tokens verbatim from project spec + preview.html audited system.
+
+  Panel dimensions: 380px × ~520px
+  (Realistic macOS menu bar popover proportions)
+
+  Typography fallback chain:
+    Geist → Inter → -apple-system → BlinkMacSystemFont → SF Pro Text → system-ui
+  Mono:
+    Geist Mono → SF Mono → Cascadia Code → ui-monospace → Menlo
+
+  Font size floor: 14px (0.875rem) on all prose/body/caption.
+  Eyebrow exception: 12px ONLY when uppercase + weight ≥ 600 + letter-spacing ≥ 0.1em.
+
+  Border: 2px solid #121212 — hard, no blur
+  Radius: 0 everywhere
+  Shadows: hard-offset only (no blur), direction always bottom-right
+
+  Status colors:
+    green  #62c47a — running / healthy
+    amber  #e0c04a — queued / warning
+    red    #e55c5c — error / failed
+    grey   #a0a09a — idle / offline
+-->
+<style>
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DESIGN TOKENS
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --surface-base:     #f2eee6;   /* warm cream — panel body */
+  --surface-raised:   #faf8f4;   /* cards, lifted elements */
+  --surface-sunken:   #e8e3da;   /* recessed wells */
+  --surface-dark:     #12161f;   /* code, header, compose input */
+  --surface-dark-mid: #1c2130;   /* slightly raised on dark */
+  --surface-dark-hi:  #252c3e;   /* header hover, raised dark */
+
+  /* Brand */
+  --cobalt:           #003fb8;
+  --cobalt-hover:     #002e8a;
+  --cobalt-press:     #00257a;
+  --cobalt-ghost:     #dde6ff;
+  --cobalt-muted:     #7a99e0;
+
+  --forest:           #006b5f;
+  --forest-hover:     #004d44;
+  --forest-ghost:     #d0eeeb;
+
+  /* Text */
+  --ink:              #121212;
+  --ink-mid:          #2e2e2e;
+  --ink-soft:         #5a5a5a;
+  --ink-muted:        #7a7a7a;
+  --ink-faint:        #a0a09a;
+  --ink-on-cobalt:    #ffffff;
+  --ink-on-dark:      #e8e4dc;
+  --ink-on-dark-soft: #9ca3af;
+  --ink-on-dark-faint:#4a5568;
+
+  /* Borders */
+  --border-heavy:     #121212;   /* 2px — primary structural */
+  --border-mid:       #3a3a3a;   /* 1px on dark backgrounds */
+  --border-light:     #ccc7bc;   /* 1px on light backgrounds */
+  --border-faint:     #ddd8cf;   /* subtle dividers */
+
+  /* Status */
+  --st-green:         #62c47a;
+  --st-amber:         #e0c04a;
+  --st-red:           #e55c5c;
+  --st-grey:          #a0a09a;
+
+  /* Shadows — hard offset, zero blur */
+  --shadow-xs:        2px 2px 0 0 var(--border-heavy);
+  --shadow-sm:        3px 3px 0 0 var(--border-heavy);
+  --shadow-md:        4px 4px 0 0 var(--border-heavy);
+  --shadow-lg:        6px 6px 0 0 var(--border-heavy);
+
+  /* Type */
+  --font-ui:   "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-mono: "Geist Mono", "SF Mono", "Cascadia Code", ui-monospace, Menlo, monospace;
+
+  /* Size scale — hard floor: 14px on prose */
+  --sz-eyebrow: 0.8125rem; /* 13px — eyebrow ONLY w/ uppercase+700+tracked */
+  --sz-sm:      0.875rem;  /* 14px — minimum prose */
+  --sz-base:    1rem;      /* 16px */
+  --sz-lg:      1.0625rem; /* 17px */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RESET
+   ───────────────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+textarea {
+  font: inherit;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PAGE WRAPPER — simulates macOS desktop context behind popover
+   ───────────────────────────────────────────────────────────────────────────── */
+body {
+  background: #b8b2a8;
+  /* Subtle noise-like gradient to suggest macOS wallpaper */
+  background-image:
+    radial-gradient(ellipse at 20% 30%, rgba(160,144,128,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 70%, rgba(100,120,140,0.2) 0%, transparent 60%);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 24px 60px;
+  font-family: var(--font-ui);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PANEL WRAPPER — caret notch + drop shadow
+   ───────────────────────────────────────────────────────────────────────────── */
+.pw {
+  position: relative;
+  width: 380px;
+  flex-shrink: 0;
+}
+
+/* Caret notch — pointing up at menu bar */
+.pw::before,
+.pw::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+}
+/* Back caret (border) */
+.pw::before {
+  top: -13px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 13px solid var(--border-heavy);
+  z-index: 1;
+}
+/* Front caret (fill) */
+.pw::after {
+  top: -11px;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 12px solid var(--surface-dark);
+  z-index: 2;
+}
+
+/* The panel itself */
+.panel {
+  border: 2px solid var(--border-heavy);
+  box-shadow: var(--shadow-md);
+  background: var(--surface-base);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  z-index: 3;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HEADER — dark band, logo + daemon status
+   ───────────────────────────────────────────────────────────────────────────── */
+.hdr {
+  background: var(--surface-dark);
+  border-bottom: 2px solid var(--border-heavy);
+  padding: 9px 12px 9px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.hdr-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Logo mark: a stylised anchor/compass */
+.logo {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.hdr-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hdr-name {
+  font-size: var(--sz-sm);
+  font-weight: 800;
+  color: var(--ink-on-dark);
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+.hdr-mode {
+  /* eyebrow exception: 12px, uppercase, wt 700, tracked ≥0.1em */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-on-dark-soft);
+  line-height: 1;
+}
+
+.hdr-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Daemon status pill */
+.daemon-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px 3px 5px;
+  background: rgba(98, 196, 122, 0.1);
+  border: 1px solid rgba(98, 196, 122, 0.28);
+  /* eyebrow exception */
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-green);
+  white-space: nowrap;
+}
+
+.daemon-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--st-green);
+  border-radius: 50%;
+  animation: breathe 2.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.85); }
+}
+
+.hdr-icon-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  color: var(--ink-on-dark-soft);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.hdr-icon-btn:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.1);
+  color: var(--ink-on-dark);
+}
+.hdr-icon-btn svg { display: block; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   AGENT SELECTOR — horizontal card strip
+   ───────────────────────────────────────────────────────────────────────────── */
+.roster {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  background: var(--surface-base);
+}
+
+.roster-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+/* Eyebrow label */
+.eyebrow {
+  font-size: var(--sz-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  line-height: 1;
+}
+
+.roster-summary {
+  font-family: var(--font-mono);
+  font-size: var(--sz-sm); /* 14px — minimum prose */
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ink-faint);
+}
+
+/* Scrollable row of agent tiles */
+.agent-row {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 1px;
+}
+.agent-row::-webkit-scrollbar { display: none; }
+
+/* Agent tile */
+.agent-tile {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px 6px;
+  background: var(--surface-raised);
+  border: 2px solid var(--border-light);
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.1s ease, background 0.1s ease, box-shadow 0.08s ease;
+  min-width: 60px;
+}
+
+.agent-tile:hover {
+  border-color: var(--cobalt-muted);
+  background: var(--cobalt-ghost);
+}
+
+.agent-tile.sel {
+  border-color: var(--cobalt);
+  background: var(--cobalt-ghost);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Agent glyph — icon square */
+.tile-icon {
+  width: 26px;
+  height: 26px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.agent-tile.sel .tile-icon {
+  background: var(--cobalt);
+  border-color: var(--cobalt);
+}
+
+.tile-icon svg { display: block; }
+
+/* Agent label */
+.tile-name {
+  /* eyebrow exception: 12px, uppercase, wt 700, tracked */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  line-height: 1;
+  text-align: center;
+}
+
+.agent-tile.sel .tile-name {
+  color: var(--cobalt);
+}
+
+/* Status dot — top right of tile */
+.tile-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.tile-dot.run  { background: var(--st-green); animation: breathe 2s ease-in-out infinite; }
+.tile-dot.idle { background: var(--st-grey); }
+.tile-dot.qd   { background: var(--st-amber); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   AGENT DETAIL STRIP — shows selected agent's info + status
+   ───────────────────────────────────────────────────────────────────────────── */
+.detail-strip {
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-light);
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  min-height: 36px;
+}
+
+.detail-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-name {
+  font-size: var(--sz-sm);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-desc {
+  font-size: var(--sz-sm);
+  color: var(--ink-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.detail-right {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.detail-seen {
+  font-family: var(--font-mono);
+  font-size: var(--sz-sm); /* 14px — minimum */
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* Status badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border: 1px solid;
+  /* eyebrow exception */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.badge-run {
+  color: var(--forest);
+  border-color: var(--forest);
+  background: var(--forest-ghost);
+}
+.badge-idle {
+  color: var(--ink-faint);
+  border-color: var(--border-light);
+  background: transparent;
+}
+.badge-qd {
+  color: #7a6200;
+  border-color: var(--st-amber);
+  background: #fff8d6;
+}
+
+.badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   REPLY PANE — scrollable area showing last agent response
+   ───────────────────────────────────────────────────────────────────────────── */
+.reply-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.reply-bar {
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-faint);
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.reply-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.run-chip {
+  /* eyebrow exception */
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  background: var(--cobalt-ghost);
+  border: 1px solid var(--cobalt-muted);
+  color: var(--cobalt);
+}
+
+.reply-meta {
+  font-family: var(--font-mono);
+  font-size: var(--sz-sm); /* 14px */
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* Scroll body */
+.reply-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 11px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+  position: relative;
+}
+.reply-scroll::-webkit-scrollbar { width: 3px; }
+.reply-scroll::-webkit-scrollbar-thumb { background: var(--border-light); }
+.reply-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Reply body content — each agent has its own hidden pane */
+.reply-pane {
+  display: none;
+}
+.reply-pane.on {
+  display: block;
+}
+
+/* Reply typography */
+.rp {
+  font-size: var(--sz-sm); /* 14px */
+  color: var(--ink-mid);
+  line-height: 1.55;
+}
+.rp + .rp { margin-top: 8px; }
+
+.rp strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Inline code — 13px acceptable for code spans (not prose) per exception */
+.ic {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-light);
+  padding: 1px 4px;
+  color: var(--ink-mid);
+}
+
+/* Code block */
+.cb {
+  display: block;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-mid);
+  border-left: 3px solid var(--cobalt);
+  padding: 8px 11px;
+  margin: 8px 0;
+  font-family: var(--font-mono);
+  font-size: 13px; /* code block — 13px acceptable per monospace exception */
+  color: #a8d4ff;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Semantic tags */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  /* eyebrow exception */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1px solid;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+.tag-ok   { color: var(--forest);  border-color: var(--forest);    background: var(--forest-ghost); }
+.tag-warn { color: #7a6200;        border-color: var(--st-amber);  background: #fff8d6; }
+.tag-crit { color: #8b1a1a;        border-color: var(--st-red);    background: #ffe6e6; }
+.tag-info { color: #002b80;        border-color: var(--cobalt-muted); background: var(--cobalt-ghost); }
+
+/* Dispatch notice — shown after send */
+.dispatch-notice {
+  background: var(--cobalt-ghost);
+  border: 1px solid var(--cobalt-muted);
+  border-left: 3px solid var(--cobalt);
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  font-size: var(--sz-sm);
+  color: var(--cobalt);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Sending overlay */
+.send-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(242, 238, 230, 0.92);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 20;
+}
+.send-overlay.on { display: flex; }
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-faint);
+  border-top-color: var(--cobalt);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.overlay-label {
+  font-size: var(--sz-sm);
+  font-weight: 600;
+  color: var(--ink-mid);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HISTORY ACCORDION ROW
+   ───────────────────────────────────────────────────────────────────────────── */
+.hist-row {
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  padding: 5px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  transition: background 0.1s;
+}
+.hist-row:hover { background: var(--surface-sunken); }
+
+.hist-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hist-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cobalt);
+  color: var(--ink-on-cobalt);
+  /* eyebrow exception — single digit in badge */
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  width: 17px;
+  height: 17px;
+  line-height: 1;
+}
+
+.hist-label {
+  /* eyebrow exception */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.hist-chevron {
+  color: var(--ink-faint);
+  transition: transform 0.14s ease;
+  flex-shrink: 0;
+}
+.hist-chevron.open { transform: rotate(180deg); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   COMPOSE AREA
+   ───────────────────────────────────────────────────────────────────────────── */
+.compose {
+  padding: 10px 14px 11px;
+  background: var(--surface-base);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Quick prompts row */
+.qp-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.qp-prefix {
+  /* eyebrow exception */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.qp-chip {
+  font-size: var(--sz-sm); /* 14px — interactive label minimum */
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-light);
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.1s, color 0.1s, background 0.1s;
+  user-select: none;
+}
+.qp-chip:hover {
+  border-color: var(--cobalt-muted);
+  color: var(--cobalt);
+  background: var(--cobalt-ghost);
+}
+
+/* Input + send row */
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.input-wrap {
+  flex: 1;
+  position: relative;
+}
+
+textarea.compose-ta {
+  width: 100%;
+  background: var(--surface-dark);
+  border: 2px solid var(--border-heavy);
+  color: var(--ink-on-dark);
+  font-family: var(--font-ui);
+  font-size: var(--sz-sm); /* 14px */
+  line-height: 1.45;
+  padding: 8px 10px 22px;  /* bottom padding for char counter */
+  resize: none;
+  outline: none;
+  min-height: 62px;
+  max-height: 96px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-mid) transparent;
+  transition: border-color 0.12s;
+}
+textarea.compose-ta::placeholder {
+  color: #4a5568;
+}
+textarea.compose-ta:focus {
+  border-color: var(--cobalt);
+}
+textarea.compose-ta.err {
+  border-color: var(--st-red);
+}
+
+.char-ct {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-family: var(--font-mono);
+  /* eyebrow exception — counter in chrome, not prose */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-on-dark-faint);
+  pointer-events: none;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+/* Send button */
+.send-btn {
+  width: 62px;
+  height: 62px;
+  background: var(--cobalt);
+  border: 2px solid var(--border-heavy);
+  color: var(--ink-on-cobalt);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s, box-shadow 0.07s, transform 0.07s;
+}
+.send-btn:hover { background: var(--cobalt-hover); }
+.send-btn:active {
+  background: var(--cobalt-press);
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+.send-btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.send-btn svg { display: block; }
+
+.send-label {
+  /* eyebrow exception — call-to-action label in button chrome */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+/* Keyboard hint */
+.kbd-hint {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: -2px;
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  /* eyebrow exception — keyboard shortcut keycap glyph (single char, not prose) */
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-light);
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.kbd-hint-text {
+  font-family: var(--font-mono);
+  font-size: var(--sz-sm); /* 14px */
+  color: var(--ink-faint);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FOOTER
+   ───────────────────────────────────────────────────────────────────────────── */
+.footer {
+  background: var(--surface-dark);
+  border-top: 2px solid var(--border-heavy);
+  padding: 5px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.footer-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.footer-btn {
+  font-size: var(--sz-sm); /* 14px — interactive */
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-on-dark-soft);
+  padding: 3px 7px;
+  transition: color 0.1s, background 0.1s;
+}
+.footer-btn:hover {
+  color: var(--ink-on-dark);
+  background: rgba(255,255,255,0.05);
+}
+
+.footer-sep {
+  width: 1px;
+  height: 12px;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+.footer-ver {
+  font-family: var(--font-mono);
+  /* eyebrow exception — version label in footer chrome */
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-on-dark-faint);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ACCESSIBILITY — focus rings
+   ───────────────────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY
+   ───────────────────────────────────────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+</style>
+</head>
+<body>
+
+<div class="pw">
+<div class="panel" role="dialog" aria-label="FleetBar — Ask a Fleet Agent">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════════════════ -->
+  <header class="hdr">
+    <div class="hdr-brand">
+      <!-- Logo: compass rose simplified -->
+      <svg class="logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="22" height="22" stroke="#e8e4dc" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="4" stroke="#62c47a" stroke-width="1.5"/>
+        <path d="M12 2V6M12 18V22M2 12H6M18 12H22" stroke="#62c47a" stroke-width="1.5" stroke-linecap="square"/>
+        <path d="M12 9V12L14 14" stroke="#62c47a" stroke-width="1.5" stroke-linecap="square"/>
+      </svg>
+      <div class="hdr-titles">
+        <div class="hdr-name">FleetBar</div>
+        <div class="hdr-mode">Ask a Fleet Agent</div>
+      </div>
+    </div>
+    <div class="hdr-controls">
+      <div class="daemon-pill" title="Daemon running on port 9876" aria-label="Daemon active on port 9876">
+        <div class="daemon-dot" aria-hidden="true"></div>
+        :9876
+      </div>
+      <button class="hdr-icon-btn" title="Open full dashboard" aria-label="Open dashboard">
+        <!-- Grid icon -->
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <rect x="1" y="1" width="4.5" height="4.5" stroke="currentColor" stroke-width="1.25"/>
+          <rect x="8.5" y="1" width="4.5" height="4.5" stroke="currentColor" stroke-width="1.25"/>
+          <rect x="1" y="8.5" width="4.5" height="4.5" stroke="currentColor" stroke-width="1.25"/>
+          <rect x="8.5" y="8.5" width="4.5" height="4.5" stroke="currentColor" stroke-width="1.25"/>
+        </svg>
+      </button>
+      <button class="hdr-icon-btn" title="Preferences" aria-label="Preferences">
+        <!-- Gear icon -->
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <circle cx="7" cy="7" r="2.25" stroke="currentColor" stroke-width="1.25"/>
+          <path d="M7 1.5V3M7 11V12.5M1.5 7H3M11 7H12.5M2.8 2.8L3.9 3.9M10.1 10.1L11.2 11.2M2.8 11.2L3.9 10.1M10.1 3.9L11.2 2.8"
+                stroke="currentColor" stroke-width="1.25" stroke-linecap="square"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       AGENT ROSTER
+       ═══════════════════════════════════════════════════════════ -->
+  <section class="roster" aria-label="Fleet roster">
+    <div class="roster-top">
+      <span class="eyebrow">Fleet Roster</span>
+      <span class="roster-summary" id="rosterSummary" aria-live="polite">5 agents · 1 active · 1 queued</span>
+    </div>
+
+    <div class="agent-row" id="agentRow" role="radiogroup" aria-label="Select agent to ask">
+
+      <!-- ── SPARK ── -->
+      <button class="agent-tile sel" data-agent="spark" role="radio" aria-checked="true"
+              aria-label="Spark: ideation agent, currently running">
+        <div class="tile-dot run" aria-hidden="true"></div>
+        <div class="tile-icon">
+          <!-- Star/idea glyph -->
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <path d="M6.5 1L7.8 4.5H11.5L8.5 6.6L9.8 10.1L6.5 8L3.2 10.1L4.5 6.6L1.5 4.5H5.2L6.5 1Z"
+                  stroke="#e8e4dc" stroke-width="1.1" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="tile-name">Spark</div>
+      </button>
+
+      <!-- ── SPIDER ── -->
+      <button class="agent-tile" data-agent="spider" role="radio" aria-checked="false"
+              aria-label="Spider: security and code analysis, idle">
+        <div class="tile-dot idle" aria-hidden="true"></div>
+        <div class="tile-icon">
+          <!-- Spider/web glyph -->
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="2.5" stroke="#9ca3af" stroke-width="1.1"/>
+            <path d="M6.5 1V4M6.5 9V12M1 6.5H4M9 6.5H12" stroke="#9ca3af" stroke-width="1.1" stroke-linecap="square"/>
+            <path d="M2.5 2.5L4.7 4.7M8.3 8.3L10.5 10.5M2.5 10.5L4.7 8.3M8.3 4.7L10.5 2.5"
+                  stroke="#9ca3af" stroke-width="1.1" stroke-linecap="square"/>
+          </svg>
+        </div>
+        <div class="tile-name">Spider</div>
+      </button>
+
+      <!-- ── QA ── -->
+      <button class="agent-tile" data-agent="qa" role="radio" aria-checked="false"
+              aria-label="QA Adversary: adversarial testing, idle">
+        <div class="tile-dot idle" aria-hidden="true"></div>
+        <div class="tile-icon">
+          <!-- Crosshair glyph -->
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="3.5" stroke="#9ca3af" stroke-width="1.1"/>
+            <path d="M6.5 1V3.5M6.5 9.5V12M1 6.5H3.5M9.5 6.5H12" stroke="#9ca3af" stroke-width="1.1" stroke-linecap="square"/>
+          </svg>
+        </div>
+        <div class="tile-name">QA</div>
+      </button>
+
+      <!-- ── GARDENER ── -->
+      <button class="agent-tile" data-agent="gardener" role="radio" aria-checked="false"
+              aria-label="Git Gardener: code cleanup, queued">
+        <div class="tile-dot qd" aria-hidden="true"></div>
+        <div class="tile-icon">
+          <!-- Branch/fork glyph -->
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <circle cx="6.5" cy="2.5" r="1.5" stroke="#9ca3af" stroke-width="1.1"/>
+            <circle cx="3" cy="10.5" r="1.5" stroke="#9ca3af" stroke-width="1.1"/>
+            <circle cx="10" cy="10.5" r="1.5" stroke="#9ca3af" stroke-width="1.1"/>
+            <path d="M6.5 4V7M7 7L10 9M6 7L3 9" stroke="#9ca3af" stroke-width="1.1"/>
+          </svg>
+        </div>
+        <div class="tile-name">Gardener</div>
+      </button>
+
+      <!-- ── CARTOGRAPHER ── -->
+      <button class="agent-tile" data-agent="cartographer" role="radio" aria-checked="false"
+              aria-label="Cartographer: knowledge mapping, idle">
+        <div class="tile-dot idle" aria-hidden="true"></div>
+        <div class="tile-icon">
+          <!-- Map grid glyph -->
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <rect x="1" y="1.5" width="11" height="10" stroke="#9ca3af" stroke-width="1.1"/>
+            <path d="M1 5.5H12M5 1.5V11.5" stroke="#9ca3af" stroke-width="1.1"/>
+          </svg>
+        </div>
+        <div class="tile-name">Carto</div>
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SELECTED AGENT DETAIL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="detail-strip" aria-live="polite" aria-atomic="true">
+    <div class="detail-info">
+      <div class="detail-name" id="dName">Spark</div>
+      <div class="detail-desc" id="dDesc">Ideation · brainstorming · trend synthesis</div>
+    </div>
+    <div class="detail-right">
+      <div class="detail-seen" id="dSeen">active 8s ago</div>
+      <div class="badge badge-run" id="dBadge">
+        <span class="badge-dot" id="dBadgeDot" style="background:var(--st-green);" aria-hidden="true"></span>
+        <span id="dBadgeLbl">Running</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LAST REPLY PANE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="reply-wrap">
+    <div class="reply-bar">
+      <div class="reply-bar-left">
+        <span class="eyebrow">Last Reply</span>
+        <span class="run-chip" id="runChip">run #a3f2</span>
+      </div>
+      <div class="reply-meta" id="replyMeta">2 min ago · 0.4s</div>
+    </div>
+
+    <div class="reply-scroll" id="replyScroll">
+
+      <!-- SPARK -->
+      <div class="reply-pane on" id="rp-spark">
+        <p class="rp"><strong>Port Daddy pricing model angles:</strong></p>
+        <p class="rp">
+          <span class="tag tag-ok">Angle A</span>
+          <strong>Bonded Commons</strong> — agents post a small stake per work unit.
+          Bad actors lose bond to a shared pool redistributed to well-behaved agents.
+          Thomas Youle's market-equilibrium framing from Indiana applies directly here.
+        </p>
+        <p class="rp">
+          <span class="tag tag-info">Angle B</span>
+          <strong>Metered Trust Tiers</strong> — free tier is purely advisory, paid tier
+          enables Arbiter with real pre-empt power. Trust is the product you're selling.
+        </p>
+        <code class="cb">pd arbiter --mode=bonded --stake=0.02 --slash-on=conflict</code>
+        <p class="rp">
+          <span class="tag tag-warn">Open Q</span>
+          Who holds the slash pool? A neutral escrow agent, or the orchestrator?
+          Centralizing creates gaming incentives.
+        </p>
+      </div>
+
+      <!-- SPIDER -->
+      <div class="reply-pane" id="rp-spider">
+        <p class="rp"><strong>Security scan — port-daddy HEAD:</strong></p>
+        <p class="rp">
+          <span class="tag tag-warn">Medium</span>
+          <span class="ic">routes/spawn.ts:88</span> — subprocess backend uses
+          <span class="ic">shell: true</span>. Input is daemon-side so not user-reachable,
+          but worth hardening before any hosted offering.
+        </p>
+        <p class="rp">
+          <span class="tag tag-ok">Clean</span>
+          No hardcoded secrets, tokens, or credentials in <span class="ic">git log --all</span>.
+          <span class="ic">.env</span> correctly gitignored.
+        </p>
+        <code class="cb">grep -r "shell: true" lib/ routes/
+# routes/spawn.ts:88:    shell: true</code>
+        <p class="rp">
+          <span class="tag tag-info">Rec</span>
+          Switch to explicit <span class="ic">argv</span> array + <span class="ic">shell: false</span>.
+          Wrap in a <span class="ic">validateSpawnArgs()</span> allow-list guard.
+        </p>
+      </div>
+
+      <!-- QA -->
+      <div class="reply-pane" id="rp-qa">
+        <p class="rp"><strong>Adversarial findings — commit e0efcc7:</strong></p>
+        <p class="rp">
+          <span class="tag tag-crit">P1</span>
+          <span class="ic">routes/sugar.ts:142</span> — <span class="ic">done()</span> fallback
+          searches ANY active session when agentId unset. Two concurrent agents sharing a session
+          identity will collide silently.
+        </p>
+        <p class="rp">
+          <span class="tag tag-warn">P2</span>
+          <span class="ic">ephemeral-daemon.js</span> — no teardown on SIGTERM inside CI.
+          Leaves port 9876 bound. Flaky on rapid re-runs.
+        </p>
+        <code class="cb">kill $(lsof -ti:9876) 2>/dev/null || true</code>
+        <p class="rp">
+          <span class="tag tag-ok">Clean</span>
+          All 52 suites passed. 3239/3239 assertions green.
+        </p>
+      </div>
+
+      <!-- GARDENER -->
+      <div class="reply-pane" id="rp-gardener">
+        <p class="rp"><strong>Queued — waiting for git:committed on main.</strong></p>
+        <p class="rp">
+          Last run committed <strong>14 uncommitted changes</strong> across
+          <span class="ic">lib/sugar.ts</span>, <span class="ic">routes/spawn.ts</span>,
+          and <span class="ic">tests/unit/sugar.test.js</span>.
+        </p>
+        <p class="rp">
+          <span class="tag tag-ok">Saved</span>
+          Commit <span class="ic">feat: wire sugar module + 23 tests</span> — 3h 44m ago.
+        </p>
+        <p class="rp">
+          Next targets: 4 dead exports in <span class="ic">lib/db.ts</span>,
+          2 unused imports in <span class="ic">cli/commands/index.ts</span>.
+        </p>
+      </div>
+
+      <!-- CARTOGRAPHER -->
+      <div class="reply-pane" id="rp-cartographer">
+        <p class="rp"><strong>Knowledge map — port-daddy codebase (HEAD):</strong></p>
+        <p class="rp">
+          Core dependency chain:
+          <span class="ic">db.ts</span> → <span class="ic">sugar.ts</span>
+          → <span class="ic">routes/sugar.ts</span> → <span class="ic">server.ts</span>.
+        </p>
+        <p class="rp">
+          <span class="tag tag-warn">Hot spot</span>
+          <span class="ic">lib/db.ts</span> — imported by 19 modules. Any schema change
+          ripples everywhere. Coupling score: <strong>0.82</strong>.
+        </p>
+        <code class="cb">pd symbols --hotspots --threshold 0.7</code>
+        <p class="rp">
+          <span class="tag tag-info">Next</span>
+          Symbol-level claims via tree-sitter would protect high-coupling nodes.
+          <span class="ic">lib/symbol-index.ts</span> is ready to wire.
+        </p>
+      </div>
+
+      <!-- Sending overlay -->
+      <div class="send-overlay" id="sendOverlay" role="status" aria-live="polite" aria-busy="false">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="overlay-label" id="overlayLabel">Spawning Spark…</div>
+      </div>
+
+    </div><!-- /reply-scroll -->
+  </div><!-- /reply-wrap -->
+
+  <!-- ═══════════════════════════════════════════════════════════
+       HISTORY ROW (collapsed affordance)
+       ═══════════════════════════════════════════════════════════ -->
+  <button class="hist-row" id="histRow" aria-expanded="false" aria-label="Ask history — 7 entries">
+    <div class="hist-left">
+      <span class="hist-badge" aria-hidden="true">7</span>
+      <span class="hist-label">Ask History</span>
+    </div>
+    <svg class="hist-chevron" width="11" height="6" viewBox="0 0 11 6" fill="none" aria-hidden="true">
+      <path d="M1 1L5.5 5.5L10 1" stroke="var(--ink-faint)" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    </svg>
+  </button>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       COMPOSE AREA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="compose">
+
+    <!-- Quick prompt chips -->
+    <div class="qp-row" aria-label="Quick prompts">
+      <span class="qp-prefix">Try</span>
+      <button class="qp-chip" data-prompt="Any pricing model ideas?">Any pricing model ideas?</button>
+      <button class="qp-chip" data-prompt="What PD primitives are we missing?">PD primitives we're missing?</button>
+      <button class="qp-chip" data-prompt="What should we tackle next?">What's next?</button>
+    </div>
+
+    <!-- Textarea + send -->
+    <div class="input-row">
+      <div class="input-wrap">
+        <textarea
+          class="compose-ta"
+          id="composeTA"
+          placeholder="Ask Spark something…"
+          maxlength="500"
+          rows="3"
+          aria-label="Message to Spark"
+        ></textarea>
+        <span class="char-ct" id="charCt" aria-live="polite" aria-label="Characters remaining">500</span>
+      </div>
+      <button class="send-btn" id="sendBtn" aria-label="Send to Spark (⌘ Enter)">
+        <!-- Send arrow -->
+        <svg width="19" height="19" viewBox="0 0 19 19" fill="none" aria-hidden="true">
+          <path d="M2 2L17 9.5L2 17V13L13 9.5L2 6V2Z" fill="white" stroke="white" stroke-width="0.4" stroke-linejoin="round"/>
+        </svg>
+        <span class="send-label">Send</span>
+      </button>
+    </div>
+
+    <!-- Keyboard hint -->
+    <div class="kbd-hint">
+      <kbd class="kbd">⌘</kbd>
+      <kbd class="kbd">↵</kbd>
+      <span class="kbd-hint-text">to send</span>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════════════ -->
+  <footer class="footer">
+    <nav class="footer-nav" aria-label="Panel navigation">
+      <button class="footer-btn">Fleet</button>
+      <div class="footer-sep" aria-hidden="true"></div>
+      <button class="footer-btn">Dashboard</button>
+      <div class="footer-sep" aria-hidden="true"></div>
+      <button class="footer-btn">Logs</button>
+    </nav>
+    <span class="footer-ver">pd v3.5.0</span>
+  </footer>
+
+</div><!-- /panel -->
+</div><!-- /pw -->
+
+<script>
+/* ─────────────────────────────────────────────────────────────────────────────
+   FleetBar — Ask Agent panel interaction logic
+   All DOM mutations use safe methods (textContent, className, style) only.
+   No innerHTML injection of user-controlled content.
+   ───────────────────────────────────────────────────────────────────────────── */
+(function () {
+  'use strict';
+
+  /* ── Agent data ────────────────────────────────────────────────────────────── */
+  var AGENTS = {
+    spark: {
+      name: 'Spark',
+      desc: 'Ideation · brainstorming · trend synthesis',
+      status: 'run',
+      statusLabel: 'Running',
+      dotColor: 'var(--st-green)',
+      badgeClass: 'badge badge-run',
+      seen: 'active 8s ago',
+      runId: 'run #a3f2',
+      meta: '2 min ago · 0.4s',
+      placeholder: 'Ask Spark something…',
+      spawnMsg: 'Spawning Spark…',
+      qp: ['Any pricing model ideas?', 'What PD primitives are we missing?', "What's next?"],
+    },
+    spider: {
+      name: 'Spider',
+      desc: 'Security audit · code analysis · static scan',
+      status: 'idle',
+      statusLabel: 'Idle',
+      dotColor: 'var(--st-grey)',
+      badgeClass: 'badge badge-idle',
+      seen: 'last run 4h ago',
+      runId: 'run #d8b3',
+      meta: '4 hr ago · 12.3s',
+      placeholder: 'Ask Spider to audit something…',
+      spawnMsg: 'Spawning Spider…',
+      qp: ['Audit routes/spawn.ts', 'Check for exposed secrets', 'Any shell injection risks?'],
+    },
+    qa: {
+      name: 'QA Adversary',
+      desc: 'Adversarial testing · breaking things · P1 hunting',
+      status: 'idle',
+      statusLabel: 'Idle',
+      dotColor: 'var(--st-grey)',
+      badgeClass: 'badge badge-idle',
+      seen: 'last run 18m ago',
+      runId: 'run #c8d1',
+      meta: '18 min ago · 1.2s',
+      placeholder: 'What should QA attack next?',
+      spawnMsg: 'Spawning QA Adversary…',
+      qp: ['What edge cases should we cover?', 'Attack the sugar module', 'Find flaky tests'],
+    },
+    gardener: {
+      name: 'Git Gardener',
+      desc: 'Cleanup · auto-commit · dead code removal',
+      status: 'qd',
+      statusLabel: 'Queued',
+      dotColor: 'var(--st-amber)',
+      badgeClass: 'badge badge-qd',
+      seen: 'queued · next commit',
+      runId: 'run #7e0b',
+      meta: '3h 44m ago · 0.6s',
+      placeholder: 'What should Gardener clean up?',
+      spawnMsg: 'Queuing Gardener…',
+      qp: ['Prune dead exports in lib/db.ts', 'Clean up unused imports', 'What did you commit last?'],
+    },
+    cartographer: {
+      name: 'Cartographer',
+      desc: 'Dependency graphs · knowledge mapping · hotspot analysis',
+      status: 'idle',
+      statusLabel: 'Idle',
+      dotColor: 'var(--st-grey)',
+      badgeClass: 'badge badge-idle',
+      seen: 'last run 2 days ago',
+      runId: 'run #2b44',
+      meta: '2 days ago · 3.4s',
+      placeholder: 'What should Cartographer map?',
+      spawnMsg: 'Spawning Cartographer…',
+      qp: ['Map lib/db.ts dependencies', 'Find high-coupling modules', 'Symbol hotspot report'],
+    },
+  };
+
+  /* ── DOM refs ──────────────────────────────────────────────────────────────── */
+  var agentRow    = document.getElementById('agentRow');
+  var dName       = document.getElementById('dName');
+  var dDesc       = document.getElementById('dDesc');
+  var dSeen       = document.getElementById('dSeen');
+  var dBadge      = document.getElementById('dBadge');
+  var dBadgeDot   = document.getElementById('dBadgeDot');
+  var dBadgeLbl   = document.getElementById('dBadgeLbl');
+  var runChip     = document.getElementById('runChip');
+  var replyMeta   = document.getElementById('replyMeta');
+  var replyScroll = document.getElementById('replyScroll');
+  var composeTA   = document.getElementById('composeTA');
+  var charCt      = document.getElementById('charCt');
+  var sendBtn     = document.getElementById('sendBtn');
+  var sendOverlay = document.getElementById('sendOverlay');
+  var overlayLabel= document.getElementById('overlayLabel');
+  var histRow     = document.getElementById('histRow');
+  var qpRow       = document.querySelector('.qp-row');
+
+  var current = 'spark';
+  var sending = false;
+
+  /* ── Select agent ──────────────────────────────────────────────────────────── */
+  function selectAgent(key) {
+    if (sending || key === current) return;
+    current = key;
+    var a = AGENTS[key];
+
+    /* Update tiles */
+    var tiles = agentRow.querySelectorAll('.agent-tile');
+    for (var i = 0; i < tiles.length; i++) {
+      var t = tiles[i];
+      var isThis = t.getAttribute('data-agent') === key;
+      t.classList.toggle('sel', isThis);
+      t.setAttribute('aria-checked', isThis ? 'true' : 'false');
+      /* Update icon stroke color */
+      var paths = t.querySelectorAll('svg path, svg circle, svg rect');
+      var col = isThis ? '#e8e4dc' : '#9ca3af';
+      for (var j = 0; j < paths.length; j++) {
+        paths[j].setAttribute('stroke', col);
+      }
+    }
+
+    /* Update detail strip */
+    dName.textContent = a.name;
+    dDesc.textContent = a.desc;
+    dSeen.textContent = a.seen;
+    dBadge.className = a.badgeClass;
+    dBadgeDot.style.background = a.dotColor;
+    dBadgeLbl.textContent = a.statusLabel;
+
+    /* Update reply pane */
+    var panes = document.querySelectorAll('.reply-pane');
+    for (var k = 0; k < panes.length; k++) {
+      panes[k].classList.toggle('on', panes[k].id === 'rp-' + key);
+    }
+    runChip.textContent = a.runId;
+    replyMeta.textContent = a.meta;
+
+    /* Update compose area */
+    composeTA.placeholder = a.placeholder;
+    composeTA.setAttribute('aria-label', 'Message to ' + a.name);
+    sendBtn.setAttribute('aria-label', 'Send to ' + a.name + ' (⌘ Enter)');
+
+    /* Update quick prompts */
+    updateQPs(a.qp);
+  }
+
+  /* ── Update quick prompts ──────────────────────────────────────────────────── */
+  function updateQPs(prompts) {
+    /* Remove old chips */
+    var chips = qpRow.querySelectorAll('.qp-chip');
+    for (var i = 0; i < chips.length; i++) {
+      qpRow.removeChild(chips[i]);
+    }
+    /* Add new chips */
+    for (var p = 0; p < prompts.length; p++) {
+      var btn = document.createElement('button');
+      btn.className = 'qp-chip';
+      btn.setAttribute('data-prompt', prompts[p]);
+      btn.textContent = prompts[p];
+      btn.addEventListener('click', onQPClick);
+      qpRow.appendChild(btn);
+    }
+  }
+
+  function onQPClick(e) {
+    var prompt = e.currentTarget.getAttribute('data-prompt');
+    composeTA.value = prompt;
+    updateCharCount();
+    composeTA.focus();
+  }
+
+  /* ── Agent row interaction ─────────────────────────────────────────────────── */
+  agentRow.addEventListener('click', function (e) {
+    var tile = e.target.closest('.agent-tile');
+    if (tile) selectAgent(tile.getAttribute('data-agent'));
+  });
+
+  agentRow.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      var tile = e.target.closest('.agent-tile');
+      if (tile) {
+        e.preventDefault();
+        selectAgent(tile.getAttribute('data-agent'));
+      }
+    }
+  });
+
+  /* ── Char counter ──────────────────────────────────────────────────────────── */
+  function updateCharCount() {
+    var left = 500 - composeTA.value.length;
+    charCt.textContent = left;
+    charCt.style.color = left < 50 ? 'var(--st-amber)' : 'var(--ink-on-dark-faint)';
+  }
+  composeTA.addEventListener('input', updateCharCount);
+
+  /* ── Keyboard shortcut ─────────────────────────────────────────────────────── */
+  composeTA.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      dispatch();
+    }
+  });
+
+  /* ── Send button ───────────────────────────────────────────────────────────── */
+  sendBtn.addEventListener('click', dispatch);
+
+  function dispatch() {
+    if (sending) return;
+
+    var text = composeTA.value.trim();
+    if (!text) {
+      /* Error flash on textarea */
+      composeTA.classList.add('err');
+      composeTA.focus();
+      setTimeout(function () { composeTA.classList.remove('err'); }, 600);
+      return;
+    }
+
+    var a = AGENTS[current];
+    sending = true;
+    sendBtn.disabled = true;
+
+    /* Show overlay */
+    overlayLabel.textContent = a.spawnMsg;
+    sendOverlay.classList.add('on');
+    sendOverlay.setAttribute('aria-busy', 'true');
+
+    /* Simulate async daemon dispatch */
+    setTimeout(function () {
+      sendOverlay.classList.remove('on');
+      sendOverlay.setAttribute('aria-busy', 'false');
+      sending = false;
+      sendBtn.disabled = false;
+
+      /* Update reply bar to reflect dispatch */
+      runChip.textContent = 'dispatched';
+      replyMeta.textContent = 'just now · pending';
+
+      /* Prepend a dispatch notice using safe DOM */
+      var notice = document.createElement('div');
+      notice.className = 'dispatch-notice';
+      notice.textContent = '✓ Agent dispatched. Reply will appear here when complete.';
+
+      var activePane = replyScroll.querySelector('.reply-pane.on');
+      if (activePane) {
+        activePane.insertBefore(notice, activePane.firstChild);
+        replyScroll.scrollTop = 0;
+        /* Auto-dismiss after 4s */
+        setTimeout(function () {
+          if (notice.parentNode) notice.parentNode.removeChild(notice);
+        }, 4000);
+      }
+
+      composeTA.value = '';
+      updateCharCount();
+    }, 1400);
+  }
+
+  /* ── History row toggle ────────────────────────────────────────────────────── */
+  histRow.addEventListener('click', function () {
+    var chevron = histRow.querySelector('.hist-chevron');
+    var open = chevron.classList.toggle('open');
+    histRow.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  /* ── Initial quick prompts wired to existing chips ─────────────────────────── */
+  (function wireInitialChips() {
+    var chips = qpRow.querySelectorAll('.qp-chip');
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].addEventListener('click', onQPClick);
+    }
+  })();
+
+})();
+</script>
+
+</body>
+</html>

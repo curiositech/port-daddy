@@ -314,7 +314,8 @@ export interface PRContext {
   baseRepoFullName?: string;
   /**
    * `pull_request.user.login` (e.g. `port-daddy[bot]`). Carried so the
-   * self-review guard can ask WHO wrote this PR without a second API call.
+   * self-review guard can identify the publication account without a second
+   * API call. App identity alone does not prove who generated the work.
    * Empty when GitHub omits it — which `classifyPrAuthorship` reads as
    * "not the fleet", the conservative direction for a review skip.
    */
@@ -1923,18 +1924,16 @@ const APP_LOGIN_TTL_SECONDS = 24 * 60 * 60;
  *
  * PURPOSE / DESIGN: the self-review skip (src/execute.ts, via
  * `classifyPrAuthorship` in src/fleet-identity.ts) needs to know which GitHub
- * account IS the fleet, so it can tell a fleet-authored branch apart from a
- * human's. Hard-coding `port-daddy[bot]` would silently mis-identify every
+ * account IS the fleet, so it can combine that identity with Fleet-owned branch
+ * provenance. Hard-coding `port-daddy[bot]` would silently mis-identify every
  * other tenant's installation, and reading it from the webhook payload would
  * let the thing being judged supply the judge's identity. Instead we ask
  * GitHub, under our OWN App JWT, what App these credentials belong to — a
  * value no PR can influence.
  *
  * FAIL DIRECTION: returns `null` rather than throwing or guessing. `null`
- * degrades the authorship classification to the weaker `bot-and-branch`
- * signal (see `classifyPrAuthorship`), which the review skip may still accept
- * — the cost of a false positive there is one unreviewed machine branch, not
- * an unmerged human PR.
+ * makes `classifyPrAuthorship` require review. Spending on one extra review is
+ * safer than silently suppressing review without authenticated provenance.
  *
  * @param appId The GitHub App id (numeric string).
  * @param privateKeyPem PEM private key used to mint the App JWT.

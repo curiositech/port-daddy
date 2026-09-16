@@ -5,7 +5,9 @@ const { repoRoot } = require('../test-utils');
 
 describe('concurrency and idempotency', () => {
   it('produces identical PDFs on repeated builds', () => {
-    const pdfPath = join(repoRoot, 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf');
+    // The Book: the one artifact build-whitepapers.sh still produces. This
+    // named spawn-to-person-whitepaper.pdf until the per-chapter PDFs retired.
+    const pdfPath = join(repoRoot, 'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf');
     const initialContent = readFileSync(pdfPath);
     
     execFileSync('bash', ['-c', 'cd scripts && ./build-whitepapers.sh'], { cwd: repoRoot });

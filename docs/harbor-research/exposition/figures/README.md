@@ -14,7 +14,8 @@ does not hold any TikZ source — the fragments themselves live in
 | `FIGURE-REGISTER.md` | 378 rows, one per idea across the eight chapters that could earn a figure — its structure, the reader question it would answer, the recommended form, whether a figure exists for it today, its Wave 11 disposition, and its priority. | Yes |
 | `FIGURE-TRIAGE.md` | Every figure that already exists, judged on its own page against a five-point legibility rubric, with a disposition (`keep`/`restyle`/`redraw`/`table`/`delete`/`add`). | Yes |
 | `figure-register.schema.md` | The column and enumeration contract both files above are held to — read this before editing either one. | Yes |
-| `figcheck/*.json` | One `figcheck.py` geometry report per rendered fragment (T1-T8: minimum text size, overlap, a line through text, off-page content, dead canvas, overwidth content, caption collision). | No — written by `figcheck.py` |
+| `figcheck/*.json` | One `figcheck.py` geometry report per rendered fragment (T1-T8: minimum text size, overlap, a line through text, off-page content, dead canvas, overwidth content, caption collision), plus that fragment's advisory ink metrics. One record per live fragment, no more and no less — `check_figcheck_corpus.py` enforces it. | No — written by `figcheck.py` |
+| `INK-AUDIT.md` | The Tufte ink reading of the same 56 fragments, ranked by ink fraction, with the heavy tail and the edge-density flags named and diagnosed. A report for a later redraw wave, not a gate. | Yes — re-derived from a full re-run |
 | `FIGURE-AUDIT-DIGEST.md` | One row per `figcheck/*.json` record: fragment, home chapter, pass/fail, failed/warned checks. | No — generated |
 | `FIGURE-AUDIT-FAILURES.md` | One section per failing fragment, with each failed check's finding count and first message. | No — generated |
 | `blockers.json` | Every fragment whose latest figcheck record has a mechanical (T1-T5) failure, with a waiver (`null`, or `{reason, expires}`) if one has been granted. | No — generated |
@@ -22,6 +23,16 @@ does not hold any TikZ source — the fragments themselves live in
 ## Checks and commands
 
 ```bash
+# The prior question: are these records even about figures that still ship?
+# Derives the live corpus mechanically -- every fragment a chapter source named
+# in whitepaper/textbook.json `\input`s from its own figures/ directory, that
+# opens a `\begin{tikzpicture}` -- and fails if the record set and that corpus
+# disagree in either direction. --list prints the corpus; --orphans prints the
+# fragments on disk no chapter inputs (dead weight, deliberately unchecked).
+python3 scripts/harbor-research/check_figcheck_corpus.py --verbose
+python3 scripts/harbor-research/check_figcheck_corpus.py --list
+python3 scripts/harbor-research/check_figcheck_corpus.py --orphans
+
 # Validate FIGURE-REGISTER.md and FIGURE-TRIAGE.md against
 # figure-register.schema.md: malformed rows, unknown enum values, duplicate
 # ids, a chapter number out of step with whitepaper/textbook.json, and a
@@ -38,9 +49,16 @@ python3 scripts/harbor-research/render_figure_audit.py --write
 python3 scripts/harbor-research/check_figure_blockers.py --verbose
 ```
 
-All three are stdlib-only Python 3.12 and run in `library-checks.yml`
+All four are stdlib-only Python 3.12 and run in `library-checks.yml`
 (TeX-free); see `docs/harbor-research/LIBRARY-SYSTEM.md` section 5 for their
 rows in the drift-detection table.
+
+The corpus check runs first on purpose. `render_figure_audit.py --check`
+proves the digest is a fresh render OF the records and
+`check_figure_register.py` proves the register's rows are well-formed;
+neither can see a record that is about nothing. In September 2026 that gap
+was 79 records over a corpus of 56, overlapping on 52 — every downstream
+file a faithful, fresh render of a corpus that had stopped existing.
 
 `.github/workflows/whitepaper-build.yml`'s `figure-gates` job is the
 compile-time half: on a pull request touching `whitepaper/figures/**`,

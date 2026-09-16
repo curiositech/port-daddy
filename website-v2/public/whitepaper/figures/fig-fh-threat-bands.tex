@@ -7,7 +7,7 @@
     {assurance advances only when a threat acquires an artifact or theorem};
   \foreach \y/\lab in {2.55/identity + replay,1.75/revocation,.95/equivocation,.15/settlement,-.65/cold-start admission,-1.45/cartel monitoring,-2.25/centralization}
     {\node[pd direct label,anchor=east] at (-4.35,\y) {\lab};
-     \draw[pd guide] (-4.05,\y)--(6.35,\y);}
+     \draw[pd lattice] (-4.05,\y)--(6.35,\y);}
 
   % Evidence positions and uncertainty intervals.
   \draw[pd focus rule,line width=1.2pt] (-4.05,2.55)--(5.15,2.55);
@@ -43,7 +43,13 @@
   \foreach \x/\lab in {-4.05/OPEN,.75/CONDITIONAL,5.55/MECHANIZED}
     {\draw[pd rule] (\x,-2.96)--(\x,-2.74);
      \node[pd axis label,anchor=north] at (\x,-3.02) {\lab};}
-  \node[pd axis label,anchor=south] at (.75,-2.74) {assurance position};
+  % anchor=south at y=-2.74 put this title ABOVE the axis line, inside the
+  % plot area, where it collided with the centralization row's own note
+  % "pushback is not a bound" (y=-2.25, the row directly above) -- built and
+  % measured overlapping, PDF p. 402. An axis title belongs below its tick
+  % labels, not floating inside the plot: anchor=north, y=-3.35, clear under
+  % OPEN/CONDITIONAL/MECHANIZED at y=-3.02.
+  \node[pd axis label,anchor=north] at (.75,-3.35) {assurance position};
 \end{tikzpicture}}
 \caption{\textbf{The assurance landscape is uneven and falsifiable.} Position
 encodes how far each threat has moved from an acknowledged gap toward a mechanized

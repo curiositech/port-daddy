@@ -18,7 +18,7 @@ import { describe, expect, test, beforeEach, afterAll } from '@jest/globals';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -144,5 +144,41 @@ describe('README freshness gate (scripts/check-readme-freshness.mjs)', () => {
     const report = JSON.parse(out);
     expect(report.fresh).toBe(false);
     expect(report.hits.some((h) => h.path === 'docs/openapi.yaml')).toBe(true);
+  });
+});
+
+// The gate above asks whether README.md was STAGED alongside a surface change.
+// It cannot ask whether the README was made CORRECT, and that is a real gap:
+// the API counts drifted to 135/168 against a contract carrying 136/169, and
+// the gate was satisfied the whole time because every one of those commits had
+// staged the README for some other reason. Nothing noticed until an unrelated
+// assertion went red. So the numbers themselves are checked here, against the
+// contract, rather than trusted to whoever last touched the sentence.
+describe('README API counts match docs/openapi.yaml', () => {
+  test('the stated path and operation counts are the contract\'s own', () => {
+    const spec = readFileSync(join(repo, 'docs', 'openapi.yaml'), 'utf8');
+
+    // Count without a YAML parser: paths are the keys indented two spaces under
+    // the top-level `paths:` block, operations the HTTP verbs beneath them.
+    const METHODS = /^\s{4}(get|put|post|delete|patch|head|options|trace):/;
+    const lines = spec.split('\n');
+    const start = lines.findIndex((line) => /^paths:\s*$/.test(line));
+    expect(start).toBeGreaterThanOrEqual(0);
+    let paths = 0;
+    let operations = 0;
+    for (let i = start + 1; i < lines.length; i += 1) {
+      const line = lines[i];
+      if (/^\S/.test(line)) break;                 // next top-level key ends the block
+      if (/^\s{2}\/\S*:\s*$/.test(line)) paths += 1;
+      else if (METHODS.test(line)) operations += 1;
+    }
+    expect(paths).toBeGreaterThan(0);
+    expect(operations).toBeGreaterThan(paths);
+
+    const readme = readFileSync(join(repo, 'README.md'), 'utf8');
+    const stated = readme.match(/\*\*(\d+) paths, (\d+) operations\*\*/);
+    expect(stated).not.toBeNull();
+    expect({ paths: Number(stated[1]), operations: Number(stated[2]) })
+      .toEqual({ paths, operations });
   });
 });

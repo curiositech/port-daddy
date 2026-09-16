@@ -25,7 +25,7 @@ import {
   type TranscriptSearchQuery,
 } from '../../lib/agent-harbor/transcript-search.js';
 import {
-  createLocalEmbedder,
+  createLocalTextEmbedder,
   defaultTransformersCacheDir,
   type LocalEmbedder,
 } from '../../lib/semantic-resolver.js';
@@ -445,7 +445,7 @@ export async function handleMemorySearch(args: string[], options: CLIOptions): P
       ui.error(new EmbedderUnavailableError(mode).message);
       process.exit(3);
     }
-    embedder = createLocalEmbedder({ cacheDir });
+    embedder = createLocalTextEmbedder('pd.agent-harbor.memory', { cacheDir });
   }
 
   const query: TranscriptSearchQuery = {

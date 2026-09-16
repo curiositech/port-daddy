@@ -275,14 +275,29 @@ useEffect(() => {
 **Fix:**
 ```tsx
 <iframe
-  title="Anchor Protocol Whitepaper PDF"
-  src="/whitepaper/anchor-protocol-whitepaper.pdf"
+  title="The Coordination Papers — the complete 551-page Book, opened at its bookmark outline"
+  src="/whitepaper/coordination-papers-mega-volume.pdf#toolbar=1&navpanes=1"
 >
-  <a href="/whitepaper/anchor-protocol-whitepaper.pdf" download>
-    Download whitepaper PDF
+  <a href="/whitepaper/coordination-papers-mega-volume.pdf" target="_blank" rel="noopener noreferrer">
+    Open the whole Book
   </a>
 </iframe>
 ```
+
+The title is in place. The fallback and keyboard items remain open.
+
+Two things in that snippet changed when the per-chapter PDFs were retired, and
+both are accessibility decisions rather than incidental:
+
+- **It names the Book, not a chapter.** There is one PDF. A chapter page embeds
+  the whole Book, so an accessible name promising "Anchor Protocol Whitepaper"
+  would describe a document that is not loaded — worse for a screen-reader user
+  than a name that is merely long.
+- **No `download` attribute.** It is a 9 MB, 551-page file. A bare `download`
+  on a link a reader expects to *open* writes the book to disk unasked, with no
+  warning and no way to preview; the browser's own viewer is the accessible
+  default and leaves the choice to the reader. Both links that open it are
+  `target="_blank"`, and the copy beside them says so.
 
 ---
 

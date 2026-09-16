@@ -694,7 +694,7 @@ export interface WebSessionRow {
   expires_at: number;
 }
 
-export async function createWebSession(
+export async function replaceWebSession(
   db: D1Database,
   row: {
     tokenHash: string;
@@ -705,14 +705,22 @@ export async function createWebSession(
     expiresAt: number;
     userAgent: string | null;
   },
+  priorTokenHash: string | null,
 ): Promise<void> {
-  await db
+  const insert = db
     .prepare(
       `INSERT INTO web_sessions (token_hash, user_id, gh_token_enc, gh_token_iv, created_at, expires_at, user_agent)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(row.tokenHash, row.userId, row.ghTokenEnc, row.ghTokenIv, row.createdAt, row.expiresAt, row.userAgent)
-    .run();
+    .bind(row.tokenHash, row.userId, row.ghTokenEnc, row.ghTokenIv, row.createdAt, row.expiresAt, row.userAgent);
+  if (!priorTokenHash) {
+    await insert.run();
+    return;
+  }
+  // D1 batch statements are committed transactionally. A reconnect must never
+  // mint a replacement while leaving the superseded browser session valid.
+  const revoke = db.prepare('DELETE FROM web_sessions WHERE token_hash = ?').bind(priorTokenHash);
+  await db.batch([insert, revoke]);
 }
 
 /** Resolve a session token hash to its (unexpired-agnostic) row + joined user. */
@@ -741,20 +749,111 @@ export interface UserTokenRow {
   last_used_at: number | null;
   expires_at: number | null;
   revoked_at: number | null;
+  gh_credential_enc: string | null;
+  gh_credential_iv: string | null;
+  gh_credential_key_version: number | null;
 }
 
 /** Store a minted pdu_ token (only its SHA-256). */
 export async function createUserToken(
   db: D1Database,
-  row: { tokenHash: string; userId: string; label: string; createdAt: number; expiresAt: number | null },
+  row: {
+    tokenHash: string;
+    userId: string;
+    label: string;
+    createdAt: number;
+    expiresAt: number | null;
+    ghCredentialEnc: string;
+    ghCredentialIv: string;
+    ghCredentialKeyVersion: number;
+  },
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO user_tokens (token_hash, user_id, label, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO user_tokens
+         (token_hash, user_id, label, created_at, expires_at,
+          gh_credential_enc, gh_credential_iv, gh_credential_key_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(row.tokenHash, row.userId, row.label, row.createdAt, row.expiresAt)
+    .bind(
+      row.tokenHash,
+      row.userId,
+      row.label,
+      row.createdAt,
+      row.expiresAt,
+      row.ghCredentialEnc,
+      row.ghCredentialIv,
+      row.ghCredentialKeyVersion,
+    )
     .run();
+}
+
+export interface UserTokenWithGitHubCredential {
+  user: UserRow;
+  ghCredentialEnc: string;
+  ghCredentialIv: string;
+  ghCredentialKeyVersion: number;
+}
+
+/** Resolve one live pdu_ token plus its Relay-encrypted GitHub grant proof. */
+export async function resolveUserTokenWithGitHubCredential(
+  db: D1Database,
+  tokenHash: string,
+  now: number,
+): Promise<UserTokenWithGitHubCredential | null> {
+  const token = await db.prepare(
+    `SELECT user_id, expires_at, revoked_at,
+            gh_credential_enc, gh_credential_iv, gh_credential_key_version
+       FROM user_tokens WHERE token_hash = ?`,
+  ).bind(tokenHash).first<{
+    user_id: string;
+    expires_at: number | null;
+    revoked_at: number | null;
+    gh_credential_enc: string | null;
+    gh_credential_iv: string | null;
+    gh_credential_key_version: number | null;
+  }>();
+  if (!token || token.revoked_at != null || (token.expires_at != null && token.expires_at <= now)) return null;
+  if (!token.gh_credential_enc || !token.gh_credential_iv
+      || !Number.isSafeInteger(token.gh_credential_key_version)
+      || (token.gh_credential_key_version as number) <= 0) return null;
+  const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL')
+    .bind(token.user_id).first<UserRow>();
+  if (!user) return null;
+  return {
+    user,
+    ghCredentialEnc: token.gh_credential_enc,
+    ghCredentialIv: token.gh_credential_iv,
+    ghCredentialKeyVersion: token.gh_credential_key_version as number,
+  };
+}
+
+/** CAS one refreshed/resealed device credential; a raced refresh fails closed. */
+export async function replaceUserTokenGitHubCredential(
+  db: D1Database,
+  row: {
+    tokenHash: string;
+    userId: string;
+    expectedEnc: string;
+    ghCredentialEnc: string;
+    ghCredentialIv: string;
+    ghCredentialKeyVersion: number;
+  },
+): Promise<boolean> {
+  const result = await db.prepare(
+    `UPDATE user_tokens
+        SET gh_credential_enc = ?, gh_credential_iv = ?, gh_credential_key_version = ?
+      WHERE token_hash = ? AND user_id = ? AND revoked_at IS NULL
+        AND gh_credential_enc = ?`,
+  ).bind(
+    row.ghCredentialEnc,
+    row.ghCredentialIv,
+    row.ghCredentialKeyVersion,
+    row.tokenHash,
+    row.userId,
+    row.expectedEnc,
+  ).run();
+  return Number(result.meta?.changes ?? 0) === 1;
 }
 
 /**
@@ -884,6 +983,10 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   await db.prepare('DELETE FROM user_roles WHERE user_id = ?').bind(userId).run();
   // Shipwright chat content is user-authored PII — it dies NOW, not in 30 days.
   await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
+  // Scoped Shipwright state also dies NOW. Deleting threads cascades through
+  // raw messages and proposal provenance; repo memory is keyed directly.
+  await db.prepare('DELETE FROM shipwright_repo_memory WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM shipwright_threads WHERE user_id = ?').bind(userId).run();
   // Seamanship: the frontmatter cache was read under THIS user's installation
   // grant, so it dies with the grant. It is only a cache — nothing is lost that
   // the repo does not still hold.
@@ -2207,4 +2310,334 @@ export async function listShipwrightMessages(
 export async function clearShipwrightChats(db: D1Database, userId: string): Promise<number> {
   const res = await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
   return res.meta?.changes ?? 0;
+}
+
+// ── Repository-scoped Shipwright context (2026-09-14) ───────────────────────
+
+export interface ShipwrightThreadRow {
+  id: string;
+  user_id: string;
+  installation_id: number;
+  repo_full_name: string;
+  created_at: number;
+  updated_at: number;
+}
+
+/** Create an opaque conversation bound to one account, installation and repo. */
+export async function createShipwrightThread(
+  db: D1Database,
+  row: ShipwrightThreadRow,
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO shipwright_threads
+      (id, user_id, installation_id, repo_full_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).bind(
+    row.id,
+    row.user_id,
+    row.installation_id,
+    row.repo_full_name,
+    row.created_at,
+    row.updated_at,
+  ).run();
+}
+
+/** Idempotently reuse the one durable thread for this exact repository. */
+export async function getOrCreateShipwrightThread(
+  db: D1Database,
+  row: ShipwrightThreadRow,
+): Promise<ShipwrightThreadRow> {
+  await db.prepare(
+    `INSERT INTO shipwright_threads
+      (id, user_id, installation_id, repo_full_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, installation_id, repo_full_name) DO NOTHING`,
+  ).bind(
+    row.id, row.user_id, row.installation_id, row.repo_full_name, row.created_at, row.updated_at,
+  ).run();
+  const found = await db.prepare(
+    `SELECT id, user_id, installation_id, repo_full_name, created_at, updated_at
+       FROM shipwright_threads
+      WHERE user_id = ? AND installation_id = ? AND repo_full_name = ?`,
+  ).bind(row.user_id, row.installation_id, row.repo_full_name).first<ShipwrightThreadRow>();
+  if (!found) throw new Error('SHIPWRIGHT_THREAD_CREATE_FAILED');
+  return found;
+}
+
+/** Resolve a thread only inside its session-user boundary. */
+export async function getShipwrightThread(
+  db: D1Database,
+  userId: string,
+  threadId: string,
+): Promise<ShipwrightThreadRow | null> {
+  return (await db.prepare(
+    `SELECT id, user_id, installation_id, repo_full_name, created_at, updated_at
+       FROM shipwright_threads WHERE id = ? AND user_id = ?`,
+  ).bind(threadId, userId).first<ShipwrightThreadRow>()) ?? null;
+}
+
+export async function listShipwrightThreads(
+  db: D1Database,
+  userId: string,
+  limit = 100,
+): Promise<ShipwrightThreadRow[]> {
+  const rows = await db.prepare(
+    `SELECT id, user_id, installation_id, repo_full_name, created_at, updated_at
+       FROM shipwright_threads WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?`,
+  ).bind(userId, limit).all<ShipwrightThreadRow>();
+  return rows.results ?? [];
+}
+
+/** Append only if the thread still belongs to the complete expected scope. */
+export async function insertScopedShipwrightMessage(
+  db: D1Database,
+  row: {
+    threadId: string;
+    userId: string;
+    installationId: number;
+    repoFullName: string;
+    role: 'user' | 'assistant';
+    content: string;
+    now: number;
+  },
+): Promise<void> {
+  const result = await db.prepare(
+    `INSERT INTO shipwright_thread_messages (thread_id, user_id, role, content, created_at)
+     SELECT id, user_id, ?, ?, ? FROM shipwright_threads
+      WHERE id = ? AND user_id = ? AND installation_id = ? AND repo_full_name = ?`,
+  ).bind(
+    row.role,
+    row.content,
+    row.now,
+    row.threadId,
+    row.userId,
+    row.installationId,
+    row.repoFullName,
+  ).run();
+  if ((result.meta?.changes ?? 0) !== 1) throw new Error('SHIPWRIGHT_SCOPE_MISMATCH');
+  await db.prepare(
+    `UPDATE shipwright_threads SET updated_at = ?
+      WHERE id = ? AND user_id = ? AND installation_id = ? AND repo_full_name = ?`,
+  ).bind(row.now, row.threadId, row.userId, row.installationId, row.repoFullName).run();
+}
+
+/** Read raw turns from one exact scoped thread, oldest to newest. */
+export async function listScopedShipwrightMessages(
+  db: D1Database,
+  scope: { threadId: string; userId: string; installationId: number; repoFullName: string },
+  limit = 60,
+): Promise<ShipwrightMessageRow[]> {
+  const rows = await db.prepare(
+    `SELECT m.id, m.role, m.content, m.created_at
+       FROM shipwright_thread_messages m
+       JOIN shipwright_threads t ON t.id = m.thread_id
+      WHERE m.thread_id = ? AND m.user_id = ?
+        AND t.user_id = ? AND t.installation_id = ? AND t.repo_full_name = ?
+      ORDER BY m.id DESC LIMIT ?`,
+  ).bind(
+    scope.threadId,
+    scope.userId,
+    scope.userId,
+    scope.installationId,
+    scope.repoFullName,
+    limit,
+  ).all<ShipwrightMessageRow>();
+  return (rows.results ?? []).reverse();
+}
+
+/** Delete only the raw transcript for one exact thread. */
+export async function clearScopedShipwrightMessages(
+  db: D1Database,
+  scope: { threadId: string; userId: string; installationId: number; repoFullName: string },
+): Promise<number> {
+  const result = await db.prepare(
+    `DELETE FROM shipwright_thread_messages
+      WHERE thread_id = ? AND user_id = ?
+        AND EXISTS (SELECT 1 FROM shipwright_threads t
+          WHERE t.id = thread_id AND t.user_id = ?
+            AND t.installation_id = ? AND t.repo_full_name = ?)`,
+  ).bind(
+    scope.threadId,
+    scope.userId,
+    scope.userId,
+    scope.installationId,
+    scope.repoFullName,
+  ).run();
+  return result.meta?.changes ?? 0;
+}
+
+/** Durable structured repo identity, retained independently of raw messages. */
+export async function upsertShipwrightRepoMemory(
+  db: D1Database,
+  row: {
+    id: string;
+    userId: string;
+    installationId: number;
+    repoFullName: string;
+    kind: string;
+    bodyJson: string;
+    now: number;
+  },
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO shipwright_repo_memory
+      (id, user_id, installation_id, repo_full_name, kind, body_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, installation_id, repo_full_name, kind) DO UPDATE SET
+       body_json = excluded.body_json, updated_at = excluded.updated_at`,
+  ).bind(
+    row.id,
+    row.userId,
+    row.installationId,
+    row.repoFullName,
+    row.kind,
+    row.bodyJson,
+    row.now,
+    row.now,
+  ).run();
+}
+
+export interface ShipwrightRepoMemoryRow {
+  id: string;
+  user_id: string;
+  installation_id: number;
+  repo_full_name: string;
+  kind: string;
+  body_json: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export async function listShipwrightRepoMemory(
+  db: D1Database,
+  scope: { userId: string; installationId: number; repoFullName: string },
+  limit = 20,
+): Promise<ShipwrightRepoMemoryRow[]> {
+  const rows = await db.prepare(
+    `SELECT id, user_id, installation_id, repo_full_name, kind, body_json, created_at, updated_at
+       FROM shipwright_repo_memory
+      WHERE user_id = ? AND installation_id = ? AND repo_full_name = ?
+      ORDER BY updated_at DESC LIMIT ?`,
+  ).bind(scope.userId, scope.installationId, scope.repoFullName, limit).all<ShipwrightRepoMemoryRow>();
+  return rows.results ?? [];
+}
+
+export interface ShipwrightProposalRow {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  installation_id: number;
+  repo_full_name: string;
+  yaml: string;
+  origin: ShipwrightProposalOrigin;
+  created_at: number;
+}
+
+export type ShipwrightProposalOrigin = 'assistant_conversation' | 'deterministic_onboarding';
+
+export async function latestShipwrightProposal(
+  db: D1Database,
+  scope: { threadId: string; userId: string; installationId: number; repoFullName: string },
+): Promise<ShipwrightProposalRow | null> {
+  return (await db.prepare(
+    `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, origin, created_at
+       FROM shipwright_proposals
+      WHERE thread_id = ? AND user_id = ? AND installation_id = ? AND repo_full_name = ?
+      ORDER BY created_at DESC LIMIT 1`,
+  ).bind(scope.threadId, scope.userId, scope.installationId, scope.repoFullName)
+    .first<ShipwrightProposalRow>()) ?? null;
+}
+
+export async function exportScopedShipwrightContext(db: D1Database, userId: string): Promise<{
+  threads: ShipwrightThreadRow[];
+  messages: Array<ShipwrightMessageRow & { thread_id: string }>;
+  memory: ShipwrightRepoMemoryRow[];
+  proposals: ShipwrightProposalRow[];
+}> {
+  const [threads, messages, memory, proposals] = await Promise.all([
+    listShipwrightThreads(db, userId, 100),
+    db.prepare(
+      `SELECT id, thread_id, role, content, created_at FROM shipwright_thread_messages
+        WHERE user_id = ? ORDER BY id ASC`,
+    ).bind(userId).all<ShipwrightMessageRow & { thread_id: string }>(),
+    db.prepare(
+      `SELECT id, user_id, installation_id, repo_full_name, kind, body_json, created_at, updated_at
+         FROM shipwright_repo_memory WHERE user_id = ? ORDER BY updated_at DESC`,
+    ).bind(userId).all<ShipwrightRepoMemoryRow>(),
+    db.prepare(
+      `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, origin, created_at
+         FROM shipwright_proposals WHERE user_id = ? ORDER BY created_at ASC`,
+    ).bind(userId).all<ShipwrightProposalRow>(),
+  ]);
+  return {
+    threads,
+    messages: messages.results ?? [],
+    memory: memory.results ?? [],
+    proposals: proposals.results ?? [],
+  };
+}
+
+/** Record exact YAML provenance under the thread and repository that emitted it. */
+export async function insertShipwrightProposal(
+  db: D1Database,
+  row: {
+    id: string;
+    threadId: string;
+    userId: string;
+    installationId: number;
+    repoFullName: string;
+    yaml: string;
+    origin: ShipwrightProposalOrigin;
+    now: number;
+  },
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO shipwright_proposals
+      (id, thread_id, user_id, installation_id, repo_full_name, yaml, origin, created_at)
+     SELECT ?, id, user_id, installation_id, repo_full_name, ?, ?, ?
+       FROM shipwright_threads
+      WHERE id = ? AND user_id = ? AND installation_id = ? AND repo_full_name = ?
+     ON CONFLICT(thread_id, yaml) DO NOTHING`,
+  ).bind(
+    row.id,
+    row.yaml,
+    row.origin,
+    row.now,
+    row.threadId,
+    row.userId,
+    row.installationId,
+    row.repoFullName,
+  ).run();
+}
+
+export async function getShipwrightProposalOrigin(
+  db: D1Database,
+  scope: { threadId: string; userId: string; installationId: number; repoFullName: string; yaml: string },
+): Promise<ShipwrightProposalOrigin | null> {
+  const row = await db.prepare(
+    `SELECT origin FROM shipwright_proposals
+      WHERE thread_id = ? AND user_id = ? AND installation_id = ?
+        AND repo_full_name = ? AND yaml = ? LIMIT 1`,
+  ).bind(
+    scope.threadId,
+    scope.userId,
+    scope.installationId,
+    scope.repoFullName,
+    scope.yaml,
+  ).first<{ origin: ShipwrightProposalOrigin }>();
+  return row?.origin ?? null;
+}
+
+/** Explicit repo clear: raw threads and durable repo records all disappear. */
+export async function clearShipwrightRepo(
+  db: D1Database,
+  scope: { userId: string; installationId: number; repoFullName: string },
+): Promise<number> {
+  await db.prepare(
+    'DELETE FROM shipwright_repo_memory WHERE user_id = ? AND installation_id = ? AND repo_full_name = ?',
+  ).bind(scope.userId, scope.installationId, scope.repoFullName).run();
+  const result = await db.prepare(
+    'DELETE FROM shipwright_threads WHERE user_id = ? AND installation_id = ? AND repo_full_name = ?',
+  ).bind(scope.userId, scope.installationId, scope.repoFullName).run();
+  return result.meta?.changes ?? 0;
 }

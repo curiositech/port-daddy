@@ -350,7 +350,7 @@ class BackendStore: ObservableObject {
     private func fetchBackends() async -> BackendCatalogResponse? {
         guard let baseURL, let url = URL(string: "\(baseURL)/fleet/models") else { return nil }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 lastError = "HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1) from /fleet/models"
                 return nil
@@ -365,7 +365,7 @@ class BackendStore: ObservableObject {
     private func fetchForecast() async -> SpawnForecastResponse? {
         guard let baseURL, let url = URL(string: "\(baseURL)/fleet/forecast") else { return nil }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
             return try JSONDecoder().decode(SpawnForecastResponse.self, from: data)
         } catch {
@@ -387,7 +387,7 @@ class BackendStore: ObservableObject {
             return .empty
         }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return .empty
             }
