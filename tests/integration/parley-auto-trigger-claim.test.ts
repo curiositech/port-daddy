@@ -353,7 +353,7 @@ describe('authenticated claim conflict automatic Parley', () => {
     await harness.app.close();
   });
 
-  test('fires once for a successful non-force region conflict and replays the same observation', async () => {
+  test('fires once for a blocked region conflict and replays the same observation', async () => {
     const harness = buildHarness();
     const owner = mintTestActor(harness.actorSouls, 'region-owner');
     const challenger = mintTestActor(harness.actorSouls, 'region-challenger');
@@ -379,10 +379,10 @@ describe('authenticated claim conflict automatic Parley', () => {
     };
     const first = await harness.app.inject(request);
     const replay = await harness.app.inject(request);
-    expect(first.statusCode).toBe(200);
-    expect(first.json()).toMatchObject({ success: true, claimed: ['lib/region.ts'] });
+    expect(first.statusCode).toBe(409);
+    expect(first.json()).toMatchObject({ success: false, code: 'FILE_CONFLICT' });
     expect(first.json().conflicts).toHaveLength(1);
-    expect(replay.statusCode).toBe(200);
+    expect(replay.statusCode).toBe(409);
     expect(replay.json().conflicts).toEqual(first.json().conflicts);
 
     const parleys = harness.parley.list({ harbor: 'local' });

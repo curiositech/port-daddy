@@ -2235,6 +2235,63 @@ export function createSessions(
   }
 
   /**
+   * Get active conflicts for region claims. Like getFileConflicts, this lookup
+   * may span every worktree in one logical repository, but it preserves the
+   * canonical region overlap semantics instead of treating every claim on the
+   * same file as a collision.
+   */
+  function getRegionConflicts(
+    regions: FileRegion[],
+    options: { project?: string | null; excludeSessionId?: string } = {},
+  ) {
+    if (!Array.isArray(regions) || regions.length === 0) {
+      return { success: true, conflicts: [] as FileConflict[] };
+    }
+
+    const conflicts: FileConflict[] = [];
+    const scope = options.project === undefined ? undefined : { repoId: options.project };
+
+    for (const region of regions) {
+      const resolved = resolveRegionClaim(region);
+      if (!resolved.success) {
+        return { success: false, error: resolved.error, code: 'VALIDATION_ERROR', conflicts: [] as FileConflict[] };
+      }
+
+      const requested = resolved.claim;
+      const activeClaims = claimForest.getActiveClaimsForFile(region.path, scope);
+      for (const claim of activeClaims) {
+        if (options.excludeSessionId && claim.sessionId === options.excludeSessionId) continue;
+        if (!claimsConflict(
+          {
+            startLine: claim.startLine,
+            endLine: claim.endLine,
+            symbolPath: claim.symbolPath,
+          },
+          {
+            startLine: requested.startLine,
+            endLine: requested.endLine,
+            symbolPath: requested.symbolPath,
+          },
+        )) {
+          continue;
+        }
+        conflicts.push({
+          filePath: region.path,
+          sessionId: claim.sessionId,
+          purpose: claim.purpose,
+          claimedAt: claim.claimedAt,
+          startLine: claim.startLine,
+          endLine: claim.endLine,
+          symbol: claim.symbol,
+          symbolPath: claim.symbolPath,
+        });
+      }
+    }
+
+    return { success: true, conflicts };
+  }
+
+  /**
    * List sessions
    */
   function list(options: ListOptions = {}) {
@@ -2614,6 +2671,7 @@ export function createSessions(
     claimFiles,
     releaseFiles,
     getFileConflicts,
+    getRegionConflicts,
     setPhase,
     listAllActiveClaims,
     getClaimOwner,

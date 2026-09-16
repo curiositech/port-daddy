@@ -97,6 +97,13 @@ interface SessionsRouteDeps {
       agentId?: string | null;
     }): Record<string, unknown>;
     getFileConflicts(files: string[], options?: { project?: string | null }): Record<string, unknown>;
+    getRegionConflicts(regions: Array<{
+      path: string;
+      startLine?: number;
+      endLine?: number;
+      symbol?: string;
+      symbolPath?: string;
+    }>, options?: { project?: string | null; excludeSessionId?: string }): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
     listAllActiveClaims(options?: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
     getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }): Record<string, unknown>;
@@ -1391,21 +1398,39 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       let repositoryConflicts: unknown[] = [];
       if (hasFiles) {
         const conflictCheck = sessions.getFileConflicts(files, { project: routeAuth.ownerProject });
-        repositoryConflicts = withoutSessionClaimConflicts(
+        repositoryConflicts = mergeClaimConflicts(repositoryConflicts, withoutSessionClaimConflicts(
           Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [],
           sessionId,
-        );
-        if (!force && repositoryConflicts.length > 0) {
-          evaluateClaimConflictBestEffort(requestAgent.verdict, repositoryConflicts);
-          reply.code(409);
+        ));
+      }
+      if (hasRegions) {
+        const conflictCheck = sessions.getRegionConflicts(regions, {
+          project: routeAuth.ownerProject,
+          excludeSessionId: sessionId,
+        });
+        if (conflictCheck.success === false) {
+          reply.code(400);
           return {
             success: false,
-            error: 'File conflicts detected',
-            code: 'FILE_CONFLICT',
-            conflicts: repositoryConflicts,
-            hint: 'Use force=true to claim files anyway'
+            error: conflictCheck.error || 'Invalid region claim',
+            code: conflictCheck.code || 'VALIDATION_ERROR',
           };
         }
+        repositoryConflicts = mergeClaimConflicts(
+          repositoryConflicts,
+          Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [],
+        );
+      }
+      if (!force && repositoryConflicts.length > 0) {
+        evaluateClaimConflictBestEffort(requestAgent.verdict, repositoryConflicts);
+        reply.code(409);
+        return {
+          success: false,
+          error: 'File conflicts detected',
+          code: 'FILE_CONFLICT',
+          conflicts: repositoryConflicts,
+          hint: 'Use force=true to claim files anyway'
+        };
       }
 
       const result = sessions.claimFiles(sessionId, files || [], {

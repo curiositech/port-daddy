@@ -1042,6 +1042,84 @@ describe('Route error codes: sessions', () => {
     expect(otherProject.json().conflicts).toEqual([]);
   });
 
+  test('region claims enforce repository overlap across linked worktrees', async () => {
+    const stamped = (alias) => ({ identity: { verified: true, actorId: creds[alias].actorId } });
+    const owner = sessionsMod.start('alpha region owner', {
+      agentId: 'agent-owner',
+      project: 'alpha',
+      worktreeId: 'alpha-main',
+      metadata: stamped('agent-owner'),
+    });
+    const linked = sessionsMod.start('alpha region claimant', {
+      agentId: 'agent-2',
+      project: 'alpha',
+      worktreeId: 'alpha-linked',
+      metadata: stamped('agent-2'),
+    });
+    const beta = sessionsMod.start('beta region claimant', {
+      agentId: 'agent-intruder',
+      project: 'beta',
+      worktreeId: 'beta-main',
+      metadata: stamped('agent-intruder'),
+    });
+    const heldRegion = {
+      path: 'src/regions.ts',
+      startLine: 10,
+      endLine: 20,
+      symbolPath: 'RegionOwner.render',
+    };
+    expect(sessionsMod.claimFiles(owner.id, [], {
+      agentId: 'agent-owner',
+      regions: [heldRegion],
+    }).success).toBe(true);
+
+    const blocked = await app.inject({
+      method: 'POST',
+      url: `/sessions/${linked.id}/files`,
+      headers: creds['agent-2'].headers,
+      payload: { regions: [heldRegion] },
+    });
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json()).toMatchObject({
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: owner.id, filePath: 'src/regions.ts' }],
+    });
+
+    const adjacent = await app.inject({
+      method: 'POST',
+      url: `/sessions/${linked.id}/files`,
+      headers: creds['agent-2'].headers,
+      payload: { regions: [{ path: 'src/regions.ts', startLine: 21, endLine: 30 }] },
+    });
+    expect(adjacent.statusCode).toBe(200);
+    expect(adjacent.json().conflicts).toEqual([]);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const forced = await app.inject({
+        method: 'POST',
+        url: `/sessions/${linked.id}/files`,
+        headers: creds['agent-2'].headers,
+        payload: { regions: [heldRegion], force: true },
+      });
+      expect(forced.statusCode).toBe(200);
+      expect(forced.json().conflicts).toEqual([
+        expect.objectContaining({ sessionId: owner.id, filePath: 'src/regions.ts' }),
+      ]);
+      expect(forced.json().conflicts).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ sessionId: linked.id }),
+      ]));
+    }
+
+    const otherProject = await app.inject({
+      method: 'POST',
+      url: `/sessions/${beta.id}/files`,
+      headers: creds['agent-intruder'].headers,
+      payload: { regions: [heldRegion] },
+    });
+    expect(otherProject.statusCode).toBe(200);
+    expect(otherProject.json().conflicts).toEqual([]);
+  });
+
   test('reclaiming a file held only by the target session is idempotent', async () => {
     const owned = sessionsMod.start('idempotent owner', {
       agentId: 'agent-owner',

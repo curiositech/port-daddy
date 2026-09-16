@@ -1146,6 +1146,49 @@ describe('Sessions Module', () => {
       expect(alphaLinked.success).toBe(true);
     });
 
+    it('should scope region preflight across worktrees without blocking adjacent ranges', () => {
+      const alphaMain = sessions.start('Alpha region owner', { project: 'alpha', worktreeId: 'alpha-main' });
+      const alphaLinked = sessions.start('Alpha region claimant', { project: 'alpha', worktreeId: 'alpha-linked' });
+      const betaMain = sessions.start('Beta region owner', { project: 'beta', worktreeId: 'beta-main' });
+      const heldRegion = {
+        path: 'src/regions.ts',
+        startLine: 10,
+        endLine: 20,
+        symbolPath: 'RegionOwner.render',
+      };
+      expect(sessions.claimFiles(alphaMain.id, [], { regions: [heldRegion] }).success).toBe(true);
+      expect(sessions.claimFiles(alphaLinked.id, [], { regions: [heldRegion] }).success).toBe(true);
+      expect(sessions.claimFiles(betaMain.id, [], { regions: [heldRegion] }).success).toBe(true);
+
+      const alpha = sessions.getRegionConflicts([heldRegion], {
+        project: 'alpha',
+        excludeSessionId: alphaLinked.id,
+      });
+      const beta = sessions.getRegionConflicts([heldRegion], { project: 'beta' });
+      const rangeOverlap = sessions.getRegionConflicts([{
+        path: 'src/regions.ts',
+        startLine: 15,
+        endLine: 25,
+      }], {
+        project: 'alpha',
+        excludeSessionId: alphaLinked.id,
+      });
+      const adjacent = sessions.getRegionConflicts([{
+        path: 'src/regions.ts',
+        startLine: 21,
+        endLine: 30,
+      }], {
+        project: 'alpha',
+        excludeSessionId: alphaLinked.id,
+      });
+
+      expect(alpha.success).toBe(true);
+      expect(alpha.conflicts.map((conflict) => conflict.sessionId)).toEqual([alphaMain.id]);
+      expect(beta.conflicts.map((conflict) => conflict.sessionId)).toEqual([betaMain.id]);
+      expect(rangeOverlap.conflicts.map((conflict) => conflict.sessionId)).toEqual([alphaMain.id]);
+      expect(adjacent.conflicts).toEqual([]);
+    });
+
     it('should not collapse the valid local project into the projectless scope', () => {
       const projectless = sessions.start('Projectless', { worktreeId: 'projectless-main' });
       const literalLocal = sessions.start('Literal local', { project: 'local', worktreeId: 'local-main' });
