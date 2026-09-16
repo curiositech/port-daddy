@@ -20,6 +20,7 @@ import {
   loadReleaseCandidateMatrix,
   prepareOwnedPrivateDirectory,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
@@ -152,6 +153,31 @@ describe('release-candidate E2E contract', () => {
     }
   });
 
+  test('the build environment uses private key storage without ambient credentials or canonical Keychain access', () => {
+    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
+    const env = releaseCandidateIsolatedEnv(root, {
+      PORT_DADDY_DISABLE_KEYCHAIN: '0',
+      PORT_DADDY_RESOURCE_DIR: join(root, 'resources'),
+    }, {
+      env: {
+        CI: '1',
+        PATH: '/usr/bin:/bin',
+        CARGO_HOME: '/fixture/cargo',
+        RUSTUP_HOME: '/fixture/rustup',
+        GITHUB_TOKEN: 'must-not-survive',
+      },
+      home: '/fixture/home',
+    });
+
+    expect(env.PD_HOME).toBe(join(root, 'control'));
+    expect(env.HOME).toBe(join(root, 'build-home'));
+    expect(env.PORT_DADDY_DISABLE_KEYCHAIN).toBe('1');
+    expect(env.PORT_DADDY_RESOURCE_DIR).toBe(join(root, 'resources'));
+    expect(env.GITHUB_TOKEN).toBeUndefined();
+    expect(env.CARGO_HOME).toBe('/fixture/cargo');
+    expect(env.RUSTUP_HOME).toBe('/fixture/rustup');
+  });
+
   test('private runtime fixture preparation rejects a symlink without changing its target', () => {
     const base = join(homedir(), 'coding', 'tmp');
     mkdirSync(base, { recursive: true });
@@ -241,6 +267,7 @@ describe('release-candidate E2E contract', () => {
     const matrix = loadReleaseCandidateMatrix(matrixPath);
     const builder = readFileSync(singleBinaryBuilderPath, 'utf8');
     const runner = readFileSync(runnerPath, 'utf8');
+    const compiledCli = readFileSync(join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh'), 'utf8');
     expect(builder).toContain('const SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS = 120_000;');
     expect(builder).toContain('AbortSignal.timeout');
     expect(builder).toContain("'process-exited-before-readiness'");
@@ -254,8 +281,8 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('matrixEnvRequired: false');
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
-    expect(runner).toContain("mkdirSync(path, { recursive: true, mode: 0o700 });");
-    expect(runner).toContain('chmodSync(path, 0o700);');
+    expect(runner).toContain('prepareOwnedPrivateDirectory(path);');
+    expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra)');
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
     expect(runner).toContain("['sitrep', '--template']");
     expect(runner).toContain("if (child.exitCode !== null || child.signalCode !== null) {\n      done(child.exitCode, child.signalCode);");
@@ -275,6 +302,9 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('!isExpectedCollisionSocketError(error)');
     expect(runner).toContain("collision fixture listener did not close within 3 seconds");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
+    expect(compiledCli).toContain('CLI_HOME="$SCRATCH/home"');
+    expect(compiledCli).toMatch(/HOME="\$CLI_HOME" \\\nPORT_DADDY_NO_FLEET=1/);
+    expect(compiledCli).toMatch(/PORT_DADDY_DB="\$TEST_DB" \\\n\s+PORT_DADDY_TEST_DB="\$TEST_DB" \\\n\s+PORT_DADDY_DISABLE_KEYCHAIN=1 \\\n\s+HOME="\$CLI_HOME"/);
     for (const id of [
       'runtime.transport-parity',
       'runtime.coordination-restart-repository-family',

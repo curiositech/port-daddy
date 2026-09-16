@@ -41,12 +41,13 @@ mkdir -p "$SCRATCH_BASE"
 SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-cli-surface.XXXXXX")"
 WORK="$SCRATCH/work"          # cwd for every CLI call — contains cwd-writers
 SNAP_ROOT="$SCRATCH/snapshots" # redirect snapshot store away from ~/.port-daddy
+CLI_HOME="$SCRATCH/home"       # keep runtime-control and credential scans synthetic
 LOG="$SCRATCH/daemon.log"
 SOCK="$SCRATCH/pd.sock"
 TEST_DB="$SCRATCH/registry.db"
 DAEMON_PID=""
-mkdir -p "$WORK" "$SNAP_ROOT"
-chmod 700 "$SCRATCH" "$WORK" "$SNAP_ROOT"
+mkdir -p "$WORK" "$SNAP_ROOT" "$CLI_HOME"
+chmod 700 "$SCRATCH" "$WORK" "$SNAP_ROOT" "$CLI_HOME"
 
 cleanup() {
   if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
@@ -71,6 +72,7 @@ PORT_DADDY_TEST_DB="$TEST_DB" \
 PORT_DADDY_PREFIX="$SCRATCH" \
 PORT_DADDY_SOCK="$SOCK" \
 PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
+HOME="$CLI_HOME" \
 PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 PORT_DADDY_DISABLE_KEYCHAIN=1 \
 "$BIN" __daemon > "$LOG" 2>&1 &
 DAEMON_PID=$!
@@ -109,6 +111,7 @@ cli() {
       PORT_DADDY_DB="$TEST_DB" \
       PORT_DADDY_TEST_DB="$TEST_DB" \
       PORT_DADDY_DISABLE_KEYCHAIN=1 \
+      HOME="$CLI_HOME" \
       "$BIN" "$@" )
 }
 
