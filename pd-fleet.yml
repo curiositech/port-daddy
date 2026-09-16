@@ -1353,6 +1353,26 @@ fleet:
       telos: "No stale, superseded, or silently rotting PR ever reaches main."
 
     steward:
+      enabled: false
+      # PAUSED by explicit operator request (2026-09-16). Re-enable by
+      # deleting this line (or setting it to `true`).
+      #
+      # Unlike the ideation ships paused above, this is NOT a no-op for
+      # merge authority: Steward was the one agent with standing to
+      # conduct the adversarial-review verdict, answer bot comments, and
+      # land genuinely-green non-production PRs end to end (ADR-0109,
+      # amending the ADR-0056 tombstone). Paused, those PRs get no
+      # autonomous LAND/NEEDS-WORK/SURFACE verdict, no bot-comment
+      # replies, no auto-landing, and no "Steward log" dashboard-issue
+      # updates from this ship. Untouched by this flag: harbor-pilot
+      # (arm/demote by rule), officer-of-the-watch (log escalation),
+      # code-reviewer/red-team (per-PR review comments), required CI
+      # checks, and branch protection — all keep running.
+      #
+      # This also does NOT touch the separate apps/steward Cloudflare
+      # Worker/Durable Object (the merge-authority ledgers/dashboard
+      # backend) — see docs/adr/0132-merge-authority-reconciliation.md.
+      #
       # The single approver (ADR-0056). One agent responsible for every
       # open PR from open to merged, and for what gets built next when
       # the queue is dry. The JUDGMENT layer above the mechanical
