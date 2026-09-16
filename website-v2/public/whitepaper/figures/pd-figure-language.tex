@@ -1,8 +1,93 @@
-% Shared visual language for the seven analytical papers.
-% This file defines marks, not layouts: every figure must still choose a grammar
-% from its reader question.  The duplicate under whitepaper/figures is kept in
-% lockstep for standalone Chapter I/II builds.
-\usetikzlibrary{matrix,patterns.meta,shapes.geometric}
+% Shared visual language for the Book's figures -- version 2.
+% Twin: whitepaper/figures/pd-figure-language.tex (byte-identical; edit both).
+% The standard behind it, the migration from v1 and the QA loop live in
+% skills/tikz-diagram-craft/ (SKILL.md, references/figure-standard.md).
+%
+% This file defines voices, hues, weights and marks -- not layouts.  Every
+% figure still chooses a grammar from its reader question.
+%
+% ===========================================================================
+% 1.  THE TYPE LADDER.  Three voices, one size, each tied to a role.
+%       pd title   bold      panel titles, row and actor heads, column heads
+%       pd label   upright   node text, state names, axis titles, tick words,
+%                            relation words on an edge, badge numerals
+%       pd note    italic    the one annotation a figure is allowed
+%     `pd tag` is the label voice knocked out of the page, for a word that
+%     must sit near a rule.  `pd kind` (small caps) is a one- or two-word kind
+%     tag, never a title.  Every piece of figure text is mixed case; \texttt
+%     only for identifiers that are literally code; math mode for symbols.
+%
+% 2.  THE COLOUR SYSTEM.  Hue is meaning, and the meanings cross chapters.
+%     The figure's own subject is drawn in the CHAPTER hue (`pd focus ...`),
+%     resolved from \pdcurrentchaptercolor, which the Book sets per chapter;
+%     a fragment declares its standalone fallback with \pdfigurehue{...}.
+%     Anything else the figure names takes its concept hue:
+%       pd truth       pdcobalt   kernel, truth, the thing being specified
+%       pd legible     pdteal     legibility, digest, inspection
+%       pd ready       pdhealth   ready, coordinated, admitted, passing
+%       pd protocol    pdindigo   protocol, federation, the wire
+%       pd identity    pdviolet   identity, continuity, a card, an ID
+%       pd reputation  pdrust     reputation, trust earned over time
+%       pd value       pdgold     economy, value, settlement, payment
+%       pd breach      pderror    breach, refusal, revocation, correction
+%       pd warn        pdamber    warning; rules and stripes only, never text
+%     Each concept X yields X, X rule, X arrow, X state, X fill, X datum and
+%     X label.  Two to four hues a figure; colour is always doubled by shape,
+%     dash, weight or a word (breach and warn are dashed as well as coloured).
+%
+% 3.  THE WEIGHT LADDER.  Exactly three weights, .5 / .9 / 1.6 pt
+%     (1 : 1.8 : 3.2).  .5: hairline, guide, tick, artifact edge, fill edge,
+%     mark outline, badge.  .9: rule, arrow, state edge, concept arrow.
+%     1.6: spine, focus rule, focus and concept state edges, concept rule.
+%     A reader sees which line is the subject.  Tips scale with the stroke.
+%
+% 4.  THE SURFACE LADDER.  pd state (page ground, ink edge) < pd artifact
+%     (page ground, grey edge, subordinate) < pd focus state and the concept
+%     states (24 % tint, edged in the same hue).  Text is always ink.  A
+%     terminal state has a double boundary; an automaton's states are circles
+%     (`pd automaton state/focus/terminal`); a ledger's pools are buckets
+%     joined by pipes (`pd bucket`, `pd pipe`); a trust boundary is a dashed
+%     rectangle (`pd trust boundary`).
+%
+% 5.  THE GROUND.  Body pages print on white, so every knockout and every
+%     neutral surface is `pdpage` (white), never cream: a cream backing on a
+%     white page reads as a sticker, which is what v1's figures were covered
+%     in.  Neutral regions (Gantt bands, wells) are a warm grey tint.
+%
+% 6.  EDITIONS.  The Book sets \pdedition (maritime | swiss | technical) and
+%     figures/pd-figure-language-<edition>.tex restyles the same names, so one
+%     drawing renders in each edition's character.  A fragment that names a
+%     raw colour (hhteal, pdcobalt!40, blue) bypasses this; name a role.
+% ===========================================================================
+% Libraries every v2 mark needs (diamonds, braces, markings), and
+% pgfplots for computed plots. This file is \input in every preamble (the
+% Book's and each standalone chapter's), so a plot works in all of them.
+\usetikzlibrary{arrows.meta,matrix,patterns.meta,positioning,calc,fit,
+  backgrounds,shapes.geometric,shapes.multipart,shapes.misc,decorations.pathreplacing,
+  decorations.markings,quotes,intersections}
+\RequirePackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{fillbetween,groupplots}
+
+\colorlet{pdpage}{white}
+
+% --- the chapter hue, resolved late --------------------------------------
+% \pdfigurehue{pdindigo} on the line before a tikzpicture names the hue the
+% figure is drawn in when it is compiled outside the Book (a standalone
+% chapter, or the skill's renderer).  Inside the Book the preamble has already
+% defined \pdcurrentchaptercolor and the chapter opener sets it, so there the
+% opener wins and \providecommand does nothing.  Local to the figure's group.
+\newcommand{\pdfigfraghue}{pdcobalt}
+\newcommand{\pdfigurehue}[1]{%
+  \renewcommand{\pdfigfraghue}{#1}%
+  \providecommand{\pdcurrentchaptercolor}{#1}}
+\newcommand{\pdsetfocushue}{%
+  \ifdefined\pdcurrentchaptercolor
+    \colorlet{pdfocus}{\pdcurrentchaptercolor}%
+  \else
+    \colorlet{pdfocus}{\pdfigfraghue}%
+  \fi}
+\colorlet{pdfocus}{pdcobalt}
 
 % ===========================================================================
 % THE TYPOGRAPHIC LAW
@@ -242,137 +327,322 @@
 \providecommand{\pdguideoff}{2.0pt}
 
 \tikzset{
-  pd figure/.style={font=\pdfiglabelfamily\pdfigbasesize,text=hhink},
-  pd hairline/.style={draw=hhgray!78,line width=.5pt},
-  pd rule/.style={draw=hhink,line width=.62pt},
-  pd focus rule/.style={draw=hhteal,line width=1.05pt},
-  pd caution rule/.style={draw=hhamber,line width=1.05pt},
-  % Darker per dot than the hairline, lighter in mean ink than it: a guide is a
-  % construction line the reader traces from a mark to an axis, so each dot has
-  % to be a definite mark, while the line as a whole has to recede behind the
-  % data. The hairline is the opposite -- continuous and faint. Those are the
-  % two axes that now separate them, instead of 4.6% of the grey scale.
-  pd guide/.style={draw=hhink!70,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
-  % A LATTICE is the rule work a figure stands on: column separators, row
-  % baselines, a time grid. It is NOT dotted, and that is the point. Dotted
-  % versus solid is a semantic channel -- it distinguishes a construction line
-  % from a drawn edge -- and thirteen fragments were spending it on background
-  % grid where it distinguishes nothing. A dash that carries no meaning is the
-  % first ink a rasteriser is entitled to lose, and it did. A lattice is
-  % continuous and quiet; a guide is discontinuous and definite. Use `pd guide`
-  % only where the reader must see that the line is not a drawn edge.
-  pd lattice/.style={draw=hhgray!52,line width=.4pt},
-  pd arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhink,line width=.68pt},
-  pd focus arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhteal,line width=.88pt},
-  pd caution arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhamber,line width=.88pt,dashed},
-  % Four named mark families share one construction (rule/arrow/fill/datum at
-  % the same line weights and the same same-hue edge): hairline (no colour of
-  % its own), focus (hhteal, "the thing to notice"), caution (hhamber, "the
-  % thing to watch"), and danger (pderror, "the thing that broke"). Danger is
-  % the only family wired to a figures/pd-palette.tex colour rather than an
-  % hh* one -- every file that \input{figures/pd-figure-language} loads
-  % figures/pd-palette first, so pderror is always already defined. Reserve it
-  % for genuine breach/refusal/attack content; a plain data series with no
-  % danger meaning should use ink, navy, or a neutral grey, not this family.
-  pd danger rule/.style={draw=pderror,line width=1.05pt},
-  pd danger arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=pderror,line width=.88pt,dashed},
-  pd row label/.style={font=\pdfiglabelbold,text=hhink,anchor=east},
-  pd panel title/.style={font=\pdfiglabelbold,text=hhink,align=left},
-  pd axis label/.style={font=\pdfiglabel,text=hhink!80!hhgray},
-  % inner ysep is deliberately larger than inner xsep: at 1.5pt the descenders
-  % of a last line (q, y, p, g) reach the bottom of the cream backing under
-  % Computer Modern, where they clear it under Palatino. A label should not
-  % need its own patch to hold its own tails, and the sensitivity is the
-  % face's, not the fragment's.
-  pd direct label/.style={font=\pdfiglabel,text=hhink,align=left,
-    inner xsep=1.5pt,inner ysep=2.5pt,fill=hhpaper},
-  pd note/.style={font=\pdfiglabelitalic,text=hhink!80!hhgray,align=left},
-  pd tick/.style={draw=hhgray,line width=.45pt},
-  pd datum/.style={circle,fill=hhink,draw=none,inner sep=2.1pt},
-  pd focus datum/.style={circle,fill=hhteal,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
-  pd caution datum/.style={diamond,fill=hhamber,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
-  pd danger datum/.style={diamond,fill=pderror,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
-  pd state/.style={draw=hhink,line width=.62pt,fill=hhsand!30,rounded corners=1.5pt,
-    font=\pdfiglabel,inner xsep=8pt,inner ysep=6pt,align=center,minimum height=9mm},
-  pd terminal/.style={pd state,double,double distance=1.2pt},
-  pd actor/.style={draw=hhink,line width=.62pt,fill=hhpaper,rounded corners=1.5pt,
-    font=\pdfiglabel,inner xsep=8pt,inner ysep=5pt,align=center},
-  pd artifact/.style={draw=hhgray!80,line width=.55pt,fill=hhsand!30,
-    font=\pdfiglabel,inner xsep=8pt,inner ysep=5pt,align=center},
-  pd boundary/.style={draw=hhgray!70,line width=.55pt,dashed,rounded corners=2pt},
-  % These three are pale washes: they are frequently layered on top of `pd
-  % state` (directly, or via a compound style like `cell`), whose swiss-edition
-  % override (figures/pd-figure-language-swiss.tex) appends text=hhpaper for the
-  % common case of a solid, saturated fill. A pale wash is the opposite case --
-  % text must stay dark ink regardless of what came before it in the style
-  % list, so each one restates text=hhink explicitly rather than relying on
-  % whatever was inherited.
-  pd focus fill/.style={fill=hhteal!24,draw=hhteal!65,line width=.4pt,text=hhink},
-  pd caution fill/.style={fill=hhamber!26,draw=hhamber!70,line width=.4pt,text=hhink},
-  pd danger fill/.style={fill=pderror!26,draw=pderror!70,line width=.4pt,text=hhink},
-  pd neutral fill/.style={fill=hhsand!40,draw=hhgray!65,line width=.4pt,text=hhink},
-  pd ink fill/.style={fill=hhink,draw=hhink,line width=.4pt,text=hhpaper},
-  pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhgray!55},
-  % --- roles the corpus was inventing locally, now named -------------------
-  % Each is built ON TOP of the role it varies, so an edition's .append style
-  % on the parent reaches it without the edition file having to list it.
+  % --- picture level: one size, one default tip, the chapter hue -----------
+  % A figure label is a name, not prose: it never hyphenates.
+  pd figure/.style={font=\pdfiglabelfamily\pdfigbasesize,text=pdink,line cap=round,line join=round,
+    >={Stealth[length=2.6pt 3.2,width=2.0pt 2.4]},/utils/exec=\pdsetfocushue,
+    every node/.append style={execute at begin node={%
+      \hyphenpenalty=10000\exhyphenpenalty=10000\relax}}},
+%
+  % --- 1. the voices ---------------------------------------------------------
+  pd title/.style={font=\pdfiglabelbold,text=pdink,align=center},
+  pd label/.style={font=\pdfiglabel,text=pdink,align=center},
+  pd note/.style={font=\pdfiglabelitalic,text=pdinkmuted,align=left},
+  pd kind/.style={font=\pdfiglabel\scshape,text=pdinkmuted,align=center},
+  pd tag/.style={pd label,fill=pdpage,inner sep=1.7pt},
+%
+  % --- 4. surfaces -----------------------------------------------------------
+  pd state/.style={pd label,draw=pdink,line width=.9pt,fill=pdpage,
+    rounded corners=1pt,inner xsep=6pt,inner ysep=4.5pt,minimum height=7.4mm},
+  % a terminal state carries a double boundary, as every automaton text draws it
+  pd terminal/.style={pd state,double=pdpage,double distance=1.1pt,line width=.5pt},
+  pd artifact/.style={pd label,draw=pdinkmuted!60,line width=.5pt,fill=pdpage,
+    rounded corners=1pt,inner xsep=5pt,inner ysep=3.5pt,minimum height=6.2mm},
+  pd panel/.style={draw=pdinkmuted!55,line width=.5pt,
+    dash pattern=on 2.4pt off 2pt,rounded corners=2.5pt,inner sep=7pt,align=center},
+  pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.3pt]},
+    pattern color=pdinkmuted!70},
+  pd neutral fill/.style={fill=pdinkmuted!12,draw=pdinkmuted!55,line width=.5pt},
+%
+  % --- 3. strokes ------------------------------------------------------------
+  pd hairline/.style={draw=pdinkmuted!45,line width=.5pt},
+  % Absolute dash, from the typographic law's three macros above: a guide is a
+  % definite dotted construction line, darker per dot than the hairline and
+  % lighter in mean ink. A lattice is the quiet continuous grid a figure stands on.
+  pd guide/.style={draw=pdink!70,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
+  pd lattice/.style={draw=pdinkmuted!40,line width=.4pt},
+  pd tick/.style={draw=pdinkmuted!75,line width=.5pt},
+  pd rule/.style={draw=pdink,line width=.9pt},
+  pd spine/.style={draw=pdink,line width=1.6pt},
+  pd thin arrow/.style={draw=pdinkmuted!75,line width=.5pt,->},
+  pd arrow/.style={pd rule,->},
+  pd spine arrow/.style={pd spine,->},
+%
+  % --- the chapter hue, as the figure's focus --------------------------------
+  pd focus rule/.style={draw=pdfocus,line width=1.6pt},
+  pd focus arrow/.style={pd focus rule,->},
+  pd focus state/.style={pd state,draw=pdfocus,line width=1.6pt,fill=pdfocus!24},
+  % a member of the subject's set when the set, not one node, is the subject:
+  % edged in the chapter hue, never filled, so the one solid node stays unique
+  pd focus outline/.style={pd state,draw=pdfocus,line width=1.2pt,fill=pdpage},
+  pd focus fill/.style={fill=pdfocus!24,draw=pdfocus,line width=.5pt},
+  pd focus datum/.style={circle,fill=pdfocus,draw=pdpage,line width=.5pt,inner sep=2.6pt},
+  pd focus label/.style={pd label,text=pdfocus!85!pdink},
+%
+  % --- marks -----------------------------------------------------------------
+  pd datum/.style={circle,fill=pdink,draw=pdpage,line width=.5pt,inner sep=2.3pt},
+  pd badge/.style={pd label,circle,draw=pdink,line width=.5pt,fill=pdpage,
+    inner sep=.5pt,minimum size=5.0mm},
+  pd focus badge/.style={pd badge,draw=pdfocus,line width=.9pt,fill=pdfocus!24},
+  % --- conventions shared by every chapter (Critical Analysis, 2026-09-08) ---
+  % Automata: states are circles, terminal (accepting) states double circles;
+  % edge words are short action names; guards go in an aligned legend table.
+  pd automaton state/.style={pd label,circle,draw=pdink,line width=.9pt,fill=pdpage,
+    minimum size=11mm,inner sep=1pt},
+  pd automaton focus/.style={pd automaton state,draw=pdfocus,line width=1.6pt,fill=pdfocus!24},
+  pd automaton terminal/.style={pd automaton state,double=pdpage,double distance=1.1pt,
+    line width=.5pt},
+  pd initial/.style={draw=pdink,line width=.9pt,->},
+  % Ledgers: asset pools are rectangular buckets (open at the top) joined by
+  % directed pipes; the conserved sum is set as an equation under the rails.
+  pd bucket/.style={pd label,draw=none,minimum width=2.2cm,minimum height=1.3cm,
+    append after command={\pgfextra{\draw[draw=pdink,line width=.9pt]
+      (\tikzlastnode.north west) -- (\tikzlastnode.south west)
+      -- (\tikzlastnode.south east) -- (\tikzlastnode.north east);}}},
+  pd pipe/.style={draw=pdink,line width=.9pt,double=pdpage,double distance=2.2pt,
+    -{Stealth[length=3.4pt 2,width=5.2pt]}},
+  pd focus pipe/.style={pd pipe,draw=pdfocus},
+  % Trust boundaries: a dashed rectangle is the Dolev-Yao interface; a vector
+  % that escapes it is drawn in pd breach and named.
+  pd trust boundary/.style={draw=pdink,line width=.9pt,dash pattern=on 4pt off 2.4pt,
+    rounded corners=0pt,inner sep=8pt},
+  % a stroke that ends at a badge is shortened, so no rule touches the numeral
+  pd to badge/.style={shorten >=2pt},
+  pd from badge/.style={shorten <=2pt},
+}
+
+% ===========================================================================
+% 7.  PLOTS.  A plot is computed by a committed script, never sketched.  `pd
+%     axis` is the one axis grammar: two spines (left, bottom), ticks out, no
+%     box, no grid unless asked (`pd grid`), tick words in the label voice,
+%     numbers with a thin-space thousands separator, room outside the plot for
+%     direct labels (clip=false).  Series are named at their ends, not in a
+%     legend: `pd series` (ink), `pd focus series` (chapter hue), and
+%     `pd X series` for a concept; breach and warn series are dashed.  A
+%     region between curves is `pd focus fill`/`X fill` with fillbetween.
+%     Width: `width=` is the plot box (scale only axis); leave about 1.6 cm
+%     of the 11.4 cm column for the y tick words and title.
+% ===========================================================================
+\pgfplotsset{
+  pd axis/.style={
+    scale only axis,width=8.8cm,height=4.6cm,
+    axis lines*=left,axis line style={draw=pdink,line width=.5pt,-},
+    tick align=outside,major tick length=3pt,minor tick length=0pt,
+    tick style={draw=pdink,line width=.5pt},
+    tick label style={pd label,text=pdinkmuted},
+    label style={pd label},title style={pd title},
+    every axis title/.append style={yshift=-2pt},
+    enlargelimits=false,clip=false,
+    grid=none,
+    legend style={draw=none,fill=none,font=\pdfiglabel},
+    /pgf/number format/1000 sep={\,},
+    every axis plot/.append style={line width=.9pt,line join=round,mark size=1.7pt},
+  },
+  pd grid/.style={ymajorgrids,major grid style={draw=pdinkmuted!30,line width=.4pt}},
+  pd series/.style={draw=pdink,mark=*,mark options={fill=pdink,draw=pdpage,line width=.5pt,solid}},
+  pd focus series/.style={draw=pdfocus,line width=1.6pt,mark=*,
+    mark options={fill=pdfocus,draw=pdpage,line width=.5pt,solid}},
+  pd muted series/.style={draw=pdinkmuted!70,line width=.9pt,mark=none},
+}
+\newcommand{\pdplotconcept}[2]{%
+  \pgfplotsset{#1 series/.style={draw=#2,mark=*,
+    mark options={fill=#2,draw=pdpage,line width=.5pt,solid}}}}
+\pdplotconcept{pd truth}{pdcobalt}
+\pdplotconcept{pd legible}{pdteal}
+\pdplotconcept{pd ready}{pdhealth}
+\pdplotconcept{pd protocol}{pdindigo}
+\pdplotconcept{pd identity}{pdviolet}
+\pdplotconcept{pd reputation}{pdrust}
+\pdplotconcept{pd value}{pdgold}
+\pgfplotsset{
+  pd breach series/.style={draw=pderror,dash pattern=on 3.2pt off 2.2pt,mark=diamond*,
+    mark options={fill=pderror,draw=pdpage,line width=.5pt,solid}},
+  pd warn series/.style={draw=pdamber,dash pattern=on 3.2pt off 2.2pt,mark=none},
+}
+
+% ===========================================================================
+% 8.  UML.  The Book's engineering diagrams use UML 2.5 notation, so a reader
+%     who knows UML reads them without a key.  Four kinds:
+%     STATE MACHINE  `pd uml state` (rounded), `pd uml focus state`, a
+%       composite drawn with `pd uml composite` around its substates plus a
+%       compartment of internal transitions; `pd uml initial` (filled dot),
+%       `pd uml final` (bullseye), `pd uml choice` (diamond); transitions are
+%       `pd uml transition` (open arrowhead) labelled  event [guard] / effect.
+%     SEQUENCE  `pd uml head` (lifeline head), `pd uml lifeline` (dashed),
+%       `pd uml activation` (thin bar), messages `pd uml sync` (filled head),
+%       `pd uml async` (open head), `pd uml reply` (dashed, open head),
+%       `pd uml fragment` + `pd uml fragment tag` for alt / opt / loop.
+%     COMPONENT  `pd uml component` with \pdumlicon{node} (the component
+%       glyph) and a <<component>> keyword; `pd uml port`; provided interface
+%       \pdumlprovided{from}{to}{name} (lollipop), required \pdumlrequired (socket).
+%     ERD (crow's foot)  `pd er entity` (rectangle split: name, then rows;
+%       mark keys PK / FK in the row text), relationship lines `pd er rel`
+%       with tips `er one`, `er many`, `er zero or one`, `er one or many`,
+%       `er zero or many` at either end.
+% ===========================================================================
+\pgfdeclarearrow{
+  name = pd crow,
+  parameters = {\the\pgfarrowlength,\the\pgfarrowwidth},
+  setup code = {%
+    \pgfarrowssettipend{0pt}%
+    \pgfarrowssetlineend{0pt}%
+    \pgfarrowssetbackend{-\pgfarrowlength}%
+    \pgfarrowsupperhullpoint{0pt}{.5\pgfarrowwidth}%
+    \pgfarrowsupperhullpoint{-\pgfarrowlength}{0pt}%
+    \pgfarrowssavethe\pgfarrowlength
+    \pgfarrowssavethe\pgfarrowwidth},
+  drawing code = {%
+    \pgfsetdash{}{0pt}%
+    \pgfpathmoveto{\pgfqpoint{-\pgfarrowlength}{0pt}}%
+    \pgfpathlineto{\pgfqpoint{0pt}{.5\pgfarrowwidth}}%
+    \pgfpathmoveto{\pgfqpoint{-\pgfarrowlength}{0pt}}%
+    \pgfpathlineto{\pgfqpoint{0pt}{-.5\pgfarrowwidth}}%
+    \pgfusepathqstroke},
+  defaults = {length=2.4mm, width=3.0mm}
+}
+\tikzset{
+  % state machine
+  pd uml state/.style={pd state,rounded corners=4.5pt},
+  pd uml focus state/.style={pd focus state,rounded corners=4.5pt},
+  pd uml terminal/.style={pd terminal,rounded corners=4.5pt},
+  pd uml composite/.style={draw=pdink,line width=.9pt,rounded corners=7pt,fill=none,inner sep=0pt},
+  pd uml initial/.style={circle,fill=pdink,draw=none,minimum size=2.4mm,inner sep=0pt},
+  pd uml final/.style={circle,draw=pdink,line width=.9pt,fill=pdpage,minimum size=3.6mm,inner sep=0pt,
+    path picture={\fill[pdink] (path picture bounding box.center) circle (1.1mm);}},
+  pd uml choice/.style={diamond,draw=pdink,line width=.9pt,fill=pdpage,minimum size=4.2mm,inner sep=0pt},
+  pd uml transition/.style={pd rule,-{Straight Barb[length=2.2pt 2.2,width=4.4pt 2.2]}},
+  pd uml focus transition/.style={pd focus rule,-{Straight Barb[length=2.2pt 2.2,width=4.4pt 2.2]}},
+  pd uml breach transition/.style={pd rule,draw=pderror,dash pattern=on 3.2pt off 2.2pt,
+    -{Straight Barb[length=2.2pt 2.2,width=4.4pt 2.2]}},
+  % sequence
+  pd uml head/.style={pd state,rounded corners=0pt,minimum height=6.8mm},
+  pd uml lifeline/.style={draw=pdinkmuted!75,line width=.5pt,dash pattern=on 3pt off 2pt},
+  pd uml activation/.style={draw=pdink,line width=.5pt,fill=pdpage,minimum width=2.2mm,inner sep=0pt},
+  pd uml sync/.style={pd rule,-{Triangle[length=3.2pt 1.6,width=3.2pt 1.6]}},
+  pd uml async/.style={pd rule,-{Straight Barb[length=2.4pt 2,width=4.4pt 2]}},
+  pd uml reply/.style={pd rule,dash pattern=on 3pt off 2pt,-{Straight Barb[length=2.4pt 2,width=4.4pt 2]}},
+  pd uml fragment/.style={draw=pdink,line width=.5pt,fill=none,inner sep=6pt},
+  pd uml fragment tag/.style={pd label,font=\footnotesize\bfseries,draw=pdink,line width=.5pt,fill=pdpage,
+    inner xsep=3pt,inner ysep=2pt,chamfered rectangle,chamfered rectangle corners=south east,
+    chamfered rectangle xsep=2pt},
+  % component
+  pd uml component/.style={pd state,rounded corners=0pt,align=center,inner xsep=8pt,inner ysep=6pt,minimum height=11mm},
+  pd uml port/.style={rectangle,draw=pdink,line width=.5pt,fill=pdpage,minimum size=2mm,inner sep=0pt},
+  % ERD
+  pd er entity/.style={pd label,rectangle split,rectangle split parts=2,rectangle split part align={center,left},
+    draw=pdink,line width=.9pt,fill=pdpage,inner xsep=5pt,inner ysep=3pt,align=left,
+    rectangle split part fill={pdinkmuted!12,pdpage}},
+  pd er rel/.style={pd rule},
+  er one/.tip={Bar[width=3.0mm,sep=1.2pt]Bar[width=3.0mm]},
+  er many/.tip={Bar[width=3.0mm,sep=1.4pt]pd crow},
+  er zero or one/.tip={Circle[open,length=1.8mm,width=1.8mm,sep=1.2pt,fill=pdpage]Bar[width=3.0mm]},
+  er one or many/.tip={Bar[width=3.0mm,sep=1.4pt]pd crow},
+  er zero or many/.tip={Circle[open,length=1.8mm,width=1.8mm,sep=1.2pt,fill=pdpage]pd crow},
+}
+% the component glyph, drawn in the top-right corner of a component node
+\newcommand{\pdumlicon}[1]{%
+  \begin{scope}[shift={($(#1.north east)+(-4.2mm,-2.6mm)$)},x=1mm,y=1mm]
+    \draw[pdink,line width=.5pt,fill=pdpage] (0,-1.1) rectangle (2.6,1.1);
+    \draw[pdink,line width=.5pt,fill=pdpage] (-.6,.25) rectangle (.6,.65);
+    \draw[pdink,line width=.5pt,fill=pdpage] (-.6,-.65) rectangle (.6,-.25);
+  \end{scope}}
+% a provided interface (lollipop) from a node side to a point, with its name
+\newcommand{\pdumlprovided}[3]{%
+  \draw[pd rule] (#1) -- (#2);
+  \draw[pd rule,fill=pdpage] (#2) circle (1.3mm);
+  \node[pd label,anchor=south] at ($(#2)+(0,1.6mm)$) {#3};}
+% a required interface (socket): a half-circle open toward the provider
+\newcommand{\pdumlrequired}[4]{% from, to, name, facing angle of the socket's opening
+  \draw[pd rule] (#1) -- (#2);
+  \draw[pd rule] ($(#2)+(#4+90:1.9mm)$) arc[start angle=#4+90,end angle=#4+270,radius=1.9mm];
+  \node[pd label,anchor=north] at ($(#2)+(0,-2.4mm)$) {#3};}
+
+% --- 2. the concept map, as styles, so a drawing never chooses a hue --------
+% An edition file may \renewcommand\pdconcept before the map below expands.
+\newcommand{\pdconcept}[2]{%
+  \tikzset{%
+    #1/.style={draw=#2,text=pdink},
+    #1 rule/.style={draw=#2,line width=1.6pt},
+    #1 arrow/.style={draw=#2,line width=.9pt,->},
+    #1 state/.style={pd state,draw=#2,line width=1.6pt,fill=#2!24},
+    #1 fill/.style={fill=#2!24,draw=#2,line width=.5pt},
+    #1 datum/.style={circle,fill=#2,draw=pdpage,line width=.5pt,inner sep=2.6pt},
+    #1 label/.style={pd label,text=#2!85!pdink},
+  }}
+
+% --- 6. the edition layer, loaded before the concept map expands ----------
+\ifdefined\pdedition\IfFileExists{figures/pd-figure-language-\pdedition.tex}{\input{figures/pd-figure-language-\pdedition}}{}\fi
+
+\pdconcept{pd truth}{pdcobalt}
+\pdconcept{pd legible}{pdteal}
+\pdconcept{pd ready}{pdhealth}
+\pdconcept{pd protocol}{pdindigo}
+\pdconcept{pd identity}{pdviolet}
+\pdconcept{pd reputation}{pdrust}
+\pdconcept{pd value}{pdgold}
+\pdconcept{pd breach}{pderror}
+\pdconcept{pd warn}{pdamber}
+% Breach and warning read as refusals, so they are dashed as well as
+% coloured, and a breach mark is a diamond where every other mark is a circle.
+% Amber is never text (3.71:1 on white); a warn label is set in ink.
+\tikzset{
+  pd breach rule/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd breach arrow/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd warn rule/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd warn arrow/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd breach datum/.append style={diamond},
+  pd warn label/.style={pd label},
+}
+
+% ===========================================================================
+% v1 NAMES.  Kept so every existing fragment still compiles; they resolve to
+% the v2 roles, so an untouched figure inherits the ladder.  New work uses the
+% v2 names (skills/tikz-diagram-craft/references/migration-v1-to-v2.md).
+% ===========================================================================
+\tikzset{
+  pd row label/.style={pd title,anchor=east},
+  pd panel title/.style={pd title,align=left},
+  pd axis label/.style={pd label},
+  pd direct label/.style={pd tag,align=left},
+  pd actor/.style={pd state},
+  pd boundary/.style={pd panel},
+  pd caution rule/.style={pd breach rule},
+  pd caution arrow/.style={pd breach arrow},
+  pd caution fill/.style={pd breach fill},
+  pd caution datum/.style={pd breach datum},
+}
+
+% ===========================================================================
+% Roles named on main by the typographic law (#10191), expressed on the v2
+% roles so an edition's .append style on the parent reaches them. `pd danger`
+% is main's name for what v2 calls `pd breach` (red, dashed, diamond marks);
+% both names resolve to one family. Main's hairline-boxed fact badge is
+% `pd fact badge`: v2's `pd badge` is the numbered guard/step marker.
+% ===========================================================================
+\tikzset{
+  pd danger rule/.style={pd breach rule},
+  pd danger arrow/.style={pd breach arrow},
+  pd danger fill/.style={pd breach fill,text=pdink},
+  pd danger datum/.style={pd breach datum},
+  pd ink fill/.style={fill=pdink,draw=pdink,line width=.4pt,text=pdpage},
   pd decision/.style={pd state,diamond,aspect=1.55,font=\pdfiglabelbold,
     minimum height=0pt,inner xsep=3pt,inner ysep=3pt},
-  % A shade more side bearing than its parent: a monospace glyph box overhangs
-  % its own advance width, so the cream backing at the parent's 1.5pt clipped
-  % the last character of a long identifier.
   pd mono label/.style={pd direct label,font=\pdfiglabelmono,inner xsep=2.5pt,inner ysep=2.5pt},
   pd verdict/.style={pd direct label,font=\pdfiglabelbold},
-  pd reverse label/.style={pd direct label,text=hhpaper,fill=none},
-  pd reverse row label/.style={pd row label,text=hhpaper},
-  pd legend/.style={font=\pdfiglabel,text=hhink,draw=none,fill=none},
-  % A KIND TAG names what a row or column IS, rather than what it says: an
-  % audience ("for the operator"), a category, a running head. craft-rules S6
-  % already reserves small caps for exactly this, and small caps is the
-  % smallest effective difference that marks a change in kind -- it needs no
-  % size drop, no second colour and no box.
-  pd kind tag/.style={pd axis label,font=\pdfiglabel\scshape,align=right},
-  % A BADGE is a short boxed fact riding beside a row -- a part and chapter
-  % range, a version, a count. Hairline edge, no fill: it is a label with a
-  % boundary, not a region.
-  pd badge/.style={pd hairline,font=\pdfiglabel,text=hhink,align=center,
+  pd reverse label/.style={pd direct label,text=pdpage,fill=none},
+  pd reverse row label/.style={pd row label,text=pdpage},
+  pd legend/.style={font=\pdfiglabel,text=pdink,draw=none,fill=none},
+  pd kind tag/.style={pd kind,align=right},
+  pd fact badge/.style={pd hairline,font=\pdfiglabel,text=pdink,align=center,
     inner sep=2.4pt,fill=none},
 }
 
-% The pgfplots half of the same law. Before this existed, every plot fragment
-% restated title style/label style/tick label style by hand, and they disagreed
-% -- four said the tick numerals were hhink!80!hhgray, three said hhgray, and
-% the axis rule was drawn four different ways. `pd axis` is the one place now.
-% The axis line is `pd hairline` because an axis is reference furniture, not
-% data: heavy for data, light for the frame that carries it.
-\ifdefined\pgfplotsset
-\pgfplotsset{
-  pd axis/.style={
-    title style={font=\pdfiglabelbold,text=hhink,yshift=-2pt},
-    label style={font=\pdfiglabel,text=hhink!80!hhgray},
-    tick label style={font=\pdfiglabel,text=hhink!80!hhgray},
-    legend style={pd legend},
-    axis line style={pd hairline},
-    tick style={pd tick},
-  },
-}
-\fi
-
 % Small reusable marks.  They deliberately avoid prose-bearing boxes.
 \newcommand{\pdfigaxis}[4]{%
-  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (#1,#2) -- (#3,#2);
-  \node[pd axis label,anchor=west] at (#3,#2) {#4};
+  \draw[pd rule,->] (#1,#2) -- (#3,#2);
+  \node[pd label,anchor=west] at (#3,#2) {#4};
 }
 \newcommand{\pdfigvaxis}[4]{%
-  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (#1,#2) -- (#1,#3);
-  \node[pd axis label,anchor=south,align=center] at (#1,#3) {#4};
+  \draw[pd rule,->] (#1,#2) -- (#1,#3);
+  \node[pd label,anchor=south] at (#1,#3) {#4};
 }
-
-% ---------------------------------------------------------------------------
-% Editions. The Book sets \pdedition (maritime | swiss | technical) and the
-% matching override file restyles the same names, so one drawing renders in
-% each edition's character. Standalone chapters have no edition. An edition
-% changes the FAMILY (via \pdfiglabelfamily) and the character of the marks;
-% it never changes the size, because the size is the law above.
-% ---------------------------------------------------------------------------
-\ifdefined\pdedition\IfFileExists{figures/pd-figure-language-\pdedition.tex}{\input{figures/pd-figure-language-\pdedition}}{}\fi
