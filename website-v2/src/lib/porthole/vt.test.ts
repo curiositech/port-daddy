@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { VT, resolve256, lineText, parseCast, replayToTranscript } from './vt'
+import { VT, resolve256, lineText, parseCast, replayToTranscript, sourceTimeAtDisplayTime } from './vt'
 
 const THEME: readonly string[] = [
   '#000', '#f00', '#0f0', '#ff0', '#00f', '#f0f', '#0ff', '#fff',
@@ -133,5 +133,37 @@ describe('parseCast + replayToTranscript', () => {
     const { lines } = replayToTranscript(cast, THEME)
     expect(lineText(lines[0])).toBe('hello')
     expect(lineText(lines[1])).toBe('world')
+  })
+
+  it('turns a real quiet interval into a declared broken axis without dropping output', () => {
+    const cast = parseCast(
+      [
+        JSON.stringify({ version: 2, width: 80, height: 20, timestamp: 1_700_000_000 }),
+        JSON.stringify([1, 'o', 'before\r\n']),
+        JSON.stringify([121, 'o', 'after']),
+      ].join('\n'),
+    )
+    expect(cast.sourceDuration).toBe(121)
+    expect(cast.duration).toBeCloseTo(1.85)
+    expect(cast.jumpCuts).toEqual([
+      expect.objectContaining({ sourceFrom: 1, sourceTo: 121, displayFrom: 1, displayTo: 1.85 }),
+    ])
+    expect(sourceTimeAtDisplayTime(cast, 1)).toBe(1)
+    expect(sourceTimeAtDisplayTime(cast, 1.85)).toBeCloseTo(121)
+    const { lines } = replayToTranscript(cast, THEME)
+    expect(lines.map(lineText).join('\n')).toContain('before')
+    expect(lines.map(lineText).join('\n')).toContain('after')
+  })
+
+  it('advances the v3 clock across ignored input and marker events', () => {
+    const cast = parseCast([
+      JSON.stringify({ version: 3, term: { cols: 20, rows: 5 } }),
+      JSON.stringify([1, 'o', 'a']),
+      JSON.stringify([2, 'i', 'secret input is intentionally not replayed']),
+      JSON.stringify([3, 'm', 'marker']),
+      JSON.stringify([4, 'o', 'b']),
+    ].join('\n'))
+    expect(cast.sourceDuration).toBe(10)
+    expect(cast.events).toEqual([[1, 'a'], [10, 'b']])
   })
 })

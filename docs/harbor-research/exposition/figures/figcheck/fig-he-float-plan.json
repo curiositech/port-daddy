@@ -1,0 +1,113 @@
+{
+  "figure": "fig-he-float-plan",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T2",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            178.5338592529297,
+            163.47161865234375,
+            224.2054443359375,
+            173.25770568847656
+          ],
+          "container_bbox": [
+            176.90281677246094,
+            165.27523803710938,
+            225.84364318847656,
+            174.65365600585938
+          ],
+          "text": "no process",
+          "message": "text 'no process' escapes its containing rect (176.9, 165.3, 225.8, 174.7)"
+        }
+      ]
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            239.828369140625,
+            153.1752471923828,
+            382.70501708984375,
+            162.96133422851562
+          ],
+          "text": "abort: all three traces unchanged",
+          "line_segment": [
+            [
+              274.1407470703125,
+              196.6149444580078
+            ],
+            [
+              274.1407470703125,
+              58.93974304199219
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'abort: all three traces unchanged'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1134,
+      "edge_density": 0.0772,
+      "distinct_colors": 2169,
+      "flags": [
+        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T2",
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

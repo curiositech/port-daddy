@@ -13,6 +13,7 @@ import {
 } from '../src/ship-checkpoint.js';
 import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import { assessContextAdmission } from '../src/context-admission.js';
+import { recordDeliveryContinuation } from '../src/delivery-failure.js';
 import { MAX_DIFF_BYTES, PR_FILES_PAGE_SIZE, renderFleetContext } from '../src/github.js';
 import {
   freshState,
@@ -36,8 +37,10 @@ function fleetYaml(
     blocking?: boolean;
     model?: string;
     allowedTools?: string;
+    execution?: boolean;
     trigger?: string;
     temperature?: number;
+    class?: 'ideation';
   }>,
 ): string {
   const body = ships
@@ -45,10 +48,25 @@ function fleetYaml(
       const lines = [
         `    ${s.name}:`,
         `      trigger: ${s.trigger ?? 'pull_request:opened'}`,
+        `      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`,
       ];
+      if (s.class) lines.push(`      class: ${s.class}`);
       if (s.blocking) lines.push('      blocking: true');
       if (s.temperature !== undefined) lines.push(`      temperature: ${s.temperature}`);
       if (s.allowedTools) lines.push(`      allowedTools: "${s.allowedTools}"`);
+      if (s.execution) {
+        lines.push('      execution:');
+        lines.push('        mode: write_sandbox');
+        lines.push('        repository: current_repository');
+        lines.push('        worktree: isolated');
+        lines.push('        cwd: .');
+        lines.push('        toolAllowlist: [read_file, run_tests]');
+        lines.push('        mcpAllowlist: [github.read]');
+        lines.push('        networkAllowlist: []');
+        lines.push('        writePathAllowlist: [.]');
+        lines.push('        maxWallClockMs: 300000');
+        lines.push('        maxCostMicrousd: 1000000');
+      }
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');
       lines.push(`          model: '${s.model ?? '@cf/qwen/qwen3-30b-a3b-fp8'}'`);
@@ -77,6 +95,7 @@ const REORDERED_REVIEWER_YAML = [
   "        - model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
   '          backend: cloudflare',
   '      blocking: true',
+  '      participation: { default: required, rules: [] }',
   '      trigger: pull_request:opened',
   '  name: test',
   '',
@@ -90,6 +109,34 @@ const REVIEWER_PLUS_QA_YAML = fleetYaml([
   { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
   { name: 'qa', blocking: false },
 ]);
+
+const REVIEWER_PLUS_PURSER_YAML = [
+  'fleet:',
+  '  name: test',
+  '  agents:',
+  '    code-reviewer:',
+  '      trigger: pull_request:opened',
+  '      blocking: true',
+  '      participation: { default: required, rules: [] }',
+  '      fallbacks:',
+  "        - backend: cloudflare",
+  "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+  '      prompt: |',
+  '        code-reviewer ship: review the diff and report findings.',
+  '    purser:',
+  '      class: purser',
+  '      trigger: pull_request:opened',
+  '      blocking: true',
+  '      participation: { default: required, rules: [] }',
+  '      blockWithoutSandbox: false',
+  '      testPaths: [tests/unit/purser]',
+  '      fallbacks:',
+  "        - backend: cloudflare",
+  "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+  '      prompt: |',
+  '        purser ship: steel-man and test the change.',
+  '',
+].join('\n');
 
 const REVIEWER_PLUS_RED_TEAM_YAML = fleetYaml([
   { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
@@ -113,6 +160,27 @@ const MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML = LOOKOUT_THEN_REVIEWER_QA_YAML.rep
 );
 
 const CONTRACT_MINIMAL_PASS = '```json\n[]\n```\nFLEET-VERDICT: PASS';
+
+const PURSER_STEELMAN_JSON = [
+  '```json',
+  JSON.stringify({
+    purpose: 'Keep the generated contract from invalidating review checkpoints.',
+    contract: { obligations: ['Generated obligation from Fleet only.'] },
+    testTargets: ['src/x.ts'],
+  }),
+  '```',
+].join('\n');
+
+const PURSER_TESTS_JSON = [
+  '```json',
+  JSON.stringify({
+    files: [{
+      path: 'tests/unit/purser/review-body.contract.test.ts',
+      contents: 'it("keeps review inputs stable", () => {});',
+    }],
+  }),
+  '```',
+].join('\n');
 
 async function seedMediatorOrders(control: ReturnType<typeof memoryKV>, modifyText: string): Promise<void> {
   await control.put(
@@ -140,9 +208,13 @@ async function checkpointReviewInputForState(): Promise<string> {
     body: state.prBody ?? '',
     headSha: state.prHeadSha,
     headRef: state.prHeadRef ?? '',
-    baseSha: 'BASESHA',
+    headRepoFullName: state.prHeadRepo,
+    baseSha: state.prBaseSha,
     baseRef: state.prBaseRef,
+    baseRepoFullName: state.prBaseRepo,
     isFork: state.prHeadRepo !== state.prBaseRepo,
+    state: state.prState ?? '',
+    merged: state.prMerged === true,
     files: state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }],
     diff,
     diffBytes: new TextEncoder().encode(diff).byteLength,
@@ -174,7 +246,7 @@ async function checkpointBindingForYaml(
 }
 
 const TEST_CHECKPOINT_BINDING = {
-  bindingVersion: 3 as const,
+  bindingVersion: 4 as const,
   shipConfigSha256: `sha256:${'1'.repeat(64)}`,
   contractSha256: 'absent',
   graftSha256: `sha256:${'2'.repeat(64)}`,
@@ -375,6 +447,19 @@ describe('self-review guard — the fleet does not review its own branches', () 
     expect(state.completed[0].conclusion).toBe('neutral');
   });
 
+  it('an App-published `codex/` branch is reviewed because publication transport is not authorship', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
+    state.prHeadRef = 'codex/fleet-pause-fail-closed-20260914';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.reviews.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toContain('not self-reviewed');
+  });
+
   it("a HUMAN's PR is still reviewed normally — ships run, review posted", async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     state.prAuthor = { login: 'erichowens', type: 'User' };
@@ -485,7 +570,7 @@ describe('pull_request action routing', () => {
     expect(state.prPatches).toHaveLength(0);
   });
 
-  it.each(['opened', 'synchronize', 'reopened', 'ready_for_review'] as const)(
+  it.each(['opened', 'synchronize', 'reopened', 'ready_for_review', 'edited'] as const)(
     'runs the fleet for %s deliveries',
     async action => {
       state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
@@ -506,7 +591,7 @@ describe('pull_request action routing', () => {
     },
   );
 
-  it.each(['edited', null] as Array<string | null>)(
+  it.each([null] as Array<string | null>)(
     'skips non-reviewable pull_request action %s without touching GitHub or AI',
     async action => {
       const ai = aiStub({
@@ -549,6 +634,41 @@ describe('MAP fan-out', () => {
 });
 
 describe('blocking-ship verdict → check conclusion', () => {
+  it('an explicit malformed execution policy is UNAVAILABLE and never falls through to model PASS', async () => {
+    state.files.set('main:pd-fleet.yml', `fleet:
+  agents:
+    code-reviewer:
+      trigger: pull_request:opened
+      participation: { default: required, rules: [] }
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+      prompt: code-reviewer ship
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+        surpriseAuthority: true
+`);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('Explicit execution policy is malformed');
+    expect(state.completed[0].summary).toContain('[REQUIRED]: unavailable');
+  });
+
   it('blocking ship emitting BLOCK => check conclusion failure', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -620,7 +740,7 @@ describe('blocking-ship verdict → check conclusion', () => {
     // whose gating check we could not even create.
     await expect(
       executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai })),
-    ).rejects.toThrow(/createCheckRun failed|cannot establish/i);
+    ).rejects.toThrow(/create.*check run failed|cannot establish/i);
 
     // No check was completed (no falsely-green or stray verdict on GitHub).
     expect(state.completed).toHaveLength(0);
@@ -628,18 +748,18 @@ describe('blocking-ship verdict → check conclusion', () => {
 });
 
 describe('deterministic ship resolution', () => {
-  it('parses qa from real YAML and runs it as a cloud-static (non-execution) ship', async () => {
-    // qa carries Bash(npm test*) historically, but is forced cloud-static.
+  it('marks execution-requesting ships unavailable until a grant-consuming runner exists', async () => {
     state.files.set(
       'main:pd-fleet.yml',
       fleetYaml([
         { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
-        { name: 'qa', blocking: false, allowedTools: 'Read,Grep,Bash(npm test*),Bash(gh*)' },
+        { name: 'qa', blocking: true, allowedTools: 'Read,Grep,Bash(npm test*),Bash(gh*)', execution: true },
         // An execution ship: routes to GHA, must NOT run in the cloud.
-        { name: 'test-author', blocking: false, allowedTools: 'Read,Write,Bash(npm test*)' },
+        { name: 'test-author', blocking: false, allowedTools: 'Read,Write,Bash(npm test*)', execution: true },
       ]),
     );
     const kv = memoryKV();
+    const d1 = memoryD1();
     seedToken(kv, 42);
     const ai = aiStub({
       perShip: {
@@ -649,12 +769,49 @@ describe('deterministic ship resolution', () => {
       },
     });
 
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
 
     const shipsRun = new Set(ai.calls.map(c => c.ship));
     expect(shipsRun.has('code-reviewer')).toBe(true);
-    expect(shipsRun.has('qa')).toBe(true); // cloud-static, runs in the cloud
-    expect(shipsRun.has('test-author')).toBe(false); // needsExecution → GHA, skipped here
+    expect(shipsRun.has('qa')).toBe(false);
+    expect(shipsRun.has('test-author')).toBe(false);
+    expect(state.completed[0].conclusion).toBe('failure');
+    const qaParticipation = d1.steps.find(step => step.kind === 'ship-participation' && step.ship === 'qa');
+    expect(JSON.parse(String(qaParticipation?.detail))).toMatchObject({
+      participation: 'required',
+      eligible: true,
+      voteOutcome: 'failed',
+      operationalStatus: 'unavailable',
+      verdict: 'UNAVAILABLE',
+    });
+  });
+
+  it('does not let advisory QA sandbox unavailability poison a required reviewer approval', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+        { name: 'qa', blocking: false, allowedTools: 'Read,Grep,Bash(npm test*)', execution: true },
+      ]),
+    );
+    const kv = memoryKV();
+    const d1 = memoryD1();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.map(call => call.ship)).toEqual(['code-reviewer']);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].summary).toContain('[ADVISORY]: unavailable');
+    expect(state.completed[0].summary).toContain('visible, non-gating advisory unavailability');
+    const qaParticipation = d1.steps.find(step => step.kind === 'ship-participation' && step.ship === 'qa');
+    expect(JSON.parse(String(qaParticipation?.detail))).toMatchObject({
+      participation: 'advisory',
+      unavailableBlocks: false,
+      operationalStatus: 'unavailable',
+      verdict: 'UNAVAILABLE',
+    });
   });
 
   it('runs Spark as an ideation ship, passes its temperature, and renders actionable proposals', async () => {
@@ -663,6 +820,7 @@ describe('deterministic ship resolution', () => {
       fleetYaml([
         {
           name: 'spark',
+          class: 'ideation',
           blocking: false,
           allowedTools: 'Read,Grep,Glob',
           temperature: 1.25,
@@ -705,8 +863,8 @@ describe('deterministic ship resolution', () => {
     expect(commentBodies.some(body => body.includes('pd-ship:spark'))).toBe(true);
     expect(commentBodies.some(body => body.includes('pd dispatch propose'))).toBe(true);
     expect(commentBodies.some(body => body.includes('Stream harbor events to the roster'))).toBe(true);
-    // Ideation ships never gate: the check concludes success (no findings, no block).
-    expect(state.completed[0].conclusion).toBe('success');
+    // Ideation ships never vote: an advisory-only roster has no quorum.
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 });
 
@@ -1152,13 +1310,73 @@ describe('idempotent re-run — a redelivery must not re-spend', () => {
     const job = makeJob();
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
     // Simulate the comment now existing on GitHub.
-    state.existingComments = [{ id: 555, body: 'old\n\n<!-- pd-ship:code-reviewer -->' }];
+    state.existingComments = [{
+      id: 555,
+      body: 'old\n\n<!-- pd-ship:code-reviewer -->',
+      user: { type: 'Bot' },
+      performed_via_github_app: { id: 3810450 },
+    }];
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
 
     expect(state.commentPosts).toBe(1); // only the first run created
     // Previously 1 — the re-run edited in place, having paid to regenerate
     // identical text. Now it never gets that far.
     expect(state.commentPatches).toBe(0);
+  });
+
+  it('retries when a Mediator order lands during terminal reuse, then binds it into a fresh prompt and check', async () => {
+    state.files.set('main:pd-fleet.yml', MEDIATOR_REVIEWER_PLUS_QA_YAML);
+    const tokenKv = memoryKV();
+    const controlKv = memoryKV();
+    seedToken(tokenKv, 42);
+    const job = makeJob();
+    const first = aiStub({
+      perShip: {
+        'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS',
+        qa: 'ok\n\nFLEET-VERDICT: PASS',
+      },
+    });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: tokenKv, CONTROL_KV: controlKv, AI: first.ai }));
+    expect(state.checkRunsCreated).toBe(1);
+
+    const githubFetch = globalThis.fetch;
+    let injected = false;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!injected && String(input).includes('/commits/HEADSHA/check-runs')) {
+        injected = true;
+        await seedMediatorOrders(controlKv, 'Address the newly reported concurrency race.');
+      }
+      return githubFetch(input as RequestInfo, init);
+    }) as unknown as typeof fetch);
+
+    const raced = aiStub({
+      perShip: {
+        'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS',
+        qa: 'ok\n\nFLEET-VERDICT: PASS',
+      },
+    });
+    await expect(executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: tokenKv, CONTROL_KV: controlKv, AI: raced.ai }),
+    )).rejects.toThrow(/Mediator order changed before completed-check repair/);
+    expect(raced.calls).toHaveLength(0);
+    expect(state.checkRunsCreated).toBe(1);
+
+    vi.stubGlobal('fetch', githubFetch);
+    const retry = aiStub({
+      perShip: {
+        'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS',
+        qa: 'ok\n\nFLEET-VERDICT: PASS',
+      },
+    });
+    await executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: tokenKv, CONTROL_KV: controlKv, AI: retry.ai }),
+    );
+    expect(state.checkRunsCreated).toBe(2);
+    expect(retry.calls.length).toBeGreaterThan(0);
+    expect(JSON.stringify(retry.calls.map(call => call.messages)))
+      .toContain('Address the newly reported concurrency race.');
   });
 
   it('a redelivery while the check is still IN PROGRESS does proceed', async () => {
@@ -1170,7 +1388,13 @@ describe('idempotent re-run — a redelivery must not re-spend', () => {
     seedToken(kv, 42);
 
     // Pre-seed an in-progress check, as an interrupted first attempt would.
-    state.existingCheckRuns = [{ id: 4242, name: 'Port Daddy Fleet', status: 'in_progress' }];
+    state.existingCheckRuns = [{
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'in_progress',
+      external_id: 'pd-fleet-run:v1:run:delivery-abc',
+      app: { id: 3810450 },
+    }];
 
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
@@ -1195,6 +1419,7 @@ function ideationYaml(name: string, temperature = 0.8): string {
     `    ${name}:`,
     '      trigger: pull_request:opened',
     '      class: ideation',
+    '      participation: { default: advisory, rules: [] }',
     `      temperature: ${temperature}`,
     '      allowedTools: "Read,Grep,Glob"',
     '      fallbacks:',
@@ -1242,8 +1467,8 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(bodies.some(b => b.includes('pd-ship:spider'))).toBe(true);
     expect(bodies.some(b => b.includes('Roster-driven parley routing'))).toBe(true);
     expect(bodies.some(b => b.includes('pd dispatch propose'))).toBe(true);
-    // Ideation never gates.
-    expect(state.completed[0].conclusion).toBe('success');
+    // Ideation never votes; without a required reviewer there is no quorum.
+    expect(state.completed[0].conclusion).toBe('failure');
     // Ideation ships contribute no inline review comments.
     for (const rev of state.reviews) expect(rev.comments).toHaveLength(0);
   });
@@ -1293,7 +1518,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(bodies.some(b => b.includes('`HIGH`'))).toBe(true);
     expect(bodies.some(b => b.includes('pd roadmap upsert'))).toBe(true);
     // A HIGH trouble-ahead alert is still advisory — never fails the check.
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('snipe proposes a skill-architect skill with a runnable dispatch command', async () => {
@@ -1325,7 +1550,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(bodies.some(b => b.includes('pd-ship:snipe'))).toBe(true);
     expect(bodies.some(b => b.includes('Use the skill-architect skill'))).toBe(true);
     expect(bodies.some(b => b.includes('--tags skill,from-fleet,pd-snipe'))).toBe(true);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('an ideation ship that proposes nothing ([]) posts no comment (silence)', async () => {
@@ -1339,7 +1564,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
 
     expect(commentBodiesOf(state)).toHaveLength(0);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('malformed proposal JSON on an ideation ship posts the raw output AND fails the run', async () => {
@@ -1363,12 +1588,12 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
   });
 
   it('ideation ships run alongside a blocking reviewer without affecting its gate', async () => {
-    // spider is ideation by identity (IDEATION_SHIPS), so no `class:` field needed.
+    // Ideation is an explicit trusted role; a ship name alone grants nothing.
     state.files.set(
       'main:pd-fleet.yml',
       fleetYaml([
         { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
-        { name: 'spider', temperature: 0.95 },
+        { name: 'spider', class: 'ideation', temperature: 0.95 },
       ]),
     );
     const kv = memoryKV();
@@ -1653,6 +1878,190 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     );
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('resumes earlier ships after Purser evidence and provider redelivery without touching the PR body', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_PURSER_YAML);
+    state.prBody = 'Human-authored summary that must remain byte-exact.  ';
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+
+    const reviewerAi = aiStub({
+      perShip: {
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        purser: PURSER_TESTS_JSON,
+      },
+    });
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: reviewerAi.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    )).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['purser'],
+    });
+
+    let purserCalls = 0;
+    const interruptedPurserAi = aiStub({
+      perShip: {
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        purser: PURSER_TESTS_JSON,
+      },
+      perShipQueue: { purser: [PURSER_STEELMAN_JSON, PURSER_TESTS_JSON] },
+      onCall(call) {
+        if (call.ship !== 'purser') return;
+        purserCalls += 1;
+        if (purserCalls === 2) {
+          throw Object.assign(new Error('simulated Workers AI transport reset'), { status: 503 });
+        }
+      },
+    });
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: interruptedPurserAi.ai, DB: d1.db }),
+      { queueAttempt: 2, maxNewShipsPerInvocation: 1 },
+    )).rejects.toThrow();
+
+    const steelmanStep = d1.steps.find(step => step.kind === 'purser-steelman');
+    expect(JSON.parse(String(steelmanStep?.detail))).toMatchObject({
+      purpose: 'Keep the generated contract from invalidating review checkpoints.',
+      obligations: ['Generated obligation from Fleet only.'],
+    });
+    expect(state.prPatches.filter(patch => typeof patch.body === 'string')).toHaveLength(0);
+    expect(state.prBody).toBe('Human-authored summary that must remain byte-exact.  ');
+
+    const resumedPurserAi = aiStub({
+      perShip: {
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        purser: PURSER_TESTS_JSON,
+      },
+      perShipQueue: { purser: [PURSER_STEELMAN_JSON, PURSER_TESTS_JSON] },
+    });
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: resumedPurserAi.ai, DB: d1.db }),
+      { queueAttempt: 3, maxNewShipsPerInvocation: 1 },
+    )).resolves.toBeUndefined();
+
+    expect(resumedPurserAi.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed' && step.ship === 'code-reviewer'))
+      .toHaveLength(2);
+    const purserComment = state.existingComments.find(comment => comment.body.includes('pd-purser'))?.body ?? '';
+    expect(purserComment).toContain('Keep the generated contract from invalidating review checkpoints.');
+    expect(purserComment).toContain('Generated obligation from Fleet only.');
+    expect(state.prPatches.filter(patch => typeof patch.body === 'string')).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.existingCheckRuns.find(check => check.id === state.completed[0].id)?.status)
+      .toBe('completed');
+  });
+
+  it('stops a repeated Lookout continuation before a third model call', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(String(state.completed[0].summary)).toBe(
+      'Fleet stopped because 2 consecutive checkpoint continuations completed pd-lookout while leaving ' +
+      'the same 2 ship(s) pending (pd-code-reviewer, pd-qa). This is a scheduler livelock, not progress; ' +
+      'no additional model call was made. Re-push after repairing checkpoint resume or continuation selection.',
+    );
+    const receipt = d1.steps.find(step => step.kind === 'continuation-livelock');
+    expect(receipt).toMatchObject({
+      kind: 'continuation-livelock',
+      ship: 'lookout',
+      title: 'Check concluded: neutral (checkpoint continuation repeated without progress)',
+    });
+    expect(JSON.parse(String(receipt?.detail))).toEqual({
+      checkRunId: state.completed[0].id,
+      conclusion: 'neutral',
+      completedShip: 'lookout',
+      remainingShips: unchangedRemaining,
+      repeats: 2,
+    });
+  });
+
+  it('finalizes a repeated continuation when its telemetry receipt cannot be written', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({ perShip: {} });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+    d1.failNextStepInsert = true;
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(d1.steps.filter(step => step.kind === 'continuation-livelock')).toHaveLength(0);
+    expect(d1.runs.find(run => run.id === 'run:delivery-abc')?.conclusion).toBe('neutral');
+  });
+
+  it('finalizes a repeated continuation when its run conclusion mirror cannot be written', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const db = {
+      prepare(sql: string) {
+        if (!/UPDATE fleet_runs/i.test(sql)) return d1.db.prepare(sql);
+        return {
+          bind() {
+            return {
+              async run() {
+                throw new Error('D1 unavailable (simulated run conclusion failure)');
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+    const ai = aiStub({ perShip: {} });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(d1.steps.filter(step => step.kind === 'continuation-livelock')).toHaveLength(1);
+    expect(d1.runs.find(run => run.id === 'run:delivery-abc')?.conclusion).toBe('pending');
   });
 
   it('freezes an exact empty Lookout projection when both GitHub context reads reject', async () => {
@@ -2407,15 +2816,16 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     const failed = memoryD1();
     failed.steps.push({
       runId: 'run:delivery-abc',
-      seq: 7,
+      seq: 97,
       kind: 'purser-sandbox',
       ship: 'purser',
-      title: 'pd-purser: sandbox NOT RUN',
+      title: 'stale prior attempt: pd-purser sandbox passed',
       detail: JSON.stringify({
-        executed: false,
-        passed: null,
-        outcomeKind: 'not-executed',
-        reason: 'sandbox setup failed before the test runner started',
+        executed: true,
+        passed: true,
+        outcomeKind: 'passed',
+        attemptId: 'run:delivery-abc:attempt:1',
+        testDigest: `sha256:${'9'.repeat(64)}`,
       }),
     });
     const falsePass = {
@@ -2436,8 +2846,9 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(failed.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
 
     // A row written by the buggy executor is diagnostic evidence only. The
-    // current loader must consult the same run's sandbox receipt and rerun
-    // Purser instead of inheriting the false PASS into another queue slice.
+    // current loader validates only the receipt embedded by the checkpoint
+    // writer and never grafts a generic high-sequence sandbox row from an old
+    // attempt into the current invocation.
     failed.steps.push({
       runId: 'run:delivery-abc',
       seq: SHIP_CHECKPOINT_SEQ_BASE,
@@ -2464,24 +2875,22 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     // Positive control: an exact structured execution receipt still permits
     // monotonic continuation, so this hardening cannot recreate starvation.
     const executed = memoryD1();
-    executed.steps.push({
-      runId: 'run:delivery-good',
-      seq: 7,
-      kind: 'purser-sandbox',
-      ship: 'purser',
-      title: 'pd-purser: sandbox PASSED',
-      detail: JSON.stringify({
-        executed: true,
+    const currentExecutedPass = {
+      ...falsePass,
+      checkpointExecutionReceipt: {
+        kind: 'purser-sandbox-v1' as const,
+        executed: true as const,
         passed: true,
-        outcomeKind: 'passed',
-        failuresTail: '',
-      }),
-    });
+        outcomeKind: 'passed' as const,
+        attemptId: 'run:delivery-good:attempt:2',
+        testDigest: `sha256:${'a'.repeat(64)}`,
+      },
+    };
     await expect(saveShipCheckpoint(
       makeEnv({ DB: executed.db }),
       'run:delivery-good',
       0,
-      falsePass,
+      currentExecutedPass,
       PURSER_CHECKPOINT_BINDING,
     )).resolves.toBe(true);
     const saved = executed.steps.find(step => step.kind === SHIP_CHECKPOINT_KIND)!;
@@ -2492,12 +2901,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
         executed: true,
         passed: true,
         outcomeKind: 'passed',
+        attemptId: 'run:delivery-good:attempt:2',
+        testDigest: `sha256:${'a'.repeat(64)}`,
       },
     });
-    executed.steps.splice(
-      executed.steps.findIndex(step => step.kind === 'purser-sandbox'),
-      1,
-    );
     await expect(loadShipCheckpoints(
       makeEnv({ DB: executed.db }),
       'run:delivery-good',
@@ -2540,10 +2947,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(d1.steps).toHaveLength(0);
   });
 
-  it('invalidates a mediator-scoped checkpoint after its Modify order is consumed', async () => {
-    // Attempt one consumes and applies the human order. Attempt two sees the
-    // explicit no-order sentinel; it must re-run rather than reuse a verdict
-    // made under instructions that no longer appear in the current context.
+  it('keeps a Mediator order replayable through continuation and acknowledges it only at terminal success', async () => {
     state.files.set('main:pd-fleet.yml', MEDIATOR_REVIEWER_PLUS_QA_YAML);
     const kv = memoryKV();
     const control = memoryKV();
@@ -2578,7 +2982,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       completedShip: 'code-reviewer',
       remainingShips: ['qa'],
     });
-    expect(control._store.has('mediator:reinjection:erichowens/port-daddy:7')).toBe(false);
+    expect(control._store.has('mediator:reinjection:erichowens/port-daddy:7')).toBe(true);
     const firstReviewerCalls = ai.calls.filter(call => call.ship === 'code-reviewer').length;
     expect(firstReviewerCalls).toBeGreaterThan(0);
     expect(JSON.stringify(ai.calls)).toContain('MEDIATOR ORDERS');
@@ -2592,22 +2996,19 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       queueAttempt: 2,
       maxNewShipsPerInvocation: 1,
     });
-    expect(second).toEqual({
-      kind: 'continuation',
-      completedShip: 'code-reviewer',
-      remainingShips: ['qa'],
-    });
-    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(firstReviewerCalls);
-    expect(JSON.stringify(ai.calls.slice(firstReviewerCalls))).not.toContain('MEDIATOR ORDERS');
+    expect(second).toBeUndefined();
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBe(firstReviewerCalls);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
     expect(d1.steps.filter(step => step.kind === 'ship-resumed' && step.ship === 'code-reviewer'))
-      .toHaveLength(0);
-    expect(JSON.parse(String(d1.steps.find(step => step.kind === 'ship-checkpoint-invalidated')?.detail)))
-      .toMatchObject({ reason: 'trusted-binding-mismatch' });
+      .toHaveLength(1);
+    expect(control._store.has(
+      'mediator:reinjection:erichowens/port-daddy:7:ack:979f6940-e0b0-42b9-ab21-078bbb2acae6',
+    )).toBe(true);
     const latestCheckpoint = d1.steps.filter(
       step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'code-reviewer',
     ).at(-1);
     expect(JSON.parse(String(latestCheckpoint?.detail)).checkpointBinding.mediatorOrdersSha256)
-      .toBe('absent');
+      .toMatch(/^sha256:/);
   });
 
   it('multiple checkpointed ships resume in roster order with their findings intact', async () => {
@@ -2842,7 +3243,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
   });
 
   it('no D1 binding makes checkpoint load/save harmless no-ops', async () => {
-    const env = makeEnv({});
+    const env = makeEnv({ DB: undefined });
     await expect(saveShipCheckpoint(
       env,
       'run:delivery-abc',

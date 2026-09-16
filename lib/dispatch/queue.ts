@@ -39,6 +39,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { isAbsolute, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 
 export type DispatchState =
@@ -106,6 +107,11 @@ export interface Dispatch {
   reviewerActorId: string | null;
   /** Branch the worktree was carved from. Default: 'main'. */
   baseBranch: string;
+  /**
+   * Absolute operator-selected project directory that owns the source Git
+   * repository. Worktree minting must use this binding, never daemon cwd.
+   */
+  projectDir: string | null;
   backend: DispatchBackend | null;
   budgetUsd: number | null;
   timeoutMs: number | null;
@@ -178,6 +184,8 @@ export interface ProposeDispatchInput {
   timeoutMs?: number;
   /** Default: 'main'. The branch the worktree is carved from. */
   baseBranch?: string;
+  /** Absolute source project directory used to mint the isolated worktree. */
+  projectDir?: string;
   /** Skip `proposed` and land directly in `claimed` (operator opt-in). */
   autoClaim?: boolean;
   /** Targeted actor at propose time (optional -- auto-routing not yet wired). */
@@ -277,6 +285,7 @@ interface DispatchRow {
   model: string | null;
   reviewer_actor_id: string | null;
   base_branch: string;
+  project_dir: string | null;
   backend: string | null;
   budget_usd: number | null;
   timeout_ms: number | null;
@@ -337,6 +346,7 @@ const SCHEMA_SQL = `
     model TEXT,
     reviewer_actor_id TEXT,
     base_branch TEXT NOT NULL DEFAULT 'main',
+    project_dir TEXT,
     backend TEXT,
     budget_usd REAL,
     timeout_ms INTEGER,
@@ -456,6 +466,7 @@ function rowToDispatch(row: DispatchRow): Dispatch {
     model: row.model,
     reviewerActorId: row.reviewer_actor_id,
     baseBranch: row.base_branch,
+    projectDir: row.project_dir ?? null,
     backend: (row.backend as Dispatch['backend']) || null,
     budgetUsd: row.budget_usd,
     timeoutMs: row.timeout_ms,
@@ -668,6 +679,9 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   if (!dispatchColumns.some((column) => column.name === 'model')) {
     db.exec(`ALTER TABLE dispatches ADD COLUMN model TEXT`);
   }
+  if (!dispatchColumns.some((column) => column.name === 'project_dir')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN project_dir TEXT`);
+  }
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_dispatches_run_request
       ON dispatches(state, run_requested_at, created_at)
@@ -677,13 +691,13 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   const insertStmt = db.prepare(`
     INSERT INTO dispatches (
       id, slug, goal, tags_json, state, requested_by, target_actor_id,
-      reviewer_actor_id, base_branch, backend, budget_usd, timeout_ms,
+      reviewer_actor_id, base_branch, project_dir, backend, budget_usd, timeout_ms,
       merge_policy, created_at, claimed_at,
       predecessor_dispatch_id, failover_attempt, failover_from_backend,
       handoff_episode_id, failover_chain_json
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
       ?, ?, ?,
       ?, ?, ?,
       ?, ?
@@ -940,6 +954,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       : [];
     const state: DispatchState = input.autoClaim ? 'claimed' : 'proposed';
     const baseBranch = (input.baseBranch && input.baseBranch.trim()) || 'main';
+    const rawProjectDir = input.projectDir?.trim();
+    if (rawProjectDir && !isAbsolute(rawProjectDir)) {
+      throw new Error('materializeProjection: projectDir must be an absolute path');
+    }
+    if (rawProjectDir?.includes('\0')) {
+      throw new Error('materializeProjection: projectDir contains invalid characters');
+    }
+    const projectDir = rawProjectDir ? resolve(rawProjectDir) : null;
     insertStmt.run(
       input.id,
       slug,
@@ -950,6 +972,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       input.targetActorId ?? null,
       input.reviewerActorId ?? 'operator',
       baseBranch,
+      projectDir,
       input.backend ?? null,
       input.budgetUsd ?? null,
       input.timeoutMs ?? null,

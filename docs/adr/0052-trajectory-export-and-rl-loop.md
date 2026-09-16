@@ -81,7 +81,7 @@ the behavior instead of being fenced into it.
 
 Build the **trajectory export** (spec in `docs/proposals/pd-export-trajectories.md`)
 and adopt the four-consumer **coordination RL loop** below as the intended use
-of the data. The exporter is the only new load-bearing daemon surface; every
+of the data. The exporter is the only new essential daemon surface; every
 training consumer lives *outside* the daemon and treats Episode JSONL as its
 contract.
 

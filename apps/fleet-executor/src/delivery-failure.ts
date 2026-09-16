@@ -77,6 +77,16 @@ export const DELIVERY_CONTINUATION_KIND = 'delivery-continuation';
  */
 export const DELIVERY_CONTINUATION_SEQ_BASE = 2_500_000;
 
+/** Two identical completed slices prove the continuation is not advancing. */
+export const DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD = 2;
+
+/** Durable evidence that successive queue slices repeated the same state. */
+export interface DeliveryContinuationLivelock {
+  completedShip: string;
+  remainingShips: string[];
+  repeats: number;
+}
+
 /** The deterministic run id both the main consumer and the DLQ handler use. */
 export function runIdForDelivery(deliveryId: string): string {
   return `run:${deliveryId}`;
@@ -287,6 +297,64 @@ export async function countDeliveryContinuations(
   runId: string,
 ): Promise<number> {
   return (await readDeliveryContinuationCount(env, runId)) ?? 0;
+}
+
+/**
+ * Detect a continuation scheduler that is repeating the same completed ship
+ * and unchanged remaining roster before another model call can spend again.
+ */
+export async function readDeliveryContinuationLivelock(
+  env: ExecutorEnv,
+  runId: string,
+): Promise<DeliveryContinuationLivelock | null> {
+  try {
+    if (!env.DB) return null;
+    const query = await env.DB.prepare(
+      `SELECT seq, ship, detail FROM fleet_run_steps
+        WHERE run_id = ? AND kind = ?
+        ORDER BY seq DESC LIMIT ?`,
+    )
+      .bind(runId, DELIVERY_CONTINUATION_KIND, DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD)
+      .all();
+    const rows = (query.results ?? []) as Array<Record<string, unknown>>;
+    if (rows.length < DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD) return null;
+
+    const states = rows.map(row => {
+      if (typeof row.detail !== 'string' || !row.detail) return null;
+      try {
+        const detail = JSON.parse(row.detail) as Record<string, unknown>;
+        const completedShip = typeof detail.completedShip === 'string'
+          ? detail.completedShip
+          : typeof row.ship === 'string'
+            ? row.ship
+            : '';
+        const remainingShips = Array.isArray(detail.remainingShips) &&
+          detail.remainingShips.every(ship => typeof ship === 'string')
+          ? detail.remainingShips as string[]
+          : null;
+        return completedShip && remainingShips ? { completedShip, remainingShips } : null;
+      } catch {
+        return null;
+      }
+    });
+    if (states.some(state => state == null)) return null;
+    const [latest, prior] = states as Array<{ completedShip: string; remainingShips: string[] }>;
+    if (
+      latest.completedShip !== prior.completedShip ||
+      latest.remainingShips.length !== prior.remainingShips.length ||
+      latest.remainingShips.some((ship, index) => ship !== prior.remainingShips[index])
+    ) {
+      return null;
+    }
+    return {
+      completedShip: latest.completedShip,
+      remainingShips: latest.remainingShips,
+      repeats: DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
+    };
+  } catch (err) {
+    console.error(`[fleet-executor] reading continuation livelock failed run=${runId}: ${String(err)}`);
+    return null;
+  }
 }
 
 /**

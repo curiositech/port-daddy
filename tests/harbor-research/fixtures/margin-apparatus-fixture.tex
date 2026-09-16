@@ -1,0 +1,79 @@
+% Margin-apparatus fixture (Wave 16 follow-up). Every device pd-pedagogy.tex
+% places in the margin column, put in its own pathological position -- the
+% position that has actually shipped a bug -- on its own page, so a
+% regression is a seconds-long compile and a page_overflow.py run instead of
+% a five-minute build of the whole 544-page Book.
+%
+% One page per case, so a failure names its case by page number:
+%   1. a Recall block issued two lines from the page foot
+%   2. a margin head, then a Recall block, on the same page near the foot
+%   3. a Recall block, then a margin head, on the same page near the foot
+%   4. a \pdgloss called mid-paragraph two lines from the page foot
+%   5. a \pdmarginfigure anchored two lines from the page foot
+%   6. two \pdprov notes anchored on the same text line
+%
+% This is the BODY only -- \documentclass, the Book's own preamble, and
+% \begin{document} live in the tiny wrapper that \input's this file,
+% website-v2/public/whitepaper/margin-apparatus-fixture.tex. That split, not
+% a copy of the preamble here, is what keeps this exercising the macros the
+% Book actually ships rather than a reimplementation of them: tectonic
+% resolves every \input in a job against the WRAPPER's directory (the one
+% thing tried and rejected here was building this file directly -- its own
+% directory has no figures/, so the preamble's own \input{figures/pd-palette}
+% and the rest fail before this fixture's content is ever read).
+%
+% \pdmargincolumntrue is set by the preamble itself right after it reads
+% pd-pedagogy.tex, so nothing here has to flip it. No \pdchapter call is
+% needed: every device below reads \pdchapterprefix/\pdcurrentchaptercolor
+% through their own fallbacks (pd-textbook-map's "none" prefix, and
+% \pd@chaptercolor's fallback to pdcobalt), the same as any macro that ran
+% before the first chapter in the real Book.
+
+% A fixed amount of filler text, never touched by hand once it works: enough
+% to reach a page's last two lines from a fresh \newpage, leaving the device
+% under test the only thing near the foot. \vspace* (not \vspace) is what
+% makes this land at the top of a page too -- plain \vspace is discarded
+% there by design, which would leave the device at the TOP of the page, the
+% one place none of these bugs happen.
+\newcommand{\fixturefilltofoot}[1]{\vspace*{\dimexpr\textheight-#1\baselineskip\relax}}
+
+\section*{Case 1: a Recall block two lines from the foot}
+\fixturefilltofoot{2}
+\noindent This sentence ends the section right at the foot.
+\begin{pdrecitation}
+  \item What does the kernel mediate.
+  \item Why is the write path serial.
+\end{pdrecitation}
+
+\newpage
+\section*{Case 2: a margin head, then a Recall block, near the foot}
+\fixturefilltofoot{4}
+\keyidea{A head issued near the foot must record where it lands, so a block raised later on the same page stops short of it instead of printing over it.}
+\noindent The Recall block that follows shares this same crowded foot.
+\begin{pdrecitation}
+  \item Where did the head above land.
+\end{pdrecitation}
+
+\newpage
+\section*{Case 3: a Recall block, then a margin head, near the foot}
+\fixturefilltofoot{4}
+\noindent A short paragraph, then the block, then a head after it.
+\begin{pdrecitation}
+  \item Does a later head step below this block's foot.
+\end{pdrecitation}
+\pitfall{A head issued after a Recall block on the same page must step down below the block's own foot, not print on top of it.}
+
+\newpage
+\section*{Case 4: a gloss called mid-paragraph near the foot}
+\fixturefilltofoot{2}
+\noindent This is a paragraph that runs down to the very foot of the page before it defines a \pdgloss{Regiment}{to make a state impossible to reach, as opposed to merely detecting and correcting it} term in its last line, where the raise has the least room to work with.
+
+\newpage
+\section*{Case 5: a margin figure anchored near the foot}
+\fixturefilltofoot{2}
+\noindent Lampson's access-matrix model is the anchor for this plate, called in the last line before the foot.
+\pdmarginfigure{lampson}{Lampson's 1971 \emph{Protection}, anchored two lines from the foot.}
+
+\newpage
+\section*{Case 6: two short notes anchored on the same line}
+\noindent One line, two provenance notes: the first at seed 1\pdprov{sweep}{1}{verified}, the second right after it in the same sentence, seed 2\pdprov{sweep}{2}{verified}, both reading the same \texttt{\string\pagetotal} at the point they are called.

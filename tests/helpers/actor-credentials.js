@@ -56,7 +56,6 @@ export function mintTestActor(souls, alias) {
  * @param {string} baseUrl - The ephemeral daemon's base URL (no trailing slash).
  * @param {object} [options]
  * @param {string} [options.alias] - Display alias to bind to the minted soul.
- * @param {string} [options.project] - Project scope for the newcomer pool.
  * @returns {Promise<{ actorId: string, credential: string, headers: Record<string, string> }>}
  */
 /**
@@ -68,13 +67,12 @@ export function mintTestActor(souls, alias) {
  *        The suite's request helper.
  * @param {object} [options]
  * @param {string} [options.alias] - Display alias to bind to the minted soul.
- * @param {string} [options.project] - Project scope for the newcomer pool.
  * @returns {Promise<{ actorId: string, credential: string, headers: Record<string, string> }>}
  */
 export async function registerTestActorVia(request, options = {}) {
   const res = await request('/actors/register', {
     method: 'POST',
-    body: { alias: options.alias, project: options.project },
+    body: { alias: options.alias },
   });
   if (!res.ok || !res.data?.credential) {
     throw new Error(`registerTestActorVia failed (${res.status}): ${JSON.stringify(res.data)}`);
@@ -92,7 +90,6 @@ export async function registerTestActor(baseUrl, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       alias: options.alias,
-      project: options.project,
     }),
   });
   const body = await res.json();

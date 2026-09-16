@@ -64,7 +64,7 @@ The most important primitive is the `become` command — specifying the replacem
 
 The semantics of replacement is fundamentally different from assignment. When an actor specifies its replacement, the old machine and the new machine **can exist concurrently** — the old machine finishes producing its effects (messages, new actors) even as the replacement begins accepting the next communication. This is not mutation; it is succession.
 
-## Application to WinDAGs Agent Systems
+## Application to Jury-rig Agent Systems
 
 **For skill routing**: Each skill invocation is a task. The skill is an actor. The routing system creates a task with the skill's address as target and the request as communication. The skill's response (which may include creating sub-tasks) maps directly onto the 3-tuple primitive.
 
@@ -72,7 +72,7 @@ The semantics of replacement is fundamentally different from assignment. When an
 
 **For dynamic scaling**: When a problem requires more parallelism than anticipated, actors can create new actors. A skill can dynamically spawn sub-agents to handle sub-problems without the orchestrator needing to pre-allocate them.
 
-**For unique task identification**: The tag system provides a model for how WinDAGs should generate globally unique task IDs without a central ID server: prefix-based hierarchical IDs derived from the initiating task's ID.
+**For unique task identification**: The tag system provides a model for how Jury-rig should generate globally unique task IDs without a central ID server: prefix-based hierarchical IDs derived from the initiating task's ID.
 
 ## What This Model Does NOT Cover
 

@@ -1,0 +1,78 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/root/.ccr/java-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=PKCS12 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=33969 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+TLC2 Version 2026.09.04.170753 (rev: b123b22)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 67 and seed 1587874782893935429 with 2 workers on 4 cores with 1979MB heap and 64MB offheap memory [pid: 32766] (Linux 6.18.44-fc-v24 amd64, Ubuntu 21.0.10 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file proofs/relay/CardRevocation.tla
+Parsing file <tlc-tmp>/Naturals.tla (jar:file:tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file <tlc-tmp>/_TLCTrace.tla (jar:file:tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file <tlc-tmp>/TLC.tla (jar:file:tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file <tlc-tmp>/TLCExt.tla (jar:file:tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file <tlc-tmp>/Sequences.tla (jar:file:tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file <tlc-tmp>/FiniteSets.tla (jar:file:tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file <tlc-tmp>/Integers.tla (jar:file:tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module CardRevocation
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module CardRevocation
+Starting... (2026-09-06 18:30:42)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-06 18:30:42.
+Error: Invariant RevocationFinal is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ revoked = {}
+/\ cardEpoch = (c1 :> 0 @@ c2 :> 0)
+/\ epoch = 0
+/\ badAccept = FALSE
+/\ everRevoked = {}
+/\ issued = {}
+/\ rbUsed = 0
+
+State 2: <Issue(c2) line 61, col 5 to line 64, col 67 of module CardRevocation>
+/\ revoked = {}
+/\ cardEpoch = (c1 :> 0 @@ c2 :> 0)
+/\ epoch = 0
+/\ badAccept = FALSE
+/\ everRevoked = {}
+/\ issued = {c2}
+/\ rbUsed = 0
+
+State 3: <Revoke(c2) line 69, col 5 to line 74, col 57 of module CardRevocation>
+/\ revoked = {c2}
+/\ cardEpoch = (c1 :> 0 @@ c2 :> 0)
+/\ epoch = 1
+/\ badAccept = FALSE
+/\ everRevoked = {c2}
+/\ issued = {c2}
+/\ rbUsed = 0
+
+State 4: <RollbackRestore(c2) line 89, col 5 to line 94, col 69 of module CardRevocation>
+/\ revoked = {}
+/\ cardEpoch = (c1 :> 0 @@ c2 :> 0)
+/\ epoch = 1
+/\ badAccept = FALSE
+/\ everRevoked = {c2}
+/\ issued = {c2}
+/\ rbUsed = 1
+
+State 5: <Accept(c2) line 80, col 5 to line 84, col 75 of module CardRevocation>
+/\ revoked = {}
+/\ cardEpoch = (c1 :> 0 @@ c2 :> 0)
+/\ epoch = 1
+/\ badAccept = TRUE
+/\ everRevoked = {c2}
+/\ issued = {c2}
+/\ rbUsed = 1
+
+35 states generated, 23 distinct states found, 9 states left on queue.
+The depth of the complete state graph search is 5.
+Finished in 00s at (2026-09-06 18:30:42)
+Trace exploration spec path: ./CardRevocation_TTrace_1788719442.tla

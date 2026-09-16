@@ -10,8 +10,8 @@
 
 ## 2026-04-17
 - Recovered upgraded skill assets from `/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/productive-discourse-facilitator`
-- Applied CTA SKILL.md overlay from `/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/productive-discourse-facilitator/after.md`
-- Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/productive-discourse-facilitator/audit.json`
+- Applied CTA SKILL.md overlay from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/productive-discourse-facilitator/after.md`
+- Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/productive-discourse-facilitator/audit.json`
 
 ## 2026-04-17
 - Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts

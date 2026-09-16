@@ -168,7 +168,7 @@ port-daddy/
 
 Every PR is filled out against [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)
 and goes through skeptical adversarial review before merge. The full doctrine
-lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the load-bearing rules:
+lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the pivotal rules:
 
 - **Exhaustive Summary + non-trivial Test Plan.** Not "ran the tests" — show the
   evidence (commands, output, edge cases), ideally turned into new test cases.
@@ -181,6 +181,18 @@ lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the load-
   or `apps/FleetBar/` must ship screenshots **and** a GIF/recording of the actual
   change. The guard fails the PR without them (escape hatch: a
   `<!-- visual-exempt: <reason> -->` marker for a genuinely non-visual diff).
+- **Figure and print work has no exemption.** A PR that changes `whitepaper/`,
+  `website-v2/public/whitepaper/`, any `figures/` or plate directory, any `.tex`
+  file, `skills/harbor-chartwork/` or `skills/whitepaper-figure-system/` is
+  visual work by definition, so the `visual-exempt` marker is an **error** there
+  rather than an escape hatch, and the guard fails the PR for carrying it. Put
+  the render in the `## Visual Proof` section instead: an image embedded in the
+  body, or a link to published page-scale renders (a GitHub Actions run or
+  artifact URL). Render at **1.0× / 150 dpi** — page scale, what a phone PDF
+  viewer shows (`skills/harbor-chartwork/references/craft-rules.md` §1.4). A
+  figcheck table, a compile log, or prose saying you looked at the pixels is not
+  a render, and neither is "N/A", a bare checkbox or an empty bullet. A printed
+  page is never asked for a GIF or a recording.
 - **Surface parity for new CLI verbs.** Every new CLI command needs a matching MCP
   tool, SDK method, route, shell completions, and docs. `npm run parity`
   (`scripts/check-parity.ts`, against `features.manifest.json`) enforces this.

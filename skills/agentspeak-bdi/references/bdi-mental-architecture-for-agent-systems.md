@@ -38,7 +38,7 @@ Rao is explicit that the paper discusses goals, not desires, noting that "goals 
 
 This commitment filter is what prevents *intention overload* — the failure mode where an agent attempts to pursue every possible goal simultaneously, thrashing between options without making progress on any. In Rao's architecture, once an intention is adopted, it has priority. Other desires wait in the event queue. This is the computational analog of what philosophers call *means-end coherence* in rational agents.
 
-## Implications for WinDAGs Agent Design
+## Implications for Jury-rig Agent Design
 
 For a DAG-based orchestration system, the BDI architecture suggests a specific design pattern:
 
@@ -64,4 +64,4 @@ It is less critical when:
 - There is only one way to achieve each goal (plan selection is trivial)
 - Tasks are flat and non-decomposable (intention stacks of depth 1 are just a queue)
 
-For simple, linear, deterministic workflows, a full BDI architecture is engineering overhead. The architecture pays dividends when agents face *genuine uncertainty*, *competing goals*, and *environmental dynamism* — which is precisely the regime WinDAGs is designed for.
+For simple, linear, deterministic workflows, a full BDI architecture is engineering overhead. The architecture pays dividends when agents face *genuine uncertainty*, *competing goals*, and *environmental dynamism* — which is precisely the regime Jury-rig is designed for.

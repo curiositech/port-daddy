@@ -4,7 +4,7 @@
 
 This document teaches the Belief-Desire-Intention (BDI) architecture as formalized
 in Rao's AgentSpeak(L) paper, and translates its core insights into design principles
-for building intelligent orchestration systems like WinDAGs. The BDI model is not
+for building intelligent orchestration systems like Jury-rig. The BDI model is not
 merely a historical curiosity — it is the clearest formal account we have of how a
 rational agent should manage information, motivation, and committed action
 simultaneously. Every orchestration system that routes tasks, manages state, and
@@ -67,7 +67,7 @@ This tuple is the complete state of a rational agent at any moment. Notice what 
 plans." The agent's behavior emerges entirely from the interaction of these components
 through the interpreter cycle. This is powerful precisely because it is minimal.
 
-For WinDAGs, this suggests that each agent node should maintain explicit, separate
+For Jury-rig, this suggests that each agent node should maintain explicit, separate
 data structures for these six components, rather than collapsing them into a single
 "agent state" blob. The selection functions in particular should be exposed as
 configurable policies, not hardcoded logic.
@@ -127,7 +127,7 @@ both P2 and P3 are *relevant* for the goal `+!location(robot, X)`, but only P3 i
 *applicable* when the robot is not already at the target location and an adjacent
 clear lane exists.
 
-**For WinDAGs**: This two-stage filtering maps directly onto skill selection. A skill
+**For Jury-rig**: This two-stage filtering maps directly onto skill selection. A skill
 may be *relevant* (handles this task type) without being *applicable* (preconditions
 not met: wrong permissions, missing data, system state incompatible). The orchestrator
 should implement both relevance filtering (fast, syntactic) and applicability checking

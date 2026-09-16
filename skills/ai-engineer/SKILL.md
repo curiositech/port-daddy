@@ -326,7 +326,7 @@ node scripts/ai_system_audit.mjs --input examples/sample-input.json
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
 **root**
-- [`CHANGELOG.md`](CHANGELOG.md) — AI Engineer — Changelog — - Imported from the global windags skill catalog (`ai-engineer`, SKILL.md-only) into the repo.
+- [`CHANGELOG.md`](CHANGELOG.md) — AI Engineer — Changelog — - Imported from the global jury_rig skill catalog (`ai-engineer`, SKILL.md-only) into the repo.
 - [`README.md`](README.md) — AI Engineer — Build production-ready LLM applications, RAG systems, and intelligent agents: retrieval component selection, model routing strategy, agent-v
 
 **`agents/`**

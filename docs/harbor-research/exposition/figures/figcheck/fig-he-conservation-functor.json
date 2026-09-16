@@ -1,0 +1,115 @@
+{
+  "figure": "fig-he-conservation-functor",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "fail",
+      "count": 2,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            243.00320434570312,
+            106.60269165039062,
+            247.5755157470703,
+            115.49823760986328
+          ],
+          "text": "0",
+          "line_segment": [
+            [
+              245.2888946533203,
+              104.8293685913086
+            ],
+            [
+              245.2888946533203,
+              120.2970199584961
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text '0'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            415.70635986328125,
+            83.0142593383789,
+            487.3570556640625,
+            92.2489242553711
+          ],
+          "text": "vt, source, instant",
+          "line_segment": [
+            [
+              418.80694580078125,
+              87.95590209960938
+            ],
+            [
+              375.02880859375,
+              103.68435668945312
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'vt, source, instant'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1045,
+      "edge_density": 0.0731,
+      "distinct_colors": 1627,
+      "flags": [
+        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

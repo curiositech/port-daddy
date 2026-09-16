@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "kind": "dated-evidence",
+  "authority": "none",
+  "sourceObservedAt": "2026-09-02T14:41:45.469Z",
+  "publicationObservedAt": "2026-09-02T15:34:20Z",
+  "sourceMain": "cc317ed193de5714ba8ff23ae8e0bb192f82b8ee",
+  "publicationMain": "c67705c82efdbc32bc76515dd517d97e2499d8d5",
+  "sourceArtifacts": [
+    { "name": "landing-census-20260902.md", "sha256": "9289d947f79a1c32362dc870d9be982170ca477e34c129267eeec00719d5ff4d" },
+    { "name": "landing-census-20260902.json", "sha256": "8fcab5b26e884fe4131f19154de51b590d3504361228402f7136f767f79ec861" },
+    { "name": "runtime-resilience-successor-findings-20260902.md", "sha256": "88c5f3758c454d7c894496913ffdff42c87778b3e754248a11096d5e301235ff" }
+  ],
+  "attribution": {
+    "auditorSessionId": "session-resume-exact-head-landing-census-and-route-owner-27901e961d8e",
+    "publisherSessionId": "session-publish-sanitized-dated-delivery-research-and-co-a9ddd44c8211",
+    "supplementalNoteId": 22894
+  },
+  "historicalPRs": [
+    {
+      "number": 9970,
+      "url": "https://github.com/curiositech/port-daddy/pull/9970",
+      "publicHead": "b4c4a19d77e07fdb1a65e00e88bf15ab7700ca0b",
+      "localHead": "fb6f1b9e63ae01e82b8bde6d5cc73362ef3ab60f",
+      "localOnlyCommitCount": 0,
+      "unresolvedReviewThreads": 5,
+      "state": "OPEN",
+      "isDraft": false,
+      "disposition": "Preserve original program lineage and dirty focused replacement; no rebase, force-push, closure or merge of the original branch is authorized by this census."
+    },
+    {
+      "number": 9989,
+      "url": "https://github.com/curiositech/port-daddy/pull/9989",
+      "publicHead": "412a88e240d3ac9cb1740bd38bdaa3f42fd146f1",
+      "localHead": "412a88e240d3ac9cb1740bd38bdaa3f42fd146f1",
+      "localOnlyCommitCount": 0,
+      "unresolvedReviewThreads": 0,
+      "state": "OPEN",
+      "isDraft": true,
+      "disposition": "Registry-only repair remained unpublished; production authority cutover and independent kernel review were not proved. See later timeout receipt."
+    },
+    {
+      "number": 9992,
+      "url": "https://github.com/curiositech/port-daddy/pull/9992",
+      "publicHead": "4b12f5277c9381fdfaf5b19084f6919985e2f272",
+      "localHead": "24749c902a2ef90fcec367c0f3d53d50ac17fc5c",
+      "localOnlyCommitCount": 3,
+      "unresolvedReviewThreads": 3,
+      "state": "OPEN",
+      "isDraft": false,
+      "disposition": "Preserve native hardening; public CI does not validate local-only commits, independent review, signed distribution or full cooperative Stage behavior."
+    },
+    {
+      "number": 9993,
+      "url": "https://github.com/curiositech/port-daddy/pull/9993",
+      "publicHead": "bbeb4f8109ef8c9e191f3790b85d8a8d4b3a5583",
+      "localHead": "5223d377ab858e1e0aa8674a2202988133967f91",
+      "localOnlyCommitCount": 1,
+      "unresolvedReviewThreads": 2,
+      "state": "OPEN",
+      "isDraft": false,
+      "disposition": "Preserve dirty hardening and ownership lineage; verified recovery, source reconciliation, review and governed publication remain separate gates."
+    },
+    {
+      "number": 9995,
+      "url": "https://github.com/curiositech/port-daddy/pull/9995",
+      "publicHead": "d528d58047cbfd8b972eed35b42982957fb2d433",
+      "localHead": "6096e425329e213031b7d1cafd519a0dd087e990",
+      "localOnlyCommitCount": 3,
+      "unresolvedReviewThreads": 0,
+      "state": "OPEN",
+      "isDraft": false,
+      "disposition": "Preserve local retrieval architecture hardening; reconcile and review its exact head. Docs delivery does not implement model registry, indexing, migration or production proof."
+    }
+  ],
+  "mergedPRs": [
+    { "number": 10002, "url": "https://github.com/curiositech/port-daddy/pull/10002", "head": "4f19e7f1ce8320a9492f58ae0ad82c054687ed33", "mergeCommit": "d51e3612f130fa0a6c062e836ccde01c8f674dd8", "mergedAt": "2026-09-02T14:54:17Z", "installedRuntimePromoted": false },
+    { "number": 10003, "url": "https://github.com/curiositech/port-daddy/pull/10003", "head": "0ab76fced779787ebc44e332d30952cf03f09b36", "mergeCommit": "cc317ed193de5714ba8ff23ae8e0bb192f82b8ee", "mergedAt": "2026-09-02T14:02:04Z", "installedRuntimePromoted": false },
+    { "number": 10004, "url": "https://github.com/curiositech/port-daddy/pull/10004", "head": "93ba27523028cade5da80713a879814d562576fc", "mergeCommit": "18fc9bc22904e030e2772245ff8d0a019211a76f", "mergedAt": "2026-09-02T14:54:17Z", "installedRuntimePromoted": false },
+    { "number": 10005, "url": "https://github.com/curiositech/port-daddy/pull/10005", "head": "48441e06121ae26504a08e95f55d358f6dcbed96", "mergeCommit": "53d7a81b239420f26c465f642a9e20ca6bcd0e39", "mergedAt": "2026-09-02T15:05:48Z", "installedRuntimePromoted": false },
+    { "number": 10006, "url": "https://github.com/curiositech/port-daddy/pull/10006", "head": "7ad02b67ba375d9fa443acb187cf8b30e83eb652", "mergeCommit": "c67705c82efdbc32bc76515dd517d97e2499d8d5", "mergedAt": "2026-09-02T15:30:36Z", "installedRuntimePromoted": false }
+  ],
+  "chartroomReceipt": {
+    "verification": "manager-reported; not rerun by publisher",
+    "spawnId": "spawned-a94f71bfda4a",
+    "failureAt": "2026-09-02T15:01:46.867Z",
+    "elapsedMs": 1200126,
+    "transcriptRecords": 8,
+    "assistantRecords": 0,
+    "toolCalls": 0,
+    "claims": 0,
+    "automaticFailureHandoffs": 1,
+    "interruptId": 206087,
+    "interruptAcknowledged": false,
+    "interruptCausedFailure": false,
+    "registryChanged": false,
+    "unresolvedGates": ["wrong-world binding", "startup transport", "governed publisher"]
+  }
+}

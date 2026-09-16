@@ -33,6 +33,21 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+/// One durable human-language turn read from the daemon-owned transcript.
+/// Tool and thinking rows stay in the Mission trace; this projection is only
+/// the operator/assistant dialogue needed to restore the central conversation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TranscriptTurnRole {
+    Operator,
+    Assistant,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranscriptTurn {
+    pub role: TranscriptTurnRole,
+    pub content: String,
+}
+
 impl TubeMsg {
     /// Parse one message from a `GET /msg/:channel/subscribe` SSE `data:` object.
     ///
@@ -209,9 +224,12 @@ impl SseParser {
 /// `~/.port-daddy/daemon.port`, then the canonical stable berth. In-app berth
 /// changes are process-local; they never become an abandoned file that can pin a
 /// later launch to a dead development daemon. See [`DaemonClient::discover`].
+#[path = "controlled_http.rs"]
+pub mod controlled_http;
+
 pub struct DaemonClient {
     base: String,
-    http: reqwest::Client,
+    http: controlled_http::ControlledHttp,
     /// ADR-0040 daemon-minted actor credential captured from this console's
     /// own `POST /sugar/begin` (#8877 / ADR-0122). Attributed daemon writes —
     /// `/sugar/done`, `POST /sessions/:id/files` — are rejected 401 without
@@ -307,6 +325,13 @@ impl WorkSnapshot {
         self.execution_str("errorMessage")
     }
 
+    pub fn is_compat_projection(&self) -> bool {
+        self.intent
+            .pointer("/source/kind")
+            .and_then(serde_json::Value::as_str)
+            == Some("compat")
+    }
+
     pub fn artifact_status(&self) -> Option<&serde_json::Value> {
         self.execution
             .as_ref()
@@ -332,6 +357,27 @@ impl WorkSnapshot {
         ]
         .join("|")
     }
+}
+
+/// The query can expose both a native WorkIntent and the dispatch compatibility
+/// projection for the same execution. Preserve list recency, but prefer the
+/// native record when the newest row is only that execution's compatibility
+/// alias. A genuinely legacy dispatch with no native peer remains visible.
+pub fn prefer_native_work_intent(snapshots: Vec<WorkSnapshot>) -> Option<WorkSnapshot> {
+    let mut snapshots = snapshots.into_iter();
+    let first = snapshots.next()?;
+    if !first.is_compat_projection() {
+        return Some(first);
+    }
+    let Some(dispatch_id) = first.dispatch_id().map(str::to_string) else {
+        return Some(first);
+    };
+    snapshots
+        .find(|candidate| {
+            !candidate.is_compat_projection()
+                && candidate.dispatch_id() == Some(dispatch_id.as_str())
+        })
+        .or(Some(first))
 }
 
 #[derive(Debug, Clone)]
@@ -379,6 +425,33 @@ fn work_snapshot(value: &serde_json::Value) -> Result<WorkSnapshot> {
         plan,
         execution,
     })
+}
+
+fn transcript_turns(value: &serde_json::Value) -> Result<Vec<TranscriptTurn>> {
+    let messages = value
+        .get("transcript")
+        .and_then(|transcript| transcript.get("messages"))
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| anyhow!("transcript response omitted transcript.messages"))?;
+
+    Ok(messages
+        .iter()
+        .filter_map(|message| {
+            let role = match message.get("role").and_then(serde_json::Value::as_str)? {
+                "user" => TranscriptTurnRole::Operator,
+                "assistant" => TranscriptTurnRole::Assistant,
+                _ => return None,
+            };
+            let content = message.get("content").and_then(serde_json::Value::as_str)?;
+            if content.trim().is_empty() {
+                return None;
+            }
+            Some(TranscriptTurn {
+                role,
+                content: content.to_string(),
+            })
+        })
+        .collect())
 }
 
 fn build_work_intent_envelope(
@@ -525,6 +598,15 @@ fn discovery_base(explicit_url: Option<&str>, published_port: Option<&str>) -> R
     Ok(format!("http://127.0.0.1:{port}"))
 }
 
+fn transcript_url(base: &str, transcript_id: &str) -> Result<reqwest::Url> {
+    let mut url = reqwest::Url::parse(&format!("{}/transcripts", base.trim_end_matches('/')))
+        .context("build transcript URL")?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow!("daemon URL cannot carry a transcript id"))?
+        .push(transcript_id);
+    Ok(url)
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
         // A previously selected development berth is intentionally not startup
@@ -557,11 +639,7 @@ impl DaemonClient {
     pub fn new(base: String) -> Self {
         Self {
             base: base.trim_end_matches('/').to_string(),
-            http: reqwest::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(3))
-                .timeout(std::time::Duration::from_secs(15))
-                .build()
-                .expect("reqwest client with static config cannot fail to build"),
+            http: controlled_http::ControlledHttp::new(),
             actor_credential: std::sync::Mutex::new(None),
         }
     }
@@ -581,7 +659,7 @@ impl DaemonClient {
     }
 
     /// Attach the actor credential (when held) to an outgoing request.
-    fn with_actor_credential(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    fn with_actor_credential(&self, req: controlled_http::ControlledRequest) -> controlled_http::ControlledRequest {
         match self.actor_credential() {
             Some(credential) => req.header("x-actor-credential", credential),
             None => req,
@@ -622,7 +700,7 @@ impl DaemonClient {
                     response = Some(value);
                     break;
                 }
-                Err(error) if attempt == 0 && error.is_timeout() => continue,
+                Err(error) if attempt == 0 && controlled_http::is_timeout(&error) => continue,
                 Err(error) => return Err(error).context("POST Surface Gateway WorkIntent"),
             }
         }
@@ -679,7 +757,7 @@ impl DaemonClient {
                     response = Some(value);
                     break;
                 }
-                Err(error) if attempt == 0 && error.is_timeout() => continue,
+                Err(error) if attempt == 0 && controlled_http::is_timeout(&error) => continue,
                 Err(error) => return Err(error).context("POST Surface Gateway WorkIntent start"),
             }
         }
@@ -822,9 +900,27 @@ impl DaemonClient {
             .collect()
     }
 
-    /// Expose the underlying reqwest client so panes can issue arbitrary requests
-    /// to the daemon without re-implementing discovery.
-    pub fn http_client(&self) -> &reqwest::Client {
+    /// Restore the operator/assistant dialogue for a durable mission. The
+    /// daemon's transcript route is the authority; the console does not infer a
+    /// prior model reply from a receipt, output artifact, or terminal state.
+    pub async fn transcript_turns(&self, transcript_id: &str) -> Result<Vec<TranscriptTurn>> {
+        let url = transcript_url(&self.base, transcript_id)?;
+        let response = self
+            .http
+            .get(url)
+            .send()
+            .await
+            .context("GET /transcripts/:id")?;
+        let response = ensure_success(response, "transcript_turns").await?;
+        let value: serde_json::Value = response
+            .json()
+            .await
+            .context("GET /transcripts/:id response")?;
+        transcript_turns(&value)
+    }
+
+    /// Expose only a gated client: daemon and relay panes share local Off.
+    pub fn http_client(&self) -> &controlled_http::ControlledHttp {
         &self.http
     }
 
@@ -1282,6 +1378,7 @@ impl DaemonClient {
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
             loop {
+                if crate::local_control::ensure_allowed().is_err() { return; }
                 // Long-lived SSE: override the client's 15s total-request
                 // deadline (which exists to keep pane refreshes from wedging
                 // the console) — only connect_timeout should govern a stream.
@@ -1323,6 +1420,7 @@ impl DaemonClient {
                 let mut body = resp.bytes_stream();
                 loop {
                     let chunk = tokio::select! {
+                        _ = controlled_http::wait_until_off() => return,
                         _ = tx.closed() => return,
                         chunk = body.next() => chunk,
                     };
@@ -1391,6 +1489,7 @@ impl DaemonClient {
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
             loop {
+                if crate::local_control::ensure_allowed().is_err() { return; }
                 let mut req = http.get(&url);
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
@@ -1427,6 +1526,7 @@ impl DaemonClient {
                 let mut body = resp.bytes_stream();
                 loop {
                     let chunk = tokio::select! {
+                        _ = controlled_http::wait_until_off() => return,
                         _ = tx.closed() => return,
                         chunk = body.next() => chunk,
                     };
@@ -1690,6 +1790,101 @@ mod tests {
             "c"
         );
         assert_eq!(extract_text(None), "");
+    }
+
+    #[test]
+    fn transcript_projection_restores_only_exact_human_language_turns() {
+        let turns = transcript_turns(&serde_json::json!({
+            "success": true,
+            "transcript": {
+                "messages": [
+                    {"role": "user", "content": "Keep this exact prompt.\nSecond line."},
+                    {"role": "tool", "content": "[codex:error]"},
+                    {"role": "thinking", "content": "private scratch"},
+                    {"role": "assistant", "content": "Exact answer."},
+                    {"role": "assistant", "content": "   "}
+                ]
+            }
+        }))
+        .expect("transcript response parses");
+
+        assert_eq!(
+            turns,
+            vec![
+                TranscriptTurn {
+                    role: TranscriptTurnRole::Operator,
+                    content: "Keep this exact prompt.\nSecond line.".into(),
+                },
+                TranscriptTurn {
+                    role: TranscriptTurnRole::Assistant,
+                    content: "Exact answer.".into(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn transcript_projection_fails_loudly_when_messages_are_missing() {
+        let error = transcript_turns(&serde_json::json!({"success": true}))
+            .expect_err("missing durable transcript rows must not look empty");
+        assert!(error.to_string().contains("omitted transcript.messages"));
+    }
+
+    #[test]
+    fn transcript_url_has_one_route_separator_and_encodes_the_id() {
+        let url = transcript_url("http://127.0.0.1:43129/", "tx/one two")
+            .expect("daemon transcript URL");
+        assert_eq!(
+            url.as_str(),
+            "http://127.0.0.1:43129/transcripts/tx%2Fone%20two"
+        );
+    }
+
+    #[test]
+    fn latest_native_work_intent_wins_over_its_dispatch_compat_alias() {
+        let snapshot = |intent_id: &str, source_kind: &str, dispatch_id: &str| WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": intent_id,
+                "source": {"kind": source_kind},
+                "goal": {"text": "same mission"}
+            }),
+            plan: None,
+            execution: Some(serde_json::json!({
+                "dispatchId": dispatch_id,
+                "state": "settled"
+            })),
+        };
+        let selected = prefer_native_work_intent(vec![
+            snapshot("work_intent_compat_dispatch_d7", "compat", "d7"),
+            snapshot("work_intent_console_7", "console", "d7"),
+            snapshot("work_intent_console_older", "console", "d6"),
+        ])
+        .expect("one Mission remains selected");
+
+        assert_eq!(selected.intent_id(), "work_intent_console_7");
+    }
+
+    #[test]
+    fn genuinely_legacy_dispatch_stays_visible_without_a_native_peer() {
+        let legacy = WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": "work_intent_compat_dispatch_old",
+                "source": {"kind": "compat"},
+                "goal": {"text": "legacy mission"}
+            }),
+            plan: None,
+            execution: Some(serde_json::json!({
+                "dispatchId": "old",
+                "state": "settled"
+            })),
+        };
+
+        assert_eq!(
+            prefer_native_work_intent(vec![legacy])
+                .expect("legacy Mission remains inspectable")
+                .intent_id(),
+            "work_intent_compat_dispatch_old"
+        );
     }
 
     // ── Stream envelope parsing ───────────────────────────────────────────────

@@ -30,9 +30,9 @@ function requireString(value, name) {
  * containment, or do they just look like a test suite?
  *
  * This does not execute the adversarial cases against a live sandbox — it audits
- * whether the *design* of the harness spec can, even in principle, prove
- * containment. A spec that passes here is safe to wire into a real execution
- * harness and gate deployment on.
+ * whether the *design* of the harness spec even names the minimum policy-shape
+ * ingredients. A passing result is T0 lint only: it is not safe to wire into
+ * execution, does not prove containment, and cannot gate deployment.
  *
  * @param {object} spec - parsed harness-spec.schema.json document
  * @returns {{
@@ -84,7 +84,7 @@ export function auditContainment(spec) {
   const findings = [];
   const recommendations = [];
 
-  // Coverage per threat class — the load-bearing computation. A harness that never
+  // Coverage per threat class — the structural computation. A harness that never
   // even attempts a given attack cannot claim to contain it, no matter how green
   // the rest of the suite is.
   const coverageByThreatClass = {};

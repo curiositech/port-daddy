@@ -11,6 +11,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFile
 import { dirname, join } from 'node:path';
 import { resolveSquidAsset } from './squid/assets.js';
 import { PD_HOME } from '../shared/paths.js';
+import { hookRuntimePreamble } from './hook-runtime-gate.js';
 
 const HOOK_FILENAME = 'sessionstart-pilot.mjs';
 
@@ -118,7 +119,10 @@ export function installPilotSessionStartHook(options: {
   if (!script) {
     return { changed: false, settingsPath, command: null, reason: 'hook script not found', ok: false };
   }
-  const command = `node ${script}`;
+  // The shell gate runs before Node as well as the script's own filesystem
+  // recheck. Quoting binds the script as data, including spaces/apostrophes.
+  const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  const command = `/bin/sh -c ${shellQuote(hookRuntimePreamble() + '\nexec node "$1"')} port-daddy-pilot ${shellQuote(script)}`;
 
   let settings: ClaudeSettings = {};
   if (existsSync(settingsPath)) {

@@ -26,7 +26,7 @@ an append-only memory stream) shows recency is insufficient: retrieval must blen
 Park's named failure modes in PD today:
 
 - **Retrieval Cascade Failure** — an agent "denies knowledge it previously demonstrated"
-  because the one load-bearing note aged out of the window. This is the recurring
+  because the one core note aged out of the window. This is the recurring
   *stale-local-plan / re-anchor* hazard `AGENTS.md` warns about.
 - **Memory Importance Inflation** — trivia (`pd status`) is indistinguishable from a
   pivotal event (a PR that flips the canonical macaroon impl), so it drowns it out.

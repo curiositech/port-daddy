@@ -171,7 +171,7 @@ This lattice structure is similar to:
 
 ## Implications for Multi-Agent Task Decomposition
 
-**For WinDAGs with 180+ skills**:
+**For Jury-rig with 180+ skills**:
 
 **Design principle 1: Skill hierarchy metadata**  
 Each skill should be annotated with:
@@ -251,7 +251,7 @@ Sen et al.'s framework computationalizes this: Stage 1 skills become automatic (
 
 ## Design Pattern: Hierarchical Skill Graphs
 
-For WinDAGs orchestrators, represent skills as a directed acyclic graph (DAG):
+For Jury-rig orchestrators, represent skills as a directed acyclic graph (DAG):
 
 **Nodes**: Individual skills  
 **Edges**: Compositional dependencies (uses-as-component)

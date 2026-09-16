@@ -105,6 +105,95 @@ describe('POST /roadmap/reindex-search', () => {
   });
 });
 
+describe('GET /roadmap/jira', () => {
+  test('reports exact missing managed fields without failing the local roadmap', async () => {
+    const { app, roadmapItems } = await buildApp(() => ({
+      jiraSecretReader: () => undefined,
+    }));
+    roadmapItems.upsert({ slug: 'local-still-here', summaryMd: 'Local authority', status: 'now' });
+
+    const jira = await app.inject({ method: 'GET', url: '/roadmap/jira' });
+    expect(jira.statusCode).toBe(200);
+    expect(jira.json()).toMatchObject({
+      success: true,
+      source: 'jira',
+      configured: false,
+      issues: [],
+      missing: ['PD_JIRA_BASE_URL', 'PD_JIRA_PROJECT_KEY', 'PD_JIRA_EMAIL', 'PD_JIRA_API_TOKEN'],
+    });
+
+    const local = await app.inject({ method: 'GET', url: '/roadmap/items?status=all' });
+    expect(local.statusCode).toBe(200);
+    expect(local.json().items.map((item) => item.slug)).toContain('local-still-here');
+    await app.close();
+  });
+
+  test('returns a source-labelled live Jira projection without credentials', async () => {
+    const secrets = {
+      PD_JIRA_BASE_URL: 'https://acme.atlassian.net',
+      PD_JIRA_PROJECT_KEY: 'ROAD',
+      PD_JIRA_EMAIL: 'operator@example.com',
+      PD_JIRA_API_TOKEN: 'jira-secret-token',
+    };
+    const jiraReader = {
+      clear() {},
+      async read(config) {
+        expect(config).toEqual({
+          baseUrl: secrets.PD_JIRA_BASE_URL,
+          projectKey: secrets.PD_JIRA_PROJECT_KEY,
+          email: secrets.PD_JIRA_EMAIL,
+          apiToken: secrets.PD_JIRA_API_TOKEN,
+        });
+        return {
+          source: 'jira', projectKey: 'ROAD', baseUrl: secrets.PD_JIRA_BASE_URL,
+          fetchedAt: 123, cached: false,
+          issues: [{ source: 'jira', id: '100', key: 'ROAD-2', summary: 'Shared Harbor', url: `${secrets.PD_JIRA_BASE_URL}/browse/ROAD-2` }],
+        };
+      },
+    };
+    const { app } = await buildApp(() => ({
+      jiraSecretReader: (key) => secrets[key],
+      jiraReader,
+    }));
+
+    const res = await app.inject({ method: 'GET', url: '/roadmap/jira' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      success: true, configured: true, source: 'jira', projectKey: 'ROAD',
+      issues: [{ key: 'ROAD-2', summary: 'Shared Harbor' }],
+    });
+    expect(res.payload).not.toContain(secrets.PD_JIRA_EMAIL);
+    expect(res.payload).not.toContain(secrets.PD_JIRA_API_TOKEN);
+    await app.close();
+  });
+
+  test('isolates an upstream Jira failure from local roadmap reads', async () => {
+    const values = {
+      PD_JIRA_BASE_URL: 'https://acme.atlassian.net', PD_JIRA_PROJECT_KEY: 'ROAD',
+      PD_JIRA_EMAIL: 'operator@example.com', PD_JIRA_API_TOKEN: 'secret',
+    };
+    const { app, roadmapItems } = await buildApp(() => ({
+      jiraSecretReader: (key) => values[key],
+      jiraReader: { clear() {}, async read() { throw new Error('upstream offline'); } },
+    }));
+    roadmapItems.upsert({ slug: 'local-still-here', summaryMd: 'Local authority', status: 'now' });
+
+    const jira = await app.inject({ method: 'GET', url: '/roadmap/jira' });
+    expect(jira.statusCode).toBe(502);
+    expect(jira.json()).toMatchObject({
+      success: false,
+      source: 'jira',
+      configured: true,
+      error: 'Jira roadmap read failed',
+    });
+    expect(jira.payload).not.toContain('upstream offline');
+    const local = await app.inject({ method: 'GET', url: '/roadmap/items?status=all' });
+    expect(local.statusCode).toBe(200);
+    expect(local.json().items).toHaveLength(1);
+    await app.close();
+  });
+});
+
 describe('POST /roadmap/items/:slug/export', () => {
   const originalFetch = global.fetch;
   const savedEnv = { ...process.env };
@@ -134,6 +223,100 @@ describe('POST /roadmap/items/:slug/export', () => {
       payload: { target: 'trello' },
     });
     expect(res.statusCode).toBe(400);
+    await app.close();
+  });
+
+  test('reports every missing managed Jira field and ignores request-supplied credentials', async () => {
+    const { app, roadmapItems } = await buildApp(() => ({
+      jiraSecretReader: () => undefined,
+    }));
+    roadmapItems.upsert({ slug: 'shared-harbor', summaryMd: 'Build Shared Harbor', status: 'now' });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/roadmap/items/shared-harbor/export',
+      payload: {
+        target: 'jira',
+        baseUrl: 'https://attacker.invalid',
+        projectKey: 'EVIL',
+        email: 'attacker@example.com',
+        apiToken: 'request-secret',
+      },
+    });
+
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toMatchObject({
+      success: false,
+      missing: ['PD_JIRA_BASE_URL', 'PD_JIRA_PROJECT_KEY', 'PD_JIRA_EMAIL', 'PD_JIRA_API_TOKEN'],
+    });
+    expect(res.payload).not.toContain('attacker.invalid');
+    expect(res.payload).not.toContain('request-secret');
+    await app.close();
+  });
+
+  test('exports to the managed Jira site and project, never body-supplied authority', async () => {
+    const secrets = {
+      PD_JIRA_BASE_URL: 'https://acme.atlassian.net',
+      PD_JIRA_PROJECT_KEY: 'ROAD',
+      PD_JIRA_EMAIL: 'operator@example.com',
+      PD_JIRA_API_TOKEN: 'jira-secret-token',
+    };
+    let request;
+    global.fetch = async (url, init) => {
+      request = { url, init };
+      return {
+        ok: true,
+        status: 201,
+        async json() { return { id: '10001', key: 'ROAD-7' }; },
+        async text() { return ''; },
+      };
+    };
+    const { app, roadmapItems } = await buildApp(() => ({
+      jiraSecretReader: (key) => secrets[key],
+    }));
+    roadmapItems.upsert({
+      slug: 'shared-harbor',
+      summaryMd: 'Build Shared Harbor',
+      status: 'now',
+      tags: ['agent browser'],
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/roadmap/items/shared-harbor/export',
+      payload: {
+        target: 'jira',
+        baseUrl: 'https://attacker.invalid',
+        projectKey: 'EVIL',
+        email: 'attacker@example.com',
+        apiToken: 'request-secret',
+        issueType: 'Epic',
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual({
+      success: true,
+      export: {
+        target: 'jira',
+        externalId: 'ROAD-7',
+        externalUrl: 'https://acme.atlassian.net/browse/ROAD-7',
+      },
+    });
+    expect(request.url).toBe('https://acme.atlassian.net/rest/api/3/issue');
+    expect(request.init.headers.Authorization).toBe(
+      `Basic ${Buffer.from('operator@example.com:jira-secret-token').toString('base64')}`,
+    );
+    expect(JSON.parse(request.init.body)).toMatchObject({
+      fields: {
+        project: { key: 'ROAD' },
+        issuetype: { name: 'Epic' },
+      },
+    });
+    expect(JSON.stringify(request)).not.toContain('attacker.invalid');
+    expect(JSON.stringify(request)).not.toContain('request-secret');
+    expect(res.payload).not.toContain(secrets.PD_JIRA_EMAIL);
+    expect(res.payload).not.toContain(secrets.PD_JIRA_API_TOKEN);
     await app.close();
   });
 

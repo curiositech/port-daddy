@@ -2,7 +2,7 @@
 license: Apache-2.0
 name: next-move
 description: |
-  Predicts the highest-impact next action for your project by running a 5-agent meta-DAG pipeline. Gathers project signals automatically (git, recent files, port-daddy, CLAUDE.md), then runs sensemaker -> decomposer -> skill-selector + premortem -> synthesizer. When execution is approved, convert each predicted node into a skillful node prompt using skillful-node-prompt + skillful-subagent-creator, prefer live WinDAGs visualization backed by POST /api/execute and /ws/execution/:id, and fall back to ASCII only when live visualization is unavailable. Activate on: "what should I do", "what's next", "next move", "/next-move", "where should I focus", "what's the highest impact thing right now". NOT for: creating skills, debugging one specific bug, or promising topology-specific runtime behavior the current server cannot execute.
+  Predicts the highest-impact next action for your project by running a 5-agent meta-DAG pipeline. Gathers project signals automatically (git, recent files, port-daddy, CLAUDE.md), then runs sensemaker -> decomposer -> skill-selector + premortem -> synthesizer. When execution is approved, convert each predicted node into a skillful node prompt using skillful-node-prompt + skillful-subagent-creator, prefer live Jury-rig visualization backed by POST /api/execute and /ws/execution/:id, and fall back to ASCII only when live visualization is unavailable. Activate on: "what should I do", "what's next", "next move", "/next-move", "where should I focus", "what's the highest impact thing right now". NOT for: creating skills, debugging one specific bug, or promising topology-specific runtime behavior the current server cannot execute.
 category: Agent & Orchestration
 tags:
   - planning
@@ -28,16 +28,16 @@ allowed-tools:
   - Bash(pnpm:*)
   - Bash(open:*)
   - Bash(curl:*)
-  - mcp__windags__windags_skill_search
-  - mcp__windags__windags_history
+  - pd jury-rig query
+  - mcp__jury_rig__jury_rig_history
 user-invocable: true
 argument-hint: "[--fresh] [focus hint]"
 pairs-with:
-  - skill: windags-sensemaker
+  - skill: jury_rig-sensemaker
     reason: Problem classification and halt gate
-  - skill: windags-decomposer
+  - skill: jury_rig-decomposer
     reason: Three-pass decomposition protocol
-  - skill: windags-premortem
+  - skill: jury_rig-premortem
     reason: Failure pattern scanning
   - skill: task-decomposer
     reason: Breaks recommended moves into executable subtasks
@@ -55,7 +55,7 @@ pairs-with:
 
 # /next-move
 
-You predict the best next move, present it clearly, and if the user approves, hand it to the real WinDAGs execution path.
+You predict the best next move, present it clearly, and if the user approves, hand it to the real Jury-rig execution path.
 
 Two operating rules are mandatory:
 
@@ -63,7 +63,7 @@ Two operating rules are mandatory:
    Current server execution is real for `dag` and `workflow`.
    `team-loop`, `swarm`, `blackboard`, `team-builder`, and `recurring` still fall back to generic DAG execution through `/api/execute`.
 
-2. Prefer **live WinDAGs visualization** over ASCII whenever execution is going to happen.
+2. Prefer **live Jury-rig visualization** over ASCII whenever execution is going to happen.
    ASCII is the fallback preview surface, not the flagship product surface.
 
 **Arguments:** `$ARGUMENTS`
@@ -83,7 +83,7 @@ Load these files when you reach the relevant stage instead of improvising from m
 | `prompts/execution-node.md` | Before any node execution | Canonical skillful node prompt template |
 | `references/topology-selection.md` | When choosing topology or handling override | Distinguishes planning topology from runtime topology |
 | `references/skillful-node-execution.md` | When building executable nodes | Node contracts, gate rules, output discipline |
-| `references/live-execution-visualization.md` | Before presenting approval or executing | Real WinDAGs UI, WebSocket, and browser/Tauri path |
+| `references/live-execution-visualization.md` | Before presenting approval or executing | Real Jury-rig UI, WebSocket, and browser/Tauri path |
 
 ## Project Signals
 
@@ -139,9 +139,9 @@ These are preprocessed into the skill. Use them as ground truth.
 !`command -v pd >/dev/null 2>&1 && pd whoami 2>/dev/null || echo ""`
 ```
 
-### Prior WinDAGs Predictions
+### Prior Jury-rig Predictions
 ```
-!`ls -1t .windags/triples/ 2>/dev/null || echo "No prior predictions"`
+!`ls -1t .skill-runtime-archive/triples/ 2>/dev/null || echo "No prior predictions"`
 ```
 
 ## Decision Points
@@ -158,12 +158,12 @@ flowchart TD
   H --> I[Build predicted DAG with planning topology and runtime topology]
   I --> J[Load live-execution-visualization reference]
   J --> K{Execution likely?}
-  K -->|Yes| L[Open live WinDAGs surface if available]
+  K -->|Yes| L[Open live Jury-rig surface if available]
   K -->|No| M[Show preview only]
   L --> N[Ask Accept / Modify / Change topology / Reject]
   M --> N
   N -->|Accept| O[Load skillful-node-execution reference + execution-node prompt]
-  O --> P[Execute through real WinDAGs runtime]
+  O --> P[Execute through real Jury-rig runtime]
   N -->|Modify| Q[Mutate DAG, re-present]
   N -->|Change topology| R[Re-evaluate topology and runtime honesty]
   N -->|Reject| S[Record rejection and stop]
@@ -205,7 +205,7 @@ Rules:
 
 For each subtask, search skills in parallel:
 
-- Prefer `mcp__windags__windags_skill_search`
+- Prefer `pd jury-rig query`
 - fall back to grep over `skills/*/SKILL.md`
 - fall back again to the `pairs-with` skills in this skill's frontmatter
 
@@ -267,7 +267,7 @@ Before presenting approval options, load `references/live-execution-visualizatio
 
 Preferred presentation order:
 
-1. Open or reuse the live WinDAGs surface if execution is likely.
+1. Open or reuse the live Jury-rig surface if execution is likely.
 2. Present a concise textual summary of the predicted DAG.
 3. Use ASCII only as fallback or supplement.
 
@@ -326,7 +326,7 @@ Execution rules:
 
 Live runtime rules:
 
-- Prefer the real WinDAGs runtime via `POST /api/execute`
+- Prefer the real Jury-rig runtime via `POST /api/execute`
 - pass `executionContext.targetProject` when you know the repo the agents should modify
 - connect progress to `/ws/execution/:id`
 - keep the live surface open while execution runs
@@ -380,7 +380,7 @@ If the user selects `Change topology`:
 | Generic node prompts | Node prompt contains only skill body + task prose | Rebuild from `prompts/execution-node.md` and the skillful-node reference |
 | Hidden gate | Approval requirement exists only in prose | Convert it into an explicit human gate |
 | Structure drift | Downstream node needs JSON but upstream emits essay text | Add output contract and contract enforcement |
-| Dead visualization | Execution starts without live surface and no fallback status channel | Open WinDAGs UI or provide explicit ASCII fallback with status updates |
+| Dead visualization | Execution starts without live surface and no fallback status channel | Open Jury-rig UI or provide explicit ASCII fallback with status updates |
 | MCP unavailable | Skill search tool errors | Fall back to grep, then `pairs-with` skills |
 
 ## Worked Examples
@@ -390,7 +390,7 @@ If the user selects `Change topology`:
 - Problem: "Finish the auth middleware refactor and prove it works"
 - Planning topology: `dag`
 - Runtime topology: `dag`
-- Execution: live WinDAGs view is exact
+- Execution: live Jury-rig view is exact
 
 ### Example 2: Messy Debugging Investigation
 
@@ -425,5 +425,5 @@ If the user selects `Change topology`:
 - **Creating or batch-upgrading skills** -> Use `skill-creator` or `skill-architect`
 - **One-off bug debugging without a planning step** -> Use `fullstack-debugger`
 - **Pretending unsupported topologies execute natively** -> Do not do this
-- **ASCII-only theater when a real WinDAGs surface is available** -> Open the real surface
+- **ASCII-only theater when a real Jury-rig surface is available** -> Open the real surface
 - **Ad hoc subagent prompts with no contracts** -> Use the skillful-node template and reference

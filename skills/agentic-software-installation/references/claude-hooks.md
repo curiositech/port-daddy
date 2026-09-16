@@ -11,7 +11,10 @@ also add the same PD entries at user scope.
 - `UserPromptSubmit` -> `pd-hook-prompt`
 - `PreToolUse` -> `pd-hook-pre-tool`
 
-The edit matcher is `Edit|Write|MultiEdit|NotebookEdit`. Both commands have a
+The pre-tool matcher is `Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__port-daddy__.*`:
+the four edit tools feed the lock gate; `Bash` and the Port Daddy MCP tools
+are matched so the ADR-0132 halt sentinel (`~/.port-daddy/HALT`) can refuse
+`pd` invocations and Port Daddy MCP calls during a halt. Both commands have a
 one-second deadline. The pre-tool gate uses Claude's blocking contract: write
 the reason to stderr and exit 2.
 

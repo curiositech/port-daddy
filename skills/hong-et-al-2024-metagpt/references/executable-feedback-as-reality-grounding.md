@@ -125,7 +125,7 @@ The QA Engineer role in MetaGPT (p.8) hints at this—generating test cases to "
 
 ## Application to Agent Systems: Design Principles
 
-For systems like WinDAGs that orchestrate agents for various tasks, executable feedback offers several design patterns:
+For systems like Jury-rig that orchestrate agents for various tasks, executable feedback offers several design patterns:
 
 **Pattern 1: Execution as Standard Skill**
 Make "execute code/query/API call in sandbox" a primitive operation available to agents. When an agent produces an artifact that *can* be executed (code, SQL, API spec), automatically attempt execution and provide feedback. This works for:
@@ -162,7 +162,7 @@ Different tasks need different execution environments:
 - Web scraping: Sandboxed browser
 - System administration: Docker container with OS
 
-WinDAGs should maintain a library of execution contexts and select appropriate ones based on task type. The executable feedback mechanism must include environment setup as a first-class concern.
+Jury-rig should maintain a library of execution contexts and select appropriate ones based on task type. The executable feedback mechanism must include environment setup as a first-class concern.
 
 **Pattern 4: Multi-Level Testing**
 Executable feedback in MetaGPT tests at unit level (individual functions). Real systems need:

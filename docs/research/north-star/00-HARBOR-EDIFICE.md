@@ -26,7 +26,7 @@ that they live on **two orthogonal axes**. The papers form a building.
   the four *explaining* papers. This axis carries the **vision**. It is allowed
   to be excited, concrete, and ambitious. It sells.
 - **Horizontal — the BEAMS that hold (prove).** The mechanized guarantees, each
-  a load-bearing member that runs *across* the floors it secures. This axis
+  a core member that runs *across* the floors it secures. This axis
   carries the **authority**. It is where rigour and honest "not-yet" live.
 
 Vision climbs; proof crosses. Neither is redundant because they are
@@ -85,7 +85,7 @@ The grid is **sparse by design**. Empty cells are not missing proofs — they ar
 floors held up by engineering because no adversary stands there. A beam exists
 **only where trust is absent** (across operators, across machines, across the
 bond). State this plainly; it converts "incomplete" into a *map of where rigour
-is load-bearing*, and the maturity marks (▰/▱/·) turn the open cells into a
+is essential*, and the maturity marks (▰/▱/·) turn the open cells into a
 roadmap rather than a confession.
 
 ## The spine, the elevator, the workbook

@@ -2,6 +2,40 @@
 
 All notable changes to this skill will be documented here.
 
+## v1.2.0 - 2026-09-15
+
+Extends appeal analysis from landing pages to **technical documents and
+scientific books**, and to wireframes.
+
+### Added
+- `references/technical-document-appeal.md` — the Desirability Triangle grows a
+  fourth vertex, **Return on Effort** (time to first insight, cost
+  transparency, payoff visibility), because a monograph's price is forty hours
+  rather than thirty seconds. Includes the **30-Second Shelf Test** (the
+  technical analogue of the 5-Second Test), the random-page test, the technical
+  trust ladder, a trust-signal/cheap-fake table, the figures-are-the-hero-image
+  argument, and each landing-page anti-pattern mapped to its technical
+  analogue.
+- `references/surface-appeal-adapters.md` — wireframes, prototypes, and decks,
+  under one rule: **a wireframe can fail appeal but cannot pass it.** Which
+  vertices are assessable, and the discipline of scoring `null` rather than
+  guessing.
+- **Reader-map persona matching**: `technicalDocument.readerMap` matches each
+  scored persona to the route the document prints for it and walks that chain —
+  reporting personas with no route, routes addressed to nobody, routes that
+  reward a different reader than they name, and routes that pay off after their
+  reader's budget runs out.
+- `scripts/appeal_audit.mjs` gains two optional blocks, `technicalDocument` and
+  `surfer`, plus a `surfaceKind` honesty guard for wireframes. Both are absent
+  for an ordinary landing page and the existing behaviour is unchanged.
+- `examples/technical-book-spec.json` — a monograph exercising every new gate.
+
+### Changed
+- The integration section now states the mechanism rather than the slogan:
+  appeal and friction are two readouts of one random-surfer chain — friction is
+  the terms that raise the abandon hazard, appeal is the terms that lower it.
+  Consequence: **appeal cannot be fixed downstream of where people stop.**
+
 ## [1.1.0] - 2026-07-03
 
 ### Added

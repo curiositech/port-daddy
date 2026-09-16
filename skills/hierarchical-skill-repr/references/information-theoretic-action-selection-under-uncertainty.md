@@ -263,7 +263,7 @@ Algorithm treats goal action as terminal (succeeds or fails, then reassess). If 
 
 ## Design Pattern: Information-Gain-Driven Task Decomposition
 
-For WinDAGs orchestrators:
+For Jury-rig orchestrators:
 
 **1. Identify task-critical parameters**: What must be known to execute the goal skill successfully?  
 - Example: "deploy security patch" requires knowing current system version, patch compatibility, deployment window availability

@@ -122,7 +122,7 @@ The single agent must get it right in one shot, without concrete feedback about 
 
 ## Design Implications: Engineering for Iteration
 
-For systems like WinDAGs orchestrating multiple AI agents, this teaching suggests several design principles:
+For systems like Jury-rig orchestrating multiple AI agents, this teaching suggests several design principles:
 
 **1. Expect failure as the default path to success**
 
@@ -247,6 +247,6 @@ The termination conditions (max turns, success signals, TERMINATE messages) are 
 5. **Set iteration budgets** that balance thoroughness with efficiency
 6. **Design escalation paths** for when iteration doesn't converge
 
-The paper demonstrates that **simple agents iterating with good feedback outperform sophisticated agents attempting perfect one-shot generation**. For WinDAGs, this suggests: Don't try to build perfect task decomposition and skill routing upfront. Instead, build skills that can execute, observe results, provide feedback, and allow coordinator agents to iterate until tasks are completed successfully.
+The paper demonstrates that **simple agents iterating with good feedback outperform sophisticated agents attempting perfect one-shot generation**. For Jury-rig, this suggests: Don't try to build perfect task decomposition and skill routing upfront. Instead, build skills that can execute, observe results, provide feedback, and allow coordinator agents to iterate until tasks are completed successfully.
 
 The key insight is that **iteration transforms hard problems (generate perfect code) into tractable feedback loops (generate plausible code, observe failures, refine)**. The conversation interface makes these feedback loops natural and composable.

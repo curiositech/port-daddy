@@ -16,7 +16,7 @@ No-Overdraft Lemma.
 ### Proof gap #05 — Federated Security Theorem (Bonded §7)
 
 **Class:** crypto + recovery
-**Severity:** load-bearing
+**Severity:** critical
 **Carried from:** v2.1, deferred at v2.2
 
 **Counter:** ProVerif model

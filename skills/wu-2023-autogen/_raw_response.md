@@ -166,7 +166,7 @@ These gaps represent important research directions for making conversational coo
 
 **Conversation is not just a nice interface for users - it can be the foundational coordination mechanism for multi-agent systems**. When agents are capable enough to interpret messages, maintain context, and respond appropriately, conversation-driven control eliminates the need for centralized orchestration logic. This makes systems more modular, composable, and adaptive at the cost of emergent behavior that may be harder to predict and debug.
 
-For WinDAGs specifically, this suggests: Design skills not as functions to be called but as conversable agents that can participate in multi-turn dialogues. Use message-passing patterns to coordinate skill invocation rather than explicit DAG execution logic. Let conversation flow emerge from agent capabilities and message content rather than predetermined workflows.
+For Jury-rig specifically, this suggests: Design skills not as functions to be called but as conversable agents that can participate in multi-turn dialogues. Use message-passing patterns to coordinate skill invocation rather than explicit DAG execution logic. Let conversation flow emerge from agent capabilities and message content rather than predetermined workflows.
 
 The question is not whether to use conversation-based coordination, but **when its benefits (modularity, adaptability, human integration) outweigh its costs (latency, potential inefficiency, emergent complexity)**.
 ```
@@ -304,7 +304,7 @@ These leaks don't invalidate the separation - they show it's a **useful abstract
 
 ## Design Implications for Task Decomposition
 
-For systems like WinDAGs that need to decompose complex tasks, this teaching suggests:
+For systems like Jury-rig that need to decompose complex tasks, this teaching suggests:
 
 **1. Separate "what can this skill do" from "when should this skill be invoked"**
 - Skill definitions should focus purely on capabilities (computation)
@@ -374,7 +374,7 @@ The OptiGuide application (A4) demonstrates **adversarial validation** where age
 
 **Architecture**: Three agents - Commander (orchestrator), Writer (code generator), Safeguard (security validator)
 
-**Workflow**: 
+**Workflow**:
 1. User asks question → Commander forwards to Writer
 2. Writer generates code → Commander sends to Safeguard
 3. Safeguard checks for security violations → returns SAFE or DANGER
@@ -459,7 +459,7 @@ This pattern generalizes: **When tasks involve formal rules or ground truth that
 These patterns reveal a core architectural principle: **Use conversation to separate concerns that are difficult to handle monolithically**:
 
 - **Generation vs. Validation** → Separate agents for creation and checking (OptiGuide)
-- **Task reasoning vs. World knowledge** → Separate agents for domain logic and commonsense (ALFWorld)  
+- **Task reasoning vs. World knowledge** → Separate agents for domain logic and commonsense (ALFWorld)
 - **Flexible behavior vs. Formal rules** → Separate agents for natural interaction and ground truth enforcement (Chess)
 
 The conversation interface makes this separation natural because:
@@ -550,7 +550,7 @@ This is counterintuitive for developers trained to minimize components - more ag
 
 The cost is coordination overhead and potential for emergent behavior. The benefit is modularity, correctness, and capability that monolithic agents cannot achieve.
 
-For WinDAGs: Consider whether each skill should be a single agent or whether some skills need companion validation/grounding agents. For example, skills that generate code might need security validation agents, skills that interact with databases might need schema grounding agents, skills that make critical decisions might need human validation agents. Design the conversation patterns that connect these specialists.
+For Jury-rig: Consider whether each skill should be a single agent or whether some skills need companion validation/grounding agents. For example, skills that generate code might need security validation agents, skills that interact with databases might need schema grounding agents, skills that make critical decisions might need human validation agents. Design the conversation patterns that connect these specialists.
 ```
 
 ### FILE: human-agency-as-configurable-backend.md
@@ -572,7 +572,7 @@ The mechanism is the UserProxyAgent, which can be configured with `human_input_m
 - Used for fully autonomous operation
 - Example: In A1 Scenario 1 (autonomous math solving), the user proxy executes code without human intervention
 
-**2. 'ALWAYS'**: Agent solicits human input for every response  
+**2. 'ALWAYS'**: Agent solicits human input for every response
 - Used for human-in-the-loop operation
 - Example: In A1 Scenario 2, setting `human_input_mode='ALWAYS'` enables human hints to guide the math problem-solving process
 
@@ -597,7 +597,7 @@ Each requires different architecture, different testing, different deployment.
 
 **AutoGen approach**: One architecture accommodates all three:
 - Set `human_input_mode='NEVER'` → autonomous AI system
-- Set `human_input_mode='ALWAYS'` → human-in-the-loop system  
+- Set `human_input_mode='ALWAYS'` → human-in-the-loop system
 - Set `human_input_mode='TERMINATE'` → AI with human oversight
 
 The same agents, same conversation patterns, same code - only configuration differs.
@@ -620,7 +620,7 @@ The paper shows this enables solving harder problems: "For challenging problems 
 
 Application A1 Scenario 3 extends this to **multiple humans with different expertise levels**:
 
-**Architecture**: 
+**Architecture**:
 - Student (human) ↔ Student's Assistant (LLM)
 - Student's Assistant ↔ Expert's Assistant (LLM)
 - Expert's Assistant ↔ Expert (human)
@@ -763,7 +763,7 @@ All decisions are visible in conversation logs:
 
 Because human responses integrate into agent reasoning:
 - Ambiguous human responses can derail agent progress
-- Clear, specific human feedback accelerates problem-solving  
+- Clear, specific human feedback accelerates problem-solving
 - Training humans to provide effective feedback becomes important
 
 The paper's examples (especially A1 Scenario 2's structured hints) suggest that **humans need guidance on how to participate effectively**, even though the architecture treats them as just another backend.
@@ -803,7 +803,7 @@ These patterns exist in the wild (customer service systems, collaborative editin
 
 The benefit is **flexibility** - the same system architecture supports fully autonomous operation, human-in-the-loop, human oversight, and human-human collaboration. The cost is **complexity of context management** - presenting conversation state to humans effectively is harder than passing message history to LLMs.
 
-For WinDAGs specifically: Design skills as conversable agents that can accept either AI or human backends. For high-stakes skills (deploying code, modifying production, making business decisions), default to human oversight by setting termination conditions that require human approval. For routine skills, enable autonomous operation with optional human intervention when stuck. Make it trivial to switch between these modes via configuration rather than code changes.
+For Jury-rig specifically: Design skills as conversable agents that can accept either AI or human backends. For high-stakes skills (deploying code, modifying production, making business decisions), default to human oversight by setting termination conditions that require human approval. For routine skills, enable autonomous operation with optional human intervention when stuck. Make it trivial to switch between these modes via configuration rather than code changes.
 
 The question isn't whether humans should be involved, but **how to make human involvement architecturally natural** so it can be configured flexibly based on task requirements, risk levels, and human availability.
 ```
@@ -838,7 +838,7 @@ The power of conversational iteration comes from **grounding subsequent attempts
 - Agent must anticipate all potential issues
 - Failures are terminal or require restarting the entire process
 
-**Iterative approach**: 
+**Iterative approach**:
 1. Agent writes code
 2. Code executes → concrete error message
 3. Agent sees exact failure and writes fixed version
@@ -846,7 +846,7 @@ The power of conversational iteration comes from **grounding subsequent attempts
 
 The second approach provides **specific, actionable feedback** that LLMs can use effectively. The paper demonstrates this repeatedly:
 
-**Example from A1 (Table 9)**: 
+**Example from A1 (Table 9)**:
 - Assistant generates code → Executor returns "exitcode: 1 ... NameError: name 'sp' is not defined"
 - Assistant immediately recognizes the error: "Apologies for the confusion. I mistakenly referred to the sympy module as 'sp' without importing it properly"
 - Next attempt succeeds
@@ -856,7 +856,7 @@ The error message "NameError: name 'sp' is not defined" is vastly more useful th
 **Example from A4 (Table 15)**:
 - Writer generates code → Commander sends to Safeguard → returns "DANGER"
 - Commander tells Writer: "the code triggered our safeguard, and it is not safe to run"
-- Writer revises code → still "DANGER" 
+- Writer revises code → still "DANGER"
 - Commander: "Try again. Hint: don't change roasting_cost_light or roasting_cost_dark variables"
 - Writer finally produces safe code
 
@@ -868,7 +868,7 @@ Conversational iteration essentially implements a **debugging protocol** where:
 
 1. **Hypothesis generation**: Agent proposes a solution
 2. **Experimental test**: Solution is executed or validated
-3. **Observation of results**: Concrete feedback about success or failure  
+3. **Observation of results**: Concrete feedback about success or failure
 4. **Hypothesis refinement**: Agent adjusts based on observations
 5. **Repeat**: Until success or timeout
 
@@ -927,7 +927,7 @@ After multiple turns: "MATHSOLVERGPT THOUGHTS: The Python code execution still i
 
 **Single-agent OptiGuide (A4)**: "single-agent approach where a single agent conducts both the code-writing and safeguard processes" achieves only 48% F1 score with GPT-3.5 compared to 83% for the multi-agent version. Why? The multi-agent version iterates:
 - Writer proposes code
-- Safeguard checks, potentially rejects  
+- Safeguard checks, potentially rejects
 - Writer revises based on rejection
 - Repeat until safe
 
@@ -935,7 +935,7 @@ The single agent must get it right in one shot, without concrete feedback about 
 
 ## Design Implications: Engineering for Iteration
 
-For systems like WinDAGs orchestrating multiple AI agents, this teaching suggests several design principles:
+For systems like Jury-rig orchestrating multiple AI agents, this teaching suggests several design principles:
 
 **1. Expect failure as the default path to success**
 
@@ -961,7 +961,7 @@ The second workflow requires:
 Not all error messages are equally useful for iteration. Compare:
 
 Poor error message: "Execution failed (code 1)"
-Better error message: "NameError: name 'sp' is not defined on line 13"  
+Better error message: "NameError: name 'sp' is not defined on line 13"
 Best error message: "NameError: name 'sp' is not defined on line 13. You attempted to use 'sp.simplify()' but never imported sympy as sp. Add 'import sympy as sp' to fix this."
 
 The best version provides:
@@ -1060,7 +1060,7 @@ The termination conditions (max turns, success signals, TERMINATE messages) are 
 5. **Set iteration budgets** that balance thoroughness with efficiency
 6. **Design escalation paths** for when iteration doesn't converge
 
-The paper demonstrates that **simple agents iterating with good feedback outperform sophisticated agents attempting perfect one-shot generation**. For WinDAGs, this suggests: Don't try to build perfect task decomposition and skill routing upfront. Instead, build skills that can execute, observe results, provide feedback, and allow coordinator agents to iterate until tasks are completed successfully.
+The paper demonstrates that **simple agents iterating with good feedback outperform sophisticated agents attempting perfect one-shot generation**. For Jury-rig, this suggests: Don't try to build perfect task decomposition and skill routing upfront. Instead, build skills that can execute, observe results, provide feedback, and allow coordinator agents to iterate until tasks are completed successfully.
 
 The key insight is that **iteration transforms hard problems (generate perfect code) into tractable feedback loops (generate plausible code, observe failures, refine)**. The conversation interface makes these feedback loops natural and composable.
 ```
@@ -1182,7 +1182,7 @@ Application A5 provides the most detailed examination of dynamic topology throug
 - Multiple agents (user proxy, engineer, critic, code executor) in a group
 - GroupChatManager orchestrates by: 1) selecting a speaker, 2) asking them to respond, 3) broadcasting response
 
-**Speaker selection mechanism**: 
+**Speaker selection mechanism**:
 The paper compares two approaches:
 
 1. **Task-based selection**: Append role info + chat history + next speaker's task into a prompt
@@ -1324,7 +1324,7 @@ While the paper shows dynamic topology's benefits, it's less explicit about fail
 3. If tasks vary significantly, introduce dynamic speaker selection (group chat)
 4. If expertise needs are unpredictable, add dynamic function-based routing (expert consultation)
 
-For WinDAGs with 180+ skills: 
+For Jury-rig with 180+ skills:
 - Don't make every skill routing decision dynamic (too much overhead)
 - Identify core workflow patterns that are consistent across tasks (static topology)
 - Add dynamic routing for:
@@ -1352,7 +1352,7 @@ This is not just "prompting agents to do things" - it's **using natural language
 Appendix C (Figure 5) provides the most explicit example - the default system message for AssistantAgent. This message contains multiple types of control flow instructions:
 
 **Conditional execution**:
-"In the following cases, suggest python code... 
+"In the following cases, suggest python code...
 1. When you need to collect info...
 2. When you need to perform some task with code..."
 
@@ -1659,7 +1659,7 @@ These represent significant open problems for production use of natural language
 4. **Test empirically** (natural language control is probabilistic, requires validation)
 5. **Document extensively** (what control instructions mean, why they're included, what behavior they're intended to produce)
 
-For WinDAGs specifically: Consider designing a **library of control prompt templates** for common patterns (error recovery, iterative refinement, validation, escalation) that can be composed into skill-specific prompts. Provide tooling to test that skills follow control instructions. Make it easy for domain experts to customize high-level control behavior through natural language while developers maintain programmatic constraints.
+For Jury-rig specifically: Consider designing a **library of control prompt templates** for common patterns (error recovery, iterative refinement, validation, escalation) that can be composed into skill-specific prompts. Provide tooling to test that skills follow control instructions. Make it easy for domain experts to customize high-level control behavior through natural language while developers maintain programmatic constraints.
 
 The key insight is that **natural language extends the expressiveness of control specification beyond what's practical to formalize in code**, enabling domain experts to participate in system design while maintaining programmatic guardrails.
 ```

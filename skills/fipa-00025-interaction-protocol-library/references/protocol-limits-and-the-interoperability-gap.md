@@ -59,7 +59,7 @@ This is not a failure of the FIPA specification — it is an honest acknowledgme
 
 ### Protocols Are Necessary But Not Sufficient
 
-When designing inter-agent coordination in WinDAGs, implementing a named protocol (ContractNet, Request, Subscribe) should be treated as the *floor* of coordination, not the ceiling. Every protocol invocation should be accompanied by explicit decisions about:
+When designing inter-agent coordination in Jury-rig, implementing a named protocol (ContractNet, Request, Subscribe) should be treated as the *floor* of coordination, not the ceiling. Every protocol invocation should be accompanied by explicit decisions about:
 
 - **Timeout policy**: How long will the requesting agent wait? What action does it take on timeout?
 - **Retry policy**: Under what conditions will a failed or dropped message be retried? How many times?

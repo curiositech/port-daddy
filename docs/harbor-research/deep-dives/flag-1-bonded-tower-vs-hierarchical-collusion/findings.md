@@ -180,7 +180,7 @@ colluders do *not* know at step 6 is the realisation of the step-8 external chec
 know only its contracted probability δ.
 
 That is a *sealed audit-occurrence draw*, not a *sealed identity draw*. The distinction
-is exactly the one Paper 3 §"Why sealing is load-bearing" makes: the factor C in
+is exactly the one Paper 3 §"Why sealing is critical" makes: the factor C in
 Paper 3's threshold comes from the briber not knowing **which of C disjoint cliques**
 the auditor will be drawn from. Kofman & Lawarrée have C = 1 — one identifiable
 bribable monitor — plus an exogenously honest checker sampled at rate δ.
@@ -288,7 +288,7 @@ paid for grading whether or not it exposes anything; its bond is slashed only on
 only if a *higher-level auditor* catches it. That is precisely why Paper 3 needs the level
 above, and precisely why Kofman & Lawarrée's shortcut is unavailable in the LLM-judge
 setting. This is a real and defensible distinction, but it is currently **implicit** in
-`paper3.tex` and needs to be made explicit — it is the load-bearing reason the tower
+`paper3.tex` and needs to be made explicit — it is the critical reason the tower
 exists at all.
 
 Instrument comparison:
@@ -397,7 +397,7 @@ Diamond poses Paper 3's question in Paper 3's words [`verified`, verbatim, Richm
 > way it does to a borrower: the banker is always better off paying a sufficient amount
 > to avoid liquidation."
 
-and shows that a stake alone is not enough — independence is the load-bearing ingredient.
+and shows that a stake alone is not enough — independence is the critical ingredient.
 Section heading, verbatim: **"Delegated Monitoring without Diversification Does Not
 Succeed."** The limit argument [`verified`, verbatim, pp. 63–64]:
 

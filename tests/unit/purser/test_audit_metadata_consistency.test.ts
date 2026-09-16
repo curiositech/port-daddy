@@ -37,7 +37,7 @@ const IMPORTED_SKILLS = [
   'xie-et-al-2025-survey-llm-task-planning',
 ];
 
-describe('audit-skills governance report covers the windags import', () => {
+describe('audit-skills governance report covers the jury_rig import', () => {
   const result = spawnSync('node', [join(repoRoot, 'scripts', 'audit-skills.mjs'), '--json'], {
     encoding: 'utf-8',
     cwd: repoRoot,

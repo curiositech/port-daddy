@@ -282,7 +282,7 @@ Run `node scripts/prompt_audit.mjs --input <prompt-spec>.json` to get a determin
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
 **root**
-- [`CHANGELOG.md`](CHANGELOG.md) — Prompt Engineer — Changelog — - Imported from the global windags skill catalog (SKILL.md only) and upgraded to the port-daddy agentic-family standard.
+- [`CHANGELOG.md`](CHANGELOG.md) — Prompt Engineer — Changelog — - Imported from the global jury_rig skill catalog (SKILL.md only) and upgraded to the port-daddy agentic-family standard.
 - [`README.md`](README.md) — Prompt Engineer — Craft, optimize, and debug prompts for large language models: the CLEAR framework, chain-of-thought and few-shot patterns, and a determinist
 
 **`agents/`**

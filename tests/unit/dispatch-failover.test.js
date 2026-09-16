@@ -19,6 +19,10 @@
 
 import { describe, test, expect, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
+import { witnessedBackendFailure } from '../../lib/agent-resilience.js';
+import { createConductorSpawnAdapter } from '../../lib/dispatch/conductor-adapter.js';
+const missing = () => witnessedBackendFailure({ kind: 'os', code: 'ENOENT' });
+const timeout = () => witnessedBackendFailure({ kind: 'timeout' });
 
 const {
   decideFailover,
@@ -54,19 +58,35 @@ describe('classifyForFailover', () => {
     // The distinction is load-bearing: ENOENT also reads as a connection-ish
     // failure to a regex written for sockets, and calling it transient buys a
     // guaranteed-useless same-backend retry.
-    const shape = classifyForFailover('spawn codex ENOENT', 'cli:codex');
+    const shape = classifyForFailover(missing());
     expect(shape.backendAbsent).toBe(true);
     expect(shape.transient).toBe(false);
   });
 
-  test('rate limits and timeouts are transient', () => {
-    expect(classifyForFailover('429 rate limit exceeded').transient).toBe(true);
-    expect(classifyForFailover('request timed out after 600s').transient).toBe(true);
-    expect(classifyForFailover('503 service unavailable').transient).toBe(true);
+  test('locally witnessed timeouts and socket failures are transient', () => {
+    expect(classifyForFailover(timeout()).transient).toBe(true);
+    expect(classifyForFailover(timeout()).transient).toBe(true);
+    expect(classifyForFailover(witnessedBackendFailure({ kind: 'os', code: 'ECONNRESET' })).transient).toBe(true);
   });
 
   test('an unrecognised failure is NOT transient (fail closed)', () => {
     expect(classifyForFailover('the model produced nonsense').transient).toBe(false);
+  });
+
+  test.each([
+    'spawn codex ENOENT', '429 timeout', '401 Unauthorized', 'arbitrary failure',
+    { code: 'BACKEND_ABSENT', retryable: false },
+    { status: 503, code: 'UNAVAILABLE', retryable: true },
+    JSON.parse(JSON.stringify(missing())),
+    Object.assign(new Error('429 timeout'), { status: 503 }),
+  ])('untrusted display or JSON cannot authorize a successor: %p', error => {
+    expect(decideFailover(dispatchLike(), { backend: 'cli:codex', errorMessage: 'ENOENT', error }).action).toBe('none');
+  });
+
+  test('actual permission failure stays non-recoverable even beside ENOENT prose', () => {
+    expect(decideFailover(dispatchLike(), {
+      backend: 'cli:codex', errorMessage: 'ENOENT', error: witnessedBackendFailure({ kind: 'os', code: 'EACCES' }),
+    })).toMatchObject({ action: 'none', reason: expect.stringContaining('UNAUTHORIZED') });
   });
 });
 
@@ -74,7 +94,7 @@ describe('decideFailover', () => {
   test('a transient failure retries the SAME backend once', () => {
     const d = decideFailover(dispatchLike(), {
       backend: 'cli:codex',
-      errorMessage: '429 rate limit exceeded',
+      error: timeout(), errorMessage: 'display only',
     });
     expect(d.action).toBe('retry-same-backend');
   });
@@ -82,7 +102,7 @@ describe('decideFailover', () => {
   test('a transient failure that already had its retry moves to the next backend', () => {
     const d = decideFailover(dispatchLike(), {
       backend: 'cli:codex',
-      errorMessage: '429 rate limit exceeded',
+      error: timeout(), errorMessage: 'display only',
       alreadyRetriedSameBackend: true,
     });
     expect(d.action).toBe('failover');
@@ -92,7 +112,7 @@ describe('decideFailover', () => {
   test('a missing binary fails over IMMEDIATELY, with no same-backend retry', () => {
     const d = decideFailover(dispatchLike(), {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
     });
     expect(d.action).toBe('failover');
     expect(d.nextBackend).toBe('cli:claude-code'); // first in the default chain
@@ -112,7 +132,7 @@ describe('decideFailover', () => {
   test('the succession is capped', () => {
     const d = decideFailover(dispatchLike({ failoverAttempt: MAX_FAILOVER_ATTEMPTS }), {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
     });
     expect(d.action).toBe('none');
     expect(d.reason).toMatch(/cap reached/);
@@ -126,7 +146,7 @@ describe('decideFailover', () => {
       dispatchLike({ failoverAttempt: 1, failoverChain: ['cli:gemini', 'cli:agy'] }),
       {
         backend: 'cli:codex',
-        errorMessage: 'spawn codex ENOENT',
+        error: missing(), errorMessage: 'spawn codex ENOENT',
         preferredChain: ['cli:claude-code'],
       },
     );
@@ -139,7 +159,7 @@ describe('decideFailover', () => {
     // tools, no transcript. A dispatch cannot continue on one however available.
     const d = decideFailover(dispatchLike(), {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
       preferredChain: ['openai', 'cloudflare', 'cli:gemini'],
     });
     expect(d.nextBackend).toBe('cli:gemini');
@@ -148,7 +168,7 @@ describe('decideFailover', () => {
   test('a backend the caller reports unavailable is skipped', () => {
     const d = decideFailover(dispatchLike(), {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
       isUnavailable: (b) => b === 'cli:claude-code',
     });
     expect(d.nextBackend).toBe('cli:gemini');
@@ -157,7 +177,7 @@ describe('decideFailover', () => {
   test('the successor gets the REMAINING budget, never a fresh one', () => {
     const d = decideFailover(dispatchLike({ budgetUsd: 1.0, costUsd: 0.3 }), {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
       costUsd: 0.2,
     });
     expect(d.action).toBe('failover');
@@ -167,7 +187,7 @@ describe('decideFailover', () => {
   test('an exhausted budget stops the succession rather than double-spending', () => {
     const d = decideFailover(dispatchLike({ budgetUsd: 0.5, costUsd: 0.5 }), {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
     });
     expect(d.action).toBe('none');
     expect(d.reason).toMatch(/budget exhausted/);
@@ -188,7 +208,7 @@ describe('decideFailover', () => {
 
     const d = decideFailover(overspent, {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
       costUsd: 0.4,
     });
     expect(d.action).toBe('none');
@@ -202,7 +222,7 @@ describe('decideFailover', () => {
     expect(remainingBudget(dispatchLike({ budgetUsd: null }))).toBeNull();
     const d = decideFailover(dispatchLike({ budgetUsd: null }), {
       backend: 'cli:codex',
-      errorMessage: 'spawn codex ENOENT',
+      error: missing(), errorMessage: 'spawn codex ENOENT',
     });
     expect(d.action).toBe('failover');
   });
@@ -247,7 +267,7 @@ describe('runClaimedDispatch — the failover seam', () => {
     const mintSuccessor = jest.fn(async () => queue.propose({ goal: 'successor' }));
 
     const { result } = await runClaimedDispatch(queue, d, {
-      spawnAdapter: async () => ({ state: 'failed', errorMessage: 'spawn codex ENOENT' }),
+      spawnAdapter: async () => ({ state: 'failed', error: missing(), errorMessage: 'spawn codex ENOENT' }),
       failover: { enabled: true, mintSuccessor },
     });
 
@@ -261,7 +281,7 @@ describe('runClaimedDispatch — the failover seam', () => {
   test('with failover OFF a failure settles exactly as it always did', async () => {
     const d = claimed('write a design note');
     const { result } = await runClaimedDispatch(queue, d, {
-      spawnAdapter: async () => ({ state: 'failed', errorMessage: 'spawn codex ENOENT' }),
+      spawnAdapter: async () => ({ state: 'failed', error: missing(), errorMessage: 'spawn codex ENOENT' }),
     });
     expect(result.state).toBe('failed');
     expect(queue.get(d.id).state).toBe('failed');
@@ -273,7 +293,7 @@ describe('runClaimedDispatch — the failover seam', () => {
     await runClaimedDispatch(queue, d, {
       spawnAdapter: async () => ({
         state: 'failed',
-        errorMessage: 'spawn codex ENOENT',
+        error: missing(), errorMessage: 'spawn codex ENOENT',
         costUsd: 0.25,
       }),
       failover: {
@@ -296,7 +316,7 @@ describe('runClaimedDispatch — the failover seam', () => {
     const d = claimed('write a design note');
     let warm = null;
     await runClaimedDispatch(queue, d, {
-      spawnAdapter: async () => ({ state: 'failed', errorMessage: 'spawn codex ENOENT' }),
+      spawnAdapter: async () => ({ state: 'failed', error: missing(), errorMessage: 'spawn codex ENOENT' }),
       failover: {
         enabled: true,
         buildHandoff: async () => ({ goal: 'CONTINUE: here is what the last body learned', episodeId: 'ep-1' }),
@@ -312,7 +332,7 @@ describe('runClaimedDispatch — the failover seam', () => {
     const d2 = claimed('another note');
     let cold = null;
     await runClaimedDispatch(queue, d2, {
-      spawnAdapter: async () => ({ state: 'failed', errorMessage: 'spawn codex ENOENT' }),
+      spawnAdapter: async () => ({ state: 'failed', error: missing(), errorMessage: 'spawn codex ENOENT' }),
       failover: {
         enabled: true,
         buildHandoff: async () => {
@@ -333,7 +353,7 @@ describe('runClaimedDispatch — the failover seam', () => {
     // Failover must never worsen the failure it is handling.
     const d = claimed('write a design note');
     const { result } = await runClaimedDispatch(queue, d, {
-      spawnAdapter: async () => ({ state: 'failed', errorMessage: 'spawn codex ENOENT' }),
+      spawnAdapter: async () => ({ state: 'failed', error: missing(), errorMessage: 'spawn codex ENOENT' }),
       failover: { enabled: true, mintSuccessor: async () => null },
     });
     expect(result.state).toBe('failed');
@@ -367,7 +387,33 @@ describe('runClaimedDispatch — the failover seam', () => {
     expect(receipts).toHaveLength(1);
     expect(receipts[0].successorId).toBeNull();
     expect(receipts[0].toBackend).toBeNull();
-    expect(receipts[0].reason).toMatch(/VALIDATION_ERROR/);
+    expect(receipts[0].reason).toMatch(/no witnessed recoverable failure/);
+  });
+
+  test.each(['401 Unauthorized', 'ENOENT', '429', 'unknown'])('runner never mints from display-only %s', async errorMessage => {
+    const d = claimed('do not spend on untrusted failure text');
+    const mintSuccessor = jest.fn();
+    const { result } = await runClaimedDispatch(queue, d, {
+      spawnAdapter: async () => ({ state: 'failed', errorMessage, error: JSON.parse(JSON.stringify(missing())) }),
+      failover: { enabled: true, mintSuccessor },
+    });
+    expect(result.state).toBe('failed');
+    expect(mintSuccessor).not.toHaveBeenCalled();
+  });
+
+  test('production Conductor adapter display failure does not acquire successor authority', async () => {
+    const d = claimed('preserve production transport boundary');
+    const mintSuccessor = jest.fn();
+    const spawnAdapter = createConductorSpawnAdapter({ launch: async () => ({
+      admitted: true, refusedReason: null,
+      launch: { id: 'launch-fixture', state: 'failed', agentId: null, costUsd: 0, errorMessage: 'ENOENT 429' },
+      spawn: { status: 'failed', error: 'ENOENT 429', failure: JSON.parse(JSON.stringify(missing())) },
+    }) });
+    const { result } = await runClaimedDispatch(queue, d, {
+      spawnAdapter, failover: { enabled: true, mintSuccessor },
+    });
+    expect(result.state).toBe('failed');
+    expect(mintSuccessor).not.toHaveBeenCalled();
   });
 });
 

@@ -77,7 +77,7 @@ This "vastly exceeds practical workflow lengths, demonstrating Six Sigma per-act
 
 ## Application to Agent Orchestration
 
-For WinDAGs orchestration systems, this analysis reveals several critical design imperatives:
+For Jury-rig orchestration systems, this analysis reveals several critical design imperatives:
 
 1. **Length-Aware Routing**: The system must track workflow depth (m) and adjust reliability requirements accordingly. A 100-step workflow requires fundamentally different guarantees than a 10-step workflow—not 10× better, but exponentially better.
 
@@ -112,7 +112,7 @@ The exponential decay formula reveals why atomic decomposition is essential:
 - **Verification points reset accumulation**: Each consensus vote "resets" the error accumulation, preventing propagation
 - **Parallel redundancy changes the mathematics**: When k parallel paths execute the same computation, the probability all k fail is p^k (exponential improvement)
 
-The WinDAGs system should therefore:
+The Jury-rig system should therefore:
 1. Decompose long sequential chains into shorter verified segments
 2. Insert consensus verification at dependency boundaries
 3. Use parallel execution with voting wherever possible
@@ -249,7 +249,7 @@ When a task tⱼ depends on tasks {tᵢ : tᵢ ∈ dⱼ}, it receives their **ve
 
 This "ensures downstream tasks receive only verified facts from predecessors, preventing error propagation. This is a key principle from High-Reliability Organization theory."
 
-## Application to WinDAGs: Skill-Level Decomposition
+## Application to Jury-rig: Skill-Level Decomposition
 
 For a system with 180+ skills, atomic decomposition operates at two levels:
 
@@ -504,7 +504,7 @@ The paper demonstrates that consensus voting with cheap models is more cost-effe
 
 The economic logic: GPT-4o-mini is ~20× cheaper than GPT-4o. Even with 13× redundancy, total cost is less than a single GPT-4o call, while reliability is 3,000× better.
 
-## Application to WinDAGs Orchestration
+## Application to Jury-rig Orchestration
 
 For a DAG-based orchestration system with 180+ skills, consensus voting should be applied at **atomic action boundaries**:
 
@@ -738,7 +738,7 @@ The justification: "LLM errors are not adversarial (models don't actively defeat
 
 This is crucial: **5 agents** (tolerating 2 faults) achieve the same guarantees that would require **7 agents** under Byzantine assumptions—a 40% efficiency gain.
 
-## Application to WinDAGs: When to Use Each Paradigm
+## Application to Jury-rig: When to Use Each Paradigm
 
 For a DAG-based orchestration system, both paradigms have roles:
 
@@ -1008,7 +1008,7 @@ Recommended policy for enterprise deployment:
 - **60% ≤ conf < 80%**: Automation with audit logging
 - **conf < 60%**: Automation with mandatory human review
 
-## Application to WinDAGs: Skill-Level Scaling Policies
+## Application to Jury-rig: Skill-Level Scaling Policies
 
 For an orchestration system with 180+ skills, different skills may warrant different scaling policies:
 
@@ -1154,7 +1154,7 @@ The key observation: **Each additional pair of agents provides diminishing absol
 
 Dynamic scaling embodies a fundamental principle for intelligent systems: **reliability should be adaptive, not fixed**. The system invests computational resources proportional to task uncertainty, achieving optimal cost-benefit trade-offs.
 
-For WinDAGs orchestrators, the lesson is: **Don't treat all decisions equally. Detect uncertainty through contested votes, and scale verification accordingly.**
+For Jury-rig orchestrators, the lesson is: **Don't treat all decisions equally. Detect uncertainty through contested votes, and scale verification accordingly.**
 
 As the paper emphasizes: "The contested vote pattern serves as an uncertainty signal"—turning agent disagreement from a bug into a feature.
 ```
@@ -1799,7 +1799,7 @@ The paper is explicit about when verification fails:
 2. **Use specialized tools**: Formal verification systems (Coq, Lean)
 3. **Escalate**: Route to frontier models or human experts
 
-## Application to WinDAGs: Skill-Level Verification
+## Application to Jury-rig: Skill-Level Verification
 
 For an orchestration system with 180+ skills, verification policies can be customized per skill:
 
@@ -1890,7 +1890,7 @@ Six Sigma Agent:
 3. Implement redundancy and consensus as verification mechanism
 4. **Result**: Verification is guaranteed by architecture
 
-For WinDAGs builders: **Start with the question "How will this be verified?" before designing agents or orchestration.**
+For Jury-rig builders: **Start with the question "How will this be verified?" before designing agents or orchestration.**
 
 As the paper emphasizes: "The architecture guarantees reliable outputs through redundancy, independent of detection accuracy."
 ```

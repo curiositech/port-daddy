@@ -35,8 +35,22 @@ const FRESHNESS_SKIP_COMMANDS = new Set([
   'agents',
   'attention',
   'ideas',
+  // The learn/tutorial handler is an operationally read-only orientation.
+  // A freshness probe may restart a same-install daemon in an interactive
+  // shell, which would violate that contract before the handler even runs.
+  'learn',
+  'tutorial',
 ]);
 
+/**
+ * Decide whether a command may run the interactive daemon-freshness probe.
+ * The design centralizes exclusions so background, lifecycle, and explicitly
+ * read-only commands cannot trigger daemon actuation before dispatch.
+ *
+ * @param command - Parsed top-level CLI verb, when present.
+ * @param args - Full parsed argument vector used to detect direct mode.
+ * @returns True only when the command is eligible for a freshness probe.
+ */
 export function shouldCheckDaemonFreshness(command: string | undefined, args: string[] = []): boolean {
   const normalized = (command || '').trim();
   if (!normalized) return false;
@@ -44,6 +58,14 @@ export function shouldCheckDaemonFreshness(command: string | undefined, args: st
   return !FRESHNESS_SKIP_COMMANDS.has(normalized);
 }
 
+/**
+ * Detect an operator-selected daemon boundary. The purpose is to prevent a
+ * foreign checkout or named berth from being treated as permission to inspect
+ * or restart the canonical local daemon.
+ *
+ * @param env - Environment carrying URL, profile, or explicit skip selectors.
+ * @returns True when daemon ownership was selected outside implicit discovery.
+ */
 export function hasExplicitDaemonTarget(env: NodeJS.ProcessEnv = process.env): boolean {
   return Boolean(
     env.PD_URL
@@ -53,6 +75,14 @@ export function hasExplicitDaemonTarget(env: NodeJS.ProcessEnv = process.env): b
   );
 }
 
+/**
+ * Gate freshness-driven restart to one interactive command from the daemon's
+ * own install root. This design makes install-root identity and human-visible
+ * interactivity necessary evidence before process actuation.
+ *
+ * @param opts - Daemon install root, caller install root, and TTY witness.
+ * @returns True only when every restart-ownership predicate is satisfied.
+ */
 export function shouldAutoRestartDaemonForFreshness(opts: {
   daemonInstallDir?: string | null;
   localInstallDir: string;

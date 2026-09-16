@@ -12,7 +12,7 @@ One object per catalog item that fires, matching the schema documented in `scrip
   "line": 0,
   "excerpt": "<the exact flagged span, trimmed to ~300 chars>",
   "ism": "<catalog item name from references/catalog.json, e.g. not-x-but-y>",
-  "dialect": "<claude | chatgpt | codex | gemini | kimi | deepseek | qwen | llama | groq | generic-llm>",
+  "dialect": "<claude | chatgpt | codex | gemini | kimi | deepseek | qwen | llama | grok | generic-llm>",
   "severity": "<high | medium | low>",
   "explanation": "<why this reads as machine-authored, one or two sentences>",
   "rewrite": "<the surgical fix — mandatory for high severity>"

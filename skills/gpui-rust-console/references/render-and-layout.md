@@ -49,7 +49,7 @@ to CSS flexbox:
 | `.border_l_2()` / `.border_b_1()` | per-side borders |
 | `.rounded(px(6.0))` | border-radius |
 
-**The load-bearing trap:** `overflow_y_scroll` does nothing useful without a *bounded*
+**The critical trap:** `overflow_y_scroll` does nothing useful without a *bounded*
 parent. A scroll region must live inside something with a fixed or `flex_1` height, and
 that ancestor needs `overflow_hidden`. Unbounded scroll = the content just grows the
 window. This is the single most common GPUI layout bug.

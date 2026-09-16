@@ -1,50 +1,102 @@
-% Figure III.12 --- recursive audit closes by measurable contraction, not by height.
+% Audit tower for Sec. stp-rate-the-raters ("Numbers by hand": the audit tower).
+% Small multiples on one shared audit-level axis, so the three closing depths are
+% read as three lengths on a common scale. Every point is the chapter's own
+% two-phase recurrence at the chapter's own parameters -- G_0 = 400, B = 50,
+% rho*d = 0.2, beta = rho*d*B = 10: while G_k > C*B bribing all C cliques still
+% pays and value bleeds LINEARLY by C*beta per level; below that threshold it
+% decays GEOMETRICALLY by lambda = 1-rho*d = 0.8. The three depths (27, 36, 53)
+% and the three bond totals ($1,350 / $1,800 / $2,650) are the chapter's own.
+% Every region carries an explicit drawn edge because the Swiss edition's
+% pd caution fill override sets draw=none.
+% Data: whitepaper/figures/data/audit-tower-depth.csv, emitted by
+% whitepaper/figures/data/make-figure-data.py (deterministic, no seed) [verified].
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
+\pgfplotsset{
+  every axis/.append style={
+    pd axis,
+    width=8.55cm,height=2.30cm,
+    axis lines=left,
+    ymode=log,log basis y=10,
+    xmin=0,xmax=57,ymin=0.7,ymax=560,
+    ytick={1,10,100},yticklabels={1,10,100},
+    xlabel={},ylabel={},
+    scale only axis,
+    clip=false,
+  }}
 \begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,3.15)
-    {remaining corrupt opportunity across audit levels};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (6.4,-2.10);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (-6.0,2.55);
-  \node[pd axis label,anchor=west] at (6.5,-2.10) {audit level $k$};
-  \node[pd axis label,anchor=center,rotate=90] at (-6.43,.20) {$G_k$ (log scale)};
 
-  \foreach \x/\lab in {-5.8/0,-3.75/10,-1.7/20,.35/30,2.4/40,4.45/50,5.7/56} {
-    \draw[pd tick] (\x,-2.22) -- (\x,-1.98);
-    \node[pd axis label,anchor=north] at (\x,-2.32) {\lab};
-  }
-  \foreach \y in {-1.05,.0,1.05,2.10} \draw[pd guide] (-5.95,\y) -- (6.0,\y);
+  % ---------------- C = 8: heterogeneous, geometric from level 0 --------------
+  \begin{axis}[name=top,xtick=\empty,anchor=north west,at={(0cm,0cm)}]
+    \addplot[pd rule,draw=hhink,line width=.62pt,forget plot,domain=0:57,samples=2]{1};
+    \addplot[pd focus rule,draw=hhteal,line width=1.15pt,forget plot]
+      coordinates {(0,400) (1,320) (2,256) (3,204.8) (4,163.8) (6,104.9) (8,67.11)
+        (10,42.95) (12,27.49) (14,17.59) (16,11.26) (18,7.206) (20,4.612)
+        (22,2.951) (24,1.889) (26,1.209) (27,0.967)};
+    \node[pd focus datum] at (axis cs:27,0.967) {};
+    \node[pd direct label,text=hhteal,anchor=west] at (axis cs:29,2.4)
+      {closes at 27 levels, \$1,350};
+    \node[pd row label,anchor=north east] at (axis cs:56.5,320)
+      {eight cliques};
+    \node[pd direct label,text=hhteal,anchor=west] at (axis cs:2.2,2.0)
+      {no bribery phase};
+  \end{axis}
 
-  % Parameterized example: heterogeneous pools contract faster.
-  \draw[pd focus rule,line width=1.55pt]
-    plot[smooth] coordinates {(-5.8,2.15) (-4.75,1.72) (-3.70,1.25) (-2.65,.72) (-1.60,.15) (-.55,-.48) (.05,-1.55)};
-  \draw[pd caution rule,dashed,line width=1.55pt]
-    plot[smooth] coordinates {(-5.8,2.15) (-3.75,1.78) (-1.70,1.28) (.35,.72) (2.40,.10) (4.45,-.62) (5.45,-1.55)};
-  \node[pd direct label,text=hhteal,anchor=west] at (-2.65,1.02)
-    {$C=8$: heterogeneous cliques\\[-1pt]{\tiny reaches root near level 27}};
-  \node[pd direct label,text=hhamber,anchor=west] at (2.20,.55)
-    {$C=1$: monoculture\\[-1pt]{\tiny reaches root near level 53}};
+  % ---------------- C = 2: 15 levels of bribery, then geometric ---------------
+  \begin{axis}[name=mid,xtick=\empty,anchor=north west,at={(0cm,-2.72cm)}]
+    \addplot[pd caution fill,draw=hhamber!75,line width=.4pt,forget plot]
+      coordinates {(0,0.7) (15,0.7) (15,560) (0,560)} \closedcycle;
+    \addplot[pd rule,draw=hhink,line width=.62pt,forget plot,domain=0:57,samples=2]{1};
+    \addplot[pd rule,draw=hhink,line width=1.0pt,forget plot]
+      coordinates {(0,400) (1,380) (2,360) (3,340) (4,320) (6,280) (8,240)
+        (10,200) (12,160) (14,120) (15,100) (16,80) (18,51.2) (20,32.77)
+        (22,20.97) (24,13.42) (26,8.59) (28,5.498) (30,3.518) (32,2.252)
+        (34,1.441) (36,0.9219)};
+    \node[pd focus datum] at (axis cs:36,0.9219) {};
+    \node[pd direct label,anchor=west] at (axis cs:38,2.4) {36 levels, \$1,800};
+    \node[pd row label,anchor=north east] at (axis cs:56.5,320) {two cliques};
+    \node[pd direct label,text=hhamber,anchor=west] at (axis cs:1.0,4.0)
+      {bribery phase};
+  \end{axis}
 
-  % The theorem ends at a separately owed root.
-  \fill[hhamber!9] (-5.95,-1.95) rectangle (6.0,-1.45);
-  \draw[pd caution rule] (-5.95,-1.45) -- (6.0,-1.45);
-  \node[pd direct label,text=hhamber,anchor=west] at (-5.65,-1.70)
-    {exogenously honest root required; the contraction theorem does not manufacture it};
+  % ---------------- C = 1: 35 levels of bribery, then geometric ---------------
+  \begin{axis}[name=bot,anchor=north west,at={(0cm,-5.44cm)},
+      xtick={0,10,20,27,36,53},
+      xlabel={audit level $k$ \ (one bond $B=50$ posted per level)},
+      xlabel style={pd axis label}]
+    \addplot[pd caution fill,draw=hhamber!75,line width=.4pt,forget plot]
+      coordinates {(0,0.7) (35,0.7) (35,560) (0,560)} \closedcycle;
+    \addplot[pd rule,draw=hhink,line width=.62pt,forget plot,domain=0:57,samples=2]{1};
+    \addplot[pd caution rule,draw=hhamber,line width=1.15pt,dash pattern=on 3pt off 2pt,forget plot]
+      coordinates {(0,400) (2,380) (4,360) (6,340) (8,320) (10,300) (12,280)
+        (14,260) (16,240) (18,220) (20,200) (22,180) (24,160) (26,140) (28,120)
+        (30,100) (32,80) (34,60) (35,50) (36,40) (38,25.6) (40,16.38) (42,10.49)
+        (44,6.711) (46,4.295) (48,2.749) (50,1.759) (52,1.126) (53,0.9008)};
+    \node[pd focus datum] at (axis cs:53,0.9008) {};
+    \node[pd direct label,text=hhamber,anchor=east] at (axis cs:56.5,45)
+      {53 levels, \$2,650};
+    \node[pd direct label,text=hhamber,anchor=west] at (axis cs:1.0,4.0)
+      {bribery phase};
+    \node[pd row label,anchor=north east,yshift=-4pt] at (axis cs:56.5,320) {one clique};
+  \end{axis}
 
-  \node[pd direct label,anchor=west] at (-5.75,-3.05)
-    {$\rho d B\ge G_k$ at each level};
-  \node[pd direct label,anchor=west] at (-.65,-3.05)
-    {$G_{k+1}=(1-\rho d)G_k$ only under sealed sampling across $C$ disjoint cliques};
-\end{tikzpicture}}
-\caption{\textbf{Recursive auditing becomes finite only when corrupt opportunity
-contracts.} The parameterized example plots the chapter's reported depths:
-heterogeneous sealed sampling across $C=8$ cliques reaches the honest-root boundary
-near level 27, while a monoculture ($C=1$) requires roughly 53 levels. More boxes
-or more height would not prove this result; the governing conditions are local
-deterrence $\rho dB\ge G_k$ and contraction
-$G_{k+1}=(1-\rho d)G_k$. The amber floor is deliberately separate: the imported
-theorem bounds the tower but does not supply its exogenously honest root or the
-telemetry that estimates $d$.}
+  \node[pd axis label,rotate=90,anchor=south] at (-1.35,-3.85)
+    {surviving corrupt value $G_k$};
+\end{tikzpicture}
+\caption{\textbf{A recursive audit closes at a depth set by how the judge pool is
+sampled, not by how tall the tower is drawn.} Surviving corrupt value against
+audit level, one panel per clique count, on one shared level axis, at the
+chapter's running parameters $G_0=400$, $B=50$, $\rho d=0.2$, so $\beta=\rho
+dB=10$ and $\lambda=1-\rho d=0.8$. Bribing all $C$ cliques pays while $G_k>CB$,
+and in that shaded phase value bleeds \emph{linearly} by $C\beta$ per level;
+only past it does it contract geometrically, which on a log axis is the straight
+stretch. A heterogeneous pool at $C=8$ has no bribery phase at all
+($CB=400\not<G_0$) and closes in $27$ levels for \$1,350; two cliques bleed for
+$15$ levels first and need $36$ for \$1,800; a monoculture bleeds for $35$ and
+needs $53$ for \$2,650. Buying cliques is worth more than buying bond. The
+contraction bounds the tower; it does not supply the exogenously honest root the
+tower terminates in, nor the telemetry that estimates $d$. [verified against the
+chapter's own arithmetic; \texttt{figures/data/audit-tower-depth.csv} from
+\texttt{figures/data/make-figure-data.py}, deterministic]}
 \label{fig:rate-raters}
 \end{figure}

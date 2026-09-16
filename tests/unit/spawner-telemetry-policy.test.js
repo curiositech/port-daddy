@@ -143,7 +143,7 @@ describe('spawner telemetry enforcement', () => {
       model: 'claude-haiku-4-5-20251001',
       identity: 'port-daddy:qa:telemetry',
       task: 'Summarize the diff',
-      workdir: '/tmp/port-daddy-telemetry-test',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');
@@ -207,7 +207,7 @@ describe('spawner telemetry enforcement', () => {
       model: 'gpt-5.4-mini',
       identity: 'port-daddy:fleet:cartographer',
       task: 'Summarize salvage state',
-      workdir: '/tmp/port-daddy-codex-telemetry-test',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');
@@ -273,7 +273,7 @@ describe('spawner telemetry enforcement', () => {
       backend: 'cli:agy',
       identity: 'port-daddy:fleet:agy',
       task: 'Summarize agy output',
-      workdir: '/tmp/port-daddy-agy-telemetry-test',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');

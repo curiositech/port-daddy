@@ -9,7 +9,7 @@ description: >-
   communication protocol design and to Port Daddy's flag symbology (SIGNAL_FOR_STATE, hoists, alert tiers). Use
   for signal lookup/composition, flag meanings, signaling procedure, agent message-registry design, or auditing
   pd maritime UI semantics. NOT for COLREGS right-of-way rules, ship handling
-  (`a-task-analysis-of-pier-side-ship-handli`, a WinDAGs-library skill), radio hardware/frequency regulation, or palette work without signal
+  (`a-task-analysis-of-pier-side-ship-handli`, a Jury-rig-library skill), radio hardware/frequency regulation, or palette work without signal
   semantics (`color-theory-palette-harmony-expert`).
 license: Apache-2.0
 allowed-tools: Read,Grep,Glob,Bash(python3:*)
@@ -62,7 +62,7 @@ Fluent command of Pub. 102 — the 1969 International Code of Signals — as a w
 ## Do Not Use This For
 
 - COLREGS navigation rules (right of way, lights, fog conduct) — the Code only touches COLREGS where sound signals overlap.
-- Ship handling and maneuvering craft (`a-task-analysis-of-pier-side-ship-handli` — WinDAGs library, not bundled in this repo).
+- Ship handling and maneuvering craft (`a-task-analysis-of-pier-side-ship-handli` — Jury-rig library, not bundled in this repo).
 - Radio spectrum/licensing questions, GMDSS equipment carriage rules.
 - Palette or branding work with no signal semantics (`color-theory-palette-harmony-expert`).
 
@@ -142,7 +142,7 @@ python3 scripts/icos_lookup.py hoist 1100       # flag hoist incl. substitute lo
 python3 scripts/icos_lookup.py table 2          # complements tables 1/2/3
 ```
 
-Search follows the repo's hybrid policy (AGENTS.md "Search & Matching Policy"): semantic similarity comes from Port Daddy's one shared local embedding model via `pd embed`, with corpus vectors cached one-time under `~/.port-daddy/cache/`. If the model is unavailable it degrades to lexical-only **loudly** and points at `pd doctor`.
+Search follows the repo's hybrid policy (AGENTS.md "Search & Matching Policy"): semantic similarity comes from the corpus-policy-selected local text profile via `pd embed --corpus pd.skill.international-code-signals.v1`, with corpus vectors cached one-time under `~/.port-daddy/cache/`. If the model is unavailable it degrades to lexical-only **loudly** and points at `pd doctor`.
 
 `scripts/rebuild_corpus.py <pdftotext-output> <out.json>` regenerates the corpus from a `pdftotext -layout` extraction of the Pub. 102 PDF (only needed if the source book changes).
 

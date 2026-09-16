@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createSymbolClaims } from '../../lib/symbol-claims.js';
 import { createSuggestions } from '../../lib/suggestions.js';
+import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 
 const { sessionsPlugin } = await import('../../routes/sessions.js');
 
@@ -12,6 +13,13 @@ const EDGES = [
 function buildApp({ predictConflicts = () => [] } = {}) {
   const app = Fastify();
   const db = createTestDb();
+  const actorSouls = createTestActorSouls(db);
+  const owners = new Map();
+  const ownerFor = (id) => {
+    if (!owners.has(id)) owners.set(id, mintTestActor(actorSouls, `agent-${id}`));
+    return owners.get(id);
+  };
+  const headersFor = (id) => ownerFor(id).headers;
   const sent = [];
   const symbolIndex = {
     getDependents: (f, s) => EDGES.filter((e) => e.targetFile === f && e.targetSymbol === s).map((e) => ({ sourceFile: e.sourceFile, sourceSymbol: e.sourceSymbol, dependencyType: e.dependencyType })),
@@ -21,6 +29,8 @@ function buildApp({ predictConflicts = () => [] } = {}) {
     id,
     agentId: `agent-${id}`,
     purpose: `purpose-${id}`,
+    status: 'active',
+    metadata: { identity: { verified: true, actorId: ownerFor(id).actorId } },
   });
   const symbolClaims = createSymbolClaims(db, {
     symbolIndex,
@@ -44,9 +54,12 @@ function buildApp({ predictConflicts = () => [] } = {}) {
       symbolClaims,
       suggestions,
       agentInbox,
+      actorSouls,
     },
   });
-  return { app, symbolClaims, suggestions, sent };
+  const claim = (sessionId, type = 'modify', headers = headersFor(sessionId)) =>
+    claimCreateRoutes(app, sessionId, headers, type);
+  return { app, symbolClaims, suggestions, sent, headersFor, claim };
 }
 
 function sameSymbolConflict(severity = 'blocking', type = 'direct', chain) {
@@ -65,20 +78,22 @@ function sameSymbolConflict(severity = 'blocking', type = 'direct', chain) {
   };
 }
 
-async function claimCreateRoutes(app, sessionId, type = 'modify') {
+async function claimCreateRoutes(app, sessionId, headers, type = 'modify') {
   return app.inject({
     method: 'POST',
     url: `/sessions/${sessionId}/symbols`,
+    headers,
     payload: { claims: [{ filePath: 'lib/server.ts', symbolPath: 'createRoutes', type }] },
   });
 }
 
 describe('POST /sessions/:id/symbols', () => {
   test('claims a modify and returns the auto-derived blast radius', async () => {
-    const { app } = buildApp();
+    const { app, headersFor } = buildApp();
     const res = await app.inject({
       method: 'POST',
       url: '/sessions/s1/symbols',
+      headers: headersFor('s1'),
       payload: { claims: [{ filePath: 'lib/server.ts', symbolPath: 'createRoutes', type: 'modify' }] },
     });
     expect(res.statusCode).toBe(200);
@@ -92,26 +107,26 @@ describe('POST /sessions/:id/symbols', () => {
   });
 
   test('400 when a claim is missing filePath/symbolPath', async () => {
-    const { app } = buildApp();
-    const res = await app.inject({ method: 'POST', url: '/sessions/s1/symbols', payload: { claims: [{ filePath: 'x' }] } });
+    const { app, headersFor } = buildApp();
+    const res = await app.inject({ method: 'POST', url: '/sessions/s1/symbols', headers: headersFor('s1'), payload: { claims: [{ filePath: 'x' }] } });
     expect(res.statusCode).toBe(400);
     await app.close();
   });
 
   test('400 when claims is empty', async () => {
-    const { app } = buildApp();
-    const res = await app.inject({ method: 'POST', url: '/sessions/s1/symbols', payload: { claims: [] } });
+    const { app, headersFor } = buildApp();
+    const res = await app.inject({ method: 'POST', url: '/sessions/s1/symbols', headers: headersFor('s1'), payload: { claims: [] } });
     expect(res.statusCode).toBe(400);
     await app.close();
   });
 
   test('blocking conflict keeps the 409 verdict and emits complete durable advice', async () => {
-    const { app, suggestions, sent } = buildApp({ predictConflicts: sameSymbolConflict() });
+    const { app, claim, suggestions, sent } = buildApp({ predictConflicts: sameSymbolConflict() });
 
-    const res1 = await claimCreateRoutes(app, 's1');
+    const res1 = await claim('s1');
     expect(res1.statusCode).toBe(200);
 
-    const res2 = await claimCreateRoutes(app, 's2');
+    const res2 = await claim('s2');
     expect(res2.statusCode).toBe(409);
     const body = res2.json();
     expect(body.success).toBe(false);
@@ -155,12 +170,12 @@ describe('POST /sessions/:id/symbols', () => {
 
   test('warning conflict preserves the successful claim and includes dependency context', async () => {
     const chain = ['lib/server.ts#createRoutes', 'lib/routes.ts#registerRoutes'];
-    const { app, suggestions, sent } = buildApp({
+    const { app, claim, suggestions, sent } = buildApp({
       predictConflicts: sameSymbolConflict('warning', 'dependency', chain),
     });
 
-    expect((await claimCreateRoutes(app, 's1')).statusCode).toBe(200);
-    const response = await claimCreateRoutes(app, 's2');
+    expect((await claim('s1')).statusCode).toBe(200);
+    const response = await claim('s2');
     expect(response.statusCode).toBe(200);
     expect(response.json().conflicts[0].severity).toBe('warning');
 
@@ -179,11 +194,11 @@ describe('POST /sessions/:id/symbols', () => {
   });
 
   test('repeated conflict advice is deduplicated by the existing suggestion cooldown', async () => {
-    const { app, suggestions, sent } = buildApp({ predictConflicts: sameSymbolConflict() });
+    const { app, claim, suggestions, sent } = buildApp({ predictConflicts: sameSymbolConflict() });
 
-    expect((await claimCreateRoutes(app, 's1')).statusCode).toBe(200);
-    expect((await claimCreateRoutes(app, 's2')).statusCode).toBe(409);
-    expect((await claimCreateRoutes(app, 's2')).statusCode).toBe(409);
+    expect((await claim('s1')).statusCode).toBe(200);
+    expect((await claim('s2')).statusCode).toBe(409);
+    expect((await claim('s2')).statusCode).toBe(409);
 
     expect(suggestions.list({ agentId: 'agent-s2' })).toHaveLength(1);
     expect(sent).toHaveLength(1);
@@ -192,13 +207,36 @@ describe('POST /sessions/:id/symbols', () => {
   });
 
   test('no conflict creates no suggestion and sends no inbox message', async () => {
-    const { app, suggestions, sent } = buildApp();
+    const { app, claim, suggestions, sent } = buildApp();
 
-    expect((await claimCreateRoutes(app, 's1')).statusCode).toBe(200);
-    expect((await claimCreateRoutes(app, 's2')).statusCode).toBe(200);
+    expect((await claim('s1')).statusCode).toBe(200);
+    expect((await claim('s2')).statusCode).toBe(200);
     expect(suggestions.list({ agentId: 'agent-s2' })).toHaveLength(0);
     expect(sent).toHaveLength(0);
 
     await app.close();
+  });
+
+  test.each([
+    ['missing credential', () => ({}), 401, 'IDENTITY_CREDENTIAL_REQUIRED'],
+    ['another session owner', (headersFor) => headersFor('s1'), 403, 'SESSION_AGENT_MISMATCH'],
+  ])('%s cannot create claims or conflict advice', async (_label, requestHeaders, status, code) => {
+    const { app, claim, headersFor, symbolClaims, suggestions, sent } = buildApp({
+      predictConflicts: sameSymbolConflict(),
+    });
+    try {
+      expect((await claim('s1')).statusCode).toBe(200);
+      const before = symbolClaims.listAllActive();
+      const denied = await claim('s2', 'modify', requestHeaders(headersFor));
+
+      expect(denied.statusCode).toBe(status);
+      expect(denied.json().code).toBe(code);
+      expect(symbolClaims.listAllActive()).toEqual(before);
+      expect(symbolClaims.list('s2')).toEqual([]);
+      expect(suggestions.list({ agentId: 'agent-s2' })).toEqual([]);
+      expect(sent).toEqual([]);
+    } finally {
+      await app.close();
+    }
   });
 });

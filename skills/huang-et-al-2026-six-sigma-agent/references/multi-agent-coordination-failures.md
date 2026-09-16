@@ -164,7 +164,7 @@ The justification: "LLM errors are not adversarial (models don't actively defeat
 
 This is crucial: **5 agents** (tolerating 2 faults) achieve the same guarantees that would require **7 agents** under Byzantine assumptions—a 40% efficiency gain.
 
-## Application to WinDAGs: When to Use Each Paradigm
+## Application to Jury-rig: When to Use Each Paradigm
 
 For a DAG-based orchestration system, both paradigms have roles:
 

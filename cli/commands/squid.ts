@@ -48,6 +48,7 @@ import {
 } from '../../lib/squid/debug.js';
 import type { CLIOptions } from '../types.js';
 import { resolveCliActorCredential } from '../utils/actor-credential.js';
+import { displayPathRelativeToHome } from '../utils/display-path.js';
 import * as ui from '../utils/ui.js';
 
 const LEGACY_SQUID_TOKEN = 'squid-local';
@@ -995,6 +996,45 @@ async function printBridgeProbe(options: CLIOptions): Promise<void> {
  * inject into the next turn from this cwd (the Suggestibility Envelope), by
  * running the real staged tentacle.
  */
+export interface SquidTapEnvelope {
+  context: string | null;
+  eventName: string | null;
+  structured: boolean;
+}
+
+/** Decode the provider transport without changing the context bytes. The
+ * old preview printed this JSON wrapper verbatim, which proved that a shell
+ * script ran but concealed what the model actually saw. */
+export function decodeSquidTapEnvelope(raw: string): SquidTapEnvelope {
+  const trimmed = raw.trim();
+  if (!trimmed) return { context: null, eventName: null, structured: false };
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    const hook = parsed && typeof parsed === 'object'
+      ? (parsed as { hookSpecificOutput?: unknown }).hookSpecificOutput
+      : null;
+    if (hook && typeof hook === 'object' && typeof (hook as { additionalContext?: unknown }).additionalContext === 'string') {
+      const output = hook as { hookEventName?: unknown; additionalContext: string };
+      return {
+        context: output.additionalContext,
+        eventName: typeof output.hookEventName === 'string' ? output.hookEventName : null,
+        structured: true,
+      };
+    }
+  } catch {
+    // Other harness adapters may emit text directly. It is still model-facing
+    // context, but the preview labels the missing structured envelope.
+  }
+  return { context: trimmed, eventName: null, structured: false };
+}
+
+/** Render the structured hook event as a human-readable panel subtitle. */
+export function squidTapSubtitle(envelope: Pick<SquidTapEnvelope, 'eventName'>): string {
+  return envelope.eventName
+    ? `${envelope.eventName}: additional context`
+    : 'direct adapter context';
+}
+
 function handleSquidTap(options: CLIOptions): void {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const home = process.env.HOME || process.env.USERPROFILE || '';
@@ -1019,15 +1059,33 @@ function handleSquidTap(options: CLIOptions): void {
     return;
   }
   const D = '\x1b[2m', Z = '\x1b[0m';
+  const envelope = decodeSquidTapEnvelope(out);
+  const c = squidTokens('stdout');
   console.log('');
-  ui.info('Suggestibility Envelope — what the next turn would receive');
-  console.log(`  ${D}source: ${tentacle}${Z}`);
-  console.log(`  ${D}cwd:    ${cwd}${Z}`);
+  console.log(ui.renderLineworkPanel({
+    title: 'Harnessed Context',
+    subtitle: squidTapSubtitle(envelope),
+    tone: 'info',
+    zone: 'model sees this before its next decision',
+    rows: [
+      { state: 'confirmed', label: 'delivery', text: envelope.structured ? 'structured hook envelope decoded' : 'direct text fallback' },
+      { state: 'active', label: 'audience', text: 'agent model context — not shell stdout' },
+      { state: 'info', label: 'source', text: displayPathRelativeToHome(tentacle, home) },
+      { state: 'info', label: 'cwd', text: displayPathRelativeToHome(cwd, home) },
+    ],
+    footer: 'the block below is the exact injected context, transport wrapper removed',
+    colorLevel: ui.lineworkColorLevel('stdout'),
+  }));
   console.log('');
-  if (out.trim().length === 0) {
-    console.log(`  ${D}(empty — no steering alerts, no pheromone traces near this directory)${Z}`);
+  if (!envelope.context) {
+    console.log(`  ${D}(empty — no steering alerts, inbox work, or nearby pheromone traces)${Z}`);
   } else {
-    for (const line of out.trimEnd().split('\n')) console.log(`  ${line}`);
+    console.log(`  ${c.pilot('◆ PORT DADDY HARNESS')} ${c.dim('BEGIN MODEL CONTEXT')}`);
+    for (const line of envelope.context.trimEnd().split('\n')) {
+      const section = /^\[[A-Z][A-Z\s—-]+\]/.test(line.trim());
+      console.log(`  ${c.pilot('▌')} ${section ? c.warn(line) : line}`);
+    }
+    console.log(`  ${c.pilot('◆ PORT DADDY HARNESS')} ${c.dim('END MODEL CONTEXT')}`);
   }
   console.log('');
 }

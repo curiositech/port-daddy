@@ -480,6 +480,7 @@ function shipYaml(opts: { name: string; ideation?: boolean; xo?: boolean }): str
     `    ${opts.name}:`,
     '      trigger: pull_request:opened',
     ...(opts.ideation ? ['      class: ideation'] : []),
+    '      participation: { default: advisory, rules: [] }',
     '      fallbacks:',
     '        - backend: cloudflare',
     "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
@@ -575,7 +576,7 @@ describe('XO integration — editor pass', () => {
     const bodies = commentBodiesOf(state);
     expect(bodies.some(b => b.includes('Wire the relay dashboard'))).toBe(true);
     expect(bodies.some(b => b.includes('Wire the relay dashboards'))).toBe(false);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('editor failure ⇒ the ORIGINAL batch survives (cosine-only fallback path)', async () => {
@@ -593,7 +594,7 @@ describe('XO integration — editor pass', () => {
     // BOTH proposals reach the comment untouched — nothing lost to the XO outage.
     expect(bodies.some(b => b.includes('Wire the relay dashboard'))).toBe(true);
     expect(bodies.some(b => b.includes('Wire the relay dashboards'))).toBe(true);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('retryable editor dependency failure propagates to the queue before later work', async () => {
@@ -651,9 +652,10 @@ describe('XO integration — advisory triage', () => {
     expect(body).toContain('directly on the changed lines');
     expect(body).toContain('changed logic has no test');
     expect(body).toContain('1 other advisory finding'); // the nit: counted, not hidden
-    // The gate is untouched: advisory qa PASS ⇒ success, and the CHECK summary
+    // The gate is untouched: advisory QA does not vote, so this one-ship fixture
+    // has no quorum; the CHECK summary
     // (not the review body) carries no XO section.
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).not.toContain("XO's orders");
   });
 
@@ -671,9 +673,12 @@ describe('XO integration — advisory triage', () => {
     expect(state.reviews).toHaveLength(1);
     const body = state.reviews[0].body;
     expect(body).not.toContain("XO's orders");
-    // The body is byte-identical to the check summary — today's behavior.
-    expect(body).toBe(state.completed[0].summary);
-    expect(state.completed[0].conclusion).toBe('success');
+    // The human review body remains unchanged; only the bot-owned check output
+    // gains the machine-readable generation receipt on its first line.
+    expect(state.completed[0].summary).toBe(
+      `${state.completed[0].summary.split('\n')[0]}\n${body}`,
+    );
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('retryable triage dependency failure returns to the queue while budget remains', async () => {
@@ -709,7 +714,7 @@ describe('XO integration — advisory triage', () => {
     );
 
     expect(counters.triage).toBe(1);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.reviews[0].body).not.toContain("XO's orders");
   });
 });

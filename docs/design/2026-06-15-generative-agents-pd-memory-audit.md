@@ -11,16 +11,16 @@ of Human Behavior"*, UIST — agents that stay behaviourally coherent over days 
 keeping an append-only **memory stream** and retrieving from it by a weighted blend of
 *recency*, *importance*, and *relevance*) describes the exact loop Port Daddy needs:
 **observe → retrieve → reflect → plan**. Port Daddy already ships three of those four
-pillars in agent-neutral primitives. The load-bearing gap is **retrieval**: every PD
+pillars in agent-neutral primitives. The central gap is **retrieval**: every PD
 recall surface today ranks by **recency alone**, which is precisely Park's *Retrieval
 Cascade Failure* — an agent "denies knowledge it previously demonstrated" because the
-one load-bearing note scrolled out of the time window. That is the same failure
+one decisive note scrolled out of the time window. That is the same failure
 `AGENTS.md` keeps re-warning about under "a stale local plan is not coordination."
 
 The fix — an **importance** score on memories plus a **relevance** rank in briefing —
 is specified in ADR-0056. This doc is the why.
 
-## The load-bearing constraint: agent-neutrality
+## The core constraint: agent-neutrality
 
 > Port Daddy is the coordination substrate for **every** backend in the ladder — Claude
 > SDK, Claude CLI, Gemini, Codex, Aider, Ollama, Custom (`docs/adr/` backend catalog;
@@ -79,7 +79,7 @@ pivotal decision must out-rank yesterday's trivia when it is relevant to the cur
 query. Recency-only retrieval produces two of Park's named failure modes verbatim:
 
 - **Retrieval Cascade Failure** (Park §Failure-Mode-1): the agent "denies knowledge it
-  previously demonstrated" because the load-bearing note aged out of the window. In PD
+  previously demonstrated" because the essential note aged out of the window. In PD
   this is the recurring *stale-local-plan / must-re-anchor* hazard (`AGENTS.md` § Port
   Daddy First: "A stale local plan is not coordination").
 - **Memory Importance Inflation** (Park §Failure-Mode-5): mundane events drown out

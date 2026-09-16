@@ -46,6 +46,7 @@ export interface WorkIntentPayload extends HarborPayload {
       budgetUsd?: number;
       timeoutMs?: number;
       baseBranch?: string;
+      projectDir?: string;
       autoClaim?: boolean;
       targetActorId?: string;
       reviewerActorId?: string;
@@ -115,6 +116,7 @@ export interface CaptureDispatchInput {
   budgetUsd?: number;
   timeoutMs?: number;
   baseBranch?: string;
+  projectDir?: string;
   targetActorId?: string;
   reviewerActorId?: string;
   mergePolicy?: MergePolicy;
@@ -237,6 +239,7 @@ function dispatchConstraints(input: {
   timeoutMs?: number | null;
   mergePolicy?: MergePolicy;
   backend?: DispatchBackend | null;
+  projectDir?: string | null;
 }): Record<string, unknown> {
   const constraints: Record<string, unknown> = {
     placement: 'local-only',
@@ -247,6 +250,7 @@ function dispatchConstraints(input: {
   if (input.timeoutMs != null) constraints.deadlineMs = input.timeoutMs;
   if (input.mergePolicy) constraints.reviewRequired = input.mergePolicy === 'review';
   if (input.backend) constraints.bodyPreference = input.backend;
+  if (input.projectDir) constraints.workdir = input.projectDir;
   return constraints;
 }
 
@@ -358,6 +362,9 @@ function materializeDispatchProjectionFromIntent(
     ? constraints.deadlineMs
     : undefined;
   const reviewRequired = constraints.reviewRequired !== false;
+  const constraintWorkdir = typeof constraints.workdir === 'string'
+    ? constraints.workdir.trim()
+    : '';
   return queue.materializeProjection({
     id: intent.compat?.dispatchId ?? dispatchIdForWorkIntent(intent.intentId),
     goal: intent.goal.text,
@@ -366,6 +373,7 @@ function materializeDispatchProjectionFromIntent(
     budgetUsd: projection?.budgetUsd ?? maxCostUsd,
     timeoutMs: projection?.timeoutMs ?? deadlineMs,
     baseBranch: projection?.baseBranch ?? intent.source.branch ?? 'main',
+    projectDir: projection?.projectDir ?? (constraintWorkdir || intent.source.worktree),
     autoClaim: projection?.autoClaim,
     targetActorId: projection?.targetActorId,
     reviewerActorId: projection?.reviewerActorId,
@@ -473,6 +481,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         legacyVerb: 'dispatch',
         surface: 'pd dispatch',
         actorId: input.requestedBy ?? 'operator',
+        worktree: input.projectDir,
       },
       goalText: input.goal,
       constraints: dispatchConstraints(input),
@@ -489,6 +498,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
           budgetUsd: input.budgetUsd,
           timeoutMs: input.timeoutMs,
           baseBranch: input.baseBranch,
+          projectDir: input.projectDir,
           autoClaim: input.autoClaim,
           targetActorId: input.targetActorId,
           reviewerActorId: input.reviewerActorId,
@@ -530,7 +540,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         legacyVerb: 'dispatch',
         surface: 'pd dispatch',
         actorId: dispatch.requestedBy,
-        worktree: dispatch.worktreePath ?? undefined,
+        worktree: dispatch.projectDir ?? dispatch.worktreePath ?? undefined,
         branch: dispatch.branch ?? undefined,
       },
       goalText: dispatch.goal,
@@ -539,6 +549,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         timeoutMs: dispatch.timeoutMs,
         mergePolicy: dispatch.mergePolicy,
         backend: dispatch.backend,
+        projectDir: dispatch.projectDir,
       }),
       startPolicy: 'queued',
       attachExisting: true,

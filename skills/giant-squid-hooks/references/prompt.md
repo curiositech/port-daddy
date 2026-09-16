@@ -14,6 +14,12 @@ the model sees it. Two jobs, two budgets:
    SITREP table is prepended OUTSIDE the coordination byte cap (operator
    doctrine 2026-08-22). `bin/pd-hook-stop` verifies the same contract at
    turn end.
+3. **Halt notice (ADR-0132).** When `$PD_HOME/HALT` exists, a constant-size
+   block opening `SECURITE HALT` on its own line plus the sentinel's text
+   leads the envelope (outside the byte cap); one `control SEEN` line is
+   appended to the distress file per session; the context-pressure shim,
+   the inbox probe, and the SITREP compulsion are all withheld because they
+   are daemon traffic or `pd` invocations.
 
 ## Event contract per vendor
 
