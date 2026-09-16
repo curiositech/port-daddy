@@ -21,13 +21,13 @@ artifact:  analyses/harbor_card_v5_attenuation.pv, _v6_multihop_attack.pv,
            the HMAC chain, the third-party HMAC-COMMITMENT vid, the discharge
            macaroon, or the request-binding HMAC(BIND0, root_sig||discharge_sig).
 gap:       a ProVerif model of the macaroon discharge construction itself.
-priority:  HIGH — the citation is load-bearing in ADR-0053, the macaroon module
+priority:  HIGH — the citation is core in ADR-0053, the macaroon module
            headers (both runtimes), and the kernel-canonical decision (ADR-0054).
 ```
 
 ## Why this is a real gap, not pedantry
 
-The harbor-card proofs are sound and load-bearing **for cards** — `is_subset`
+The harbor-card proofs are sound and essential **for cards** — `is_subset`
 per-hop attenuation, the v6→v7 "naive final-vs-root is unsound" result. But the
 macaroon discharge gate is a **different mechanism**: cards prove *who you are*
 via Ed25519 + capability subset; macaroons gate *what a push may do, while rent
@@ -60,7 +60,7 @@ RESULT  ... is true.
 The relay authorizes a grant **only if** the daemon issued a discharge bound to
 that exact grant signature. The attacker cannot (a) forge a discharge without
 `caveat_key`, nor (b) transfer grant A's discharge to grant B (the binding ties
-it to A's signature). This is the load-bearing soundness property of the shipped
+it to A's signature). This is the structural soundness property of the shipped
 construction, now machine-checked.
 
 ## What the white-hat round closed (Q2)

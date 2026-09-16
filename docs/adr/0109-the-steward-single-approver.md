@@ -94,7 +94,7 @@ The Steward's responsibility, stated as one sentence it is measured against:
    concrete, cited improvement. Never a speculative rewrite; always one small,
    reversible step.
 
-### The guardrails are the load-bearing part
+### The guardrails are the critical part
 
 An autonomous agent that can merge to `main` is the highest-stakes seat in the
 fleet. The Steward is defined as much by what it must **not** do:

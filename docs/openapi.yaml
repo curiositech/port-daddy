@@ -3896,9 +3896,19 @@ paths:
                   type: boolean
                 metadata:
                   type: object
+                idempotencyKey:
+                  type: string
+                  pattern: '^[A-Za-z0-9._-]{16,128}$'
+                  description: >-
+                    One key per LOGICAL begin (UUID v4 / ULID), sent unchanged on every
+                    retry of that begin. A retry carrying a known key returns the ORIGINAL
+                    session (same ids, same once-returned credential) flagged
+                    `replayed: true` instead of creating a second one. Also accepted as
+                    the `Idempotency-Key` header. Scoped to the (identity, agentId,
+                    worktree) it was recorded under.
       responses:
         '200':
-          description: Agent registered and session started
+          description: Agent registered and session started (or, for a known idempotencyKey, the original begin replayed)
           content:
             application/json:
               schema:
@@ -3910,8 +3920,89 @@ paths:
                     type: string
                   sessionId:
                     type: string
+                  replayed:
+                    type: boolean
+                    description: True when this response replays a begin the daemon had already committed.
+                  idempotencyKeyRecorded:
+                    type: boolean
         '400':
-          description: Validation error or registration failed
+          description: Validation error, registration failed, or IDEMPOTENCY_KEY_INVALID
+        '409':
+          description: >-
+            IDEMPOTENCY_KEY_SCOPE_MISMATCH (key recorded for another identity/agent/worktree;
+            no ids disclosed) or IDEMPOTENCY_KEY_REUSED (same key, different begin; names
+            the recorded session) — or AMBIGUOUS_ACTIVE_SESSION.
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sugar/find:
+    get:
+      tags: [sugar]
+      summary: Recover a session by begin idempotency key or by identity
+      description: >-
+        Successor discovery for an agent that lost its local state. `key` proves the caller
+        made that begin, so the session AND its sealed credential come back. `identity`
+        returns the most recent live session(s) for an identity — ids only, with hints that
+        point at `pd session takeover <id>` for closed sessions.
+      operationId: sugarFind
+      parameters:
+        - name: key
+          in: query
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9._-]{16,128}$'
+          description: The begin idempotency key.
+        - name: identity
+          in: query
+          schema:
+            type: string
+          description: project:stack:context identity to search for (ignored when key is given).
+        - name: worktreeId
+          in: query
+          schema:
+            type: string
+          description: Restrict the identity search to one worktree. Without it (and without allWorktrees) every worktree is searched.
+        - name: allWorktrees
+          in: query
+          schema:
+            type: string
+            enum: ['1', 'true']
+        - name: includeClosed
+          in: query
+          schema:
+            type: string
+            enum: ['1', 'true']
+          description: Include completed/abandoned sessions in an identity search.
+      responses:
+        '200':
+          description: Found (or an empty identity search with a hint)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  foundBy: { type: string, enum: [key, identity] }
+                  sessionId: { type: [string, 'null'] }
+                  agentId: { type: [string, 'null'] }
+                  actorId: { type: [string, 'null'] }
+                  status: { type: [string, 'null'] }
+                  driveable: { type: boolean }
+                  credential:
+                    type: string
+                    description: Only for `key`, and only when a credential was sealed under that key.
+                  sessions:
+                    type: array
+                    items: { type: object }
+                  hint: { type: string }
+        '400':
+          description: Neither key nor identity, or IDEMPOTENCY_KEY_INVALID
+        '404':
+          description: IDEMPOTENCY_KEY_UNKNOWN
+        '410':
+          description: IDEMPOTENCY_SESSION_GONE — the recorded session no longer exists
+        '503':
+          description: Store unavailable on this daemon
         '500':
           $ref: '#/components/responses/InternalError'
 

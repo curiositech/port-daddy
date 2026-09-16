@@ -66,6 +66,8 @@ interface SkillDistributionMetrics {
   missingLinks: number;
   staleSymlinks: number;
   blockedNonSymlinks: number;
+  orphanedLinks: number;
+  unmanagedLinks: number;
   errorCount: number;
   freshnessPct: number;
   sources: Array<{ label: string; path: string }>;
@@ -177,7 +179,7 @@ async function loadGitAnnotations(repoRoot: string, sinceSecs: number, sinceMs: 
 
 function toSkillDistribution(result: SyncAgentSkillsResult): SkillDistributionMetrics {
   const audit = result.audit;
-  const driftCount = audit.missingLinks + audit.staleSymlinks + audit.blockedNonSymlinks;
+  const driftCount = audit.missingLinks + audit.staleSymlinks + audit.blockedNonSymlinks + (audit.orphanedLinks ?? 0);
   const status = audit.errors.length > 0
     ? 'error'
     : driftCount > 0
@@ -196,6 +198,8 @@ function toSkillDistribution(result: SyncAgentSkillsResult): SkillDistributionMe
     missingLinks: audit.missingLinks,
     staleSymlinks: audit.staleSymlinks,
     blockedNonSymlinks: audit.blockedNonSymlinks,
+    orphanedLinks: audit.orphanedLinks ?? 0,
+    unmanagedLinks: audit.unmanagedLinks ?? 0,
     errorCount: audit.errors.length,
     freshnessPct: audit.freshnessPct,
     sources: result.sources.map((source) => ({ label: source.label, path: source.path })),
@@ -220,6 +224,8 @@ function skillDistributionError(scope: SkillSyncScope, error: unknown): SkillDis
     missingLinks: 0,
     staleSymlinks: 0,
     blockedNonSymlinks: 0,
+    orphanedLinks: 0,
+    unmanagedLinks: 0,
     errorCount: 1,
     freshnessPct: 0,
     sources: [],
@@ -229,6 +235,8 @@ function skillDistributionError(scope: SkillSyncScope, error: unknown): SkillDis
       missing: [],
       staleSymlinks: [],
       blockedNonSymlinks: [],
+      orphaned: [],
+      unmanaged: [],
       errors: [{
         skill: '<audit>',
         runtime: '<metrics>',
@@ -266,6 +274,12 @@ function skillDistributionPrometheus(metrics: SkillDistributionMetrics): string 
     '# HELP port_daddy_skill_distribution_blocked_non_symlinks Runtime skill targets blocked by local non-symlink files',
     '# TYPE port_daddy_skill_distribution_blocked_non_symlinks gauge',
     `port_daddy_skill_distribution_blocked_non_symlinks{${labels}} ${metrics.blockedNonSymlinks}`,
+    '# HELP port_daddy_skill_distribution_orphaned_links Runtime skill symlinks left behind by a skill the catalog no longer has',
+    '# TYPE port_daddy_skill_distribution_orphaned_links gauge',
+    `port_daddy_skill_distribution_orphaned_links{${labels}} ${metrics.orphanedLinks}`,
+    '# HELP port_daddy_skill_distribution_unmanaged_links Symlinks in a runtime skill directory that this tool does not own and never removes',
+    '# TYPE port_daddy_skill_distribution_unmanaged_links gauge',
+    `port_daddy_skill_distribution_unmanaged_links{${labels}} ${metrics.unmanagedLinks}`,
     '# HELP port_daddy_skill_distribution_errors Audit errors while checking runtime skill distribution',
     '# TYPE port_daddy_skill_distribution_errors gauge',
     `port_daddy_skill_distribution_errors{${labels}} ${metrics.errorCount}`,

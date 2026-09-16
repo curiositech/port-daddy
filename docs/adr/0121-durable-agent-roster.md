@@ -1,6 +1,6 @@
 # 0121. Durable named-agent roster
 
-> **Note (2026-08-16):** Renumbered from 0119 → 0121 to resolve the 0119 collision with the relay release-channels ADR (which keeps 0119: dated 2026-08-04 and load-bearing for the relay deploy gate).
+> **Note (2026-08-16):** Renumbered from 0119 → 0121 to resolve the 0119 collision with the relay release-channels ADR (which keeps 0119: dated 2026-08-04 and core for the relay deploy gate).
 
 ## Status
 
@@ -174,5 +174,5 @@ The semantics remain ADR-0118's semantics:
 - `docs/adr/0095-agent-run-saga-and-backend-authority.md`
 - `docs/adr/0097-m6-context-memory-and-search-contracts.md`
 - `docs/adr/0118-harness-adapter-contract.md`
-- `website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf`
-- `website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf`
+- `website-v2/public/whitepaper/spawn-to-person.tex` (chapter 5 of the Book)
+- `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (chapter 2 of the Book)

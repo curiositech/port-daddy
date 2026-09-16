@@ -1,62 +1,65 @@
-% Figure 3 — a reachability comparison. Evidence is represented as material
-% marks; the decisive difference is whether the summary has a total zoom path.
+% Figure 3 — two claim trees, redrawn to spec [ch4.md 4.3]. Left: every claim
+% the digest makes resolves to a named artifact. Right: the same shape of
+% summary whose claims resolve to nothing. The leaf text is the readable fact;
+% color is doubled by shape (pd state boxes vs. caution diamonds) and by
+% arrow style (solid resolves-to vs. dashed caution) so the claim survives
+% grayscale. Fan-out arrows to the off-center branches route through a bend
+% so the final approach into each child is vertical, never diagonal into text.
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd panel title,anchor=west] at (.15,4.55) {digest as lens};
-  \node[pd panel title,anchor=west] at (8.35,4.55) {digest as facade};
+  % ---------------- top tree: digest as lens ----------------
+  \node[pd panel title,anchor=west] at (0,7.55) {digest as lens};
+  \node[pd direct label,anchor=south] (lroot) at (4.0,7.15) {PR 123: 3 claims};
 
-  \draw[pd rule,rounded corners=2pt] (.15,3.55) rectangle (7.15,4.16);
-  \node[anchor=west,font=\footnotesize] at (.42,3.855)
-    {PR 123 \enspace auth refactor \enspace merged \enspace 1 critique};
-  \draw[pd rule,rounded corners=2pt] (8.35,3.55) rectangle (15.35,4.16);
-  \node[anchor=west,font=\footnotesize] at (8.62,3.855)
-    {ALL GREEN \enspace everything is fine};
+  \node[pd direct label,anchor=south,align=center] (lc1) at (1.0,5.35) {auth refactor};
+  \node[pd direct label,anchor=south,align=center] (lc2) at (4.0,5.35) {tests pass};
+  \node[pd direct label,anchor=south,align=center] (lc3) at (7.0,5.35) {1 critique};
 
-  \coordinate (aperture) at (3.65,2.95);
-  \draw[pd focus rule,line width=1.2pt] (3.30,2.95) arc[start angle=180,end angle=360,x radius=.35,y radius=.14];
-  \draw[pd focus rule,line width=1.2pt] (3.30,2.95) arc[start angle=180,end angle=0,x radius=.35,y radius=.14];
-  \node[pd axis label,text=hhteal,anchor=east] at (3.18,2.95) {$\zeta$};
-  \draw[pd focus arrow] (3.65,3.55)--(aperture);
+  \draw[pd focus arrow] (lroot.south) -- (4.0,6.55) -- (1.0,6.55) -- (lc1.north);
+  \draw[pd focus arrow] (lroot.south) -- (lc2.north);
+  \draw[pd focus arrow] (lroot.south) -- (4.0,6.55) -- (7.0,6.55) -- (lc3.north);
+  \node[pd axis label,anchor=west] at (5.35,6.25) {claims};
 
-  \coordinate (diff) at (1.10,.98);
-  \coordinate (test) at (3.65,.98);
-  \coordinate (commit) at (6.20,.98);
-  \draw[pd focus arrow] (aperture)--(diff);
-  \draw[pd focus arrow] (aperture)--(test);
-  \draw[pd focus arrow] (aperture)--(commit);
+  \node[pd state,text width=2.1cm] (ll1) at (1.0,3.9) {diff a1c\ldots};
+  \node[pd state,text width=2.1cm] (ll2) at (4.0,3.9) {run \#4812};
+  \node[pd state,text width=2.1cm] (ll3) at (7.0,3.9) {comment \#7};
 
-  \draw[pd rule] (.55,.58) rectangle (1.65,1.38);
-  \foreach \y in {.74,.98,1.22}{\draw[pd hairline] (.70,\y)--(1.50,\y);}
-  \node[pd axis label,anchor=north] at (1.10,.47) {diff on disk};
-  \draw[pd rule] (3.05,.58) rectangle (4.25,1.38);
-  \draw[pd focus rule] (3.18,.98)--(3.35,1.16)--(3.58,.78)--(3.82,1.18)--(4.10,.98);
-  \node[pd axis label,anchor=north] at (3.65,.47) {verbatim test};
-  \draw[pd rule] (5.55,.58)--(6.85,.58)--(6.85,1.38)--(5.55,1.38)--cycle;
-  \node[font=\scriptsize\ttfamily] at (6.20,1.02) {8f31c2};
-  \node[pd axis label,anchor=north] at (6.20,.47) {commit + claim};
+  \draw[pd focus arrow] (lc1.south) -- (ll1.north);
+  \draw[pd focus arrow] (lc2.south) -- (ll2.north);
+  \draw[pd focus arrow] (lc3.south) -- (ll3.north);
+  \node[pd axis label,text=hhteal,anchor=west,align=left,text width=2.4cm] at (5.35,4.65) {resolves to};
 
-  \draw[pd caution arrow] (11.85,3.55)--(11.85,2.92);
-  \draw[pd caution rule,line width=1.25pt] (8.70,2.72)--(15.0,2.72);
-  \node[pd direct label,text=hhamber,anchor=south] at (11.85,2.84)
-    {summary terminates};
-  \foreach \x/\glyph in {9.55/removed regression,11.85/failed stderr,14.15/unreviewed change}{
-    \draw[pd guide] (\x,2.66)--(\x,1.45);
-    \node[pd caution datum] at (\x,1.18) {};
-    \node[pd axis label,anchor=north,align=center] at (\x,.88) {\glyph};
-  }
+  % ---------------- bottom tree: digest as facade ----------------
+  \node[pd panel title,anchor=west] at (0,2.05) {digest as facade};
+  \node[pd direct label,anchor=south] (rroot) at (4.0,1.65) {ALL GREEN};
 
-  \draw[decorate,decoration={brace,amplitude=4pt},pd hairline]
-    (.45,.15)--(6.85,.15);
-  \node[pd note,anchor=north] at (3.65,-.02) {every claim resolves to evidence};
-  \draw[decorate,decoration={brace,amplitude=4pt},pd hairline]
-    (8.70,.15)--(15.0,.15);
-  \node[pd note,anchor=north] at (11.85,-.02) {evidence exists; the surface cannot reach it};
+  \node[pd direct label,anchor=south,inner sep=7pt] (rc1) at (1.0,-0.15) {\ldots};
+  \node[pd direct label,anchor=south,inner sep=7pt] (rc2) at (4.0,-0.15) {\ldots};
+  \node[pd direct label,anchor=south,inner sep=7pt] (rc3) at (7.0,-0.15) {\ldots};
+
+  \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (4.0,0.95) -- (1.0,0.95) -- (rc1.north);
+  \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (rc2.north);
+  \draw[pd arrow,shorten >=1.5pt] (rroot.south) -- (4.0,0.95) -- (7.0,0.95) -- (rc3.north);
+  \node[pd axis label,anchor=west] at (5.35,0.75) {claims};
+
+  \node[pd caution datum] (rl1) at (1.0,-1.55) {};
+  \node[pd caution datum] (rl2) at (4.0,-1.55) {};
+  \node[pd caution datum] (rl3) at (7.0,-1.55) {};
+  \node[pd axis label,text=hhamber,anchor=north] at (1.0,-1.75) {none};
+  \node[pd axis label,text=hhamber,anchor=north] at (4.0,-1.75) {none};
+  \node[pd axis label,text=hhamber,anchor=north] at (7.0,-1.75) {none};
+
+  \draw[pd caution arrow] (rc1.south) -- (rl1.north);
+  \draw[pd caution arrow] (rc2.south) -- (rl2.north);
+  \draw[pd caution arrow] (rc3.south) -- (rl3.north);
+  \node[pd axis label,text=hhamber,anchor=west,align=left,text width=2.4cm] at (5.35,-0.85) {resolves to};
 \end{tikzpicture}
-\caption{Two equally calm summaries with different reachability. The legible
-digest defines a total zoom function $\zeta$: each summarized claim resolves to
-the diff, verbatim test, or committed claim. The facade terminates at its own
-assertion while contrary evidence remains below the boundary. A safe summary is
-therefore an index into evidence, never its replacement.}
+\caption{Two claim trees of identical shape. Top: the legible digest's three
+named claims each resolve to one artifact --- a diff, a test run, a review
+comment. Bottom: a same-shaped summary whose three claims resolve to nothing
+an operator can open. A safe summary is an index into evidence; a calm one
+that terminates early is a Potemkin digest, whichever claim count it
+advertises [internal].}
 \label{fig:zoom-vs-potemkin}
 \end{figure}

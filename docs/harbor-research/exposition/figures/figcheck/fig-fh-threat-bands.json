@@ -1,0 +1,230 @@
+{
+  "figure": "fig-fh-threat-bands",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "fail",
+      "count": 7,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            421.27813720703125,
+            55.00615310668945,
+            513.7177124023438,
+            63.43427658081055
+          ],
+          "text": "signed card + epoch root",
+          "line_segment": [
+            [
+              165.34352111816406,
+              59.511436462402344
+            ],
+            [
+              442.45330810546875,
+              59.511436462402344
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'signed card + epoch root'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            336.01373291015625,
+            76.34578704833984,
+            471.1244812011719,
+            84.7759780883789
+          ],
+          "text": "\u0398(log m) only under reliable rounds",
+          "line_segment": [
+            [
+              165.34352111816406,
+              80.82764434814453
+            ],
+            [
+              442.45330810546875,
+              80.82764434814453
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text '\u0398(log m) only under reliable rounds'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            325.3558349609375,
+            97.6385726928711,
+            421.006591796875,
+            106.06669616699219
+          ],
+          "text": "proof after roots co-locate",
+          "line_segment": [
+            [
+              165.34352111816406,
+              102.14384460449219
+            ],
+            [
+              442.45330810546875,
+              102.14384460449219
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'proof after roots co-locate'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            337.61236572265625,
+            118.95476531982422,
+            481.1431884765625,
+            127.38288879394531
+          ],
+          "text": "bound ranges from bypassable to gated",
+          "line_segment": [
+            [
+              165.34352111816406,
+              123.46005249023438
+            ],
+            [
+              442.45330810546875,
+              123.46005249023438
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'bound ranges from bypassable to gated'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            265.4042663574219,
+            140.27052307128906,
+            405.60595703125,
+            148.69863891601562
+          ],
+          "text": "thin reputation cannot yet price bond",
+          "line_segment": [
+            [
+              165.34352111816406,
+              144.7758026123047
+            ],
+            [
+              442.45330810546875,
+              144.7758026123047
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'thin reputation cannot yet price bond'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            256.07830810546875,
+            161.58673095703125,
+            363.2250061035156,
+            170.0148468017578
+          ],
+          "text": "monitoring game incomplete",
+          "line_segment": [
+            [
+              165.34352111816406,
+              166.09201049804688
+            ],
+            [
+              442.45330810546875,
+              166.09201049804688
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'monitoring game incomplete'"
+        },
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            242.7557373046875,
+            182.90293884277344,
+            332.76806640625,
+            191.3310546875
+          ],
+          "text": "pushback is not a bound",
+          "line_segment": [
+            [
+              165.34352111816406,
+              187.408203125
+            ],
+            [
+              442.45330810546875,
+              187.408203125
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text 'pushback is not a bound'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.133,
+      "edge_density": 0.0947,
+      "distinct_colors": 1506,
+      "flags": [
+        "edge_density=0.095 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

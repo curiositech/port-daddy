@@ -17,7 +17,7 @@ Register: a smart engineer who has not read the source volume. A "digest" is a s
 **Intuition (structural analogy).** Think of a lottery where k of N tickets are secretly winners, and you may inspect only m tickets. A "digest" is a hint telling you which m to open. To *guarantee* you open all k winners no matter where they hide, the hint must distinguish every arrangement of winners it would treat differently. The relation that maps over is *"a message must carry at least one distinct codeword per outcome it must separate"* — the same relation behind why a key must be as long as the space of things it unlocks. (Misread to preempt: this is *not* saying summaries are useless — it says a *zero-miss guarantee* has a nonzero price; cheaper summaries are fine if you accept a miss rate, which is R4.)
 
 **The box.**
-> To guarantee catching all *k* load-bearing artifacts among *N* while opening only *m*, any digest must carry at least **B\* = log₂ C(N,k) − log₂ C(m,k)** bits. (Each flagged *m*-set "covers" only C(m,k) of the C(N,k) possible placements of the k critical items.)
+> To guarantee catching all *k* critical artifacts among *N* while opening only *m*, any digest must carry at least **B\* = log₂ C(N,k) − log₂ C(m,k)** bits. (Each flagged *m*-set "covers" only C(m,k) of the C(N,k) possible placements of the k critical items.)
 
 **Numbers by hand.** Take N=10, k=1, m=1. C(10,1)=10, C(1,1)=1, so B\* = log₂10 − log₂1 = 3.32 bits — enough to name one of ten items, obviously right. *Now you try:* N=10, k=1, m=2. (Answer: log₂10 − log₂2 = 2.32 bits — being allowed to open two tickets buys exactly one bit of slack.)
 

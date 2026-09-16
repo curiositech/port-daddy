@@ -1,36 +1,35 @@
 % Figure 11 — real-time intervals and extracted commit order.
 \begin{figure}[H]
 \centering
-\resizebox{0.91\textwidth}{!}{%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \foreach \y/\a in {5.3/A,4.25/B,3.2/C} {
-    \node[anchor=east,font=\scriptsize\bfseries] at (1.15,\y) {agent \a};
-    \draw[pd hairline] (1.4,\y)--(13.5,\y);
+\begin{tikzpicture}[pd figure,x=.8cm,y=.85cm]
+  \foreach \y/\a in {5.4/A,4.4/B,3.4/C} {
+    \node[pd row label] at (-.25,\y) {agent \a};
+    \draw[pd hairline] (0,\y)--(10.4,\y);
   }
-  \fill[hhsand!24] (2.0,5.0) rectangle (5.45,5.6);
-  \node[pd direct label] at (3.35,5.3) {claim};
-  \fill[hhsand!24] (3.15,3.95) rectangle (7.05,4.55);
-  \node[pd direct label] at (5.1,4.25) {claim: loses to A};
-  \fill[hhsand!24] (7.55,5.0) rectangle (9.25,5.6);
-  \node[pd direct label] at (8.4,5.3) {release};
-  \fill[hhsand!24] (9.55,2.9) rectangle (12.6,3.5);
-  \node[pd direct label] at (11.05,3.2) {claim: wins};
-  \foreach \x/\lab in {5.45/{A claim},7.05/{B loses},9.25/{A release},12.6/{C claim}} {
-    \draw[pd guide] (\x,1.25)--(\x,5.85);
-    \node[pd focus datum] at (\x,1.6) {};
-    \node[pd axis label,anchor=north,align=center] at (\x,1.32) {\lab};
+  \fill[pd neutral fill] (.6,5.2) rectangle (4.3,5.6);
+  \node[pd direct label,anchor=south,text width=1.2cm,align=center] at (2.45,5.7) {claim};
+  \fill[pd neutral fill] (1.9,4.2) rectangle (6.0,4.6);
+  \node[pd direct label,anchor=south,text width=1.9cm,align=center] at (2.9,4.7) {loses to A};
+  \fill[pd neutral fill] (6.4,5.2) rectangle (8.0,5.6);
+  \node[pd direct label,anchor=south,text width=1.1cm,align=center] at (7.2,5.7) {release};
+  \fill[pd neutral fill] (8.4,3.2) rectangle (10.3,3.6);
+  \node[pd direct label,anchor=south,text width=.9cm,align=center] at (9.35,3.7) {wins};
+
+  \foreach \x/\lbl in {4.3/{A claim},6.0/{B loses},8.0/{A release},10.3/{C claim}} {
+    \draw[pd guide] (\x,1.55)--(\x,5.75);
+    \node[pd focus datum] at (\x,1.9) {};
+    \node[pd axis label,anchor=north,align=center] at (\x,1.65) {\lbl};
   }
-  \draw[pd focus arrow,line width=1.45pt] (1.65,1.6)--(13.35,1.6);
-  \node[pd panel title,anchor=east] at (1.25,1.6) {commit order};
-  \node[pd note,anchor=west] at (3.3,.55)
-    {$A.claim \prec B.claim_{lose} \prec A.release \prec C.claim$};
-\end{tikzpicture}%
-}
-\caption{A real-time history and its extracted linearization. Operations may
-overlap in caller time, but each receives one commit point on the single writer's
-rail. Those points explain the observable result without a prose table: A wins,
-B overlaps but loses to the recorded holder, A releases, and only then can C win.
-The claim is conditional on one writer, no uncommitted reads, and replies after
-commit; a bypass would destroy the correspondence.}
+  \draw[pd focus arrow,line width=1.3pt] (1.1,1.9)--(10.5,1.9);
+  \node[pd panel title,anchor=east,text width=1.6cm,align=right] at (.7,1.9) {commit order};
+
+  \node[pd note,anchor=north,text width=10.4cm,align=center] at (5.2,.75)
+    {$A.claim \prec B.claim\text{ (loses)} \prec A.release \prec C.claim$};
+\end{tikzpicture}
+\caption{A real-time history and its extracted linearization. Operations
+overlap in caller time, but each receives one commit point on the single
+writer's rail, and the linearization reads: A claims, B loses, A releases,
+C claims. The claim is conditional on one writer, no uncommitted reads, and
+replies after commit. [internal]}
 \label{fig:swk-consistency-model}
 \end{figure}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "method": { "mode": "solo", "claimsIndependent": false, "sealedBeforeSharing": false, "sameFrozenInput": true },
+  "scope": { "id": "synthetic:analytics", "sourceHead": "fixture-head-1", "revision": 12 },
+  "decision": {
+    "status": "draft", "steward": "fixture-steward", "owner": "fixture-architecture-owner",
+    "proposalDigest": "fixture-proposal-2", "requestedExecution": false,
+    "halted": true, "authorityVerified": false
+  },
+  "cost": { "paidWorkRequested": false, "telemetryKnown": false, "aggregateReserved": false, "capUsd": 0 },
+  "evidence": [
+    { "id": "exception-record", "scopeId": "synthetic:analytics", "authorized": true, "warrant": "source" }
+  ],
+  "findings": [
+    { "id": "scoped-exception", "warrant": "policy_norm", "status": "verified", "evidenceIds": ["exception-record"], "disposition": "accept", "blocking": false },
+    { "id": "remove-analytics", "warrant": "hypothesis", "status": "allegation", "evidenceIds": [], "disposition": "reject", "blocking": false }
+  ],
+  "dissent": [
+    { "findingId": "remove-analytics", "rationale": "The synthetic later exception still applies to analytics only.", "reopenWhen": "The outcome owner explicitly supersedes that exception." }
+  ],
+  "preview": {
+    "available": true, "proposalDigest": "fixture-proposal-2", "sourceHead": "fixture-head-1", "stateRevision": 12,
+    "affectedOutcomes": ["Preserve the scoped analytics exception without changing transaction storage."]
+  }
+}

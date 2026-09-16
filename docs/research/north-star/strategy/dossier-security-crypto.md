@@ -192,7 +192,7 @@ Confinement (§3–4) is the hull. The Coast Guard is the patrol: **detect a tur
 
 - **Egress anomalies** at the Cutter: a new destination host the agent has never contacted; a POST body that contains bytes matching a known secret's fingerprint (the Cutter *knows* the real keys, so it can detect a key trying to leave — this is **canary/honeytoken detection**, a real and cheap control); a burst of requests (spend velocity) exceeding the agent's historical envelope.
 - **Filesystem tripwires** via the sandbox: an agent that suddenly tries to read `~/.ssh`, `~/.aws`, or another project's `.env` when its task scope is `port-daddy` — the Seatbelt/Landlock profile *denies* it (enforcement) *and* logs it (signal).
-- **Behavioral envelope, not keyword lists.** Per the operator's standing rule (no keyword NLP), detection uses the *structured* signals PD owns — destination hosts, spend rate, file-access patterns, capability-caveat violations — and, where free-text judgment is needed (e.g. "is this tool call suspicious"), a single cheap Haiku classifier call, not a substring denylist. The structured tripwires are the load-bearing detectors; the LLM judge is a tie-breaker.
+- **Behavioral envelope, not keyword lists.** Per the operator's standing rule (no keyword NLP), detection uses the *structured* signals PD owns — destination hosts, spend rate, file-access patterns, capability-caveat violations — and, where free-text judgment is needed (e.g. "is this tool call suspicious"), a single cheap Haiku classifier call, not a substring denylist. The structured tripwires are the central detectors; the LLM judge is a tie-breaker.
 
 **Quarantine actions (escalating, all enforceable because PD owns the boundary):**
 

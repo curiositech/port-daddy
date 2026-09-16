@@ -71,7 +71,7 @@ final class SpawnApprovalStore: ObservableObject {
 
         guard let baseURL, let url = URL(string: "\(baseURL)/fleet/approvals") else { return }
         do {
-            let (data, _) = try await session.data(from: url)
+            let (data, _) = try await session.pdData(from: url)
             struct Envelope: Codable { let proposals: [SpawnApproval] }
             let envelope = try JSONDecoder().decode(Envelope.self, from: data)
             approvals = envelope.proposals
@@ -97,7 +97,7 @@ final class SpawnApprovalStore: ObservableObject {
         request.httpBody = try? JSONEncoder().encode(payload)
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.pdData(for: request)
             if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                 struct ErrorBody: Codable { let error: String? }
                 let body = try? JSONDecoder().decode(ErrorBody.self, from: data)

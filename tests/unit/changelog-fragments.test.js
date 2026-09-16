@@ -6,7 +6,7 @@
  * we are shipping actually passes its own gate) AND a sandbox with injected breakage
  * (the gate has teeth, not just a tree that happens to agree today).
  *
- * The load-bearing assertions are the two couplings to the release train:
+ * The assertions that matter are the two couplings to the release train:
  *
  *   1. `--release X.Y.Z` output satisfies the LITERAL
  *      `grep -Fq "## [X.Y.Z] -" CHANGELOG.md` that .github/workflows/release-train.yml

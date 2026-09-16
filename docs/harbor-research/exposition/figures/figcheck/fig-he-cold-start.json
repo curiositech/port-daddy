@@ -1,0 +1,92 @@
+{
+  "figure": "fig-he-cold-start",
+  "page_count": 1,
+  "params": {
+    "min_font_pt": 7.0,
+    "textwidth_cm": 16.3
+  },
+  "checks": {
+    "T1": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T2": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T3": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T4": {
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T4",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            374.1126708984375,
+            68.28006744384766,
+            383.2852783203125,
+            78.69529724121094
+          ],
+          "text": "\u03bb\u22c6",
+          "line_segment": [
+            [
+              115.10421752929688,
+              77.13036346435547
+            ],
+            [
+              423.321044921875,
+              77.13036346435547
+            ]
+          ],
+          "message": "a drawn line crosses through the interior of text '\u03bb\u22c6'"
+        }
+      ]
+    },
+    "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T6": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T7": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    }
+  },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.111,
+      "edge_density": 0.0829,
+      "distinct_colors": 1401,
+      "flags": [
+        "edge_density=0.083 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
+  "summary": {
+    "result": "fail",
+    "failed_checks": [
+      "T4"
+    ],
+    "warned_checks": []
+  }
+}

@@ -1,5 +1,5 @@
 /**
- * pd embed — the ONE local embedding surface for skills and matching code.
+ * pd embed — the corpus-policy-selected local embedding surface.
  *
  * Port Daddy standardizes on a single locally-cached embedding model
  * (`Xenova/all-MiniLM-L6-v2`, ~27 MB — ADR-0061) stored in the shared
@@ -12,11 +12,11 @@
  * Subcommands:
  *   pd embed status                 Is the model cached? Where? (--json)
  *   pd embed prefetch               Download the model into the shared cache now
- *   pd embed text "a" "b" ...       Embed argument texts → JSON vectors
- *   pd embed stdin                  Embed one text per stdin line → JSON vectors
+ *   pd embed text --corpus ID "a"  Embed argument texts → JSON vectors
+ *   pd embed stdin --corpus ID     Embed one text per stdin line → JSON vectors
  *
  * Output contract (text/stdin):
- *   { "model": "Xenova/all-MiniLM-L6-v2", "dims": 384, "vectors": [[...], ...] }
+ *   { "model": "...", "spaceId": "embed-v2:...", "policyDigest": "sha256:...", "dims": 384, "vectors": [[...], ...] }
  *
  * Vectors are mean-pooled and L2-normalized, so cosine similarity is a plain
  * dot product. Exit codes: 0 ok; 1 usage or embedding failure; 3 model not
@@ -29,13 +29,20 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DEFAULT_SEMANTIC_MODEL_ID,
-  createLocalEmbedder,
+  createLocalTextEmbedder,
   defaultTransformersCacheDir,
 } from '../../lib/semantic-resolver.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
 
-/** Cached iff the model's directory exists under the cache and is non-empty. */
+/**
+ * Check the selected local profile's coarse cache presence. The purpose is an
+ * inexpensive UX probe; the production loader performs exact digest verification.
+ *
+ * @param cacheDir Shared Transformers.js cache root.
+ * @param modelId Selected local model identifier.
+ * @returns Whether a non-empty model directory exists.
+ */
 export function isEmbeddingModelCached(
   cacheDir: string = defaultTransformersCacheDir(),
   modelId: string = DEFAULT_SEMANTIC_MODEL_ID,
@@ -49,17 +56,30 @@ export function isEmbeddingModelCached(
 }
 
 /**
- * Download the model into the shared cache by embedding a probe string.
- * Idempotent: hits the FS cache instantly when already downloaded.
+ * Download the model into the shared cache by embedding a probe string. The
+ * design routes prefetch through production conformance instead of a second loader.
+ *
+ * @param cacheDir Shared cache receiving the pinned artifacts.
+ * @param corpusId Stable corpus authority attached to the prefetch probe.
+ * @returns When artifact download and output verification have completed.
  */
 export async function prefetchEmbeddingModel(
   cacheDir: string = defaultTransformersCacheDir(),
-  modelId: string = DEFAULT_SEMANTIC_MODEL_ID,
+  corpusId = 'pd.embedding.cache-prefetch',
 ): Promise<void> {
-  const embedder = createLocalEmbedder({ cacheDir, modelId });
+  const embedder = createLocalTextEmbedder(corpusId, {
+    cacheDir,
+    allowRemoteModelDownload: true,
+  });
   await embedder.embed(['port daddy embedding model prefetch probe']);
 }
 
+/**
+ * Read non-empty stdin records for deterministic one-line embedding. The
+ * purpose is to preserve vector-to-record alignment for shell callers.
+ *
+ * @returns Trimmed, non-empty input lines in arrival order.
+ */
 async function readStdinLines(): Promise<string[]> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
@@ -70,7 +90,20 @@ async function readStdinLines(): Promise<string[]> {
     .filter((line) => line.length > 0);
 }
 
+/**
+ * Apply corpus selection and local conformance before emitting vectors. This
+ * design fails before model loading when the caller omitted corpus authority.
+ *
+ * @param texts Input records to embed in order.
+ * @param options Parsed CLI flags containing corpus and cache policy.
+ * @returns Process exit code for the embedding operation.
+ */
 async function embedTexts(texts: string[], options: CLIOptions): Promise<number> {
+  const corpusId = typeof options.corpus === 'string' ? options.corpus.trim() : '';
+  if (!corpusId) {
+    console.error('embedding requires --corpus <stable-corpus-id>; model selection is corpus-policy-bound');
+    return 1;
+  }
   const cacheDir = typeof options['cache-dir'] === 'string' ? options['cache-dir'] : defaultTransformersCacheDir();
   const cached = isEmbeddingModelCached(cacheDir);
   if (!cached && options.offline) {
@@ -84,16 +117,30 @@ async function embedTexts(texts: string[], options: CLIOptions): Promise<number>
     console.error('nothing to embed (no non-empty texts)');
     return 1;
   }
-  const embedder = createLocalEmbedder({ cacheDir });
+  const embedder = createLocalTextEmbedder(corpusId, { cacheDir });
   const vectors = await embedder.embed(texts);
   console.log(JSON.stringify({
     model: embedder.modelId,
+    spaceId: embedder.spaceId,
+    corpusId: embedder.policy.corpusId,
+    policyId: embedder.policy.policyId,
+    policyRevision: embedder.policy.revision,
+    policyDigest: embedder.policy.policyDigest,
+    role: embedder.role,
     dims: vectors[0]?.length ?? 0,
     vectors,
   }));
   return 0;
 }
 
+/**
+ * Dispatch embedding cache and producer subcommands. The purpose is to keep
+ * every shell or skill caller on the same selected and verified local pipeline.
+ *
+ * @param args Positional command arguments beginning with the subcommand.
+ * @param options Parsed global and command-specific CLI flags.
+ * @returns When the selected subcommand completes and sets any exit code.
+ */
 export async function handleEmbed(args: string[], options: CLIOptions): Promise<void> {
   const sub = args[0] ?? 'status';
   const cacheDir = typeof options['cache-dir'] === 'string' ? options['cache-dir'] : defaultTransformersCacheDir();
@@ -146,7 +193,7 @@ export async function handleEmbed(args: string[], options: CLIOptions): Promise<
 
     default: {
       console.error(
-        'Usage: pd embed status [--json] | prefetch | text "..." ["..."] | stdin\n' +
+        'Usage: pd embed status [--json] | prefetch | text --corpus ID "..." ["..."] | stdin --corpus ID\n' +
         '       [--cache-dir DIR] [--offline]',
       );
       process.exitCode = 1;

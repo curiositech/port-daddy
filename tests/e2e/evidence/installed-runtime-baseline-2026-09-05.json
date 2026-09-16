@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "kind": "redacted-installed-runtime-baseline",
+  "observedAt": "2026-09-05",
+  "normative": false,
+  "mutableSnapshot": true,
+  "supersededByFreshEvidence": true,
+  "runtimeVersion": "3.30.6",
+  "releaseGateStatusAtObservation": "failing",
+  "aggregate": {
+    "recentMacOSCrashCount": 23,
+    "crashThreadFamilies": [
+      "Bun/JSC worker",
+      "Bun/JSC main"
+    ],
+    "launchdRunsEarlierInObservationWindow": 41,
+    "launchdSuccessiveCrashesEarlierInObservationWindow": 1,
+    "launchdLastSignalEarlierInObservationWindow": "SIGTRAP",
+    "healthEarlierInObservationWindow": "degraded",
+    "stalledTranscriptFlowCountEarlierInObservationWindow": 3,
+    "galaxyMapEarlierInObservationWindow": "http-500",
+    "embedderCircuitEarlierInObservationWindow": "open-under-load",
+    "relayEarlierInObservationWindow": "configured-disconnected",
+    "staleProviderHookCountEarlierInObservationWindow": 4,
+    "providerHookCountEarlierInObservationWindow": 4,
+    "removedEnvironmentKeysStillPresentEarlierInObservationWindow": [
+      "PORT_DADDY_NEWCOMER_ADMIT_MAX"
+    ],
+    "installedDatabaseBytesApprox": 1600000000,
+    "simultaneousPdConsoleBuilds": 5,
+    "panesPerConsoleApprox": 28,
+    "refreshPeriodSeconds": 2,
+    "fleetBarAdditionalClients": true
+  },
+  "lineageCautions": {
+    "sourceRevisionAtObservation": "38e52122a7b54346d509bf5b7ae07278f1c48ced",
+    "counterCompactionCommitOnSourceRevision": false,
+    "galaxyRepairCommitOnSourceRevision": false,
+    "instruction": "Test the built candidate artifact. Do not infer shipped behavior from local-only commits."
+  },
+  "evidencePolicy": {
+    "rawSensitiveArtifactsIncluded": false,
+    "allowed": [
+      "runtime version",
+      "aggregate counts",
+      "artifact hashes",
+      "redacted category verdicts"
+    ],
+    "forbidden": [
+      "raw registry database",
+      "transcript bodies",
+      "credentials",
+      "unscrubbed crash reports"
+    ]
+  },
+  "interpretation": "This dated local observation motivates the separately gated installed-runtime and high-cardinality stability cases. It is not a fixture, a current-health assertion, or a Phase-1 pass/fail input."
+}

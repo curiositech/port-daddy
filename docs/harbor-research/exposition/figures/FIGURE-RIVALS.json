@@ -1,0 +1,2047 @@
+{
+ "schema": "port-daddy/figure-review/rival-variants@1",
+ "generated": "2026-09-14",
+ "generated_by": "claude/figure-rivals-and-mermaid",
+ "base_commit": "0b6d9c21c421321f4465366917358684187d9515",
+ "commit_provenance": "Every `commit` below is the commit that was actually compiled and rendered, recorded from the render log rather than re-resolved afterwards. origin/main and claude/figures-missing-and-judged both advanced during this run; the images belong to the earlier commits and the manifest says so.",
+ "id_scheme": "figure_id is the fragment stem, matching PIXEL-JUDGMENT.md's `fragment` column and NAIVE-MERMAID.json's figure_id. pj_id is PIXEL-JUDGMENT.md's number where the figure has one; figures that exist only on a branch have pj_id null and id_origin says so.",
+ "method": "Every branch with a commit since 2026-09-01 was diffed against origin/main over whitepaper/figures, website-v2/public/whitepaper/figures and docs/harbor-research/figures. Files the Book's own preamble declares as apparatus rather than drawings (pd-figure-language and its edition overrides, pd-pedagogy, pd-palette, pd-hyperlinks, pd-cite-shortforms, pd-discharges, pd-textbook-map) are excluded by the same rule figure-gates uses. Each surviving variant was compiled through the repository's own build path - skills/harbor-chartwork/scripts/compile_fragment.sh --preamble book - with that branch's whole figure tree and Book preamble materialised first, so a variant whose branch also changed the figure language is rendered under its own figure language. Rendered at 150 dpi (the project's page-scale standard), trimmed to inked content, capped at 1100 px wide, saved as WebP q82.",
+ "render_toolchain": "xelatex (TeX Live) via a local shim standing in for tectonic, which is not installed here; compile_fragment.sh itself is used unmodified. PDFs rasterised with PyMuPDF + Pillow.",
+ "field_notes": {
+  "variant_count": "how many versions of this figure exist (main plus each branch that changed it).",
+  "claim": "what the branch said it was fixing, quoted from its PR body or commit message.",
+  "claim_is_figure_specific": "true when the branch argued about THIS figure by name; false when the quote is the branch-level argument.",
+  "compiled": "true if the variant compiled clean under the Book preamble here.",
+  "png": "repo-relative path to the rendered variant image."
+ },
+ "counts": {
+  "contested_figures": 57,
+  "total_variants": 123,
+  "figures_with_3_or_more_variants": 14,
+  "rendered_images": 123,
+  "failed_to_render": 0,
+  "image_bytes": 6308646
+ },
+ "same_slot_rivalries": [
+  {
+   "slot": "chapter 7, the claim-signalling discount-factor threshold (register row ch7-30 / \u00a77.7.4)",
+   "fact": "delta*(k=3) ~ 0.3425 against the grim-trigger bound 1/3 - a gap of 0.0092",
+   "rivals": [
+    {
+     "figure_id": "fig-bc-delta-threshold",
+     "branch": "claude/figures-that-were-missing",
+     "pr": 10190,
+     "form": "two-curve xy plot: the deviator's payoff against delta, zero line as the indifference reference"
+    },
+    {
+     "figure_id": "fig-bc-graduated-trigger",
+     "branch": "claude/figures-missing-and-judged",
+     "pr": 10198,
+     "form": "delta*(k) against rounds of punishment k, showing how fast the premium falls"
+    }
+   ],
+   "note": "Two branches independently drew the SAME chapter-7 fact under two different figure names, so no filename collision flags them. They disagree on form (payoff-vs-delta versus threshold-vs-k) and on the arithmetic: #10190's fragment comment states the gap is 0.0091747, 'i.e. 0.0092 to four places. The caption said \"within 0.009\", which is FALSE: 0.00917 exceeds 0.009', while #10198's figure is captioned around 'barely 0.009' / 'costs 0.009 of patience over grim'. Only one of these can go in."
+  }
+ ],
+ "branches_named_in_brief_that_produce_no_variant": {
+  "claude/figure-qa-resync": {
+   "pr": 10178,
+   "finding": "Touches no figure SOURCE at all. Its diff against the merge base is confined to docs/harbor-research/exposition/figures/figcheck/*.json, the generated audit files, blockers.json and library-checks.yml - it re-derives the figure-QA records against the live corpus and adds INK-AUDIT.md. No figure has a second version because of it."
+  },
+  "claude/swiss-token-generation": {
+   "pr": 10174,
+   "finding": "Touches no figure source either. It changes the website's Swiss token components, the mega-volume generator, and commits a rebuilt coordination-papers-mega-volume.pdf. The rebuilt Book PDF means the figures PRINT differently, but every fragment is byte-identical to main, so there is no rival variant to render."
+  }
+ },
+ "figures": [
+  {
+   "figure_id": "fig-worked-example",
+   "pj_id": "7.9",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 4,
+   "contested_by_branches": 3,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-worked-example.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-worked-example.webp",
+     "png_bytes": 42284,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-worked-example.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-worked-example.webp",
+     "png_bytes": 41546,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-source-defects",
+     "commit": "47ba997a62a62ad899387fc33b1872ee56c84e88",
+     "source_path": "website-v2/public/whitepaper/figures/fig-worked-example.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-source-defects/fig-worked-example.webp",
+     "png_bytes": 42180,
+     "compiled": true,
+     "pr": 10160,
+     "claim_source": "PR #10160 body, Summary",
+     "claim": "`fig-worked-example.tex` (Chapter 7, printed p.400) drew its minute axis at two different scales on the same axis with no break marked. Re-measuring from the source: the labeled coordinate/minute pairs are `{0/0, 1.0/1, 3.0/3, 7.0/12, 8.0/13, 12.5/24}`, so the 3->12 minute span renders at (7.0-3.0)/(12-3) = 4/9 ~ 0.444 tikz-units/minute and the 13->24 span at (12.5-8.0)/(24-13) = 4.5/11 ~ 0.409 units/minute, versus 1.0 units/minute for the 0->1, 1->3 and 12->13 spans - the two long spans render at 41-44% of the short-span scale, silently, with real tick marks and numeric labels that invite a reader to measure duration directly off the page. Fix chosen: (a) redraw to one uniform scale.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-worked-example.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-worked-example.webp",
+     "png_bytes": 42670,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "**`fig-worked-example`** - the three lane bands were washes at 5-13 % and effectively invisible; they are now edged and readable, and the figure's three rails read as rails. [and, under trade-offs:] `fig-worked-example` chapter T4 6->8 - the three lane bands now carry the drawn edges `craft-rules` 1.3 requires, and those edges pass *behind* labels that carry their own cream knockout. Optically clean, geometrically overlapping; T4 is a geometric test with no notion of z-order.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-card-lifecycle",
+   "pj_id": "2.6",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-anchor-card-lifecycle.webp",
+     "png_bytes": 36760,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-card-lifecycle.webp",
+     "png_bytes": 36868,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-card-lifecycle.webp",
+     "png_bytes": 37248,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-delegation-inline",
+   "pj_id": "2.3",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-delegation-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-anchor-delegation-inline.webp",
+     "png_bytes": 53986,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-delegation-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-delegation-inline.webp",
+     "png_bytes": 53540,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-delegation-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-delegation-inline.webp",
+     "png_bytes": 51028,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-revocation-gossip",
+   "pj_id": "2.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-revocation-gossip.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-anchor-revocation-gossip.webp",
+     "png_bytes": 38314,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-revocation-gossip.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-anchor-revocation-gossip.webp",
+     "png_bytes": 38164,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-revocation-gossip.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-revocation-gossip.webp",
+     "png_bytes": 38386,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-bonded-key-custody",
+   "pj_id": "7.7",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-bonded-key-custody.webp",
+     "png_bytes": 59516,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-bonded-key-custody.webp",
+     "png_bytes": 59680,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-bonded-key-custody.webp",
+     "png_bytes": 60008,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-fh-revocation-gossip",
+   "pj_id": "8.3",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-revocation-gossip.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-fh-revocation-gossip.webp",
+     "png_bytes": 44960,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-revocation-gossip.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-fh-revocation-gossip.webp",
+     "png_bytes": 44580,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-revocation-gossip.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-revocation-gossip.webp",
+     "png_bytes": 44490,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-fh-settlement",
+   "pj_id": "8.6",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-fh-settlement.webp",
+     "png_bytes": 61426,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-fh-settlement.webp",
+     "png_bytes": 61804,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-settlement.webp",
+     "png_bytes": 62846,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "**`fig-fh-settlement`** - the decision diamond was a hollow serif shape with 6.97 pt text; it is now the edition's solid block with grotesk bold, matching the state nodes it sits among. ... [and, from commit 954cbcac:] panel A's `compensate claimant` is 2.8cm of grotesk running east from x=-1.90; panel B's `funded` began at x=0.75. Panel B moved right by 0.55. ... T3 clear.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-governance-flow",
+   "pj_id": "7.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-governance-flow.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-governance-flow.webp",
+     "png_bytes": 50114,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-governance-flow.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-governance-flow.webp",
+     "png_bytes": 49688,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-governance-flow.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-governance-flow.webp",
+     "png_bytes": 50766,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "**`fig-governance-flow`** - the same two-typefaces defect as the stack map: four sub-lines set in serif roman under grotesk headings, at 6.97 pt. Now one family, one size, separated by slope.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-he-float-plan",
+   "pj_id": "6.2",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-he-float-plan.webp",
+     "png_bytes": 43744,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-he-float-plan.webp",
+     "png_bytes": 43102,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-float-plan.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-he-float-plan.webp",
+     "png_bytes": 42428,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-sealed-two-worlds",
+   "pj_id": "3.2",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-sealed-two-worlds.webp",
+     "png_bytes": 63642,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-sealed-two-worlds.webp",
+     "png_bytes": 62598,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-two-worlds.webp",
+     "png_bytes": 68394,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "[commit 954cbcac:] A4 and B4 are `pd terminal`, whose double border puts a second rule 1.2pt inside the box, so their two-line text sits lower in the node than a plain `lane`'s single line. The tie at x=8.6 started at y=6.84 and ran 1.0pt into the font box of `$g=0$`. Pulled to 6.66 and 5.14 ... T4 clear.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-rate-the-raters",
+   "pj_id": "5.8",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-rate-the-raters.webp",
+     "png_bytes": 62850,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-rate-the-raters.webp",
+     "png_bytes": 59708,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figures-missing-and-judged",
+     "commit": "82801bc1097c8d17c8976267a968a5552e6287b2",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/fig-stp-rate-the-raters.webp",
+     "png_bytes": 83834,
+     "compiled": true,
+     "pr": 10198,
+     "claim_source": "PR #10198 body, Summary",
+     "claim": "**Redrawn in this change.** The chapter's model is two-phase - a LINEAR bleed of C*beta per level while G_k > CB, then a geometric decay - so on a log axis the monoculture is concave for 35 levels and then straight. The committed drawing showed one smooth convex curve for both pools, with no y-axis values at all and 4.8 pt sublabels from a `\\tiny`.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-sybil-whitewash",
+   "pj_id": "5.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-sybil-whitewash.webp",
+     "png_bytes": 57264,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-stp-sybil-whitewash.webp",
+     "png_bytes": 57256,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-sybil-whitewash.webp",
+     "png_bytes": 57066,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-swk-stack-map",
+   "pj_id": "1.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/fig-swk-stack-map.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-swk-stack-map.webp",
+     "png_bytes": 40138,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-stack-map-redraw",
+     "commit": "7e145d984f80f64c2383944970e84feda3aaf844",
+     "source_path": "whitepaper/figures/fig-swk-stack-map.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-stack-map-redraw/fig-swk-stack-map.webp",
+     "png_bytes": 81604,
+     "compiled": true,
+     "pr": 10184,
+     "claim_source": "PR #10184 body, Summary",
+     "claim": "`whitepaper/figures/fig-swk-stack-map.tex` was four stacked bands with the relation between them undrawn, and it was the heaviest drawing in the Book by ink fraction - 0.553 against a corpus median of 0.146 over the 56 live fragments, i.e. the top of the range and roughly 3.8x the median. Most of that ink was doing no work: four full-width tinted bands and a solid black `MACHINE FLOOR` bar, which is a solid mass doing a job an edge can do. ... Every inter-layer gap now carries two labelled arrows - `provides` up, `assumes` down - at all four boundaries, not just at the floor. A stack map's whole content is the relation between rungs, and that relation was undrawn. ... One thing the drawing was getting wrong. The old fragment tinted the *coordination* band while the caption named the *substrate*.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/stack-map-redraw-v2",
+     "commit": "7cf13d434eb9c2b06bd81b8156f4d8733c522356",
+     "source_path": "whitepaper/figures/fig-swk-stack-map.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__stack-map-redraw-v2/fig-swk-stack-map.webp",
+     "png_bytes": 76432,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "commit f0f0c6155 'figure(swk): five polish points on the accepted stack map, and one typeface', and 2ff99e7da",
+     "claim": "Applied to the drawing accepted in #10184, not a redraw of it. 1. Right-side pointer hierarchy. `this chapter` and `in part` were bare words on the end of a 1.5pt hairline pointer, against rungs bounded at 2pt, and they receded. Each is now a capsule carrying its own rung's treatment ... so the right-hand column has the same visual mass as the boxed badges opposite and repeats the grammar instead of restating it in a second channel. [and, from 2ff99e7da] The swiss override deletes `pd hatch` rather than restyling it. ... `\\fill[pd focus fill]` does not suppress that style's own `draw=`, so the substrate rung carried two coincident strokes at two tints in every edition whose `pd focus fill` has an outline. One `\\filldraw[pd focus fill,pd focus rule]` replaces the pair.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "legible-swarm-state-of-nature",
+   "pj_id": "4.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 3,
+   "contested_by_branches": 2,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/legible-swarm-state-of-nature.tex",
+     "png": "docs/pr-assets/figure-rivals/main/legible-swarm-state-of-nature.webp",
+     "png_bytes": 45296,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "whitepaper/figures/legible-swarm-state-of-nature.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/legible-swarm-state-of-nature.webp",
+     "png_bytes": 44956,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/legible-swarm-state-of-nature.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-state-of-nature.webp",
+     "png_bytes": 42232,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "appendix-figures",
+   "pj_id": null,
+   "id_origin": "invented: fragment stem, no PIXEL-JUDGMENT row (figure proposed on a branch only)",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/appendix-figures.tex",
+     "png": "docs/pr-assets/figure-rivals/main/appendix-figures.webp",
+     "png_bytes": 84656,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/appendix-figures.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/appendix-figures.webp",
+     "png_bytes": 85684,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-alg-confusion",
+   "pj_id": "2.2",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-alg-confusion.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-anchor-alg-confusion.webp",
+     "png_bytes": 57212,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-alg-confusion.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-alg-confusion.webp",
+     "png_bytes": 57318,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-capability-attenuation",
+   "pj_id": "2.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-capability-attenuation.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-anchor-capability-attenuation.webp",
+     "png_bytes": 36940,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-capability-attenuation.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-capability-attenuation.webp",
+     "png_bytes": 36794,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-cuckoo-inline",
+   "pj_id": "2.4",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-cuckoo-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-anchor-cuckoo-inline.webp",
+     "png_bytes": 52400,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-cuckoo-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-cuckoo-inline.webp",
+     "png_bytes": 52190,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "**`fig-anchor-cuckoo-inline`** - the bucket ids, the two peer logs and the union now share one monospace, so the reader sees they are the same kind of thing; the caption already set them in `\\texttt`, and figure and caption now agree. The cream backing clipped the last character of a long identifier until `pd mono label` got a little more side bearing.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-phases",
+   "pj_id": null,
+   "id_origin": "invented: fragment stem, no PIXEL-JUDGMENT row (figure proposed on a branch only)",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-phases.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-anchor-phases.webp",
+     "png_bytes": 43620,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-phases.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-anchor-phases.webp",
+     "png_bytes": 45548,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-cartel-game-inline",
+   "pj_id": "7.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-cartel-game-inline.webp",
+     "png_bytes": 47094,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-cartel-game-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-cartel-game-inline.webp",
+     "png_bytes": 47530,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-fh-cycle-vs-cut",
+   "pj_id": "8.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-cycle-vs-cut.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-fh-cycle-vs-cut.webp",
+     "png_bytes": 46006,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-cycle-vs-cut.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-cycle-vs-cut.webp",
+     "png_bytes": 47418,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-fh-revocation-regime",
+   "pj_id": "8.4",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-revocation-regime.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-fh-revocation-regime.webp",
+     "png_bytes": 43750,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-revocation-regime.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-revocation-regime.webp",
+     "png_bytes": 43972,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-fh-threat-bands",
+   "pj_id": "8.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-fh-threat-bands.webp",
+     "png_bytes": 56676,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-threat-bands.webp",
+     "png_bytes": 56162,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-fh-xfer-ceremony",
+   "pj_id": "8.2",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-fh-xfer-ceremony.webp",
+     "png_bytes": 59038,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-fh-xfer-ceremony.webp",
+     "png_bytes": 58062,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-he-assurance",
+   "pj_id": "6.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-assurance.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-he-assurance.webp",
+     "png_bytes": 47004,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-assurance.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-he-assurance.webp",
+     "png_bytes": 47116,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-he-assurance-sieve",
+   "pj_id": null,
+   "id_origin": "invented: fragment stem, no PIXEL-JUDGMENT row (figure proposed on a branch only)",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-he-assurance-sieve.webp",
+     "png_bytes": 21744,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-he-assurance-sieve.webp",
+     "png_bytes": 22906,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-he-cold-start",
+   "pj_id": "6.4",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-cold-start.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-he-cold-start.webp",
+     "png_bytes": 49808,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-cold-start.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-he-cold-start.webp",
+     "png_bytes": 49968,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-he-three-sided",
+   "pj_id": "6.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-three-sided.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-he-three-sided.webp",
+     "png_bytes": 52952,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-three-sided.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-he-three-sided.webp",
+     "png_bytes": 52354,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-magic-link-inline",
+   "pj_id": "7.8",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-magic-link-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-magic-link-inline.webp",
+     "png_bytes": 50078,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-magic-link-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-magic-link-inline.webp",
+     "png_bytes": 50624,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-sealed-composition-crossover",
+   "pj_id": "3.4",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-composition-crossover.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-sealed-composition-crossover.webp",
+     "png_bytes": 48766,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-composition-crossover.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-composition-crossover.webp",
+     "png_bytes": 49732,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-sealed-mutant-grid",
+   "pj_id": "3.3",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-mutant-grid.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-sealed-mutant-grid.webp",
+     "png_bytes": 68672,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-mutant-grid.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-mutant-grid.webp",
+     "png_bytes": 71670,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-sealed-operating-curve",
+   "pj_id": "3.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-operating-curve.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-sealed-operating-curve.webp",
+     "png_bytes": 53402,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-operating-curve.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-operating-curve.webp",
+     "png_bytes": 54618,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-sealed-pillar-pipeline",
+   "pj_id": "3.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-pillar-pipeline.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-sealed-pillar-pipeline.webp",
+     "png_bytes": 61866,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sealed-pillar-pipeline.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sealed-pillar-pipeline.webp",
+     "png_bytes": 61146,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-deterrence-regime",
+   "pj_id": "5.9",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-deterrence-regime.webp",
+     "png_bytes": 41446,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-deterrence-regime.webp",
+     "png_bytes": 41638,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-judge-market",
+   "pj_id": "5.7",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-judge-market.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-judge-market.webp",
+     "png_bytes": 56340,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-judge-market.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-judge-market.webp",
+     "png_bytes": 57230,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-multidim-reputation",
+   "pj_id": "5.6",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-multidim-reputation.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-multidim-reputation.webp",
+     "png_bytes": 49152,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-multidim-reputation.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-multidim-reputation.webp",
+     "png_bytes": 53172,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "**`fig-stp-multidim-reputation`** and **`fig-stp-role-vs-person`** - the biggest legibility wins. \"test oracle\", \"expert reviewer\", \"weights .60,.30,.10\", \"obligation + capability + authority\" were 4.96-5.23 pt grey mush; they are now readable italic.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-nomint-lineage",
+   "pj_id": "5.3",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-nomint-lineage.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-nomint-lineage.webp",
+     "png_bytes": 65540,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-nomint-lineage.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-nomint-lineage.webp",
+     "png_bytes": 63710,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-parfit-chain",
+   "pj_id": "5.2",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-parfit-chain.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-parfit-chain.webp",
+     "png_bytes": 39904,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-parfit-chain.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-parfit-chain.webp",
+     "png_bytes": 40090,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-probation-cliff",
+   "pj_id": "5.4",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-probation-cliff.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-probation-cliff.webp",
+     "png_bytes": 51722,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-probation-cliff.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-probation-cliff.webp",
+     "png_bytes": 51100,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-stp-role-vs-person",
+   "pj_id": "5.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-role-vs-person.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-stp-role-vs-person.webp",
+     "png_bytes": 50098,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-stp-role-vs-person.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-stp-role-vs-person.webp",
+     "png_bytes": 51226,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "On `role-vs-person` I had to *also* wrap the two longest glosses: the whole picture is `\\resizebox`'d to a fixed width, so the widest label sets the scale for every glyph in it, and lengthening one label shrank the subscripts below the floor. Wrapped, everything clears.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-swk-commitment-oracle",
+   "pj_id": "1.8",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/fig-swk-commitment-oracle.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-swk-commitment-oracle.webp",
+     "png_bytes": 40492,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/design-ledger-defects",
+     "commit": "f9c2fd2be95840c0c8a7eb043f6a935de722edfd",
+     "source_path": "whitepaper/figures/fig-swk-commitment-oracle.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__design-ledger-defects/fig-swk-commitment-oracle.webp",
+     "png_bytes": 40002,
+     "compiled": true,
+     "pr": 10162,
+     "claim_source": "PR #10162 body, Summary",
+     "claim": "Fixes three defects from the Book's design ledger (5.1, 5.2, 5.6), all factual or rule violations rather than style opinions: **D1:** three captions in Chapters 6-8 name \"teal\" or \"dashed amber\" for marks that Part IV's chapter-colour override ... actually renders gold or `pderror` red. **D2:** seventeen figure-scale `text=hhamber` annotation nodes across eight fragments in five chapters moved to `pdinkmuted`, per `figures/pd-palette.tex`'s own stated rule that amber is stripes, dots and display only, never small text (3.71:1 on cream). **D3:** `figures/pd-figure-language.tex` (both twins) gains the missing fourth mark family - `pd danger rule`/`arrow`/`fill`/`datum` - built to the caution family's exact construction but wired to `pderror`. Sixteen hand-rolled refusal/breach/attack marks across five figures ... now use it instead of an amber caution style hand-tuned per figure.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-swk-continuity-organs",
+   "pj_id": "1.9",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/fig-swk-continuity-organs.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-swk-continuity-organs.webp",
+     "png_bytes": 32756,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/fig-swk-continuity-organs.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-continuity-organs.webp",
+     "png_bytes": 32994,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-swk-controllability-quadrant",
+   "pj_id": "1.7",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/fig-swk-controllability-quadrant.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-swk-controllability-quadrant.webp",
+     "png_bytes": 41560,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/fig-swk-controllability-quadrant.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-controllability-quadrant.webp",
+     "png_bytes": 42312,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-swk-durability-faultclass",
+   "pj_id": "1.3",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/fig-swk-durability-faultclass.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-swk-durability-faultclass.webp",
+     "png_bytes": 32504,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/fig-swk-durability-faultclass.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-durability-faultclass.webp",
+     "png_bytes": 33076,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-swk-marker-decay",
+   "pj_id": "1.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/fig-swk-marker-decay.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-swk-marker-decay.webp",
+     "png_bytes": 36626,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/fig-swk-marker-decay.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-marker-decay.webp",
+     "png_bytes": 37394,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "**`fig-swk-marker-decay`** - the clearest proof that going through the styles matters. The `r=0.9` curve was a hard-coded `hhteal` and stayed teal in every edition; it now takes the chapter's own hue from `pd focus rule`, and the threshold line takes the edition's caution ink. **I caught and reverted my own error here**: `pd rule` and `pd focus rule` carry different weights, so the two curves briefly acquired a hierarchy the data does not have.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-swk-workunit-machine",
+   "pj_id": "1.10",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/fig-swk-workunit-machine.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-swk-workunit-machine.webp",
+     "png_bytes": 79360,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/fig-swk-workunit-machine.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-swk-workunit-machine.webp",
+     "png_bytes": 79300,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-sybil-inline",
+   "pj_id": "7.3",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sybil-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/main/fig-sybil-inline.webp",
+     "png_bytes": 51510,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-sybil-inline.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/fig-sybil-inline.webp",
+     "png_bytes": 48648,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "legible-swarm-readpoverty",
+   "pj_id": "4.5",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/legible-swarm-readpoverty.tex",
+     "png": "docs/pr-assets/figure-rivals/main/legible-swarm-readpoverty.webp",
+     "png_bytes": 44374,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/legible-swarm-readpoverty.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-readpoverty.webp",
+     "png_bytes": 44668,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "legible-swarm-roles",
+   "pj_id": "4.7",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/legible-swarm-roles.tex",
+     "png": "docs/pr-assets/figure-rivals/main/legible-swarm-roles.webp",
+     "png_bytes": 44188,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/legible-swarm-roles.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-roles.webp",
+     "png_bytes": 42088,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "legible-swarm-sdt",
+   "pj_id": "4.4",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/legible-swarm-sdt.tex",
+     "png": "docs/pr-assets/figure-rivals/main/legible-swarm-sdt.webp",
+     "png_bytes": 52790,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/legible-swarm-sdt.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-sdt.webp",
+     "png_bytes": 53426,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "legible-swarm-specialization",
+   "pj_id": "4.3",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 2,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "main",
+     "commit": "0b6d9c21c421321f4465366917358684187d9515",
+     "source_path": "whitepaper/figures/legible-swarm-specialization.tex",
+     "png": "docs/pr-assets/figure-rivals/main/legible-swarm-specialization.webp",
+     "png_bytes": 40236,
+     "compiled": true,
+     "pr": null,
+     "claim_source": "n/a - the committed Book",
+     "claim": "(no claim: this is the version in the Book today, the one every rival is arguing against)",
+     "claim_is_figure_specific": false
+    },
+    {
+     "branch": "claude/figure-typography-law",
+     "commit": "0872023f3957b8ef11953c820f8ecafec45d13c9",
+     "source_path": "whitepaper/figures/legible-swarm-specialization.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figure-typography-law/legible-swarm-specialization.webp",
+     "png_bytes": 40198,
+     "compiled": true,
+     "pr": 10191,
+     "claim_source": "PR #10191 body, Summary",
+     "claim": "The Book's figure styles were advisory, and half the corpus opted out of them. `figures/pd-figure-language.tex` defines 27 `pd *` styles that fix a font for every text role - and **79 local `font=` declarations across 25 of the 63 drawn fragments** set their own on top, **23 of them on nodes that already carried one of those styles**. Each fragment looked locally reasonable; together they had no single voice. ... **The law.** One size for every named text role: `\\pdfiglabelsize`, which is `\\footnotesize`. Roles separate by **weight, slope, family and ink - never by size**. ... `\\scriptsize` renders at 6.97 pt in the Book - under `figcheck`'s 7 pt T1 floor *before a single width promotion*. It is illegal by measurement, not by taste. ... T1 findings (text under the 7 pt floor): before **91**, after **0**.",
+     "claim_is_figure_specific": false
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-anchor-handshake-ladder",
+   "pj_id": null,
+   "id_origin": "invented: fragment stem, no PIXEL-JUDGMENT row (figure proposed on a branch only)",
+   "variant_count": 1,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "claude/figures-that-were-missing",
+     "commit": "b45ee67e7d41a23234d4eef16fe3c24f8d3d0fd9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-anchor-handshake-ladder.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figures-that-were-missing/fig-anchor-handshake-ladder.webp",
+     "png_bytes": 34194,
+     "compiled": true,
+     "pr": 10190,
+     "claim_source": "PR #10190 body, Summary",
+     "claim": "`fig-anchor-handshake-ladder` (chapter 2, Phase 3). Form: sequence ladder ... Rejected: a static chain diagram - `fig-anchor-delegation-inline` already draws the chain's splice property, and what was missing was the *order in time* and who stops being spoken to. ... The fact a reader takes off the drawing and could not take off the caption: the daemon's lifeline goes dotted after message 1 and no arrow returns to it, so delegation and acceptance cost no round trip to the issuer.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-bc-delta-threshold",
+   "pj_id": null,
+   "id_origin": "invented: fragment stem, no PIXEL-JUDGMENT row (figure proposed on a branch only)",
+   "variant_count": 1,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "claude/figures-that-were-missing",
+     "commit": "b45ee67e7d41a23234d4eef16fe3c24f8d3d0fd9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-bc-delta-threshold.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figures-that-were-missing/fig-bc-delta-threshold.webp",
+     "png_bytes": 81972,
+     "compiled": true,
+     "pr": 10190,
+     "claim_source": "PR #10190 body, Summary",
+     "claim": "`fig-bc-delta-threshold` (chapter 7, Mechanized claim-signaling). Form: two-curve xy plot on one axis. The register's row `ch7-30` asked for `f(delta)` plotted directly ... The one checked point, `delta = 0.30`, is the discount factor of the committed TLC run printed on the facing page. The sweep's HOLDS side (`delta = 0.35`) has **no** committed output, so it is deliberately not drawn. [and, from the fragment's own provenance comment:] gap between the roots = 0.3425080314 - 1/3 = 0.0091747, i.e. 0.0092 to four places. The caption said \"within 0.009\", which is FALSE: 0.00917 exceeds 0.009.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-bc-graduated-trigger",
+   "pj_id": "7.10",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 1,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "claude/figures-missing-and-judged",
+     "commit": "82801bc1097c8d17c8976267a968a5552e6287b2",
+     "source_path": "website-v2/public/whitepaper/figures/fig-bc-graduated-trigger.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/fig-bc-graduated-trigger.webp",
+     "png_bytes": 77930,
+     "compiled": true,
+     "pr": 10198,
+     "claim_source": "PR #10198 body, Summary",
+     "claim": "**Added in this change.** The chapter states delta*(3) ~ 0.342 and 'barely 0.009' in prose and never shows that the premium is 0.167 at k=1, 0.033 at k=2 and 0.001 by k=5 - the shape is the reason the production strategy can afford to forgive.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-bc-oracle-audit-rate",
+   "pj_id": "7.11",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 1,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "claude/figures-missing-and-judged",
+     "commit": "82801bc1097c8d17c8976267a968a5552e6287b2",
+     "source_path": "website-v2/public/whitepaper/figures/fig-bc-oracle-audit-rate.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/fig-bc-oracle-audit-rate.webp",
+     "png_bytes": 85674,
+     "compiled": true,
+     "pr": 10198,
+     "claim_source": "PR #10198 body, Summary",
+     "claim": "**Added in this change.** The chapter says the audit rate sets the oracle layer's detection probability and that '10% is a starting point', without ever putting 10% beside the threshold. A 5% sample stops clearing it at delta = 0.964.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "fig-he-succession-price",
+   "pj_id": null,
+   "id_origin": "invented: fragment stem, no PIXEL-JUDGMENT row (figure proposed on a branch only)",
+   "variant_count": 1,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "claude/figures-that-were-missing",
+     "commit": "b45ee67e7d41a23234d4eef16fe3c24f8d3d0fd9",
+     "source_path": "website-v2/public/whitepaper/figures/fig-he-succession-price.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figures-that-were-missing/fig-he-succession-price.webp",
+     "png_bytes": 65248,
+     "compiled": true,
+     "pr": 10190,
+     "claim_source": "PR #10190 body, Summary",
+     "claim": "`fig-he-succession-price` (chapter 6, What a side is). Form: threshold/regime plot. The register's row `ch6-04` asked for the boundary drawn against expected wait; it is drawn instead in the (etaK, xi/eta) plane the criterion is literally stated over, so the marked points are the criterion's own coordinates. ... The readable fact: both sit on one vertical read, and the canary is nearly six times above the boundary - which is why an infinitely skilled specialist still loses there.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  },
+  {
+   "figure_id": "tab-bc-settlement-rule",
+   "pj_id": "T.1",
+   "id_origin": "PIXEL-JUDGMENT.md",
+   "variant_count": 1,
+   "contested_by_branches": 1,
+   "variants": [
+    {
+     "branch": "claude/figures-missing-and-judged",
+     "commit": "82801bc1097c8d17c8976267a968a5552e6287b2",
+     "source_path": "website-v2/public/whitepaper/figures/tab-bc-settlement-rule.tex",
+     "png": "docs/pr-assets/figure-rivals/claude__figures-missing-and-judged/tab-bc-settlement-rule.webp",
+     "png_bytes": 52866,
+     "compiled": true,
+     "pr": 10198,
+     "claim_source": "PR #10198 body, Summary",
+     "claim": "**Added in this change**, replacing a three-item prose list. Craft rule 3. [and:] the settlement rule as a table rather than a chart because it is a look-up, not a shape.",
+     "claim_is_figure_specific": true
+    }
+   ]
+  }
+ ]
+}

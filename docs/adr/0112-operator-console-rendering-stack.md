@@ -89,7 +89,7 @@ Phases 2–3 are roadmap-linked forward work, not promised by Phase 1.
 - The viz code (Vello/Parley) stays **out of the `core/` workspace** and off the Linux CI gate
   — its macOS GPU deps never block `rust-console`. It builds + ships on the macOS path only.
 - The console gains a real Timeline this week (path 3) without risking the multiplexer.
-- Path 2 is the load-bearing bet for the entire v12 sensorium; this ADR commits to it as the
+- Path 2 is the essential bet for the entire v12 sensorium; this ADR commits to it as the
   direction and names the proto as the evidence it is reachable.
 - Cross-platform: Vello/wgpu is portable (Vulkan/DX12/Metal), so the viz is not a macOS dead-end;
   gpui's Windows maturity remains the console's gating constraint (ADR-0046 / v11 §8), unchanged.

@@ -1,3 +1,17 @@
+% -----------------------------------------------------------------------
+% TWIN-LOCATION NOTICE. This file is one of the shared homes for the same
+% results; edit every listed home or the drift checker fails.
+%   Standalone paper : docs/harbor-research/tex/paper4.tex (this file, S1-S9)
+%   Chapter          : website-v2/public/whitepaper/sealed-harbor.tex
+%                       (Chapter 3, The Sealed Harbor; the four-pillar
+%                       assurance argument -- Pillars I, III, IV; Pillar II
+%                       restates swk's R5)
+%   Index ids        : R9, R10, R11
+%   Check            : python3 scripts/harbor-research/check_library_index.py
+%                      python3 scripts/harbor-research/check_propagated_corrections.py
+%                      python3 scripts/harbor-research/check_citations.py
+%   System document  : docs/harbor-research/LIBRARY-SYSTEM.md
+% -----------------------------------------------------------------------
 \documentclass[11pt,a4paper]{article}
 \input{preamble}
 \usepackage{graphicx}
@@ -48,7 +62,7 @@ Erin's agent \texttt{[TAINT:HIGH]} the moment it reads Derek's data, drop any ta
 job is to prove the sentence that replaces it. \emph{[Empirical hypothesis; no formal statement is offered here.]} Token-level
 taint through an LLM is not soundly definable: the model taints everything it writes with everything it read, so a taint tracker
 faces a binary choice between marking every output token (useless) and missing semantic flows (unsound). This is a design
-rationale, not a theorem, and it is the one load-bearing claim in this paper that carries no proof and no script. It rests on an
+rationale, not a theorem, and it is the one critical claim in this paper that carries no proof and no script. It rests on an
 empirical hypothesis about generative models --- we know of no sound token-granularity flow analysis for one, and the burden of
 exhibiting one falls on any design that assumes it --- standing on the well-known static-analysis result underneath: certifying
 implicit flows soundly forces exactly this dichotomy, the label creep of the Denning certification lattice \cite{denning77} and
@@ -189,7 +203,10 @@ That italicised clause is a hypothesis, not a modelling convenience, and it is w
 condition is that no variable used in a declassification is updated before it. \S\ref{sec:cannot} records what the hypothesis
 costs.
 
-\textbf{Verification.} Exhaustive over all interleavings to depth 7 $\times$ all secret pairs: zero distinguishing observations in
+\textbf{Verification.} The checker builds the two worlds side by side, one per secret, and drives both through every interleaving
+of the same action sequence --- \emph{self-composition} \cite{bdr04}, the standard reduction of a 2-safety hyperproperty like
+noninterference to an ordinary safety check, applied here concretely rather than through a general program logic. Exhaustive over
+all interleavings to depth 7 $\times$ all secret pairs: zero distinguishing observations in
 the honest model [internal, \texttt{c1\_noninterference.py}]. The schedule itself is secret-independent, checked separately --- an
 enabledness difference would itself be a channel. The Rushby unwinding condition \emph{local respect} (Derek-side actions never
 touch Erin-observable state) holds mechanically \cite{rushby}. \textbf{Mutations:} (m1) a gate that leaks the raw secret is caught
@@ -250,7 +267,7 @@ supervisor achieving exactly that policy exists.
 \textbf{Theorem 2 (enforceability $=$ controllability).} Let $L$ be a prefix-closed plant language and let $K\subseteq L$ be a
 \emph{nonempty, prefix-closed} safety policy over the agent alphabet $\Sigma=\Sigma_c\cup\Sigma_u$. Then $K$ is regimentable
 (enforceable by the mediation layer) iff $K$ is controllable: $\overline{K}\Sigma_u\cap \overline{L}\subseteq\overline{K}$
-[verified framework, \cite{ramadge-wonham}]. Both hypotheses on $K$ are load-bearing and easy to drop by accident: $K=\emptyset$
+[verified framework, \cite{ramadge-wonham}]. Both hypotheses on $K$ are critical and easy to drop by accident: $K=\emptyset$
 is vacuously controllable but no supervisor realises it, since every supervised language contains the empty trace. The same
 nonemptiness condition appears in Basin et al.'s characterisation \cite{bjkz13}, whose controllable/observable split is the one
 we use here. Consequences, from the
@@ -391,7 +408,10 @@ $p_1>p_0$ under exfiltration. The SPRT with error targets $(\alpha,\gamma)$ --- 
 $\mathbb{E}_1[N]=\bigl[(1-\gamma)\ln\tfrac{1-\gamma}{\alpha}+\gamma\ln\tfrac{\gamma}{1-\alpha}\bigr]/\mathrm{KL}(p_1\Vert p_0)$ outputs (analogously
 $\mathbb{E}_0[N]$ under the null), and is optimal in the Wald--Wolfowitz sense \cite{wald,wald-wolfowitz}. We write $\gamma$
 rather than the customary $\beta$ or $b$: $\beta$ is already the per-canary miss rate of Theorem 4a, and $b$ is the release-channel
-width of \S\ref{sec:budget}, the paper's headline quantity.
+width of \S\ref{sec:budget}, the paper's headline quantity. The closest applied-security precedent for this move --- sequential
+hypothesis testing at a guaranteed operating point, deciding at a fixed error rate that a rare adversarial signal has occurred ---
+is Jung, Paxson, Berger and Balakrishnan's Threshold Random Walk portscan detector, which derives the identical SPRT-based
+trade-off for a live network-security stream \cite{jpbb04}.
 
 \textbf{Verification.} $n{=}10^4$, $c{=}100$ (density 1\%), $\beta{=}0.2$: a 100-span leak is caught with probability $0.554$, an
 800-span leak at $0.999$; exact hypergeometric, binomial approximation, and simulation agree to Monte-Carlo precision across the
@@ -414,7 +434,7 @@ latency per leak intensity --- so the exfiltration bond is re-scoped to its hone
 pretending to cover unbounded breach damage.
 
 \begin{boundary}
-\textbf{Honest boundary.} Independence and \emph{secrecy} of planting are load-bearing: an adversary who obtains the canary list
+\textbf{Honest boundary.} Independence and \emph{secrecy} of planting are critical: an adversary who obtains the canary list
 with probability $0.3$ and strips all of them drops measured power from $0.9997$ to $0.698$ at $k{=}5$ [internal,
 \texttt{a4\_canary\_sprt.py}] --- canary secrecy is part of the security boundary, priced explicitly. $\beta$ is a measured
 property of the suppressor, not an assumption. The Wald stopping-time formulas are approximations (overshoot inflates
@@ -545,7 +565,7 @@ budget and detector exist only because a looping agent cannot pay the statelessn
 What is ours is the adaptation of that design to \emph{tool-using LLM agents}, and the assurance schedule the adaptation
 forces. Ryoan buys its confinement with a request-oriented model in which a module sees its input once and keeps no state; an
 agent that loops, calls tools, and orchestrates sub-steps cannot pay that price. We replace the structural prohibition with a
-metered one --- which is why a budget contract and a detection theory are load-bearing here and absent there --- and we justify
+metered one --- which is why a budget contract and a detection theory are critical here and absent there --- and we justify
 whole-worker taint not by engineering tractability but by the unsoundness claim stated in \S\ref{sec:problem} (an empirical
 hypothesis, not a theorem): token-level taint through a generative
 model forces a choice between marking every output token and missing semantic flows, so the sound over-approximation is the
@@ -622,6 +642,12 @@ untrusted computation on secret data. In \emph{Proc.\ 12th USENIX Symposium on O
 Design and Implementation (OSDI)}, pages 533--549, 2016.
 \bibitem{rats} H.~Birkholz, D.~Thaler, M.~Richardson, N.~Smith, and W.~Pan. Remote ATtestation
 procedureS (RATS) architecture. RFC 9334, IETF, January 2023.
+\bibitem{bdr04} G.~Barthe, P.~R. D'Argenio, and T.~Rezk. Secure information flow by
+self-composition. In \emph{Proc.\ 17th IEEE Computer Security Foundations Workshop (CSFW)},
+p.~100, 2004.
+\bibitem{jpbb04} J.~Jung, V.~Paxson, A.~W. Berger, and H.~Balakrishnan. Fast portscan detection
+using sequential hypothesis testing. In \emph{Proc.\ IEEE Symposium on Security and Privacy},
+2004.
 \end{thebibliography}
 
 \end{document}

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import '../lib/cli-entry-guard.js';
+import { assertLocalRuntimeEnabled, readLocalRuntimeControl } from '../lib/local-runtime-control.js';
+
 /**
  * Port Daddy CLI
  *
@@ -830,6 +833,9 @@ Commands:
   session abandon [note]     End active session (abandoned)
   session takeover <id> [note]  Create successor; preserve predecessor notes
   takeover <id> [note]       Alias for "session takeover"
+  session find [--key K | --identity ID]
+                             Recover "my session" after a lost begin response
+                             or crash (restores context + credential by key)
   session rm <id>            Archive a session; preserve notes
   session files add <paths>  Claim files in active session
   session files rm <paths>   Release files from active session
@@ -1143,6 +1149,8 @@ Commands:
                            Writes context to .portdaddy/current.json
     --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
+    --idempotency-key <k>  Reuse one key across retries of the SAME begin (default: fresh UUID);
+                           a re-send after a lost response replays the original session
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
@@ -1512,7 +1520,7 @@ export const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'account', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'install-bosun', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'booty', 'tunnel',
@@ -1999,9 +2007,10 @@ export function applyDaemonTarget(targetArg: string, command: string): void {
 }
 
 export async function main(): Promise<void> {
-  maybeRelaunchShortBinary();
-
   const rawArgs: string[] = process.argv.slice(2);
+  const informationOnly = rawArgs.length === 1 && ['--help', '--version'].includes(rawArgs[0]);
+  if (!informationOnly) assertLocalRuntimeEnabled();
+  if (readLocalRuntimeControl().enabled) maybeRelaunchShortBinary();
 
   // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
   // subcommand (`pd --daemon dev status`). Extract it up front so `command` is
@@ -2030,8 +2039,8 @@ export async function main(): Promise<void> {
       ui.intro('Port Daddy — Run a tight harbor.');
     }
 
-    // Launch hints — best-effort, skip if daemon not running (500ms timeout)
-    if (IS_TTY) {
+    // Off help is local text only: no optional daemon hint request.
+    if (IS_TTY && readLocalRuntimeControl().enabled) {
       try {
         const cwd = encodeURIComponent(process.cwd());
         const resp = await Promise.race([
@@ -2501,10 +2510,6 @@ export async function main(): Promise<void> {
 
       case 'install':
         await handleDaemon('install', options);
-        break;
-
-      case 'install-bosun':
-        await handleDaemon('install-bosun', options);
         break;
 
       case 'uninstall':

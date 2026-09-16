@@ -112,7 +112,7 @@ The agent **hears** by pull: the Reconcile Loop writes durable events into `matr
 | 7. Worktree steering (`exit 2`) | ✅ | ❓ | ❓ |
 | 8. Destructive veto (`exit 2` on Bash) | ✅ **after matcher-widening** | ❓ Bash-event shape + exit-2 unverified | ❓ unverified |
 
-**Uncertainty is explicit and load-bearing.** Every ❓ is a cell where `spawnVoyage` currently *throws* precisely so no one mistakes a written config for a working harness. The honest read: **all `exit 2` enforcement (3-block, 6, 7, 8) is Claude-only today.** Advisory injection *might* work on Codex/Gemini but is unproven. The MCP response path is vendor-agnostic because it rides the `port-daddy` MCP server, not the hook surface.
+**Uncertainty is explicit and central.** Every ❓ is a cell where `spawnVoyage` currently *throws* precisely so no one mistakes a written config for a working harness. The honest read: **all `exit 2` enforcement (3-block, 6, 7, 8) is Claude-only today.** Advisory injection *might* work on Codex/Gemini but is unproven. The MCP response path is vendor-agnostic because it rides the `port-daddy` MCP server, not the hook surface.
 
 Per the 2026-06-25 research sweeps: **Gemini CLI** exposes `BeforeAgent`/`BeforeTool`/`AfterTool` in `.gemini/settings.json` with exit-2 blocking and the same JSON contract; **Codex CLI** exposes `PreToolUse`/`PostToolUse`/`UserPromptSubmit` (among 10 events) in `.codex/config.toml` `[hooks]`, blocking via exit-2 *or* a `permissionDecision:deny` JSON, with `notify` being broadcast-only (not a gate). Both are *promising leads read from source*, not yet validated by running the real CLI and observing a live block — phase 7 below is exactly that validation.
 

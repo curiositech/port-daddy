@@ -13,7 +13,7 @@
 
 \section{B1 --- The digest--zoom Pareto frontier}
 \subsection{The two-constraint rate--distortion function (solved analytically)}
-Each artifact is load-bearing i.i.d.\ Bernoulli$(p)$; a digest is a lossy binary description $\hat X$ (flag/no-flag) with two constraints --- false negatives priced by $\delta$ (misses), flag rate priced by $f$ (open budget):
+Each artifact is critical i.i.d.\ Bernoulli$(p)$; a digest is a lossy binary description $\hat X$ (flag/no-flag) with two constraints --- false negatives priced by $\delta$ (misses), flag rate priced by $f$ (open budget):
 \[
 R(\delta,f)=\min_{P_{\hat X|X}} I(X;\hat X)\quad\text{s.t.}\quad \Pr(X{=}1,\hat X{=}0)\le\delta,\ \ \Pr(\hat X{=}1)\le f.
 \]
@@ -35,7 +35,7 @@ The frontier is exactly the trade the review asked for: \emph{loosening the open
 
 \subsection{The zoom-advantage theorem}
 \begin{theorem}[Zoom advantage, with its boundary]
-When the digest flags a set of size $F$ containing $k$ truly load-bearing items, adaptive second-stage inspection (generalized binary splitting inside the flagged set --- open a group, drill only into groups that contain a load-bearing item) identifies all $k$ in $\Theta\!\bigl(k\log_2(F/k)\bigr)$ opens, versus $F$ for flat inspection. The advantage is large precisely when the flagged set is \emph{sparse} in load-bearing items ($k\ll F$) and vanishes when the flagged set is dense.
+When the digest flags a set of size $F$ containing $k$ truly critical items, adaptive second-stage inspection (generalized binary splitting inside the flagged set --- open a group, drill only into groups that contain a critical item) identifies all $k$ in $\Theta\!\bigl(k\log_2(F/k)\bigr)$ opens, versus $F$ for flat inspection. The advantage is large precisely when the flagged set is \emph{sparse} in critical items ($k\ll F$) and vanishes when the flagged set is dense.
 \end{theorem}
 Simulation ($N_{\text{pool}}=5000$, 120 trials/config) confirms the regime and its boundary:
 \begin{center}
@@ -52,7 +52,7 @@ $250$ & $10$ & $250$ & $98$ & $2.5\times$ \\
 \end{center}
 \input{fig-b1-frontier.tex}
 
-\noindent\textbf{The honest boundary, stated.} The zoom advantage is \emph{not} universal: when a digest flags a set already dense in positives (e.g.\ $f\approx1.5p$ so most flagged items are load-bearing), group testing's overhead dominates and flat inspection is as good or better. This matters for the design claim: zoom pays when the digest is conservative (low false-negative, over-flagging to be safe), which is the safety-relevant operating point --- so the theorem supports the architecture where it counts and does not overclaim where it does not.
+\noindent\textbf{The honest boundary, stated.} The zoom advantage is \emph{not} universal: when a digest flags a set already dense in positives (e.g.\ $f\approx1.5p$ so most flagged items are critical), group testing's overhead dominates and flat inspection is as good or better. This matters for the design claim: zoom pays when the digest is conservative (low false-negative, over-flagging to be safe), which is the safety-relevant operating point --- so the theorem supports the architecture where it counts and does not overclaim where it does not.
 
 \noindent\textbf{Paper 1 is now complete in substance:} A1 (characterization), A2 (derived policy), A7 (falsification datum), B1 (frontier + zoom). Four pillars, all executed.
 

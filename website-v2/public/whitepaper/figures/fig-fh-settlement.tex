@@ -10,8 +10,7 @@
 
   % Safe outcome graph.
   \node[pd datum] (fundeda) at (-6.0,.65) {};
-  \node[diamond,aspect=1.55,draw=hhink,fill=hhsand!16,inner sep=3pt,
-    font=\scriptsize\bfseries,align=center] (gatea) at (-4.25,.65) {criteria};
+  \node[pd decision] (gatea) at (-4.25,.65) {criteria};
   \node[pd focus datum] (cleara) at (-2.15,1.45) {};
   \node[pd datum] (refusea) at (-2.15,-.15) {};
   \draw[pd arrow] (fundeda)--(gatea);
@@ -20,36 +19,51 @@
   \node[pd direct label,anchor=south] at (-6.0,.87) {funded};
   \node[pd direct label,text=hhteal,anchor=west] at (-1.90,1.45) {CLEAR};
   \node[pd direct label,anchor=west] at (-1.90,-.15) {REFUSE};
-  \node[pd note,anchor=west] at (-1.90,1.08) {compensate claimant};
+  % text width, not a bare single-line anchor=west run-on: at this picture's
+  % scale "compensate claimant" set on one line ran past x=1.1, into panel
+  % B's "funded" label at x=1.35 -- built and measured overlapping, PDF
+  % p. 418 ("compensate claim[ant]funded" printing as one run of ink).
+  % Wrapping to two lines keeps the note inside panel A's own half.
+  % anchor=north west (not west): west centers the taller two-line box on
+  % its own anchor point and the first fix's build pushed the top line up
+  % into CLEAR at y=1.45; north west grows the box downward from the
+  % anchor instead, the same direction the one-line version already used.
+  \node[pd note,anchor=north west,text width=2.1cm,align=left] at (-1.90,1.20) {compensate claimant};
   \node[pd note,anchor=west] at (-1.90,-.52) {return bond};
   \draw[pd focus rule] (-6.15,-1.15)--(-1.05,-1.15);
   \node[pd direct label,text=hhteal] at (-3.60,-1.45)
     {worst-case custody loss $\leq\varphi$};
 
+  % Panel B shifted right by 0.55: panel A's `compensate claimant` note is
+  % 2.8cm of grotesk running east from x=-1.90, and panel B's `funded` label
+  % began at x=0.75, so the two overlapped by 17.7% of the smaller box (20.8%
+  % at the merge base -- pre-existing, not introduced here). Wrapping the note
+  % instead was tried and is worse: CLEAR sits 0.37 units above it and the
+  % second line lands on that. The picture is inside \resizebox{0.95\textwidth},
+  % so widening it costs nothing on the page.
   % Counterfactual graph with an extra unauthorized transition.
-  \node[pd datum] (fundedb) at (1.35,.65) {};
-  \node[diamond,aspect=1.55,draw=hhink,fill=hhsand!16,inner sep=3pt,
-    font=\scriptsize\bfseries,align=center] (gateb) at (3.10,.65) {criteria};
-  \node[pd focus datum] (clearb) at (5.20,1.45) {};
-  \node[pd datum] (refuseb) at (5.20,-.15) {};
-  \node[pd caution datum] (lossb) at (6.55,-1.50) {};
+  \node[pd datum] (fundedb) at (1.90,.65) {};
+  \node[pd decision] (gateb) at (3.65,.65) {criteria};
+  \node[pd focus datum] (clearb) at (5.75,1.45) {};
+  \node[pd datum] (refuseb) at (5.75,-.15) {};
+  \node[pd danger datum] (lossb) at (7.10,-1.50) {};
   \draw[pd arrow] (fundedb)--(gateb);
   \draw[pd focus arrow] (gateb)--(clearb);
   \draw[pd arrow] (gateb)--(refuseb);
-  \draw[pd caution arrow,dashed,line width=1.25pt]
+  \draw[pd danger arrow]
     (fundedb) to[out=-50,in=170] (lossb);
-  \node[pd direct label,anchor=south] at (1.35,.87) {funded};
-  \node[pd direct label,text=hhteal,anchor=west] at (5.45,1.45) {CLEAR};
-  \node[pd direct label,anchor=west] at (5.45,-.15) {REFUSE};
-  \node[pd direct label,text=hhamber,anchor=east,align=right] at (6.30,-1.50)
+  \node[pd direct label,anchor=south] at (1.90,.87) {funded};
+  \node[pd direct label,text=hhteal,anchor=west] at (6.00,1.45) {CLEAR};
+  \node[pd direct label,anchor=west] at (6.00,-.15) {REFUSE};
+  \node[pd direct label,text=pderror,anchor=east,align=right] at (6.77,-1.34)
     {redirect / second close\\full balance exposed};
-  \node[pd note,text=hhamber,anchor=west] at (2.10,-.70) {unauthorized transition};
-  \draw[pd caution rule] (.95,-2.10)--(6.75,-2.10);
-  \node[pd direct label,text=hhamber] at (3.85,-2.40)
+  \node[pd note,text=pderror,anchor=west] at (2.65,-.70) {unauthorized transition};
+  \draw[pd danger rule] (.95,-2.10)--(7.30,-2.10);
+  \node[pd direct label,text=pderror] at (4.40,-2.40)
     {worst case $=$ full custody balance};
 
   \node[pd axis label] at (0,-3.05)
-    {whitelist $+$ fee cap $+$ one terminal transition are the theorem's hypothesis, not decoration};
+    {Custody Assumption: whitelist $+$ fee cap $+$ one terminal transition are the theorem's hypothesis, not decoration};
 \end{tikzpicture}}
 \caption{\textbf{The custody bound is the absence of an extra transition.}
 Panel A permits exactly one terminal move from funded custody to \textbf{Clear}

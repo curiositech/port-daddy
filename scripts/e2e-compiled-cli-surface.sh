@@ -431,6 +431,10 @@ run_ok  "plan set"           plan     -- plan set "* [x] e2e cli-surface plan pr
 run_ok  "plan show"          plan     -- plan
 run_read "session (usage)"   session  -- session
 run_read "takeover (usage)"  takeover -- takeover
+# `session find` with nothing to search by (no --key, no --identity, no pending
+# begin attempt in the scratch workdir) must explain itself rather than exit
+# silently — it is the recovery door for a lost `pd begin` response.
+run_read "session find (usage)" session -- session find
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
 #   1. an honest result-note sentinel (PR URL / no-pr-yet: / not-applicable:)
 #   2. a git origin-push check on the cwd's repo.
@@ -509,7 +513,6 @@ covered start;     skip "start"     "would start the daemon process; lifecycle, 
 covered stop;      skip "stop"      "would stop a daemon; lifecycle, not surface-tested here"
 covered restart;   skip "restart"   "would restart a daemon; lifecycle, not surface-tested here"
 covered install;   skip "install"   "would register a launchd service on the host"
-covered install-bosun; skip "install-bosun" "would register the Bosun watchdog launchd/systemd job on the host"
 covered uninstall; skip "uninstall" "would deregister a launchd service on the host"
 covered up;        skip "up"        "would START services declared in .portdaddyrc (real child processes)"
 covered down;      skip "down"      "would stop an 'up' session (system processes)"
