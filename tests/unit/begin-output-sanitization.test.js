@@ -10,6 +10,7 @@ import ts from 'typescript';
 const source = readFileSync(new URL('../../cli/commands/sugar.ts', import.meta.url), 'utf8');
 const quoteSource = readFileSync(new URL('../../lib/shell-quote.ts', import.meta.url), 'utf8');
 const typesSource = readFileSync(new URL('../../cli/types.ts', import.meta.url), 'utf8');
+const idempotencySource = readFileSync(new URL('../../lib/begin-idempotency.ts', import.meta.url), 'utf8');
 const SYNTHETIC = "fixture-only-actor.credential-'\\-not-valid";
 const NOW = 123456789;
 
@@ -31,6 +32,10 @@ function evaluate(code, bindings = {}, dependencies = {}) {
 
 const quote = evaluate(quoteSource);
 const types = evaluate(typesSource);
+// Real module, not a hand-copied regex: only its pure exports are used
+// below (the key pattern and its validator), so this can't drift from
+// lib/begin-idempotency.ts the way a duplicated literal could.
+const idempotency = evaluate(idempotencySource, {}, { 'node:crypto': await import('node:crypto') });
 
 function fixture({ response, ok = true, env = {}, persistenceError } = {}) {
   const events = [];
@@ -84,14 +89,9 @@ function fixture({ response, ok = true, env = {}, persistenceError } = {}) {
     '../../lib/dispatch/queue.js': { createDispatchQueue: unexpected },
     '../../lib/dispatch/auto-merge.js': { checkAndCompleteDispatch: unexpected },
     '../../lib/semantic-resolver.js': { DEFAULT_SEMANTIC_REVIEW_THRESHOLD: 0.5 },
-    // Pattern duplicated from lib/begin-idempotency.ts's own
-    // BEGIN_IDEMPOTENCY_KEY_PATTERN -- keep the two in sync.
-    '../../lib/begin-idempotency.js': {
-      BEGIN_IDEMPOTENCY_KEY_PATTERN: /^[A-Za-z0-9._-]{16,128}$/,
-      generateBeginIdempotencyKey: () => 'fixture-idempotency-00000000-0000-0000-0000-000000000000',
-      isValidBeginIdempotencyKey: (value) =>
-        typeof value === 'string' && /^[A-Za-z0-9._-]{16,128}$/.test(value),
-    },
+    // The real module (see `idempotency` above): sugar.ts's own
+    // idempotency-key minting/validation, not a hand-copied stand-in.
+    '../../lib/begin-idempotency.js': idempotency,
   };
   const exports = evaluate(source, {
     console: { log, error },
@@ -122,12 +122,14 @@ describe('begin public output and private admission persistence', () => {
     expect(JSON.parse(test.stdout[0])).toEqual(publicResult);
     expect(JSON.parse(test.stdout[0])).not.toHaveProperty('credential');
     expect(test.data).toEqual(original);
-    expect(test.writes).toEqual([{
+    expect(test.writes).toHaveLength(1);
+    expect(test.writes[0].idempotencyKey).toMatch(idempotency.BEGIN_IDEMPOTENCY_KEY_PATTERN);
+    const { idempotencyKey, ...writeWithoutKey } = test.writes[0];
+    expect(writeWithoutKey).toEqual({
       agentId: 'fixture-agent', sessionId: 'fixture-session',
       agentName: 'Fixture Agent', sessionName: 'Fixture Session',
       purpose: 'Fixture purpose', identity: 'fixture:cli', startedAt: NOW, credential,
-      idempotencyKey: 'fixture-idempotency-00000000-0000-0000-0000-000000000000',
-    }]);
+    });
     expect(test.events).toEqual(['fetch', 'persist', 'stdout']);
     expectPrivateOnly(test);
   });
