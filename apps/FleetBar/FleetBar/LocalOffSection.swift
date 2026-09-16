@@ -9,8 +9,16 @@ final class LocalOffStore: ObservableObject {
     @Published private(set) var hasRequestedOff = false
 
     nonisolated static func statusTitle(for blockedReason: String?) -> String {
-        guard let blockedReason else { return "Local start gate is open" }
-        return blockedReason.contains("Local Off") ? "Local starts are off" : "Start state unknown — blocked"
+        switch blockedReason {
+        case nil:
+            return "Local start gate is open"
+        case "Local Off is set (HALT).",
+             "Local Off is set (hooks.disabled).",
+             "Local Off was requested. This app will not restart Port Daddy.":
+            return "Local starts are off"
+        default:
+            return "Start state unknown — blocked"
+        }
     }
 
     func refresh() { blockedReason = LocalRuntimeControl.shared.blockedReason }

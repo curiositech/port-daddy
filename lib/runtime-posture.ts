@@ -75,7 +75,7 @@ export interface RuntimePostureInput {
 
 export interface RuntimePostureAssessment {
   posture: RuntimePosture;
-  desired: RuntimeDesiredState;
+  desired: RuntimeDesiredState | 'unknown';
   control: RuntimeControlObservation;
   blockers: RuntimeCapability[];
   warnings: RuntimeCapability[];
@@ -122,6 +122,8 @@ export const RUNTIME_EFFECT_REQUIREMENTS: Readonly<Record<RuntimeEffect, readonl
 });
 
 const HUMAN_SAFE_EFFECTS = new Set<RuntimeEffect>(['human_local', 'read_only', 'emergency_control']);
+const RUNTIME_DESIRED_STATES = new Set<unknown>(['off', 'on']);
+const RUNTIME_CONTROL_OBSERVATIONS = new Set<unknown>(['disabled', 'enabled', 'stopping', 'unknown']);
 const MAX_OBSERVATION_AGE_MS = 60_000;
 const MAX_OBSERVATION_HORIZON_MS = 60_000;
 
@@ -146,6 +148,7 @@ function capabilityStatus(
 }
 
 function observedControl(input: RuntimePostureInput): RuntimeControlObservation {
+  if (!RUNTIME_CONTROL_OBSERVATIONS.has(input.control)) return 'unknown';
   const now = Date.now();
   if (!Number.isFinite(input.controlObservedAt) || !Number.isFinite(input.controlValidUntil)) return 'unknown';
   if (input.controlObservedAt! > now || now - input.controlObservedAt! > MAX_OBSERVATION_AGE_MS) return 'unknown';
@@ -153,34 +156,42 @@ function observedControl(input: RuntimePostureInput): RuntimeControlObservation 
   return input.control;
 }
 
+function observedDesired(input: RuntimePostureInput): RuntimeDesiredState | 'unknown' {
+  return RUNTIME_DESIRED_STATES.has(input.desired) ? input.desired : 'unknown';
+}
+
 /**
  * Summarize the whole runtime without using that summary as effect authority.
  * Individual effects still pass through admitRuntimeEffect below.
  */
 export function assessRuntimePosture(input: RuntimePostureInput): RuntimePostureAssessment {
+  const desired = observedDesired(input);
   const control = observedControl(input);
   const warnings = COMMON_READINESS.filter((capability) => capabilityStatus(input, capability) !== 'ready');
 
-  if (control === 'unknown') {
-    return { posture: 'unknown', desired: input.desired, control, blockers: [], warnings, reasons: ['runtime_control_unknown'] };
+  const unknownReasons: string[] = [];
+  if (desired === 'unknown') unknownReasons.push('runtime_desired_unknown');
+  if (control === 'unknown') unknownReasons.push('runtime_control_unknown');
+  if (unknownReasons.length > 0) {
+    return { posture: 'unknown', desired, control, blockers: [], warnings, reasons: unknownReasons };
   }
-  if (input.desired === 'off' && control === 'disabled') {
-    return { posture: 'off', desired: input.desired, control, blockers: [], warnings, reasons: ['operator_intent_off'] };
+  if (desired === 'off' && control === 'disabled') {
+    return { posture: 'off', desired, control, blockers: [], warnings, reasons: ['operator_intent_off'] };
   }
-  if (input.desired === 'off' || control === 'stopping') {
+  if (desired === 'off' || control === 'stopping') {
     return {
-      posture: 'transitioning', desired: input.desired, control, blockers: [], warnings,
-      reasons: input.desired === 'off' ? ['operator_intent_off'] : ['runtime_control_stopping'],
+      posture: 'transitioning', desired, control, blockers: [], warnings,
+      reasons: desired === 'off' ? ['operator_intent_off'] : ['runtime_control_stopping'],
     };
   }
   if (control === 'disabled') {
-    return { posture: 'activation_blocked', desired: input.desired, control, blockers: [], warnings, reasons: ['runtime_control_disabled'] };
+    return { posture: 'activation_blocked', desired, control, blockers: [], warnings, reasons: ['runtime_control_disabled'] };
   }
 
   const blockers = COMMON_READINESS.filter((capability) => capabilityStatus(input, capability) !== 'ready');
   return {
     posture: blockers.length === 0 ? 'on' : 'degraded',
-    desired: input.desired,
+    desired,
     control,
     blockers,
     warnings,
@@ -225,7 +236,9 @@ export function admitRuntimeEffect(
 
   const reasons = [...classificationReasons];
   if (!onlyHumanSafeEffects) {
-    if (input.desired !== 'on') reasons.push('operator_intent_off');
+    if (assessment.desired !== 'on') {
+      reasons.push(assessment.desired === 'unknown' ? 'runtime_desired_unknown' : 'operator_intent_off');
+    }
     if (assessment.control !== 'enabled') reasons.push(`runtime_control_${assessment.control}`);
   }
 

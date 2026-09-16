@@ -28,7 +28,9 @@ beforeEach(() => {
 
 describe('local Off admission', () => {
   test('filesystem observations map to distinct On, Off, and unknown posture inputs', () => {
-    expect(localRuntimePostureInput({ enabled: true, reason: 'enabled' })).toMatchObject({ desired: 'on', control: 'enabled' });
+    const enabled = localRuntimePostureInput({ enabled: true, reason: 'enabled' });
+    expect(enabled).toMatchObject({ desired: 'on', control: 'enabled' });
+    expect(enabled.controlValidUntil! - enabled.controlObservedAt!).toBe(1_000);
     expect(localRuntimePostureInput({ enabled: false, reason: 'stop_marker', path: '/fixture/HALT' }))
       .toMatchObject({ desired: 'off', control: 'disabled' });
     expect(localRuntimePostureInput({ enabled: false, reason: 'control_unavailable' }))

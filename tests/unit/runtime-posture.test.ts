@@ -47,6 +47,25 @@ describe('runtime posture names the product state instead of treating it as a bo
   ])('%s -> %s', (_name, input, posture) => {
     expect(assessRuntimePosture(input).posture).toBe(posture);
   });
+
+  test('unrecognized desired and control values fail closed for untyped callers', () => {
+    expect(assessRuntimePosture({ ...ready, desired: 'future_value' } as never)).toMatchObject({
+      posture: 'unknown',
+      desired: 'unknown',
+      reasons: ['runtime_desired_unknown'],
+    });
+    expect(assessRuntimePosture({ ...ready, control: 'future_value' } as never)).toMatchObject({
+      posture: 'unknown',
+      control: 'unknown',
+      reasons: ['runtime_control_unknown'],
+    });
+    expect(assessRuntimePosture({ ...ready, desired: 'future_desired', control: 'future_control' } as never)).toMatchObject({
+      posture: 'unknown',
+      desired: 'unknown',
+      control: 'unknown',
+      reasons: ['runtime_desired_unknown', 'runtime_control_unknown'],
+    });
+  });
 });
 
 describe('effect admission is narrower than the overall posture', () => {
@@ -163,6 +182,15 @@ describe('effect admission is narrower than the overall posture', () => {
     expect(admitRuntimeEffect(ready, { effects: [] } as never)).toMatchObject({ allowed: false, reasons: ['effect_set_empty'] });
     expect(admitRuntimeEffect(ready, { effects: new Array(1) } as never)).toMatchObject({ allowed: false, reasons: ['effect_set_empty'] });
     expect(admitRuntimeEffect(ready, { effects: ['future_effect'] } as never)).toMatchObject({ allowed: false, reasons: ['effect_unknown'] });
+  });
+
+  test('unrecognized desired and control values deny every automatic effect', () => {
+    expect(admitRuntimeEffect({ ...ready, desired: 'future_value' } as never, {
+      effects: ['automatic_local'],
+    })).toMatchObject({ allowed: false, posture: 'unknown', reasons: ['runtime_desired_unknown'] });
+    expect(admitRuntimeEffect({ ...ready, control: 'future_value' } as never, {
+      effects: ['automatic_local'],
+    })).toMatchObject({ allowed: false, posture: 'unknown', reasons: ['runtime_control_unknown'] });
   });
 
   test('stale and wrong-scope capability observations degrade to unknown', () => {

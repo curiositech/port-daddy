@@ -18,10 +18,15 @@ export interface LocalRuntimeControlState {
   path?: string;
 }
 
+// Filesystem truth is sampled synchronously at the effect boundary. Keep its
+// receipt valid for one FleetBar refresh interval, deliberately well inside
+// runtime-posture's 60-second maximum observation horizon.
+const LOCAL_CONTROL_OBSERVATION_TTL_MS = 1_000;
+
 /** Convert the filesystem control result without inventing readiness. */
 export function localRuntimePostureInput(state: LocalRuntimeControlState): RuntimePostureInput {
   const now = Date.now();
-  const observation = { controlObservedAt: now, controlValidUntil: now + 1_000 };
+  const observation = { controlObservedAt: now, controlValidUntil: now + LOCAL_CONTROL_OBSERVATION_TTL_MS };
   if (state.enabled) return { desired: 'on', control: 'enabled', ...observation };
   if (state.reason === 'stop_marker') return { desired: 'off', control: 'disabled', ...observation };
   return { desired: 'on', control: 'unknown', ...observation };

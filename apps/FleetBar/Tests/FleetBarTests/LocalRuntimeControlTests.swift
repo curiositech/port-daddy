@@ -29,8 +29,17 @@ final class LocalRuntimeControlTests: XCTestCase {
     func testControlPresentationDoesNotCollapseOpenOffAndUnknown() {
         XCTAssertEqual(LocalOffStore.statusTitle(for: nil), "Local start gate is open")
         XCTAssertEqual(LocalOffStore.statusTitle(for: "Local Off is set (HALT)."), "Local starts are off")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: "Local Off is set (hooks.disabled)."), "Local starts are off")
+        XCTAssertEqual(
+            LocalOffStore.statusTitle(for: "Local Off was requested. This app will not restart Port Daddy."),
+            "Local starts are off"
+        )
         XCTAssertEqual(
             LocalOffStore.statusTitle(for: "Local control state is unavailable. Local starts are blocked."),
+            "Start state unknown — blocked"
+        )
+        XCTAssertEqual(
+            LocalOffStore.statusTitle(for: "Unexpected text containing Local Off"),
             "Start state unknown — blocked"
         )
     }
