@@ -577,7 +577,12 @@ class ReleaseCandidateSuite {
     }
   }
 
-  async runCli(runtime, cwd, args, { slot = 'rc-e2e', transport = 'unix', allowFailure = false } = {}) {
+  async runCli(runtime, cwd, args, {
+    slot = 'rc-e2e',
+    transport = 'unix',
+    allowFailure = false,
+    label = `pd-${transport}-${args[0] || 'help'}`,
+  } = {}) {
     const binary = transport === 'tcp'
       ? join(this.stagedDir, 'pd')
       : join(this.stagedDir, 'port-daddy');
@@ -590,7 +595,7 @@ class ReleaseCandidateSuite {
       allowFailure,
       cwd,
       env,
-      label: `pd-${transport}-${args[0] || 'help'}`,
+      label,
       stream: false,
       timeoutMs: 20_000,
     });
@@ -739,17 +744,21 @@ class ReleaseCandidateSuite {
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], {
+          slot: spec.slot,
+          label: `pd-unix-claim-${spec.label}`,
+        }), `claim ${spec.label}`);
+        if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
         if (spec.label === 'alpha-linked') {
           const conflict = await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], {
             slot: spec.slot,
             allowFailure: true,
+            label: 'pd-unix-conflict-alpha-linked',
           });
           if (conflict.code === 0 || !/File conflicts detected/.test(`${conflict.stdout}\n${conflict.stderr}`)) {
             throw new Error('shared-family duplicate claim was not refused with conflict evidence');
           }
         }
-        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
-        if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
         const sitrep = readJsonOutput(await this.runCli(runtime, spec.cwd, [
           'sitrep',
           '--json',

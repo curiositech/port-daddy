@@ -336,8 +336,13 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("'sitrep',\n          '--json'");
     expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
     expect(runner).toContain("claimPath: 'LINKED.md'");
+    expect(runner).toContain('pd-unix-claim-${spec.label}');
+    expect(runner).toContain("label: 'pd-unix-conflict-alpha-linked'");
     expect(runner).toContain('shared-family duplicate claim was not refused with conflict evidence');
     expect(runner).toContain('sharedFamilyConflictRefused: true');
+    expect(runner.indexOf("label: `pd-unix-claim-${spec.label}`")).toBeLessThan(
+      runner.indexOf("label: 'pd-unix-conflict-alpha-linked'"),
+    );
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
