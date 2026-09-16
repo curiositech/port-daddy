@@ -335,6 +335,9 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
     expect(runner).toContain("'sitrep',\n          '--json'");
     expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
+    expect(runner).toContain("claimPath: 'LINKED.md'");
+    expect(runner).toContain('shared-family duplicate claim was not refused with conflict evidence');
+    expect(runner).toContain('sharedFamilyConflictRefused: true');
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
@@ -348,6 +351,16 @@ describe('release-candidate E2E contract', () => {
     ]) {
       expect(matrix.cases.find((testCase) => testCase.id === id)?.timeoutSeconds).toBeGreaterThanOrEqual(150);
     }
+  });
+
+  test('compiled CLI smoke isolates host scans and proves safe-corral dry-run immutability', () => {
+    const smoke = readFileSync(join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh'), 'utf8');
+    expect(smoke).toContain('CLI_HOME="$SCRATCH/home"');
+    expect(smoke).toContain('HOME="$CLI_HOME"');
+    expect(smoke).toContain('__corral_fixture="$CLI_HOME/.env"');
+    expect(smoke).toContain('__corral_before="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('__corral_after="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('[ "$__corral_before" = "$__corral_after" ]');
   });
 
   test('stage-validation failure writes a failing result without inventing case passes', () => {

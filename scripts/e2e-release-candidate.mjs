@@ -683,7 +683,8 @@ class ReleaseCandidateSuite {
     await this.runCommand('git', ['config', 'user.name', 'Port Daddy RC Fixture'], { cwd: repo, env, label: `git-name-${name}`, stream: false });
     await this.runCommand('git', ['config', 'user.email', 'rc-fixture@invalid.example'], { cwd: repo, env, label: `git-email-${name}`, stream: false });
     writeFileSync(join(repo, 'README.md'), `# ${name}\n\nSynthetic release-candidate fixture.\n`);
-    await this.runCommand('git', ['add', 'README.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
+    writeFileSync(join(repo, 'LINKED.md'), `# ${name} linked fixture\n`);
+    await this.runCommand('git', ['add', 'README.md', 'LINKED.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
     await this.runCommand('git', ['commit', '-m', `Initialize ${name}`], { cwd: repo, env, label: `git-commit-${name}`, stream: false });
     return repo;
   }
@@ -712,9 +713,9 @@ class ReleaseCandidateSuite {
     }
     const sessions = [];
     const specs = [
-      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true },
-      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false },
-      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true },
+      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'LINKED.md' },
+      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
     ];
     try {
       for (const spec of specs) {
@@ -738,8 +739,17 @@ class ReleaseCandidateSuite {
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
-        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], { slot: spec.slot }), `claim ${spec.label}`);
-        if (!claim.success || !claim.claimed?.includes('README.md')) throw new Error(`README claim did not land for ${spec.label}`);
+        if (spec.label === 'alpha-linked') {
+          const conflict = await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], {
+            slot: spec.slot,
+            allowFailure: true,
+          });
+          if (conflict.code === 0 || !/File conflicts detected/.test(`${conflict.stdout}\n${conflict.stderr}`)) {
+            throw new Error('shared-family duplicate claim was not refused with conflict evidence');
+          }
+        }
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
+        if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
         const sitrep = readJsonOutput(await this.runCli(runtime, spec.cwd, [
           'sitrep',
           '--json',
@@ -795,7 +805,7 @@ class ReleaseCandidateSuite {
         const noteBodies = (detail.body.notes || []).map((note) => note.content);
         const filePaths = (detail.body.files || []).map((file) => file.filePath || file.file_path || file.path);
         if (!noteBodies.includes(`RC evidence ${spec.label}`)) throw new Error(`note did not survive restart for ${spec.label}`);
-        if (!filePaths.includes('README.md')) throw new Error(`claim did not survive restart for ${spec.label}`);
+        if (!filePaths.includes(spec.claimPath)) throw new Error(`claim did not survive restart for ${spec.label}`);
         if (!session?.metadata?.worktree) throw new Error(`worktree metadata missing for ${spec.label}`);
         const afterCrash = {
           sessionId: session.id,
@@ -864,6 +874,7 @@ class ReleaseCandidateSuite {
           claimCount: snapshot.claimIds.length,
         })),
         repositoryFamilies: { alphaShared: true, betaDistinct: true },
+        sharedFamilyConflictRefused: true,
         matrixEnvArtifacts: 0,
         matrixEnvRequired: false,
         checkoutAuthorityArtifacts: 0,
