@@ -22,7 +22,15 @@
   every axis plot/.append style={line width=1.05pt},
   clip=false,
 ]
-\addplot[hhgray!62,densely dotted,line width=.45pt,domain=0.5:10.5,forget plot] {1};
+% pd guide, not densely dotted,line width=.45pt: `densely dotted` derives its
+% on-length from the line width at key-processing time, and .45pt is under
+% the 150dpi/1.0x device's one-pixel floor (T9, built Book: 0.448pt = 0.93px,
+% the exact defect pd-figure-language.tex's own "THE GUIDE DASH, IN ABSOLUTE
+% POINTS" note measured and fixed for `pd guide`). `pd guide` states the same
+% "this line is not a drawn edge" distinction in the absolute, pixel-safe
+% pattern that fix already established (line width .7pt, dash on 1.2pt off
+% 2.0pt) instead of re-deriving a second, thinner copy of the same defect.
+\addplot[pd guide,domain=0.5:10.5,forget plot] {1};
 \addplot[hhteal,mark=*,mark size=1.6pt,mark options={fill=hhteal,draw=hhpaper,line width=.5pt}]
   coordinates {(1,1.029)(2,1.067)(3,1.122)(4,1.224)};
 \addlegendentry{$m=8$ (the chapter's own case)}
