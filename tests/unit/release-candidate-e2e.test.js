@@ -364,7 +364,13 @@ describe('release-candidate E2E contract', () => {
   test('compiled CLI smoke isolates host scans and proves safe-corral dry-run immutability', () => {
     const smoke = readFileSync(join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh'), 'utf8');
     expect(smoke).toContain('CLI_HOME="$SCRATCH/home"');
-    expect(smoke).toContain('HOME="$CLI_HOME"');
+    const daemonLaunch = smoke.slice(
+      smoke.indexOf('PORT_DADDY_PORT="$PORT" \\'),
+      smoke.indexOf('DAEMON_PID=$!'),
+    );
+    const cliHelper = smoke.slice(smoke.indexOf('cli() {'), smoke.indexOf('# Bookkeeping.'));
+    expect(daemonLaunch).toContain('HOME="$CLI_HOME" \\');
+    expect(cliHelper).toContain('HOME="$CLI_HOME" \\');
     expect(smoke).toContain('__corral_fixture="$CLI_HOME/.env"');
     expect(smoke).toContain('__corral_before="$(cksum < "$__corral_fixture")"');
     expect(smoke).toContain('if __corral_out="$(cli safe corral --all 2>&1)"; then');
