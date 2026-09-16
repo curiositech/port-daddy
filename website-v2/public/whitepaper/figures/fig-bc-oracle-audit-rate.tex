@@ -18,13 +18,13 @@
     scale only axis,
     axis lines=left,
     title={a ten-per-cent sample buys about double the rate the model needs},
-    title style={font=\footnotesize\bfseries,text=hhink,yshift=-1pt},
+    title style={font=\pdfiglabelbold,text=hhink,yshift=-1pt},
     xmin=0.80,xmax=1.005,ymin=0,ymax=0.125,
     xlabel={how patient the colluding oracles are, $\delta$},
     ylabel={per-round chance a cartel is caught},
-    xlabel style={font=\footnotesize,text=hhgray},
-    ylabel style={font=\footnotesize,text=hhgray},
-    tick label style={font=\footnotesize,text=hhgray},
+    xlabel style={font=\pdfiglabel,text=hhgray},
+    ylabel style={font=\pdfiglabel,text=hhgray},
+    tick label style={font=\pdfiglabel,text=hhgray},
     axis line style={draw=hhgray,line width=.45pt},
     tick style={draw=hhgray,line width=.45pt},
     xtick={0.80,0.85,0.90,0.95,1.00},
@@ -41,8 +41,8 @@
         (1.000,0)} \closedcycle;
 
     % the two candidate human-audit sampling rates
-    \addplot[draw=hhteal,line width=1.15pt,forget plot,domain=0.8:1.0,samples=2]{0.10};
-    \addplot[draw=hhink,line width=.8pt,dash pattern=on 3pt off 2pt,forget plot,
+    \addplot[pd focus rule,draw=hhteal,line width=1.15pt,forget plot,domain=0.8:1.0,samples=2]{0.10};
+    \addplot[pd rule,draw=hhink,line width=.8pt,dash pattern=on 3pt off 2pt,forget plot,
       domain=0.8:1.0,samples=2]{0.05};
 
     % the chapter's worked anchor, and where a 5% sample stops clearing it
