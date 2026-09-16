@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 789,
-    "distinctObjects": 753,
-    "bytes": 299568654,
-    "distinctBytes": 296775063
+    "assets": 795,
+    "distinctObjects": 759,
+    "bytes": 303511055,
+    "distinctBytes": 300717464
   },
   "assets": [
     {
@@ -1977,6 +1977,27 @@
       "contentType": "image/png"
     },
     {
+      "path": "docs/pr-assets/pr-10177/conservation-invariant.png",
+      "bytes": 705253,
+      "sha256": "c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef",
+      "key": "sha256/c6/c6f39b50a76f08cc71f873f09545728253480acc6c6b2dc10e1378320fa1caef.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10177/worked-example-declared-dead.png",
+      "bytes": 772847,
+      "sha256": "da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad",
+      "key": "sha256/da/da8d976400d3e27e2a8ba4679e17e9e39269d95080a51d479fe90ca8ba0325ad.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10177/worked-example-pairwise-count.png",
+      "bytes": 560255,
+      "sha256": "d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36",
+      "key": "sha256/d3/d3d0f8e63169de8044e73744a1372856ce5e4544f8ebef0106ffc253e8558e36.png",
+      "contentType": "image/png"
+    },
+    {
       "path": "docs/pr-assets/pr-10178/fh-xfer-ceremony-record-vs-render-1x-150dpi.png",
       "bytes": 169365,
       "sha256": "157048e1e22a8ae66530506a4b8fbfbb5ba30b35a8c9fd10ef0f58078e9b1bf3",
@@ -2016,6 +2037,27 @@
       "bytes": 859038,
       "sha256": "e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667",
       "key": "sha256/e6/e6e3c603d91a037a758ea7c28d3277001832eaae6866f092e9b2be2ae38cd667.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/graded-exercises.png",
+      "bytes": 607631,
+      "sha256": "f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523",
+      "key": "sha256/f2/f20cafc2368dab4b4a836c045055dca9c6643db5b99643c8e84221d99d7b4523.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/worked-example-12800-bits.png",
+      "bytes": 713705,
+      "sha256": "a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7",
+      "key": "sha256/a4/a448db499172d7b368db17058d5ce6854b8a04a7c6285918f80fe17c5475d2b7.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/pr-10180/worked-example-dereks-secret.png",
+      "bytes": 582710,
+      "sha256": "6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade",
+      "key": "sha256/6c/6ca1e70c96b76079271fcc1b84c961dd000566ac8fcd6f0b1c2476396f448ade.png",
       "contentType": "image/png"
     },
     {
