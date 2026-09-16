@@ -275,6 +275,19 @@ describe('effect admission is narrower than the overall posture', () => {
     }).reasons).toEqual(['sandbox_unknown']);
   });
 
+  test('an omitted expected scope is not wildcard authority for a ready observation', () => {
+    const expectedScopes = { ...CAPABILITY_SCOPE } as Partial<Record<RuntimeCapability, string>>;
+    delete expectedScopes.sandbox;
+
+    expect(admitRuntimeEffect({ ...ready, expectedScopes }, {
+      effects: ['managed_subprocess'],
+    })).toMatchObject({
+      allowed: false,
+      requiredCapabilities: ['sandbox'],
+      reasons: ['sandbox_unknown'],
+    });
+  });
+
   test('future, unbounded, and contradictory ready observations never authorize', () => {
     const contradictory = capabilities();
     contradictory.sandbox = {
