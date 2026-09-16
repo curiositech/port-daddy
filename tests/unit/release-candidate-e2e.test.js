@@ -1,8 +1,10 @@
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
@@ -16,6 +18,7 @@ import {
   findAuthorityArtifacts,
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
+  prepareOwnedPrivateDirectory,
   redactReleaseCandidateText,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
@@ -127,6 +130,43 @@ describe('release-candidate E2E contract', () => {
       home: homedir(),
       sourceRoot: repoRoot,
     })).toBe(join(homedir(), 'coding', 'tmp', 'pd-rc-contract-safe'));
+  });
+
+  test('private runtime fixtures are created at 0700 and repair harness-owned permissive modes', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-private-dir-test-'));
+    const fresh = join(fixture, 'fresh', 'pd-home');
+    const permissive = join(fixture, 'permissive');
+    try {
+      expect(prepareOwnedPrivateDirectory(fresh)).toBe(fresh);
+      expect(statSync(fresh).mode & 0o777).toBe(0o700);
+
+      mkdirSync(permissive, { mode: 0o755 });
+      chmodSync(permissive, 0o755);
+      expect(statSync(permissive).mode & 0o777).toBe(0o755);
+      prepareOwnedPrivateDirectory(permissive);
+      expect(statSync(permissive).mode & 0o777).toBe(0o700);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test('private runtime fixture preparation rejects a symlink without changing its target', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-private-link-test-'));
+    const target = join(fixture, 'target');
+    const link = join(fixture, 'link');
+    try {
+      mkdirSync(target, { mode: 0o755 });
+      chmodSync(target, 0o755);
+      symlinkSync(target, link);
+      expect(() => prepareOwnedPrivateDirectory(link)).toThrow(/real directory/i);
+      expect(statSync(target).mode & 0o777).toBe(0o755);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   test('cleanup proof rejects a symlink that escapes the owned synthetic root', () => {

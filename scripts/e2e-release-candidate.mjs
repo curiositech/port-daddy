@@ -25,6 +25,7 @@ import {
   findAuthorityArtifacts,
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
+  prepareOwnedPrivateDirectory,
   redactReleaseCandidateText,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
@@ -405,8 +406,7 @@ class ReleaseCandidateSuite {
     // daemon imports shared/paths and inspects PD_HOME; a default 0755 leaf
     // makes mandatory note encryption fail closed before readiness.
     for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) {
-      mkdirSync(path, { recursive: true, mode: 0o700 });
-      chmodSync(path, 0o700);
+      prepareOwnedPrivateDirectory(path);
     }
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {

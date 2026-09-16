@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -180,6 +182,26 @@ export function resolveDurableTestRoot(candidate, { home = homedir(), sourceRoot
     }
   }
   return root;
+}
+
+/**
+ * Prepare a private directory owned by the synthetic release-candidate harness.
+ * Unlike runtime key storage, the harness may repair this directory because it
+ * created and exclusively owns the whole fixture tree.
+ */
+export function prepareOwnedPrivateDirectory(path) {
+  const resolved = resolve(path);
+  mkdirSync(resolved, { recursive: true, mode: 0o700 });
+  const before = lstatSync(resolved);
+  if (!before.isDirectory() || before.isSymbolicLink()) {
+    throw new Error(`private fixture path must be a real directory: ${resolved}`);
+  }
+  chmodSync(resolved, 0o700);
+  const after = lstatSync(resolved);
+  if (!after.isDirectory() || after.isSymbolicLink() || (after.mode & 0o777) !== 0o700) {
+    throw new Error(`private fixture directory must have mode 0700: ${resolved}`);
+  }
+  return resolved;
 }
 
 export function isWithin(path, parent) {
