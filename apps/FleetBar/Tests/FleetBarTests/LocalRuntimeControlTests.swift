@@ -26,6 +26,15 @@ final class LocalRuntimeControlTests: XCTestCase {
         try Data(text.utf8).write(to: root.appendingPathComponent(name))
     }
 
+    func testControlPresentationDoesNotCollapseOpenOffAndUnknown() {
+        XCTAssertEqual(LocalOffStore.statusTitle(for: nil), "Local start gate is open")
+        XCTAssertEqual(LocalOffStore.statusTitle(for: "Local Off is set (HALT)."), "Local starts are off")
+        XCTAssertEqual(
+            LocalOffStore.statusTitle(for: "Local control state is unavailable. Local starts are blocked."),
+            "Start state unknown — blocked"
+        )
+    }
+
     func testCanonicalAndSelectedStopsAreAdditiveAndSticky() throws {
         for name in ["HALT", "hooks.disabled"] {
             for location in ["canonical", "selected"] {

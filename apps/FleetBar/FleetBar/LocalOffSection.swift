@@ -8,6 +8,11 @@ final class LocalOffStore: ObservableObject {
     @Published private(set) var receipts: [LocalRuntimeShutdown.Receipt] = []
     @Published private(set) var hasRequestedOff = false
 
+    nonisolated static func statusTitle(for blockedReason: String?) -> String {
+        guard let blockedReason else { return "Local start gate is open" }
+        return blockedReason.contains("Local Off") ? "Local starts are off" : "Start state unknown — blocked"
+    }
+
     func refresh() { blockedReason = LocalRuntimeControl.shared.blockedReason }
 
     func turnOff() {
@@ -38,9 +43,13 @@ struct LocalOffSection: View {
         VStack(alignment: .leading, spacing: Fleet.Space.s) {
             Label("Port Daddy on this Mac", systemImage: "power")
                 .font(.headline)
-            Text(store.blockedReason == nil ? "Local runtime is permitted" : "Local starts blocked")
+            Text(LocalOffStore.statusTitle(for: store.blockedReason))
                 .font(.body.weight(.semibold))
-            if !compact, let reason = store.blockedReason {
+            if !compact, store.blockedReason == nil {
+                Text("This confirms only the stop boundary. Harness, sandbox, coordination, provider, receipt, and cost readiness are separate.")
+                    .foregroundStyle(.secondary)
+            }
+            if let reason = store.blockedReason {
                 Text(reason).foregroundStyle(.secondary)
             }
             Button(role: .destructive) { store.turnOff() } label: {
