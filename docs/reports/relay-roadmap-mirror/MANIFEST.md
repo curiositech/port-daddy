@@ -84,12 +84,12 @@ PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
 
 | Artifact | Bytes | Harness | Shows | sha256 |
 | --- | ---: | --- | --- | --- |
-| `01-null-states.png` | 648,044 | REAL WORKER | Four distinct null states: never-synced repo → 404 `NO_MIRROR`; a mirror that exists but is empty (watermark present, all five lanes `[]`, `itemCount: 0`); a *different* repo on the same account → 404; the *same* repo read by a *different* account → 404 (account scoping); plus an unknown slug → 404 `NO_ITEM`. | `49c20d7b925b0da053971a2035adc32f726b01abc0281eaa61829ec6bca2105f` |
-| `02-mirror-board.png` | 1,111,921 | REAL WORKER | The mirror holding the real 279-item roadmap: the honest watermark (`generatedAt` daemon clock vs `receivedAt` relay clock, with the staleness subtraction shown — 8 h 48 m 25 s at capture time), the board grouped by the five status lanes with per-lane counts, the activity tail, and the two `PUT` responses side by side showing the full replace (`edgeCount 0 → 4`, `activityCount 0 → 6`, watermark advanced). | `9881d23b1b0860a1e57d01e09066b58afc1e4015e602a8d1f04ce8f3d5629eea` |
-| `03-item-detail-edges.png` | 732,166 | REAL WORKER | `&slug=roadmap-link-gate`: the item in full, plus `edgesOut` (1, as source) **and** `edgesIn` (2, as target) — edges in both directions — and the verbatim response body. | `0d7e55a9bec0d40ad85c04665f161a7d3ea33bb74bfa09a6beb6787ab61c9f86` |
-| `04-tombstone.png` | 611,482 | REAL WORKER | `&slug=adr-0049-relay-v0`: `deleted: true` with its `deletedAt`, cross-checked against the board read that does **not** contain it, and the `itemCount 279` (tombstones included) vs 278 live board items arithmetic. Beside it, the unknown-slug 404, so "deleted" and "never existed" are visibly different answers. | `143962aacb9581edc96995adaa13bb96fcc2d13786304b52c064353ae67b7402` |
-| `05-payload-guards.png` | 570,265 | REAL WORKER | The refusals with the Worker's own strings: **413 `TOO_MANY_ITEMS`** (5001 items), **413 `PAYLOAD_TOO_LARGE`** (2,443,225-byte body), **400 `BAD_STATUS`**, **401 `UNAUTHENTICATED`** — then a read-back proving the mirror is byte-identical to before the four refusals. | `0449545a243cb03299e9c1aee60275a684f927b8dc0b9c1c3e648cca2e05febe` |
-| `06-atomic-rollback.png` | 801,667 | **IN-PROCESS PROBE** | A poisoned snapshot leaves the previous one intact, before → after side by side: the batch throws `CHECK constraint failed: status IN ('now','backlog','parked','merge','done')`, the watermark stays at the surviving snapshot (the attempted one never lands), all five lane counts are unchanged, and 279 item rows remain — so the `DELETE` half of the batch rolled back too. Carries its own "why not over HTTP" note. | `3ca95bad33644180c9d56de2b54fe1947e9f6a0125fddf15326c80021a28e04d` |
+| `https://media.portdaddy.dev/sha256/49/49c20d7b925b0da053971a2035adc32f726b01abc0281eaa61829ec6bca2105f.png` | 648,044 | REAL WORKER | Four distinct null states: never-synced repo → 404 `NO_MIRROR`; a mirror that exists but is empty (watermark present, all five lanes `[]`, `itemCount: 0`); a *different* repo on the same account → 404; the *same* repo read by a *different* account → 404 (account scoping); plus an unknown slug → 404 `NO_ITEM`. | `49c20d7b925b0da053971a2035adc32f726b01abc0281eaa61829ec6bca2105f` |
+| `https://media.portdaddy.dev/sha256/98/9881d23b1b0860a1e57d01e09066b58afc1e4015e602a8d1f04ce8f3d5629eea.png` | 1,111,921 | REAL WORKER | The mirror holding the real 279-item roadmap: the honest watermark (`generatedAt` daemon clock vs `receivedAt` relay clock, with the staleness subtraction shown — 8 h 48 m 25 s at capture time), the board grouped by the five status lanes with per-lane counts, the activity tail, and the two `PUT` responses side by side showing the full replace (`edgeCount 0 → 4`, `activityCount 0 → 6`, watermark advanced). | `9881d23b1b0860a1e57d01e09066b58afc1e4015e602a8d1f04ce8f3d5629eea` |
+| `https://media.portdaddy.dev/sha256/0d/0d7e55a9bec0d40ad85c04665f161a7d3ea33bb74bfa09a6beb6787ab61c9f86.png` | 732,166 | REAL WORKER | `&slug=roadmap-link-gate`: the item in full, plus `edgesOut` (1, as source) **and** `edgesIn` (2, as target) — edges in both directions — and the verbatim response body. | `0d7e55a9bec0d40ad85c04665f161a7d3ea33bb74bfa09a6beb6787ab61c9f86` |
+| `https://media.portdaddy.dev/sha256/14/143962aacb9581edc96995adaa13bb96fcc2d13786304b52c064353ae67b7402.png` | 611,482 | REAL WORKER | `&slug=adr-0049-relay-v0`: `deleted: true` with its `deletedAt`, cross-checked against the board read that does **not** contain it, and the `itemCount 279` (tombstones included) vs 278 live board items arithmetic. Beside it, the unknown-slug 404, so "deleted" and "never existed" are visibly different answers. | `143962aacb9581edc96995adaa13bb96fcc2d13786304b52c064353ae67b7402` |
+| `https://media.portdaddy.dev/sha256/04/0449545a243cb03299e9c1aee60275a684f927b8dc0b9c1c3e648cca2e05febe.png` | 570,265 | REAL WORKER | The refusals with the Worker's own strings: **413 `TOO_MANY_ITEMS`** (5001 items), **413 `PAYLOAD_TOO_LARGE`** (2,443,225-byte body), **400 `BAD_STATUS`**, **401 `UNAUTHENTICATED`** — then a read-back proving the mirror is byte-identical to before the four refusals. | `0449545a243cb03299e9c1aee60275a684f927b8dc0b9c1c3e648cca2e05febe` |
+| `https://media.portdaddy.dev/sha256/3c/3ca95bad33644180c9d56de2b54fe1947e9f6a0125fddf15326c80021a28e04d.png` | 801,667 | **IN-PROCESS PROBE** | A poisoned snapshot leaves the previous one intact, before → after side by side: the batch throws `CHECK constraint failed: status IN ('now','backlog','parked','merge','done')`, the watermark stays at the surviving snapshot (the attempted one never lands), all five lane counts are unchanged, and 279 item rows remain — so the `DELETE` half of the batch rolled back too. Carries its own "why not over HTTP" note. | `3ca95bad33644180c9d56de2b54fe1947e9f6a0125fddf15326c80021a28e04d` |
 | `walkthrough.webm` | 889,429 | REAL WORKER | 11.1 s, 1280×780, VP8. The motion artifact: the same `GET /v1/roadmap/mirror` at four points of a real push sequence — never synced (404) → empty roadmap pushed (watermark, zero items) → real 279-item export pushed → re-pushed (full replace: watermark advances, the tombstoned slug goes from present to **absent** on the board, activity tail 0 → 6). Recorded by Playwright (`recordVideo`) driving the sheet through the four captured states. | `8509abbd94236a1a473470186d72304ea32e3a51b681f4206b93855732a23d24` |
 | `run-log.json` | 652,521 | both | The raw evidence: provenance block, the migration list, the augmentation manifest, all **17 real-Worker request/response pairs verbatim**, and the probe result. Every number on every sheet is in here. | `154d65e034d0fe1a57e951dc05cbb4ba12401ea1ed2ada3115de4c75cc62c805` |
 | `sheets/*.html` | 112 KB total | — | The exact HTML the screenshots were taken of, kept so a reviewer can open and search them rather than squinting at a PNG. Regenerated by `render.mjs`. | — |
@@ -107,27 +107,27 @@ file instead of embedding.)
 
 ### 01 — Null states
 
-![Null states: never-synced repo, empty-but-synced mirror, another repo, another account, unknown slug](01-null-states.png)
+![Null states: never-synced repo, empty-but-synced mirror, another repo, another account, unknown slug](https://media.portdaddy.dev/sha256/49/49c20d7b925b0da053971a2035adc32f726b01abc0281eaa61829ec6bca2105f.png)
 
 ### 02 — The mirror holding the real roadmap (watermark + board by status)
 
-![Mirror header with generatedAt vs receivedAt and the derived staleness, the board grouped into five lanes, and the activity tail](02-mirror-board.png)
+![Mirror header with generatedAt vs receivedAt and the derived staleness, the board grouped into five lanes, and the activity tail](https://media.portdaddy.dev/sha256/98/9881d23b1b0860a1e57d01e09066b58afc1e4015e602a8d1f04ce8f3d5629eea.png)
 
 ### 03 — Item detail, edges in both directions
 
-![One item in full with edgesOut and edgesIn](03-item-detail-edges.png)
+![One item in full with edgesOut and edgesIn](https://media.portdaddy.dev/sha256/0d/0d7e55a9bec0d40ad85c04665f161a7d3ea33bb74bfa09a6beb6787ab61c9f86.png)
 
 ### 04 — Tombstone: off the board, still queryable
 
-![The tombstoned item served with deleted:true, cross-checked against the board that omits it](04-tombstone.png)
+![The tombstoned item served with deleted:true, cross-checked against the board that omits it](https://media.portdaddy.dev/sha256/14/143962aacb9581edc96995adaa13bb96fcc2d13786304b52c064353ae67b7402.png)
 
 ### 05 — Payload guards refuse loudly
 
-![413 TOO_MANY_ITEMS, 413 PAYLOAD_TOO_LARGE, 400 BAD_STATUS, 401 UNAUTHENTICATED, and an unchanged read-back](05-payload-guards.png)
+![413 TOO_MANY_ITEMS, 413 PAYLOAD_TOO_LARGE, 400 BAD_STATUS, 401 UNAUTHENTICATED, and an unchanged read-back](https://media.portdaddy.dev/sha256/04/0449545a243cb03299e9c1aee60275a684f927b8dc0b9c1c3e648cca2e05febe.png)
 
 ### 06 — Atomic rollback (in-process probe)
 
-![Before and after a replace that fails mid-batch: watermark, lane counts and row count all unchanged](06-atomic-rollback.png)
+![Before and after a replace that fails mid-batch: watermark, lane counts and row count all unchanged](https://media.portdaddy.dev/sha256/3c/3ca95bad33644180c9d56de2b54fe1947e9f6a0125fddf15326c80021a28e04d.png)
 
 ### Motion
 

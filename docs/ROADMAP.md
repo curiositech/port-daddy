@@ -673,7 +673,7 @@ Concrete fix-it tasks to roll the new hues across charts, the L0→L3 stack tabl
 the library map / agent-ecosystem viz, fleet-health/reputation/identity feature
 accents, Mermaid classDefs, Storybook, and OG cards live in
 **`website-v2/docs/design/color-rollout.md`** (7 scoped tasks + acceptance
-gates). Spec sheet: `website-v2/docs/design/story-palette-spec.png`. These
+gates). Spec sheet: `https://media.portdaddy.dev/sha256/bb/bb9ce5c79589f886cfe6dd971bcbbccd8e7da89f5fd3a1a6594ad181ed3a3458.png`. These
 graduate into a roadmap wave via `pd ideas` / the Cartographer harvest if they
 need sequencing.
 
