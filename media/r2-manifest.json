@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 623,
-    "distinctObjects": 587,
-    "bytes": 283914938,
-    "distinctBytes": 281121347
+    "assets": 624,
+    "distinctObjects": 588,
+    "bytes": 284594873,
+    "distinctBytes": 281801282
   },
   "assets": [
     {
@@ -833,6 +833,13 @@
       "bytes": 539365,
       "sha256": "0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af",
       "key": "sha256/09/0923536dd2b675f88b42e2121ee4b94f9befef31bd098c0cc195a6cce3e884af.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/fix-anchor-four-phases-figure/anchor-four-phases-before-after-1x-150dpi.png",
+      "bytes": 679935,
+      "sha256": "acb2d893154fbb7f52d491654d740f1427d63db465720f2c92e6bf3daabda9e1",
+      "key": "sha256/ac/acb2d893154fbb7f52d491654d740f1427d63db465720f2c92e6bf3daabda9e1.png",
       "contentType": "image/png"
     },
     {
