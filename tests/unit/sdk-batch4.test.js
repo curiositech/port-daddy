@@ -1023,8 +1023,46 @@ describe('Route error codes: sessions', () => {
     expect(forced.json().conflicts).toEqual([
       expect.objectContaining({ filePath: 'README.md', sessionId: owner.id }),
     ]);
+
+    const repeated = await app.inject({
+      method: 'POST',
+      url: `/sessions/${linked.id}/files`,
+      headers: creds['agent-2'].headers,
+      payload: { files: ['README.md'], force: true },
+    });
+    expect(repeated.statusCode).toBe(200);
+    expect(repeated.json().conflicts).toEqual([
+      expect.objectContaining({ filePath: 'README.md', sessionId: owner.id }),
+    ]);
+    expect(repeated.json().conflicts).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: linked.id }),
+    ]));
+
     expect(otherProject.statusCode).toBe(200);
     expect(otherProject.json().conflicts).toEqual([]);
+  });
+
+  test('reclaiming a file held only by the target session is idempotent', async () => {
+    const owned = sessionsMod.start('idempotent owner', {
+      agentId: 'agent-owner',
+      project: 'alpha',
+      worktreeId: 'alpha-main',
+      metadata: { identity: { verified: true, actorId: creds['agent-owner'].actorId } },
+    });
+    expect(sessionsMod.claimFiles(owned.id, ['README.md'], {
+      agentId: 'agent-owner',
+    }).success).toBe(true);
+
+    for (const force of [false, true]) {
+      const response = await app.inject({
+        method: 'POST',
+        url: `/sessions/${owned.id}/files`,
+        headers: creds['agent-owner'].headers,
+        payload: { files: ['README.md'], force },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ success: true, conflicts: [] });
+    }
   });
 
   test('DELETE /sessions/:id/files requires the owning agent', async () => {

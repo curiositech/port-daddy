@@ -273,6 +273,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return merged;
   }
 
+  function withoutSessionClaimConflicts(conflicts: unknown[], sessionId: string): unknown[] {
+    return conflicts.filter((raw) => {
+      if (!raw || typeof raw !== 'object') return true;
+      return (raw as { sessionId?: unknown }).sessionId !== sessionId;
+    });
+  }
+
   function buildClaimConflictSignal(
     requesterActorId: string,
     rawConflicts: unknown[],
@@ -1384,7 +1391,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       let repositoryConflicts: unknown[] = [];
       if (hasFiles) {
         const conflictCheck = sessions.getFileConflicts(files, { project: routeAuth.ownerProject });
-        repositoryConflicts = Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [];
+        repositoryConflicts = withoutSessionClaimConflicts(
+          Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [],
+          sessionId,
+        );
         if (!force && repositoryConflicts.length > 0) {
           evaluateClaimConflictBestEffort(requestAgent.verdict, repositoryConflicts);
           reply.code(409);
@@ -1409,9 +1419,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
       }
 
-      const conflicts = mergeClaimConflicts(
-        repositoryConflicts,
-        Array.isArray(result.conflicts) ? result.conflicts : [],
+      const conflicts = withoutSessionClaimConflicts(
+        mergeClaimConflicts(
+          repositoryConflicts,
+          Array.isArray(result.conflicts) ? result.conflicts : [],
+        ),
+        sessionId,
       );
       result.conflicts = conflicts;
       if (conflicts.length > 0) {

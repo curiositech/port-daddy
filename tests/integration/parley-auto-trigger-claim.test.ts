@@ -200,6 +200,21 @@ describe('authenticated claim conflict automatic Parley', () => {
       conflicts: [{ sessionId: ownerSession.id, filePath: 'README.md' }],
     });
     expect(forced.json().conflicts).toHaveLength(1);
+
+    const repeated = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${challengerSession.id}/files`,
+      headers: challenger.headers,
+      payload: { files: ['README.md'], force: true },
+    });
+    expect(repeated.statusCode).toBe(200);
+    expect(repeated.json().conflicts).toEqual([
+      expect.objectContaining({ sessionId: ownerSession.id, filePath: 'README.md' }),
+    ]);
+    expect(repeated.json().conflicts).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: challengerSession.id }),
+    ]));
+
     expect(otherProject.statusCode).toBe(200);
     expect(otherProject.json().conflicts).toEqual([]);
     expect(harness.parley.list({ harbor: 'local' })).toHaveLength(1);
