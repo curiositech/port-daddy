@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-bonded-key-custody/fig-bonded-key-custody.pdf",
+  "figure": "fig-bonded-key-custody",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -7,52 +7,9 @@
   },
   "checks": {
     "T1": {
-      "status": "fail",
-      "count": 3,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            135.53570556640625,
-            108.80120086669922,
-            141.74693298339844,
-            115.0248794555664
-          ],
-          "text": "D",
-          "size_pt": 6.22,
-          "message": "text 'D' renders at 6.22pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            245.5115203857422,
-            108.80120086669922,
-            251.73519897460938,
-            115.0248794555664
-          ],
-          "text": "H",
-          "size_pt": 6.22,
-          "message": "text 'H' renders at 6.22pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            469.9788513183594,
-            107.7062759399414,
-            476.3643493652344,
-            113.9299545288086
-          ],
-          "text": "K",
-          "size_pt": 6.22,
-          "message": "text 'K' renders at 6.22pt, below the 7.00pt floor"
-        }
-      ]
+      "status": "pass",
+      "count": 0,
+      "findings": []
     },
     "T2": {
       "status": "fail",
@@ -64,15 +21,15 @@
           "page": 0,
           "bbox": [
             112.13141632080078,
-            57.457237243652344,
+            57.457191467285156,
             157.212646484375,
-            66.79276275634766
+            66.79271697998047
           ],
           "container_bbox": [
             123.07768249511719,
-            61.60508728027344,
+            61.60505676269531,
             146.2590789794922,
-            84.7864761352539
+            84.78644561767578
           ],
           "text": "A CARD",
           "message": "text 'A CARD' escapes its containing rect (123.1, 61.6, 146.3, 84.8)"
@@ -83,15 +40,15 @@
           "page": 0,
           "bbox": [
             217.15948486328125,
-            57.457237243652344,
+            57.457191467285156,
             276.4960632324219,
-            66.79276275634766
+            66.79271697998047
           ],
           "container_bbox": [
             235.22994995117188,
-            61.60508728027344,
+            61.60505676269531,
             258.4113464355469,
-            84.7864761352539
+            84.78644561767578
           ],
           "text": "EVIDENCE",
           "message": "text 'EVIDENCE' escapes its containing rect (235.2, 61.6, 258.4, 84.8)"
@@ -102,15 +59,15 @@
           "page": 0,
           "bbox": [
             343.8990783691406,
-            57.457237243652344,
+            57.457191467285156,
             374.0528259277344,
-            66.79276275634766
+            66.79271697998047
           ],
           "container_bbox": [
             343.3114929199219,
-            60.70941925048828,
+            60.709388732910156,
             374.6351623535156,
-            85.6821517944336
+            85.68212127685547
           ],
           "text": "USER",
           "message": "text 'USER' escapes its containing rect (343.3, 60.7, 374.6, 85.7)"
@@ -121,15 +78,15 @@
           "page": 0,
           "bbox": [
             448.984375,
-            57.457237243652344,
+            57.457191467285156,
             493.28143310546875,
-            66.79276275634766
+            66.79271697998047
           ],
           "container_bbox": [
             459.5353698730469,
-            61.60508728027344,
+            61.60505676269531,
             482.71673583984375,
-            84.7864761352539
+            84.78644561767578
           ],
           "text": "FOREST",
           "message": "text 'FOREST' escapes its containing rect (459.5, 61.6, 482.7, 84.8)"
@@ -151,19 +108,19 @@
           "page": 0,
           "bbox": [
             112.13141632080078,
-            57.457237243652344,
+            57.457191467285156,
             157.212646484375,
-            66.79276275634766
+            66.79271697998047
           ],
           "text": "A CARD",
           "line_segment": [
             [
               146.2590789794922,
-              73.19578552246094
+              73.19575500488281
             ],
             [
               134.66839599609375,
-              61.60508728027344
+              61.60505676269531
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'A CARD'"
@@ -174,19 +131,19 @@
           "page": 0,
           "bbox": [
             217.15948486328125,
-            57.457237243652344,
+            57.457191467285156,
             276.4960632324219,
-            66.79276275634766
+            66.79271697998047
           ],
           "text": "EVIDENCE",
           "line_segment": [
             [
               258.4113464355469,
-              73.19578552246094
+              73.19575500488281
             ],
             [
               246.82064819335938,
-              61.60508728027344
+              61.60505676269531
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'EVIDENCE'"
@@ -197,19 +154,19 @@
           "page": 0,
           "bbox": [
             343.8990783691406,
-            57.457237243652344,
+            57.457191467285156,
             374.0528259277344,
-            66.79276275634766
+            66.79271697998047
           ],
           "text": "USER",
           "line_segment": [
             [
               374.6351623535156,
-              73.19578552246094
+              73.19575500488281
             ],
             [
               358.97332763671875,
-              60.70941925048828
+              60.709388732910156
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'USER'"
@@ -220,19 +177,19 @@
           "page": 0,
           "bbox": [
             448.984375,
-            57.457237243652344,
+            57.457191467285156,
             493.28143310546875,
-            66.79276275634766
+            66.79271697998047
           ],
           "text": "FOREST",
           "line_segment": [
             [
               482.71673583984375,
-              73.19578552246094
+              73.19575500488281
             ],
             [
               471.1260681152344,
-              61.60508728027344
+              61.60505676269531
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'FOREST'"
@@ -240,6 +197,11 @@
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -255,10 +217,20 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1458,
+      "edge_density": 0.1141,
+      "distinct_colors": 1950,
+      "flags": [
+        "edge_density=0.114 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
-      "T1",
       "T2",
       "T4"
     ],

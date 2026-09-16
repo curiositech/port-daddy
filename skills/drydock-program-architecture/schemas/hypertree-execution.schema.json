@@ -1,0 +1,530 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/hypertree-execution.schema.json",
+  "title": "Drydock hypertree execution contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "kind",
+    "executionId",
+    "status",
+    "plan",
+    "scope",
+    "contracts",
+    "reviewPolicy",
+    "limits",
+    "clientBindings",
+    "events",
+    "expectedProjection",
+    "executionDigest"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/hypertree-execution.schema.json" },
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "DrydockHypertreeExecution" },
+    "executionId": { "$ref": "#/$defs/slug" },
+    "status": { "const": "fixture-static-design" },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest", "topology"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "topology": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["eligibility", "qualityRouting", "staffing", "observation"],
+          "properties": {
+            "eligibility": { "const": "dag" },
+            "qualityRouting": { "const": "bounded-workflow" },
+            "staffing": { "const": "manager-driven-rounds" },
+            "observation": { "const": "append-only-event-projection" }
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeIds", "fixturePurpose"],
+      "properties": {
+        "nodeIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nodeId" }
+        },
+        "fixturePurpose": { "type": "string", "minLength": 1 }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputEnvelopeSchema", "outputEnvelopeSchema", "projectionSchema", "nodeContracts"],
+      "properties": {
+        "inputEnvelopeSchema": { "const": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json" },
+        "outputEnvelopeSchema": { "const": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json" },
+        "projectionSchema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json" },
+        "nodeContracts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nodeContract" }
+        }
+      }
+    },
+    "reviewPolicy": { "$ref": "#/$defs/reviewPolicy" },
+    "limits": { "$ref": "#/$defs/limits" },
+    "clientBindings": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/clientBinding" }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "expectedProjection": { "$ref": "#/$defs/projection" },
+    "executionDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "nodeId": { "type": "string", "pattern": "^DD-[0-9]{3}[A-Z]?$" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "identity": { "type": "string", "pattern": "^[a-z0-9]+(?:[-:/][a-z0-9]+)*$" },
+    "nonemptyStrings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "nodeContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nodeId", "input", "output", "riskClasses", "requiredReviewerClasses", "reviewPolicyId"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema", "requiredArtifactKinds", "undeclaredInputs"],
+          "properties": {
+            "schema": { "const": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json" },
+            "requiredArtifactKinds": { "$ref": "#/$defs/nonemptyStrings" },
+            "undeclaredInputs": { "const": "deny" }
+          }
+        },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema", "requiredArtifactKinds", "undeclaredOutputs"],
+          "properties": {
+            "schema": { "const": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json" },
+            "requiredArtifactKinds": { "$ref": "#/$defs/nonemptyStrings" },
+            "undeclaredOutputs": { "const": "quarantine" }
+          }
+        },
+        "riskClasses": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["identity", "authority", "money", "security", "lifecycle", "release", "destructive-effect"] }
+        },
+        "requiredReviewerClasses": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["low-cost-independent", "specialist"] }
+        },
+        "reviewPolicyId": { "const": "drydock-bounded-review-v1" }
+      }
+    },
+    "reviewPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "floor", "independentReview", "specialistReview", "managerGate", "rework"],
+      "properties": {
+        "id": { "const": "drydock-bounded-review-v1" },
+        "floor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "requiredBeforeReview", "requiredChecks"],
+          "properties": {
+            "kind": { "const": "deterministic" },
+            "requiredBeforeReview": { "const": true },
+            "requiredChecks": { "$ref": "#/$defs/nonemptyStrings" }
+          }
+        },
+        "independentReview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "routing", "reviewerMustDifferFromProducer", "reservationUnit", "maxUnitsPerReview"],
+          "properties": {
+            "required": { "const": true },
+            "routing": { "const": "lowest-capable-reviewed-tier" },
+            "reviewerMustDifferFromProducer": { "const": true },
+            "reservationUnit": { "const": "provider-native-units" },
+            "maxUnitsPerReview": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "specialistReview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["trigger", "mandatoryRiskClasses", "uncertainMeans", "reservationUnit", "maxUnitsPerReview"],
+          "properties": {
+            "trigger": { "const": "failureProbability*downstreamWaste>reviewCost" },
+            "mandatoryRiskClasses": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "enum": ["identity", "authority", "money", "security", "lifecycle", "release", "destructive-effect"] }
+            },
+            "uncertainMeans": { "const": "escalate" },
+            "reservationUnit": { "const": "provider-native-units" },
+            "maxUnitsPerReview": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "managerGate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "managerMustDifferFromProducerAndReviewer", "mayWaiveChecks", "maySelfApprove", "requiredEvidence"],
+          "properties": {
+            "mode": { "const": "risk-triggered-and-terminal" },
+            "managerMustDifferFromProducerAndReviewer": { "const": true },
+            "mayWaiveChecks": { "const": false },
+            "maySelfApprove": { "const": false },
+            "requiredEvidence": { "$ref": "#/$defs/nonemptyStrings" }
+          }
+        },
+        "rework": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["verdicts", "targetMustBeNamed", "findingIdsRequired", "sameFindingRepeatLimit"],
+          "properties": {
+            "verdicts": {
+              "const": ["APPROVE", "REWORK", "ESCALATE"]
+            },
+            "targetMustBeNamed": { "const": true },
+            "findingIdsRequired": { "const": true },
+            "sameFindingRepeatLimit": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxNodeAttempts", "maxReworkRounds", "maxManagerRounds", "maxTopologyMutations", "maxWallClockSeconds", "maxReviewUnitsTotal", "maxRecursiveBirths", "retryOwner", "retryLayers"],
+      "properties": {
+        "maxNodeAttempts": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "maxReworkRounds": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "maxManagerRounds": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "maxTopologyMutations": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "maxWallClockSeconds": { "type": "integer", "minimum": 1, "maximum": 21600 },
+        "maxReviewUnitsTotal": { "type": "integer", "minimum": 1 },
+        "maxRecursiveBirths": { "const": 0 },
+        "retryOwner": { "const": "external-controller" },
+        "retryLayers": { "const": 1 }
+      }
+    },
+    "clientBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "implementation", "transport", "decoder", "projectionSchema", "authority", "commandPath", "resumeCursor", "activityMotion"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "implementation": { "enum": ["html", "swift", "rust"] },
+        "transport": { "enum": ["sse-json", "relay-sse-json", "in-process-json-or-sse"] },
+        "decoder": { "enum": ["json-schema-2020-12", "swift-codable", "rust-serde"] },
+        "projectionSchema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json" },
+        "authority": { "const": "projection-only" },
+        "commandPath": { "const": "separate-signed-control-api" },
+        "resumeCursor": { "const": "sequence-and-event-id" },
+        "activityMotion": { "const": "one-shot-edge-cue-then-calm" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "mediaType", "digest", "evidenceUri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "kind": { "type": "string", "minLength": 1 },
+        "mediaType": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" },
+        "evidenceUri": { "type": "string", "pattern": "^evidence://" }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "evidenceUri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "status": { "enum": ["PASS", "FAIL", "UNKNOWN"] },
+        "evidenceUri": { "type": "string", "pattern": "^evidence://" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "severity", "summary", "evidenceUri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "severity": { "enum": ["blocking", "major", "minor"] },
+        "summary": { "type": "string", "minLength": 1 },
+        "evidenceUri": { "type": "string", "pattern": "^evidence://" }
+      }
+    },
+    "nodeInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "nodeContractId", "planDigest", "artifacts", "priorAttemptArtifactIds", "capabilitySetDigest", "capacityReservationIds"],
+      "properties": {
+        "schema": { "const": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json" },
+        "nodeContractId": { "$ref": "#/$defs/slug" },
+        "planDigest": { "$ref": "#/$defs/digest" },
+        "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } },
+        "priorAttemptArtifactIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
+        "capabilitySetDigest": { "$ref": "#/$defs/digest" },
+        "capacityReservationIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } }
+      }
+    },
+    "eventBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "eventId", "previousEventId", "type", "occurredAt", "witnessClass", "nodeId", "attempt", "payload"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1 },
+        "eventId": { "type": "string", "pattern": "^evt-[0-9]{3}$" },
+        "previousEventId": { "type": ["string", "null"], "pattern": "^evt-[0-9]{3}$" },
+        "type": { "enum": ["RUN_OPENED", "NODE_STARTED", "OUTPUT_PRODUCED", "CHECKS_COMPLETED", "REVIEW_COMPLETED", "REWORK_REQUESTED", "MANAGER_DECIDED", "NODE_APPROVED", "RUN_COMPLETED"] },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "witnessClass": { "enum": ["HOST_OBSERVED", "BROKER_OBSERVED", "GUEST_ASSERTED", "MODEL_CHECKED", "OPERATOR_OBSERVED"] },
+        "nodeId": { "oneOf": [{ "$ref": "#/$defs/nodeId" }, { "type": "null" }] },
+        "attempt": { "type": ["integer", "null"], "minimum": 1 },
+        "payload": { "type": "object" }
+      }
+    },
+    "event": {
+      "allOf": [
+        { "$ref": "#/$defs/eventBase" },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "type": { "const": "RUN_OPENED" },
+                "nodeId": { "type": "null" },
+                "attempt": { "type": "null" },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["planDigest", "scopeNodeIds"],
+                  "properties": {
+                    "planDigest": { "$ref": "#/$defs/digest" },
+                    "scopeNodeIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "NODE_STARTED" },
+                "nodeId": { "$ref": "#/$defs/nodeId" },
+                "attempt": { "type": "integer", "minimum": 1 },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["workerIdentity", "managerRound", "input"],
+                  "properties": {
+                    "workerIdentity": { "$ref": "#/$defs/identity" },
+                    "managerRound": { "type": "integer", "minimum": 1 },
+                    "input": { "$ref": "#/$defs/nodeInput" }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "OUTPUT_PRODUCED" },
+                "nodeId": { "$ref": "#/$defs/nodeId" },
+                "attempt": { "type": "integer", "minimum": 1 },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schema", "producerIdentity", "result", "artifacts"],
+                  "properties": {
+                    "schema": { "const": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json" },
+                    "producerIdentity": { "$ref": "#/$defs/identity" },
+                    "result": { "const": "CANDIDATE" },
+                    "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "CHECKS_COMPLETED" },
+                "nodeId": { "$ref": "#/$defs/nodeId" },
+                "attempt": { "type": "integer", "minimum": 1 },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["checks"],
+                  "properties": {
+                    "checks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/check" } }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "REVIEW_COMPLETED" },
+                "nodeId": { "$ref": "#/$defs/nodeId" },
+                "attempt": { "type": "integer", "minimum": 1 },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["reviewerIdentity", "reviewerClass", "producerIdentity", "verdict", "reservedUnits", "usedUnits", "findings"],
+                  "properties": {
+                    "reviewerIdentity": { "$ref": "#/$defs/identity" },
+                    "reviewerClass": { "enum": ["low-cost-independent", "specialist"] },
+                    "producerIdentity": { "$ref": "#/$defs/identity" },
+                    "verdict": { "enum": ["APPROVE", "REWORK", "ESCALATE"] },
+                    "reservedUnits": { "type": "integer", "minimum": 1 },
+                    "usedUnits": { "type": "integer", "minimum": 0 },
+                    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "REWORK_REQUESTED" },
+                "nodeId": { "$ref": "#/$defs/nodeId" },
+                "attempt": { "type": "integer", "minimum": 1 },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["targetNodeId", "targetAttempt", "findingIds", "requiredEvidence"],
+                  "properties": {
+                    "targetNodeId": { "$ref": "#/$defs/nodeId" },
+                    "targetAttempt": { "type": "integer", "minimum": 2 },
+                    "findingIds": { "$ref": "#/$defs/nonemptyStrings" },
+                    "requiredEvidence": { "$ref": "#/$defs/nonemptyStrings" }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "MANAGER_DECIDED" },
+                "nodeId": { "$ref": "#/$defs/nodeId" },
+                "attempt": { "type": "integer", "minimum": 1 },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["managerIdentity", "decision", "reasoningEvidenceIds", "bypassedGateIds", "assignments"],
+                  "properties": {
+                    "managerIdentity": { "$ref": "#/$defs/identity" },
+                    "decision": { "enum": ["APPROVE_NODE", "CONTINUE", "ADD_ROLE", "ESCALATE", "HALT"] },
+                    "reasoningEvidenceIds": { "$ref": "#/$defs/nonemptyStrings" },
+                    "bypassedGateIds": { "type": "array", "maxItems": 0 },
+                    "assignments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["nodeId", "roleId", "reason"],
+                        "properties": {
+                          "nodeId": { "$ref": "#/$defs/nodeId" },
+                          "roleId": { "$ref": "#/$defs/slug" },
+                          "reason": { "type": "string", "minLength": 1 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "NODE_APPROVED" },
+                "nodeId": { "$ref": "#/$defs/nodeId" },
+                "attempt": { "type": "integer", "minimum": 1 },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["approvalEvidenceIds"],
+                  "properties": {
+                    "approvalEvidenceIds": { "$ref": "#/$defs/nonemptyStrings" }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "type": { "const": "RUN_COMPLETED" },
+                "nodeId": { "type": "null" },
+                "attempt": { "type": "null" },
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["terminalNodeIds", "evidenceRoot"],
+                  "properties": {
+                    "terminalNodeIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
+                    "evidenceRoot": { "$ref": "#/$defs/digest" }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "clientTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligibility", "qualityRouting", "staffing", "observation"],
+      "properties": {
+        "eligibility": { "const": "dag" },
+        "qualityRouting": { "const": "bounded-workflow" },
+        "staffing": { "const": "manager-driven-rounds" },
+        "observation": { "const": "append-only-event-projection" }
+      }
+    },
+    "projectedNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "state", "attempt", "reworkRounds", "latestEventId", "checkStatus", "reviewVerdict", "managerDecision", "artifactIds"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "state": { "enum": ["BLOCKED", "ELIGIBLE", "RUNNING", "AWAITING_CHECKS", "AWAITING_REVIEW", "REWORK_REQUIRED", "AWAITING_MANAGER", "APPROVED", "FAILED", "ESCALATED", "CANCELLED", "QUARANTINED"] },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "reworkRounds": { "type": "integer", "minimum": 0 },
+        "latestEventId": { "type": "string", "pattern": "^evt-[0-9]{3}$" },
+        "checkStatus": { "enum": ["PASS", "FAIL", "UNKNOWN"] },
+        "reviewVerdict": { "enum": ["APPROVE", "REWORK", "ESCALATE"] },
+        "managerDecision": { "enum": ["APPROVE_NODE", "CONTINUE", "ADD_ROLE", "ESCALATE", "HALT"] },
+        "artifactIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "asOfSequence", "asOfEventId", "runState", "topology", "nodes", "staleAfter", "truthState"],
+      "properties": {
+        "schema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json" },
+        "asOfSequence": { "type": "integer", "minimum": 1 },
+        "asOfEventId": { "type": "string", "pattern": "^evt-[0-9]{3}$" },
+        "runState": { "enum": ["OPEN", "RUNNING", "COMPLETED", "HALTED", "FAILED", "UNKNOWN"] },
+        "topology": { "$ref": "#/$defs/clientTopology" },
+        "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/projectedNode" } },
+        "staleAfter": { "type": "string", "format": "date-time" },
+        "truthState": { "enum": ["FIXTURE", "LIVE", "STALE", "OFFLINE", "UNKNOWN"] }
+      }
+    }
+  }
+}

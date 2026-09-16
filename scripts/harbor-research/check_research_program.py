@@ -132,7 +132,7 @@ def derive_estate() -> dict:
     }
 
 
-STATUS_RE = re.compile(r"^(DONE|DECLINED|IN-WAVE-\d+|OPEN)", re.IGNORECASE)
+STATUS_RE = re.compile(r"^(DONE|DECLINED|BLOCKED|IN-WAVE-\d+|OPEN)", re.IGNORECASE)
 
 
 def derive_critique_ledger() -> dict:
@@ -151,6 +151,10 @@ def derive_critique_ledger() -> dict:
         "done": tally.get("DONE", 0),
         "declined": tally.get("DECLINED", 0),
         "inWave": tally.get("IN-WAVE", 0),
+        # BLOCKED is a row whose fix is owned by another branch: real, agreed,
+        # and not landed here. It is open, and it is counted as open -- broken
+        # out so the number is legible rather than folded into "other".
+        "blocked": tally.get("BLOCKED", 0),
         "other": tally.get("OTHER", 0) + tally.get("OPEN", 0),
     }
 

@@ -413,6 +413,40 @@ class TestMalformedIndex(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("duplicate entry id", result.stderr)
 
+    def test_repeated_allow_row_for_one_file_is_a_clean_fatal_error(self) -> None:
+        row = {"id": "def:stray", "file": "whitepaper/testchap.tex", "reason": "first reason"}
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                chapter_extra="\\begin{definition}[Stray]\\label{def:stray}\nx\n\\end{definition}\n",
+            )
+            repo.write_index([base_entry()], allow=[row, {**row, "reason": "second reason"}])
+            result = run_checker(repo.root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("duplicate unindexed_allow entry", result.stderr)
+
+    def test_same_allow_id_in_two_files_is_allowed(self) -> None:
+        """A label two chapters both define is not a duplicate row.
+
+        The Book generator namespaces labels per chapter, so def:0040b and
+        def:float-plan each live in two chapters on purpose; the allow-list
+        records one row per instance, keyed by (file, id).
+        """
+        with TemporaryDirectory() as tmp:
+            repo = FixtureRepo(
+                Path(tmp),
+                chapter_extra="\\begin{definition}[Stray]\\label{def:stray}\nx\n\\end{definition}\n",
+            )
+            repo.write_index(
+                [base_entry()],
+                allow=[
+                    {"id": "def:stray", "file": "whitepaper/testchap.tex", "reason": "this chapter's instance"},
+                    {"id": "def:stray", "file": "docs/harbor-research/tex/paper1.tex", "reason": "the other instance"},
+                ],
+            )
+            result = run_checker(repo.root)
+            self.assertEqual(result.returncode, 0, msg=result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -91,17 +91,15 @@ PAIRS = [
         "slash) and is TLA+-mechanized per docs/harbor-research/"
         "library-index.json's unindexed_allow entry for this label.",
     ),
-    (
-        "harbor-economy", "thm:fh-escrow-bound",
-        "federated-harbor", "thm:fh-escrow-bound", "thm",
-        "federated-harbor-whitepaper.tex reuses the SAME local label name "
-        "for its own Design Invariant; docs/harbor-research/"
-        "library-index.json's unindexed_allow entry for this label in the "
-        "federated-harbor file describes it explicitly as \"specializing "
-        "harbor-economy.tex's general escrow bound\" -- the two chapters' "
-        "labels are namespaced apart in the Book (he:thm:fh-escrow-bound vs. "
-        "fh:thm:fh-escrow-bound), so this is not a collision.",
-    ),
+    # There used to be a third pair here, harbor-economy's thm:fh-escrow-bound
+    # pointing at federated-harbor's thm:fh-escrow-bound, on the reasoning that
+    # the two chapters' labels are namespaced apart in the Book and so did not
+    # collide. They did not collide; they duplicated. Both chapters printed the
+    # same conditional escrow bound under their own number, and the pointer
+    # was a margin note on the first copy saying where the second was. Chapter
+    # 6 no longer states the theorem in the Book (its \ifpdbook branch refers
+    # to chapter 8's statement directly, and only the standalone paper keeps a
+    # copy), so there is no promise for a pointer to hang on.
 ]
 
 # Promise theorems this pass looked at and could NOT confidently pair with a

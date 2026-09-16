@@ -25,8 +25,10 @@ header claims a phase the daemon does not expect for that key class.
 **Counter (defense-crypto):** ProVerif model of the verification path with
 phase-pinned algorithms as separate equational theories. Property: "no
 honest verifier accepts a token whose phase-algorithm pair is unexpected."
-Pair with a Kani harness over `lib/jwt.ts` verify() exhausting the
-algorithm field. Artifact: `proofs/anchor/phase-pinned/`.
+Pair with a Kani harness over `lib/jwt.ts` (not built yet — no such module was
+ever created) verify() exhausting the algorithm field; the Kani harnesses that
+did land verify the Rust card instead, in `core/harbor-card-rs/src/lib.rs`.
+Artifact: `proofs/anchor/phase-pinned/`.
 
 **Status:** counter staged; artifact lands in v2.2.
 
@@ -174,7 +176,9 @@ signature hash); prove `MutableSignalAttribution` invariant under TLC.
 Land resolution rule in §4.3.
 
 **Status:** counter staged; TLA+ artifact at
-`proofs/bonded/attribution/MutableSignal.tla` next.
+`proofs/bonded/attribution/MutableSignal.tla` next (not built yet — as of
+2026-09-14 neither the file nor `proofs/bonded/attribution/` was ever created;
+this line records the v2.1 plan, not a landed artifact).
 
 ---
 

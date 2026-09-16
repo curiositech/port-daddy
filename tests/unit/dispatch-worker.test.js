@@ -36,8 +36,53 @@ afterEach(() => {
 });
 
 function createDispatchWorker(opts) {
-  return createDispatchWorkerBase({ workIntentService, ...opts });
+  return createDispatchWorkerBase({ runtimeAllowed: () => true, workIntentService, ...opts });
 }
+
+describe('DispatchWorker local Off admission', () => {
+  test.each([false, undefined])('Off/unknown refuses recovery and direct nudge (%s)', async (allowed) => {
+    const recover = jest.spyOn(queue, 'recoverStranded');
+    const adapter = settlingAdapter();
+    const worker = createDispatchWorker({ queue, spawnAdapter: adapter, reaper: jest.fn(), runtimeAllowed: () => allowed });
+    queue.propose({ goal: 'do not execute' });
+    worker.start();
+    expect(await worker.poll()).toBe(0);
+    expect(recover).not.toHaveBeenCalled();
+    expect(adapter).not.toHaveBeenCalled();
+    expect(worker.getStatus().running).toBe(false);
+  });
+
+  test('control errors latch Off even if the next observation would succeed', async () => {
+    let failing = true;
+    const adapter = settlingAdapter();
+    const worker = createDispatchWorker({ queue, spawnAdapter: adapter, reaper: jest.fn(), runtimeAllowed: () => {
+      if (failing) throw new Error('EACCES');
+      return true;
+    } });
+    queue.propose({ goal: 'do not resume' });
+    expect(await worker.poll()).toBe(0);
+    failing = false;
+    worker.start();
+    expect(await worker.poll()).toBe(0);
+    expect(adapter).not.toHaveBeenCalled();
+  });
+
+  test('Off while claiming is checked again before the backend adapter', async () => {
+    let allowed = true;
+    const originalClaim = queue.claimProposed.bind(queue);
+    jest.spyOn(queue, 'claimProposed').mockImplementation((request) => {
+      const claimed = originalClaim(request);
+      allowed = false;
+      return claimed;
+    });
+    const adapter = settlingAdapter();
+    const worker = createDispatchWorker({ queue, spawnAdapter: adapter, reaper: jest.fn(), runtimeAllowed: () => allowed });
+    queue.propose({ goal: 'deny the admitted backend' });
+    await worker.poll();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(adapter).not.toHaveBeenCalled();
+  });
+});
 
 /**
  * A fake spawn adapter that drives the FULL lifecycle the real adapter drives:

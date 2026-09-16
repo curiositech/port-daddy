@@ -2,9 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://port-daddy.dev/schemas/appeal-spec.schema.json",
   "title": "Product Appeal Audit Spec",
-  "description": "Structured, already-scored input for scripts/appeal_audit.mjs. Every field is a number or boolean the analyst decided during the Analysis Process in SKILL.md; the auditor never inspects free text, images, or URLs itself.",
+  "description": "Structured, already-scored input for scripts/appeal_audit.mjs. Every field is a number, boolean, or enum the analyst decided during the Analysis Process in SKILL.md; the auditor never inspects free text, images, or URLs itself. The technicalDocument and surfer blocks are optional and absent for an ordinary landing page.",
   "type": "object",
-  "required": ["personas", "fiveSecondTest"],
+  "required": [
+    "personas",
+    "fiveSecondTest"
+  ],
   "additionalProperties": true,
   "properties": {
     "personas": {
@@ -13,34 +16,90 @@
       "description": "One entry per target persona, each with the Desirability Triangle sub-scores from the Analysis Process (Step 2).",
       "items": {
         "type": "object",
-        "required": ["name", "identityFit", "problemUrgency", "trustSignals"],
+        "required": [
+          "name",
+          "identityFit",
+          "problemUrgency",
+          "trustSignals"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "identityFit": {
             "type": "object",
-            "required": ["visual", "language", "impliedUser"],
+            "required": [
+              "visual",
+              "language",
+              "impliedUser"
+            ],
             "properties": {
-              "visual": { "type": "number", "minimum": 0, "maximum": 10 },
-              "language": { "type": "number", "minimum": 0, "maximum": 10 },
-              "impliedUser": { "type": "number", "minimum": 0, "maximum": 10 }
+              "visual": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "language": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "impliedUser": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              }
             }
           },
           "problemUrgency": {
             "type": "object",
-            "required": ["painAcknowledged", "emotionalResonance", "solutionClarity"],
+            "required": [
+              "painAcknowledged",
+              "emotionalResonance",
+              "solutionClarity"
+            ],
             "properties": {
-              "painAcknowledged": { "type": "number", "minimum": 0, "maximum": 10 },
-              "emotionalResonance": { "type": "number", "minimum": 0, "maximum": 10 },
-              "solutionClarity": { "type": "number", "minimum": 0, "maximum": 10 }
+              "painAcknowledged": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "emotionalResonance": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "solutionClarity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              }
             }
           },
           "trustSignals": {
             "type": "object",
-            "required": ["execution", "socialProof", "riskReduction"],
+            "required": [
+              "execution",
+              "socialProof",
+              "riskReduction"
+            ],
             "properties": {
-              "execution": { "type": "number", "minimum": 0, "maximum": 10 },
-              "socialProof": { "type": "number", "minimum": 0, "maximum": 10 },
-              "riskReduction": { "type": "number", "minimum": 0, "maximum": 10 }
+              "execution": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "socialProof": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "riskReduction": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              }
             }
           }
         }
@@ -49,25 +108,56 @@
     "fiveSecondTest": {
       "type": "object",
       "description": "Whether each of the 5-Second Test's four questions was clear within ~5 seconds (SKILL.md 'Quick Analysis: The 5-Second Test').",
-      "required": ["category", "forWho", "promise", "cta"],
+      "required": [
+        "category",
+        "forWho",
+        "promise",
+        "cta"
+      ],
       "properties": {
-        "category": { "type": "boolean", "description": "Visitor could identify what this is." },
-        "forWho": { "type": "boolean", "description": "Visitor could identify who it's for." },
-        "promise": { "type": "boolean", "description": "Visitor could identify the core promise." },
-        "cta": { "type": "boolean", "description": "Visitor could identify what to do next." }
+        "category": {
+          "type": "boolean",
+          "description": "Visitor could identify what this is."
+        },
+        "forWho": {
+          "type": "boolean",
+          "description": "Visitor could identify who it's for."
+        },
+        "promise": {
+          "type": "boolean",
+          "description": "Visitor could identify the core promise."
+        },
+        "cta": {
+          "type": "boolean",
+          "description": "Visitor could identify what to do next."
+        }
       }
     },
     "objectionsAddressed": {
       "type": "object",
       "description": "Whether each standard objection type from the Objection Map (Step 3) is addressed on the page.",
       "properties": {
-        "trust": { "type": "boolean" },
-        "skepticism": { "type": "boolean" },
-        "value": { "type": "boolean" },
-        "effort": { "type": "boolean" },
-        "identity": { "type": "boolean" },
-        "risk": { "type": "boolean" },
-        "urgency": { "type": "boolean" }
+        "trust": {
+          "type": "boolean"
+        },
+        "skepticism": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "boolean"
+        },
+        "effort": {
+          "type": "boolean"
+        },
+        "identity": {
+          "type": "boolean"
+        },
+        "risk": {
+          "type": "boolean"
+        },
+        "urgency": {
+          "type": "boolean"
+        }
       }
     },
     "trustLadderViolation": {
@@ -85,6 +175,226 @@
     "screenshotHero": {
       "type": "boolean",
       "description": "True if the hero image is a bare product screenshot with no outcome/context (Screenshot Hero anti-pattern)."
+    },
+    "surfaceKind": {
+      "type": "string",
+      "enum": [
+        "landing-page",
+        "wireframe",
+        "technical-document",
+        "slide-deck",
+        "other"
+      ],
+      "description": "What is being evaluated. A wireframe can FAIL appeal but cannot PASS it: language, visual identity, tone, and real social proof are not present to be scored. See references/surface-appeal-adapters.md."
+    },
+    "technicalDocument": {
+      "type": "object",
+      "description": "Appeal fields specific to papers, monographs, textbooks, and technical whitepapers. See references/technical-document-appeal.md.",
+      "additionalProperties": true,
+      "properties": {
+        "shelfTest": {
+          "type": "object",
+          "description": "The 30-Second Shelf Test: the technical analogue of the 5-Second Test. Five questions, because a technical reader has a real alternative and a real cost.",
+          "required": [
+            "subject",
+            "audience",
+            "promise",
+            "cost",
+            "differentiation"
+          ],
+          "properties": {
+            "subject": {
+              "type": "boolean",
+              "description": "Reader could say what this is about."
+            },
+            "audience": {
+              "type": "boolean",
+              "description": "Reader could say who it is for, and whether that is them."
+            },
+            "promise": {
+              "type": "boolean",
+              "description": "Reader could say what they will be able to do after."
+            },
+            "cost": {
+              "type": "boolean",
+              "description": "Reader could say what it costs: length, difficulty, assumed background."
+            },
+            "differentiation": {
+              "type": "boolean",
+              "description": "Reader could say why this rather than the standard reference."
+            }
+          }
+        },
+        "returnOnEffort": {
+          "type": "object",
+          "description": "The fourth vertex the Desirability Triangle grows when the price is forty hours instead of thirty seconds.",
+          "required": [
+            "costTransparency",
+            "payoffVisibility"
+          ],
+          "properties": {
+            "timeToFirstInsightSeconds": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Seconds of reading before the first payoff, for the readers who reach it. ux-friction-analyzer's scripts/surfer_model.mjs computes this exactly as payoffReach[].expectedSecondsToReach."
+            },
+            "patienceBudgetSeconds": {
+              "type": "number",
+              "minimum": 0,
+              "description": "How long this reader gives the document before the decision to continue is re-made. Say in the report where the number came from."
+            },
+            "costTransparency": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "Does it state what it will cost \u2014 length, difficulty, required background? 0-10."
+            },
+            "payoffVisibility": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "Can the reader see the destination from where they are standing? 0-10."
+            }
+          }
+        },
+        "audienceDeclared": {
+          "type": "boolean",
+          "description": "False if the document never states who it is for. 'For researchers and practitioners alike' counts as false."
+        },
+        "prerequisitesDeclared": {
+          "type": "boolean",
+          "description": "False if required background is never stated."
+        },
+        "prerequisitesHonest": {
+          "type": "boolean",
+          "description": "False if the stated prerequisites understate what the hardest section the reader must actually follow assumes."
+        },
+        "resultStatedInAbstract": {
+          "type": "boolean",
+          "description": "False for a structural abstract that describes organisation ('In Section 2 we...') instead of the finding."
+        },
+        "contributionLocatable": {
+          "type": "boolean",
+          "description": "False if a reader cannot tell what is new here versus what is standard."
+        },
+        "figuresSelfContained": {
+          "type": "boolean",
+          "description": "False if figures need the surrounding prose to be understood \u2014 the technical form of the Screenshot Hero anti-pattern."
+        },
+        "limitationsStated": {
+          "type": "boolean",
+          "description": "False if there is no limitations section, or one that names no real weakness (only future work)."
+        },
+        "reproducibilityArtifacts": {
+          "type": "string",
+          "enum": [
+            "code-and-data",
+            "code-only",
+            "described-only",
+            "none"
+          ],
+          "description": "Strongest reproducibility evidence offered. A repository with a README and no runnable code is 'none', not 'code-only'."
+        },
+        "typographicCraft": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Consistency of notation, quality of mathematical setting, figure production. On technical material this is the trust triangle's 'professional execution' row doing more work than anywhere else."
+        },
+        "readerMap": {
+          "type": "object",
+          "description": "The routes the document prints for named kinds of reader - a \"Reader's Map\", a \"How to read this book\", role tracks on a docs site. Friction asks whether each route works (ux-friction-analyzer's readerPaths); this asks whether it was worth walking, and whether the persona it names is one being scored.",
+          "additionalProperties": true,
+          "properties": {
+            "declared": {
+              "type": "boolean",
+              "description": "False if the document never tells readers how to read it."
+            },
+            "discoverable": {
+              "type": "boolean",
+              "description": "False if the map exists but sits where only a linear reader will find it - which is the readers who did not need it."
+            },
+            "paths": {
+              "type": "array",
+              "description": "One entry per printed route. Numeric fields are read straight from ux-friction-analyzer's per-route readout (readout.readerPaths[]).",
+              "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Route identifier, matching the readerPaths entry in the surface graph."
+                  },
+                  "persona": {
+                    "type": "string",
+                    "description": "The persona this route addresses. Joined to personas[].name as a key - it must correspond exactly, up to case and surrounding whitespace. A route naming a persona that is not scored, or a scored persona with no route, is a finding."
+                  },
+                  "payoffReachProbability": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Fraction of the readers who take this route that reach its payoff."
+                  },
+                  "completion": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Fraction that reach the end of the route. Never read this alone: a shorter route completes more and teaches less."
+                  },
+                  "timeToFirstInsightSeconds": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Seconds of reading along this route before its payoff."
+                  },
+                  "patienceBudgetSeconds": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "THIS reader's budget, which is usually not the book's."
+                  },
+                  "brokenPrerequisiteCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Concepts the route needs that it routes past - readout.readerPaths[].brokenByMap.length from the friction skill."
+                  },
+                  "payoffMatchesPersona": {
+                    "type": "boolean",
+                    "description": "False if what the route delivers is not what the persona it names came for."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "surfer": {
+      "type": "object",
+      "description": "Readout handed over from ux-friction-analyzer's scripts/surfer_model.mjs, run on the same surface. Appeal and friction are two readouts of one chain.",
+      "additionalProperties": true,
+      "properties": {
+        "readerMode": {
+          "type": "string",
+          "enum": [
+            "skim",
+            "scan",
+            "study",
+            "task"
+          ],
+          "description": "Which surfer produced these numbers. Report skim for a document: nobody starts in study mode."
+        },
+        "payoffReachProbability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of arrivals that ever reach a payoff node."
+        },
+        "completion": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of arrivals that reach the end."
+        }
+      }
     }
   }
 }

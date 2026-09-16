@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetBar × Viewport Feedback — Design Concepts</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #f2eee6;
+    --cream-raised: #f7f3eb;
+    --ink: #121212;
+    --cobalt: #003fb8;
+    --green: #006b5f;
+    --red: #cc3d2e;
+    --amber: #a66f00;
+    --border: 2px solid #121212;
+    --shadow: 4px 4px 0 #121212;
+    --font-display: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Geist Mono', 'Fira Code', ui-monospace, monospace;
+  }
+
+  html { background: var(--cream); color: var(--ink); font-family: var(--font-display); }
+
+  /* ── MASTHEAD ── */
+  .masthead {
+    border-bottom: var(--border);
+    padding: 2rem 3rem;
+    display: flex;
+    align-items: baseline;
+    gap: 2rem;
+    background: var(--cream);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .masthead-logo {
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--cobalt);
+  }
+  .masthead-logo span { color: var(--ink); }
+  .masthead-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #403b34;
+    font-family: var(--font-mono);
+  }
+  .masthead-nav {
+    margin-left: auto;
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .masthead-nav a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.1s;
+  }
+  .masthead-nav a:hover { border-color: var(--cobalt); color: var(--cobalt); }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 4rem 3rem 3rem;
+    border-bottom: var(--border);
+    max-width: 72rem;
+  }
+  .hero-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--cobalt);
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    max-width: 20ch;
+    margin-bottom: 1.5rem;
+  }
+  .hero h1 em { font-style: normal; color: var(--cobalt); }
+  .hero-deck {
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: #403b34;
+    max-width: 60ch;
+    margin-bottom: 2rem;
+  }
+  .concept-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.3rem 0.75rem;
+    border: var(--border);
+    background: var(--cream-raised);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
+    box-shadow: var(--shadow);
+  }
+  .chip:hover { background: var(--cobalt); color: #fff; transform: translate(-1px,-1px); box-shadow: 5px 5px 0 #121212; }
+  .chip.cobalt { background: var(--cobalt); color: #fff; }
+  .chip.green { background: var(--green); color: #fff; }
+
+  /* ── CONCEPTS GRID ── */
+  .concepts {
+    padding: 3rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 3rem;
+    align-items: start;
+  }
+
+  /* ── CONCEPT CARD ── */
+  .concept-card { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .concept-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    border-bottom: var(--border);
+    padding-bottom: 0.875rem;
+  }
+  .concept-number {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #a59f93;
+    flex-shrink: 0;
+  }
+  .concept-title {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .concept-badge {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid currentColor;
+    flex-shrink: 0;
+  }
+  .concept-badge.fleetbar { color: var(--cobalt); }
+  .concept-badge.extension { color: var(--green); }
+  .concept-badge.feed { color: var(--red); }
+
+  .concept-desc {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: #403b34;
+  }
+
+  .concept-frame-wrap {
+    border: var(--border);
+    box-shadow: var(--shadow);
+    background: var(--ink);
+    overflow: hidden;
+    position: relative;
+  }
+  .concept-frame-wrap::before {
+    content: '● ● ●';
+    display: block;
+    padding: 0.5rem 0.875rem;
+    background: #1e1b18;
+    color: #403b34;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.2em;
+    border-bottom: 1px solid #2a2520;
+  }
+  .concept-frame {
+    display: block;
+    width: 100%;
+    border: none;
+    background: var(--cream);
+  }
+
+  .concept-notes {
+    border-left: 3px solid var(--cobalt);
+    padding: 0.875rem 1rem;
+    background: var(--cream-raised);
+    border: var(--border);
+    border-left: 3px solid var(--cobalt);
+  }
+  .concept-notes-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--cobalt);
+    margin-bottom: 0.5rem;
+  }
+  .concept-notes p {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: #403b34;
+  }
+  .concept-notes p + p { margin-top: 0.5rem; }
+
+  /* ── DIVIDER ── */
+  .section-divider {
+    border: none;
+    border-top: var(--border);
+    margin: 0 3rem;
+  }
+
+  /* ── SYNTHESIS ── */
+  .synthesis {
+    padding: 3rem;
+    border-top: var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2rem;
+  }
+  .synthesis-block { }
+  .synthesis-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--cobalt);
+    margin-bottom: 0.75rem;
+  }
+  .synthesis-block h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .synthesis-block p {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #403b34;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: var(--border);
+    padding: 1.5rem 3rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    background: var(--ink);
+    color: #a59f93;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  footer strong { color: var(--cream); }
+
+  @media (max-width: 900px) {
+    .concepts { grid-template-columns: 1fr; padding: 2rem 1.5rem; }
+    .masthead { padding: 1.25rem 1.5rem; }
+    .hero { padding: 2.5rem 1.5rem 2rem; }
+    .synthesis { grid-template-columns: 1fr; padding: 2rem 1.5rem; }
+    footer { padding: 1.25rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-logo">Port<span>Daddy</span></div>
+  <div class="masthead-eyebrow">Design Concepts · May 2026</div>
+  <nav class="masthead-nav">
+    <a href="#ask">Ask Agent</a>
+    <a href="#feedback">Viewport Feedback</a>
+    <a href="#feed">Activity Feed</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-kicker">FleetBar + Viewport Feedback — Three Agent Concepts</div>
+  <h1>Press a button.<br><em>Fleet handles it.</em></h1>
+  <p class="hero-deck">
+    Three independent design concepts for the same idea: your always-on Port Daddy daemon
+    as the control center for your agent fleet — no hanging chat session, no terminal,
+    no bootstrapping. Ask Spider a question. Mark a bug in the browser. Review what
+    Cartographer found. All from buttons that are always there.
+  </p>
+  <div class="concept-chips">
+    <span class="chip cobalt">Daemon-backed</span>
+    <span class="chip green">No persistent chat</span>
+    <span class="chip">FleetBar UI</span>
+    <span class="chip">Browser Extension</span>
+    <span class="chip">Async agents</span>
+  </div>
+</section>
+
+<section class="concepts">
+
+  <!-- CONCEPT 1: ASK AGENT PANEL -->
+  <div class="concept-card" id="ask">
+    <div class="concept-header">
+      <span class="concept-number">01</span>
+      <span class="concept-title">Ask a Fleet Agent</span>
+      <span class="concept-badge fleetbar">FleetBar</span>
+    </div>
+    <p class="concept-desc">
+      Menu bar dropdown. Pick an agent, ask a question, the daemon spawns it and brings
+      back the answer. Spider, Cartographer, QA, Gardener, Spark — each with their own
+      last response and idle/running status.
+    </p>
+    <div class="concept-frame-wrap">
+      <iframe
+        class="concept-frame"
+        src="ask-agent-panel.html"
+        height="560"
+        scrolling="no"
+        title="Ask Fleet Agent panel mockup"
+      ></iframe>
+    </div>
+    <div class="concept-notes">
+      <div class="concept-notes-label">Design notes</div>
+      <p>Agent roster as horizontal tiles — fits 5 without scrolling at 380px.
+      Selecting an agent swaps the reply pane and quick-prompt chips in place.
+      Quick prompts are agent-specific: Spider gets "Scan last commit", Cartographer
+      gets "What touched auth this week?"</p>
+      <p>Dispatch overlay inside the reply pane (not a modal) keeps the compose
+      area accessible. ⌘↵ sends. Empty submit flashes red border for 600ms.</p>
+    </div>
+  </div>
+
+  <!-- CONCEPT 2: BROWSER EXTENSION -->
+  <div class="concept-card" id="feedback">
+    <div class="concept-header">
+      <span class="concept-number">02</span>
+      <span class="concept-title">Viewport Feedback</span>
+      <span class="concept-badge extension">Chrome Extension</span>
+    </div>
+    <p class="concept-desc">
+      Activate feedback mode, drag a rectangle over the broken thing, annotate it.
+      The daemon receives the event, a fleet agent inspects the DOM, finds the source
+      file, fixes it, writes a Playwright test, replies. No terminal touch.
+    </p>
+    <div class="concept-frame-wrap">
+      <iframe
+        class="concept-frame"
+        src="extension-feedback.html"
+        height="600"
+        scrolling="auto"
+        title="Browser extension viewport feedback mockup"
+      ></iframe>
+    </div>
+    <div class="concept-notes">
+      <div class="concept-notes-label">Design notes</div>
+      <p>Three-panel walkthrough: idle popup → selection mode → annotation panel.
+      Dark curtains surround the live selection (not a canvas overlay) so the target
+      stays at full opacity. Yellow corner handles are the only interactive affordances
+      in selection mode — everything else dims.</p>
+      <p>Category pills use Port Daddy coordination colors: bug → cinnabar,
+      nit → amber, feedback → cobalt. DOM selector strip shows the agent's
+      resolved target before you hit send.</p>
+    </div>
+  </div>
+
+  <!-- CONCEPT 3: FLEET ACTIVITY FEED -->
+  <div class="concept-card" id="feed">
+    <div class="concept-header">
+      <span class="concept-number">03</span>
+      <span class="concept-title">Fleet Activity Feed</span>
+      <span class="concept-badge feed">FleetBar</span>
+    </div>
+    <p class="concept-desc">
+      What your agents found while you were working. Spider's security flag with
+      the code block, Cartographer's live index scan, the feedback handler's diff
+      and passing test count. Outcomes, not events.
+    </p>
+    <div class="concept-frame-wrap">
+      <iframe
+        class="concept-frame"
+        src="fleet-activity-feed.html"
+        height="700"
+        scrolling="auto"
+        title="Fleet activity feed mockup"
+      ></iframe>
+    </div>
+    <div class="concept-notes">
+      <div class="concept-notes-label">Design notes</div>
+      <p>3px left-border accent stripe per agent — color-codes at a glance before
+      you read the text. Spider's security finding expands inline to show the
+      TypeScript with the injected variable underlined (wavy red). Running
+      Cartographer shows a scanline animation on the card itself, not just a spinner.</p>
+      <p>Older items collapse behind a disclosure button — present but not competing.
+      This is an outcomes feed, not a notification feed: Spider fired once, one card,
+      one finding, one set of actions.</p>
+    </div>
+  </div>
+
+</section>
+
+<hr class="section-divider">
+
+<section class="synthesis">
+  <div class="synthesis-block">
+    <div class="synthesis-label">The architecture underneath</div>
+    <h3>Daemon as the always-on listener</h3>
+    <p>All three concepts run on the same infrastructure: the Port Daddy daemon
+    runs <code>pd watch</code> on fleet channels. No agent needs to be pre-started.
+    No chat session needs to be open. The daemon is the "hanging-out" process —
+    the UI is just buttons.</p>
+  </div>
+  <div class="synthesis-block">
+    <div class="synthesis-label">What's built vs. what's missing</div>
+    <h3>Three UI surfaces to build</h3>
+    <p><code>pd watch</code>, fleet <code>trigger:</code>, and <code>pd spawn</code>
+    are all shipped. The gap is entirely in FleetBar: the Ask panel, the activity feed,
+    and the extension↔daemon bridge. The infrastructure is waiting.</p>
+  </div>
+  <div class="synthesis-block">
+    <div class="synthesis-label">Build order</div>
+    <h3>Extension first, FleetBar panels second</h3>
+    <p>The browser extension (Concept 02) is independently shippable — it talks to
+    the existing <code>POST /publish</code> API. FleetBar panels (01 + 03) are
+    additive to an existing app. Start with the extension, validate the feedback loop,
+    then surface results in FleetBar.</p>
+  </div>
+</section>
+
+<footer>
+  <strong>Port Daddy</strong>
+  <span>Design Concepts · FleetBar × Viewport Feedback</span>
+  <span style="margin-left:auto">Three independent mockups · May 2026</span>
+</footer>
+
+</body>
+</html>
