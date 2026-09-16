@@ -71,10 +71,17 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('tenderfoot')).toBe(false);
   });
 
-  it('keeps qa sandbox execution explicit and advisory until a runner is configured', () => {
+  it('keeps every enabled PR ship model-only until a grant-consuming runner exists', () => {
+    for (const ship of ships!) {
+      expect(
+        ship.execution.mode,
+        `${ship.name} must not advertise execution authority the executor cannot consume`,
+      ).toBe('none');
+    }
+
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa).toBeDefined();
-    expect(qa!.execution.mode).toBe('write_sandbox');
+    expect(qa!.execution.mode).toBe('none');
     expect(qa!.executionConfigState).toBe('valid');
     expect(qa!.participation.unavailableBlocks).toBe(false);
     expect(qa!.participation.rules[0]?.disposition).toBe('advisory');
