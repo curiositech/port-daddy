@@ -14,6 +14,19 @@ import {
 import { COLLECTED_VOLUME, TABLE_OF_CONTENTS, TEXTBOOK, WHITE_PAPERS } from './whitePapers'
 import { RESEARCH_PAPERS } from './researchPapers'
 import {
+  BOOK_ID,
+  BOOK_PAGE_FLOOR,
+  PAGE_DRIFT_MIN_PAGES,
+  checkPageCount,
+  describeBand,
+  formatDriftFailure,
+  formatFloorFailure,
+  locateBaseline,
+  pageDriftAllowance,
+  pagesWithinBand,
+  type PageCountSubject,
+} from '../../scripts/page-count-policy'
+import {
   PAGES_MAX_ASSET_BYTES,
   PAGES_ONLY_EXCLUSIONS,
   oversizedPagesAssets,
@@ -22,6 +35,18 @@ import {
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const researchPapersSrc = resolve(websiteRoot, 'src/data/researchPapers.ts')
+const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
+
+/** How the page-count policy names the Book when it has something to say. */
+function bookSubject(): PageCountSubject {
+  return {
+    id: BOOK_ID,
+    label: 'The Book',
+    baselineLocation: locateBaseline(whitePapersSrc, BOOK_ID, 'website-v2/src/data/whitePapers.ts'),
+    resyncCommand: 'npm run fix:whitepaper-metadata',
+    resyncCommandCwd: 'website-v2/',
+  }
+}
 
 /**
  * COPY HYGIENE IS ENFORCED AT THE TYPE LEVEL.
@@ -183,10 +208,13 @@ describe('whitepaper metadata sync', () => {
     // A hypothetical 50 KB paper: 2% = 1 KB. The 4 KB floor should kick in
     // and accept up to ±4 KB. Verified by handing detectDrift a fake paper
     // entry off by exactly 3 KB (within floor) and one off by 5 KB (over).
-    const tinyPaper = { id: 't', pdfPath: COLLECTED_VOLUME.pdfPath, pages: 1, sizeKb: 50 }
-    const withinFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 53 }))
+    // `pages: 30` is incidental here — it only has to clear the (unrelated)
+    // page-count floor so that this stays a test about the sizeKb tolerance
+    // and nothing else.
+    const tinyPaper = { id: 't', pdfPath: COLLECTED_VOLUME.pdfPath, pages: 30, sizeKb: 50 }
+    const withinFloor = detectDrift([tinyPaper], () => ({ pages: 30, sizeKb: 53 }))
     expect(withinFloor).toEqual([])
-    const overFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 55 }))
+    const overFloor = detectDrift([tinyPaper], () => ({ pages: 30, sizeKb: 55 }))
     expect(overFloor.length).toBe(1)
     expect(overFloor[0].sizeDrift).toBe(true)
   })
@@ -325,5 +353,79 @@ describe('whitepaper copy hygiene', () => {
       expect(typeof paper.id).toBe('string')
       expect(typeof paper.title).toBe('string')
     }
+  })
+})
+
+/**
+ * The page-count policy, exercised. Each of the three behaviours the policy
+ * promises is demonstrated here against the Book's real baseline, so a
+ * regression that quietly turns the guard back into a pin — or into a guard
+ * that never fires — fails right here. The chapters themselves no longer
+ * carry a `pages` field (their standalone PDFs are retired), so the Book is
+ * the one subject this policy still has a live baseline to check against.
+ */
+describe('page-count policy', () => {
+  const subject = (): PageCountSubject => bookSubject()
+
+  test('a routine reflow inside the band passes in silence', () => {
+    const baseline = COLLECTED_VOLUME.pages
+    const allowance = pageDriftAllowance(baseline)
+    // A ten-page reflow on a book this long is ordinary work: a figure resized,
+    // a float moved, a paragraph landed. The guard must say nothing.
+    expect(allowance).toBeGreaterThan(10)
+    for (const moved of [baseline, baseline + 1, baseline - 1, baseline + 10, baseline - 10]) {
+      expect(checkPageCount(subject(), baseline, moved), `${baseline} -> ${moved} should be silent`).toBeNull()
+    }
+  })
+
+  test('a count under the floor fails, and the message says the artifact is broken', () => {
+    const message = checkPageCount(subject(), COLLECTED_VOLUME.pages, 3)
+    expect(message).not.toBeNull()
+    expect(message).toContain('PAGE-COUNT FLOOR')
+    expect(message).toContain('3 pages')
+    expect(message).toContain(String(BOOK_PAGE_FLOOR))
+    // It must read as "your build is broken", not as "bump a number".
+    expect(message).toContain('broken artifact')
+    expect(message).toContain('error page')
+    expect(message).toContain('Do not lower it to get a green build.')
+  })
+
+  test('a wild move outside the band fails, names both readings, and points at the line', () => {
+    // The real case this band was calibrated against: claude/book-print-geometry
+    // recuts the Book as a two-sided block, 551 -> 604 pages, +9.62%. That is a
+    // deliberate, legitimate, large change — exactly the kind a person should
+    // look at — so it must trip, not pass.
+    expect(pagesWithinBand(604, 551)).toBe(false)
+
+    const message = checkPageCount(subject(), 551, 604)
+    expect(message).not.toBeNull()
+    expect(message).toContain('PAGE-COUNT DRIFT')
+    // Old, new, delta in pages and percent.
+    expect(message).toContain('551 → 604')
+    expect(message).toContain('+53 pages')
+    expect(message).toContain('+9.62%')
+    // The exact file and line to edit if the move was intended.
+    expect(message).toContain('website-v2/src/data/whitePapers.ts:')
+    expect(message).toMatch(/website-v2\/src\/data\/whitePapers\.ts:\d+/)
+    expect(message).toContain('pages: 551   →   pages: 604')
+    // Both readings, spelled out, because the test cannot know which is true.
+    expect(message).toContain('THIS CHANGE WAS MEANT TO MOVE THE PAGE COUNT')
+    expect(message).toContain('IN THIS SAME PULL REQUEST')
+    expect(message).toContain('NOTHING IN THIS CHANGE SHOULD HAVE MOVED IT')
+    expect(message).toContain('Do not widen the band to make this pass.')
+  })
+
+  test('the baseline pointer resolves to the line that actually holds the number', () => {
+    const location = locateBaseline(whitePapersSrc, BOOK_ID, 'website-v2/src/data/whitePapers.ts')
+    const line = Number(location.split(':')[1])
+    expect(Number.isInteger(line)).toBe(true)
+    const text = readFileSync(whitePapersSrc, 'utf8').split('\n')[line - 1]
+    expect(text).toBe(`  pages: ${COLLECTED_VOLUME.pages},`)
+  })
+
+  test('the band is far wider than the sizeKb band it is modelled on', () => {
+    // Page counts move about two and a half times more than bytes do, so the
+    // house 2% size tolerance would be far too tight for pages.
+    expect(describeBand()).toBe('max(5%, 4 pages)')
   })
 })

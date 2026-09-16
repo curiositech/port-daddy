@@ -15,6 +15,11 @@ const paths = {
   catalog: 'website-v2/src/data/whitePapers.ts',
   source: 'website-v2/public/whitepaper/spawn-to-person.tex',
   keystone: 'website-v2/public/whitepaper/figures/tab-keystone-split.tex',
+  // \BUILT/\BUILTWEAK/\DESIGNED/\VISION used to be defined again in this
+  // chapter's own preamble; they are now defined once, for every chapter and
+  // the Book, in the shared file this chapter \input{}s (see
+  // check_duplicate_macros.py). The maturity-word assertion below reads both.
+  pedagogy: 'website-v2/public/whitepaper/figures/pd-pedagogy.tex',
   contact: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png',
   tour: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif',
   proof: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/proof-manifest.md',
@@ -153,15 +158,20 @@ describe('Spawn-to-Person publication contract', () => {
   test('the maturity plot marks partial only where the runtime has a grounded substrate', () => {
     const source = text(paths.source);
     const keystone = text(paths.keystone);
+    const pedagogy = text(paths.pedagogy);
 
-    // The maturity words are set by macro so no organ can round itself up.
-    expect(source).toMatch(/\\newcommand\{\\BUILTWEAK\}.*\\textsc\{partial\}/);
-    // Checkpoint and outcome ledger are the two organs marked partial; memory is built.
-    expect(source).toContain('Organ 1 --- Memory: the episodic record \\quad\\BUILT}');
-    expect(source).toContain('Organ 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
-    expect(source).toContain('Organ 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
-    // The continuity-organs table (which replaced the three-organs figure) says
-    // what each partial organ does not carry across a restart.
+    // The maturity words are set by macro so no subsystem can round itself up.
+    // This chapter no longer defines \BUILTWEAK itself -- it \input{}s the
+    // shared figures/pd-pedagogy.tex, which aliases the capitalised name to
+    // \BuiltWeak and defines that body once for every chapter and the Book.
+    expect(pedagogy).toMatch(/\\newcommand\{\\BUILTWEAK\}\{\\BuiltWeak\}/);
+    expect(pedagogy).toMatch(/\\newcommand\{\\BuiltWeak\}.*\\textsc\{partial\}/);
+    // Checkpoint and outcome ledger are the two subsystems marked partial; memory is built.
+    expect(source).toContain('Subsystem 1 --- Memory: the episodic record \\quad\\BUILT}');
+    expect(source).toContain('Subsystem 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
+    expect(source).toContain('Subsystem 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
+    // The continuity-subsystems table (which replaced the three-subsystems figure) says
+    // what each partial subsystem does not carry across a restart.
     expect(source).toContain('\\label{tab:stp-organs}');
     expect(source).toContain('recovery restores notes, not execution');
     expect(source).toContain('an outcome nobody witnessed; a closure no oracle checked');

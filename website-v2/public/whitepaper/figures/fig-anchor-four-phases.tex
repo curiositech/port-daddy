@@ -1,0 +1,112 @@
+% Semantic contract: four phases, left to right, each closing exactly one
+% attack surface the previous phase left open. The arrow between phase N and
+% N+1 carries the reason N alone was insufficient ("needs:"); the box under
+% each phase names what that phase forecloses; the bottom strip is what has
+% actually been machine-checked, not what the design merely claims. Absolute
+% coordinates throughout (rather than relative positioning) so that every
+% row's vertical budget is chosen deliberately, not inferred from whichever
+% cell happens to wrap the most.
+\begin{figure}[H]
+\centering
+\resizebox{0.98\linewidth}{!}{%
+\begin{tikzpicture}[
+  pd figure,
+  phase/.style={draw=hhink,line width=.62pt,rounded corners=2.5pt,
+    inner xsep=6pt,inner ysep=6pt,align=left,text width=3.05cm,
+    font=\pdfiglabel,minimum height=4.3cm,anchor=north},
+  phase13/.style={phase,fill=hhsand!45},
+  phase4/.style={phase,fill=hhcobalt!12,draw=hhcobalt!65},
+  needs/.style={pd focus fill,rounded corners=5pt,font=\pdfiglabel,
+    inner sep=2.5pt,align=center,text width=2.5cm,anchor=south},
+  forecloses/.style={draw=hhcobalt!55,line width=.5pt,fill=hhcobalt!8,
+    rounded corners=2pt,inner xsep=5pt,inner ysep=4pt,align=left,
+    text width=3.05cm,font=\pdfiglabel,text=hhink,anchor=north},
+  status/.style={pd direct label,align=left,text width=3.05cm,anchor=north,
+    fill=none,inner sep=0pt},
+]
+
+% ---------- x-centers for the four columns and the three gaps ----------
+\def\xa{0}\def\xb{4.05}\def\xc{8.10}\def\xd{12.15}
+
+% ---------- the four phase boxes (tops all at y=0, uniform height) ----------
+\node[phase13] (p1) at (\xa,0)
+  {\textbf{Phase 1}\\ HS256 Symmetric Pinning\\[3pt]
+   Verifier pins the algorithm from policy, not the token header: one
+   shared HMAC key per daemon--harbor pair.};
+\node[phase13] (p2) at (\xb,0)
+  {\textbf{Phase 2}\\ Ed25519 Asymmetric Identity\\[3pt]
+   Daemon signs as root CA with a private key; every verifier holds only
+   the matching public key.};
+\node[phase13] (p3) at (\xc,0)
+  {\textbf{Phase 3}\\ Macaroon Stigmergic Delegation\\[3pt]
+   Each hop appends a narrower capability set, signs the whole chain
+   offline; the verifier checks a monotone subset per hop.};
+\node[phase4] (p4) at (\xd,0)
+  {\textbf{Phase 4}\\ Cuckoo Revocation\\[3pt]
+   An append-only log of revoked \texttt{kid}s is gossiped between
+   daemons and projected into a local cuckoo filter for $O(1)$ lookups.};
+
+% ---------- needs: pills, clear of the boxes above and the arrows below ----------
+\node[needs] (n12) at ($(\xa,0)!0.5!(\xb,0)+(0,2.05)$)
+  {needs: decentralized A2A with no shared HMAC secret};
+\node[needs] (n23) at ($(\xb,0)!0.5!(\xc,0)+(0,2.05)$)
+  {needs: multi-hop delegation without round-tripping the Daemon};
+\node[needs] (n34) at ($(\xc,0)!0.5!(\xd,0)+(0,2.05)$)
+  {needs: withdrawing a leaked or policy-reversed card before its TTL};
+
+% ---------- arrows, at box mid-height, with a leader up to each pill ----------
+\draw[pd arrow] (p1.east) -- (p2.west);
+\draw[pd hairline] ($(\xa,0)!0.5!(\xb,0)$) -- (n12.south);
+\draw[pd arrow] (p2.east) -- (p3.west);
+\draw[pd hairline] ($(\xb,0)!0.5!(\xc,0)$) -- (n23.south);
+\draw[pd arrow] (p3.east) -- (p4.west);
+\draw[pd hairline] ($(\xc,0)!0.5!(\xd,0)$) -- (n34.south);
+
+% ---------- "Forecloses:" boxes, tops all at y=-5.0 ----------
+\node[forecloses] (f1) at (\xa,-5.0)
+  {\textbf{Forecloses:} header-selected algorithm confusion
+   (CVE-2015-9235, CVE-2023-48238).};
+\node[forecloses] (f2) at (\xb,-5.0)
+  {\textbf{Forecloses:} shared-secret theft --- no verifier holds a
+   secret that could mint a card.};
+\node[forecloses] (f3) at (\xc,-5.0)
+  {\textbf{Forecloses:} downstream privilege growth --- each hop's
+   subset check is monotone, so no hop widens scope.};
+\node[forecloses] (f4) at (\xd,-5.0)
+  {\textbf{Forecloses:} post-issue authority --- a leaked or
+   disciplined card that should die before its natural TTL.};
+
+% ---------- mechanized-status strip, hairline well below the tallest box ----------
+% The Book's Palatino wraps "Forecloses:" text one line taller than the
+% standalone chapter's Latin Modern at the same 3.05cm box width, so the
+% hairline sits 0.5cm further down than the chapter-only geometry needs --
+% that margin is for the widest edition, not this one.
+\draw[pd hairline] (\xa,-8.2) -- (\xd,-8.2);
+\node[pd panel title,anchor=west] at (\xa,-8.55)
+  {Mechanized status (ProVerif 2.05, \S\ref{sec:correct}):};
+
+\node[status,text=hhteal] (s1) at (\xa,-8.95)
+  {\textbf{TRUE} --- \texttt{v1\_refined.pv}: secrecy + authentication};
+\node[status,text=hhteal] (s2) at (\xb,-8.95)
+  {\textbf{TRUE} --- \texttt{v2\_asymmetric.pv}: secrecy + authentication};
+\node[status,text=hhteal] (s3) at (\xc,-8.95)
+  {\textbf{TRUE} --- \texttt{v3\_delegation.pv}: authentication
+   correspondence (attenuation modeled separately, App.~\ref{app:phase3})};
+\node[status,text=hhamber] (s4) at (\xd,-8.95)
+  {\textbf{not modeled} --- soundness argued by inspection only
+   (\S\ref{sec:revocation})};
+
+\end{tikzpicture}%
+}
+\caption{The four Harbor Card phases, left to right. Each arrow's
+\emph{needs:} pill names the reason the phase to its left was not enough,
+drawn from this chapter's own account of why the next phase was added; each
+\emph{Forecloses:} box names the attack surface that phase closes (Table
+\ref{tab:anchor-four-phases} tabulates the same four rows for lookup). The
+bottom strip is not uniform: Phases 1--3 are independently machine-checked
+in ProVerif~2.05 (Table~\ref{tab:proverif-results}), while Phase~4's
+soundness argument is by inspection of the verification path, not a
+separate ProVerif model --- a distinction the phase boxes above do not
+otherwise make visible.}
+\label{fig:anchor-four-phases}
+\end{figure}

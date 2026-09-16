@@ -4,9 +4,10 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+    % A bucket holds a cell id, so its text takes the identifier role.
     bucket/.style={pd state,minimum width=.82cm,minimum height=.82cm,
-      inner sep=0pt,font=\footnotesize\bfseries,rounded corners=1pt},
-    idtext/.style={font=\footnotesize\bfseries,text=hhpaper}]
+      inner sep=0pt,font=\pdfiglabelmono,rounded corners=1pt},
+    idtext/.style={font=\pdfiglabelmono,text=hhpaper}]
   \newcommand{\rowlabelnode}[2]{\node[pd row label,anchor=east] at (-.3,#1) {#2};}
 
   % ---------- panel 1: filters do not merge ----------
@@ -38,13 +39,13 @@
   % ---------- panel 2: the log merges ----------
   \node[pd panel title,anchor=west] at (-.3,2.75) {the log merges};
 
-  \node[pd direct label,anchor=west,font=\footnotesize\ttfamily,inner sep=3pt] (lA) at (-.3,1.9)
+  \node[pd mono label,anchor=west,inner sep=3pt] (lA) at (-.3,1.9)
     {A: c1 c7 c4};
-  \node[pd direct label,anchor=west,font=\footnotesize\ttfamily,inner sep=3pt] (lB) at (-.3,1.15)
+  \node[pd mono label,anchor=west,inner sep=3pt] (lB) at (-.3,1.15)
     {B: c2 c1 c9};
   \draw[pd focus arrow] (lA.east) ++(2.55,.375) to[out=0,in=160] (5.2,1.9);
   \draw[pd focus arrow] (lB.east) ++(2.55,-.375) to[out=0,in=200] (5.2,1.9);
-  \node[pd direct label,anchor=west,font=\footnotesize\bfseries,text=hhteal] at (5.35,1.9)
+  \node[pd mono label,anchor=west,text=hhteal] at (5.35,1.9)
     {union: c1 c2 c4 c7 c9};
 
   \draw[pd focus arrow] (2.5,.65) -- (2.5,-.15);

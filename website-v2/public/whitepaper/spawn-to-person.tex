@@ -87,19 +87,11 @@
 %   proposed     — a research direction, not yet specified
 % Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
 % italic, never by hue (house style: status by weight/small-caps, not a rainbow).
-\newcommand{\BUILT}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BUILTWEAK}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\DESIGNED}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\VISION}{{\textcolor{hhgray}{\textit{proposed}}}}
-
-% Verbatim-safe inline code for use INSIDE macro arguments (callouts, captions,
-% TikZ nodes) where \verb is illegal. Detokenizes so special chars survive.
-\newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
-
-% Verification-status markers (kept for the appendix status table).
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+% \BUILT, \BUILTWEAK, \DESIGNED and \VISION -- this chapter's capitalised
+% spelling of the four grades -- together with \code and the
+% \Closed/\Partial/\Open proof-obligation markers of the appendix status
+% table, are defined once, for this paper and for the Book, in
+% figures/pd-pedagogy.tex (\input above).
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
@@ -226,43 +218,6 @@
 
 \vspace{0.6cm}
 
-\begin{abstract}\noindent
-A coding-agent swarm produces work, but until that work can be attributed to
-something that survives the process that did it, none of it can be priced. This
-paper is Chapter~\pdchapternumber{} of \pdbooktitle{}: it carries the through-line
-\emph{memory $\to$ checkpoint $\to$ continuity $\to$ a person, not a spawn $\to$
-witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
-single-operator tool (\pdchapref{swk}{The Single-Writer Kernel} through
-\pdchapref{ls}{The Legible Swarm}) to the cross-operator market
-(\pdchapref{he}{The Harbor Economy}). We
-make a single distinction carry the argument: a \textbf{role} is a bundle of
-$\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
-entry any spawn can fill --- while a \textbf{person} is a role instance
-\emph{plus continuity}: durable memory, a restorable checkpoint, and a witnessed
-history of outcomes keyed on an identity that cannot be freely re-picked. From
-this we draw the series' central economic claim, stated identically across the
-papers: \emph{the reputation estimator is cheap; the substrate it scores over ---
-witnessed outcomes on a non-forgeable identity --- is the gate.} We ground the
-philosophy (Locke's memory criterion, Parfit's psychological continuity), name
-the three continuity organs against a reference implementation on a neutral
-maturity scale, and define this paper's central protocol contribution: a
-\textbf{multi-dimensional reputation} (accuracy / aesthetics / efficiency, each a
-different axis with a different judge) scored by \emph{neutral, conflict-free,
-influence-free} evaluators --- the harbor's ``universities and rating agencies''
---- hired through the same bonded ceremony the market uses for any other task.
-We argue at length why reputation is \emph{not} a bandit problem
-(non-stationarity, multi-dimensionality, strategic adversaries, and the grading
-oracle's own incentive-compatibility), and we treat the grading-oracle hole in
-the core economic theorem head-on. We are disciplined about the keystone: this
-paper depends only on a \textbf{local non-forgeable identity} (an identity root
-that holds within a single trusted operator) and hands \pdchapref{he}{The Harbor Economy}
-the unbuilt \textbf{cross-operator attestation} (binding identities across
-operators who do not trust each other) as a named dependency rather than
-assuming it. We prove that a non-forgeable identity is \emph{necessary} for any
-sanction-respecting reputation, and bound the cost a whitewashing attacker must
-pay.
-\end{abstract}
-
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} agent identity, personal identity, psychological
 continuity, reputation systems, mechanism design, Bradley--Terry, TrueSkill,
@@ -270,8 +225,8 @@ EigenTrust, LLM-as-judge, Sybil resistance, multi-armed bandits, incentive
 compatibility, witnessed outcomes
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 40 minutes end-to-end; the
-Reader's Map below offers shorter routes. \pdchapref{ls}{The Legible Swarm}
+\noindent\textit{Reading time: approximately 40 minutes end-to-end.
+\pdchapref{ls}{The Legible Swarm}
 and \pdchapref{swk}{The Single-Writer Kernel} supply the legibility and
 transactional substrate; \pdchapref{anchor}{The Anchor Protocol} deepens the
 cryptographic identity ceremony; and \pdchapref{he}{The Harbor Economy}
@@ -296,51 +251,6 @@ this one is the hinge.}
 
 \tableofcontents
 \newpage
-
-% ═════════════════════════════════════════════════════════════════════════════
-\section*{Reader's Map}\label{sec:readers-map}
-\addcontentsline{toc}{section}{Reader's Map}
-% ═════════════════════════════════════════════════════════════════════════════
-
-\noindent The paper is one argument, but four kinds of reader want four different
-routes through it. Each route names the critical section and the artifact it
-turns on.
-
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.35}
-\begin{tabular}{@{}p{3.2cm} p{8.0cm} p{3.5cm}@{}}
-\toprule
-\textbf{If you are\ldots} & \textbf{Read} & \textbf{Turns on} \\
-\midrule
-A developer who runs one fleet &
-\S\ref{sec:intro} (the spawn problem), \S\ref{sec:role-person} (role vs.\ person),
-\S\ref{sec:organs} (what is built today). Skip the proofs. &
-The maturity ledger (Table~\ref{tab:app-status}) \\
-A philosopher / cognitive scientist &
-\S\ref{sec:continuity} (Locke, Parfit, and why the \emph{ledger} not the
-\emph{memory} is the identity organ), \S\ref{sec:organs}. &
-The continuity-organs table (Table~\ref{tab:stp-organs}) \\
-A mechanism-design / reputation-systems reader &
-\S\ref{sec:substrate} (substrate vs.\ score), \S\ref{sec:not-bandit} (why
-\emph{not} a bandit), \S\ref{sec:adr0049} (the reputation protocol),
-\S\ref{sec:oracle} (the grading-oracle hole). &
-The neutral-judge market (Fig.~\ref{fig:judge-market}) \\
-A distributed-systems / crypto reader &
-\S\ref{sec:identity} (the non-forgeable root), \S\ref{sec:keystone}
-(the local-identity / cross-operator split), \S\ref{sec:revoke} (revocation
-\& tombstones). &
-The keystone-split table (Table~\ref{tab:keystone-split}) \\
-\bottomrule
-\end{tabular}
-\caption{Reader's Map. The core product arc is \pdchapref{swk}{The Single-Writer
-Kernel} (the transactional floor) $\to$ \pdchapref{ls}{The Legible Swarm} (the
-wedge) $\to$ \textbf{this chapter (the bridge)} $\to$ \pdchapref{he}{The Harbor
-Economy} (the market). This chapter can be read directly after \pdchapref{ls}{The
-Legible Swarm} for the ``why a person can be priced'' argument.}
-\label{tab:readers-map}
-\end{table}
 
 \keyidea{The whole series is one ladder. L0 is the daemon (the machine's truth),
 L1 the coordination protocol (the agents' rules), L2 legibility-and-authority
@@ -437,7 +347,7 @@ Read left-to-right it is a roadmap; read right-to-left it is a stack of
 impossibility claims --- each arrow asserts that the right-hand thing
 \emph{cannot exist without} the left-hand thing. Our refusals are as important as
 our claims. We do \textbf{not} claim reputation is built (it is \DESIGNED-to-\VISION).
-We do \textbf{not} claim the reference system's restart organ is real checkpointing
+We do \textbf{not} claim the reference system's restart subsystem is real checkpointing
 (it forwards a summary, not execution state). We do \textbf{not} claim this paper's
 identity root reaches across operators --- it does not, and \S\ref{sec:keystone}
 hands that unsolved problem to the market paper by name.
@@ -470,7 +380,7 @@ not remember the boy). The \emph{psychological-continuity} repair
 memory/intention connections, transitive even where connectedness is not}) is the
 version that survives, and \S\ref{sec:continuity} shows it dictates a specific
 engineering choice. Reid is the named counter-example we must survive, not a result
-we adopt. \textbf{Our departure:} we read the continuity-bearing organ not as the
+we adopt. \textbf{Our departure:} we read the continuity-bearing subsystem not as the
 memory stream (the intuitive default) but as the \emph{transitive outcome ledger},
 because reputation must accumulate over arbitrarily many incarnations and can only
 attach to the transitive thing.
@@ -612,7 +522,7 @@ without reference to who fills it.
 A \textbf{person} is a pair $(R, \kappa)$ of a role instance and a
 \emph{continuity witness} $\kappa$ that binds successive incarnations of the
 role-holder into one accountable thread. $\kappa$ is realized by the three
-continuity organs of \S\ref{sec:organs} (memory, checkpoint, outcome ledger) keyed
+continuity subsystems of \S\ref{sec:organs} (memory, checkpoint, outcome ledger) keyed
 on a non-forgeable identity (\S\ref{sec:identity}). A person is a role
 \emph{plus a self}.
 \end{definition}
@@ -714,7 +624,7 @@ transitive chain --- and reputation, which must accumulate across arbitrarily ma
 incarnations, can only attach to the transitive thing.}
 
 \noindent This is why, later (\S\ref{sec:substrate}), we insist the
-\textbf{outcome ledger}, not the memory stream, is the organ reputation keys on.
+\textbf{outcome ledger}, not the memory stream, is the subsystem reputation keys on.
 Memory makes an agent \emph{feel} like the same character; the ledger makes it
 \emph{be} the same accountable principal. Figure~\ref{fig:parfit} draws the
 distinction: a chain of overlapping connections is continuous even where no single
@@ -724,8 +634,8 @@ incarnation directly remembers the first.
 \input{figures/fig-stp-parfit-chain}
 
 \keyidea{The philosophy matters because it predicts the \emph{wrong
-default}. The intuitive organ of identity is \emph{memory} (``the agent remembers
-its past''). Parfit shows the identity-bearing organ is the \emph{transitive
+default}. The intuitive subsystem of identity is \emph{memory} (``the agent remembers
+its past''). Parfit shows the identity-bearing subsystem is the \emph{transitive
 chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
 the memory.}
 
@@ -744,6 +654,88 @@ is chosen because reputation has to accumulate on something transitive, which
 is an engineering reason, and we are candid that it is not a metaphysical one
 --- which is also why the chapter takes Parfit's move (dissolve the question)
 and not his thesis.
+
+\subsubsection{The correspondence, written out --- and where it
+fails}\label{sec:parfit-lineage-map}
+
+Two structures carry this chapter: Relation~R as an overlapping chain, drawn
+just above in Fig.~\ref{fig:parfit}, and the credential lineage as a chain of
+signatures, drawn overleaf in Fig.~\ref{fig:stp-nomint-lineage}. The chapter
+has been asserting that these are the same shape. They are, at one specific
+level, and it is worth
+writing the map down rather than leaving the reader to infer it --- and worth
+being precise about the three places where the map breaks, because a
+correspondence stated without its failures is an analogy doing unearned work.
+
+The level at which they agree is the \emph{ancestral}. Parfit's direct
+psychological connectedness $\mathsf{conn}(a,b)$ --- $b$ carries $a$'s memories
+and intentions --- is not transitive, which is exactly the problem Reid's
+gallant officer exposes. Parfit's repair is to take identity to be the
+transitive closure $\mathsf{conn}^{*}$. The credential relation is built the
+same way: direct succession $\mathsf{succ}(a,b)$ --- $b$ presents a continuity
+witness signed by $a$'s key --- is likewise not transitive, since a verifier
+holding $c$'s witness learns nothing about $a$ without the intervening links,
+and lineage is defined as $\mathsf{succ}^{*}$. So the engineering is not
+\emph{inspired by} Parfit; it instantiates the same construction, the ancestral
+of a non-transitive direct relation, on a different base relation.
+
+\begin{pdclaim}{Design invariant}{Lineage is Relation~R's construction on a
+witnessed base}
+\label{inv:parfit-lineage}
+The outcome ledger's identity criterion is $\mathsf{succ}^{*}$, the transitive
+closure of signed direct succession, and it is chosen because it is the same
+construction Parfit applies to $\mathsf{conn}$: reputation must accumulate over
+arbitrarily many incarnations, and only the ancestral of a link relation is
+guaranteed to reach that far. This is a design invariant and not a theorem
+about persons: it says what the system is built to do, and it takes no position
+on whether $\mathsf{succ}^{*}$ tracks personal identity in Parfit's sense.
+\end{pdclaim}
+
+\begin{pdboundary}
+Three disanalogies, each of which the correspondence must not be read past.
+
+\emph{First, degree against predicate.} Parfit's connectedness is a matter of
+degree --- how much carries over --- and that is not incidental to his view, it
+is what licenses his central conclusion that identity is not what matters and
+that survival admits of more and less. Signature verification is a predicate:
+it holds or it does not. $\mathsf{succ}^{*}$ therefore cannot express partial
+survival at all, and the case Parfit finds most interesting is the one the
+ledger criterion is structurally unable to represent. The ledger is not a
+sharper version of Relation~R; it is a different, coarser object that happens
+to be built by the same closure.
+
+\emph{Second, fission.} Parfit's fission case --- one person, two equally
+continuous successors --- is deliberately left without a determinate answer,
+because for him it shows the question was wrong. A key can sign two successors,
+so the ledger faces the same case and \emph{does} answer it: the no-mint rule
+below debits the source and discounts each child, making fission a conserved
+split. That is a genuine answer, but note what it costs. It is a decision that
+total creditable reputation is conserved, imposed because an economy needs it;
+it is not a discovery about identity, and it resolves by fiat the case Parfit
+argues cannot be resolved.
+
+\emph{Third, and sharpest, the direction of evidence.} Psychological
+connectedness is a first-personal fact about the successor: it remembers.
+Signature verification is third-personal and constitutively so --- anyone
+holding the public key can check it, and the successor's own testimony is not
+consulted. Williams's framing warning, cited above, is precisely about the
+first-personal framing's power to compel; the lineage criterion is immune to it
+because it has no first-personal framing available. Read the right way round,
+this is the correspondence's one clear advantage over its source. Read the
+wrong way round it is the trap: possession of a predecessor's key proves
+\emph{custody transfer}, not continuity of anything psychological. A successor
+that verifies lineage perfectly and loads none of the predecessor's notes is
+fully continuous by the ledger criterion and not connected at all by Parfit's.
+Table~\ref{tab:stp-organs} is the measure of that gap in this
+implementation: each organ stores less than the live body had.
+
+What would close the third gap is not a better argument but a stated
+obligation, and it is open: a continuity witness that attests \emph{what the
+successor actually loaded} --- which notes, which checkpoint, which ledger
+positions --- rather than only that a successor was authorized. That is a
+schema and an attestation-coverage question, not a philosophical one, and no
+design in this chapter specifies it.
+\end{pdboundary}
 
 \pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
@@ -785,6 +777,29 @@ to say about a merge.
 
 \input{figures/fig-stp-nomint-lineage}
 
+\paragraph{Why not stake?} A reader who has met Sybil resistance in
+permissionless systems will have noticed that this chapter reaches for a
+daemon-attested identity where that literature reaches for capital --- proof of
+stake, deposit bonding, a burnt fee --- and the choice deserves its reason
+rather than its silence. Those mechanisms answer a different question than the
+one \S\ref{sec:identity} asks. Stake makes an identity \emph{expensive} to mint,
+which bounds how many an adversary makes but says nothing about \emph{whose}
+they are: a thousand staked identities held by one party are still one party,
+and the conduct this chapter wants to sanction is a party's. What the
+no-mint result conserves is the total live creditable reputation across a
+derivation graph, which is a statement about accounting rather than about cost
+of entry, and it holds whether identities are cheap or dear. Per-principal
+exposure pooling does the rest of the work stake would have done: an operator's
+agents share one principal's exposure, so multiplying them multiplies nothing.
+
+The trade is real and worth naming plainly rather than winning by definition.
+Daemon attestation buys all of this at the price of a trusted local authority,
+which is exactly what a permissionless system refuses to assume, and it is why
+the keystone primitive covers a single-operator threat model and must be
+extended before a cross-operator boundary is one neither party controls
+(\pdchapref{fh}{The Federated Harbor}). Capital does enter this system, and it
+enters where it belongs: as bonds in \pdchapref{bonded}{The Bonded Commons},
+priced against a specific breach, rather than as a toll at the door.
 
 \pdexercisepointerone*{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
 
@@ -801,29 +816,29 @@ continuity, and which one does reputation require?
 % promise that something follows it; four lines is the smallest reservation
 % that keeps the promise on the same page as its first paragraph.
 \needspace{8\baselineskip}
-\section{The three organs of continuity}\label{sec:organs}
+\section{The three subsystems of continuity}\label{sec:organs}
 % ═════════════════════════════════════════════════════════════════════════════
 
 ``Continuity'' is routinely used to mean three different things. Conflating them
 is the most common way a reputation design fails its own honesty test. To keep the
-argument concrete and honest, we measure each organ against a \emph{reference
+argument concrete and honest, we measure each subsystem against a \emph{reference
 system} --- a running coordination daemon for local agent swarms whose component-by-component
 maturity is tabulated in Appendix~\ref{app:status}. Memory is implemented;
-checkpointing is partial; and the third organ has a shipped commitment-and-closure
+checkpointing is partial; and the third subsystem has a shipped commitment-and-closure
 substrate but not yet the reputation-grade witnessed ledger this paper requires.
 We use the neutral maturity scale throughout (\BUILT~/
 \BUILTWEAK~/ \DESIGNED~/ \VISION) and round nothing up.
 
-% --- FIGURE 4: the three continuity organs ---
+% --- FIGURE 4: the three continuity subsystems ---
 \begin{table}[H]
 \centering
-\caption{The three continuity organs have different survival depths. A successor inherits what each organ stores, and each stores less than the live body had: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
+\caption{The three continuity subsystems have different survival depths. A successor inherits what each subsystem stores, and each stores less than the running predecessor held: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
 \label{tab:stp-organs}
 \small
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Organ} & \textbf{What the successor inherits} & \textbf{What it does not} \\
+\textbf{Subsystem} & \textbf{What the successor inherits} & \textbf{What it does not} \\
 \midrule
 episodic memory & the notes, whole, with their ledger addresses & the execution state that produced them \\
 checkpoint & a summary and the worktree lineage & the process's execution state; recovery restores notes, not execution \\
@@ -832,7 +847,7 @@ outcome ledger & the commitments $c_1, c_2$ and the witnessed outcomes $o_1, o_2
 \end{tabularx}
 \end{table}
 
-\subsection{Organ 1 --- Memory: the episodic record \quad\BUILT}
+\subsection{Subsystem 1 --- Memory: the episodic record \quad\BUILT}
 
 An \textbf{episodic memory} component is the system's record of \emph{what
 happened}: durable, typed episodes --- each with a title, a summary, a source
@@ -842,33 +857,33 @@ Agents}~\pdcite{park2023generative} (UIST 2023 --- \emph{a memory stream of
 natural-language observations, periodic \textbf{reflection} into higher-level
 inferences, and retrieval scored by recency $\times$ importance $\times$
 relevance}): the promotion-of-episodes step is Park et al.'s importance gate by
-another name. In the reference system this organ runs in production; it is
+another name. In the reference system this subsystem runs in production; it is
 \BUILT.
 
-\subsection{Organ 2 --- Checkpoint: restorable state \quad\BUILTWEAK}
+\subsection{Subsystem 2 --- Checkpoint: restorable state \quad\BUILTWEAK}
 
 A checkpoint is \emph{restorable execution/belief state}: enough that a successor
 \emph{resumes} where the predecessor stopped. The reference system has a
-\textbf{restart organ} --- a heartbeat-staleness detector that flags dead agents
+\textbf{restart subsystem} --- a heartbeat-staleness detector that flags dead agents
 for salvage and republishes their unfinished work. It must be described formally,
-and it is: the restart organ \textbf{forwards a summary, not state}. It is
+and it is: the restart subsystem \textbf{forwards a summary, not state}. It is
 checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
 inherits a note about what the predecessor was doing, not the live belief state it
 was doing it with. The goal is sometimes called a ``checkpoint with teeth''
 (the same phrase this paper uses everywhere else for it, \S\ref{sec:open},
-Appendix~\ref{app:status}); the current organ has gums. Operating systems have
+Appendix~\ref{app:status}); what ships today has gums. Operating systems have
 drawn this exact line for decades, between \textbf{checkpoint/restore} of a
 process and the live execution state a checkpoint has to carry to deserve the
 name: Condor freezes a running process, serializes the whole of it, and resumes
 it on another machine~\pdcite{litzkow1997condor}, and Orleans's \emph{virtual
 actor} keeps an actor's durable identity distinct from whichever in-memory
 activation currently embodies it~\pdcite{bernstein2014orleans}. The restart
-organ's identity/state split is the LLM-agent instance of the second idea, and
+subsystem's identity/state split is the LLM-agent instance of the second idea, and
 its ``gums'' are the honest measure of how far it is from the first: what
 Condor serializes is registers and memory, and what would have to be serialized
 here is a KV-cache and a sampling state the provider does not export.
 
-\pitfall{Selling a summary-forwarding restart organ as real checkpointing would
+\pitfall{Selling a summary-forwarding restart subsystem as real checkpointing would
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
 ``all good'' when you have actually verified it --- absence of error is not
 attestation}. Strong continuity --- the kind that lets a successor \emph{resume}
@@ -890,7 +905,7 @@ belief, graded per provider and model version; until the mechanism ships it is a
 empirical hypothesis with a stated measurement, not a property. The
 formal-core result on the same seam says only that ``the ledger followed the right
 body'' --- it makes no claim that the checkpoint restored the agent's experience,
-and neither do we. Until the mechanism ships and is measured, the restart organ
+and neither do we. Until the mechanism ships and is measured, the restart subsystem
 still forwards a summary, and this chapter's own maturity ledger
 (Table~\ref{tab:app-status}) is where to check
 whether that has changed.}
@@ -902,22 +917,22 @@ Single-Writer Kernel}, which treats it as a low-level primitive. \emph{This} pap
 \emph{why it is the foundation of personhood and reputation}. The two papers state
 the same canonical sentence (next).
 
-\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \quad\BUILTWEAK}
+\subsection{Subsystem 3 --- Outcome ledger: the witnessed record of delivery \quad\BUILTWEAK}
 
-The third organ is the one reputation actually keys on. Its foundation is now
+The third subsystem is the one reputation actually keys on. Its foundation is now
 \BUILTWEAK: a durable commitment record, daemon-derived deadlines, oracle-bound
 closure, CLI/API surfaces, and an overdue-obligation monitor ship in the reference
-system. The complete organ remains an \textbf{append-only, daemon-witnessed outcome
+system. The complete subsystem remains an \textbf{append-only, daemon-witnessed outcome
 ledger} whose records are neutral, graded, identity-bound, and sanctionable. Its
 specified form is a
 \textbf{durable-commitment} record: a violable promise bound one-to-one to an
 actor, auto-enrolled when the actor takes a claim, closed only against an oracle,
-and watched by an obligation monitor that is the dual of the restart organ. A
+and watched by an obligation monitor that is the dual of the restart subsystem. A
 commitment row records what was promised; closing it requires an
 \emph{oracle reference} --- a released claim, a merged commit SHA, a passing test
 id, a satisfied policy sub-check. That commitment-and-closure seam ships. Neutral
 grading events, reputation updates, judge independence, sanctions, and durable
-identity binding do not; therefore the organ as a reputation ledger is partial,
+identity binding do not; therefore the subsystem as a reputation ledger is partial,
 not complete.
 
 \begin{definition}[Oracle]\label{def:oracle}
@@ -930,14 +945,54 @@ respawn.
 
 \subsection{The canonical seam sentence (stated identically in every paper)}
 
-\keyidea{\textbf{The economy rests on three continuity organs --- memory
+\keyidea{\textbf{The economy rests on three continuity subsystems --- memory
 (\BUILT), checkpoint (\BUILTWEAK: notes, not execution state), and the
 witnessed-outcome ledger (\BUILTWEAK: commitments and oracle-bound closure, not
-neutral graded outcomes) --- and reputation keys on the richer third organ, whose
-neutral, reputation-grade form is not yet complete; the checkpoint organ is the
+neutral graded outcomes) --- and reputation keys on the richer third subsystem, whose
+neutral, reputation-grade form is not yet complete; the checkpoint subsystem is the
 weakest continuity link and
 ``checkpoint with teeth'' (a real execution-state checkpoint) is the literal
 foundation of L3.}}
+
+\paragraph{Which death is this?}
+``Checkpoint stores notes, not execution state'' is the right sentence and it is
+doing a lot of work in one clause, because ``execution state'' covers several
+things that fail differently and a reader is entitled to know which of them the
+organ actually reaches. Deaths come in rungs, ordered by what survives, and the
+checkpoint organ can be graded on the ladder rather than described against it.
+
+\begin{table}[H]
+\centering
+\caption{The agent-death ladder, and where the checkpoint organ sits on it.
+Rungs are ordered by what survives the death, not by how bad it feels. The organ
+reaches rung~2 and specifies rung~3; rung~5 is not a gap in the implementation
+but a property of the artifact, which is why OP-4b
+(\pdchapref{swk}{The Single-Writer Kernel}) is stated as two problems rather than
+one. Exercise~\ref{ex:stp-death-taxonomy} derives the ladder.}
+\label{tab:death-ladder}
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.05\textwidth} >{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.17\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Rung} & \textbf{What survives} & \textbf{This organ} \\
+\midrule
+1 & Record survival & Logs and notes only; a successor reconstructs by reading. & reached \\
+2 & Artifact survival & A content-addressed worktree and outputs; computation is rerun rather than resumed. & reached (\BUILTWEAK) \\
+3 & Semantic task capsule & Artifacts plus obligations, decisions, transcript projection, tool bindings and a pending-effect journal, so a new provider continues observably. & specified, not shipped \\
+4 & Execution snapshot & Process memory and runtime state, under a controlled runtime; rarely portable. & not attempted \\
+5 & Latent state & Unexposed activations, KV cache, whatever ``intent'' names. & out of reach in principle \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The grading is the point of the table. A checkpoint guarantee that does not name
+its rung is not a guarantee, and the two rungs that matter for this chapter's
+argument are 3 and 5: rung~3 is buildable and would make succession observable,
+which is what L3 needs, while rung~5 is not a matter of effort --- an arbitrary
+provider's latent state is not an artifact anyone can hand over, so a system that
+promised continuity of experience would be promising something no implementation
+can deliver. That is why this chapter's continuity claims are about the ledger
+following the right body, never about a successor inheriting a predecessor's
+experience.
 
 \noindent Table~\ref{tab:app-status} is the honest-state ledger for this paper:
 every major claim with its label and its grounding. It is the artifact a skeptical
@@ -951,7 +1006,7 @@ reader should consult first.
 \section{Identity: the root the whole chain hangs from}\label{sec:identity}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Before any organ of continuity matters, the identity it attaches to must be one
+Before any subsystem of continuity matters, the identity it attaches to must be one
 the agent cannot freely re-pick. This is the most under-appreciated claim in the
 paper.
 
@@ -1221,6 +1276,39 @@ qualifications bind and are part of the statement, not footnotes to it:
 \end{enumerate}
 \end{pdclaim}
 
+\paragraph{The entrant who cannot afford to wait.}
+A natural objection to any front-loaded penalty is that it is a liquidity barrier:
+an honest but capital-poor newcomer cannot absorb it, while a well-capitalised
+attacker can, so the cliff selects for exactly the wrong entrant. Half of that is
+a misreading of the instrument and worth correcting, because the instrument is
+unusual. Nothing is \emph{posted} here. $g_t$ is a holdback on a newcomer's
+earning ceiling --- the amount by which what they may earn is reduced --- so an
+entrant with no capital at all can serve a probation; they earn less during it,
+they do not pay in. The well-capitalised attacker is already in the statement
+too, as qualification (2): deterrence is bounded by what a ceiling can withhold,
+and past $G_{\max} > L/(1-\delta_f)$ the answer is a bond, which is where capital
+enters this system.
+
+The other half survives the correction and is a real effect, on
+\emph{participation} rather than solvency. An honest newcomer with an outside
+option worth $u$ per period takes the probation only if
+$\sum_t \delta_h^t(\pi_t - g_t) \ge \sum_t \delta_h^t u$, and the theorem's own
+result is that the optimal schedule puts as much friction as possible at $t=0$.
+So the participation constraint binds first, and hardest, at exactly the period
+the optimum loads --- giving a corollary the operator can act on: if entrants are
+to be retained, the schedule is fill-from-zero up to $\min(L,\ \pi_0 - u)$ rather
+than to $L$, and any deterrence that requires more must come from a later period
+or a different instrument. The cost is a longer cliff for the same $G_{\max}$.
+
+Whether that changes the \emph{mix} of entrants --- fewer honest newcomers with
+good outside options, unchanged numbers of attackers who have none --- is an
+adverse-selection question this chapter does not settle, and it is the named
+falsifier: a probation schedule tuned by the corollary above should not shift the
+honest share of entrants downward, and if a sweep of \texttt{b6\_probation.py}
+with an income floor shows that it does, the participation term belongs inside
+the optimisation rather than beside it. No such sweep has run, so no number for
+the mix appears here.
+
 \input{figures/fig-stp-probation-cliff}
 
 
@@ -1337,9 +1425,9 @@ both.
 The economic counterparty in every trade is not the agent but the
 \textbf{principal} --- the human or organization that owns the fleet and stands
 behind its bonds. Bonds, reputation inheritance, and sanctions must ultimately
-key on the principal via the delegation chain, or Sybil bond-farming works by
+key on the principal via the authorization chain, or Sybil bond-farming works by
 spawning fresh \emph{agents} under one principal. This paper defines the principal
-as the delegation chain's terminus and the identity object on which the market
+as the authorization chain's terminus and the identity object on which the market
 paper's counterparty is built; the market paper \emph{cross-references} this
 definition rather than redefining it.
 
@@ -1352,7 +1440,7 @@ between a spawned agent and its principal, and it carries the same warning: an
 actor with no identifiable author is an actor no counterparty can hold to anything.
 
 \begin{definition}[Principal]\label{def:principal}
-A \textbf{principal} is the root of a delegation chain: the durable economic
+A \textbf{principal} is the root of an authorization chain: the durable economic
 entity (human/org) that owns a fleet, posts its bonds, and inherits the
 reputational consequence of its agents' witnessed outcomes. Each agent's
 non-forgeable identity is bound to exactly one principal at mint time.
@@ -2161,6 +2249,30 @@ $53\times 50 = \$2{,}650$. \emph{Now you try:} at $C=2$, where does the linear
 phase stop? (Bleed $C\beta = 20$ per level until $G_k \le CB = 100$, i.e.\ $15$
 levels, then $21$ geometric ones --- $36$ levels, $\$1{,}800$.)
 
+\paragraph{What $C$ is actually doing, and the symbol it shares with the market.}
+The clique count $C$ is this theorem's diversity parameter --- it is why the
+worked numbers above contrast $C=8$ against a monoculture $C=1$, and why the
+monoculture costs roughly twice the bond capital. It is worth saying what $C$
+is a proxy \emph{for}, because the reviewer of a foundation-model monoculture
+is right that ``disjoint clique'' is a structural description and correlated
+error is a statistical one. \pdchapref{he}{The Harbor Economy} gives the
+statistical version%
+\ifpdbook
+\ (\S\ref{he:sec:assurance-correlation})%
+\fi
+: let a panel's
+detection rate be a random $D$ with mean $d$ drawn once and shared, write
+$\theta$ for the resulting intra-panel correlation, and the probability that a
+panel of $k$ all miss is $\mathbb{E}[(1-D)^k] \ge (1-d)^k$ by Jensen ---
+independence is the \emph{optimistic} case, always. Sampling sealed across $C$
+disjoint cliques is the instrument by which this chapter holds $\theta$ near
+zero; it is not an independent assumption bolted on beside it. A tower whose
+$C$ cliques all run the same base model has a large $\theta$ and a contraction
+factor that is nominally $1-\rho d$ and effectively worse, and boundary (iii)
+below is right that measuring it is an obligation on deployed judge telemetry
+rather than something this chapter can assume. One symbol, two chapters:
+$\theta$ is correlation and $\rho$ stays the audit rate in both.
+
 \begin{pdexample}{The audit tower: amortized verification spend}
 As a judge accumulates verified history its reputation-at-stake $vt$ grows,
 and the audit rate needed for deterrence can fall with it. Flat auditing
@@ -2383,8 +2495,8 @@ Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 The third side of the market is a \emph{tradeable person}, defined here. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
 Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
-The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
-Reputation keys on organ~3 (the outcome ledger). \\
+The three continuity subsystems & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
+Reputation keys on subsystem~3 (the outcome ledger). \\
 Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
 Commitment, deadline, oracle closure, API/CLI, and overdue detection ship; neutral graded outcome events, sanctions, and reputation binding do not. \\
 Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
@@ -2412,7 +2524,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
 \item \textbf{A role is replaced; a person accumulates.} The role rail names whoever fills it this week; the person rail is the set of witnessed outcomes that survive every respawn.
-\item \textbf{Continuity is a ledger position, not a metaphysics.} Three organs carry it: episodic memory survives process death, the checkpoint keeps a summary and worktree lineage but not execution state, and the outcome ledger keeps commitments and closures in part.
+\item \textbf{Continuity is a ledger position, not a metaphysics.} Three subsystems carry it: episodic memory survives process death, the checkpoint keeps a summary and worktree lineage but not execution state, and the outcome ledger keeps commitments and closures in part.
 \item \textbf{Identity must be non-forgeable} or nothing above it holds: a respawn under a fresh label would shed every penalty and inflate every quorum. Principal-bound identity keeps the penalty flat across respawns and one principal at one weight.
 \item \textbf{Whitewashing has a price}, $\rho^{\ast}=G/(dB)=0.25$ in the worked case, and the penalty a fresh identity can escape decays as $0.8^{k}$; the probation cliff is the cheapest deterrent for the honest newcomer.
 \item \textbf{Adverse selection lives inside one identity} until a price can depend on an attested quantity; the attested flip is the whole gain from attestation ($0.5$ against $0.2$ in the example).
@@ -2575,19 +2687,19 @@ each hop, so the live total telescopes to $0.9^3=0.729\le 1$, which is what
 the sweep's $0$ violations certifies at scale.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:organs}}{The three organs of continuity}
+\pdexercisesfor{\S\ref{sec:organs}}{The three subsystems of continuity}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:stp-weak-organ}
-Which organ is \BUILTWEAK, and what exactly is weak about it?
+Which subsystem is \BUILTWEAK, and what exactly is weak about it?
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-weak-organ}
-The checkpoint organ is the specifically weak one: it forwards notes rather
-than execution state. The outcome-ledger organ is also only partial in the
+The checkpoint subsystem is the specifically weak one: it forwards notes rather
+than execution state. The outcome-ledger subsystem is also only partial in the
 implementation: commitments and oracle closure exist, but neutral graded
 outcomes and reputation binding do not.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-three-organs-trace}
-An agent claims a file, makes a commit, and dies. Walk the three organs: what
+An agent claims a file, makes a commit, and dies. Walk the three subsystems: what
 does each retain, and what is \emph{lost} that a strong checkpoint would have
 kept?
 \end{pdexercise}
@@ -3106,7 +3218,7 @@ manufacturing, and then formally grading, a self.}
 % ═════════════════════════════════════════════════════════════════════════════
 
 The body of this paper is written to stand on its own: every mechanism is described
-as a component (a memory record, a checkpoint organ, a witnessed-outcome ledger) and
+as a component (a memory record, a checkpoint subsystem, a witnessed-outcome ledger) and
 graded on the neutral maturity scale (\BUILT~/ \BUILTWEAK~/ \DESIGNED~/ \VISION).
 This appendix grounds that scale in a concrete \emph{reference system} --- a running
 coordination daemon for local agent swarms --- so a reader who wants to know
@@ -3117,7 +3229,7 @@ rhetorical.
 {\small\renewcommand{\arraystretch}{1.3}
 \begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
 \caption{Maturity of each paper concept against a reference coordination daemon.
-The honest summary: the \emph{organs} of continuity exist (one weakly); the
+The honest summary: the \emph{subsystems} of continuity exist (one weakly); the
 \emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
 identity --- is specified but not yet shipped.}\label{tab:app-status}\\
 \toprule
@@ -3133,11 +3245,11 @@ identity --- is specified but not yet shipped.}\label{tab:app-status}\\
 \endfoot
 \bottomrule
 \endlastfoot
-Episodic memory (Organ 1) & \BUILT &
+Episodic memory (Subsystem 1) & \BUILT &
 Durable typed episodes promoted from execution history; runs in production. \\
-Restart organ (Organ 2) & \BUILTWEAK &
+Restart subsystem (Subsystem 2) & \BUILTWEAK &
 Heartbeat-staleness detector that salvages dead agents; forwards a \emph{summary}, not execution state. \\
-Outcome ledger (Organ 3) & \BUILTWEAK &
+Outcome ledger (Subsystem 3) & \BUILTWEAK &
 Durable commitments, daemon-derived deadlines, oracle-bound closure, API/CLI, and overdue detection ship; neutral grading, sanctions, and reputation binding do not. \\
 Cost meter (efficiency axis) & \BUILT &
 Per-task token/wall-clock/dollar accounting recorded today. \\

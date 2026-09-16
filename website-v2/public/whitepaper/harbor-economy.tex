@@ -35,6 +35,9 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+% this chapter now carries a pgfplots figure; the Book's own preamble
+% already loads pgfplots, this keeps the standalone paper building too.
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
@@ -66,17 +69,10 @@
 \input{figures/pd-figure-language}
 
 % ─── Maturity markers (self-grading of every claim) ────────────────────
-% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
-% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
-\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
-
-% Verification-status markers (for the open-problem / status tables).
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+% \Built, \BuiltWeak, \Designed and \Vision, and the \Closed/\Partial/\Open
+% proof-obligation markers of the open-problem and status tables, are defined
+% once, for this paper and for the Book, in figures/pd-pedagogy.tex (\input
+% above).
 
 % ─── Pull-quote sidebar: large quote, left-edge accent stripe. ────────────────
 \newcommand{\pullquote}[1]{%
@@ -201,42 +197,6 @@
 
 \vspace{0.6cm}
 
-\begin{abstract}\noindent
-The first three chapters build a harbor for a \emph{single} operator:
-a daemon, a coordination protocol, a legible authority anyone would pay for today,
-and the continuity that turns an anonymous \emph{spawn} into an accountable
-\emph{person}. This paper is the rung above all of them --- the only one whose
-participants are plural and mutually distrusting. We argue that the harbor economy
-is a \textbf{three-sided market}: operators sell labor and fleet-for-hire; agents
-and fleets are rentable assets; skills and tools are licensed --- all settling on
-\emph{one} conserving bond ledger via float-plan escrow. We present the
-\textbf{cross-harbor capability-transfer ceremony}: a way for one operator's harbor
-to hand another's a narrowed, time-boxed authorization for one of its agents, so the
-two can trade without sharing a chain or a root of trust. The mechanics --- a public
-log both sides can audit, an escrow that can only ever pay out to a named recipient,
-and a gossip protocol that spreads a revocation in expected logarithmic time --- are
-stated formally in \S\ref{sec:federation}, each with its conditions named rather than
-assumed: the extraction bound holds only under non-bypassable custody, and the
-convergence result only under a connected, reliable-round model.
-We carry the series' heaviest reconciliations formally rather than papering over
-them. The keystone the market leans on is \textbf{local non-forgeable identity}
---- an identity no agent can edit \emph{within a single trusted daemon} --- which
-covers a single-operator threat model, \emph{not} the cross-operator adversary this
-market is defined by; the missing, blocking keystone is \textbf{cross-operator
-attestation}, specified-to-proposed, not built.
-Conservation composes under sequential ledger operations because balance change is
-additive; cross-currency accounting needs a named valuation instant and explicit
-fee/slippage accounts, and ``lax functor'' does not repair an undefined unit
-conversion. The later sheaf language is a research analogy, not a theorem.
-Reputation is monotone in honest outcomes but revocable by a propagating tombstone.
-Every folk-theorem incentive-compatibility claim rests on a grading oracle that must
-be made strategy-proof or bonded-and-slashed. Myerson--Satterthwaite constrains a
-bilateral private-value slice only under its regularity assumptions; this paper does
-not yet prove incentive compatibility or identify which desideratum the full market
-gives up. The defensible product is \textbf{hosted trust} --- a verified ledger, a
-relay, and a reputation system --- not the commoditized payment rail.
-\end{abstract}
-
 \vspace{0.4cm}
 \noindent\textbf{Keywords:} mechanism design, multi-sided markets, incentive
 compatibility, reputation systems, capability-based security, cross-chain
@@ -277,57 +237,18 @@ cryptographic hop-bound authorization chain is analyzed in
 };
 \end{tikzpicture}
 
+\vspace{0.5cm}
+\noindent\textbf{Volume Context.} \pdchapref{swk}{The Single-Writer Kernel} is
+the local transactional floor and \pdchapref{anchor}{The Anchor Protocol}
+proves how its authority delegates; \pdchapref{ls}{The Legible Swarm} is the
+operator's front door; \pdchapref{stp}{From Spawn to Person} supplies
+continuity and reputation. \emph{This} chapter is the market.
+\pdchapref{bonded}{The Bonded Commons} and \pdchapref{fh}{The Federated
+Harbor} then prove what the market assumes about settlement and federation.
+
 \newpage
 \tableofcontents
 \newpage
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Reader's map}\label{sec:readers-map}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-This paper is the top rung of a ladder. It assumes
-the rungs below it and cites the papers that build them. Read it cold if you must,
-but it is the fourth paper for a reason: it depends on everything underneath.
-
-
-\begin{table}[H]
-\centering
-\small
-\caption{Where to enter, by who you are. Five reader types, each routed to the
-section that answers their question and to the one figure or theorem that would have
-to survive a review from someone in that role --- so nobody has to read the paper
-end to end to get their own answer out of it.}
-\label{tab:readers-map}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{If you are\dots} & \textbf{\dots start here} & \textbf{\dots critical artifact} \\
-\midrule
-A founder asking ``what is the product'' &
-  \S\ref{sec:thesis} (thesis) $\to$ \S\ref{sec:hosted-trust} (hosted trust) &
-  Fig.~\ref{fig:he-three-sided}; the three claims C1--C3 \\
-A mechanism designer &
-  \S\ref{sec:three-sides} $\to$ \S\ref{sec:ic} (the formal model) &
-  Thm.~\ref{thm:ms} \\
-A cryptographer / distributed-systems reviewer &
-  \S\ref{sec:keystone} (the keystone) $\to$ \S\ref{sec:federation} &
-  \S\ref{sec:keystone}; \ifpdbook the transfer ceremony in \pdchapref{fh}{The Federated Harbor}\else Table~\ref{tab:keystone-split}, Fig.~\ref{fig:fh-xfer}\fi \\
-A category theorist &
-  \S\ref{sec:conservation} $\to$ \S\ref{sec:sheaf} &
-  Fig.~\ref{fig:he-conservation-functor}, Conj.~\ref{conj:sheaf} \\
-An implementer &
-  \S\ref{sec:float-plan} (the built floor) $\to$ Appendix~\ref{app:impl} (status) &
-  Table~\ref{tab:honest-state} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\noindent\textbf{Where this chapter sits.} \pdchapref{swk}{The Single-Writer
-Kernel} is the local transactional floor and \pdchapref{anchor}{The Anchor
-Protocol} proves how its authority delegates; \pdchapref{ls}{The Legible Swarm}
-is the operator's front door; \pdchapref{stp}{From Spawn to Person} supplies
-continuity and reputation. \emph{This} chapter is the market.
-\pdchapref{bonded}{The Bonded Commons} and \pdchapref{fh}{The Federated Harbor}
-then prove what the market assumes about settlement and federation.
 
 \xrefbox{\textbf{Dramatis personae.} Every mechanism in this paper is dramatized
 end-to-end with the same cast, so an abstraction is never introduced without a
@@ -388,6 +309,20 @@ Because all three market sides settle on the \emph{same} built bond ledger, none
 of the economy needs to ship before the wedge does. The discipline ``don't chase
 the market early'' is \emph{safe} precisely because the market reuses the kernel
 primitive. The harbor comes first; the trade comes when the ships do.}
+
+\begin{pdexample}{The smallest number that makes C2 concrete}
+C2 claims one escrow object underneath all three sides; here is the smallest
+payment the rest of the paper works by hand so that claim is not left as a
+slogan. Carol licenses her lint-and-type skill into Bob's float plan at
+$0.5$\,\textsc{cr} per file, metered. The job touches $16$ files, so
+$16\times0.5=8$\,\textsc{cr} releases to Carol on green settlement --- on the
+\emph{same} escrow row that, in the same job, also locks Alice's $400$\,\textsc{cr}
+labor bounty and a $100$\,\textsc{cr} performance bond
+(\S\ref{sec:one-settlement} settles the whole $560$\,\textsc{cr} row by hand and
+checks it sums to zero). \emph{Now you try:} before reading on, guess whether
+Carol's $8$\,\textsc{cr} and Alice's $400$\,\textsc{cr} clear through one
+ledger operation or two --- C2 is the claim that it is one.
+\end{pdexample}
 
 \subsection{The through-line: why a market needs persons, not spawns}
 
@@ -576,6 +511,12 @@ succession plan --- raise $\eta$ --- to double $D^\star$ and make sole ownership
 of a slower-succeeding $a_2$ viable again.
 \end{pdexample}
 
+Figure~\ref{fig:he-succession-price} puts that worked instance on the boundary
+it sits on, so the distance between the threshold and the canary is something
+to look at rather than something to take on trust.
+
+\input{figures/fig-he-succession-price}
+
 \begin{pdboundary}
 The specialization boundary and the succession price compare mean costs only,
 no tail percentiles or service-level quantiles, under first-come-first-served
@@ -638,7 +579,10 @@ A \emph{float plan} is a signed declaration of intent: a task, a set of
 bounty. It is the atom all three market sides escrow against. (A \emph{machine-
 checkable} criterion is one a third party can evaluate without trusting the
 worker's word --- a named test that must pass, a commit hash that must merge, a
-static check that must be satisfied.)
+static check that must be satisfied.) This is a \textbf{Design invariant} in the
+honesty ledger's sense: the schema is fixed by the escrow ceremony below, not
+derived from a formal model, and the object it describes is \Built{} in the
+reference daemon (Protocol~\ref{prot:escrow}; Appendix~\ref{app:impl}).
 \end{definition}
 
 The escrow handshake is a three-step signed ceremony over a standard
@@ -732,14 +676,16 @@ grade}.}
 \end{tabularx}
 \end{table}
 
-\paragraph{A settlement, dramatized.} Bob (the requester principal) posts a refactor float plan: bounty $400$\,\textsc{cr}, requiring a provider performance bond of $100$\,\textsc{cr} and acceptance criteria = ``the module's test suite passes and the diff merges.'' Alice (the provider principal) assigns agent $a_2$ and posts the $100$\,\textsc{cr} performance bond into escrow. Bob escrows the $400$\,\textsc{cr} bounty. Before execution, the escrow holds $500$\,\textsc{cr} across two distinct source buckets: $\text{escrow}_{\text{bounty}}(\text{Bob}) = 400$ and $\text{escrow}_{\text{bond}}(\text{Alice}) = 100$.
+\begin{pdexample}{A settlement, dramatized}
+Bob (the requester principal) posts a refactor float plan: bounty $400$\,\textsc{cr}, requiring a provider performance bond of $100$\,\textsc{cr} and acceptance criteria = ``the module's test suite passes and the diff merges.'' Alice (the provider principal) assigns agent $a_2$ and posts the $100$\,\textsc{cr} performance bond into escrow. Bob escrows the $400$\,\textsc{cr} bounty. Before execution, the escrow holds $500$\,\textsc{cr} across two distinct source buckets: $\text{escrow}_{\text{bounty}}(\text{Bob}) = 400$ and $\text{escrow}_{\text{bond}}(\text{Alice}) = 100$.
 
 Agent $a_2$ completes $40\%$ of the verifiable evidence chain (refactoring two of five files cleanly before token budget exhaustion). The independent oracle evaluates the test receipts and diff closure, returning \textbf{Partial} ($40\%$). Funds settle across the four buckets:
 \begin{enumerate}[nosep]
   \item \textbf{Bounty distribution:} Alice earns $40\% \times 400 = 160$\,\textsc{cr} in earned revenue; the remaining $240$\,\textsc{cr} unearned bounty returns to Bob's wallet.
   \item \textbf{Collateral settlement:} Alice receives $40\% \times 100 = 40$\,\textsc{cr} of her performance bond returned as collateral (not income); the remaining $60$\,\textsc{cr} bond is slashed and credited to the commons/salvage fund to onboard a successor.
 \end{enumerate}
-Conservation check: $\Delta \text{Bob} = -160$, $\Delta \text{Alice} = +160 - 60 = +100$ net, $\Delta \text{commons} = +60$. The ledger sums to $0$ net delta, and the separate escrow buckets $\text{escrow}_{\text{bounty}} \to 0$ and $\text{escrow}_{\text{bond}} \to 0$ clear completely. No value was created or destroyed.
+Conservation check: $\Delta \text{Bob} = -160$, $\Delta \text{Alice} = +160 - 60 = +100$ net, $\Delta \text{commons} = +60$. The ledger sums to $0$ net delta, and the separate escrow buckets $\text{escrow}_{\text{bounty}} \to 0$ and $\text{escrow}_{\text{bond}} \to 0$ clear completely. No value was created or destroyed. \emph{Now you try:} Exercise~\ref{ex:he-partial-settlement-trace} asks you to redo this at a different completion fraction.
+\end{pdexample}
 
 \pdexercisepointer*{\ref{ex:he-partial-settlement-trace}}{\ref{ex:he-floatplan-amendment}}{\pageref{ex:he-partial-settlement-trace}}
 
@@ -787,17 +733,53 @@ regenerated at seed 20260816.} Naming a layer is not the same as being able to
 run it. What decides whether the deontic layer is an algorithm or an office is
 what happens when two accepted norms collide. Cheap detection is a
 language-design choice, not a discovery about deontic logic in general, and the
-commitment fragment $\mathcal{L}_c$ buys it by construction. A policy set in
-$\mathcal{L}_c$ contains facts, definite Horn rules and integrity constraints;
-deontic rules $\mathrm{body}\to\mathsf{M}(\mathrm{act},s,[t_1,t_2])$ with
-$\mathsf{M}\in\{\mathsf{O},\mathsf{F}\}$, which oblige or forbid an action on
-scope $s$ over a ground interval whenever the Horn body holds; exclusive interval
-claims on resources; and difference constraints over deadline variables. A
-conflict is any of four things: a derivable $\bot$, a fired obligation and
-prohibition on the same action with overlapping scope and interval, two
-exclusive claims overlapping on one resource, or a negative cycle in the deadline
-graph. The fragment is deliberately ground: no nested deontic operators, no
-negation as failure, monotone bodies only.
+commitment fragment $\mathcal{L}_c$ buys it by construction. The syntax fits in
+one box, and it belongs in one box: a reader who wants to reimplement the
+polynomial checker should not have to assemble the grammar from four pages of
+running prose.
+
+\begin{definition}[The commitment fragment $\mathcal{L}_c$]\label{def:lc-fragment}
+A policy set $P \in \mathcal{L}_c$ is a finite set of five kinds of sentence over
+a function-free, ground signature of actions, scopes, resources and integer time
+points:
+\begin{enumerate}[leftmargin=1.8em,itemsep=1pt]
+  \item \textbf{Facts} --- ground atoms $p(\bar{c})$.
+  \item \textbf{Definite Horn rules} --- $a_1 \wedge \cdots \wedge a_n \to h$,
+  with $h$ a single positive atom and every $a_i$ positive.
+  \item \textbf{Integrity constraints} --- $a_1 \wedge \cdots \wedge a_n \to
+  \bot$.
+  \item \textbf{Deontic rules} ---
+  $\mathrm{body} \to \mathsf{M}(\mathrm{act}, s, [t_1,t_2])$ with
+  $\mathsf{M} \in \{\mathsf{O},\mathsf{F}\}$, $\mathrm{body}$ a monotone Horn
+  conjunction, $\mathrm{act}$ a ground action, $s$ a ground scope, and
+  $[t_1,t_2]$ a ground interval: when the body holds, the rule \emph{fires} a
+  token obliging or forbidding $\mathrm{act}$ on $s$ throughout $[t_1,t_2]$.
+  \item \textbf{Exclusive interval claims} --- $\mathrm{excl}(r,[t_1,t_2])$,
+  asserting sole use of resource $r$ across a ground interval.
+\end{enumerate}
+Deadlines are carried by a separate system of \textbf{difference constraints}
+$t_j - t_i \le k$ over integer deadline variables, whose constraint graph is
+$(V,E)$.
+
+A policy set is \textbf{in conflict} exactly when one of four things holds:
+(i) the Horn part derives $\bot$; (ii) a fired $\mathsf{O}$ token and a fired
+$\mathsf{F}$ token name the same action with overlapping scope \emph{and}
+overlapping interval; (iii) two exclusive claims on one resource have
+overlapping intervals; or (iv) the deadline graph contains a negative cycle.
+
+The fragment is deliberately ground and deliberately weak, and each omission is
+what buys Theorem~\ref{thm:deontic-detect}: no nested deontic operators, no
+negation as failure, monotone bodies only, and no quantification over time.
+\end{definition}
+
+\noindent Note two things the grammar carries that a one-line summary of it
+tends to drop, because both are doing real work below. The deadline system is a
+separate constraint store rather than more Horn rules --- that is what makes
+clause (iv) a negative-cycle test at $O(V\cdot E)$ instead of a satisfiability
+question. And an exclusive claim is a claim on a \emph{resource over an
+interval}, not a prohibition on an action; collapsing it into an $\mathsf{F}$
+token would change clause (iii) into clause (ii) and lose the resource
+dimension that makes it checkable by interval overlap.
 
 \begin{pdclaim}{Theorem}{In-fragment conflict detection is polynomial and witness-producing}
 \label{thm:deontic-detect}
@@ -1053,7 +1035,9 @@ can hold state agents cannot reach, so it is a trusted root by construction. (Th
 reference system now ships a partial slice --- daemon-minted \texttt{actor-souls}, lookup
 credentials, and a bounded newcomer pool --- while full write-boundary
 enforcement remains open. Papers 1--3 rely on the complete contract; here we only
-consume it.)
+consume it.) A \textbf{Design invariant}, \BuiltWeak{}: the partial slice ships
+and is exercised, but the write-boundary enforcement the full contract requires
+does not, so the guarantee below is weaker than its name until that gap closes.
 \end{definition}
 
 For a single-operator harbor this is exactly right and is correctly named the
@@ -1226,8 +1210,9 @@ layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
 
 \ifpdbook
-The four-message ceremony is drawn in \pdchapref{fh}{The Federated Harbor}, which develops
-the protocol; written out as Protocol~\ref{prot:xfer} below, it
+The four-message ceremony is drawn and stepped through in
+\pdchapref{fh}{The Federated Harbor} (\S\ref{fh:sec:fh-xfer-ceremony}), which owns
+the protocol; what the market needs from it is only this, and the ceremony
 \else
 \input{figures/fig-fh-xfer-ceremony}%
 The four-message ceremony (Figure~\ref{fig:fh-xfer}, written out as
@@ -1240,6 +1225,7 @@ bound into the envelope is the governing primitive: a revocation issued by $A$
 after epoch $e$ invalidates $C_B'$ as soon as the new root $R_A^{(e+1)}$ reaches the
 witness log that $B$ audits.
 
+\ifpdbook\else
 \begin{protocol}[Cross-harbor capability transfer]\label{prot:xfer}
 \textbf{Parties:} Alice's agent (holds card $C_A$), Harbor~$A$ (Alice's daemon),
 Harbor~$B$ (Bob's daemon), Bob's agent (verifier). \textbf{Pre:} $B$ audits a
@@ -1263,8 +1249,10 @@ witness log to which $A$ publishes epoch roots.
 $R_A^{(e)}$ is rejected; a revocation by $A$ kills $C_B'$ once $R_A^{(e+1)}$ reaches
 $B$'s witness log.
 \end{protocol}
+\fi
 
-\paragraph{The ceremony, dramatized.} Alice's specialist $a_2$ holds a card $C_A$
+\begin{pdexample}{The ceremony, dramatized}
+Alice's specialist $a_2$ holds a card $C_A$
 that authorizes ``read and write \texttt{src/payments/}, run the test suite.'' Bob
 rents $a_2$ for an afternoon. Alice's harbor offers an attenuated envelope:
 $\mathrm{att}_A$ strips write access to everything except the one module Bob hired
@@ -1274,7 +1262,10 @@ intersection --- read/write one module, run tests, no network, expiring at dusk 
 and it verifies under Bob's key, so $a_2$ never has to phone home to Alice mid-task.
 At $5$\,p.m.\ Bob's revocation fires locally; at the next epoch boundary Alice's
 harbor also sees, in the shared witness log, that $C_B'$ was used exactly as
-attenuated and nowhere wider.
+attenuated and nowhere wider. \emph{Now you try:} intersection is commutative,
+so trace by hand whether applying $\mathrm{att}_B$ before $\mathrm{att}_A$
+would have minted a different $C_B'$.
+\end{pdexample}
 
 \keyidea{Capability \emph{attenuation} is the safety property here: a transferred
 card can only \emph{narrow} authority --- $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$
@@ -1429,7 +1420,8 @@ harbor learns the revocation in expected $\Theta(\Delta\log m)$ time. Under an
 unbounded partition there is no finite global-learning bound.
 \end{protocol}
 
-\paragraph{The revocation race, dramatized.} Alice revokes $a_2$'s card $c$ at
+\begin{pdexample}{The revocation race, traced hop by hop}
+Alice revokes $a_2$'s card $c$ at
 $t=0$ (say she discovers it was misbehaving). Harbor~$B$, which rented $a_2$, has not
 yet heard: for the interval $[0,\Delta]$, $B$'s filter is stale and $c$ is still
 spendable there. At $t=\Delta$ gossip reaches $B$, which adds $c$ to $F_B$ and
@@ -1438,6 +1430,10 @@ illustrated execution; a different schedule or partition produces a different
 window. Conjecture~\ref{conj:eq-bound} says
 the bond Alice posted on $c$ must dominate whatever $a_2$ could spend at $B$ inside
 that window, or a well-capitalized Bob could rationally race the gossip.
+\emph{Now you try:} extend this same illustrated schedule one more hop --- at
+what $t$ does a harbor three hops from Alice learn the revocation, and what
+does $a_2$'s card still let it spend at $B$ in the meantime?
+\end{pdexample}
 
 \pitfall{The threat is \emph{adversarial}, not stochastic. An attacker who controls
 peer selection or partitions the gossip graph (an \emph{eclipse attack},
@@ -1549,7 +1545,8 @@ their \emph{own} reputation; a judge later contradicted by re-audit is slashed. 
 base, not regress infinitely. De-biasing for LLM judges (order-swap, pairwise,
 family-exclude) follows \textbf{Zheng et al.}~2023~\pdcite{zheng2023}.
 
-\paragraph{A captured judge, dramatized.} Bob disputes a settlement: he claims
+\begin{pdexample}{A captured judge, followed through the re-audit lane}
+Bob disputes a settlement: he claims
 Alice's $a_2$ delivered an ``untasteful'' refactor. Taste is not machine-checkable,
 so Fix~B applies: Judy, a human grader, is drawn to arbitrate. Judy posts a
 $50$\,\textsc{cr} judge-bond and rules \emph{for Bob}. But Judy and Bob are
@@ -1561,6 +1558,10 @@ slashed and her judge-reputation takes a tombstone; Alice is made whole. The sig
 became exogenous again not because Judy was honest but because lying was bonded and
 the re-audit made it expensive --- and the recursion stops at the second panel,
 whose own evidence is machine-checkable (the same diff, the same tests).
+\emph{Now you try:} trace the same dispute if the second panel's own ruling were
+\emph{also} disputed --- what has to be true of its evidence for the recursion to
+stop there rather than needing a third panel?
+\end{pdexample}
 
 \pdexercisepointer*{\ref{ex:he-folk-signal-assumption}}{\ref{ex:he-rate-the-raters}}{\pageref{ex:he-folk-signal-assumption}}
 
@@ -1597,6 +1598,18 @@ fee (2--5\% of settlements), a small listing fee (collusion deterrent), and a sm
 bond-spread on \emph{forfeited} bonds (kept small so the platform never profits from
 over-slashing). The platform should earn most from \emph{successful} trade, because
 successful trade is what hosted trust produces.
+
+\begin{pdexample}{What the moat earns on one trade, at the stated band}
+Take the \textsc{Success} settlement of \S\ref{sec:float-plan}: Bob's $400$\,\textsc{cr}
+bounty clears in full to Alice. At the stated transaction-fee band of $2$--$5\%$,
+the platform's cut on that one trade is $0.02\times400=8$\,\textsc{cr} at the low
+end and $0.05\times400=20$\,\textsc{cr} at the high end --- earned because the
+trade \emph{settled}, not because a bond was slashed. Compare the $60$\,\textsc{cr}
+bond-spread the same section's \textbf{Partial} settlement forfeits to the commons:
+under a small bond-spread, most of that $60$\,\textsc{cr} still goes to the
+commons/salvage fund, not the platform, which is exactly the ``never profits from
+over-slashing'' design the revenue model states in words.
+\end{pdexample}
 
 \noindent As \S\ref{sec:thesis} put it, before any of the machinery was on the page:
 
@@ -1635,7 +1648,12 @@ worst case for any below-tail agent. Either underwriting violates the cleanup lo
 bound (the commons can leak in the tail), or the bound must be reframed as the
 \emph{insurer's} capital-adequacy constraint (a reserve-requirement framing with
 tail reinsurance), not a per-transaction bond. The \emph{form} of the answer is
-determined; only the reserve formula is open.
+determined; only the reserve formula is open. This is a \textbf{Theorem} in the
+honesty ledger's sense --- it follows from the cleanup lower bound's own
+definition plus the definitional fact that competitive pricing tracks expected,
+not worst-case, loss --- about a side that is itself only proposed:
+(\Designed{}; underwriting is not built, and the reserve formula the dichotomy
+leaves open is unspecified).
 \end{proposition}
 
 \subsection{Cartels and wash-trading}\label{sec:fh-failure-modes}
@@ -1720,6 +1738,23 @@ uses ``gluing'' only to organize engineering questions.
 
 Naming what is unspecified is part of the specification. These are not threats
 already defended; they are holes.
+
+\begin{pdexample}{Watching the built floor break, by hand}
+This is not a resolved mechanism --- it is the gap below, traced against a
+number already on the page so ``orphaned escrow'' is not just a phrase. Take
+the three-sided settlement of \S\ref{sec:one-settlement}: Bob's $400$\,\textsc{cr}
+bounty, $50$\,\textsc{cr} lease, and $10$\,\textsc{cr} licence reserve, plus
+Alice's $100$\,\textsc{cr} bond, lock $560$\,\textsc{cr} into one escrow row.
+Now suppose Alice's harbor --- the daemon that alone can sign her side of the
+settlement --- goes dark mid-job, before the oracle closes. Design
+Invariant~\ref{prop:conservation} still holds arithmetically
+($\text{wallet}+\text{escrow}+\text{commons}$ has not changed, since nothing
+moved), but the $560$\,\textsc{cr} row now has no principal left to countersign
+a settlement, a refund, or a slash: it is correct and stuck. That stuck state,
+not a wrong sum, is exactly what \textbf{Operator exit / harbor death} below
+names as unspecified, and it is why Table~\ref{tab:gaps} marks it as reaching
+conservation rather than some softer property.
+\end{pdexample}
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
   \item \textbf{Multi-dimensional reputation aggregation.} ``Accuracy/aesthetics/
@@ -2499,7 +2534,8 @@ without the verifier redoing the work) crossed with multi-agent
 debate~\pdcite{irving2018} (two adversarial reasoners are more legible to a judge than
 one cooperative one).
 
-\paragraph{The adversarial test market, dramatized.} Bob's float plan ships a diff
+\begin{pdexample}{The adversarial test market, dramatized}
+Bob's float plan ships a diff
 that one of Alice's specialists wrote. Rather than trust Alice's own test run --- a
 signal whose author has every reason to flatter it --- Bob posts a $30$\,\textsc{cr}
 bounty per confirmed flaw and opens the diff to $k=3$ independent test-writing
@@ -2510,7 +2546,9 @@ $1$ to about $6\%$ for at most $3 \times 30 = 90$\,\textsc{cr}, which is a numbe
 can hold up against what the bug would have cost him in production. Raise $k$ to $5$
 and the survival probability falls to $(0.4)^5 = 0.010$; that is the whole shape of
 the mechanism --- assurance is bought in units of $k$, and each unit costs one
-bounty plus the carry on one bond.
+bounty plus the carry on one bond. \emph{Now you try:} hold $d=0.6$ fixed and find
+the smallest $k$ that pushes the survival probability below $1\%$.
+\end{pdexample}
 
 \input{figures/fig-he-assurance}
 
@@ -2588,6 +2626,67 @@ priced assurance level is an overstatement of the delivered one. The same
 requirement appears in \pdcite{harbor3} as the sealed multi-clique sampling hypothesis,
 where it is likewise required rather than hygienic.}
 
+\subsection{Putting a parameter on the echo}\label{sec:assurance-correlation}
+
+``One draw and two echoes'' is the right intuition and it is not yet a number, and
+an operator buying assurance by the reviewer needs the number, because the whole
+point of Theorem~\ref{thm:assurance} is that assurance has a price. Give the echo a
+model. Let the panel's per-reviewer detection rate be a \emph{random} quantity $D$
+with mean $d$, drawn once per panel and shared by its members --- that is what a
+common blind spot is, a draw the panel makes together rather than one each. Then
+the miss probability is $\mathbb{E}\bigl[(1-D)^k\bigr]$, and the first thing to
+notice is a one-line inequality with an uncomfortable direction:
+\begin{equation}\label{eq:assurance-jensen}
+\Pr(\text{defect undetected}) \;=\; \mathbb{E}\bigl[(1-D)^k\bigr] \;\ge\; (1-d)^k ,
+\end{equation}
+by Jensen, since $x \mapsto (1-x)^k$ is convex. The independent bound is not
+conservative --- it is \emph{optimistic}, always, for every mixing distribution
+with the same mean. Correlation cannot help.
+
+To get a closed form take $D \sim \mathrm{Beta}(a,b)$, whose intra-panel
+correlation is $\theta = 1/(a+b+1)$ and whose mean is $d = a/(a+b)$, so a target
+$(d,\theta)$ pins $a = d(1/\theta - 1)$ and $b = (1-d)(1/\theta - 1)$. The
+miss probability telescopes into a product a reader can evaluate on paper --- it is
+a ratio of Beta functions, but it is easier to use and easier to check in this
+form, and it avoids colliding with the bond $B$:
+\begin{equation}\label{eq:assurance-beta}
+\Pr(\text{defect undetected})
+  \;=\; \mathbb{E}\bigl[(1-D)^k\bigr]
+  \;=\; \prod_{j=0}^{k-1}\frac{b+j}{a+b+j}.
+\end{equation}
+
+\begin{pdexample}{what correlation costs a three-reviewer panel}
+Take the chapter's running $d = 0.8$ and the pitfall's own panel of $k=3$. Under
+independence the bound is $(1-0.8)^3 = 0.008$: eight misses in a thousand.
+Now set $\theta = \tfrac12$, so $1/\theta - 1 = 1$ and $(a,b) = (0.8,\,0.2)$.
+Equation~\ref{eq:assurance-beta} is three fractions:
+$\tfrac{0.2}{1.0}\times\tfrac{1.2}{2.0}\times\tfrac{2.2}{3.0}
+= 0.2 \times 0.6 \times 0.7\overline{3} = 0.088$ [verified, closed form] --- eleven
+times the independent number, from a panel the ledger still counts as three.
+Push to the monoculture limit $\theta \to 1$ and the product tends to $1-d = 0.2$,
+which is precisely ``one draw and two echoes'' written as arithmetic: three
+reviewers deliver exactly the assurance of one, a factor of $25$ worse than the
+line item says. \emph{Now you try:} at $k=5$ and $\theta=\tfrac12$, does adding two
+more correlated reviewers buy more or less than the third one did?
+(Two more fractions, $\tfrac{3.2}{4.0}\times\tfrac{4.2}{5.0}$, multiply the miss
+probability by $0.8 \times 0.84 = 0.672$, giving $0.059$ --- against $0.2^2 = 0.04$
+for the independent case's next two, so much less: correlated panels have sharply
+diminishing returns, which is the whole argument for buying diversity instead of
+headcount.)
+\end{pdexample}
+
+Two things this does \emph{not} license. It is an empirical hypothesis rather than
+a theorem about any deployed panel, and $\theta$
+is not measured anywhere in this series --- what would measure it is disagreement
+telemetry on deployed panels, and until that exists $\theta$ is a knob for pricing
+sensitivity, not a calibrated constant. And the Beta mixture is a choice, made for
+its closed form; Eq.~\ref{eq:assurance-jensen} is the part that holds for
+\emph{every} mixing distribution and is therefore the part to quote. Note also the
+symbol: $\theta$ is intra-panel correlation, not the audit rate $\rho$ of
+Eq.~\ref{eq:becker}. \pdchapref{stp}{From Spawn to Person} runs the same model
+against its inspection tower, where the tower's clique count $C$ is the instrument
+that holds $\theta$ down.
+
 The ground-truth oracle for grading the test-writers themselves is
 \textbf{mutation-testing kill rates} against held-out syntactic mutation operators,
 which stops agents from overfitting tests to a suite they can already see. This is a
@@ -2643,11 +2742,24 @@ The body of this paper is deliberately implementation-agnostic. This appendix
 records, for the reader who wants to check the claims against running code, exactly
 which mechanisms are shipped in the reference implementation, which are specified
 with a proof or a written protocol, and which are still proposed. The single-line
-summary: an \Built{} conserving bond ledger, an \Built{} continuity organ (episodic
+summary: an \Built{} conserving bond ledger, an \Built{} continuity subsystem (episodic
 memory), a \BuiltWeak{} checkpoint, and a richly \Designed{}-and-model-verified
 protocol stack --- but the spine the market trades on (cross-operator identity
 $\to$ outcome ledger $\to$ reputation) is \BuiltWeak{}-to-\Vision{}. Today the harbor
 economy is a two-sided market with a proof-backed roadmap to three.
+
+\begin{pdexample}{One trace of the ten thousand the property test runs}
+The table below grades bond-ledger conservation \Built{}, grounded in a
+property test over ten thousand random operation traces
+(Design Invariant~\ref{prop:conservation}); here is the smallest trace by hand
+so ``property test'' is not a black box. Escrow a $100$\,\textsc{cr} bond
+(debit $100$ from wallet, credit $100$ to escrow: $\Delta=0$, value only moved
+buckets), then refund it on clean exit (debit $100$ from escrow, credit $100$
+back to wallet: $\Delta=0$ again). Composing the two traces gives
+$\Delta=0+0=0$ and $\text{wallet}+\text{escrow}+\text{commons}$ returns to
+its starting value --- one instance of the $10{,}000$ the property test checks,
+none of which the daemon is trusted to get right by assertion alone.
+\end{pdexample}
 
 {\footnotesize\renewcommand{\arraystretch}{1.03}
 \begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
@@ -2671,9 +2783,9 @@ Bond ledger: escrow, slash, commons pool & \Built{} & bond-ledger module
 Conservation $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ & \Built{} &
   10k-trace property test \\
 No-spawn-without-bond & \BuiltWeak{} & escrow-first; runtime gate is a roadmap item \\
-Episodic memory (continuity organ 1) & \Built{} & episodic-memory module \\
-Resurrection / checkpoint (organ 2) & \BuiltWeak{} & passes notes, not state \\
-Outcome ledger (organ 3 --- reputation keys here) & \BuiltWeak{} & commitments,
+Episodic memory (continuity subsystem 1) & \Built{} & episodic-memory module \\
+Resurrection / checkpoint (subsystem 2) & \BuiltWeak{} & passes notes, not state \\
+Outcome ledger (subsystem 3 --- reputation keys here) & \BuiltWeak{} & commitments,
   daemon-derived deadlines, oracle closure, API/CLI, and overdue monitoring ship;
   neutral grading and reputation binding do not ship \\
 Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls}, lookup
@@ -2681,7 +2793,7 @@ Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls
 Cross-operator attestation & \Designed{}/\Vision{} & no spec for the critical part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
 Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
-  Protocol~\ref{prot:xfer} \\
+  \ifpdbook \pdchapref{fh}{The Federated Harbor}, \S\ref{fh:sec:fh-xfer-ceremony}\else Protocol~\ref{prot:xfer}\fi \\
 Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Designed{}/\Vision{} &
   no estimator shipped \\
 Multi-dimensional reputation, neutral judges & \Vision{} & no axis-aggregation spec \\
@@ -2705,6 +2817,18 @@ Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
 
 We sketch the three central results; full proofs of the conservation results
 appear in \pdchapref{fh}{The Federated Harbor}.
+
+\begin{pdexample}{Theorem~\ref{thm:functor}'s composition law, checked against the settlement it governs}
+The proof below is symbolic; here it is against a trace already worked in
+\S\ref{sec:float-plan}. Let $f$ be the two escrow debits that fund the plan
+(Bob's wallet $-400$, Alice's wallet $-100$, escrow $+500$) and $g$ be the
+\textbf{Partial} settlement that follows (escrow $-500$, Bob's wallet $+240$,
+Alice's wallet $+200$, commons $+60$). Both move value only between wallet,
+escrow, and commons, so $\Delta(f)=\Delta(g)=0$ by the theorem's own claim;
+composing, $\Delta(g\circ f)=\Delta(g)+\Delta(f)=0+0=0$, exactly the $0$ net
+delta the worked example confirmed by summing its four buckets directly. The
+theorem and the hand count are the same fact checked two ways.
+\end{pdexample}
 
 \begin{proof}[Proof sketch of Theorem~\ref{thm:functor}]
 For a valid trace $f:x\to y$, define $\Delta(f)=S(y)-S(x)$. For composable traces

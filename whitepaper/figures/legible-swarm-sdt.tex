@@ -12,16 +12,13 @@
     safe(\x)   = 5*exp(-((\x-3)^2)/1.4);
     danger(\x) = 5*exp(-((\x-6)^2)/1.4);
   }]
-\begin{axis}[
+\begin{axis}[pd axis,
   width=8.6cm,height=6.1cm,
   axis lines=left,
-  axis line style={pd rule},
   xmin=0,xmax=10,ymin=0,ymax=8.6,
   xtick={0,2,4,6,8,10},ytick={0},
-  tick label style={font=\footnotesize,text=hhink!80!hhgray},
   xlabel={evidence of danger the operator reads},
   ylabel={density},
-  every axis label/.style={font=\footnotesize,text=hhink!80!hhgray},
   clip=false,
   axis on top,
   ]

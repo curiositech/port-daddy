@@ -1005,466 +1005,6 @@
   ],
   "unindexed_allow": [
     {
-      "id": "prop:legible-sovereign",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native normative amendment (\"The legible-sovereign rule\") from the Consent-to-the-Leviathan argument; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:consent",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native definition (\"Consent grant\") for the revocable-primitive mechanism; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:override",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native property (\"The inalienable operator-override\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:zoom",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native design law (\"The one law: digest-with-zoom\") -- related in theme to R4's zoom theorem but a distinct definition (summary-must-link-to-artifact), not a restatement of it; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:verifiable-zoom",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native property (\"Verifiable-zoom\") on self-report vs. independently checkable zoom targets; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:completionist",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native definition (\"Completionist completion\") for the honest-completion-gate mechanism; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:regiment",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native property (\"Prevention vs. detection -- the reserved-phrase rule\"), imports Schneider 2000 directly but not R5's Sigma_c/Sigma_u controllability framework; a close relative of R5, not a restatement of it. Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:readpoverty",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native definition (\"Read-poverty\") naming the scale phenomenon that Thm.~lowerbound (R1) then bounds; the definition itself is chapter-native. Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:decay",
-      "file": "whitepaper/legible-swarm.tex",
-      "reason": "Chapter-native property (\"Universal recency-decay\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:single-writer",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native definition (\"Single-writer discipline\"), the kernel's founding definition; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:durability",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native property (\"Durability by fault class\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:exclusion",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native theorem (\"Atomic Mutual Exclusion and Fenced Leases\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:deontic",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native definition (\"The kernel's deontic split\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "thm:schneider",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native theorem (\"A prevention bound for post-commit monitoring\") -- imports Schneider's EM-enforceability result directly (the ambient case R5's paper2.tex also names), but does not carry R5's Sigma_c/Sigma_u controllability generalization; not the same theorem. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:law1",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native property (\"Metric-control separation, Law 1\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:law2",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native property (\"Oracle-bound closure, Law 2\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:attest",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native property (\"Honest self-report, I10\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:consistency",
-      "file": "whitepaper/single-writer-kernel.tex",
-      "reason": "Chapter-native theorem (\"Conditional consistency model\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:alg-pinning",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native property (\"Algorithmic Pinning\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:offline-attn",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Offline Attenuation\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:revocation",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Revocation-Augmented Verification\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:filter-mono",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native property (\"Filter Monotonicity over a TTL Epoch\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:no-reanim",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native property (\"No Partial Reanimation\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:fresh",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native property (\"Conditional Gossip Expectation\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:injective",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native theorem (\"Authentication Correspondence in the Modeled Phase\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:attn-sound",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Chapter-native theorem (\"Attenuation soundness, mechanized\"), ProVerif-mechanized (harbor_card_v5/v6/v7_*.pv) but not part of the R1-R17/CR/B6 research-program catalog; a strong candidate for its own entry in a future wave given its real mechanization artifacts. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "unlabeled-env:website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:251",
-      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-      "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{definition}[Harbor Key Hierarchy] at line 251, no \\label. This file carries no twin-location header -- thm:attn-sound and friends are chapter-native, not folded -- so, unlike the two ids below, its line number is not disturbed by this wave's edits.)"
-    },
-    {
-      "id": "def:role",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native definition (\"Role\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:person",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native definition (\"Person\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:oracle",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native definition (\"Oracle\") for the grading-oracle abstraction; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "thm:necessity",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native impossibility theorem (\"Non-forgeable identity is necessary\") that paper5.tex cites as a prerequisite (\"the program's prior impossibility result\") but does not itself restate; not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:reality",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native property (\"Reality of Reputation and Principal Liability\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:whitewash-cost",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native theorem (\"Whitewashing-cost bound\"), the prerequisite Theorem~necessity's design-lever sibling; not restated in any paperN.tex. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:principal",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native definition (\"Principal\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:0040",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native definition (\"Local non-forgeable identity\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:0040b",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native definition (\"Cross-operator attestation\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:qvec",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native definition (\"Quality vector\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:hole",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native property (\"The grading-oracle hole\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:tombstone",
-      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-      "reason": "Chapter-native property (\"Reputation monotonicity with tombstones\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:float-plan",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native definition (\"Float plan\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:conservation",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native property (\"Conservation\") for the ledger's own accounting invariant; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:nospawn",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native property (\"No-spawn-without-bond\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:local-id",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native definition (\"Local non-forgeable identity\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:0040b",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native definition (\"The cross-operator attestation problem\") -- distinct instance of a shared label id used independently by spawn-to-person.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "thm:functor",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native theorem (\"Single-unit conservation composes\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:lax",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native theorem (\"Conservation composes laxly\" companion result); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:ms",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native theorem (\"Conditional bilateral-trade boundary\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:fh-escrow-bound",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native theorem stating the general escrow-exposure bound that federated-harbor-whitepaper.tex's own thm:fh-escrow-bound (a distinct label instance) specializes; Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "conj:trustless",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native open conjecture; Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "conj:eq-bound",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native open conjecture (\"Equivocation Lower Bound\"), an analogue of the cleanup lower bound for federation freshness windows -- thematically near R6 but not a restatement of it (no sheaf/cohomology machinery). Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:no-saga",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native proposition (\"Compensation does not erase reliance\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:folk",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native theorem (\"The monitoring model must include the evaluator\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:reserve",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native proposition (\"Underwriting reframes the bond as reserve adequacy\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "conj:sheaf",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native open conjecture (\"Formalization target, not established result\") flagging future sheaf-theoretic work; explicitly not yet a proved result, so not part of the R6 catalog entry. Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:assurance",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native theorem (\"Purchased Assurance Bound\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:becker-deterrence",
-      "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native property (\"Becker deterrence for the panel\"), a direct application of Becker's classical condition (the same textbook fact R7's stage-deterrence theorem also applies) but not a restatement of R7's tower/amortization machinery. Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:commons",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Commons Authority\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:correlating-device",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Conditional Correlating-Device Interpretation\") applying Aumann correlated equilibrium; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:cap-txn",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Capability-Bounded Transaction\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "thm:scope",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native theorem (\"Structural Scope Limitation\"), Kani-checked (core/harbor-card-rs) but not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:isolation",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Isolation Levels\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:evidence",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Evidence Trail\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "lem:integrity",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native lemma (\"Trail Integrity\"); Chapter-native lemma with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:merkle-forest",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Merkle Forest\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:proof-sound",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Proof Soundness\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:forest-bind",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Binding\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:pheromone-attribution",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Attribution Invariant\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:pheromone-rollback",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Rollback Safety\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:pheromone-conservation",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Conservation\") for the pheromone/stigmergic ledger, distinct from harbor-economy.tex's prop:conservation instance; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:sen",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"A Pareto-Inferior Locking Instance\"), a Sen-inspired design warning; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:advisory",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Advisory Consistency\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "thm:advisory",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native theorem (\"Advisory Conflict Completeness\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:appeal-sound",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Appeal Soundness\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:social-recovery",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Social Recovery\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:float-plan",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Float Plan\") -- distinct instance of a shared label id used independently by harbor-economy.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:settlement",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Settlement\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:intent",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native property (\"Intent Irrelevance\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:cleanup-bound",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native theorem (\"Cleanup Lower Bound\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:acct-state",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Accounting State\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "thm:conservation",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native theorem (\"Conservation\"), TLA+-mechanized (proofs/bonded/conservation/Conservation.tla) but not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "lem:no-overdraft",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native lemma (\"No Overdraft Under Concurrent Escrow\"); Chapter-native lemma with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:kms",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Admissible KMS\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "thm:federated-security",
-      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native theorem (\"Federated Security, informal\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "def:fh-sovereignty",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Harbor Sovereignty\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "def:fh-interscope",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Inter-Harbor Scope\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
-    },
-    {
-      "id": "prop:fh-witness",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native property (\"Witness-Log Admissibility\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "lem:fh-att",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native lemma (\"Attenuation Monotonicity Across the Boundary\"); Chapter-native lemma with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:fh-conv",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native theorem (federation-convergence result); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "cor:fh-window",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native corollary (\"Service-Level Attacker Window\"); Chapter-native corollary with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "thm:fh-escrow-bound",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native theorem specializing harbor-economy.tex's general escrow bound (a distinct label instance) to the federated setting; Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "prop:fh-cross-cons",
-      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-      "reason": "Chapter-native property (\"Cross-Harbor Bucket Partition\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
-    },
-    {
-      "id": "unlabeled-env:docs/harbor-research/tex/paper1.tex:209",
-      "file": "docs/harbor-research/tex/paper1.tex",
-      "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{corollary}[The advantage, priced], R4's zoom-advantage corollary. Originally at line 196; now at 209 after this wave's twin-location header added 13 lines above it.)"
-    },
-    {
       "id": "unlabeled-env:docs/harbor-research/tex/exec1.tex:30",
       "file": "docs/harbor-research/tex/exec1.tex",
       "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{theorem}[Regret head], an executive-summary restatement of R3, at line 30.)"
@@ -1485,9 +1025,484 @@
       "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{theorem}[Regimentation = controllability], an executive-summary restatement of R5, at line 61.)"
     },
     {
+      "id": "unlabeled-env:docs/harbor-research/tex/paper1.tex:209",
+      "file": "docs/harbor-research/tex/paper1.tex",
+      "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{corollary}[The advantage, priced], R4's zoom-advantage corollary. Originally at line 196; now at 209 after this wave's twin-location header added 13 lines above it.)"
+    },
+    {
+      "id": "def:acct-state",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Accounting State\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:advisory",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Advisory Consistency\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:cap-txn",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Capability-Bounded Transaction\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:commons",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Commons Authority\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:evidence",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Evidence Trail\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:float-plan",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Float Plan\") -- distinct instance of a shared label id used independently by harbor-economy.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:isolation",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Isolation Levels\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:kms",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Admissible KMS\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:merkle-forest",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Merkle Forest\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:settlement",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Settlement\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:social-recovery",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Social Recovery\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "lem:integrity",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native lemma (\"Trail Integrity\"); Chapter-native lemma with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "lem:no-overdraft",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native lemma (\"No Overdraft Under Concurrent Escrow\"); Chapter-native lemma with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:appeal-sound",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Appeal Soundness\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:correlating-device",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Conditional Correlating-Device Interpretation\") applying Aumann correlated equilibrium; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:forest-bind",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Binding\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:intent",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Intent Irrelevance\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:pheromone-attribution",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Attribution Invariant\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:pheromone-conservation",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Conservation\") for the pheromone/stigmergic ledger, distinct from harbor-economy.tex's prop:conservation instance; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:pheromone-rollback",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Rollback Safety\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:proof-sound",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"Proof Soundness\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:sen",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native property (\"A Pareto-Inferior Locking Instance\"), a Sen-inspired design warning; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:advisory",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native theorem (\"Advisory Conflict Completeness\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:cleanup-bound",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native theorem (\"Cleanup Lower Bound\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:conservation",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native theorem (\"Conservation\"), TLA+-mechanized (proofs/bonded/conservation/Conservation.tla) but not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:federated-security",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native theorem (\"Federated Security, informal\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:scope",
+      "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "reason": "Chapter-native theorem (\"Structural Scope Limitation\"), Kani-checked (core/harbor-card-rs) but not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
       "id": "def:anchor-key-hierarchy",
       "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
       "reason": "Anchor chapter definition (Harbor Key Hierarchy); labelled in Wave 2 so coverage can see it, indexed with the chapter's other definitions in Wave 3."
+    },
+    {
+      "id": "def:offline-attn",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Offline Attenuation\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:revocation",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Revocation-Augmented Verification\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:revocation-truncation",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native design invariant (\"Revocation-log truncation\") added under critique row CA-048; retires a log entry once every card it could name has expired. Specified, not shipped, and no docs/harbor-research/tex/paperN.tex restates it. Not part of the R1-R17/CR/B6 catalog."
+    },
+    {
+      "id": "prop:alg-pinning",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native property (\"Algorithmic Pinning\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:filter-mono",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native property (\"Filter Monotonicity over a TTL Epoch\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:fresh",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native property (\"Conditional Gossip Expectation\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:no-reanim",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native property (\"No Partial Reanimation\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:attn-sound",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native theorem (\"Attenuation soundness, mechanized\"), ProVerif-mechanized (harbor_card_v5/v6/v7_*.pv) but not part of the R1-R17/CR/B6 research-program catalog; a strong candidate for its own entry in a future wave given its real mechanization artifacts. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:injective",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Chapter-native theorem (\"Authentication Correspondence in the Modeled Phase\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "unlabeled-env:website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:251",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{definition}[Harbor Key Hierarchy] at line 251, no \\label. This file carries no twin-location header -- thm:attn-sound and friends are chapter-native, not folded -- so, unlike the two ids below, its line number is not disturbed by this wave's edits.)"
+    },
+    {
+      "id": "cor:fh-window",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native corollary (\"Service-Level Attacker Window\"); Chapter-native corollary with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:fh-interscope",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Inter-Harbor Scope\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:fh-sovereignty",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native definition (\"Harbor Sovereignty\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "lem:fh-att",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native lemma (\"Attenuation Monotonicity Across the Boundary\"); Chapter-native lemma with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:fh-cross-cons",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native property (\"Cross-Harbor Bucket Partition\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:fh-witness",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native property (\"Witness-Log Admissibility\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:fh-conv",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native theorem (federation-convergence result); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:fh-escrow-bound",
+      "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "reason": "Chapter-native theorem specializing harbor-economy.tex's general escrow bound (a distinct label instance) to the federated setting; Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "conj:eq-bound",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native open conjecture (\"Equivocation Lower Bound\"), an analogue of the cleanup lower bound for federation freshness windows -- thematically near R6 but not a restatement of it (no sheaf/cohomology machinery). Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "conj:sheaf",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native open conjecture (\"Formalization target, not established result\") flagging future sheaf-theoretic work; explicitly not yet a proved result, so not part of the R6 catalog entry. Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "conj:trustless",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native open conjecture; Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:0040b",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native definition (\"The cross-operator attestation problem\") -- distinct instance of a shared label id used independently by spawn-to-person.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:float-plan",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native definition (\"Float plan\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:lc-fragment",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native definition (\"The commitment fragment L_c\") added under critique row CA-056; consolidates a grammar the chapter previously spread over four pages of prose, so it restates existing chapter content rather than introducing a result. No companion research paper restates it; not part of the R1-R17/CR/B6 catalog."
+    },
+    {
+      "id": "def:local-id",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native definition (\"Local non-forgeable identity\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "prop:becker-deterrence",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native property (\"Becker deterrence for the panel\"), a direct application of Becker's classical condition (the same textbook fact R7's stage-deterrence theorem also applies) but not a restatement of R7's tower/amortization machinery. Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:conservation",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native property (\"Conservation\") for the ledger's own accounting invariant; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:no-saga",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native proposition (\"Compensation does not erase reliance\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:nospawn",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native property (\"No-spawn-without-bond\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:reserve",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native proposition (\"Underwriting reframes the bond as reserve adequacy\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:assurance",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native theorem (\"Purchased Assurance Bound\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:fh-escrow-bound",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native theorem stating the general escrow-exposure bound that federated-harbor-whitepaper.tex's own thm:fh-escrow-bound (a distinct label instance) specializes; Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:folk",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native theorem (\"The monitoring model must include the evaluator\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:functor",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native theorem (\"Single-unit conservation composes\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:lax",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native theorem (\"Conservation composes laxly\" companion result); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:ms",
+      "file": "website-v2/public/whitepaper/harbor-economy.tex",
+      "reason": "Chapter-native theorem (\"Conditional bilateral-trade boundary\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:0040",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native definition (\"Local non-forgeable identity\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:0040b",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native definition (\"Cross-operator attestation\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:oracle",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native definition (\"Oracle\") for the grading-oracle abstraction; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:person",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native definition (\"Person\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:principal",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native definition (\"Principal\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:qvec",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native definition (\"Quality vector\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:role",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native definition (\"Role\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "prop:hole",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native property (\"The grading-oracle hole\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:reality",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native property (\"Reality of Reputation and Principal Liability\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:tombstone",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native property (\"Reputation monotonicity with tombstones\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:necessity",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native impossibility theorem (\"Non-forgeable identity is necessary\") that paper5.tex cites as a prerequisite (\"the program's prior impossibility result\") but does not itself restate; not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:whitewash-cost",
+      "file": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "reason": "Chapter-native theorem (\"Whitewashing-cost bound\"), the prerequisite Theorem~necessity's design-lever sibling; not restated in any paperN.tex. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:completionist",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native definition (\"Completionist completion\") for the honest-completion-gate mechanism; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:consent",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native definition (\"Consent grant\") for the revocable-primitive mechanism; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:readpoverty",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native definition (\"Read-poverty\") naming the scale phenomenon that Thm.~lowerbound (R1) then bounds; the definition itself is chapter-native. Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:zoom",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native design law (\"The one law: digest-with-zoom\") -- related in theme to R4's zoom theorem but a distinct definition (summary-must-link-to-artifact), not a restatement of it; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "prop:decay",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native property (\"Universal recency-decay\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:legible-sovereign",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native normative amendment (\"The legible-sovereign rule\") from the Consent-to-the-Leviathan argument; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:override",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native property (\"The inalienable operator-override\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:regiment",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native property (\"Prevention vs. detection -- the reserved-phrase rule\"), imports Schneider 2000 directly but not R5's Sigma_c/Sigma_u controllability framework; a close relative of R5, not a restatement of it. Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:verifiable-zoom",
+      "file": "whitepaper/legible-swarm.tex",
+      "reason": "Chapter-native property (\"Verifiable-zoom\") on self-report vs. independently checkable zoom targets; Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "def:deontic",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native definition (\"The kernel's deontic split\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "def:single-writer",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native definition (\"Single-writer discipline\"), the kernel's founding definition; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+    },
+    {
+      "id": "prop:attest",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native property (\"Honest self-report, I10\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:durability",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native property (\"Durability by fault class\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:law1",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native property (\"Metric-control separation, Law 1\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "prop:law2",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native property (\"Oracle-bound closure, Law 2\"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:consistency",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native theorem (\"Conditional consistency model\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:exclusion",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native theorem (\"Atomic Mutual Exclusion and Fenced Leases\"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
+    },
+    {
+      "id": "thm:observability-regimentation",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native theorem (\"Regimentation under partial observation\"), the Lin--Wonham refinement added under critique row CA-001 so the full-observation hypothesis Thm 1.8.3 was leaning on is stated rather than assumed; imported framework, not a Harbor result, and no companion research paper restates it. Not part of the R1-R17/CR/B6 catalog."
+    },
+    {
+      "id": "thm:schneider",
+      "file": "whitepaper/single-writer-kernel.tex",
+      "reason": "Chapter-native theorem (\"A prevention bound for post-commit monitoring\") -- imports Schneider's EM-enforceability result directly (the ambient case R5's paper2.tex also names), but does not carry R5's Sigma_c/Sigma_u controllability generalization; not the same theorem. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
     }
   ]
 }

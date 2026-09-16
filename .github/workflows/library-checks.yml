@@ -190,8 +190,8 @@ jobs:
           # floor that would no longer have caught the missing-import case it
           # was written for.
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 331 ]; then
-            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 331 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 428 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 428 it has; a module failed to import"
             exit 1
           fi
 
@@ -308,25 +308,39 @@ jobs:
       # chapter 6, a hand-written enumerate in chapter 8. Neither sibling can
       # see that: there is no shared \input and no shared \label. A green check
       # over the half that was fixed is worse than no check, because it reads
-      # as coverage, so this is the other half. The allow records the one
-      # duplication that is still waiting for an owner, by chapter pair and by
-      # the exact message names, so that a different one -- or a change to this
-      # one -- still fails.
+      # as coverage, so this is the other half. That duplication is now closed:
+      # chapter 8 owns the ceremony, chapter 6's Protocol moved into its \else
+      # branch so the standalone paper keeps its copy and the Book does not,
+      # and this step runs with no --allow at all. Adding one back should take
+      # an argument about who owns the ceremony, not a flag.
       - name: No message ceremony is written out twice in the Book
-        run: >-
-          python3 scripts/harbor-research/check_duplicate_protocols.py
-          --allow '6:8:xfer_ack,xfer_deliver,xfer_offer,xfer_req'
+        run: python3 scripts/harbor-research/check_duplicate_protocols.py
 
-      # Figure 4.5's caption tells the reader its sweep CSV "is not yet
-      # present", so the curves are the closed-form floor rather than the
-      # measurement the plot looks like. The honesty belongs in the tree, not
-      # in a caption a skimming reader never reaches; the allow keeps that one
-      # debt visible here until the CSV is committed, and a second such caption
-      # anywhere in the corpus fails.
+      # Figure 4.5's caption used to tell the reader its sweep CSV "is not yet
+      # present", and this step carried an --allow for exactly that one debt.
+      # The CSV is now committed (whitepaper/figures/data/r1-floor.csv, emitted
+      # by a7_experiment.py at seed 20260816), the caption states what the
+      # measurement shows, and the allow is gone. This step now runs with no
+      # --allow at all: any caption anywhere in the corpus that says its data
+      # is absent fails it.
       - name: No figure caption says the data behind it is absent
+        run: python3 scripts/harbor-research/check_absent_data_captions.py
+
+      # Chapter 1 splits "delegation chain" into the cryptographic authorization
+      # chain and the coordination lineage and promises, in its own prose, never
+      # to write the phrase bare again. Nothing enforced that promise, and bare
+      # uses had survived in five other chapters (with chapter 4 running a third
+      # name, "delegation trace", for the coordination lineage). The four allowed
+      # below are permanent editorial decisions rather than debt: two are the
+      # descriptive genus used right after naming the object, two name the
+      # ProVerif query that pairs with the committed chain-replay.pv.
+      - name: No chapter writes bare "delegation chain"
         run: >-
-          python3 scripts/harbor-research/check_absent_data_captions.py
-          --allow 'whitepaper/figures/legible-swarm-readpoverty.tex:not yet present'
+          python3 scripts/harbor-research/check_delegation_chain_vocabulary.py
+          --allow 'whitepaper/single-writer-kernel.tex:attenuation-monotonic delegation chain of digital signatures'
+          --allow 'whitepaper/legible-swarm.tex:attenuation-monotonic delegation chain (a security object'
+          --allow 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:Delegation chain replay (\S\ref{sec:delegation}'
+          --allow 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex:Delegation chain replay & ProVerif at depth 3'
 
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check
@@ -351,6 +365,34 @@ jobs:
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
 
+      # The figure gate's own tests. A suite that checks the checkers and is
+      # not itself checked is the same defect one layer up -- this one was red
+      # for six days because nothing ran it.
+      #
+      # The count floor is this job's convention and this job's reason: a module
+      # that cannot import is ONE error in a run that still prints "Ran N
+      # tests", which is how 11 page-measurement tests went missing above.
+      # Raise the floor when the suite grows.
+      #
+      # `claude/figcheck-suite-repair` adds this same step with a floor of 86.
+      # If that branch lands first this is a one-number conflict on the floor,
+      # which is the right kind of conflict: the higher number is the correct
+      # one, because the suite only ever grows.
+      - name: figcheck T1-T10 and tikz_precheck unit tests (the figure gate's own tests)
+        run: |
+          set -euo pipefail
+          out=$(python3 -m unittest discover -s skills/harbor-chartwork/tests -p 'test_*.py' 2>&1) || suite_failed=1
+          echo "$out"
+          if [ "${suite_failed:-0}" = "1" ]; then
+            echo "::error::the harbor-chartwork figure-gate suite failed; its output is above"
+            exit 1
+          fi
+          ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
+          if [ "${ran:-0}" -lt 171 ]; then
+            echo "::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 171 it has; a module failed to import"
+            exit 1
+          fi
+
       - name: Banned phrases ("held to account", "load-bearing") never appear in prose
         run: node scripts/lint/check-banned-phrases.mjs
 
@@ -372,7 +414,30 @@ jobs:
         continue-on-error: true
         run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
 
-      - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
+      - name: readers_eye unit tests
+        run: python3 -m unittest discover -s tests/harbor-research -p 'test_readers_eye.py' -v
+
+      # The clean-vs-bad fixture pair, as a gate. This one IS required: it
+      # does not read the Book at all, it only asserts that the check still
+      # separates a paragraph a reader can follow from one they cannot. If
+      # that stops holding, every advisory number below is noise.
+      - name: The reader's-eye check still separates clean prose from bad
+        run: python3 skills/textbook-craft/scripts/readers_eye.py --selftest
+
+      # Advisory, for exactly the reason the chapter_lint step above is: the
+      # corpus is not clean for these rules yet (149 findings across the eight
+      # chapters at the time of landing, 92 of them the single systemic
+      # "this paper" register issue), and a check nobody has cleaned up after
+      # must not freeze the merge queue on the day it lands. Promote one rule
+      # at a time to a required step -- `--rule caption-carries-the-fact
+      # --strict` first, it has the highest precision -- as the corpus clears.
+      # The baseline table it is measured against is
+      # skills/textbook-craft/references/readers-eye.md section 6.
+      - name: Book prose is followable by a reader who lacks the vocabulary (advisory)
+        continue-on-error: true
+        run: python3 skills/textbook-craft/scripts/readers_eye.py --strict --limit 6
+
+      - name: Figure register and triage are well-formed, and the register's figure join resolves both ways
         run: python3 scripts/harbor-research/check_figure_register.py
 
       # Before asking whether the digest is a fresh render OF the records, ask

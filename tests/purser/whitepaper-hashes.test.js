@@ -23,6 +23,19 @@ const EXPECTED_PUBLICATIONS = [
 
 const digests = JSON.parse(fs.readFileSync(DIGESTS, 'utf8')).pdfs;
 
+// Page-count policy of record, read as JSON because jest cannot load the
+// TypeScript module in website-v2/scripts/. Page counts are never pinned here:
+// a floor catches a broken artifact, and the drift band that would catch a wild
+// move lives next to the baseline in whitePapers.ts. See
+// website-v2/scripts/page-count-policy.ts.
+const PAGE_POLICY = JSON.parse(
+  fs.readFileSync('website-v2/scripts/page-count-policy.json', 'utf8'),
+);
+
+function pageFloorForArtifact(repoPath) {
+  return PAGE_POLICY.floorPagesByArtifact[repoPath] ?? PAGE_POLICY.defaultFloorPages;
+}
+
 describe('Whitepaper PDF hash verification', () => {
   test('the digest manifest lists every publication PDF and nothing else', () => {
     expect(Object.keys(digests).sort()).toEqual([...EXPECTED_PUBLICATIONS].sort());
@@ -34,7 +47,19 @@ describe('Whitepaper PDF hash verification', () => {
       const hash = crypto.createHash('sha256').update(file).digest('hex');
       expect(hash).toBe(digests[path].sha256);
       expect(file.length).toBe(digests[path].bytes);
-      expect(digests[path].pages).toBeGreaterThan(0);
+      // `> 0` accepted a one-page LaTeX error render. The floor does not.
+      // This file runs under jest (tests/purser/ROUTING.json), and jest's
+      // expect() takes exactly one argument -- the second-argument message
+      // form is vitest's. So the explanation rides in a thrown Error.
+      const floor = pageFloorForArtifact(path);
+      const pages = digests[path].pages;
+      if (pages < floor) {
+        throw new Error(
+          `${path} is recorded at ${pages} pages, under its floor of ${floor} — ` +
+            'that is a broken artifact, not a short one.',
+        );
+      }
+      expect(pages).toBeGreaterThanOrEqual(floor);
     });
   });
 });
