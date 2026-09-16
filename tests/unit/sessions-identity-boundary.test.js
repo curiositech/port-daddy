@@ -746,6 +746,33 @@ describe('identity write boundary — file claim writes', () => {
     await app.close();
   });
 
+  test('a forced claim with a malformed file entry returns a structured validation error', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'malformed-force-owner');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: { purpose: 'reject malformed forced claim', agentId: 'malformed-force-owner' },
+    })).json();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${started.id}/files`,
+      headers: owner.headers,
+      payload: { files: [123], force: true },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({
+      success: false,
+      error: 'filePaths must contain non-empty strings',
+      code: 'VALIDATION_ERROR',
+    });
+    expect(sessions.listAllActiveClaims({}).claims).toHaveLength(0);
+    await app.close();
+  });
+
   test("a forged credential on DELETE /sessions/:id/files cannot release another session's claims", async () => {
     const { app, souls, sessions } = buildApp();
     const minted = mintTestActor(souls, 'owner:stack:files');

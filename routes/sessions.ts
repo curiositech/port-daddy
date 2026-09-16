@@ -1346,6 +1346,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
+      if (hasFiles && files.some((file: unknown) => typeof file !== 'string' || !file.trim())) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'filePaths must contain non-empty strings',
+          code: 'VALIDATION_ERROR'
+        };
+      }
+
       if (hasRegions) {
         for (const region of regions) {
           if (!region.path || typeof region.path !== 'string') {
