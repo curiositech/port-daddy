@@ -351,6 +351,7 @@ enum ShellInput {
 pub struct ShellTerminal {
     parser: vt100::Parser,
     input_tx: Option<mpsc::Sender<ShellInput>>,
+    child_killer: Option<Box<dyn portable_pty::ChildKiller + Send + Sync>>,
     status: ShellStatus,
     shell: String,
     cwd: PathBuf,
@@ -367,6 +368,7 @@ pub struct ShellTerminal {
 impl ShellTerminal {
     /// Start the operator's login shell in a native PTY and return its event bus.
     pub fn spawn(cwd: PathBuf) -> Result<(Self, tokio_mpsc::UnboundedReceiver<ShellEvent>)> {
+        crate::local_control::ensure_allowed()?;
         let recovery_path = default_recovery_path();
         let (recovery, recovery_failure) = load_recovery_state(&recovery_path);
         let shell = resolve_shell();
@@ -387,11 +389,13 @@ impl ShellTerminal {
         command.env("COLORTERM", "truecolor");
         command.env("PORT_DADDY_SURFACE", "pd-console");
 
+        crate::local_control::ensure_allowed()?;
         let mut child = pair
             .slave
             .spawn_command(command)
             .with_context(|| format!("launch {} as a login shell", shell.display()))?;
         drop(pair.slave);
+        let child_killer = Some(child.clone_killer());
 
         let mut reader = pair
             .master
@@ -420,6 +424,7 @@ impl ShellTerminal {
                     // startup files. Wait only in explicit visual-proof runs so
                     // the captured command enters at the same boundary as typing.
                     thread::sleep(Duration::from_millis(650));
+                    if crate::local_control::ensure_allowed().is_err() { return; }
                     if let Err(error) = writer.write_all(&command).and_then(|_| writer.flush()) {
                         let _ = ready_tx.send(ShellEvent::Failed(ShellFailure::new(
                             "PTY_BOOT_INPUT_FAILED",
@@ -430,6 +435,7 @@ impl ShellTerminal {
                     }
                 }
                 while let Ok(input) = input_rx.recv() {
+                    if crate::local_control::ensure_allowed().is_err() { break; }
                     let result = match input {
                         ShellInput::Bytes(bytes) => {
                             writer.write_all(&bytes).and_then(|_| writer.flush())
@@ -506,6 +512,7 @@ impl ShellTerminal {
         let mut terminal = Self {
             parser: vt100::Parser::new(DEFAULT_ROWS, DEFAULT_COLS, 2_000),
             input_tx: Some(input_tx),
+            child_killer,
             status: ShellStatus::Starting,
             shell: display_shell(&shell),
             cwd,
@@ -527,6 +534,7 @@ impl ShellTerminal {
         Self {
             parser: vt100::Parser::new(DEFAULT_ROWS, DEFAULT_COLS, 2_000),
             input_tx: None,
+            child_killer: None,
             status: ShellStatus::Failed(ShellFailure::unavailable(error.into())),
             shell: display_shell(&shell),
             cwd,
@@ -548,6 +556,7 @@ impl ShellTerminal {
         let mut terminal = Self {
             parser: vt100::Parser::new(DEFAULT_ROWS, DEFAULT_COLS, 2_000),
             input_tx: None,
+            child_killer: None,
             status: ShellStatus::Failed(failure),
             shell: display_shell(&shell),
             cwd,
@@ -582,9 +591,26 @@ impl ShellTerminal {
     }
 
     pub fn send(&self, bytes: impl Into<Vec<u8>>) -> bool {
+        if crate::local_control::ensure_allowed().is_err() { return false; }
         self.input_tx
             .as_ref()
             .is_some_and(|tx| tx.send(ShellInput::Bytes(bytes.into())).is_ok())
+    }
+
+    /// Close admission first, then request termination of this owned shell.
+    /// Detached descendants and already accepted remote work remain unverified.
+    pub fn stop_for_local_off(&mut self) -> Result<()> {
+        self.input_tx = None;
+        if let Some(mut child) = self.child_killer.take() {
+            child.kill().context("request termination of the console-owned shell")?;
+        }
+        self.status = ShellStatus::Failed(ShellFailure::new(
+            "LOCAL_OFF", "CLI input is disabled by local Off.",
+            "Owned shell termination was requested; detached descendants are not verified stopped.",
+            "Keep local Off set until explicit authorized recovery.",
+        ));
+        self.checkpoint(true);
+        Ok(())
     }
 
     /// Return the number of retained primary-screen rows above the live prompt.
@@ -665,6 +691,7 @@ impl ShellTerminal {
         }
         self.size = (rows, cols);
         self.parser.set_size(rows, cols);
+        if crate::local_control::ensure_allowed().is_err() { return false; }
         self.input_tx
             .as_ref()
             .is_some_and(|tx| tx.send(ShellInput::Resize { rows, cols }).is_ok())

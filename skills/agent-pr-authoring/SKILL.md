@@ -86,7 +86,11 @@ flowchart TD
 1. **Scope the diff before opening it.** One PR = one reviewable change. If the work mixes a refactor, a feature, and a dependency bump, split it into separate PRs even if that means three PRs instead of one.
 2. **Write the Summary and Test Plan together.** Summary states what changed and why (and what it deliberately does not do). Test Plan lists the exact commands run and the observed output — a reviewer should be able to reproduce the claim without asking. "Tests pass" with no command or output is not a Test Plan.
 3. **Open as a draft while iterating.** Draft signals "not yet reviewable"; push commits and let CI run until the real required gates are green before asking for review.
-4. **Triage every check before reacting to red.** Classify each as required-and-repo-owned or external-and-advisory (see `references/gate-taxonomy.md` for the decision ladder and the Cloudflare Pages specifics). Fix the root cause of a real required gate. Never wait on, and never treat as a blocker, an external check.
+4. **Triage every check before reacting to red.** Classify it from the live
+   ruleset as required or advisory; repo-owned does not mean required, and
+   external does not mean advisory. Fix a required gate. Inspect advisory
+   failures for real findings, but never hold a merge merely for their status.
+   See `references/gate-taxonomy.md` for the Port Daddy repository custom.
 5. **Mark ready only when real gates are green**, then process review: pull bot and human comments, fix the real findings as separate named fixup commits (`fixup: address <bot> finding on <file> — <what>`), reply to the rest with fixed/deferred/contested-because. See `references/review-and-merge-mechanics.md`.
 6. **Rebase onto the latest base and recheck mergeability** before landing — `MERGEABLE` can flip to `CONFLICTING` the moment another PR lands on the base.
 7. **Land through the merge queue.** Enqueue the PR and let the queue's configured strategy pick squash/merge/rebase and branch deletion; do not force a strategy by hand, do not force-push, and do not use an admin override to bypass a real required gate.

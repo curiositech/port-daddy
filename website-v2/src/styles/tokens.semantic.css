@@ -102,6 +102,11 @@
   --print-swiss-blue: #001489;
   --print-swiss-violet: #582c83;
   --print-swiss-red: #da291c;
+  /* And the maritime edition's fourth ink: an antique gold that carries the
+     trim of the engraved plates onto the page — opener rules, the ornament of
+     part titles, the fillets of framed matter. A flat stand-in for a metallic
+     pass (Pantone 872 C where one is available). Print only, no web role. */
+  --print-maritime-gold: #805a14;
 
   --signal-charlie: var(--status-success);
   --signal-november: var(--status-error);

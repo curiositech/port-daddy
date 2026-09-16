@@ -32,8 +32,55 @@ consistency with the established set. The flag mast flies two of the nine
 Papa/Delta-family signal flags verified against Pub. 102 that same session
 (`international-code-of-signals` skill, `icos_lookup.py code P` / `code D`) —
 Papa (blue field, cream/white center rectangle) over Delta (three horizontal
-bands) — the same authentic pair used as the "P·D" call-sign motif in the
-Swiss-Modern-Maritime design pass (`docs/design/design-passes/swiss-maritime-tokens.css`).
+bands) — read as the "P·D" call-sign motif. This line used to name a
+swiss-maritime-tokens stylesheet under a design-passes directory as the pair's
+other home; no such file has ever existed in this repository, and the
+doc-citation guard caught it the first time anything touched this file. What
+survives is the half that can be checked: the flags are Pub. 102's, verified
+with `icos_lookup.py`, not copied off a decorative flag chart.
 Themed to Scout (the spyglass = "capture where your eyes already are"), and
 fills a real gap: the W2 image-overhaul plan (ch20 §"Image overhaul plan")
 named Scout as a route needing hero art with none yet produced.
+
+## Book and Program (added 2026-09-08)
+
+Two replacement hero scenes, generated the same way as Scout
+(`nano-banana-image-gen`, `gemini-3-pro-image-preview`, aspect 16:9,
+`manifesto-{light,dark}.jpg` as the style-template reference for the matching
+theme). Output as `book-{light,dark}.png` and `program-{light,dark}.png`,
+converted to 1600px webp at `website-v2/public/img/generated/library/`.
+
+BOOK is the hero for the `/whitepaper` route and retires the `LIB` seven-plate
+gallery-wall composition above. That scene showed seven separate documents
+mounted on a wall, which was true when the whitepaper was seven standalone
+papers; the whitepaper is now one volume of eight chapters in four parts, so a
+wall of seven plates no longer describes what a reader is being handed. The
+replacement is one book: four spine bands for the four parts, eight ribbon
+markers for the eight chapters. The tugboat and the anchor emblem carry over
+from `LIB` so the two read as the same family.
+
+PROGRAM is the hero for the `/research` route. It splits the frame in two
+because the route's claim is two-sided: submission-form papers on the left,
+machine-checked evidence on the right. The mast flies the same Papa-over-Delta
+pair as Scout. Its prompt asks for seven manuscripts and the plate that
+shipped fans six — a difference between the brief and the take, recorded in
+the note after the block rather than quietly reconciled. The prompts here are
+the ask; the notes are what came back, and where they disagree the notes are
+the truth about the file on disk.
+
+```bash
+BOOK="Scene: one substantial cut-paper book standing upright and closed on a small paper reading stand at center, seen three-quarters on. Its spine is built from four stacked horizontal colour bands, bottom to top: deep cobalt blue, deep teal, clear purple, deep olive gold. Eight slim paper ribbon markers of varying lengths fan out from the block of pages, each a plain strip of one palette colour. A tiny cut-paper tugboat on a wheeled paper stand sits at the book's foot, looking up at it. A small paper anchor emblem leans against the stand's base. Generous cream negative space around the single hero object."
+PROGRAM="Scene: a cut-paper drafting table seen from directly above, split left and right by a single thin paper rule down the middle. On the left, seven flat cream paper manuscripts fanned in an overlapping arc, each bearing one small round rust-coloured wax seal medallion and rows of blank paper strips as text. On the right, a small boxy cut-paper checking machine in deep cobalt with a slim paper tape feeding out of it and curling across the table, the tape scored with regular rectangular notches punched clean through. A slim paper signal mast rises from a wooden paper base at the top edge, flying two square signal flags stacked on one halyard: the upper a solid cobalt blue field with a small cream rectangle centred in it, the lower banded in three horizontal stripes of chartreuse, cobalt, chartreuse."
+G=~/.claude/skills/nano-banana-image-gen/scripts/generate.py
+D=docs/design/story-linework/art
+python3 $G --scene "$STYLE_LIGHT $BOOK"    --style $D/manifesto-light.jpg --out $D/book-light.png    --aspect 16:9 --image-size 2K
+python3 $G --scene "$STYLE_DARK $BOOK"     --style $D/manifesto-dark.jpg  --out $D/book-dark.png     --aspect 16:9 --image-size 2K
+python3 $G --scene "$STYLE_LIGHT $PROGRAM" --style $D/manifesto-light.jpg --out $D/program-light.png --aspect 16:9 --image-size 2K
+python3 $G --scene "$STYLE_DARK $PROGRAM"  --style $D/manifesto-dark.jpg  --out $D/program-dark.png  --aspect 16:9 --image-size 2K
+```
+
+`book-dark` was regenerated once: the first take fanned only seven ribbons.
+`program-light` was regenerated once and the first take kept — the re-roll
+scattered the manuscripts' text strips loose across the table. The kept
+`program-light` fans six sealed manuscripts rather than seven; every other
+plate matches the brief. All four are wordless.

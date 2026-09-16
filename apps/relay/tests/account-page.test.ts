@@ -38,6 +38,9 @@ describe('renderLoginPage', () => {
   it('offers the real GitHub sign-in path', () => {
     expect(html).toContain('Continue with GitHub');
     expect(html).toContain('href="/auth/github/login"');
+    expect(html).toContain('GitHub App authorization · secure 7-day browser session');
+    expect(html).not.toContain('OIDC');
+    expect(html).not.toContain('1-hour session');
   });
   it('is script-free (ships under a no-script CSP)', () => {
     expect(html).not.toContain('<script');
@@ -69,6 +72,8 @@ describe('renderAccountPage', () => {
     expect(html).toContain('id 123456');
     expect(html).toContain('erich@example.com');
     expect(html).toContain('verified');
+    expect(html).toContain('GitHub App');
+    expect(html).not.toContain('GitHub OIDC');
   });
   it('marks an unverified email distinctly', () => {
     const html = renderAccountPage({ ...baseUser, email_verified: 0 });

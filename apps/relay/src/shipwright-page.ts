@@ -86,6 +86,26 @@ body{display:flex;flex-direction:column}
 .board .chip.bench{border:1px solid var(--hair);color:var(--text-secondary)}
 .honesty p{font-size:13.5px;line-height:1.5;color:var(--text-secondary)}
 .honesty b{color:var(--text-primary)}
+.repo-scope{margin-top:12px;padding:12px 16px;border:2px solid var(--border-strong);background:var(--surface-raised)}
+.repo-scope form{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.repo-scope label{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.repo-scope select,.repo-scope input{display:block;margin-top:4px;border:1px solid var(--hair-strong);background:var(--surface-base);padding:7px 9px;font-size:14px}
+.repo-scope button{padding:8px 14px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);font-weight:700;cursor:pointer}
+.repo-scope p{margin:5px 0 0;font-size:13px;color:var(--text-secondary)}
+.onboarding{margin-top:12px;border:1px solid var(--hair-strong);background:var(--surface-card)}
+.onboarding>summary{cursor:pointer;padding:11px 16px;font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--cobalt)}
+.onboarding-body{padding:0 16px 14px}
+.onboarding-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.onboarding label{font-size:12px;font-weight:700;color:var(--text-secondary)}
+.onboarding input,.onboarding textarea,.onboarding select{display:block;width:100%;margin-top:4px;border:1px solid var(--hair-strong);background:var(--surface-base);padding:8px;font-size:14px}
+.onboarding textarea{min-height:64px;resize:vertical}
+.onboarding button{margin-top:10px;padding:8px 13px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);font-weight:700;cursor:pointer}
+.context-preview{margin-top:12px;border-top:1px solid var(--hair);padding-top:10px;font-size:13px;color:var(--text-secondary)}
+.context-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;border:1px solid var(--hair);padding:8px;background:var(--surface-base)}
+.consent{margin-top:12px;padding:10px;border:2px solid var(--amber);background:var(--surface-raised)}
+.consent label{display:flex;gap:8px;align-items:flex-start;color:var(--text-primary)}
+.consent input{width:auto;margin-top:2px}
+.consent p{margin:5px 0 0;font-size:12px;color:var(--text-secondary)}
 .chat{flex:1;min-height:0;max-width:980px;width:100%;margin:0 auto;padding:0 24px;display:flex;flex-direction:column}
 .log{flex:1;min-height:0;overflow-y:auto;padding:18px 2px 12px;display:flex;flex-direction:column;gap:14px}
 .msg{max-width:72ch;border:1px solid var(--hair-strong);padding:12px 16px;font-size:15px;line-height:1.6;white-space:normal}
@@ -137,7 +157,7 @@ body{display:flex;flex-direction:column}
 .prform .pr-note{flex-basis:100%;font-size:12.5px;color:var(--text-muted);line-height:1.5}
 .pr-unavail{border-top:1px solid var(--hair-strong);padding:10px 12px;background:var(--surface-card);font-size:12.5px;color:var(--text-secondary);line-height:1.55}
 .notice-strip{margin-top:12px;background:var(--surface-card);border:1px solid var(--hair);padding:10px 16px;font-size:13.5px;line-height:1.55;box-shadow:inset 3px 0 0 var(--amber)}
-@media (max-width:640px){.site-header{padding:12px 16px}.masthead,.chat{padding-left:14px;padding-right:14px}.msg{max-width:100%}.composer form{flex-direction:column;align-items:stretch}}
+@media (max-width:640px){.site-header{padding:12px 16px}.masthead,.chat{padding-left:14px;padding-right:14px}.msg{max-width:100%}.composer form{flex-direction:column;align-items:stretch}.onboarding-grid{grid-template-columns:1fr}}
 `;
 
 /**
@@ -153,7 +173,16 @@ const CLIENT_JS = `
   var input = document.getElementById('input');
   var sendBtn = document.getElementById('send');
   var clearBtn = document.getElementById('clear');
+  var repoClearBtn = document.getElementById('repo-clear');
   var emptyState = document.getElementById('empty');
+  var threadId = document.body.getAttribute('data-thread') || '';
+  var scopedRepo = '';
+  var deletionRepo = '';
+  var scopedInstallation = 0;
+  var scopeForm = document.getElementById('repo-scope-form');
+  var onboardingForm = document.getElementById('shipwright-onboarding');
+  var consentBox = document.getElementById('ai-context-consent');
+  var contextPreview = document.getElementById('context-preview');
   var FENCE = '\\u0060\\u0060\\u0060';
   var busy = false;
 
@@ -256,6 +285,10 @@ const CLIENT_JS = `
         var deck = tpl.content.firstElementChild.cloneNode(true);
         var yfield = deck.querySelector('textarea[name=yaml]');
         if (yfield) yfield.value = code;
+        var repoField = deck.querySelector('input[name=repo]');
+        if (repoField) repoField.value = scopedRepo;
+        var installField = deck.querySelector('input[name=installationId]');
+        if (installField) installField.value = String(scopedInstallation);
         box.appendChild(deck);
       }
     } else {
@@ -318,10 +351,82 @@ const CLIENT_JS = `
   }
 
   function loadHistory() {
-    fetch('/v1/shipwright/history').then(function (r) { return r.json(); }).then(function (d) {
+    if (!threadId) return;
+    fetch('/v1/shipwright/history?thread=' + encodeURIComponent(threadId)).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.thread) throw new Error(d.error || 'Repository authorization failed');
+      scopedRepo = d.thread.repo;
+      deletionRepo = d.thread.repo;
+      scopedInstallation = d.thread.installationId;
+      var label = document.getElementById('active-repo-label');
+      if (label) label.textContent = scopedRepo;
       var msgs = (d && d.messages) || [];
       for (var i = 0; i < msgs.length; i++) addMsg(msgs[i].role, msgs[i].content, msgs[i].yaml);
-    }).catch(function () { /* empty state stays */ });
+      input.disabled = false;
+      sendBtn.disabled = false;
+      clearBtn.disabled = false;
+      if (repoClearBtn) repoClearBtn.disabled = false;
+      if (onboardingForm) onboardingForm.hidden = false;
+      loadContext();
+      input.focus();
+    }).catch(function (e) {
+      var label = document.getElementById('active-repo-label');
+      if (label) label.textContent = 'Unavailable';
+      addMsg('error', (e && e.message) || 'Repository authorization failed. Choose another saved thread.');
+    });
+  }
+
+  function downloadText(name, text, type) {
+    var blob = new Blob([text], { type: type });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function renderContext(d) {
+    if (!contextPreview) return;
+    var onboarding = null;
+    var rows = d.memory || [];
+    for (var i = 0; i < rows.length; i++) if (rows[i].kind === 'onboarding') onboarding = rows[i].body;
+    if (onboarding && onboardingForm) {
+      onboardingForm.elements.desiredReviewOutcomes.value = onboarding.desiredReviewOutcomes || '';
+      onboardingForm.elements.riskTolerance.value = onboarding.riskTolerance || 'balanced';
+      onboardingForm.elements.budgetCeilingUsdPerDay.value = onboarding.budgetCeilingUsdPerDay || 4;
+      onboardingForm.elements.languagesAndFrameworks.value = onboarding.languagesAndFrameworks || '';
+      onboardingForm.elements.protectedPaths.value = (onboarding.protectedPaths || []).join('\\n');
+      onboardingForm.elements.reviewStrictness.value = onboarding.reviewStrictness || 'standard';
+    }
+    var consent = d.aiContextConsent || {};
+    if (consentBox) consentBox.checked = consent.requested === true;
+    contextPreview.replaceChildren();
+    var profileTitle = el('b', null, onboarding ? 'Saved onboarding profile' : 'No onboarding profile saved yet');
+    contextPreview.appendChild(profileTitle);
+    if (onboarding) {
+      var pre = el('pre', null, JSON.stringify(onboarding, null, 2));
+      contextPreview.appendChild(pre);
+      var exportProfile = el('button', null, 'Export profile');
+      exportProfile.type = 'button';
+      exportProfile.addEventListener('click', function () { downloadText('shipwright-profile.json', JSON.stringify(onboarding, null, 2), 'application/json'); });
+      contextPreview.appendChild(exportProfile);
+    }
+    if (d.latestProposal && d.latestProposal.yaml) {
+      contextPreview.appendChild(el('p', 'musing', d.latestProposal.origin === 'deterministic_onboarding'
+        ? 'Draft source: deterministic onboarding answers (no model call).'
+        : 'Draft source: repository-scoped Shipwright conversation.'));
+      var exportDraft = el('button', null, 'Download draft fleet');
+      exportDraft.type = 'button';
+      exportDraft.addEventListener('click', function () { downloadText('pd-fleet.yml', d.latestProposal.yaml, 'text/yaml'); });
+      contextPreview.appendChild(exportDraft);
+    }
+  }
+
+  function loadContext() {
+    if (!threadId) return;
+    fetch('/v1/shipwright/context?thread=' + encodeURIComponent(threadId))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (!d.thread) throw new Error(d.error || 'context unavailable'); renderContext(d); })
+      .catch(function () { if (contextPreview) contextPreview.textContent = 'Saved context could not be loaded.'; });
   }
 
   function send(text) {
@@ -332,7 +437,7 @@ const CLIENT_JS = `
     fetch('/v1/shipwright/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ threadId: threadId, message: text }),
     }).then(function (res) {
       var ctype = res.headers.get('Content-Type') || '';
       if (ctype.indexOf('text/event-stream') < 0) {
@@ -401,14 +506,102 @@ const CLIENT_JS = `
 
   clearBtn.addEventListener('click', function () {
     if (busy) return;
-    if (!window.confirm('Delete this whole conversation from the relay?')) return;
-    fetch('/v1/shipwright/clear', { method: 'POST' }).then(function () {
+    if (!window.confirm("Delete this thread's raw transcript? Durable repository memory and proposal provenance will remain.")) return;
+    fetch('/v1/shipwright/clear?thread=' + encodeURIComponent(threadId), { method: 'POST' }).then(function () {
       window.location.reload();
     });
   });
+  if (repoClearBtn) repoClearBtn.addEventListener('click', function () {
+    if (busy || !threadId) return;
+    var target = deletionRepo || 'this saved repository thread';
+    if (!window.confirm('Delete every Shipwright thread, saved proposal, and repository memory for ' + target + '?')) return;
+    fetch('/v1/shipwright/repo-clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId: threadId })
+    }).then(function (r) { if (!r.ok) throw new Error('clear refused'); window.location.href = '/account/shipwright'; })
+      .catch(function () { window.alert('Repository clear failed. Nothing was assumed deleted.'); });
+  });
+
+  if (onboardingForm) onboardingForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var e = onboardingForm.elements;
+    var paths = e.protectedPaths.value.split(/[\\n,]/).map(function (p) { return p.trim(); }).filter(Boolean);
+    var profile = {
+      desiredReviewOutcomes: e.desiredReviewOutcomes.value,
+      riskTolerance: e.riskTolerance.value,
+      budgetCeilingUsdPerDay: Number(e.budgetCeilingUsdPerDay.value),
+      languagesAndFrameworks: e.languagesAndFrameworks.value,
+      protectedPaths: paths,
+      reviewStrictness: e.reviewStrictness.value
+    };
+    fetch('/v1/shipwright/onboarding', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId: threadId, profile: profile })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.profile) throw new Error(d.error || 'Onboarding save failed');
+      loadContext();
+    }).catch(function (e) { window.alert(e.message || 'Onboarding save failed.'); });
+  });
+
+  if (consentBox) consentBox.addEventListener('change', function () {
+    var requested = consentBox.checked;
+    fetch('/v1/shipwright/ai-context-consent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId: threadId, enabled: requested })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.requested !== requested) throw new Error(d.error || 'Consent update failed');
+      loadContext();
+    }).catch(function (e) { consentBox.checked = !requested; window.alert(e.message || 'Consent update failed.'); });
+  });
+
+  if (scopeForm) scopeForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var install = scopeForm.querySelector('[name=installationId]');
+    var repo = scopeForm.querySelector('[name=repo]');
+    fetch('/v1/shipwright/thread', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ installationId: Number(install.value), repo: repo.value })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.threadId) throw new Error(d.error || 'Repository authorization failed');
+      var q = new URLSearchParams({ thread: d.threadId });
+      window.location.href = '/account/shipwright?' + q.toString();
+    }).catch(function (e) { window.alert(e.message || 'Could not select that repository.'); });
+  });
+
+  var resume = document.getElementById('resume-thread');
+  if (resume) {
+    fetch('/v1/shipwright/threads').then(function (r) { return r.json(); }).then(function (d) {
+      var rows = d.threads || [];
+      for (var i = 0; i < rows.length; i++) {
+        var option = document.createElement('option');
+        option.value = rows[i].threadId;
+        option.textContent = rows[i].repo;
+        resume.appendChild(option);
+        if (rows[i].threadId === threadId) {
+          deletionRepo = rows[i].repo;
+          // Account-owned stored data remains erasable after GitHub access is
+          // revoked. This does not enable chat, history, or raw-transcript clear.
+          if (repoClearBtn) repoClearBtn.disabled = false;
+        }
+      }
+    }).catch(function () {
+      resume.options[0].textContent = 'Saved threads unavailable';
+    });
+    resume.addEventListener('change', function () {
+      if (resume.value) window.location.href = '/account/shipwright?thread=' + encodeURIComponent(resume.value);
+    });
+  }
+
+  // An opaque URL thread id is not authority. The composer remains inert
+  // until loadHistory returns the exact server-bound, freshly authorized repo.
+  input.disabled = true;
+  sendBtn.disabled = true;
+  clearBtn.disabled = true;
+  if (repoClearBtn) repoClearBtn.disabled = true;
 
   loadHistory();
-  input.focus();
 })();
 `;
 
@@ -419,6 +612,31 @@ export interface ShipwrightPageView {
   installations: UserInstallation[] | null;
   /** Whitelisted notice key from ?notice=, or null. */
   notice: string | null;
+  /** Opaque server-issued active thread; absent until repo onboarding succeeds. */
+  threadId?: string | null;
+  repo?: string | null;
+  installationId?: number | null;
+}
+
+export function renderRepoSelector(view: ShipwrightPageView): string {
+  const resume = `<label>Resume saved thread<select id="resume-thread"><option value="">Choose repository…</option></select></label>`;
+  if (view.threadId) {
+    return `<div class="repo-scope"><b>Repository context:</b> <code id="active-repo-label">Verifying…</code>
+      <p>The server-bound repository name appears only after exact authorization. Choose another saved thread below.</p>
+      ${resume}</div>`;
+  }
+  if (view.installations === null) {
+    return `<div class="repo-scope"><b>Repository context unavailable.</b><p>GitHub installations could not be listed. Reload to try again; chat stays disabled until the server authorizes an exact repository.</p>${resume}</div>`;
+  }
+  if (view.installations.length === 0) {
+    return `<div class="repo-scope"><b>Install the Port Daddy Fleet GitHub App first.</b><p>Shipwright will not start an unscoped conversation.</p>${resume}</div>`;
+  }
+  const options = view.installations.map((i) => `<option value="${i.id}">${esc(i.accountLogin ?? `installation ${i.id}`)}</option>`).join('');
+  return `<div class="repo-scope"><form id="repo-scope-form">
+    <label>Installation<select name="installationId">${options}</select></label>
+    <label>Repository<input name="repo" required pattern="[A-Za-z0-9_.\\-]+/[A-Za-z0-9_.\\-]+" placeholder="owner/repo"></label>
+    <button type="submit">Start scoped thread</button>
+  </form><p>GitHub authorization is checked before history is read or a model is called.</p>${resume}</div>`;
 }
 
 /**
@@ -432,9 +650,13 @@ export const SHIPWRIGHT_NOTICES: Record<string, string> = {
   bad_request: 'That request did not make sense — no PR was opened. Check the repo field (owner/name) and try again.',
   bad_json: 'That request did not make sense — no PR was opened. Try again.',
   invalid_yaml: 'That roster does not validate, so no PR was opened. The server re-checks every roster itself — fix the YAML until the badge is green.',
-  not_from_chat: 'That YAML is not a roster the Shipwright emitted in your conversation, so no PR was opened.',
+  not_from_chat: 'That YAML is not a stored proposal from this repository thread, so no PR was opened.',
   forbidden: 'That installation is not yours — GitHub decides ownership, and it said no. No PR was opened.',
   repo_not_installed: 'The Port Daddy Fleet GitHub App is not installed on that repository (or it belongs to a different installation). Install it there, then try again.',
+  repo_scope_mismatch: 'That target does not match the repository thread that produced the roster. No PR was opened.',
+  shipwright_thread_required: 'Select the repository thread that produced this roster. No PR was opened.',
+  shipwright_scope_unavailable: 'That repository context is unavailable. GitHub access may have changed; no PR was opened.',
+  token_cleanup_unconfirmed: 'The repository-scoped GitHub token could not be confirmed revoked. Treat the operation as uncertain and retry only after checking GitHub.',
   github_error: 'GitHub had a problem — no PR was opened. Try again shortly.',
 };
 
@@ -446,7 +668,7 @@ export const SHIPWRIGHT_NOTICES: Record<string, string> = {
  * POST re-verifies ownership server-side anyway. Degraded and empty states
  * stay honest instead of rendering a dead button.
  */
-export function renderPrTemplate(installations: UserInstallation[] | null): string {
+export function renderPrTemplate(installations: UserInstallation[] | null, view?: ShipwrightPageView): string {
   if (installations === null) {
     return `<template id="prform-tpl"><div class="pr-unavail"><b>Open PR unavailable:</b> your GitHub App
     installations could not be listed just now, so the button is not shown (never guessed). Copy or
@@ -457,13 +679,14 @@ export function renderPrTemplate(installations: UserInstallation[] | null): stri
     Fleet GitHub App on your repository, then reload — the Shipwright can then open the PR for you.
     Until then, copy or download the YAML and commit it by hand.</div></template>`;
   }
-  const options = installations
-    .map((i) => `<option value="${i.id}">${esc(i.accountLogin ?? `installation ${i.id}`)}</option>`)
-    .join('');
+  if (!view?.threadId) {
+    return `<template id="prform-tpl"><div class="pr-unavail"><b>Select a repository first:</b> proposal provenance is repository-scoped.</div></template>`;
+  }
   return `<template id="prform-tpl"><form class="prform" method="post" action="/v1/shipwright/open-pr">
     <span class="pr-label">Open the PR from here — validated rosters only</span>
-    <select name="installationId" aria-label="GitHub App installation">${options}</select>
-    <input type="text" name="repo" placeholder="owner/repo" required pattern="[A-Za-z0-9_.\\-]+/[A-Za-z0-9_.\\-]+" aria-label="Repository (owner/name)">
+    <input type="hidden" name="threadId" value="${esc(view.threadId)}">
+    <input type="hidden" name="installationId" value="">
+    <input type="hidden" name="repo" value="">
     <textarea name="yaml" hidden></textarea>
     <button type="submit">Open PR</button>
     <span class="pr-note">Commits pd-fleet.yml to a <b>fresh branch</b> of that repo and opens a PR — never a
@@ -528,7 +751,7 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   const noticeHtml = noticeText
     ? `<div class="notice-strip" role="status">${noticeText}</div>`
     : '';
-  return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Shipwright</title>${HEAD}<style>${CSS}</style></head><body>
+  return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Shipwright</title>${HEAD}<style>${CSS}</style></head><body data-thread="${esc(view.threadId ?? '')}">
 <header class="site-header">
   <a class="sh-brand" href="/account"><span class="sh-mark" aria-hidden="true">pd</span>Port Daddy</a>
   <nav class="sh-links" aria-label="Account">
@@ -543,13 +766,37 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   <div class="honesty">
     <p><b>Honest limits:</b> the Shipwright designs your <b>pd-fleet.yml</b> in conversation, and once
     a roster <b>validates</b> it can <b>open the PR in your own repo</b> at your click — always a fresh
-    branch + PR into a repo whose GitHub App installation you own; it never pushes to existing
+    branch + PR into a repo GitHub says you can write to; it never pushes to existing
     branches, never merges, and cannot read your repo. Your review stays the gate. Conversations stay
-    on this account only, are yours to export or delete, and are pruned after
-    ${SHIPWRIGHT_RETENTION_DAYS} days.</p>
+    inside the selected repository thread and raw messages are pruned after ${SHIPWRIGHT_RETENTION_DAYS} days.
+    Structured repository memory and proposal provenance remain until you clear that repository
+    or erase your account.</p>
   </div>
   ${renderModelBoard()}
   ${noticeHtml}
+  ${renderRepoSelector(view)}
+  <details class="onboarding"${view.threadId ? ' open' : ''}>
+    <summary>Fleet interview — answers, draft, and AI context</summary>
+    <div class="onboarding-body">
+      <form id="shipwright-onboarding"${view.threadId ? '' : ' hidden'}>
+        <div class="onboarding-grid">
+          <label>Desired review outcomes<textarea name="desiredReviewOutcomes" maxlength="1000" required placeholder="Catch regressions, improve tests, flag security risks…"></textarea></label>
+          <label>Languages and frameworks<textarea name="languagesAndFrameworks" maxlength="500" required placeholder="Rust, TypeScript, GPUI, Cloudflare Workers…"></textarea></label>
+          <label>Risk tolerance<select name="riskTolerance"><option value="conservative">Conservative</option><option value="balanced" selected>Balanced</option><option value="aggressive">Aggressive</option></select></label>
+          <label>Review strictness<select name="reviewStrictness"><option value="advisory">Advisory</option><option value="standard" selected>Standard</option><option value="strict">Strict</option></select></label>
+          <label>Daily cost ceiling (USD)<input name="budgetCeilingUsdPerDay" type="number" min="0.25" max="500" step="0.25" value="4" required></label>
+          <label>Protected paths<textarea name="protectedPaths" maxlength="12000" placeholder="One path or glob per line"></textarea></label>
+        </div>
+        <button type="submit">Save answers + generate draft fleet</button>
+      </form>
+      <div class="consent">
+        <label><input id="ai-context-consent" type="checkbox"${view.threadId ? '' : ' disabled'}>
+          Request use of the six previewed onboarding fields as structured context for Cloudflare Workers AI.</label>
+        <p>Default is off. This release records or revokes the request but does not activate egress. Raw transcripts, repository contents, secrets, and other repositories are never included by this control.</p>
+      </div>
+      <div id="context-preview" class="context-preview">Select a repository to preview its saved context.</div>
+    </div>
+  </details>
 </section>
 <main class="chat">
   <div id="log" class="log" aria-live="polite" aria-label="Conversation with the Shipwright">
@@ -563,16 +810,17 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   </div>
   <div class="composer">
     <form id="composer">
-      <textarea id="input" rows="2" placeholder="Describe your repo and what the fleet should do…" aria-label="Message the Shipwright" maxlength="4000"></textarea>
-      <button id="send" type="submit">Send</button>
+      <textarea id="input" rows="2" placeholder="Describe your repo and what the fleet should do…" aria-label="Message the Shipwright" maxlength="4000" disabled></textarea>
+      <button id="send" type="submit" disabled>Send</button>
     </form>
     <div class="hints">
       <span class="hint">Enter to send · Shift+Enter for a new line</span>
-      <button id="clear" class="clear" type="button">Delete conversation</button>
+      <button id="clear" class="clear" type="button" disabled>Clear raw transcript (keeps memory + proposals)</button>
+      <button id="repo-clear" class="clear" type="button" disabled>Clear all repository context</button>
     </div>
   </div>
 </main>
-${renderPrTemplate(view.installations)}
+${renderPrTemplate(view.installations, view)}
 <script nonce="${nonce}">${CLIENT_JS}</script>
 </body></html>`;
 }
@@ -598,7 +846,10 @@ export async function handleShipwrightPage(request: Request, env: Env): Promise<
     installations = null;
   }
   const nonce = randomHex(16);
-  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice }), {
+  const pageUrl = new URL(request.url);
+  const rawThread = pageUrl.searchParams.get('thread');
+  const threadId = rawThread && /^swt_[0-9a-f]{48}$/.test(rawThread) ? rawThread : null;
+  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice, threadId, repo: null, installationId: null }), {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
