@@ -34,7 +34,7 @@ describe('Coordination Papers implementation-status contract', () => {
       'Neutral graded outcome events,\nsanctions, identity binding, and reputation updates remain absent.',
     );
     expect(economyPaper).toMatch(
-      /Outcome ledger \(organ 3 --- reputation keys here\) & \\BuiltWeak\{\}/,
+      /Outcome ledger \(subsystem 3 --- reputation keys here\) & \\BuiltWeak\{\}/,
     );
     expect(roadmap).toContain(
       'Neutral graded outcomes, sanctions, and reputation binding do not.',

@@ -7,10 +7,8 @@
 
 import { createHash } from 'node:crypto'
 import {
-  lstatSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   writeFileSync,
 } from 'node:fs'
 import {
@@ -21,6 +19,7 @@ import {
   sep,
 } from 'node:path'
 import { fileURLToPath as urlToPath } from 'node:url'
+import { scanArtifacts } from './artifact_inventory.mjs'
 
 export const RELATION_KINDS = Object.freeze([
   'duplicate',
@@ -66,7 +65,6 @@ const PR_STATES = new Set(['open', 'closed', 'merged'])
 const CHECK_STATES = new Set(['pass', 'fail', 'unknown'])
 const REVIEW_STATES = new Set(['complete', 'incomplete', 'unknown'])
 const MERGE_STATES = new Set(['clean', 'conflicting', 'unknown'])
-const TEXT_EXTENSIONS = new Set(['.md', '.json', '.tex', '.html', '.yaml', '.yml'])
 
 /** Return true only for ordinary JSON-style records. */
 function isRecord(value) {
@@ -319,61 +317,9 @@ export function extractStructuredStatusClaims(artifact, content) {
   return found
 }
 
-/** Inventory declared text roots without following symlinks or leaving the repo. */
+/** The portable census is also the Clearance inventory; no parallel scanner. */
 export function inventoryArtifacts(repoRoot, corpus) {
-  const root = resolve(repoRoot)
-  const artifacts = []
-  const skipped = []
-
-  const addFile = (absolutePath, entry) => {
-    const repoPath = relative(root, absolutePath).split(sep).join('/')
-    const extension = extname(repoPath).toLowerCase()
-    const allowed = new Set(entry.extensions ?? TEXT_EXTENSIONS)
-    if (!allowed.has(extension)) return
-    const bytes = readFileSync(absolutePath)
-    const artifact = {
-      path: repoPath,
-      kind: entry.kind,
-      bytes: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-    }
-    artifacts.push({
-      ...artifact,
-      structuredStatusClaims: extractStructuredStatusClaims(artifact, bytes.toString('utf8')),
-    })
-  }
-
-  const walk = (absolutePath, entry) => {
-    requireValue(isInside(root, absolutePath), entry.path, 'resolved outside the repository')
-    const stat = lstatSync(absolutePath)
-    if (stat.isSymbolicLink()) {
-      skipped.push({ path: relative(root, absolutePath).split(sep).join('/'), reason: 'symlink-not-followed' })
-      return
-    }
-    if (stat.isFile()) {
-      addFile(absolutePath, entry)
-      return
-    }
-    requireValue(stat.isDirectory(), entry.path, 'must be a file or directory')
-    for (const child of readdirSync(absolutePath, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      walk(resolve(absolutePath, child.name), entry)
-    }
-  }
-
-  for (const entry of [...corpus].sort((a, b) => a.path.localeCompare(b.path))) {
-    walk(resolve(root, entry.path), entry)
-  }
-
-  artifacts.sort((a, b) => a.path.localeCompare(b.path))
-  skipped.sort((a, b) => a.path.localeCompare(b.path))
-  const countsByKind = {}
-  for (const artifact of artifacts) countsByKind[artifact.kind] = (countsByKind[artifact.kind] ?? 0) + 1
-  return {
-    total: artifacts.length,
-    countsByKind: Object.fromEntries(Object.entries(countsByKind).sort(([a], [b]) => a.localeCompare(b))),
-    artifacts,
-    skipped,
-  }
+  return scanArtifacts(repoRoot, corpus, { extractClaims: extractStructuredStatusClaims })
 }
 
 /** Classify only exact or explicitly linked claim relations. */
@@ -678,6 +624,8 @@ export function renderMarkdown(report) {
     '## Inventory',
     '',
     `- ${report.inventory.total} local artifacts across ${Object.keys(report.inventory.countsByKind).length} declared corpus kinds`,
+    `- Corpus traversal: ${report.inventory.coverage?.traversal ?? 'not-supplied'}; semantic review: not performed`,
+    `- ${report.inventory.skipped.length} excluded or unavailable sources (listed below)`,
     `- ${report.pullRequests.total} PRs from frozen metadata`,
     `- ${report.claims.normalized.length} supplied typed claims`,
     `- ${report.claims.structuredStatusCandidates.length} explicit document-status candidates`,
@@ -695,9 +643,14 @@ export function renderMarkdown(report) {
     '| ---: | --- | --- | --- |',
     ...report.clearancePlan.map((entry) => `| #${entry.pullRequest} | ${entry.proposedDisposition} | ${entry.candidateDisposition ?? '—'} | ${entry.reason.replace(/\|/gu, '\\|')} |`),
     '',
-    '## Loss audit',
+    '## Corpus gaps and exclusions',
     '',
   ]
+  for (const entry of report.inventory.skipped) {
+    const path = JSON.stringify(entry.path).replace(/[&<>]/gu, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/[\\`*_[\]{}|!#]/gu, (c) => `\\${c}`)
+    lines.push(`- ${path}: ${entry.reason}`)
+  }
+  lines.push('', '## Loss audit', '')
   const destructive = report.clearancePlan.filter((entry) => entry.lossAudit.required)
   if (destructive.length === 0) lines.push('- No destructive disposition was proposed.')
   for (const entry of destructive) {
@@ -752,16 +705,17 @@ export function runCli(args, io = {}) {
     const report = analyzeSnapshot(repoRoot, snapshot)
     const json = `${JSON.stringify(report, null, 2)}\n`
     const markdown = renderMarkdown(report)
+    const exitCode = report.inventory.coverage.traversal === 'completed-with-declared-exclusions' ? 0 : 2
     if (options.stdout) {
       stdout(options.format === 'json' ? json : markdown)
-      return 0
+      return exitCode
     }
     const outputDir = resolveOutputDir(repoRoot, options.outputDir)
     mkdirSync(outputDir, { recursive: true })
     if (options.format === 'both' || options.format === 'json') writeFileSync(resolve(outputDir, 'clearance-plan.json'), json)
     if (options.format === 'both' || options.format === 'markdown') writeFileSync(resolve(outputDir, 'clearance-plan.md'), markdown)
     stdout(`Wrote non-canonical report ${relative(repoRoot, outputDir).split(sep).join('/')} (${report.reportId})\n`)
-    return 0
+    return exitCode
   } catch (error) {
     stderr(`harbor-clearance: ${error.message}\n`)
     return 1

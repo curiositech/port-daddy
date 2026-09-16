@@ -11,6 +11,7 @@
 //      never lets a broken recorder break the spawn (fail-open).
 
 import { jest } from '@jest/globals';
+import * as realFs from 'node:fs';
 import { readFileSync as realReadFileSync, realpathSync as realRealpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -31,6 +32,7 @@ const mockWriteFileSync = jest.fn();
 const mockMkdirSync = jest.fn();
 
 jest.unstable_mockModule('node:fs', () => ({
+  ...realFs,
   existsSync: mockExistsSync,
   readFileSync: mockReadFileSync,
   writeFileSync: mockWriteFileSync,
@@ -237,7 +239,7 @@ describe('fleet-engine skill-graft event recording', () => {
     const craft = jest.fn().mockResolvedValue(makeGraftResult());
     const onEvent = jest.fn();
     const config = makeConfig({ juryRig: true });
-    const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
+    const runner = createFleetRunner(config, '/fixture/proj', { skillGraft: { craft }, onEvent, runtimeAllowed: () => true });
 
     await runner.hailAgent('test-agent', { source: 'manual' });
     await Promise.resolve();
@@ -277,7 +279,7 @@ describe('fleet-engine skill-graft event recording', () => {
     const craft = jest.fn().mockResolvedValue(makeGraftResult({ top: [] }));
     const onEvent = jest.fn();
     const config = makeConfig({ juryRig: true });
-    const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
+    const runner = createFleetRunner(config, '/fixture/proj', { skillGraft: { craft }, onEvent, runtimeAllowed: () => true });
 
     await runner.hailAgent('test-agent', { source: 'manual' });
     await Promise.resolve();
@@ -294,7 +296,7 @@ describe('fleet-engine skill-graft event recording', () => {
       if (event.type === 'skill_graft_recorded') throw new Error('recorder exploded');
     });
     const config = makeConfig({ juryRig: true });
-    const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
+    const runner = createFleetRunner(config, '/fixture/proj', { skillGraft: { craft }, onEvent, runtimeAllowed: () => true });
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     await runner.hailAgent('test-agent', { source: 'manual' });

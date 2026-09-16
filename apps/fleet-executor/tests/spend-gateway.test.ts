@@ -39,6 +39,7 @@ function fleetYaml(ships: Array<{ name: string; blocking?: boolean }>): string {
   const body = ships
     .map(s => {
       const lines = [`    ${s.name}:`, `      trigger: pull_request:opened`];
+      lines.push(`      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`);
       if (s.blocking) lines.push('      blocking: true');
       // No `@cf/` model pin ⇒ deriveCfModel uses the ROLE default: code-reviewer
       // → gpt-oss-120b, every other ship → qwen3-30b (both priced).

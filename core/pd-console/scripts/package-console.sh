@@ -34,6 +34,28 @@
 #   PD_CONSOLE_SIGN_IDENTITY="Developer ID Application: …"   real signing (default: ad-hoc "-")
 set -euo pipefail
 
+# Shared HOOK_OFF_GATE from lib/hook-runtime-gate.ts. Compilation and packaging
+# remain available while Off; final process mutations and launch do not.
+pd_hook_runtime_enabled() (
+  [ "$#" -eq 2 ] && [ -n "$1" ] && [ -n "$2" ] || exit 1
+  pd_gate_home="$2"
+  for pd_gate_root in "$1" "$pd_gate_home"; do
+    if [ ! -e "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ]; then
+      [ -d "${pd_gate_root%/*}" ] && [ -r "${pd_gate_root%/*}" ] && [ -x "${pd_gate_root%/*}" ] || exit 1
+      continue
+    fi
+    [ -d "$pd_gate_root" ] && [ -r "$pd_gate_root" ] && [ -x "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ] || exit 1
+    for pd_gate_marker in "$pd_gate_root/hooks.disabled" "$pd_gate_root/HALT"; do
+      [ ! -e "$pd_gate_marker" ] && [ ! -L "$pd_gate_marker" ] || exit 1
+    done
+  done
+  pd_gate_halt="${PD_HALT_FILE:-$pd_gate_home/HALT}"
+  case "$pd_gate_halt" in /*) ;; *) exit 1 ;; esac
+  pd_gate_parent="${pd_gate_halt%/*}"
+  [ -d "$pd_gate_parent" ] && [ -r "$pd_gate_parent" ] && [ -x "$pd_gate_parent" ] || exit 1
+  [ ! -e "$pd_gate_halt" ] && [ ! -L "$pd_gate_halt" ]
+)
+
 # ── 1. Parse the lane ─────────────────────────────────────────────────────────
 LANE=latest
 DEVNAME=""
@@ -211,7 +233,8 @@ LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchService
 # The new bundle is installed; older timestamped builds of the SAME dev name (and
 # the pre-timestamp legacy pd-console_dev-<name>.app) are stale binaries that only
 # confuse "which one do I open?". Kill + delete them unless the operator opts out.
-if [ "$LANE" = dev ] && [ "${PD_CONSOLE_KEEP_OLD_DEV:-0}" != "1" ]; then
+if [ "$LANE" = dev ] && [ "${PD_CONSOLE_KEEP_OLD_DEV:-0}" != "1" ] &&
+   pd_hook_runtime_enabled "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}"; then
   # ????????-???? pins the stamp to exactly YYYYMMDD-HHMM so a name that is a
   # suffix of another name (pane vs parley-pane) can't match across builds.
   for OLD in "$DEV_APPS_DIR"/pd-console-dev-????????-????-"${SAFE}.app" "$DEV_APPS_DIR/pd-console_dev-${SAFE}.app"; do
@@ -224,12 +247,22 @@ if [ "$LANE" = dev ] && [ "${PD_CONSOLE_KEEP_OLD_DEV:-0}" != "1" ]; then
 fi
 
 # ── 11. Relaunch this lane's app (operator always sees the fresh build) ────────
+# PD_LOCAL_OFF_GUARDED_LAUNCH_V1
 if [ "${PD_CONSOLE_NO_LAUNCH:-0}" != "1" ]; then
-  echo "▸ relaunching $(basename "$APP")"
-  # Only kill an instance of THIS bundle, not the other lanes' windows.
-  pkill -f "$APP/Contents/MacOS/pd-console" 2>/dev/null || true
-  sleep 0.6
-  open "$APP"
+  if pd_hook_runtime_enabled "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}"; then
+    echo "▸ relaunching $(basename "$APP")"
+    # Only kill an instance of THIS bundle, not the other lanes' windows.
+    pkill -f "$APP/Contents/MacOS/pd-console" 2>/dev/null || true
+    sleep 0.6
+    # Off may have arrived during compilation, signing, or the settle delay.
+    if pd_hook_runtime_enabled "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}"; then
+      open "$APP"
+    else
+      echo "▸ local Off/unknown control — launch suppressed; bundle remains installed"
+    fi
+  else
+    echo "▸ local Off/unknown control — relaunch suppressed; bundle remains installed"
+  fi
 fi
 
 echo "✓ $LANE lane updated: $APP  (v$VERSION, '$BADGE')"

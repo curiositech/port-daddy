@@ -33,6 +33,7 @@ import {
   countUserSessions,
   eraseUser,
   listShipwrightMessages,
+  exportScopedShipwrightContext,
   type UserRow,
 } from './db.js';
 import type { Env } from './types.js';
@@ -469,6 +470,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
     content: m.content,
     createdAt: m.created_at,
   }));
+  const shipwrightScopedContext = await exportScopedShipwrightContext(env.DB, user.id);
   // Roadmap mirrors are the user's own pushed roadmaps (ADR-0101 Critical-2
   // export/delete matrix, team tier) — all four mirror tables leave with them.
   const roadmapMirrors = await exportRoadmapMirrors(env, user.id);
@@ -489,6 +491,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
     },
     sessions: { active: sessionCount },
     shipwrightChats,
+    shipwrightScopedContext,
     roadmapMirrors,
   };
   return new Response(JSON.stringify(body, null, 2), {

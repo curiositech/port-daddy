@@ -110,6 +110,18 @@
     {
       "file": "2026-09-08-work-register.sql",
       "appliedAt": "2026-09-11T00:00:17Z"
+    },
+    {
+      "file": "2026-09-05-fleetbot-publisher.sql",
+      "appliedAt": "2026-09-12T10:08:19Z"
+    },
+    {
+      "file": "2026-09-11-fleetbot-publisher-hardening.sql",
+      "appliedAt": "2026-09-12T10:08:19Z"
+    },
+    {
+      "file": "2026-09-11-work-register-task-grants.sql",
+      "appliedAt": "2026-09-12T10:08:19Z"
     }
   ]
 }

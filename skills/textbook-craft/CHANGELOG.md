@@ -1,5 +1,19 @@
 # Textbook Craft — Changelog
 
+## v1.3.0 (2026-09-15)
+
+`scripts/readers_eye.py` and `references/readers-eye-lexicon.json` landed in
+v1.2.0 without the two pieces that make the tool usable and testable:
+`references/readers-eye.md` (the Layer-2 judge rubric — the reader's
+persona, the finding shape, and the corpus baseline the six mechanical rules
+were tuned against) and `tests/harbor-research/test_readers_eye.py` (28
+cases pinning the edge cases found while tuning, including the specimen
+paragraph's own findings so a future tuning pass cannot quietly stop
+flagging it). Both are added here, along with the three `library-checks.yml`
+CI steps that actually run the tool (unit tests, the `--selftest`
+clean-vs-bad fixture gate, and an advisory full-corpus pass) — none of which
+had been wired in.
+
 ## v1.2.0 (2026-09-14)
 
 Two floors reported success while not doing their job. Both were found by

@@ -33,5 +33,9 @@ harbor-chartwork/
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 scripts/build_corpus_audit.py --skip-compile   # fast, lint-only pass
-python3 scripts/build_corpus_audit.py                  # full loop, needs tectonic
+python3 scripts/build_corpus_audit.py                  # full loop, needs a TeX engine
 ```
+
+The full loop compiles every fragment. It uses tectonic when one is on `PATH` and a local
+TeX Live (`latexmk -xelatex`) otherwise; a machine with neither needs the one-command apt +
+fontconfig setup in the "Local TeX Live" section of `SKILL.md`.

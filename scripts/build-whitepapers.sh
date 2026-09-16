@@ -24,6 +24,24 @@
 #
 # Requires: latexmk + pdflatex, plus xelatex for the Book (TeX Live). No bibtex/biber — all papers embed
 # \begin{thebibliography}.
+#
+# Engine, and why this script never asks for tectonic. tectonic is the figure
+# toolchain's reference engine (skills/harbor-chartwork/scripts/compile_fragment.sh)
+# and CI installs it for the per-figure gates, but the published PDFs have always
+# come off a plain TeX Live: latexmk driving pdflatex, and xelatex for the Book.
+# So this script needs no tectonic fallback — it IS the local path. What it does
+# need is a TeX Live complete enough to satisfy the Book, and fontconfig able to
+# see TeX Gyre Pagella / TeX Gyre Heros / Source Code Pro, which the Book's
+# preamble binds BY NAME through fontspec. A stock apt TeX Live installs those
+# faces under texmf-dist without registering them with fontconfig, and then every
+# edition dies on "The font ... cannot be found". The one-command setup (apt list
+# + the /etc/fonts/conf.d drop-in) is in the "Local TeX Live" section of
+# skills/harbor-chartwork/SKILL.md; run it once per container.
+#
+# Honest limit, the same one the figure toolchain has: a missing .sty is a hard
+# error here. Nothing in this path downloads packages. And TeX Live versions do
+# not agree on page breaks — see the toolchain note below — so a local page count
+# is evidence about THIS machine, not about the published artifact.
 
 set -uo pipefail
 
@@ -57,15 +75,13 @@ trap clean_build_dir EXIT
 # which is what paper_changed_since / --list-unchanged-since exist to answer.
 #
 # paper table: "<srcdir>|<root.tex>|<dest published pdf path>"
+#
+# The eight chapters no longer publish a standalone PDF of their own (retired:
+# they were an A4 render of the same words with no margin column, a worse
+# layout of the Book's 7x10in trim). Their .tex sources stay in the tree —
+# the Book still assembles from them — but this list now builds only the one
+# artifact the site actually serves per chapter: the Book itself.
 PAPERS=(
-  "$PUB|agent-transactions-whitepaper.tex|$PUB/agent-transactions-whitepaper.pdf"
-  "$PUB|anchor-protocol-whitepaper.tex|$PUB/anchor-protocol-whitepaper.pdf"
-  "$PUB|federated-harbor-whitepaper.tex|$PUB/federated-harbor-whitepaper.pdf"
-  "$PUB|harbor-economy.tex|$PUB/harbor-economy-whitepaper.pdf"
-  "$PUB|sealed-harbor.tex|$PUB/sealed-harbor-whitepaper.pdf"
-  "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
-  "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
-  "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
   "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
 )
 
@@ -248,7 +264,13 @@ build_one() {
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
     # The Book sets its monospace face through fontspec (a Unicode-engine
     # package) and turns off XeTeX's glyph-metric line boxes, so it is
-    # compiled with xelatex; the standalone chapters stay on pdfTeX.
+    # compiled with xelatex. Every row this script can reach is a
+    # coordination-papers-mega-volume* root now that the standalone chapters
+    # are retired, so the case below always fires and this default is dead.
+    # It stays because pdfTeX is still a first-class engine in this repository
+    # -- docs/harbor-research/Makefile builds the seven research papers with
+    # it, from the same pinned TeX Live digest -- so a future plain-pdflatex
+    # root here would be a new row, not a new engine.
     local engine=pdflatex latexmk_engine=-pdf
     case "$roottex" in
       coordination-papers-mega-volume*.tex) engine=xelatex; latexmk_engine=-xelatex ;;
@@ -263,6 +285,9 @@ build_one() {
       # cover the rare long-TOC case that still reports changed labels.
       if ! command -v "$engine" >/dev/null 2>&1; then
         echo "error: whitepaper build requires latexmk or $engine" >&2
+        echo "       install a local TeX Live: see the 'Local TeX Live' section of" >&2
+        echo "       skills/harbor-chartwork/SKILL.md for the apt list and the" >&2
+        echo "       fontconfig drop-in the Book's by-name font binding needs." >&2
         exit 127
       fi
       local pass

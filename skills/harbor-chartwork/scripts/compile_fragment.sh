@@ -36,23 +36,72 @@
 #                        Default: ./chartwork-build/<fragment-stem>/ under the
 #                        current working directory.
 #
+# Engine: tectonic first, a local TeX Live second.
+#
+# tectonic remains the reference engine -- it is what CI installs and what the
+# committed renders are judged against -- so it is still tried first and the
+# TECTONIC / TECTONIC_CACHE_DIR contract below is unchanged. What is new is
+# that a machine WITHOUT tectonic no longer stops here: the script falls back
+# to a local LaTeX engine, preferring `latexmk -xelatex` and dropping to bare
+# `xelatex` only when latexmk is absent.
+#
+# Why latexmk rather than a fixed pass count: tectonic reruns the engine until
+# the output stops changing, and a Harbor fragment genuinely needs that --
+# \label/\ref inside a figure, marginpar/sidenote placement, and TikZ
+# `remember picture` / overlay bounding boxes all settle on a later pass than
+# the first. latexmk implements exactly that fixed-point rule (it watches the
+# .aux and the rerun warnings), so it reproduces tectonic's convergence
+# behaviour instead of approximating it. Bare xelatex cannot, so the
+# last-resort branch runs a fixed three passes, which is enough for every
+# fragment in the three corpora but is a guess, not a guarantee.
+#
+# Honest limits of the local-TeX fallback, compared with tectonic:
+#   * NO package auto-fetch. tectonic downloads a missing .sty from its bundle
+#     on demand; a local TeX Live cannot. A missing package is a hard error
+#     here, fixed by installing the TeX Live package (see the "Local TeX Live"
+#     section of this skill's SKILL.md for the exact apt list and the
+#     fontconfig file the Book's by-name font binding needs).
+#   * NO hermetic bundle. Output depends on the TeX Live version and the fonts
+#     fontconfig can see on this machine, so page breaks and glyph metrics can
+#     differ from a tectonic render of the same source. Judge a fragment's
+#     geometry locally; judge committed page numbers from the CI PDFs.
+#   * SHELL ESCAPE stays off in both, so nothing that needs -shell-escape
+#     builds under either engine.
+#
 # Environment:
 #   TECTONIC             Path to the tectonic binary. Default: the first of
 #                         (a) a `tectonic` found on PATH, (b) the dev-sandbox
 #                         copy at $CHARTWORK_SCRATCH_TEX/tectonic if present.
+#                         When none of those exist the script uses the local
+#                         LaTeX fallback described above instead of failing.
 #   TECTONIC_CACHE_DIR    Tectonic's resource cache. Left untouched if already
 #                         exported by the caller; otherwise pointed at the
 #                         pre-warmed dev-sandbox cache if present on disk, else
 #                         left unset (tectonic falls back to its own default).
+#                         Unused by the local fallback.
 #   CHARTWORK_SCRATCH_TEX Base dir holding the dev-sandbox tectonic + cache
 #                         (default: the scratchpad path documented in this
 #                         skill's SKILL.md). CI should not need this: install
 #                         tectonic on PATH and let its default cache apply.
+#   CHARTWORK_LATEX_ENGINE  Which engine the local fallback drives. Default
+#                         `xelatex` -- the Book and every chapter root are
+#                         XeTeX documents (fontspec). Set to `pdflatex` or
+#                         `lualatex` only to reproduce a non-XeTeX context.
+#   CHARTWORK_LATEX_PASSES  Pass count for the bare-engine branch when latexmk
+#                         is not installed. Default 3. Ignored when latexmk is
+#                         used, because latexmk decides for itself.
+#   CHARTWORK_FORCE_LOCAL_TEX  Set to 1 to skip tectonic even when it exists
+#                         and take the local branch, for comparing the two.
 #
-# Exit status: 0 on a clean compile. Non-zero on any TeX error, on a fragment
-# or reference file that cannot be found, or on an unrecognized --preamble
-# value. On failure the first "!"-prefixed error line from the TeX log is
-# printed to stderr before exiting.
+# Exit status:
+#   0  a PDF was produced
+#   1  a real compile failure (the first "!"-prefixed TeX error is printed)
+#   2  usage error: no such fragment, or an unrecognized --preamble value, or
+#      neither tectonic nor a local LaTeX engine can be found at all
+#   3  NOTHING TO DRAW -- LaTeX reported no error and no pages, which is what a
+#      style/apparatus file under figures/ does. Distinct from 1 on purpose: a
+#      caller that compiles everything under a figures directory needs to tell
+#      "this file has no picture in it" from "this file is broken".
 set -u
 umask 022
 
@@ -69,7 +118,7 @@ TEXTWIDTH_CM="${CHARTWORK_TEXTWIDTH_CM:-16.3}"
 TEXTHEIGHT_CM="${CHARTWORK_TEXTHEIGHT_CM:-26}"
 
 usage() {
-  sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,37p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 FRAGMENT=""
@@ -124,23 +173,48 @@ fi
 mkdir -p "$OUT_DIR" || { echo "compile_fragment.sh: cannot create --out dir: $OUT_DIR" >&2; exit 2; }
 OUT_DIR_ABS="$(cd "$OUT_DIR" && pwd)"
 
-# --- resolve tectonic + its cache -------------------------------------------
-if [ -z "${TECTONIC:-}" ]; then
-  if command -v tectonic >/dev/null 2>&1; then
-    TECTONIC="$(command -v tectonic)"
-  elif [ -x "$CHARTWORK_SCRATCH_TEX/tectonic" ]; then
-    TECTONIC="$CHARTWORK_SCRATCH_TEX/tectonic"
-  else
-    echo "compile_fragment.sh: no tectonic found on PATH and no dev-sandbox copy at $CHARTWORK_SCRATCH_TEX/tectonic; set TECTONIC=/path/to/tectonic" >&2
-    exit 2
+# --- resolve the engine ------------------------------------------------------
+# ENGINE_KIND is one of: tectonic | latexmk | plain. The first is the
+# reference engine and keeps its existing environment contract untouched; the
+# other two are the local-TeX fallback documented in the header.
+ENGINE_KIND=""
+LATEX_ENGINE="${CHARTWORK_LATEX_ENGINE:-xelatex}"
+LATEX_PASSES="${CHARTWORK_LATEX_PASSES:-3}"
+
+if [ "${CHARTWORK_FORCE_LOCAL_TEX:-0}" != "1" ]; then
+  if [ -z "${TECTONIC:-}" ]; then
+    if command -v tectonic >/dev/null 2>&1; then
+      TECTONIC="$(command -v tectonic)"
+    elif [ -x "$CHARTWORK_SCRATCH_TEX/tectonic" ]; then
+      TECTONIC="$CHARTWORK_SCRATCH_TEX/tectonic"
+    fi
+  fi
+  if [ -n "${TECTONIC:-}" ]; then
+    # An explicitly set TECTONIC that is not runnable is still a hard error:
+    # the caller asked for a specific binary and silently using something else
+    # would render the fragment under an engine they did not choose.
+    if [ ! -x "$TECTONIC" ] && ! command -v "$TECTONIC" >/dev/null 2>&1; then
+      echo "compile_fragment.sh: TECTONIC does not point at an executable: $TECTONIC" >&2
+      exit 2
+    fi
+    ENGINE_KIND="tectonic"
+    if [ -z "${TECTONIC_CACHE_DIR:-}" ] && [ -d "$CHARTWORK_SCRATCH_TEX/cache" ]; then
+      export TECTONIC_CACHE_DIR="$CHARTWORK_SCRATCH_TEX/cache"
+    fi
   fi
 fi
-if [ ! -x "$TECTONIC" ] && ! command -v "$TECTONIC" >/dev/null 2>&1; then
-  echo "compile_fragment.sh: TECTONIC does not point at an executable: $TECTONIC" >&2
-  exit 2
-fi
-if [ -z "${TECTONIC_CACHE_DIR:-}" ] && [ -d "$CHARTWORK_SCRATCH_TEX/cache" ]; then
-  export TECTONIC_CACHE_DIR="$CHARTWORK_SCRATCH_TEX/cache"
+
+if [ -z "$ENGINE_KIND" ]; then
+  if ! command -v "$LATEX_ENGINE" >/dev/null 2>&1; then
+    echo "compile_fragment.sh: no tectonic on PATH, no dev-sandbox copy at $CHARTWORK_SCRATCH_TEX/tectonic, and no local $LATEX_ENGINE either." >&2
+    echo "compile_fragment.sh: install a TeX Live with $LATEX_ENGINE (see the 'Local TeX Live' section of skills/harbor-chartwork/SKILL.md) or set TECTONIC=/path/to/tectonic." >&2
+    exit 2
+  fi
+  if command -v latexmk >/dev/null 2>&1; then
+    ENGINE_KIND="latexmk"
+  else
+    ENGINE_KIND="plain"
+  fi
 fi
 
 BUILD="$(mktemp -d "${TMPDIR:-/tmp}/chartwork-compile.XXXXXX")"
@@ -334,9 +408,51 @@ EOF
 fi
 
 # --- compile -----------------------------------------------------------------
+# The capture file keeps its historical name so callers (and the failure path
+# below) do not have to care which engine ran.
 LOG_CAPTURE="$BUILD/_tectonic_stdout.log"
-( cd "$BUILD" && "$TECTONIC" --keep-logs -o "$BUILD" "$(basename "$WRAPPER")" ) >"$LOG_CAPTURE" 2>&1
-STATUS=$?
+WRAPPER_BASE="$(basename "$WRAPPER")"
+
+case "$ENGINE_KIND" in
+  tectonic)
+    ( cd "$BUILD" && "$TECTONIC" --keep-logs -o "$BUILD" "$WRAPPER_BASE" ) >"$LOG_CAPTURE" 2>&1
+    STATUS=$?
+    ;;
+  latexmk)
+    # latexmk reruns to a fixed point, which is what tectonic does and what a
+    # fragment with \label/\ref, marginpar or a remembered TikZ picture needs.
+    latexmk_flag="-xelatex"
+    case "$LATEX_ENGINE" in
+      pdflatex) latexmk_flag="-pdf" ;;
+      lualatex) latexmk_flag="-lualatex" ;;
+      xelatex)  latexmk_flag="-xelatex" ;;
+      *) echo "compile_fragment.sh: CHARTWORK_LATEX_ENGINE must be xelatex, pdflatex or lualatex, got: $LATEX_ENGINE" >&2; exit 2 ;;
+    esac
+    ( cd "$BUILD" && latexmk "$latexmk_flag" -interaction=nonstopmode -halt-on-error \
+        -file-line-error -outdir="$BUILD" "$WRAPPER_BASE" ) >"$LOG_CAPTURE" 2>&1
+    STATUS=$?
+    ;;
+  plain)
+    # No latexmk: a fixed pass count is the pragmatic substitute for running to
+    # a fixed point. Three passes settle labels, the marginpar/sidenote column
+    # and TikZ bounding boxes for every fragment in the three corpora; it is a
+    # bound, not a proof of convergence.
+    STATUS=0
+    : >"$LOG_CAPTURE"
+    for _pass in $(seq 1 "$LATEX_PASSES"); do
+      ( cd "$BUILD" && "$LATEX_ENGINE" -interaction=nonstopmode -halt-on-error \
+          -file-line-error -output-directory="$BUILD" "$WRAPPER_BASE" ) >>"$LOG_CAPTURE" 2>&1
+      STATUS=$?
+      # A hard TeX error will not improve on the next pass.
+      [ "$STATUS" -ne 0 ] && break
+      # Converged early: stop burning passes once nothing asks for a rerun.
+      if [ "$_pass" -ge 2 ] && [ -f "$BUILD/$MAIN_JOBNAME.log" ] \
+         && ! grep -Eq 'Rerun to get|Label\(s\) may have changed|Rerun to get cross-references right' "$BUILD/$MAIN_JOBNAME.log"; then
+        break
+      fi
+    done
+    ;;
+esac
 
 PDF_SRC="$BUILD/$MAIN_JOBNAME.pdf"
 LOG_SRC="$BUILD/$MAIN_JOBNAME.log"
@@ -346,6 +462,40 @@ cp "$LOG_SRC" "$OUT_DIR_ABS/$STEM.log" 2>/dev/null
 
 if [ "$STATUS" -ne 0 ] || [ ! -f "$PDF_SRC" ]; then
   FIRST_ERROR="$(grep -m1 -E '^! ' "$LOG_SRC" 2>/dev/null)"
+
+  # NOTHING TO DRAW is not the same thing as WOULD NOT COMPILE, and this script
+  # used to report them identically.
+  #
+  # Not every .tex under a figures/ directory is a figure. The Book keeps its
+  # apparatus there too -- pd-figure-language.tex and its per-edition overrides,
+  # pd-pedagogy.tex, pd-cite-shortforms.tex -- and those carry \tikzset and
+  # \newcommand definitions and no tikzpicture at all. Wrapped and run, LaTeX
+  # succeeds and emits "No pages of output."; there is then no .xdv for
+  # xdvipdfmx to convert, so tectonic exits non-zero with `cannot open
+  # "wrapper.xdv"`. Read as a compile failure, that reddened the figure gate for
+  # two files that had simply drawn nothing.
+  #
+  # The test is by SHAPE, not by name: LaTeX emits a `! `-prefixed line for
+  # every real error, and emits none when it merely had nothing to typeset. A
+  # log with "No pages of output." and no `! ` line is therefore a file with no
+  # drawing in it -- which is a fact about the file, not a verdict on it -- and
+  # a skip list keyed on today's five filenames would be the same defect one
+  # layer down: the next apparatus file added under a new name would redden the
+  # gate again.
+  #
+  # Exit 3, distinct from both 0 (a PDF exists) and 1 (a real error), so a
+  # caller can tell the three apart. Note for whoever reads this next: the
+  # visual-proof guard on the PR side deliberately treats EVERY .tex under
+  # figures/ as a figure surface, and that is correct for the question it asks
+  # ("does this PR owe a render?"). This is a different question ("can this be
+  # compiled as a picture?") and it has a different answer for the same files.
+  # Do not unify them.
+  if grep -q 'No pages of output' "$LOG_SRC" 2>/dev/null && [ -z "$FIRST_ERROR" ]; then
+    echo "compile_fragment.sh: NO PAGES from $FRAGMENT_ABS (${PREAMBLE_MODE:-self-contained} mode)" >&2
+    echo "compile_fragment.sh: LaTeX reported no error -- this file defines style or apparatus and draws nothing, so there is no picture to render" >&2
+    exit 3
+  fi
+
   [ -z "$FIRST_ERROR" ] && FIRST_ERROR="$(tail -n 20 "$LOG_CAPTURE" 2>/dev/null)"
   echo "compile_fragment.sh: FAILED to compile $FRAGMENT_ABS (${PREAMBLE_MODE:-self-contained} mode)" >&2
   echo "$FIRST_ERROR" >&2

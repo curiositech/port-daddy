@@ -1,0 +1,65 @@
+{
+ "_comment": "Pinned ids for the FIGURE-TRIAGE.md `add` rows. An add-row has no identifier in the triage table (its fragment column is literally an em dash), but the desk stores the author's rulings on undrawn candidates under an id, so the id has to be stable across regenerations. Key = chapter|section|first six words of the idea. `page`/`pageNote` are curated judgements: a page is given only where a checkable link to an existing figure's page justifies it, otherwise the desk says 'page unknown' rather than guessing. build_figure_desk.py reports any key that lost its pin and any pin that lost its key.",
+ "byKey": {
+  "1|§1.4|single-writer-the-reader-has-never": {
+   "id": "undrawn-swk-single-writer-refusal",
+   "page": 25,
+   "pageNote": "same single-writer / second-writer topic as fig-swk-single-writer, which this add-row would sit beside",
+   "row": "§1.4 single-writer: the reader has never seen the daemon refuse a second writer"
+  },
+  "1|§1.9|work-unit-machine-the-model-checked": {
+   "id": "undrawn-swk-workunit-checker",
+   "page": 59,
+   "pageNote": "the \"536 states\" here matches fig-swk-workunit-machine’s own caption exactly",
+   "row": "§1.9 work-unit machine: the model-checked instance"
+  },
+  "2|§2|handshake-the-pairing-ceremony": {
+   "id": "undrawn-anchor-handshake",
+   "page": null,
+   "pageNote": null,
+   "row": "§2 handshake: the pairing ceremony"
+  },
+  "2|§2|proverif-the-v6-multi-hop-attack": {
+   "id": "undrawn-anchor-proverif-v6",
+   "page": null,
+   "pageNote": null,
+   "row": "§2 ProVerif: the v6 multi-hop attack"
+  },
+  "4|§4|the-operator-s-day-what-pd": {
+   "id": "undrawn-swarm-operators-day",
+   "page": null,
+   "pageNote": null,
+   "row": "§4 the operator's day: what `pd` shows"
+  },
+  "6|§6|r15-succession-price-d-k-1": {
+   "id": "undrawn-he-succession-price",
+   "page": null,
+   "pageNote": null,
+   "row": "§6 R15 succession price D* = ηK/(1−ηK)"
+  },
+  "6|§6|myerson-satterthwaite-example": {
+   "id": "undrawn-he-myerson-satterthwaite",
+   "page": null,
+   "pageNote": null,
+   "row": "§6 Myerson–Satterthwaite example"
+  },
+  "7|§7|by-hand-and-by-machine": {
+   "id": "undrawn-bonded-delta-star",
+   "page": null,
+   "pageNote": null,
+   "row": "§7 δ* by hand and by machine"
+  },
+  "7|§7|bond-ledger-conservation": {
+   "id": "undrawn-bonded-ledger-conservation",
+   "page": null,
+   "pageNote": null,
+   "row": "§7 bond ledger conservation"
+  },
+  "8|§8|cardrevocation-tla-rollback-config-fails-by": {
+   "id": "undrawn-fh-rollback-trace",
+   "page": null,
+   "pageNote": null,
+   "row": "§8 CardRevocation.tla rollback config fails by design"
+  }
+ }
+}

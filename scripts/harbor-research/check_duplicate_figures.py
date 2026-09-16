@@ -7,13 +7,14 @@ matrix is duplicated". Checking it mechanically found not two duplicates but
 seven: chapters 6 and 8 share five figures and tables outright, chapter 6 shares
 a game matrix with chapter 7, and chapters 5 and 6 share a table.
 
-Each chapter is a standalone paper's twin, so a fragment `\\input` by two
-chapters renders TWICE in the Book -- two figure numbers, two captions, one
-drawing -- while each standalone PDF quite correctly carries its own copy. The
-defect is invisible in the sources (each chapter reads fine alone) and invisible
-in the standalones (where it is not a defect at all). It is only visible in the
-assembled Book, which is exactly why it survived to a 530-page draft and needed
-an outside reader to notice.
+A fragment `\\input` by two chapters renders TWICE in the Book -- two figure
+numbers, two captions, one drawing. The defect is invisible in the sources,
+because each chapter reads fine alone; it is only visible in the assembled
+Book, which is exactly why it survived to a 530-page draft and needed an
+outside reader to notice. (It was invisible a second way while each chapter
+also published a standalone PDF that quite correctly carried its own copy.
+Those are retired; the Book is now the only place a drawing lands, which makes
+this check the only reader that sees the duplication at all.)
 
 So this is a check and not a one-time edit. The fix for any row it reports is to
 pick the chapter that OWNS the drawing -- the one that develops the idea -- and
@@ -68,9 +69,15 @@ def book_branch(text: str) -> str:
 
 
 def standalone_branch(text: str) -> str:
-    r"""Keep only what a standalone paper compiles: the \else branch of each
-    \ifpdbook, which is what check_standalone_figures.py counts against its
-    record. The same scanner, the other side of the conditional."""
+    r"""The \else branch of each \ifpdbook: what a standalone chapter paper used
+    to compile. The same scanner, the other side of the conditional.
+
+    Nothing renders that side any more -- the per-chapter PDFs are retired and
+    check_standalone_figures.py went with them -- so this has no caller in
+    anger. It is kept because book_branch above is only meaningful as one half
+    of a partition, and tests/harbor-research/test_pdbook_branch.py checks the
+    two halves against each other. If the \else branches are ever removed from
+    the chapter sources, this goes with them."""
     return pdbook_branch(text, book=False)
 
 
@@ -211,8 +218,8 @@ def main() -> int:
     print('   Each of these prints the same drawing in two places with two')
     print('   numbers and two captions. Decide which chapter develops the idea,')
     print('   keep the \\input there, and cross-reference it from the other with')
-    print('   \\Cref. A standalone paper keeps its own copy either way -- the')
-    print('   duplication exists only in the assembled Book.')
+    print('   \\Cref. The Book is the only document these chapters render into,')
+    print('   so the cross-reference needs no \\ifpdbook and no second copy.')
     return 1
 
 

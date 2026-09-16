@@ -1,10 +1,17 @@
-% Figure 9 — measured xy plot, redrawn to spec [ch4.md 4.9]. The R1 sweep's
-% own CSV (whitepaper/figures/data/r1-floor.csv) is not committed, so this
-% draws the two ANALYTIC curves the chapter's own Floor(N,k,m) formula
-% (Thm.~\ref{thm:lowerbound}, \ref{thm:split-penalty}) reduces to at m=8: the
-% flat (joint, 2k=4) and split (per-reader, k=2) zero-miss floors, with only
-% the N=60 points the chapter works by hand labelled. Deviation is named in
-% the caption.
+% Figure 9 — xy plot, redrawn to spec [ch4.md 4.9]. The two CURVES are the
+% chapter's closed-form Floor(N,k,m) (Thm.~\ref{thm:lowerbound},
+% \ref{thm:split-penalty}) at m=8: the flat (joint, 2k=4) and split
+% (per-reader, k=2) zero-miss floors. They are closed form by nature, not by
+% omission — Floor is exactly computable, so there is no "measured" version of
+% a curve to overlay.
+%
+% The MEASURED datum is the hollow marker at (60, 8.99): the smallest swept
+% digest budget at which the R1 sweep's oracle encoder actually observed zero
+% misses, from whitepaper/figures/data/r1-floor.csv (a7_experiment.py, seed
+% 20260816, 4000 trials/point). It sits 3.0 bits ABOVE the analytic floor
+% because the shared codebook is a randomized cover rather than an optimal
+% one. That gap is the honest content of the overlay: the bound holds as a
+% bound, and a real scheme pays more than it.
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,
@@ -12,16 +19,13 @@
     split(\n)  = ln(\n*(\n-1))/ln(2) - 1 - 4.80735;
     flat(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3))/ln(2) - 10.7141;
   }]
-\begin{axis}[
+\begin{axis}[pd axis,
   width=8.6cm,height=6.0cm,
   axis lines=left,
-  axis line style={pd rule},
   xmin=8,xmax=105,ymin=0,ymax=17.5,
   xtick={20,40,60,80,100},ytick={0,5,10,15},
-  tick label style={font=\footnotesize,text=hhink!80!hhgray},
   xlabel={swarm size $N$},
   ylabel={bits to locate},
-  every axis label/.style={font=\footnotesize,text=hhink!80!hhgray},
   clip=false,axis on top,
   ]
   \draw[pd guide] (axis cs:60,0) -- (axis cs:60,15.6);
@@ -35,6 +39,14 @@
   \node[pd direct label,anchor=south east] at (axis cs:59,{flat(60)+0.4}) {12.77};
   \node[pd direct label,text=hhteal,anchor=north east] at (axis cs:59,{split(60)-0.4}) {5.98};
 
+  % measured: smallest swept budget at which the oracle encoder observed zero
+  % misses (r1-floor.csv). Hollow, to read as observation against the curves.
+  \node[circle,draw=hhteal,fill=hhpaper,line width=.9pt,inner sep=2.3pt]
+        at (axis cs:60,8.99) {};
+  \draw[pd guide] (axis cs:60,{split(60)}) -- (axis cs:60,8.75);
+  \node[pd direct label,text=hhteal,anchor=west] at (axis cs:61.5,8.99)
+        {8.99 measured};
+
   \node[pd direct label,anchor=west] at (axis cs:87,{flat(87)}) {flat digest};
   \node[pd direct label,text=hhteal,anchor=west] at (axis cs:87,{split(87)}) {split digest};
 \end{axis}
@@ -45,9 +57,16 @@ digest serving both readers jointly needs $\mathrm{Floor}(N,4,8)$ bits; two
 split digests, one per reader, each need only $\mathrm{Floor}(N,2,8)$. At
 $N{=}60$ the split digest costs 5.98 bits against the flat digest's 12.77 ---
 a 2.13$\times$ penalty, not the 2$\times$ that halving the readers would
-predict. The committed sweep CSV (\texttt{r1-floor.csv}) is not yet present,
-so the two curves are the chapter's own closed-form Floor formula rather than
-simulated points; only the $N{=}60$ values it works by hand are marked
-[internal].}
+predict. Both curves are the closed-form Floor, which is exactly computable
+and so has no measured counterpart. The hollow marker is the measurement: at
+$N{=}60$ the sweep's oracle encoder first achieved zero observed misses at
+$8.99$ bits, three bits \emph{above} the $5.98$-bit floor, because its shared
+codebook is a randomized cover and not an optimal one. Read the gap, not the
+agreement --- the floor is a lower bound that holds, not a prediction a real
+digest meets. No zero-miss point is marked on the flat curve because the
+sweep's budget range tops out at $10.98$ bits, below that curve's $12.77$-bit
+floor: the split penalty is why the measurement could not reach it
+[verified, \texttt{a7\_experiment.py}, seed 20260816; data in
+\texttt{figures/data/r1-floor.csv}].}
 \label{fig:readpoverty}
 \end{figure}

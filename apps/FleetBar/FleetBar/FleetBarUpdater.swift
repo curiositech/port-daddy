@@ -157,7 +157,7 @@ final class FleetBarReleaseInstaller: @unchecked Sendable {
             var request = URLRequest(url: url)
             request.timeoutInterval = 60
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await URLSession.shared.pdData(for: request)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 throw FleetBarUpdateError.downloadFailed("the release server did not return HTTP 200")
             }
@@ -270,6 +270,20 @@ final class FleetBarReleaseInstaller: @unchecked Sendable {
         let body = """
         #!/bin/sh
         sleep 1
+        # A deferred updater may have been admitted before the operator pressed
+        # Off. Check again in the child, immediately before any service restart.
+        for root in "$2" "${PD_HOME:-$2}"; do
+            [ -d "$root" ] && [ ! -L "$root" ] && [ -r "$root" ] && [ -x "$root" ] || exit 0
+            for marker in "$root/HALT" "$root/hooks.disabled"; do
+                [ ! -e "$marker" ] && [ ! -L "$marker" ] || exit 0
+            done
+        done
+        if [ -n "${PD_HALT_FILE:-}" ]; then
+            case "$PD_HALT_FILE" in /*) ;; *) exit 0 ;; esac
+            parent=${PD_HALT_FILE%/*}
+            [ -d "$parent" ] && [ -r "$parent" ] && [ -x "$parent" ] || exit 0
+            [ ! -e "$PD_HALT_FILE" ] && [ ! -L "$PD_HALT_FILE" ] || exit 0
+        fi
         /bin/launchctl kickstart -k "$1"
         status=$?
         rm -rf -- "$(dirname "$0")"
@@ -280,10 +294,10 @@ final class FleetBarReleaseInstaller: @unchecked Sendable {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = [script.path, target]
+        process.arguments = [script.path, target, LocalRuntimeControl.shared.canonicalRoot.path]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
-        try process.run()
+        try process.pdRun()
     }
 
     private static func bundleIdentifier(at bundleURL: URL) -> String? {
@@ -304,7 +318,7 @@ final class FleetBarReleaseInstaller: @unchecked Sendable {
         process.standardOutput = output
         process.standardError = output
         do {
-            try process.run()
+            try process.pdRun()
             process.waitUntilExit()
             let data = output.fileHandleForReading.readDataToEndOfFile()
             return (process.terminationStatus, String(decoding: data, as: UTF8.self))

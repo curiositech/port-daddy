@@ -9,7 +9,9 @@
     "expected_signature_hex": "77398692b3b4993619fb6e28d2a37e51d048664f04377115fb754c733fce354a"
   },
   "third_party_grant": {
-    "identifier": "grant-canon-2",
+    "grant_id": "grant-canon-2",
+    "actor": "01K3YR6M1WPZB8Q6V1J8K7D4MC",
+    "expected_identifier": "pd-actor-push-v1:grant-canon-2:7ab2c2ff0ffbdc62c92cc5a102e2be491ac1c8ffc4df1730f7b8686429556dab",
     "location": "pd://daemon/curiositech/port-daddy",
     "repo": "curiositech/port-daddy",
     "session": "session-canon",
@@ -17,13 +19,13 @@
     "rent_nonce": "nonce-canon",
     "protected_branch": "main",
     "rent_caveat_id": "rent-paid:session-canon:nonce-canon",
-    "expected_vid_hex": "caf0522b7a70d849496f55518b6495b975c97fc217caf389b534d1096383550d",
-    "expected_signature_hex": "766493ed784d4e4daaafae981456c7a603d3b286e853ffc93deacbfc1af662e0"
+    "expected_vid_hex": "691711d37c4e9a01eebdb61ac1f3af8fb29f186909bc3d22dd4ef515916f0229",
+    "expected_signature_hex": "c134955279a9f8b3b4ebbe5734f8a68e0b0b8d6c6cb7b2871d7641decd7e5907"
   },
   "discharge_bound": {
     "discharge_now_ms": 1000000,
     "discharge_ttl_ms": 1200000,
-    "expected_signature_hex": "02ff9a87663d860de32173dd8602d56eb0d84a9091bf33581ca692d98cca405e"
+    "expected_signature_hex": "28945b3f3b634d45d5cfb66387d22f34967451ed5f51cef9165d80b34ff68591"
   },
   "all_caveat_types": {
     "_comment": "Exercises EVERY first-party caveat kind (op/repo/branch-glob/host/spend_usd/expires/session) so the chain encoding of each is parity-locked — closes the red-team coverage gap.",

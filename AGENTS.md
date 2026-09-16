@@ -270,9 +270,10 @@ Documents`.
   keep the customer-personae skill in agreement. Write like the person who
   maintains this repo.
 - **Mind the whitepapers.** Before shipping coordination/kernel work, check it
-  against the seven Port Daddy whitepapers — the canon registered in
-  `website-v2/src/data/whitePapers.ts` (Legible Swarm, Single-Writer Kernel, Spawn
-  to Person, Harbor Economy, Anchor Protocol, Bonded Commons, Federated Harbor;
+  against the eight current Port Daddy whitepapers — the canon registered in
+  `website-v2/src/data/whitePapers.ts` (Single-Writer Kernel, Anchor Protocol,
+  Sealed Harbor, Legible Swarm, Spawn to Person, Harbor Economy, Bonded Commons,
+  Federated Harbor;
   sources + PDFs under `website-v2/public/whitepaper/`): have you drifted from the
   model, or built something a paper should now describe? They need not be 1:1 — the
   papers are the lofty theory, the code is what we actually shipped — but each

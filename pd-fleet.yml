@@ -145,6 +145,24 @@ fleet:
       # post-commit path stays as a quick check that still routes
       # through coordination:inconsistency only when material.
       trigger: pull_request:opened
+      participation:
+        default: abstain
+        unavailable_blocks: false
+        rules:
+          - disposition: advisory
+            prClasses: [code, ui, ci, data, dependencies]
+            reason: runnable product or build surface changed; execution evidence is advisory until the sandbox runner is configured
+      execution:
+        mode: write_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file, list_files, search, run_tests]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: [.]
+        maxWallClockMs: 600000
+        maxCostMicrousd: 2000000
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -368,12 +386,60 @@ fleet:
       identity: "{project}:fleet:cartographer"
       telos: "Keep the roadmap, recovery queue, and live work map aligned."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 6 items on PR #10231; 2 restated features shipped in that
+    # very diff, 1 targeted the wrong layer. Its #5 — an introduction-ladder
+    # L3+ gate — is the single best proposal any ideation ship made that
+    # night, and is still unbuilt. Pausing spark defers it; it does not
+    # refute it.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     spark:
+      enabled: false
       # High-temperature product imagination. Spark comments buildable
       # ideas on PRs as validated Proposals; the cloud executor renders each
       # into REAL actionable Port Daddy syntax (see fleet/ships/spark.md and
       # apps/fleet-executor/src/proposals.ts).
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - pull_request:opened
         - git:committed
@@ -560,11 +626,59 @@ fleet:
     # #   identity: "{project}:fleet:purser"
     # #   telos: "Steel-man the PR, then demand it satisfy its own contract."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 10 items across two rounds on PR #10231; 9 already existed
+    # in the diff under review. Its second round cited phrases from the PR
+    # review comments as evidence the capability was missing — a feedback
+    # loop, not a finding. The tenth was correct and shipped as `21c847c`
+    # (per-route regression churn), which is the one measured hit on record.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     spider:
+      enabled: false
       # Syllogism engine. Spider combines two existing facts/capabilities
       # and proposes the new product or workflow that follows from them, as
       # validated Proposals rendered into actionable syntax by the executor.
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - spark:idea
         - pull_request:opened
@@ -614,7 +728,50 @@ fleet:
       identity: "{project}:fleet:spider"
       telos: "Comment new products implied by connections between existing capabilities."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 3 items on PR #10231; 2 restated shipped code, and the third inverted what the PR it cited actually argued.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     lookout:
+      enabled: false
       # Trouble-ahead watch. The PR-commenting embodiment of the Lookout actor:
       # spots contradictions, architectural trouble, duplication, and newly
       # broken user experiences — especially ACROSS other open PRs and feature
@@ -623,6 +780,7 @@ fleet:
       # gates a merge. Absorbs the ADR-0032 unSpider contradiction-finder
       # ambition into the cloud fleet. See fleet/ships/lookout.md.
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - pull_request:opened
       backend: cli:claude-code
@@ -659,12 +817,59 @@ fleet:
       identity: "{project}:fleet:lookout-pr"
       telos: "Spot contradictions, architectural trouble, and broken UX before they land — and alert the operator."
 
+    # PAUSED 2026-09-15 by operator request. This reviewed declaration stays
+    # visible to config tooling but is omitted from executable FleetConfig
+    # while `enabled: false` (same mechanism as dispatch-runner below).
+    #
+    # WHY: proposed 4 items on PR #10231; 3 asked for a skill that rebuilds
+    # that PR, each citing the implementing file as evidence it was missing.
+    # The fourth re-raised the wireframe-constraint gap three other ships had
+    # already raised — real, but not new by the time snipe filed it.
+    #
+    # Across one PR the four ideation ships produced 23 proposals, of which 2
+    # were actionable. One landed a code change in the PR under review:
+    # spider's route-level regression churn, commit `21c847c`. One more is a
+    # real increment nobody has built: spark's introduction-ladder L3+ gate,
+    # which the PR's own `comprehension-debt.md` names as a known limit. A
+    # third kernel — that `surfaceKind: wireframe` warns but does not
+    # constrain — was proposed four separate times by four ships. The rest restate the
+    # diff under review, duplicate an earlier ship, or target the wrong layer.
+    # An advisory proposal is cheap to emit and expensive to disprove, and that
+    # asymmetry lands on the reviewer.
+    #
+    # PRECONDITION TO RE-ENABLE (one gate, mechanical): a proposal must cite an
+    # evidence path that EXISTS, and must be rejected when the identifier it
+    # claims is missing already appears in the diff under review. Replayed by
+    # hand over all 23 it suppresses the restatements — snipe asks for a skill
+    # that rebuilds `surfer_model.mjs` while naming that file's own outputs
+    # (`completion`, `medianExitNode`, `expectedSecondsToReach`), and spider
+    # asks for a `comprehensionLoad` that "includes danglingPrereqs,
+    # newConceptsPerMinute and workingSet", the shipped function's literal
+    # destructured parameters — and it KEEPS both real ones, because
+    # `introductionLevel` and the per-route regression fields were genuinely
+    # absent from the diff. The gate is not a mute button: it is the reason
+    # re-enabling could be worth doing. Until it exists, re-enabling reproduces
+    # the same ratio.
+    #
+    # Gating nothing: all four are `class: ideation`, advisory, and never gate
+    # a merge. Pausing them removes proposals, not review — and THAT, not the
+    # hit rate, is what makes this safe to do. The blocking review path (qa,
+    # code-reviewer, red-team, test-author, tautology-sniffer) is untouched
+    # and still runs on every PR.
+    #
+    # DO NOT pause EVERY ship matching a trigger. The projection collapses an
+    # empty roster to null and the executor reads null as "no config", falling
+    # back to defaultPRShips() — so pausing everything runs the built-in
+    # defaults rather than nothing. Pinned in apps/fleet-executor/tests/
+    # fleet.test.ts ("pausing every ship falls back to the built-in roster").
     snipe:
+      enabled: false
       # Engineman. Looks at the code/ideas a PR introduces and, when a reusable
       # capability would remove recurring friction, proposes ONE skill to author
       # via the skill-architect skill — with a ready-to-run dispatch command.
       # Advisory: never gates a merge. See fleet/ships/snipe.md.
       class: ideation
+      participation: { default: advisory, rules: [] }
       trigger:
         - pull_request:opened
       backend: cli:claude-code
@@ -774,6 +979,12 @@ fleet:
 
     code-reviewer:
       trigger: pull_request:opened
+      participation:
+        default: abstain
+        rules:
+          - disposition: required
+            prClasses: [code, dependencies, security, ci, infrastructure, data, ui]
+            reason: executable or governed contract changed
       # Voice-sensitive: prefers anthropic only when CLI backends and
       # cheaper-but-good options aren't healthy. Spawner walks the
       # array and picks the first available + under-cap entry.
@@ -849,6 +1060,12 @@ fleet:
 
     red-team:
       trigger: pull_request:opened
+      participation:
+        default: abstain
+        rules:
+          - disposition: required
+            riskSignals: [authentication, authorization, secrets, cryptography, billing, tenant-boundary, privacy, storage, schema-migration, security-uncertain]
+            reason: security, privacy, storage, migration, or uncertain code boundary changed
       # Novel attack construction benefits from headroom. The primary target
       # resolves through the registry's `high` rung; it is never left to a
       # CLI default that could silently weaken this security review. On Cloudflare,
@@ -897,6 +1114,7 @@ fleet:
 
     test-author:
       trigger: pull_request:opened
+      participation: { default: abstain, rules: [] }
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -950,6 +1168,7 @@ fleet:
 
     tautology-sniffer:
       trigger: pull_request:opened
+      participation: { default: advisory, rules: [] }
       # Pattern recognition over test code — gpt-5-mini is the
       # sweet spot. Anthropic dropped from the preference list
       # entirely: this isn't a voice-sensitive task.
@@ -1152,6 +1371,8 @@ fleet:
       # model, but the Steward never blocks on one being available.
       schedule: "*/20 * * * *"
       trigger: pull_request:opened
+      participation: { default: advisory, rules: [] }
+      execution: { mode: none }
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex

@@ -43,13 +43,20 @@ grep "Warning: Reference" paper.log    # dangling \ref — check if pre-existing
 
 ## Source → published naming is NOT 1:1
 
-Check the registry's `pdfPath`/`filename` before copying. In port-daddy:
+Check the registry's `pdfPath`/`filename` before copying. In port-daddy, a
+chapter's `.tex` source (e.g. `harbor-economy.tex`) does NOT publish a PDF of
+its own — that was retired (an A4 render of the same words with no margin
+column, a worse layout of the Book's 7x10in trim). Only two things are
+individually published PDFs:
 
 | Source | Published PDF |
 |---|---|
-| `harbor-economy.tex` | `harbor-economy-whitepaper.pdf` |
-| `spawn-to-person.tex` | `spawn-to-person-whitepaper.pdf` |
-| `agent-transactions-whitepaper.tex` | same name `.pdf` |
+| `whitepaper/textbook.json` + every chapter (via `scripts/generate-mega-whitepaper.mjs`) | `coordination-papers-mega-volume.pdf` (the Book — `pdfPath`/`pages`/`sizeKb` in `website-v2/src/data/whitePapers.ts`'s `COLLECTED_VOLUME`) |
+| `docs/harbor-research/tex/paper1.tex` … `paper7.tex` (the seven standalone research papers) | `website-v2/public/research/paper1.pdf` … `paper7.pdf` (registry: `website-v2/src/data/researchPapers.ts`) |
+
+A chapter entry in `WHITE_PAPERS` carries no `pdfPath`/`filename`/`pages`/
+`sizeKb` at all; any "read" or "download" affordance for a chapter points at
+`COLLECTED_VOLUME`.
 
 After building: `cp build.pdf published-name.pdf`, then delete the stray
 build PDF and `*.log`. **Some aux artifacts are tracked, some are not** — run
@@ -109,9 +116,12 @@ gets the caveat stated harder than the claim. Match `\paragraph{}` vs
 
 ## Repo gotchas (port-daddy specific)
 
-- The whitepaper pages on the site: `/whitepaper` REDIRECTS to `/library` —
-  the routed papers page is `website-v2/src/pages/library/index.tsx`;
-  `pages/whitepaper/index.tsx` is unrouted legacy. Edit the routed one.
+- The whitepaper pages on the site: `/whitepaper` is canonical and `/library`
+  REDIRECTS to it (the redirect used to run the other way) — the routed
+  papers page is `website-v2/src/pages/whitepaper/index.tsx`, and the chapter
+  page is `website-v2/src/pages/whitepaper/PaperDetailPage.tsx`. There is no
+  `pages/library` directory any more; the routes are in
+  `website-v2/src/main.tsx`.
 - PRs touching `public/whitepaper/**` trigger the metadata-drift workflow;
   PRs with visual changes need committed screenshots + a recording under
   `docs/pr-assets/pr-NNN/` embedded via SHA-pinned raw URLs.

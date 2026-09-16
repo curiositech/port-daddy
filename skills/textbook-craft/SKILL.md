@@ -12,7 +12,7 @@ allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Writing & Communication
   tags: [textbook, pedagogy, exposition, exercise-design, harbor]
-  version: 1.2.0
+  version: 1.3.0
   pairs-with:
     - skill: harbor-exposition
       reason: Shares the honesty-ledger and express-lane discipline; harbor-exposition governs one result, this skill governs a chapter of many
@@ -383,6 +383,28 @@ first `theorem`/`definition`.
   `tests/test_chapter_lint.py` (`python3 -m unittest discover -s
   skills/textbook-craft/tests -p 'test_*.py'`).
 
+- `python3 scripts/readers_eye.py [CHAPTER.tex ...] [--json|--summary] [--rule RULE] [--limit N] [--strict] [--selftest]` —
+  the mechanical half of the reader's-eye check. Where `chapter_lint.py`
+  measures **structure** (is the worked example present, is the claim
+  tagged, is the exercise at the end), this asks whether a reader could
+  follow the sentence at all. It counts and matches; it does not judge
+  prose. Six rules, each countable without a taste judgement:
+  `abstraction-run`, `artifact-register-drift`, `caption-carries-the-fact`,
+  `metaphor-domain-collision`, `metaphor-never-instantiated`,
+  `undefined-slash-pair`. Given no chapter it reads the chapter list from
+  `whitepaper/textbook.json`, the same convention `chapter_lint.py` uses.
+  Exit 0 when nothing is reported, 1 under `--strict` when something is,
+  2 when a file cannot be read; `--selftest` runs the clean-vs-bad fixture
+  pair and reports whether they separate. Stdlib only. Advisory in CI on
+  day one, on the same reasoning that made the figure-blocker step
+  advisory: a check nobody has cleaned up after yet must not freeze the
+  merge queue. Its word lists live in
+  `references/readers-eye-lexicon.json`, not in the script. The judge pass it
+  hands off to is `references/readers-eye.md` §5, which also carries the
+  reader's persona, the finding shape, and the corpus baseline the
+  thresholds were tuned against. Unit tests:
+  `tests/harbor-research/test_readers_eye.py`.
+
 ## References
 
 - `references/chapter-template.md` — Read when drafting or reviewing a
@@ -395,3 +417,13 @@ first `theorem`/`definition`.
   makes and why it is worth stealing (or, for Rudin, why it is not).
 - `references/sources.md` — Read when citing this skill's own provenance, or
   checking a claim's tier before repeating it in a review comment.
+- `references/readers-eye.md` — Read before reviewing a chapter for prose a
+  reader cannot follow, before changing a threshold in `readers_eye.py`, and
+  whenever running the Layer-2 judge pass.
+- `references/readers-eye-lexicon.json` — the word lists `scripts/readers_eye.py`
+  matches against (metaphor domains, abstraction vocabulary, register
+  markers). Read or edit when a rule is firing on prose it should not, or
+  missing prose it should catch: the fix usually belongs in this data file
+  rather than in the script, on the same separation
+  `skills/make_copy_and_media_human` uses, where the tells live in
+  `references/catalog.json` and the script measures only densities and ratios.
