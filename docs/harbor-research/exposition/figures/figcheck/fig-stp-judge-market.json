@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-stp-judge-market/fig-stp-judge-market.pdf",
+  "figure": "fig-stp-judge-market",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -30,20 +30,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            99.2386474609375,
-            68.78868103027344,
-            110.17176055908203,
-            81.23236846923828
+            98.67880249023438,
+            67.82820129394531,
+            109.3521957397461,
+            79.97628784179688
           ],
           "text": "J1",
           "line_segment": [
             [
-              93.56660461425781,
-              86.12322998046875
+              93.14151000976562,
+              84.75096130371094
             ],
             [
-              116.42059326171875,
-              63.269256591796875
+              115.45260620117188,
+              62.43988037109375
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'J1'"
@@ -53,20 +53,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            174.33029174804688,
-            68.78868103027344,
-            185.26341247558594,
-            81.23236846923828
+            171.98666381835938,
+            67.82820129394531,
+            182.66006469726562,
+            79.97628784179688
           ],
           "text": "J3",
           "line_segment": [
             [
-              168.65875244140625,
-              86.12322998046875
+              166.44984436035156,
+              84.75096130371094
             ],
             [
-              191.51278686523438,
-              63.269256591796875
+              188.760986328125,
+              62.43988037109375
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'J3'"
@@ -76,20 +76,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            286.9687805175781,
-            68.78868103027344,
-            297.9018859863281,
-            81.23236846923828
+            281.9494323730469,
+            67.82820129394531,
+            292.6228332519531,
+            79.97628784179688
           ],
           "text": "J6",
           "line_segment": [
             [
-              281.2967529296875,
-              86.12322998046875
+              276.4121398925781,
+              84.75096130371094
             ],
             [
-              304.1507263183594,
-              63.269256591796875
+              298.7232360839844,
+              62.43988037109375
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'J6'"
@@ -99,20 +99,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            476.71136474609375,
-            171.13087463378906,
-            510.2997131347656,
-            180.31053161621094
+            465.7284240722656,
+            167.6356201171875,
+            501.4582824707031,
+            177.71742248535156
           ],
           "text": "re-audit",
           "line_segment": [
             [
-              493.513427734375,
-              166.1124725341797
+              483.5876159667969,
+              162.84005737304688
             ],
             [
-              493.513427734375,
-              199.72718811035156
+              483.5876159667969,
+              195.65626525878906
             ]
           ],
           "message": "a drawn line crosses through the interior of text 're-audit'"
@@ -120,6 +120,11 @@
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -135,6 +140,17 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1811,
+      "edge_density": 0.0847,
+      "distinct_colors": 2543,
+      "flags": [
+        "edge_density=0.085 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [

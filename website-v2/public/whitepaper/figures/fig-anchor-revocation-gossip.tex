@@ -9,9 +9,9 @@
 
   \foreach \y/\peer/\wake in {2.4/A/-4.5,1.35/B/-1.4,.3/C/2.0,-.75/D/-.6,-1.8/E/2.0} {
     \node[pd row label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
-    \draw[draw=hhamber,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
+    \draw[pd caution rule,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
     \draw[draw=hhpaper,line width=1pt,line cap=round] (\xzero,\y) -- (\wake,\y);
-    \draw[draw=hhteal,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
+    \draw[pd focus rule,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
     \node[pd focus datum,minimum size=4.8pt,inner sep=0pt] at (\wake,\y) {};
   }
   \draw[pd focus rule]
@@ -31,9 +31,9 @@
   \node[pd direct label,text=hhamber,align=left,text width=5.3cm,anchor=north west]
     at (\xzero,-3.0) {stale window: a revoked card may still be admitted};
 
-  \draw[pd caution rule,dashed] (4.05,-2.9) -- (4.05,2.85);
-  \draw[pd caution arrow] (4.05,-2.78) -- (5.2,-2.78);
-  \node[pd direct label,text=hhamber,align=left,text width=2.9cm,anchor=north west]
+  \draw[pd danger rule,dashed] (4.05,-2.9) -- (4.05,2.85);
+  \draw[pd danger arrow] (4.05,-2.78) -- (5.2,-2.78);
+  \node[pd direct label,text=pderror,align=left,text width=2.9cm,anchor=north west]
     at (5.25,-2.9) {partition: no finite deadline};
 \end{tikzpicture}
 \caption{A revocation advances as an observation frontier, leaving a distinct

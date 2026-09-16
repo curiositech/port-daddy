@@ -80,7 +80,7 @@ What runs in continuous integration today (`.github/workflows/proofs.yml`):
 | Threat bands | Monte Carlo | `threat-bands.mjs` | Monte Carlo / threat-bands |
 | R1 to R17, CR, B6 headline numbers | Python result scripts, seeded | `skills/harbor-results/scripts/` | Harbor results / R-scripts (seed 20260816) |
 
-The ProVerif models under `analyses/`, `proofs/**`, and `docs/adr/models/`, the three Kani
+The ProVerif models under `analyses/` and `proofs/**`, the three Kani
 harnesses in `core/harbor-card-rs/src/lib.rs`, and the relay TLA+ configurations run in
 continuous integration: `proofs.yml` runs every ProVerif model against its committed
 results (`scripts/proofs/run-proverif.py`, with the negative controls asserted to fail),
@@ -108,6 +108,7 @@ attenuation vectors; the every-hop attenuation property is ProVerif's.
 | Publication metadata and digests | a committed PDF whose pages, size, or SHA-256 disagree with the catalog or `publication-digests.json` | `npm run test:whitepaper-metadata` (website-v2); `--fix` resyncs | whitepaper-metadata |
 | Doc citations | a repo path cited in a changed doc that does not exist | `node scripts/check-doc-citations.mjs` | doc-citation-guard |
 | Figure register/triage | a malformed row, an unknown enum value, a duplicate id, a chapter number out of step with `textbook.json`, or a `keep`/`restyle` fragment missing on disk | `python3 scripts/harbor-research/check_figure_register.py` | library-checks |
+| Figure QA corpus | a `figcheck/*.json` record describing a fragment no chapter ships, or a live fragment with no record — the corpus derived from the `\input{figures/...}` lines of the chapter sources `textbook.json` names, restricted to fragments that open a `tikzpicture` | `python3 scripts/harbor-research/check_figcheck_corpus.py` (`--list`, `--orphans` to inspect) | library-checks |
 | Figure audit render | `FIGURE-AUDIT-DIGEST.md`/`FIGURE-AUDIT-FAILURES.md` out of step with a fresh render of `figcheck/*.json` | `python3 scripts/harbor-research/render_figure_audit.py --check` (`--write` regenerates) | library-checks |
 | Figure blockers | a mechanical (T1-T5) figcheck failure with no waiver, or an expired one | `python3 scripts/harbor-research/check_figure_blockers.py` | library-checks; also gated per-PR by `figure-gates` (whitepaper-build.yml) |
 
@@ -120,9 +121,17 @@ workflow rebuild only the affected papers and commit them as
 `build(whitepaper): regenerate PDFs from source`. The research papers have the same loop
 in `harbor-research-build`. After a bot commit, run `npm run fix:whitepaper-metadata` in
 `website-v2` to resync the catalog's page counts and sizes and the digest manifest, and
-push. A run that lands in `action_required` is re-run from the Actions tab. Locally,
-`tectonic` compiles every chapter and the Book from the same sources; CI's pinned image is
-the authority for bytes.
+push. A run that lands in `action_required` is re-run from the Actions tab.
+
+Locally, a stock Debian/Ubuntu TeX Live compiles every chapter and the Book — all three
+editions — from the same sources, in about ninety seconds per edition; the setup is one
+apt command plus one fontconfig drop-in, written down in the "Local TeX Live" section of
+`skills/harbor-chartwork/SKILL.md`. `tectonic` is still the figure toolchain's reference
+engine and `compile_fragment.sh` prefers it when it is on `PATH`, falling back to
+`latexmk -xelatex` when it is not. Neither local path downloads packages: a missing `.sty`
+is a hard error, not a fetch. CI's pinned image remains the authority for bytes, page
+counts and digests — apt TeX Live 2023 and tectonic's bundle break pages differently, so a
+local render is evidence about geometry, never about a published page number.
 
 ## 7. Editing playbook
 

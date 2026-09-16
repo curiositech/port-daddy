@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-swk-commitment-oracle/fig-swk-commitment-oracle.pdf",
+  "figure": "fig-swk-commitment-oracle",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -31,6 +31,11 @@
       "count": 0,
       "findings": []
     },
+    "T8": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
     "T6": {
       "status": "pass",
       "count": 0,
@@ -42,6 +47,17 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.0988,
+      "edge_density": 0.0458,
+      "distinct_colors": 1821,
+      "flags": [
+        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+      ]
+    }
+  ],
   "summary": {
     "result": "pass",
     "failed_checks": [],

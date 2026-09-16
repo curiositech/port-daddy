@@ -7,21 +7,34 @@ import crypto from 'node:crypto';
 // away from green, while a PDF that changed without a regen still fails here.
 const DIGESTS = 'website-v2/public/whitepaper/publication-digests.json';
 
+// The Book is one published PDF. Its typographic character is chosen by
+// \pdedition's default in coordination-papers-mega-volume-preamble.tex (Swiss
+// today), so the canonical artifact below carries the central edition. The
+// maritime and technical drivers stay in the tree, build on demand, and
+// publish nothing — so they are not pinned here and have no digest entry.
+//
+// The eight chapters used to publish a standalone PDF of their own (retired:
+// an A4 render of the same words with no margin column, a worse layout of
+// the Book's 7x10in trim) and had a row each here. A chapter is chapter N of
+// one book now; there is nothing left to pin.
 const EXPECTED_PUBLICATIONS = [
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
-  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
-  'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
-  'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
-  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
-  'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
-  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
-  'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf',
-  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
 ];
 
 const digests = JSON.parse(fs.readFileSync(DIGESTS, 'utf8')).pdfs;
+
+// Page-count policy of record, read as JSON because jest cannot load the
+// TypeScript module in website-v2/scripts/. Page counts are never pinned here:
+// a floor catches a broken artifact, and the drift band that would catch a wild
+// move lives next to the baseline in whitePapers.ts. See
+// website-v2/scripts/page-count-policy.ts.
+const PAGE_POLICY = JSON.parse(
+  fs.readFileSync('website-v2/scripts/page-count-policy.json', 'utf8'),
+);
+
+function pageFloorForArtifact(repoPath) {
+  return PAGE_POLICY.floorPagesByArtifact[repoPath] ?? PAGE_POLICY.defaultFloorPages;
+}
 
 describe('Whitepaper PDF hash verification', () => {
   test('the digest manifest lists every publication PDF and nothing else', () => {
@@ -34,7 +47,19 @@ describe('Whitepaper PDF hash verification', () => {
       const hash = crypto.createHash('sha256').update(file).digest('hex');
       expect(hash).toBe(digests[path].sha256);
       expect(file.length).toBe(digests[path].bytes);
-      expect(digests[path].pages).toBeGreaterThan(0);
+      // `> 0` accepted a one-page LaTeX error render. The floor does not.
+      // This file runs under jest (tests/purser/ROUTING.json), and jest's
+      // expect() takes exactly one argument -- the second-argument message
+      // form is vitest's. So the explanation rides in a thrown Error.
+      const floor = pageFloorForArtifact(path);
+      const pages = digests[path].pages;
+      if (pages < floor) {
+        throw new Error(
+          `${path} is recorded at ${pages} pages, under its floor of ${floor} — ` +
+            'that is a broken artifact, not a short one.',
+        );
+      }
+      expect(pages).toBeGreaterThanOrEqual(floor);
     });
   });
 });

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-completeness-receipt.schema.json",
+  "title": "PortholeCompletenessReceipt",
+  "description": "A signed, hash-bound account of what one committed Porthole stream actually recorded. It binds the pre-capture schedule and exact stream boundary, distinguishes authenticated segments from unreadable ciphertext and declared/missing slots, and commits to the terminal stage event. Counts must satisfy recordedSegmentCount = verifiedSegmentCount + unreadableSegmentCount and expectedCaptureCount = recordedSegmentCount + declaredGapCount + missingCaptureCount.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.completeness-receipt.v1" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "perspectiveId": { "type": "string", "minLength": 1 },
+    "stageId": { "type": "string", "minLength": 1 },
+    "schedule": {
+      "type": "object",
+      "properties": {
+        "scheduleId": { "type": "string", "minLength": 1 },
+        "commitmentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": ["scheduleId", "commitmentHash"],
+      "additionalProperties": false
+    },
+    "streamBoundary": {
+      "type": "object",
+      "properties": {
+        "streamId": { "type": "string", "minLength": 1 },
+        "channelId": { "type": "string", "minLength": 1 },
+        "firstCaptureIndex": { "type": ["integer", "null"], "minimum": 0 },
+        "lastCaptureIndex": { "type": ["integer", "null"], "minimum": 0 },
+        "openedAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" },
+        "terminalEventId": { "type": "string", "minLength": 1 },
+        "terminalEventCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": [
+        "streamId", "channelId", "firstCaptureIndex", "lastCaptureIndex",
+        "openedAt", "closedAt", "terminalEventId", "terminalEventCommitment"
+      ],
+      "additionalProperties": false
+    },
+    "status": { "enum": ["complete", "partial", "failed"] },
+    "expectedCaptureCount": { "type": "integer", "minimum": 0 },
+    "recordedSegmentCount": { "type": "integer", "minimum": 0 },
+    "verifiedSegmentCount": { "type": "integer", "minimum": 0 },
+    "unreadableSegmentCount": { "type": "integer", "minimum": 0 },
+    "declaredGapCount": { "type": "integer", "minimum": 0 },
+    "missingCaptureCount": { "type": "integer", "minimum": 0 },
+    "chainHeadHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "encryptionSuite": { "const": "pd-vault-xchacha20-poly1305-v1" },
+    "stopReason": { "enum": ["operator", "body-stopped", "session-ended", "permission-revoked", "adapter-failed", "retention-limit", "unknown"] },
+    "issuer": {
+      "type": "object",
+      "properties": {
+        "harborId": { "type": "string", "minLength": 1 },
+        "bodyId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete recorder or verifier Body that issued the receipt. Completeness is never attributed to a disembodied participant."
+        },
+        "participantId": { "type": "string", "minLength": 1 },
+        "signingKeyId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["harborId", "bodyId", "participantId", "signingKeyId"],
+      "additionalProperties": false
+    },
+    "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 32 }
+      },
+      "required": ["algorithm", "keyId", "value"],
+      "additionalProperties": false
+    },
+    "issuedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "schema", "receiptId", "perspectiveId", "stageId", "schedule", "streamBoundary",
+    "status", "expectedCaptureCount", "recordedSegmentCount", "verifiedSegmentCount",
+    "unreadableSegmentCount", "declaredGapCount", "missingCaptureCount", "chainHeadHash",
+    "encryptionSuite", "stopReason", "issuer", "contentHash", "signature", "issuedAt"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "complete" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "unreadableSegmentCount": { "const": 0 },
+          "declaredGapCount": { "const": 0 },
+          "missingCaptureCount": { "const": 0 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } }, "required": ["status"] },
+      "then": { "properties": { "verifiedSegmentCount": { "const": 0 } } }
+    }
+  ]
+}

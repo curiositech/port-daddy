@@ -17,6 +17,10 @@
 
 import { verify, type VerifyResult } from './macaroon.js';
 import { makeChecker } from './caveats.js';
+import {
+  isCanonicalActorPrincipal,
+  matchesActorBoundPushGrantIdentifier,
+} from './discharge.js';
 import type { Macaroon, RequestContext } from './types.js';
 
 export interface GateResult {
@@ -37,11 +41,28 @@ export function verifyPushGrant(
   grant: Macaroon,
   rootKey: Buffer,
   discharges: Macaroon[],
+  /** Trusted daemon-minted actor principal, never a caller alias or session id. */
+  actor: string,
   ctx: RequestContext,
   /** Resolve the discharge key for a third-party caveat id (the daemon holds
    *  these in its store — the HMAC-commitment model). Omit for first-party-only. */
   resolveCaveatKey: (caveatId: string) => Buffer | null = () => null,
 ): GateResult {
-  const res: VerifyResult = verify(grant, rootKey, discharges, makeChecker(ctx), resolveCaveatKey);
+  if (
+    !isCanonicalActorPrincipal(actor) ||
+    !ctx.repo ||
+    !ctx.session ||
+    !matchesActorBoundPushGrantIdentifier(grant, actor, ctx.repo, ctx.session)
+  ) {
+    return { authorized: false, reason: 'macaroon is not actor-bound push authority' };
+  }
+  const actorPredicate = `actor = ${actor}`;
+  if (!grant.caveats.some((caveat) => !caveat.vid && caveat.cid === actorPredicate)) {
+    return { authorized: false, reason: 'actor-bound push grant lacks its actor caveat' };
+  }
+  const checkCaveat = makeChecker(ctx);
+  const checker = (predicate: string): boolean =>
+    predicate === actorPredicate || checkCaveat(predicate);
+  const res: VerifyResult = verify(grant, rootKey, discharges, checker, resolveCaveatKey);
   return { authorized: res.ok, reason: res.reason };
 }

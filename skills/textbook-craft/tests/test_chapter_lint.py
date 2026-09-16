@@ -201,7 +201,15 @@ class TestPdPedagogyDrivenDeadMacros(RepoFixtureTestCase):
     def test_neutralized_macro_names_parses_the_real_committed_file(self):
         real_path = Path(__file__).resolve().parents[3] / "whitepaper" / "figures" / "pd-pedagogy.tex"
         names = chapter_lint.neutralized_macro_names(real_path)
-        self.assertEqual(names, {"keyidea", "pitfall", "scene", "xrefbox", "pullquote"})
+        # \pdthesis joined the block when the 21 section theses stopped
+        # pretending to be pull quotes; \pullquote stays as its alias so no
+        # chapter breaks on the rename.
+        self.assertEqual(names, {"keyidea", "pitfall", "scene", "xrefbox", "pullquote", "pdthesis"})
+        # The file has more than one \AtBeginDocument block -- the margin
+        # apparatus opens one of its own, earlier in the file, to hook
+        # \section -- so a parser that reads only the first one returns
+        # nothing and every fill-drawing macro reads as live.
+        self.assertGreater(len(names), 1)
         # ...and \exercises, the old fill= tinted box, is deliberately absent.
         self.assertNotIn("exercises", names)
 
@@ -236,6 +244,135 @@ class TestExercisesAtChapterEnd(RepoFixtureTestCase):
         self.assertTrue(floor["advisory"])
         self.assertFalse(chapter_lint.is_blocking(floor))
 
+    def test_a_later_decoy_section_mentioning_exercises_does_not_fool_it(self):
+        # The defect this fixture exists for, straight from
+        # website-v2/public/whitepaper/spawn-to-person.tex: a section titled
+        # "Open problems (the starred exercises, collected)" sits AFTER the
+        # real \section{Exercises}, contains no clusters of its own, and --
+        # under the old "last title containing the word wins" rule -- was
+        # taken for the chapter's Exercises section. Every correctly-placed
+        # cluster in the chapter was then reported as mid-body: 50 false
+        # positives on the real chapter, which is worse than no check.
+        chapter = self.fixture.chapter(
+            "\\input{figures/pd-pedagogy}\n\\begin{document}\n"
+            "\\section{Intro}\\label{sec:intro}\nProse.\n"
+            "\\section{Exercises}\n\\pdexercisesfor{\\S1}{Intro}\n"
+            "\\begin{pdexercise}{ex:1}Do X.\\end{pdexercise}\n"
+            "\\begin{pdexercise}{ex:2}Do Y.\\end{pdexercise}\n"
+            "\\section{Open problems (the starred exercises, collected)}\n"
+            "Prose about the starred ones, no clusters of its own.\n"
+            "\\section{Conclusion}\nProse.\n\\end{document}\n"
+        )
+        report = chapter_lint.build_report(chapter)
+        floor = report.floors["exercises_at_chapter_end"]
+        self.assertTrue(floor["ok"], floor["detail"])
+        self.assertTrue(all(c["in_exercises_section"] for c in report.exercise_clusters))
+        self.assertEqual(
+            [c["enclosing_section_title"] for c in report.exercise_clusters],
+            ["Exercises"] * 3,
+        )
+        # ...and the report names the section it judged against, so a reader
+        # can see WHICH section was taken for Exercises without re-deriving it.
+        self.assertIn('"Exercises"', floor["detail"])
+
+    def test_the_chosen_section_is_named_even_when_the_floor_passes(self):
+        sections = chapter_lint.parse_sections(
+            "\\section{Exercises}\n\\begin{pdexercise}{ex:1}X\\end{pdexercise}\n"
+            "\\section{Notes on the exercises above}\nProse.\n"
+        )
+        text = (
+            "\\section{Exercises}\n\\begin{pdexercise}{ex:1}X\\end{pdexercise}\n"
+            "\\section{Notes on the exercises above}\nProse.\n"
+        )
+        chosen = chapter_lint.find_final_exercises_section(
+            sections, chapter_lint.exercise_cluster_positions(text)
+        )
+        self.assertIsNotNone(chosen)
+        self.assertEqual(chosen.title, "Exercises")
+
+    def test_scattered_mid_body_clusters_still_fail_the_floor(self):
+        # The other half of the fix: defect 1 must not have been "fixed" by
+        # making the floor easier to satisfy. Clusters genuinely strewn
+        # through the body -- the Wave 12 F1 pattern this floor exists for --
+        # must still be reported, including the ones in a section whose
+        # title happens to mention exercises.
+        chapter = self.fixture.chapter(
+            "\\input{figures/pd-pedagogy}\n\\begin{document}\n"
+            "\\section{Intro}\nProse.\n"
+            "\\begin{pdexercise}{ex:1}Mid-body one.\\end{pdexercise}\n"
+            "\\section{Middle}\nProse.\n"
+            "\\begin{pdexercise}{ex:2}Mid-body two.\\end{pdexercise}\n"
+            "\\section{A note on these exercises}\nProse.\n"
+            "\\begin{pdexercise}{ex:3}Mid-body three.\\end{pdexercise}\n"
+            "\\section{Exercises}\n\\pdexercisesfor{\\S1}{Intro}\n"
+            "\\begin{pdexercise}{ex:4}Correctly placed.\\end{pdexercise}\n"
+            "\\end{document}\n"
+        )
+        report = chapter_lint.build_report(chapter)
+        floor = report.floors["exercises_at_chapter_end"]
+        self.assertFalse(floor["ok"], floor["detail"])
+        mid_body = [c for c in report.exercise_clusters if not c["in_exercises_section"]]
+        self.assertEqual(len(mid_body), 3)
+        self.assertEqual(
+            sorted(c["enclosing_section_title"] for c in mid_body),
+            ["A note on these exercises", "Intro", "Middle"],
+        )
+
+    def test_no_exercises_section_at_all_still_reports_every_cluster(self):
+        chapter = self.fixture.chapter(
+            "\\input{figures/pd-pedagogy}\n\\begin{document}\n"
+            "\\section{Intro}\nProse.\n"
+            "\\begin{pdexercise}{ex:1}One.\\end{pdexercise}\n"
+            "\\section{Conclusion}\nProse.\n\\end{document}\n"
+        )
+        report = chapter_lint.build_report(chapter)
+        floor = report.floors["exercises_at_chapter_end"]
+        self.assertFalse(floor["ok"])
+        self.assertIn("no section titled 'Exercises' was found at all", floor["detail"])
+
+    def test_an_exactly_titled_exercises_section_outranks_a_decoy_holding_clusters(self):
+        # Exact title beats cluster count on purpose: clusters living in
+        # "Starred exercises" while the chapter's own \section{Exercises}
+        # stands empty IS the misplacement this floor reports. Silently
+        # adopting whichever section holds the most clusters would turn the
+        # defect into a pass.
+        chapter = self.fixture.chapter(
+            "\\input{figures/pd-pedagogy}\n\\begin{document}\n"
+            "\\section{Starred exercises for the ambitious}\n"
+            "\\begin{pdexercise}{ex:1}One.\\end{pdexercise}\n"
+            "\\begin{pdexercise}{ex:2}Two.\\end{pdexercise}\n"
+            "\\section{Exercises}\nNothing here yet.\n\\end{document}\n"
+        )
+        report = chapter_lint.build_report(chapter)
+        self.assertFalse(report.floors["exercises_at_chapter_end"]["ok"])
+
+    def test_a_decoy_is_adopted_only_when_nothing_is_exactly_titled(self):
+        # No section IS "Exercises", so the loose candidate that actually
+        # holds the clusters is the best available reading of the chapter.
+        chapter = self.fixture.chapter(
+            "\\input{figures/pd-pedagogy}\n\\begin{document}\n"
+            "\\section{Intro}\nProse.\n"
+            "\\section{Exercises for the reader}\n"
+            "\\begin{pdexercise}{ex:1}One.\\end{pdexercise}\n"
+            "\\section{Notes on past exercises}\nNo clusters here.\n\\end{document}\n"
+        )
+        report = chapter_lint.build_report(chapter)
+        floor = report.floors["exercises_at_chapter_end"]
+        self.assertTrue(floor["ok"], floor["detail"])
+        self.assertIn("Exercises for the reader", floor["detail"])
+
+    def test_markup_in_the_title_does_not_defeat_the_exact_match(self):
+        for title in ("\\emph{Exercises}", "Exercises", "12.\\ Exercises", "Exercises and solutions"):
+            with self.subTest(title=title):
+                normalized = chapter_lint.normalize_section_title(title)
+                self.assertIsNotNone(
+                    chapter_lint.EXERCISES_SECTION_TITLE_EXACT_RE.match(normalized), normalized
+                )
+        for title in ("Open problems (the starred exercises, collected)", "Notes on past exercises"):
+            with self.subTest(title=title):
+                normalized = chapter_lint.normalize_section_title(title)
+                self.assertIsNone(chapter_lint.EXERCISES_SECTION_TITLE_EXACT_RE.match(normalized))
+
     def test_an_earlier_unrelated_section_named_exercises_does_not_fool_it(self):
         # Two sections mention "exercises" in some form; only the LAST one
         # is the chapter's real closing-sequence Exercises section.
@@ -249,6 +386,104 @@ class TestExercisesAtChapterEnd(RepoFixtureTestCase):
         clusters = report.exercise_clusters
         self.assertFalse(clusters[0]["in_exercises_section"])
         self.assertTrue(clusters[1]["in_exercises_section"])
+
+
+# ---------------------------------------------------------------------------
+# The interlude floor may not certify what it cannot see.
+# ---------------------------------------------------------------------------
+class TestLabelledInterludeFloor(RepoFixtureTestCase):
+    FLOOR = "at_most_one_labelled_interlude"
+
+    def _chapter(self, body: str):
+        return self.fixture.chapter(
+            "\\input{figures/pd-pedagogy}\n\\begin{document}\n" + body + "\\end{document}\n"
+        )
+
+    def test_zero_labelled_interludes_is_reported_as_review_not_pass(self):
+        # whitepaper/legible-swarm.tex in miniature: a chapter that runs a
+        # philosopher as its spine through ordinary prose, with no section
+        # titled Interlude anywhere. The old floor counted 0 and printed
+        # PASS -- a clean verdict on precisely the chapter with the worst
+        # instance of what it checks. The count was right; the verdict was
+        # not the script's to give.
+        report = chapter_lint.build_report(
+            self._chapter(
+                "\\section{The swarm is a state of nature}\n"
+                "Hobbes' war of all against all runs through this whole argument, unlabelled,\n"
+                "and Scott's legibility warning governs its conclusion.\n"
+            )
+        )
+        floor = report.floors[self.FLOOR]
+        self.assertEqual(report.interludes, [])
+        self.assertEqual(chapter_lint.floor_status(floor), "REVIEW")
+        self.assertNotEqual(chapter_lint.floor_status(floor), "PASS")
+        # The status must say what was actually MEASURED, not what holds.
+        self.assertIn("0 LABELLED interludes", floor["detail"])
+        self.assertIn("needs a human read", floor["detail"])
+        # ...and a REVIEW never gates CI.
+        self.assertFalse(chapter_lint.is_blocking(floor))
+
+    def test_one_labelled_interlude_is_also_review_not_pass(self):
+        report = chapter_lint.build_report(
+            self._chapter("\\section{Interlude: Parfit on persons}\nBounded and skippable.\n")
+        )
+        floor = report.floors[self.FLOOR]
+        self.assertEqual(chapter_lint.floor_status(floor), "REVIEW")
+        self.assertIn("1 LABELLED interlude", floor["detail"])
+
+    def test_two_labelled_interludes_still_fail_and_still_block(self):
+        # The half of the rule the script CAN see stays a hard floor.
+        report = chapter_lint.build_report(
+            self._chapter(
+                "\\section{Interlude: Hobbes}\nOne.\n"
+                "\\subsection{Interlude: Parfit}\nTwo.\n"
+            )
+        )
+        floor = report.floors[self.FLOOR]
+        self.assertFalse(floor["ok"])
+        self.assertEqual(chapter_lint.floor_status(floor), "FAIL")
+        self.assertTrue(chapter_lint.is_blocking(floor))
+
+    def test_the_citation_hint_is_marked_a_hint_and_never_the_verdict(self):
+        # A chapter with a large, single-site citation footprint must still
+        # not be FAILed by it: the hint is for scheduling a human read, and
+        # a name-matching keyword list is deliberately not what is counted.
+        body = "\\section{One}\nProse.\n"
+        for i, key in enumerate(("hobbes1651", "hume1748", "locke1689", "pateman1979")):
+            body += f"\\section{{S{i}}}\nProse~\\pdcite{{{key}}}.\n"
+        body += "\\begin{thebibliography}{99}\n" + "".join(
+            f"\\bibitem{{{k}}}\nA name.\n" for k in ("hobbes1651", "hume1748", "locke1689", "pateman1979")
+        ) + "\\end{thebibliography}\n"
+        report = chapter_lint.build_report(self._chapter(body))
+        floor = report.floors[self.FLOOR]
+        self.assertTrue(floor["ok"])
+        self.assertEqual(chapter_lint.floor_status(floor), "REVIEW")
+        self.assertIn("Hint, not a verdict", floor["detail"])
+        self.assertIn("4 of them cited from a single section only", floor["detail"])
+
+    def test_citation_spread_counts_pdcite_the_project_actually_uses(self):
+        text = (
+            "\\section{A}\nProse~\\pdcite{k1}. More~\\pdcite{k2,k3}.\n"
+            "\\section{B}\nProse~\\pdcite{k1}.\n"
+            "\\begin{thebibliography}{99}\n"
+            "\\bibitem{k1}One.\n\\bibitem{k2}Two.\n\\bibitem{k3}Three.\n\\bibitem{k4}Uncited.\n"
+            "\\end{thebibliography}\n"
+        )
+        sections = chapter_lint.parse_sections(text)
+        n_bib, n_cited, n_single = chapter_lint.citation_spread(text, sections)
+        self.assertEqual(n_bib, 4)
+        self.assertEqual(n_cited, 3)          # k4 is never cited in the body
+        self.assertEqual(n_single, 2)         # k2, k3 in one section; k1 in two
+
+    def test_review_rows_are_counted_separately_in_the_consolidated_report(self):
+        chapter = self._chapter("\\section{One}\nProse.\n")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            status = chapter_lint.main([str(chapter), "--table"])
+        out = buf.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("REVIEW", out)
+        self.assertIn("1 floor(s) REVIEW", out)
 
 
 # ---------------------------------------------------------------------------
