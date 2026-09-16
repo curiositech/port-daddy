@@ -24,9 +24,11 @@ prose quality -- only mechanically checkable structure:
   - claim-like environments (theorem/lemma/definition/property/corollary,
     and the new-style `pdclaim{KIND}{...}`) and whether each carries a
     nearby epistemic-kind tag from the honesty ledger (Theorem / Design
-    invariant / Model-checked property / Empirical hypothesis, or this
-    project's own maturity macros: \\Built \\BuiltWeak \\Designed \\Vision
-    \\NotGuar \\Closed \\Partial \\Open \\pdassurance{...})
+    invariant / Model-checked property / Empirical hypothesis, or one of the
+    project's own status macros from figures/pd-pedagogy.tex: \\Built
+    \\BuiltWeak \\Designed \\Vision and their capitalised aliases, \\NotGuar,
+    \\Closed \\Partial \\Open \\SpecOnly, \\Verified \\Proved \\Unproved,
+    \\pdassurance{...})
   - legacy tinted-box macro definitions (a `\\newcommand` whose body draws a
     `fill=` node) -- the page-grammar anti-pattern pd-pedagogy.tex replaced
     with typography-and-margin ("no page paints a background")
@@ -95,10 +97,22 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CLAIM_ENVS = ("theorem", "lemma", "definition", "property", "corollary", "proposition")
 PDCLAIM_KINDS = ("Theorem", "Design invariant", "Model-checked property", "Empirical hypothesis")
 # Epistemic-kind tags this project actually uses near a claim, beyond the
-# pdclaim kind words themselves: research-maturity grades (seen in
-# whitepaper/single-writer-kernel.tex) and the pdassurance vocabulary.
+# pdclaim kind words themselves: the honesty ledger's four status scales and
+# the pdassurance vocabulary.
+#
+# This list must stay a superset of the status macros defined in
+# figures/pd-pedagogy.tex. It is a second copy of that vocabulary, and the two
+# used to be free to drift: the four capitalised spellings below are the ones
+# chapter 5 uses at every one of its status call sites, and because they were
+# missing here the chapter scored 14/17 on claims_carry_epistemic_kind while
+# actually tagging 17. tests/harbor-research/test_epistemic_tag_vocabulary.py
+# fails if pd-pedagogy defines a status macro this regex does not match.
 EPISTEMIC_TAG_RE = re.compile(
-    r"\\(Built|BuiltWeak|Designed|Vision|NotGuar|Closed|Partial|Open|pdassurance)\b"
+    r"\\(Built|BuiltWeak|Designed|Vision"
+    r"|BUILT|BUILTWEAK|DESIGNED|VISION"
+    r"|NotGuar|Closed|Partial|Open|SpecOnly"
+    r"|Verified|Proved|Unproved"
+    r"|pdassurance)\b"
 )
 TINTED_BOX_MACROS = ("keyidea", "pitfall", "exercises", "scene", "xrefbox", "pullquote", "scene")
 CHAPTER_CLOSE_KEYWORDS = {
