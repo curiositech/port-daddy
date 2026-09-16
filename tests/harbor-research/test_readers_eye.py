@@ -48,17 +48,73 @@ def rules(findings) -> set:
     return {f["rule"] for f in findings}
 
 
+#: whitepaper/single-writer-kernel.tex:439-471 exactly as it read on
+#: 2026-09-14 (commit 104959367), before the organ metaphor was fixed for
+#: real in response to direct human review ("Why are you calling it
+#: organs??? ... Please, change the name.", PR #10237). That fix retired the
+#: word "organ" from this chapter entirely, so the live chapter no longer
+#: trips these rules -- correctly; the defect is gone. This test still needs
+#: a specimen paragraph that trips all six rules at once, so it is frozen
+#: here rather than read live: the point of TestSpecimen is to prove the
+#: checker fires on prose shaped like this, not that this exact chapter
+#: stays broken forever.
+SPECIMEN_TEXT = r"""
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The kernel as seven organs}
+\label{sec:organs}
+% ═════════════════════════════════════════════════════════════════════════════
+
+We organize the kernel into seven \emph{organs}, each a contract the daemon must
+hold for the layers above to be coherent (Table~\ref{tab:swk-seven-organs}). The
+temptation is to describe such a kernel as a flat noun-list of features --- ports,
+claims, sessions, a bus, markers, commitments, a monitor, a memory store --- which
+is the symptom of treating the kernel as a database. It is not a database. It is a
+system of record \emph{plus} a mediator, and naming the organs surfaces the
+connective tissue a noun-list hides.
+
+\begin{table}[H]
+\centering
+\caption{The seven organs, each the contract the daemon holds for the layer above it,
+with the table that is its home where the chapter names one and its maturity grade.
+All seven are disciplines over one SQLite/WAL file: one commit history, not seven
+stores. The grades come from the chapter's own status table (\S\ref{app:status}).}
+\label{tab:swk-seven-organs}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
+\toprule
+\textbf{Organ} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
+\midrule
+transactional substrate & one writer, one durable file; every other organ is a table with discipline over the same commit history & \Built \\
+resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built \\
+actor continuity & a stable actor identity across sessions, mechanically present but asserted by the actor, not proven & \BuiltWeak\ self-asserted \\
+message carriage & an ordered, cursor-addressable, durable envelope delivered at least once (home: \texttt{messages}) & \Built \\
+obligation \& enforcement & no \emph{done} without a receipt the daemon can re-check; the policy monitor detects and cannot always prevent (home: \texttt{commitments}) & \BuiltWeak\ partial \\
+session memory & notes and events survive process death; execution state does not & \Built\ (memory) \\
+self-attestation & the daemon reports its own coverage as enforced, degraded or stubbed, never silently & \Built \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The \textbf{substrate organ} is the floor; the other six are, mechanically,
+tables \emph{with discipline} over the same file. We treat the substrate and the
+two organs that carry the paper's sharpest corrections (resource/exclusion and
+obligation/enforcement) in full, and the rest with the depth their novelty
+warrants.
+
+\pdexercisepointer{\ref{ex:swk-organs-inmemory}}{\ref{ex:swk-organs-cut}}{\pageref{ex:swk-organs-inmemory}}
+"""
+
+
 class TestSpecimen(unittest.TestCase):
-    """whitepaper/single-writer-kernel.tex:439, section 1.3 'The kernel as
-    seven organs' -- the paragraph this check was built for. If these fail,
-    the check is wrong; the specimen is not."""
+    """A frozen snapshot of whitepaper/single-writer-kernel.tex:439, section
+    1.3 'The kernel as seven organs' -- the paragraph this check was built
+    for (see SPECIMEN_TEXT above for why it is frozen rather than live).
+    If these fail, the check is wrong; the specimen is not."""
 
     @classmethod
     def setUpClass(cls) -> None:
-        if not SPECIMEN.is_file():
-            raise unittest.SkipTest(f"specimen chapter not present: {SPECIMEN}")
-        proc = run_checker([SPECIMEN], ["--json"])
-        cls.findings = json.loads(proc.stdout)
+        cls.findings = findings_for(SPECIMEN_TEXT)
         cls.organs = [f for f in cls.findings
                       if f["section"] == "The kernel as seven organs"]
 
