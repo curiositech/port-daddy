@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """ProVerif result-drift checker for the Port Daddy proof estate.
 
-Discovers every `.pv` model under the three roots the project treats as
-ProVerif protocol claims -- analyses/, proofs/** and docs/adr/models/ -- runs
-ProVerif on each (when the `proverif` binary is available), and compares the
-model's outcome lines (the lines ProVerif prints starting with `RESULT `)
-against the committed evidence file next to it:
+Discovers every `.pv` model under the two roots the project treats as
+ProVerif protocol claims -- analyses/ and proofs/** -- runs ProVerif on each
+(when the `proverif` binary is available), and compares the model's outcome
+lines (the lines ProVerif prints starting with `RESULT `) against the
+committed evidence file next to it, which is whichever of these two exists:
 
-    analyses/**, docs/adr/models/**   ->  <stem>_results.txt
-    proofs/**                         ->  <stem>.run.log
+    <stem>_results.txt   (the analyses/ convention)
+    <stem>.run.log       (the proofs/** convention)
+
+Both suffixes resolve anywhere, in that order: the guidance-envelope pair
+moved from docs/adr/models/ into proofs/coordination/ carrying its
+`_results.txt` transcripts, and renaming them would push committed evidence
+under .gitignore's blanket `*.log` rule.
 
 `skills/pd-relay-zero-trust/templates/proverif-relay.pv` is deliberately NOT
 in scope: it is a skill teaching template (open TODO queries, no committed
@@ -65,8 +70,10 @@ from typing import Optional
 # Discovery and naming conventions
 # ---------------------------------------------------------------------------
 
-# The three roots this task scopes ProVerif model evidence to.
-SCAN_ROOTS = ("analyses", "proofs", "docs/adr/models")
+# The two roots this task scopes ProVerif model evidence to. docs/adr/models/
+# was a third until the guidance-envelope pair -- its only occupants -- moved
+# to proofs/coordination/; that directory no longer exists.
+SCAN_ROOTS = ("analyses", "proofs")
 
 # harbor_card_v2..v7's committed evidence predates this runner and was named
 # by version number only, dropping the model's descriptive filename suffix
@@ -133,7 +140,7 @@ def default_baseline_path(root: Path, pv_path: Path) -> Path:
     rel = pv_path.relative_to(root).as_posix()
     stem_rel = rel[: -len(".pv")]
     top = rel.split("/", 1)[0]
-    suffix = "_results.txt" if top in ("analyses", "docs") else ".run.log"
+    suffix = "_results.txt" if top == "analyses" else ".run.log"
     return root / f"{stem_rel}{suffix}"
 
 

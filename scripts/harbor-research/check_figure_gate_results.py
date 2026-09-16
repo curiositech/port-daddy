@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_figure_gate_results.py -- gates the whitepaper-build.yml
 `figure-gates` CI job: given the fresh figcheck JSON reports it just
-produced for this PR's compiled fragments, fails on any T1-T5 failure
+produced for this PR's compiled fragments, fails on any T1-T5 or T9 failure
 unless docs/harbor-research/exposition/figures/blockers.json already
 waives that fragment id (same waiver-expiry rule as check_figure_blockers.py,
 imported and reused here rather than re-implemented).
@@ -9,10 +9,10 @@ imported and reused here rather than re-implemented).
 This is the CI-time half of the same gate check_figure_blockers.py enforces
 against the committed baseline: that script asks "is every KNOWN blocker
 waived"; this one asks "does a fragment THIS PR just recompiled introduce a
-new, unwaived T1-T5 failure". A fragment compiled clean, or one whose
+new, unwaived T1-T5 or T9 failure". A fragment compiled clean, or one whose
 failure already has an unexpired blockers.json waiver, does not fail the
 build -- an unwaived one does, even if blockers.json has never heard of it
-(a brand-new figure with a fresh T1-T5 failure is exactly the case this
+(a brand-new figure with a fresh T1-T5 or T9 failure is exactly the case this
 gate exists to catch before it lands).
 
 Usage:
@@ -36,7 +36,37 @@ if _HERE not in sys.path:
 
 import check_figure_blockers as cfb  # noqa: E402 (reused: load_blockers, check_blockers waiver-expiry logic)
 
-T1_T5 = ("T1", "T2", "T3", "T4", "T5")
+# T9 joins the gating set on the PR that introduced it, not on some later
+# "adoption" PR: a check that measures and is not acted on is the thing it was
+# written to stop. It costs nothing today and everything at the right moment --
+# of the thirteen fragments that currently fail T9, none is in blockers.json, so
+# none is compiled on an ordinary PR. The gate reddens exactly when someone next
+# touches one of them, which is the moment to fix it.
+GATING_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T9")
+
+# T10 (more than one typeface inside a drawing) is DELIBERATELY NOT HERE, and
+# the condition for adding it is written down rather than left to whoever looks
+# next.
+#
+# T10 is sound about what it sees: it found three fragments whose nodes wrote
+# `\normalfont` in their TEXT to get an unemphasised line, which in the Book set
+# that line in Palatino inside a grotesk drawing, and which no source rule could
+# see. Those are fixed, and P24 in tikz_precheck.py now catches that shape at
+# source, where it IS unambiguous -- so the defect class gates, through the
+# precheck, today.
+#
+# What T10 cannot do from the PDF alone is separate a node that reset its own
+# family from TeX's own use of the text roman: `\mathrm{ok}` and `$k=3$` put
+# body-serif glyphs inside a grotesk drawing and no author chose either. A first
+# version of the check failed 46 of 66 fragments for exactly that; requiring two
+# consecutive letters cut it to twelve, of which three were real. Gating on the
+# remaining nine would mean nine waivers on figures that are correct, which is
+# the blockers.json pathology this PR is otherwise arguing against.
+#
+# ADD T10 HERE when it can tell math-roman from a family reset -- the likely
+# route is PyMuPDF's rawdict giving per-character origins so a run inside a math
+# box can be recognised by its spacing. Until then it reports, P24 gates, and
+# this comment says which is which.
 
 
 def main() -> int:
@@ -71,7 +101,7 @@ def main() -> int:
         stem = fname[:-5]
         with open(os.path.join(args.results_dir, fname), encoding="utf-8") as fh:
             rec = json.load(fh)
-        failed = [c for c in rec.get("summary", {}).get("failed_checks", []) if c in T1_T5]
+        failed = [c for c in rec.get("summary", {}).get("failed_checks", []) if c in GATING_CHECKS]
         if not failed:
             continue
         entries.append({
@@ -87,7 +117,7 @@ def main() -> int:
 
     print("=" * 78)
     print(
-        f"FIGURE GATE: {len(entries)} fragment(s) with a fresh T1-T5 failure, "
+        f"FIGURE GATE: {len(entries)} fragment(s) with a fresh T1-T5 or T9 failure, "
         f"{len(waived_ok)} waived, {len(failures)} failure(s)"
     )
     print("=" * 78)

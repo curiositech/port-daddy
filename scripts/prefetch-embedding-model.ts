@@ -20,9 +20,9 @@
  *   tsx scripts/prefetch-embedding-model.ts --cache-dir DIR # override
  */
 
-import { mkdirSync } from 'node:fs';
 import {
   DEFAULT_SEMANTIC_MODEL_ID,
+  createLocalTextEmbedder,
   defaultTransformersCacheDir,
   isEmbeddingModelCached,
 } from '../lib/semantic-resolver.js';
@@ -62,18 +62,16 @@ async function main(): Promise<void> {
   }
 
   console.log(`[prefetch] downloading ${modelId} into ${cacheDir} …`);
-  mkdirSync(cacheDir, { recursive: true });
 
   try {
-    const { env, pipeline } = await import('@huggingface/transformers');
-    env.cacheDir = cacheDir;
-    env.useFSCache = true;
-    env.allowRemoteModels = true;
-
-    // Loading the pipeline downloads the artifacts; one tiny embed forces the
-    // full model + tokenizer fetch so the runtime's first call is offline-safe.
-    const extractor = await pipeline('feature-extraction', modelId);
-    await extractor('warm', { pooling: 'mean', normalize: true });
+    // This command is explicit download consent. Reuse the production loader
+    // so a successful prefetch also proves exact artifact/runtime/output
+    // conformance instead of warming a parallel, unchecked pipeline.
+    const embedder = createLocalTextEmbedder('pd.setup.embedding-prefetch', {
+      cacheDir,
+      allowRemoteModelDownload: true,
+    });
+    await embedder.embed(['warm']);
 
     console.log(`[prefetch] done — ${modelId} cached at ${cacheDir}.`);
   } catch (err) {

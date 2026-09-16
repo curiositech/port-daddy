@@ -38,8 +38,10 @@ function fleetYaml(
     blocking?: boolean;
     model?: string;
     allowedTools?: string;
+    execution?: boolean;
     trigger?: string;
     temperature?: number;
+    class?: 'ideation';
   }>,
 ): string {
   const body = ships
@@ -47,10 +49,25 @@ function fleetYaml(
       const lines = [
         `    ${s.name}:`,
         `      trigger: ${s.trigger ?? 'pull_request:opened'}`,
+        `      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`,
       ];
+      if (s.class) lines.push(`      class: ${s.class}`);
       if (s.blocking) lines.push('      blocking: true');
       if (s.temperature !== undefined) lines.push(`      temperature: ${s.temperature}`);
       if (s.allowedTools) lines.push(`      allowedTools: "${s.allowedTools}"`);
+      if (s.execution) {
+        lines.push('      execution:');
+        lines.push('        mode: write_sandbox');
+        lines.push('        repository: current_repository');
+        lines.push('        worktree: isolated');
+        lines.push('        cwd: .');
+        lines.push('        toolAllowlist: [read_file, run_tests]');
+        lines.push('        mcpAllowlist: [github.read]');
+        lines.push('        networkAllowlist: []');
+        lines.push('        writePathAllowlist: [.]');
+        lines.push('        maxWallClockMs: 300000');
+        lines.push('        maxCostMicrousd: 1000000');
+      }
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');
       lines.push(`          model: '${s.model ?? '@cf/qwen/qwen3-30b-a3b-fp8'}'`);
@@ -79,6 +96,7 @@ const REORDERED_REVIEWER_YAML = [
   "        - model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
   '          backend: cloudflare',
   '      blocking: true',
+  '      participation: { default: required, rules: [] }',
   '      trigger: pull_request:opened',
   '  name: test',
   '',
@@ -100,6 +118,7 @@ const REVIEWER_PLUS_PURSER_YAML = [
   '    code-reviewer:',
   '      trigger: pull_request:opened',
   '      blocking: true',
+  '      participation: { default: required, rules: [] }',
   '      fallbacks:',
   "        - backend: cloudflare",
   "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -109,6 +128,7 @@ const REVIEWER_PLUS_PURSER_YAML = [
   '      class: purser',
   '      trigger: pull_request:opened',
   '      blocking: true',
+  '      participation: { default: required, rules: [] }',
   '      blockWithoutSandbox: false',
   '      testPaths: [tests/unit/purser]',
   '      fallbacks:',
@@ -428,6 +448,19 @@ describe('self-review guard — the fleet does not review its own branches', () 
     expect(state.completed[0].conclusion).toBe('neutral');
   });
 
+  it('an App-published `codex/` branch is reviewed because publication transport is not authorship', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
+    state.prHeadRef = 'codex/fleet-pause-fail-closed-20260914';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.reviews.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toContain('not self-reviewed');
+  });
+
   it("a HUMAN's PR is still reviewed normally — ships run, review posted", async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     state.prAuthor = { login: 'erichowens', type: 'User' };
@@ -602,6 +635,41 @@ describe('MAP fan-out', () => {
 });
 
 describe('blocking-ship verdict → check conclusion', () => {
+  it('an explicit malformed execution policy is UNAVAILABLE and never falls through to model PASS', async () => {
+    state.files.set('main:pd-fleet.yml', `fleet:
+  agents:
+    code-reviewer:
+      trigger: pull_request:opened
+      participation: { default: required, rules: [] }
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+      prompt: code-reviewer ship
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+        surpriseAuthority: true
+`);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('Explicit execution policy is malformed');
+    expect(state.completed[0].summary).toContain('[REQUIRED]: unavailable');
+  });
+
   it('blocking ship emitting BLOCK => check conclusion failure', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -681,18 +749,18 @@ describe('blocking-ship verdict → check conclusion', () => {
 });
 
 describe('deterministic ship resolution', () => {
-  it('parses qa from real YAML and runs it as a cloud-static (non-execution) ship', async () => {
-    // qa carries Bash(npm test*) historically, but is forced cloud-static.
+  it('marks execution-requesting ships unavailable until a grant-consuming runner exists', async () => {
     state.files.set(
       'main:pd-fleet.yml',
       fleetYaml([
         { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
-        { name: 'qa', blocking: false, allowedTools: 'Read,Grep,Bash(npm test*),Bash(gh*)' },
+        { name: 'qa', blocking: true, allowedTools: 'Read,Grep,Bash(npm test*),Bash(gh*)', execution: true },
         // An execution ship: routes to GHA, must NOT run in the cloud.
-        { name: 'test-author', blocking: false, allowedTools: 'Read,Write,Bash(npm test*)' },
+        { name: 'test-author', blocking: false, allowedTools: 'Read,Write,Bash(npm test*)', execution: true },
       ]),
     );
     const kv = memoryKV();
+    const d1 = memoryD1();
     seedToken(kv, 42);
     const ai = aiStub({
       perShip: {
@@ -702,12 +770,49 @@ describe('deterministic ship resolution', () => {
       },
     });
 
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
 
     const shipsRun = new Set(ai.calls.map(c => c.ship));
     expect(shipsRun.has('code-reviewer')).toBe(true);
-    expect(shipsRun.has('qa')).toBe(true); // cloud-static, runs in the cloud
-    expect(shipsRun.has('test-author')).toBe(false); // needsExecution → GHA, skipped here
+    expect(shipsRun.has('qa')).toBe(false);
+    expect(shipsRun.has('test-author')).toBe(false);
+    expect(state.completed[0].conclusion).toBe('failure');
+    const qaParticipation = d1.steps.find(step => step.kind === 'ship-participation' && step.ship === 'qa');
+    expect(JSON.parse(String(qaParticipation?.detail))).toMatchObject({
+      participation: 'required',
+      eligible: true,
+      voteOutcome: 'failed',
+      operationalStatus: 'unavailable',
+      verdict: 'UNAVAILABLE',
+    });
+  });
+
+  it('does not let advisory QA sandbox unavailability poison a required reviewer approval', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+        { name: 'qa', blocking: false, allowedTools: 'Read,Grep,Bash(npm test*)', execution: true },
+      ]),
+    );
+    const kv = memoryKV();
+    const d1 = memoryD1();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.map(call => call.ship)).toEqual(['code-reviewer']);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].summary).toContain('[ADVISORY]: unavailable');
+    expect(state.completed[0].summary).toContain('visible, non-gating advisory unavailability');
+    const qaParticipation = d1.steps.find(step => step.kind === 'ship-participation' && step.ship === 'qa');
+    expect(JSON.parse(String(qaParticipation?.detail))).toMatchObject({
+      participation: 'advisory',
+      unavailableBlocks: false,
+      operationalStatus: 'unavailable',
+      verdict: 'UNAVAILABLE',
+    });
   });
 
   it('runs Spark as an ideation ship, passes its temperature, and renders actionable proposals', async () => {
@@ -716,6 +821,7 @@ describe('deterministic ship resolution', () => {
       fleetYaml([
         {
           name: 'spark',
+          class: 'ideation',
           blocking: false,
           allowedTools: 'Read,Grep,Glob',
           temperature: 1.25,
@@ -758,8 +864,8 @@ describe('deterministic ship resolution', () => {
     expect(commentBodies.some(body => body.includes('pd-ship:spark'))).toBe(true);
     expect(commentBodies.some(body => body.includes('pd dispatch propose'))).toBe(true);
     expect(commentBodies.some(body => body.includes('Stream harbor events to the roster'))).toBe(true);
-    // Ideation ships never gate: the check concludes success (no findings, no block).
-    expect(state.completed[0].conclusion).toBe('success');
+    // Ideation ships never vote: an advisory-only roster has no quorum.
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 });
 
@@ -1314,6 +1420,7 @@ function ideationYaml(name: string, temperature = 0.8): string {
     `    ${name}:`,
     '      trigger: pull_request:opened',
     '      class: ideation',
+    '      participation: { default: advisory, rules: [] }',
     `      temperature: ${temperature}`,
     '      allowedTools: "Read,Grep,Glob"',
     '      fallbacks:',
@@ -1361,8 +1468,8 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(bodies.some(b => b.includes('pd-ship:spider'))).toBe(true);
     expect(bodies.some(b => b.includes('Roster-driven parley routing'))).toBe(true);
     expect(bodies.some(b => b.includes('pd dispatch propose'))).toBe(true);
-    // Ideation never gates.
-    expect(state.completed[0].conclusion).toBe('success');
+    // Ideation never votes; without a required reviewer there is no quorum.
+    expect(state.completed[0].conclusion).toBe('failure');
     // Ideation ships contribute no inline review comments.
     for (const rev of state.reviews) expect(rev.comments).toHaveLength(0);
   });
@@ -1412,7 +1519,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(bodies.some(b => b.includes('`HIGH`'))).toBe(true);
     expect(bodies.some(b => b.includes('pd roadmap upsert'))).toBe(true);
     // A HIGH trouble-ahead alert is still advisory — never fails the check.
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('snipe proposes a skill-architect skill with a runnable dispatch command', async () => {
@@ -1444,7 +1551,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(bodies.some(b => b.includes('pd-ship:snipe'))).toBe(true);
     expect(bodies.some(b => b.includes('Use the skill-architect skill'))).toBe(true);
     expect(bodies.some(b => b.includes('--tags skill,from-fleet,pd-snipe'))).toBe(true);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('an ideation ship that proposes nothing ([]) posts no comment (silence)', async () => {
@@ -1458,7 +1565,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
 
     expect(commentBodiesOf(state)).toHaveLength(0);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('malformed proposal JSON on an ideation ship posts the raw output AND fails the run', async () => {
@@ -1482,12 +1589,12 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
   });
 
   it('ideation ships run alongside a blocking reviewer without affecting its gate', async () => {
-    // spider is ideation by identity (IDEATION_SHIPS), so no `class:` field needed.
+    // Ideation is an explicit trusted role; a ship name alone grants nothing.
     state.files.set(
       'main:pd-fleet.yml',
       fleetYaml([
         { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
-        { name: 'spider', temperature: 0.95 },
+        { name: 'spider', class: 'ideation', temperature: 0.95 },
       ]),
     );
     const kv = memoryKV();
@@ -3137,7 +3244,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
   });
 
   it('no D1 binding makes checkpoint load/save harmless no-ops', async () => {
-    const env = makeEnv({});
+    const env = makeEnv({ DB: undefined });
     await expect(saveShipCheckpoint(
       env,
       'run:delivery-abc',

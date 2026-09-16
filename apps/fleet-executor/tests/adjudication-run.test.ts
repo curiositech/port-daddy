@@ -31,6 +31,7 @@ const ADVISORY_QA = [
   '  agents:',
   '    qa:',
   '      trigger: pull_request:opened',
+  '      participation: { default: required, rules: [] }',
   '      fallbacks:',
   '        - backend: cloudflare',
   "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -61,6 +62,7 @@ const PURSER_BLOCKING = [
   '      class: purser',
   '      trigger: pull_request:opened',
   '      blocking: true',
+  '      participation: { default: required, rules: [] }',
   '      fallbacks:',
   '        - backend: cloudflare',
   "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
@@ -165,9 +167,9 @@ describe('stage 2 — persistent ISOLATED breakage still fails the run', () => {
 });
 
 describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR', () => {
-  it('with the same ship broken on 2 other PRs: neutral + ONE tracked issue + honest summary', async () => {
+  it('keeps a required ship failure closed even when fleet-wide, while filing one tracked issue', async () => {
     const { d1 } = await runFleet({ seedHistory: true });
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
 
     const adj = d1.steps.find(s => s.kind === 'ship-adjudicated')!;
     expect(String(adj.title)).toContain('FLEET-WIDE');
@@ -178,14 +180,14 @@ describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR',
 
     const summary = state.completed[0].summary ?? '';
     expect(summary).toContain('adjudicated FLEET-WIDE fault');
-    expect(summary).toContain('not gating this PR');
+    expect(summary).toContain('required vote remains unmet and gates this PR');
     expect(summary).not.toContain('run FAILED');
   });
 
   it('a subsequent run REUSES the open tracking issue instead of filing another', async () => {
     state.openIssues.push({ number: 5150, title: 'fleet-broken-ship: pd-qa — errored' });
     await runFleet({ seedHistory: true });
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.issuesCreated).toHaveLength(0);
     expect(state.completed[0].summary).toContain('#5150');
   });
@@ -243,10 +245,10 @@ describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR',
     expect(broken).toBeDefined();
     const adjudicated = d1.steps.find(step => step.kind === 'ship-adjudicated' && step.ship === 'purser');
     expect(String(adjudicated?.title)).toContain('FLEET-WIDE');
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].conclusion).not.toBe('success');
     expect(state.completed[0].summary).toContain('adjudicated FLEET-WIDE fault');
-    expect(state.completed[0].summary).toContain('not gating this PR');
+    expect(state.completed[0].summary).toContain('required vote remains unmet and gates this PR');
   });
 });
 
@@ -259,18 +261,21 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
         '  agents:',
         '    qa:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
         '      prompt: review tests',
         '    code-reviewer:',
         '      trigger: pull_request:opened',
+        '      participation: { default: required, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
         '      prompt: review code',
         '    lookout:',
         '      trigger: pull_request:opened',
+        '      participation: { default: advisory, rules: [] }',
         '      fallbacks:',
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
@@ -294,7 +299,7 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
     );
 
     expect(ai.run).toHaveBeenCalledTimes(1);
-    expect(state.completed[0]?.conclusion).toBe('neutral');
+    expect(state.completed[0]?.conclusion).toBe('failure');
     const error = d1.steps.find(step => step.kind === 'ship-error');
     expect(error?.title).toContain('HTTP 429, code 3040');
     const circuit = d1.steps.find(step => step.kind === 'provider-circuit-open');

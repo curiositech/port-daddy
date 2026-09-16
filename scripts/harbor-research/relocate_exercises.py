@@ -23,6 +23,9 @@ For each cluster the script:
      pointer line, with exactly one blank line before and after it:
        - 2+ exercises: \\pdexercisepointer{\\ref{ex:FIRST}}{\\ref{ex:LAST}}{\\pageref{ex:FIRST}}
        - exactly 1:     \\pdexercisepointerone{\\ref{ex:ONLY}}{\\pageref{ex:ONLY}}
+     Pointers are emitted un-starred. Run star_exercise_pointers.py afterwards:
+     it decides, from the same sources, which pointers ride on the Recall block
+     that follows them (the starred form), and library-checks fails on drift.
   2. Copies the cluster, byte-identical, into a new terminal
      "\\section{Exercises}" section, grouped under a
      "\\pdexercisefor{\\S\\ref{sec:X}}{TITLE}" heading per source section, in

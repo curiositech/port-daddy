@@ -222,6 +222,7 @@ final class CloudFleetStore: ObservableObject {
     static let requestTimeoutSeconds: TimeInterval = 10
 
     private let session: URLSession
+    private let control: LocalRuntimeControl
     private let loadAccount: () -> OperatorAccount?
     private let now: () -> Date
     private nonisolated(unsafe) var pollTask: Task<Void, Never>?
@@ -229,10 +230,12 @@ final class CloudFleetStore: ObservableObject {
     init(
         autoStart: Bool = true,
         session: URLSession = .shared,
+        control: LocalRuntimeControl = .shared,
         loadAccount: @escaping () -> OperatorAccount? = { OperatorAccountFile.load() },
         now: @escaping () -> Date = Date.init
     ) {
         self.session = session
+        self.control = control
         self.loadAccount = loadAccount
         self.now = now
         guard autoStart else { return }
@@ -411,7 +414,7 @@ final class CloudFleetStore: ObservableObject {
         var request = URLRequest(url: url)
         request.timeoutInterval = Self.requestTimeoutSeconds
         request.setValue("Bearer \(account.token)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.pdData(for: request, control: control)
         guard let http = response as? HTTPURLResponse else {
             throw CloudFleetTransportError.notHTTP
         }

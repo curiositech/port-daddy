@@ -1,0 +1,31 @@
+# The pinned readers every page and plate measurement is taken with.
+#
+# One file, because these versions are part of the definition of the checks
+# that use them, and they were previously three literal lists in two
+# workflows kept in step by a comment ("pinned to library-checks") rather
+# than by anything that would notice drift. page_overflow.py's foot
+# threshold sits at 8.0 pt because that is the empty gap measured between
+# ordinary last lines (0-3 pt) and a longtable row falling off the block
+# (50-70) -- measured with THIS PyMuPDF. check_cover_title_band.py's
+# contrast ratios, figcheck.py's T1-T8 geometry and margin_lint.py's column
+# bounds are all read out of these same libraries. A patch release that
+# changes text extraction changes what the checks mean, and a green check
+# whose meaning moved under it is worse than a red one.
+#
+# Installed whole by every job that runs one of those checks, including the
+# jobs that only import three of the four. Carrying scipy into a job that
+# does not import it costs one install; letting two jobs install different
+# reader sets costs the ability to compare their findings, which is the
+# thing being bought here. tests/unit/pdf-reader-pins.test.js fails on any
+# workflow that pip-installs one of these by name instead of from here.
+#
+# Not to be merged with skills/harbor-results/scripts/requirements.txt.
+# That file pins the numeric stack the R-scripts COMPUTE with (numpy
+# 2.5.2, scipy 1.18.1, matplotlib, networkx); this one pins the readers the
+# checks MEASURE with. They overlap in name at different versions on
+# purpose -- moving either to match the other would silently restate a
+# published measurement.
+pillow==12.3.0
+numpy==2.4.6
+scipy==1.17.1
+pymupdf==1.28.2

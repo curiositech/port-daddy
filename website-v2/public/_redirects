@@ -1,1 +1,22 @@
+# The eight per-chapter PDFs are retired; the Book is the one document.
+#
+# These have to be here, above the catch-all, because the catch-all is what
+# makes their absence invisible. `/*  /index.html  200` means nothing on this
+# site 404s: a request for a file that is gone gets the 4.8 KB SPA shell at
+# HTTP 200. So `curl -O legible-swarm-whitepaper.pdf` saves HTML under a .pdf
+# name, Zotero imports it as a paper, and a crawler records a live URL with the
+# wrong body and no redirect to follow. A 301 to the Book is the honest answer
+# for all three: it is where the chapter's text actually is now.
+#
+# PDF to PDF on purpose. Sending a tool that asked for a PDF to an HTML chapter
+# page would reproduce the same wrong-content-at-200 failure one hop along.
+/whitepaper/agent-transactions-whitepaper.pdf     /whitepaper/coordination-papers-mega-volume.pdf  301
+/whitepaper/anchor-protocol-whitepaper.pdf        /whitepaper/coordination-papers-mega-volume.pdf  301
+/whitepaper/federated-harbor-whitepaper.pdf       /whitepaper/coordination-papers-mega-volume.pdf  301
+/whitepaper/harbor-economy-whitepaper.pdf         /whitepaper/coordination-papers-mega-volume.pdf  301
+/whitepaper/legible-swarm-whitepaper.pdf          /whitepaper/coordination-papers-mega-volume.pdf  301
+/whitepaper/sealed-harbor-whitepaper.pdf          /whitepaper/coordination-papers-mega-volume.pdf  301
+/whitepaper/single-writer-kernel-whitepaper.pdf   /whitepaper/coordination-papers-mega-volume.pdf  301
+/whitepaper/spawn-to-person-whitepaper.pdf        /whitepaper/coordination-papers-mega-volume.pdf  301
+
 /*  /index.html  200

@@ -7,7 +7,7 @@
 \begin{tikzpicture}[pd figure,x=10cm,y=0.05cm]
   \node[pd panel title,anchor=west] at (0,114) {where deterrence holds: re-audit probability against bond size};
   \fill[pd focus fill] plot[domain=0.125:1,samples=80] (\x,{12.5/\x}) -- (1,100) -- (0.125,100) -- cycle;
-  \draw[hhteal,line width=1.2pt] plot[domain=0.125:1,samples=80] (\x,{12.5/\x});
+  \draw[pd focus rule,line width=1.2pt] plot[domain=0.125:1,samples=80] (\x,{12.5/\x});
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (1.04,0);
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (0,106);
   \foreach \t/\l in {0.25/0.25,0.5/0.5,0.75/0.75,1/1.0} {
@@ -23,7 +23,7 @@
   \node[pd axis label,text=hhteal,text width=5.2cm,align=left,anchor=west] at (0.47,90)
     {deterrence holds: the expected slash, $\rho$ times $d$ times $B$, exceeds the gain $G$};
   \node[pd axis label,text=hhamber,text width=2.2cm,align=left,anchor=west] at (0.14,19) {capture pays};
-  \fill[hhink] (0.25,50) circle (1.5pt);
+  \fill[pd ink fill] (0.25,50) circle (1.5pt);
   \node[pd axis label,anchor=south west,text width=7.0cm,align=left] at (0.265,53)
     {worked point: $\rho=0.25$ at $B=50$ ($G=10$, $d=0.8$)};
 \end{tikzpicture}}

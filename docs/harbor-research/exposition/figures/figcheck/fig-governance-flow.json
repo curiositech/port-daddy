@@ -1,5 +1,5 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-governance-flow/fig-governance-flow.pdf",
+  "figure": "fig-governance-flow",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -17,9 +17,31 @@
       "findings": []
     },
     "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+      "status": "fail",
+      "count": 1,
+      "findings": [
+        {
+          "check": "T3",
+          "severity": "fail",
+          "page": 0,
+          "bbox": [
+            241.97203063964844,
+            64.0516357421875,
+            346.65069580078125,
+            72.13867950439453
+          ],
+          "other_bbox": [
+            339.45208740234375,
+            64.42878723144531,
+            418.71319580078125,
+            72.51583099365234
+          ],
+          "text": "3 BONDED PREEMPTION",
+          "other_text": "machine limit reached",
+          "overlap_fraction": 0.087,
+          "message": "text '3 BONDED PREEMPTION' overlaps 'machine limit reached' by 8.7% of the smaller bbox"
+        }
+      ]
     },
     "T4": {
       "status": "fail",
@@ -30,20 +52,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            110.87492370605469,
-            109.79629516601562,
-            187.3368377685547,
-            117.09716033935547
+            107.61077880859375,
+            106.49266815185547,
+            189.55679321289062,
+            114.5797119140625
           ],
           "text": "1 DIRECT RELEASE",
           "line_segment": [
             [
-              184.15475463867188,
-              132.98155212402344
+              183.10333251953125,
+              131.3711395263672
             ],
             [
-              184.15475463867188,
-              113.76615905761719
+              183.10333251953125,
+              112.45152282714844
             ]
           ],
           "message": "a drawn line crosses through the interior of text '1 DIRECT RELEASE'"
@@ -53,20 +75,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            248.2810821533203,
-            66.6917724609375,
-            345.9447021484375,
-            73.99263763427734
+            241.97203063964844,
+            64.0516357421875,
+            346.65069580078125,
+            72.13867950439453
           ],
           "text": "3 BONDED PREEMPTION",
           "line_segment": [
             [
-              336.05908203125,
-              89.87700653076172
+              332.66949462890625,
+              88.93008422851562
             ],
             [
-              336.05908203125,
-              57.159339904785156
+              332.66949462890625,
+              56.71601867675781
             ]
           ],
           "message": "a drawn line crosses through the interior of text '3 BONDED PREEMPTION'"
@@ -76,20 +98,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            252.99940490722656,
-            74.44893646240234,
-            341.17919921875,
-            81.74980163574219
+            250.8882293701172,
+            73.73948669433594,
+            337.71075439453125,
+            80.92797088623047
           ],
           "text": "waiting cost exceeds bond",
           "line_segment": [
             [
-              336.05908203125,
-              89.87700653076172
+              332.66949462890625,
+              88.93008422851562
             ],
             [
-              336.05908203125,
-              57.159339904785156
+              332.66949462890625,
+              56.71601867675781
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'waiting cost exceeds bond'"
@@ -99,20 +121,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            190.78421020507812,
-            121.47953033447266,
-            232.17279052734375,
-            128.7803955078125
+            189.63075256347656,
+            119.65324401855469,
+            233.4463348388672,
+            127.74028778076172
           ],
           "text": "no heartbeat",
           "line_segment": [
             [
-              221.80612182617188,
-              117.14196014404297
+              220.1751708984375,
+              115.77536010742188
             ],
             [
-              221.80612182617188,
-              168.28492736816406
+              220.1751708984375,
+              166.131103515625
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'no heartbeat'"
@@ -122,20 +144,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            265.048095703125,
-            97.39961242675781,
-            331.8729248046875,
-            104.70047760009766
+            262.75152587890625,
+            95.85661315917969,
+            333.5212707519531,
+            103.94365692138672
           ],
           "text": "preemption justi\ufb01ed",
           "line_segment": [
             [
-              297.10931396484375,
-              93.25279235839844
+              294.3192138671875,
+              92.25390625
             ],
             [
-              297.10931396484375,
-              168.28492736816406
+              294.3192138671875,
+              166.131103515625
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'preemption justi\ufb01ed'"
@@ -145,20 +167,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            342.94769287109375,
-            65.3917465209961,
-            417.7815246582031,
-            72.69261169433594
+            339.45208740234375,
+            64.42878723144531,
+            418.71319580078125,
+            72.51583099365234
           ],
           "text": "machine limit reached",
           "line_segment": [
             [
-              377.60528564453125,
-              60.53510284423828
+              373.576171875,
+              60.039825439453125
             ],
             [
-              377.60528564453125,
-              168.28492736816406
+              373.576171875,
+              166.131103515625
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'machine limit reached'"
@@ -168,20 +190,20 @@
           "severity": "fail",
           "page": 0,
           "bbox": [
-            263.57733154296875,
-            164.2304229736328,
-            410.4341735839844,
-            172.4438934326172
+            261.30340576171875,
+            162.13900756835938,
+            405.8997802734375,
+            170.22605895996094
           ],
           "text": "one evidence-bound resolution rail",
           "line_segment": [
             [
-              297.10931396484375,
-              93.25279235839844
+              294.3192138671875,
+              92.25390625
             ],
             [
-              297.10931396484375,
-              168.28492736816406
+              294.3192138671875,
+              166.131103515625
             ]
           ],
           "message": "a drawn line crosses through the interior of text 'one evidence-bound resolution rail'"
@@ -189,6 +211,11 @@
       ]
     },
     "T5": {
+      "status": "pass",
+      "count": 0,
+      "findings": []
+    },
+    "T8": {
       "status": "pass",
       "count": 0,
       "findings": []
@@ -204,9 +231,21 @@
       "findings": []
     }
   },
+  "ink": [
+    {
+      "page": 0,
+      "ink_fraction": 0.1622,
+      "edge_density": 0.0936,
+      "distinct_colors": 1986,
+      "flags": [
+        "edge_density=0.094 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
+      ]
+    }
+  ],
   "summary": {
     "result": "fail",
     "failed_checks": [
+      "T3",
       "T4"
     ],
     "warned_checks": []

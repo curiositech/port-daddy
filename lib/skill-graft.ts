@@ -87,7 +87,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { createLocalEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
+import { createLocalTextEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
 import {
   loadSkillCatalog,
   type SkillEmbedder,
@@ -199,7 +199,7 @@ export interface SkillGraftOptions extends SkillGraftCraftOptions {
   roots?: SkillGraftRoot[];
   /** Used to compute the default root when `roots` is omitted. Defaults to `process.cwd()`. */
   projectRoot?: string;
-  /** Inject a fake embedder for deterministic tests. Defaults to `createLocalEmbedder()`. */
+  /** Inject a fake embedder for deterministic tests. Defaults to the corpus-bound shared embedder. */
   embedder?: SkillEmbedder;
   /**
    * Synthetic-query generator for the Tool2Vec semantic tier (see
@@ -317,12 +317,9 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     : defaultSkillGraftRoots(options.projectRoot);
   // Default embedder reuses the ONE shared, already-downloaded local MiniLM
   // cache (`~/.port-daddy/transformers-cache`, ADR-0061) — NOT
-  // `createLocalEmbedder()`'s own bare default of `<cwd>/.cache/transformers`,
-  // which would silently re-download the model per-repo/per-cwd instead of
-  // reusing what every other reader (the resolver, the daemon, the
-  // shipwright skill index) already paid for.
+  // the same shared cache used by every other corpus producer.
   const embedder: SkillEmbedder = options.embedder
-    ?? createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+    ?? createLocalTextEmbedder('pd.skill-catalog.graft', { cacheDir: defaultTransformersCacheDir() });
   const defaultShortlistLimit = clampLimit(options.shortlistLimit, DEFAULT_SHORTLIST_LIMIT);
   const defaultTopLimit = clampLimit(options.topLimit, DEFAULT_TOP_LIMIT);
   const maxBodyChars = clampBodyChars(options.maxBodyChars, DEFAULT_MAX_BODY_CHARS);

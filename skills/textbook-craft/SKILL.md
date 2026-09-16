@@ -12,7 +12,7 @@ allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Writing & Communication
   tags: [textbook, pedagogy, exposition, exercise-design, harbor]
-  version: 1.1.0
+  version: 1.3.0
   pairs-with:
     - skill: harbor-exposition
       reason: Shares the honesty-ledger and express-lane discipline; harbor-exposition governs one result, this skill governs a chapter of many
@@ -263,10 +263,16 @@ argument — the *Gödel, Escher, Bach* dialogue slot, not the argument's
 premise (`references/chapter-template.md` §Interludes). More than one, or one
 woven unlabeled into the body, is exactly what the reviewers flagged as
 recurring detours worth cutting.
-**Detection**: `scripts/chapter_lint.py`'s `at_most_one_interlude` floor
-(titled sections/subsections matching "Interlude"); an untitled philosophical
-aside inside ordinary prose is invisible to the script and needs a human
-read.
+**Detection**: partial, and the floor says so. `scripts/chapter_lint.py`'s
+`at_most_one_labelled_interlude` floor counts sections and subsections
+*titled* "Interlude": two or more is a measured violation and fails; one or
+none is reported `REVIEW`, never `PASS`, because an aside woven unlabelled
+into ordinary prose leaves no mechanical trace. That is not a gap waiting for
+a cleverer regex — a keyword list of philosopher names would be a guess
+wearing a measurement's clothes, and this repository has spent enough effort
+unwinding that kind of false precision. `whitepaper/legible-swarm.tex` is the
+standing example: Hobbes as its spine, Scott as its governing warning, both
+unlabelled, and the floor counts zero. Only a human read settles it.
 
 ### Boxes for Everything
 **Novice**: Reach for a tinted box (or a bulleted callout, or a pull-quote
@@ -336,19 +342,33 @@ first `theorem`/`definition`.
     grammar (claim boxes, boundaries, worked examples, exercises).
   - **`exercises_at_chapter_end`** (advisory) — every `pdexercise` cluster
     sits inside the chapter's own closing `\section{Exercises}`, not
-    scattered mid-body. Advisory because the Book's chapters have not all
-    been relocated to this rule yet.
+    scattered mid-body. Which section *is* that one is decided by exact
+    title first (the normalized title IS "Exercises"), then by which
+    candidate actually contains `\pdexercisesfor`/`\pdexercise` clusters,
+    then by position; the report names the section it judged against. A
+    plain substring rule picked `spawn-to-person.tex`'s later
+    "Open problems (the starred exercises, collected)" and reported all 50
+    correctly-placed clusters as misplaced. Advisory because the Book's
+    chapters have not all been relocated to this rule yet.
   - **`chapter_opener_and_claim_labeling`** (advisory) — the chapter's
     first `\section` opens with prose or an epigraph macro rather than a
     cold table or claim, and every claim-like environment is tagged.
     Advisory because no chapter in the corpus yet opens with an epigraph.
-  - **`at_most_one_interlude`**, **`chapter_close_apparatus`** — unchanged
-    structural counts (interlude titles; Review/History/boundary sections
-    present by title keyword).
+  - **`at_most_one_labelled_interlude`** — sections/subsections *titled*
+    "Interlude". Two or more fails and blocks; one or none reports `REVIEW`,
+    not `PASS`, since the unlabelled kind is outside what any script can
+    see (§Philosopher Detours). A citation-footprint count rides along
+    explicitly marked as a hint and never sets the verdict.
+  - **`chapter_close_apparatus`** — Review/History/boundary sections present
+    by title keyword.
 
-  Report-only by default (exit 0); `--strict` exits 1 if any **blocking**
-  (non-advisory) floor is violated — an advisory floor left unmet is
-  reported (status `WARN`) but never trips `--strict`. Given more than one
+  Four statuses: `PASS` (met, and the floor can see the whole rule it
+  states), `REVIEW` (everything measurable came back clean, but the rule is
+  only partly mechanically visible — a human still has to read; never
+  blocks), `WARN` (an advisory floor unmet), `FAIL` (a blocking floor
+  unmet). Report-only by default (exit 0); `--strict` exits 1 if any
+  **blocking** (non-advisory) floor is violated — an advisory floor left
+  unmet is reported (status `WARN`) but never trips `--strict`. Given more than one
   chapter, or `--table`, the report becomes one consolidated table (chapter,
   floor, status, detail) instead of N separate reports; given no chapter at
   all, the chapter list is read from `whitepaper/textbook.json` (the same
@@ -363,6 +383,28 @@ first `theorem`/`definition`.
   `tests/test_chapter_lint.py` (`python3 -m unittest discover -s
   skills/textbook-craft/tests -p 'test_*.py'`).
 
+- `python3 scripts/readers_eye.py [CHAPTER.tex ...] [--json|--summary] [--rule RULE] [--limit N] [--strict] [--selftest]` —
+  the mechanical half of the reader's-eye check. Where `chapter_lint.py`
+  measures **structure** (is the worked example present, is the claim
+  tagged, is the exercise at the end), this asks whether a reader could
+  follow the sentence at all. It counts and matches; it does not judge
+  prose. Six rules, each countable without a taste judgement:
+  `abstraction-run`, `artifact-register-drift`, `caption-carries-the-fact`,
+  `metaphor-domain-collision`, `metaphor-never-instantiated`,
+  `undefined-slash-pair`. Given no chapter it reads the chapter list from
+  `whitepaper/textbook.json`, the same convention `chapter_lint.py` uses.
+  Exit 0 when nothing is reported, 1 under `--strict` when something is,
+  2 when a file cannot be read; `--selftest` runs the clean-vs-bad fixture
+  pair and reports whether they separate. Stdlib only. Advisory in CI on
+  day one, on the same reasoning that made the figure-blocker step
+  advisory: a check nobody has cleaned up after yet must not freeze the
+  merge queue. Its word lists live in
+  `references/readers-eye-lexicon.json`, not in the script. The judge pass it
+  hands off to is `references/readers-eye.md` §5, which also carries the
+  reader's persona, the finding shape, and the corpus baseline the
+  thresholds were tuned against. Unit tests:
+  `tests/harbor-research/test_readers_eye.py`.
+
 ## References
 
 - `references/chapter-template.md` — Read when drafting or reviewing a
@@ -375,3 +417,13 @@ first `theorem`/`definition`.
   makes and why it is worth stealing (or, for Rudin, why it is not).
 - `references/sources.md` — Read when citing this skill's own provenance, or
   checking a claim's tier before repeating it in a review comment.
+- `references/readers-eye.md` — Read before reviewing a chapter for prose a
+  reader cannot follow, before changing a threshold in `readers_eye.py`, and
+  whenever running the Layer-2 judge pass.
+- `references/readers-eye-lexicon.json` — the word lists `scripts/readers_eye.py`
+  matches against (metaphor domains, abstraction vocabulary, register
+  markers). Read or edit when a rule is firing on prose it should not, or
+  missing prose it should catch: the fix usually belongs in this data file
+  rather than in the script, on the same separation
+  `skills/make_copy_and_media_human` uses, where the tells live in
+  `references/catalog.json` and the script measures only densities and ratios.
