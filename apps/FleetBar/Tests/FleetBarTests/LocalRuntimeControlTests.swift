@@ -44,6 +44,19 @@ final class LocalRuntimeControlTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testLocalOffStoreRefreshUsesItsInjectedControl() throws {
+        let canonical = try root("store-refresh")
+        let control = LocalRuntimeControl(canonicalRoot: canonical)
+        let store = LocalOffStore(control: control)
+        XCTAssertNil(store.blockedReason)
+
+        try marker("HALT", canonical)
+        store.refresh()
+
+        XCTAssertEqual(store.blockedReason, "Local Off is set (HALT).")
+    }
+
     func testCanonicalAndSelectedStopsAreAdditiveAndSticky() throws {
         for name in ["HALT", "hooks.disabled"] {
             for location in ["canonical", "selected"] {

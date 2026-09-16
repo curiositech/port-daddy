@@ -145,6 +145,55 @@ describe('effect admission is narrower than the overall posture', () => {
     });
   });
 
+  test('unknown additional requirements fail closed even when an untyped caller supplies matching ready evidence', () => {
+    const input = {
+      ...ready,
+      capabilities: {
+        ...ready.capabilities,
+        future_capability: {
+          status: 'ready',
+          scope: 'fixture/future_capability',
+          observedAt: NOW - 1_000,
+          validUntil: NOW + 60_000,
+        },
+      },
+      expectedScopes: {
+        ...ready.expectedScopes,
+        future_capability: 'fixture/future_capability',
+      },
+    } as never;
+    expect(admitRuntimeEffect(input, {
+      effects: ['automatic_local'],
+      additionalRequirements: ['future_capability'],
+    } as never)).toMatchObject({
+      allowed: false,
+      requiredCapabilities: [],
+      reasons: ['capability_requirement_unknown'],
+    });
+  });
+
+  test('mixed known and unknown additional requirements retain the known minimum and deny the unknown one', () => {
+    expect(admitRuntimeEffect(ready, {
+      effects: ['managed_subprocess'],
+      additionalRequirements: ['harness', 'future_capability'],
+    } as never)).toMatchObject({
+      allowed: false,
+      requiredCapabilities: ['sandbox', 'harness'],
+      reasons: ['capability_requirement_unknown'],
+    });
+  });
+
+  test('a non-array additional requirement fails closed without throwing', () => {
+    expect(admitRuntimeEffect(ready, {
+      effects: ['automatic_local'],
+      additionalRequirements: 'sandbox',
+    } as never)).toMatchObject({
+      allowed: false,
+      requiredCapabilities: [],
+      reasons: ['capability_requirement_unknown'],
+    });
+  });
+
   test.each(['automatic_local', 'managed_subprocess', 'background_agent', 'paid_inference', 'provider_call', 'external_mutation', 'scheduled_automation'] as const)(
     'fully ready On admits %s',
     (effect) => expect(admitRuntimeEffect(ready, { effects: [effect] }).allowed).toBe(true),

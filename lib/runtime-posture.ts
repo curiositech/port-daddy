@@ -124,6 +124,7 @@ export const RUNTIME_EFFECT_REQUIREMENTS: Readonly<Record<RuntimeEffect, readonl
 const HUMAN_SAFE_EFFECTS = new Set<RuntimeEffect>(['human_local', 'read_only', 'emergency_control']);
 const RUNTIME_DESIRED_STATES = new Set<unknown>(['off', 'on']);
 const RUNTIME_CONTROL_OBSERVATIONS = new Set<unknown>(['disabled', 'enabled', 'stopping', 'unknown']);
+const RUNTIME_CAPABILITIES = new Set<unknown>(COMMON_READINESS);
 const MAX_OBSERVATION_AGE_MS = 60_000;
 const MAX_OBSERVATION_HORIZON_MS = 60_000;
 
@@ -215,14 +216,25 @@ export function admitRuntimeEffect(
   const effects = [...new Set(suppliedEffects.filter(
     (effect): effect is RuntimeEffect => typeof effect === 'string' && knownEffects.has(effect),
   ))];
+  const suppliedAdditionalRequirements: readonly unknown[] = Array.isArray(request.additionalRequirements)
+    ? request.additionalRequirements
+    : [];
+  const invalidAdditionalRequirements = request.additionalRequirements !== undefined
+    && !Array.isArray(request.additionalRequirements)
+    ? [request.additionalRequirements]
+    : suppliedAdditionalRequirements.filter((capability) => !RUNTIME_CAPABILITIES.has(capability));
+  const additionalRequirements = suppliedAdditionalRequirements.filter(
+    (capability): capability is RuntimeCapability => RUNTIME_CAPABILITIES.has(capability),
+  );
   const requiredCapabilities = uniqueCapabilities([
     ...effects.flatMap((effect) => RUNTIME_EFFECT_REQUIREMENTS[effect]),
-    ...(request.additionalRequirements ?? []),
+    ...additionalRequirements,
   ]);
   const onlyHumanSafeEffects = effects.every((effect) => HUMAN_SAFE_EFFECTS.has(effect));
   const classificationReasons: string[] = [];
   if (effects.length === 0 && invalidEffects.length === 0) classificationReasons.push('effect_set_empty');
   if (invalidEffects.length > 0) classificationReasons.push('effect_unknown');
+  if (invalidAdditionalRequirements.length > 0) classificationReasons.push('capability_requirement_unknown');
 
   if (onlyHumanSafeEffects && requiredCapabilities.length === 0 && classificationReasons.length === 0) {
     return {
