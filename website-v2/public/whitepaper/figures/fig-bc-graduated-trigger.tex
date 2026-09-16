@@ -16,13 +16,13 @@
     scale only axis,
     axis lines=left,
     title={crash tolerance is paid for in the first two rounds},
-    title style={font=\footnotesize\bfseries,text=hhink,yshift=-1pt},
+    title style={font=\pdfiglabelbold,text=hhink,yshift=-1pt},
     xmin=0.4,xmax=8.9,ymin=0.325,ymax=0.525,
     xlabel={rounds of punishment $k$ before forgiveness},
     ylabel={patience $\delta$ the equilibrium needs},
-    xlabel style={font=\footnotesize,text=hhgray},
-    ylabel style={font=\footnotesize,text=hhgray},
-    tick label style={font=\footnotesize,text=hhgray},
+    xlabel style={font=\pdfiglabel,text=hhgray},
+    ylabel style={font=\pdfiglabel,text=hhgray},
+    tick label style={font=\pdfiglabel,text=hhgray},
     axis line style={draw=hhgray,line width=.45pt},
     tick style={draw=hhgray,line width=.45pt},
     xtick={1,2,3,4,5,6,7,8},
@@ -31,13 +31,13 @@
     clip=false,
   ]
     % the grim-trigger floor: permanent punishment, no crash tolerance
-    \addplot[draw=hhink,line width=.62pt,forget plot,domain=0.4:8.9,samples=2]{0.333333};
+    \addplot[pd rule,draw=hhink,line width=.62pt,forget plot,domain=0.4:8.9,samples=2]{0.333333};
 
     % the graduated threshold, k = 1..8
-    \addplot[draw=hhteal,line width=1.1pt,forget plot]
+    \addplot[pd focus rule,draw=hhteal,line width=1.1pt,forget plot]
       coordinates {(1,0.500000) (2,0.366025) (3,0.342508) (4,0.336215)
         (5,0.334394) (6,0.333835) (7,0.333660) (8,0.333604)};
-    \addplot[only marks,mark=*,mark size=1.5pt,draw=hhteal,fill=hhteal,forget plot]
+    \addplot[pd focus rule,only marks,mark=*,mark size=1.5pt,draw=hhteal,fill=hhteal,forget plot]
       coordinates {(1,0.500000) (2,0.366025) (4,0.336215) (5,0.334394)
         (6,0.333835) (7,0.333660) (8,0.333604)};
     \node[pd focus datum] at (axis cs:3,0.342508) {};
