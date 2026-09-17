@@ -230,6 +230,16 @@ describe('Region-Level File Claims', () => {
 
     it.each([
       {
+        label: 'whole-file',
+        selector: {
+          kind: 'file',
+          path: 'src/legacy-file.ts',
+        },
+        region: {
+          path: 'src/legacy-file.ts',
+        },
+      },
+      {
         label: 'symbol',
         selector: {
           kind: 'symbol',
@@ -294,7 +304,8 @@ describe('Region-Level File Claims', () => {
         selector.symbolPath ?? null,
         1700,
       );
-      createClaimForest(db).claim({
+      const forest = createClaimForest(db);
+      forest.claim({
         repoId: 'local',
         world: { kind: 'worktree', id: 'legacy-projectless' },
         selector,
@@ -305,6 +316,18 @@ describe('Region-Level File Claims', () => {
         observedBy: 'legacy-daemon',
         legacySessionFileId: Number(legacyRow.lastInsertRowid),
       });
+      for (const worldKind of ['ref', 'commit', 'harbor']) {
+        forest.claim({
+          repoId: 'local',
+          world: { kind: worldKind, id: `legacy-${worldKind}` },
+          selector,
+        }, {
+          sessionId: owner.id,
+          agentId: 'agent-owner',
+          claimedAt: 1750,
+          observedBy: 'immutable-world-owner',
+        });
+      }
 
       const reclaimed = sessions.claimFiles(owner.id, [], { regions: [region] });
       expect(reclaimed.success).toBe(true);
@@ -315,13 +338,21 @@ describe('Region-Level File Claims', () => {
         WHERE session_id = ? AND file_path = ? AND released_at IS NULL
       `).get(owner.id, selector.path);
       const activeForestRows = db.prepare(`
-        SELECT COUNT(*) AS count, MIN(n.repo_id) AS repoId
+        SELECT n.world_kind AS worldKind, COUNT(*) AS count,
+               MIN(n.repo_id) AS repoId
         FROM claim_forest_claims c
         JOIN claim_forest_nodes n ON n.id = c.node_id
         WHERE c.session_id = ? AND n.path = ? AND c.released_at IS NULL
-      `).get(owner.id, selector.path);
+        GROUP BY n.world_kind
+        ORDER BY n.world_kind
+      `).all(owner.id, selector.path);
       expect(activeLegacyRows.count).toBe(1);
-      expect(activeForestRows).toMatchObject({ count: 1, repoId: PROJECTLESS_REPO_ID });
+      expect(activeForestRows).toEqual([
+        { worldKind: 'commit', count: 1, repoId: 'local' },
+        { worldKind: 'harbor', count: 1, repoId: 'local' },
+        { worldKind: 'ref', count: 1, repoId: 'local' },
+        { worldKind: 'worktree', count: 1, repoId: PROJECTLESS_REPO_ID },
+      ]);
 
       const challenger = sessions.start('projectless challenger', {
         agentId: 'agent-challenger',

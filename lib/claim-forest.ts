@@ -407,13 +407,19 @@ export function createClaimForest(db: Database.Database) {
       UPDATE claim_forest_claims
       SET released_at = ?
       WHERE session_id = ? AND released_at IS NULL
-        AND node_id IN (SELECT id FROM claim_forest_nodes WHERE path = ?)
+        AND node_id IN (
+          SELECT id FROM claim_forest_nodes
+          WHERE path = ? AND world_kind = 'worktree'
+        )
     `),
     releaseBySymbolPath: db.prepare(`
       UPDATE claim_forest_claims
       SET released_at = ?
       WHERE session_id = ? AND released_at IS NULL
-        AND node_id IN (SELECT id FROM claim_forest_nodes WHERE path = ? AND symbol_path = ?)
+        AND node_id IN (
+          SELECT id FROM claim_forest_nodes
+          WHERE path = ? AND symbol_path = ? AND world_kind = 'worktree'
+        )
     `),
     releaseBySymbol: db.prepare(`
       UPDATE claim_forest_claims
@@ -422,6 +428,7 @@ export function createClaimForest(db: Database.Database) {
         AND node_id IN (
           SELECT id FROM claim_forest_nodes
           WHERE path = ? AND symbol = ? AND symbol_path IS NULL
+            AND world_kind = 'worktree'
         )
     `),
     releaseByRange: db.prepare(`
@@ -431,6 +438,7 @@ export function createClaimForest(db: Database.Database) {
         AND node_id IN (
           SELECT id FROM claim_forest_nodes
           WHERE path = ? AND start_line = ? AND end_line = ?
+            AND world_kind = 'worktree'
         )
     `),
     releaseAllBySession: db.prepare(`
