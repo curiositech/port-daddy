@@ -49,6 +49,15 @@ Relay stamps the visible Fleetbot signature, resolves ambiguous writes through
 complete paginated readback, and signs the final receipt. The client accepts only
 `created` or `reused` for a comment receipt.
 
+Conversational effects and state-changing effects have deliberately different
+target policy. A comment or review reply may target an ordinary same-repository
+pull request, but only at the exact repository, PR number, base SHA, and head SHA
+bound into the signed capability and standing operation grant. Readiness,
+reviewer requests, enqueue, update, and publication remain restricted to a
+uniquely receipted Fleetbot publication on a governed `pd-agent/*` branch. This
+lets Fleetbot discuss and answer review on existing work without granting it the
+power to advance or merge work it does not own.
+
 ## Phase C and D trust split
 
 The host-facing endpoint accepts a **proposal**, not a publisher capability.

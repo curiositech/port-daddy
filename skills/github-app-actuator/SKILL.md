@@ -98,8 +98,12 @@ inspection, and a typed PR-comment request;
 is the protected reviewed-code entry point for that first write. Source presence
 is not deployment evidence: posting is available only after the environment,
 grant operation, workload key, Relay receipt key, and deployed Relay version are
-verified together. Local harnesses do not yet have a proposal broker, so never
-copy the Actions workload seed into Codex, Claude Code, Antigravity, Gemini, Agy,
+verified together. Comments and review replies may target an ordinary
+same-repository PR at its capability-bound exact head; readiness, reviewer,
+enqueue, update, and publication operations remain restricted to uniquely
+receipted Fleetbot-owned branches. Local harnesses do not yet have a proposal
+broker, so never copy the Actions workload seed into Codex, Claude Code,
+Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
 [`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).
 Direct use of an operator credential or ambient `gh` login does **not** satisfy this
