@@ -215,6 +215,8 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).toContain("claimPath: 'ALPHA-CLAIM.md'");
     expect(runner).toContain("claimPath: 'BETA-CLAIM.md'");
+    expect(runner).toContain("['rev-parse', '--git-common-dir']");
+    expect(runner).toContain('alpha linked session recorded the wrong worktree root');
     expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
     expect(runner).toContain('const blockerSockets = new Set();');
     expect(runner).toContain("collision fixture listener did not close within 3 seconds");
