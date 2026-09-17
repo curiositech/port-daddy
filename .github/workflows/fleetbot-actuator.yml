@@ -57,6 +57,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
   pull-requests: read
 
@@ -82,6 +83,23 @@ jobs:
     runs-on: ubuntu-latest
     environment: fleetbot-workload
     timeout-minutes: 5
+    env:
+      FLEETBOT_RELAY_URL: https://relay.portdaddy.dev
+      FLEETBOT_RELAY_PUBLIC_KEY_HEX: ${{ vars.FLEETBOT_RELAY_PUBLIC_KEY_HEX }}
+      FLEETBOT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
+      FLEETBOT_OPERATION: ${{ inputs.operation }}
+      FLEETBOT_MANIFEST_PATH: ${{ github.workspace }}/fleetbot-recovery-manifest.json
+      FLEETBOT_REQUEST_PATH: ${{ github.workspace }}/fleetbot-publish-request.json
+      FLEETBOT_COMMENT_BODY: ${{ inputs.comment_body }}
+      FLEETBOT_REVIEW_COMMENT_ID: ${{ inputs.review_comment_id }}
+      FLEETBOT_REVIEWERS_JSON: ${{ inputs.reviewers_json }}
+      FLEETBOT_TEAM_REVIEWERS_JSON: ${{ inputs.team_reviewers_json }}
+      FLEETBOT_ACTOR_ID: github-user:${{ github.actor_id }}
+      FLEETBOT_AGENT_ID: ${{ inputs.agent_id }}
+      FLEETBOT_SESSION_ID: ${{ inputs.session_id }}
+      FLEETBOT_PURPOSE: ${{ inputs.purpose }}
+      FLEETBOT_ROADMAP_ITEM: ${{ inputs.roadmap_item }}
+      FLEETBOT_SIDEQUEST_REASON: ${{ inputs.sidequest_reason }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -89,22 +107,36 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Perform an attributable existing-PR operation through Fleetbot
+      - name: Prepare the immutable signed recovery manifest
+        if: github.run_attempt == 1
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          FLEETBOT_RELAY_URL: https://relay.portdaddy.dev
-          FLEETBOT_RELAY_PUBLIC_KEY_HEX: ${{ vars.FLEETBOT_RELAY_PUBLIC_KEY_HEX }}
           FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
           FLEETBOT_PUBLISHER_GRANT_ID: ${{ secrets.FLEETBOT_PUBLISHER_GRANT_ID }}
-          FLEETBOT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
-          FLEETBOT_COMMENT_BODY: ${{ inputs.comment_body }}
-          FLEETBOT_REVIEW_COMMENT_ID: ${{ inputs.review_comment_id }}
-          FLEETBOT_REVIEWERS_JSON: ${{ inputs.reviewers_json }}
-          FLEETBOT_TEAM_REVIEWERS_JSON: ${{ inputs.team_reviewers_json }}
-          FLEETBOT_ACTOR_ID: github-user:${{ github.actor_id }}
-          FLEETBOT_AGENT_ID: ${{ inputs.agent_id }}
-          FLEETBOT_SESSION_ID: ${{ inputs.session_id }}
-          FLEETBOT_PURPOSE: ${{ inputs.purpose }}
-          FLEETBOT_ROADMAP_ITEM: ${{ inputs.roadmap_item }}
-          FLEETBOT_SIDEQUEST_REASON: ${{ inputs.sidequest_reason }}
-        run: node scripts/fleetbot-workload.mjs "${{ inputs.operation }}"
+        run: node scripts/fleetbot-workload.mjs prepare
+      - name: Preserve the recovery manifest before any mutation
+        if: github.run_attempt == 1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fleetbot-recovery-${{ github.run_id }}
+          path: ${{ github.workspace }}/fleetbot-recovery-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Perform the exact manifested operation through Fleetbot
+        if: github.run_attempt == 1
+        env:
+          FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
+        run: node scripts/fleetbot-workload.mjs publish-manifest
+      - name: Retrieve the original immutable recovery manifest
+        if: github.run_attempt > 1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: fleetbot-recovery-${{ github.run_id }}
+          path: ${{ github.workspace }}
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Recover the original receipt without retrying the mutation
+        if: github.run_attempt > 1
+        env:
+          FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
+        run: node scripts/fleetbot-workload.mjs recover-manifest

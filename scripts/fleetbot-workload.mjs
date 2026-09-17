@@ -8,13 +8,16 @@ import {
   sign,
   verify,
 } from 'node:crypto'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 
 export const ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1'
 export const CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2'
 export const GRANT_READ_SCHEMA = 'port-daddy.publisher-grant-read.v1'
+export const RECEIPT_READ_SCHEMA = 'port-daddy.publisher-receipt-read.v1'
 export const RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v2'
+export const RECOVERY_MANIFEST_SCHEMA = 'port-daddy.fleetbot-recovery-manifest.v1'
 export const DEFAULT_AUDIENCE = 'https://github.com/curiositech'
+export const RECEIPT_RECOVERY_PATH = '/v1/fleetbot/publisher-receipts/recover'
 const MAX_BODY_BYTES = 1_000_000
 const IDENTIFIER_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/
 
@@ -55,6 +58,12 @@ export function workloadKey(seedHex) {
 export function signDigestHex(privateKey, preimage) {
   const digest = createHash('sha256').update(preimage).digest()
   return sign(null, digest, privateKey).toString('hex')
+}
+
+function verifyDigestHex(publicKey, preimage, signatureHex) {
+  return typeof signatureHex === 'string'
+    && /^[0-9a-f]{128}$/i.test(signatureHex)
+    && verify(null, Buffer.from(hashHex(preimage), 'hex'), publicKey, Buffer.from(signatureHex, 'hex'))
 }
 
 function ed25519PublicKey(publicKeyHex) {
@@ -172,6 +181,135 @@ export async function readGrantSnapshot({ relayUrl, key, grantId, fetchImpl = fe
     throw new Error('Relay returned a malformed publisher grant snapshot')
   }
   return body
+}
+
+export function actionInputDigest(command, env) {
+  return hashHex(stableJson({
+    operation: command,
+    pullRequest: env.FLEETBOT_PULL_REQUEST_NUMBER ?? '',
+    commentBody: env.FLEETBOT_COMMENT_BODY ?? '',
+    reviewCommentId: env.FLEETBOT_REVIEW_COMMENT_ID ?? '',
+    reviewersJson: env.FLEETBOT_REVIEWERS_JSON ?? '[]',
+    teamReviewersJson: env.FLEETBOT_TEAM_REVIEWERS_JSON ?? '[]',
+    actorId: env.FLEETBOT_ACTOR_ID ?? 'github-actions',
+    agentId: env.FLEETBOT_AGENT_ID ?? 'fleetbot-workload',
+    sessionId: env.FLEETBOT_SESSION_ID ?? '',
+    purpose: env.FLEETBOT_PURPOSE ?? `Perform ${command} through the protected Fleetbot workload.`,
+    roadmapItem: env.FLEETBOT_ROADMAP_ITEM ?? '',
+    sidequestReason: env.FLEETBOT_SIDEQUEST_REASON ?? '',
+    worktreeId: env.FLEETBOT_WORKTREE_ID ?? '',
+  }))
+}
+
+export function buildRecoveryBinding(request) {
+  return {
+    grantId: request.capability.grantId,
+    grantEpoch: request.capability.grantEpoch,
+    repository: request.repository,
+    operation: request.operation,
+    baseBranch: request.capability.baseBranch,
+    baseSha: request.capability.baseSha,
+    headSha: request.capability.headSha,
+    sessionId: request.sessionId,
+    requestHash: request.capability.requestHash,
+    idempotencyKey: request.idempotencyKey,
+  }
+}
+
+function receiptVerificationRequest(request) {
+  return {
+    operation: request.operation,
+    repository: request.repository,
+    idempotencyKey: request.idempotencyKey,
+    sessionId: request.sessionId,
+    authorship: {
+      actorId: request.authorship.actorId,
+      agentId: request.authorship.agentId,
+      roadmapItem: request.authorship.roadmapItem,
+      sourceBranch: request.authorship.sourceBranch,
+    },
+    payload: {
+      pullRequestNumber: request.payload.pullRequestNumber,
+      expectedGithubHeadSha: request.payload.expectedGithubHeadSha,
+    },
+    capability: {
+      grantId: request.capability.grantId,
+      grantEpoch: request.capability.grantEpoch,
+      baseBranch: request.capability.baseBranch,
+      baseSha: request.capability.baseSha,
+      headSha: request.capability.headSha,
+      requestHash: request.capability.requestHash,
+    },
+  }
+}
+
+export function buildRecoveryManifest({ key, request, snapshot, repository, workflow, runId, command, pullRequestNumber, inputDigest, createdAt = Math.floor(Date.now() / 1000) }) {
+  const unsigned = {
+    schema: RECOVERY_MANIFEST_SCHEMA,
+    repository,
+    workflow: requireBoundedText(workflow, 'GITHUB_WORKFLOW', 255),
+    runId: requireIdentifier(runId, 'GITHUB_RUN_ID'),
+    command,
+    pullRequestNumber: requirePositiveInteger(pullRequestNumber, 'FLEETBOT_PULL_REQUEST_NUMBER'),
+    inputDigest: requireHex(inputDigest, 32, 'workflow input digest'),
+    workloadFingerprint: key.fingerprint,
+    signingKeyGeneration: snapshot.signingKeyGeneration,
+    createdAt,
+    binding: buildRecoveryBinding(request),
+    receiptRequest: receiptVerificationRequest(request),
+  }
+  return { ...unsigned, manifestSignature: signDigestHex(key.privateKey, stableJson(unsigned)) }
+}
+
+export function verifyRecoveryManifest(manifest, { key, repository, workflow, runId, command, pullRequestNumber, inputDigest }) {
+  if (!manifest || typeof manifest !== 'object') throw new Error('Fleetbot recovery manifest is malformed')
+  const { manifestSignature, ...unsigned } = manifest
+  if (manifest.schema !== RECOVERY_MANIFEST_SCHEMA
+      || manifest.repository !== repository
+      || manifest.workflow !== workflow
+      || manifest.runId !== runId
+      || manifest.command !== command
+      || manifest.pullRequestNumber !== pullRequestNumber
+      || manifest.inputDigest !== inputDigest
+      || manifest.workloadFingerprint !== key.fingerprint
+      || !Number.isSafeInteger(manifest.signingKeyGeneration)
+      || !verifyDigestHex(createPublicKey(key.privateKey), stableJson(unsigned), manifestSignature)) {
+    throw new Error('Fleetbot recovery manifest does not match this immutable workflow invocation')
+  }
+  if (stableJson(manifest.binding) !== stableJson(buildRecoveryBinding(manifest.receiptRequest))
+      || manifest.receiptRequest.repository !== repository
+      || manifest.receiptRequest.payload?.pullRequestNumber !== pullRequestNumber) {
+    throw new Error('Fleetbot recovery manifest binding does not match its publish request')
+  }
+  return manifest
+}
+
+export function buildReceiptRecoveryEnvelope({ key, manifest, now = Math.floor(Date.now() / 1000), nonce = randomBytes(32).toString('hex') }) {
+  const proof = {
+    schema: RECEIPT_READ_SCHEMA,
+    method: 'POST',
+    path: RECEIPT_RECOVERY_PATH,
+    daemonFingerprint: key.fingerprint,
+    signingKeyGeneration: manifest.signingKeyGeneration,
+    issuedAt: now,
+    nonce: requireHex(nonce, 32, 'receipt-read nonce'),
+    binding: manifest.binding,
+  }
+  return { proof, proofSignature: signDigestHex(key.privateKey, stableJson(proof)) }
+}
+
+export async function recoverPublisherReceipt({ relayUrl, key, manifest, expectedRelayPublicKey, fetchImpl = fetch, now, nonce }) {
+  const recoveryEnvelope = buildReceiptRecoveryEnvelope({ key, manifest, now, nonce })
+  const envelope = await jsonFetch(new URL(RECEIPT_RECOVERY_PATH, relayUrl), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(recoveryEnvelope),
+  }, fetchImpl)
+  return verifyPublisherReceiptEnvelope(envelope, {
+    request: manifest.receiptRequest,
+    snapshot: { grantId: manifest.binding.grantId, grantEpoch: manifest.binding.grantEpoch },
+    expectedRelayPublicKey,
+  })
 }
 
 function requireIdentifier(value, name) {
@@ -351,7 +489,7 @@ function appendOutput(name, value) {
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const command = argv[0]
-  const commands = ['enroll', 'inspect', 'comment', 'review-reply', 'ready', 'request-reviewers', 'enqueue']
+  const commands = ['enroll', 'inspect', 'comment', 'review-reply', 'ready', 'request-reviewers', 'enqueue', 'prepare', 'publish-manifest', 'recover-manifest']
   if (!commands.includes(command)) throw new Error(`usage: fleetbot-workload.mjs <${commands.join('|')}>`)
   const relayUrl = env.FLEETBOT_RELAY_URL ?? 'https://relay.portdaddy.dev'
   const repository = (env.GITHUB_REPOSITORY ?? '').toLowerCase()
@@ -369,8 +507,52 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     console.log('An account administrator must now create a bounded publisher grant in Relay Ship controls.')
     return
   }
-  const grantId = env.FLEETBOT_PUBLISHER_GRANT_ID
+  const manifestPath = env.FLEETBOT_MANIFEST_PATH ?? 'fleetbot-recovery-manifest.json'
+  const requestPath = env.FLEETBOT_REQUEST_PATH ?? 'fleetbot-publish-request.json'
+  const workflow = env.GITHUB_WORKFLOW ?? 'Fleetbot actuator'
+  const runId = requireIdentifier(env.GITHUB_RUN_ID, 'GITHUB_RUN_ID')
+  const dispatchedCommand = env.FLEETBOT_OPERATION ?? command
   const prNumber = requirePositiveInteger(Number(env.FLEETBOT_PULL_REQUEST_NUMBER), 'FLEETBOT_PULL_REQUEST_NUMBER')
+  const inputDigest = actionInputDigest(dispatchedCommand, env)
+  if (command === 'publish-manifest' || command === 'recover-manifest') {
+    const manifest = verifyRecoveryManifest(JSON.parse(readFileSync(manifestPath, 'utf8')), {
+      key,
+      repository,
+      workflow,
+      runId,
+      command: dispatchedCommand,
+      pullRequestNumber: prNumber,
+      inputDigest,
+    })
+    if (command === 'publish-manifest') {
+      const publishRequest = JSON.parse(readFileSync(requestPath, 'utf8'))
+      if (stableJson(buildRecoveryBinding(publishRequest)) !== stableJson(manifest.binding)
+          || stableJson(receiptVerificationRequest(publishRequest)) !== stableJson(manifest.receiptRequest)) {
+        throw new Error('Fleetbot publish request does not match the uploaded recovery manifest')
+      }
+      const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(publishRequest),
+      })
+      const receipt = verifyPublisherReceiptEnvelope(envelope, {
+        request: publishRequest,
+        snapshot: { grantId: manifest.binding.grantId, grantEpoch: manifest.binding.grantEpoch },
+        expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
+      })
+      console.log(`Relay receipt: ${receipt.receiptId}`)
+      return
+    }
+    const receipt = await recoverPublisherReceipt({
+      relayUrl,
+      key,
+      manifest,
+      expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
+    })
+    console.log(`Recovered Relay receipt: ${receipt.receiptId}`)
+    return
+  }
+  const grantId = env.FLEETBOT_PUBLISHER_GRANT_ID
   const snapshot = await readGrantSnapshot({ relayUrl, key, grantId })
   const pullRequest = await githubPullRequest({ repository, number: prNumber, token: env.GITHUB_TOKEN })
   const common = {
@@ -378,7 +560,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     snapshot,
     repository,
     pullRequest,
-    runId: env.GITHUB_RUN_ID,
+    runId,
     runAttempt: env.GITHUB_RUN_ATTEMPT ?? '1',
   }
   const authorship = {
@@ -408,7 +590,26 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     }),
     enqueue: () => buildEnqueueRequest({ ...common, authorship }),
   }
-  const request = builders[command]()
+  const requestBuilder = builders[command === 'prepare' ? dispatchedCommand : command]
+  if (!requestBuilder) throw new Error('FLEETBOT_OPERATION is not a publishable Fleetbot operation')
+  const request = requestBuilder()
+  if (command === 'prepare') {
+    const manifest = buildRecoveryManifest({
+      key,
+      request,
+      snapshot,
+      repository,
+      workflow,
+      runId,
+      command: dispatchedCommand,
+      pullRequestNumber: prNumber,
+      inputDigest,
+    })
+    writeFileSync(manifestPath, `${stableJson(manifest)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    writeFileSync(requestPath, `${stableJson(request)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    console.log(`Prepared immutable Fleetbot recovery manifest for ${request.operation} on PR #${prNumber}.`)
+    return
+  }
   const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
