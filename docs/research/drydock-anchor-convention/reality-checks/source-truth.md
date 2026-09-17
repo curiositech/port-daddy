@@ -19,7 +19,7 @@ The existing inert validators were run without starting Port Daddy:
 
 | Validator | Result | Bounded meaning |
 |---|---|---|
-| Drydock skill bundle audit | valid; 24 required files, 17 Markdown files, 48 local links, 17 diagrams | The static bundle is internally present and linked. |
+| Drydock skill bundle audit | valid; 24 required files, 17 Markdown files, 48 local links, 20 diagrams | The static bundle is internally present and linked. |
 | Resurrection hypertree validator | valid; 12 roles, 30 nodes, 7 hyperedges, 4 launchers; plan digest `sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a` | The example satisfies its structural and semantic static contract. |
 | Hypertree execution validator | valid; 1 scoped node, 1 contract, 3 clients, 14 events, 1 rework round; execution digest `sha256:bc1d21bf071cd1be503b615fcfdeb66161f43699802d184667b1c555aeba81b1` | The fixture reduces deterministically to `COMPLETED` and explicitly labels itself `FIXTURE`. |
 

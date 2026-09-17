@@ -32,7 +32,7 @@ A composition packet cannot upgrade a failed focused validator.
 ## Executed evidence
 
 The integrated auditor passes with 24 required files, 17 Markdown files, 48
-local links, and exactly 17 diagram views. The resurrection hypertree validates
+local links, and exactly 20 diagram views. The resurrection hypertree validates
 30 nodes, 12 roles, 7 hyperedges, and 4 launchers. The review-loop fixture
 validates 14 ordered events, one bounded rework round, distinct
 producer/reviewer/manager identities, and identical HTML/Swift/Rust projection
