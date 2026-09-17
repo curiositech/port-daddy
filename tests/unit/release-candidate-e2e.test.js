@@ -285,12 +285,18 @@ describe('release-candidate E2E contract', () => {
 
   test('compiled CLI smoke isolates state and proves safe-corral dry-run immutability', () => {
     const smoke = readFileSync(compiledCliSurfacePath, 'utf8');
+    expect(smoke).toContain('set -euo pipefail');
     expect(smoke).toContain('CLI_HOME="$SCRATCH/home"');
     expect(smoke).toContain('chmod 700 "$SCRATCH" "$WORK" "$SNAP_ROOT" "$CLI_HOME"');
     expect(smoke).toContain('PD_HOME="$CLI_HOME"');
     expect(smoke).toContain('PORT_DADDY_TEST_DB="$TEST_DB"');
     expect(smoke).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
     expect(smoke).toContain('__corral_fixture="$CLI_HOME/.env"');
+    const fixtureWrite = smoke.indexOf("printf 'E2E_SAFE_CORRAL=%s%s\\n'");
+    const corralInvocation = smoke.indexOf('if __corral_out="$(cli safe corral --all 2>&1)"; then');
+    expect(fixtureWrite).toBeGreaterThan(0);
+    expect(corralInvocation).toBeGreaterThan(fixtureWrite);
+    expect(smoke.slice(fixtureWrite, corralInvocation)).not.toContain('|| true');
     expect(smoke).toContain('__corral_before="$(cksum < "$__corral_fixture")"');
     expect(smoke).toContain('if __corral_out="$(cli safe corral --all 2>&1)"; then');
     expect(smoke).toContain('__corral_status=$?');
