@@ -59,7 +59,6 @@ describe('release-candidate process lifecycle', () => {
       env: secretFreeBaseEnv(),
     });
     await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
-    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
   });
 
   test('bounded server cleanup rejects instead of leaving the suite await unsettled', async () => {
