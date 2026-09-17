@@ -1,150 +1,205 @@
 ---
 name: sheaf-cohomology-multiagent-debug
-version: 0.1.0
+version: 1.0.0
 description: >
-  Diagnose multi-agent coordination failures using sheaf cohomology as a structural
-  telemetry primitive. When agents cannot reach consensus despite diffusion, the cause
-  is often topological: restriction maps on one or more edges are mutually inconsistent,
-  creating a cycle-level obstruction that no amount of additional messaging can dissolve.
-  H¹(G,F) ≠ 0 is the formal certificate of this obstruction — it identifies which cycles
-  contain irreconcilable disagreements, letting you debug the sheaf (the communication
-  structure) rather than the swarm (the agents). This skill provides the conceptual
-  framework, a concrete implementation pattern, and decision criteria for when cohomology
-  is the right diagnostic vs. when simpler tools suffice.
-author: soma-jury_rig-graft
-tags: [sheaf-cohomology, multi-agent, coordination, consensus, topology, diagnostics, active-inference, soma]
-pairs-with: []
+  Diagnose, localize, and actively remediate multi-agent swarm coordination failures
+  using cellular sheaf cohomology. Translates Port Daddy WorkIntents, AgentNodes,
+  Round DAGs, and Proof Hypertrees into cellular sheaves over 1D communication graphs
+  and 2D simplicial complexes. Evaluates the completion residual r = ||Pi_K g_K||_2
+  under three-tier visibility (COMPARED / RELAYED / SEVERED), computes the Swarm
+  Legibility Ratio L(g) via simplicial Hodge decomposition to separate micro-contract
+  breaches from macro-topological partition cavities, and compiles minimal-cost
+  active repairs (CR-4).
+author: curiositech/port-daddy
+tags: [sheaf-cohomology, multi-agent, swarm-legibility, active-control, topology, drydock, hypertrees]
+pairs-with:
+  - skill: harbor-results
+    reason: Ground truth for R6 and consistency-radius theorems CR-1 through CR-5.
+  - skill: drydock-program-architecture
+    reason: Ingests AgentNodes, WorkIntents, and Execution Hypertrees into sheaf complexes.
 license: Apache-2.0
-allowed-tools: Read,Write,Edit,Glob,Grep
-metadata:
-  provenance:
-    kind: imported
-    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
+allowed-tools: Read,Write,Edit,Grep,Glob
 ---
 
-# Sheaf Cohomology as Multi-Agent Coordination Telemetry
+# Sheaf Cohomology for Swarm Legibility and Active Control
 
 ## When to Use
 
-- Agents have been running diffusion / gossip / opinion-update dynamics for many steps and residual disagreement persists despite apparent convergence — you suspect the disagreement is structural, not transient.
-- You have a cycle in the agent communication graph and at least one edge where two agents project their private state through **different** restriction maps into a shared discourse space (i.e., they literally interpret the shared variable differently).
-- A new agent or communication channel was added and coordination degraded; you need to know whether the topology change introduced a cohomological obstruction.
+- Agents are coordinating asynchronously under partial visibility (gossip meshes, network partitions, intermittent consensus) and you need to determine if an irreconcilable global inconsistency exists.
+- An autonomous fleet (e.g. Port Daddy with Coxswain, Cartographer, Lookout, Quartermaster) emits assertions, AST code claims, capacity vectors, or RoundContract receipts, and an operator wants to know:
+  1. **Is the swarm globally consistent?** ($r = 0$)
+  2. **If inconsistent ($r > 0$), where is the fault?** (CR-2 electrical flow cycle localization)
+  3. **Is the failure a local 3-party contract bug or a systemic macro-partition?** (CR-5 Legibility Ratio $\mathcal{L}(g)$)
+  4. **What is the minimum-cost intervention to restore consensus?** (CR-4 Optimal Repair Min-Cut)
 
-NOT for:
-- Debugging transient disagreement that resolves if you wait longer — that is a convergence-rate problem, diagnosed by the sheaf Fiedler value λ₂(L_F), not by cohomology.
-- Keyword-based or heuristic detection of "conflict" in agent messages — this skill requires algebraically specified stalks and restriction maps, not free-text analysis.
-- Systems where agents do not share an explicit algebraic state space (e.g., purely language-model ensembles with no vector stalks) — cohomology is not applicable without a defined linear structure.
+**NOT for**:
+- Simple full-visibility peer-to-peer checks where every pair directly compares roots (cohomology is strictly redundant with $O(|E|)$ pairwise comparisons here).
+- Cut-edge / single-bridge network splits where no redundant cycles exist (cohomology provably cannot bind without a cycle; the severed link remains dark).
+- Abstract topological analysis without observed data (computing $\dim H^1$ of the abstract sheaf independent of data was the legacy 2026-08 wrong turn).
+- Pure text sentiment analysis of agent chat without algebraic stalks or typed contracts.
 
-## Core Concepts
+---
 
-**Cellular sheaf F on graph G = (V, E)**: An assignment of a finite-dimensional real vector space F(v) (the *stalk*) to each vertex, a space F(e) to each edge, and a linear *restriction map* F_{v ▹ e}: F(v) → F(e) for each incidence pair. Stalks encode private agent state; restriction maps encode how each agent projects state into the shared discourse on that edge.
+## The Rosetta Stone: From Swarm Primitives to Cellular Sheaves
 
-**Coboundary operator δ: C⁰(G;F) → C¹(G;F)**: The fundamental disagreement measurement. For edge e = (u, v):
-```
-(δx)_e = F_{v ▹ e}(x_v) - F_{u ▹ e}(x_u)
-```
-δx = 0 on every edge iff x is a *global section* — all agents are perfectly consistent after projection. The coboundary operator encodes the difference in what each agent contributes to the shared discourse on each link.
+How to map real Port Daddy and Drydock runtime objects into cellular sheaves:
 
-**H⁰(G;F) = ker(δ)**: The space of global sections — assignments where every adjacent pair is consistent after restriction. dim(H⁰) counts the number of independent consensus modes. H⁰ = {0} means no consensus is topologically reachable from any initial condition. H⁰ is what sheaf diffusion converges toward; ker(L_F) = H⁰.
+| Swarm / Drydock Primitive | Sheaf-Theoretic Concept | Algebraic Role |
+|---|---|---|
+| **AgentNode** (durable identity, obligations) | **0-Cell (Vertex $v \in V$)** | Base site vertex holding private state stalk $\mathcal{F}(v)$ |
+| **WorkNode** (bounded intent slice in Round DAG) | **0-Cell / Subgraph** | Epistemic task state evaluated in round |
+| **Direct Peer Channel / Dependency / AST Claim** | **1-Cell (Directed Edge $e \in E$)** | Directed 1-simplex $u \to v$ with boundary $\partial e = v - u$ |
+| **Triadic Join (Producer + Dissenter + Manager)** | **2-Cell (Triangle $\tau \in F$)** | 2-simplex with boundary $\partial \tau = e_{uv} + e_{vw} - e_{uw}$ |
+| **Hyperedge (Multi-parent Join in Hypertree)** | **Simplicial Complex / Nerve** | Multi-way join decomposed into 2-simplices |
+| **State Vector (Capacity, Epoch, Claim, Hash)** | **Stalk Vector $x_v \in \mathbb{R}^D$** | Numerical state emitted by AgentNode |
+| **Shared Interface / AST Code Region Clip** | **Restriction Map $P_e: \mathbb{R}^D \to \mathbb{R}^S$** | Coordinate-subset selection of shared fields |
+| **Reported Disagreement on Edge** | **Observed 1-Cochain $g_e \in C^1$** | $g_e = P_e x_u - P_e x_v$ (or reported discrepancy) |
+| **Relayed Gossip Across Cycle (Partition)** | **Visibility: RELAYED ($R$)** | Pairwise blind; global completion residual binds around cycle |
+| **Severed Channel (No Data)** | **Visibility: SEVERED ($S$)** | Free block in completion; provably dark (honest silence) |
 
-**H¹(G;F) = Z¹ / im(δ)**: The obstruction group. Z¹ = ker(d₁: C¹ → C²); for graphs with no 2-simplices, Z¹ = C¹ = all of edge-stalk space. im(δ) is the set of edge discrepancies that *can* be explained by some choice of vertex data. H¹ is the quotient — edge discrepancy patterns that cannot be explained by any vertex assignment. **dim(H¹) > 0 means there exist cycles where the restriction maps are mutually inconsistent: settlement is topologically impossible for those configurations regardless of how agents update.**
+---
 
-**Sheaf Laplacian and Dirichlet energy**: L_F = δᵀδ (PSD matrix on C⁰). Dirichlet energy:
-```
-E(x) = xᵀ L_F x = ||δx||² = Σ_{e=(u,v)} || F_{u▹e}(x_u) - F_{v▹e}(x_v) ||²
-```
-E(x) = 0 iff x ∈ H⁰. Sheaf diffusion dx/dt = -α L_F x minimizes E(x) and converges to the projection onto H⁰. If E(x) > 0 at equilibrium, the nonzero-energy edges are the diagnostic outputs.
+## Core Theorems & Formulas
 
-## Implementation Pattern
+### 1. Three-Tier Visibility & The Completion Residual (R6 / CR-1)
+Every edge $e$ in the swarm belongs to one visibility class:
+- **`COMPARED` ($C$)**: Direct check ran; pairwise baseline sees $g_e$; known to global detector.
+- **`RELAYED` ($R$)**: Both endpoints' signed reports reached the supervisor via gossip, but direct edge check never ran; pairwise is blind; $g_e$ is known.
+- **`SEVERED` ($S$)**: No data; free block in the completion.
+
+The completion residual on known edges $K = C \cup R$ is:
+$$r = \min_{x} \| g_K - (\delta_K x) \|_2 = \| \Pi_K g_K \|_2$$
+where $\Pi_K$ is the orthogonal projector onto $\text{coker}(\delta_K) = \ker(\delta_K^T)$.
+- **Soundness**: $r > 0 \iff$ no global assignment explains the known data. Furthermore, for any injected lie $\varepsilon_K$, $\|\varepsilon_K\|_2 \ge r$ (exact minimum lie).
+- **Single-edge lie closed form**: For a lie of size $s$ on edge $e$, $r = |s|\sqrt{1 - R_{\text{eff}}(e)}$ where $R_{\text{eff}}(e)$ is the effective resistance.
+
+### 2. Localization via Electrical Current (CR-2)
+For a single equivocator $q$, the per-edge residual vector $\rho = \Pi_K \varepsilon_K$ satisfies:
+$$\text{supp}(\rho) \subseteq \bigcup \{ \text{cycles of } G_K \text{ passing through } q \}$$
+The maximum-residual edge lies on a cycle through the equivocator with zero false-positives under bounded noise ($2\|\eta_K\| < \max_f \|(\Pi \varepsilon)_f\|$).
+
+### 3. Active Cohomological Repair (CR-4)
+Given $r > 0$ and edge intervention costs $w(e) > 0$ (cost of forced sync or claim fencing):
+- Residual energy per edge: $E(e) = \|\rho_e\|_2^2$.
+- The greedy controller selects $e^* = \arg\max_{e} E(e)/w(e)$ and fences/reconciles it.
+- Collapses the residual $r \to 0$ in at most $\beta_1(G_K)$ rounds.
+
+### 4. Simplicial Hodge Decomposition & Swarm Legibility Ratio (CR-5)
+On 2-complexes with triadic joins $\tau = (u,v,w)$ and boundary operator $\delta_1: C^1 \to C^2$:
+$$g = \underbrace{\delta_0 x}_{\text{gauge gradient}} + \underbrace{h}_{\text{harmonic } \in H^1} + \underbrace{\delta_1^* \psi}_{\text{triadic curl}}$$
+The **Swarm Legibility Ratio**:
+$$\mathcal{L}(g) = \frac{\|h\|_2^2}{\|h\|_2^2 + \|\delta_1^* \psi\|_2^2} \in [0, 1]$$
+- $\mathcal{L}(g) \approx 0$: **Micro failure** — a specific 3-party review join or work-unit contract failed ($\delta_1 g \neq 0$). Intervene locally.
+- $\mathcal{L}(g) \approx 1$: **Macro failure** — all local triangles are consistent ($\delta_1 g = 0$), but a non-contractible partition cavity exists. Intervene on cross-cluster bridges.
+
+---
+
+## Python Reference Implementation
+
+> [!IMPORTANT]
+> **Do not use PySheaf for cohomology.** PySheaf maintainers explicitly confirm PySheaf cannot compute cohomology. Use the verified NumPy/SciPy linear algebra block below.
 
 ```python
 import numpy as np
-from scipy.linalg import null_space
 
-# --- 1. Specify the sheaf ---
-# For a graph with V vertices (stalk dim d_v each) and E edges (stalk dim d_e each):
-# Vertex state: x ∈ R^(V * d_v)   (concatenated stalk vectors)
-# Edge state:   C1 ∈ R^(E * d_e)
+def completion_residual(delta_K, g_K):
+    """Computes completion residual r = ||Pi_K g_K||_2."""
+    xhat, _, _, _ = np.linalg.lstsq(delta_K, g_K, rcond=None)
+    resid = g_K - delta_K @ xhat
+    r = float(np.linalg.norm(resid))
+    return r, resid
 
-# For each edge e = (u, v), define:
-#   R_u: (d_e x d_v) restriction map from u's stalk to e's stalk
-#   R_v: (d_e x d_v) restriction map from v's stalk to e's stalk
+def simplicial_hodge_decomposition(delta_0, delta_1, g):
+    """
+    Decomposes g = delta_0 x + h + delta_1^* psi
+    Returns: grad_comp, h, curl_comp, legibility_ratio
+    """
+    # 1. Gradient component (gauge)
+    xhat, _, _, _ = np.linalg.lstsq(delta_0, g, rcond=None)
+    grad_comp = delta_0 @ xhat
+    w = g - grad_comp
 
-# --- 2. Build coboundary matrix delta ---
-# Shape: (E * d_e) x (V * d_v)
-# One block-row per edge. For edge e = (u, v):
-#   delta[e_block, u_block] = +R_u
-#   delta[e_block, v_block] = -R_v
-#   all other blocks = 0
+    # 2. Curl component (triadic frustration)
+    if delta_1.shape[0] > 0:
+        psi_hat, _, _, _ = np.linalg.lstsq(delta_1.T, w, rcond=None)
+        curl_comp = delta_1.T @ psi_hat
+    else:
+        curl_comp = np.zeros_like(w)
 
-def build_delta(edges, restriction_maps, n_verts, d_v, d_e):
-    n_edges = len(edges)
-    delta = np.zeros((n_edges * d_e, n_verts * d_v))
-    for i, (u, v) in enumerate(edges):
-        R_u, R_v = restriction_maps[(u, v)]
-        delta[i*d_e:(i+1)*d_e, u*d_v:(u+1)*d_v] =  R_u
-        delta[i*d_e:(i+1)*d_e, v*d_v:(v+1)*d_v] = -R_v
-    return delta
+    # 3. Harmonic component (cohomology class)
+    h = w - curl_comp
 
-# --- 3. Compute sheaf Laplacian ---
-def sheaf_laplacian(delta):
-    return delta.T @ delta   # (V*d_v) x (V*d_v), PSD
+    # 4. Swarm Legibility Ratio
+    norm_h_sq = float(np.sum(h ** 2))
+    norm_curl_sq = float(np.sum(curl_comp ** 2))
+    denom = norm_h_sq + norm_curl_sq
+    L = norm_h_sq / denom if denom > 1e-12 else 0.0
 
-# --- 4. Cohomology dimensions ---
-def cohomology_dims(delta):
-    n_vertex_dims = delta.shape[1]
-    n_edge_dims   = delta.shape[0]
-    rank = np.linalg.matrix_rank(delta, tol=1e-9)
-    h0_dim = n_vertex_dims - rank   # dim ker(delta)
-    h1_dim = n_edge_dims - rank     # for graphs: dim Z1 - dim im(delta) = E*d_e - rank
-    return h0_dim, h1_dim
+    return grad_comp, h, curl_comp, L
 
-# --- 5. Diagnose current agent state ---
-def diagnose(delta, edges, d_e, x_current):
-    edge_discrepancies = delta @ x_current    # (E*d_e,)
-    per_edge_energy = []
-    for i in range(len(edges)):
-        d = edge_discrepancies[i*d_e:(i+1)*d_e]
-        per_edge_energy.append(float(d @ d))
-    dirichlet_energy = sum(per_edge_energy)
-    worst_edge_idx   = int(np.argmax(per_edge_energy))
-    return {
-        "dirichlet_energy": dirichlet_energy,
-        "per_edge_energy":  per_edge_energy,
-        "worst_edge":       edges[worst_edge_idx],
-        "worst_energy":     per_edge_energy[worst_edge_idx],
-    }
+def greedy_cohomological_repair(delta_0, edges, g, costs=None):
+    """Selects minimum-cost edges to fence until r == 0."""
+    nE = len(edges)
+    if costs is None:
+        costs = {e: 1.0 for e in edges}
 
-# --- 6. Decision tree ---
-# h0_dim == 0  →  No consensus is topologically reachable. Redesign stalks or restriction maps.
-# h1_dim == 0  →  Consensus is reachable; slow convergence is a rate problem (check λ₂).
-# h1_dim > 0   →  Structural obstruction. Identify the cycle(s): find null_space(delta.T)
-#                  to get the H¹ cocycles. Each basis vector localizes to a cycle.
-# dirichlet_energy plateaus > 0 at equilibrium  →  Same as h1_dim > 0 in practice.
-# worst_edge has high energy at equilibrium  →  That edge's restriction maps are the conflict locus.
+    repaired = []
+    active_mask = np.ones(nE, dtype=bool)
+    current_g = g.copy()
 
-# --- 7. Localize the obstruction ---
-def obstruction_cycles(delta, edges):
-    # Rows of null_space(delta.T) are H1 cocycles — they identify conflicting edge sets
-    ns = null_space(delta.T, rcond=1e-9)   # columns are basis for H1
-    return ns   # nonzero rows indicate which edges participate in obstructions
+    while True:
+        act = np.where(active_mask)[0]
+        if len(act) == 0:
+            break
+        A = delta_0[act, :]
+        b = current_g[act]
+        xh, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+        res = b - A @ xh
+        r = float(np.linalg.norm(res))
+        if r < 1e-9:
+            break
+        energies = np.zeros(nE)
+        for idx, val in zip(act, res):
+            energies[idx] = val ** 2
+        ratios = [energies[i] / costs[edges[i]] if active_mask[i] else 0.0 for i in range(nE)]
+        best_idx = int(np.argmax(ratios))
+        repaired.append(edges[best_idx])
+        active_mask[best_idx] = False
+
+    return repaired
 ```
 
-**Operator interpretation of outputs:**
-- `h0_dim`: number of independent consensus modes. If 0, no consensus is possible.
-- `h1_dim`: number of topological obstructions. If > 0, some cycles have irreconcilable restriction maps.
-- `dirichlet_energy` at equilibrium: if nonzero, disagreement is structural, not transient.
-- `per_edge_energy` at equilibrium: large values pinpoint the conflicted edges.
-- `obstruction_cycles`: H¹ basis vectors localize which cycles contain each obstruction.
+---
 
-**Fix the sheaf, not the swarm:** When h1_dim > 0, the remedy is not more agents, faster diffusion, or longer runtime. The remedy is to modify a restriction map on the conflicted cycle — change what one agent projects into the shared discourse space on that edge — until the cycle becomes consistent (H¹ drops to 0).
+## Decision Logic for the Swarm Supervisor (Coxswain / Operator)
 
-## Key References
+```mermaid
+flowchart TD
+    A[Ingest Observed Cochain g_K on Known Edges] --> B[Compute Completion Residual r = ||Pi_K g_K||]
+    B --> C{r < 1e-9?}
+    C -- yes --> D[ALL QUIET: Swarm is Globally Consistent]
+    C -- no --> E[Obstruction Confirmed: Inconsistency Certified]
+    E --> F[Compute Simplicial Hodge Decomposition]
+    F --> G[Calculate Legibility Ratio L]
+    G --> H{L < 0.2?}
+    H -- yes --> I[MICRO FAILURE: Triadic Review Join or WorkContract Violated]
+    I --> J[Triage: Inspect Failed Triangle tau; Re-run Producer-Dissenter-Manager Round]
+    H -- no --> K{L > 0.8?}
+    K -- yes --> M[MACRO FAILURE: Network Partition Cavity]
+    M --> N[Triage: Identify Cut Bridges; Execute CR-4 Optimal Repair Min-Cut]
+    K -- no --> P[HYBRID FAILURE: Mixed Local Frustration & Macro Cavity]
+    P --> N
+    N --> Q[Active Remediation: Synchronize or Fence Edge e* = argmax E/w]
+    Q --> R[Re-evaluate Residual until r = 0]
+```
 
-1. **Hansen, J. & Ghrist, R. (2021).** "Opinion Dynamics on Discourse Sheaves." *SIAM Journal on Applied Mathematics*, 81(5), 2033–2060. arXiv:2005.12798. Foundational paper: defines discourse sheaves, proves convergence of sheaf diffusion to ker(L_F) = H⁰, introduces H¹ as the formal obstruction to consensus. The proof that non-trivial H¹ implies residual disagreement is unavoidable regardless of initial conditions.
+---
 
-2. **Riess, H. & Hale, M. (2025).** "Distributed Multi-agent Coordination over Cellular Sheaves." arXiv:2504.02049. Extends to nonlinear sheaf diffusion with delay bounds; provides Algorithm 1 (ADMM-based distributed solve); frames Dirichlet energy as the coordination cost metric. Convergence proofs include explicit λ₂(L_F) rate bounds.
+## References
 
-3. **Ayzenberg, A. et al. (2026).** "Selective Adaptation of Beliefs and Communication on Cellular Sheaves." arXiv:2601.22431. Most precise formulation of H¹ obstruction classes for bounded consensus; introduces selective rigidity and the boundary map ∂: H⁰(stubborn subgraph) → H¹(remaining sheaf) as a diagnostic tool for locating the failure to specific agent subpopulations.
-
-4. **kb1dds/pysheaf** (github.com/kb1dds/pysheaf). The primary open-source Python library for cellular sheaf cohomology. `Sheaf.cohomology()`, `Sheaf.cobetti()`, `Sheaf.consistencyRadius()`. Takes stalks as numpy arrays and restriction maps as functions. Use when you want algebraically exact cohomology computations rather than the rank-based approximation above.
+1. **Hanks, J., Riess, H., & Hale, M. (2025).** "Distributed Multi-agent Coordination over Cellular Sheaves." *arXiv:2504.02049*.
+2. **Seely, J. et al. (2026).** "Learning Multi-Agent Coordination via Sheaf-ADMM." *ICML 2026*.
+3. **Ghrist, R. & Riess, H. (2026).** "Cellular Sheaves of Lattices and the Tarski Laplacian for Distributed Optimization."
+4. **Hansen, J. & Ghrist, R. (2019).** "Toward a Spectral Theory of Cellular Sheaves." *Journal of Applied and Computational Topology*, 3(4):315–358.
+5. **Robinson, M. (2020).** "Assignments to sheaves of pseudometric spaces." *Compositionality*, arXiv:1805.08927.
+6. **Curiositech / Port Daddy (2026).** Harbor Results Compendium R6, Theorems CR-1 through CR-5 (`skills/harbor-results/scripts/sheaf_consistency_radius.py`, `sheaf_repair_and_2complex.py`).
