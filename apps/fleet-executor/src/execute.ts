@@ -2813,6 +2813,10 @@ export async function executeFleet(
       checkpointBinding,
     );
     if (!checkpointSaved) checkpointFailureObserved = true;
+    // Count execution even when its checkpoint write failed. Continuation is
+    // independently fail-closed below: it requires this checkpoint to be
+    // durable *and* the sticky whole-invocation failure flag to remain clear.
+    // This counter alone can never authorize a continuation.
     newlyExecutedShips += 1;
 
     // A retryable Workers AI fault exhausted its bounded delivery budget. The

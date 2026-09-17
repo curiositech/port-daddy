@@ -2354,7 +2354,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('failure');
   });
 
-  it('does not let a later checkpoint strand an earlier uncheckpointed ship', async () => {
+  it('finishes the finite roster instead of yielding after any checkpoint write fails', async () => {
     state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
     state.openPRs = [];
     state.branches = [];
@@ -2373,7 +2373,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     const disposition = await executeFleet(
       makeJob(),
       makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
-      { queueAttempt: 1, maxNewShipsPerInvocation: 2 },
+      // A one-ship slice makes the fail-closed condition direct: the first
+      // failed checkpoint already reaches the nominal continuation threshold,
+      // yet every remaining ship must still execute in this invocation.
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
     );
 
     expect(disposition).toBeUndefined();

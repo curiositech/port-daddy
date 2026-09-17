@@ -189,6 +189,27 @@ describe('release-candidate E2E contract', () => {
     );
   });
 
+  test('bounded server cleanup preserves callback and synchronous close errors', async () => {
+    const callbackError = new Error('callback close failed');
+    const callbackFailure = {
+      close(callback) {
+        callback(callbackError);
+      },
+    };
+    await expect(closeServerBoundedly(callbackFailure, 1_000, 'callback fixture')).rejects.toThrow(
+      /callback close failed/,
+    );
+
+    const synchronousFailure = {
+      close() {
+        throw new Error('synchronous close failed');
+      },
+    };
+    await expect(closeServerBoundedly(synchronousFailure, 1_000, 'synchronous fixture')).rejects.toThrow(
+      /synchronous close failed/,
+    );
+  });
+
   test('bounded fixture cleanup destroys tracked accepted sockets before closing the listener', async () => {
     const sockets = new Set();
     const server = createServer((socket) => {
