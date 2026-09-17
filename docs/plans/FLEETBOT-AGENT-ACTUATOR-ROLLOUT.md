@@ -67,10 +67,19 @@ signature must distinguish the verified dispatcher from both supplied labels.
 
 Relay resolves GitHub response ambiguity inside one invocation by exact
 readback. Loss of the final Relay response is different: the manual workflow
-does not yet retain a recoverable signed envelope, so operators must not blindly
-re-dispatch it. A signed receipt-read/recovery path is required in Phase B2;
-Phase B1 widens the typed operation set without claiming that fresh dispatch is
-safe recovery.
+now preserves a signed, sanitized recovery manifest before any mutation. A
+rerun uses a fresh workload-signed read proof to recover only a successfully
+finalized Relay receipt. It cannot mint a GitHub token, call GitHub, consume a
+second mutation capability, lease an intent, or fall back to `/publish`.
+`reserved`, `running`, `failed`, `ambiguous`, corrupt, and legacy-unbound states
+all stop. Phase B2 therefore repairs final-response loss without pretending an
+ambiguous external effect is safe to replay.
+
+The recovery manifest binds the repository, workflow run, typed input digest,
+grant epoch, operation, exact base/head, session, request hash, and idempotency
+key. It excludes the action body, reviewer lists, credentials, private keys,
+GitHub tokens, and capability signature. The full action request remains local
+to the first-attempt runner and is checked against the manifest before dispatch.
 
 ## Phase C and D trust split
 
