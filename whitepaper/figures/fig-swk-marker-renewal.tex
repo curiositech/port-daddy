@@ -8,12 +8,13 @@
 %   0.95^90. Live agent re-marks every 25 min (illustrative cadence): its
 %   strength never falls below 0.95^25 = .277. [analytic, from the code]
 % Must distinguish: renewed vs abandoned; the deletion threshold; when.
-% Grammar: snapshots of the shared board (dot area = strength) on the same time
-%   axis as the strength traces, log y so decay is a straight line.
+% Grammar: presence snapshots of the shared board on the same time axis as
+%   the strength traces, log y so decay is a straight line. The curves carry
+%   magnitude; the snapshots carry the simpler present/gone distinction.
 %   Rejected: the w(t) curve alone (fig-swk-marker-decay) -- it shows the
 %   arithmetic, not that renewal is what keeps a signal alive.
-% Five-second test: "the blue dots stay, the grey dots fade out by minute 90".
-% CAPTION IS A DRAFT FOR THE AUTHOR.
+% Five-second test: "the renewed markers stay; the abandoned markers are gone
+%   at minute 90 without a cleanup actor".
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
@@ -47,46 +48,40 @@
   \draw[pd focus rule] (axis cs:50,0.2774) -- (axis cs:50,1);
   \draw[pd focus rule] (axis cs:75,0.2774) -- (axis cs:75,1);
   \node[pd focus label,anchor=west] at (axis cs:100.5,0.2774) {live agent};
-  % snapshots of the shared board on the same clock; dot area = strength
+  % snapshots of the shared board on the same clock; fixed house marks encode
+  % presence, while the curves above carry the measured strength.
   \draw[pd artifact] (axis cs:0,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
-  \fill[pdcobalt] (axis cs:0,1.4) ++(-8pt,18pt) circle[radius=3.10pt];
-  \fill[black!55] (axis cs:0,1.4) ++(-8pt,6.5pt) circle[radius=3.10pt];
-  \fill[pdcobalt] (axis cs:0,1.4) ++(0pt,18pt) circle[radius=3.10pt];
-  \fill[black!55] (axis cs:0,1.4) ++(0pt,6.5pt) circle[radius=3.10pt];
-  \fill[pdcobalt] (axis cs:0,1.4) ++(8pt,18pt) circle[radius=3.10pt];
-  \fill[black!55] (axis cs:0,1.4) ++(8pt,6.5pt) circle[radius=3.10pt];
+  \path (axis cs:0,1.4) ++(-8pt,18pt) node[pd focus datum] {};
+  \path (axis cs:0,1.4) ++(-8pt,6.5pt) node[pd datum] {};
+  \path (axis cs:0,1.4) ++(0pt,18pt) node[pd focus datum] {};
+  \path (axis cs:0,1.4) ++(0pt,6.5pt) node[pd datum] {};
+  \path (axis cs:0,1.4) ++(8pt,18pt) node[pd focus datum] {};
+  \path (axis cs:0,1.4) ++(8pt,6.5pt) node[pd datum] {};
   \draw[pd artifact] (axis cs:30,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
-  \fill[pdcobalt] (axis cs:30,1.4) ++(-8pt,18pt) circle[radius=2.73pt];
-  \fill[black!55] (axis cs:30,1.4) ++(-8pt,6.5pt) circle[radius=1.44pt];
-  \fill[pdcobalt] (axis cs:30,1.4) ++(0pt,18pt) circle[radius=2.73pt];
-  \fill[black!55] (axis cs:30,1.4) ++(0pt,6.5pt) circle[radius=1.44pt];
-  \fill[pdcobalt] (axis cs:30,1.4) ++(8pt,18pt) circle[radius=2.73pt];
-  \fill[black!55] (axis cs:30,1.4) ++(8pt,6.5pt) circle[radius=1.44pt];
+  \path (axis cs:30,1.4) ++(-8pt,18pt) node[pd focus datum] {};
+  \path (axis cs:30,1.4) ++(-8pt,6.5pt) node[pd datum] {};
+  \path (axis cs:30,1.4) ++(0pt,18pt) node[pd focus datum] {};
+  \path (axis cs:30,1.4) ++(0pt,6.5pt) node[pd datum] {};
+  \path (axis cs:30,1.4) ++(8pt,18pt) node[pd focus datum] {};
+  \path (axis cs:30,1.4) ++(8pt,6.5pt) node[pd datum] {};
   \draw[pd artifact] (axis cs:60,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
-  \fill[pdcobalt] (axis cs:60,1.4) ++(-8pt,18pt) circle[radius=2.40pt];
-  \fill[black!55] (axis cs:60,1.4) ++(-8pt,6.5pt) circle[radius=0.67pt];
-  \fill[pdcobalt] (axis cs:60,1.4) ++(0pt,18pt) circle[radius=2.40pt];
-  \fill[black!55] (axis cs:60,1.4) ++(0pt,6.5pt) circle[radius=0.67pt];
-  \fill[pdcobalt] (axis cs:60,1.4) ++(8pt,18pt) circle[radius=2.40pt];
-  \fill[black!55] (axis cs:60,1.4) ++(8pt,6.5pt) circle[radius=0.67pt];
+  \path (axis cs:60,1.4) ++(-8pt,18pt) node[pd focus datum] {};
+  \path (axis cs:60,1.4) ++(-8pt,6.5pt) node[pd datum] {};
+  \path (axis cs:60,1.4) ++(0pt,18pt) node[pd focus datum] {};
+  \path (axis cs:60,1.4) ++(0pt,6.5pt) node[pd datum] {};
+  \path (axis cs:60,1.4) ++(8pt,18pt) node[pd focus datum] {};
+  \path (axis cs:60,1.4) ++(8pt,6.5pt) node[pd datum] {};
   \draw[pd artifact] (axis cs:90,1.4) ++(-13pt,25pt) rectangle ++(26pt,-24.5pt);
-  \fill[pdcobalt] (axis cs:90,1.4) ++(-8pt,18pt) circle[radius=2.11pt];
-  \draw[pd hairline,dash pattern=on \pdguideon off \pdguideoff] (axis cs:90,1.4) ++(-8pt,6.5pt) circle[radius=2.2pt];
-  \fill[pdcobalt] (axis cs:90,1.4) ++(0pt,18pt) circle[radius=2.11pt];
-  \draw[pd hairline,dash pattern=on \pdguideon off \pdguideoff] (axis cs:90,1.4) ++(0pt,6.5pt) circle[radius=2.2pt];
-  \fill[pdcobalt] (axis cs:90,1.4) ++(8pt,18pt) circle[radius=2.11pt];
-  \draw[pd hairline,dash pattern=on \pdguideon off \pdguideoff] (axis cs:90,1.4) ++(8pt,6.5pt) circle[radius=2.2pt];
+  \path (axis cs:90,1.4) ++(-8pt,18pt) node[pd focus datum] {};
+  \path (axis cs:90,1.4) ++(0pt,18pt) node[pd focus datum] {};
+  \path (axis cs:90,1.4) ++(8pt,18pt) node[pd focus datum] {};
   \path (axis cs:90,1.4) ++(15pt,18pt) node[pd focus label,anchor=west] {live};
   \path (axis cs:90,1.4) ++(15pt,6.5pt) node[pd label,anchor=west] {crashed};
 \end{axis}
 \end{tikzpicture}
-\caption{Draft. Markers on the shared board, from the kernel's shipped
-settings: every minute a marker keeps 95\,\% of its strength, and it is deleted
-once it falls below 0.01. The live agent marks its files again every 25
-minutes, and each mark resets them to full strength, so they never fall below
-0.28. The crashed agent's last mark was at minute~0; its dots shrink and are
-deleted at minute~90 without anyone removing them. The top row shows the board
-at the four times on the axis; dot area is strength. [analytic; from the
-kernel's source]}
+\caption{Marker strength under the shipped 0.95-per-minute decay and 0.01
+prune threshold. Renewal every 25 minutes keeps the live markers present;
+the abandoned markers disappear at minute 90 without a cleanup actor.
+[verified, \texttt{lib/pheromone.ts}; analytic]}
 \label{fig:swk-marker-renewal}
 \end{figure}

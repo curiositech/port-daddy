@@ -264,8 +264,6 @@ threat's row turns from red (open) to the chapter hue (closed) at the phase
 that closes it, and the closure frontier moves strictly rightward, so no
 later phase reopens a threat an earlier one closed.
 
-\input{figures/fig-anchor-four-phases}
-
 A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Temporal attenuation is the same rule applied to the clock: a child's expiry is the earlier of its parent's expiry and the lifetime requested, so a twenty-minute child requested under a parent with ten minutes left is refused, and the acceptable narrower card is the one that inherits the parent's ten; in the capability lattice, lifetime is one more coordinate that moves down or stays. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
 
 \begin{pdexample}{a child card under a parent with ten minutes left}

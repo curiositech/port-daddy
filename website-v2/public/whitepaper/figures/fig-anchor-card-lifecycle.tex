@@ -15,50 +15,58 @@
 % Must distinguish: the two absorbing terminal states (revoked, expired) from
 %   the one non-transition available after either -- issuing a new card,
 %   drawn as a correction off-ramp, never a return arrow to issued.
-% Grammar chosen: state machine (tpl-state-machine), guards keyed to a
-%   legend. Rejected: the timeline-of-intervals grammar the draft used -- it
-%   answers "when was this card good for," not the atlas's own reader
-%   question, "what are the only exits."
+% Grammar chosen: compact UML state machine, with the same-card lifecycle in
+%   one panel and fresh issuance outside it; guards are keyed to a ruled
+%   legend. Rejected: a timeline, which answers when rather than which exits,
+%   and a tall fork, which spends vertical space without adding state meaning.
 % Five-second test: "issued has exactly two guarded exits, both absorbing;
 %   the only way out of either is a new card, not a returning arrow."
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.76cm,y=1cm]
-  \node[pd focus state,minimum width=2.6cm] (S0) at (4.3,5.6) {issued};
-  \node[pd breach state,minimum width=2.6cm] (S1) at (1.3,3.2) {revoked};
-  \node[pd breach state,minimum width=2.6cm] (S2) at (7.3,3.2) {expired};
-  \draw[pd breach arrow] (S0.south west) -- (S1.north east);
-  \draw[pd breach arrow] (S0.south east) -- (S2.north west);
-  \node[pd badge] at (2.15,4.55) {1};
-  \node[pd badge] at (6.45,4.55) {2};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  terminal/.style={pd breach state,double=pdpage,double distance=1.1pt,
+    line width=.5pt,rounded corners=4.5pt}]
+  \node[pd uml initial] (start) at (.20,2.00) {};
+  \node[pd uml focus state,minimum width=2.05cm] (issued) at (1.75,2.00)
+    {issued};
+  \node[pd uml choice] (fork) at (3.65,2.00) {};
+  \node[terminal,minimum width=2.25cm] (revoked) at (5.70,3.00)
+    {revoked};
+  \node[terminal,minimum width=2.25cm] (expired) at (5.70,1.00)
+    {expired};
 
-  \node[pd ready state,minimum width=3.0cm] (S3) at (1.3,.6) {new card, new id};
-  \draw[pd ready arrow,dashed] (S1.south) -- (S3.north);
-  \node[pd label,anchor=west,align=left,text width=3.9cm] at (2.85,1.9)
-    {correction: not a transition of this card -- a fresh id, old history
-     on this one left untouched};
+  \node[pd panel,fit=(start)(issued)(fork)(revoked)(expired),
+        inner sep=6pt] (samecard) {};
+  \node[pd kind,anchor=south] at (3.10,3.72) {same card ID};
+  \draw[pd uml transition,shorten >=3pt] (start) -- (issued);
+  \draw[pd uml transition,shorten >=3pt] (issued) -- (fork);
+  \node[pd badge] (g1) at (4.60,2.62) {1};
+  \node[pd badge] (g2) at (4.60,1.38) {2};
+  \draw[pd breach rule,pd to badge] (fork) -- (g1);
+  \draw[pd uml breach transition,pd from badge,shorten >=3pt] (g1) -- (revoked);
+  \draw[pd breach rule,pd to badge] (fork) -- (g2);
+  \draw[pd uml breach transition,pd from badge,shorten >=3pt] (g2) -- (expired);
 
-  \node[pd note,anchor=north west,text width=6.0cm] at (0,-.85)
-    {neither terminal state has an outgoing edge: no partial reanimation};
-
-  % ---- the legend: each guard, its predicate ------------------------------
-  \def\ly{-2.15}
-  \draw[pd rule] (0,\ly) -- (8.8,\ly);
-  \node[pd title,anchor=north west] at (.05,{\ly-.45}) {guard};
-  \node[pd title,anchor=north west] at (1.3,{\ly-.45}) {predicate};
-  \draw[pd hairline] (0,{\ly-1.00}) -- (8.8,{\ly-1.00});
-  \foreach \i/\n/\g in {0/1/{revoke: operator action or detected compromise (def:revocation)},
-                        1/2/{TTL elapses: issue time + tau (prop:filter-mono)}}{
-    \node[pd badge] at (.35,{\ly-1.55-\i*1.05}) {\n};
-    \node[pd label,anchor=west,align=left,text width=5.7cm] at (1.3,{\ly-1.55-\i*1.05}) {\g};}
+  \node[pd ready state,minimum width=2.35cm] (fresh) at (9.15,3.00)
+    {new card\\new ID};
+  \draw[pd ready arrow,dash pattern=on 3.2pt off 2.2pt,shorten <=3pt,shorten >=3pt]
+    (samecard.east |- revoked.east) -- (fresh.west);
+  \node[pd note,anchor=north west,align=left,text width=3.2cm] at (7.22,2.45)
+    {not a transition of the revoked card};
 \end{tikzpicture}
-\caption{The card lifecycle as a small state machine: issued has exactly two
-guarded exits, both terminal. Guard 1 is explicit revocation (an operator
-action or a detected compromise); guard 2 is natural expiry at the TTL. Once
-either fires, that card ID never re-enters the admissible set -- the dashed
-green edge is the one recovery available, and it is not a transition of the
-revoked card: the operator issues a new card on a new ID, leaving the
-revoked card's history untouched rather than mutating it. [internal]}
+\vspace{2pt}
+{\pdfiglabel
+\begin{tabular}{@{}c p{.82\linewidth}@{}}
+\toprule
+{\pdfiglabelbold Guard} & {\pdfiglabelbold Predicate} \\
+\midrule
+\raisebox{-.5ex}{\tikz[baseline=-.6ex]\node[pd badge]{1};} & explicit revocation: operator action or detected compromise \\
+\raisebox{-.5ex}{\tikz[baseline=-.6ex]\node[pd badge]{2};} & natural expiry: issue time plus TTL \\
+\bottomrule
+\end{tabular}}
+\caption{A UML state machine gives one card ID exactly two guarded exits,
+both terminal. Recovery starts a new lifecycle on a fresh ID; it never
+reanimates the revoked card. [internal]}
 \label{fig:anchor-card-lifecycle}
 \end{figure}

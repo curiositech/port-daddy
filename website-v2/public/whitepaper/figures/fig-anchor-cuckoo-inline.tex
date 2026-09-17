@@ -13,83 +13,64 @@
 %   a card before it expires"); log union c1 c2 c4 c7 c9 [internal].
 % Must distinguish: an empty bucket (plain, uninformative) from a bucket that
 %   holds c1 (breach hue when the state is invalid, focus hue when rebuilt).
-% Grammar chosen: before/after (tpl-before-after), same six-bucket geometry in
-%   both panels. Rejected: heavy fills on every bucket (the v1 defect) --
-%   equal weight for five empty cells and the one occupied one erases the
-%   fact the figure exists to show.
+% Grammar chosen: before/after dataflow on the same six-bucket geometry.
+%   Each transformation has one vertical arrow with a termination gap; its
+%   label sits beside the path, never across it. Rejected: the atlas's old
+%   load-threshold plot, because this paragraph argues merge semantics rather
+%   than occupancy limits, and heavy fills on every bucket, which erase the
+%   occupied-cell comparison.
 % Five-second test: "OR keeps c1 in two buckets at once; the rebuilt log
 %   keeps it in exactly one."
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=.78cm,y=1cm,
-    bucket/.style={pd state,minimum width=.78cm,minimum height=.78cm,
-      inner sep=0pt,font=\pdfiglabelbold,rounded corners=1pt}]
-  \newcommand{\rowlabelnode}[2]{\node[pd label,anchor=east,text width=1.7cm,align=right] at (-.35,#1) {#2};}
+    bucket/.style={pd state,minimum width=.78cm,minimum height=.72cm,
+      inner sep=0pt,rounded corners=1pt}]
+  \newcommand{\rowlabelnode}[2]{\node[pd label,anchor=east,text width=1.45cm,align=right] at (-.38,#1) {#2};}
 
-  % ---------- panel 1: filters do not merge ---------------------------------
-  \node[pd title,anchor=west] at (-.35,8.75) {filters do not merge};
-
-  \rowlabelnode{7.55}{peer A}
-  \foreach \i in {1,...,6} \node[bucket] (a\i) at (\i-1,7.55) {};
+  % ---------- before: encoded filter state is not mergeable -----------------
+  \node[pd title,anchor=west] at (-.35,8.35) {before: encoded filters do not merge};
+  \rowlabelnode{7.38}{peer A}
+  \foreach \i in {1,...,6} \node[bucket] (a\i) at (\i-1,7.38) {};
   \node[bucket,pd focus fill] at (a2) {c1};
-
-  \rowlabelnode{6.35}{peer B}
-  \foreach \i in {1,...,6} \node[bucket] (b\i) at (\i-1,6.35) {};
+  \rowlabelnode{6.38}{peer B}
+  \foreach \i in {1,...,6} \node[bucket] (b\i) at (\i-1,6.38) {};
   \node[bucket,pd focus fill] at (b5) {c1};
 
-  \rowlabelnode{5.15}{A OR B}
-  \foreach \i in {1,...,6} \node[bucket] (o\i) at (\i-1,5.15) {};
+  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt] (2.5,5.94) -- (2.5,5.12);
+  \node[pd breach label,anchor=west] at (2.78,5.53) {bitwise OR};
+  \rowlabelnode{4.68}{invalid}
+  \foreach \i in {1,...,6} \node[bucket] (o\i) at (\i-1,4.68) {};
   \node[bucket,pd breach fill] at (o2) {c1};
   \node[bucket,pd breach fill] at (o5) {c1};
+  \node[pd breach label,anchor=west] at (5.78,4.68) {c1 twice};
 
-  \foreach \i in {1,...,6} {
-    \draw[pd tick] (\i-1,4.7) -- (\i-1,4.58);
-    \node[pd label,anchor=north] at (\i-1,4.55) {\i};
-  }
-  \node[pd note,align=center,text width=6.6cm,anchor=north] at (2.5,4.0)
-    {two placements, one id: not a filter anyone built};
+  % ---------- after: semantic IDs merge, then rebuild locally ---------------
+  \draw[pd hairline] (-1.0,3.90) -- (7.20,3.90);
+  \node[pd title,anchor=west] at (-.35,3.42) {after: the ID log merges};
+  \node[pd artifact,minimum width=3.05cm] (lA) at (.20,2.45)
+    {\texttt{A: c1 c7 c4}};
+  \node[pd artifact,minimum width=3.05cm] (lB) at (4.80,2.45)
+    {\texttt{B: c2 c1 c9}};
+  \node[pd focus state,minimum width=5.05cm] (union) at (2.50,1.18)
+    {set union: \texttt{c1 c2 c4 c7 c9}};
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (lA.south) -- (union.north west);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (lB.south) -- (union.north east);
 
-  % ---------- divider --------------------------------------------------------
-  \draw[pd hairline] (-.9,3.25) -- (5.9,3.25);
-
-  % ---------- panel 2: the log merges ----------------------------------------
-  \node[pd title,anchor=west] at (-.35,2.65) {the log merges};
-
-  \node[pd mono label,fill=none,anchor=west] (lA) at (-.35,1.85) {A: c1 c7 c4};
-  \node[pd mono label,fill=none,anchor=west] (lB) at (-.35,1.10) {B: c2 c1 c9};
-  \draw[pd focus arrow] (lA.east) ++(2.35,.375) to[out=0,in=160] (3.55,1.85);
-  \draw[pd focus arrow] (lB.east) ++(2.35,-.375) to[out=0,in=200] (3.55,1.85);
-  \node[pd title,text=pdfocus!85!pdink,anchor=west] at (3.95,1.85)
-    {c1 c2 c4 c7 c9};
-
-  \draw[pd focus arrow] (2.5,.55) -- (2.5,-.25);
-  \node[pd note,anchor=north,align=center,text width=2.5cm] at (6.15,1.30)
-    {set union over IDs is always well defined};
-
-  \rowlabelnode{-.95}{rebuilt}
-  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.95) {};
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (union.south) -- ++(0,-.82);
+  \node[pd focus label,anchor=west] at (2.82,.58) {rebuild locally};
+  \rowlabelnode{-.18}{valid}
+  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.18) {};
   \node[bucket,pd neutral fill] at (r1) {c2};
   \node[bucket,pd focus fill] at (r2) {c1};
   \node[bucket,pd neutral fill] at (r3) {c4};
   \node[bucket,pd neutral fill] at (r4) {c7};
   \node[bucket,pd neutral fill] at (r5) {c9};
-  \foreach \i in {1,...,6} {
-    \draw[pd tick] (\i-1,-1.40) -- (\i-1,-1.52);
-    \node[pd label,anchor=north] at (\i-1,-1.55) {\i};
-  }
-  \node[pd note,align=center,text width=6.6cm,anchor=north] at (2.5,-2.05)
-    {c1 occupies one bucket once: one valid local projection};
+  \node[pd focus label,anchor=west] at (5.78,-.18) {c1 once};
 \end{tikzpicture}
-\caption{Two six-bucket cuckoo filters compared before and after the design
-change. Top: peer $A$ inserts \texttt{c1} into bucket 2 and peer $B$ inserts
-the same \texttt{c1} into bucket 5, an artifact of each peer's own insertion
-and eviction history; every other bucket is empty, and bitwise \texttt{OR}
-keeps both \texttt{c1} placements, a state no single filter build could have
-produced. Bottom: gossiping the append-only ID log instead---peer $A$'s
-\texttt{c1 c7 c4} and peer $B$'s \texttt{c2 c1 c9}---and taking the ordinary
-set union gives \texttt{c1 c2 c4 c7 c9}; each daemon rebuilds one local
-filter with \texttt{c1} in a single bucket, the rest in gold as ordinary
-occupants. [internal]}
+\caption{Two dataflows compare unsafe filter-state union with semantic ID-log
+union. Bitwise \texttt{OR} duplicates \texttt{c1}; set union followed by a
+local rebuild projects it into exactly one bucket. [internal]}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

@@ -15,40 +15,44 @@
 %   containment is the claim (the lineage rides inside the chain, not
 %   beside it); the open tension the pitfall names (a semantic task-shape
 %   equivalence is not deterministically signable).
-% Grammar: nested envelope, outer = authorization chain, inner =
-%   coordination lineage. Rejected: two side-by-side boxes, which would
-%   assert two independent objects instead of the one-rides-inside-the-
-%   other relationship the section states.
-% Five-second test: "one outer envelope, Built, signed; one inner
-%   envelope, Designed, task-shaped".
+% Grammar: nested UML package plus component: the signed authorization
+%   package contains the coordination-lineage component it authenticates.
+%   Rejected: two side-by-side boxes, which would assert independence, and
+%   concentric colour fields, which show containment but not object kind.
+% Five-second test: "the coordination-lineage component is inside the signed
+%   authorization package; its task-shape binding is still open".
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\ox{0.20}  \def\oy{0.20}
-  \draw[pd focus fill] (\ox,-1.05) rectangle ({\ox+9.9},{\oy+5.4});
-  \node[pd title,anchor=north west,text width=6.6cm,align=left] at ({\ox+.25},{\oy+5.4-.15})
-    {authorization chain -- \textsc{built}};
-  \node[pd label,anchor=north west,text width=6.6cm,align=left] at ({\ox+.25},{\oy+4.55})
-    {hop-bound, attenuation-monotonic, anti-replay, anti-splice signatures: who authorized whom};
+  \def\w{10.55}
+  % UML package: the tab and frame name the signed container.
+  \draw[pd focus fill,rounded corners=1pt] (0,0) rectangle (\w,5.15);
+  \draw[pd focus fill,rounded corners=1pt] (0,5.15) rectangle (4.05,5.72);
+  \node[pd kind,anchor=west] at (.24,5.44) {signed package};
+  \node[pd title,anchor=west] at (.28,4.68)
+    {authorization chain \textperiodcentered\ \textsc{built}};
+  \node[pd label,anchor=west,text width=9.8cm,align=left] at (.28,4.02)
+    {hop-bound \textperiodcentered\ attenuating \textperiodcentered\ anti-replay
+     \textperiodcentered\ anti-splice};
 
-  \draw[pd neutral fill] ({\ox+.55},{\oy+.55}) rectangle ({\ox+9.9-1.9},{\oy+2.35});
-  \node[pd title,anchor=north west,text width=5.6cm,align=left] at ({\ox+.80},{\oy+2.35-.15})
-    {coordination lineage -- \textsc{designed}};
-  \node[pd label,anchor=north west,text width=5.6cm,align=left] at ({\ox+.80},{\oy+1.60})
-    {task lineage: loop detection and upward-block over the task shape};
-
-  \node[pd note,anchor=north west,text width=9.0cm] at ({\ox+.25},{-0.05})
-    {the lineage rides inside the chain: loop detection runs over a
-    lineage whose authenticity the outer signatures guarantee};
+  % UML component: a distinct coordination object carried in the package.
+  \node[pd uml component,minimum width=8.85cm,minimum height=2.25cm]
+    (lineage) at (5.28,2.05) {};
+  \pdumlicon{lineage}
+  \node[pd title,anchor=west] at (1.18,2.58)
+    {coordination lineage \textperiodcentered\ \textsc{designed}};
+  \node[pd label,anchor=west] at (1.18,2.02)
+    {loop detection \textperiodcentered\ upward-block over the task shape};
+  \node[pd breach label,anchor=west] at (1.18,1.46)
+    {signed task-shape binding: open};
+  \node[pd kind,anchor=south west] at (.55,3.30)
+    {carried inside every signed hop};
+  \draw[pd focus rule] (.55,3.15) -- (9.95,3.15);
 \end{tikzpicture}
-\caption{Two objects, never merged: the cryptographic authorization chain
-(\textsc{built}, mechanically verified) and the coordination lineage
-(\textsc{designed}) it carries. The nesting is the claim -- loop detection
-runs over a task lineage whose authenticity the outer chain of signatures
-guarantees, so the chapter never again writes bare ``delegation chain.''
-Making the inner task-shape field itself signable at each hop, given that
-loop detection needs a semantic equivalence rather than a keyword match, is
-an open tension the chapter flags rather than claims solved. [internal]}
+\caption{A UML package separates the built signed authorization chain from
+the designed coordination-lineage component it carries. The outer signatures
+authenticate the lineage, while signable semantic task-shape equivalence
+remains open. [internal]}
 \label{fig:swk-delegation-chains}
 \end{figure}

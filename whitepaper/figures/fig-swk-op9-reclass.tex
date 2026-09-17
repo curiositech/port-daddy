@@ -10,39 +10,46 @@
 %   rows verbatim), sec:merkle (the OP-9 design and its own three caveats).
 % Must distinguish: this is a reclassification of one row, not a new
 %   defense; the row's own words (in/out, what defends) travel with it.
-% Grammar: before/after excerpt reusing the threat table's own vocabulary,
-%   one row moving. Rejected: redrawing the full five-row threat table,
-%   which would repeat a schema the chapter already owns once (S13: no
-%   schema drawn twice).
-% Five-second test: "one row, two boxes, one arrow between them labelled
-%   with the one thing that has to ship".
+% Grammar: before/after on identical UML component cards, reusing the threat
+%   table's own fields and showing one row moving. Rejected: redrawing the
+%   full five-row table, which would repeat a schema the chapter already owns.
+% Five-second test: "the same adversary moves from same-user/out/none to
+%   different-uid/in-partial/kernel credential; residual surfaces remain".
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=south west] at (0.00,3.30) {today};
-  \node[pd panel,text width=3.95cm,align=left,inner sep=7pt] (before) at (2.15,1.55)
-    {\textbf{same-user process}\\[3pt] \textbf{out} of scope\\[3pt]
-     defends against nobody under this exclusion};
+  \def\cardw{4.15}
+  \node[pd title] at (2.15,4.05) {today};
+  \node[pd title] at (8.35,4.05) {after OP-9 ships};
 
-  \node[pd title,anchor=south west] at (6.30,3.30) {after OP-9 ships};
-  \node[pd focus fill,text width=3.95cm,align=left,inner sep=7pt,draw=pdfocus,line width=.9pt,rounded corners=2.5pt] (after) at (8.50,1.55)
-    {\textbf{different-uid process}\\[3pt] \textbf{in} (partial)\\[3pt]
-     kernel-verified peer credential binds to the spawn's ephemeral uid};
+  \node[pd uml component,minimum width=\cardw cm,minimum height=2.55cm]
+    (before) at (2.15,2.30) {};
+  \pdumlicon{before}
+  \node[pd title,anchor=west] at (.35,2.95) {same-user process};
+  \node[pd label,anchor=west] at (.35,2.30) {scope: \textbf{out}};
+  \node[pd label,anchor=west] at (.35,1.65) {defense: none};
 
-  \draw[pd focus arrow] (before.east) -- (after.west)
-    node[pd tag,midway,above=1pt,text width=2.0cm,align=center] {OS-level ephemeral namespaces};
-  \node[pd kind,anchor=north] at (5.325,-0.30) {OP-9, designed};
+  \node[pd uml component,pd focus outline,minimum width=\cardw cm,
+        minimum height=2.55cm] (after) at (8.35,2.30) {};
+  \pdumlicon{after}
+  \node[pd title,anchor=west] at (6.55,2.95) {different-uid process};
+  \node[pd label,anchor=west] at (6.55,2.30) {scope: \textbf{in (partial)}};
+  \node[pd label,anchor=west,align=left,text width=3.15cm] at (6.55,1.65)
+    {defense: kernel\\peer credential};
 
-  \node[pd note,anchor=north west,text width=10.4cm] at (0.00,-1.35)
-    {a real improvement, and still not ``impossible'': shared kernel surfaces and the sandbox implementation itself stay in scope either way};
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (before.east) -- (after.west);
+  \node[pd kind,anchor=south] at (5.25,2.74) {same threat};
+  \node[pd artifact,align=center,text width=1.75cm] at (5.25,.95)
+    {OP-9: ephemeral UID namespace};
+
+  \draw[pd neutral fill] (.10,-1.25) rectangle (10.40,-.35);
+  \node[pd label,anchor=west] at (.34,-.80)
+    {still in scope: shared kernel surfaces \textperiodcentered\ sandbox implementation};
 \end{tikzpicture}
-\caption{One threat-table row reclassified, not a new defense. Today the
-same-user process sits in the out-of-scope row, defended by nobody. OS-level
-ephemeral namespaces (OP-9, \textsc{designed}) would move it to the
-different-uid row, where the kernel-verified peer credential partially
-defends it -- a real improvement, and, per \S\ref{sec:merkle}'s own three
-caveats, not a claim that the boundary becomes impossible to cross.
+\caption{The same-machine adversary moves from the undefended same-user row
+to the partially defended different-uid row after OP-9. This is a threat-model
+reclassification, not proof that the residual boundary is impossible to cross.
 [internal]}
 \label{fig:swk-op9-reclass}
 \end{figure}

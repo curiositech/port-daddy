@@ -15,48 +15,45 @@
 % Must distinguish: the stale interval (exposure, before a lane's own wake)
 %   from the informed interval (after); the partition caveat is a separate
 %   claim from the timing trace, so it gets a second, explicit marker.
-% Grammar chosen: swimlane Gantt (tpl-swimlane-gantt). Rejected: a single
-%   average-latency number -- it would hide that C, D and E stay exposed far
-%   longer than B, which is exactly the fact a reader needs to distrust an
-%   average.
+% Grammar chosen: compact swimlane Gantt on one round axis. Rejected: a
+%   single average-latency number, which hides lane-specific exposure, and a
+%   tall lane stack, which spends a page without adding a comparison.
 % Five-second test: "daemon A already knows; C, D, E are still stale when B
 %   learns; the dashed line on the right says a partition has no deadline at
 %   all."
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.44cm,y=1cm]
-  \def\xzero{-4.5}
-  \def\xend{5.0}
-  \path[pd warn fill] (-4.5,-2.15) rectangle (2.0,2.65);
-  \node[pd label,anchor=south west,text width=3.1cm,align=left] at (-4.45,2.72)
-    {stale window: a revoked card may still be admitted here};
+\begin{tikzpicture}[pd figure,x=.72cm,y=.72cm]
+  \def\xzero{0}
+  \def\xend{9.7}
+  \def\xroundtwo{6.2}
+  \path[pd warn fill] (\xzero,.20) rectangle (\xroundtwo,5.35);
+  \node[pd label,anchor=south west] at (.08,5.72)
+    {possible stale acceptance};
 
-  \foreach \y/\peer/\wake in {2.15/A/-4.5,1.15/B/-1.4,.15/C/2.0,-.85/D/-.6,-1.85/E/2.0} {
-    \node[pd label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
+  \foreach \y/\peer/\wake in {4.75/A/0,3.75/B/2.8,2.75/C/6.2,1.75/D/3.6,.75/E/6.2} {
+    \node[pd label,anchor=east] at (\xzero-.30,\y) {\peer};
     \draw[pd warn rule] (\xzero,\y) -- (\wake,\y);
     \draw[pd focus rule] (\wake,\y) -- (\xend,\y);
     \node[pd focus datum,minimum size=4.5pt,inner sep=0pt] at (\wake,\y) {};
   }
+  \node[pd kind,anchor=east,rotate=90] at (-1.72,2.75) {verifier lane};
 
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xzero,-2.6) -- (\xend,-2.6);
-  \foreach \x/\lab in {-4.5/$t$,-1.4/$t+\Delta$,2.0/$t+2\Delta$} {
-    \draw[pd tick] (\x,-2.51) -- (\x,-2.70);
-    \node[pd label,anchor=north] at (\x,-2.76) {\lab};
+  \draw[pd rule,->] (\xzero,-.15) -- (\xend,-.15);
+  \foreach \x/\lab in {0/$t$,2.8/$t+\Delta$,6.2/$t+2\Delta$} {
+    \draw[pd tick] (\x,-.04) -- (\x,-.25);
+    \node[pd label,anchor=north] at (\x,-.35) {\lab};
   }
-  \node[pd label,anchor=west] at (\xend,-2.6) {time};
+  \node[pd label,anchor=west] at (\xend,-.15) {rounds};
 
-  \draw[pd breach rule] (4.05,-2.35) -- (4.05,2.85);
-  \node[pd label,anchor=west,text width=2.1cm,align=left] at (5.15,-.2)
-    {partition: no finite delivery deadline};
+  \draw[pd breach rule] (8.30,.20) -- (8.30,5.10);
+  \node[pd breach label,anchor=south,align=center,text width=2.45cm]
+    at (8.30,5.55) {partition: no finite deadline};
 \end{tikzpicture}
-\caption{A revocation advances as an observation frontier, leaving a distinct
-stale-exposure interval on every verifier lane: daemon A's append is
-authoritative at $t$, and each lane's amber segment (still stale) turns to
-the chapter hue at its own wake datum. This execution converges after two
-rounds; the protocol claim is only expected $\Theta(\log m)$ dissemination
-under connected, reliable rounds. The dashed red line marks a second, separate
-claim: an unbounded partition removes every finite delivery deadline,
-regardless of how many rounds have passed. [internal]}
+\caption{A five-lane Gantt shows each verifier's stale-exposure interval until
+it observes the revocation; this execution converges in two rounds. Expected
+$\Theta(\log m)$ dissemination assumes connected, reliable rounds, while an
+unbounded partition removes any finite deadline. [internal]}
 \label{fig:anchor-revocation-gossip}
 \end{figure}
