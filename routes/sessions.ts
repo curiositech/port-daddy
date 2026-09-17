@@ -843,8 +843,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const resolvedWorktreeId = worktreePolicy.worktree?.id ?? null;
 
       if (files && Array.isArray(files) && files.length > 0 && !force) {
+        // This route resolves a worktree world, but has no project field or
+        // project identity to authorize a repo scope. Keep preflight in that
+        // exact world; inventing a project value would widen the authority claim.
         const conflictCheck = sessions.getFileConflicts(files, {
-          project: null,
           worktreeId: resolvedWorktreeId,
         });
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {

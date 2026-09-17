@@ -1097,7 +1097,6 @@ describe('Sessions Module', () => {
       expect(sessions.getFileConflicts(['README.md']).conflicts).toHaveLength(1);
       expect(sessions.getFileConflicts(['README.md'], { sessionId: beta.id }).conflicts).toHaveLength(0);
       expect(sessions.getFileConflicts(['README.md'], {
-        project: null,
         worktreeId: 'beta-main',
       }).conflicts).toHaveLength(0);
     });
