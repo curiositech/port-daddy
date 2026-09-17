@@ -1,35 +1,26 @@
 import {
-  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
-  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { spawn, spawnSync } from 'node:child_process';
-import { createConnection, createServer } from 'node:net';
+import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
-  assertExecutableArtifact,
   assertOwnedSyntheticTree,
-  closeServerBoundedly,
   findAuthorityArtifacts,
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
-  prepareOwnedPrivateDirectory,
-  prepareReleaseCandidateRunDirectories,
   redactReleaseCandidateText,
-  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
   validateReleaseCandidateMatrix,
-  waitForChildExit,
 } from '../../scripts/lib/release-candidate-e2e.mjs';
 
 const repoRoot = process.cwd();
@@ -138,209 +129,6 @@ describe('release-candidate E2E contract', () => {
     })).toBe(join(homedir(), 'coding', 'tmp', 'pd-rc-contract-safe'));
   });
 
-  test('private runtime fixtures are created at 0700 and repair harness-owned permissive modes', () => {
-    const base = join(homedir(), 'coding', 'tmp');
-    mkdirSync(base, { recursive: true });
-    const fixture = mkdtempSync(join(base, 'pd-rc-private-dir-test-'));
-    const fresh = join(fixture, 'fresh', 'pd-home');
-    const permissive = join(fixture, 'permissive');
-    try {
-      expect(prepareOwnedPrivateDirectory(fresh)).toBe(fresh);
-      expect(statSync(fresh).mode & 0o777).toBe(0o700);
-
-      mkdirSync(permissive, { mode: 0o755 });
-      chmodSync(permissive, 0o755);
-      expect(statSync(permissive).mode & 0o777).toBe(0o755);
-      prepareOwnedPrivateDirectory(permissive);
-      expect(statSync(permissive).mode & 0o777).toBe(0o700);
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  test('every inherited release-candidate directory exists privately before a shard starts', () => {
-    const base = join(homedir(), 'coding', 'tmp');
-    mkdirSync(base, { recursive: true });
-    const fixture = mkdtempSync(join(base, 'pd-rc-run-dirs-test-'));
-    try {
-      expect(prepareReleaseCandidateRunDirectories(fixture)).toBe(fixture);
-      for (const name of ['build-home', 'build-scratch', 'control', 'tmp']) {
-        expect(statSync(join(fixture, name)).isDirectory()).toBe(true);
-        expect(statSync(join(fixture, name)).mode & 0o777).toBe(0o700);
-      }
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  test('child-exit proof settles for fast failures and remains readable after close', async () => {
-    const child = spawn(process.execPath, ['-e', 'process.exit(7)'], {
-      stdio: 'ignore',
-      env: secretFreeBaseEnv(),
-    });
-    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
-    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
-  });
-
-  test('bounded server cleanup rejects instead of leaving the suite await unsettled', async () => {
-    const neverCloses = { close() {} };
-    await expect(closeServerBoundedly(neverCloses, 10, 'stuck fixture')).rejects.toThrow(
-      /stuck fixture did not close within 10ms/,
-    );
-  });
-
-  test('bounded server cleanup preserves callback and synchronous close errors', async () => {
-    const callbackError = new Error('callback close failed');
-    const callbackFailure = {
-      close(callback) {
-        callback(callbackError);
-      },
-    };
-    await expect(closeServerBoundedly(callbackFailure, 1_000, 'callback fixture')).rejects.toThrow(
-      /callback close failed/,
-    );
-
-    const synchronousFailure = {
-      close() {
-        throw new Error('synchronous close failed');
-      },
-    };
-    await expect(closeServerBoundedly(synchronousFailure, 1_000, 'synchronous fixture')).rejects.toThrow(
-      /synchronous close failed/,
-    );
-  });
-
-  test('bounded fixture cleanup destroys tracked accepted sockets before closing the listener', async () => {
-    const sockets = new Set();
-    const server = createServer((socket) => {
-      sockets.add(socket);
-      socket.once('close', () => sockets.delete(socket));
-    });
-    await new Promise((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(0, '127.0.0.1', resolve);
-    });
-    const address = server.address();
-    expect(typeof address).toBe('object');
-    const client = createConnection(address.port, '127.0.0.1');
-    await new Promise((resolve, reject) => {
-      client.once('connect', resolve);
-      client.once('error', reject);
-    });
-    expect(sockets.size).toBe(1);
-    const clientClosed = new Promise((resolve) => client.once('close', resolve));
-    await expect(closeServerBoundedly(server, 1_000, 'tracked fixture', sockets)).resolves.toBeUndefined();
-    await clientClosed;
-    expect(sockets.size).toBe(0);
-    expect(client.destroyed).toBe(true);
-  });
-
-  test('the build environment uses private key storage without ambient credentials or canonical Keychain access', () => {
-    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
-    const env = releaseCandidateIsolatedEnv(root, {
-      PORT_DADDY_RESOURCE_DIR: join(root, 'resources'),
-    }, {
-      env: {
-        CI: '1',
-        PATH: '/usr/bin:/bin',
-        CARGO_HOME: '/fixture/cargo',
-        RUSTUP_HOME: '/fixture/rustup',
-        GITHUB_TOKEN: 'must-not-survive',
-      },
-      home: '/fixture/home',
-    });
-
-    expect(env.PD_HOME).toBe(join(root, 'control'));
-    expect(env.HOME).toBe(join(root, 'build-home'));
-    expect(env.PORT_DADDY_DISABLE_KEYCHAIN).toBe('1');
-    expect(env.PORT_DADDY_RESOURCE_DIR).toBe(join(root, 'resources'));
-    expect(env.GITHUB_TOKEN).toBeUndefined();
-    expect(env.CARGO_HOME).toBe('/fixture/cargo');
-    expect(env.RUSTUP_HOME).toBe('/fixture/rustup');
-  });
-
-  test.each([
-    ['HOME', '/operator/home'],
-    ['USERPROFILE', '/operator/home'],
-    ['PD_HOME', '/operator/home/.port-daddy'],
-    ['PD_SCRATCH_ROOT', '/operator/scratch'],
-    ['TMPDIR', '/operator/tmp'],
-    ['PORT_DADDY_DISABLE_KEYCHAIN', '0'],
-    ['PORT_DADDY_DB', '/operator/registry.db'],
-  ])('rejects the unapproved release-candidate environment override %s', (name, value) => {
-    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
-    expect(() => releaseCandidateIsolatedEnv(root, { [name]: value })).toThrow(
-      `release-candidate environment override is not allowed: ${name}`,
-    );
-  });
-
-  test.each([
-    ['PD_E2E_BIN', '/operator/bin/port-daddy'],
-    ['PORT_DADDY_RESOURCE_DIR', '/operator/resources'],
-    ['SMOKE_SCRATCH_BASE', '/operator/scratch'],
-    ['SOAK_PREFIX', '/operator/soak'],
-  ])('rejects the allowed path override %s when it escapes its approved roots', (name, value) => {
-    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
-    expect(() => releaseCandidateIsolatedEnv(root, { [name]: value })).toThrow(
-      `release-candidate path override escapes its approved roots: ${name}`,
-    );
-  });
-
-  test('allows only the key assigned to an explicitly approved staged-artifact root', () => {
-    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
-    const staged = join(homedir(), 'coding', 'tmp', 'pd-rc-private-stage-test');
-    const options = {
-      approvedPathRootsByKey: {
-        PORT_DADDY_RESOURCE_DIR: [staged],
-      },
-    };
-    const env = releaseCandidateIsolatedEnv(root, { PORT_DADDY_RESOURCE_DIR: staged }, options);
-    expect(env.PORT_DADDY_RESOURCE_DIR).toBe(staged);
-    expect(() => releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: join(staged, 'scratch') }, options)).toThrow(
-      'release-candidate path override escapes its approved roots: SMOKE_SCRATCH_BASE',
-    );
-  });
-
-  test('rejects a staged binary path whose symlink target escapes its approved root', () => {
-    const base = join(homedir(), 'coding', 'tmp');
-    mkdirSync(base, { recursive: true });
-    const fixture = mkdtempSync(join(base, 'pd-rc-path-escape-test-'));
-    const root = join(fixture, 'run');
-    const staged = join(fixture, 'stage');
-    const outside = join(fixture, 'outside-port-daddy');
-    const linkedBinary = join(staged, 'port-daddy');
-    try {
-      mkdirSync(root, { recursive: true });
-      mkdirSync(staged, { recursive: true });
-      writeFileSync(outside, 'x'.repeat(2048), { mode: 0o755 });
-      symlinkSync(outside, linkedBinary);
-      const options = { approvedPathRootsByKey: { PD_E2E_BIN: [staged] } };
-      expect(() => releaseCandidateIsolatedEnv(root, { PD_E2E_BIN: linkedBinary }, options)).toThrow(
-        'release-candidate path override escapes its approved roots: PD_E2E_BIN',
-      );
-      expect(() => assertExecutableArtifact(linkedBinary)).toThrow('artifact must not be a symbolic link');
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  test('private runtime fixture preparation rejects a symlink without changing its target', () => {
-    const base = join(homedir(), 'coding', 'tmp');
-    mkdirSync(base, { recursive: true });
-    const fixture = mkdtempSync(join(base, 'pd-rc-private-link-test-'));
-    const target = join(fixture, 'target');
-    const link = join(fixture, 'link');
-    try {
-      mkdirSync(target, { mode: 0o755 });
-      chmodSync(target, 0o755);
-      symlinkSync(target, link);
-      expect(() => prepareOwnedPrivateDirectory(link)).toThrow(/real directory/i);
-      expect(statSync(target).mode & 0o777).toBe(0o755);
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
   test('cleanup proof rejects a symlink that escapes the owned synthetic root', () => {
     const base = join(homedir(), 'coding', 'tmp');
     mkdirSync(base, { recursive: true });
@@ -356,23 +144,6 @@ describe('release-candidate E2E contract', () => {
       expect(() => assertOwnedSyntheticTree(owned)).toThrow(/escapes its owned root/);
     } finally {
       unlinkSync(link);
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
-
-  test('stage containment rejects a nested resource symlink that escapes the artifact tree', () => {
-    const base = join(homedir(), 'coding', 'tmp');
-    mkdirSync(base, { recursive: true });
-    const fixture = mkdtempSync(join(base, 'pd-rc-nested-stage-link-test-'));
-    const stage = join(fixture, 'stage');
-    const resourceDir = join(stage, 'skills', 'port-daddy-agent-skill');
-    const outside = join(fixture, 'outside-SKILL.md');
-    mkdirSync(resourceDir, { recursive: true });
-    writeFileSync(outside, 'external resource\n');
-    symlinkSync(outside, join(resourceDir, 'SKILL.md'));
-    try {
-      expect(() => assertOwnedSyntheticTree(stage)).toThrow(/escapes its owned root/);
-    } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
   });

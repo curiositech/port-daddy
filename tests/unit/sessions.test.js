@@ -1101,6 +1101,36 @@ describe('Sessions Module', () => {
       }).conflicts).toHaveLength(0);
     });
 
+    it('should apply project and worktree scope together for explicit preflight authority', () => {
+      const portDaddy = sessions.start('Port Daddy', {
+        project: 'port-daddy',
+        worktreeId: 'shared-world',
+      });
+      const workgroup = sessions.start('Workgroup', {
+        project: 'workgroup-ai',
+        worktreeId: 'shared-world',
+      });
+      sessions.claimFiles(portDaddy.id, ['README.md']);
+      sessions.claimFiles(workgroup.id, ['README.md']);
+
+      expect(sessions.getFileConflicts(['README.md'], {
+        project: 'port-daddy',
+        worktreeId: 'shared-world',
+      }).conflicts).toEqual([
+        expect.objectContaining({ sessionId: portDaddy.id, filePath: 'README.md' }),
+      ]);
+      expect(sessions.getFileConflicts(['README.md'], {
+        project: 'workgroup-ai',
+        worktreeId: 'shared-world',
+      }).conflicts).toEqual([
+        expect.objectContaining({ sessionId: workgroup.id, filePath: 'README.md' }),
+      ]);
+      expect(sessions.getFileConflicts(['README.md'], {
+        project: 'port-daddy',
+        worktreeId: 'other-world',
+      }).conflicts).toHaveLength(0);
+    });
+
     it('should exclude the target session but preserve sibling conflicts in its world', () => {
       const owner = sessions.start('Owner', { worktreeId: 'shared-world' });
       const target = sessions.start('Target', { worktreeId: 'shared-world' });

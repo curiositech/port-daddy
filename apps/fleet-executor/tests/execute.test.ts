@@ -2389,6 +2389,32 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('refuses a checkpoint that the resume parser cannot reconstruct', async () => {
+    const d1 = memoryD1();
+    const invalidResult = {
+      ship: 'qa',
+      blocking: false,
+      verdict: 'PASS' as const,
+      errored: false,
+      findings: [{
+        path: 'src/x.ts',
+        line: 0,
+        severity: 'MEDIUM' as const,
+        body: 'A zero line serializes but is not a resumable finding.',
+      }],
+    };
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:invalid-checkpoint',
+      0,
+      invalidResult,
+      TEST_CHECKPOINT_BINDING,
+    )).resolves.toBe(false);
+
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+  });
+
   it('keeps an incomplete-inventory gated ship in the continuation roster', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_RED_TEAM_YAML);
     // An unparseable `/files` payload previously made red-team look gated out,
