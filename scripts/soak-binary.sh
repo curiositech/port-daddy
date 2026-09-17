@@ -56,7 +56,9 @@ if [ -z "${SOAK_PREFIX:-}" ]; then
 fi
 
 mkdir -p "$SOAK_PREFIX"
+chmod 700 "$SOAK_PREFIX"
 LOG="$SOAK_PREFIX/soak.log"
+TEST_DB="$SOAK_PREFIX/port-daddy.db"
 
 # Crash signatures. "panic(" catches bun panics on any thread; the other two
 # are the exact strings from the 3.24.0 incident.
@@ -88,7 +90,11 @@ fail() {
 
 echo "Soaking $BIN for ${SOAK_SECONDS}s on port ${SOAK_PORT} (sandbox: $SOAK_PREFIX)"
 
+PD_HOME="$SOAK_PREFIX" \
 PORT_DADDY_PREFIX="$SOAK_PREFIX" \
+PORT_DADDY_DB="$TEST_DB" \
+PORT_DADDY_TEST_DB="$TEST_DB" \
+PORT_DADDY_DISABLE_KEYCHAIN=1 \
 PORT_DADDY_PORT="$SOAK_PORT" \
 "$BIN" start --foreground "$@" >"$LOG" 2>&1 &
 DAEMON_PID=$!
