@@ -135,6 +135,31 @@ describe('authenticated claim conflict automatic Parley', () => {
     await harness.app.close();
   });
 
+  test('rejects a supplied malformed worktree before deriving claim scope', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'malformed-worktree-owner');
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: {
+        purpose: 'must not become unscoped',
+        worktree: { id: 'partial', root: '/fixtures/partial' },
+        files: ['README.md'],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      success: false,
+      code: 'WORKTREE_CONTEXT_INVALID',
+      worktree: null,
+    });
+    expect(harness.sessions.list({ status: 'active', allWorktrees: true }).sessions).toHaveLength(0);
+    await harness.app.close();
+  });
+
   test('does not report same relative paths in different worktree worlds as conflicts', async () => {
     const harness = buildHarness();
     const alpha = mintTestActor(harness.actorSouls, 'scope-alpha');
