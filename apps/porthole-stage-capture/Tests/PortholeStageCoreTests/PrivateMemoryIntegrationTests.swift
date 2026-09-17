@@ -58,7 +58,7 @@ final class PrivateMemoryIntegrationTests: XCTestCase {
         do { try await budget.commit(output, actualBytes: 11); XCTFail("Oversize output must fail") }
         catch { XCTAssertEqual(error as? RecordingStorageBudget.Failure, .exceedsReservation) }
         do { _ = try await budget.reserve(bytes: 1, purpose: .media); XCTFail("Unresolved bytes still count") }
-        catch { XCTAssertEqual(error as? RecordingStorageBudget.Failure, .quotaExceeded) }
+        catch { XCTAssertEqual(error as? RecordingStorageBudget.Failure, .admissionHeld) }
         // This represents a stopped synthetic writer with its partial output removed.
         try await budget.release(output)
         let replacement = try await budget.reserve(bytes: 10, purpose: .media)

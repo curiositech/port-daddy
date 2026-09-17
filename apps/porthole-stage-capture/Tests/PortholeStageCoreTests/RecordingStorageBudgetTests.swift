@@ -4,6 +4,67 @@ import XCTest
 final class RecordingStorageBudgetTests: XCTestCase {
     typealias Budget = RecordingStorageBudget
 
+    func testOversizeOutputBlocksAdmissionDespiteQuotaHeadroom() async throws {
+        let budget = try Budget(limits: .init(totalBytes: 100, freeDiskReserveBytes: 10),
+                                availableDiskBytes: 30)
+        let token = try await budget.reserve(bytes: 10, purpose: .media)
+        await expect(.exceedsReservation) { try await budget.commit(token, actualBytes: 11) }
+        await expect(.admissionHeld) { _ = try await budget.reserve(bytes: 10, purpose: .media) }
+        await expect(.admissionHeld) { try await budget.commit(token, actualBytes: 0) }
+        let held = await budget.snapshot()
+        XCTAssertEqual(held.heldReservationCount, 1)
+        XCTAssertEqual(held.reservationCount, 1)
+        let refusals = await withTaskGroup(of: Bool.self) { group in
+            for _ in 0..<100 {
+                group.addTask {
+                    do { _ = try await budget.reserve(bytes: 1, purpose: .ocr); return false }
+                    catch { return error as? Budget.Failure == .admissionHeld }
+                }
+            }
+            var count = 0
+            for await refused in group { if refused { count += 1 } }
+            return count
+        }
+        XCTAssertEqual(refusals, 100)
+        // Explicit stopped-writer cleanup removes all 11 bytes before this call.
+        try await budget.release(token)
+        let replacement = try await budget.reserve(bytes: 20, purpose: .media)
+        try await budget.commit(replacement, actualBytes: 20)
+        let restored = await budget.snapshot()
+        XCTAssertEqual(restored.heldReservationCount, 0)
+        XCTAssertEqual(restored.estimatedFreeDiskBytes, 10)
+    }
+
+    func testEveryOffendingTokenRequiresCleanupWhileOtherWritersCanCommit() async throws {
+        let budget = try Budget(limits: .init(totalBytes: 100, freeDiskReserveBytes: 10),
+                                availableDiskBytes: 60)
+        let first = try await budget.reserve(bytes: 10, purpose: .media)
+        let second = try await budget.reserve(bytes: 10, purpose: .temporaryExport)
+        let valid = try await budget.reserve(bytes: 10, purpose: .ocr)
+        let cancelled = try await budget.reserve(bytes: 10, purpose: .thumbnail)
+        await expect(.exceedsReservation) { try await budget.commit(first, actualBytes: 11) }
+        await expect(.exceedsReservation) { try await budget.commit(second, actualBytes: Int64.max) }
+        try await budget.commit(valid, actualBytes: 8, pinned: true)
+        try await budget.release(cancelled)
+        await expect(.admissionHeld) { _ = try await budget.reserve(bytes: 1, purpose: .media) }
+        let both = await budget.snapshot()
+        XCTAssertEqual(both.heldReservationCount, 2)
+        XCTAssertEqual(both.committedBytes, 8)
+        XCTAssertEqual(both.pinnedBytes, 8)
+        XCTAssertEqual(both.reservedBytes, 20)
+        try await budget.release(first)
+        await expect(.admissionHeld) { try await budget.commit(second, actualBytes: 10) }
+        await expect(.admissionHeld) { _ = try await budget.reserve(bytes: 1, purpose: .media) }
+        let partial = await budget.snapshot()
+        XCTAssertEqual(partial.heldReservationCount, 1)
+        try await budget.release(second)
+        let restored = try await budget.reserve(bytes: 42, purpose: .media)
+        try await budget.commit(restored, actualBytes: 42)
+        let final = await budget.snapshot()
+        XCTAssertEqual(final.estimatedFreeDiskBytes, 10)
+        XCTAssertEqual(final.heldReservationCount, 0)
+    }
+
     func testDefaultsAndInvalidInitialization() throws {
         XCTAssertEqual(Budget.Limits().totalBytes, 20 * 1_024 * 1_024 * 1_024)
         XCTAssertEqual(Budget.Limits().freeDiskReserveBytes, 10 * 1_024 * 1_024 * 1_024)
@@ -58,10 +119,10 @@ final class RecordingStorageBudgetTests: XCTestCase {
                                 availableDiskBytes: 10)
         let token = try await budget.reserve(bytes: 10, purpose: .media)
         let before = await budget.snapshot()
-        await expect(.exceedsReservation) { try await budget.commit(token, actualBytes: 11) }
         await expect(.invalidValue) { try await budget.commit(token, actualBytes: -1) }
         let after = await budget.snapshot()
         XCTAssertEqual(before, after)
+        // Invalid negative reports do not assert the presence of oversize bytes.
         await expect(.quotaExceeded) { _ = try await budget.reserve(bytes: 1, purpose: .ocr) }
         try await budget.commit(token, actualBytes: 0)
         await expect(.unknownReservation) { try await budget.commit(token, actualBytes: 0) }
