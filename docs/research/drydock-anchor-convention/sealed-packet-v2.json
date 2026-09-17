@@ -9,7 +9,7 @@
   "runtimeAuthority": "NONE",
   "algorithm": "sha256(path NUL sha256 LF, lexicographic path order)",
   "fileCount": 187,
-  "packetSha256": "fcd76e4d667bc550a8cbd6080280d486a8804825c54aa21aff25b214875c8ee9",
+  "packetSha256": "08da4911a2815897302a460685b4898dacf75991af0b1de1b5ab707204d8c6c1",
   "verificationCommand": "node docs/research/drydock-anchor-convention/seal-packet.mjs v2 --check",
   "includedPacketRoot": "docs/research/drydock-anchor-convention",
   "includedSkillRoots": [

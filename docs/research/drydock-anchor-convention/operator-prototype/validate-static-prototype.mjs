@@ -13,7 +13,7 @@ const expect = (condition, message) => {
 
 expect(/STATIC PROTOTYPE/.test(html), "missing static-prototype disclosure");
 expect(/No runtime, provider, daemon, network, or command channel/.test(html), "missing no-runtime disclosure");
-expect(/T0_STATIC/.test(html) && /T1_MODEL/.test(html), "missing typed truth tiers");
+expect(/<span id="prototype-truth">Truth: T0_STATIC_WITH_T1_MODEL_FIXTURE · Anchor:/.test(html), "prototype rail must carry the exact composite truth label");
 expect(/NO EXECUTION AUTHORITY/.test(html), "missing authority footer");
 expect(/BLOCKED_BY_HALT/.test(html), "missing halt truth state");
 
