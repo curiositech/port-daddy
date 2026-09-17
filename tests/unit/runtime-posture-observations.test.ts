@@ -94,6 +94,26 @@ describe('runtime posture observation authority', () => {
     }, { effects: ['automatic_local'] }).reasons).toEqual(['runtime_control_unknown']);
   });
 
+  test('overlong receipts never age into validity', () => {
+    const receiptTime = Date.now();
+    const observed = capabilities();
+    observed.sandbox = {
+      status: 'ready',
+      scope: CAPABILITY_SCOPE.sandbox,
+      observedAt: receiptTime - 30_000,
+      validUntil: receiptTime + 60_000,
+    };
+
+    expect(admitRuntimeEffect({ ...ready, capabilities: observed }, {
+      effects: ['managed_subprocess'],
+    }).reasons).toEqual(['sandbox_unknown']);
+    expect(admitRuntimeEffect({
+      ...ready,
+      controlObservedAt: receiptTime - 30_000,
+      controlValidUntil: receiptTime + 60_000,
+    }, { effects: ['automatic_local'] }).reasons).toEqual(['runtime_control_unknown']);
+  });
+
   test('provider calls and outward mutations require cost truth even when they are not inference', () => {
     const input = { ...ready, capabilities: capabilities({ cost_accounting: 'unknown' }) };
     expect(admitRuntimeEffect(input, { effects: ['provider_call'] }).reasons).toContain('cost_accounting_unknown');

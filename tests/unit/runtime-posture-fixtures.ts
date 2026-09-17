@@ -19,7 +19,7 @@ export const capabilities = (
       status: overrides[capability] ?? 'ready',
       scope: CAPABILITY_SCOPE[capability],
       observedAt: NOW - 1_000,
-      validUntil: NOW + 60_000,
+      validUntil: NOW + 59_000,
     }]),
 );
 
@@ -27,7 +27,7 @@ export const ready: RuntimePostureInput = {
   desired: 'on',
   control: 'enabled',
   controlObservedAt: NOW - 1_000,
-  controlValidUntil: NOW + 60_000,
+  controlValidUntil: NOW + 59_000,
   capabilities: capabilities(),
   expectedScopes: CAPABILITY_SCOPE,
 };
