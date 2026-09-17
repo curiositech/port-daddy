@@ -180,7 +180,7 @@ const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
  * @param raw The operator's YAML value, in any spelling.
  * @returns The concrete Workers AI id, or undefined when the token is unknown.
  */
-function resolveModelToken(raw: unknown): string | undefined {
+export function resolveModelToken(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const token = raw.trim();
   if (!token) return undefined;
