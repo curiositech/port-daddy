@@ -12,7 +12,7 @@
  *     returns a prUrl, and NEVER writes fleet state to D1 (prepare untouched).
  */
 
-import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
+import { CF_MODELS, CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   handleFleetConfig,
@@ -149,9 +149,9 @@ describe('handleFleetValidate', () => {
     const reviewer = json.ships.find((s) => s.name === 'code-reviewer');
     expect(reviewer).toBeDefined();
     expect(reviewer!.blocking).toBe(true);
-    // `code-reviewer` ends in "reviewer", so the review role wins over the
-    // fixture's own pin — the same routing rule the executor applies.
-    expect(reviewer!.cfModel).toBe(CF_ROLE_MODELS.reviewBot);
+    // The declared capability wins over the name-based review default, matching
+    // the production executor's shared model-token semantics.
+    expect(reviewer!.cfModel).toBe(CF_MODELS.cheap);
     expect(json.ships.map((s) => s.name)).toContain('qa');
   });
 
@@ -243,9 +243,9 @@ describe('handleFleetSmokeTest', () => {
     expect(json.output).toContain('null dereference');
     expect(typeof json.ms).toBe('number');
 
-    // AI was called once, with the ship's review model.
+    // AI was called once, with the ship's declared capability model.
     expect(ai.run).toHaveBeenCalledTimes(1);
-    expect(ai.run.mock.calls[0]![0]).toBe(CF_ROLE_MODELS.reviewBot);
+    expect(ai.run.mock.calls[0]![0]).toBe(CF_MODELS.cheap);
     const inputs = ai.run.mock.calls[0]![1] as { max_tokens: number; messages: Array<{ role: string }> };
     expect(inputs.max_tokens).toBe(2000); // bounded
   });
@@ -275,6 +275,34 @@ fleet:
     expect(ai.run).toHaveBeenCalledTimes(1);
     expect(ai.run.mock.calls[0]![0]).toBe(pinnedModel);
     expect(ai.run.mock.calls[0]![0]).not.toBe(CF_ROLE_MODELS.shipDefault);
+  });
+
+  it.each([
+    ['role', 'reviewBot', CF_ROLE_MODELS.reviewBot],
+    ['capability', 'high', CF_MODELS.high],
+  ])('resolves a primary Cloudflare %s token before admission', async (_kind, token, expected) => {
+    const yaml = `
+fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      backend: cloudflare
+      model: "${token}"
+      cloud_only: true
+      prompt: "Review the exact head."
+`;
+    const ai = makeAI('CLEAN');
+    const res = await handleFleetSmokeTest(
+      req('/v1/fleet/smoke-test', 'POST', OPERATOR, {
+        ship: 'qa',
+        yaml,
+        sampleDiff: 'diff',
+      }),
+      makeEnv({ ai }),
+    );
+    expect(res.status).toBe(200);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(ai.run.mock.calls[0]![0]).toBe(expected);
   });
 
   it('SHIP_NOT_FOUND when the ship name is absent from the YAML', async () => {

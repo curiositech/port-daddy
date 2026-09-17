@@ -18,10 +18,9 @@
 
 import { parse as parseYaml } from 'yaml';
 import {
-  CF_ADMITTED_MODELS,
   CF_ROLE_MODELS,
-  resolveCfModel,
 } from '../../shared/model-registry.generated.js';
+import { resolveModelToken } from '../../shared/fleet-config.js';
 
 export interface ShipConfig {
   name: string;
@@ -75,8 +74,9 @@ const EXECUTION_TOOLS_RE = /Bash\((?!gh)[^)]*\)/;
 const CLOUD_STATIC_SHIPS = new Set(['qa']);
 
 interface RawFallback {
-  backend?: string;
-  model?: string;
+  backend?: unknown;
+  capability?: unknown;
+  model?: unknown;
 }
 
 interface RawAgent {
@@ -103,9 +103,11 @@ function coerceBlocking(value: unknown): boolean {
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. an admitted primary `model` pin when `backend: cloudflare`, else
- *   2. the first Workers AI `fallbacks[].model` pin, GUARDED — a pin outside the
- *      pinnable set is remapped to the ship default rather than reported, else
+ *   1. an admitted primary role, capability, or literal `model` pin when
+ *      `backend: cloudflare`, else
+ *   2. the first Cloudflare fallback's admitted `capability` or `model` token;
+ *      an unusable token falls through to the ship default rather than looking
+ *      past the first Cloudflare fallback, else
  *   3. a name-based default (the review model for *reviewer* ships).
  *
  * The guard is the correction: this function previously honored ANY `@cf/`-
@@ -115,17 +117,15 @@ function coerceBlocking(value: unknown): boolean {
  * config against; it must not certify a model the executor will refuse.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
-  if (
-    agent.backend === 'cloudflare' &&
-    typeof agent.model === 'string' &&
-    CF_ADMITTED_MODELS.includes(agent.model.trim())
-  ) {
-    return agent.model.trim();
+  if (agent.backend === 'cloudflare') {
+    const pinned = resolveModelToken(agent.model);
+    if (pinned) return pinned;
   }
   for (const fb of agent.fallbacks ?? []) {
-    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
-      return resolveCfModel(fb.model);
-    }
+    if (fb?.backend !== 'cloudflare') continue;
+    const pinned = resolveModelToken(fb.capability) ?? resolveModelToken(fb.model);
+    if (pinned) return pinned;
+    break;
   }
   return name.includes('reviewer') ? CF_ROLE_MODELS.reviewBot : CF_ROLE_MODELS.shipDefault;
 }
