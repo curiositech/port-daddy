@@ -31,10 +31,10 @@
     "note": "tracked by git AND extension in mediaExtensions AND path under an offloadRoot. No size threshold, no exceptions."
   },
   "counts": {
-    "assets": 794,
-    "distinctObjects": 758,
-    "bytes": 303134021,
-    "distinctBytes": 300340430
+    "assets": 796,
+    "distinctObjects": 760,
+    "bytes": 303490312,
+    "distinctBytes": 300696721
   },
   "assets": [
     {
@@ -1799,6 +1799,20 @@
       "bytes": 132311,
       "sha256": "dcc5eb80e01cd9eb733881fb349c1fede7643200978a7ce629621027c923da0b",
       "key": "sha256/dc/dcc5eb80e01cd9eb733881fb349c1fede7643200978a7ce629621027c923da0b.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/mutation-evidence-observatory/cooperative-studio.png",
+      "bytes": 230850,
+      "sha256": "8a7d79c52a09f6b7fd7fc6bbbf8204fd47ac8d6411b0dcc188a1d8f603eb21bd",
+      "key": "sha256/8a/8a7d79c52a09f6b7fd7fc6bbbf8204fd47ac8d6411b0dcc188a1d8f603eb21bd.png",
+      "contentType": "image/png"
+    },
+    {
+      "path": "docs/pr-assets/mutation-evidence-observatory/rejection-proof.png",
+      "bytes": 125441,
+      "sha256": "4658141df3aaca8324ffa059735292d0229f202092e83a129f8d32a6ff4183c5",
+      "key": "sha256/46/4658141df3aaca8324ffa059735292d0229f202092e83a129f8d32a6ff4183c5.png",
       "contentType": "image/png"
     },
     {
