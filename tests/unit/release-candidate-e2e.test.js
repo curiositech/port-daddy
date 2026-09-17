@@ -14,6 +14,7 @@ import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
   assertOwnedSyntheticTree,
   findAuthorityArtifacts,
+  hasExactAttributedNote,
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
@@ -146,6 +147,32 @@ describe('release-candidate E2E contract', () => {
       unlinkSync(link);
       rmSync(fixture, { recursive: true, force: true });
     }
+  });
+
+  test('cleanup proof accepts a symlink whose target remains inside the owned root', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-contained-link-test-'));
+    const owned = join(fixture, 'owned');
+    const target = join(owned, 'target');
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, 'kept'), 'inside owned root\n');
+    symlinkSync(target, join(owned, 'contained'));
+    try {
+      expect(assertOwnedSyntheticTree(owned)).toMatchObject({ root: owned });
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test('sitrep attribution rejects missing and malformed notes', () => {
+    const content = 'RC evidence alpha';
+    expect(hasExactAttributedNote({ notes: [{ sessionId: 'session-alpha', content }] }, 'session-alpha', content))
+      .toBe(true);
+    expect(hasExactAttributedNote({ notes: [] }, 'session-alpha', content)).toBe(false);
+    expect(hasExactAttributedNote({ notes: 'not-an-array' }, 'session-alpha', content)).toBe(false);
+    expect(hasExactAttributedNote({ notes: [{ sessionId: 'session-other', content }] }, 'session-alpha', content))
+      .toBe(false);
   });
 
   test('authority detector reports matrix and database state but not ordinary package files', () => {

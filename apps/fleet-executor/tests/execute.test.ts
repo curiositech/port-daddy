@@ -2911,6 +2911,21 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(d1.steps).toHaveLength(0);
   });
 
+  it('rejects a malformed checkpoint binding before serialization', async () => {
+    const d1 = memoryD1();
+    const { reviewInputSha256: _missingDigest, ...malformedBinding } = TEST_CHECKPOINT_BINDING;
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      malformedBinding as unknown as typeof TEST_CHECKPOINT_BINDING,
+    )).resolves.toBe(false);
+
+    expect(d1.steps).toHaveLength(0);
+  });
+
   it('requires an executed Purser sandbox receipt before saving or resuming PASS', async () => {
     const failed = memoryD1();
     failed.steps.push({

@@ -328,6 +328,18 @@ export function assertOwnedSyntheticTree(root, { home = homedir() } = {}) {
   return { root: physicalRoot, entries };
 }
 
+/** Match one exact session-attributed note in parsed sitrep output. */
+export function hasExactAttributedNote(sitrep, sessionId, content) {
+  return Boolean(
+    sitrep
+    && Array.isArray(sitrep.notes)
+    && sitrep.notes.some((note) => note
+      && typeof note === 'object'
+      && (note.sessionId ?? note.session_id) === sessionId
+      && (note.content ?? note.note) === content),
+  );
+}
+
 /** Produce stable, content-addressed evidence without exposing file bodies. */
 export function sha256File(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');

@@ -21,6 +21,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   assertOwnedSyntheticTree,
+  hasExactAttributedNote,
   assertExecutableArtifact,
   closeServerBoundedly,
   findAuthorityArtifacts,
@@ -789,9 +790,11 @@ class ReleaseCandidateSuite {
           '--limit-notes',
           '200',
         ], { slot: spec.slot }), `sitrep ${spec.label}`);
-        const exactNote = Array.isArray(sitrep.notes) && sitrep.notes.some((note) =>
-          (note?.sessionId ?? note?.session_id) === spec.sessionId
-          && (note?.content ?? note?.note) === `RC evidence ${spec.label}`);
+        const exactNote = hasExactAttributedNote(
+          sitrep,
+          spec.sessionId,
+          `RC evidence ${spec.label}`,
+        );
         if (!exactNote) throw new Error(`sitrep JSON did not carry ${spec.label}'s exact attributed note`);
       }
 

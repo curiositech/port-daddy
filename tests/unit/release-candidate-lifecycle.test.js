@@ -64,8 +64,8 @@ describe('release-candidate process lifecycle', () => {
 
   test('bounded server cleanup rejects instead of leaving the suite await unsettled', async () => {
     const neverCloses = { close() {} };
-    await expect(closeServerBoundedly(neverCloses, 10, 'stuck fixture')).rejects.toThrow(
-      /stuck fixture did not close within 10ms/,
+    await expect(closeServerBoundedly(neverCloses, 100, 'stuck fixture')).rejects.toThrow(
+      /stuck fixture did not close within 100ms/,
     );
   });
 
