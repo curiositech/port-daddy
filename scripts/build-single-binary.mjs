@@ -639,6 +639,8 @@ async function smokeSelfHostedDaemon(
   rmSync(prefix, { recursive: true, force: true });
   mkdirSync(isolatedBinDir, { recursive: true });
   mkdirSync(resourceDir, { recursive: true });
+  mkdirSync(runtimeDir, { recursive: true, mode: 0o700 });
+  chmodSync(runtimeDir, 0o700);
   copyFileSync(outfile, isolatedOutfile);
   chmodSync(isolatedOutfile, 0o755);
   for (const companion of companionFiles) {
@@ -708,6 +710,8 @@ async function smokeSelfHostedDaemon(
     cwd: resourceDir,
     env: {
       ...process.env,
+      PD_HOME: runtimeDir,
+      PORT_DADDY_DISABLE_KEYCHAIN: '1',
       PORT_DADDY_PREFIX: runtimeDir,
       // The self-hosted daemon is a bounded release test. When its caller
       // supplies NODE_ENV=test, name the exact throwaway database explicitly
