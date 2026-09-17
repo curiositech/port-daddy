@@ -74,8 +74,14 @@ export interface ClaimForestClaim {
 
 export interface ClaimForestScope {
   repoId?: string | null;
+  compatibleRepoIds?: Array<string | null>;
   worldKind?: ClaimForestWorldKind | null;
   worldId?: string | null;
+}
+
+export interface ClaimRepositoryScope {
+  repositoryId: string;
+  compatibleLegacyRepositoryIds: string[];
 }
 
 interface SessionContext {
@@ -242,8 +248,24 @@ function gitFamilyRepositoryId(session: SessionRepositoryIdentity): string | nul
  * a fallback for older/non-Git sessions that have no repository-family proof.
  */
 export function claimRepositoryIdForSession(session: SessionRepositoryIdentity): string {
-  return gitFamilyRepositoryId(session)
-    ?? normalizeRepoId(session.identity_project ?? session.identityProject);
+  return claimRepositoryScopeForSession(session).repositoryId;
+}
+
+/**
+ * Build the read scope for claims owned by one session. A Git family is the
+ * canonical boundary, but an upgraded daemon must still see active claims
+ * written before common-dir provenance was recorded. Those legacy rows expose
+ * only the semantic-project fallback; modern rows from another Git family do
+ * not match it because their session metadata projects them back to their own
+ * family ID at read time.
+ */
+export function claimRepositoryScopeForSession(session: SessionRepositoryIdentity): ClaimRepositoryScope {
+  const legacyRepositoryId = normalizeRepoId(session.identity_project ?? session.identityProject);
+  const repositoryId = gitFamilyRepositoryId(session) ?? legacyRepositoryId;
+  return {
+    repositoryId,
+    compatibleLegacyRepositoryIds: repositoryId === legacyRepositoryId ? [] : [legacyRepositoryId],
+  };
 }
 
 function normalizeWorld(address: ClaimForestAddress): { kind: ClaimForestWorldKind; id: string; gitOid: string | null } {
@@ -289,8 +311,10 @@ function nodeIdFor(address: ClaimForestAddress, selectorKind: ClaimForestSelecto
 }
 
 function scopeForSession(session: SessionContext): Required<ClaimForestScope> {
+  const repositoryScope = claimRepositoryScopeForSession(session);
   return {
-    repoId: claimRepositoryIdForSession(session),
+    repoId: repositoryScope.repositoryId,
+    compatibleRepoIds: repositoryScope.compatibleLegacyRepositoryIds,
     worldKind: DEFAULT_WORLD_KIND,
     worldId: session.worktree_id?.trim() || DEFAULT_WORLD_ID,
   };
@@ -298,7 +322,11 @@ function scopeForSession(session: SessionContext): Required<ClaimForestScope> {
 
 function matchesScope(claim: ClaimForestClaim, scope?: ClaimForestScope): boolean {
   if (!scope) return true;
-  if (scope.repoId !== undefined && claim.repoId !== normalizeRepoId(scope.repoId)) return false;
+  if (scope.repoId !== undefined) {
+    const compatibleRepoIds = (scope.compatibleRepoIds ?? []).map(normalizeRepoId);
+    const allowedRepoIds = new Set([normalizeRepoId(scope.repoId), ...compatibleRepoIds]);
+    if (!allowedRepoIds.has(claim.repoId)) return false;
+  }
   if (scope.worldKind !== undefined && claim.worldKind !== (scope.worldKind ?? DEFAULT_WORLD_KIND)) return false;
   if (scope.worldId !== undefined) {
     const worldId = scope.worldId?.trim() || DEFAULT_WORLD_ID;

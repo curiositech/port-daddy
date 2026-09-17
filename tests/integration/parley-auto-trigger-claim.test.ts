@@ -302,6 +302,85 @@ describe('authenticated claim conflict automatic Parley', () => {
     await harness.app.close();
   });
 
+  test('a Git-family start still sees an active claim written before common-dir provenance', async () => {
+    const harness = buildHarness();
+    const legacy = mintTestActor(harness.actorSouls, 'legacy-claim-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'upgraded-claim-challenger');
+
+    const legacyResponse = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: legacy.headers,
+      payload: {
+        purpose: 'claim before repository-family upgrade',
+        agentId: 'legacy-claim-owner',
+        files: ['README.md'],
+      },
+    });
+    expect(legacyResponse.statusCode).toBe(200);
+
+    const upgradedResponse = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: challenger.headers,
+      payload: {
+        purpose: 'claim after repository-family upgrade',
+        agentId: 'upgraded-claim-challenger',
+        files: ['README.md'],
+        worktree: {
+          id: 'upgraded-linked',
+          root: '/repos/upgraded/linked',
+          name: 'upgraded-linked',
+          branch: null,
+          isMain: false,
+          commonDir: '/repos/upgraded/.git',
+        },
+      },
+    });
+
+    expect(upgradedResponse.statusCode).toBe(409);
+    expect(upgradedResponse.json()).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: legacyResponse.json().id, filePath: 'README.md' }],
+    });
+    await harness.app.close();
+  });
+
+  test('forced session start validates file entries before repository preflight', async () => {
+    const harness = buildHarness();
+    const actor = mintTestActor(harness.actorSouls, 'malformed-force-starter');
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: actor.headers,
+      payload: {
+        purpose: 'reject malformed forced files',
+        agentId: 'malformed-force-starter',
+        files: [123],
+        force: true,
+        worktree: {
+          id: 'malformed-linked',
+          root: '/repos/malformed/linked',
+          name: 'malformed-linked',
+          branch: null,
+          isMain: false,
+          commonDir: '/repos/malformed/.git',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      success: false,
+      error: 'files must contain non-empty strings',
+      code: 'VALIDATION_ERROR',
+    });
+    expect(harness.sessions.list({ status: 'active', allWorktrees: true }).sessions).toEqual([]);
+    await harness.app.close();
+  });
+
   test('creates exactly one indexed Parley and one inbox summons per live actor across replay and force', async () => {
     const harness = buildHarness();
     const { owner, challenger, challengerSession } = await establishConflict(harness);

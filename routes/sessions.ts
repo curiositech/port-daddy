@@ -17,7 +17,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createHash } from 'node:crypto';
-import { claimRepositoryIdForSession } from '../lib/claim-forest.js';
+import { claimRepositoryScopeForSession } from '../lib/claim-forest.js';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -97,14 +97,21 @@ interface SessionsRouteDeps {
       regions?: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }>;
       agentId?: string | null;
     }): Record<string, unknown>;
-    getFileConflicts(files: string[], options?: { repositoryId?: string | null }): Record<string, unknown>;
+    getFileConflicts(files: string[], options?: {
+      repositoryId?: string | null;
+      compatibleLegacyRepositoryIds?: Array<string | null>;
+    }): Record<string, unknown>;
     getRegionConflicts(regions: Array<{
       path: string;
       startLine?: number;
       endLine?: number;
       symbol?: string;
       symbolPath?: string;
-    }>, options?: { repositoryId?: string | null; excludeSessionId?: string }): Record<string, unknown>;
+    }>, options?: {
+      repositoryId?: string | null;
+      compatibleLegacyRepositoryIds?: Array<string | null>;
+      excludeSessionId?: string;
+    }): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
     listAllActiveClaims(options?: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
     getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }): Record<string, unknown>;
@@ -660,7 +667,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     action: 'claiming' | 'releasing',
     verdict?: Extract<IdentityWriteVerdict, { ok: true }>,
   ):
-    | { success: true; ownerAgentId: string; ownerRepositoryId: string }
+    | {
+        success: true;
+        ownerAgentId: string;
+        ownerRepositoryId: string;
+        compatibleLegacyRepositoryIds: string[];
+      }
     | { success: false; result: Record<string, unknown> } => {
     if (!agentId || verdict?.kind !== 'verified') {
       return {
@@ -709,15 +721,17 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
 
+    const repositoryScope = claimRepositoryScopeForSession({
+      identityProject: typeof session?.identityProject === 'string' ? session.identityProject : null,
+      metadata: session?.metadata && typeof session.metadata === 'object'
+        ? session.metadata as Record<string, unknown>
+        : null,
+    });
     return {
       success: true,
       ownerAgentId: authorization.ownerAgentId,
-      ownerRepositoryId: claimRepositoryIdForSession({
-        identityProject: typeof session?.identityProject === 'string' ? session.identityProject : null,
-        metadata: session?.metadata && typeof session.metadata === 'object'
-          ? session.metadata as Record<string, unknown>
-          : null,
-      }),
+      ownerRepositoryId: repositoryScope.repositoryId,
+      compatibleLegacyRepositoryIds: repositoryScope.compatibleLegacyRepositoryIds,
     };
   };
 
@@ -875,6 +889,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
+      if (files !== undefined && !Array.isArray(files)) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'files must be an array',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+      if (Array.isArray(files) && files.some(file => typeof file !== 'string' || !file.trim())) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'files must contain non-empty strings',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
       const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
       if (!worktreePolicy.success) {
         reply.code(400);
@@ -885,14 +916,17 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         requireLinkedWorktree,
         allowMainWorktree,
       });
-      const ownerRepositoryId = claimRepositoryIdForSession({
+      const ownerRepositoryScope = claimRepositoryScopeForSession({
         identityProject: null,
         metadata: mergedMetadata,
       });
 
       let repositoryConflicts: unknown[] = [];
       if (files && Array.isArray(files) && files.length > 0) {
-        const conflictCheck = sessions.getFileConflicts(files, { repositoryId: ownerRepositoryId });
+        const conflictCheck = sessions.getFileConflicts(files, {
+          repositoryId: ownerRepositoryScope.repositoryId,
+          compatibleLegacyRepositoryIds: ownerRepositoryScope.compatibleLegacyRepositoryIds,
+        });
         repositoryConflicts = Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [];
         if (!force && repositoryConflicts.length > 0) {
           evaluateClaimConflictBestEffort(sessionAgent.verdict, repositoryConflicts);
@@ -1427,6 +1461,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (hasFiles) {
         const conflictCheck = sessions.getFileConflicts(files, {
           repositoryId: routeAuth.ownerRepositoryId,
+          compatibleLegacyRepositoryIds: routeAuth.compatibleLegacyRepositoryIds,
         });
         repositoryConflicts = mergeClaimConflicts(repositoryConflicts, withoutSessionClaimConflicts(
           Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [],
@@ -1436,6 +1471,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (hasRegions) {
         const conflictCheck = sessions.getRegionConflicts(regions, {
           repositoryId: routeAuth.ownerRepositoryId,
+          compatibleLegacyRepositoryIds: routeAuth.compatibleLegacyRepositoryIds,
           excludeSessionId: sessionId,
         });
         if (conflictCheck.success === false) {
