@@ -82,7 +82,7 @@ jobs:
           FLEETBOT_PUBLISHER_GRANT_ID: ${{ secrets.FLEETBOT_PUBLISHER_GRANT_ID }}
           FLEETBOT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
           FLEETBOT_COMMENT_BODY: ${{ inputs.comment_body }}
-          FLEETBOT_ACTOR_ID: github-actions
+          FLEETBOT_ACTOR_ID: github-user:${{ github.actor_id }}
           FLEETBOT_AGENT_ID: ${{ inputs.agent_id }}
           FLEETBOT_SESSION_ID: ${{ inputs.session_id }}
           FLEETBOT_PURPOSE: ${{ inputs.purpose }}

@@ -317,6 +317,7 @@ describe('fleetbot workload client', () => {
     assert.match(workflow, /persist-credentials: false/)
     assert.match(workflow, /FLEETBOT_AGENT_ID:.*inputs\.agent_id/)
     assert.match(workflow, /FLEETBOT_SESSION_ID:.*inputs\.session_id/)
+    assert.match(workflow, /FLEETBOT_ACTOR_ID: github-user:\$\{\{ github\.actor_id \}\}/)
     assert.match(workflow, /node scripts\/fleetbot-workload\.mjs comment/)
     assert.doesNotMatch(workflow, /GH_TOKEN|pdu_/)
   })
