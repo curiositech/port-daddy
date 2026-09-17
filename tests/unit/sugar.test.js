@@ -352,6 +352,111 @@ describe('sugar.begin', () => {
     expect(second.fileConflicts[0].filePath).toBe('lib/sugar.ts');
   });
 
+  test('blocks unforced pd begin claims across linked worktrees in one Git family', () => {
+    const { sugar, sessions } = setup();
+    const ownerWorktree = {
+      id: 'alpha-main',
+      root: '/repos/alpha/main',
+      name: 'alpha-main',
+      branch: 'main',
+      isMain: false,
+      commonDir: '/repos/alpha/.git',
+    };
+    const linkedWorktree = {
+      ...ownerWorktree,
+      id: 'alpha-linked',
+      root: '/repos/alpha/linked',
+      name: 'alpha-linked',
+      branch: 'feature/linked',
+    };
+    const owner = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Git-family owner',
+      identity: 'old-label:test:owner',
+      worktree: ownerWorktree,
+      files: ['README.md'],
+    });
+    expect(owner.success).toBe(true);
+
+    const blocked = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Git-family challenger',
+      identity: 'renamed-label:test:challenger',
+      worktree: linkedWorktree,
+      files: ['README.md'],
+    });
+    expect(blocked).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: owner.sessionId, filePath: 'README.md' }],
+    });
+    expect(sessions.list({ status: 'active', allWorktrees: true }).sessions).toHaveLength(1);
+
+    const forced = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Git-family forced challenger',
+      identity: 'renamed-label:test:forced',
+      worktree: linkedWorktree,
+      files: ['README.md'],
+      force: true,
+    });
+    expect(forced).toMatchObject({
+      success: true,
+      fileClaims: ['README.md'],
+      fileConflicts: [{ sessionId: owner.sessionId, filePath: 'README.md' }],
+    });
+  });
+
+  test('preflights newly requested files before resuming an existing pd begin session', () => {
+    const { sugar, sessions } = setup();
+    const commonDir = '/repos/alpha/.git';
+    const owner = sessions.start('Other worktree owner', {
+      agentId: 'other-owner',
+      project: 'old-label',
+      worktreeId: 'alpha-main',
+      metadata: {
+        worktree: {
+          id: 'alpha-main',
+          root: '/repos/alpha/main',
+          name: 'alpha-main',
+          branch: 'main',
+          isMain: false,
+          commonDir,
+        },
+      },
+    });
+    expect(sessions.claimFiles(owner.id, ['README.md'], { agentId: 'other-owner' }).success).toBe(true);
+    const linkedWorktree = {
+      id: 'alpha-linked',
+      root: '/repos/alpha/linked',
+      name: 'alpha-linked',
+      branch: 'feature/linked',
+      isMain: false,
+      commonDir,
+    };
+    const begun = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Resumable linked work',
+      identity: 'renamed-label:test:resume',
+      worktree: linkedWorktree,
+    });
+    expect(begun.success).toBe(true);
+
+    const resumed = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Resumable linked work',
+      identity: 'renamed-label:test:resume',
+      worktree: linkedWorktree,
+      files: ['README.md'],
+    });
+    expect(resumed).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: owner.id, filePath: 'README.md' }],
+    });
+    expect(sessions.get(begun.sessionId).files).toEqual([]);
+  });
+
   test('rolls back agent registration on session start failure', () => {
     const db = createTestDb();
     const agents = createAgents(db);

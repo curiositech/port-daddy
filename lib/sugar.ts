@@ -11,6 +11,7 @@ import { parseIdentity } from './identity.js';
 import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
 import { scanPlanChecklist } from './plan-checklist.js';
 import type { VerifiedContextBootstrapLookup } from './agent-harbor/context-continuity.js';
+import { claimRepositoryScopeForSession } from './claim-forest.js';
 
 /** How recent an agent heartbeat counts as "a live process is driving this session right now". */
 const SESSION_DRIVING_TTL_MS = 180_000;
@@ -44,6 +45,7 @@ interface SessionsModule {
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
+  getFileConflicts(filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
   /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
   resurrect?(sessionId: string): void;
   /** Shallow-merge a patch into the session's metadata JSON. Optional: older deps may not provide it. */
@@ -420,6 +422,59 @@ export function createSugar(deps: SugarDeps) {
     return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
   }
 
+  function repositoryFileConflicts(
+    filePaths: string[],
+    metadata: Record<string, unknown> | null,
+    excludeSessionId?: string,
+  ): Array<Record<string, unknown>> {
+    const scope = claimRepositoryScopeForSession({ metadata });
+    const result = sessions.getFileConflicts(filePaths, {
+      repositoryId: scope.repositoryId,
+      compatibleLegacyRepositoryIds: scope.compatibleLegacyRepositoryIds,
+    });
+    const rows = Array.isArray(result?.conflicts)
+      ? result.conflicts.filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
+      : [];
+    const seen = new Set<string>();
+    return rows.filter((row) => {
+      if (excludeSessionId && row.sessionId === excludeSessionId) return false;
+      const key = JSON.stringify([
+        row.sessionId,
+        row.filePath,
+        row.startLine ?? null,
+        row.endLine ?? null,
+        row.symbolPath ?? null,
+        row.symbol ?? null,
+      ]);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function mergeFileConflictEvidence(
+    ...groups: Array<Array<Record<string, unknown>> | undefined>
+  ): Array<Record<string, unknown>> {
+    const seen = new Set<string>();
+    const merged: Array<Record<string, unknown>> = [];
+    for (const group of groups) {
+      for (const row of group ?? []) {
+        const key = JSON.stringify([
+          row.sessionId,
+          row.filePath,
+          row.startLine ?? null,
+          row.endLine ?? null,
+          row.symbolPath ?? null,
+          row.symbol ?? null,
+        ]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(row);
+      }
+    }
+    return merged;
+  }
+
   function buildWhoamiResponse(
     session: Record<string, unknown>,
     notes: unknown[],
@@ -708,6 +763,14 @@ export function createSugar(deps: SugarDeps) {
       });
     };
 
+    const worktreeMetadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
+      requireLinkedWorktree: options.requireLinkedWorktree,
+      allowMainWorktree: options.allowMainWorktree,
+    });
+    const metadata = Object.keys(rentMetadata).length > 0
+      ? { ...(worktreeMetadata && typeof worktreeMetadata === 'object' ? worktreeMetadata : {}), ...rentMetadata }
+      : worktreeMetadata;
+
     // Idempotent resume. A re-begin for the SAME identity in the SAME worktree
     // must RESUME the existing active session, not fork a parallel one. Forking
     // was the dual-session bug: the first session held the file claims, the
@@ -852,6 +915,16 @@ export function createSugar(deps: SugarDeps) {
           };
           if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
           if (files && files.length > 0) {
+            const repositoryConflicts = repositoryFileConflicts(files, worktreeMetadata, resumedSessionId);
+            if (repositoryConflicts.length > 0) {
+              return {
+                success: false,
+                error: 'File conflicts detected',
+                code: 'FILE_CONFLICT',
+                conflicts: repositoryConflicts,
+                hint: 'Use force=true to start fresh and claim files anyway',
+              };
+            }
             const claim = sessions.claimFiles(resumedSessionId, files, { agentId: resumedAgentId }) as Record<string, unknown>;
             if (claim && typeof claim === 'object') {
               if ('claimed' in claim) resumed.fileClaims = claim.claimed;
@@ -948,13 +1021,18 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
-    const worktreeMetadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
-      requireLinkedWorktree: options.requireLinkedWorktree,
-      allowMainWorktree: options.allowMainWorktree,
-    });
-    const metadata = Object.keys(rentMetadata).length > 0
-      ? { ...(worktreeMetadata && typeof worktreeMetadata === 'object' ? worktreeMetadata : {}), ...rentMetadata }
-      : worktreeMetadata;
+    const repositoryConflicts = files && files.length > 0
+      ? repositoryFileConflicts(files, worktreeMetadata)
+      : [];
+    if (!force && repositoryConflicts.length > 0) {
+      return {
+        success: false,
+        error: 'File conflicts detected',
+        code: 'FILE_CONFLICT',
+        conflicts: repositoryConflicts,
+        hint: 'Use force=true to claim files anyway',
+      };
+    }
 
     const name = deriveAgentDisplayName({
       name: options.name,
@@ -1068,8 +1146,12 @@ export function createSugar(deps: SugarDeps) {
     if (sessionResult.files) {
       response.fileClaims = sessionResult.files;
     }
-    if (sessionResult.conflicts && Array.isArray(sessionResult.conflicts) && (sessionResult.conflicts as unknown[]).length > 0) {
-      response.fileConflicts = sessionResult.conflicts;
+    const sessionConflicts = Array.isArray(sessionResult.conflicts)
+      ? sessionResult.conflicts.filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
+      : [];
+    const fileConflicts = mergeFileConflictEvidence(repositoryConflicts, sessionConflicts);
+    if (fileConflicts.length > 0) {
+      response.fileConflicts = fileConflicts;
     }
 
     // Include salvage hint from agent registration

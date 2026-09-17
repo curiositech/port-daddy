@@ -765,6 +765,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           || result.code === 'SESSION_OWNER_UNVERIFIABLE'
           ? 403
           : result.code === 'AMBIGUOUS_ACTIVE_SESSION'
+          || result.code === 'FILE_CONFLICT'
             ? 409
         : result.code === 'AGENT_REGISTRATION_FAILED'
           || result.code === 'WORKTREE_REQUIRED'
