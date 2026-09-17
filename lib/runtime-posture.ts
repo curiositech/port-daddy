@@ -135,6 +135,10 @@ const RUNTIME_CAPABILITY_STATUSES = new Set<unknown>(['ready', 'absent', 'disabl
 const MAX_OBSERVATION_AGE_MS = 60_000;
 const MAX_OBSERVATION_HORIZON_MS = 60_000;
 
+function isPolicyObject(value: unknown): value is Record<PropertyKey, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function uniqueCapabilities(values: readonly RuntimeCapability[]): RuntimeCapability[] {
   return [...new Set(values)];
 }
@@ -212,6 +216,17 @@ function observedDesired(input: RuntimePostureInput): RuntimeDesiredState | 'unk
  * Individual effects still pass through admitRuntimeEffect below.
  */
 export function assessRuntimePosture(input: RuntimePostureInput): RuntimePostureAssessment {
+  if (!isPolicyObject(input)) {
+    return {
+      posture: 'unknown',
+      desired: 'unknown',
+      control: 'unknown',
+      blockers: [],
+      warnings: [...COMMON_READINESS],
+      reasons: ['runtime_input_invalid'],
+    };
+  }
+
   const desired = observedDesired(input);
   const control = observedControl(input);
   const warnings = COMMON_READINESS.filter((capability) => capabilityStatus(input, capability) !== 'ready');
@@ -257,7 +272,22 @@ export function admitRuntimeEffect(
   input: RuntimePostureInput,
   request: RuntimeEffectRequest,
 ): RuntimeEffectAdmission {
+  const inputIsValid = isPolicyObject(input);
   const assessment = assessRuntimePosture(input);
+  const requestIsValid = isPolicyObject(request);
+  if (!inputIsValid || !requestIsValid) {
+    return {
+      allowed: false,
+      posture: assessment.posture,
+      effects: [],
+      requiredCapabilities: [],
+      reasons: [
+        ...(inputIsValid ? [] : ['runtime_input_invalid']),
+        ...(requestIsValid ? [] : ['effect_request_invalid']),
+      ],
+    };
+  }
+
   const suppliedEffects: readonly unknown[] = Array.isArray(request.effects) ? request.effects : [];
   const effectsAreDense = isDenseArray(suppliedEffects);
   const knownEffects = new Set(Object.keys(RUNTIME_EFFECT_REQUIREMENTS));
