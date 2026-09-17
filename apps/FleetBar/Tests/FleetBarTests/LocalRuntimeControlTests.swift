@@ -121,6 +121,22 @@ final class LocalRuntimeControlTests: XCTestCase {
         }
     }
 
+    func testConfirmedCustomOffDominatesUnknownSelectedControl() throws {
+        let canonical = try root("off-dominates-unknown-canonical")
+        let custom = fixture.appendingPathComponent("off-dominates-unknown.stop")
+        try Data("maintenance\n".utf8).write(to: custom)
+
+        for selected in [fixture.appendingPathComponent("missing/parent/control").path, "relative"] {
+            let control = LocalRuntimeControl(
+                canonicalRoot: canonical,
+                environment: ["PD_HOME": selected, "PD_HALT_FILE": custom.path]
+            )
+
+            XCTAssertEqual(control.observation.state, .off)
+            XCTAssertEqual(control.blockedReason, "Local Off is set (off-dominates-unknown.stop).")
+        }
+    }
+
     func testBrokenSymlinkAndUnknownControlsDeny() throws {
         let canonical = try root("canonical")
         let markerURL = canonical.appendingPathComponent("HALT")
