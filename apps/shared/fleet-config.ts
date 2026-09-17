@@ -379,6 +379,9 @@ export { resolveCfModel };
 function deriveCfModel(agent: RawAgent, name: string): string {
   if (agent.backend === 'cloudflare') {
     const pinned = resolveModelToken(agent.model);
+    // A blank or unknown primary pin is never dispatched. Deliberately use the
+    // admitted role default below: that keeps a typo from silencing review while
+    // the real-config tests make the fallback visible instead of accidental.
     if (pinned && KNOWN_GOOD_CF_MODELS.has(pinned)) return pinned;
   }
   for (const fb of agent.fallbacks ?? []) {

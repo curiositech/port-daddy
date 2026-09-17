@@ -98,7 +98,7 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     const declaredQa = REAL_DOCUMENT.fleet?.agents?.qa;
     expect(declaredQa).toBeDefined();
     expect(declaredQa!.execution).toBeUndefined();
-    expect(declaredQa!.allowedTools).toBe('Read,Grep,Glob');
+    expect(declaredQa!.allowedTools).toBeUndefined();
     expect(declaredQa!.cloud_only).toBe(true);
     expect(declaredQa!.backend).toBe('cloudflare');
     expect(declaredQa!.fallbacks).toBeUndefined();
@@ -116,6 +116,19 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
 `, 'pull_request:opened');
 
     expect(parsed?.[0].cfModel).toBe(CF_ROLE_MODELS.reviewBot);
+  });
+
+  it('uses an admitted role default when a cloudflare primary model is blank', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      prompt: inspect the frozen diff
+      backend: cloudflare
+      model: ''
+`, 'pull_request:opened');
+    expect(parsed?.[0].cfModel).toBe(CF_ROLE_MODELS.shipDefault);
+    expect(CF_ADMITTED_MODELS).toContain(parsed?.[0].cfModel);
   });
 
   it('legacy test-author tool strings do not acquire execution authority', () => {
