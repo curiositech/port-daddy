@@ -43,8 +43,10 @@ WORK="$SCRATCH/work"          # cwd for every CLI call — contains cwd-writers
 SNAP_ROOT="$SCRATCH/snapshots" # redirect snapshot store away from ~/.port-daddy
 LOG="$SCRATCH/daemon.log"
 SOCK="$SCRATCH/pd.sock"
+TEST_DB="$SCRATCH/registry.db"
 DAEMON_PID=""
 mkdir -p "$WORK" "$SNAP_ROOT"
+chmod 700 "$SCRATCH" "$WORK" "$SNAP_ROOT"
 
 cleanup() {
   if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
@@ -63,7 +65,9 @@ fi
 # --------------------------------------------------------------------------
 echo "Booting self-hosted scratch daemon from the compiled binary ($BIN)..."
 PORT_DADDY_PORT="$PORT" \
-PORT_DADDY_DB="$SCRATCH/registry.db" \
+PD_HOME="$SCRATCH" \
+PORT_DADDY_DB="$TEST_DB" \
+PORT_DADDY_TEST_DB="$TEST_DB" \
 PORT_DADDY_PREFIX="$SCRATCH" \
 PORT_DADDY_SOCK="$SOCK" \
 PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
@@ -97,11 +101,14 @@ echo
 cli() {
   ( cd "$WORK" && env \
       PORT_DADDY_PORT="$PORT" \
+      PD_HOME="$SCRATCH" \
       PORT_DADDY_CONTEXT_SLOT="e2e-cli-surface" \
       PORT_DADDY_PREFIX="$SCRATCH" \
       PORT_DADDY_SOCK="$SOCK" \
       PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
-      PORT_DADDY_DB="$SCRATCH/registry.db" \
+      PORT_DADDY_DB="$TEST_DB" \
+      PORT_DADDY_TEST_DB="$TEST_DB" \
+      PORT_DADDY_DISABLE_KEYCHAIN=1 \
       "$BIN" "$@" )
 }
 

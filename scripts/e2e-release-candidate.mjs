@@ -736,7 +736,8 @@ class ReleaseCandidateSuite {
     await this.runCommand('git', ['config', 'user.name', 'Port Daddy RC Fixture'], { cwd: repo, env, label: `git-name-${name}`, stream: false });
     await this.runCommand('git', ['config', 'user.email', 'rc-fixture@invalid.example'], { cwd: repo, env, label: `git-email-${name}`, stream: false });
     writeFileSync(join(repo, 'README.md'), `# ${name}\n\nSynthetic release-candidate fixture.\n`);
-    await this.runCommand('git', ['add', 'README.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
+    writeFileSync(join(repo, 'CLAIM.md'), `# ${name} claim fixture\n`);
+    await this.runCommand('git', ['add', 'README.md', 'CLAIM.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
     await this.runCommand('git', ['commit', '-m', `Initialize ${name}`], { cwd: repo, env, label: `git-commit-${name}`, stream: false });
     return repo;
   }
@@ -765,9 +766,9 @@ class ReleaseCandidateSuite {
     }
     const sessions = [];
     const specs = [
-      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true },
-      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false },
-      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true },
+      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'CLAIM.md' },
+      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
     ];
     try {
       for (const spec of specs) {
@@ -791,8 +792,8 @@ class ReleaseCandidateSuite {
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
-        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], { slot: spec.slot }), `claim ${spec.label}`);
-        if (!claim.success || !claim.claimed?.includes('README.md')) throw new Error(`README claim did not land for ${spec.label}`);
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
+        if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
         const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep', '--template'], { slot: spec.slot });
         if (!sitrep.stdout.includes(sessionId)) throw new Error(`sitrep did not name ${spec.label}'s active session`);
         sessions.push({ ...spec, sessionId });
@@ -996,7 +997,12 @@ class ReleaseCandidateSuite {
   }
 
   async portCollisionRecovery(caseRoot) {
-    const blocker = createServer((socket) => socket.end('occupied\n'));
+    const blockerSockets = new Set();
+    const blocker = createServer((socket) => {
+      blockerSockets.add(socket);
+      socket.once('close', () => blockerSockets.delete(socket));
+      socket.end('occupied\n');
+    });
     await new Promise((resolveListen, reject) => {
       blocker.once('error', reject);
       blocker.listen(0, '127.0.0.1', resolveListen);
@@ -1040,7 +1046,15 @@ class ReleaseCandidateSuite {
           cleanupError = error;
         }
       }
-      await new Promise((resolveClose) => blocker.close(resolveClose));
+      for (const socket of blockerSockets) socket.destroy();
+      await new Promise((resolveClose, rejectClose) => {
+        const timer = setTimeout(() => rejectClose(new Error('collision fixture listener did not close within 3 seconds')), 3_000);
+        blocker.close((error) => {
+          clearTimeout(timer);
+          if (error) rejectClose(error);
+          else resolveClose();
+        });
+      });
       if (cleanupError) throw cleanupError;
     }
 

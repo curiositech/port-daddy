@@ -27,6 +27,8 @@ const matrixPath = join(repoRoot, 'tests', 'e2e', 'release-candidate.matrix.json
 const evidencePath = join(repoRoot, 'tests', 'e2e', 'evidence', 'installed-runtime-baseline-2026-09-05.json');
 const runnerPath = join(repoRoot, 'scripts', 'e2e-release-candidate.mjs');
 const singleBinaryBuilderPath = join(repoRoot, 'scripts', 'build-single-binary.mjs');
+const compiledCliSurfacePath = join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh');
+const binarySoakPath = join(repoRoot, 'scripts', 'soak-binary.sh');
 
 describe('release-candidate E2E contract', () => {
   test('the normative matrix is valid and every Phase-1 runner is registered', () => {
@@ -211,6 +213,10 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("if (child.exitCode !== null || child.signalCode !== null) {\n      done(child.exitCode, child.signalCode);");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
+    expect(runner).toContain("claimPath: 'CLAIM.md'");
+    expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
+    expect(runner).toContain('const blockerSockets = new Set();');
+    expect(runner).toContain("collision fixture listener did not close within 3 seconds");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
     for (const id of [
       'runtime.transport-parity',
@@ -221,6 +227,16 @@ describe('release-candidate E2E contract', () => {
       'existing.bounded-packaged-soak',
     ]) {
       expect(matrix.cases.find((testCase) => testCase.id === id)?.timeoutSeconds).toBeGreaterThanOrEqual(150);
+    }
+  });
+
+  test('reused packaged-binary smokes own private test state', () => {
+    for (const scriptPath of [compiledCliSurfacePath, binarySoakPath]) {
+      const script = readFileSync(scriptPath, 'utf8');
+      expect(script).toContain('chmod 700');
+      expect(script).toContain('PD_HOME=');
+      expect(script).toContain('PORT_DADDY_TEST_DB=');
+      expect(script).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
     }
   });
 
