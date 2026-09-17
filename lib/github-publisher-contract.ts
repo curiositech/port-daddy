@@ -10,6 +10,8 @@
 export const FLEETBOT_ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1' as const;
 export const FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2' as const;
 export const FLEETBOT_RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v2' as const;
+export const FLEETBOT_RECEIPT_READ_SCHEMA = 'port-daddy.publisher-receipt-read.v1' as const;
+export const FLEETBOT_RECEIPT_RECOVERY_PATH = '/v1/fleetbot/publisher-receipts/recover' as const;
 
 export type FleetbotOperation =
   | 'pull-request.publish'
@@ -125,6 +127,42 @@ export interface FleetbotReceipt {
   tokenCleanup: 'confirmed' | 'unconfirmed';
 }
 
+/**
+ * Sanitized, durable identity of one publisher intent. Relay stores this exact
+ * binding before it obtains a GitHub token or performs an external effect.
+ * It contains no credential, signature, request body, or GitHub token.
+ */
+export interface FleetbotReceiptRecoveryBinding {
+  grantId: string;
+  grantEpoch: number;
+  repository: string;
+  operation: FleetbotOperation;
+  baseBranch: string;
+  baseSha: string;
+  headSha: string;
+  sessionId: string;
+  requestHash: string;
+  idempotencyKey: string;
+}
+
+/** A fresh, read-only authorization proof for recovering an existing receipt. */
+export interface FleetbotReceiptReadProof {
+  schema: typeof FLEETBOT_RECEIPT_READ_SCHEMA;
+  method: 'POST';
+  path: typeof FLEETBOT_RECEIPT_RECOVERY_PATH;
+  daemonFingerprint: string;
+  signingKeyGeneration: number;
+  issuedAt: number;
+  nonce: string;
+  binding: FleetbotReceiptRecoveryBinding;
+}
+
+export interface FleetbotReceiptRecoveryEnvelope {
+  proof: FleetbotReceiptReadProof;
+  /** Raw Ed25519 signature, hex, over SHA-256 of the proof preimage. */
+  proofSignature: string;
+}
+
 export interface ContractError {
   code: string;
   error: string;
@@ -171,6 +209,20 @@ export function fleetbotPublisherCapabilityPreimage(
   capability: FleetbotPublisherCapability,
 ): string {
   return stableJson(capability);
+}
+
+/** Stable storage comparison bytes nested inside the domain-separated proof. */
+export function fleetbotReceiptRecoveryBindingPreimage(
+  binding: FleetbotReceiptRecoveryBinding,
+): string {
+  return stableJson(binding);
+}
+
+/** Stable receipt-read proof bytes. Callers sign SHA-256 of this string. */
+export function fleetbotReceiptReadProofPreimage(
+  proof: FleetbotReceiptReadProof,
+): string {
+  return stableJson(proof);
 }
 
 export function isGitSha(value: unknown): value is string {
