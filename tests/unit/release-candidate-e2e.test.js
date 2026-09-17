@@ -385,6 +385,8 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('prepareOwnedPrivateDirectory(path);');
     expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra)');
     expect(runner).toContain('PORT_DADDY_RESOURCE_DIR: [this.stagedDir]');
+    expect(runner).toContain("claimPath: 'WORKTREE.md'");
+    expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
     expect(runner).toContain("'sitrep',\n          '--json'");
     expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
