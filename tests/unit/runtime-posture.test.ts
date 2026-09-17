@@ -4,7 +4,7 @@ import {
   assessRuntimePosture,
   RUNTIME_EFFECT_REQUIREMENTS,
 } from '../../lib/runtime-posture.js';
-import { CAPABILITY_SCOPE, capabilities, NOW, ready } from './runtime-posture-fixtures.js';
+import { capabilities, NOW, ready } from './runtime-posture-fixtures.js';
 
 describe('runtime posture names the product state instead of treating it as a boolean', () => {
   test.each([
