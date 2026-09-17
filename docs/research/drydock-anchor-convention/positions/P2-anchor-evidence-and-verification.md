@@ -81,8 +81,10 @@ claim. A guest probe may supplement “no host network route,” but only a host
 witness can satisfy it. A broker reservation may supplement “financial loss was
 capped,” but only provider reconciliation can satisfy it.
 
-The adjudicator is separate from the worker, broker, controller, and UI. It
-validates canonical bytes and signatures, verifies the event chain and
+The adjudicator is separate from the worker, broker, controller, and UI. The
+current [action-adjudication contract](../../../../lib/agent-harbor/governance/action-adjudication.ts)
+is a source-present starting point, not proof of runtime mediation. The
+adjudicator validates canonical bytes and signatures, verifies the event chain and
 transparency receipts, checks witness-class admissibility, recomputes invariants,
 and emits its own verdict. Existing task receipts should be upgraded from
 author-asserted hashes, paths, and booleans to verified artifact digests,

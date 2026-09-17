@@ -48,6 +48,9 @@ for (const forbidden of [
 expect(/data-evidence="proposal"/.test(html), "missing first evidence activation");
 expect(/data-open-primary/.test(html) && /#primary-evidence/.test(html), "missing second activation to primary evidence");
 expect(/≤2 activations/.test(html), "missing evidence-zoom ceiling");
+expect(!/\.innerHTML\s*=/.test(html), "evidence values must not flow through an HTML parsing sink");
+expect(/fields\.replaceChildren\(\)/.test(html), "evidence dialog must clear nodes without parsing HTML");
+expect(/term\.textContent = key/.test(html) && /description\.textContent = value/.test(html), "evidence dialog must render keys and values as text");
 expect(/BLOCKED_BY_HALT[\s\S]+UNKNOWN[\s\S]+UNTESTED_HUMAN/.test(html), "result vector must preserve subordinate non-pass states");
 expect(/Preview Stop sequence/.test(html) && /No host request will be sent/.test(html), "Stop preview lacks local-only boundary");
 expect(/Request prepared locally[\s\S]+Delivery not witnessed[\s\S]+teardown not witnessed/.test(html), "Stop lifecycle is collapsed or incomplete");

@@ -502,7 +502,14 @@ result    PASS_MODEL_ONLY</pre>
     document.querySelectorAll('[data-evidence]').forEach(button => button.addEventListener('click', () => {
       const item = evidence[button.dataset.evidence];
       title.textContent = item.title;
-      fields.innerHTML = Object.entries(item).filter(([key]) => key !== 'title').map(([key, value]) => `<dt>${key}</dt><dd>${value}</dd>`).join('');
+      fields.replaceChildren();
+      for (const [key, value] of Object.entries(item).filter(([entryKey]) => entryKey !== 'title')) {
+        const term = document.createElement('dt');
+        const description = document.createElement('dd');
+        term.textContent = key;
+        description.textContent = value;
+        fields.append(term, description);
+      }
       dialog.showModal();
     }));
     document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => dialog.close()));

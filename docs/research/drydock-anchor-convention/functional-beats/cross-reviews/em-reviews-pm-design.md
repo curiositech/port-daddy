@@ -14,12 +14,12 @@ Mode: bounded deliberation. Shared ground is strong: all three beats support a n
 
 - **ACCEPT — narrow wedge and broad HOLD.** The one-agent, one-repository, zero-money profile matches the engineering sequence and excludes economic and swarm machinery that cannot yet be supported.
 - **ACCEPT — falsifiable market posture.** H1–H5 distinguish problem evidence, usability, deployment acceptance, and payment, with real kill conditions.
-- **CLARIFY — “provider-neutral” is initially a contract property, not demonstrated runtime portability.**
-  - **Falsifier:** a second independent adapter satisfies unchanged proposal, authority, evidence, ambiguity, and settlement contracts without provider-specific fields entering the core.
-- **CLARIFY — H4 and H5 cannot run concurrently with the halted static program.** Architecture review and willingness interviews are possible; installation, paid production adoption, and renewal evidence require S7 and an explicit halt lift.
+- **CLARIFY — “provider-neutral” is initially a contract property, not demonstrated runtime portability.** The core proposal, authority, evidence, ambiguity, and settlement schemas and conformance fixtures contain no provider-specific fields. An adapter may carry provider-specific data only in its typed boundary envelope; it cannot change core transitions or verdict semantics.
+  - **Falsifier:** a second independent adapter satisfies those unchanged schemas and fixtures without provider-specific fields entering the core.
+- **CLARIFY — H4 and H5 cannot run concurrently with the halted static program.** Architecture review and willingness interviews are possible; installation, paid production adoption, and renewal evidence require the [S7 contained-canary gate](../../synthesis/final-product-roadmap.md#ordered-roadmap) and an explicit halt lift.
   - **Falsifier:** an explicitly authorized post-halt design partner completes installation and security review, then enters a paid pilot with a named production owner.
 - **REJECT — current-tense use of “sandboxed run,” converged Stop, or “verifiable intervention” as an available product promise.** These are legitimate targets, but remain blocked runtime claims.
-  - **Falsifier:** S7 demonstrates external channel ownership, adversarial bypass resistance, and witnessed Stop through delivery, fence, process, lease, effect, and teardown.
+  - **Falsifier:** S7 is the first real contained canary after S0–S6 pass. Its independent release authority must demonstrate external channel ownership, adversarial bypass resistance, and witnessed Stop through delivery, fence, process, lease, effect, and teardown; a static or model fixture cannot satisfy that gate.
 
 ### Bounded PM correction
 
@@ -44,14 +44,14 @@ Testing a hypothesis before its gate must return `INCOMPLETE`, not support.
 
 - **ACCEPT — static-prototype truth and trust wording.** The wording correctly distinguishes assent from execution, signature from truth, and Stop request from shutdown.
 - **ACCEPT — state and component grammar.** `AuthorityBar`, `BirthTimeline`, `EffectSaga`, `CommandLifecycle`, and `ResultVector` map cleanly to S0 and S6 contracts.
-- **CLARIFY — FleetBar, Switchboard, Control Room, and mobile currently imply multiple command entries.** They must converge on one signed command path; all other surfaces submit requests or deep-link without owning authority.
-  - **Falsifier:** changing selection, filters, repository, room, or session on every projection emits no lifecycle or capability mutation, while every consequential command resolves to one auditable control API.
+- **CLARIFY — FleetBar, Switchboard, Control Room, and mobile currently imply multiple command entries.** They must converge on one signed command path. Projection surfaces hold no signing key, capability, or direct effect route; they submit a typed request or deep-link. The Switchboard control API alone verifies the signed command, exact target and body generation, one-use permit, and lifecycle transition, then emits the shared immutable command receipt.
+  - **Falsifier:** changing selection, filters, repository, room, or session on every projection emits no lifecycle or capability mutation; architecture tests find no alternative effect route; and every consequential request resolves to that one auditable control API and receipt stream.
 - **REJECT — concurrent V1 implementation of FleetBar, six Control Room areas, Observatory, Switchboard, and mobile.** The interaction model may be designed now, but building all surfaces before S1 stabilizes would duplicate authority semantics and exceed the two-lane limit.
   - **Falsifier:** a dependency plan demonstrates that each surface is projection-only, shares one authority implementation, and can be delivered without delaying the admission model or duplicating state reducers.
 - **CLARIFY — static scenarios test comprehension, not duplicate-effect prevention or Stop convergence.** Each result must be labeled usability evidence rather than runtime evidence.
   - **Falsifier:** every scenario names its evidence class and engineering gate; no static participant success promotes containment, cancellation, replay, or accessibility to runtime-proven.
-- **CLARIFY — the two-action rule must terminate safely at authorization or unavailable evidence.** It cannot require disclosure of protected raw evidence merely to meet a navigation metric.
-  - **Falsifier:** a user lacking access reaches an exact redacted or unavailable-evidence record in two actions without receiving protected content.
+- **CLARIFY — the two-action rule must terminate safely at authorization or unavailable evidence.** An action is one user activation from an aggregate card or alert. Within two activations, the user must reach either the typed primary evidence record or a typed redacted, denied, or unavailable-evidence record carrying reason and remedy; protected raw evidence is never disclosed merely to meet the metric. Automated route tests count activations, and uncoached accessibility testing measures whether users identify the evidence state correctly.
+  - **Falsifier:** a user lacking access reaches the exact denial or unavailable-evidence record within two activations without receiving protected content, and a user with access reaches the bound primary record under the same measurement.
 
 ### Bounded design correction
 
