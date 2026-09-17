@@ -17,6 +17,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createHash } from 'node:crypto';
+import { claimRepositoryIdForSession } from '../lib/claim-forest.js';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -96,14 +97,14 @@ interface SessionsRouteDeps {
       regions?: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }>;
       agentId?: string | null;
     }): Record<string, unknown>;
-    getFileConflicts(files: string[], options?: { project?: string | null }): Record<string, unknown>;
+    getFileConflicts(files: string[], options?: { repositoryId?: string | null }): Record<string, unknown>;
     getRegionConflicts(regions: Array<{
       path: string;
       startLine?: number;
       endLine?: number;
       symbol?: string;
       symbolPath?: string;
-    }>, options?: { project?: string | null; excludeSessionId?: string }): Record<string, unknown>;
+    }>, options?: { repositoryId?: string | null; excludeSessionId?: string }): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
     listAllActiveClaims(options?: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
     getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }): Record<string, unknown>;
@@ -659,7 +660,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     action: 'claiming' | 'releasing',
     verdict?: Extract<IdentityWriteVerdict, { ok: true }>,
   ):
-    | { success: true; ownerAgentId: string; ownerProject: string | null }
+    | { success: true; ownerAgentId: string; ownerRepositoryId: string }
     | { success: false; result: Record<string, unknown> } => {
     if (!agentId || verdict?.kind !== 'verified') {
       return {
@@ -711,7 +712,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return {
       success: true,
       ownerAgentId: authorization.ownerAgentId,
-      ownerProject: typeof session?.identityProject === 'string' ? session.identityProject : null,
+      ownerRepositoryId: claimRepositoryIdForSession({
+        identityProject: typeof session?.identityProject === 'string' ? session.identityProject : null,
+        metadata: session?.metadata && typeof session.metadata === 'object'
+          ? session.metadata as Record<string, unknown>
+          : null,
+      }),
     };
   };
 
@@ -869,8 +875,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
+      const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
+      if (!worktreePolicy.success) {
+        reply.code(400);
+        return worktreePolicy;
+      }
+
+      const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
+        requireLinkedWorktree,
+        allowMainWorktree,
+      });
+      const ownerRepositoryId = claimRepositoryIdForSession({
+        identityProject: null,
+        metadata: mergedMetadata,
+      });
+
       if (files && Array.isArray(files) && files.length > 0 && !force) {
-        const conflictCheck = sessions.getFileConflicts(files, { project: null });
+        const conflictCheck = sessions.getFileConflicts(files, { repositoryId: ownerRepositoryId });
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
           evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
@@ -884,12 +905,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
-      if (!worktreePolicy.success) {
-        reply.code(400);
-        return worktreePolicy;
-      }
-
       const lifecycle = rawLifecycle === undefined ? null : parseSessionLifecycle(rawLifecycle);
       if (rawLifecycle !== undefined && !lifecycle) {
         reply.code(400);
@@ -899,11 +914,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           code: 'VALIDATION_ERROR',
         };
       }
-
-      const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
-        requireLinkedWorktree,
-        allowMainWorktree,
-      });
 
       // #8877: the session row is the durable attributed record — stamp the
       // verified identity verdict into its metadata so the record itself
@@ -1406,7 +1416,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       let repositoryConflicts: unknown[] = [];
       if (hasFiles) {
-        const conflictCheck = sessions.getFileConflicts(files, { project: routeAuth.ownerProject });
+        const conflictCheck = sessions.getFileConflicts(files, {
+          repositoryId: routeAuth.ownerRepositoryId,
+        });
         repositoryConflicts = mergeClaimConflicts(repositoryConflicts, withoutSessionClaimConflicts(
           Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [],
           sessionId,
@@ -1414,7 +1426,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
       if (hasRegions) {
         const conflictCheck = sessions.getRegionConflicts(regions, {
-          project: routeAuth.ownerProject,
+          repositoryId: routeAuth.ownerRepositoryId,
           excludeSessionId: sessionId,
         });
         if (conflictCheck.success === false) {

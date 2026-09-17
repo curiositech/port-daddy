@@ -1149,9 +1149,9 @@ describe('Sessions Module', () => {
         });
       }
 
-      const alpha = sessions.getFileConflicts(['README.md'], { project: 'alpha' });
-      const beta = sessions.getFileConflicts(['README.md'], { project: 'beta' });
-      const unscoped = sessions.getFileConflicts(['README.md'], { project: null });
+      const alpha = sessions.getFileConflicts(['README.md'], { repositoryId: 'alpha' });
+      const beta = sessions.getFileConflicts(['README.md'], { repositoryId: 'beta' });
+      const unscoped = sessions.getFileConflicts(['README.md'], { repositoryId: null });
 
       expect(alpha.conflicts.map((conflict) => conflict.sessionId)).toEqual([alphaMain.id]);
       expect(beta.conflicts.map((conflict) => conflict.sessionId)).toEqual([betaMain.id]);
@@ -1186,16 +1186,16 @@ describe('Sessions Module', () => {
       }
 
       const alpha = sessions.getRegionConflicts([heldRegion], {
-        project: 'alpha',
+        repositoryId: 'alpha',
         excludeSessionId: alphaLinked.id,
       });
-      const beta = sessions.getRegionConflicts([heldRegion], { project: 'beta' });
+      const beta = sessions.getRegionConflicts([heldRegion], { repositoryId: 'beta' });
       const rangeOverlap = sessions.getRegionConflicts([{
         path: 'src/regions.ts',
         startLine: 15,
         endLine: 25,
       }], {
-        project: 'alpha',
+        repositoryId: 'alpha',
         excludeSessionId: alphaLinked.id,
       });
       const adjacent = sessions.getRegionConflicts([{
@@ -1203,7 +1203,7 @@ describe('Sessions Module', () => {
         startLine: 21,
         endLine: 30,
       }], {
-        project: 'alpha',
+        repositoryId: 'alpha',
         excludeSessionId: alphaLinked.id,
       });
 
@@ -1225,7 +1225,7 @@ describe('Sessions Module', () => {
         path: 'src/symbols.ts',
         symbol: 'update',
       }], {
-        project: 'alpha',
+        repositoryId: 'alpha',
         excludeSessionId: claimant.id,
       });
 
@@ -1243,9 +1243,9 @@ describe('Sessions Module', () => {
       sessions.claimFiles(projectless.id, ['README.md']);
       sessions.claimFiles(literalLocal.id, ['README.md']);
 
-      expect(sessions.getFileConflicts(['README.md'], { project: null }).conflicts
+      expect(sessions.getFileConflicts(['README.md'], { repositoryId: null }).conflicts
         .map((conflict) => conflict.sessionId)).toEqual([projectless.id]);
-      expect(sessions.getFileConflicts(['README.md'], { project: 'local' }).conflicts
+      expect(sessions.getFileConflicts(['README.md'], { repositoryId: 'local' }).conflicts
         .map((conflict) => conflict.sessionId)).toEqual([literalLocal.id]);
     });
 

@@ -982,25 +982,28 @@ describe('Route error codes: sessions', () => {
     expect(wrongAgent.json().code).toBe('SESSION_AGENT_MISMATCH');
   });
 
-  test('forced file claims retain same-project conflicts across linked worktrees', async () => {
-    const stamped = (alias) => ({ identity: { verified: true, actorId: creds[alias].actorId } });
+  test('forced file claims use Git family across project-label drift without leaking across repositories', async () => {
+    const stamped = (alias, id, root, commonDir) => ({
+      identity: { verified: true, actorId: creds[alias].actorId },
+      worktree: { id, root, name: id, branch: null, isMain: false, commonDir },
+    });
     const owner = sessionsMod.start('alpha main owner', {
       agentId: 'agent-owner',
-      project: 'alpha',
+      project: 'alpha-original-label',
       worktreeId: 'alpha-main',
-      metadata: stamped('agent-owner'),
+      metadata: stamped('agent-owner', 'alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
     });
     const linked = sessionsMod.start('alpha linked claimant', {
       agentId: 'agent-2',
-      project: 'alpha',
+      project: 'alpha-renamed-label',
       worktreeId: 'alpha-linked',
-      metadata: stamped('agent-2'),
+      metadata: stamped('agent-2', 'alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
     });
     const beta = sessionsMod.start('beta claimant', {
       agentId: 'agent-intruder',
-      project: 'beta',
+      project: 'alpha-original-label',
       worktreeId: 'beta-main',
-      metadata: stamped('agent-intruder'),
+      metadata: stamped('agent-intruder', 'beta-main', '/repos/beta/main', '/repos/beta/.git'),
     });
     expect(sessionsMod.claimFiles(owner.id, ['README.md'], {
       agentId: 'agent-owner',
@@ -1043,24 +1046,27 @@ describe('Route error codes: sessions', () => {
   });
 
   test('region claims enforce repository overlap across linked worktrees', async () => {
-    const stamped = (alias) => ({ identity: { verified: true, actorId: creds[alias].actorId } });
+    const stamped = (alias, id, root, commonDir) => ({
+      identity: { verified: true, actorId: creds[alias].actorId },
+      worktree: { id, root, name: id, branch: null, isMain: false, commonDir },
+    });
     const owner = sessionsMod.start('alpha region owner', {
       agentId: 'agent-owner',
-      project: 'alpha',
+      project: 'alpha-original-label',
       worktreeId: 'alpha-main',
-      metadata: stamped('agent-owner'),
+      metadata: stamped('agent-owner', 'alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
     });
     const linked = sessionsMod.start('alpha region claimant', {
       agentId: 'agent-2',
-      project: 'alpha',
+      project: 'alpha-renamed-label',
       worktreeId: 'alpha-linked',
-      metadata: stamped('agent-2'),
+      metadata: stamped('agent-2', 'alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
     });
     const beta = sessionsMod.start('beta region claimant', {
       agentId: 'agent-intruder',
-      project: 'beta',
+      project: 'alpha-original-label',
       worktreeId: 'beta-main',
-      metadata: stamped('agent-intruder'),
+      metadata: stamped('agent-intruder', 'beta-main', '/repos/beta/main', '/repos/beta/.git'),
     });
     const heldRegion = {
       path: 'src/regions.ts',

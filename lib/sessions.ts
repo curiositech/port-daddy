@@ -2233,7 +2233,7 @@ export function createSessions(
    * Get active file conflicts for given paths. Callers may scope the lookup to
    * one logical repository while intentionally spanning all of its worktrees.
    */
-  function getFileConflicts(filePaths: string[], options: { project?: string | null } = {}) {
+  function getFileConflicts(filePaths: string[], options: { repositoryId?: string | null } = {}) {
     if (!Array.isArray(filePaths) || filePaths.length === 0) {
       return { conflicts: [] };
     }
@@ -2243,7 +2243,9 @@ export function createSessions(
     for (const filePath of filePaths) {
       const activeClaims = claimForest.getActiveClaimsForFile(
         filePath,
-        options.project === undefined ? undefined : { repoId: options.project, worldKind: 'worktree' },
+        options.repositoryId === undefined
+          ? undefined
+          : { repoId: options.repositoryId, worldKind: 'worktree' },
       );
       for (const claim of activeClaims) {
         conflicts.push({
@@ -2270,16 +2272,16 @@ export function createSessions(
    */
   function getRegionConflicts(
     regions: FileRegion[],
-    options: { project?: string | null; excludeSessionId?: string } = {},
+    options: { repositoryId?: string | null; excludeSessionId?: string } = {},
   ) {
     if (!Array.isArray(regions) || regions.length === 0) {
       return { success: true, conflicts: [] as FileConflict[] };
     }
 
     const conflicts: FileConflict[] = [];
-    const scope = options.project === undefined
+    const scope = options.repositoryId === undefined
       ? undefined
-      : { repoId: options.project, worldKind: 'worktree' as const };
+      : { repoId: options.repositoryId, worldKind: 'worktree' as const };
 
     for (const region of regions) {
       const resolved = resolveRegionClaim(region);

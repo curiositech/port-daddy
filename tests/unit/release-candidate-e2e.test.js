@@ -336,8 +336,8 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("'sitrep',\n          '--json'");
     expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
     expect(runner).toContain("claimPath: 'LINKED.md'");
-    expect(runner).toContain("project: 'rc-e2e-alpha'");
-    expect(runner).toContain("project: 'rc-e2e-beta'");
+    expect(runner).toContain("project: 'rc-e2e-alpha-original'");
+    expect(runner).toContain("project: 'rc-e2e-alpha-renamed'");
     expect(runner).toContain('`${spec.project}:coordination:${spec.label}`');
     expect(runner).toContain('pd-unix-claim-${spec.label}');
     expect(runner).toContain("label: 'pd-unix-conflict-alpha-linked'");

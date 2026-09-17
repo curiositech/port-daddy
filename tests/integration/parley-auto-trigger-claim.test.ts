@@ -106,29 +106,32 @@ async function establishConflict(harness: ReturnType<typeof buildHarness>) {
 }
 
 describe('authenticated claim conflict automatic Parley', () => {
-  test('blocks same-project linked-worktree claims without leaking conflicts across projects', async () => {
+  test('blocks same Git-family claims across label drift without leaking across repositories', async () => {
     const harness = buildHarness();
     const alphaOwner = mintTestActor(harness.actorSouls, 'alpha-owner');
     const alphaLinked = mintTestActor(harness.actorSouls, 'alpha-linked');
     const betaOwner = mintTestActor(harness.actorSouls, 'beta-owner');
-    const stamped = (actorId: string) => ({ identity: { verified: true, actorId } });
+    const stamped = (actorId: string, id: string, root: string, commonDir: string) => ({
+      identity: { verified: true, actorId },
+      worktree: { id, root, name: id, branch: null, isMain: false, commonDir },
+    });
     const ownerSession = harness.sessions.start('Alpha main owner', {
       agentId: 'alpha-owner',
-      project: 'alpha',
+      project: 'alpha-original-label',
       worktreeId: 'alpha-main',
-      metadata: stamped(alphaOwner.actorId),
+      metadata: stamped(alphaOwner.actorId, 'alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
     });
     const linkedSession = harness.sessions.start('Alpha linked challenger', {
       agentId: 'alpha-linked',
-      project: 'alpha',
+      project: 'alpha-renamed-label',
       worktreeId: 'alpha-linked',
-      metadata: stamped(alphaLinked.actorId),
+      metadata: stamped(alphaLinked.actorId, 'alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
     });
     const betaSession = harness.sessions.start('Beta owner', {
       agentId: 'beta-owner',
-      project: 'beta',
+      project: 'alpha-original-label',
       worktreeId: 'beta-main',
-      metadata: stamped(betaOwner.actorId),
+      metadata: stamped(betaOwner.actorId, 'beta-main', '/repos/beta/main', '/repos/beta/.git'),
     });
     expect(harness.sessions.claimFiles(ownerSession.id, ['README.md'], { agentId: 'alpha-owner' }).success).toBe(true);
 
@@ -157,24 +160,27 @@ describe('authenticated claim conflict automatic Parley', () => {
     const owner = mintTestActor(harness.actorSouls, 'forced-alpha-owner');
     const challenger = mintTestActor(harness.actorSouls, 'forced-alpha-linked');
     const beta = mintTestActor(harness.actorSouls, 'forced-beta-owner');
-    const stamped = (actorId: string) => ({ identity: { verified: true, actorId } });
+    const stamped = (actorId: string, id: string, root: string, commonDir: string) => ({
+      identity: { verified: true, actorId },
+      worktree: { id, root, name: id, branch: null, isMain: false, commonDir },
+    });
     const ownerSession = harness.sessions.start('Alpha main owner', {
       agentId: 'forced-alpha-owner',
       project: 'alpha',
       worktreeId: 'alpha-main',
-      metadata: stamped(owner.actorId),
+      metadata: stamped(owner.actorId, 'alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
     });
     const challengerSession = harness.sessions.start('Alpha linked challenger', {
       agentId: 'forced-alpha-linked',
       project: 'alpha',
       worktreeId: 'alpha-linked',
-      metadata: stamped(challenger.actorId),
+      metadata: stamped(challenger.actorId, 'alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
     });
     const betaSession = harness.sessions.start('Beta owner', {
       agentId: 'forced-beta-owner',
       project: 'beta',
       worktreeId: 'beta-main',
-      metadata: stamped(beta.actorId),
+      metadata: stamped(beta.actorId, 'beta-main', '/repos/beta/main', '/repos/beta/.git'),
     });
     expect(harness.sessions.claimFiles(ownerSession.id, ['README.md'], {
       agentId: 'forced-alpha-owner',
@@ -218,9 +224,11 @@ describe('authenticated claim conflict automatic Parley', () => {
     expect(otherProject.statusCode).toBe(200);
     expect(otherProject.json().conflicts).toEqual([]);
     expect(harness.parley.list({ harbor: 'local' })).toHaveLength(1);
-    expect(harness.inbox.list(owner.actorId).messages).toHaveLength(1);
-    expect(harness.inbox.list(challenger.actorId).messages).toHaveLength(1);
-    expect(harness.inbox.list(beta.actorId).messages).toHaveLength(0);
+    // Inbox routing is current transport state (the live session alias), not
+    // the durable actor id recorded as Parley membership.
+    expect(harness.inbox.list('forced-alpha-owner').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-alpha-linked').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-beta-owner').messages).toHaveLength(0);
     await harness.app.close();
   });
 
@@ -520,7 +528,7 @@ describe('authenticated claim conflict automatic Parley', () => {
         ...result,
         conflicts: Array.from(
           { length: CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs + 1 },
-          () => ({ ...conflict }),
+          (_, index) => ({ ...conflict, claimedAt: conflict.claimedAt + index }),
         ),
       };
     };

@@ -718,9 +718,9 @@ class ReleaseCandidateSuite {
     }
     const sessions = [];
     const specs = [
-      { label: 'alpha-main', project: 'rc-e2e-alpha', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
-      { label: 'alpha-linked', project: 'rc-e2e-alpha', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'LINKED.md' },
-      { label: 'beta-main', project: 'rc-e2e-beta', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-main', project: 'rc-e2e-alpha-original', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', project: 'rc-e2e-alpha-renamed', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'LINKED.md' },
+      { label: 'beta-main', project: 'rc-e2e-alpha-original', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
     ];
     try {
       for (const spec of specs) {

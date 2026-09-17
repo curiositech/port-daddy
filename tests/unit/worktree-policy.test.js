@@ -110,6 +110,17 @@ describe('normalizeSessionWorktreeContext', () => {
     expect(result).toEqual(linkedWorktree);
     expect(result.commonDir).toBe('/repo/.git');
   });
+
+  test('canonicalizes a main checkout relative common directory to the same family path', () => {
+    const result = normalizeSessionWorktreeContext({
+      ...linkedWorktree,
+      root: '/repo',
+      isMain: true,
+      commonDir: '.git',
+    });
+
+    expect(result.commonDir).toBe('/repo/.git');
+  });
 });
 
 describe('toSessionWorktreeContext', () => {

@@ -1,3 +1,4 @@
+import { isAbsolute, normalize, resolve } from 'node:path';
 import type { WorktreeInfo } from './worktree.js';
 
 export interface SessionWorktreeContext {
@@ -24,6 +25,11 @@ export interface SessionWorktreePolicyResult {
   hint?: string;
 }
 
+function canonicalCommonDir(root: string, commonDir: string): string {
+  const trimmed = commonDir.trim();
+  return normalize(isAbsolute(trimmed) ? trimmed : resolve(root, trimmed));
+}
+
 export function toSessionWorktreeContext(info: WorktreeInfo): SessionWorktreeContext {
   return {
     id: info.id,
@@ -31,7 +37,7 @@ export function toSessionWorktreeContext(info: WorktreeInfo): SessionWorktreeCon
     name: info.name,
     branch: info.branch,
     isMain: info.isMain,
-    commonDir: info.commonDir,
+    commonDir: canonicalCommonDir(info.root, info.commonDir),
   };
 }
 
@@ -42,13 +48,16 @@ export function normalizeSessionWorktreeContext(value: unknown): SessionWorktree
   if (typeof raw.root !== 'string' || !raw.root.trim()) return null;
   if (typeof raw.isMain !== 'boolean') return null;
 
+  const root = raw.root.trim();
   return {
     id: raw.id,
-    root: raw.root,
+    root,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : raw.root.split('/').pop() || 'unknown',
     branch: typeof raw.branch === 'string' && raw.branch.trim() ? raw.branch : null,
     isMain: raw.isMain,
-    ...(typeof raw.commonDir === 'string' && raw.commonDir.trim() ? { commonDir: raw.commonDir } : {}),
+    ...(typeof raw.commonDir === 'string' && raw.commonDir.trim()
+      ? { commonDir: canonicalCommonDir(root, raw.commonDir) }
+      : {}),
   };
 }
 
