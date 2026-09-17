@@ -20,7 +20,8 @@ phase, but no phase may accumulate unpublished work behind the next one.
 | Phase | Roadmap item | Mergeable result | Exit evidence |
 | --- | --- | --- | --- |
 | A | `fleetbot-pr-authorship` | The enrolled GitHub Actions workload can post one typed PR comment with explicit responsible-agent provenance. | Hostile request fixtures, operation-specific signed receipt verification, protected manual workflow, exact GitHub readback in staging. |
-| B | `fleetbot-pr-authorship` | Typed review reply, ready-for-review, reviewer request, and enqueue operations share the same bounded client. | Per-operation fixtures, least-privilege grant tests, ambiguous-write readback tests, staging receipts for every operation. |
+| B1 | `fleetbot-pr-authorship` | Typed review reply, ready-for-review, reviewer request, and enqueue operations share the same bounded client. | Per-operation hostile fixtures, strict receipt-result verification, complete reviewer pagination, and proof that steady-state writes do not request OIDC. |
+| B2 | `fleetbot-pr-authorship` | A workload-authenticated receipt-recovery path resolves loss of the final Relay response without redispatching a GitHub mutation. | Recovery authorization and expiry fixtures, exact request-digest lookup, signed receipt readback, and a workflow retry proving no second GitHub write. |
 | C | `fleetbot-host-workload-enrolment` | A Relay proposal inbox accepts bounded action proposals from admitted host agents without handing them publisher authority. | Agent identity, repository and operation scope, proposal digest, expiry, deduplication, denial fixtures, durable status API. |
 | D | `fleetbot-host-workload-enrolment` | One protected remote executor claims proposals, evaluates the standing grant, and drives the actuator. | Claim fencing, retry/readback behavior, executor recovery, spend/rate ceilings, signed proposal-to-receipt lineage. |
 | E | `fleetbot-pr-authorship` | Codex, Claude Code, Antigravity, Gemini, and Agy adapters submit the same typed proposal and poll the same receipt contract. | Cross-harness conformance fixtures; no adapter receives an App key, installation token, account bearer, or personal token. |
@@ -67,7 +68,9 @@ signature must distinguish the verified dispatcher from both supplied labels.
 Relay resolves GitHub response ambiguity inside one invocation by exact
 readback. Loss of the final Relay response is different: the manual workflow
 does not yet retain a recoverable signed envelope, so operators must not blindly
-re-dispatch it. A signed receipt-read/recovery path is required in Phase B.
+re-dispatch it. A signed receipt-read/recovery path is required in Phase B2;
+Phase B1 widens the typed operation set without claiming that fresh dispatch is
+safe recovery.
 
 ## Phase C and D trust split
 

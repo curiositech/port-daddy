@@ -44,6 +44,58 @@ function action(purpose = 'Publish reviewed work'): FleetbotActionRequest {
   return request;
 }
 
+function reviewerAction(reviewers: string[], teamReviewers: string[]): FleetbotActionRequest {
+  const request = action();
+  request.operation = 'pull-request.request-reviewers';
+  request.payload = {
+    baseBranch: 'main',
+    baseSha: '1'.repeat(40),
+    pullRequestNumber: 10129,
+    expectedGithubHeadSha: '2'.repeat(40),
+    reviewers,
+    teamReviewers,
+  };
+  request.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(request))}`;
+  return request;
+}
+
+const fleetbotPull = {
+  number: 10129,
+  node_id: 'PR_node',
+  html_url: 'https://github.test/pull/10129',
+  state: 'open',
+  draft: false,
+  title: 'Publisher',
+  body: '',
+  user: { login: 'port-daddy[bot]' },
+  head: {
+    ref: 'pd-agent/security-test',
+    sha: '2'.repeat(40),
+    repo: { full_name: 'curiositech/port-daddy' },
+  },
+  base: {
+    ref: 'main',
+    sha: '1'.repeat(40),
+    repo: { full_name: 'curiositech/port-daddy' },
+  },
+};
+
+function reviewRequestsResponse(
+  nodes: Array<{ requestedReviewer: { __typename: 'User'; login: string } | { __typename: 'Team'; slug: string } }>,
+  hasNextPage: boolean,
+  endCursor: string | null,
+): Response {
+  return Response.json({
+    data: {
+      repository: {
+        pullRequest: {
+          reviewRequests: { nodes, pageInfo: { hasNextPage, endCursor } },
+        },
+      },
+    },
+  });
+}
+
 async function signedEnvelope(request = action(), nonce = '3'.repeat(64), generation = 1) {
   const requestHash = hashHex(fleetbotIdempotencyPreimage(request));
   const capability: FleetbotPublisherCapability = {
@@ -311,6 +363,258 @@ describe('Fleetbot publisher authority hardening', () => {
       const rows = await subject.listAllPages<{ id: number }>('https://api.github.test/comments', 'token');
       expect(rows).toHaveLength(101);
       expect(pages).toEqual([1, 2]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('paginates more than 100 combined requested users and teams by GraphQL cursor', async () => {
+    const originalFetch = globalThis.fetch;
+    const cursors: Array<string | null> = [];
+    globalThis.fetch = async (_input, init) => {
+      const after = JSON.parse(String(init?.body)).variables.after as string | null;
+      cursors.push(after);
+      if (after === null) {
+        return reviewRequestsResponse([
+          ...Array.from({ length: 50 }, (_, index) => ({ requestedReviewer: { __typename: 'User' as const, login: `user-${index}` } })),
+          ...Array.from({ length: 50 }, (_, index) => ({ requestedReviewer: { __typename: 'Team' as const, slug: `team-${index}` } })),
+        ], true, 'cursor-100');
+      }
+      return reviewRequestsResponse([
+        { requestedReviewer: { __typename: 'User', login: 'late-user' } },
+        { requestedReviewer: { __typename: 'Team', slug: 'late-team' } },
+      ], false, 'cursor-102');
+    };
+    try {
+      const rows = await subject.listRequestedReviewers('curiositech', 'port-daddy', 10129, 'token');
+      expect(rows.users).toHaveLength(51);
+      expect(rows.teams).toHaveLength(51);
+      expect(rows.users.at(-1)?.login).toBe('late-user');
+      expect(rows.teams.at(-1)?.slug).toBe('late-team');
+      expect(cursors).toEqual([null, 'cursor-100']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('reuses reviewer requests found only after the first page', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = reviewerAction(['late-user'], ['late-team']);
+    let posts = 0;
+    const cursors: Array<string | null> = [];
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) return Response.json(fleetbotPull);
+      if (url.pathname.endsWith('/requested_reviewers') && init?.method === 'POST') {
+        posts += 1;
+        return Response.json({});
+      }
+      if (url.pathname.endsWith('/graphql')) {
+        const after = JSON.parse(String(init?.body)).variables.after as string | null;
+        cursors.push(after);
+        if (after === null) {
+          return reviewRequestsResponse([
+            ...Array.from({ length: 50 }, (_, index) => ({ requestedReviewer: { __typename: 'User' as const, login: `user-${index}` } })),
+            ...Array.from({ length: 50 }, (_, index) => ({ requestedReviewer: { __typename: 'Team' as const, slug: `team-${index}` } })),
+          ], true, 'cursor-100');
+        }
+        return reviewRequestsResponse([
+          { requestedReviewer: { __typename: 'User', login: 'late-user' } },
+          { requestedReviewer: { __typename: 'Team', slug: 'late-team' } },
+        ], false, 'cursor-102');
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).resolves.toMatchObject({ result: 'reused' });
+      expect(posts).toBe(0);
+      expect(cursors).toEqual([null, 'cursor-100']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('fails ambiguous when a reviewer write does not appear in complete readback', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = reviewerAction(['missing-user'], ['missing-team']);
+    let postAccepted = false;
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) return Response.json(fleetbotPull);
+      if (url.pathname.endsWith('/requested_reviewers') && init?.method === 'POST') {
+        postAccepted = true;
+        return Response.json({});
+      }
+      if (url.pathname.endsWith('/graphql')) return reviewRequestsResponse([], false, null);
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).rejects.toMatchObject({ code: 'REVIEWER_REQUEST_AMBIGUOUS', status: 409, ambiguous: true });
+      expect(postAccepted).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('rejects reviewer success when the pull-request head moves after the write', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = reviewerAction(['new-reviewer'], []);
+    let pullReads = 0;
+    let requested = false;
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) {
+        pullReads += 1;
+        return Response.json(pullReads === 1 ? fleetbotPull : {
+          ...fleetbotPull,
+          head: { ...fleetbotPull.head, sha: '3'.repeat(40) },
+        });
+      }
+      if (url.pathname.endsWith('/requested_reviewers') && init?.method === 'POST') {
+        requested = true;
+        return Response.json({});
+      }
+      if (url.pathname.endsWith('/graphql')) {
+        return requested
+          ? reviewRequestsResponse([{ requestedReviewer: { __typename: 'User', login: 'new-reviewer' } }], false, null)
+          : reviewRequestsResponse([], false, null);
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).rejects.toMatchObject({ code: 'PULL_REQUEST_SCOPE_CHANGED', status: 409 });
+      expect(requested).toBe(true);
+      expect(pullReads).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it.each(['pull-request.comment', 'pull-request.review-reply'] as const)(
+    'rejects %s success when the pull-request head moves after the write',
+    async (operation) => {
+      const originalFetch = globalThis.fetch;
+      const request = action();
+      request.operation = operation;
+      request.payload = {
+        baseBranch: 'main', baseSha: '1'.repeat(40), pullRequestNumber: 10129,
+        expectedGithubHeadSha: '2'.repeat(40), body: 'Scoped Fleetbot response.',
+        ...(operation === 'pull-request.review-reply' ? { commentId: 7001 } : {}),
+      };
+      request.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(request))}`;
+      const ordinaryPull = {
+        ...fleetbotPull,
+        user: { login: 'ordinary-contributor' },
+        head: { ...fleetbotPull.head, ref: 'feature/contributor-change' },
+      };
+      let pullReads = 0;
+      let createdBody = '';
+      let created = false;
+      globalThis.fetch = async (input, init) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/pulls/10129')) {
+          pullReads += 1;
+          return Response.json(pullReads === 1 ? ordinaryPull : {
+            ...ordinaryPull,
+            head: { ...ordinaryPull.head, sha: '3'.repeat(40) },
+          });
+        }
+        const isReplyPost = url.pathname.endsWith('/pulls/10129/comments/7001/replies') && init?.method === 'POST';
+        const isCommentPost = url.pathname.endsWith('/issues/10129/comments') && init?.method === 'POST';
+        if (isReplyPost || isCommentPost) {
+          createdBody = JSON.parse(String(init?.body)).body;
+          created = true;
+          return Response.json({ id: 9001 });
+        }
+        if (url.pathname.endsWith('/pulls/10129/comments')) {
+          return Response.json(created ? [{
+            id: 9001, html_url: 'https://github.test/pull/10129#discussion_r9001', body: createdBody,
+            in_reply_to_id: 7001, user: { login: 'port-daddy[bot]' },
+          }] : []);
+        }
+        if (url.pathname.endsWith('/issues/10129/comments')) {
+          return Response.json(created ? [{
+            id: 9001, html_url: 'https://github.test/pull/10129#issuecomment-9001', body: createdBody,
+            user: { login: 'port-daddy[bot]' },
+          }] : []);
+        }
+        throw new Error(`unexpected GitHub request: ${url}`);
+      };
+      try {
+        await expect(subject.executeExisting(
+          request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+          { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+          () => {},
+        )).rejects.toMatchObject({ code: 'PULL_REQUEST_SCOPE_CHANGED', status: 409 });
+        expect(created).toBe(true);
+        expect(pullReads).toBe(2);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    },
+  );
+
+  it('rejects malformed requested-reviewer union members', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({
+      data: {
+        repository: {
+          pullRequest: {
+            reviewRequests: {
+              nodes: [{ requestedReviewer: { __typename: 'User' } }],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      },
+    });
+    try {
+      await expect(subject.listRequestedReviewers('curiositech', 'port-daddy', 10129, 'token'))
+        .rejects.toMatchObject({ code: 'GITHUB_LIST_INVALID', status: 502 });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('rejects a non-advancing requested-reviewer cursor', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return reviewRequestsResponse([], true, 'stuck-cursor');
+    };
+    try {
+      await expect(subject.listRequestedReviewers('curiositech', 'port-daddy', 10129, 'token'))
+        .rejects.toMatchObject({ code: 'GITHUB_LIST_INVALID', status: 502 });
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('bounds a continuously advancing requested-reviewer connection', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return reviewRequestsResponse([], true, `cursor-${calls}`);
+    };
+    try {
+      await expect(subject.listRequestedReviewers('curiositech', 'port-daddy', 10129, 'token'))
+        .rejects.toMatchObject({ code: 'GITHUB_LIST_TOO_LARGE', status: 409 });
+      expect(calls).toBe(100);
     } finally {
       globalThis.fetch = originalFetch;
     }

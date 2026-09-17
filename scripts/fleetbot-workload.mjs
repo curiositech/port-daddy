@@ -103,7 +103,10 @@ export function verifyPublisherReceiptEnvelope(body, { request, snapshot, expect
 function expectedReceiptResults(operation) {
   if (operation === 'pull-request.inspect') return ['observed']
   if (operation === 'pull-request.comment' || operation === 'pull-request.review-reply') return ['created', 'reused']
-  return ['created', 'updated', 'reused']
+  if (operation === 'pull-request.ready'
+      || operation === 'pull-request.request-reviewers'
+      || operation === 'pull-request.enqueue') return ['updated', 'reused']
+  return []
 }
 
 async function jsonFetch(url, options = {}, fetchImpl = fetch) {
@@ -183,6 +186,25 @@ function requireBoundedText(value, name, maxBytes) {
     throw new Error(`${name} must be non-empty and at most ${maxBytes} UTF-8 bytes`)
   }
   return value
+}
+
+function requirePositiveInteger(value, name) {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${name} must be a positive integer`)
+  return value
+}
+
+function requireReviewerNames(value, name) {
+  if (!Array.isArray(value) || value.length > 20 || value.some((entry) => typeof entry !== 'string' || !IDENTIFIER_RE.test(entry))) {
+    throw new Error(`${name} must be an array of at most 20 safe identifiers`)
+  }
+  return [...new Set(value.map((entry) => entry.toLowerCase()))].sort()
+}
+
+export function parseReviewerJson(value, name) {
+  if (typeof value !== 'string') throw new Error(`${name} must be a JSON array`)
+  let parsed
+  try { parsed = JSON.parse(value) } catch { throw new Error(`${name} must be a JSON array`) }
+  return requireReviewerNames(parsed, name)
 }
 
 function buildExistingRequest({
@@ -280,6 +302,38 @@ export function buildCommentRequest({ body, ...options }) {
   })
 }
 
+export function buildReviewReplyRequest({ body, commentId, ...options }) {
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.review-reply',
+    payload: {
+      body: requireBoundedText(body, 'FLEETBOT_COMMENT_BODY', MAX_BODY_BYTES),
+      commentId: requirePositiveInteger(commentId, 'FLEETBOT_REVIEW_COMMENT_ID'),
+    },
+  })
+}
+
+export function buildReadyRequest(options) {
+  return buildExistingRequest({ ...options, operation: 'pull-request.ready' })
+}
+
+export function buildRequestReviewersRequest({ reviewers, teamReviewers, ...options }) {
+  const parsedReviewers = requireReviewerNames(reviewers, 'FLEETBOT_REVIEWERS_JSON')
+  const parsedTeamReviewers = requireReviewerNames(teamReviewers, 'FLEETBOT_TEAM_REVIEWERS_JSON')
+  if (parsedReviewers.length + parsedTeamReviewers.length === 0) {
+    throw new Error('at least one reviewer or team reviewer is required')
+  }
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.request-reviewers',
+    payload: { reviewers: parsedReviewers, teamReviewers: parsedTeamReviewers },
+  })
+}
+
+export function buildEnqueueRequest(options) {
+  return buildExistingRequest({ ...options, operation: 'pull-request.enqueue' })
+}
+
 async function githubPullRequest({ repository, number, token, fetchImpl = fetch }) {
   return jsonFetch(`https://api.github.com/repos/${repository}/pulls/${number}`, {
     headers: {
@@ -297,7 +351,8 @@ function appendOutput(name, value) {
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const command = argv[0]
-  if (!['enroll', 'inspect', 'comment'].includes(command)) throw new Error('usage: fleetbot-workload.mjs <enroll|inspect|comment>')
+  const commands = ['enroll', 'inspect', 'comment', 'review-reply', 'ready', 'request-reviewers', 'enqueue']
+  if (!commands.includes(command)) throw new Error(`usage: fleetbot-workload.mjs <${commands.join('|')}>`)
   const relayUrl = env.FLEETBOT_RELAY_URL ?? 'https://relay.portdaddy.dev'
   const repository = (env.GITHUB_REPOSITORY ?? '').toLowerCase()
   if (!/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/.test(repository)) throw new Error('GITHUB_REPOSITORY is missing or malformed')
@@ -315,8 +370,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     return
   }
   const grantId = env.FLEETBOT_PUBLISHER_GRANT_ID
-  const prNumber = Number(env.FLEETBOT_PULL_REQUEST_NUMBER)
-  if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error('FLEETBOT_PULL_REQUEST_NUMBER must be a positive integer')
+  const prNumber = requirePositiveInteger(Number(env.FLEETBOT_PULL_REQUEST_NUMBER), 'FLEETBOT_PULL_REQUEST_NUMBER')
   const snapshot = await readGrantSnapshot({ relayUrl, key, grantId })
   const pullRequest = await githubPullRequest({ repository, number: prNumber, token: env.GITHUB_TOKEN })
   const common = {
@@ -327,21 +381,34 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     runId: env.GITHUB_RUN_ID,
     runAttempt: env.GITHUB_RUN_ATTEMPT ?? '1',
   }
-  const request = command === 'inspect'
-    ? buildInspectRequest(common)
-    : buildCommentRequest({
-        ...common,
-        body: env.FLEETBOT_COMMENT_BODY,
-        authorship: {
-          actorId: env.FLEETBOT_ACTOR_ID ?? 'github-actions',
-          agentId: env.FLEETBOT_AGENT_ID ?? 'fleetbot-workload',
-          sessionId: env.FLEETBOT_SESSION_ID,
-          purpose: env.FLEETBOT_PURPOSE ?? 'Post an attributable Fleetbot pull request comment through the protected workload.',
-          roadmapItem: env.FLEETBOT_ROADMAP_ITEM || null,
-          sidequestReason: env.FLEETBOT_ROADMAP_ITEM ? null : (env.FLEETBOT_SIDEQUEST_REASON ?? 'Protected Fleetbot comment requested without a linked roadmap item'),
-          worktreeId: env.FLEETBOT_WORKTREE_ID || null,
-        },
-      })
+  const authorship = {
+    actorId: env.FLEETBOT_ACTOR_ID ?? 'github-actions',
+    agentId: env.FLEETBOT_AGENT_ID ?? 'fleetbot-workload',
+    sessionId: env.FLEETBOT_SESSION_ID,
+    purpose: env.FLEETBOT_PURPOSE ?? `Perform ${command} through the protected Fleetbot workload.`,
+    roadmapItem: env.FLEETBOT_ROADMAP_ITEM || null,
+    sidequestReason: env.FLEETBOT_ROADMAP_ITEM ? null : (env.FLEETBOT_SIDEQUEST_REASON ?? `Protected Fleetbot ${command} requested without a linked roadmap item`),
+    worktreeId: env.FLEETBOT_WORKTREE_ID || null,
+  }
+  const builders = {
+    inspect: () => buildInspectRequest(common),
+    comment: () => buildCommentRequest({ ...common, authorship, body: env.FLEETBOT_COMMENT_BODY }),
+    'review-reply': () => buildReviewReplyRequest({
+      ...common,
+      authorship,
+      body: env.FLEETBOT_COMMENT_BODY,
+      commentId: Number(env.FLEETBOT_REVIEW_COMMENT_ID),
+    }),
+    ready: () => buildReadyRequest({ ...common, authorship }),
+    'request-reviewers': () => buildRequestReviewersRequest({
+      ...common,
+      authorship,
+      reviewers: parseReviewerJson(env.FLEETBOT_REVIEWERS_JSON ?? '[]', 'FLEETBOT_REVIEWERS_JSON'),
+      teamReviewers: parseReviewerJson(env.FLEETBOT_TEAM_REVIEWERS_JSON ?? '[]', 'FLEETBOT_TEAM_REVIEWERS_JSON'),
+    }),
+    enqueue: () => buildEnqueueRequest({ ...common, authorship }),
+  }
+  const request = builders[command]()
   const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

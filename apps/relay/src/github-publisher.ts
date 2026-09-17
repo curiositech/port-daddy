@@ -355,7 +355,7 @@ function parsePayload(operation: FleetbotOperation, value: unknown, authorship: 
       if (!Array.isArray(input) || input.length > 20 || input.some((item) => !isSafePublisherIdentifier(item))) {
         failure('INVALID_REQUEST', 400, `${field} is invalid`);
       }
-      return [...new Set(input as string[])].sort();
+      return [...new Set((input as string[]).map((name) => name.toLowerCase()))].sort();
     };
     const reviewers = parseNames(payload.reviewers, 'reviewers');
     const teamReviewers = parseNames(payload.teamReviewers, 'teamReviewers');
@@ -579,6 +579,87 @@ async function listAllPages<T>(url: string, token: string): Promise<T[]> {
     if (result.body.length < 100) return collected;
   }
   failure('GITHUB_LIST_TOO_LARGE', 409, 'GitHub list exceeds the bounded pagination scan');
+}
+
+interface RequestedReviewerNode {
+  requestedReviewer?: {
+    __typename?: string;
+    login?: string;
+    slug?: string;
+    combinedSlug?: string;
+  } | null;
+}
+
+interface RequestedReviewerConnection {
+  nodes?: Array<RequestedReviewerNode | null>;
+  pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+}
+
+interface RequestedReviewersQuery {
+  repository?: {
+    pullRequest?: { reviewRequests?: RequestedReviewerConnection | null } | null;
+  } | null;
+}
+
+async function listRequestedReviewers(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<{ users: Array<{ login?: string }>; teams: Array<{ slug?: string }> }> {
+  const users: Array<{ login?: string }> = [];
+  const teams: Array<{ slug?: string }> = [];
+  let after: string | null = null;
+  const seenCursors = new Set<string>();
+  for (let page = 1; page <= MAX_GITHUB_LIST_PAGES; page += 1) {
+    // PullRequest.reviewRequests is a documented cursor connection; the REST
+    // requested_reviewers response is an object and does not document paging.
+    // https://docs.github.com/en/graphql/reference/objects#pullrequest
+    const result: RequestedReviewersQuery = await graphql<RequestedReviewersQuery>(token, `query($owner:String!,$repo:String!,$number:Int!,$after:String){
+      repository(owner:$owner,name:$repo){
+        pullRequest(number:$number){
+          reviewRequests(first:100,after:$after){
+            nodes{requestedReviewer{
+              __typename
+              ... on User{login}
+              ... on Bot{login}
+              ... on Mannequin{login}
+              ... on Team{slug}
+              ... on EnterpriseTeam{combinedSlug}
+            }}
+            pageInfo{hasNextPage endCursor}
+          }
+        }
+      }
+    }`, { owner, repo, number, after });
+    const connection: RequestedReviewerConnection | null | undefined = result.repository?.pullRequest?.reviewRequests;
+    if (!connection || !Array.isArray(connection.nodes)
+        || typeof connection.pageInfo?.hasNextPage !== 'boolean') {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub returned an invalid requested-reviewers connection');
+    }
+    for (const node of connection.nodes) {
+      const reviewer = node?.requestedReviewer;
+      if ((reviewer?.__typename === 'User' || reviewer?.__typename === 'Bot' || reviewer?.__typename === 'Mannequin')
+          && typeof reviewer.login === 'string') {
+        users.push({ login: reviewer.login });
+      } else if (reviewer?.__typename === 'Team' && typeof reviewer.slug === 'string') {
+        teams.push({ slug: reviewer.slug });
+      } else if (reviewer?.__typename === 'EnterpriseTeam' && typeof reviewer.combinedSlug === 'string') {
+        teams.push({ slug: reviewer.combinedSlug });
+      } else {
+        failure('GITHUB_LIST_INVALID', 502, 'GitHub returned an invalid requested reviewer');
+      }
+    }
+    if (!connection.pageInfo.hasNextPage) return { users, teams };
+    const nextCursor: string | null | undefined = connection.pageInfo.endCursor;
+    if (typeof nextCursor !== 'string' || nextCursor.length === 0 || nextCursor === after
+        || seenCursors.has(nextCursor)) {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub requested-reviewers cursor did not advance');
+    }
+    seenCursors.add(nextCursor);
+    after = nextCursor;
+  }
+  failure('GITHUB_LIST_TOO_LARGE', 409, 'GitHub requested-reviewers list exceeds the bounded pagination scan');
 }
 
 async function graphql<T>(
@@ -1288,12 +1369,9 @@ async function executeExisting(
     } else result = 'reused';
   } else if (request.operation === 'pull-request.request-reviewers') {
     const reviewers = payload as ReviewersPayload;
-    const requested = await fetchJson<{
-      users?: Array<{ login?: string }>;
-      teams?: Array<{ slug?: string }>;
-    }>(`${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/requested_reviewers`, token);
-    const currentUsers = new Set((requested.body?.users ?? []).map((entry) => entry.login?.toLowerCase()));
-    const currentTeams = new Set((requested.body?.teams ?? []).map((entry) => entry.slug?.toLowerCase()));
+    const requested = await listRequestedReviewers(owner, repo, pull.number, token);
+    const currentUsers = new Set(requested.users.map((entry) => entry.login?.toLowerCase()));
+    const currentTeams = new Set(requested.teams.map((entry) => entry.slug?.toLowerCase()));
     const missingUsers = reviewers.reviewers.filter((name) => !currentUsers.has(name.toLowerCase()));
     const missingTeams = reviewers.teamReviewers.filter((name) => !currentTeams.has(name.toLowerCase()));
     if (missingUsers.length || missingTeams.length) {
@@ -1305,11 +1383,9 @@ async function executeExisting(
         if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
       }
       result = 'updated';
-      const observed = await fetchJson<{ users?: Array<{ login?: string }>; teams?: Array<{ slug?: string }> }>(
-        `${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/requested_reviewers`, token,
-      );
-      const users = new Set((observed.body?.users ?? []).map((entry) => entry.login?.toLowerCase()));
-      const teams = new Set((observed.body?.teams ?? []).map((entry) => entry.slug?.toLowerCase()));
+      const observed = await listRequestedReviewers(owner, repo, pull.number, token);
+      const users = new Set(observed.users.map((entry) => entry.login?.toLowerCase()));
+      const teams = new Set(observed.teams.map((entry) => entry.slug?.toLowerCase()));
       if (reviewers.reviewers.some((name) => !users.has(name.toLowerCase()))
           || reviewers.teamReviewers.some((name) => !teams.has(name.toLowerCase()))) {
         failure('REVIEWER_REQUEST_AMBIGUOUS', 409, 'reviewer request did not read back exactly', true);
@@ -1390,6 +1466,22 @@ async function executeExisting(
       }
       result = 'updated';
     } else result = 'reused';
+  }
+  if (request.operation === 'pull-request.request-reviewers'
+      || request.operation === 'pull-request.comment'
+      || request.operation === 'pull-request.review-reply') {
+    const observedPull = await getPull(owner, repo, pull.number, token);
+    verifyPull(observedPull, {
+      repository: request.repository,
+      app,
+      baseBranch: payload.baseBranch,
+      baseSha: payload.baseSha,
+      headSha: payload.expectedGithubHeadSha,
+      number: payload.pullRequestNumber,
+      headRef: pull.headRef,
+      requirePublisherOwnership: !isFleetbotConversationalOperation(request.operation),
+    });
+    pull = observedPull;
   }
   return {
     resourceUrl,
@@ -1633,6 +1725,7 @@ export const __fleetbotPublisherTest = {
   reserveIntent,
   finishIntent,
   listAllPages,
+  listRequestedReviewers,
   executeExisting,
   gitObjectSha,
   expectedCommitSha,

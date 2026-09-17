@@ -93,10 +93,12 @@ the reviewed-code smoke is
 [`../../.github/workflows/fleetbot-workload-smoke.yml`](../../.github/workflows/fleetbot-workload-smoke.yml).
 
 Do not overstate that foundation. The client exposes enrollment, read-only
-inspection, and a typed PR-comment request;
+inspection, and typed requests for PR comments, review replies,
+ready-for-review, reviewer requests, and merge-queue enrollment;
 [`../../.github/workflows/fleetbot-actuator.yml`](../../.github/workflows/fleetbot-actuator.yml)
-is the protected reviewed-code entry point for that first write. Source presence
-is not deployment evidence: posting is available only after the environment,
+is the protected reviewed-code entry point for those writes. Its steady-state
+write path does not request OIDC or exchange identity again. Source presence is
+not deployment evidence: publishing is available only after the environment,
 grant operation, workload key, Relay receipt key, and deployed Relay version are
 verified together. Comments and review replies may target an ordinary
 same-repository PR at its capability-bound exact head; readiness, reviewer,
@@ -104,7 +106,10 @@ enqueue, update, and publication operations remain restricted to uniquely
 receipted Fleetbot-owned branches. Phase A verifies the GitHub dispatcher; its
 agent and session fields remain explicitly labeled as dispatcher-supplied until
 the proposal broker admits them from durable identity state. Local harnesses do
-not yet have a proposal broker, so never copy the Actions workload seed into
+not yet have a proposal broker, and loss of Relay's final signed response does
+not yet authorize a fresh dispatch. Preserve the original request digest and
+wait for the workload-authenticated receipt-recovery path in rollout Phase B2;
+never blind-retry a write. Never copy the Actions workload seed into
 Codex, Claude Code,
 Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
