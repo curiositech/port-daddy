@@ -81,7 +81,12 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(qa!.execution.mode).toBe('none');
     expect(qa!.executionConfigState).toBe('absent');
     expect(qa!.participation.unavailableBlocks).toBe(false);
-    expect(qa!.participation.rules[0]?.disposition).toBe('advisory');
+    expect(qa!.blocking).toBe(false);
+    expect(qa!.participation.default).not.toBe('required');
+    expect(qa!.participation.rules.length).toBeGreaterThan(0);
+    expect(
+      qa!.participation.rules.every(({ disposition }) => disposition !== 'required'),
+    ).toBe(true);
 
     const declaredQa = REAL_DOCUMENT.fleet?.agents?.qa;
     expect(declaredQa).toBeDefined();
