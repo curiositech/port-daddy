@@ -96,7 +96,11 @@ interface SessionsRouteDeps {
       regions?: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }>;
       agentId?: string | null;
     }): Record<string, unknown>;
-    getFileConflicts(files: string[]): Record<string, unknown>;
+    getFileConflicts(files: string[], options?: {
+      sessionId?: string;
+      worktreeId?: string | null;
+      project?: string | null;
+    }): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
     listAllActiveClaims(options?: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
     getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }): Record<string, unknown>;
@@ -827,8 +831,17 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
+      const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
+      if (!worktreePolicy.success) {
+        reply.code(400);
+        return worktreePolicy;
+      }
+
       if (files && Array.isArray(files) && files.length > 0 && !force) {
-        const conflictCheck = sessions.getFileConflicts(files);
+        const conflictCheck = sessions.getFileConflicts(files, {
+          project: null,
+          worktreeId: worktreePolicy.worktree?.id ?? null,
+        });
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
           evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
@@ -840,12 +853,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
             hint: 'Use force=true to claim files anyway'
           };
         }
-      }
-
-      const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
-      if (!worktreePolicy.success) {
-        reply.code(400);
-        return worktreePolicy;
       }
 
       const lifecycle = rawLifecycle === undefined ? null : parseSessionLifecycle(rawLifecycle);
@@ -1354,7 +1361,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
 
       if (hasFiles && !force) {
-        const conflictCheck = sessions.getFileConflicts(files);
+        const conflictCheck = sessions.getFileConflicts(files, { sessionId });
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
           evaluateClaimConflictBestEffort(requestAgent.verdict, conflictCheck.conflicts);
           reply.code(409);

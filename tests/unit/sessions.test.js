@@ -1089,6 +1089,30 @@ describe('Sessions Module', () => {
       expect(result.conflicts).toHaveLength(2);
     });
 
+    it('should scope preflight conflicts to the target session worktree world', () => {
+      const alpha = sessions.start('Alpha', { worktreeId: 'alpha-main' });
+      const beta = sessions.start('Beta', { worktreeId: 'beta-main' });
+      sessions.claimFiles(alpha.id, ['README.md']);
+
+      expect(sessions.getFileConflicts(['README.md']).conflicts).toHaveLength(1);
+      expect(sessions.getFileConflicts(['README.md'], { sessionId: beta.id }).conflicts).toHaveLength(0);
+      expect(sessions.getFileConflicts(['README.md'], {
+        project: null,
+        worktreeId: 'beta-main',
+      }).conflicts).toHaveLength(0);
+    });
+
+    it('should exclude the target session but preserve sibling conflicts in its world', () => {
+      const owner = sessions.start('Owner', { worktreeId: 'shared-world' });
+      const target = sessions.start('Target', { worktreeId: 'shared-world' });
+      sessions.claimFiles(owner.id, ['src/shared.ts']);
+      sessions.claimFiles(target.id, ['src/self.ts']);
+
+      expect(sessions.getFileConflicts(['src/self.ts'], { sessionId: target.id }).conflicts).toHaveLength(0);
+      expect(sessions.getFileConflicts(['src/shared.ts'], { sessionId: target.id }).conflicts)
+        .toEqual([expect.objectContaining({ sessionId: owner.id, filePath: 'src/shared.ts' })]);
+    });
+
     it('should ignore unreleased zombie rows from inactive sessions', () => {
       const started = sessions.start('Old abandoned', { files: ['src/zombie.ts'] });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(started.id);

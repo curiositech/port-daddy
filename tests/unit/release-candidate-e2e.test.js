@@ -407,7 +407,7 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
     expect(runner).toContain('prepareOwnedPrivateDirectory(path);');
-    expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra)');
+    expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra, {');
     expect(runner).toContain('PORT_DADDY_RESOURCE_DIR: [this.stagedDir]');
     expect(runner).toContain("claimPath: 'WORKTREE.md'");
     expect(runner).toMatch(/'files',\s+'add',\s+spec\.claimPath,\s+'--session',\s+spec\.sessionId,\s+'--json'/);
@@ -420,11 +420,9 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
-    expect(runner).toContain("claimPath: 'ALPHA-CLAIM.md'");
-    expect(runner).toContain("claimPath: 'BETA-CLAIM.md'");
+    expect(runner.match(/claimPath: 'README\.md'/g)).toHaveLength(2);
     expect(runner).toContain("['rev-parse', '--git-common-dir']");
     expect(runner).toContain('alpha linked session recorded the wrong worktree root');
-    expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
     const sugarCli = readFileSync(join(repoRoot, 'cli', 'commands', 'sugar.ts'), 'utf8');
     const doneCall = sugarCli.slice(sugarCli.indexOf('const data = await pd.done('), sugarCli.indexOf("if (!data?.success)", sugarCli.indexOf('const data = await pd.done(')));
     expect(doneCall).toContain('sessionId:');
