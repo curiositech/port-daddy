@@ -12,7 +12,7 @@
 
 import { describe, test, expect } from '@jest/globals';
 import { join } from 'node:path';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
 
