@@ -15,6 +15,8 @@ export const CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2'
 export const GRANT_READ_SCHEMA = 'port-daddy.publisher-grant-read.v1'
 export const RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v2'
 export const DEFAULT_AUDIENCE = 'https://github.com/curiositech'
+const MAX_BODY_BYTES = 1_000_000
+const IDENTIFIER_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/
 
 export function stableJson(value) {
   function normalize(input) {
@@ -72,13 +74,17 @@ export function verifyPublisherReceiptEnvelope(body, { request, snapshot, expect
       || receipt.repository !== request.repository
       || receipt.idempotencyKey !== request.idempotencyKey
       || receipt.sessionId !== request.sessionId
+      || receipt.actorId !== request.authorship?.actorId
+      || receipt.agentId !== request.authorship?.agentId
+      || receipt.roadmapItem !== request.authorship?.roadmapItem
       || receipt.authorizedBy?.grantId !== snapshot.grantId
       || receipt.authorizedBy?.grantEpoch !== snapshot.grantEpoch
       || receipt.authorizedBy?.surface !== 'publisher'
       || receipt.admission !== 'standing-publisher-grant'
-      || receipt.result !== 'observed'
+      || !expectedReceiptResults(request.operation).includes(receipt.result)
       || receipt.resourceNumber !== request.payload.pullRequestNumber
       || receipt.githubHeadSha !== request.payload.expectedGithubHeadSha
+      || receipt.publishedBranch !== request.authorship?.sourceBranch
       || receipt.tokenCleanup !== 'confirmed'
       || receipt.relayPublicKey !== trustedRelayPublicKey
       || receipt.receiptId !== expectedReceiptId
@@ -92,6 +98,12 @@ export function verifyPublisherReceiptEnvelope(body, { request, snapshot, expect
     throw new Error('Relay publisher receipt signature is invalid')
   }
   return receipt
+}
+
+function expectedReceiptResults(operation) {
+  if (operation === 'pull-request.inspect') return ['observed']
+  if (operation === 'pull-request.comment' || operation === 'pull-request.review-reply') return ['created', 'reused']
+  return ['created', 'updated', 'reused']
 }
 
 async function jsonFetch(url, options = {}, fetchImpl = fetch) {
@@ -159,20 +171,51 @@ export async function readGrantSnapshot({ relayUrl, key, grantId, fetchImpl = fe
   return body
 }
 
-export function buildInspectRequest({ key, snapshot, repository, pullRequest, runId, runAttempt, now = Math.floor(Date.now() / 1000), nonce = randomBytes(32).toString('hex') }) {
-  const operation = 'pull-request.inspect'
+function requireIdentifier(value, name) {
+  if (typeof value !== 'string' || !IDENTIFIER_RE.test(value)) {
+    throw new Error(`${name} is missing or malformed`)
+  }
+  return value
+}
+
+function requireBoundedText(value, name, maxBytes) {
+  if (typeof value !== 'string' || value.trim().length === 0 || Buffer.byteLength(value, 'utf8') > maxBytes) {
+    throw new Error(`${name} must be non-empty and at most ${maxBytes} UTF-8 bytes`)
+  }
+  return value
+}
+
+function buildExistingRequest({
+  key,
+  snapshot,
+  repository,
+  pullRequest,
+  operation,
+  payload = {},
+  authorship,
+  runId,
+  runAttempt,
+  now = Math.floor(Date.now() / 1000),
+  nonce = randomBytes(32).toString('hex'),
+}) {
   if (!Array.isArray(snapshot.operations) || !snapshot.operations.includes(operation)) {
     throw new Error(`Grant ${snapshot.grantId} does not authorize ${operation}`)
   }
   if (!Array.isArray(snapshot.repositories) || !snapshot.repositories.includes(repository)) {
     throw new Error(`Grant ${snapshot.grantId} does not authorize ${repository}`)
   }
-  const sessionId = `gha-${runId}-${runAttempt}`
+  const sessionId = requireIdentifier(authorship?.sessionId ?? `gha-${runId}-${runAttempt}`, 'authorship.sessionId')
+  const roadmapItem = authorship?.roadmapItem ?? null
+  const sidequestReason = authorship?.sidequestReason ?? (roadmapItem ? null : 'Protected workload actuator operation')
+  if ((roadmapItem === null) === (sidequestReason === null)) {
+    throw new Error('authorship requires exactly one roadmap item or sidequest reason')
+  }
   const request = {
     schema: ACTION_SCHEMA,
     operation,
     repository,
     payload: {
+      ...payload,
       baseBranch: pullRequest.base.ref,
       baseSha: pullRequest.base.sha,
       pullRequestNumber: pullRequest.number,
@@ -180,14 +223,14 @@ export function buildInspectRequest({ key, snapshot, repository, pullRequest, ru
     },
     sessionId,
     authorship: {
-      actorId: 'github-actions',
-      agentId: 'fleetbot-workload',
+      actorId: requireIdentifier(authorship?.actorId ?? 'github-actions', 'authorship.actorId'),
+      agentId: requireIdentifier(authorship?.agentId ?? 'fleetbot-workload', 'authorship.agentId'),
       sessionId,
-      purpose: 'Verify the standing publisher grant with a read-only pull request inspection.',
+      purpose: requireBoundedText(authorship?.purpose ?? 'Exercise the standing publisher grant through the protected workload.', 'authorship.purpose', 2_000),
       identityProject: repository,
-      roadmapItem: null,
-      sidequestReason: 'Protected workload identity and publisher grant smoke test',
-      worktreeId: null,
+      roadmapItem: roadmapItem === null ? null : requireIdentifier(roadmapItem, 'authorship.roadmapItem'),
+      sidequestReason: sidequestReason === null ? null : requireBoundedText(sidequestReason, 'authorship.sidequestReason', 1_000),
+      worktreeId: authorship?.worktreeId ? requireIdentifier(authorship.worktreeId, 'authorship.worktreeId') : null,
       sourceBranch: pullRequest.head.ref,
     },
   }
@@ -215,6 +258,26 @@ export function buildInspectRequest({ key, snapshot, repository, pullRequest, ru
   return request
 }
 
+export function buildInspectRequest(options) {
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.inspect',
+    authorship: {
+      purpose: 'Verify the standing publisher grant with a read-only pull request inspection.',
+      sidequestReason: 'Protected workload identity and publisher grant smoke test',
+      ...options.authorship,
+    },
+  })
+}
+
+export function buildCommentRequest({ body, ...options }) {
+  return buildExistingRequest({
+    ...options,
+    operation: 'pull-request.comment',
+    payload: { body: requireBoundedText(body, 'FLEETBOT_COMMENT_BODY', MAX_BODY_BYTES) },
+  })
+}
+
 async function githubPullRequest({ repository, number, token, fetchImpl = fetch }) {
   return jsonFetch(`https://api.github.com/repos/${repository}/pulls/${number}`, {
     headers: {
@@ -232,7 +295,7 @@ function appendOutput(name, value) {
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const command = argv[0]
-  if (command !== 'enroll' && command !== 'inspect') throw new Error('usage: fleetbot-workload.mjs <enroll|inspect>')
+  if (!['enroll', 'inspect', 'comment'].includes(command)) throw new Error('usage: fleetbot-workload.mjs <enroll|inspect|comment>')
   const relayUrl = env.FLEETBOT_RELAY_URL ?? 'https://relay.portdaddy.dev'
   const repository = (env.GITHUB_REPOSITORY ?? '').toLowerCase()
   if (!/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/.test(repository)) throw new Error('GITHUB_REPOSITORY is missing or malformed')
@@ -254,14 +317,29 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error('FLEETBOT_PULL_REQUEST_NUMBER must be a positive integer')
   const snapshot = await readGrantSnapshot({ relayUrl, key, grantId })
   const pullRequest = await githubPullRequest({ repository, number: prNumber, token: env.GITHUB_TOKEN })
-  const request = buildInspectRequest({
+  const common = {
     key,
     snapshot,
     repository,
     pullRequest,
     runId: env.GITHUB_RUN_ID,
     runAttempt: env.GITHUB_RUN_ATTEMPT ?? '1',
-  })
+  }
+  const request = command === 'inspect'
+    ? buildInspectRequest(common)
+    : buildCommentRequest({
+        ...common,
+        body: env.FLEETBOT_COMMENT_BODY,
+        authorship: {
+          actorId: env.FLEETBOT_ACTOR_ID ?? 'github-actions',
+          agentId: env.FLEETBOT_AGENT_ID ?? 'fleetbot-workload',
+          sessionId: env.FLEETBOT_SESSION_ID,
+          purpose: env.FLEETBOT_PURPOSE ?? 'Post an attributable Fleetbot pull request comment through the protected workload.',
+          roadmapItem: env.FLEETBOT_ROADMAP_ITEM || null,
+          sidequestReason: env.FLEETBOT_ROADMAP_ITEM ? null : (env.FLEETBOT_SIDEQUEST_REASON ?? 'Protected Fleetbot comment requested without a linked roadmap item'),
+          worktreeId: env.FLEETBOT_WORKTREE_ID || null,
+        },
+      })
   const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -272,7 +350,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     snapshot,
     expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
   })
-  console.log(`Publisher grant ${snapshot.grantId} epoch ${snapshot.grantEpoch} inspected PR #${prNumber}.`)
+  console.log(`Publisher grant ${snapshot.grantId} epoch ${snapshot.grantEpoch} completed ${request.operation} on PR #${prNumber}.`)
   console.log(`Relay receipt: ${receipt.receiptId}`)
 }
 

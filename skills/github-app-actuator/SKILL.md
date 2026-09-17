@@ -82,16 +82,26 @@ deny the agent account access to its keychain, private key, and service secrets.
 6. Continue owning the PR: answer reviews through the actuator, add tests, keep
    CI green, and verify the immutable merge result.
 
-## Current admission defect
+## Current admission status
 
-The publisher implementation introduced with the Fleetbot route authenticates
-its outer request with an operator `pdu_` account bearer and binds that bearer
-hash into the capability. That keeps a personal account credential in the agent
-path and does **not** satisfy this skill's boundary. Until the route is replaced
-with a non-human workload identity and an upstream operator grant, do not give an
-agent the bearer or describe the route as credential-separated. A protected
-bootstrap publisher may be used only during an explicitly authorized retirement
-ceremony; it is not the steady-state agent interface.
+The Relay publisher now rejects the former `pdu_` account-bearer path. GitHub
+Actions can enroll an Ed25519 workload identity through OIDC, read a bounded
+standing publisher-grant snapshot, sign an exact capability, and verify the
+Relay-signed receipt. The protected workload client is
+[`../../scripts/fleetbot-workload.mjs`](../../scripts/fleetbot-workload.mjs);
+the reviewed-code smoke is
+[`../../.github/workflows/fleetbot-workload-smoke.yml`](../../.github/workflows/fleetbot-workload-smoke.yml).
+
+Do not overstate that foundation. The client exposes enrollment, read-only
+inspection, and a typed PR-comment request;
+[`../../.github/workflows/fleetbot-actuator.yml`](../../.github/workflows/fleetbot-actuator.yml)
+is the protected reviewed-code entry point for that first write. Source presence
+is not deployment evidence: posting is available only after the environment,
+grant operation, workload key, Relay receipt key, and deployed Relay version are
+verified together. Local harnesses do not yet have a proposal broker, so never
+copy the Actions workload seed into Codex, Claude Code, Antigravity, Gemini, Agy,
+or a local helper to bridge that gap. Follow
+[`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).
 
 ## Missing actuator
 
