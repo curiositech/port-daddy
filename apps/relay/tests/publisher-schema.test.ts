@@ -117,6 +117,24 @@ function publisherCounts(db: ReturnType<typeof makeDb>): Record<string, number> 
 }
 
 describe('publisher storage migration and schema parity', () => {
+  it('keeps the scope trigger deployable by Wrangler D1', () => {
+    const start = migration.indexOf(
+      'CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope',
+    );
+    const end = migration.indexOf(
+      '\n-- A grant is a signed standing authority',
+      start,
+    );
+    const scopeTrigger = migration.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    // One statement terminator plus the trigger's END terminator. Nested
+    // SELECTs are expressions inside the single outer validation statement.
+    expect(scopeTrigger.match(/;/g)).toHaveLength(2);
+    expect(scopeTrigger.match(/\bRAISE\s*\(/g)).toHaveLength(1);
+  });
+
   it('is replay-safe and leaves the v1 capability table usable for rollback', () => {
     const db = makeDb(applyAllMigrations());
     db.raw.prepare('INSERT INTO users (id, github_user_id, login, created_at) VALUES (?, ?, ?, ?)')

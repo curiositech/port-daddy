@@ -50,19 +50,19 @@ CREATE INDEX IF NOT EXISTS publisher_grants_subject_idx
 CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope
 BEFORE INSERT ON publisher_grants
 BEGIN
+  -- Keep this as one statement. Wrangler's D1 migration executor rejects
+  -- multi-statement trigger bodies even though local SQLite accepts them.
   SELECT CASE WHEN EXISTS (
     SELECT 1 FROM json_each(NEW.repositories_json)
      WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%'
-  ) THEN RAISE(ABORT, 'publisher grant repository scope invalid') END;
-  SELECT CASE WHEN EXISTS (
+  ) OR EXISTS (
     SELECT 1 FROM json_each(NEW.operations_json)
      WHERE type != 'text' OR value NOT IN (
        'pull-request.publish', 'pull-request.update', 'pull-request.ready',
        'pull-request.request-reviewers', 'pull-request.comment',
        'pull-request.review-reply', 'pull-request.enqueue', 'pull-request.inspect'
      )
-  ) THEN RAISE(ABORT, 'publisher grant operation scope invalid') END;
-  SELECT CASE WHEN EXISTS (
+  ) OR EXISTS (
     SELECT 1 FROM json_each(NEW.branch_allow_json)
      WHERE type != 'text' OR length(value) > 200 OR value = ''
        OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
@@ -70,12 +70,11 @@ BEGIN
     SELECT 1 FROM json_each(NEW.base_allow_json)
      WHERE type != 'text' OR length(value) > 200 OR value = '' OR value LIKE '%/'
        OR value GLOB '*[^A-Za-z0-9._/-]*' OR value LIKE '%..%' OR value LIKE '%//%'
-  ) THEN RAISE(ABORT, 'publisher grant branch scope invalid') END;
-  SELECT CASE WHEN EXISTS (SELECT value FROM json_each(NEW.repositories_json) GROUP BY value HAVING count(*) > 1)
+  ) OR EXISTS (SELECT value FROM json_each(NEW.repositories_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.operations_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.branch_allow_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1)
-  THEN RAISE(ABORT, 'publisher grant scope contains duplicates') END;
+  THEN RAISE(ABORT, 'publisher grant scope invalid') END;
 END;
 -- A grant is a signed standing authority, not a mutable policy document. Scope
 -- changes mint a new grant id; the only permitted mutation is one-way
