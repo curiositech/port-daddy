@@ -32,6 +32,28 @@ describe('runtime posture observation authority', () => {
     });
   });
 
+  test('prototype-backed observations and scopes never authorize an effect', () => {
+    const inheritedCapabilities = Object.create({
+      sandbox: capabilities().sandbox,
+    }) as RuntimePostureInput['capabilities'];
+    const inheritedScopes = Object.create({
+      sandbox: CAPABILITY_SCOPE.sandbox,
+    }) as RuntimePostureInput['expectedScopes'];
+
+    expect(admitRuntimeEffect({
+      ...ready,
+      capabilities: inheritedCapabilities,
+      expectedScopes: inheritedScopes,
+    }, { effects: ['managed_subprocess'] })).toMatchObject({
+      allowed: false,
+      requiredCapabilities: ['sandbox'],
+      reasons: ['sandbox_unknown'],
+    });
+
+    expect(Object.hasOwn(inheritedCapabilities!, 'sandbox')).toBe(false);
+    expect(Object.hasOwn(inheritedScopes!, 'sandbox')).toBe(false);
+  });
+
   test('malformed expected or observed scopes never become authority', () => {
     for (const invalidScope of [null, 42, '', '   ']) {
       const malformedObservation = capabilities();

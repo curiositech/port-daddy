@@ -149,10 +149,18 @@ function capabilityStatus(
   input: RuntimePostureInput,
   capability: RuntimeCapability,
 ): RuntimeCapabilityStatus {
-  const observation = input.capabilities?.[capability];
+  const observedCapabilities = input.capabilities;
+  const expectedScopes = input.expectedScopes;
+  if (
+    !observedCapabilities
+    || !Object.prototype.hasOwnProperty.call(observedCapabilities, capability)
+    || !expectedScopes
+    || !Object.prototype.hasOwnProperty.call(expectedScopes, capability)
+  ) return 'unknown';
+  const observation = observedCapabilities[capability];
   if (!observation) return 'unknown';
   if (observation.status === 'ready' && observation.reason !== undefined) return 'degraded';
-  const expectedScope = input.expectedScopes?.[capability];
+  const expectedScope = expectedScopes[capability];
   if (
     typeof expectedScope !== 'string'
     || expectedScope.trim().length === 0
