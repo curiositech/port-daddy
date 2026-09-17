@@ -8,6 +8,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { isAbsolute, normalize, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 
@@ -227,17 +228,43 @@ function sessionMetadata(value: SessionRepositoryIdentity['metadata']): Record<s
   }
 }
 
+const legacyCommonDirByRoot = new Map<string, string>();
+
+function commonDirFromRecordedRoot(root: string): string | null {
+  const canonicalRoot = normalize(root);
+  const cached = legacyCommonDirByRoot.get(canonicalRoot);
+  if (cached) return cached;
+
+  try {
+    const observed = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: canonicalRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 2_000,
+      maxBuffer: 64 * 1024,
+    }).trim();
+    if (!observed) return null;
+    const commonDir = normalize(isAbsolute(observed) ? observed : resolve(canonicalRoot, observed));
+    legacyCommonDirByRoot.set(canonicalRoot, commonDir);
+    return commonDir;
+  } catch {
+    return null;
+  }
+}
+
 function gitFamilyRepositoryId(session: SessionRepositoryIdentity): string | null {
   const metadata = sessionMetadata(session.metadata);
   const worktree = metadata?.worktree;
   if (!worktree || typeof worktree !== 'object' || Array.isArray(worktree)) return null;
   const raw = worktree as Record<string, unknown>;
-  const commonDir = typeof raw.commonDir === 'string' ? raw.commonDir.trim() : '';
-  if (!commonDir) return null;
-
   const root = typeof raw.root === 'string' ? raw.root.trim() : '';
-  if (!isAbsolute(commonDir) && !root) return null;
-  const canonical = normalize(isAbsolute(commonDir) ? commonDir : resolve(root, commonDir));
+  const recordedCommonDir = typeof raw.commonDir === 'string' ? raw.commonDir.trim() : '';
+  const canonical = recordedCommonDir
+    ? normalize(isAbsolute(recordedCommonDir) ? recordedCommonDir : resolve(root, recordedCommonDir))
+    : root
+      ? commonDirFromRecordedRoot(root)
+      : null;
+  if (!canonical) return null;
   const digest = createHash('sha256').update(canonical).digest('hex').slice(0, 32);
   return `git-family:${digest}`;
 }

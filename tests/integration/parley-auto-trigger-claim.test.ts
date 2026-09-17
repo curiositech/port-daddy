@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { execFileSync } from 'node:child_process';
 import { describe, expect, test } from '@jest/globals';
 import { createActivityLog } from '../../lib/activity.js';
 import { createAgentInbox, inboxMessageForMessaging } from '../../lib/agent-inbox.js';
@@ -343,6 +344,74 @@ describe('authenticated claim conflict automatic Parley', () => {
       success: false,
       code: 'FILE_CONFLICT',
       conflicts: [{ sessionId: legacyResponse.json().id, filePath: 'README.md' }],
+    });
+    await harness.app.close();
+  });
+
+  test('project-label drift cannot hide a legacy claim with recorded worktree-root provenance', async () => {
+    const harness = buildHarness();
+    const legacy = mintTestActor(harness.actorSouls, 'legacy-label-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'renamed-label-challenger');
+    const root = process.cwd();
+    const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim();
+
+    const legacySession = harness.sessions.start('claim before repository-family upgrade', {
+      agentId: 'legacy-label-owner',
+      project: 'alpha-old',
+      worktreeId: 'legacy-alpha-worktree',
+      metadata: { identity: { verified: true, actorId: legacy.actorId } },
+    });
+    expect(legacySession.success).toBe(true);
+    expect(harness.sessions.claimFiles(legacySession.id, ['README.md'], {
+      agentId: 'legacy-label-owner',
+    }).success).toBe(true);
+
+    // A pre-commonDir binary stored the root and project label but keyed the
+    // claim node by that label. Rehydrate that exact persisted shape.
+    harness.db.prepare('UPDATE sessions SET metadata = ? WHERE id = ?').run(JSON.stringify({
+      identity: { verified: true, actorId: legacy.actorId },
+      worktree: {
+        id: 'legacy-alpha-worktree',
+        root,
+        name: 'legacy-alpha-worktree',
+        branch: null,
+        isMain: false,
+      },
+    }), legacySession.id);
+
+    const challengerSession = harness.sessions.start('claim after project rename', {
+      agentId: 'renamed-label-challenger',
+      project: 'alpha-new',
+      worktreeId: 'modern-alpha-worktree',
+      metadata: {
+        identity: { verified: true, actorId: challenger.actorId },
+        worktree: {
+          id: 'modern-alpha-worktree',
+          root,
+          name: 'modern-alpha-worktree',
+          branch: null,
+          isMain: false,
+          commonDir,
+        },
+      },
+    });
+    expect(challengerSession.success).toBe(true);
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${challengerSession.id}/files`,
+      headers: challenger.headers,
+      payload: { files: ['README.md'] },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: legacySession.id, filePath: 'README.md' }],
     });
     await harness.app.close();
   });
