@@ -33,7 +33,6 @@ jobs:
     env:
       FLEETBOT_RELAY_URL: https://relay.portdaddy.dev
       FLEETBOT_RELAY_PUBLIC_KEY_HEX: ${{ vars.FLEETBOT_RELAY_PUBLIC_KEY_HEX }}
-      FLEETBOT_MANIFEST_PATH: ${{ github.workspace }}/fleetbot-recovery-manifest.json
       FLEETBOT_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
       FLEETBOT_SOURCE_WORKFLOW: Fleetbot actuator
     steps:
@@ -47,10 +46,13 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: fleetbot-recovery-${{ inputs.source_run_id }}
-          path: ${{ github.workspace }}
+          # Never extract a run-selected artifact into the trusted checkout.
+          # Only the reviewed main-branch script below may see the workload key.
+          path: ${{ runner.temp }}/fleetbot-recovery-artifact
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ github.token }}
       - name: Recover the original receipt without retrying the mutation
         env:
+          FLEETBOT_MANIFEST_PATH: ${{ runner.temp }}/fleetbot-recovery-artifact/fleetbot-recovery-manifest.json
           FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
         run: node scripts/fleetbot-workload.mjs recover-manifest
