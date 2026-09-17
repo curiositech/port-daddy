@@ -1,79 +1,69 @@
-% Fragment: fig-sealed-controllability-quadrant.tex -- the room's five
-% candidate policies, placed on the exact controllability x witnessing
-% quadrant of II/fig:swk-controllability-quadrant.
+% Fragment: fig-sealed-controllability-quadrant.tex -- the room's candidate
+% policies on controllability x witnessing, including the structurally empty
+% cell implied by complete mediation.
 %
-% Reader question: which of the five candidate safety policies can the
-% mediation layer actually enforce, and which can only be watched for?
-% Claim: a policy is regimentable exactly when it constrains only events
-% that are both controllable (pass through the gate) and witnessed at the
-% mediation boundary; the decisive case, the compound clean-room rule, is
-% regimentable because its trigger sits in one cell but its enforcement
-% point sits in another.
-% Evidence: Table sealed-policy-classification and the controllability
-% theorem paragraph, website-v2/public/whitepaper/sealed-harbor.tex,
+% Reader question: which candidate safety policies can the mediation layer
+% enforce, which can it only watch, and why is one quadrant impossible?
+% Claim: a policy is regimentable exactly when its enforcement event is both
+% controllable and witnessed; under complete mediation, controllable but
+% unwitnessed is structurally empty because every controlled attempt crosses a
+% gate that witnesses it.
+% Evidence: Table sealed-policy-classification and the controllability theorem
+% paragraph, website-v2/public/whitepaper/sealed-harbor.tex,
 % Sec. sealed-enforceability [internal, b3_controllability.py].
-% Must distinguish: the top-right cell (controllable and witnessed --
-% regimentable) from the other three (detect-only); and within that, the
-% compound rule's trigger (an uncontrollable but witnessed read, bottom
-% right) from its enforcement point (a controllable, witnessed egress,
-% top right) -- the whole point of the theorem is that these need not be
-% in the same cell for the policy to be regimentable.
-% Grammar chosen: reuse of the exact quadrant grammar of
-% II/whitepaper/figures/fig-swk-controllability-quadrant.tex, cell for
-% cell, applied to this chapter's alphabet instead of the kernel
-% chapter's -- the atlas's cross-volume reuse contract for one theorem
-% applied twice.
-% Grammar rejected: a fresh diagram design for this chapter -- the atlas
-% explicitly prefers identical grammar when the same theorem is reapplied
-% to a new alphabet, so a new design would cost the reader a re-learn for
-% no new information.
-% Five-second test: the compound rule's arrow starts outside the shaded
-% cell and ends inside it -- the trigger is not preventable, the gate is.
-% QA: beauty_lint warns B2 (the yes/no axis tick words touch the outer
-% frame, exactly as in the reused II exemplar this figure's grammar is
-% copied from), B6 (a 1.4pt size drift, bold cell text against the
-% axis words), and B7 (sub-point alignment noise). All justified, not
-% fixed, to keep this fragment's grammar identical to the exemplar's.
+% Must distinguish: the regimentable upper-right cell; the two detect-only
+% cells; the impossible upper-left cell; and the compound rule's witnessed
+% trigger from its later controllable enforcement point.
+% Grammar chosen: the reused controllability x witnessing quadrant, with the
+% logically impossible cell encoded as a neutral filled region rather than
+% left as unexplained white space.
+% Grammar rejected: a three-cell triangle, which would hide the logical
+% implication by deleting the coordinate combination it rules out.
+% Five-second test: point to the impossible cell and say why it is empty.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  cell/.style={font=\pdfiglabel,align=center,text width=4.5cm}]
+  cell/.style={pd label,align=center,text width=4.5cm}]
   \def\W{9.6}  \def\H{8.2}
-  \fill[pd focus fill] (\W/2,\H/2) rectangle (\W,\H);
+  \draw[pd neutral fill] (0,\H/2) rectangle (\W/2,\H);
+  \draw[pd focus fill] (\W/2,\H/2) rectangle (\W,\H);
   \draw[pd rule] (0,0) rectangle (\W,\H);
   \draw[pd rule] (\W/2,0) -- (\W/2,\H);
   \draw[pd rule] (0,\H/2) -- (\W,\H/2);
-  \node[pd axis label,anchor=north,text width=8.9cm,align=center] at (\W/2,-0.25)
+  \node[pd label,anchor=north,text width=8.9cm] at (\W/2,-0.25)
     {the trigger is witnessed at the mediation boundary};
-  \node[pd axis label] at (\W/4,{\H+0.30}) {no};
-  \node[pd axis label] at ({3*\W/4},{\H+0.30}) {yes};
-  \node[pd axis label,rotate=90,anchor=south,text width=6.2cm,align=center]
+  \node[pd label] at (\W/4,{\H+0.30}) {no};
+  \node[pd label] at ({3*\W/4},{\H+0.30}) {yes};
+  \node[pd label,rotate=90,anchor=south,text width=6.2cm]
     at (-0.55,\H/2) {the event is controllable: it passes through the gate};
-  \node[pd axis label,rotate=90] at (-0.20,{3*\H/4}) {yes};
-  \node[pd axis label,rotate=90] at (-0.20,{\H/4}) {no};
-  \node[cell,text width=4.2cm] at ({3*\W/4},7.05) {\textbf{regimentable}\\[2pt]\texttt{fs\_write} outside the workroom\\[2pt]\texttt{net\_egress} except through the slot};
-  \node[cell] at (\W/4,\H/4) {\textbf{detect-only}\\[2pt]\texttt{internal\_plan}: never plan an exfiltration};
-  \node[cell,text width=4.2cm] at ({3*\W/4},0.85) {\textbf{detect-only}\\[2pt]\texttt{model\_emit\_token}: never emit a token naming a secret};
-  \node[pd state,text width=3.0cm,align=center] (TRIG) at ({3*\W/4},3.35)
+  \node[pd label,rotate=90] at (-0.20,{3*\H/4}) {yes};
+  \node[pd label,rotate=90] at (-0.20,{\H/4}) {no};
+
+  \node[pd title,text width=3.7cm] at (\W/4,{3*\H/4+.28})
+    {impossible region};
+  \node[pd label,text width=3.7cm] at (\W/4,{3*\H/4-.58})
+    {complete mediation:\\controllable $\Rightarrow$ witnessed};
+  \node[pd title] at ({3*\W/4},7.78) {regimentable};
+  \node[cell,text width=4.2cm] at ({3*\W/4},6.40)
+    {\texttt{fs\_write} outside the workroom\\[2pt]
+     \texttt{net\_egress} except through the slot};
+  \node[pd title] at (\W/4,2.52) {detect-only};
+  \node[cell] at (\W/4,1.53)
+    {\texttt{internal\_plan}: never plan an exfiltration};
+  \node[pd title] at ({3*\W/4},1.36) {detect-only};
+  \node[cell,text width=4.2cm] at ({3*\W/4},0.52)
+    {\texttt{model\_emit\_token}: never emit a token naming a secret};
+  \node[pd state,text width=3.0cm] (TRIG) at ({3*\W/4},3.35)
     {\texttt{in\_context\_read} of a secret};
-  \node[pd focus state,text width=3.0cm,align=center] (COMP) at ({3*\W/4},4.85)
-    {\textbf{compound rule} $\bigstar$: gates \texttt{net\_egress}};
+  \node[pd focus state,text width=3.0cm] (COMP) at ({3*\W/4},4.85)
+    {\textbf{compound rule}: gates \texttt{net\_egress}};
   \draw[pd focus arrow] (TRIG) -- (COMP);
 \end{tikzpicture}
-\caption{The room's alphabet placed on the controllability x witnessing
-quadrant of \pdchapref{swk}{The Single-Writer Kernel}. Top right, shaded:
-controllable and witnessed, hence regimentable -- \texttt{fs\_write} and
-\texttt{net\_egress} can simply be vetoed. Bottom left: neither
-controllable nor witnessed -- \texttt{internal\_plan} is a thought,
-detect-only forever. Bottom right: witnessed but not controllable --
-\texttt{model\_emit\_token} can be observed but not gated before it
-happens. The compound clean-room rule is the decisive case: its trigger,
-\texttt{in\_context\_read} of a secret, sits in the bottom-right cell
-(uncontrollable, witnessed), but the rule forbids nothing there -- it
-gates only the controllable \texttt{net\_egress} that follows, in the
-shaded cell, which is why the theorem calls it regimentable. Column
-membership reproduces from the checker; row membership is by inspection
-of each trigger [internal, \texttt{b3\_controllability.py}].}
+\caption{The room's alphabet on controllability $\times$ witnessing. Under
+complete mediation the upper-left cell is impossible: any controllable attempt
+crosses a gate that witnesses it. The compound rule is enforceable because its
+witnessed read triggers a later, controllable \texttt{net\_egress} decision.
+[internal, \texttt{b3\_controllability.py}]}
 \label{fig:sealed-controllability-quadrant}
 \end{figure}

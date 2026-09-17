@@ -33,10 +33,10 @@
   \def\ymid{0}
   \def\ybot{-1.55}
   % --- headers ---------------------------------------------------------------
-  \node[pd title,align=center,text width=2.6cm] at ({\ca+\cw/2},{\ytop+.85}) {spend-without-\\append};
+  \node[pd title,align=center,text width=2.6cm] at ({\ca+\cw/2},{\ytop+.85}) {spend without\\append};
   \node[pd title,align=center,text width=2.6cm] at ({\cb+\cw/2},{\ytop+.85}) {torn write};
-  \node[pd title,anchor=east,align=right,text width=2.6cm] at (\rx-.20,{\ymid+\ch/2}) {ledger balance\\\footnotesize\itshape the recorded sum};
-  \node[pd title,anchor=east,align=right,text width=2.6cm] at (\rx-.20,{\ymid-\ch/2}) {budget cap\\\footnotesize\itshape spend at or under the limit};
+  \node[pd title,anchor=east,align=right,text width=2.6cm] at (\rx-.20,{\ymid+\ch/2}) {ledger balance\\\pdfigsub the recorded sum};
+  \node[pd title,anchor=east,align=right,text width=2.6cm] at (\rx-.20,{\ymid-\ch/2}) {budget cap\\\pdfigsub spend at or under the limit};
   % --- grid rules --------------------------------------------------------
   \draw[pd hairline] (0,\ytop) -- ({\cb+\cw},\ytop);
   \draw[pd hairline] (0,\ymid) -- ({\cb+\cw},\ymid);
@@ -46,7 +46,7 @@
   % --- the four cells ------------------------------------------------------
   \node[pd breach datum] at ({\ca+.55},{\ymid+\ch/2}) {};
   \node[pd label,anchor=west,align=left] at ({\ca+.95},{\ymid+\ch/2}) {caught\\1 step};
-  \node[pd note,text=pdink,anchor=west,align=left,text=pdinkmuted] at ({\ca+.55},{\ybot+\ch/2}) {not exercised};
+  \node[pd label,anchor=west,align=left] at ({\ca+.55},{\ybot+\ch/2}) {not exercised};
   \node[pd breach datum] at ({\cb+.55},{\ymid+\ch/2}) {};
   \node[pd label,anchor=west,align=left] at ({\cb+.95},{\ymid+\ch/2}) {caught\\1 step};
   \node[pd breach datum] at ({\cb+.55},{\ybot+\ch/2}) {};

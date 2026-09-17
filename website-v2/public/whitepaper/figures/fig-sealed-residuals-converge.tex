@@ -32,32 +32,27 @@
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % The explicit box leaves print-size air above the heavy first node. Without
+  % it, fragment cropping trims to that node's inferred top rule.
+  \path[use as bounding box] (-0.35,-1.35) rectangle (9.25,4.95);
   \def\dy{1.85}
+  \node[pd title,anchor=south west] at (-0.10,4.45)
+    {three residuals, one account};
   \node[pd breach state,minimum width=4.1cm,align=center] (R1) at (0,{2*\dy})
-    {laundering residual\\\footnotesize\itshape worker computes $t=f(s)$};
+    {laundering residual\\\pdfigsub worker computes $t=f(s)$};
   \node[pd breach state,minimum width=4.1cm,align=center] (R2) at (0,{1*\dy})
-    {malicious worker\\\footnotesize\itshape declares its own $\varepsilon_i$};
+    {malicious worker\\\pdfigsub declares its own $\varepsilon_i$};
   \node[pd breach state,minimum width=4.1cm,align=center] (R3) at (0,0)
-    {arbitrary telemetry\\\footnotesize\itshape unconstrained prose channel};
+    {arbitrary telemetry\\\pdfigsub unconstrained prose channel};
   \node[pd bucket,minimum width=3.0cm,minimum height=2.4cm,align=center]
     (ACCT) at (6.5,{1*\dy}) {\\[8pt]the $q\cdot b$\\account};
   \draw[pd focus pipe] (R1.east) -| (ACCT.north);
   \draw[pd focus pipe] (R2.east) -- (ACCT.west);
   \draw[pd focus pipe] (R3.east) -| (ACCT.south);
-  \node[pd note,anchor=north,align=center,text width=4.6cm]
-    at (6.5,-1.15) {one price for all three: negotiate over channel
-    capacity, not over which residual};
 \end{tikzpicture}
-\caption{Three gaps opened earlier in this chapter, one account that
-prices all of them. The laundering residual
-(Fig.~\ref{fig:sealed-laundering-fork}, Sec.~\ref{sec:sealed-noninterference})
-lets a worker choose what it submits; the malicious worker
-(Fig.~\ref{fig:sealed-two-adversaries}, Sec.~\ref{sec:sealed-conservation})
-lets it choose what it reports spending; arbitrary natural-language
-telemetry (Sec.~\ref{sec:sealed-limitations}) lets it choose the words. All
-three hand an adversary free bits through a channel the noninterference
-property does not forbid, and all three are priced the same way: by the
-$q\cdot b$ capacity account of this section, not by three separate
+\caption{Three named residuals converge on one leakage-capacity account. Each
+lets the worker choose bits that the noninterference property does not forbid,
+so all three are priced by the same $q\cdot b$ bound rather than by separate
 mechanisms. [internal]}
 \label{fig:sealed-residuals-converge}
 \end{figure}

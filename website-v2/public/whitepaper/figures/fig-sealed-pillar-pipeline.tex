@@ -1,75 +1,71 @@
 % Redraw of fig-sealed-pillar-pipeline to the tikz-diagram-craft v2 standard.
 %
 % Reader question: which fences and gates does one work order pass, and which
-% script checks each resulting property?
-% Claim: one work order is mediated by two fences, which alone make
-% enforceability possible, and released only through two gates, which alone
-% produce the other three properties.
+% checker establishes each resulting property?
+% Claim: one work order moves left to right through two fences and then one of
+% two release gates; the fences establish enforceability, while the gates make
+% noninterference, conservation, and detection meaningful.
 % Evidence: the "two fences" / "whole-worker taint and two gates" paragraphs
 % and the four-links table, Sec.~sealed-design, in
 % website-v2/public/whitepaper/sealed-harbor.tex.
-% Must distinguish: produces (solid arrow) from is-checked-by (now a keyed
-% legend table, not a second arrow family); which property is produced by the
-% fences directly (Enforceability) versus by the gates (the other three).
-% Grammar chosen: tree/DAG, time top to bottom, two columns (mechanism |
-% properties) -- the pipeline is a lineage, not a state machine (nothing
-% re-enters an earlier stage). A two-column layout (rather than one column per
-% stage) leaves the property column room for its un-hyphenatable single-word
-% names at column width; panel titles sit inside the panel's top edge, clear
-% of the vertical arrow that only reaches the edge, never past it.
-% Grammar rejected: a four-row table alone would lose the fences/gates
-% structure that explains *why* enforceability comes from the fences and the
-% other three from the gates; the table survives only as the checker legend.
-% Five-second test: which stage makes each property possible, and what
-% checks it once made.
+% Must distinguish: fences from gates; the one property established by the
+% fences from the three properties that depend on gated release; mechanism
+% flow from checker provenance.
+% Grammar chosen: a full-width UML component/dataflow rail with paired release
+% gates and a compact property strip. The left-to-right direction is the
+% runtime order, while direct labels under the rail map properties to checkers.
+% Grammar rejected: the former top-to-bottom tree, which spent a full page on
+% a narrow stack and made three fan-out arrows look like three separate flows.
+% Five-second test: follow C left to right, then name the one fences property
+% and any one gates property with its checker.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\ax{1.15}   % mechanism column (work order, fences, gates)
-  \def\px{4.85}   % property column
-  % --- the two fences and the two gates, each a subordinate panel ----------
+  \def\flowy{3.05}
+  \def\propy{0.05}
+  % --- the runtime rail ----------------------------------------------------
+  \node[pd artifact,minimum width=2.05cm] (WO) at (0.85,\flowy)
+    {work order $C$};
+  \node[pd uml component,minimum width=2.45cm] (MON) at (3.55,\flowy)
+    {in-guest\\monitor};
+  \node[pd uml component,minimum width=2.45cm] (GW) at (6.45,\flowy)
+    {outer\\gateway};
+  \node[pd uml component,minimum width=2.35cm] (DG) at (9.45,{\flowy+.68})
+    {Derek's gate};
+  \node[pd uml component,minimum width=2.35cm] (EG) at (9.45,{\flowy-.68})
+    {Erin's gate};
+  \node[pd focus state,minimum width=2.30cm] (OUT) at (12.55,\flowy)
+    {declared release};
+  \pdumlicon{MON}\pdumlicon{GW}\pdumlicon{DG}\pdumlicon{EG}
+  \draw[pd focus arrow] (WO) -- (MON);
+  \draw[pd focus arrow] (MON) -- (GW);
+  \draw[pd focus arrow] (GW.east) -- ++(.42,0) |- (DG.west);
+  \draw[pd focus arrow] (GW.east) -- ++(.42,0) |- (EG.west);
+  \draw[pd focus arrow] (DG.east) -- ++(.42,0) |- (OUT.west);
+  \draw[pd focus arrow] (EG.east) -- ++(.42,0) |- (OUT.west);
   \begin{scope}[on background layer]
-    \node[pd panel,fit={(\ax-1.30,9.00) (\ax+1.30,6.00)}] (fences) {};
-    \node[pd panel,fit={(\ax-1.30,5.15) (\ax+1.30,1.95)}] (gates) {};
+    \node[pd panel,fit={(MON)(GW)},inner xsep=7pt,inner ysep=11pt] (FENCES) {};
+    \node[pd panel,fit={(DG)(EG)},inner xsep=7pt,inner ysep=7pt] (GATES) {};
   \end{scope}
-  \node[pd title,anchor=north] at (fences.north) {two fences};
-  \node[pd title,anchor=north] at (gates.north) {two gates};
-  \node[pd artifact,text width=1.9cm] (WO) at (\ax,10.05) {work order $C$};
-  \node[pd focus outline,text width=1.9cm] (F1) at (\ax,8.00) {in-guest monitor};
-  \node[pd focus outline,text width=1.9cm] (F2) at (\ax,6.60) {outer gateway};
-  \node[pd focus outline,text width=1.9cm] (G1) at (\ax,4.15) {Derek's gate};
-  \node[pd focus outline,text width=1.9cm] (G2) at (\ax,2.60) {Erin's gate};
-  \draw[pd focus arrow] (WO) -- (fences.north);
-  \draw[pd focus arrow] (fences.south) -- (gates.north);
-  % --- the four properties, in the order they compose at run time ---------
-  \node[pd ready state,text width=2.6cm] (PE) at (\px,7.30)
-    {\bfseries Enforceability\\[2pt]\itshape the channel, never the token};
-  \node[pd ready state,text width=2.75cm] (PN) at (\px,4.55)
-    {\bfseries Noninterference\\[2pt]\itshape silence except through the slot};
-  \node[pd ready state,text width=2.6cm] (PC) at (\px,2.35)
-    {\bfseries Conservation\\[2pt]\itshape the ledger conserves};
-  \node[pd ready state,text width=2.6cm] (PD) at (\px,0.15)
-    {\bfseries Detection\\[2pt]\itshape power curve and alarm clock};
-  % --- produces: solid, chapter-hue arrows ---------------------------------
-  \draw[pd focus arrow] (fences.east) -- (PE.west);
-  \draw[pd focus arrow] (gates.east) -- (PN.west);
-  \draw[pd focus arrow] (gates.east) -- (PC.west);
-  \draw[pd focus arrow] (gates.east) -- (PD.west);
-\end{tikzpicture}
+  \node[pd title,anchor=south] at (FENCES.north) {two fences};
+  \node[pd title,anchor=south] at (GATES.north) {two gates};
 
-\vspace{4pt}
-\footnotesize
-\begin{tabular}{@{}ll@{}}
-\toprule
-property & is checked by \\
-\midrule
-Enforceability & \texttt{b3\_controllability.py} \\
-Noninterference & \texttt{c1\_noninterference.py} \\
-Conservation & \texttt{a3\_epsilon\_ledger.py} \\
-Detection & \texttt{a4\_canary\_sprt.py} \\
-\bottomrule
-\end{tabular}
-\caption{One work order entering the room, mediated by two fences (the in-guest monitor, the outer gateway) and released only through two gates (Derek's, Erin's); solid arrows read ``produces''. The fences alone are what make the channel enforceable at all; the gates, once installed on that channel, are what produce the other three properties -- silence except through the slot, a conserving ledger, and a watched detector. The table keys each property to the script that checks it.}
+  % --- property-to-checker mapping, directly under the mechanism ----------
+  \node[pd kind,anchor=south] at (1.70,0.92) {from the fences};
+  \node[pd kind,anchor=south] at (8.80,0.92) {from gated release};
+  \node[pd ready state,text width=2.85cm] (PE) at (1.70,\propy)
+    {\textbf{Enforceability}\\\texttt{b3\_controllability.py}};
+  \node[pd ready state,text width=3.05cm] (PN) at (5.35,\propy)
+    {\textbf{Noninterference}\\\texttt{c1\_noninterference.py}};
+  \node[pd ready state,text width=2.95cm] (PC) at (9.05,\propy)
+    {\textbf{Conservation}\\\texttt{a3\_epsilon\_ledger.py}};
+  \node[pd ready state,text width=2.95cm] (PD) at (12.60,\propy)
+    {\textbf{Detection}\\\texttt{a4\_canary\_sprt.py}};
+\end{tikzpicture}
+\caption{A full-width component flow from work order to declared release,
+with the four resulting properties keyed directly to their checkers. The two
+fences establish enforceability; the two gates make the slot, ledger, and
+detector claims testable. [internal; checker provenance named in figure]}
 \label{fig:sealed-pillar-pipeline}
 \end{figure}

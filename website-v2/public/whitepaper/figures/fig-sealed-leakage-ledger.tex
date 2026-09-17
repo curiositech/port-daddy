@@ -1,67 +1,53 @@
-% Fragment: fig-sealed-leakage-ledger.tex -- the leakage budget, q times b
-% bits, as a waterfall accumulating to the granted capacity.
+% Fragment: fig-sealed-leakage-ledger.tex -- one concrete accounting trace
+% from contracted channels to total adversarial capacity.
 %
-% Reader question: across a whole engagement, how many bits of adversarial
-% capacity has the contract granted, before and after timing is counted?
-% Claim: q jobs at b bits each grant q times b bits before timing; s
-% scheduled timing slots per job add a second, separately priced strip of
-% up to q times log2(s) bits, and the two sum to the true total.
-% Evidence: Sec. sealed-budget's worked example ("A contract that grants
-% Erin a 64-bit status schema per job, for 200 jobs, has granted at most
-% 12,800 bits of adversarial capacity before timing") and Exercise
-% sealed-budget's solution (three scheduled return times: log2(3) approx
-% 1.585 bits per job, about 317 more bits, about 13,117 in total),
-% website-v2/public/whitepaper/sealed-harbor.tex [hand-derived, verified
-% by hand: 200 x 64 = 12,800; 200 x log2(3) = 316.99].
-% Must distinguish: the declared, arithmetic q times b budget (solid,
-% chapter hue) from the timing term (dashed, warn hue, "declared out of
-% model" per the chapter's own words) as a separate strip added on top,
-% not folded into one number silently.
-% Grammar chosen: waterfall (tpl-waterfall) -- a running total with one
-% floating bar per correction is exactly "jobs times bits-per-job
-% accumulating to the q*b total, with the timing term added as a second,
-% separately priced strip," the register row's own recommended form.
-% Grammar rejected: a single stacked bar with two segments -- collapses
-% the "before timing" checkpoint the chapter's design rule depends on
-% (quote capacity, not content) into an unlabelled boundary inside one
-% bar.
-% Five-second test: read the middle bar's sign and hue -- it is a small
-% addition (dashed, warn), not folded silently into the first number.
-% QA: beauty_lint warns B2 in maritime/technical (bar-top value labels
-% 0.45-1.1pt from the connecting guide line between bars) -- the same
-% dotted-guide-under-label geometry tpl-waterfall.tex itself uses;
-% justified, not fixed.
+% Reader question: what capacity did the contract grant across 200 jobs, and
+% exactly what do three scheduled return times add?
+% Claim: the status channel grants 12,800 bits before timing; three scheduled
+% return slots add about 317 bits; the engagement therefore grants about
+% 13,117 bits of adversarial capacity in total.
+% Evidence: Sec. sealed-budget's worked example and Exercise sealed-budget:
+% 200 x 64 = 12,800; 200 x log2(3) = 316.99; total = 13,116.99 bits.
+% Must distinguish: the declared status capacity from the separately priced
+% timing capacity, while making their addition auditable without a compressed
+% scientific-notation axis.
+% Grammar chosen: a two-row accounting flow into one ledger bucket. Each row
+% carries its own units and arithmetic, then both feed the visible total.
+% Grammar rejected: the former waterfall, whose 317-bit increment was only
+% 2.5 percent of the 12,800-bit base and therefore nearly invisible at Book
+% size even though it was the figure's point.
+% Five-second test: read 12,800 + 317 = 13,117 directly from the drawing.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure]
-\begin{axis}[pd axis,
-  width=8.4cm,height=4.6cm,
-  xmin=-0.5,xmax=2.5,ymin=0,ymax=14600,
-  xtick={0,1,2},
-  xticklabels={{budget: $q\cdot b$},{timing: $+q\log_2 s$},{total}},
-  ytick={0,12800},
-  yticklabel style={/pgf/number format/fixed},
-  ylabel={bits of adversarial capacity}]
-  \draw[pd focus fill] (axis cs:-0.32,0) rectangle (axis cs:0.32,12800);
-  \draw[pd guide] (axis cs:0.32,12800) -- (axis cs:0.68,12800);
-  \draw[pd warn fill] (axis cs:0.68,12800) rectangle (axis cs:1.32,13117);
-  \draw[pd guide] (axis cs:1.32,13117) -- (axis cs:1.68,13117);
-  \draw[pd focus fill] (axis cs:1.68,0) rectangle (axis cs:2.32,13117);
-  \node[pd focus label] at (axis cs:0,13350) {12{,}800};
-  \node[pd label] at (axis cs:1,13700) {$+317$};
-  \node[pd focus label] at (axis cs:2,13850) {13{,}117};
-\end{axis}
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\yA{2.15}
+  \def\yB{0.40}
+  \node[pd title,anchor=south west] at (-0.10,3.22)
+    {What capacity did this contract grant?};
+
+  \node[pd focus state,text width=3.35cm] (STATUS) at (1.75,\yA)
+    {$200$ jobs $\times$ $64$ bits per status};
+  \node[pd focus state,text width=2.70cm] (SBITS) at (5.55,\yA)
+    {status channel\\\textbf{12{,}800 bits}};
+  \draw[pd focus arrow] (STATUS) -- (SBITS);
+
+  \node[pd warn state,text width=3.35cm] (TIMING) at (1.75,\yB)
+    {$200$ returns $\times$ $1.585$ bits per return};
+  \node[pd warn state,text width=2.70cm] (TBITS) at (5.55,\yB)
+    {timing channel\\\textbf{$+317$ bits}};
+  \draw[pd warn arrow] (TIMING) -- (TBITS);
+
+  \node[pd bucket,minimum width=3.15cm,minimum height=2.35cm]
+    (TOTAL) at (9.35,1.28) {\\[7pt]total account\\\textbf{13{,}117 bits}};
+  \draw[pd focus pipe] (SBITS.east) -| (TOTAL.north);
+  \draw[pd warn arrow] (TBITS.east) -| (TOTAL.south);
+  \node[pd title,anchor=north] at (9.35,-0.45)
+    {$12{,}800 + 317 = 13{,}117$ bits};
 \end{tikzpicture}
-\caption{The leakage budget as a running total, for the chapter's own
-worked engagement: a 64-bit status schema over 200 jobs. The first bar is
-the declared, arithmetic budget $q\cdot b=200\times64=12{,}800$ bits, the
-number the design rule of Sec.~\ref{sec:sealed-budget} says to negotiate
-over. The second, dashed and in the warn hue, is the separately priced
-timing term: three scheduled return times add $q\log_2 s\approx200\times
-1.585\approx317$ more bits, since when a job returns is itself a channel
-the possibilistic model does not cover. The third bar is the true total,
-about $13{,}117$ bits, both terms summed. [hand-derived; Exercise
-\ref{ex:sealed-budget}]}
+\caption{A two-channel accounting trace for 200 jobs: fixed-schema status
+contributes 12,800 bits and three scheduled return slots contribute about 317
+bits. The contract grants about 13,117 bits of adversarial capacity in total.
+[hand-derived; Exercise~\ref{ex:sealed-budget}]}
 \label{fig:sealed-leakage-ledger}
 \end{figure}
