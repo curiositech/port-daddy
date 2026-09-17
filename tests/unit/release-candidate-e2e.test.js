@@ -15,6 +15,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
+  assertExecutableArtifact,
   assertOwnedSyntheticTree,
   closeServerBoundedly,
   findAuthorityArtifacts,
@@ -277,6 +278,29 @@ describe('release-candidate E2E contract', () => {
     expect(() => releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: join(staged, 'scratch') }, options)).toThrow(
       'release-candidate path override escapes its approved roots: SMOKE_SCRATCH_BASE',
     );
+  });
+
+  test('rejects a staged binary path whose symlink target escapes its approved root', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-path-escape-test-'));
+    const root = join(fixture, 'run');
+    const staged = join(fixture, 'stage');
+    const outside = join(fixture, 'outside-port-daddy');
+    const linkedBinary = join(staged, 'port-daddy');
+    try {
+      mkdirSync(root, { recursive: true });
+      mkdirSync(staged, { recursive: true });
+      writeFileSync(outside, 'x'.repeat(2048), { mode: 0o755 });
+      symlinkSync(outside, linkedBinary);
+      const options = { approvedPathRootsByKey: { PD_E2E_BIN: [staged] } };
+      expect(() => releaseCandidateIsolatedEnv(root, { PD_E2E_BIN: linkedBinary }, options)).toThrow(
+        'release-candidate path override escapes its approved roots: PD_E2E_BIN',
+      );
+      expect(() => assertExecutableArtifact(linkedBinary)).toThrow('artifact must not be a symbolic link');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   test('private runtime fixture preparation rejects a symlink without changing its target', () => {

@@ -402,9 +402,15 @@ export function releaseCandidateIsolatedEnv(
     }
     if (RELEASE_CANDIDATE_EXTRA_PATH_KEYS.has(name)) {
       const resolvedValue = typeof value === 'string' ? resolve(value) : null;
-      const approvedRoots = [resolvedRoot, ...(approvedPathRootsByKey[name] || [])].map((path) => resolve(path));
+      const physicalValue = resolvedValue === null ? null : physicalPath(resolvedValue);
+      const approvedRoots = [resolvedRoot, ...(approvedPathRootsByKey[name] || [])].map((path) => ({
+        lexical: resolve(path),
+        physical: physicalPath(path),
+      }));
       const isApproved = resolvedValue !== null && approvedRoots.some(
-        (approvedRoot) => resolvedValue === approvedRoot || isWithin(resolvedValue, approvedRoot),
+        (approvedRoot) =>
+          (resolvedValue === approvedRoot.lexical || isWithin(resolvedValue, approvedRoot.lexical))
+          && (physicalValue === approvedRoot.physical || isWithin(physicalValue, approvedRoot.physical)),
       );
       if (!isApproved) {
         throw new Error(`release-candidate path override escapes its approved roots: ${name}`);
@@ -482,6 +488,7 @@ export function findAuthorityArtifacts(root) {
 /** Assert a file is executable and large enough to be a real release payload. */
 export function assertExecutableArtifact(path, minBytes = 1024) {
   if (!existsSync(path)) throw new Error(`required artifact is missing: ${path}`);
+  if (lstatSync(path).isSymbolicLink()) throw new Error(`artifact must not be a symbolic link: ${path}`);
   const info = statSync(path);
   if (!info.isFile() || info.size < minBytes) throw new Error(`artifact is not a non-empty file: ${path}`);
   if ((info.mode & 0o111) === 0) throw new Error(`artifact is not executable: ${path}`);
