@@ -6,7 +6,7 @@ last_verified: 2026-08-21
 
 # When Skipping Coordination Is Actually OK
 
-The default rule in this repo is: `pd briefing` + `pd begin ... --lifecycle durable` + claim + note + done. The cost of running them is ~5 seconds. Skipping is rarely worth it. But here are the genuine exceptions.
+The default rule in this repo is: `pd briefing` + `pd begin ... --lifecycle durable --roadmap <slug>` + claim + note + done. The cost of running them is ~5 seconds. Skipping is rarely worth it. But here are the genuine exceptions.
 
 ```
 START: I'm tempted to skip pd ceremony for this task
@@ -75,7 +75,7 @@ Treat the refusal as input to repair, not an obstacle to suppress:
 
 If you cannot commit with an active session, that is a signal that:
 
-1. Your shell lost its session anchor (likely due to cwd mismatch). Run `pd begin "<task>" --lifecycle durable` here.
+1. Your shell lost its session anchor (likely due to cwd mismatch). Run `pd begin "<task>" --lifecycle durable --roadmap <same-slug>` here.
 2. The repo's guard mode shouldn't be `enforce` for this surface. Discuss before downgrading.
 
 Do not disable hooks or route around the guard. Escalate a genuinely incorrect
