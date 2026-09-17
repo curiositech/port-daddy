@@ -1,4 +1,6 @@
 import Foundation
+import SwiftUI
+import ViewInspector
 import XCTest
 #if canImport(FleetBar)
 @testable import FleetBar
@@ -48,6 +50,46 @@ final class LocalRuntimeControlTests: XCTestCase {
     }
 
     @MainActor
+    func testLocalOffStoreReportsUnknownAndPersistsFailureWithoutRunningShutdown() throws {
+        let unavailable = fixture.appendingPathComponent("missing/parent/control")
+        let unknownStore = LocalOffStore(control: LocalRuntimeControl(canonicalRoot: unavailable))
+        XCTAssertEqual(unknownStore.controlState, .unknown)
+        XCTAssertNotNil(unknownStore.blockedReason)
+
+        let target = try root("store-failure-target")
+        let linked = fixture.appendingPathComponent("store-failure-link")
+        try fm.createSymbolicLink(at: linked, withDestinationURL: target)
+        let store = LocalOffStore(
+            control: LocalRuntimeControl(canonicalRoot: linked),
+            shutdown: { [] }
+        )
+        store.turnOff()
+
+        XCTAssertEqual(store.controlState, .off)
+        XCTAssertFalse(store.persistenceFailures.isEmpty)
+        XCTAssertTrue(store.hasRequestedOff)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: target.path), [])
+    }
+
+    @MainActor
+    func testLocalOffSectionRendersConfirmedOffAndUnknownControlStates() throws {
+        let offRoot = try root("off-view")
+        try marker("HALT", offRoot)
+        let off = try LocalOffSection(
+            compact: true,
+            control: LocalRuntimeControl(canonicalRoot: offRoot)
+        ).inspect()
+        XCTAssertNoThrow(try off.find(text: "Local starts are off"))
+
+        let unavailable = fixture.appendingPathComponent("missing/view/control")
+        let unknown = try LocalOffSection(
+            compact: true,
+            control: LocalRuntimeControl(canonicalRoot: unavailable)
+        ).inspect()
+        XCTAssertNoThrow(try unknown.find(text: "Start state unknown — blocked"))
+    }
+
+    @MainActor
     func testCustomNamedStopMarkerPresentsAsConfirmedOff() throws {
         let canonical = try root("custom-marker-canonical")
         let custom = fixture.appendingPathComponent("maintenance.stop")
@@ -90,6 +132,26 @@ final class LocalRuntimeControlTests: XCTestCase {
         let unavailable = fixture.appendingPathComponent("absent/parent/control")
         XCTAssertNotNil(LocalRuntimeControl(canonicalRoot: unavailable).blockedReason)
         XCTAssertNotNil(LocalRuntimeControl(canonicalRoot: try root("relative"), environment: ["PD_HOME": "relative"]).blockedReason)
+    }
+
+    func testConcurrentObservationsRemainConsistentBeforeAndAfterOff() throws {
+        let canonical = try root("concurrent-observation")
+        let control = LocalRuntimeControl(canonicalRoot: canonical)
+        let states = ControlStateRecorder()
+
+        DispatchQueue.concurrentPerform(iterations: 64) { _ in
+            states.append(control.observation.state)
+        }
+        XCTAssertEqual(states.snapshot.count, 64)
+        XCTAssertTrue(states.snapshot.allSatisfy { $0 == .open })
+
+        try marker("HALT", canonical)
+        states.removeAll()
+        DispatchQueue.concurrentPerform(iterations: 64) { _ in
+            states.append(control.observation.state)
+        }
+        XCTAssertEqual(states.snapshot.count, 64)
+        XCTAssertTrue(states.snapshot.allSatisfy { $0 == .off })
     }
 
     func testCustomHaltCannotOverrideCanonicalAndUnknownParentDenies() throws {
@@ -339,6 +401,23 @@ final class LocalRuntimeControlTests: XCTestCase {
             do { for try await _ in lines {}; XCTFail("Overflow was silently accepted") }
             catch { XCTAssertEqual((error as? URLError)?.code, .dataLengthExceedsMaximum) }
         }
+    }
+}
+
+private final class ControlStateRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var states: [LocalRuntimeControl.State] = []
+
+    func append(_ state: LocalRuntimeControl.State) {
+        lock.lock(); states.append(state); lock.unlock()
+    }
+
+    func removeAll() {
+        lock.lock(); states.removeAll(); lock.unlock()
+    }
+
+    var snapshot: [LocalRuntimeControl.State] {
+        lock.lock(); defer { lock.unlock() }; return states
     }
 }
 

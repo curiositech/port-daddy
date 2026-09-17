@@ -9,9 +9,16 @@ final class LocalOffStore: ObservableObject {
     @Published private(set) var receipts: [LocalRuntimeShutdown.Receipt] = []
     @Published private(set) var hasRequestedOff = false
     private let control: LocalRuntimeControl
+    private let shutdown: @Sendable () async -> [LocalRuntimeShutdown.Receipt]
 
-    init(control: LocalRuntimeControl = .shared) {
+    init(
+        control: LocalRuntimeControl = .shared,
+        shutdown: @escaping @Sendable () async -> [LocalRuntimeShutdown.Receipt] = {
+            await Task.detached(priority: .userInitiated) { LocalRuntimeShutdown.stop() }.value
+        }
+    ) {
         self.control = control
+        self.shutdown = shutdown
         let observation = control.observation
         controlState = observation.state
         blockedReason = observation.reason
@@ -42,9 +49,7 @@ final class LocalOffStore: ObservableObject {
         persistenceFailures = control.persistOff()
         refresh()
         Task {
-            receipts = await Task.detached(priority: .userInitiated) {
-                LocalRuntimeShutdown.stop()
-            }.value
+            receipts = await shutdown()
             isStopping = false
         }
     }
@@ -54,9 +59,14 @@ final class LocalOffStore: ObservableObject {
 /// A destructive stop does not need confirmation; reactivation is never a toggle
 /// inferred from reconnect/readiness. Existing operator ALL-CLEAR stays separate.
 struct LocalOffSection: View {
-    var compact = false
-    @StateObject private var store = LocalOffStore()
+    let compact: Bool
+    @StateObject private var store: LocalOffStore
     @State private var showReceipts = false
+
+    init(compact: Bool = false, control: LocalRuntimeControl = .shared) {
+        self.compact = compact
+        _store = StateObject(wrappedValue: LocalOffStore(control: control))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Fleet.Space.s) {
