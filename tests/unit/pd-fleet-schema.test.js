@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
+import { parse as parseYaml } from 'yaml';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCHEMA_PATH = join(
@@ -13,6 +14,13 @@ const SCHEMA_PATH = join(
   'pd-fleet.schema.json',
 );
 const schema = JSON.parse(readFileSync(SCHEMA_PATH, 'utf8'));
+const SCHEMA_MD_PATH = join(
+  ROOT,
+  'skills',
+  'port-daddy-agent-skill',
+  'schemas',
+  'pd-fleet.schema.md',
+);
 const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
 
 function fleetWithCloudOnly(cloudOnly) {
@@ -45,5 +53,18 @@ describe('pd-fleet public JSON schema cloud_only contract', () => {
         keyword: 'type',
       }),
     ]));
+  });
+});
+
+describe('pd-fleet worked minimum example', () => {
+  test('keeps the git:committed ship locally runnable', () => {
+    const markdown = readFileSync(SCHEMA_MD_PATH, 'utf8');
+    const workedExample = markdown.match(/## Worked Minimum Fleet\s+```yaml\n([\s\S]*?)\n```/);
+    expect(workedExample).not.toBeNull();
+
+    const document = parseYaml(workedExample[1]);
+    const qa = document.fleet.agents.qa;
+    expect(qa.trigger).toBe('git:committed');
+    expect(Object.hasOwn(qa, 'cloud_only')).toBe(false);
   });
 });

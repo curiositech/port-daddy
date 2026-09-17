@@ -305,6 +305,32 @@ fleet:
     expect(ai.run.mock.calls[0]![0]).toBe(expected);
   });
 
+  it('honors purser cf_role before model without requiring a Cloudflare primary', async () => {
+    const yaml = `
+fleet:
+  agents:
+    purser:
+      class: purser
+      trigger: pull_request:opened
+      cf_role: author
+      model: cheap
+      prompt: "Adjudicate the exact head."
+`;
+    const ai = makeAI('CLEAN');
+    const res = await handleFleetSmokeTest(
+      req('/v1/fleet/smoke-test', 'POST', OPERATOR, {
+        ship: 'purser',
+        yaml,
+        sampleDiff: 'diff',
+      }),
+      makeEnv({ ai }),
+    );
+    expect(res.status).toBe(200);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(ai.run.mock.calls[0]![0]).toBe(CF_ROLE_MODELS.author);
+    expect(ai.run.mock.calls[0]![0]).not.toBe(CF_MODELS.cheap);
+  });
+
   it('SHIP_NOT_FOUND when the ship name is absent from the YAML', async () => {
     const env = makeEnv({ ai: makeAI('x') });
     const res = await handleFleetSmokeTest(

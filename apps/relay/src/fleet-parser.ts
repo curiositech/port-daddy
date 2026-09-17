@@ -83,6 +83,8 @@ interface RawAgent {
   trigger?: string | string[];
   prompt?: string;
   backend?: string;
+  class?: unknown;
+  cf_role?: unknown;
   model?: unknown;
   cloud_only?: unknown;
   fallbacks?: RawFallback[];
@@ -117,6 +119,10 @@ function coerceBlocking(value: unknown): boolean {
  * config against; it must not certify a model the executor will refuse.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
+  if (agent.class === 'purser') {
+    const pinned = resolveModelToken(agent.cf_role) ?? resolveModelToken(agent.model);
+    if (pinned) return pinned;
+  }
   if (agent.backend === 'cloudflare') {
     const pinned = resolveModelToken(agent.model);
     if (pinned) return pinned;
