@@ -425,9 +425,10 @@ export function createSugar(deps: SugarDeps) {
   function repositoryFileConflicts(
     filePaths: string[],
     metadata: Record<string, unknown> | null,
+    identityProject: string | null,
     excludeSessionId?: string,
   ): Array<Record<string, unknown>> {
-    const scope = claimRepositoryScopeForSession({ metadata });
+    const scope = claimRepositoryScopeForSession({ metadata, identityProject });
     const result = sessions.getFileConflicts(filePaths, {
       repositoryId: scope.repositoryId,
       compatibleLegacyRepositoryIds: scope.compatibleLegacyRepositoryIds,
@@ -915,7 +916,12 @@ export function createSugar(deps: SugarDeps) {
           };
           if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
           if (files && files.length > 0) {
-            const repositoryConflicts = repositoryFileConflicts(files, worktreeMetadata, resumedSessionId);
+            const repositoryConflicts = repositoryFileConflicts(
+              files,
+              worktreeMetadata,
+              resumeProject,
+              resumedSessionId,
+            );
             if (repositoryConflicts.length > 0) {
               return {
                 success: false,
@@ -1022,7 +1028,7 @@ export function createSugar(deps: SugarDeps) {
     }
 
     const repositoryConflicts = files && files.length > 0
-      ? repositoryFileConflicts(files, worktreeMetadata)
+      ? repositoryFileConflicts(files, worktreeMetadata, resumeProject)
       : [];
     if (!force && repositoryConflicts.length > 0) {
       return {

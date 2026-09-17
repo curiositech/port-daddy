@@ -407,6 +407,33 @@ describe('sugar.begin', () => {
     });
   });
 
+  test('preflights non-Git claims in the parsed semantic project before mutation', () => {
+    const { sugar, sessions } = setup();
+    const owner = sessions.start('Non-Git project owner', {
+      agentId: 'non-git-owner',
+      project: 'shared-project',
+      worktreeId: null,
+    });
+    expect(owner.success).toBe(true);
+    expect(sessions.claimFiles(owner.id, ['README.md'], { agentId: 'non-git-owner' }).success).toBe(true);
+
+    const blocked = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Non-Git project challenger',
+      identity: 'shared-project:test:challenger',
+      worktree: null,
+      files: ['README.md'],
+    });
+
+    expect(blocked).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: owner.id, filePath: 'README.md' }],
+    });
+    expect(sessions.list({ status: 'active', allWorktrees: true }).sessions).toHaveLength(1);
+    expect(sessions.get(owner.id).files.map((claim) => claim.filePath)).toEqual(['README.md']);
+  });
+
   test('preflights newly requested files before resuming an existing pd begin session', () => {
     const { sugar, sessions } = setup();
     const commonDir = '/repos/alpha/.git';

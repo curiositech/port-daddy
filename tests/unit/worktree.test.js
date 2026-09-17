@@ -12,8 +12,8 @@
 
 import { describe, test, expect } from '@jest/globals';
 import { join } from 'node:path';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
 
 import {
@@ -64,6 +64,27 @@ describe('getWorktreeInfo — port-daddy repo (real git)', () => {
     const info = getWorktreeInfo(repoRoot);
     expect(typeof info.commonDir).toBe('string');
     expect(info.commonDir.length).toBeGreaterThan(0);
+  });
+
+  test('returns one absolute common directory from the root and a nested invocation', () => {
+    const fixtureBase = join(homedir(), 'coding', 'tmp');
+    mkdirSync(fixtureBase, { recursive: true });
+    const fixture = mkdtempSync(join(fixtureBase, 'pd-worktree-nested-test-'));
+    const nested = join(fixture, 'packages', 'nested');
+    mkdirSync(nested, { recursive: true });
+    try {
+      execSync('git init --quiet', { cwd: fixture });
+      const rootInfo = getWorktreeInfo(fixture);
+      const nestedInfo = getWorktreeInfo(nested);
+
+      expect(rootInfo).not.toBeNull();
+      expect(nestedInfo).not.toBeNull();
+      expect(rootInfo.commonDir).toBe(join(fixture, '.git'));
+      expect(nestedInfo.commonDir).toBe(rootInfo.commonDir);
+      expect(nestedInfo.isMain).toBe(true);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   test('id is deterministic — same root produces same id', () => {
