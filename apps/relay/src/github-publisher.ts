@@ -662,6 +662,57 @@ async function listRequestedReviewers(
   failure('GITHUB_LIST_TOO_LARGE', 409, 'GitHub requested-reviewers list exceeds the bounded pagination scan');
 }
 
+interface ReviewThreadsQuery {
+  repository?: {
+    pullRequest?: {
+      reviewThreads?: {
+        nodes?: Array<{ isResolved?: boolean } | null>;
+        pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+      } | null;
+    } | null;
+  } | null;
+}
+
+async function assertNoUnresolvedReviewThreads(
+  owner: string,
+  repo: string,
+  number: number,
+  token: string,
+): Promise<void> {
+  let after: string | null = null;
+  const seenCursors = new Set<string>();
+  for (let page = 1; page <= MAX_GITHUB_LIST_PAGES; page += 1) {
+    const result: ReviewThreadsQuery = await graphql<ReviewThreadsQuery>(token, `query($owner:String!,$repo:String!,$number:Int!,$after:String){
+      repository(owner:$owner,name:$repo){
+        pullRequest(number:$number){
+          reviewThreads(first:100,after:$after){
+            nodes{isResolved}
+            pageInfo{hasNextPage endCursor}
+          }
+        }
+      }
+    }`, { owner, repo, number, after });
+    const connection = result.repository?.pullRequest?.reviewThreads;
+    if (!connection || !Array.isArray(connection.nodes)
+        || typeof connection.pageInfo?.hasNextPage !== 'boolean'
+        || connection.nodes.some((node) => typeof node?.isResolved !== 'boolean')) {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub returned an invalid review-threads connection');
+    }
+    if (connection.nodes.some((node) => node?.isResolved === false)) {
+      failure('PULL_REQUEST_REVIEWS_UNRESOLVED', 409, 'pull request has unresolved review threads');
+    }
+    if (!connection.pageInfo.hasNextPage) return;
+    const nextCursor = connection.pageInfo.endCursor;
+    if (typeof nextCursor !== 'string' || nextCursor.length === 0 || nextCursor === after
+        || seenCursors.has(nextCursor)) {
+      failure('GITHUB_LIST_INVALID', 502, 'GitHub review-threads cursor did not advance');
+    }
+    seenCursors.add(nextCursor);
+    after = nextCursor;
+  }
+  failure('GITHUB_LIST_TOO_LARGE', 409, 'GitHub review-threads list exceeds the bounded pagination scan');
+}
+
 async function graphql<T>(
   token: string,
   query: string,
@@ -1443,6 +1494,7 @@ async function executeExisting(
     resourceUrl = reply.html_url;
   } else if (request.operation === 'pull-request.enqueue') {
     if (pull.draft) failure('PULL_REQUEST_NOT_READY', 409, 'draft pull request cannot enter the merge queue');
+    await assertNoUnresolvedReviewThreads(owner, repo, pull.number, token);
     const queueQuery = 'query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){id headRefOid mergeQueueEntry{id}}}}';
     type QueueData = { repository?: { pullRequest?: { id?: string; headRefOid?: string; mergeQueueEntry?: { id?: string } | null } | null } };
     let state = await graphql<QueueData>(token, queueQuery, { owner, repo, number: pull.number });
@@ -1466,6 +1518,19 @@ async function executeExisting(
       }
       result = 'updated';
     } else result = 'reused';
+    await assertNoUnresolvedReviewThreads(owner, repo, pull.number, token);
+    const observedPull = await getPull(owner, repo, pull.number, token);
+    verifyPull(observedPull, {
+      repository: request.repository,
+      app,
+      baseBranch: payload.baseBranch,
+      baseSha: payload.baseSha,
+      headSha: payload.expectedGithubHeadSha,
+      number: payload.pullRequestNumber,
+      headRef: pull.headRef,
+      draft: false,
+    });
+    pull = observedPull;
   }
   if (request.operation === 'pull-request.request-reviewers'
       || request.operation === 'pull-request.comment'
@@ -1726,6 +1791,7 @@ export const __fleetbotPublisherTest = {
   finishIntent,
   listAllPages,
   listRequestedReviewers,
+  assertNoUnresolvedReviewThreads,
   executeExisting,
   gitObjectSha,
   expectedCommitSha,

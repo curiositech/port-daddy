@@ -59,6 +59,13 @@ function reviewerAction(reviewers: string[], teamReviewers: string[]): FleetbotA
   return request;
 }
 
+function enqueueAction(): FleetbotActionRequest {
+  const request = action();
+  request.operation = 'pull-request.enqueue';
+  request.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(request))}`;
+  return request;
+}
+
 const fleetbotPull = {
   number: 10129,
   node_id: 'PR_node',
@@ -90,6 +97,25 @@ function reviewRequestsResponse(
       repository: {
         pullRequest: {
           reviewRequests: { nodes, pageInfo: { hasNextPage, endCursor } },
+        },
+      },
+    },
+  });
+}
+
+function reviewThreadsResponse(
+  isResolved: boolean[],
+  hasNextPage: boolean,
+  endCursor: string | null,
+): Response {
+  return Response.json({
+    data: {
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: isResolved.map((resolved) => ({ isResolved: resolved })),
+            pageInfo: { hasNextPage, endCursor },
+          },
         },
       },
     },
@@ -619,6 +645,169 @@ describe('Fleetbot publisher authority hardening', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('finds an unresolved review thread after more than 100 resolved threads', async () => {
+    const originalFetch = globalThis.fetch;
+    const cursors: Array<string | null> = [];
+    globalThis.fetch = async (_input, init) => {
+      const after = JSON.parse(String(init?.body)).variables.after as string | null;
+      cursors.push(after);
+      return after === null
+        ? reviewThreadsResponse(Array.from({ length: 100 }, () => true), true, 'threads-100')
+        : reviewThreadsResponse([false], false, 'threads-101');
+    };
+    try {
+      await expect(subject.assertNoUnresolvedReviewThreads('curiositech', 'port-daddy', 10129, 'token'))
+        .rejects.toMatchObject({ code: 'PULL_REQUEST_REVIEWS_UNRESOLVED', status: 409 });
+      expect(cursors).toEqual([null, 'threads-100']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('rejects malformed and non-advancing review-thread connections', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({
+      data: {
+        repository: {
+          pullRequest: {
+            reviewThreads: {
+              nodes: [{ isResolved: 'yes' }],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      },
+    });
+    try {
+      await expect(subject.assertNoUnresolvedReviewThreads('curiositech', 'port-daddy', 10129, 'token'))
+        .rejects.toMatchObject({ code: 'GITHUB_LIST_INVALID', status: 502 });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return reviewThreadsResponse([], true, 'stuck-thread-cursor');
+    };
+    try {
+      await expect(subject.assertNoUnresolvedReviewThreads('curiositech', 'port-daddy', 10129, 'token'))
+        .rejects.toMatchObject({ code: 'GITHUB_LIST_INVALID', status: 502 });
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('bounds a continuously advancing review-thread connection', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return reviewThreadsResponse([], true, `thread-cursor-${calls}`);
+    };
+    try {
+      await expect(subject.assertNoUnresolvedReviewThreads('curiositech', 'port-daddy', 10129, 'token'))
+        .rejects.toMatchObject({ code: 'GITHUB_LIST_TOO_LARGE', status: 409 });
+      expect(calls).toBe(100);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('enqueues only after all review threads resolve and exact PR scope reads back', async () => {
+    const originalFetch = globalThis.fetch;
+    const request = enqueueAction();
+    let enqueued = false;
+    let threadScans = 0;
+    let pullReads = 0;
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/pulls/10129')) {
+        pullReads += 1;
+        return Response.json(fleetbotPull);
+      }
+      if (url.pathname.endsWith('/graphql')) {
+        const body = JSON.parse(String(init?.body)) as { query: string };
+        if (body.query.includes('reviewThreads(')) {
+          threadScans += 1;
+          return reviewThreadsResponse([true, true], false, null);
+        }
+        if (body.query.includes('enqueuePullRequest')) {
+          enqueued = true;
+          return Response.json({ data: { enqueuePullRequest: { mergeQueueEntry: { id: 'MQ_1' } } } });
+        }
+        if (body.query.includes('mergeQueueEntry')) {
+          return Response.json({ data: { repository: { pullRequest: {
+            id: fleetbotPull.node_id,
+            headRefOid: fleetbotPull.head.sha,
+            mergeQueueEntry: enqueued ? { id: 'MQ_1' } : null,
+          } } } });
+        }
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).resolves.toMatchObject({ result: 'updated', githubHeadSha: '2'.repeat(40) });
+      expect(enqueued).toBe(true);
+      expect(threadScans).toBe(2);
+      expect(pullReads).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it.each(['head', 'base'] as const)(
+    'rejects enqueue success when the pull-request %s moves after queue admission',
+    async (moved) => {
+      const originalFetch = globalThis.fetch;
+      const request = enqueueAction();
+      let enqueued = false;
+      let pullReads = 0;
+      globalThis.fetch = async (input, init) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/pulls/10129')) {
+          pullReads += 1;
+          if (pullReads === 1) return Response.json(fleetbotPull);
+          return Response.json(moved === 'head'
+            ? { ...fleetbotPull, head: { ...fleetbotPull.head, sha: '3'.repeat(40) } }
+            : { ...fleetbotPull, base: { ...fleetbotPull.base, sha: '3'.repeat(40) } });
+        }
+        if (url.pathname.endsWith('/graphql')) {
+          const body = JSON.parse(String(init?.body)) as { query: string };
+          if (body.query.includes('reviewThreads(')) return reviewThreadsResponse([true], false, null);
+          if (body.query.includes('enqueuePullRequest')) {
+            enqueued = true;
+            return Response.json({ data: { enqueuePullRequest: { mergeQueueEntry: { id: 'MQ_1' } } } });
+          }
+          if (body.query.includes('mergeQueueEntry')) {
+            return Response.json({ data: { repository: { pullRequest: {
+              id: fleetbotPull.node_id,
+              headRefOid: fleetbotPull.head.sha,
+              mergeQueueEntry: enqueued ? { id: 'MQ_1' } : null,
+            } } } });
+          }
+        }
+        throw new Error(`unexpected GitHub request: ${url}`);
+      };
+      try {
+        await expect(subject.executeExisting(
+          request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+          { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+          () => {},
+        )).rejects.toMatchObject({ code: 'PULL_REQUEST_SCOPE_CHANGED', status: 409 });
+        expect(enqueued).toBe(true);
+        expect(pullReads).toBe(2);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    },
+  );
 
   it('prevents a stale lease holder from finalizing after takeover', async () => {
     const key = {
