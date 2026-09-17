@@ -32,6 +32,30 @@ describe('runtime posture observation authority', () => {
     });
   });
 
+  test('malformed expected or observed scopes never become authority', () => {
+    for (const invalidScope of [null, 42, '', '   ']) {
+      const malformedObservation = capabilities();
+      malformedObservation.sandbox = {
+        ...malformedObservation.sandbox!,
+        scope: invalidScope as string,
+      };
+      expect(admitRuntimeEffect({ ...ready, capabilities: malformedObservation }, {
+        effects: ['managed_subprocess'],
+      }).reasons).toEqual(['sandbox_unknown']);
+
+      expect(admitRuntimeEffect({
+        ...ready,
+        expectedScopes: { ...CAPABILITY_SCOPE, sandbox: invalidScope as string },
+      }, { effects: ['managed_subprocess'] }).reasons).toEqual(['sandbox_unknown']);
+
+      expect(admitRuntimeEffect({
+        ...ready,
+        capabilities: malformedObservation,
+        expectedScopes: { ...CAPABILITY_SCOPE, sandbox: invalidScope as string },
+      }, { effects: ['managed_subprocess'] }).reasons).toEqual(['sandbox_unknown']);
+    }
+  });
+
   test('future, unbounded, and contradictory ready observations never authorize', () => {
     const contradictory = capabilities();
     contradictory.sandbox = {
