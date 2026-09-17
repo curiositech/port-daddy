@@ -49,6 +49,8 @@ misrepresented as reproducible from v2.
 The sealer, v1 manifest, and v2 manifest are excluded from v2's own digest.
 That avoids a self-referential hash while leaving the exact algorithm and scope
 inspectable. `sealed-packet-v2.json` records the final count and digest.
+Its `verificationCommand` runs the sealer in fail-closed check mode: receipt
+drift produces a nonzero exit instead of merely printing a different digest.
 
 ## What a seal proves
 

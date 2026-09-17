@@ -31,3 +31,4 @@
     "terminal": {"type": "object", "additionalProperties": false, "required": ["state", "statement", "assent", "dissentIds", "nextStep"], "properties": {"state": {"enum": ["SYNTHESIS_ACCEPTED", "DISSENT_RECORDED", "DECISION_ESCALATED", "EVIDENCE_INSUFFICIENT", "PAUSED_FOR_SAFETY", "TERMINATED_BAD_FAITH", "OUT_OF_SCOPE"]}, "statement": {"type": "string"}, "assent": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["participantId", "status"], "properties": {"participantId": {"type": "string"}, "status": {"enum": ["ASSENT", "DISSENT", "ABSTAIN", "NOT_REQUESTED"]}}}, "dissentIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "nextStep": {"enum": ["NONE", "OBTAIN_EVIDENCE", "REFER_TO_DECISION_AUTHORITY", "SEEK_OUT_OF_SCOPE_SUPPORT", "RESTART_ONLY_WITH_NEW_CONSENT"]}}}
   }
 }
+}

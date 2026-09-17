@@ -7,6 +7,7 @@ const clone = () => structuredClone(base);
 const cases = [
   ["valid", () => clone(), null],
   ["unknown", () => { const x = clone(); x.certified = true; return x; }, "E_UNKNOWN_FIELD"],
+  ["invented truth state", () => { const x = clone(); x.truthState = "RUNTIME_PROVEN"; return x; }, "E_TRUTH_STATE"],
   ["self witness", () => { const x = clone(); x.roles.adjudicator.id = x.roles.oracle.id; return x; }, "E_ROLE_SELF_WITNESS"],
   ["shared control", () => { const x = clone(); x.roles.recorder.controlDomain = x.roles.scheduler.controlDomain; return x; }, "E_CONTROL_DOMAIN_COLLISION"],
   ["live under halt", () => { const x = clone(); x.environment = "LIVE_CONTAINED"; return x; }, "E_LIVE_UNDER_HALT"],

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1] - 2026-09-17
+
+### Fixed
+
+- Closed the published JSON Schema document and made the auditor enforce every declared synthesis bound, including concurrency, births, artifact attempts, RFC 3339 deadlines, and non-empty finite native-capacity ceilings.
+- Added adversarial mutations for each newly enforced limit.
+
 ## [2.0.0] - 2026-09-16
 
 ### Changed

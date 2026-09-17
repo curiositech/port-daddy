@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 — 2026-09-17
+
+- Closed the published JSON Schema root.
+- Reject truth states outside the four-state evidence ladder and exercise the failure with an adversarial mutation.
+
 ## 1.0.0 — 2026-09-16
 
 - Establish deterministic evaluation envelopes with sealed model, schedule, fault, oracle, witness, and promotion boundaries.

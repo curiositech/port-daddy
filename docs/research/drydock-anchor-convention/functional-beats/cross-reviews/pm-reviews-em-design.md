@@ -4,21 +4,21 @@ Read-only; no files changed and no runtime invoked. Steelmen are faithful recons
 
 ## Steelmen
 
-- **Engineering:** The safest build path is a deterministic contract spine that closes admission atomicity, permanent ambiguity, and settlement handoff before any live claim; real containment remains blocked until a contained canary proves it.
-- **Design:** Operator trust comes from visibly separating proposal, authority, state, evidence, and uncertainty, with staged intervention receipts and no projection or animation masquerading as control.
-- **Product:** The credible wedge is one provider-neutral governed coding run whose bounded authority and inspectable evidence reduce review or incident burden enough to justify privileged deployment; demand and willingness to pay remain unproved.
+- **Engineering.** The safest build path is a deterministic contract spine that closes admission atomicity, permanent ambiguity, and settlement handoff before any live claim; real containment remains blocked until a contained canary proves it.
+- **Design.** Operator trust comes from visibly separating proposal, authority, state, evidence, and uncertainty, with staged intervention receipts and no projection or animation masquerading as control.
+- **Product.** The credible wedge is one provider-neutral governed coding run whose bounded authority and inspectable evidence reduce review or incident burden enough to justify privileged deployment; demand and willingness to pay remain unproved.
 
 ## Decisions
 
 | Decision | PM and market ruling | Falsifier for objection |
 |---|---|---|
 | **ACCEPT** | Static construction with live claims held is the correct honesty boundary. | — |
-| **CLARIFY** | S0–S7 is a technical dependency order, not the product-learning order. Interviews, teach-back, security review, and procurement discovery should start at S0. | A predeclared study finds static artifacts cannot resolve any H1, H3, or H4 decision before a live canary. |
+| **CLARIFY** | S0–S7 is a technical dependency order, not the product-learning order. Interviews, teach-back, security review, and procurement discovery should start at S0. | A [predeclared H1/H3/H4 study](../../reality-checks/product.md#product-hypotheses), with roles, protocol, thresholds, and stopping rules frozen before observation, finds static artifacts cannot resolve any of those decisions before a live canary. |
 | **CLARIFY** | “Zero-money” must mean no bonds or economic settlement, not ungoverned model or API spend. Prefer “no-settlement profile.” | All four target roles unprompted distinguish the term while the schema separately exposes usage spend. |
 | **ACCEPT** | The negative tests and bounded replacements are commercially valuable because they prevent false assurance. | — |
 | **ACCEPT** | Projection/authority separation, typed uncertainty, and exact trust wording directly serve the buyer’s governance job. | — |
 | **CLARIFY** | The target architecture has too much V1 navigation. The wedge needs Proposal, Run/Intervene, and Review/Evidence; successor policy is explicitly `none`, not a Continuity product. | Removing dedicated Continuity and Settlement destinations causes a critical authority misconception after one repair round. |
-| **REJECT for V1** | Mobile authority introduces another authentication, wake, pairing, and incident surface before the desktop wedge is validated. | Two non-founder design partners refuse a pilot without mobile intervention and its bounded pairing model passes threat review. |
+| **REJECT for V1** | Mobile authority introduces another authentication, wake, pairing, and incident surface before the desktop wedge is validated. | Two prospective users outside the founding team refuse a pilot without mobile intervention, and an independent security reviewer accepts its bounded pairing model. The design partners supply demand evidence, not release authority. |
 | **CLARIFY** | Two actions is a navigation constraint, not sufficient acceptance evidence. Measure correct evidence retrieval and comprehension across assistive and external-auth paths. | Blinded testing shows action count alone predicts correct retrieval and lower review time across those paths. |
 | **ACCEPT, deprioritize** | The prototype craft is coherent, but is neither differentiation nor procurement proof and must not delay comprehension testing. | — |
 

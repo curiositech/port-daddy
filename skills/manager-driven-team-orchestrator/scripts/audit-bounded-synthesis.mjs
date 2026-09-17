@@ -6,6 +6,7 @@ const TOP=["schemaVersion","mode","runId","status","objective","packet","criteri
 const PACKET=["packetId","repositoryAnchor","packetSha256","fileCount","truthState","runtimeAuthority","includedClasses","excludedClasses"];
 const AUTH=["managerMaySpawn","managerMayApprove","recursiveDelegationAllowed","externalGateRequired"];
 const BOUNDS=["maxRounds","maxConcurrentContributors","maxTotalBirths","maxSpawnDepth","maxAttemptsPerArtifact","maxCorrectionAttemptsPerTicket","deadline","nativeCapacityCeilings"];
+const CAPACITY=["resource","unit","ceiling"];
 const PARTICIPANT=["participantId","role","admissionEvidenceRef"], POSITION=["positionId","authorId","packetSha256","artifactDigest","falsifier"];
 const REVIEW=["reviewId","reviewerId","positionId","packetSha256","steelman","unresolvedTension","critique","critiqueFalsifier","narrowAmendment","ownConcession","retainedDissent"];
 const STEEL=["thesisMechanism","evidenceFalsifier","protectedOutcome"];
@@ -18,6 +19,14 @@ const DIGEST=/^sha256:[0-9a-f]{64}$/;
 
 function exact(v,keys,path,out){if(!v||typeof v!=="object"||Array.isArray(v)){out.push({code:"shape-invalid",path});return;}for(const k of keys)if(!(k in v))out.push({code:"required-field-missing",path:`${path}.${k}`});for(const k of Object.keys(v))if(!keys.includes(k))out.push({code:"unknown-field",path:`${path}.${k}`});}
 function add(out,condition,code,path,message=""){if(condition)out.push({code,path,message});}
+function validDateTime(value){
+  if(typeof value!=="string")return false;
+  const match=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-])(\d{2}):(\d{2}))$/.exec(value);
+  if(!match)return false;
+  const[,year,month,day,hour,minute,second,,offsetHour,offsetMinute]=match;
+  const daysInMonth=new Date(Date.UTC(Number(year),Number(month),0)).getUTCDate();
+  return Number(month)>=1&&Number(month)<=12&&Number(day)>=1&&Number(day)<=daysInMonth&&Number(hour)<=23&&Number(minute)<=59&&Number(second)<=59&&(!offsetHour||(Number(offsetHour)<=23&&Number(offsetMinute)<=59));
+}
 
 export function audit(plan){
   const out=[];exact(plan,TOP,"$",out);if(out.length)return out;
@@ -26,7 +35,9 @@ export function audit(plan){
   add(out,!DIGEST.test(plan.packet.packetSha256),"packet-digest-invalid","$.packet.packetSha256");add(out,plan.packet.runtimeAuthority!=="NONE","truth-state-upgrade","$.packet.runtimeAuthority");
   add(out,plan.authorityBoundary.managerMaySpawn||plan.authorityBoundary.recursiveDelegationAllowed,"manager-runtime-spawn-authority","$.authorityBoundary");
   add(out,plan.authorityBoundary.managerMayApprove||!plan.authorityBoundary.externalGateRequired,"manager-self-approval","$.authorityBoundary");
-  const b=plan.bounds;add(out,!Number.isInteger(b.maxRounds)||b.maxRounds<1,"unbounded-rounds","$.bounds.maxRounds");add(out,b.maxSpawnDepth!==0,"recursive-spawn-enabled","$.bounds.maxSpawnDepth");add(out,b.maxCorrectionAttemptsPerTicket!==1,"correction-unbounded","$.bounds.maxCorrectionAttemptsPerTicket");
+  const b=plan.bounds??{};add(out,!Number.isInteger(b.maxRounds)||b.maxRounds<1,"unbounded-rounds","$.bounds.maxRounds");add(out,!Number.isInteger(b.maxConcurrentContributors)||b.maxConcurrentContributors<1,"contributor-bound-invalid","$.bounds.maxConcurrentContributors");add(out,!Number.isInteger(b.maxTotalBirths)||b.maxTotalBirths<0,"birth-bound-invalid","$.bounds.maxTotalBirths");add(out,b.maxSpawnDepth!==0,"recursive-spawn-enabled","$.bounds.maxSpawnDepth");add(out,!Number.isInteger(b.maxAttemptsPerArtifact)||b.maxAttemptsPerArtifact<1,"artifact-attempt-bound-invalid","$.bounds.maxAttemptsPerArtifact");add(out,b.maxCorrectionAttemptsPerTicket!==1,"correction-unbounded","$.bounds.maxCorrectionAttemptsPerTicket");add(out,!validDateTime(b.deadline),"deadline-invalid","$.bounds.deadline");
+  const capacities=Array.isArray(b.nativeCapacityCeilings)?b.nativeCapacityCeilings:[];add(out,!capacities.length,"native-capacity-empty","$.bounds.nativeCapacityCeilings");const capacityKeys=new Set();
+  for(const[i,c]of capacities.entries()){exact(c,CAPACITY,`$.bounds.nativeCapacityCeilings[${i}]`,out);const resource=typeof c?.resource==="string"?c.resource.trim():"",unit=typeof c?.unit==="string"?c.unit.trim():"",key=`${resource}\0${unit}`;add(out,!resource||!unit||typeof c?.ceiling!=="number"||!Number.isFinite(c.ceiling)||c.ceiling<0,"native-capacity-invalid",`$.bounds.nativeCapacityCeilings[${i}]`);add(out,capacityKeys.has(key),"native-capacity-duplicate",`$.bounds.nativeCapacityCeilings[${i}]`);capacityKeys.add(key);}
   const participants=new Map();for(const[i,p]of(plan.participants??[]).entries()){exact(p,PARTICIPANT,`$.participants[${i}]`,out);add(out,participants.has(p.participantId),"participant-duplicate",`$.participants[${i}].participantId`);participants.set(p.participantId,p);add(out,!p.admissionEvidenceRef,"birth-without-admission",`$.participants[${i}].admissionEvidenceRef`);}
   const managers=[...participants.values()].filter(p=>p.role==="MANAGER");add(out,managers.length!==1,"manager-count-invalid","$.participants");
   const positions=new Map();for(const[i,p]of(plan.positions??[]).entries()){exact(p,POSITION,`$.positions[${i}]`,out);positions.set(p.positionId,p);add(out,participants.get(p.authorId)?.role!=="POSITION_AUTHOR","position-role-invalid",`$.positions[${i}].authorId`);add(out,p.packetSha256!==plan.packet.packetSha256,"packet-digest-mismatch",`$.positions[${i}].packetSha256`);}

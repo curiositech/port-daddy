@@ -46,3 +46,4 @@
     "role": {"type": "object", "additionalProperties": false, "required": ["id", "controlDomain"], "properties": {"id": {"type": "string", "minLength": 1}, "controlDomain": {"type": "string", "minLength": 1}}}
   }
 }
+}

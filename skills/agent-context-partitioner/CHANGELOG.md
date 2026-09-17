@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1] - 2026-09-17
+
+### Fixed
+
+- Require every `TRANSFERRED` disposition to join exactly to typed source/destination evidence with a non-empty disclosure proof, and reject orphan, duplicate, self, or mismatched transfer edges.
+- Added valid-transfer and missing/mismatched-evidence mutations.
+
 ## [2.0.0] - 2026-09-16
 
 ### Changed

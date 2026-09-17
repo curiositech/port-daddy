@@ -2,12 +2,21 @@
 
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(root, "../../..");
 const profile = process.argv[2] ?? "v1";
+const mode = process.argv[3] ?? "emit";
+const receiptPath = process.argv[4]
+  ? resolve(process.cwd(), process.argv[4])
+  : join(root, `sealed-packet-${profile}.json`);
+
+if (!["emit", "--check"].includes(mode) || process.argv.length > 5) {
+  console.error("usage: seal-packet.mjs [v1|v2] [--check [receipt.json]]");
+  process.exit(2);
+}
 
 const positionNames = {
   P1: "containment-and-tcb",
@@ -102,11 +111,41 @@ const files = [...new Set(packetPaths())]
 const canonical = files.map(({ path, sha256 }) => `${path}\0${sha256}\n`).join("");
 const packetSha256 = createHash("sha256").update(canonical).digest("hex");
 
-console.log(JSON.stringify({
+const generated = {
   schemaVersion: 2,
   profile,
   algorithm: "sha256(path NUL sha256 LF, lexicographic path order)",
   fileCount: files.length,
   packetSha256,
   files,
-}, null, 2));
+};
+
+if (mode === "--check") {
+  let receipt;
+  try {
+    receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+  } catch (error) {
+    console.error(JSON.stringify({
+      valid: false,
+      profile,
+      receiptPath: relative(repositoryRoot, receiptPath),
+      errors: [`receipt-unreadable: ${error.message}`],
+    }, null, 2));
+    process.exit(1);
+  }
+  const errors = [];
+  if (receipt.profile !== profile) errors.push(`profile mismatch: expected ${receipt.profile}, generated ${profile}`);
+  if (receipt.fileCount !== generated.fileCount) errors.push(`fileCount mismatch: expected ${receipt.fileCount}, generated ${generated.fileCount}`);
+  if (receipt.packetSha256 !== generated.packetSha256) errors.push(`packetSha256 mismatch: expected ${receipt.packetSha256}, generated ${generated.packetSha256}`);
+  console.log(JSON.stringify({
+    valid: errors.length === 0,
+    profile,
+    receiptPath: relative(repositoryRoot, receiptPath),
+    expected: { fileCount: receipt.fileCount, packetSha256: receipt.packetSha256 },
+    generated: { fileCount: generated.fileCount, packetSha256: generated.packetSha256 },
+    errors,
+  }, null, 2));
+  process.exit(errors.length ? 1 : 0);
+}
+
+console.log(JSON.stringify(generated, null, 2));

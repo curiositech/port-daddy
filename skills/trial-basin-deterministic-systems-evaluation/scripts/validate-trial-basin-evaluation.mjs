@@ -14,6 +14,7 @@ const ORACLE = ["oracleId", "revision", "predicateIds", "mutationTotal", "mutati
 const CONTROL = ["controlId", "manifestDeclared", "expectedPredicate", "observedPredicate"];
 const RESULT = ["axis", "evidenceClass", "status", "evidenceRefs", "limitation"];
 const REPLAY = ["semanticProjectionRef", "rawPredicate", "minimizedTraceDigest", "minimizedPredicate", "samePredicate"];
+const TRUTH_STATES = new Set(["T0_STATIC", "T1_MODEL", "T2_SHADOW", "T3_CANARY"]);
 
 function add(errors, condition, code, path) { if (condition) errors.push({ code, path }); }
 function exact(value, fields, path, errors) {
@@ -34,6 +35,7 @@ export function validateEvaluation(record) {
   exact(record.oracle, ORACLE, "$.oracle", errors);
   exact(record.replay, REPLAY, "$.replay", errors);
   add(errors, record.schemaVersion !== "1.0.0", "E_VERSION", "$.schemaVersion");
+  add(errors, !TRUTH_STATES.has(record.truthState), "E_TRUTH_STATE", "$.truthState");
   add(errors, record.runtimeAuthority !== "NONE", "E_RUNTIME_AUTHORITY", "$.runtimeAuthority");
   add(errors, record.truthEffect !== "NONE", "E_TRUTH_AUTHORITY", "$.truthEffect");
 
