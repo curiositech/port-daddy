@@ -18,34 +18,39 @@
 % a narrow stack and made three fan-out arrows look like three separate flows.
 % Five-second test: follow C left to right, then name the one fences property
 % and any one gates property with its checker.
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\flowy{3.05}
-  \def\propy{0.05}
+  \def\flowy{3.15}
+  \def\propy{0.02}
   % --- the runtime rail ----------------------------------------------------
-  \node[pd artifact,minimum width=2.05cm] (WO) at (0.85,\flowy)
+  \node[pd artifact,minimum width=1.95cm] (WO) at (0.85,\flowy)
     {work order $C$};
-  \node[pd uml component,minimum width=2.45cm] (MON) at (3.55,\flowy)
+  \node[pd uml component,minimum width=2.30cm,text width=1.72cm,align=center]
+    (MON) at (3.15,\flowy)
     {in-guest\\monitor};
-  \node[pd uml component,minimum width=2.45cm] (GW) at (6.45,\flowy)
+  \node[pd uml component,minimum width=2.30cm,text width=1.72cm,align=center]
+    (GW) at (5.85,\flowy)
     {outer\\gateway};
-  \node[pd uml component,minimum width=2.35cm] (DG) at (9.45,{\flowy+.68})
+  \node[pd uml component,minimum width=2.25cm,text width=1.70cm,align=center]
+    (DG) at (8.65,{\flowy+.66})
     {Derek's gate};
-  \node[pd uml component,minimum width=2.35cm] (EG) at (9.45,{\flowy-.68})
+  \node[pd uml component,minimum width=2.25cm,text width=1.70cm,align=center]
+    (EG) at (8.65,{\flowy-.66})
     {Erin's gate};
-  \node[pd focus state,minimum width=2.30cm] (OUT) at (12.55,\flowy)
+  \node[pd climax state,minimum width=2.45cm,text width=1.90cm,align=center]
+    (OUT) at (12.20,\flowy)
     {declared release};
   \pdumlicon{MON}\pdumlicon{GW}\pdumlicon{DG}\pdumlicon{EG}
   % Explicit split and merge junctions keep the branch topology visible and
   % give each arrowhead a straight, readable approach at final Book size.
-  \coordinate (split) at (7.88,\flowy);
+  \coordinate (split) at (7.18,\flowy);
   \coordinate (dg-in) at ($(DG.west)+(-.62,0)$);
   \coordinate (eg-in) at ($(EG.west)+(-.62,0)$);
   \coordinate (dg-out) at ($(DG.east)+(.58,0)$);
   \coordinate (eg-out) at ($(EG.east)+(.58,0)$);
-  \coordinate (merge) at (11.15,\flowy);
+  \coordinate (merge) at (10.25,\flowy);
   \begin{scope}[on background layer]
     \draw[pd focus arrow] (WO.east) -- (MON.west);
     \draw[pd focus arrow] (MON.east) -- (GW.west);
@@ -68,18 +73,26 @@
   \node[pd title,anchor=south] at (GATES.north) {two gates};
 
   % --- property-to-checker mapping, directly under the mechanism ----------
-  \node[pd kind,anchor=south] at (1.70,0.92) {from the fences};
-  \node[pd kind,anchor=south] at (8.80,0.92) {from gated release};
-  \node[pd ready state,text width=2.85cm] (PE) at (1.70,\propy)
-    {\textbf{Enforceability}\\\texttt{b3\_controllability.py}};
-  \node[pd ready state,text width=3.05cm] (PN) at (5.35,\propy)
-    {\textbf{Noninterference}\\\texttt{c1\_noninterference.py}};
-  \node[pd ready state,text width=2.95cm] (PC) at (9.05,\propy)
-    {\textbf{Conservation}\\\texttt{a3\_epsilon\_ledger.py}};
-  \node[pd ready state,text width=2.95cm] (PD) at (12.60,\propy)
-    {\textbf{Detection}\\\texttt{a4\_canary\_sprt.py}};
+  \node[pd kind,anchor=south] at (1.85,0.93) {from the fences};
+  \node[pd kind,anchor=south] at (9.25,0.93) {from gated release};
+  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PE) at (1.85,\propy)
+    {\textbf{Enforceability}};
+  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PN) at (5.55,\propy)
+    {\textbf{Noninterference}};
+  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PC) at (9.25,\propy)
+    {\textbf{Conservation}};
+  \node[pd ready state,minimum width=3.35cm,minimum height=8.5mm] (PD) at (12.95,\propy)
+    {\textbf{Detection}};
+  \node[pd mono label,anchor=north] at (1.85,-0.52)
+    {b3\_controllability.py};
+  \node[pd mono label,anchor=north] at (5.55,-0.52)
+    {c1\_noninterference.py};
+  \node[pd mono label,anchor=north] at (9.25,-0.52)
+    {a3\_epsilon\_ledger.py};
+  \node[pd mono label,anchor=north] at (12.95,-0.52)
+    {a4\_canary\_sprt.py};
 \end{tikzpicture}
 \caption{One work order passes two fences and two gates; four property cards
 name the checker for each resulting claim. [internal]}
 \label{fig:sealed-pillar-pipeline}
-\end{figure}
+\end{figure*}

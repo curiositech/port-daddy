@@ -25,45 +25,47 @@
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
   cell/.style={pd label,align=center,text width=4.5cm}]
-  \def\W{9.6}  \def\H{8.2}
+  \def\W{9.6}  \def\H{7.6}
   \draw[pd neutral fill] (0,\H/2) rectangle (\W/2,\H);
   \draw[pd focus fill] (\W/2,\H/2) rectangle (\W,\H);
   \draw[pd rule] (0,0) rectangle (\W,\H);
   \draw[pd rule] (\W/2,0) -- (\W/2,\H);
   \draw[pd rule] (0,\H/2) -- (\W,\H/2);
   \node[pd label,anchor=north,text width=8.9cm] at (\W/2,-0.25)
-    {the trigger is witnessed at the mediation boundary};
-  \node[pd label] at (\W/4,{\H+0.30}) {no};
-  \node[pd label] at ({3*\W/4},{\H+0.30}) {yes};
+    {the event is witnessed at the mediation boundary};
+  \node[pd label] at (\W/4,{\H+0.45}) {no};
+  \node[pd label] at ({3*\W/4},{\H+0.45}) {yes};
   \node[pd label,rotate=90,anchor=south,text width=6.2cm]
-    at (-0.55,\H/2) {the event is controllable: it passes through the gate};
+    at (-0.55,\H/2) {the event is controllable: the gate can veto it};
   \node[pd label,rotate=90] at (-0.20,{3*\H/4}) {yes};
   \node[pd label,rotate=90] at (-0.20,{\H/4}) {no};
 
-  \node[pd title,text width=3.7cm] at (\W/4,{3*\H/4+.28})
-    {impossible region};
-  \node[pd label,text width=3.7cm] at (\W/4,{3*\H/4-.58})
-    {complete mediation:\\controllable $\Rightarrow$ witnessed};
-  \node[pd title] at ({3*\W/4},7.78) {regimentable};
-  \node[cell,text width=4.2cm] at ({3*\W/4},6.40)
-    {\texttt{fs\_write} outside the workroom\\[2pt]
-     \texttt{net\_egress} except through the slot};
-  \node[pd title] at (\W/4,2.52) {detect-only};
-  \node[cell] at (\W/4,1.53)
+  \node[pd kind,text width=4.0cm] at (\W/4,7.02)
+    {controllable but not witnessed};
+  \node[pd title,text width=3.8cm] at (\W/4,6.22)
+    {invalid under complete mediation};
+  \node[pd label,text width=3.8cm] at (\W/4,5.10)
+    {every gate-controlled attempt is witnessed at that gate};
+  \node[pd title] at ({3*\W/4},6.88) {regimentable};
+  \node[cell,text width=4.3cm] at ({3*\W/4},5.78)
+    {\texttt{fs\_write}: outside workroom\\[2pt]
+     \texttt{net\_egress}: bypassing slot};
+  \node[pd title] at (\W/4,2.40) {detect-only};
+  \node[cell] at (\W/4,1.25)
     {\texttt{internal\_plan}: never plan an exfiltration};
-  \node[pd title] at ({3*\W/4},1.36) {detect-only};
-  \node[cell,text width=4.2cm] at ({3*\W/4},0.52)
+  \node[pd title] at ({3*\W/4},1.42) {detect-only};
+  \node[cell,text width=4.2cm] at ({3*\W/4},0.55)
     {\texttt{model\_emit\_token}: never emit a token naming a secret};
-  \node[pd state,text width=3.0cm] (TRIG) at ({3*\W/4},3.35)
+  \node[pd state,text width=3.0cm] (TRIG) at ({3*\W/4},3.08)
     {\texttt{in\_context\_read} of a secret};
-  \node[pd focus state,text width=3.0cm] (COMP) at ({3*\W/4},4.85)
+  \node[pd focus state,text width=3.0cm] (COMP) at ({3*\W/4},4.48)
     {\textbf{compound rule}: gates \texttt{net\_egress}};
   \draw[pd focus arrow] (TRIG) -- (COMP);
 \end{tikzpicture}
-\caption{The room's alphabet on controllability $\times$ witnessing. Under
-complete mediation the upper-left cell is impossible: any controllable attempt
-crosses a gate that witnesses it. The compound rule is enforceable because its
-witnessed read triggers a later, controllable \texttt{net\_egress} decision.
+\caption{Room events on controllability $\times$ witnessing. Complete
+mediation makes the upper-left cell invalid: every gate-controlled event is
+witnessed. The compound rule watches the read, then vetoes
+\texttt{net\_egress}.
 [internal, \texttt{b3\_controllability.py}]}
 \label{fig:sealed-controllability-quadrant}
 \end{figure}

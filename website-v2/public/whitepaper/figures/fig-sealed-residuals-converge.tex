@@ -25,18 +25,15 @@
 % explicit about ruling out.
 % Five-second test: count the buckets -- one, fed by three pipes, not
 % three buckets side by side.
-% QA: beauty_lint warns B7 in all three editions (sub-point
-% near-alignment noise among the three stacked source nodes' centres);
-% justified, not fixed.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % The explicit box leaves print-size air above the heavy first node. Without
   % it, fragment cropping trims to that node's inferred top rule.
-  \path[use as bounding box] (-0.35,-1.35) rectangle (9.25,4.95);
-  \def\dy{1.85}
-  \node[pd title,anchor=south west] at (-0.10,4.45)
+  \path[use as bounding box] (-2.20,-0.62) rectangle (7.95,4.05);
+  \def\dy{1.45}
+  \node[pd title,anchor=south west] at (-2.05,3.55)
     {three residuals, one account};
   \node[pd breach state,minimum width=4.1cm,align=center] (R1) at (0,{2*\dy})
     {laundering residual\\\pdfigsub worker computes $t=f(s)$};
@@ -44,8 +41,8 @@
     {malicious worker\\\pdfigsub declares its own $\varepsilon_i$};
   \node[pd breach state,minimum width=4.1cm,align=center] (R3) at (0,0)
     {arbitrary telemetry\\\pdfigsub unconstrained prose channel};
-  \node[pd bucket,minimum width=3.0cm,minimum height=2.4cm,align=center]
-    (ACCT) at (6.5,{1*\dy}) {\\[8pt]the $q\cdot b$\\account};
+  \node[pd bucket,minimum width=3.0cm,minimum height=2.0cm,align=center]
+    (ACCT) at (6.35,{1*\dy}) {\\[6pt]the $q\cdot b$\\account};
   \draw[pd focus pipe] (R1.east) -| (ACCT.north);
   \draw[pd focus pipe] (R2.east) -- (ACCT.west);
   \draw[pd focus pipe] (R3.east) -| (ACCT.south);

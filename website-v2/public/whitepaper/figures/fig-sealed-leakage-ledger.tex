@@ -21,33 +21,38 @@
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\yA{2.15}
-  \def\yB{0.40}
-  \node[pd title,anchor=south west] at (-0.10,3.22)
-    {What capacity did this contract grant?};
+  \def\yA{1.92}
+  \def\yB{0.35}
+  \node[pd title,anchor=south west] at (0.05,3.18)
+    {Capacity ledger for one contract};
+  \node[pd kind] at (1.55,2.75) {1\quad contract terms};
+  \node[pd kind] at (4.72,2.75) {2\quad channel capacity};
+  \node[pd kind] at (8.85,2.75) {3\quad add to ledger};
 
-  \node[pd focus state,text width=3.35cm] (STATUS) at (1.75,\yA)
+  \node[pd focus state,text width=2.65cm] (STATUS) at (1.55,\yA)
     {$200$ jobs $\times$ $64$ bits per status};
-  \node[pd focus state,text width=2.70cm] (SBITS) at (5.55,\yA)
+  \node[pd focus outline,text width=2.50cm] (SBITS) at (4.72,\yA)
     {status channel\\\textbf{12{,}800 bits}};
   \draw[pd focus arrow] (STATUS) -- (SBITS);
 
-  \node[pd warn state,text width=3.35cm] (TIMING) at (1.75,\yB)
+  \node[pd warn state,text width=2.65cm] (TIMING) at (1.55,\yB)
     {$200$ returns $\times$ $1.585$ bits per return};
-  \node[pd warn state,text width=2.70cm] (TBITS) at (5.55,\yB)
+  \node[pd warn state,text width=2.50cm] (TBITS) at (4.72,\yB)
     {timing channel\\\textbf{$+317$ bits}};
   \draw[pd warn arrow] (TIMING) -- (TBITS);
 
-  \node[pd bucket,minimum width=3.15cm,minimum height=2.35cm]
-    (TOTAL) at (9.35,1.28) {\\[7pt]total account\\\textbf{13{,}117 bits}};
-  \draw[pd focus pipe] (SBITS.east) -| (TOTAL.north);
-  \draw[pd warn arrow] (TBITS.east) -| (TOTAL.south);
-  \node[pd title,anchor=north] at (9.35,-0.45)
+  \node[pd focus badge] (SUM) at (7.05,1.14) {$+$};
+  \draw[pd focus arrow,pd to badge] (SBITS.east) -- (6.35,\yA) |- (SUM.north);
+  \draw[pd warn arrow,pd to badge] (TBITS.east) -- (6.35,\yB) |- (SUM.south);
+  \node[pd bucket,minimum width=3.05cm,minimum height=2.15cm]
+    (TOTAL) at (9.50,1.14) {\\[6pt]total account\\\textbf{13{,}117 bits}};
+  \draw[pd focus arrow,pd from badge] (SUM.east) -- (TOTAL.west);
+  \node[pd title,anchor=north] at (8.55,-0.43)
     {$12{,}800 + 317 = 13{,}117$ bits};
 \end{tikzpicture}
-\caption{A two-channel accounting trace for 200 jobs: fixed-schema status
-contributes 12,800 bits and three scheduled return slots contribute about 317
-bits. The contract grants about 13,117 bits of adversarial capacity in total.
+\caption{A left-to-right capacity ledger for 200 jobs. Fixed-schema status
+contributes 12,800 bits; three scheduled return slots contribute about 317;
+the explicit sum grants about 13,117 bits of adversarial capacity in total.
 [hand-derived; Exercise~\ref{ex:sealed-budget}]}
 \label{fig:sealed-leakage-ledger}
 \end{figure}

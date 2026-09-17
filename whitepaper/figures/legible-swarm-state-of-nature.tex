@@ -11,9 +11,9 @@
 % Must distinguish: launch source from edit intent; pointer claim from file
 %   lock; syntactic failure from semantic failure; test-time observation from
 %   downstream consequence.
-% Grammar chosen: one horizontal three-lane schedule feeding three aligned
-%   resolution traces. The common time rail exposes concurrency; the small
-%   multiples let the reader compare consequences without re-reading inputs.
+% Grammar chosen: three aligned worked traces from one shared input. Equal
+%   rows make the operation and first observable output directly comparable;
+%   the delayed row alone continues to its later release failure.
 % Grammar rejected: actor bubbles around settings.json. A membership graph
 %   would show who touched the file but erase read revision, order, overlap,
 %   and the delay between a green mutation score and the downstream failure.
@@ -23,82 +23,56 @@
 \centering
 \pdfigurehue{pdteal}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\laneleft{2.95}
-  \def\laneright{10.35}
-  \def\outy{-1.05}
   \tikzset{
-    launch/.style={pd title,anchor=east,text width=2.45cm,align=right},
-    patch/.style={pd mono label,fill=pdpage,align=left,text width=2.35cm},
-    signal/.style={pd label,fill=pdpage,inner xsep=3pt,inner ysep=2pt,
-      text width=2.55cm},
-    result/.style={text width=2.75cm,align=center,minimum height=1.55cm,
-      inner xsep=5pt,inner ysep=7pt}
+    actor/.style={pd artifact,text width=2.20cm,minimum height=1.40cm},
+    operation/.style={pd state,text width=3.15cm,minimum height=1.35cm},
+    result/.style={text width=3.05cm,minimum height=1.35cm}
   }
 
-  % Concrete shared base: every outcome below starts here.
-  \node[pd artifact,text width=9.55cm,align=left,anchor=south west] (base) at (0.35,5.80)
+  % Every trace starts from this exact revision.
+  \node[pd artifact,text width=10.35cm,align=left] (base) at (5.45,7.20)
     {\textbf{shared input}\quad \texttt{.vscode/settings.json @ a1c9}\\
      \texttt{formatOnSave=false}\quad \texttt{tsdk=node\_modules/...}\\
      \texttt{search.exclude=\{"**/dist": true\}}};
-  \node[pd label,anchor=north,text width=9.55cm,align=center] at (5.15,5.62)
-    {all three read \texttt{a1c9}; B's file lock overlaps A and C's pointer claims};
+  \node[pd label,anchor=north] at (5.45,6.50)
+    {all three agents read \texttt{a1c9} before any write lands};
 
-  % Lane fills come first; labels sit in three reserved columns.
-  \draw[pd focus fill]  (\laneleft,4.05) rectangle (9.00,4.62);
-  \draw[pd warn fill]   (\laneleft,2.90) rectangle (9.45,3.47);
-  \draw[pd legible fill](\laneleft,1.75) rectangle (9.90,2.32);
+  \node[actor] (A) at (1.30,4.82)
+    {\textbf{Agent A}\\02:00 format cron\\\pdfigsub pointer claim};
+  \node[operation] (AO) at (4.72,4.82)
+    {set \texttt{formatOnSave}\\\texttt{false -> true}};
+  \node[pd ready state,result] (AR) at (8.95,4.82)
+    {\textbf{benign}\\keywise merge\\valid JSON; all keys};
 
-  \node[launch] at (2.62,4.335) {02:00\\format cron};
-  \node[patch] at (4.18,4.335) {\texttt{formatOnSave}\\\texttt{false -> true}};
-  \node[signal] at (7.00,4.335) {claim\\\texttt{/editor.formatOnSave}};
-  \node[pd focus datum] at (9.00,4.335) {};
-  \node[pd mono label,anchor=west] at (9.24,4.335) {write A};
+  \node[actor] (B) at (1.30,2.62)
+    {\textbf{Agent B}\\02:01 PnP prototype\\\pdfigsub whole-file lock};
+  \node[operation] (BO) at (4.72,2.62)
+    {replace \texttt{tsdk}\\by raw text splice};
+  \node[pd breach state,result] (BR) at (8.95,2.62)
+    {\textbf{immediate}\\comma lost\\parse fails at write};
 
-  \node[launch] at (2.62,3.185) {02:01\\PnP prototype};
-  \node[patch] at (4.18,3.185) {\texttt{tsdk}\\\texttt{node\_modules -> .yarn}};
-  \node[signal] at (7.00,3.185) {whole-file lock\\\texttt{settings.json}};
-  \node[pd warn datum] at (9.45,3.185) {};
-  \node[pd mono label,anchor=west] at (9.69,3.185) {write B};
+  \node[actor] (C) at (1.30,0.42)
+    {\textbf{Agent C}\\02:02 search cron\\\pdfigsub pointer claim};
+  \node[operation] (CO) at (4.72,0.42)
+    {add \texttt{**/fixtures}\\to \texttt{search.exclude}};
+  \node[pd warn state,result] (CR) at (8.95,0.42)
+    {\textbf{delayed}\\valid JSON; tests 98\%\\settings path untested};
+  \node[pd breach state,result] (CL) at (8.95,-1.48)
+    {\textbf{next release}\\\texttt{fixtures/v1} unseen\\replay fails};
 
-  \node[launch] at (2.62,2.035) {02:02\\search-speed cron};
-  \node[patch] at (4.18,2.035) {\texttt{search.exclude}\\\texttt{+ **/fixtures}};
-  \node[signal] at (7.00,2.035) {claim\\\texttt{/search.exclude}};
-  \node[pd legible datum] at (9.90,2.035) {};
-  \node[pd mono label,anchor=west] at (10.14,2.035) {write C};
-
-  \draw[pd rule,->] (\laneleft,1.20) -- (\laneright,1.20);
-  \node[pd label,anchor=east] at (\laneleft-.18,1.20) {time};
-  \foreach \x/\t in {3.05/{read},7.00/{claim / lock},9.45/{write}}{
-    \draw[pd tick] (\x,1.20) -- (\x,1.06);
-    \node[pd label,anchor=north] at (\x,1.00) {\t};
-  }
-
-  % Same visible overlap, three possible resolutions.
-  \node[pd focus datum] (fork) at (6.70,0.22) {};
-
-  \node[pd ready state,result] (good) at (1.85,\outy)
-    {\textbf{keywise merge}\\valid JSON\\all 3 keys present\\benign convergence};
-  \node[pd breach state,result] (loud) at (5.35,\outy)
-    {\textbf{text splice}\\comma lost\\settings fail to parse\\breaks now};
-  \node[pd warn state,result] (quiet) at (8.85,\outy)
-    {\textbf{valid but blind}\\valid JSON\\\texttt{fixtures/} hidden};
-
-  \draw[pd ready arrow] (fork) -- (good.north);
-  \draw[pd breach arrow] (fork) -- (loud.north);
-  \draw[pd warn arrow] (fork) -- (quiet.north);
-
-  \node[pd ready datum] (mutants) at (7.10,-2.85) {};
-  \draw[pd ready arrow] (quiet.south) -- (mutants);
-  \node[pd ready label,anchor=east,text width=2.85cm,align=right] at (6.62,-2.85)
-    {\textbf{mutation test: 98\%}\\settings untested};
-
-  \node[pd breach datum] (release) at (7.10,-4.30) {};
-  \draw[pd breach arrow] (mutants) -- (release);
-  \node[pd breach label,anchor=east,text width=2.85cm,align=right] at (6.62,-4.30)
-    {\textbf{next release}\\\texttt{fixtures/v1} unseen; replay fails};
+  \begin{scope}[on background layer]
+    \draw[pd focus arrow] (A.east) -- (AO.west);
+    \draw[pd ready arrow] (AO.east) -- (AR.west);
+    \draw[pd focus arrow] (B.east) -- (BO.west);
+    \draw[pd breach arrow] (BO.east) -- (BR.west);
+    \draw[pd focus arrow] (C.east) -- (CO.west);
+    \draw[pd warn arrow] (CO.east) -- (CR.west);
+    \draw[pd breach arrow] (CR.south) -- (CL.north);
+  \end{scope}
 \end{tikzpicture}
-\caption{Three agents race from one \texttt{settings.json} revision. Disjoint
-keys converge; a text splice breaks immediately; a valid exclusion hides a
-fixture until release replay. [internal]}
+\caption{Three worked traces start from one \texttt{settings.json} revision.
+A keywise merge is benign; a raw splice fails immediately; a valid exclusion
+stays green until release replay exposes the hidden fixture. [internal,
+pedagogical counterexample]}
 \label{fig:state-of-nature}
 \end{figure}

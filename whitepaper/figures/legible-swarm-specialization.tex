@@ -20,7 +20,7 @@
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
-\begin{tikzpicture}[pd figure,x=.49cm,y=.58cm]
+\begin{tikzpicture}[pd figure,x=.60cm,y=.68cm]
   \begin{scope}
     \clip (0,0) rectangle (12,6);
     \fill[pd focus fill]
@@ -44,24 +44,24 @@
   \foreach \y/\lab in {0/1,2/2,4/3,6/4}{
     \draw[pd tick] (0,\y)--(-.12,\y);
     \node[pd label,anchor=east] at (-.18,\y) {\lab};}
-  \node[pd label,anchor=north,align=center,text width=3.6cm] at (6,-.65)
+  \node[pd label,anchor=north,align=center,text width=3.6cm] at (6,-1.02)
     {pooled utilization $\rho$};
-  \node[pd label,rotate=90,anchor=south,align=center,text width=3.0cm] at (-.72,3.1)
+  \node[pd label,rotate=90,anchor=south,align=center,text width=3.0cm] at (-.82,3.1)
     {skill premium $r$};
 
   \node[pd focus label,anchor=west,align=left,text width=2.0cm] at (7.75,5.15)
-    {{\normalsize $g_A(\rho,3)$} Erlang--C};
+    {exact Erlang--C\\boundary};
   \node[pd label,text=pderror,anchor=west,align=left,text width=2.5cm] at (2.05,4.20)
-    {$\tilde g$ proposed, falsified};
+    {proposed shortcut\\falsified};
   \node[pd title,anchor=west] at (.75,5.32) {sole owner wins};
   \node[pd title,anchor=west] at (8.45,1.10) {pool wins};
 
-  \node[pd label,anchor=west,align=left] at (6.92,2.86)
+  \node[pd label,anchor=west,align=left] at (7.08,2.42)
     {$\rho=.556$\\$r=2.5$};
-  \draw[pd hairline] (6.78,2.92)--(6.67,3.00);
+  \draw[pd hairline] (6.96,2.58)--(6.67,3.00);
 \end{tikzpicture}
 \caption{The specialization boundary at a three-agent pool. Below the
-Erlang--C boundary {\normalsize $g_A(\rho,3)$} (teal), pooling wins; above it, sole
+Erlang--C boundary $g_A(\rho,3)$ (teal), pooling wins; above it, sole
 ownership wins --- the two regions are now filled and edged, not hatched.
 The superseded threshold $\tilde g$ (dashed) is kept for comparison: it
 diverges rather than saturating at the pool capacity ratio. The worked
