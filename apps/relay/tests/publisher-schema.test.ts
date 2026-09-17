@@ -133,6 +133,8 @@ describe('publisher storage migration and schema parity', () => {
     // SELECTs are expressions inside the single outer validation statement.
     expect(scopeTrigger.match(/;/g)).toHaveLength(2);
     expect(scopeTrigger.match(/\bRAISE\s*\(/g)).toHaveLength(1);
+    const executableMigration = migration.replace(/--.*$/gm, '');
+    expect(executableMigration).not.toMatch(/\bCASE\b/i);
   });
 
   it('is replay-safe and leaves the v1 capability table usable for rollback', () => {
