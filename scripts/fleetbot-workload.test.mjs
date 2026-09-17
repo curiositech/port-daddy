@@ -174,8 +174,6 @@ describe('fleetbot workload client', () => {
     globalThis.fetch = async (input, init = {}) => {
       const url = String(input)
       seen.push({ url, init })
-      if (url.startsWith('https://oidc.example/token')) return Response.json({ value: 'header.payload.signature' })
-      if (url === 'https://relay.example/v1/exchange') return Response.json({ code: 'OK' })
       if (url === `https://relay.example/v1/fleetbot/publisher-grants/${grantId}`) return Response.json(snapshot)
       if (url === 'https://api.github.com/repos/curiositech/port-daddy/pulls/10282') return Response.json(pullRequest)
       if (url === 'https://relay.example/v1/fleetbot/publish') {
@@ -217,8 +215,6 @@ describe('fleetbot workload client', () => {
         GITHUB_TOKEN: 'read-only-actions-token',
         GITHUB_RUN_ID: '123',
         GITHUB_RUN_ATTEMPT: '2',
-        ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example/token',
-        ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'oidc-request-token',
         FLEETBOT_RELAY_URL: 'https://relay.example',
         FLEETBOT_RELAY_PUBLIC_KEY_HEX: relay.publicKeyHex,
         FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: '19'.repeat(32),
@@ -243,6 +239,7 @@ describe('fleetbot workload client', () => {
     assert.equal(request.authorship.sessionId, 'codex-01abc')
     assert.equal(request.payload.body, 'The exact-head finding is fixed.')
     assert.equal(request.capability.headSha, '2'.repeat(40))
+    assert.equal(seen.some((entry) => entry.url.includes('/v1/exchange') || entry.url.startsWith('https://oidc.example/')), false)
   })
 
   it('unwraps and verifies the exact Relay receipt envelope', () => {
@@ -408,7 +405,7 @@ describe('fleetbot workload client', () => {
     assert.match(workflow, /environment: fleetbot-workload/)
     assert.match(workflow, /main-ref-gate:/)
     assert.match(workflow, /needs: main-ref-gate/)
-    assert.match(workflow, /id-token: write/)
+    assert.doesNotMatch(workflow, /id-token: write/)
     assert.match(workflow, /contents: read/)
     assert.match(workflow, /pull-requests: read/)
     assert.doesNotMatch(workflow, /pull-requests: write/)

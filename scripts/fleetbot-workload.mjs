@@ -302,14 +302,14 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   const repository = (env.GITHUB_REPOSITORY ?? '').toLowerCase()
   if (!/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/.test(repository)) throw new Error('GITHUB_REPOSITORY is missing or malformed')
   const key = workloadKey(env.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX)
-  const oidcToken = await githubOidcToken({
-    requestUrl: env.ACTIONS_ID_TOKEN_REQUEST_URL,
-    requestToken: env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
-    audience: env.FLEETBOT_OIDC_AUDIENCE ?? DEFAULT_AUDIENCE,
-  })
-  await enrollWorkload({ relayUrl, oidcToken, key })
   appendOutput('workload_fingerprint', key.fingerprint)
   if (command === 'enroll') {
+    const oidcToken = await githubOidcToken({
+      requestUrl: env.ACTIONS_ID_TOKEN_REQUEST_URL,
+      requestToken: env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
+      audience: env.FLEETBOT_OIDC_AUDIENCE ?? DEFAULT_AUDIENCE,
+    })
+    await enrollWorkload({ relayUrl, oidcToken, key })
     console.log(`Workload enrolled for ${repository}. Fingerprint: ${key.fingerprint}`)
     console.log('An account administrator must now create a bounded publisher grant in Relay Ship controls.')
     return
