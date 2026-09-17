@@ -40,15 +40,17 @@ describe('runtime posture observation authority', () => {
       sandbox: CAPABILITY_SCOPE.sandbox,
     }) as RuntimePostureInput['expectedScopes'];
 
-    expect(admitRuntimeEffect({
-      ...ready,
-      capabilities: inheritedCapabilities,
-      expectedScopes: inheritedScopes,
-    }, { effects: ['managed_subprocess'] })).toMatchObject({
-      allowed: false,
-      requiredCapabilities: ['sandbox'],
-      reasons: ['sandbox_unknown'],
-    });
+    for (const input of [
+      { ...ready, capabilities: inheritedCapabilities },
+      { ...ready, expectedScopes: inheritedScopes },
+      { ...ready, capabilities: inheritedCapabilities, expectedScopes: inheritedScopes },
+    ]) {
+      expect(admitRuntimeEffect(input, { effects: ['managed_subprocess'] })).toMatchObject({
+        allowed: false,
+        requiredCapabilities: ['sandbox'],
+        reasons: ['sandbox_unknown'],
+      });
+    }
 
     expect(Object.hasOwn(inheritedCapabilities!, 'sandbox')).toBe(false);
     expect(Object.hasOwn(inheritedScopes!, 'sandbox')).toBe(false);
