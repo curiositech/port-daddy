@@ -14,6 +14,7 @@ import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
   assertOwnedSyntheticTree,
   findAuthorityArtifacts,
+  isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
   resolveDurableTestRoot,
@@ -31,6 +32,13 @@ const compiledCliSurfacePath = join(repoRoot, 'scripts', 'e2e-compiled-cli-surfa
 const binarySoakPath = join(repoRoot, 'scripts', 'soak-binary.sh');
 
 describe('release-candidate E2E contract', () => {
+  test('the collision fixture classifies only peer-termination socket errors as expected', () => {
+    expect(isExpectedCollisionSocketError(Object.assign(new Error('reset'), { code: 'ECONNRESET' }))).toBe(true);
+    expect(isExpectedCollisionSocketError(Object.assign(new Error('pipe'), { code: 'EPIPE' }))).toBe(true);
+    expect(isExpectedCollisionSocketError(Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }))).toBe(false);
+    expect(isExpectedCollisionSocketError(null)).toBe(false);
+  });
+
   test('the normative matrix is valid and every Phase-1 runner is registered', () => {
     const matrix = loadReleaseCandidateMatrix(matrixPath);
     expect(matrix.cases.length).toBeGreaterThanOrEqual(10);
@@ -223,6 +231,8 @@ describe('release-candidate E2E contract', () => {
     expect(doneCall).toContain('sessionId:');
     expect(doneCall).not.toMatch(/^\s*agentId:/m);
     expect(runner).toContain('const blockerSockets = new Set();');
+    expect(runner).toContain("socket.on('error', (error) => blockerSocketErrors.push(error));");
+    expect(runner).toContain('!isExpectedCollisionSocketError(error)');
     expect(runner).toContain("collision fixture listener did not close within 3 seconds");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
     for (const id of [
