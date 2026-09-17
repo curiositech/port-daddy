@@ -18,6 +18,7 @@
 
 import { parse as parseYaml } from 'yaml';
 import {
+  CF_ADMITTED_MODELS,
   CF_ROLE_MODELS,
   resolveCfModel,
 } from '../../shared/model-registry.generated.js';
@@ -82,6 +83,8 @@ interface RawAgent {
   trigger?: string | string[];
   prompt?: string;
   backend?: string;
+  model?: unknown;
+  cloud_only?: unknown;
   fallbacks?: RawFallback[];
   allowedTools?: string;
   telos?: string;
@@ -100,9 +103,10 @@ function coerceBlocking(value: unknown): boolean {
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. the first Workers AI `fallbacks[].model` pin, GUARDED — a pin outside the
+ *   1. an admitted primary `model` pin when `backend: cloudflare`, else
+ *   2. the first Workers AI `fallbacks[].model` pin, GUARDED — a pin outside the
  *      pinnable set is remapped to the ship default rather than reported, else
- *   2. a name-based default (the review model for *reviewer* ships).
+ *   3. a name-based default (the review model for *reviewer* ships).
  *
  * The guard is the correction: this function previously honored ANY `@cf/`-
  * prefixed string, so the relay would report a ship as valid and name the model
@@ -111,6 +115,13 @@ function coerceBlocking(value: unknown): boolean {
  * config against; it must not certify a model the executor will refuse.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
+  if (
+    agent.backend === 'cloudflare' &&
+    typeof agent.model === 'string' &&
+    CF_ADMITTED_MODELS.includes(agent.model.trim())
+  ) {
+    return agent.model.trim();
+  }
   for (const fb of agent.fallbacks ?? []) {
     if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
       return resolveCfModel(fb.model);
@@ -252,6 +263,9 @@ export function validateFleetYaml(fleetYaml: string): FleetValidationResult {
     }
     if (!prompt) {
       errors.push({ field: `${name}.prompt`, message: 'required' });
+    }
+    if (agent.cloud_only !== undefined && typeof agent.cloud_only !== 'boolean') {
+      errors.push({ field: `${name}.cloud_only`, message: 'must be a boolean' });
     }
 
     if (hasTrigger && prompt) {
