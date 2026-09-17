@@ -131,6 +131,7 @@ const HUMAN_SAFE_EFFECTS = new Set<RuntimeEffect>(['human_local', 'read_only', '
 const RUNTIME_DESIRED_STATES = new Set<unknown>(['off', 'on']);
 const RUNTIME_CONTROL_OBSERVATIONS = new Set<unknown>(['disabled', 'enabled', 'stopping', 'unknown']);
 const RUNTIME_CAPABILITIES = new Set<unknown>(COMMON_READINESS);
+const RUNTIME_CAPABILITY_STATUSES = new Set<unknown>(['ready', 'absent', 'disabled', 'degraded', 'unknown']);
 const MAX_OBSERVATION_AGE_MS = 60_000;
 const MAX_OBSERVATION_HORIZON_MS = 60_000;
 
@@ -158,7 +159,13 @@ function capabilityStatus(
     || !Object.prototype.hasOwnProperty.call(expectedScopes, capability)
   ) return 'unknown';
   const observation = observedCapabilities[capability];
-  if (!observation) return 'unknown';
+  if (
+    !observation
+    || !['status', 'scope', 'observedAt', 'validUntil'].every((field) => (
+      Object.prototype.hasOwnProperty.call(observation, field)
+    ))
+    || !RUNTIME_CAPABILITY_STATUSES.has(observation.status)
+  ) return 'unknown';
   if (observation.status === 'ready' && observation.reason !== undefined) return 'degraded';
   const expectedScope = expectedScopes[capability];
   if (
@@ -179,6 +186,11 @@ function capabilityStatus(
 }
 
 function observedControl(input: RuntimePostureInput): RuntimeControlObservation {
+  if (
+    !Object.prototype.hasOwnProperty.call(input, 'control')
+    || !Object.prototype.hasOwnProperty.call(input, 'controlObservedAt')
+    || !Object.prototype.hasOwnProperty.call(input, 'controlValidUntil')
+  ) return 'unknown';
   if (!RUNTIME_CONTROL_OBSERVATIONS.has(input.control)) return 'unknown';
   const now = Date.now();
   if (!Number.isFinite(input.controlObservedAt) || !Number.isFinite(input.controlValidUntil)) return 'unknown';
@@ -191,6 +203,7 @@ function observedControl(input: RuntimePostureInput): RuntimeControlObservation 
 }
 
 function observedDesired(input: RuntimePostureInput): RuntimeDesiredState | 'unknown' {
+  if (!Object.prototype.hasOwnProperty.call(input, 'desired')) return 'unknown';
   return RUNTIME_DESIRED_STATES.has(input.desired) ? input.desired : 'unknown';
 }
 
