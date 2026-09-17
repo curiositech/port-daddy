@@ -4,6 +4,7 @@ import {
   resolveVerdict,
   aggregateConclusion,
   parseShipFindings,
+  shipFindingLocationsAreReviewable,
   type ShipResult,
 } from '../src/verdict.js';
 
@@ -126,6 +127,51 @@ describe('parseShipFindings', () => {
         ']',
     );
     expect(parseShipFindings(out)).toHaveLength(3);
+  });
+});
+
+describe('shipFindingLocationsAreReviewable', () => {
+  const finding = (path: string, line: number) => ({
+    path,
+    line,
+    severity: 'HIGH' as const,
+    body: 'actionable defect',
+  });
+  const files = [{
+    filename: 'src/a.ts',
+    patch: [
+      '@@ -10,3 +20,4 @@',
+      ' context',
+      '-removed',
+      '+replacement',
+      ' tail',
+      '+added',
+      '@@ -40 +44,0 @@',
+      '-deleted-only',
+    ].join('\n'),
+  }];
+
+  it.each([20, 21, 22, 23])('accepts RIGHT-side hunk line %i', line => {
+    expect(shipFindingLocationsAreReviewable([finding('src/a.ts', line)], files)).toBe(true);
+  });
+
+  it.each([
+    ['an out-of-hunk line', 'src/a.ts', 99],
+    ['a deleted-only line', 'src/a.ts', 44],
+    ['an unknown path', 'src/missing.ts', 20],
+  ])('rejects %s', (_label, path, line) => {
+    expect(shipFindingLocationsAreReviewable([finding(path, line)], files)).toBe(false);
+  });
+
+  it('rejects a changed file whose patch was omitted by GitHub', () => {
+    expect(shipFindingLocationsAreReviewable(
+      [finding('src/large.ts', 1)],
+      [{ filename: 'src/large.ts' }],
+    )).toBe(false);
+  });
+
+  it('accepts an explicit empty finding set without diff-line authority', () => {
+    expect(shipFindingLocationsAreReviewable([], [])).toBe(true);
   });
 });
 

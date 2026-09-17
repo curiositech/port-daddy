@@ -43,7 +43,10 @@ export const SHIP_CHECKPOINT_KIND = 'ship-checkpoint';
  * versions predate one or more trusted review inputs and must re-run rather
  * than masquerade as a current clean result under a changed review contract.
  */
-export const SHIP_CHECKPOINT_SCHEMA_VERSION = 4;
+// v5 proves every persisted analytical result passed the RIGHT-side review-line
+// admission boundary. Older rows can contain a positive but unpublishable line
+// and therefore must re-run rather than vote from stale authority.
+export const SHIP_CHECKPOINT_SCHEMA_VERSION = 5;
 
 /** Current shape of the trusted inputs a checkpoint must prove it reviewed. */
 export const SHIP_CHECKPOINT_BINDING_VERSION = 4;

@@ -41,6 +41,12 @@ export interface Finding {
   body: string;
 }
 
+/** Changed-file evidence needed to prove an inline comment is publishable. */
+export interface ReviewablePatch {
+  filename: string;
+  patch?: string;
+}
+
 // First fenced ```json … ``` block. Non-greedy body; tolerant of trailing
 // whitespace before the closing fence.
 const FINDINGS_BLOCK_RE = /```json\s*\n([\s\S]*?)\n?```/;
@@ -114,6 +120,55 @@ export function parseShipFindings(output: string): Finding[] | null {
     });
   }
   return findings;
+}
+
+/**
+ * Return every RIGHT-side blob line GitHub exposes in one unified patch.
+ * Context and added lines are reviewable; deleted lines exist only on LEFT.
+ */
+function rightSidePatchLines(patch: string): Set<number> {
+  const lines = new Set<number>();
+  let rightLine: number | null = null;
+
+  for (const rawLine of patch.replace(/\r\n/g, '\n').split('\n')) {
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(rawLine);
+    if (hunk) {
+      rightLine = Number(hunk[1]);
+      continue;
+    }
+    if (rightLine === null || rawLine.startsWith('\\')) continue;
+    if (rawLine.startsWith('+') || rawLine.startsWith(' ')) {
+      lines.add(rightLine);
+      rightLine += 1;
+      continue;
+    }
+    if (rawLine.startsWith('-')) continue;
+    // Text without a unified-diff prefix is outside a hunk. Stop carrying the
+    // cursor so malformed or synthetic patch text cannot mint authority.
+    rightLine = null;
+  }
+
+  return lines;
+}
+
+/**
+ * Prove every finding can be submitted as a RIGHT-side GitHub review comment.
+ * Missing files, omitted patches, deleted lines, and out-of-hunk lines fail
+ * closed so a green verdict cannot precede an all-or-nothing review rejection.
+ */
+export function shipFindingLocationsAreReviewable(
+  findings: Finding[],
+  files: ReviewablePatch[],
+): boolean {
+  if (findings.length === 0) return true;
+
+  const reviewable = new Map<string, Set<number>>();
+  for (const file of files) {
+    if (typeof file.patch !== 'string') continue;
+    reviewable.set(file.filename, rightSidePatchLines(file.patch));
+  }
+
+  return findings.every(finding => reviewable.get(finding.path)?.has(finding.line) === true);
 }
 
 /**
@@ -283,9 +338,9 @@ export function reviewEventFor(results: ShipResult[]): 'COMMENT' | 'REQUEST_CHAN
  * THE BROKEN-SHIP DOCTRINE (operator ruling, 2026-08-19). "Advisory" scopes a
  * ship's JUDGMENT, not its machinery. An advisory ship saying BLOCK is an
  * opinion the operator chose not to gate on — that stays `neutral`. But an
- * advisory ship that errored, returned no usable output, or emitted a
- * malformed block did not render an opinion at all: the fleet itself is
- * broken, and a fleet run that silently tolerates its own broken ships trains
+ * advisory ship that errored, returned no usable output, or emitted findings
+ * the fleet could not safely admit did not render an opinion at all: the fleet
+ * itself is broken, and a fleet run that silently tolerates broken ships trains
  * everyone to ignore the fleet. Earlier doctrine resolved these to `neutral`
  * ("advisory paths fail open"), and the observable result was an entire run —
  * pd-spark, pd-lookout, pd-spider returning nothing usable, pd-snipe emitting

@@ -72,6 +72,7 @@ import {
   resolveVerdict,
   aggregateConclusion,
   parseShipFindings,
+  shipFindingLocationsAreReviewable,
   type ShipResult,
   type Verdict,
   reviewEventFor,
@@ -3614,63 +3615,35 @@ async function runShip(
       };
     }
 
-    // Parse the structured findings block. `null` => malformed JSON. Repair
-    // once (the model's findings are usually fine, the fence is not); only a
-    // still-malformed block is treated as errored — a broken ship.
+    // Parse the structured findings block and prove every path/line can be
+    // published as a RIGHT-side GitHub review comment. GitHub rejects a review
+    // atomically when even one comment names an omitted/deleted/out-of-hunk
+    // line, so allowing such a finding to vote before publication turns a
+    // green required check into evidence loss.
     let parsedFindings = parseShipFindings(output);
-    if (parsedFindings === null) {
+    let locationsReviewable =
+      parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, prCtx.files);
+    if (parsedFindings === null || !locationsReviewable) {
       const healed = await tryRepair(
-        'the fenced json findings block was malformed',
-        text => parseShipFindings(text) !== null,
+        parsedFindings === null
+          ? 'the fenced json findings block was malformed'
+          : 'a finding path or line was not publishable on the RIGHT side of the pull request diff',
+        text => {
+          const candidate = parseShipFindings(text);
+          return candidate !== null && shipFindingLocationsAreReviewable(candidate, prCtx.files);
+        },
       );
-      if (healed) parsedFindings = parseShipFindings(output);
+      if (healed) {
+        parsedFindings = parseShipFindings(output);
+        locationsReviewable =
+          parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, prCtx.files);
+      }
     }
+    const findings = locationsReviewable ? parsedFindings : null;
 
-    // Drop findings that cite a file this PR never touched.
-    //
-    // A prompt instruction is guidance; this is enforcement. Review is
-    // map-reduce over diff chunks, and a reviewer holding several files' hunks
-    // at once can attribute a snippet from one to the path of another — on
-    // #4956 a fragment from `lib/local-citizen/ink-cloud.ts` was reported as a
-    // syntax error at a line in `lib/squid/reconcile-sources.ts`, a file that
-    // does not contain the quoted text anywhere. A finding pinned to a path
-    // outside the diff cannot be about this PR, and shipping it burns reviewer
-    // trust on every finding that IS real.
-    //
-    // Deliberately scoped to paths, not line numbers: a slightly-off line is a
-    // navigational annoyance, while a wrong FILE means the reasoning was about
-    // something else entirely.
-    // FAIL OPEN when the changed-file list is not known to be complete.
-    //
-    // `fetchPRContext` returns `files: []` when the /files call fails, and asks
-    // GitHub for `per_page=100` without paginating — so an empty list means
-    // "we don't know", and a list AT the page size may be truncated. Filtering
-    // against either would silently discard real findings, which is a far worse
-    // failure than letting a bogus one through: a dropped finding is invisible,
-    // while a wrong one is at least arguable in the thread. The prompt-level
-    // scope contract is the primary defence; this is the backstop, and a
-    // backstop that can eat correct output is not worth having.
-    const changedPaths = new Set(prCtx.files.map(f => f.filename));
-    const fileListTrustworthy =
-      !prCtx.filesTruncated &&
-      changedPaths.size > 0 &&
-      prCtx.files.length < PR_FILES_PAGE_SIZE;
-    const findings =
-      parsedFindings === null || !fileListTrustworthy
-        ? parsedFindings
-        : parsedFindings.filter(f => {
-            const cited = String((f as { path?: unknown }).path ?? '').trim();
-            if (!cited || changedPaths.has(cited)) return true;
-            console.warn(
-              `[fleet-executor] pd-${ship.name}: dropped finding citing '${cited}', ` +
-                `which is not among this PR's ${changedPaths.size} changed files`,
-            );
-            return false;
-          });
-
-    // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
-    // marker (the ship produced output we couldn't parse); a parsed block is a
-    // 'ship-verdict' carrying the resolved verdict line.
+    // Transcript: findings-admission outcome. A malformed or unpublishable set
+    // is a 'ship-finding' marker; an admitted set is a 'ship-verdict' carrying
+    // the resolved verdict line.
     const verdictForTranscript: Verdict | null =
       findings === null ? null : resolveVerdict(output, ship.blocking);
     await transcript.step(
@@ -3679,16 +3652,18 @@ async function runShip(
       findings === null
         ? `pd-${ship.name}: MALFORMED`
         : `pd-${ship.name}: ${verdictForTranscript}`,
-      findings === null ? { error: 'failed to parse findings' } : findings,
+      findings === null
+        ? { error: 'findings were malformed or not publishable on the RIGHT-side diff' }
+        : findings,
     );
 
     // Render the findings into clean, actionable markdown (edit-in-place =>
     // idempotent on retry). When a ship parsed a real findings set → post the
     // render. When it found nothing (empty array) → post nothing (silence: this
-    // is why red-team stops spamming a bare `[]`). When the block was malformed
-    // (null → errored above) we still surface the raw output so the model's prose
-    // isn't lost. NEVER post the raw fenced JSON — it truncates on mobile and is
-    // not actionable (2026-07-07 screenshots).
+    // is why red-team stops spamming a bare `[]`). When admission failed (null →
+    // errored above), we still surface the raw output so the model's prose isn't
+    // lost. NEVER post raw fenced JSON from admitted findings — it truncates on
+    // mobile and is not actionable (2026-07-07 screenshots).
     const reviewerBody =
       findings === null
         ? output

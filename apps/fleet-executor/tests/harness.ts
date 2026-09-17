@@ -72,7 +72,7 @@ export interface GitHubState {
   /** Override the raw-diff endpoint status to exercise unavailable-source handling. */
   prDiffStatus?: number;
   /** Override the first (and currently only) GitHub changed-files page. */
-  prFiles?: Array<{ filename: string; status: string; additions: number; deletions: number }>;
+  prFiles?: Array<{ filename: string; status: string; additions: number; deletions: number; patch?: string }>;
   /** Raw changed-files response, used to exercise malformed/incomplete inventory handling. */
   prFilesBody?: string;
   /** Authoritative current PR head returned by GET /pulls/{n}. */
@@ -381,7 +381,13 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- PR files ---
     if (/\/pulls\/\d+\/files/.test(url)) {
       if (state.prFilesBody !== undefined) return text(state.prFilesBody);
-      return json(state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);
+      return json(state.prFiles ?? [{
+        filename: 'src/x.ts',
+        status: 'modified',
+        additions: 1,
+        deletions: 1,
+        patch: '@@ -1,4 +1,4 @@\n context one\n context two\n context three\n-old\n+changed',
+      }]);
     }
     // --- create review (inline comments) ---
     if (/\/pulls\/\d+\/reviews$/.test(url) && method === 'POST') {

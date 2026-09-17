@@ -1100,7 +1100,7 @@ export class ShipCommentPublicationError extends Error {
  * with a marker, and the ship's machine tag is re-appended so edit-in-place
  * (which locates the comment by that tag) still works. Belt-and-suspenders: the
  * renderers already bound their output, but a pathological findings set (or the
- * raw-output fallback on a malformed block) must never fail the POST outright.
+ * raw-output fallback after findings admission fails) must never fail the POST.
  */
 function capBody(body: string, tag: string): string {
   if (body.length <= GITHUB_COMMENT_MAX) return body;

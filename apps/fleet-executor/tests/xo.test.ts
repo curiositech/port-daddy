@@ -634,6 +634,16 @@ describe('XO integration — editor pass', () => {
 });
 
 describe('XO integration — advisory triage', () => {
+  beforeEach(() => {
+    state.prFiles = [{
+      filename: 'src/x.ts',
+      status: 'modified',
+      additions: 1,
+      deletions: 0,
+      patch: '@@ -1,9 +1,10 @@\n line one\n line two\n+changed line three\n line three\n line four\n line five\n line six\n line seven\n line eight\n line nine',
+    }];
+  });
+
   it('appends the "XO\'s orders" section to the review; check summary + conclusion untouched', async () => {
     state.files.set('main:pd-fleet.yml', shipYaml({ name: 'qa', xo: true }));
     const kv = memoryKV();
