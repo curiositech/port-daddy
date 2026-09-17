@@ -772,7 +772,15 @@ class ReleaseCandidateSuite {
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
-        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, [
+          'session',
+          'files',
+          'add',
+          spec.claimPath,
+          '--session',
+          spec.sessionId,
+          '--json',
+        ], { slot: spec.slot }), `claim ${spec.label}`);
         if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
         const sitrep = readJsonOutput(await this.runCli(runtime, spec.cwd, [
           'sitrep',
