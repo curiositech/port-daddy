@@ -3,6 +3,7 @@ import { verify } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import {
+  buildCommentRequest,
   buildInspectRequest,
   grantReadHeaders,
   hashHex,
@@ -75,6 +76,76 @@ describe('fleetbot workload client', () => {
     assert.throws(() => buildInspectRequest({ ...common, snapshot: { grantId, grantEpoch: 1, signingKeyGeneration: 1, repositories: ['curiositech/port-daddy'], operations: [] } }), /does not authorize pull-request.inspect/)
   })
 
+  it('binds an attributable comment to the exact PR head and grant operation', () => {
+    const request = buildCommentRequest({
+      key,
+      snapshot: {
+        grantId,
+        grantEpoch: 8,
+        signingKeyGeneration: 4,
+        repositories: ['curiositech/port-daddy'],
+        operations: ['pull-request.comment'],
+      },
+      repository: 'curiositech/port-daddy',
+      pullRequest: {
+        number: 10282,
+        base: { ref: 'main', sha: '1'.repeat(40) },
+        head: { ref: 'codex/comment', sha: '2'.repeat(40) },
+      },
+      body: 'The exact-head review finding is fixed and covered by a regression test.',
+      authorship: {
+        actorId: 'github-actions',
+        agentId: 'admiral-reviewer',
+        sessionId: 'codex-01abc',
+        purpose: 'Answer an actionable review finding after exact-head validation.',
+        roadmapItem: 'fleetbot-pr-authorship',
+        sidequestReason: null,
+        worktreeId: 'wt-42',
+      },
+      runId: '123',
+      runAttempt: '2',
+      now: 2_000_000_000,
+      nonce: 'ef'.repeat(32),
+    })
+    assert.equal(request.operation, 'pull-request.comment')
+    assert.equal(request.payload.body, 'The exact-head review finding is fixed and covered by a regression test.')
+    assert.equal(request.authorship.agentId, 'admiral-reviewer')
+    assert.equal(request.authorship.sessionId, 'codex-01abc')
+    assert.equal(request.authorship.roadmapItem, 'fleetbot-pr-authorship')
+    assert.equal(request.capability.operation, 'pull-request.comment')
+    assert.equal(request.capability.headSha, '2'.repeat(40))
+    assert.equal(request.capability.requestHash, request.idempotencyKey.slice('pd-gh-'.length))
+  })
+
+  it('rejects unbounded comments and malformed responsible-agent provenance before signing', () => {
+    const common = {
+      key,
+      snapshot: {
+        grantId,
+        grantEpoch: 8,
+        signingKeyGeneration: 4,
+        repositories: ['curiositech/port-daddy'],
+        operations: ['pull-request.comment'],
+      },
+      repository: 'curiositech/port-daddy',
+      pullRequest: { number: 1, base: { ref: 'main', sha: '1'.repeat(40) }, head: { ref: 'x', sha: '2'.repeat(40) } },
+      runId: '1',
+      runAttempt: '1',
+    }
+    assert.throws(() => buildCommentRequest({ ...common, body: '' }), /must be non-empty/)
+    assert.throws(() => buildCommentRequest({ ...common, body: 'x'.repeat(1_000_001) }), /at most 1000000/)
+    assert.throws(() => buildCommentRequest({
+      ...common,
+      body: 'hello',
+      authorship: { agentId: 'not allowed spaces', roadmapItem: 'fleetbot-pr-authorship', sidequestReason: null },
+    }), /authorship.agentId is missing or malformed/)
+    assert.throws(() => buildCommentRequest({
+      ...common,
+      body: 'hello',
+      authorship: { roadmapItem: 'fleetbot-pr-authorship', sidequestReason: 'cannot carry both' },
+    }), /exactly one roadmap item or sidequest reason/)
+  })
+
   it('unwraps and verifies the exact Relay receipt envelope', () => {
     const relay = workloadKey('27'.repeat(32))
     const snapshot = {
@@ -132,6 +203,10 @@ describe('fleetbot workload client', () => {
       /outside the requested authority scope/,
     )
     assert.throws(
+      () => verifyPublisherReceiptEnvelope({ code: 'OK', receipt: { ...receipt, agentId: 'other-agent' } }, verification),
+      /outside the requested authority scope/,
+    )
+    assert.throws(
       () => verifyPublisherReceiptEnvelope({ code: 'OK', receipt: { ...receipt, signature: '00'.repeat(64) } }, verification),
       /signature is invalid/,
     )
@@ -139,6 +214,72 @@ describe('fleetbot workload client', () => {
       () => verifyPublisherReceiptEnvelope({ code: 'OK', receipt }, { ...verification, expectedRelayPublicKey: '42'.repeat(32) }),
       /outside the requested authority scope/,
     )
+  })
+
+  it('accepts only operation-appropriate signed mutation outcomes', () => {
+    const relay = workloadKey('27'.repeat(32))
+    const snapshot = {
+      grantId,
+      grantEpoch: 8,
+      signingKeyGeneration: 4,
+      repositories: ['curiositech/port-daddy'],
+      operations: ['pull-request.comment'],
+    }
+    const request = buildCommentRequest({
+      key,
+      snapshot,
+      repository: 'curiositech/port-daddy',
+      pullRequest: {
+        number: 10282,
+        base: { ref: 'main', sha: '1'.repeat(40) },
+        head: { ref: 'codex/comment', sha: '2'.repeat(40) },
+      },
+      body: 'Reviewed at the exact head.',
+      authorship: { roadmapItem: 'fleetbot-pr-authorship', sidequestReason: null },
+      runId: '123',
+      runAttempt: '2',
+      now: 2_000_000_000,
+      nonce: 'ef'.repeat(32),
+    })
+    const unsigned = {
+      schema: 'port-daddy.fleetbot-receipt.v2',
+      receiptId: `github_receipt_${request.idempotencyKey.slice('pd-gh-'.length, 'pd-gh-'.length + 32)}`,
+      authority: 'port-daddy-relay-github-app',
+      appSlug: 'port-daddy',
+      operation: request.operation,
+      repository: request.repository,
+      idempotencyKey: request.idempotencyKey,
+      accountUserId: 'user-1',
+      accountGithubUserId: 42,
+      authorizedBy: { grantId, grantEpoch: 8, surface: 'publisher' },
+      admission: 'standing-publisher-grant',
+      actorId: request.authorship.actorId,
+      agentId: request.authorship.agentId,
+      sessionId: request.sessionId,
+      roadmapItem: 'fleetbot-pr-authorship',
+      resourceUrl: 'https://github.com/curiositech/port-daddy/pull/10282#issuecomment-1',
+      resourceNumber: 10282,
+      publishedBranch: 'codex/comment',
+      sourceHeadSha: null,
+      githubHeadSha: '2'.repeat(40),
+      result: 'created',
+      verifiedAt: 2_000_000_000,
+      relayPublicKey: relay.publicKeyHex,
+      tokenCleanup: 'confirmed',
+    }
+    const signed = { ...unsigned, signature: signDigestHex(relay.privateKey, stableJson(unsigned)) }
+    assert.equal(verifyPublisherReceiptEnvelope({ code: 'OK', receipt: signed }, {
+      request,
+      snapshot,
+      expectedRelayPublicKey: relay.publicKeyHex,
+    }), signed)
+    const invalid = { ...unsigned, result: 'observed' }
+    const invalidSigned = { ...invalid, signature: signDigestHex(relay.privateKey, stableJson(invalid)) }
+    assert.throws(() => verifyPublisherReceiptEnvelope({ code: 'OK', receipt: invalidSigned }, {
+      request,
+      snapshot,
+      expectedRelayPublicKey: relay.publicKeyHex,
+    }), /outside the requested authority scope/)
   })
 
   it('keeps the smoke workflow manual, protected, bounded, and read-only', () => {
@@ -159,5 +300,24 @@ describe('fleetbot workload client', () => {
     assert.match(workflow, /actions\/checkout@[0-9a-f]{40}/)
     assert.match(workflow, /actions\/setup-node@[0-9a-f]{40}/)
     assert.match(workflow, /FLEETBOT_RELAY_PUBLIC_KEY_HEX:.*vars\.FLEETBOT_RELAY_PUBLIC_KEY_HEX/)
+  })
+
+  it('keeps the first write workflow manual, protected, typed, and credential-separated', () => {
+    const workflow = readFileSync(new URL('../.github/workflows/fleetbot-actuator.yml', import.meta.url), 'utf8')
+    assert.match(workflow, /workflow_dispatch:/)
+    assert.match(workflow, /options:\n          - comment/)
+    assert.match(workflow, /environment: fleetbot-workload/)
+    assert.match(workflow, /main-ref-gate:/)
+    assert.match(workflow, /needs: main-ref-gate/)
+    assert.match(workflow, /id-token: write/)
+    assert.match(workflow, /contents: read/)
+    assert.match(workflow, /pull-requests: read/)
+    assert.doesNotMatch(workflow, /pull-requests: write/)
+    assert.doesNotMatch(workflow, /^  (schedule|pull_request|push):/m)
+    assert.match(workflow, /persist-credentials: false/)
+    assert.match(workflow, /FLEETBOT_AGENT_ID:.*inputs\.agent_id/)
+    assert.match(workflow, /FLEETBOT_SESSION_ID:.*inputs\.session_id/)
+    assert.match(workflow, /node scripts\/fleetbot-workload\.mjs comment/)
+    assert.doesNotMatch(workflow, /GH_TOKEN|pdu_/)
   })
 })

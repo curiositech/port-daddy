@@ -1,0 +1,91 @@
+name: Fleetbot actuator
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: The bounded Fleetbot operation to perform.
+        required: true
+        type: choice
+        options:
+          - comment
+      pull_request:
+        description: Exact pull request number to re-read before acting.
+        required: true
+        type: number
+      comment_body:
+        description: Comment body. Fleetbot appends responsible-agent and receipt provenance.
+        required: true
+        type: string
+      agent_id:
+        description: Responsible Port Daddy agent identifier.
+        required: true
+        type: string
+      session_id:
+        description: Responsible Port Daddy session identifier.
+        required: true
+        type: string
+      purpose:
+        description: Why this mutation is being made.
+        required: true
+        type: string
+      roadmap_item:
+        description: Roadmap slug, or leave empty and provide a sidequest reason.
+        required: false
+        type: string
+      sidequest_reason:
+        description: Required when no roadmap item is supplied.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  id-token: write
+
+concurrency:
+  group: fleetbot-actuator-${{ inputs.pull_request }}
+  cancel-in-progress: false
+
+jobs:
+  main-ref-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require the reviewed main branch
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "Fleetbot actuator code may only run from refs/heads/main." >&2
+            exit 1
+          fi
+
+  comment:
+    needs: main-ref-gate
+    runs-on: ubuntu-latest
+    environment: fleetbot-workload
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Post an attributable comment through Fleetbot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FLEETBOT_RELAY_URL: https://relay.portdaddy.dev
+          FLEETBOT_RELAY_PUBLIC_KEY_HEX: ${{ vars.FLEETBOT_RELAY_PUBLIC_KEY_HEX }}
+          FLEETBOT_OIDC_AUDIENCE: https://github.com/curiositech
+          FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
+          FLEETBOT_PUBLISHER_GRANT_ID: ${{ secrets.FLEETBOT_PUBLISHER_GRANT_ID }}
+          FLEETBOT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
+          FLEETBOT_COMMENT_BODY: ${{ inputs.comment_body }}
+          FLEETBOT_ACTOR_ID: github-actions
+          FLEETBOT_AGENT_ID: ${{ inputs.agent_id }}
+          FLEETBOT_SESSION_ID: ${{ inputs.session_id }}
+          FLEETBOT_PURPOSE: ${{ inputs.purpose }}
+          FLEETBOT_ROADMAP_ITEM: ${{ inputs.roadmap_item }}
+          FLEETBOT_SIDEQUEST_REASON: ${{ inputs.sidequest_reason }}
+        run: node scripts/fleetbot-workload.mjs comment
