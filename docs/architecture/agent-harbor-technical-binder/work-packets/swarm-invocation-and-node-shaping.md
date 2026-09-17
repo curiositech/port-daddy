@@ -34,8 +34,8 @@ This packet is based on:
 - `routes/spawn.ts`
 - `routes/agents.ts`
 - `skills/swarm-invocation-designer/SKILL.md`
-- `skills/swarm-invocation-designer/references/fast-agent-bus.md`
-- `skills/swarm-invocation-designer/references/invocation-patterns.md`
+- `skills/swarm-invocation-designer/references/authority-admission-lifecycle.md`
+- `skills/swarm-invocation-designer/references/gathers-reducers-and-replay.md`
 
 Current implementation truth from the CLI and routes:
 

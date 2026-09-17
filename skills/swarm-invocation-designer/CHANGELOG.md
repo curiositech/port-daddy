@@ -1,13 +1,14 @@
-# Swarm Invocation Designer — Changelog
+# Changelog
 
-## v1.0.0 (2026-07-02)
+## 2.0.0 — 2026-09-16
 
-- Initial skill creation
-- Core process defined
-- Reference files added
+### Breaking
 
-## v1.0.1 (2026-07-03)
-
-- Script CLI now prints a clean usage message to stderr and exits 1 instead of an uncaught stack trace
-- Generalized the one-off "ICP / IPC Answer" framing into a reusable disambiguation section
-- Added routing boundary and pairs-with link against multi-agent-coordination
+- Replaced transport-first, lead-owned prompt fanout with controller-owned
+  admission and lifecycle contracts.
+- Deleted the latency budget schema/analyzer and all 1.x templates; no legacy
+  or downgrade path remains.
+- Made reservation, fencing, durable intent, gather membership, bounded rework,
+  terminal settlement, and effect-denied replay mandatory.
+- Narrowed activation away from IPC selection, planning decomposition, dialogue,
+  and live operation.

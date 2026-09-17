@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Reconciled the composition contract with the conserved-capacity,
+  trust-typed-context, Trial Basin evaluation, and cryptoeconomic security
+  skills. These focused authorities now sit ahead of integration claims rather
+  than being implied by the program architect.
 - Added a closed hypertree-execution schema and semantic validator covering
   exact plan binding, ordered event chains, producer/reviewer/manager separation,
   deterministic checks, native-unit review reservations, and bounded rework.
