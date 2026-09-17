@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   statSync,
@@ -21,7 +22,6 @@ import { fileURLToPath } from 'node:url';
 import {
   assertOwnedSyntheticTree,
   assertExecutableArtifact,
-  canonicalRecordedCommonDir,
   findAuthorityArtifacts,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
@@ -743,6 +743,17 @@ class ReleaseCandidateSuite {
     return repo;
   }
 
+  async canonicalFixtureCommonDir(cwd, label) {
+    const result = await this.runCommand('git', ['rev-parse', '--git-common-dir'], {
+      cwd,
+      env: secretFreeBaseEnv(),
+      label: `git-common-dir-${label}`,
+      stream: false,
+    });
+    const candidate = resolve(cwd, result.stdout.trim());
+    return existsSync(candidate) ? realpathSync(candidate) : candidate;
+  }
+
   async coordinationRestartRepositoryFamily(caseRoot) {
     const fixtures = join(caseRoot, 'fixtures');
     mkdirSync(fixtures, { recursive: true });
@@ -868,9 +879,14 @@ class ReleaseCandidateSuite {
       const alphaWorktree = details.find((entry) => entry.label === 'alpha-linked');
       const betaMain = details.find((entry) => entry.label === 'beta-main');
       if (alphaMain.worktree.id === alphaWorktree.worktree.id) throw new Error('linked worktree did not receive a distinct worktree id');
-      const alphaFamily = canonicalRecordedCommonDir(alphaMain.worktree);
-      if (canonicalRecordedCommonDir(alphaWorktree.worktree) !== alphaFamily) throw new Error('linked worktree split from its repository family');
-      if (canonicalRecordedCommonDir(betaMain.worktree) === alphaFamily) throw new Error('arbitrary fixture repositories collapsed into one family');
+      if (resolve(alphaMain.worktree.root) !== resolve(alpha)) throw new Error('alpha main session recorded the wrong worktree root');
+      if (resolve(alphaWorktree.worktree.root) !== resolve(alphaLinked)) throw new Error('alpha linked session recorded the wrong worktree root');
+      if (resolve(betaMain.worktree.root) !== resolve(beta)) throw new Error('beta main session recorded the wrong worktree root');
+      const alphaFamily = await this.canonicalFixtureCommonDir(alphaMain.worktree.root, 'alpha-main');
+      const alphaLinkedFamily = await this.canonicalFixtureCommonDir(alphaWorktree.worktree.root, 'alpha-linked');
+      const betaFamily = await this.canonicalFixtureCommonDir(betaMain.worktree.root, 'beta-main');
+      if (alphaLinkedFamily !== alphaFamily) throw new Error('linked worktree split from its repository family');
+      if (betaFamily === alphaFamily) throw new Error('arbitrary fixture repositories collapsed into one family');
       if (matrixEnvFindings().length > 0) {
         throw new Error('compiled coordination created or required matrix.env for durable identity readback');
       }
