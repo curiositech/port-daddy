@@ -736,12 +736,12 @@ class ReleaseCandidateSuite {
     if (matrixEnvFindings().length > 0) {
       throw new Error('compiled product created matrix.env before any coordination journey');
     }
-      const sessions = [];
-      const specs = [
-        { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
-        { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'WORKTREE.md' },
-        { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
-      ];
+    const sessions = [];
+    const specs = [
+      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'WORKTREE.md' },
+      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
+    ];
     try {
       for (const spec of specs) {
         const beginArgs = [
@@ -759,6 +759,14 @@ class ReleaseCandidateSuite {
         const begin = readJsonOutput(await this.runCli(runtime, spec.cwd, beginArgs, { slot: spec.slot }), `begin ${spec.label}`);
         const sessionId = begin.sessionId || begin.id;
         if (!begin.success || typeof sessionId !== 'string') throw new Error(`begin ${spec.label} returned an incomplete receipt`);
+        sessions.push({ ...spec, sessionId });
+      }
+
+      // Start every repository-family session before adding claims. A later
+      // linked-worktree begin must not be rejected merely because an earlier
+      // sibling already exercised the claim surface; the distinct claim paths
+      // below are the behavior this journey is meant to preserve and verify.
+      for (const spec of sessions) {
         await this.runCli(runtime, spec.cwd, ['plan', 'set', `* [ ] verify ${spec.label}`], { slot: spec.slot });
         await this.runCli(runtime, spec.cwd, ['plan', 'check', '1'], { slot: spec.slot });
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
@@ -772,11 +780,10 @@ class ReleaseCandidateSuite {
           '--limit-notes',
           '200',
         ], { slot: spec.slot }), `sitrep ${spec.label}`);
-      const exactNote = Array.isArray(sitrep.notes) && sitrep.notes.some((note) =>
-        (note?.sessionId ?? note?.session_id) === sessionId
-        && (note?.content ?? note?.note) === `RC evidence ${spec.label}`);
-      if (!exactNote) throw new Error(`sitrep JSON did not carry ${spec.label}'s exact attributed note`);
-        sessions.push({ ...spec, sessionId });
+        const exactNote = Array.isArray(sitrep.notes) && sitrep.notes.some((note) =>
+          (note?.sessionId ?? note?.session_id) === spec.sessionId
+          && (note?.content ?? note?.note) === `RC evidence ${spec.label}`);
+        if (!exactNote) throw new Error(`sitrep JSON did not carry ${spec.label}'s exact attributed note`);
       }
 
       const beforeCrash = new Map();

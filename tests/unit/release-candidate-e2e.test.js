@@ -411,6 +411,10 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('PORT_DADDY_RESOURCE_DIR: [this.stagedDir]');
     expect(runner).toContain("claimPath: 'WORKTREE.md'");
     expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
+    const allBeginsComplete = runner.indexOf('// Start every repository-family session before adding claims.');
+    const firstClaim = runner.indexOf("['session', 'files', 'add', spec.claimPath, '--json']");
+    expect(allBeginsComplete).toBeGreaterThan(runner.indexOf('sessions.push({ ...spec, sessionId });'));
+    expect(firstClaim).toBeGreaterThan(allBeginsComplete);
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
     expect(runner).toContain("'sitrep',\n          '--json'");
     expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
