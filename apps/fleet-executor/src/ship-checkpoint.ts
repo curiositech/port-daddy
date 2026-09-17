@@ -687,6 +687,21 @@ export async function saveShipCheckpoint(
   ) {
     return false;
   }
+  // A successful INSERT is not checkpoint progress unless the normal resume
+  // reader can reconstruct the exact row. Model output is untrusted: a finding
+  // with line 0, an oversized coverage explanation, or any future shape drift
+  // can serialize cleanly while parseShipCheckpoint must reject it. Returning
+  // true in that state makes the queue schedule another slice, which reruns the
+  // same ship and eventually trips the continuation-livelock guard. Validate
+  // the complete wire value before writing so `true` keeps its only useful
+  // meaning: this invocation durably produced resumable progress.
+  const checkpointDetail = JSON.stringify({
+    ...result,
+    checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+    checkpointBinding: normalizedBinding,
+    ...(checkpointExecutionReceipt ? { checkpointExecutionReceipt } : {}),
+  });
+  if (!parseShipCheckpoint(result.ship, checkpointDetail, normalizedBinding)) return false;
   const safeIndex = Number.isInteger(shipIndex) && shipIndex >= 0 ? shipIndex : 0;
   try {
     await env.DB.prepare(
@@ -699,14 +714,7 @@ export async function saveShipCheckpoint(
         SHIP_CHECKPOINT_KIND,
         result.ship,
         `pd-${result.ship}: checkpointed — ${result.verdict}; a retried delivery may resume after trusted-input revalidation`,
-        // Version belongs to the writer, not callers. Keep it out of the
-        // reconstructed ShipResult so result contracts stay version-agnostic.
-        JSON.stringify({
-          ...result,
-          checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
-          checkpointBinding: normalizedBinding,
-          ...(checkpointExecutionReceipt ? { checkpointExecutionReceipt } : {}),
-        }),
+        checkpointDetail,
         Math.floor(Date.now() / 1000),
       )
       .run();

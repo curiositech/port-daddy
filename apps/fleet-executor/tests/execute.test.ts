@@ -2812,6 +2812,44 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(d1.steps).toHaveLength(0);
   });
 
+  it.each([
+    {
+      label: 'a malformed finding',
+      result: {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS' as const,
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 0, severity: 'HIGH' as const, body: 'bad line' }],
+      },
+    },
+    {
+      label: 'an invalid coverage explanation',
+      result: {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS' as const,
+        errored: false,
+        findings: [],
+        reviewCoverage: 'partial' as const,
+        reviewCoverageReason: 'x'.repeat(2_049),
+      },
+    },
+  ])('does not claim checkpoint progress for $label that cannot resume', async ({ result }) => {
+    const d1 = memoryD1();
+    const binding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      result,
+      binding,
+    )).resolves.toBe(false);
+
+    expect(d1.steps).toHaveLength(0);
+  });
+
   it('requires an executed Purser sandbox receipt before saving or resuming PASS', async () => {
     const failed = memoryD1();
     failed.steps.push({
