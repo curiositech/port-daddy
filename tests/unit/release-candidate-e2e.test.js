@@ -213,7 +213,8 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("if (child.exitCode !== null || child.signalCode !== null) {\n      done(child.exitCode, child.signalCode);");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
-    expect(runner).toContain("claimPath: 'CLAIM.md'");
+    expect(runner).toContain("claimPath: null");
+    expect(runner).toContain('if (spec.claimPath) {');
     expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
     expect(runner).toContain('const blockerSockets = new Set();');
     expect(runner).toContain("collision fixture listener did not close within 3 seconds");
