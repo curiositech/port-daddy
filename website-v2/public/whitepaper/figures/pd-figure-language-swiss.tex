@@ -27,23 +27,24 @@
   pd rule/.append style={line width=1pt},
   pd spine/.append style={line width=2pt},
   pd thin arrow/.append style={draw=pdink!70,line width=.8pt},
-  pd state/.append style={draw=pdink!68,line width=.7pt,fill=pdinkmuted!8,rounded corners=0pt,
+  pd state/.append style={draw=pdink!72,line width=.8pt,fill=pdinkmuted!7,rounded corners=0pt,
     inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
   pd terminal/.append style={fill=pdink,text=pdpage,font=\pdfiglabelbold},
-  pd artifact/.append style={draw=pdinkmuted!60,line width=.6pt,fill=pdpage,rounded corners=0pt},
-  pd panel/.append style={draw=pdink,line width=.9pt,solid,rounded corners=0pt},
-  pd neutral fill/.append style={fill=pdinkmuted!10,draw=pdinkmuted!58,line width=.5pt},
+  pd artifact/.append style={draw=pdinkmuted!62,line width=.6pt,fill=pdpage,rounded corners=0pt},
+  pd panel/.append style={draw=pdink!78,line width=.8pt,
+    dash pattern=on 5pt off 2.5pt,rounded corners=0pt},
+  pd neutral fill/.append style={fill=pdinkmuted!11,draw=pdinkmuted!62,line width=.6pt},
   pd ink fill/.append style={fill=pdink,draw=none,text=pdpage},
   pd decision/.append style={draw=pdink,line width=.9pt,rounded corners=0pt},
   pd reverse label/.append style={fill=none,text=pdpage},
-  pd hatch/.append style={fill=none,draw=none,
+  pd hatch/.append style={fill=pdinkmuted!4,draw=pdinkmuted!55,line width=.5pt,
     pattern={Lines[angle=45,distance=4pt,line width=.3pt]},pattern color=pdinkmuted!70},
   pd focus rule/.append style={line width=2pt},
-  pd focus state/.append style={draw=pdfocus,line width=1.6pt,fill=pdfocus!16,
+  pd focus state/.append style={draw=pdfocus,line width=1.6pt,fill=pdfocus!14,
     text=pdink,font=\pdfiglabelbold},
   pd climax state/.append style={draw=pdfocus,line width=2pt,fill=pdfocus,
     text=pdpage,font=\pdfiglabelbold},
-  pd focus fill/.append style={fill=pdfocus!16,draw=pdfocus,line width=.6pt},
+  pd focus fill/.append style={fill=pdfocus!12,draw=pdfocus,line width=.8pt},
   pd focus datum/.append style={circle,draw=none,inner sep=2.7pt},
   pd datum/.append style={rectangle,draw=none,inner sep=2.3pt},
   pd badge/.append style={rectangle,rounded corners=0pt,minimum size=5.2mm,
@@ -52,9 +53,11 @@
   pd focus outline/.append style={draw=pdfocus,line width=1.2pt,fill=pdpage,text=pdink,
     font=\pdfiglabelbold},
 }
-% Concept states are quiet: white, edged in the concept hue, words in bold
-% ink. Breach is the exception -- a refusal is the thing to see -- and is
-% solid red. Warning is a tint, since amber cannot carry white words.
+% Concept states carry a light material tint as well as a hue edge.  Leaving
+% them all white made Swiss less expressive than maritime and technical and
+% forced the outline alone to do every job.  The tint is deliberately lighter
+% than a focus state: concept membership is visible, but the chapter's subject
+% still owns the strongest field.  Breach remains the categorical exception.
 \renewcommand{\pdconcept}[2]{%
   \tikzset{%
     #1/.style={draw=#2,text=pdink},
@@ -68,7 +71,7 @@
   \ifx\pdcmpa\pdcmpb
     \tikzset{#1 state/.style={pd state,draw=none,fill=#2,text=pdpage,font=\pdfiglabelbold}}%
   \else
-    \tikzset{#1 state/.style={pd state,fill=pdpage,draw=#2,line width=1.2pt,text=pdink,font=\pdfiglabelbold}}%
+    \tikzset{#1 state/.style={pd state,fill=#2!10,draw=#2,line width=1.2pt,text=pdink,font=\pdfiglabelbold}}%
   \fi}
 
 % Plots: square marks, heavier spines, the grotesk carries the ticks.

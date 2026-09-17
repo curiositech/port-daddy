@@ -35,6 +35,7 @@
 \@ifpackageloaded{etoolbox}{}{\usepackage{etoolbox}}
 \@ifpackageloaded{listings}{}{\usepackage{listings}}
 \@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{tcolorbox}{}{\usepackage[skins,breakable,listings]{tcolorbox}}
 
 % ---------------------------------------------------------------------------
 % Shared helpers: the margin-column switch, the margin head, the margin glyph.
@@ -1006,6 +1007,53 @@
   \endgraf\nobreak\noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
   \addvspace{8pt plus 1pt}%
 }
+
+% ---------------------------------------------------------------------------
+% pdsampledata -- synthetic or illustrative records on continuous-feed paper.
+% Unlike pdsession, this apparatus is explicitly NOT a captured run.  Its
+% provenance is printed in the head and its tractor-feed edges keep a reader
+% from mistaking invented input/output for a theorem, proof trace, or live
+% evidence.  The optional argument names the source or seed.
+%   \begin{pdsampledata}[synthetic; settings race, seed 20260917]
+%   09:14:03 agent-a writes settings.json
+%   ...
+%   \end{pdsampledata}
+% ---------------------------------------------------------------------------
+\lstdefinestyle{pdsampledata}{style=pdsession,
+  basicstyle=\ttfamily\fontsize{8.6}{10.6}\selectfont,
+  backgroundcolor={},
+  xleftmargin=0pt,xrightmargin=0pt,aboveskip=2pt,belowskip=2pt,
+  frame=none}
+\newtcblisting{pdsampledata}[1][]{%
+  enhanced,listing only,listing options={style=pdsampledata},
+  width=\ifpdmargincolumn\dimexpr\linewidth+\marginparsep+\marginparwidth\relax\else\linewidth\fi,
+  boxrule=.45pt,arc=0pt,outer arc=0pt,
+  colframe=pdinkmuted!62,colback=pdinkmuted!5,
+  left=16pt,right=16pt,top=5pt,bottom=5pt,
+  before skip=10pt plus 1pt,after skip=10pt plus 1pt,
+  title={SAMPLE DATA\ifstrempty{#1}{}{\enspace\textcolor{pdinkmuted}{#1}}},
+  fonttitle=\pdgrotesk\footnotesize\bfseries,coltitle=pdink,
+  colbacktitle=pdinkmuted!8,titlerule=0pt,
+  toptitle=4pt,bottomtitle=4pt,
+  overlay unbroken={%
+    \fill[pdinkmuted!13]
+      (frame.north west) rectangle ([xshift=10pt]frame.south west);
+    \fill[pdinkmuted!13]
+      ([xshift=-10pt]frame.north east) rectangle (frame.south east);
+    \draw[pd hairline]
+      ([xshift=10pt]frame.north west) -- ([xshift=10pt]frame.south west);
+    \draw[pd hairline]
+      ([xshift=-10pt]frame.north east) -- ([xshift=-10pt]frame.south east);
+    \foreach \i in {1,...,10}{%
+      \pgfmathsetmacro{\pd@holet}{\i/11}%
+      \fill[pdpage]
+        ($(frame.north west)!\pd@holet!(frame.south west)+(5pt,0)$)
+        circle[radius=1.35pt];
+      \fill[pdpage]
+        ($(frame.north east)!\pd@holet!(frame.south east)+(-5pt,0)$)
+        circle[radius=1.35pt];
+    }%
+  }}
 
 % ---------------------------------------------------------------------------
 % \pdassurance -- the five-word assurance-mode tag (matches the vocabulary in

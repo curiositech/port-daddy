@@ -64,6 +64,10 @@ these; this file adds the house style.
   than flattening every role into an unedged chapter-colour rectangle.
 - Regions: `pd focus fill`, `X fill`, `pd neutral fill` (warm grey band), `pd hatch`.
 - `pd panel` (dashed, grey) groups things; it never carries a fill.
+- Cross-edition parity is semantic, not pictorial: Swiss must retain as many
+  visibly distinct surface roles as maritime and technical. It may translate
+  texture into edge weight or a pale field, but it may not flatten unlike
+  roles into one solid chapter-colour box.
 
 ## S6 Ground and knockouts
 

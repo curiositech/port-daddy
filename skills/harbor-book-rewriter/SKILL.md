@@ -230,6 +230,13 @@ meaning is categorical. A Swiss rendering that removes borders, texture, and
 surface variation while maritime and technical retain them has failed the
 edition, even if its palette is correct.
 
+On the three-edition sheet, Swiss should still expose the same categorical
+range: white artifact, neutral mechanism, hue outline, pale concept field,
+patterned exception, and solid climax. Do not translate every non-white
+maritime or technical surface into the same Swiss rectangle. When three or
+more nodes of unlike roles share one style, redistribute them onto the ladder
+before inventing another hue.
+
 ### Use the full field when needed
 
 The Book offers a 4.5-inch text column and a 6.0-inch text-plus-margin field.
@@ -304,8 +311,11 @@ treatment:
 - source and time/seed when available;
 - no implication that synthetic dialogue is an actual interview.
 
-Implement this once as a shared environment. Do not draw a fresh faux-paper
-frame in each chapter.
+Use the shared `pdsampledata` environment. Its optional argument records the
+source, status, and seed; the environment supplies monospaced type, the
+`SAMPLE DATA` head, paper tint, and tractor-feed edges. Use `pdsession` only
+for checked-in captured transcripts. Do not draw a fresh faux-paper frame in
+each chapter.
 
 ## Page grammar and pacing
 
