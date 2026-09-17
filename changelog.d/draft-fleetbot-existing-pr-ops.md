@@ -1,0 +1,3 @@
+type: added
+
+- **Fleetbot's protected workload can perform the rest of the bounded pull-request conversation and advancement operations.** Review replies, ready-for-review, reviewer requests, and merge-queue enrollment use typed operation-specific payloads and receipts without exchanging OIDC during steady-state writes. Reviewer readback traverses the complete bounded GitHub result set instead of trusting the first page. Lifecycle-changing operations remain restricted to uniquely receipted Fleetbot-owned pull requests; loss of the final Relay response remains blocked from blind redispatch until the separate receipt-recovery slice lands.

@@ -9,13 +9,31 @@ on:
         type: choice
         options:
           - comment
+          - review-reply
+          - ready
+          - request-reviewers
+          - enqueue
       pull_request:
         description: Exact pull request number to re-read before acting.
         required: true
         type: number
       comment_body:
-        description: Comment body. Fleetbot appends responsible-agent and receipt provenance.
-        required: true
+        description: Required for comment and review-reply. Fleetbot appends responsible-agent and receipt provenance.
+        required: false
+        type: string
+      review_comment_id:
+        description: Positive review-comment database id; required for review-reply.
+        required: false
+        type: string
+      reviewers_json:
+        description: Strict JSON array of user logins; request-reviewers requires this or team_reviewers_json.
+        required: false
+        default: '[]'
+        type: string
+      team_reviewers_json:
+        description: Strict JSON array of team slugs; request-reviewers requires this or reviewers_json.
+        required: false
+        default: '[]'
         type: string
       agent_id:
         description: Dispatcher-supplied agent label; Phase A does not verify a Port Daddy identity.
@@ -59,7 +77,7 @@ jobs:
             exit 1
           fi
 
-  comment:
+  actuate:
     needs: main-ref-gate
     runs-on: ubuntu-latest
     environment: fleetbot-workload
@@ -71,7 +89,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Post an attributable comment through Fleetbot
+      - name: Perform an attributable existing-PR operation through Fleetbot
         env:
           GITHUB_TOKEN: ${{ github.token }}
           FLEETBOT_RELAY_URL: https://relay.portdaddy.dev
@@ -80,10 +98,13 @@ jobs:
           FLEETBOT_PUBLISHER_GRANT_ID: ${{ secrets.FLEETBOT_PUBLISHER_GRANT_ID }}
           FLEETBOT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
           FLEETBOT_COMMENT_BODY: ${{ inputs.comment_body }}
+          FLEETBOT_REVIEW_COMMENT_ID: ${{ inputs.review_comment_id }}
+          FLEETBOT_REVIEWERS_JSON: ${{ inputs.reviewers_json }}
+          FLEETBOT_TEAM_REVIEWERS_JSON: ${{ inputs.team_reviewers_json }}
           FLEETBOT_ACTOR_ID: github-user:${{ github.actor_id }}
           FLEETBOT_AGENT_ID: ${{ inputs.agent_id }}
           FLEETBOT_SESSION_ID: ${{ inputs.session_id }}
           FLEETBOT_PURPOSE: ${{ inputs.purpose }}
           FLEETBOT_ROADMAP_ITEM: ${{ inputs.roadmap_item }}
           FLEETBOT_SIDEQUEST_REASON: ${{ inputs.sidequest_reason }}
-        run: node scripts/fleetbot-workload.mjs comment
+        run: node scripts/fleetbot-workload.mjs "${{ inputs.operation }}"
