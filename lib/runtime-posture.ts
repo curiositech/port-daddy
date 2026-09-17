@@ -153,7 +153,13 @@ function capabilityStatus(
   if (!observation) return 'unknown';
   if (observation.status === 'ready' && observation.reason !== undefined) return 'degraded';
   const expectedScope = input.expectedScopes?.[capability];
-  if (expectedScope === undefined || observation.scope !== expectedScope) return 'unknown';
+  if (
+    typeof expectedScope !== 'string'
+    || expectedScope.trim().length === 0
+    || typeof observation.scope !== 'string'
+    || observation.scope.trim().length === 0
+    || observation.scope !== expectedScope
+  ) return 'unknown';
   const now = Date.now();
   if (!Number.isFinite(observation.observedAt) || !Number.isFinite(observation.validUntil)) return 'unknown';
   if (observation.observedAt! > now || now - observation.observedAt! > MAX_OBSERVATION_AGE_MS) return 'unknown';
