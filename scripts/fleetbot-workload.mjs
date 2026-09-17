@@ -243,11 +243,14 @@ function receiptVerificationRequest(request) {
   }
 }
 
-export function buildRecoveryManifest({ key, request, snapshot, repository, workflow, runId, command, pullRequestNumber, inputDigest, createdAt = Math.floor(Date.now() / 1000) }) {
+export function buildRecoveryManifest({ key, request, snapshot, repository, workflow, workflowRef, workflowSha, eventName, runId, command, pullRequestNumber, inputDigest, createdAt = Math.floor(Date.now() / 1000) }) {
   const unsigned = {
     schema: RECOVERY_MANIFEST_SCHEMA,
     repository,
     workflow: requireBoundedText(workflow, 'GITHUB_WORKFLOW', 255),
+    workflowRef: requireBoundedText(workflowRef, 'GITHUB_WORKFLOW_REF', 1_024),
+    workflowSha: requireHex(workflowSha, 20, 'GITHUB_SHA'),
+    eventName: requireIdentifier(eventName, 'GITHUB_EVENT_NAME'),
     runId: requireIdentifier(runId, 'GITHUB_RUN_ID'),
     command,
     pullRequestNumber: requirePositiveInteger(pullRequestNumber, 'FLEETBOT_PULL_REQUEST_NUMBER'),
@@ -261,12 +264,15 @@ export function buildRecoveryManifest({ key, request, snapshot, repository, work
   return { ...unsigned, manifestSignature: signDigestHex(key.privateKey, stableJson(unsigned)) }
 }
 
-export function verifyRecoveryManifest(manifest, { key, repository, workflow, runId, command, pullRequestNumber, inputDigest }) {
+export function verifyRecoveryManifest(manifest, { key, repository, workflow, workflowRef, workflowSha, eventName, runId, command, pullRequestNumber, inputDigest }) {
   if (!manifest || typeof manifest !== 'object') throw new Error('Fleetbot recovery manifest is malformed')
   const { manifestSignature, ...unsigned } = manifest
   if (manifest.schema !== RECOVERY_MANIFEST_SCHEMA
       || manifest.repository !== repository
       || manifest.workflow !== workflow
+      || manifest.workflowRef !== workflowRef
+      || manifest.workflowSha !== workflowSha
+      || manifest.eventName !== eventName
       || manifest.runId !== runId
       || manifest.command !== command
       || manifest.pullRequestNumber !== pullRequestNumber
@@ -279,6 +285,27 @@ export function verifyRecoveryManifest(manifest, { key, repository, workflow, ru
   if (stableJson(manifest.binding) !== stableJson(buildRecoveryBinding(manifest.receiptRequest))
       || manifest.receiptRequest.repository !== repository
       || manifest.receiptRequest.payload?.pullRequestNumber !== pullRequestNumber) {
+    throw new Error('Fleetbot recovery manifest binding does not match its publish request')
+  }
+  return manifest
+}
+
+/** Verify an original-run artifact from a distinct protected recovery run. */
+export function verifyRecoveryManifestForRecovery(manifest, { key, repository, workflow, runId }) {
+  if (!manifest || typeof manifest !== 'object') throw new Error('Fleetbot recovery manifest is malformed')
+  const { manifestSignature, ...unsigned } = manifest
+  if (manifest.schema !== RECOVERY_MANIFEST_SCHEMA
+      || manifest.repository !== repository
+      || manifest.workflow !== workflow
+      || manifest.runId !== runId
+      || manifest.workloadFingerprint !== key.fingerprint
+      || !Number.isSafeInteger(manifest.signingKeyGeneration)
+      || !verifyDigestHex(createPublicKey(key.privateKey), stableJson(unsigned), manifestSignature)) {
+    throw new Error('Fleetbot recovery manifest does not match the selected source run')
+  }
+  if (stableJson(manifest.binding) !== stableJson(buildRecoveryBinding(manifest.receiptRequest))
+      || manifest.receiptRequest.repository !== repository
+      || manifest.receiptRequest.payload?.pullRequestNumber !== manifest.pullRequestNumber) {
     throw new Error('Fleetbot recovery manifest binding does not match its publish request')
   }
   return manifest
@@ -510,39 +537,19 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   const manifestPath = env.FLEETBOT_MANIFEST_PATH ?? 'fleetbot-recovery-manifest.json'
   const requestPath = env.FLEETBOT_REQUEST_PATH ?? 'fleetbot-publish-request.json'
   const workflow = env.GITHUB_WORKFLOW ?? 'Fleetbot actuator'
-  const runId = requireIdentifier(env.GITHUB_RUN_ID, 'GITHUB_RUN_ID')
-  const dispatchedCommand = env.FLEETBOT_OPERATION ?? command
-  const prNumber = requirePositiveInteger(Number(env.FLEETBOT_PULL_REQUEST_NUMBER), 'FLEETBOT_PULL_REQUEST_NUMBER')
-  const inputDigest = actionInputDigest(dispatchedCommand, env)
-  if (command === 'publish-manifest' || command === 'recover-manifest') {
-    const manifest = verifyRecoveryManifest(JSON.parse(readFileSync(manifestPath, 'utf8')), {
+  if (command === 'recover-manifest') {
+    const sourceRunId = requireIdentifier(env.FLEETBOT_SOURCE_RUN_ID, 'FLEETBOT_SOURCE_RUN_ID')
+    const sourceWorkflow = requireBoundedText(
+      env.FLEETBOT_SOURCE_WORKFLOW ?? 'Fleetbot actuator',
+      'FLEETBOT_SOURCE_WORKFLOW',
+      255,
+    )
+    const manifest = verifyRecoveryManifestForRecovery(JSON.parse(readFileSync(manifestPath, 'utf8')), {
       key,
       repository,
-      workflow,
-      runId,
-      command: dispatchedCommand,
-      pullRequestNumber: prNumber,
-      inputDigest,
+      workflow: sourceWorkflow,
+      runId: sourceRunId,
     })
-    if (command === 'publish-manifest') {
-      const publishRequest = JSON.parse(readFileSync(requestPath, 'utf8'))
-      if (stableJson(buildRecoveryBinding(publishRequest)) !== stableJson(manifest.binding)
-          || stableJson(receiptVerificationRequest(publishRequest)) !== stableJson(manifest.receiptRequest)) {
-        throw new Error('Fleetbot publish request does not match the uploaded recovery manifest')
-      }
-      const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(publishRequest),
-      })
-      const receipt = verifyPublisherReceiptEnvelope(envelope, {
-        request: publishRequest,
-        snapshot: { grantId: manifest.binding.grantId, grantEpoch: manifest.binding.grantEpoch },
-        expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
-      })
-      console.log(`Relay receipt: ${receipt.receiptId}`)
-      return
-    }
     const receipt = await recoverPublisherReceipt({
       relayUrl,
       key,
@@ -550,6 +557,47 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
     })
     console.log(`Recovered Relay receipt: ${receipt.receiptId}`)
+    return
+  }
+  const usesRecoveryManifest = command === 'prepare' || command === 'publish-manifest'
+  const workflowRef = usesRecoveryManifest
+    ? requireBoundedText(env.GITHUB_WORKFLOW_REF, 'GITHUB_WORKFLOW_REF', 1_024)
+    : ''
+  const workflowSha = usesRecoveryManifest ? requireHex(env.GITHUB_SHA, 20, 'GITHUB_SHA') : ''
+  const eventName = usesRecoveryManifest ? requireIdentifier(env.GITHUB_EVENT_NAME, 'GITHUB_EVENT_NAME') : ''
+  const runId = requireIdentifier(env.GITHUB_RUN_ID, 'GITHUB_RUN_ID')
+  const dispatchedCommand = env.FLEETBOT_OPERATION ?? command
+  const prNumber = requirePositiveInteger(Number(env.FLEETBOT_PULL_REQUEST_NUMBER), 'FLEETBOT_PULL_REQUEST_NUMBER')
+  const inputDigest = actionInputDigest(dispatchedCommand, env)
+  if (command === 'publish-manifest') {
+    const manifest = verifyRecoveryManifest(JSON.parse(readFileSync(manifestPath, 'utf8')), {
+      key,
+      repository,
+      workflow,
+      workflowRef,
+      workflowSha,
+      eventName,
+      runId,
+      command: dispatchedCommand,
+      pullRequestNumber: prNumber,
+      inputDigest,
+    })
+    const publishRequest = JSON.parse(readFileSync(requestPath, 'utf8'))
+    if (stableJson(buildRecoveryBinding(publishRequest)) !== stableJson(manifest.binding)
+        || stableJson(receiptVerificationRequest(publishRequest)) !== stableJson(manifest.receiptRequest)) {
+      throw new Error('Fleetbot publish request does not match the uploaded recovery manifest')
+    }
+    const envelope = await jsonFetch(new URL('/v1/fleetbot/publish', relayUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(publishRequest),
+    })
+    const receipt = verifyPublisherReceiptEnvelope(envelope, {
+      request: publishRequest,
+      snapshot: { grantId: manifest.binding.grantId, grantEpoch: manifest.binding.grantEpoch },
+      expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
+    })
+    console.log(`Relay receipt: ${receipt.receiptId}`)
     return
   }
   const grantId = env.FLEETBOT_PUBLISHER_GRANT_ID
@@ -600,6 +648,9 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       snapshot,
       repository,
       workflow,
+      workflowRef,
+      workflowSha,
+      eventName,
       runId,
       command: dispatchedCommand,
       pullRequestNumber: prNumber,

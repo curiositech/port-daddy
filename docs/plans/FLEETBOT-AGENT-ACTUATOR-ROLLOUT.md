@@ -68,9 +68,14 @@ signature must distinguish the verified dispatcher from both supplied labels.
 Relay resolves GitHub response ambiguity inside one invocation by exact
 readback. Loss of the final Relay response is different: the manual workflow
 now preserves a signed, sanitized recovery manifest before any mutation. A
-rerun uses a fresh workload-signed read proof to recover only a successfully
-finalized Relay receipt. It cannot mint a GitHub token, call GitHub, consume a
-second mutation capability, lease an intent, or fall back to `/publish`.
+mutation-job rerun is refused because GitHub's upload-artifact tracker records
+attempt-one artifacts becoming unavailable after rerun
+([actions/upload-artifact#585](https://github.com/actions/upload-artifact/issues/585)).
+A separate protected recovery workflow reads
+the original run's immutable artifact and uses a fresh workload-signed read
+proof to recover only a successfully finalized Relay receipt. It cannot mint a
+GitHub token, call GitHub, consume a second mutation capability, lease an
+intent, or fall back to `/publish`.
 `reserved`, `running`, `failed`, `ambiguous`, corrupt, and legacy-unbound states
 all stop. Phase B2 therefore repairs final-response loss without pretending an
 ambiguous external effect is safe to replay.

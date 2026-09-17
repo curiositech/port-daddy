@@ -11,7 +11,7 @@ import {
   type FleetbotReceiptRecoveryBinding,
 } from '../../../lib/github-publisher-contract.js';
 import { fromHex, hashBytes, hashHex, pubKeyFromPrivKey, signEd25519, toHex } from '../src/crypto.js';
-import { handleFleetbotPublisherReceiptRecovery } from '../src/github-publisher.js';
+import { __fleetbotPublisherTest, handleFleetbotPublisherReceiptRecovery } from '../src/github-publisher.js';
 import type { Env } from '../src/types.js';
 
 const NOW = Math.floor(Date.now() / 1000);
@@ -164,6 +164,45 @@ function recoveryRequest(body: unknown): Request {
 }
 
 describe('Fleetbot publisher receipt recovery', () => {
+  it('preserves ordinary exact reuse for a succeeded pre-migration intent', async () => {
+    const receipt = await signedReceipt();
+    const statementFor = (sql: string) => {
+      const statement = {
+        bind() { return statement; },
+        async run() { return { success: true, meta: { changes: 0 } }; },
+        async first() {
+          if (!sql.includes('SELECT i.request_hash')) return null;
+          return {
+            request_hash: REQUEST_HASH,
+            state: 'succeeded',
+            receipt_json: JSON.stringify(receipt),
+            updated_at: NOW,
+            lease_fence: 1,
+            recovery_binding_json: null,
+          };
+        },
+      };
+      return statement;
+    };
+    const result = await __fleetbotPublisherTest.reserveIntent({
+      DB: { prepare: statementFor } as unknown as D1Database,
+      RELAY_ED25519_PRIVATE_KEY_HEX: RELAY_PRIVATE_KEY,
+    } as never, {
+      accountUserId: 'account-1', accountGithubUserId: 7, installationId: 99,
+      repository: REPOSITORY, scopeSha: binding.baseSha,
+      idempotencyKey: IDEMPOTENCY_KEY, requestHash: REQUEST_HASH,
+      operation: binding.operation,
+      authorship: {
+        actorId: 'actor-recovery-test', agentId: 'agent-recovery-test',
+        sessionId: binding.sessionId, purpose: 'legacy exact reuse',
+        identityProject: 'port-daddy', roadmapItem: 'fleetbot-pr-authorship',
+        sidequestReason: null, worktreeId: null, sourceBranch: null,
+      },
+      grantId: GRANT_ID, grantEpoch: 1, recoveryBinding: binding,
+    }, NOW);
+    expect(result).toMatchObject({ reused: { receiptId: receipt.receiptId } });
+  });
+
   it('rejects an oversized envelope before parsing JSON', async () => {
     const request = new Request('https://relay.example/v1/fleetbot/publisher-receipts/recover', {
       method: 'POST',

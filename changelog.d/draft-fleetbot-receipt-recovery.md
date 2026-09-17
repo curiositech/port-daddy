@@ -1,3 +1,3 @@
 type: fixed
 
-- **Fleetbot actuator reruns no longer repeat a GitHub mutation after Relay's final response is lost.** The protected workflow uploads a signed, non-secret recovery manifest before dispatch, and reruns use an exact workload-authenticated intent binding to recover only the original Relay-signed receipt.
+- **Fleetbot no longer repeats a GitHub mutation after Relay's final response is lost.** The actuator uploads a signed, non-secret recovery manifest before dispatch, refuses mutation-job reruns, and uses a separate protected recovery workflow with an exact workload-authenticated intent binding to return only the original Relay-signed receipt.

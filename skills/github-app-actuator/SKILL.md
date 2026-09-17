@@ -109,8 +109,13 @@ the proposal broker admits them from durable identity state. Local harnesses do
 not yet have a proposal broker.
 
 The protected actuator prepares and uploads a signed, non-secret recovery
-manifest before its first mutation attempt. A rerun retrieves that immutable
-manifest and calls only `POST /v1/fleetbot/publisher-receipts/recover` with a
+manifest before its first mutation attempt. Do not rerun that mutation job:
+GitHub's upload-artifact tracker documents attempt-one artifacts becoming
+unavailable after a rerun begins
+([actions/upload-artifact#585](https://github.com/actions/upload-artifact/issues/585)).
+Instead, dispatch the separate protected **Fleetbot receipt
+recovery** workflow with the original run id. It retrieves the original-run
+artifact and calls only `POST /v1/fleetbot/publisher-receipts/recover` with a
 fresh domain-separated read proof. Recovery returns an already finalized,
 Relay-signed receipt. It never reads the current PR, obtains a GitHub token,
 consumes another mutation capability, or calls the publish endpoint. Missing,
@@ -157,8 +162,8 @@ This is exceptional and must name the one final allowed operation.
 - Treating token expiry as proof of revocation.
 - Commenting as the operator and adding a bot signature in the text.
 - Retrying a timed-out write without provider read-back.
-- Re-running a mutation after losing Relay's final response instead of using
-  the signed receipt-recovery manifest.
+- Re-running a mutation after losing Relay's final response instead of sending
+  the original run id to the separate receipt-recovery workflow.
 - Claiming a policy prompt prevents credential use by a malicious same-UID process.
 
 ## Completion evidence

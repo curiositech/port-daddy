@@ -21,6 +21,7 @@ import {
   stableJson,
   verifyPublisherReceiptEnvelope,
   verifyRecoveryManifest,
+  verifyRecoveryManifestForRecovery,
   workloadKey,
 } from './fleetbot-workload.mjs'
 
@@ -460,6 +461,9 @@ describe('fleetbot workload client', () => {
       snapshot,
       repository: 'curiositech/port-daddy',
       workflow: 'Fleetbot actuator',
+      workflowRef: 'curiositech/port-daddy/.github/workflows/fleetbot-actuator.yml@refs/heads/main',
+      workflowSha: '9'.repeat(40),
+      eventName: 'workflow_dispatch',
       runId: '123',
       command: 'comment',
       pullRequestNumber: 10282,
@@ -470,11 +474,26 @@ describe('fleetbot workload client', () => {
       key,
       repository: 'curiositech/port-daddy',
       workflow: 'Fleetbot actuator',
+      workflowRef: 'curiositech/port-daddy/.github/workflows/fleetbot-actuator.yml@refs/heads/main',
+      workflowSha: '9'.repeat(40),
+      eventName: 'workflow_dispatch',
       runId: '123',
       command: 'comment',
       pullRequestNumber: 10282,
       inputDigest,
     }), manifest)
+    assert.equal(verifyRecoveryManifestForRecovery(manifest, {
+      key,
+      repository: 'curiositech/port-daddy',
+      workflow: 'Fleetbot actuator',
+      runId: '123',
+    }), manifest)
+    assert.throws(() => verifyRecoveryManifestForRecovery(manifest, {
+      key,
+      repository: 'curiositech/port-daddy',
+      workflow: 'Fleetbot actuator',
+      runId: '124',
+    }), /selected source run/)
     assert.equal(JSON.stringify(manifest).includes('FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX'), false)
     assert.equal(JSON.stringify(manifest).includes('GITHUB_TOKEN'), false)
     assert.equal(JSON.stringify(manifest).includes('The exact-head finding is fixed.'), false)
@@ -482,6 +501,9 @@ describe('fleetbot workload client', () => {
       key,
       repository: 'curiositech/port-daddy',
       workflow: 'Fleetbot actuator',
+      workflowRef: 'curiositech/port-daddy/.github/workflows/fleetbot-actuator.yml@refs/heads/main',
+      workflowSha: '9'.repeat(40),
+      eventName: 'workflow_dispatch',
       runId: '123',
       command: 'ready',
       pullRequestNumber: 10282,
@@ -503,13 +525,16 @@ describe('fleetbot workload client', () => {
     assert.equal(verify(null, Buffer.from(hashHex(stableJson(envelope.proof)), 'hex'), key.privateKey, Buffer.from(envelope.proofSignature, 'hex')), true)
   })
 
-  it('reruns recover only from the original manifest without reading GitHub, the grant, or publish', async () => {
+  it('a separate recovery run contacts only receipt recovery for the original manifest', async () => {
     const relay = workloadKey('27'.repeat(32))
     const env = {
       GITHUB_REPOSITORY: 'curiositech/port-daddy',
       GITHUB_RUN_ID: '123',
       GITHUB_RUN_ATTEMPT: '2',
       GITHUB_WORKFLOW: 'Fleetbot actuator',
+      GITHUB_WORKFLOW_REF: 'curiositech/port-daddy/.github/workflows/fleetbot-actuator.yml@refs/heads/main',
+      GITHUB_SHA: '9'.repeat(40),
+      GITHUB_EVENT_NAME: 'workflow_dispatch',
       FLEETBOT_RELAY_URL: 'https://relay.example',
       FLEETBOT_RELAY_PUBLIC_KEY_HEX: relay.publicKeyHex,
       FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: '19'.repeat(32),
@@ -554,6 +579,9 @@ describe('fleetbot workload client', () => {
       snapshot,
       repository: env.GITHUB_REPOSITORY,
       workflow: env.GITHUB_WORKFLOW,
+      workflowRef: env.GITHUB_WORKFLOW_REF,
+      workflowSha: env.GITHUB_SHA,
+      eventName: env.GITHUB_EVENT_NAME,
       runId: env.GITHUB_RUN_ID,
       command: env.FLEETBOT_OPERATION,
       pullRequestNumber: 10282,
@@ -849,12 +877,29 @@ describe('fleetbot workload client', () => {
     assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40}/)
     assert.match(workflow, /node scripts\/fleetbot-workload\.mjs publish-manifest/)
     assert.match(workflow, /if: github\.run_attempt > 1/)
-    assert.match(workflow, /actions\/download-artifact@[0-9a-f]{40}/)
-    assert.match(workflow, /run-id: \$\{\{ github\.run_id \}\}/)
-    assert.match(workflow, /node scripts\/fleetbot-workload\.mjs recover-manifest/)
-    assert.doesNotMatch(workflow, /actions\/(upload-artifact|download-artifact)@v\d/)
+    assert.match(workflow, /Refuse mutation-job reruns/)
+    assert.doesNotMatch(workflow, /actions\/download-artifact/)
+    assert.doesNotMatch(workflow, /node scripts\/fleetbot-workload\.mjs recover-manifest/)
+    assert.doesNotMatch(workflow, /actions\/upload-artifact@v\d/)
     assert.doesNotMatch(workflow, /FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX:.*inputs/)
     assert.doesNotMatch(workflow, /FLEETBOT_PUBLISHER_GRANT_ID:.*inputs/)
     assert.doesNotMatch(workflow, /GH_TOKEN|pdu_/)
+  })
+
+  it('uses a separate protected run to recover the original artifact without mutation authority', () => {
+    const workflow = readFileSync(new URL('../.github/workflows/fleetbot-receipt-recovery.yml', import.meta.url), 'utf8')
+    assert.match(workflow, /workflow_dispatch:/)
+    assert.match(workflow, /source_run_id:/)
+    assert.match(workflow, /environment: fleetbot-workload/)
+    assert.match(workflow, /main-ref-gate:/)
+    assert.match(workflow, /actions: read/)
+    assert.match(workflow, /contents: read/)
+    assert.doesNotMatch(workflow, /pull-requests: write|contents: write|id-token: write/)
+    assert.match(workflow, /actions\/download-artifact@[0-9a-f]{40}/)
+    assert.match(workflow, /run-id: \$\{\{ inputs\.source_run_id \}\}/)
+    assert.match(workflow, /node scripts\/fleetbot-workload\.mjs recover-manifest/)
+    assert.doesNotMatch(workflow, /node scripts\/fleetbot-workload\.mjs (prepare|publish-manifest)/)
+    assert.doesNotMatch(workflow, /actions\/download-artifact@v\d/)
+    assert.doesNotMatch(workflow, /FLEETBOT_PUBLISHER_GRANT_ID|GITHUB_TOKEN|GH_TOKEN|pdu_/)
   })
 })
