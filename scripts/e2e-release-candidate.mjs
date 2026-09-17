@@ -380,7 +380,13 @@ class ReleaseCandidateSuite {
     const contextDir = join(caseRoot, 'x');
     const tmp = join(caseRoot, 't');
     const db = join(runtimeRoot, 'registry.db');
-    for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) mkdirSync(path, { recursive: true });
+    // Every runtime-owned directory may hold credentials, encryption keys, or
+    // authority-bearing state. Create each leaf as private before the staged
+    // daemon imports shared/paths and inspects PD_HOME; a default 0755 leaf
+    // makes mandatory note encryption fail closed before readiness.
+    for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) {
+      mkdirSync(path, { recursive: true, mode: 0o700 });
+    }
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
       ...secretFreeBaseEnv(),
