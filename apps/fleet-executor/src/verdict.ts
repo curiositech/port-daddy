@@ -89,7 +89,14 @@ export function parseShipFindings(output: string): Finding[] | null {
   for (const item of parsed) {
     if (!item || typeof item !== 'object') return null;
     const o = item as Record<string, unknown>;
-    if (typeof o.path !== 'string' || typeof o.line !== 'number' || typeof o.body !== 'string') {
+    if (
+      typeof o.path !== 'string' ||
+      !o.path.trim() ||
+      !Number.isSafeInteger(o.line) ||
+      (o.line as number) < 1 ||
+      typeof o.body !== 'string' ||
+      !o.body.trim()
+    ) {
       return null; // element does not match the Finding schema
     }
     // Separator is the six-character ESCAPE \u0000, never a literal NUL byte.
@@ -101,7 +108,7 @@ export function parseShipFindings(output: string): Finding[] | null {
     seen.add(key);
     findings.push({
       path: o.path,
-      line: o.line,
+      line: o.line as number,
       severity: coerceSeverity(o.severity),
       body: o.body,
     });

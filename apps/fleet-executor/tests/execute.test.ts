@@ -711,6 +711,40 @@ describe('blocking-ship verdict → check conclusion', () => {
     expect(state.completed[0].conclusion).toBe('failure');
   });
 
+  it('rejects a non-publishable finding before it can vote PASS or poison the aggregate review', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const lineZero = [
+      '```json',
+      JSON.stringify([{ path: 'src/x.ts', line: 0, severity: 'HIGH', body: 'invalid line' }]),
+      '```',
+      '',
+      'FLEET-VERDICT: PASS',
+    ].join('\n');
+    const ai = aiStub({ perShip: { 'code-reviewer': lineZero } });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+    );
+
+    // The initial parse and the bounded repair path both reject the structurally
+    // invalid result. It becomes a broken required ship before aggregation,
+    // so the literal PASS cannot authorize a green check or a checkpoint.
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('pd-code-reviewer [REQUIRED]: error');
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+
+    // The aggregate summary remains publishable, but the rejected inline
+    // finding never reaches GitHub's all-or-nothing review-comments payload.
+    expect(state.reviews).toHaveLength(1);
+    expect(state.reviews[0].comments).toEqual([]);
+  });
+
   it('blocking ship that errors => failure (fail closed) and other ships still run', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
     const kv = memoryKV();

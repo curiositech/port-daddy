@@ -90,6 +90,19 @@ describe('parseShipFindings', () => {
     expect(parseShipFindings(fenced('[{"path":"a","line":"NaN","body":"x"}]'))).toBeNull();
   });
 
+  it.each([
+    ['a zero line', { path: 'a', line: 0, body: 'x' }],
+    ['a negative line', { path: 'a', line: -1, body: 'x' }],
+    ['a fractional line', { path: 'a', line: 1.5, body: 'x' }],
+    ['an unsafe line', { path: 'a', line: Number.MAX_SAFE_INTEGER + 1, body: 'x' }],
+    ['an empty path', { path: '', line: 1, body: 'x' }],
+    ['a whitespace-only path', { path: '   ', line: 1, body: 'x' }],
+    ['an empty body', { path: 'a', line: 1, body: '' }],
+    ['a whitespace-only body', { path: 'a', line: 1, body: '   ' }],
+  ])('returns null for %s before it can reach GitHub review publication', (_label, finding) => {
+    expect(parseShipFindings(fenced(JSON.stringify([finding])))).toBeNull();
+  });
+
   it('dedupes identical findings (path|line|body) — the 2026-07-07 line-68/86 duplicate', () => {
     // A single-chunk diff skips the REDUCE manager, so its "deduplicate" prompt
     // never runs. The same finding emitted twice must reach the operator once.
