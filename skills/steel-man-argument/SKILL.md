@@ -96,8 +96,9 @@ while another needs direct proof, terminate `BLOCKED` and record the asymmetry.
 
 - `DRAFT`: interpretation has not been checked against canonical sources.
 - `SOURCE_BOUND`: traceable to sources but not confirmed by the holder.
-- `HOLDER_CONFIRMED`: the actual holder confirmed the exact reconstruction;
-  user approval is insufficient when the user is not that holder.
+- `HOLDER_CONFIRMED`: the named source holder confirmed the canonical digest of
+  this exact reconstruction; user approval is insufficient when the user is not
+  that holder, and any later ledger change invalidates the receipt.
 
 Confirmation never makes a proposition true and never authorizes action.
 

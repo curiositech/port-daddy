@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2] - 2026-09-17
+
+### Fixed
+
+- Reject duplicate claim, certificate, critique, exchange-round, integrity-event, dissent, and assent identities before reference resolution or terminal closure.
+- Added adversarial duplicates for every referenced record class.
+
 ## [2.0.1] - 2026-09-17
 
 ### Fixed

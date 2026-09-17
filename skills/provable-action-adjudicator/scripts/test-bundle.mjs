@@ -19,6 +19,9 @@ const cases = [
   { id: "witnessed-with-static-truth", document: (() => { const d = copy(); d.claim.level = "MEDIATION_WITNESSED"; d.claim.truthState = "STATIC_INSPECTED"; return d; })(), valid: false, finding: "DYNAMIC_WITNESSED" },
   { id: "allow-without-permit", document: (() => { const d = copy(); d.decision.verdict = "ALLOW"; d.decision.reasonCodes = ["policy_allow"]; return d; })(), valid: false, finding: "permit digest" },
   { id: "decision-after-effect", document: (() => { const d = copy(); d.decision.issuedBeforeEffect = false; return d; })(), valid: false, finding: "before effect" },
+  { id: "duplicate-bypass-test", document: (() => { const d = copy(); d.bypassTests.push(structuredClone(d.bypassTests[0])); return d; })(), valid: false, finding: "must be unique" },
+  { id: "missing-bypass-witness", document: (() => { const d = copy(); d.bypassTests[0].witnessId = "missing"; return d; })(), valid: false, finding: "independent VERIFIER_RUNNER" },
+  { id: "dangling-inventory-witness", document: (() => { const d = copy(); d.mediationInventory[0].witnessId = "missing"; return d; })(), valid: false, finding: "existing witness" },
   { id: "failure-record-is-valid", document: (() => { const d = copy(); d.status = "FAIL"; d.bypassTests[0].passed = false; return d; })(), valid: true },
 ];
 

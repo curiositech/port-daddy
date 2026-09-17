@@ -114,12 +114,15 @@ export function validateAdjudicationAudit(doc) {
   }
 
   if (!Array.isArray(doc.bypassTests) || doc.bypassTests.length === 0) errors.push("$.bypassTests must be non-empty");
+  const bypassTestIds = new Set();
   for (const [index, test] of (doc.bypassTests ?? []).entries()) {
     const at = `$.bypassTests[${index}]`;
     const testKeys = ["id", "mutation", "expected", "observed", "passed", "witnessId"];
     if (!keys(test, testKeys, testKeys, at, errors)) continue;
     for (const key of ["id", "mutation", "expected", "observed", "witnessId"]) string(test[key], `${at}.${key}`, errors);
     if (typeof test.passed !== "boolean") errors.push(`${at}.passed must be boolean`);
+    if (bypassTestIds.has(test.id)) errors.push(`${at}.id must be unique`);
+    bypassTestIds.add(test.id);
   }
 
   if (!Array.isArray(doc.witnesses) || doc.witnesses.length === 0) errors.push("$.witnesses must be non-empty");
@@ -137,6 +140,22 @@ export function validateAdjudicationAudit(doc) {
     if (witnessIds.has(witness.id)) errors.push(`${at}.id must be unique`);
     witnessIds.add(witness.id);
     witnessById.set(witness.id, witness);
+  }
+
+  for (const [index, test] of (doc.bypassTests ?? []).entries()) {
+    const witness = witnessById.get(test.witnessId);
+    if (!witness || witness.class !== "VERIFIER_RUNNER" || witness.principal === doc.proposal?.requester || !witness.independentOf?.includes(doc.proposal?.requester)) {
+      errors.push(`$.bypassTests[${index}].witnessId must reference an independent VERIFIER_RUNNER witness`);
+    }
+  }
+  for (const [index, item] of (doc.mediationInventory ?? []).entries()) {
+    if (item.witnessId !== null && !witnessById.has(item.witnessId)) errors.push(`$.mediationInventory[${index}].witnessId must reference an existing witness`);
+    if (item.coverage === "EXTERNALLY_WITNESSED") {
+      const witness = witnessById.get(item.witnessId);
+      if (!witness || !["HOST_OBSERVER", "PROVIDER_RECONCILER"].includes(witness.class) || witness.principal === doc.proposal?.requester || witness.principal === doc.effect?.channelOwner || !witness.independentOf?.includes(doc.proposal?.requester) || !witness.independentOf?.includes(doc.effect?.channelOwner)) {
+        errors.push(`$.mediationInventory[${index}].witnessId must reference a control-disjoint external witness`);
+      }
+    }
   }
 
   if (!Array.isArray(doc.unknowns)) errors.push("$.unknowns must be an array");

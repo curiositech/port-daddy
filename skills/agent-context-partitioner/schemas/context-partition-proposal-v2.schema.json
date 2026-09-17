@@ -84,9 +84,10 @@
     },
     "disposition": {
       "type": "object", "additionalProperties": false,
-      "required": ["itemId", "disposition", "targetRefs", "reasonCode", "proofRefs"],
+      "required": ["itemId", "disposition", "sourceTargetRef", "targetRefs", "reasonCode", "proofRefs"],
       "properties": {
         "itemId": {"type": "string"}, "disposition": {"enum": ["ASSIGNED", "TRANSFERRED", "OMITTED_ALLOWED", "BLOCKED"]},
+        "sourceTargetRef": {"type": ["string", "null"]},
         "targetRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "reasonCode": {"type": "string"}, "proofRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
       }

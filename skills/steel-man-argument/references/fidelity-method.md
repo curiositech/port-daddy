@@ -10,8 +10,11 @@ true or confer authority.
   attribute it silently to the holder.
 
 Lock thesis, scope, audience, and burden before adding support. Canonical source
-comparison can reach `SOURCE_BOUND`. Only the actual holder's confirmation of
-the exact ledger digest can reach `HOLDER_CONFIRMED`. Neither implies truth.
+comparison can reach `SOURCE_BOUND`. Only a confirmer whose identity exactly
+matches `targetPosition.sourceHolder`, over the canonical digest of the entire
+ledger with only `confirmationReceipt.ledgerDigest` omitted, can reach
+`HOLDER_CONFIRMED`. Any post-confirmation change invalidates that receipt.
+Neither state implies truth.
 
 For reciprocal review, apply one evidence policy to all sides. Record
 agreements, learned updates, surviving disagreement, and falsifiers. Do not

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 — 2026-09-17
+
+- Enforce the schema's closed retrieval, obligation, and translation status vocabularies in the executable validator.
+- Add unknown-status mutations so arbitrary values cannot fall through as omission or coverage states.
+
 ## 1.0.0 — 2026-09-16
 
 - Establish trust-typed Context IR with authority filtering before relevance.

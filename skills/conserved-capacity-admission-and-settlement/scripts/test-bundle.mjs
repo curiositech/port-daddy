@@ -18,6 +18,8 @@ const cases = [
   ["wrong reservation", () => { const x = clone(); x.effects[0].reservationCommitId = "other"; return x; }, "E_EFFECT_RESERVATION"],
   ["ambiguous retry", () => { const x = clone(); x.effects[0].status = "AMBIGUOUS"; x.effects[0].retryAuthority = true; x.effects[0].capacityHeld = false; x.effects[0].closureReceiptRef = null; return x; }, "E_AMBIGUITY_RELEASED"],
   ["closed without receipt", () => { const x = clone(); x.effects[0].closureReceiptRef = null; return x; }, "E_CLOSURE_RECEIPT"],
+  ["wrong closure authority", () => { const x = clone(); x.effects[0].closureAuthorityId = x.authorities.scheduler; return x; }, "E_EFFECT_AUTHORITY_BINDING"],
+  ["no-settlement handoff", () => { const x = clone(); x.effects[0].handoffId = "outbox:forbidden"; return x; }, "E_NO_SETTLEMENT_HANDOFF"],
   ["free settlement", () => { const x = clone(); x.settlement.compensationEffectRef = "effect:pay"; return x; }, "E_NO_SETTLEMENT_EFFECT"],
   ["truth mint", () => { const x = clone(); x.truthEffect = "VERIFIED"; return x; }, "E_TRUTH_AUTHORITY"],
   ["runtime authority", () => { const x = clone(); x.runtimeAuthority = "ADMIT"; return x; }, "E_RUNTIME_AUTHORITY"]

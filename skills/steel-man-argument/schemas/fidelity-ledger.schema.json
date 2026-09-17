@@ -72,10 +72,33 @@
       "properties": {
         "confirmer": {"type": "string", "minLength": 1},
         "confirmerIsSourceHolder": {"const": true},
-        "ledgerDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+        "ledgerDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "Canonical SHA-256 of the complete ledger with only this field omitted."
+        }
       }
     },
     "unknowns": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "terminalStatus": {"enum": ["VALID", "BLOCKED", "REFUSED"]}
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["verificationState"],
+        "properties": {
+          "verificationState": {"const": "HOLDER_CONFIRMED"}
+        }
+      },
+      "then": {
+        "required": ["confirmationReceipt"],
+        "properties": {
+          "targetPosition": {"required": ["sourceHolder"]}
+        }
+      },
+      "else": {
+        "not": {"required": ["confirmationReceipt"]}
+      }
+    }
+  ]
 }

@@ -13,12 +13,12 @@
   ],
   "semanticComparisons": [],
   "dispositions": [
-    {"itemId": "guidance:1", "disposition": "ASSIGNED", "targetRefs": ["body:reviewer:g2"], "reasonCode": "DIRECTIVE_REQUIRED", "proofRefs": ["scope:proof:1"]},
-    {"itemId": "obligation:1", "disposition": "ASSIGNED", "targetRefs": ["body:reviewer:g2"], "reasonCode": "OPEN_OBLIGATION", "proofRefs": ["coverage:proof:1"]}
+    {"itemId": "guidance:1", "disposition": "ASSIGNED", "sourceTargetRef": null, "targetRefs": ["body:reviewer:g2"], "reasonCode": "DIRECTIVE_REQUIRED", "proofRefs": ["scope:proof:1"]},
+    {"itemId": "obligation:1", "disposition": "ASSIGNED", "sourceTargetRef": null, "targetRefs": ["body:reviewer:g2"], "reasonCode": "OPEN_OBLIGATION", "proofRefs": ["coverage:proof:1"]}
   ],
   "transfers": [],
   "gaps": [],
-  "coverageDigest": "sha256:5bd405fea900057b5cb9d1bec8738cbd1be9cccd4325b9b370b98fa8ed6dbc25",
+  "coverageDigest": "sha256:23276a9607a69c2ee040b801660ddbbaf3015bf7a60629c3ec8738c96092067e",
   "truthEffect": "NONE",
   "authorityEffect": "NONE"
 }

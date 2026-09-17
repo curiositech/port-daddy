@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1 — 2026-09-17
+
+### Fixed
+
+- Bound `HOLDER_CONFIRMED` to the exact named source holder and a recomputed
+  canonical digest of the complete ledger.
+- Rejected duplicate proposition IDs and non-finite confidence values.
+- Replaced subprocess and temporary-directory tests with direct deterministic
+  validator tests, including post-confirmation mutation coverage.
+
 ## 1.0.0 — 2026-09-16
 
 ### Breaking

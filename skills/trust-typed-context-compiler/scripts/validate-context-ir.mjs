@@ -10,6 +10,9 @@ const RJ = ["joinId", "querySpaceId", "candidateSpaceId", "policyRef", "status"]
 const OB = ["obligationId", "statement", "status", "sourceRefs", "reason"];
 const TR = ["kind", "sourceName", "targetName", "status", "authorityRef", "rationale"];
 const OM = ["omissionId", "category", "reason", "policyRef"];
+const RETRIEVAL_STATUSES = new Set(["MATCHED", "REJECTED_SPACE_MISMATCH"]);
+const OBLIGATION_STATUSES = new Set(["COVERED", "OMITTED", "UNKNOWN"]);
+const TRANSLATION_STATUSES = new Set(["EXACT", "NARROWED", "SUBSTITUTED", "OMITTED", "UNKNOWN"]);
 
 function add(errors, condition, code, path) { if (condition) errors.push({ code, path }); }
 function exact(value, fields, path, errors) {
@@ -48,6 +51,7 @@ export function validateContextIR(record) {
 
   for (const [index, join] of (record.retrievalJoins ?? []).entries()) {
     exact(join, RJ, `$.retrievalJoins[${index}]`, errors);
+    add(errors, !RETRIEVAL_STATUSES.has(join.status), "E_RETRIEVAL_STATUS", `$.retrievalJoins[${index}].status`);
     const same = join.querySpaceId === join.candidateSpaceId;
     add(errors, join.status === "MATCHED" && !same, "E_VECTOR_SPACE_MIX", `$.retrievalJoins[${index}]`);
     add(errors, join.status === "REJECTED_SPACE_MISMATCH" && same, "E_FALSE_SPACE_REJECTION", `$.retrievalJoins[${index}]`);
@@ -56,6 +60,7 @@ export function validateContextIR(record) {
   const obligations = new Map();
   for (const [index, obligation] of (record.obligations ?? []).entries()) {
     exact(obligation, OB, `$.obligations[${index}]`, errors);
+    add(errors, !OBLIGATION_STATUSES.has(obligation.status), "E_OBLIGATION_STATUS", `$.obligations[${index}].status`);
     add(errors, obligations.has(obligation.obligationId), "E_DUPLICATE_OBLIGATION", `$.obligations[${index}].obligationId`);
     obligations.set(obligation.obligationId, obligation);
     if (obligation.status === "COVERED") {
@@ -69,6 +74,7 @@ export function validateContextIR(record) {
 
   for (const [index, translation] of (record.translations ?? []).entries()) {
     exact(translation, TR, `$.translations[${index}]`, errors);
+    add(errors, !TRANSLATION_STATUSES.has(translation.status), "E_TRANSLATION_STATUS", `$.translations[${index}].status`);
     add(errors, !translation.rationale, "E_TRANSLATION_RATIONALE", `$.translations[${index}].rationale`);
     add(errors, ["OMITTED", "UNKNOWN"].includes(translation.status) && translation.targetName !== null, "E_TRANSLATION_TARGET", `$.translations[${index}].targetName`);
   }

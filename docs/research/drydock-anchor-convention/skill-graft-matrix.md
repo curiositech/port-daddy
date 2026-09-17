@@ -59,22 +59,24 @@ A safety-critical graft is accepted only when:
 The pre-update audits remain in `skill-audits/` as the reason for each
 replacement. The current bundles are no longer quarantined; acceptance below
 means only that their **static contracts and mutation suites pass**. It grants
-no runtime or product authority.
+no runtime or product authority. Every numeric count is the number emitted by
+the linked bundle when run as `node skills/<skill>/scripts/test-bundle.mjs`;
+the link is the executable evidence, not a prose-only claim.
 
-| Skill | Disposition | Executed adversarial cases | Narrow authority after update |
-|---|---|---:|---|
-| `provable-action-adjudicator` | replaced · 1.0.0 | 10 | classifies source, proof, witness, and claim limits |
-| `steel-man-argument` | replaced · 1.0.0 | 11 | emits fidelity ledger before critique |
-| `swarm-invocation-designer` | replaced · 2.0.0 | 13 | proposes closed topology; never launches or reserves |
-| `agent-context-partitioner` | replaced · 2.0.0 | 16 | partitions pre-authorized candidates; never births |
-| `agent-conversation-protocols` | replaced · 2.0.0 | 14 | validates attributable envelopes, gathers, and terminals |
-| `manager-driven-team-orchestrator` | replaced · 2.0.0 | 16 | runs bounded assignment/review rounds without self-certification |
-| `productive-discourse-facilitator` | replaced · 2.0.0 | 16 | requires attributable steel-man, critique, concession, and closure |
-| `cryptoeconomic-protocol-security` | replaced · 2.0.0 | 17 | open threat assessment; no price, custody, pay, or legal authority |
-| `conserved-capacity-admission-and-settlement` | new · 1.0.0 | 16 | native-unit attempt conservation and settlement handoff |
-| `trust-typed-context-compiler` | new · 1.0.0 | 17 | authority-filtered Context IR and translation receipts |
-| `trial-basin-deterministic-systems-evaluation` | new · 1.0.0 | 17 | deterministic fake/replay evidence with disjoint witnesses |
-| `drydock-program-architecture` | retained · amended | integrated audit + 30-node plan + 14-event replay | composition only; focused skills remain normative |
+| Skill | Disposition | Executed adversarial cases | Evidence | Narrow authority after update |
+|---|---|---:|---|---|
+| `provable-action-adjudicator` | replaced · 1.0.1 | 13 | [bundle](../../../skills/provable-action-adjudicator/scripts/test-bundle.mjs) | classifies source, proof, witness, and claim limits |
+| `steel-man-argument` | replaced · 1.0.1 | 14 | [bundle](../../../skills/steel-man-argument/scripts/test-bundle.mjs) | emits fidelity ledger before critique |
+| `swarm-invocation-designer` | replaced · 2.0.1 | 17 | [bundle](../../../skills/swarm-invocation-designer/scripts/test-bundle.mjs) | proposes closed topology; never launches or reserves |
+| `agent-context-partitioner` | replaced · 2.0.2 | 20 | [bundle](../../../skills/agent-context-partitioner/scripts/test-bundle.mjs) | partitions pre-authorized candidates; never births |
+| `agent-conversation-protocols` | replaced · 2.0.0 | 14 | [bundle](../../../skills/agent-conversation-protocols/scripts/test-bundle.mjs) | validates attributable envelopes, gathers, and terminals |
+| `manager-driven-team-orchestrator` | replaced · 2.0.2 | 24 | [bundle](../../../skills/manager-driven-team-orchestrator/scripts/test-bundle.mjs) | runs bounded assignment/review rounds without self-certification |
+| `productive-discourse-facilitator` | replaced · 2.0.2 | 23 | [bundle](../../../skills/productive-discourse-facilitator/scripts/test-bundle.mjs) | requires attributable steel-man, critique, concession, and closure |
+| `cryptoeconomic-protocol-security` | replaced · 2.0.0 | 17 | [bundle](../../../skills/cryptoeconomic-protocol-security/scripts/test-bundle.mjs) | open threat assessment; no price, custody, pay, or legal authority |
+| `conserved-capacity-admission-and-settlement` | new · 1.0.1 | 18 | [bundle](../../../skills/conserved-capacity-admission-and-settlement/scripts/test-bundle.mjs) | native-unit attempt conservation and settlement handoff |
+| `trust-typed-context-compiler` | new · 1.0.1 | 20 | [bundle](../../../skills/trust-typed-context-compiler/scripts/test-bundle.mjs) | authority-filtered Context IR and translation receipts |
+| `trial-basin-deterministic-systems-evaluation` | new · 1.0.2 | 21 | [bundle](../../../skills/trial-basin-deterministic-systems-evaluation/scripts/test-bundle.mjs) | deterministic fake/replay evidence with disjoint witnesses |
+| `drydock-program-architecture` | retained · amended | integrated audit + 30-node plan + 14-event replay | [audit](../../../skills/drydock-program-architecture/scripts/audit-drydock-program-skill.mjs) · [contract](../../../tests/unit/drydock-program-architecture-contract.test.js) | composition only; focused skills remain normative |
 
 The three new skills fill gaps found by the convention rather than naming new
 runtime components. Their red-team rationales, negative controls, and residual

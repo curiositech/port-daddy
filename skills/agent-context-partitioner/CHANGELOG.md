@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2] - 2026-09-17
+
+### Fixed
+
+- Bind every transferred item to one disposition-declared source target and reject disclosure edges forged from a different admitted target.
+- Added an unrelated-source mutation so destination-only joins cannot pass as transfer authorization.
+
 ## [2.0.1] - 2026-09-17
 
 ### Fixed

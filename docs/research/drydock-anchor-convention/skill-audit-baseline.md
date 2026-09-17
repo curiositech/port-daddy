@@ -79,13 +79,18 @@ requires:
 
 The local `skill-architect` structural validator was run against the eight
 canonical repo skills explicitly selected for this convention. This is a
-linting receipt, not a semantic quality verdict.
+linting receipt, not a semantic quality verdict. Reproduce the historical
+readback from a checkout or export of anchor
+`6c2c30d74b889b4d8037ce5d43b265bfbf21a686` with
+`python3 skills/skill-architect/scripts/validate_skill.py skills/<skill> --json`.
+The validator source at that anchor has SHA-256
+`05de03bc7d6488d8433f1b1a91a9d1e6c37ee381a11af359d94655290a2aff82`.
 
 | Skill | Result | Exact structural findings |
 |---|---|---|
 | `provable-action-adjudicator` | pass with warnings | Missing `NOT for` clause; runtime-ignored top-level `version`, `author`, `tags`, and `pairs-with`; no metadata tags. |
 | `swarm-invocation-designer` | pass | No structural finding; semantic controller/gather/retry review remains required. |
-| `agent-context-partitioner` | **fail** | 747 lines exceeds 500-line limit; `io-contract` is outside `metadata`; no changelog. |
+| `agent-context-partitioner` | **fail** | 746 lines exceeds 500-line limit; `io-contract` is outside `metadata`; no changelog. |
 | `cryptoeconomic-protocol-security` | pass with warning | 460 lines approaches the 500-line limit. |
 | `manager-driven-team-orchestrator` | pass | No structural finding; manager-authority and dissent-preservation review remains required. |
 | `productive-discourse-facilitator` | pass with warning | Missing `NOT for` clause. |
