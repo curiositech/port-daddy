@@ -33,6 +33,15 @@ final class RequestCountingProtocol: URLProtocol {
 @MainActor
 final class EndpointFailClosedTests: XCTestCase {
 
+    private func controlRoot(_ name: String) throws -> URL {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../.scratch/endpoint-control-\(name)-\(UUID().uuidString)")
+            .standardizedFileURL
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: root) }
+        return root
+    }
+
     override func setUp() {
         super.setUp()
         URLProtocol.registerClass(RequestCountingProtocol.self)
@@ -72,6 +81,33 @@ final class EndpointFailClosedTests: XCTestCase {
 
         XCTAssertGreaterThan(RequestCountingProtocol.total(), 0)
         XCTAssertFalse(store.isDaemonRunning) // request was failed by the mock
+    }
+
+    func testOffAndUnknownControlSuppressOtherwiseValidEndpointWithoutARequest() async throws {
+        let offRoot = try controlRoot("off")
+        try Data().write(to: offRoot.appendingPathComponent("HALT"))
+        let unknownRoot = offRoot.appendingPathComponent("missing/parent/control")
+        let cases: [(LocalRuntimeControl.State, LocalRuntimeControl)] = [
+            (.off, LocalRuntimeControl(canonicalRoot: offRoot)),
+            (.unknown, LocalRuntimeControl(canonicalRoot: unknownRoot)),
+        ]
+
+        for (expectedState, control) in cases {
+            XCTAssertEqual(control.observation.state, expectedState)
+            let store = FleetStore(
+                autoStart: false,
+                endpointResolver: {
+                    .available(url: "http://127.0.0.1:59999", source: .publishedPortFile)
+                },
+                control: control
+            )
+            XCTAssertNil(store.daemonURL)
+            XCTAssertFalse(store.isControlPlaneAvailable)
+
+            RequestCountingProtocol.reset()
+            await store.refresh()
+            XCTAssertEqual(RequestCountingProtocol.total(), 0)
+        }
     }
 
     func testIsCanonicalDaemonReflectsProvenanceNotPort() {

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import * as url from 'node:url';
 import { createContext, SourceTextModule, SyntheticModule } from 'node:vm';
+import { admitRuntimeEffect } from '../../lib/runtime-posture.js';
 const files = new Map<string, 'dir' | 'file' | 'symlink' | 'denied'>();
 const error = (code: string) => Object.assign(new Error(code), { code });
 jest.unstable_mockModule('node:fs', () => ({
@@ -35,6 +36,23 @@ describe('local Off admission', () => {
       .toMatchObject({ desired: 'off', control: 'disabled' });
     expect(localRuntimePostureInput({ enabled: false, reason: 'control_unavailable' }))
       .toMatchObject({ desired: 'on', control: 'unknown' });
+  });
+
+  test('a local control receipt stops authorizing automatic work after its one-second TTL', () => {
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(10_000);
+    const input = localRuntimePostureInput({ enabled: true, reason: 'enabled' });
+    expect(admitRuntimeEffect(input, { effects: ['automatic_local'] })).toMatchObject({
+      allowed: true,
+      reasons: [],
+    });
+
+    clock.mockReturnValue(11_001);
+    expect(admitRuntimeEffect(input, { effects: ['automatic_local'] })).toMatchObject({
+      allowed: false,
+      posture: 'unknown',
+      reasons: ['runtime_control_unknown'],
+    });
+    clock.mockRestore();
   });
 
   test('only verified absences enable runtime, including an observably missing root', () => {
@@ -69,6 +87,14 @@ describe('local Off admission', () => {
     expect(readLocalRuntimeControl({ ...fixture, haltFile: '/unknown/HALT' }).enabled).toBe(false);
     files.set('/fixture/canonical/hooks.disabled', 'file');
     expect(readLocalRuntimeControl({ ...fixture, haltFile: '/fixture/absent-HALT' }).enabled).toBe(false);
+  });
+
+  test('an unsupported positive environment hint cannot override canonical Off', () => {
+    files.set('/fixture/canonical/HALT', 'file');
+    expect(readLocalRuntimeControl({
+      ...fixture,
+      env: { PD_ENABLE_FILE: '/fixture/ENABLE' },
+    }).enabled).toBe(false);
   });
 
   test('only the explicit hosted-test contract may substitute an isolated canonical root', () => {

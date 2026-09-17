@@ -108,7 +108,7 @@ not model inference.
 | `transitioning` | Off was requested but the boundary is still open, or shutdown is not yet settled. | Denied. |
 | `activation_blocked` | On was requested but a stop boundary remains closed. | Denied; do not report On. |
 | `unknown` | The control boundary cannot be verified. | Denied. |
-| `degraded` | The gate is open but at least one common capability is absent, disabled, stale or unknown. | Decided per effect; missing prerequisites deny only the affected effects. |
+| `degraded` | The gate is open but at least one common capability is absent, disabled, stale or unknown. | Some effects may remain available; each effect whose own prerequisite is missing is denied. |
 | `on` | The gate and all declared common capabilities are ready. | Still rechecked at each final effect boundary. |
 
 Human local editing, read-only inspection, and emergency controls remain
