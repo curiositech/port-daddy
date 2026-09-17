@@ -96,10 +96,12 @@ describe('Fleetbot publisher contract', () => {
     expect(once).toContain('session-publisher');
   });
 
-  test('stamps comments with responsible-agent and receipt provenance', () => {
+  test('stamps comments with verified-dispatcher and supplied-label provenance', () => {
     const stamped = stampFleetbotMessage({ body: 'Addressed the review.', authorship, receiptId: 'receipt-2' });
     expect(stamped).toContain('Addressed the review.');
-    expect(stamped).toContain('Responsible agent: `agent-publisher`');
+    expect(stamped).toContain('Verified dispatcher: `01ACTOR`');
+    expect(stamped).toContain('Dispatcher-supplied agent label: `agent-publisher`');
+    expect(stamped).toContain('Dispatcher-supplied session label: `session-publisher`');
     expect(stamped).toContain('Relay receipt: `receipt-2`');
   });
 

@@ -101,8 +101,11 @@ grant operation, workload key, Relay receipt key, and deployed Relay version are
 verified together. Comments and review replies may target an ordinary
 same-repository PR at its capability-bound exact head; readiness, reviewer,
 enqueue, update, and publication operations remain restricted to uniquely
-receipted Fleetbot-owned branches. Local harnesses do not yet have a proposal
-broker, so never copy the Actions workload seed into Codex, Claude Code,
+receipted Fleetbot-owned branches. Phase A verifies the GitHub dispatcher; its
+agent and session fields remain explicitly labeled as dispatcher-supplied until
+the proposal broker admits them from durable identity state. Local harnesses do
+not yet have a proposal broker, so never copy the Actions workload seed into
+Codex, Claude Code,
 Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
 [`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).

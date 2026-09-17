@@ -258,8 +258,9 @@ function provenanceBlock(input: {
     PROVENANCE_START,
     fleetbotMutationMarker(input.receiptId),
     '> **Published by Port Daddy Fleetbot**',
-    `> Responsible agent: \`${a.agentId}\``,
-    `> Session: \`${a.sessionId}\` · ${roadmap}${source}`,
+    `> Verified dispatcher: \`${a.actorId}\``,
+    `> Dispatcher-supplied agent label: \`${a.agentId}\``,
+    `> Dispatcher-supplied session label: \`${a.sessionId}\` · ${roadmap}${source}`,
     `> Relay receipt: \`${input.receiptId}\``,
     PROVENANCE_END,
   ].join('\n');

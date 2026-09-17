@@ -18,11 +18,11 @@ on:
         required: true
         type: string
       agent_id:
-        description: Responsible Port Daddy agent identifier.
+        description: Dispatcher-supplied agent label; Phase A does not verify a Port Daddy identity.
         required: true
         type: string
       session_id:
-        description: Responsible Port Daddy session identifier.
+        description: Dispatcher-supplied session label; Phase A does not verify registry ownership.
         required: true
         type: string
       purpose:

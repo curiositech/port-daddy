@@ -58,6 +58,17 @@ uniquely receipted Fleetbot publication on a governed `pd-agent/*` branch. This
 lets Fleetbot discuss and answer review on existing work without granting it the
 power to advance or merge work it does not own.
 
+Phase A verifies the immutable GitHub dispatcher actor id. Its agent and session
+fields are signed dispatcher-supplied labels, not proof that a Port Daddy agent
+or session exists or owns the action. The proposal broker in Phase C replaces
+those labels with admitted agent/session provenance. Until then the visible
+signature must distinguish the verified dispatcher from both supplied labels.
+
+Relay resolves GitHub response ambiguity inside one invocation by exact
+readback. Loss of the final Relay response is different: the manual workflow
+does not yet retain a recoverable signed envelope, so operators must not blindly
+re-dispatch it. A signed receipt-read/recovery path is required in Phase B.
+
 ## Phase C and D trust split
 
 The host-facing endpoint accepts a **proposal**, not a publisher capability.
