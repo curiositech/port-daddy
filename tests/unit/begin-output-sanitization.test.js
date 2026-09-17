@@ -62,9 +62,17 @@ function fixture({ response, ok = true, env = {}, persistenceError } = {}) {
       promptIdentity: unexpected, promptConfirm: unexpected, printRoger: unexpected },
     './services.js': { autoIdentityFromPackageJson: unexpected },
     '../../lib/shell-quote.js': quote,
+    '../../lib/begin-idempotency.js': {
+      BEGIN_IDEMPOTENCY_KEY_PATTERN: /^[A-Za-z0-9._-]{16,128}$/,
+      generateBeginIdempotencyKey: () => 'fixture-begin-idempotency-key',
+      isValidBeginIdempotencyKey: (value) => typeof value === 'string'
+        && /^[A-Za-z0-9._-]{16,128}$/.test(value),
+    },
     '../utils/ui.js': { lineworkEnabled: () => false, success: error, warn: error },
     '../utils/current-context.js': {
+      clearBeginAttempt: () => {},
       clearCurrentContext: unexpected, readCurrentContext: unexpected, resolveCurrentContext: unexpected,
+      writeBeginAttempt: () => {},
       writeCurrentContext(value) {
         events.push('persist');
         if (persistenceError) throw persistenceError;
@@ -113,6 +121,7 @@ describe('begin public output and private admission persistence', () => {
       agentId: 'fixture-agent', sessionId: 'fixture-session',
       agentName: 'Fixture Agent', sessionName: 'Fixture Session',
       purpose: 'Fixture purpose', identity: 'fixture:cli', startedAt: NOW, credential,
+      idempotencyKey: 'fixture-begin-idempotency-key',
     }]);
     expect(test.events).toEqual(['fetch', 'persist', 'stdout']);
     expectPrivateOnly(test);
