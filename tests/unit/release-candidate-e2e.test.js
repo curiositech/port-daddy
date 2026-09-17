@@ -33,6 +33,12 @@ const singleBinaryBuilderPath = join(repoRoot, 'scripts', 'build-single-binary.m
 const compiledCliSurfacePath = join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh');
 const binarySoakPath = join(repoRoot, 'scripts', 'soak-binary.sh');
 
+function createDurableFixture(prefix) {
+  const base = join(homedir(), 'coding', 'tmp');
+  mkdirSync(base, { recursive: true });
+  return mkdtempSync(join(base, prefix));
+}
+
 describe('release-candidate E2E contract', () => {
   test('the collision fixture classifies only peer-termination socket errors as expected', () => {
     expect(isExpectedCollisionSocketError(Object.assign(new Error('reset'), { code: 'ECONNRESET' }))).toBe(true);
@@ -122,8 +128,8 @@ describe('release-candidate E2E contract', () => {
   });
 
   test('the isolated environment rejects unknown keys and paths outside approved roots', () => {
-    const root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-env-'));
-    const outside = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-outside-'));
+    const root = createDurableFixture('port-daddy-rc-env-');
+    const outside = createDurableFixture('port-daddy-rc-outside-');
     try {
       expect(() => releaseCandidateIsolatedEnv(root, { INVENTED_SECRET_PATH: outside }))
         .toThrow(/override is not allowed/);
@@ -136,8 +142,8 @@ describe('release-candidate E2E contract', () => {
   });
 
   test('the isolated environment admits an explicit sibling root but rejects a symlink escape', () => {
-    const root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-env-'));
-    const sibling = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-sibling-'));
+    const root = createDurableFixture('port-daddy-rc-env-');
+    const sibling = createDurableFixture('port-daddy-rc-sibling-');
     const escape = join(root, 'escape');
     try {
       const admitted = releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: sibling }, {
@@ -156,7 +162,7 @@ describe('release-candidate E2E contract', () => {
   });
 
   test('the isolated environment scrubs ambient secrets and binds private runtime homes', () => {
-    const root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-env-'));
+    const root = createDurableFixture('port-daddy-rc-env-');
     try {
       const isolated = releaseCandidateIsolatedEnv(root, {}, {
         env: {
