@@ -7,6 +7,7 @@ import {
   buildInspectRequest,
   grantReadHeaders,
   hashHex,
+  main,
   signDigestHex,
   stableJson,
   verifyPublisherReceiptEnvelope,
@@ -133,6 +134,7 @@ describe('fleetbot workload client', () => {
       runAttempt: '1',
     }
     assert.throws(() => buildCommentRequest({ ...common, body: '' }), /must be non-empty/)
+    assert.equal(buildCommentRequest({ ...common, body: 'x'.repeat(1_000_000) }).payload.body.length, 1_000_000)
     assert.throws(() => buildCommentRequest({ ...common, body: 'x'.repeat(1_000_001) }), /at most 1000000/)
     assert.throws(() => buildCommentRequest({
       ...common,
@@ -144,6 +146,103 @@ describe('fleetbot workload client', () => {
       body: 'hello',
       authorship: { roadmapItem: 'fleetbot-pr-authorship', sidequestReason: 'cannot carry both' },
     }), /exactly one roadmap item or sidequest reason/)
+    assert.throws(() => buildCommentRequest({
+      ...common,
+      body: 'hello',
+      authorship: { roadmapItem: null, sidequestReason: null },
+    }), /exactly one roadmap item or sidequest reason/)
+  })
+
+  it('runs the comment command from bounded environment fields through signed receipt verification', async () => {
+    const relay = workloadKey('27'.repeat(32))
+    const snapshot = {
+      schema: 'port-daddy.publisher-grant-snapshot.v1',
+      grantId,
+      grantEpoch: 8,
+      signingKeyGeneration: 4,
+      repositories: ['curiositech/port-daddy'],
+      operations: ['pull-request.comment'],
+    }
+    const pullRequest = {
+      number: 10282,
+      base: { ref: 'main', sha: '1'.repeat(40) },
+      head: { ref: 'codex/comment', sha: '2'.repeat(40) },
+    }
+    const seen = []
+    const originalFetch = globalThis.fetch
+    const originalLog = console.log
+    globalThis.fetch = async (input, init = {}) => {
+      const url = String(input)
+      seen.push({ url, init })
+      if (url.startsWith('https://oidc.example/token')) return Response.json({ value: 'header.payload.signature' })
+      if (url === 'https://relay.example/v1/exchange') return Response.json({ code: 'OK' })
+      if (url === `https://relay.example/v1/fleetbot/publisher-grants/${grantId}`) return Response.json(snapshot)
+      if (url === 'https://api.github.com/repos/curiositech/port-daddy/pulls/10282') return Response.json(pullRequest)
+      if (url === 'https://relay.example/v1/fleetbot/publish') {
+        const request = JSON.parse(init.body)
+        const unsigned = {
+          schema: 'port-daddy.fleetbot-receipt.v2',
+          receiptId: `github_receipt_${request.idempotencyKey.slice('pd-gh-'.length, 'pd-gh-'.length + 32)}`,
+          authority: 'port-daddy-relay-github-app',
+          appSlug: 'port-daddy',
+          operation: request.operation,
+          repository: request.repository,
+          idempotencyKey: request.idempotencyKey,
+          accountUserId: 'user-1',
+          accountGithubUserId: 42,
+          authorizedBy: { grantId, grantEpoch: 8, surface: 'publisher' },
+          admission: 'standing-publisher-grant',
+          actorId: request.authorship.actorId,
+          agentId: request.authorship.agentId,
+          sessionId: request.sessionId,
+          roadmapItem: request.authorship.roadmapItem,
+          resourceUrl: 'https://github.com/curiositech/port-daddy/pull/10282#issuecomment-1',
+          resourceNumber: 10282,
+          publishedBranch: 'codex/comment',
+          sourceHeadSha: null,
+          githubHeadSha: '2'.repeat(40),
+          result: 'created',
+          verifiedAt: 2_000_000_000,
+          relayPublicKey: relay.publicKeyHex,
+          tokenCleanup: 'confirmed',
+        }
+        return Response.json({ code: 'OK', receipt: { ...unsigned, signature: signDigestHex(relay.privateKey, stableJson(unsigned)) } })
+      }
+      throw new Error(`unexpected fetch ${url}`)
+    }
+    console.log = () => {}
+    try {
+      await main(['comment'], {
+        GITHUB_REPOSITORY: 'curiositech/port-daddy',
+        GITHUB_TOKEN: 'read-only-actions-token',
+        GITHUB_RUN_ID: '123',
+        GITHUB_RUN_ATTEMPT: '2',
+        ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example/token',
+        ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'oidc-request-token',
+        FLEETBOT_RELAY_URL: 'https://relay.example',
+        FLEETBOT_RELAY_PUBLIC_KEY_HEX: relay.publicKeyHex,
+        FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: '19'.repeat(32),
+        FLEETBOT_PUBLISHER_GRANT_ID: grantId,
+        FLEETBOT_PULL_REQUEST_NUMBER: '10282',
+        FLEETBOT_COMMENT_BODY: 'The exact-head finding is fixed.',
+        FLEETBOT_ACTOR_ID: 'github-user:42',
+        FLEETBOT_AGENT_ID: 'admiral-reviewer',
+        FLEETBOT_SESSION_ID: 'codex-01abc',
+        FLEETBOT_PURPOSE: 'Answer the exact-head review finding.',
+        FLEETBOT_ROADMAP_ITEM: 'fleetbot-pr-authorship',
+      })
+    } finally {
+      globalThis.fetch = originalFetch
+      console.log = originalLog
+    }
+    const publish = seen.find((entry) => entry.url === 'https://relay.example/v1/fleetbot/publish')
+    const request = JSON.parse(publish.init.body)
+    assert.equal(request.operation, 'pull-request.comment')
+    assert.equal(request.authorship.actorId, 'github-user:42')
+    assert.equal(request.authorship.agentId, 'admiral-reviewer')
+    assert.equal(request.authorship.sessionId, 'codex-01abc')
+    assert.equal(request.payload.body, 'The exact-head finding is fixed.')
+    assert.equal(request.capability.headSha, '2'.repeat(40))
   })
 
   it('unwraps and verifies the exact Relay receipt envelope', () => {
