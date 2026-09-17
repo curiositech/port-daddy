@@ -25,7 +25,7 @@ public actor RecordingStorageBudget {
 
     public enum Failure: Error, Equatable {
         case invalidValue, quotaExceeded, diskReserveExceeded, tooManyReservations
-        case unknownReservation, exceedsReservation
+        case unknownReservation, exceedsReservation, admissionHeld
     }
 
     /// Tokens are minted by one budget and cannot be constructed by callers.
@@ -41,6 +41,8 @@ public actor RecordingStorageBudget {
         public let pinnedBytes: Int64
         public let estimatedFreeDiskBytes: Int64
         public let reservationCount: Int
+        /// Nonzero means usage is unresolved; byte estimates must not admit work.
+        public let heldReservationCount: Int
     }
 
     private let limits: Limits
@@ -49,6 +51,7 @@ public actor RecordingStorageBudget {
     private var freeDiskBytes: Int64
     private var reservedBytes: Int64 = 0
     private var reservations: [UUID: Reservation] = [:]
+    private var heldReservations: Set<UUID> = []
 
     /// Existing usage includes all archive-owned bytes, including pinned content.
     /// Free disk is a caller-supplied baseline, not a measurement made here. The
@@ -72,6 +75,7 @@ public actor RecordingStorageBudget {
     /// Actor isolation makes admission and accounting one indivisible operation.
     public func reserve(bytes: Int64, purpose: Purpose) throws -> Reservation {
         guard bytes > 0 else { throw Failure.invalidValue }
+        guard heldReservations.isEmpty else { throw Failure.admissionHeld }
         guard reservations.count < limits.maximumReservations else {
             throw Failure.tooManyReservations
         }
@@ -90,12 +94,19 @@ public actor RecordingStorageBudget {
     }
 
     /// Convert a stopped writer's reservation into retained usage. A failed
-    /// commit preserves its reservation: the caller cannot accidentally free
-    /// capacity while an oversize/invalid output still exists. Pins cost quota.
+    /// commit preserves its reservation. Oversize output also latches an admission
+    /// hold: the reserved amount no longer bounds actual usage. Only explicit
+    /// stopped-writer cleanup via release clears that token's hold; a smaller
+    /// retry is not cleanup evidence. Other in-flight writers may finish their
+    /// accounting while admission is held. Pins cost quota.
     public func commit(_ token: Reservation, actualBytes: Int64, pinned: Bool = false) throws {
         guard reservations[token.id] == token else { throw Failure.unknownReservation }
+        guard !heldReservations.contains(token.id) else { throw Failure.admissionHeld }
         guard actualBytes >= 0 else { throw Failure.invalidValue }
-        guard actualBytes <= token.bytes else { throw Failure.exceedsReservation }
+        guard actualBytes <= token.bytes else {
+            heldReservations.insert(token.id)
+            throw Failure.exceedsReservation
+        }
         reservations.removeValue(forKey: token.id)
         reservedBytes -= token.bytes
         committedBytes += actualBytes
@@ -109,11 +120,12 @@ public actor RecordingStorageBudget {
         guard reservations[token.id] == token else { throw Failure.unknownReservation }
         reservations.removeValue(forKey: token.id)
         reservedBytes -= token.bytes
+        heldReservations.remove(token.id)
     }
 
     public func snapshot() -> Snapshot {
         Snapshot(committedBytes: committedBytes, reservedBytes: reservedBytes,
                  pinnedBytes: pinnedBytes, estimatedFreeDiskBytes: freeDiskBytes,
-                 reservationCount: reservations.count)
+                 reservationCount: reservations.count, heldReservationCount: heldReservations.count)
     }
 }
