@@ -34,6 +34,7 @@
 \@ifpackageloaded{environ}{}{\usepackage{environ}}
 \@ifpackageloaded{etoolbox}{}{\usepackage{etoolbox}}
 \@ifpackageloaded{listings}{}{\usepackage{listings}}
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
 
 % ---------------------------------------------------------------------------
 % Shared helpers: the margin-column switch, the margin head, the margin glyph.
@@ -101,7 +102,7 @@
 % which is exact regardless of page-builder timing, so that is where the span
 % is recorded now. \pd@figpage guards against reading a stale span left over
 % from a figure several pages back: \pd@placemargin only trusts the span when
-% \pd@figpage still equals \thepage. Only one span is kept -- the most
+% \pd@figpage still equals the numeric page counter. Only one span is kept -- the most
 % recently drawn picture on this page -- which is deliberately the figure a
 % margin device issued shortly afterward is almost always about; a page with
 % two unrelated figures and one margin device between them is not a case this
@@ -118,10 +119,10 @@
 \newlength{\pd@reqmin}\newlength{\pd@reqmax}\newif\ifpd@havemax\newif\ifpd@fits
 \newcommand{\pd@marginbounds}[1]{%
   \setlength{\pd@reqmin}{-\pagetotal}%
-  \ifnum\pd@lastheadpage=\thepage\relax
+  \ifnum\pd@lastheadpage=\value{page}\relax
     \ifdim\pd@reqmin<\dimexpr\pd@lastheadbottom-\pagetotal\relax
       \setlength{\pd@reqmin}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi\fi
-  \ifnum\pd@blockpage=\thepage\relax
+  \ifnum\pd@blockpage=\value{page}\relax
     \ifdim\pd@reqmin<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
       \setlength{\pd@reqmin}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi\fi
   \ifdim\pagegoal<\maxdimen
@@ -148,7 +149,7 @@
     % instead -- built and measured overlapping, PDF p. 244.
     \pd@settle
     \setlength{\pd@headshift}{0pt}%
-    \ifnum\pd@blockpage=\thepage\relax
+    \ifnum\pd@blockpage=\value{page}\relax
       \ifdim\pagetotal<\pd@blockbottom
         \setlength{\pd@headshift}{\dimexpr\pd@blockbottom-\pagetotal+3pt\relax}\fi
     \fi
@@ -161,7 +162,7 @@
     % time -- never above what is already in the column -- so it is applied
     % here in the same shape, after the block cap so whichever foot sits
     % lower wins.
-    \ifnum\pd@lastheadpage=\thepage\relax
+    \ifnum\pd@lastheadpage=\value{page}\relax
       \ifdim\dimexpr\pagetotal+\pd@headshift\relax<\pd@lastheadbottom
         \setlength{\pd@headshift}{\dimexpr\pd@lastheadbottom-\pagetotal+3pt\relax}\fi
     \fi
@@ -173,7 +174,7 @@
     % maritime edition's by a page.
     \sbox{\pd@headbox}{\begin{minipage}{\marginparwidth}\marginfont\scshape #1\end{minipage}}%
     \marginnote{\scshape #1}[\pd@headshift]%
-    \xdef\pd@lastheadpage{\thepage}%
+    \xdef\pd@lastheadpage{\number\value{page}}%
     % +8pt, not +3pt: \pd@headbox measures the head's own text, but the
     % marginnote package sets every note's content behind a \strut (its
     % \marginfont\raggedrightmarginnote\strut...) whose height+depth come
@@ -217,11 +218,11 @@
 \newlength{\pd@blockfloor}
 \newcommand{\pd@placemargintop}[1]{%
   \setlength{\pd@blockoff}{0pt}%
-  \ifnum\pd@lastheadpage=\thepage\relax
+  \ifnum\pd@lastheadpage=\value{page}\relax
     \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
   \fi
-  \ifnum\pd@blockpage=\thepage\relax
+  \ifnum\pd@blockpage=\value{page}\relax
     \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
   \fi
@@ -245,7 +246,7 @@
     \fi
   \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
-  \xdef\pd@blockpage{\thepage}%
+  \xdef\pd@blockpage{\number\value{page}}%
   \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
 
 % Default placement is now CENTERED on the vertical span of the most recently
@@ -265,7 +266,7 @@
 \newif\ifpd@figcentered
 \newcommand{\pd@placemargin}[1]{%
   \pd@figcenteredfalse
-  \ifnum\pd@figpage=\thepage\relax\ifdim\pd@figbot>\z@
+  \ifnum\pd@figpage=\value{page}\relax\ifdim\pd@figbot>\z@
     \pd@marginbounds{#1}%
     \setlength{\pd@blockoff}{\dimexpr(\pd@figtop+\pd@figbot)/2-\pagetotal-(\ht#1+\dp#1)/2\relax}%
     \pd@tryoffset
@@ -281,7 +282,7 @@
   \fi\fi
   \ifpd@figcentered
     \marginnote{\usebox#1}[\pd@blockoff]%
-    \xdef\pd@blockpage{\thepage}%
+    \xdef\pd@blockpage{\number\value{page}}%
     \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax
   \else
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
@@ -295,7 +296,7 @@
   \ifdim\pd@blockoff<-\pagetotal
     \setlength{\pd@blockoff}{-\pagetotal}%
     % Headroom at the column top, and the reason is the one hole left in the
-    % occupancy model. Every cap below is keyed on \thepage, which is the
+    % occupancy model. Every cap below is keyed on the numeric page counter, which is the
     % page the device was ISSUED on -- and a head issued in the last line of
     % a page whose paragraph then breaks prints at the top of the NEXT page
     % while having recorded the page before. That is exactly the Recall-on-
@@ -315,16 +316,16 @@
       \else\setlength{\pd@blockoff}{\dimexpr\pd@blockoff+\baselineskip\relax}\fi
     \else\setlength{\pd@blockoff}{\dimexpr\pd@blockoff+2\baselineskip\relax}\fi
   \fi
-  \ifnum\pd@lastheadpage=\thepage\relax
+  \ifnum\pd@lastheadpage=\value{page}\relax
     \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
   \fi
-  \ifnum\pd@blockpage=\thepage\relax
+  \ifnum\pd@blockpage=\value{page}\relax
     \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
   \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
-  \xdef\pd@blockpage{\thepage}%
+  \xdef\pd@blockpage{\number\value{page}}%
   \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax
   \fi}
 % The same placement for a note the page can do without. A Recall block, a
@@ -341,11 +342,11 @@
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
   \ifdim\pd@blockoff>0pt \setlength{\pd@blockoff}{0pt}\fi
   \ifdim\pd@blockoff<-\pagetotal \setlength{\pd@blockoff}{-\pagetotal}\fi
-  \ifnum\pd@lastheadpage=\thepage\relax
+  \ifnum\pd@lastheadpage=\value{page}\relax
     \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
   \fi
-  \ifnum\pd@blockpage=\thepage\relax
+  \ifnum\pd@blockpage=\value{page}\relax
     \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
   \fi
@@ -360,7 +361,7 @@
   \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1+2\baselineskip\relax>\pagegoal
   \else
     \marginnote{\usebox#1}[\pd@blockoff]%
-    \xdef\pd@blockpage{\thepage}%
+    \xdef\pd@blockpage{\number\value{page}}%
     \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax
   \fi}
 \newcommand{\pd@marginglyph}{%
@@ -444,6 +445,43 @@
       % off the page.
       \pd@placemargintop{\pd@mfbox}%
     }{}%
+  \fi}
+
+% \pdmargincaption[short list entry]{one-sentence caption} -- the numbered
+% caption path for figures, diagrams, plots, pictures, and tables. In the Book
+% it uses the outer margin and the same collision-aware allocator as glosses
+% and evidence notes. In a standalone chapter it is exactly a normal caption.
+% A margin caption that grows beyond a quarter of the text block is no longer
+% concise; it falls back to the ordinary caption position instead of silently
+% overrunning the column. Call \label immediately after this macro, exactly as
+% with \caption.
+\newsavebox{\pd@captionbox}
+\newcommand{\pdmargincaption}[2][]{%
+  \ifpdmargincolumn
+    \ifx\@captype\@undefined
+      \PackageError{pd-pedagogy}{\string\pdmargincaption outside a float}%
+        {Use it inside figure, figure*, table, or table*.}%
+    \else
+      \refstepcounter{\@captype}%
+      \def\@currentlabelname{#2}%
+      \def\pd@captionshort{#1}%
+      \ifx\pd@captionshort\@empty\def\pd@captionshort{#2}\fi
+      \edef\pd@captionext{\@nameuse{ext@\@captype}}%
+      \addcontentsline{\pd@captionext}{\@captype}{%
+        \protect\numberline{\@nameuse{the\@captype}}{\pd@captionshort}}%
+      \sbox{\pd@captionbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
+        {\bfseries\@nameuse{fnum@\@captype}.}\enspace #2\end{minipage}}%
+      \ifdim\dimexpr\ht\pd@captionbox+\dp\pd@captionbox\relax>.25\textheight
+        \par\addvspace{\abovecaptionskip}%
+        \@makecaption{\@nameuse{fnum@\@captype}}{#2}%
+        \par\addvspace{\belowcaptionskip}%
+      \else
+        \pd@placemargin{\pd@captionbox}%
+      \fi
+    \fi
+  \else
+    \def\pd@captionshort{#1}%
+    \ifx\pd@captionshort\@empty\caption{#2}\else\caption[#1]{#2}\fi
   \fi}
 
 % ---------------------------------------------------------------------------

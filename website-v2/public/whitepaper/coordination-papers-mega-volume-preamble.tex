@@ -165,8 +165,12 @@
 \makeatother
 % The technical edition's accents are the brand's own Seventies trio: amber
 % (mustard), rust (brown) and gold (avocado); no colour outside the palette.
-\geometry{paperwidth=7in,paperheight=10in,left=0.8in,right=1.7in,%
-  top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
+\geometry{paperwidth=7in,paperheight=10in,inner=0.8in,outer=1.7in,%
+  top=0.85in,bottom=0.95in,marginparsep=0.2in,marginparwidth=1.3in}
+\normalmarginpar
+% Preserve the authored vertical cadence. Flush-bottom composition stretches
+% theorem and paragraph skips unpredictably on pages with fixed-height art.
+\raggedbottom
 \captionsetup{font=small,labelfont=bf}
 \setlength{\emergencystretch}{3em}\tolerance=1500
 % Depth 1 (parts, chapters, and top-level sections) is a deliberate choice for
@@ -337,17 +341,32 @@
   ENABLED,WF_,SF_,THEOREM,ASSUME,INSTANCE,WITH,LOCAL}}
 \lstset{style=pdcode}
 
-\theoremstyle{definition}
+% Fixed, restrained theorem skips keep theorem/prose transitions on the same
+% baseline cadence. amsthm's class defaults carry highly stretchable vertical
+% glue, which produced visibly unrelated gaps at page breaks in chapter 7.
+\newtheoremstyle{pddefinition}% name
+  {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}% above / below
+  {\normalfont}{}% body / indent
+  {\bfseries}{.}{0.5em}{}% head
+\newtheoremstyle{pdplain}% name
+  {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}% above / below
+  {\itshape}{}% body / indent
+  {\bfseries}{.}{0.5em}{}% head
+\newtheoremstyle{pdremark}% name
+  {6pt plus 1pt minus 1pt}{6pt plus 1pt minus 1pt}% above / below
+  {\normalfont}{}% body / indent
+  {\itshape}{.}{0.5em}{}% head
+\theoremstyle{pddefinition}
 \newtheorem{definition}{Definition}[section]
 \newtheorem{property}{Property}[section]
 \newtheorem{protocol}{Protocol}[section]
-\theoremstyle{plain}
+\theoremstyle{pdplain}
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}{Lemma}[section]
 \newtheorem{proposition}{Proposition}[section]
 \newtheorem{corollary}{Corollary}[section]
 \newtheorem{conjecture}{Conjecture}[section]
-\theoremstyle{remark}
+\theoremstyle{pdremark}
 \newtheorem*{remark}{Remark}
 
 \newcounter{lsprotocol}[section]
@@ -367,7 +386,7 @@
   {\scshape\bfseries\color{hhink}Protocol~\thestpprotocol.}%
   \ifx\\#1\\\else\ {\bfseries #1}\fi\par\vspace{3pt}\small
 }{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
-\theoremstyle{definition}
+\theoremstyle{pddefinition}
 \newtheorem{heprotocol}{Protocol}[section]
 
 \tikzset{
@@ -383,8 +402,8 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\itshape\color{hhgray} \pdeditiontitle}
-\fancyhead[R]{\small\color{hhgray}\thepage}
+\fancyhead[RE,LO]{\small\itshape\color{hhgray} \pdeditiontitle}
+\fancyhead[LE,RO]{\small\color{hhgray}\thepage}
 \fancyfoot[C]{\footnotesize\color{hhgray} Textbook Edition \textperiodcentered\ \pdeditiondate}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
@@ -405,6 +424,12 @@
 % A live link to a chapter, by prefix. figures/pd-hyperlinks.tex provides the
 % plain-text fallback for standalone chapters; the Book defines the real thing.
 \DeclareRobustCommand{\pdchaplink}[2]{\hyperref[chap:#1]{#2}}
+
+% Begin the next material on a verso so a two-page construction is a physical
+% facing spread. \cleardoublepage does the opposite: it begins on a recto.
+\newcommand{\cleartoleftpage}{%
+  \clearpage
+  \ifodd\value{page}\thispagestyle{empty}\null\newpage\fi}
 
 % The weighted four-hue rule. One segment per part, its length proportional to
 % the part's share of the book's pages (from the page references once they
@@ -497,7 +522,7 @@
 }
 % swiss: a colour band carries number and title; the question sits on paper
 \def\pd@chapter@swiss#1#2#3#4{%
-  \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+  \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
   \vspace*{-0.5cm}
   \noindent\begin{tikzpicture}
     \node[fill=#4,inner sep=0pt,minimum width=\linewidth,minimum height=0.36\textheight,anchor=north west] (band) at (0,0) {};
@@ -525,12 +550,12 @@
     \end{minipage}
   \end{flushright}
   \vspace{0.3cm}
-  \end{adjustwidth}}
+  \end{adjustwidth*}}
 % technical: a drawing sheet; the chapter numeral in the accent, the title
 % block at the foot
 \def\pd@chapter@technical#1#2#3#4{%
   \pd@techsheet{#2}{Chapter #1}%
-  \begin{adjustwidth}{0pt}{-1.0in}
+  \begin{adjustwidth*}{0pt}{-1.0in}
   \vspace*{0.5cm}
   \noindent{\pdgrotesk\footnotesize Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
   \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
@@ -566,12 +591,12 @@
   \vfill
   \noindent\usebox{\pdqbox}\par
   \vspace*{1.6cm}
-  \end{adjustwidth}}
+  \end{adjustwidth*}}
 \makeatother
 \newsavebox{\pdqbox}\newsavebox{\pdpartbox}\newlength{\pdplateh}
 \makeatletter
 \newcommand{\pdchapter}[4]{%
-  \clearpage
+  \cleardoublepage
   \renewcommand{\pdcurrentchapter}{#1}%
   \renewcommand{\pdchapterprefix}{#3}%
   \renewcommand{\pdcurrentchaptercolor}{#4}%
@@ -596,7 +621,7 @@
   \renewcommand{\theHtable}{#1.\arabic{table}}%
   \renewcommand{\theHequation}{#1.\arabic{equation}}%
   \renewcommand{\theHlstlisting}{#1.\arabic{lstlisting}}%
-  \fancyhead[L]{\small\itshape\color{hhgray} Chapter #1. #2}%
+  \fancyhead[RE,LO]{\small\itshape\color{hhgray} Chapter #1. #2}%
   \fancyfoot[C]{\footnotesize\color{hhgray} \pdeditiontitle\ \textperiodcentered\ Chapter #1 of \pdchaptercount}%
 }
 \makeatother
@@ -669,7 +694,7 @@
 \def\pd@part@maritime#1#2#3#4#5{%
     \pagecolor{hhpaper}\color{hhink}%
     \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/part-#1.jpg}}}%
-    \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+    \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     \vspace*{1.1cm}
     % The whole type block is set into a box first, then printed over a soft
     % paper scrim. The plates are page-shaped watercolours painted to bleed, so
@@ -709,12 +734,12 @@
           rectangle ($(pdparttype.south east)+(0.5cm,-0.5cm)$);
       \end{scope}
     \end{tikzpicture}\par
-    \end{adjustwidth}
+    \end{adjustwidth*}
     \vfill}
 % swiss: the part's colour fills the page; grotesk type on a hard grid
 \def\pd@part@swiss#1#2#3#4#5{%
     \pagecolor{#3}\color{hhpaper}%
-    \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+    \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     \vspace*{0.3cm}
     \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
     \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{1.4pt}}\par
@@ -736,8 +761,10 @@
     \ifdim\pdplateh>2cm
       \noindent\pdswisspartplate{#1}{\dimexpr1.5\pdplateh\relax}\par
     \fi
+    \end{adjustwidth*}
     \clearpage
     \thispagestyle{empty}%
+    \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     % The facing page, still in the part's ink: the chapters of the part with
     % their one-line claims, set full size now that they have the page.
     \vspace*{0.3cm}
@@ -746,7 +773,7 @@
     \vspace{0.8cm}
     {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.86\linewidth}\pdgrotesk #5\end{minipage}\par}
     \vfill
-    \end{adjustwidth}}
+    \end{adjustwidth*}}
 % technical: a drawing sheet with the part's numeral in the one warm accent
 \def\pd@part@technical#1#2#3#4#5{%
     % The engraving system: the part's ink fills the page, the type is paper,
@@ -756,7 +783,7 @@
       \pagecolor{#3}\color{hhpaper}%
       % the engraving (composited on this ink) fills the lower half of the page
       \AddToShipoutPictureBG*{\AtPageLowerLeft{\makebox[\paperwidth][c]{\includegraphics[width=0.62\paperwidth]{plates/technical/part-#1.jpg}}}}%
-      \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+      \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
       \vspace*{0.3cm}
       \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
       \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{0.5pt}}\par
@@ -769,10 +796,10 @@
       \vspace{0.45cm}
       {\pdcompactpartlisttrue\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.8\linewidth}\pdgrotesk #5\end{minipage}\par}
       \vfill
-      \end{adjustwidth}}{%
+      \end{adjustwidth*}}{%
       \pagecolor{hhpaper}\color{hhink}%
       \pd@techsheet{#2}{Part #1}%
-      \begin{adjustwidth}{0pt}{-1.0in}
+      \begin{adjustwidth*}{0pt}{-1.0in}
       \vspace*{0.9cm}
       \noindent{\pdgrotesk\footnotesize Part #1\hfill\pdeditiontitle}\par
       \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
@@ -785,9 +812,9 @@
       \vfill
       {\pdcompactpartlisttrue\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
       \vspace*{2.4cm}
-      \end{adjustwidth}}}
+      \end{adjustwidth*}}}
 \newcommand{\pdpart}[5]{%
-  \clearpage
+  \cleartoleftpage
   \thispagestyle{empty}%
   \refstepcounter{part}\label{part:#1}%
   \addcontentsline{toc}{part}{\textbf{\scshape Part #1}\quad #2}%
@@ -799,33 +826,62 @@
 }
 \makeatother
 
-% Front-matter map ("The argument, chapter by chapter"), generated from the
-% JSON. A chrome page: its links take each part's hue; \pdcontentsend restores
-% the quiet body link color afterwards.
-% Each part is one tinted band in its hue (a 9% wash over the cream) with a
-% solid rule of the same hue on its left edge; the chapters sit inside the band.
-% The band is captured in a save box between \pdcontentspart and
-% \pdcontentspartend (the generator emits both), then set in one \colorbox.
+% Swiss-modern contents spread, generated semantically from textbook.json.
+% Each page carries two part-colour fields using the same grotesk, hard rules,
+% numerals, and uncoated-paper ground as the part and chapter plates.
 \newsavebox{\pdbandbox}
 \newlength{\pdbandwidth}
 \newcommand{\pdbandcolor}{pdcobalt}
+\newcommand{\pdcontentsspreadbegin}{%
+  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
+  \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+  \vspace*{0.15cm}%
+  \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Contents\hfill 01 / 02}\par
+  \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{1.4pt}}\par
+  \vspace{0.55cm}%
+  \noindent{\pdgrotesk\fontsize{38}{41}\selectfont\bfseries The argument\\chapter by chapter}\par
+  \vspace{0.3cm}%
+  \noindent\begin{minipage}{0.76\linewidth}\pdgrotesk\small
+    Each chapter stands on the ones before it. A proof chapter closes a promise
+    an earlier chapter had to leave open.
+  \end{minipage}\par\vspace{0.55cm}}
+\newcommand{\pdcontentsspreadbreak}{%
+  \end{adjustwidth*}\clearpage
+  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
+  \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+  \vspace*{0.15cm}%
+  \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Contents\hfill 02 / 02}\par
+  \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{1.4pt}}\par
+  \vspace{0.55cm}}
 \newcommand{\pdcontentspart}[3]{%
-  \hypersetup{linkcolor=hhink}%   % text stays ink; the band's tint and rule carry the hue
+  \hypersetup{linkcolor=hhpaper}%
   \renewcommand{\pdbandcolor}{#3}%
-  \setlength{\pdbandwidth}{\dimexpr\textwidth-3pt-22pt\relax}%
+  \setlength{\pdbandwidth}{\dimexpr\linewidth-28pt\relax}%
   \begin{lrbox}{\pdbandbox}\begin{minipage}[t]{\pdbandwidth}%
-    \vspace{9pt}%
-    {\noindent\scshape\bfseries\color{hhink}Part #1\enspace\textperiodcentered\enspace #2}\par\vspace{5pt}}
+    \color{hhpaper}\pdgrotesk\vspace{12pt}%
+    {\noindent\fontsize{28}{28}\selectfont\bfseries #1\hspace{0.5em}%
+      \fontsize{15}{18}\selectfont\bfseries Part #1\enspace\textperiodcentered\enspace #2}\par\vspace{8pt}}
 \newcommand{\pdcontentschapter}[5]{%
-  \par\noindent\begin{minipage}[t]{1.6em}\raggedleft\bfseries\pdchaplink{#2}{#1}\end{minipage}\hspace{0.7em}%
-  \begin{minipage}[t]{\dimexpr\pdbandwidth-2.3em\relax}\raggedright
-    \pdchaplink{#2}{\bfseries #3}\ifx\relax#5\relax\else\enspace{\footnotesize\itshape\color{hhgray}#5}\fi\par
-    {\small #4\par}\end{minipage}\par\vspace{5pt}}
+  \par\noindent\begin{minipage}[t]{1.6em}\raggedleft\bfseries\pdchaplink{#2}{#1}\end{minipage}\hspace{0.65em}%
+  \begin{minipage}[t]{\dimexpr\pdbandwidth-2.25em\relax}\raggedright
+    \pdchaplink{#2}{\bfseries #3}\ifx\relax#5\relax\else\enspace{\scriptsize\itshape #5}\fi\par
+    {\footnotesize #4\par}\end{minipage}\par\vspace{5pt}}
 \newcommand{\pdcontentspartend}{%
-  \vspace{4pt}\end{minipage}\end{lrbox}%
-  \par\vspace{7pt}\noindent{\setlength{\fboxsep}{0pt}%
-    \colorbox{\pdbandcolor}{\rule{3pt}{0pt}}\colorbox{\pdbandcolor!9}{\hspace{10pt}\usebox{\pdbandbox}\hspace{12pt}}}\par}
-\newcommand{\pdcontentsend}{\hypersetup{linkcolor=pdinkmuted}}
+  \vspace{7pt}\end{minipage}\end{lrbox}%
+  \par\vspace{8pt}\noindent{\setlength{\fboxsep}{0pt}%
+    \colorbox{\pdbandcolor}{\hspace{14pt}\usebox{\pdbandbox}\hspace{14pt}}}\par}
+\newcommand{\pdcontentsbackmatter}{%
+  \vfill\noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Continue}\par
+  \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.7pt}}\par\vspace{0.35cm}%
+  \noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries}l X@{}}
+    Introduction & The unit of account is the work.\\
+    Result Atlas & Claims, evidence, limits, and status in one ledger.\\
+    Solutions & Checks, traces, and open obligations from all eight chapters.\\
+    References & One bibliography with live back-references.\\
+  \end{tabularx}}
+\newcommand{\pdcontentsend}{%
+  \pdcontentsbackmatter\end{adjustwidth*}\clearpage\nopagecolor\color{hhink}%
+  \hypersetup{linkcolor=pdinkmuted}}
 
 % Hyperlink and cross-reference discipline (must stay last).
 \input{figures/pd-hyperlinks}
@@ -844,6 +900,7 @@
 % page_overflow.py reports every page that still needs one).
 % ---------------------------------------------------------------------------
 \usepackage{changepage}
+\strictpagecheck
 \newlength{\pdfullwidth}\setlength{\pdfullwidth}{\dimexpr\textwidth+\marginparsep+\marginparwidth\relax}
 \makeatletter
 % pgf hands every finished picture (tikzpicture, pgfplots axis, inline \tikz)
@@ -869,7 +926,7 @@
   % \resizebox below does not change a box's VERTICAL position, only its
   % size, and \centering does not move a box vertically at all.
   \ifpdmargincolumn
-    \xdef\pd@figpage{\thepage}%
+    \xdef\pd@figpage{\number\value{page}}%
     \global\pd@figtop=\pagetotal
     \global\pd@figbot=\dimexpr\pagetotal+\ht\pd@picbox+\dp\pd@picbox\relax
   \fi
@@ -887,28 +944,16 @@
       \else
         \PackageInfo{pd-book}{picture \the\wd\pd@picbox\space wide set full width}%
       \fi
-      % Always flush LEFT (hang the excess into the margin column on the
-      % right). Investigated and deliberately did NOT make this depend on
-      % page parity: this Book's geometry is ONE-SIDED (no \evensidemargin
-      % swap; \geometry{...} above sets a fixed left/right, and no
-      % \ifpdmargincolumn call anywhere enables \@twoside) so the margin
-      % column sits at the same absolute x on every page -- measured via
-      % every \pd@marginhead ("RECALL", "PITFALL", ...) box in the built
-      % Book landing at x=396.0pt regardless of \thepage's parity. A
-      % \checkoddpage/\ifoddpage branch was tried and reverted: \thepage (and
-      % so \c@page, which \checkoddpage reads) is the page TeX currently
-      % THINKS it is composing, and for a picture that ends up shipped on
-      % the NEXT page because a break falls between this hook firing and the
-      % page actually breaking, that reading is stale -- confirmed on this
-      % Book, where fig-sealed-pillar-pipeline's hook fired at \thepage=118
-      % (even) for a figure that ships on page 119 (odd). A parity branch
-      % keyed on that stale reading chose flush-RIGHT for a page whose
-      % margin is on the right, hanging the figure's leftmost node off the
-      % physical left edge of the page -- a strictly worse, self-inflicted
-      % defect. Flush-left has no such failure mode: it is correct on every
-      % page in a one-sided book regardless of which \thepage the hook
-      % happens to read.
-      \makebox[\textwidth][l]{\usebox{\pd@picbox}}%
+      % Strict page checking records the box's shipped page in the aux file,
+      % so a floated picture uses its physical leaf rather than the page TeX
+      % happened to be composing when the hook fired. Odd rectos spill right;
+      % even versos spill left. The text measure never shrinks to make room.
+      \checkoddpage
+      \ifoddpage
+        \makebox[\textwidth][l]{\usebox{\pd@picbox}}%
+      \else
+        \makebox[\textwidth][r]{\usebox{\pd@picbox}}%
+      \fi
     \fi
   \else
     \usebox{\pd@picbox}%

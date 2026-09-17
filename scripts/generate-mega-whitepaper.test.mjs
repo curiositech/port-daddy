@@ -432,12 +432,12 @@ test('the shared palette and hyperlink files are byte-identical in both source t
   }
 });
 
-test('the front-matter map lists every chapter in order with a first-edition concordance', () => {
+test('the front-matter spread lists every chapter in order without a numbering concordance', () => {
   const contents = renderContents(loadTextbook());
   const numbers = [...contents.matchAll(/\\pdcontentschapter\{(\d+)\}/g)].map((m) => Number(m[1]));
   assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.match(contents, /I & 4 & \\pdchapref\{ls\}\{The Legible Swarm\}/);
-  assert.match(contents, /VII & 8 & \\pdchapref\{fh\}\{The Federated Harbor\}/);
+  assert.equal((contents.match(/\\pdcontentsspreadbreak/g) ?? []).length, 1);
+  assert.doesNotMatch(contents, /First-edition numbering|First edition & This edition/);
   assert.match(contents, /Proves what \\pdchapref\{swk\}/);
 });
 

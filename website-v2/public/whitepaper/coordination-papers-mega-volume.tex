@@ -1,4 +1,4 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[11pt,a4paper,twoside]{article}
 % The Book: the textbook edition of the coordination papers. Chapter order,
 % numbering, parts, and edition metadata come from whitepaper/textbook.json;
 % scripts/generate-mega-whitepaper.mjs renders the body, the front-matter map,
@@ -115,7 +115,11 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \fi\fi
 \nopagecolor\color{hhink}
 
-\pagenumbering{roman}
+% The cover, imprint, and frontispiece are physical pages i--iii even though
+% their folios are suppressed. Keep the counter aligned with the leaves so
+% twoside geometry can put every margin on the physical outer edge.
+\setcounter{page}{4}
+\renewcommand{\thepage}{\roman{page}}
 \begin{abstract}\noindent
 Agentic development fails in a predictable way when concurrency grows faster
 than accountability. More processes produce more work, but they also create more
@@ -202,6 +206,9 @@ reader through the book's four parts, drawn once, in front, where a route can
 be checked against the whole argument instead of guessed one chapter at a
 time.
 
+% A spread begins on a verso and ends on the facing recto. This is a page
+% architecture guarantee, not a hope that two consecutive pages face.
+\cleartoleftpage
 \input{figures/fig-book-reader-map}
 
 There are two ways through every result. Each opens with an express lane, the
@@ -317,11 +324,9 @@ question of any dashboard: which channel, and what can it not show.
 
 Cross-references are live. Chapter titles, section numbers, theorems, figures,
 tables, exercises, page numbers, and citations are links, and every
-bibliography entry ends with the pages that cite it. The standalone research
-papers and earlier printings cite chapters by first-edition numerals; the
-concordance on the next page translates.
+bibliography entry ends with the pages that cite it.
 
-\clearpage
+\cleartoleftpage
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{chapter map}
 
 \clearpage
@@ -404,7 +409,7 @@ claims the research killed rather than conclusions it merely failed to prove.
 result's source, status, conditions, boundary, chapter home, and verification
 artifact. The chapters stand alone; the book's claim is the chain they make.
 
-\clearpage
+\cleardoublepage
 \pagenumbering{arabic}
 \hypersetup{pageanchor=true}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}

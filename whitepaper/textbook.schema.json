@@ -153,7 +153,7 @@
           "formerNumeral": {
             "type": "string",
             "pattern": "^[IVX]+$",
-            "description": "First-edition numbering, kept only for the concordance."
+            "description": "First-edition numbering retained as historical citation metadata."
           },
           "oneLine": {
             "type": "string",

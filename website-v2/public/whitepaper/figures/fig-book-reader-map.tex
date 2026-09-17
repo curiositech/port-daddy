@@ -36,14 +36,8 @@
 % its own page; the second \begin{figure} carries Parts III-IV, repeats every
 % row's archetype label so a reader opening straight to the second page still
 % knows which lane is which, and carries the one \caption and \label for the
-% pair. Note for anyone tightening the page model later: this book is a plain
-% (oneside) article-class document with fixed left/right margins, not a
-% genuine twoside book class with inner/outer margins -- so "verso" and
-% "recto" below are used loosely, for the reading convention, not a binding
-% guarantee that these two pages will fall on an actual left/right facing
-% pair when printed. A \cleardoublepage plus true twoside geometry would be
-% the next step if that guarantee is ever needed; it is a book-wide change
-% and deliberately out of scope for a two-chapter-column figure fix.
+% pair. The Book root calls \cleartoleftpage before this file, and the class is
+% genuinely twoside, so page one is an even verso and page two its odd recto.
 %
 % At the cut, each lane's line runs a little past the column it belongs to
 % (into the gutter, atlas-style) and a light dotted rule with corner ticks
@@ -82,7 +76,7 @@
 }
 
 % ═══════════════════════════════════════════════════════════════════════════
-% Page one (verso, loosely): Parts I-II. No \caption -- see header comment.
+% Page one (verso): Parts I-II. No \caption -- see header comment.
 % ═══════════════════════════════════════════════════════════════════════════
 \begin{figure}[H]
 \centering
@@ -132,7 +126,7 @@
 \clearpage
 
 % ═══════════════════════════════════════════════════════════════════════════
-% Page two (recto, loosely): Parts III-IV. Carries the caption and label for
+% Page two (recto): Parts III-IV. Carries the caption and label for
 % the pair. Row labels repeat so this page stands on its own.
 % ═══════════════════════════════════════════════════════════════════════════
 \begin{figure}[H]
@@ -180,22 +174,9 @@
   \rmseg{\bB}{\bC}{\yPhil}{\wMed}{-{Stealth[length=5mm,width=4mm]}}
   \rmnote{\cA}{\yPhil}{Locke, Parfit, personhood}
 \end{tikzpicture}
-\caption{\textbf{One reader's map for the whole book, spread across two
-pages.} Five archetypes, each a single flowing path left to right through
-Parts I--IV, continuing across the facing page at the dotted seam; line width
-is the encoding that matters --- fat where that reader should read closely,
-thin and dashed where the part is safe to skim without losing the argument
---- and every path is named on the page, on both halves of the spread,
-rather than in a legend. Position and width carry the distinction; colour
-marks only the four parts themselves (the same per-part hue used throughout
-this edition), never one archetype against another, so the figure does not
-depend on the categorical palette currently being re-stepped for full-colour
-legibility (\texttt{claude/figure-palette-separation}). A sixth reader, the
-instructor checking exercises, is deliberately not drawn as a sixth lane:
-every chapter's own closing \textsc{Exercises} section is that reader's
-route, in every part at once, and a sixth flat line spanning the full width
-would say nothing a reader could not already infer. Five paths is close to
-the legibility ceiling for one spread; a design that needed a sixth or
-seventh would be better split into three pages than crowded onto two.}
+\pdmargincaption[Reader paths through the four parts]{Five reader paths cross
+the book's four parts on one facing spread. Weight means read closely, medium
+means read, and a dashed hairline means skim; hue identifies the part, not the
+reader.}
 \label{fig:book-reader-map}
 \end{figure}

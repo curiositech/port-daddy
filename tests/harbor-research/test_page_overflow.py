@@ -211,7 +211,7 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
         # Name what is missing rather than failing later with a bare KeyError.
         # A key commented out or renamed in the preamble still fails this test --
         # it cannot pass having read nothing -- but it should say which key.
-        for required in ("paperwidth", "paperheight", "left", "right"):
+        for required in ("paperwidth", "paperheight", "inner", "outer"):
             self.assertIn(required, out, f"{required} is not set in \\geometry{{}} in {self.GEOMETRY}")
         return out
 
@@ -222,11 +222,11 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
 
     def test_the_text_block_matches(self):
         geometry = self.geometry()
-        self.assertAlmostEqual(po.INNER, geometry["left"], places=3)
+        self.assertAlmostEqual(po.INNER, geometry["inner"], places=3)
         # The measure is what the trim leaves after both margins; the preamble
         # sets the margins and never names the width, so derive it the same way.
         self.assertAlmostEqual(
-            po.TEXTW, geometry["paperwidth"] - geometry["left"] - geometry["right"], places=3,
+            po.TEXTW, geometry["paperwidth"] - geometry["inner"] - geometry["outer"], places=3,
         )
 
 
