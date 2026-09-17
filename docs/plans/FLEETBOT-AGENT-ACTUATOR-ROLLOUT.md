@@ -21,7 +21,8 @@ phase, but no phase may accumulate unpublished work behind the next one.
 | --- | --- | --- | --- |
 | A | `fleetbot-pr-authorship` | The enrolled GitHub Actions workload can post one typed PR comment with explicit responsible-agent provenance. | Hostile request fixtures, operation-specific signed receipt verification, protected manual workflow, exact GitHub readback in staging. |
 | B1 | `fleetbot-pr-authorship` | Typed review reply, ready-for-review, reviewer request, and enqueue operations share the same bounded client. | Per-operation hostile fixtures, strict receipt-result verification, complete reviewer pagination, and proof that steady-state writes do not request OIDC. |
-| B2 | `fleetbot-pr-authorship` | A workload-authenticated receipt-recovery path resolves loss of the final Relay response without redispatching a GitHub mutation. | Recovery authorization and expiry fixtures, exact request-digest lookup, signed receipt readback, and a workflow retry proving no second GitHub write. |
+| B2 | `fleetbot-pr-authorship` | A workload-authenticated receipt-recovery path resolves loss of the final Relay response without redispatching a GitHub mutation. | Recovery authorization and expiry fixtures, exact request-digest lookup, signed receipt readback, and a separate recovery dispatch proving no second GitHub write. |
+| B3 | `fleetbot-pr-authorship` | Relay durably stores the pre-effect manifest, while explicit workload and Relay signing-key lineage lets authorized recovery survive planned rotation without making revocation ineffective. | Relay-manifest readback independent of GitHub reruns, bounded trusted-key history, successor-grant proof, rotation/revocation fixtures, and recovery of an old receipt under a separately authorized successor. |
 | C | `fleetbot-host-workload-enrolment` | A Relay proposal inbox accepts bounded action proposals from admitted host agents without handing them publisher authority. | Agent identity, repository and operation scope, proposal digest, expiry, deduplication, denial fixtures, durable status API. |
 | D | `fleetbot-host-workload-enrolment` | One protected remote executor claims proposals, evaluates the standing grant, and drives the actuator. | Claim fencing, retry/readback behavior, executor recovery, spend/rate ceilings, signed proposal-to-receipt lineage. |
 | E | `fleetbot-pr-authorship` | Codex, Claude Code, Antigravity, Gemini, and Agy adapters submit the same typed proposal and poll the same receipt contract. | Cross-harness conformance fixtures; no adapter receives an App key, installation token, account bearer, or personal token. |
@@ -85,6 +86,14 @@ grant epoch, operation, exact base/head, session, request hash, and idempotency
 key. It excludes the action body, reviewer lists, credentials, private keys,
 GitHub tokens, and capability signature. The full action request remains local
 to the first-attempt runner and is checked against the manifest before dispatch.
+
+Phase B2 intentionally requires the original grant and workload identity to
+remain live at the original signing-key generation, and it trusts only the
+currently configured Relay receipt key. Expiry, revocation, workload rotation,
+or Relay receipt-key rotation therefore fails closed. The seven-day artifact
+retention is cleanup policy, not a promise that revoked authority remains
+usable. Phase B3 adds explicit, auditable key lineage and successor authority;
+Phase B2 does not silently weaken revocation to simulate rotation support.
 
 ## Phase C and D trust split
 

@@ -122,6 +122,11 @@ consumes another mutation capability, or calls the publish endpoint. Missing,
 running, failed, ambiguous, corrupt, and legacy-unbound intents stop without a
 fallback write. This recovers loss of Relay's final response; it does not claim
 that an ambiguous GitHub effect is safe to retry. Never blind-retry a write.
+Recovery currently requires the original publisher grant, workload identity,
+signing-key generation, and Relay receipt key to remain current. Expiry,
+revocation, or rotation fails closed; artifact retention does not extend
+authority. Planned cross-rotation recovery requires the separately reviewed
+key-lineage phase rather than accepting an untrusted historical key.
 Never copy the Actions workload seed into
 Codex, Claude Code,
 Antigravity, Gemini, Agy,
