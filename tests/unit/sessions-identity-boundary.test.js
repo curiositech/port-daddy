@@ -455,6 +455,35 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
     await app.close();
   });
 
+  test('authenticated takeover cannot persist the reserved projectless claim sentinel', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'reserved-scope-owner');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: { purpose: 'reserved scope predecessor', agentId: 'reserved-scope-owner' },
+    })).json();
+    sessions.abandon(started.id);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${started.id}/takeover`,
+      headers: owner.headers,
+      payload: { project: '@projectless' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: false,
+      code: 'VALIDATION_ERROR',
+    }));
+    expect(res.json().error).toMatch(/projectless/);
+    expect(sessions.list({}).sessions).toHaveLength(1);
+    expect(sessions.get(started.id).session.status).toBe('abandoned');
+    await app.close();
+  });
+
   test('takeover reads only a bounded, verified predecessor continuation', async () => {
     const seen = [];
     const { app, souls, sessions } = buildApp({
@@ -714,6 +743,33 @@ describe('identity write boundary — file claim writes', () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().code).toBe('IDENTITY_CREDENTIAL_INVALID');
+    await app.close();
+  });
+
+  test('a forced claim with a malformed file entry returns a structured validation error', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'malformed-force-owner');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: { purpose: 'reject malformed forced claim', agentId: 'malformed-force-owner' },
+    })).json();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${started.id}/files`,
+      headers: owner.headers,
+      payload: { files: [123], force: true },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({
+      success: false,
+      error: 'filePaths must contain non-empty strings',
+      code: 'VALIDATION_ERROR',
+    });
+    expect(sessions.listAllActiveClaims({}).claims).toHaveLength(0);
     await app.close();
   });
 

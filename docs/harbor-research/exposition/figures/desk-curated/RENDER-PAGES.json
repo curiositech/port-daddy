@@ -1,5 +1,5 @@
 {
- "_comment": "Page numbers of the Book build the published desk page images (pages/pNNN.jpg) were rendered from. The author region notes in the artifact db are stored against these exact filenames, so these numbers may only change when the JPGs are re-rendered in the same commit. build_figure_desk.py reports the drift against today Book PDF; it never applies it.",
+ "_comment": "Page numbers of the Book build the published desk page images (pages/pNNN.jpg) were rendered from. The author region notes in the artifact db are stored against these exact filenames, so these numbers may only change when the JPGs are re-rendered in the same commit. A drawn figure without a published JPG belongs in unpublished, never pages. build_figure_desk.py reports the drift against today's Book PDF; it never applies it.",
  "renderedFrom": "the mega-volume build current when the desk was first published (2026-09-13); see FINDINGS.reconciliation.renderDrift for the offset against the committed PDF",
  "pages": {
   "fig-swk-stack-map": 19,
@@ -63,6 +63,12 @@
   "fig-pareto-dominance": 375,
   "fig-sybil-deposit-floor": 376,
   "fig-cartel-folk-theorem": 378
+ },
+ "unpublished": {
+  "fig-anchor-four-phases": "drawn figure has no corresponding page JPG publication receipt",
+  "fig-anchor-handshake-ladder": "drawn figure has no corresponding page JPG publication receipt",
+  "fig-he-succession-price": "drawn figure has no corresponding page JPG publication receipt",
+  "fig-bc-delta-threshold": "drawn figure has no corresponding page JPG publication receipt"
  },
  "_imported_note": "fig-pareto-dominance, fig-sybil-deposit-floor and fig-cartel-folk-theorem are \\includegraphics PDFs with no TikZ fragment, so the fragment-driven first cut of the desk never listed them and they have no published region notes. Their render pages are the chapter-7 render offset (-2) applied to the Book pages the pixel judgment measured them on (377, 378, 380); all three JPGs are already published. Re-render and these three are re-derived like any other."
 }

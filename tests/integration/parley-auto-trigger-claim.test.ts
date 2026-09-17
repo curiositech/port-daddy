@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { execFileSync } from 'node:child_process';
 import { describe, expect, test } from '@jest/globals';
 import { createActivityLog } from '../../lib/activity.js';
 import { createAgentInbox, inboxMessageForMessaging } from '../../lib/agent-inbox.js';
@@ -106,6 +107,349 @@ async function establishConflict(harness: ReturnType<typeof buildHarness>) {
 }
 
 describe('authenticated claim conflict automatic Parley', () => {
+  test('blocks same Git-family claims across label drift without leaking across repositories', async () => {
+    const harness = buildHarness();
+    const alphaOwner = mintTestActor(harness.actorSouls, 'alpha-owner');
+    const alphaLinked = mintTestActor(harness.actorSouls, 'alpha-linked');
+    const betaOwner = mintTestActor(harness.actorSouls, 'beta-owner');
+    const stamped = (actorId: string, id: string, root: string, commonDir: string) => ({
+      identity: { verified: true, actorId },
+      worktree: { id, root, name: id, branch: null, isMain: false, commonDir },
+    });
+    const ownerSession = harness.sessions.start('Alpha main owner', {
+      agentId: 'alpha-owner',
+      project: 'alpha-original-label',
+      worktreeId: 'alpha-main',
+      metadata: stamped(alphaOwner.actorId, 'alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
+    });
+    const linkedSession = harness.sessions.start('Alpha linked challenger', {
+      agentId: 'alpha-linked',
+      project: 'alpha-renamed-label',
+      worktreeId: 'alpha-linked',
+      metadata: stamped(alphaLinked.actorId, 'alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
+    });
+    const betaSession = harness.sessions.start('Beta owner', {
+      agentId: 'beta-owner',
+      project: 'alpha-original-label',
+      worktreeId: 'beta-main',
+      metadata: stamped(betaOwner.actorId, 'beta-main', '/repos/beta/main', '/repos/beta/.git'),
+    });
+    expect(harness.sessions.claimFiles(ownerSession.id, ['README.md'], { agentId: 'alpha-owner' }).success).toBe(true);
+
+    const sameProject = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${linkedSession.id}/files`,
+      headers: alphaLinked.headers,
+      payload: { files: ['README.md'] },
+    });
+    const otherProject = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${betaSession.id}/files`,
+      headers: betaOwner.headers,
+      payload: { files: ['README.md'] },
+    });
+
+    expect(sameProject.statusCode).toBe(409);
+    expect(sameProject.json()).toMatchObject({ code: 'FILE_CONFLICT' });
+    expect(otherProject.statusCode).toBe(200);
+    expect(otherProject.json()).toMatchObject({ success: true, claimed: ['README.md'] });
+    await harness.app.close();
+  });
+
+  test('forced linked-worktree claims preserve repository conflict evidence and trigger Parley', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'forced-alpha-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'forced-alpha-linked');
+    const beta = mintTestActor(harness.actorSouls, 'forced-beta-owner');
+    const stamped = (actorId: string, id: string, root: string, commonDir: string) => ({
+      identity: { verified: true, actorId },
+      worktree: { id, root, name: id, branch: null, isMain: false, commonDir },
+    });
+    const ownerSession = harness.sessions.start('Alpha main owner', {
+      agentId: 'forced-alpha-owner',
+      project: 'alpha',
+      worktreeId: 'alpha-main',
+      metadata: stamped(owner.actorId, 'alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
+    });
+    const challengerSession = harness.sessions.start('Alpha linked challenger', {
+      agentId: 'forced-alpha-linked',
+      project: 'alpha',
+      worktreeId: 'alpha-linked',
+      metadata: stamped(challenger.actorId, 'alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
+    });
+    const betaSession = harness.sessions.start('Beta owner', {
+      agentId: 'forced-beta-owner',
+      project: 'beta',
+      worktreeId: 'beta-main',
+      metadata: stamped(beta.actorId, 'beta-main', '/repos/beta/main', '/repos/beta/.git'),
+    });
+    expect(harness.sessions.claimFiles(ownerSession.id, ['README.md'], {
+      agentId: 'forced-alpha-owner',
+    }).success).toBe(true);
+
+    const forced = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${challengerSession.id}/files`,
+      headers: challenger.headers,
+      payload: { files: ['README.md'], force: true },
+    });
+    const otherProject = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${betaSession.id}/files`,
+      headers: beta.headers,
+      payload: { files: ['README.md'], force: true },
+    });
+
+    expect(forced.statusCode).toBe(200);
+    expect(forced.json()).toMatchObject({
+      success: true,
+      claimed: ['README.md'],
+      conflicts: [{ sessionId: ownerSession.id, filePath: 'README.md' }],
+    });
+    expect(forced.json().conflicts).toHaveLength(1);
+
+    const repeated = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${challengerSession.id}/files`,
+      headers: challenger.headers,
+      payload: { files: ['README.md'], force: true },
+    });
+    expect(repeated.statusCode).toBe(200);
+    expect(repeated.json().conflicts).toEqual([
+      expect.objectContaining({ sessionId: ownerSession.id, filePath: 'README.md' }),
+    ]);
+    expect(repeated.json().conflicts).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: challengerSession.id }),
+    ]));
+
+    expect(otherProject.statusCode).toBe(200);
+    expect(otherProject.json().conflicts).toEqual([]);
+    expect(harness.parley.list({ harbor: 'local' })).toHaveLength(1);
+    // Inbox routing is current transport state (the live session alias), not
+    // the durable actor id recorded as Parley membership.
+    expect(harness.inbox.list('forced-alpha-owner').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-alpha-linked').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-beta-owner').messages).toHaveLength(0);
+    await harness.app.close();
+  });
+
+  test('forced session start preserves Git-family conflict evidence and triggers Parley', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'forced-start-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'forced-start-challenger');
+    const unrelated = mintTestActor(harness.actorSouls, 'forced-start-unrelated');
+    const worktree = (id: string, root: string, commonDir: string) => ({
+      id,
+      root,
+      name: id,
+      branch: null,
+      isMain: false,
+      commonDir,
+    });
+
+    const ownerResponse = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: {
+        purpose: 'own file during session start',
+        agentId: 'forced-start-owner',
+        files: ['README.md'],
+        worktree: worktree('alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
+      },
+    });
+    expect(ownerResponse.statusCode).toBe(200);
+    const ownerSession = ownerResponse.json();
+
+    const forced = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: challenger.headers,
+      payload: {
+        purpose: 'force file during linked session start',
+        agentId: 'forced-start-challenger',
+        files: ['README.md'],
+        force: true,
+        worktree: worktree('alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
+      },
+    });
+    expect(forced.statusCode).toBe(200);
+    expect(forced.json()).toMatchObject({
+      success: true,
+      files: ['README.md'],
+      conflicts: [{ sessionId: ownerSession.id, filePath: 'README.md' }],
+    });
+    expect(forced.json().conflicts).toHaveLength(1);
+
+    const otherRepository = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: unrelated.headers,
+      payload: {
+        purpose: 'force same path in unrelated repository',
+        agentId: 'forced-start-unrelated',
+        files: ['README.md'],
+        force: true,
+        worktree: worktree('beta-main', '/repos/beta/main', '/repos/beta/.git'),
+      },
+    });
+    expect(otherRepository.statusCode).toBe(200);
+    expect(otherRepository.json().conflicts).toBeUndefined();
+
+    expect(harness.parley.list({ harbor: 'local' })).toHaveLength(1);
+    expect(harness.inbox.list('forced-start-owner').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-start-challenger').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-start-unrelated').messages).toHaveLength(0);
+    await harness.app.close();
+  });
+
+  test('a Git-family start still sees an active claim written before common-dir provenance', async () => {
+    const harness = buildHarness();
+    const legacy = mintTestActor(harness.actorSouls, 'legacy-claim-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'upgraded-claim-challenger');
+
+    const legacyResponse = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: legacy.headers,
+      payload: {
+        purpose: 'claim before repository-family upgrade',
+        agentId: 'legacy-claim-owner',
+        files: ['README.md'],
+      },
+    });
+    expect(legacyResponse.statusCode).toBe(200);
+
+    const upgradedResponse = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: challenger.headers,
+      payload: {
+        purpose: 'claim after repository-family upgrade',
+        agentId: 'upgraded-claim-challenger',
+        files: ['README.md'],
+        worktree: {
+          id: 'upgraded-linked',
+          root: '/repos/upgraded/linked',
+          name: 'upgraded-linked',
+          branch: null,
+          isMain: false,
+          commonDir: '/repos/upgraded/.git',
+        },
+      },
+    });
+
+    expect(upgradedResponse.statusCode).toBe(409);
+    expect(upgradedResponse.json()).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: legacyResponse.json().id, filePath: 'README.md' }],
+    });
+    await harness.app.close();
+  });
+
+  test('project-label drift cannot hide a legacy claim with recorded worktree-root provenance', async () => {
+    const harness = buildHarness();
+    const legacy = mintTestActor(harness.actorSouls, 'legacy-label-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'renamed-label-challenger');
+    const root = process.cwd();
+    const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim();
+
+    const legacySession = harness.sessions.start('claim before repository-family upgrade', {
+      agentId: 'legacy-label-owner',
+      project: 'alpha-old',
+      worktreeId: 'legacy-alpha-worktree',
+      metadata: { identity: { verified: true, actorId: legacy.actorId } },
+    });
+    expect(legacySession.success).toBe(true);
+    expect(harness.sessions.claimFiles(legacySession.id, ['README.md'], {
+      agentId: 'legacy-label-owner',
+    }).success).toBe(true);
+
+    // A pre-commonDir binary stored the root and project label but keyed the
+    // claim node by that label. Rehydrate that exact persisted shape.
+    harness.db.prepare('UPDATE sessions SET metadata = ? WHERE id = ?').run(JSON.stringify({
+      identity: { verified: true, actorId: legacy.actorId },
+      worktree: {
+        id: 'legacy-alpha-worktree',
+        root,
+        name: 'legacy-alpha-worktree',
+        branch: null,
+        isMain: false,
+      },
+    }), legacySession.id);
+
+    const challengerSession = harness.sessions.start('claim after project rename', {
+      agentId: 'renamed-label-challenger',
+      project: 'alpha-new',
+      worktreeId: 'modern-alpha-worktree',
+      metadata: {
+        identity: { verified: true, actorId: challenger.actorId },
+        worktree: {
+          id: 'modern-alpha-worktree',
+          root,
+          name: 'modern-alpha-worktree',
+          branch: null,
+          isMain: false,
+          commonDir,
+        },
+      },
+    });
+    expect(challengerSession.success).toBe(true);
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${challengerSession.id}/files`,
+      headers: challenger.headers,
+      payload: { files: ['README.md'] },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [{ sessionId: legacySession.id, filePath: 'README.md' }],
+    });
+    await harness.app.close();
+  });
+
+  test('forced session start validates file entries before repository preflight', async () => {
+    const harness = buildHarness();
+    const actor = mintTestActor(harness.actorSouls, 'malformed-force-starter');
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: actor.headers,
+      payload: {
+        purpose: 'reject malformed forced files',
+        agentId: 'malformed-force-starter',
+        files: [123],
+        force: true,
+        worktree: {
+          id: 'malformed-linked',
+          root: '/repos/malformed/linked',
+          name: 'malformed-linked',
+          branch: null,
+          isMain: false,
+          commonDir: '/repos/malformed/.git',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      success: false,
+      error: 'files must contain non-empty strings',
+      code: 'VALIDATION_ERROR',
+    });
+    expect(harness.sessions.list({ status: 'active', allWorktrees: true }).sessions).toEqual([]);
+    await harness.app.close();
+  });
+
   test('creates exactly one indexed Parley and one inbox summons per live actor across replay and force', async () => {
     const harness = buildHarness();
     const { owner, challenger, challengerSession } = await establishConflict(harness);
@@ -235,7 +579,7 @@ describe('authenticated claim conflict automatic Parley', () => {
     await harness.app.close();
   });
 
-  test('fires once for a successful non-force region conflict and replays the same observation', async () => {
+  test('fires once for a blocked region conflict and replays the same observation', async () => {
     const harness = buildHarness();
     const owner = mintTestActor(harness.actorSouls, 'region-owner');
     const challenger = mintTestActor(harness.actorSouls, 'region-challenger');
@@ -261,10 +605,10 @@ describe('authenticated claim conflict automatic Parley', () => {
     };
     const first = await harness.app.inject(request);
     const replay = await harness.app.inject(request);
-    expect(first.statusCode).toBe(200);
-    expect(first.json()).toMatchObject({ success: true, claimed: ['lib/region.ts'] });
+    expect(first.statusCode).toBe(409);
+    expect(first.json()).toMatchObject({ success: false, code: 'FILE_CONFLICT' });
     expect(first.json().conflicts).toHaveLength(1);
-    expect(replay.statusCode).toBe(200);
+    expect(replay.statusCode).toBe(409);
     expect(replay.json().conflicts).toEqual(first.json().conflicts);
 
     const parleys = harness.parley.list({ harbor: 'local' });
@@ -402,7 +746,7 @@ describe('authenticated claim conflict automatic Parley', () => {
         ...result,
         conflicts: Array.from(
           { length: CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs + 1 },
-          () => ({ ...conflict }),
+          (_, index) => ({ ...conflict, claimedAt: conflict.claimedAt + index }),
         ),
       };
     };

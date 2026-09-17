@@ -17,6 +17,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createHash } from 'node:crypto';
+import { claimRepositoryScopeForSession } from '../lib/claim-forest.js';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -96,7 +97,21 @@ interface SessionsRouteDeps {
       regions?: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }>;
       agentId?: string | null;
     }): Record<string, unknown>;
-    getFileConflicts(files: string[]): Record<string, unknown>;
+    getFileConflicts(files: string[], options?: {
+      repositoryId?: string | null;
+      compatibleLegacyRepositoryIds?: Array<string | null>;
+    }): Record<string, unknown>;
+    getRegionConflicts(regions: Array<{
+      path: string;
+      startLine?: number;
+      endLine?: number;
+      symbol?: string;
+      symbolPath?: string;
+    }>, options?: {
+      repositoryId?: string | null;
+      compatibleLegacyRepositoryIds?: Array<string | null>;
+      excludeSessionId?: string;
+    }): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
     listAllActiveClaims(options?: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
     getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }): Record<string, unknown>;
@@ -247,6 +262,37 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       return `${filePath}#L${conflict.startLine ?? '*'}-${conflict.endLine ?? '*'}`;
     }
     return filePath;
+  }
+
+  function mergeClaimConflicts(...groups: unknown[][]): unknown[] {
+    const merged: unknown[] = [];
+    const seen = new Set<string>();
+    for (const group of groups) {
+      for (const raw of group) {
+        if (!raw || typeof raw !== 'object') {
+          merged.push(raw);
+          continue;
+        }
+        const conflict = raw as ClaimConflictRecord;
+        const address = claimAddress(conflict);
+        const key = address
+          && typeof conflict.sessionId === 'string'
+          && Number.isSafeInteger(conflict.claimedAt)
+          ? `${conflict.sessionId}\0${address}\0${conflict.claimedAt}`
+          : null;
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        merged.push(raw);
+      }
+    }
+    return merged;
+  }
+
+  function withoutSessionClaimConflicts(conflicts: unknown[], sessionId: string): unknown[] {
+    return conflicts.filter((raw) => {
+      if (!raw || typeof raw !== 'object') return true;
+      return (raw as { sessionId?: unknown }).sessionId !== sessionId;
+    });
   }
 
   function buildClaimConflictSignal(
@@ -621,7 +667,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     action: 'claiming' | 'releasing',
     verdict?: Extract<IdentityWriteVerdict, { ok: true }>,
   ):
-    | { success: true; ownerAgentId: string }
+    | {
+        success: true;
+        ownerAgentId: string;
+        ownerRepositoryId: string;
+        compatibleLegacyRepositoryIds: string[];
+      }
     | { success: false; result: Record<string, unknown> } => {
     if (!agentId || verdict?.kind !== 'verified') {
       return {
@@ -670,7 +721,18 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
 
-    return { success: true, ownerAgentId: authorization.ownerAgentId };
+    const repositoryScope = claimRepositoryScopeForSession({
+      identityProject: typeof session?.identityProject === 'string' ? session.identityProject : null,
+      metadata: session?.metadata && typeof session.metadata === 'object'
+        ? session.metadata as Record<string, unknown>
+        : null,
+    });
+    return {
+      success: true,
+      ownerAgentId: authorization.ownerAgentId,
+      ownerRepositoryId: repositoryScope.repositoryId,
+      compatibleLegacyRepositoryIds: repositoryScope.compatibleLegacyRepositoryIds,
+    };
   };
 
   /**
@@ -827,25 +889,56 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      if (files && Array.isArray(files) && files.length > 0 && !force) {
-        const conflictCheck = sessions.getFileConflicts(files);
-        if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
-          evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
-          reply.code(409);
-          return {
-            success: false,
-            error: 'File conflicts detected',
-            code: 'FILE_CONFLICT',
-            conflicts: conflictCheck.conflicts,
-            hint: 'Use force=true to claim files anyway'
-          };
-        }
+      if (files !== undefined && !Array.isArray(files)) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'files must be an array',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+      if (Array.isArray(files) && files.some(file => typeof file !== 'string' || !file.trim())) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'files must contain non-empty strings',
+          code: 'VALIDATION_ERROR',
+        };
       }
 
       const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
       if (!worktreePolicy.success) {
         reply.code(400);
         return worktreePolicy;
+      }
+
+      const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
+        requireLinkedWorktree,
+        allowMainWorktree,
+      });
+      const ownerRepositoryScope = claimRepositoryScopeForSession({
+        identityProject: null,
+        metadata: mergedMetadata,
+      });
+
+      let repositoryConflicts: unknown[] = [];
+      if (files && Array.isArray(files) && files.length > 0) {
+        const conflictCheck = sessions.getFileConflicts(files, {
+          repositoryId: ownerRepositoryScope.repositoryId,
+          compatibleLegacyRepositoryIds: ownerRepositoryScope.compatibleLegacyRepositoryIds,
+        });
+        repositoryConflicts = Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [];
+        if (!force && repositoryConflicts.length > 0) {
+          evaluateClaimConflictBestEffort(sessionAgent.verdict, repositoryConflicts);
+          reply.code(409);
+          return {
+            success: false,
+            error: 'File conflicts detected',
+            code: 'FILE_CONFLICT',
+            conflicts: repositoryConflicts,
+            hint: 'Use force=true to claim files anyway'
+          };
+        }
       }
 
       const lifecycle = rawLifecycle === undefined ? null : parseSessionLifecycle(rawLifecycle);
@@ -857,11 +950,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           code: 'VALIDATION_ERROR',
         };
       }
-
-      const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
-        requireLinkedWorktree,
-        allowMainWorktree,
-      });
 
       // #8877: the session row is the durable attributed record — stamp the
       // verified identity verdict into its metadata so the record itself
@@ -882,8 +970,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: result.code || 'VALIDATION_ERROR' };
       }
 
-      if (force && Array.isArray(result.conflicts) && result.conflicts.length > 0) {
-        evaluateClaimConflictBestEffort(sessionAgent.verdict, result.conflicts);
+      const startConflicts = mergeClaimConflicts(
+        repositoryConflicts,
+        Array.isArray(result.conflicts) ? result.conflicts : [],
+      );
+      if (startConflicts.length > 0) {
+        result.conflicts = startConflicts;
+      }
+      if (force && startConflicts.length > 0) {
+        evaluateClaimConflictBestEffort(sessionAgent.verdict, startConflicts);
       }
 
       if (sessionAgent.verdict.kind !== 'anonymous') {
@@ -1304,6 +1399,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
+      if (hasFiles && files.some((file: unknown) => typeof file !== 'string' || !file.trim())) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'filePaths must contain non-empty strings',
+          code: 'VALIDATION_ERROR'
+        };
+      }
+
       if (hasRegions) {
         for (const region of regions) {
           if (!region.path || typeof region.path !== 'string') {
@@ -1353,19 +1457,46 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return routeAuth.result;
       }
 
-      if (hasFiles && !force) {
-        const conflictCheck = sessions.getFileConflicts(files);
-        if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
-          evaluateClaimConflictBestEffort(requestAgent.verdict, conflictCheck.conflicts);
-          reply.code(409);
+      let repositoryConflicts: unknown[] = [];
+      if (hasFiles) {
+        const conflictCheck = sessions.getFileConflicts(files, {
+          repositoryId: routeAuth.ownerRepositoryId,
+          compatibleLegacyRepositoryIds: routeAuth.compatibleLegacyRepositoryIds,
+        });
+        repositoryConflicts = mergeClaimConflicts(repositoryConflicts, withoutSessionClaimConflicts(
+          Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [],
+          sessionId,
+        ));
+      }
+      if (hasRegions) {
+        const conflictCheck = sessions.getRegionConflicts(regions, {
+          repositoryId: routeAuth.ownerRepositoryId,
+          compatibleLegacyRepositoryIds: routeAuth.compatibleLegacyRepositoryIds,
+          excludeSessionId: sessionId,
+        });
+        if (conflictCheck.success === false) {
+          reply.code(400);
           return {
             success: false,
-            error: 'File conflicts detected',
-            code: 'FILE_CONFLICT',
-            conflicts: conflictCheck.conflicts,
-            hint: 'Use force=true to claim files anyway'
+            error: conflictCheck.error || 'Invalid region claim',
+            code: conflictCheck.code || 'VALIDATION_ERROR',
           };
         }
+        repositoryConflicts = mergeClaimConflicts(
+          repositoryConflicts,
+          Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [],
+        );
+      }
+      if (!force && repositoryConflicts.length > 0) {
+        evaluateClaimConflictBestEffort(requestAgent.verdict, repositoryConflicts);
+        reply.code(409);
+        return {
+          success: false,
+          error: 'File conflicts detected',
+          code: 'FILE_CONFLICT',
+          conflicts: repositoryConflicts,
+          hint: 'Use force=true to claim files anyway'
+        };
       }
 
       const result = sessions.claimFiles(sessionId, files || [], {
@@ -1379,8 +1510,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
       }
 
-      if (Array.isArray(result.conflicts) && result.conflicts.length > 0) {
-        evaluateClaimConflictBestEffort(requestAgent.verdict, result.conflicts);
+      const conflicts = withoutSessionClaimConflicts(
+        mergeClaimConflicts(
+          repositoryConflicts,
+          Array.isArray(result.conflicts) ? result.conflicts : [],
+        ),
+        sessionId,
+      );
+      result.conflicts = conflicts;
+      if (conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(requestAgent.verdict, conflicts);
       }
 
       logger.info('session_files_claimed', {

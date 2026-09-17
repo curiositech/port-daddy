@@ -779,6 +779,8 @@ FIGS.forEach(function(f){
     pixel:px, pixelBase:px?dispBase(px.verdict):'',
     pxSplit:!!(ag&&(ag.disagreesWithLenses.length||ag.disagreesWithTriage)),
     bookPage:f.bookPage||null, imported:!!f.imported,
+    pagePublication:f.pagePublication||'unknown',
+    pagePublicationNote:f.pagePublicationNote||'',
     chapters:f.chapters||[f.ch], shared:!!f.shared,
     rub:DSCORE[f.id]||null, rubFails:rubFailsOf(DSCORE[f.id])
   });
@@ -799,7 +801,7 @@ UNDRAWN.forEach(function(u){
 var BY_ID={}; ITEMS.forEach(function(i){BY_ID[i.id]=i;});
 /* only the figure pages and their immediate neighbours were rendered to JPG */
 var PAGESET={};
-FIGS.forEach(function(f){PAGESET[f.page-1]=1;PAGESET[f.page]=1;PAGESET[f.page+1]=1;});
+FIGS.forEach(function(f){if(f.page){PAGESET[f.page-1]=1;PAGESET[f.page]=1;PAGESET[f.page+1]=1;}});
 var N_FIG=FIGS.length, N_UND=UNDRAWN.length;
 var N_CONTESTED=ITEMS.filter(function(i){return i.contested;}).length;
 var N_PXSPLIT=ITEMS.filter(function(i){return i.pxSplit;}).length;
@@ -1051,7 +1053,10 @@ function renderList(){
     b.appendChild(r1);
     var r2=el('div','r2');
     if(i.kind==='undrawn')r2.appendChild(el('span','und','undrawn'));
-    r2.appendChild(el('span',null,i.page?('p'+i.page):'page unknown'));
+    r2.appendChild(el('span',null,i.page?('p'+i.page):
+      (i.pagePublication==='unpublished'?
+        (i.bookPage?('Book p'+i.bookPage+' · JPG pending'):'JPG pending'):
+        'page unknown')));
     r2.appendChild(el('span',null,i.dispBase||'—'));
     r2.appendChild(el('span','sp'));
     var nr=(regionsFor(i.id).length);
@@ -1529,6 +1534,16 @@ function renderStage(){
 
   if(!it.page&&!S.page){
     var sb=el('div','specblock');
+    if(it.pagePublication==='unpublished'){
+      sb.appendChild(el('div','big','Page image not published'));
+      sb.appendChild(el('p',null,it.idea));
+      sb.appendChild(el('div','k','Book location'));
+      sb.appendChild(el('p','mono',it.bookPage?'Book p'+it.bookPage:'caption location unavailable'));
+      sb.appendChild(el('div','k','Desk image'));
+      sb.appendChild(el('p',null,it.pagePublicationNote||'No published page JPG is recorded, so the Desk will not invent one or offer region boxes.'));
+      host.appendChild(sb);
+      return;
+    }
     sb.appendChild(el('div','big','Never drawn'));
     sb.appendChild(el('p',null,it.idea));
     sb.appendChild(el('div','k','kind proposed'));sb.appendChild(el('p',null,it.dkind||'—'));

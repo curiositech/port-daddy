@@ -22,14 +22,19 @@ import {
   assertOwnedSyntheticTree,
   assertExecutableArtifact,
   canonicalRecordedCommonDir,
+  closeServerBoundedly,
   findAuthorityArtifacts,
   loadReleaseCandidateMatrix,
+  prepareOwnedPrivateDirectory,
+  prepareReleaseCandidateRunDirectories,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
   sha256File,
   snapshotTreeMetadata,
+  waitForChildExit,
 } from './lib/release-candidate-e2e.mjs';
 
 const SOURCE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -107,24 +112,6 @@ function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
-function processExited(child, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
-  }
-  return new Promise((resolveExit) => {
-    let timer;
-    const done = (code, signal) => {
-      clearTimeout(timer);
-      resolveExit({ code, signal });
-    };
-    child.once('exit', done);
-    timer = setTimeout(() => {
-      child.off('exit', done);
-      resolveExit(null);
-    }, timeoutMs);
-  });
-}
-
 async function reservePort() {
   const server = createServer();
   await new Promise((resolveListen, reject) => {
@@ -178,7 +165,7 @@ class ReleaseCandidateSuite {
     }
     mkdirSync(dirname(this.resultsPath), { recursive: true });
     mkdirSync(dirname(this.logPath), { recursive: true });
-    mkdirSync(join(this.root, 'tmp'), { recursive: true });
+    prepareReleaseCandidateRunDirectories(this.root);
     this.checkoutBefore = this.checkoutAuthoritySnapshot();
   }
 
@@ -279,19 +266,7 @@ class ReleaseCandidateSuite {
   }
 
   isolatedEnv(extra = {}) {
-    return {
-      ...secretFreeBaseEnv(),
-      CI: process.env.CI || '1',
-      CARGO_HOME: process.env.CARGO_HOME || join(homedir(), '.cargo'),
-      HOME: join(this.root, 'build-home'),
-      NO_COLOR: '1',
-      PD_SCRATCH_ROOT: join(this.root, 'build-scratch'),
-      RUSTUP_HOME: process.env.RUSTUP_HOME || join(homedir(), '.rustup'),
-      TERM: 'dumb',
-      TMPDIR: join(this.root, 'tmp'),
-      USERPROFILE: join(this.root, 'build-home'),
-      ...extra,
-    };
+    return releaseCandidateIsolatedEnv(this.root, extra);
   }
 
   async buildAndStage() {
@@ -380,7 +355,8 @@ class ReleaseCandidateSuite {
     const contextDir = join(caseRoot, 'x');
     const tmp = join(caseRoot, 't');
     const db = join(runtimeRoot, 'registry.db');
-    for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) mkdirSync(path, { recursive: true });
+    for (const path of [runtimeRoot, home, contextDir, tmp]) mkdirSync(path, { recursive: true });
+    prepareOwnedPrivateDirectory(pdHome);
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
       ...secretFreeBaseEnv(),
@@ -390,7 +366,9 @@ class ReleaseCandidateSuite {
       NO_COLOR: '1',
       PD_HOME: pdHome,
       PD_SCRATCH_ROOT: join(caseRoot, 'scratch'),
-      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'pd'),
+      // `pd` is a launcher that execs this companion. Drift must compare the
+      // running payload with the same on-disk payload, not launcher bytes.
+      PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy'),
       PORT_DADDY_CONTEXT_DIR: contextDir,
       PORT_DADDY_DB: db,
       PORT_DADDY_DISABLE_KEYCHAIN: '1',
@@ -532,10 +510,10 @@ class ReleaseCandidateSuite {
     const child = daemon.child;
     const pid = child.pid ?? null;
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
-    let exit = await processExited(child, signal === 'SIGKILL' ? 3_000 : 10_000);
+    let exit = await waitForChildExit(child, signal === 'SIGKILL' ? 3_000 : 10_000);
     if (!exit && child.exitCode === null && child.signalCode === null) {
       child.kill('SIGKILL');
-      exit = await processExited(child, 3_000);
+      exit = await waitForChildExit(child, 3_000);
     }
     if (!exit) throw new Error(`${daemon.label} did not exit within the bounded cleanup window`);
     if (pid !== null) {
@@ -599,7 +577,12 @@ class ReleaseCandidateSuite {
     }
   }
 
-  async runCli(runtime, cwd, args, { slot = 'rc-e2e', transport = 'unix', allowFailure = false } = {}) {
+  async runCli(runtime, cwd, args, {
+    slot = 'rc-e2e',
+    transport = 'unix',
+    allowFailure = false,
+    label = `pd-${transport}-${args[0] || 'help'}`,
+  } = {}) {
     const binary = transport === 'tcp'
       ? join(this.stagedDir, 'pd')
       : join(this.stagedDir, 'port-daddy');
@@ -612,7 +595,7 @@ class ReleaseCandidateSuite {
       allowFailure,
       cwd,
       env,
-      label: `pd-${transport}-${args[0] || 'help'}`,
+      label,
       stream: false,
       timeoutMs: 20_000,
     });
@@ -705,7 +688,8 @@ class ReleaseCandidateSuite {
     await this.runCommand('git', ['config', 'user.name', 'Port Daddy RC Fixture'], { cwd: repo, env, label: `git-name-${name}`, stream: false });
     await this.runCommand('git', ['config', 'user.email', 'rc-fixture@invalid.example'], { cwd: repo, env, label: `git-email-${name}`, stream: false });
     writeFileSync(join(repo, 'README.md'), `# ${name}\n\nSynthetic release-candidate fixture.\n`);
-    await this.runCommand('git', ['add', 'README.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
+    writeFileSync(join(repo, 'LINKED.md'), `# ${name} linked fixture\n`);
+    await this.runCommand('git', ['add', 'README.md', 'LINKED.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
     await this.runCommand('git', ['commit', '-m', `Initialize ${name}`], { cwd: repo, env, label: `git-commit-${name}`, stream: false });
     return repo;
   }
@@ -734,9 +718,9 @@ class ReleaseCandidateSuite {
     }
     const sessions = [];
     const specs = [
-      { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true },
-      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false },
-      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true },
+      { label: 'alpha-main', project: 'rc-e2e-alpha-original', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', project: 'rc-e2e-alpha-renamed', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'LINKED.md' },
+      { label: 'beta-main', project: 'rc-e2e-alpha-original', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
     ];
     try {
       for (const spec of specs) {
@@ -744,7 +728,7 @@ class ReleaseCandidateSuite {
           'begin',
           `RC fixture ${spec.label}`,
           '--identity',
-          `port-daddy:rc-e2e:${spec.label}`,
+          `${spec.project}:coordination:${spec.label}`,
           '--lifecycle',
           'durable',
           '--sidequest',
@@ -760,10 +744,31 @@ class ReleaseCandidateSuite {
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
-        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], { slot: spec.slot }), `claim ${spec.label}`);
-        if (!claim.success || !claim.claimed?.includes('README.md')) throw new Error(`README claim did not land for ${spec.label}`);
-        const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep'], { slot: spec.slot });
-        if (!sitrep.stdout.includes(sessionId)) throw new Error(`sitrep did not name ${spec.label}'s active session`);
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], {
+          slot: spec.slot,
+          label: `pd-unix-claim-${spec.label}`,
+        }), `claim ${spec.label}`);
+        if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
+        if (spec.label === 'alpha-linked') {
+          const conflict = await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', 'README.md', '--json'], {
+            slot: spec.slot,
+            allowFailure: true,
+            label: 'pd-unix-conflict-alpha-linked',
+          });
+          if (conflict.code === 0 || !/File conflicts detected/.test(`${conflict.stdout}\n${conflict.stderr}`)) {
+            throw new Error('shared-family duplicate claim was not refused with conflict evidence');
+          }
+        }
+        const sitrep = readJsonOutput(await this.runCli(runtime, spec.cwd, [
+          'sitrep',
+          '--json',
+          '--limit-notes',
+          '200',
+        ], { slot: spec.slot }), `sitrep ${spec.label}`);
+        const exactNote = Array.isArray(sitrep.notes) && sitrep.notes.some((note) =>
+          (note?.sessionId ?? note?.session_id) === sessionId
+          && (note?.content ?? note?.note) === `RC evidence ${spec.label}`);
+        if (!exactNote) throw new Error(`sitrep JSON did not carry ${spec.label}'s exact attributed note`);
         sessions.push({ ...spec, sessionId });
       }
 
@@ -809,7 +814,7 @@ class ReleaseCandidateSuite {
         const noteBodies = (detail.body.notes || []).map((note) => note.content);
         const filePaths = (detail.body.files || []).map((file) => file.filePath || file.file_path || file.path);
         if (!noteBodies.includes(`RC evidence ${spec.label}`)) throw new Error(`note did not survive restart for ${spec.label}`);
-        if (!filePaths.includes('README.md')) throw new Error(`claim did not survive restart for ${spec.label}`);
+        if (!filePaths.includes(spec.claimPath)) throw new Error(`claim did not survive restart for ${spec.label}`);
         if (!session?.metadata?.worktree) throw new Error(`worktree metadata missing for ${spec.label}`);
         const afterCrash = {
           sessionId: session.id,
@@ -878,6 +883,7 @@ class ReleaseCandidateSuite {
           claimCount: snapshot.claimIds.length,
         })),
         repositoryFamilies: { alphaShared: true, betaDistinct: true },
+        sharedFamilyConflictRefused: true,
         matrixEnvArtifacts: 0,
         matrixEnvRequired: false,
         checkoutAuthorityArtifacts: 0,
@@ -965,7 +971,12 @@ class ReleaseCandidateSuite {
   }
 
   async portCollisionRecovery(caseRoot) {
-    const blocker = createServer((socket) => socket.end('occupied\n'));
+    const blockerSockets = new Set();
+    const blocker = createServer((socket) => {
+      blockerSockets.add(socket);
+      socket.once('close', () => blockerSockets.delete(socket));
+      socket.end('occupied\n');
+    });
     await new Promise((resolveListen, reject) => {
       blocker.once('error', reject);
       blocker.listen(0, '127.0.0.1', resolveListen);
@@ -985,7 +996,7 @@ class ReleaseCandidateSuite {
       this.activeChildren.add(child);
       child.stdout.on('data', (chunk) => this.appendLog('collision-daemon:stdout', chunk.toString()));
       child.stderr.on('data', (chunk) => this.appendLog('collision-daemon:stderr', chunk.toString()));
-      collisionExit = await processExited(child, 15_000);
+      collisionExit = await waitForChildExit(child, 15_000);
       if (!collisionExit) throw new Error('colliding daemon did not fail within 15 seconds');
       if (collisionExit.code === 0) throw new Error('colliding daemon reported success while the port was occupied');
     } finally {
@@ -994,7 +1005,7 @@ class ReleaseCandidateSuite {
         try {
           const pid = child.pid ?? null;
           if (!collisionExit && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-          collisionExit ??= await processExited(child, 3_000);
+          collisionExit ??= await waitForChildExit(child, 3_000);
           if (!collisionExit) throw new Error(`colliding daemon ${pid ?? 'unknown'} did not exit during bounded cleanup`);
           if (pid !== null) {
             try {
@@ -1009,7 +1020,7 @@ class ReleaseCandidateSuite {
           cleanupError = error;
         }
       }
-      await new Promise((resolveClose) => blocker.close(resolveClose));
+      await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets);
       if (cleanupError) throw cleanupError;
     }
 
@@ -1211,7 +1222,7 @@ class ReleaseCandidateSuite {
     for (const child of children) {
       const pid = child.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-      const exit = await processExited(child, 3_000);
+      const exit = await waitForChildExit(child, 3_000);
       if (!exit) throw new Error(`cleanup could not confirm exit for child ${pid ?? 'unknown'}`);
       if (pid !== null) {
         try {

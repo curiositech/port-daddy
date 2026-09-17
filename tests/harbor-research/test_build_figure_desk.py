@@ -445,10 +445,30 @@ class CommittedIdentitiesAreStable(unittest.TestCase):
         ids = [f["id"] for f in self._load("FIGS")] + [u["id"] for u in self._load("UNDRAWN")]
         self.assertEqual(len(ids), len(set(ids)))
 
-    def test_every_figure_the_desk_shows_has_a_rendered_page_image(self):
-        # page is the pinned render page; a null would leave the stage blank
-        for f in self._load("FIGS"):
-            self.assertIsNotNone(f["page"], f["id"])
+    def test_every_figure_has_an_explicit_page_publication_state(self):
+        figures = self._load("FIGS")
+        for f in figures:
+            self.assertIn(f["pagePublication"], ("published", "unpublished"), f["id"])
+            if f["pagePublication"] == "published":
+                self.assertIsNotNone(f["page"], f["id"])
+            else:
+                self.assertIsNone(f["page"], f["id"])
+                self.assertTrue(f["pagePublicationNote"], f["id"])
+
+    def test_unpublished_book_pages_do_not_impersonate_published_jpgs(self):
+        p = os.path.join(REPO_ROOT, B.RENDER_PAGES_REL)
+        with open(p, encoding="utf-8") as fh:
+            publication = json.load(fh)
+        self.assertFalse(set(publication["pages"]) & set(publication["unpublished"]))
+        self.assertEqual(
+            set(publication["unpublished"]),
+            {
+                "fig-anchor-four-phases",
+                "fig-anchor-handshake-ladder",
+                "fig-he-succession-price",
+                "fig-bc-delta-threshold",
+            },
+        )
 
     def test_every_figure_carries_a_doctrine_score(self):
         doctrine = self._load("DOCTRINE")
@@ -466,6 +486,47 @@ class CommittedIdentitiesAreStable(unittest.TestCase):
                                 f"{fid}/{cid} has a verdict but no evidence")
 
 
+class RenderPagePublication(unittest.TestCase):
+    def test_caption_location_is_not_a_page_image_receipt(self):
+        figures = [
+            {"id": "published", "bookPage": 10},
+            {"id": "drawn-but-unpublished", "bookPage": None},
+        ]
+        missing = B.attach_render_pages(
+            figures,
+            {
+                "pages": {"published": 8},
+                "unpublished": {"drawn-but-unpublished": "no JPG receipt"},
+            },
+        )
+        self.assertEqual(missing, [])
+        self.assertEqual(figures[0]["page"], 8)
+        self.assertEqual(figures[0]["pagePublication"], "published")
+        self.assertIsNone(figures[1]["page"])
+        self.assertEqual(figures[1]["pagePublication"], "unpublished")
+        self.assertEqual(figures[1]["pagePublicationNote"], "no JPG receipt")
+
+    def test_unpublished_page_receipts_require_a_non_empty_reason(self):
+        for reason in (None, "", "   "):
+            with self.subTest(reason=reason), self.assertRaisesRegex(
+                    ValueError, "require a non-empty reason"):
+                B.attach_render_pages(
+                    [{"id": "drawn-but-unpublished", "bookPage": None}],
+                    {"pages": {}, "unpublished": {"drawn-but-unpublished": reason}},
+                )
+
+    def test_undeclared_page_state_fails_the_completeness_contract(self):
+        figures = [{"id": "unknown", "bookPage": 12}]
+        self.assertEqual(B.attach_render_pages(figures, {"pages": {}, "unpublished": {}}), ["unknown"])
+        self.assertEqual(figures[0]["pagePublication"], "unknown")
+
+    def test_a_page_cannot_be_published_and_unpublished(self):
+        with self.assertRaisesRegex(ValueError, "both published and unpublished"):
+            B.attach_render_pages(
+                [{"id": "contradiction", "bookPage": 13}],
+                {"pages": {"contradiction": 13}, "unpublished": {"contradiction": "missing"}},
+            )
+
 class ReconciliationIsHonest(unittest.TestCase):
     """Nothing is dropped and nothing is invented between the sets."""
 
@@ -477,8 +538,23 @@ class ReconciliationIsHonest(unittest.TestCase):
 
     def test_the_reconciliation_names_both_directions(self):
         r = self._findings()["reconciliation"]
-        for k in ("deskFigures", "judged", "undrawn", "deskOnly", "judgedOnly", "renderDrift"):
+        for k in ("deskFigures", "judged", "undrawn", "deskOnly", "judgedOnly",
+                  "renderDrift", "unpublishedPages"):
             self.assertIn(k, r)
+
+    def test_unpublished_page_images_are_visible_in_reconciliation(self):
+        rows = self._findings()["reconciliation"]["unpublishedPages"]
+        self.assertEqual(
+            {row["id"] for row in rows},
+            {
+                "fig-anchor-four-phases",
+                "fig-anchor-handshake-ladder",
+                "fig-he-succession-price",
+                "fig-bc-delta-threshold",
+            },
+        )
+        for row in rows:
+            self.assertIn("publication receipt", row["reason"])
 
     def test_a_judged_figure_not_in_the_book_is_listed_not_dropped(self):
         r = self._findings()["reconciliation"]

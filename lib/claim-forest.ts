@@ -8,6 +8,8 @@
  */
 
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { isAbsolute, normalize, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 
 export type ClaimForestWorldKind = 'worktree' | 'ref' | 'commit' | 'harbor';
@@ -73,14 +75,21 @@ export interface ClaimForestClaim {
 
 export interface ClaimForestScope {
   repoId?: string | null;
+  compatibleRepoIds?: Array<string | null>;
   worldKind?: ClaimForestWorldKind | null;
   worldId?: string | null;
+}
+
+export interface ClaimRepositoryScope {
+  repositoryId: string;
+  compatibleLegacyRepositoryIds: string[];
 }
 
 interface SessionContext {
   agent_id: string | null;
   worktree_id: string | null;
   identity_project: string | null;
+  metadata: string | null;
 }
 
 interface LegacySessionFileRow {
@@ -96,6 +105,7 @@ interface LegacySessionFileRow {
   agent_id: string | null;
   worktree_id: string | null;
   identity_project: string | null;
+  metadata: string | null;
 }
 
 interface ClaimForestRow {
@@ -116,6 +126,9 @@ interface ClaimForestRow {
   session_id: string;
   purpose: string;
   session_agent_id: string | null;
+  session_identity_project: string | null;
+  session_metadata: string | null;
+  session_repository_family_id: string | null;
   phase: string | null;
   claimed_at: number;
   released_at: number | null;
@@ -124,7 +137,17 @@ interface ClaimForestRow {
   legacy_session_file_id: number | null;
 }
 
-const DEFAULT_REPO_ID = 'local';
+// Identity project segments accept only [a-zA-Z0-9._*-], so this sentinel can
+// never collide with a legitimate project named "local" (or any other parsed
+// project). Keep the distinction in the persisted/read model: null is a real
+// projectless scope, not an alias for a conveniently named repository.
+export const PROJECTLESS_REPO_ID = '@projectless';
+/**
+ * An active legacy worktree claim whose recorded checkout no longer exists.
+ * Modern Git-family scopes include this sentinel so authority is withheld
+ * until the legacy owner is released or its family provenance is recovered.
+ */
+export const UNRESOLVED_GIT_FAMILY_REPO_ID = '@unresolved-git-family';
 const DEFAULT_WORLD_KIND: ClaimForestWorldKind = 'worktree';
 const DEFAULT_WORLD_ID = 'unscoped';
 
@@ -181,6 +204,14 @@ export const CLAIM_FOREST_SCHEMA_SQL = `
   CREATE UNIQUE INDEX IF NOT EXISTS idx_claim_forest_claims_legacy_session_file
     ON claim_forest_claims(legacy_session_file_id)
     WHERE legacy_session_file_id IS NOT NULL;
+
+  CREATE TABLE IF NOT EXISTS claim_repository_families (
+    session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    repository_id TEXT NOT NULL,
+    source_root TEXT NOT NULL,
+    derived_at INTEGER NOT NULL,
+    CHECK(repository_id LIKE 'git-family:%')
+  );
 `;
 
 function stableId(prefix: string, parts: unknown[]): string {
@@ -190,7 +221,126 @@ function stableId(prefix: string, parts: unknown[]): string {
 
 function normalizeRepoId(repoId?: string | null): string {
   const value = repoId?.trim();
-  return value || DEFAULT_REPO_ID;
+  return value || PROJECTLESS_REPO_ID;
+}
+
+interface SessionRepositoryIdentity {
+  identity_project?: string | null;
+  identityProject?: string | null;
+  metadata?: string | Record<string, unknown> | null;
+  repository_family_id?: string | null;
+  repositoryFamilyId?: string | null;
+}
+
+function sessionMetadata(value: SessionRepositoryIdentity['metadata']): Record<string, unknown> | null {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+const legacyCommonDirByRoot = new Map<string, string>();
+const legacyCommonDirFailureAtByRoot = new Map<string, number>();
+const LEGACY_COMMON_DIR_FAILURE_TTL_MS = 30_000;
+
+function commonDirFromRecordedRoot(root: string): string | null {
+  const canonicalRoot = normalize(root);
+  const cached = legacyCommonDirByRoot.get(canonicalRoot);
+  if (cached) return cached;
+  const failedAt = legacyCommonDirFailureAtByRoot.get(canonicalRoot);
+  if (failedAt !== undefined && Date.now() - failedAt < LEGACY_COMMON_DIR_FAILURE_TTL_MS) return null;
+
+  try {
+    const observed = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: canonicalRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 2_000,
+      maxBuffer: 64 * 1024,
+    }).trim();
+    if (!observed) {
+      legacyCommonDirFailureAtByRoot.set(canonicalRoot, Date.now());
+      return null;
+    }
+    const commonDir = normalize(isAbsolute(observed) ? observed : resolve(canonicalRoot, observed));
+    legacyCommonDirByRoot.set(canonicalRoot, commonDir);
+    legacyCommonDirFailureAtByRoot.delete(canonicalRoot);
+    return commonDir;
+  } catch {
+    legacyCommonDirFailureAtByRoot.set(canonicalRoot, Date.now());
+    return null;
+  }
+}
+
+function gitFamilyRepositoryId(session: SessionRepositoryIdentity): string | null {
+  const persisted = session.repository_family_id ?? session.repositoryFamilyId;
+  if (typeof persisted === 'string' && persisted.startsWith('git-family:')) return persisted;
+  const metadata = sessionMetadata(session.metadata);
+  const worktree = metadata?.worktree;
+  if (!worktree || typeof worktree !== 'object' || Array.isArray(worktree)) return null;
+  const raw = worktree as Record<string, unknown>;
+  const root = typeof raw.root === 'string' ? raw.root.trim() : '';
+  const recordedCommonDir = typeof raw.commonDir === 'string' ? raw.commonDir.trim() : '';
+  const canonical = recordedCommonDir
+    ? normalize(isAbsolute(recordedCommonDir) ? recordedCommonDir : resolve(root, recordedCommonDir))
+    : root
+      ? commonDirFromRecordedRoot(root)
+      : null;
+  if (!canonical) return null;
+  const digest = createHash('sha256').update(canonical).digest('hex').slice(0, 32);
+  return `git-family:${digest}`;
+}
+
+function hasUnresolvedLegacyGitProvenance(
+  session: SessionRepositoryIdentity,
+  familyRepositoryId: string | null,
+): boolean {
+  const metadata = sessionMetadata(session.metadata);
+  const worktree = metadata?.worktree;
+  if (!worktree || typeof worktree !== 'object' || Array.isArray(worktree)) return false;
+  const raw = worktree as Record<string, unknown>;
+  const root = typeof raw.root === 'string' ? raw.root.trim() : '';
+  const recordedCommonDir = typeof raw.commonDir === 'string' ? raw.commonDir.trim() : '';
+  return Boolean(root && !recordedCommonDir && !familyRepositoryId);
+}
+
+/**
+ * Resolve the repository boundary used by worktree claims. Git common-dir
+ * provenance wins; the semantic project remains session metadata and is only
+ * a fallback for older/non-Git sessions that have no repository-family proof.
+ */
+export function claimRepositoryIdForSession(session: SessionRepositoryIdentity): string {
+  return claimRepositoryScopeForSession(session).repositoryId;
+}
+
+/**
+ * Build the read scope for claims owned by one session. A Git family is the
+ * canonical boundary, but an upgraded daemon must still see active claims
+ * written before common-dir provenance was recorded. A recovered family is
+ * persisted for future reads; an active legacy row whose checkout vanished
+ * first projects to a shared unresolved sentinel so modern Git scopes fail
+ * closed until the old owner releases or provenance is repaired.
+ */
+export function claimRepositoryScopeForSession(session: SessionRepositoryIdentity): ClaimRepositoryScope {
+  const legacyRepositoryId = normalizeRepoId(session.identity_project ?? session.identityProject);
+  const familyRepositoryId = gitFamilyRepositoryId(session);
+  const repositoryId = familyRepositoryId
+    ?? (hasUnresolvedLegacyGitProvenance(session, familyRepositoryId)
+      ? UNRESOLVED_GIT_FAMILY_REPO_ID
+      : legacyRepositoryId);
+  const compatibleLegacyRepositoryIds: string[] = [];
+  if (repositoryId !== legacyRepositoryId) compatibleLegacyRepositoryIds.push(legacyRepositoryId);
+  if (familyRepositoryId) compatibleLegacyRepositoryIds.push(UNRESOLVED_GIT_FAMILY_REPO_ID);
+  return {
+    repositoryId,
+    compatibleLegacyRepositoryIds: [...new Set(compatibleLegacyRepositoryIds)],
+  };
 }
 
 function normalizeWorld(address: ClaimForestAddress): { kind: ClaimForestWorldKind; id: string; gitOid: string | null } {
@@ -236,8 +386,10 @@ function nodeIdFor(address: ClaimForestAddress, selectorKind: ClaimForestSelecto
 }
 
 function scopeForSession(session: SessionContext): Required<ClaimForestScope> {
+  const repositoryScope = claimRepositoryScopeForSession(session);
   return {
-    repoId: normalizeRepoId(session.identity_project),
+    repoId: repositoryScope.repositoryId,
+    compatibleRepoIds: repositoryScope.compatibleLegacyRepositoryIds,
     worldKind: DEFAULT_WORLD_KIND,
     worldId: session.worktree_id?.trim() || DEFAULT_WORLD_ID,
   };
@@ -245,7 +397,11 @@ function scopeForSession(session: SessionContext): Required<ClaimForestScope> {
 
 function matchesScope(claim: ClaimForestClaim, scope?: ClaimForestScope): boolean {
   if (!scope) return true;
-  if (scope.repoId !== undefined && claim.repoId !== normalizeRepoId(scope.repoId)) return false;
+  if (scope.repoId !== undefined) {
+    const compatibleRepoIds = (scope.compatibleRepoIds ?? []).map(normalizeRepoId);
+    const allowedRepoIds = new Set([normalizeRepoId(scope.repoId), ...compatibleRepoIds]);
+    if (!allowedRepoIds.has(claim.repoId)) return false;
+  }
   if (scope.worldKind !== undefined && claim.worldKind !== (scope.worldKind ?? DEFAULT_WORLD_KIND)) return false;
   if (scope.worldId !== undefined) {
     const worldId = scope.worldId?.trim() || DEFAULT_WORLD_ID;
@@ -260,7 +416,7 @@ function sessionAddressForLegacy(row: LegacySessionFileRow): ClaimForestAddress 
       : row.start_line != null || row.end_line != null ? 'range'
         : 'file';
   return {
-    repoId: row.identity_project,
+    repoId: claimRepositoryIdForSession(row),
     world: { kind: 'worktree', id: row.worktree_id },
     selector: {
       kind: selectorKind,
@@ -274,10 +430,25 @@ function sessionAddressForLegacy(row: LegacySessionFileRow): ClaimForestAddress 
 }
 
 function rowToClaim(row: ClaimForestRow): ClaimForestClaim {
+  const persistedRepoId = row.repo_id?.trim();
+  const sessionRepoId = claimRepositoryIdForSession({
+    identity_project: row.session_identity_project,
+    metadata: row.session_metadata,
+    repository_family_id: row.session_repository_family_id,
+  });
+  const repoId = row.world_kind === 'worktree'
+    ? sessionRepoId
+    : row.session_identity_project == null && persistedRepoId === 'local'
+      ? PROJECTLESS_REPO_ID
+      : normalizeRepoId(persistedRepoId);
   return {
     id: row.id,
     nodeId: row.node_id,
-    repoId: row.repo_id,
+    // Git-backed worktree claims use immutable repository-family provenance,
+    // including for nodes written before that provenance became the key.
+    // Non-worktree worlds keep their persisted boundary. Older projectless
+    // worktree rows stored as literal "local" remain disambiguated by owner.
+    repoId,
     worldKind: row.world_kind,
     worldId: row.world_id,
     gitOid: row.git_oid,
@@ -369,10 +540,15 @@ export function createClaimForest(db: Database.Database) {
              c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
              n.repo_id, n.world_kind, n.world_id, n.selector_kind, n.path, n.symbol,
              n.symbol_path, n.start_line, n.end_line, n.git_oid,
-             s.purpose, s.agent_id AS session_agent_id, s.phase
+             s.purpose, s.agent_id AS session_agent_id,
+             s.identity_project AS session_identity_project,
+             s.metadata AS session_metadata,
+             rf.repository_id AS session_repository_family_id,
+             s.phase
       FROM claim_forest_claims c
       JOIN claim_forest_nodes n ON n.id = c.node_id
       JOIN sessions s ON s.id = c.session_id
+      LEFT JOIN claim_repository_families rf ON rf.session_id = s.id
       WHERE c.released_at IS NULL AND s.status = 'active'
       ORDER BY n.path ASC, n.start_line ASC, c.claimed_at ASC
     `),
@@ -381,10 +557,15 @@ export function createClaimForest(db: Database.Database) {
              c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
              n.repo_id, n.world_kind, n.world_id, n.selector_kind, n.path, n.symbol,
              n.symbol_path, n.start_line, n.end_line, n.git_oid,
-             s.purpose, s.agent_id AS session_agent_id, s.phase
+             s.purpose, s.agent_id AS session_agent_id,
+             s.identity_project AS session_identity_project,
+             s.metadata AS session_metadata,
+             rf.repository_id AS session_repository_family_id,
+             s.phase
       FROM claim_forest_claims c
       JOIN claim_forest_nodes n ON n.id = c.node_id
       JOIN sessions s ON s.id = c.session_id
+      LEFT JOIN claim_repository_families rf ON rf.session_id = s.id
       WHERE c.session_id = ? AND (? = 1 OR c.released_at IS NULL)
       ORDER BY c.claimed_at ASC
     `),
@@ -392,13 +573,29 @@ export function createClaimForest(db: Database.Database) {
       UPDATE claim_forest_claims
       SET released_at = ?
       WHERE session_id = ? AND released_at IS NULL
-        AND node_id IN (SELECT id FROM claim_forest_nodes WHERE path = ?)
+        AND node_id IN (
+          SELECT id FROM claim_forest_nodes
+          WHERE path = ? AND world_kind = 'worktree'
+        )
     `),
     releaseBySymbolPath: db.prepare(`
       UPDATE claim_forest_claims
       SET released_at = ?
       WHERE session_id = ? AND released_at IS NULL
-        AND node_id IN (SELECT id FROM claim_forest_nodes WHERE path = ? AND symbol_path = ?)
+        AND node_id IN (
+          SELECT id FROM claim_forest_nodes
+          WHERE path = ? AND symbol_path = ? AND world_kind = 'worktree'
+        )
+    `),
+    releaseBySymbol: db.prepare(`
+      UPDATE claim_forest_claims
+      SET released_at = ?
+      WHERE session_id = ? AND released_at IS NULL
+        AND node_id IN (
+          SELECT id FROM claim_forest_nodes
+          WHERE path = ? AND symbol = ? AND symbol_path IS NULL
+            AND world_kind = 'worktree'
+        )
     `),
     releaseByRange: db.prepare(`
       UPDATE claim_forest_claims
@@ -407,6 +604,7 @@ export function createClaimForest(db: Database.Database) {
         AND node_id IN (
           SELECT id FROM claim_forest_nodes
           WHERE path = ? AND start_line = ? AND end_line = ?
+            AND world_kind = 'worktree'
         )
     `),
     releaseAllBySession: db.prepare(`
@@ -417,7 +615,7 @@ export function createClaimForest(db: Database.Database) {
     legacyRowsMissingForest: db.prepare(`
       SELECT sf.rowid AS id, sf.session_id, sf.file_path, sf.start_line, sf.end_line,
              sf.symbol, sf.symbol_path, sf.claimed_at, sf.released_at,
-             s.agent_id, s.worktree_id, s.identity_project
+             s.agent_id, s.worktree_id, s.identity_project, s.metadata
       FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
       LEFT JOIN claim_forest_claims c ON c.legacy_session_file_id = sf.id
@@ -425,7 +623,38 @@ export function createClaimForest(db: Database.Database) {
       ORDER BY CASE WHEN sf.released_at IS NULL THEN 0 ELSE 1 END ASC, sf.id ASC
       LIMIT ?
     `),
+    sessionsMissingRepositoryFamily: db.prepare(`
+      SELECT s.id, s.identity_project, s.metadata
+      FROM sessions s
+      LEFT JOIN claim_repository_families rf ON rf.session_id = s.id
+      WHERE s.status = 'active' AND s.metadata IS NOT NULL AND rf.session_id IS NULL
+    `),
+    insertRepositoryFamily: db.prepare(`
+      INSERT OR IGNORE INTO claim_repository_families (
+        session_id, repository_id, source_root, derived_at
+      ) VALUES (?, ?, ?, ?)
+    `),
   };
+
+  function rememberResolvableRepositoryFamilies(): void {
+    const sessions = stmts.sessionsMissingRepositoryFamily.all() as Array<{
+      id: string;
+      identity_project: string | null;
+      metadata: string | null;
+    }>;
+    for (const session of sessions) {
+      const metadata = sessionMetadata(session.metadata);
+      const worktree = metadata?.worktree;
+      if (!worktree || typeof worktree !== 'object' || Array.isArray(worktree)) continue;
+      const root = typeof (worktree as Record<string, unknown>).root === 'string'
+        ? ((worktree as Record<string, unknown>).root as string).trim()
+        : '';
+      if (!root) continue;
+      const repositoryId = gitFamilyRepositoryId(session);
+      if (!repositoryId) continue;
+      stmts.insertRepositoryFamily.run(session.id, repositoryId, normalize(root), Date.now());
+    }
+  }
 
   function ensureNode(address: ClaimForestAddress) {
     const repoId = normalizeRepoId(address.repoId);
@@ -575,6 +804,9 @@ export function createClaimForest(db: Database.Database) {
     worldKind?: ClaimForestWorldKind | null;
     worldId?: string | null;
   } = {}) {
+    // Persist a successfully recovered pre-commonDir family before projecting
+    // claims. Later restarts no longer depend on the legacy checkout existing.
+    rememberResolvableRepositoryFamilies();
     const pathNeedle = filters.path?.replace(/\*/g, '').toLowerCase();
     const symbolNeedle = filters.symbol?.replace(/\*/g, '').toLowerCase();
     const symbolPathNeedle = filters.symbolPath?.replace(/\*/g, '').toLowerCase();
@@ -606,6 +838,7 @@ export function createClaimForest(db: Database.Database) {
   }
 
   function listClaimsForSession(sessionId: string, options: { includeReleased?: boolean } = {}) {
+    rememberResolvableRepositoryFamilies();
     const includeReleased = options.includeReleased ? 1 : 0;
     return (stmts.listBySession.all(sessionId, includeReleased) as ClaimForestRow[]).map(rowToClaim);
   }
@@ -618,6 +851,11 @@ export function createClaimForest(db: Database.Database) {
   function releaseBySymbolPath(sessionId: string, filePath: string, symbolPath: string, releasedAt = Date.now()) {
     const normalizedPath = normalizePath(filePath) ?? filePath;
     return stmts.releaseBySymbolPath.run(releasedAt, sessionId, normalizedPath, symbolPath).changes;
+  }
+
+  function releaseBySymbol(sessionId: string, filePath: string, symbol: string, releasedAt = Date.now()) {
+    const normalizedPath = normalizePath(filePath) ?? filePath;
+    return stmts.releaseBySymbol.run(releasedAt, sessionId, normalizedPath, symbol).changes;
   }
 
   function releaseByRange(sessionId: string, filePath: string, startLine: number, endLine: number, releasedAt = Date.now()) {
@@ -666,7 +904,7 @@ export function createClaimForest(db: Database.Database) {
         : fields.startLine != null || fields.endLine != null ? 'range'
           : 'file';
     return {
-      repoId: session.identity_project,
+      repoId: claimRepositoryIdForSession(session),
       world: { kind: 'worktree', id: session.worktree_id },
       selector: {
         kind: selectorKind,
@@ -688,6 +926,7 @@ export function createClaimForest(db: Database.Database) {
     getActiveClaimsForFileExcludingSession,
     releaseByFilePath,
     releaseBySymbolPath,
+    releaseBySymbol,
     releaseByRange,
     releaseAllBySession,
     backfillFromSessionFiles,

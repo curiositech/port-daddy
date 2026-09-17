@@ -41,6 +41,13 @@ page and orphan every region note on them. So both are pinned, the drift
 against the live Book is reported rather than applied, and a pin that loses its
 row -- or a row that loses its pin -- is reported as an orphaned ruling.
 
+`RENDER-PAGES.json.pages` means a page JPG was actually published. Locating a
+caption in the current Book proves only `bookPage`; it does not prove that a
+corresponding JPG exists. Drawn figures awaiting a Desk image are listed under
+`unpublished`, keep `page` null, and render as “Page image not published” rather
+than being mislabeled “Never drawn.” Publishing a JPG moves its figure from
+`unpublished` to `pages` in the same change.
+
 Editing a curated file by hand is correct. Editing anything in `data/` is not:
 `--check` will call it stale on the next run.
 

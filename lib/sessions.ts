@@ -16,7 +16,7 @@ import type { NoteEncryption } from './note-encryption.js';
 import type { SemanticIndex } from './semantic-index.js';
 import type { EpisodicMemory } from './episodic-memory.js';
 import type { Symbol as IndexedSymbol, SymbolIndex } from './symbol-index.js';
-import { createClaimForest, type ClaimForestClaim } from './claim-forest.js';
+import { createClaimForest, PROJECTLESS_REPO_ID, type ClaimForestClaim } from './claim-forest.js';
 import { isCoordinationScopeId, validateCoordinationOperation, type CoordinationOperation, type CoordinationNoteValue } from './coordination-ledger.js';
 
 const MAX_NOTES_PER_SESSION = 500;
@@ -508,6 +508,11 @@ export function createSessions(
       UPDATE session_files SET released_at = ?
       WHERE session_id = ? AND file_path = ? AND symbol_path = ? AND released_at IS NULL
     `),
+    releaseRegionBySymbol: db.prepare(`
+      UPDATE session_files SET released_at = ?
+      WHERE session_id = ? AND file_path = ? AND symbol = ?
+        AND symbol_path IS NULL AND released_at IS NULL
+    `),
     releaseAllFiles: db.prepare(`
       UPDATE session_files SET released_at = ? WHERE session_id = ? AND released_at IS NULL
     `),
@@ -815,9 +820,11 @@ export function createSessions(
   }
 
   function claimsConflict(
-    existing: { startLine: number | null; endLine: number | null; symbolPath: string | null },
-    requested: { startLine: number | null; endLine: number | null; symbolPath: string | null },
+    existing: { startLine: number | null; endLine: number | null; symbol: string | null; symbolPath: string | null },
+    requested: { startLine: number | null; endLine: number | null; symbol: string | null; symbolPath: string | null },
   ): boolean {
+    // An unqualified symbol without resolved line evidence stays fail-closed:
+    // names alone cannot prove that two selectors are disjoint.
     if (isWholeFileClaim(existing) || isWholeFileClaim(requested)) {
       return true;
     }
@@ -904,6 +911,27 @@ export function createSessions(
   function normalizeAgentId(agentId: string | null | undefined): string | null {
     if (agentId == null) return null;
     return agentId.trim();
+  }
+
+  function normalizeSessionProject(project: unknown):
+    | { success: true; project: string | null }
+    | { success: false; error: string; code: 'VALIDATION_ERROR' } {
+    if (project === null || project === undefined) return { success: true, project: null };
+    if (typeof project !== 'string') {
+      return { success: false, error: 'project must be a string', code: 'VALIDATION_ERROR' };
+    }
+    const normalized = project.trim();
+    if (!normalized) {
+      return { success: false, error: 'project must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
+    }
+    if (normalized === PROJECTLESS_REPO_ID) {
+      return {
+        success: false,
+        error: `${PROJECTLESS_REPO_ID} is reserved for internal projectless claim scope`,
+        code: 'VALIDATION_ERROR',
+      };
+    }
+    return { success: true, project: normalized };
   }
 
   function authorizeFileMutation(
@@ -1090,7 +1118,7 @@ export function createSessions(
   /**
    * Start a new session
    */
-  function start(purpose: string, options: StartOptions = {}) {
+  function start(purpose: string, options: StartOptions = {}): Record<string, unknown> {
     if (!purpose || typeof purpose !== 'string') {
       return { success: false, error: 'purpose must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
@@ -1113,7 +1141,9 @@ export function createSessions(
     // Omission may auto-detect for local callers. Explicit null is a verified
     // projectless admission, never permission to borrow the daemon's Git world.
     const resolvedWorktreeId = options.worktreeId === undefined ? getWorktreeId() ?? null : worktreeId;
-    const identityProject = project || null;
+    const projectAdmission = normalizeSessionProject(project);
+    if (!projectAdmission.success) return projectAdmission;
+    const identityProject = projectAdmission.project;
 
     // Validate agentId if provided
     if (agentId !== null && typeof agentId !== 'string') {
@@ -1500,6 +1530,10 @@ export function createSessions(
   function takeover(sessionId: string, options: TakeoverOptions = {}) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+    if (options.project !== undefined) {
+      const projectAdmission = normalizeSessionProject(options.project);
+      if (!projectAdmission.success) return projectAdmission;
     }
 
     // There is no commit notification for a caller-owned transaction. Refuse
@@ -2027,11 +2061,13 @@ export function createSessions(
           {
             startLine: claim.startLine,
             endLine: claim.endLine,
+            symbol: claim.symbol,
             symbolPath: claim.symbolPath,
           },
           {
             startLine,
             endLine,
+            symbol,
             symbolPath,
           },
         )) {
@@ -2047,6 +2083,25 @@ export function createSessions(
           symbol: claim.symbol,
           symbolPath: claim.symbolPath,
         });
+      }
+
+      // Re-claiming is a replacement, including for active rows written before
+      // projectless claims moved from the ambiguous "local" repository id to
+      // the reserved sentinel. Release by selector rather than node id so the
+      // compatibility row and every historical forest node are retired before
+      // the canonical claim is inserted.
+      if (symbolPath) {
+        stmts.releaseRegionBySymbolPath.run(now, sessionId, region.path, symbolPath);
+        claimForest.releaseBySymbolPath(sessionId, region.path, symbolPath, now);
+      } else if (symbol) {
+        stmts.releaseRegionBySymbol.run(now, sessionId, region.path, symbol);
+        claimForest.releaseBySymbol(sessionId, region.path, symbol, now);
+      } else if (startLine !== null && endLine !== null) {
+        stmts.releaseRegion.run(now, sessionId, region.path, startLine, endLine);
+        claimForest.releaseByRange(sessionId, region.path, startLine, endLine, now);
+      } else {
+        stmts.releaseFile.run(now, sessionId, region.path);
+        claimForest.releaseByFilePath(sessionId, region.path, now);
       }
 
       const legacyResult = stmts.claimRegion.run(sessionId, region.path, startLine, endLine, symbol, symbolPath, now);
@@ -2175,9 +2230,13 @@ export function createSessions(
   }
 
   /**
-   * Get active file conflicts for given paths
+   * Get active file conflicts for given paths. Callers may scope the lookup to
+   * one logical repository while intentionally spanning all of its worktrees.
    */
-  function getFileConflicts(filePaths: string[]) {
+  function getFileConflicts(filePaths: string[], options: {
+    repositoryId?: string | null;
+    compatibleLegacyRepositoryIds?: Array<string | null>;
+  } = {}) {
     if (!Array.isArray(filePaths) || filePaths.length === 0) {
       return { conflicts: [] };
     }
@@ -2185,7 +2244,16 @@ export function createSessions(
     const conflicts: FileConflict[] = [];
 
     for (const filePath of filePaths) {
-      const activeClaims = claimForest.getActiveClaimsForFile(filePath);
+      const activeClaims = claimForest.getActiveClaimsForFile(
+        filePath,
+        options.repositoryId === undefined
+          ? undefined
+          : {
+              repoId: options.repositoryId,
+              compatibleRepoIds: options.compatibleLegacyRepositoryIds,
+              worldKind: 'worktree',
+            },
+      );
       for (const claim of activeClaims) {
         conflicts.push({
           filePath,
@@ -2201,6 +2269,75 @@ export function createSessions(
     }
 
     return { conflicts };
+  }
+
+  /**
+   * Get active conflicts for region claims. Like getFileConflicts, this lookup
+   * may span every worktree in one logical repository, but it preserves the
+   * canonical region overlap semantics instead of treating every claim on the
+   * same file as a collision.
+   */
+  function getRegionConflicts(
+    regions: FileRegion[],
+    options: {
+      repositoryId?: string | null;
+      compatibleLegacyRepositoryIds?: Array<string | null>;
+      excludeSessionId?: string;
+    } = {},
+  ) {
+    if (!Array.isArray(regions) || regions.length === 0) {
+      return { success: true, conflicts: [] as FileConflict[] };
+    }
+
+    const conflicts: FileConflict[] = [];
+    const scope = options.repositoryId === undefined
+      ? undefined
+      : {
+          repoId: options.repositoryId,
+          compatibleRepoIds: options.compatibleLegacyRepositoryIds,
+          worldKind: 'worktree' as const,
+        };
+
+    for (const region of regions) {
+      const resolved = resolveRegionClaim(region);
+      if (!resolved.success) {
+        return { success: false, error: resolved.error, code: 'VALIDATION_ERROR', conflicts: [] as FileConflict[] };
+      }
+
+      const requested = resolved.claim;
+      const activeClaims = claimForest.getActiveClaimsForFile(region.path, scope);
+      for (const claim of activeClaims) {
+        if (options.excludeSessionId && claim.sessionId === options.excludeSessionId) continue;
+        if (!claimsConflict(
+          {
+            startLine: claim.startLine,
+            endLine: claim.endLine,
+            symbol: claim.symbol,
+            symbolPath: claim.symbolPath,
+          },
+          {
+            startLine: requested.startLine,
+            endLine: requested.endLine,
+            symbol: requested.symbol,
+            symbolPath: requested.symbolPath,
+          },
+        )) {
+          continue;
+        }
+        conflicts.push({
+          filePath: region.path,
+          sessionId: claim.sessionId,
+          purpose: claim.purpose,
+          claimedAt: claim.claimedAt,
+          startLine: claim.startLine,
+          endLine: claim.endLine,
+          symbol: claim.symbol,
+          symbolPath: claim.symbolPath,
+        });
+      }
+    }
+
+    return { success: true, conflicts };
   }
 
   /**
@@ -2583,6 +2720,7 @@ export function createSessions(
     claimFiles,
     releaseFiles,
     getFileConflicts,
+    getRegionConflicts,
     setPhase,
     listAllActiveClaims,
     getClaimOwner,

@@ -1,25 +1,33 @@
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createConnection, createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
   assertOwnedSyntheticTree,
+  closeServerBoundedly,
   findAuthorityArtifacts,
   loadReleaseCandidateMatrix,
+  prepareOwnedPrivateDirectory,
+  prepareReleaseCandidateRunDirectories,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
   validateReleaseCandidateMatrix,
+  waitForChildExit,
 } from '../../scripts/lib/release-candidate-e2e.mjs';
 
 const repoRoot = process.cwd();
@@ -119,6 +127,124 @@ describe('release-candidate E2E contract', () => {
     })).toBe(join(homedir(), 'coding', 'tmp', 'pd-rc-contract-safe'));
   });
 
+  test('private runtime fixtures are created at 0700 and repair harness-owned permissive modes', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-private-dir-test-'));
+    const fresh = join(fixture, 'fresh', 'pd-home');
+    const permissive = join(fixture, 'permissive');
+    try {
+      expect(prepareOwnedPrivateDirectory(fresh)).toBe(fresh);
+      expect(statSync(fresh).mode & 0o777).toBe(0o700);
+
+      mkdirSync(permissive, { mode: 0o755 });
+      chmodSync(permissive, 0o755);
+      expect(statSync(permissive).mode & 0o777).toBe(0o755);
+      prepareOwnedPrivateDirectory(permissive);
+      expect(statSync(permissive).mode & 0o777).toBe(0o700);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test('every inherited release-candidate directory exists privately before a shard starts', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-run-dirs-test-'));
+    try {
+      expect(prepareReleaseCandidateRunDirectories(fixture)).toBe(fixture);
+      for (const name of ['build-home', 'build-scratch', 'control', 'tmp']) {
+        expect(statSync(join(fixture, name)).isDirectory()).toBe(true);
+        expect(statSync(join(fixture, name)).mode & 0o777).toBe(0o700);
+      }
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test('bounded fixture cleanup destroys tracked accepted sockets before closing the listener', async () => {
+    const sockets = new Set();
+    const server = createServer((socket) => {
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
+    });
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address();
+    expect(typeof address).toBe('object');
+    const client = createConnection(address.port, '127.0.0.1');
+    await new Promise((resolve, reject) => {
+      client.once('connect', resolve);
+      client.once('error', reject);
+    });
+    expect(sockets.size).toBe(1);
+    const clientClosed = new Promise((resolve) => client.once('close', resolve));
+    await expect(closeServerBoundedly(server, 1_000, 'tracked fixture', sockets)).resolves.toBeUndefined();
+    await clientClosed;
+    expect(sockets.size).toBe(0);
+    expect(client.destroyed).toBe(true);
+  });
+
+  test('the build environment uses private key storage without ambient credentials or canonical Keychain access', () => {
+    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
+    const env = releaseCandidateIsolatedEnv(root, {
+      PORT_DADDY_DISABLE_KEYCHAIN: '0',
+      PORT_DADDY_RESOURCE_DIR: join(root, 'resources'),
+    }, {
+      env: {
+        CI: '1',
+        PATH: '/usr/bin:/bin',
+        CARGO_HOME: '/fixture/cargo',
+        RUSTUP_HOME: '/fixture/rustup',
+        GITHUB_TOKEN: 'must-not-survive',
+      },
+      home: '/fixture/home',
+    });
+
+    expect(env.PD_HOME).toBe(join(root, 'control'));
+    expect(env.HOME).toBe(join(root, 'build-home'));
+    expect(env.PORT_DADDY_DISABLE_KEYCHAIN).toBe('1');
+    expect(env.PORT_DADDY_RESOURCE_DIR).toBe(join(root, 'resources'));
+    expect(env.GITHUB_TOKEN).toBeUndefined();
+    expect(env.CARGO_HOME).toBe('/fixture/cargo');
+    expect(env.RUSTUP_HOME).toBe('/fixture/rustup');
+  });
+
+  test('private runtime fixture preparation rejects a symlink without changing its target', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-private-link-test-'));
+    const target = join(fixture, 'target');
+    const link = join(fixture, 'link');
+    try {
+      mkdirSync(target, { mode: 0o755 });
+      chmodSync(target, 0o755);
+      symlinkSync(target, link);
+      expect(() => prepareOwnedPrivateDirectory(link)).toThrow(/real directory/i);
+      expect(statSync(target).mode & 0o777).toBe(0o755);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test('child-exit proof settles for fast failures and remains readable after close', async () => {
+    const child = spawn(process.execPath, ['-e', 'process.exit(7)'], {
+      stdio: 'ignore',
+      env: secretFreeBaseEnv(),
+    });
+    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
+    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
+  });
+
+  test('bounded server cleanup rejects instead of leaving the suite await unsettled', async () => {
+    const neverCloses = { close() {} };
+    await expect(closeServerBoundedly(neverCloses, 10, 'stuck fixture')).rejects.toThrow(
+      /stuck fixture did not close within 10ms/,
+    );
+  });
+
   test('cleanup proof rejects a symlink that escapes the owned synthetic root', () => {
     const base = join(homedir(), 'coding', 'tmp');
     mkdirSync(base, { recursive: true });
@@ -204,6 +330,22 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('matrixEnvRequired: false');
     expect(runner).toContain('PORT_DADDY_DB: db');
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
+    expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra)');
+    expect(runner).not.toContain('PORT_DADDY_ISOLATED_TEST');
+    expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
+    expect(runner).toContain("'sitrep',\n          '--json'");
+    expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
+    expect(runner).toContain("claimPath: 'LINKED.md'");
+    expect(runner).toContain("project: 'rc-e2e-alpha-original'");
+    expect(runner).toContain("project: 'rc-e2e-alpha-renamed'");
+    expect(runner).toContain('`${spec.project}:coordination:${spec.label}`');
+    expect(runner).toContain('pd-unix-claim-${spec.label}');
+    expect(runner).toContain("label: 'pd-unix-conflict-alpha-linked'");
+    expect(runner).toContain('shared-family duplicate claim was not refused with conflict evidence');
+    expect(runner).toContain('sharedFamilyConflictRefused: true');
+    expect(runner.indexOf("label: `pd-unix-claim-${spec.label}`")).toBeLessThan(
+      runner.indexOf("label: 'pd-unix-conflict-alpha-linked'"),
+    );
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
@@ -217,6 +359,26 @@ describe('release-candidate E2E contract', () => {
     ]) {
       expect(matrix.cases.find((testCase) => testCase.id === id)?.timeoutSeconds).toBeGreaterThanOrEqual(150);
     }
+  });
+
+  test('compiled CLI smoke isolates host scans and proves safe-corral dry-run immutability', () => {
+    const smoke = readFileSync(join(repoRoot, 'scripts', 'e2e-compiled-cli-surface.sh'), 'utf8');
+    expect(smoke).toContain('CLI_HOME="$SCRATCH/home"');
+    const daemonLaunch = smoke.slice(
+      smoke.indexOf('PORT_DADDY_PORT="$PORT" \\'),
+      smoke.indexOf('DAEMON_PID=$!'),
+    );
+    const cliHelper = smoke.slice(smoke.indexOf('cli() {'), smoke.indexOf('# Bookkeeping.'));
+    expect(daemonLaunch).toContain('HOME="$CLI_HOME" \\');
+    expect(cliHelper).toContain('HOME="$CLI_HOME" \\');
+    expect(smoke).toContain('__corral_fixture="$CLI_HOME/.env"');
+    expect(smoke).toContain('__corral_before="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('if __corral_out="$(cli safe corral --all 2>&1)"; then');
+    expect(smoke).toContain('__corral_status=$?');
+    expect(smoke).toContain('[ "$__corral_status" -eq 0 ]');
+    expect(smoke).not.toContain('cli safe corral --all 2>/dev/null || true');
+    expect(smoke).toContain('__corral_after="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('[ "$__corral_before" = "$__corral_after" ]');
   });
 
   test('stage-validation failure writes a failing result without inventing case passes', () => {

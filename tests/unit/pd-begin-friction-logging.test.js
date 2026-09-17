@@ -261,6 +261,56 @@ describe('sugar_begin route rejection logging', () => {
     await app.close();
   });
 
+  test('a repository-family file conflict is returned as HTTP 409', async () => {
+    const Fastify = (await import('fastify')).default;
+    const { sugarPlugin } = await import('../../routes/sugar.js');
+    const warn = jest.fn();
+    const app = Fastify();
+    const conflict = {
+      sessionId: 'session-owner',
+      filePath: '/repo/shared.ts',
+    };
+
+    await app.register(sugarPlugin, {
+      deps: {
+        sugar: {
+          begin: jest.fn(() => ({
+            success: false,
+            error: 'File conflicts detected',
+            code: 'FILE_CONFLICT',
+            conflicts: [conflict],
+          })),
+        },
+        metrics: { errors: 0 },
+        logger: { info: jest.fn(), warn, error: jest.fn() },
+        actorSouls: createTestActorSouls(createTestDb()),
+      },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: {
+        purpose: 'claim a shared file',
+        identity: 'demo:test:conflict',
+        lifecycle: 'durable',
+        files: ['/repo/shared.ts'],
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [conflict],
+    });
+    expect(warn).toHaveBeenCalledWith(
+      'sugar_begin_rejected',
+      expect.objectContaining({ code: 'FILE_CONFLICT', fileCount: 1 }),
+    );
+    await app.close();
+  });
+
   test('a successful begin does not log a rejection', async () => {
     const Fastify = (await import('fastify')).default;
     const { sugarPlugin } = await import('../../routes/sugar.js');

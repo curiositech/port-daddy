@@ -9,6 +9,7 @@
 import type Database from 'better-sqlite3';
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { claimRepositoryIdForSession } from './claim-forest.js';
 import { getWorktreeInfo } from './worktree.js';
 
 export type AdviceSeverity = 'info' | 'warning' | 'critical';
@@ -119,6 +120,7 @@ interface ClaimRow extends SessionRow {
 
 interface ClaimScope {
   repoId: string;
+  project: string;
   worldId: string;
   root: string;
 }
@@ -224,7 +226,8 @@ function sessionAnchor(session: SessionRow): { root: string; id: string } | null
  */
 function sessionMatchesScope(session: SessionRow, scope: ClaimScope): boolean {
   const anchor = sessionAnchor(session);
-  return (compact(session.identity_project) ?? 'local') === scope.repoId
+  return (compact(session.identity_project) ?? 'local') === scope.project
+    && claimRepositoryIdForSession(session) === scope.repoId
     && session.worktree_id === scope.worldId
     && anchor?.id === scope.worldId
     && anchor.root === scope.root;
@@ -335,7 +338,7 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
        WHERE status = 'active' AND worktree_id = ?
          AND COALESCE(NULLIF(TRIM(identity_project), ''), 'local') = ?
        ORDER BY updated_at DESC`
-    ).all(scope.worldId, scope.repoId) as SessionRow[];
+    ).all(scope.worldId, scope.project) as SessionRow[];
     return rows.filter(row => sessionMatchesScope(row, scope)).slice(0, 20);
   }
 
@@ -355,7 +358,7 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       args.push(sessionId);
     } else if (scope) {
       clauses.push("s.status = 'active'", 's.worktree_id = ?', "COALESCE(NULLIF(TRIM(s.identity_project), ''), 'local') = ?");
-      args.push(scope.worldId, scope.repoId);
+      args.push(scope.worldId, scope.project);
     }
     const forestFields = tables.claimForest
       ? 'fc.id AS forest_claim_id, fn.repo_id AS forest_repo_id, fn.world_kind AS forest_world_kind, fn.world_id AS forest_world_id, fc.released_at AS forest_released_at'
@@ -414,7 +417,15 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
     const task = compact(input.task);
     const selectedSession = getSession(sessionId);
     const project = projectFromInput(input, selectedSession);
-    const scope: ClaimScope | null = worktreeId ? { repoId: project ?? 'local', worldId: worktreeId, root: projectRoot } : null;
+    const scope: ClaimScope | null = worktreeId && worktree ? {
+      repoId: claimRepositoryIdForSession({
+        identityProject: project,
+        metadata: { worktree },
+      }),
+      project: project ?? 'local',
+      worldId: worktreeId,
+      root: projectRoot,
+    } : null;
     const requestedFiles = uniqueStrings([...(input.files ?? []), ...(input.changedFiles ?? [])]);
     const projectedFiles = requestedFiles.map(file => ({ file, projected: projectFile(projectRoot, file) }));
     const files = [...new Set(projectedFiles.flatMap(item => item.projected ? [item.projected.absolutePath] : []))];
@@ -445,6 +456,7 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
           { label: 'projectRoot', value: projectRoot, path: projectRoot },
           { label: 'worktreeId', value: worktreeId },
           { label: 'repositoryId', value: scope?.repoId ?? project },
+          { label: 'semanticProject', value: scope?.project ?? project },
           { label: 'sessionId', value: sessionId },
           { label: 'recordedWorktreeId', value: selectedSession?.worktree_id ?? null },
           { label: 'recordedRoot', value: anchor?.root ?? null },

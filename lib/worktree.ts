@@ -6,6 +6,7 @@
 
 import { execSync, type ExecSyncOptionsWithStringEncoding } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
 
 export interface WorktreeInfo {
   /** Absolute path to the worktree root */
@@ -35,19 +36,26 @@ function gitExecOptions(cwd?: string): ExecSyncOptionsWithStringEncoding {
  */
 export function getWorktreeInfo(cwd?: string): WorktreeInfo | null {
   const opts = gitExecOptions(cwd);
+  const invocationDir = resolve(cwd ?? process.cwd());
 
   try {
     // Get worktree root
     const root = execSync('git rev-parse --show-toplevel', opts).toString().trim();
     
     // Get common git dir (shared across all worktrees of a repo)
-    const commonDir = execSync('git rev-parse --git-common-dir', opts).toString().trim();
+    const commonDir = resolve(
+      invocationDir,
+      execSync('git rev-parse --git-common-dir', opts).toString().trim(),
+    );
     
     // Get current git dir
-    const gitDir = execSync('git rev-parse --git-dir', opts).toString().trim();
+    const gitDir = resolve(
+      invocationDir,
+      execSync('git rev-parse --git-dir', opts).toString().trim(),
+    );
     
     // Determine if main or linked worktree
-    const isMain = commonDir === gitDir || commonDir === '.git' || commonDir === '.';
+    const isMain = commonDir === gitDir;
     
     // Get current branch
     let branch: string | null = null;

@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
+import { createClaimForest, PROJECTLESS_REPO_ID } from '../../lib/claim-forest.js';
 import { createSessions } from '../../lib/sessions.js';
 
 describe('Region-Level File Claims', () => {
@@ -221,10 +222,147 @@ describe('Region-Level File Claims', () => {
       expect(claims.claims[0]).toMatchObject({
         sessionId: sid,
         filePath: 'src/routes.ts',
-        repoId: 'local',
+        repoId: PROJECTLESS_REPO_ID,
         worldKind: 'worktree',
         nodeId: expect.any(String),
       });
+    });
+
+    it.each([
+      {
+        label: 'whole-file',
+        selector: {
+          kind: 'file',
+          path: 'src/legacy-file.ts',
+        },
+        region: {
+          path: 'src/legacy-file.ts',
+        },
+      },
+      {
+        label: 'symbol',
+        selector: {
+          kind: 'symbol',
+          path: 'src/legacy-symbol.ts',
+          symbol: 'render',
+          symbolPath: 'LegacyView.render',
+          startLine: 10,
+          endLine: 20,
+        },
+        region: {
+          path: 'src/legacy-symbol.ts',
+          symbol: 'render',
+          symbolPath: 'LegacyView.render',
+          startLine: 10,
+          endLine: 20,
+        },
+      },
+      {
+        label: 'range',
+        selector: {
+          kind: 'range',
+          path: 'src/legacy-range.ts',
+          startLine: 30,
+          endLine: 40,
+        },
+        region: {
+          path: 'src/legacy-range.ts',
+          startLine: 30,
+          endLine: 40,
+        },
+      },
+      {
+        label: 'unqualified symbol',
+        selector: {
+          kind: 'symbol',
+          path: 'src/legacy-unqualified-symbol.ts',
+          symbol: 'render',
+        },
+        region: {
+          path: 'src/legacy-unqualified-symbol.ts',
+          symbol: 'render',
+        },
+      },
+    ])('should replace a legacy projectless $label claim without duplicate ownership evidence', ({ selector, region }) => {
+      const owner = sessions.start('legacy projectless owner', {
+        agentId: 'agent-owner',
+        worktreeId: 'legacy-projectless',
+      });
+      expect(owner.success).toBe(true);
+
+      const legacyRow = db.prepare(`
+        INSERT INTO session_files (
+          session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+      `).run(
+        owner.id,
+        selector.path,
+        selector.startLine ?? null,
+        selector.endLine ?? null,
+        selector.symbol ?? null,
+        selector.symbolPath ?? null,
+        1700,
+      );
+      const forest = createClaimForest(db);
+      forest.claim({
+        repoId: 'local',
+        world: { kind: 'worktree', id: 'legacy-projectless' },
+        selector,
+      }, {
+        sessionId: owner.id,
+        agentId: 'agent-owner',
+        claimedAt: 1700,
+        observedBy: 'legacy-daemon',
+        legacySessionFileId: Number(legacyRow.lastInsertRowid),
+      });
+      for (const worldKind of ['ref', 'commit', 'harbor']) {
+        forest.claim({
+          repoId: 'local',
+          world: { kind: worldKind, id: `legacy-${worldKind}` },
+          selector,
+        }, {
+          sessionId: owner.id,
+          agentId: 'agent-owner',
+          claimedAt: 1750,
+          observedBy: 'immutable-world-owner',
+        });
+      }
+
+      const reclaimed = sessions.claimFiles(owner.id, [], { regions: [region] });
+      expect(reclaimed.success).toBe(true);
+
+      const activeLegacyRows = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM session_files
+        WHERE session_id = ? AND file_path = ? AND released_at IS NULL
+      `).get(owner.id, selector.path);
+      const activeForestRows = db.prepare(`
+        SELECT n.world_kind AS worldKind, COUNT(*) AS count,
+               MIN(n.repo_id) AS repoId
+        FROM claim_forest_claims c
+        JOIN claim_forest_nodes n ON n.id = c.node_id
+        WHERE c.session_id = ? AND n.path = ? AND c.released_at IS NULL
+        GROUP BY n.world_kind
+        ORDER BY n.world_kind
+      `).all(owner.id, selector.path);
+      expect(activeLegacyRows.count).toBe(1);
+      expect(activeForestRows).toEqual([
+        { worldKind: 'commit', count: 1, repoId: 'local' },
+        { worldKind: 'harbor', count: 1, repoId: 'local' },
+        { worldKind: 'ref', count: 1, repoId: 'local' },
+        { worldKind: 'worktree', count: 1, repoId: PROJECTLESS_REPO_ID },
+      ]);
+
+      const challenger = sessions.start('projectless challenger', {
+        agentId: 'agent-challenger',
+        worktreeId: 'legacy-projectless',
+      });
+      expect(challenger.success).toBe(true);
+      const challenged = sessions.claimFiles(challenger.id, [], { regions: [region] });
+      expect(challenged.success).toBe(true);
+      expect(challenged.conflicts).toHaveLength(1);
+      expect(challenged.conflicts[0].sessionId).toBe(owner.id);
     });
 
     it('should read active claims from the forest after legacy session_files rows are gone', () => {

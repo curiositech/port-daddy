@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
+import { createClaimForest } from '../../lib/claim-forest.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createAgents } from '../../lib/agents.js';
 import { ActivityType } from '../../lib/activity.js';
@@ -83,6 +84,25 @@ describe('Sessions Module', () => {
       expect(result.success).toBe(false);
       expect(result.code).toBe('VALIDATION_ERROR');
       expect(result.error).toMatch(/agentId/);
+    });
+
+    it('should reserve the projectless claim sentinel at the canonical session writer', () => {
+      for (const project of ['@projectless', ' @projectless ', '', '   ']) {
+        const result = sessions.start('Work item', { project });
+        expect(result.success).toBe(false);
+        expect(result.code).toBe('VALIDATION_ERROR');
+        expect(result.error).toMatch(/project/);
+      }
+      expect(sessions.list({}).sessions).toHaveLength(0);
+    });
+
+    it('should reject non-string projects from untyped callers', () => {
+      const result = sessions.start('Work item', { project: 42 });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('VALIDATION_ERROR');
+      expect(result.error).toMatch(/project/);
+      expect(sessions.list({}).sessions).toHaveLength(0);
     });
 
     it('should accept metadata option', () => {
@@ -428,6 +448,27 @@ describe('Sessions Module', () => {
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('SESSION_NOT_FOUND');
+    });
+
+    it('should atomically reject a successor that requests the projectless claim sentinel', () => {
+      const started = sessions.start('Reserved scope predecessor', {
+        agentId: 'old-agent',
+        project: 'port-daddy',
+        files: ['src/a.ts'],
+      });
+      sessions.abandon(started.id);
+
+      const result = sessions.takeover(started.id, {
+        agentId: 'old-agent',
+        project: '@projectless',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('VALIDATION_ERROR');
+      expect(result.error).toMatch(/projectless/);
+      expect(sessions.list({}).sessions).toHaveLength(1);
+      expect(sessions.get(started.id).session.status).toBe('abandoned');
+      expect(sessions.get(started.id).files.filter(file => file.releasedAt === null)).toHaveLength(0);
     });
   });
 
@@ -1087,6 +1128,125 @@ describe('Sessions Module', () => {
       const result = sessions.getFileConflicts(['src/shared.ts']);
 
       expect(result.conflicts).toHaveLength(2);
+    });
+
+    it('should scope preflight conflicts to the requested project across worktrees', () => {
+      const alphaMain = sessions.start('Alpha main', { project: 'alpha', worktreeId: 'alpha-main' });
+      const alphaLinked = sessions.start('Alpha linked', { project: 'alpha', worktreeId: 'alpha-linked' });
+      const betaMain = sessions.start('Beta main', { project: 'beta', worktreeId: 'beta-main' });
+      sessions.claimFiles(alphaMain.id, ['README.md']);
+      sessions.claimFiles(betaMain.id, ['README.md']);
+      const forest = createClaimForest(db);
+      for (const worldKind of ['ref', 'commit', 'harbor']) {
+        forest.claim({
+          repoId: 'alpha',
+          world: { kind: worldKind, id: `alpha-${worldKind}` },
+          selector: { kind: 'file', path: 'README.md' },
+        }, {
+          sessionId: alphaMain.id,
+          agentId: 'alternate-world-owner',
+          observedBy: 'sessions.test',
+        });
+      }
+
+      const alpha = sessions.getFileConflicts(['README.md'], { repositoryId: 'alpha' });
+      const beta = sessions.getFileConflicts(['README.md'], { repositoryId: 'beta' });
+      const unscoped = sessions.getFileConflicts(['README.md'], { repositoryId: null });
+
+      expect(alpha.conflicts.map((conflict) => conflict.sessionId)).toEqual([alphaMain.id]);
+      expect(beta.conflicts.map((conflict) => conflict.sessionId)).toEqual([betaMain.id]);
+      expect(unscoped.conflicts).toHaveLength(0);
+      expect(alphaLinked.success).toBe(true);
+    });
+
+    it('should scope region preflight across worktrees without blocking adjacent ranges', () => {
+      const alphaMain = sessions.start('Alpha region owner', { project: 'alpha', worktreeId: 'alpha-main' });
+      const alphaLinked = sessions.start('Alpha region claimant', { project: 'alpha', worktreeId: 'alpha-linked' });
+      const betaMain = sessions.start('Beta region owner', { project: 'beta', worktreeId: 'beta-main' });
+      const heldRegion = {
+        path: 'src/regions.ts',
+        startLine: 10,
+        endLine: 20,
+        symbolPath: 'RegionOwner.render',
+      };
+      expect(sessions.claimFiles(alphaMain.id, [], { regions: [heldRegion] }).success).toBe(true);
+      expect(sessions.claimFiles(alphaLinked.id, [], { regions: [heldRegion] }).success).toBe(true);
+      expect(sessions.claimFiles(betaMain.id, [], { regions: [heldRegion] }).success).toBe(true);
+      const forest = createClaimForest(db);
+      for (const worldKind of ['ref', 'commit', 'harbor']) {
+        forest.claim({
+          repoId: 'alpha',
+          world: { kind: worldKind, id: `alpha-${worldKind}` },
+          selector: { kind: 'symbol', ...heldRegion },
+        }, {
+          sessionId: alphaMain.id,
+          agentId: 'alternate-world-owner',
+          observedBy: 'sessions.test',
+        });
+      }
+
+      const alpha = sessions.getRegionConflicts([heldRegion], {
+        repositoryId: 'alpha',
+        excludeSessionId: alphaLinked.id,
+      });
+      const beta = sessions.getRegionConflicts([heldRegion], { repositoryId: 'beta' });
+      const rangeOverlap = sessions.getRegionConflicts([{
+        path: 'src/regions.ts',
+        startLine: 15,
+        endLine: 25,
+      }], {
+        repositoryId: 'alpha',
+        excludeSessionId: alphaLinked.id,
+      });
+      const adjacent = sessions.getRegionConflicts([{
+        path: 'src/regions.ts',
+        startLine: 21,
+        endLine: 30,
+      }], {
+        repositoryId: 'alpha',
+        excludeSessionId: alphaLinked.id,
+      });
+
+      expect(alpha.success).toBe(true);
+      expect(alpha.conflicts.map((conflict) => conflict.sessionId)).toEqual([alphaMain.id]);
+      expect(beta.conflicts.map((conflict) => conflict.sessionId)).toEqual([betaMain.id]);
+      expect(rangeOverlap.conflicts.map((conflict) => conflict.sessionId)).toEqual([alphaMain.id]);
+      expect(adjacent.conflicts).toEqual([]);
+    });
+
+    it('should keep unresolved symbol-only preflight fail-closed across worktrees', () => {
+      const owner = sessions.start('Symbol owner', { project: 'alpha', worktreeId: 'alpha-main' });
+      const claimant = sessions.start('Symbol claimant', { project: 'alpha', worktreeId: 'alpha-linked' });
+      expect(sessions.claimFiles(owner.id, [], {
+        regions: [{ path: 'src/symbols.ts', symbol: 'render' }],
+      }).success).toBe(true);
+
+      const result = sessions.getRegionConflicts([{
+        path: 'src/symbols.ts',
+        symbol: 'update',
+      }], {
+        repositoryId: 'alpha',
+        excludeSessionId: claimant.id,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.conflicts).toEqual([expect.objectContaining({
+        sessionId: owner.id,
+        filePath: 'src/symbols.ts',
+        symbol: 'render',
+      })]);
+    });
+
+    it('should not collapse the valid local project into the projectless scope', () => {
+      const projectless = sessions.start('Projectless', { worktreeId: 'projectless-main' });
+      const literalLocal = sessions.start('Literal local', { project: 'local', worktreeId: 'local-main' });
+      sessions.claimFiles(projectless.id, ['README.md']);
+      sessions.claimFiles(literalLocal.id, ['README.md']);
+
+      expect(sessions.getFileConflicts(['README.md'], { repositoryId: null }).conflicts
+        .map((conflict) => conflict.sessionId)).toEqual([projectless.id]);
+      expect(sessions.getFileConflicts(['README.md'], { repositoryId: 'local' }).conflicts
+        .map((conflict) => conflict.sessionId)).toEqual([literalLocal.id]);
     });
 
     it('should ignore unreleased zombie rows from inactive sessions', () => {

@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -182,6 +184,94 @@ export function resolveDurableTestRoot(candidate, { home = homedir(), sourceRoot
   return root;
 }
 
+/**
+ * Prepare a private directory owned by the synthetic release-candidate harness.
+ * Unlike runtime key storage, the harness may repair this directory because it
+ * created and exclusively owns the whole fixture tree.
+ */
+export function prepareOwnedPrivateDirectory(path) {
+  const resolved = resolve(path);
+  mkdirSync(resolved, { recursive: true, mode: 0o700 });
+  const before = lstatSync(resolved);
+  if (!before.isDirectory() || before.isSymbolicLink()) {
+    throw new Error(`private fixture path must be a real directory: ${resolved}`);
+  }
+  chmodSync(resolved, 0o700);
+  const after = lstatSync(resolved);
+  if (!after.isDirectory() || after.isSymbolicLink() || (after.mode & 0o777) !== 0o700) {
+    throw new Error(`private fixture directory must have mode 0700: ${resolved}`);
+  }
+  return resolved;
+}
+
+/** Prepare every private directory inherited by a release-candidate child. */
+export function prepareReleaseCandidateRunDirectories(root) {
+  const resolvedRoot = resolve(root);
+  for (const name of ['build-home', 'build-scratch', 'control', 'tmp']) {
+    prepareOwnedPrivateDirectory(join(resolvedRoot, name));
+  }
+  return resolvedRoot;
+}
+
+/**
+ * Wait for a spawned fixture to terminate without missing a fast `close`
+ * event. Some launchers fail before Node records an `exitCode`, so listening
+ * only for `exit` can leave a top-level release-candidate await unresolved.
+ */
+export function waitForChildExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
+  }
+  return new Promise((resolveExit, rejectExit) => {
+    let settled = false;
+    let timer;
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      child.off('exit', done);
+      child.off('close', done);
+      child.off('error', failed);
+    };
+    const finish = (value, error = null) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (error) rejectExit(error);
+      else resolveExit(value);
+    };
+    const done = (code, signal) => finish({ code, signal });
+    const failed = (error) => finish(null, error);
+    child.once('exit', done);
+    child.once('close', done);
+    child.once('error', failed);
+    timer = setTimeout(() => finish(null), timeoutMs);
+  });
+}
+
+/** Close a fixture server with an explicit deadline so cleanup always settles. */
+export function closeServerBoundedly(server, timeoutMs = 3_000, label = 'fixture server', sockets = []) {
+  return new Promise((resolveClose, rejectClose) => {
+    let settled = false;
+    let timer;
+    const finish = (error = null) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (error) rejectClose(error);
+      else resolveClose();
+    };
+    timer = setTimeout(
+      () => finish(new Error(`${label} did not close within ${timeoutMs}ms`)),
+      timeoutMs,
+    );
+    try {
+      for (const socket of sockets) socket.destroy();
+      server.close((error) => finish(error || null));
+    } catch (error) {
+      finish(error);
+    }
+  });
+}
+
 export function isWithin(path, parent) {
   const rel = relative(resolve(parent), resolve(path));
   return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
@@ -272,6 +362,28 @@ export function secretFreeBaseEnv(env = process.env) {
     'USER',
   ]);
   return Object.fromEntries(Object.entries(env).filter(([name, value]) => keep.has(name) && typeof value === 'string'));
+}
+
+/** Build the private environment shared by release-candidate build and run phases. */
+export function releaseCandidateIsolatedEnv(root, extra = {}, { env = process.env, home = homedir() } = {}) {
+  const resolvedRoot = resolve(root);
+  return {
+    ...secretFreeBaseEnv(env),
+    CI: env.CI || '1',
+    CARGO_HOME: env.CARGO_HOME || join(home, '.cargo'),
+    HOME: join(resolvedRoot, 'build-home'),
+    NO_COLOR: '1',
+    PD_SCRATCH_ROOT: join(resolvedRoot, 'build-scratch'),
+    PD_HOME: join(resolvedRoot, 'control'),
+    RUSTUP_HOME: env.RUSTUP_HOME || join(home, '.rustup'),
+    TERM: 'dumb',
+    TMPDIR: join(resolvedRoot, 'tmp'),
+    USERPROFILE: join(resolvedRoot, 'build-home'),
+    ...extra,
+    // A private PD_HOME must never consult or mutate the operator's canonical
+    // Keychain identity. Its mandatory note key is generated inside PD_HOME.
+    PORT_DADDY_DISABLE_KEYCHAIN: '1',
+  };
 }
 
 /**

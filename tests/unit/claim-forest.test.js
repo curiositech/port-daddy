@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
-import { createClaimForest } from '../../lib/claim-forest.js';
+import {
+  claimRepositoryScopeForSession,
+  createClaimForest,
+  PROJECTLESS_REPO_ID,
+  UNRESOLVED_GIT_FAMILY_REPO_ID,
+} from '../../lib/claim-forest.js';
 import { createSessions } from '../../lib/sessions.js';
 
 describe('claim forest store', () => {
@@ -326,6 +331,97 @@ describe('claim forest store', () => {
     });
   });
 
+  it('persists a recovered legacy Git family before the recorded checkout disappears', () => {
+    const sessions = createSessions(db);
+    const root = process.cwd();
+    const started = sessions.start('legacy rooted claim', {
+      agentId: 'agent-a',
+      project: 'old-label',
+      worktreeId: 'legacy-wt',
+      metadata: {
+        worktree: { id: 'legacy-wt', root, name: 'legacy-wt', branch: null, isMain: false },
+      },
+    });
+    expect(started.success).toBe(true);
+    expect(sessions.claimFiles(started.id, ['README.md'], { agentId: 'agent-a' }).success).toBe(true);
+
+    // A read performs the one-time migration while the legacy checkout can
+    // still prove its common directory.
+    expect(sessions.getFileConflicts(['README.md']).conflicts).toHaveLength(1);
+    const persisted = db.prepare(`
+      SELECT repository_id AS repositoryId
+      FROM claim_repository_families
+      WHERE session_id = ?
+    `).get(started.id);
+    expect(persisted.repositoryId).toMatch(/^git-family:/);
+
+    db.prepare('UPDATE sessions SET identity_project = ?, metadata = ? WHERE id = ?').run(
+      'renamed-label',
+      JSON.stringify({
+        worktree: {
+          id: 'legacy-wt',
+          root: '/definitely/missing/legacy-worktree',
+          name: 'legacy-wt',
+          branch: null,
+          isMain: false,
+        },
+      }),
+      started.id,
+    );
+
+    const restarted = createClaimForest(db);
+    expect(restarted.getActiveClaimsForFile('README.md', {
+      repoId: persisted.repositoryId,
+      worldKind: 'worktree',
+    }).map(claim => claim.sessionId)).toEqual([started.id]);
+  });
+
+  it('fails closed when an active legacy checkout vanished before family migration', () => {
+    const sessions = createSessions(db);
+    const started = sessions.start('unresolved legacy claim', {
+      agentId: 'agent-a',
+      project: 'old-label',
+      worktreeId: 'legacy-wt',
+    });
+    expect(started.success).toBe(true);
+    expect(sessions.claimFiles(started.id, ['README.md'], { agentId: 'agent-a' }).success).toBe(true);
+
+    // Rehydrate the shape written by a pre-commonDir daemon after its linked
+    // checkout has already been removed.
+    db.prepare('UPDATE sessions SET metadata = ? WHERE id = ?').run(JSON.stringify({
+      worktree: {
+        id: 'legacy-wt',
+        root: '/definitely/missing/unmigrated-worktree',
+        name: 'legacy-wt',
+        branch: null,
+        isMain: false,
+      },
+    }), started.id);
+
+    const modernScope = claimRepositoryScopeForSession({
+      identityProject: 'renamed-label',
+      metadata: {
+        worktree: {
+          id: 'modern-wt',
+          root: '/repos/modern/wt',
+          name: 'modern-wt',
+          branch: null,
+          isMain: false,
+          commonDir: '/repos/modern/.git',
+        },
+      },
+    });
+    expect(modernScope.compatibleLegacyRepositoryIds).toContain(UNRESOLVED_GIT_FAMILY_REPO_ID);
+
+    const conflicts = sessions.getFileConflicts(['README.md'], {
+      repositoryId: modernScope.repositoryId,
+      compatibleLegacyRepositoryIds: modernScope.compatibleLegacyRepositoryIds,
+    });
+    expect(conflicts.conflicts).toEqual([
+      expect.objectContaining({ sessionId: started.id, filePath: 'README.md' }),
+    ]);
+  });
+
   it('drains legacy backfill batches so active rows past the first limit stay visible', () => {
     const sessions = createSessions(db);
     const started = sessions.start('large legacy backlog', {
@@ -385,7 +481,7 @@ describe('claim forest store', () => {
     });
   });
 
-  it('uses local/unscoped defaults when old rows lack repo and worktree identity', () => {
+  it('uses a reserved projectless scope when old rows lack repo and worktree identity', () => {
     const sessions = createSessions(db);
     const started = sessions.start('identity-free legacy claim', { agentId: 'agent-a' });
     expect(started.success).toBe(true);
@@ -401,9 +497,39 @@ describe('claim forest store', () => {
     expect(forest.backfillFromSessionFiles()).toBe(1);
 
     expect(forest.getActiveClaimsForFile('lib/unscoped.ts')[0]).toMatchObject({
-      repoId: 'local',
+      repoId: PROJECTLESS_REPO_ID,
       worldKind: 'worktree',
       worldId: 'unscoped',
     });
+  });
+
+  it('keeps a literal local project distinct from projectless claims, including legacy local nodes', () => {
+    const sessions = createSessions(db);
+    const projectless = sessions.start('Projectless claim', { worktreeId: 'projectless-wt' });
+    const literalLocal = sessions.start('Literal local project', { project: 'local', worktreeId: 'local-wt' });
+    expect(projectless.success).toBe(true);
+    expect(literalLocal.success).toBe(true);
+
+    sessions.claimFiles(projectless.id, ['README.md']);
+    sessions.claimFiles(literalLocal.id, ['README.md']);
+
+    // Simulate the single shared node written by older builds. Read scope must
+    // come from each immutable session row, not this lossy projection.
+    const literalLocalNode = db.prepare(`
+      SELECT node_id AS nodeId
+      FROM claim_forest_claims
+      WHERE session_id = ?
+    `).get(literalLocal.id).nodeId;
+    db.prepare(`
+      UPDATE claim_forest_claims
+      SET node_id = ?
+      WHERE session_id = ?
+    `).run(literalLocalNode, projectless.id);
+
+    const forest = createClaimForest(db);
+    expect(forest.getActiveClaimsForFile('README.md', { repoId: null }).map((claim) => claim.sessionId))
+      .toEqual([projectless.id]);
+    expect(forest.getActiveClaimsForFile('README.md', { repoId: 'local' }).map((claim) => claim.sessionId))
+      .toEqual([literalLocal.id]);
   });
 });

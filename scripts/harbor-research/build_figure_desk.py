@@ -93,6 +93,10 @@ committed source, or explicitly CURATED and named as such below.
                 here, and the drift against the live `bookPage` is REPORTED
                 (see --report) rather than applied. Re-render the JPGs and
                 rewrite this file together, never one without the other.
+                A drawn figure whose JPG has not been published is recorded
+                under `unpublished`, gets pagePublication="unpublished", and
+                keeps `page` null. Finding a caption in the Book proves
+                bookPage; it is not a publication receipt.
 
   UNDRAWN[].id  desk-curated/UNDRAWN-IDS.json
                 A triage `add` row has no identifier of its own -- its
@@ -353,13 +357,39 @@ def attach_book_pages(figs: list[dict]) -> None:
 
 
 def attach_render_pages(figs: list[dict], render_pages: dict) -> list[str]:
-    """page: pinned, because the published page JPGs and every region note use it."""
+    """Attach only receipted page JPGs; report figures with no publication state."""
     pinned = render_pages.get("pages", {})
+    unpublished = render_pages.get("unpublished", {})
+    if not isinstance(pinned, dict) or not isinstance(unpublished, dict):
+        raise ValueError("render pages and unpublished entries must be JSON objects")
+    invalid_notes = sorted(
+        fid for fid, note in unpublished.items()
+        if not isinstance(note, str) or not note.strip()
+    )
+    if invalid_notes:
+        raise ValueError(
+            "unpublished page entries require a non-empty reason: "
+            + ", ".join(invalid_notes)
+        )
+    overlap = set(pinned) & set(unpublished)
+    if overlap:
+        raise ValueError(
+            "render pages cannot be both published and unpublished: "
+            + ", ".join(sorted(overlap))
+        )
     missing = []
     for f in figs:
         p = pinned.get(f["id"])
         f["page"] = p
-        if p is None:
+        if p is not None:
+            f["pagePublication"] = "published"
+            f["pagePublicationNote"] = None
+        elif f["id"] in unpublished:
+            f["pagePublication"] = "unpublished"
+            f["pagePublicationNote"] = unpublished[f["id"]].strip()
+        else:
+            f["pagePublication"] = "unknown"
+            f["pagePublicationNote"] = None
             missing.append(f["id"])
     return missing
 
@@ -952,6 +982,15 @@ def build() -> tuple[list[tuple[str, str]], dict]:
             for f in figs
             if f["page"] is not None and f["bookPage"] is not None and f["page"] != f["bookPage"]
         ],
+        "unpublishedPages": [
+            {
+                "id": f["id"],
+                "bookPage": f["bookPage"],
+                "reason": f["pagePublicationNote"],
+            }
+            for f in figs
+            if f["pagePublication"] == "unpublished"
+        ],
     }
 
     findings_payload = {
@@ -970,6 +1009,7 @@ def build() -> tuple[list[tuple[str, str]], dict]:
             "deskOnly": recon["deskOnly"],
             "judgedOnly": recon["judgedOnly"],
             "renderDrift": recon["renderDrift"],
+            "unpublishedPages": recon["unpublishedPages"],
         },
         "contactSheets": sorted(
             f"docs/pr-assets/figures-pixel-judgment/{n}"

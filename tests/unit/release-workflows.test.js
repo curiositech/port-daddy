@@ -105,6 +105,91 @@ describe('release workflow topology contracts', () => {
     expect(binaryJob).not.toContain('dtolnay/rust-toolchain');
   });
 
+  test('Harbor research rebuilds use a source-bound clock that ignores unrelated commits', () => {
+    const workflowSource = readWorkflow('harbor-research-build.yml');
+    const workflow = parseYaml(workflowSource);
+    const renderStep = workflow.jobs.build.steps.find(
+      (step) => step.name === 'Render the harbor-research corpus',
+    );
+    const scriptSource = readFileSync(join(ROOT, 'scripts', 'render-harbor-research.sh'), 'utf8');
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const scratch = mkdtempSync(join(scratchRoot, 'harbor-render-clock-'));
+    const capture = join(scratch, 'render-env');
+
+    const git = (args, timestamp) => {
+      const result = spawnSync('git', args, {
+        cwd: scratch,
+        encoding: 'utf8',
+        env: {
+          PATH: '/usr/bin:/bin',
+          GIT_CONFIG_GLOBAL: '/dev/null',
+          GIT_CONFIG_NOSYSTEM: '1',
+          GIT_AUTHOR_NAME: 'Synthetic Harbor author',
+          GIT_AUTHOR_EMAIL: 'harbor@example.invalid',
+          GIT_COMMITTER_NAME: 'Synthetic Harbor committer',
+          GIT_COMMITTER_EMAIL: 'harbor@example.invalid',
+          ...(timestamp ? {
+            GIT_AUTHOR_DATE: `@${timestamp} +0000`,
+            GIT_COMMITTER_DATE: `@${timestamp} +0000`,
+          } : {}),
+        },
+      });
+      if (result.status !== 0) {
+        throw new Error(`Synthetic Harbor Git command failed: ${args.join(' ')}\n${result.stderr}`);
+      }
+    };
+
+    try {
+      mkdirSync(join(scratch, 'scripts'), { recursive: true });
+      mkdirSync(join(scratch, 'docs', 'harbor-research', 'tex'), { recursive: true });
+      mkdirSync(join(scratch, 'docs', 'harbor-research', 'figures'), { recursive: true });
+      mkdirSync(join(scratch, 'bin'), { recursive: true });
+      writeFileSync(join(scratch, 'scripts', 'render-harbor-research.sh'), scriptSource);
+      writeFileSync(join(scratch, 'docs', 'harbor-research', 'Makefile'), 'docs:\n\t@true\n');
+      writeFileSync(join(scratch, 'docs', 'harbor-research', 'tex', 'paper.tex'), 'first source\n');
+      writeFileSync(join(scratch, 'bin', 'make'), [
+        '#!/bin/sh',
+        'printf "%s\\n%s\\n%s\\n" "$SOURCE_DATE_EPOCH" "$FORCE_SOURCE_DATE" "$*" > "$HARBOR_CAPTURE"',
+      ].join('\n'), { mode: 0o700 });
+      git(['init', '--quiet', '--template=', '--initial-branch=main']);
+      git(['add', '.']);
+      git(['commit', '--quiet', '-m', 'first Harbor source'], 1_700_000_100);
+
+      writeFileSync(join(scratch, 'docs', 'harbor-research', 'figures', 'figure.tex'), 'newer source\n');
+      git(['add', '.']);
+      git(['commit', '--quiet', '-m', 'newer Harbor source'], 1_700_000_300);
+
+      writeFileSync(join(scratch, 'unrelated.txt'), 'later but unrelated\n');
+      git(['add', '.']);
+      git(['commit', '--quiet', '-m', 'unrelated change'], 1_700_000_900);
+
+      const run = spawnSync('/bin/bash', ['scripts/render-harbor-research.sh'], {
+        cwd: scratch,
+        encoding: 'utf8',
+        env: {
+          PATH: `${join(scratch, 'bin')}:/usr/bin:/bin`,
+          HARBOR_CAPTURE: capture,
+        },
+      });
+
+      expect(run.status).toBe(0);
+      expect(run.stderr).toBe('');
+      expect(run.stdout).toContain('SOURCE_DATE_EPOCH=1700000300');
+      expect(readFileSync(capture, 'utf8').trim().split('\n')).toEqual([
+        '1700000300',
+        '1',
+        `-C ${join(scratch, 'docs', 'harbor-research')} docs`,
+      ]);
+      expect(renderStep.run).toBe('bash scripts/render-harbor-research.sh');
+      expect(workflowSource.match(/- 'scripts\/render-harbor-research\.sh'/g)).toHaveLength(2);
+      expect(scriptSource).toContain('git -C "$repo_root" log --format=%at HEAD -- "${sources[@]}"');
+      expect(scriptSource).not.toMatch(/SOURCE_DATE_EPOCH=["']?\$\(date/);
+    } finally {
+      rmSync(scratch, { recursive: true });
+    }
+  });
+
   test('the exact release binary loads ONNX again after macOS signing', () => {
     const release = readWorkflow('release.yml');
     const sign = release.indexOf('- name: Sign macOS binary (Developer ID)');

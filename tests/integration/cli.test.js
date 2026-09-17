@@ -1310,15 +1310,25 @@ describe('CLI Integration Tests', () => {
       expect(beginResult.success).toBe(true);
       const beginData = JSON.parse(beginResult.stdout);
 
+      // `begin --json` intentionally omits its private one-time credential.
+      // Recover the credential from the isolated context file that the real
+      // command just persisted, rather than weakening the public contract.
+      const slot = `ppid-${process.pid}`;
+      const { contextDir } = getDaemonState();
+      const mintedContext = JSON.parse(
+        readFileSync(join(contextDir, 'contexts', `${slot}.json`), 'utf8'),
+      );
+      expect(mintedContext).toBeTruthy();
+
       writeTestCurrentContext({
         agentId: beginData.agentId,
         sessionId: 'session-stale-context',
         purpose: 'Stale note fallback',
-        contextSlot: `ppid-${process.pid}`,
+        contextSlot: slot,
         // The context is deliberately STALE (bogus sessionId), but the soul
         // credential begin minted must survive — #8877 rejects attributed
         // note writes without it.
-        credential: beginData.credential ?? null,
+        credential: mintedContext.credential ?? null,
       });
 
       const result = runCli(['note', '--content', 'Recovered from stale context', '--json']);

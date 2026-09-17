@@ -19,6 +19,10 @@ window.location=LOC; global.location=LOC;
 // no claude runtime -> the db path must degrade to read-only, which is a case worth exercising
 for(const n of ['CHAPTERS','FIGS','CRIT','RESEARCH','TRIAGE','UNDRAWN','PIXEL','FINDINGS','DOCTRINE'])
   require(process.cwd()+'/'+B+'/data/'+n+'.js');
+// A caption edit can legitimately make the frozen Book location unavailable.
+// Publication state comes from the curated JPG receipt, never from bookPage.
+const simulatedUnlocated=window.FIGS.find(f=>f.id==='fig-anchor-four-phases');
+if(simulatedUnlocated)simulatedUnlocated.bookPage=null;
 const src=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');
 try{ new Function('window','document','location','setTimeout','clearTimeout','console','Element',src)
       (window,document,LOC,setTimeout,clearTimeout,console,window.Element); }
@@ -38,6 +42,35 @@ setTimeout(()=>{
   ];
   for(const [n,got,want] of checks)
     if(got!==want) errs.push(`CHECK ${n}: got ${got}, want ${want}`);
+  const unpublishedFigures=[
+    'anchor-four-phases',
+    'anchor-handshake-ladder',
+    'he-succession-price',
+    'bc-delta-threshold',
+  ];
+  for(const id of unpublishedFigures){
+    const figure=window.FIGS.find(f=>f.id===`fig-${id}`);
+    const unpublished=qa('#list .row').find(b=>b.textContent.includes(id));
+    if(!figure||!unpublished){
+      errs.push(`CHECK unpublished figure row: missing ${id}`);
+      continue;
+    }
+    if(!unpublished.textContent.includes('JPG pending'))
+      errs.push(`CHECK unpublished figure row ${id}: missing pending-publication label`);
+    if(figure.bookPage&&!unpublished.textContent.includes(`Book p${figure.bookPage}`))
+      errs.push(`CHECK unpublished figure row ${id}: missing available Book location`);
+    unpublished.onclick();
+    const stageText=(q('#stage')&&q('#stage').textContent||'').replace(/\s+/g,' ');
+    if(!stageText.includes('Page image not published'))
+      errs.push(`CHECK unpublished stage ${id}: missing truthful publication state`);
+    const expectedLocation=figure.bookPage?`Book p${figure.bookPage}`:'caption location unavailable';
+    if(!stageText.includes(expectedLocation))
+      errs.push(`CHECK unpublished stage ${id}: missing ${expectedLocation}`);
+    if(stageText.includes('Book pundefined')||stageText.includes('Book pnull'))
+      errs.push(`CHECK unpublished stage ${id}: rendered an invalid Book location`);
+    if(q('#sheet'))
+      errs.push(`CHECK unpublished stage ${id}: fabricated a page image sheet`);
+  }
   const epi=q('#epigraph'); if(epi) console.log('epigraph:', epi.textContent.slice(0,90)+'...');
   console.log('list head:', q('#listhead') && q('#listhead').textContent);
   console.log('first row:', q('#list .row') && q('#list .row').textContent.replace(/\s+/g,' ').slice(0,90));
