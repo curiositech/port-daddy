@@ -158,9 +158,11 @@ demonstrated rejection = claim class + current digests + one or more killed rece
 not demonstrated       = important claim class + owner + missing evidence reason
 ```
 
-`PortholeMutationReceipt` binds the source, validator, tests, baseline, mutant,
-outcomes, seed/replay path, artifacts, and Porthole event. A
-`PortholeRejectionCoverage` projection enumerates the subsystem's claim classes.
+**[`PortholeMutationReceipt`](../../schemas/agent-harbor/v0/porthole-mutation-receipt.schema.json)**
+binds the source, validator, tests, baseline, mutant, outcomes, seed/replay path,
+artifacts, and Porthole event. A
+**[`PortholeRejectionCoverage`](../../schemas/agent-harbor/v0/porthole-rejection-coverage.schema.json)**
+projection enumerates the subsystem's claim classes.
 
 ```mermaid
 flowchart TB

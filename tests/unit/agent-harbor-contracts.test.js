@@ -686,6 +686,34 @@ describe('agent-harbor v0 schema package', () => {
     expect(validate(schema, broken).some((error) => error.includes('more than maxItems 0'))).toBe(true);
   });
 
+  it('represents a surviving mutant as a named red coverage row with its receipt', () => {
+    const schema = loadSchema('porthole-rejection-coverage');
+    const coverage = structuredClone(loadFixture('porthole-rejection-coverage'));
+    const receipt = structuredClone(loadFixture('porthole-mutation-receipt'));
+    receipt.receiptId = 'mutation_receipt_capability_widening_survived_01';
+    receipt.invariantId = coverage.claims[1].invariantId;
+    receipt.disposition = 'survived';
+    receipt.execution.mutated.outcome = 'accepted';
+    coverage.claims[1].status = 'survived';
+    coverage.claims[1].mutationReceiptRefs = [receipt.receiptId];
+    coverage.claims[1].gapReason = 'The capability-widening mutant passed the current validator.';
+    coverage.summary.survivedCount = 1;
+    coverage.summary.notDemonstratedCount = 0;
+
+    expect(validate(schema, coverage)).toEqual([]);
+    const killedReceipt = loadFixture('porthole-mutation-receipt');
+    expect(checkPortholeRejectionCoverage(coverage, [killedReceipt, receipt])).toEqual([]);
+
+    const mislabeledReceipt = structuredClone(receipt);
+    mislabeledReceipt.disposition = 'killed';
+    expect(checkPortholeRejectionCoverage(coverage, [killedReceipt, mislabeledReceipt]))
+      .toContain(`survived claim ${coverage.claims[1].invariantId} cites a mutation that did not survive`);
+
+    const receiptless = structuredClone(coverage);
+    receiptless.claims[1].mutationReceiptRefs = [];
+    expect(validate(schema, receiptless).some((error) => error.includes('fewer than minItems 1'))).toBe(true);
+  });
+
   it('binds rejection coverage to the exact subsystem, invariant, subject, validator, tests, contract, and named-row totals', () => {
     const receipt = loadFixture('porthole-mutation-receipt');
     const coverage = loadFixture('porthole-rejection-coverage');
@@ -717,6 +745,11 @@ describe('agent-harbor v0 schema package', () => {
     driftedSummary.summary.demonstratedCount = 0;
     expect(checkPortholeRejectionCoverage(driftedSummary, [receipt]))
       .toContain('rejection coverage demonstrated summary does not match named rows');
+
+    const driftedSurvivorSummary = structuredClone(coverage);
+    driftedSurvivorSummary.summary.survivedCount = 1;
+    expect(checkPortholeRejectionCoverage(driftedSurvivorSummary, [receipt]))
+      .toContain('rejection coverage survived summary does not match named rows');
   });
 
   it('validator drift lock: every additionalProperties form compile() accepts is enforced by validate()', () => {

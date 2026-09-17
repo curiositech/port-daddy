@@ -21,7 +21,7 @@
           "invariantId": { "type": "string", "minLength": 1 },
           "claim": { "type": "string", "minLength": 8 },
           "criticality": { "enum": ["important", "supporting"] },
-          "status": { "enum": ["demonstrated", "not-demonstrated", "inconclusive", "out-of-scope"] },
+          "status": { "enum": ["demonstrated", "survived", "not-demonstrated", "inconclusive", "out-of-scope"] },
           "mutationReceiptRefs": {
             "type": "array",
             "items": { "type": "string", "minLength": 1 }
@@ -42,6 +42,15 @@
             }
           },
           {
+            "if": { "properties": { "status": { "const": "survived" } }, "required": ["status"] },
+            "then": {
+              "properties": {
+                "mutationReceiptRefs": { "minItems": 1 },
+                "gapReason": { "type": "string", "minLength": 8 }
+              }
+            }
+          },
+          {
             "if": { "properties": { "status": { "const": "not-demonstrated" } }, "required": ["status"] },
             "then": {
               "properties": {
@@ -58,10 +67,11 @@
       "properties": {
         "importantClaimCount": { "type": "integer", "minimum": 0 },
         "demonstratedCount": { "type": "integer", "minimum": 0 },
+        "survivedCount": { "type": "integer", "minimum": 0 },
         "notDemonstratedCount": { "type": "integer", "minimum": 0 },
         "inconclusiveCount": { "type": "integer", "minimum": 0 }
       },
-      "required": ["importantClaimCount", "demonstratedCount", "notDemonstratedCount", "inconclusiveCount"],
+      "required": ["importantClaimCount", "demonstratedCount", "survivedCount", "notDemonstratedCount", "inconclusiveCount"],
       "additionalProperties": false
     },
     "generatedFromEventHead": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },

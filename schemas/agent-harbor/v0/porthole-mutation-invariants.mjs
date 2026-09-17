@@ -60,6 +60,9 @@ export function checkPortholeRejectionCoverage(coverage, receipts) {
       if (claim.status === 'demonstrated' && receipt.disposition !== 'killed') {
         errors.push(`demonstrated claim ${claim.invariantId} cites a non-killed mutation`);
       }
+      if (claim.status === 'survived' && receipt.disposition !== 'survived') {
+        errors.push(`survived claim ${claim.invariantId} cites a mutation that did not survive`);
+      }
     }
   }
 
@@ -69,6 +72,9 @@ export function checkPortholeRejectionCoverage(coverage, receipts) {
   }
   if (coverage.summary.demonstratedCount !== countClaims(coverage.claims, 'demonstrated')) {
     errors.push('rejection coverage demonstrated summary does not match named rows');
+  }
+  if (coverage.summary.survivedCount !== countClaims(coverage.claims, 'survived')) {
+    errors.push('rejection coverage survived summary does not match named rows');
   }
   if (coverage.summary.notDemonstratedCount !== countClaims(coverage.claims, 'not-demonstrated')) {
     errors.push('rejection coverage not-demonstrated summary does not match named rows');
