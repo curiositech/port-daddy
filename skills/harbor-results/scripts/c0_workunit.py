@@ -142,17 +142,28 @@ print('=' * 72)
 print('C0 — WORK-UNIT TRANSITION SYSTEM: explicit-state check')
 print('=' * 72)
 n, bad, tr = check()
-print(f'BASELINE (all guards on): {n} reachable states explored, '
-      f'violations: {"NONE — all six invariants hold in every state ✓" if not bad else bad[1]}')
+print(f'BASELINE (all guards on): {n} reachable states explored.')
+print(f'  violations: {"NONE — all six invariants hold in every state ✓" if not bad else bad[1]}')
 
 print('\nMUTATION SUITE — disable each guard; the checker must find a violating trace:')
+
+def print_trace(actions):
+    """Print a shortest trace within the Book's full-width transcript field."""
+    count = len(actions)
+    noun = 'step' if count == 1 else 'steps'
+    prefix = f'    shortest trace ({count} {noun}): '
+    first_count = 3 if count >= 6 else min(2, count)
+    print(prefix + ' -> '.join(actions[:first_count]))
+    for index in range(first_count, count, 2):
+        print(' ' * 30 + '-> ' + ' -> '.join(actions[index:index + 2]))
+
 for gname, expect in [('epoch', 'I1/I5'), ('idem', 'I2'), ('verify', 'I3'),
                       ('attenuate', 'I4'), ('settle', 'I6')]:
     GUARDS[gname] = False
     n, bad, tr = check()
     assert bad is not None, f'mutation {gname} NOT caught — checker has a blind spot!'
-    print(f'  guard OFF [{gname:9s}] -> caught {bad[1][0]}')
-    print(f'      shortest trace ({len(tr)} steps): ' + ' -> '.join(tr))
+    print(f'  guard OFF [{gname}] -> caught {bad[1][0]}')
+    print_trace(tr)
     GUARDS[gname] = True
 
 n, bad, _ = check()
