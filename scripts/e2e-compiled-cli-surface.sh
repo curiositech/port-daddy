@@ -66,7 +66,7 @@ fi
 # --------------------------------------------------------------------------
 echo "Booting self-hosted scratch daemon from the compiled binary ($BIN)..."
 PORT_DADDY_PORT="$PORT" \
-PD_HOME="$SCRATCH" \
+PD_HOME="$CLI_HOME" \
 PORT_DADDY_DB="$TEST_DB" \
 PORT_DADDY_TEST_DB="$TEST_DB" \
 PORT_DADDY_PREFIX="$SCRATCH" \
@@ -103,7 +103,7 @@ echo
 cli() {
   ( cd "$WORK" && env \
       PORT_DADDY_PORT="$PORT" \
-      PD_HOME="$SCRATCH" \
+      PD_HOME="$CLI_HOME" \
       PORT_DADDY_CONTEXT_SLOT="e2e-cli-surface" \
       PORT_DADDY_PREFIX="$SCRATCH" \
       PORT_DADDY_SOCK="$SOCK" \
@@ -246,14 +246,28 @@ fi
 # detected secrets. Assert either non-mutating outcome plus the honest-limit. The
 # `safe guard --staged` read-only scan of the staged diff is exercised too; with
 # no staged changes it must exit clean (0) without dying.
-__corral_out="$(cli safe corral --all 2>/dev/null || true)"
-if printf '%s' "$__corral_out" | grep -qi "reduces blast radius" \
-   && { printf '%s' "$__corral_out" | grep -qi "DRY RUN" \
-        || printf '%s' "$__corral_out" | grep -qi "No detected secrets to corral"; }; then
-  pass "safe corral --all (non-mutating outcome; honest-limit echoed; nothing written)"
+# Build the candidate only inside the scratch HOME. Splitting the fake token's
+# prefix from its body keeps repository scanners from mistaking the fixture
+# source for a live credential. The before/after checksum binds the dry-run
+# claim to the source bytes rather than trusting the command's prose.
+__corral_fixture="$CLI_HOME/.env"
+printf 'E2E_SAFE_CORRAL=%s%s\n' 'ghp_' 'aB3dE5fG7hJ9kL2mN4pQ6rS8tV0wX1yZ3cD5' > "$__corral_fixture"
+__corral_before="$(cksum < "$__corral_fixture")"
+if __corral_out="$(cli safe corral --all 2>&1)"; then
+  __corral_status=0
 else
-  fail "safe corral --all" "no non-mutating outcome / honest-limit: $(printf '%s' "$__corral_out" | head -c 160)"
+  __corral_status=$?
 fi
+__corral_after="$(cksum < "$__corral_fixture")"
+if [ "$__corral_status" -eq 0 ] \
+   && printf '%s' "$__corral_out" | grep -qi "DRY RUN" \
+   && printf '%s' "$__corral_out" | grep -qi "reduces blast radius" \
+   && [ "$__corral_before" = "$__corral_after" ]; then
+  pass "safe corral --all (dry-run default; honest-limit echoed; source unchanged)"
+else
+  fail "safe corral --all" "exit $__corral_status; no dry-run plan / honest-limit or source changed: $(printf '%s' "$__corral_out" | head -c 160)"
+fi
+rm -f "$__corral_fixture"
 # guard --staged: read-only scan of the staged diff. In the scratch repo with no
 # staged secrets it must NOT be the guarded failure mode (exit 1 + empty output).
 run_read "safe guard --staged" safe -- safe guard --staged

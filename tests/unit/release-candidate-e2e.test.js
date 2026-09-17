@@ -9,22 +9,26 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createConnection, createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   REGISTERED_RELEASE_CANDIDATE_RUNNERS,
   assertOwnedSyntheticTree,
+  closeServerBoundedly,
   findAuthorityArtifacts,
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   prepareOwnedPrivateDirectory,
+  prepareReleaseCandidateRunDirectories,
   redactReleaseCandidateText,
   releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
   validateReleaseCandidateMatrix,
+  waitForChildExit,
 } from '../../scripts/lib/release-candidate-e2e.mjs';
 
 const repoRoot = process.cwd();
@@ -151,6 +155,62 @@ describe('release-candidate E2E contract', () => {
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
+  });
+
+  test('every inherited release-candidate directory exists privately before a shard starts', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-run-dirs-test-'));
+    try {
+      expect(prepareReleaseCandidateRunDirectories(fixture)).toBe(fixture);
+      for (const name of ['build-home', 'build-scratch', 'control', 'tmp']) {
+        expect(statSync(join(fixture, name)).isDirectory()).toBe(true);
+        expect(statSync(join(fixture, name)).mode & 0o777).toBe(0o700);
+      }
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test('child-exit proof settles for fast failures and remains readable after close', async () => {
+    const child = spawn(process.execPath, ['-e', 'process.exit(7)'], {
+      stdio: 'ignore',
+      env: secretFreeBaseEnv(),
+    });
+    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
+    await expect(waitForChildExit(child, 2_000)).resolves.toMatchObject({ code: 7, signal: null });
+  });
+
+  test('bounded server cleanup rejects instead of leaving the suite await unsettled', async () => {
+    const neverCloses = { close() {} };
+    await expect(closeServerBoundedly(neverCloses, 10, 'stuck fixture')).rejects.toThrow(
+      /stuck fixture did not close within 10ms/,
+    );
+  });
+
+  test('bounded fixture cleanup destroys tracked accepted sockets before closing the listener', async () => {
+    const sockets = new Set();
+    const server = createServer((socket) => {
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
+    });
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address();
+    expect(typeof address).toBe('object');
+    const client = createConnection(address.port, '127.0.0.1');
+    await new Promise((resolve, reject) => {
+      client.once('connect', resolve);
+      client.once('error', reject);
+    });
+    expect(sockets.size).toBe(1);
+    const clientClosed = new Promise((resolve) => client.once('close', resolve));
+    await expect(closeServerBoundedly(server, 1_000, 'tracked fixture', sockets)).resolves.toBeUndefined();
+    await clientClosed;
+    expect(sockets.size).toBe(0);
+    expect(client.destroyed).toBe(true);
   });
 
   test('the build environment uses private key storage without ambient credentials or canonical Keychain access', () => {
@@ -284,8 +344,8 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('prepareOwnedPrivateDirectory(path);');
     expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra)');
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
-    expect(runner).toContain("['sitrep', '--template']");
-    expect(runner).toContain("if (child.exitCode !== null || child.signalCode !== null) {\n      done(child.exitCode, child.signalCode);");
+    expect(runner).toContain("'sitrep',\n          '--json'");
+    expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).toContain("claimPath: 'ALPHA-CLAIM.md'");
@@ -300,7 +360,6 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('const blockerSockets = new Set();');
     expect(runner).toContain("socket.on('error', (error) => blockerSocketErrors.push(error));");
     expect(runner).toContain('!isExpectedCollisionSocketError(error)');
-    expect(runner).toContain("collision fixture listener did not close within 3 seconds");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
     expect(compiledCli).toContain('CLI_HOME="$SCRATCH/home"');
     expect(compiledCli).toMatch(/HOME="\$CLI_HOME" \\\nPORT_DADDY_NO_FLEET=1/);
@@ -317,14 +376,31 @@ describe('release-candidate E2E contract', () => {
     }
   });
 
-  test('reused packaged-binary smokes own private test state', () => {
-    for (const scriptPath of [compiledCliSurfacePath, binarySoakPath]) {
-      const script = readFileSync(scriptPath, 'utf8');
-      expect(script).toContain('chmod 700');
-      expect(script).toContain('PD_HOME=');
-      expect(script).toContain('PORT_DADDY_TEST_DB=');
-      expect(script).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
-    }
+  test('compiled CLI smoke isolates state and proves safe-corral dry-run immutability', () => {
+    const smoke = readFileSync(compiledCliSurfacePath, 'utf8');
+    expect(smoke).toContain('CLI_HOME="$SCRATCH/home"');
+    expect(smoke).toContain('chmod 700 "$SCRATCH" "$WORK" "$SNAP_ROOT" "$CLI_HOME"');
+    expect(smoke).toContain('PD_HOME="$CLI_HOME"');
+    expect(smoke).toContain('PORT_DADDY_TEST_DB="$TEST_DB"');
+    expect(smoke).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
+    expect(smoke).toContain('__corral_fixture="$CLI_HOME/.env"');
+    expect(smoke).toContain('__corral_before="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('if __corral_out="$(cli safe corral --all 2>&1)"; then');
+    expect(smoke).toContain('__corral_status=$?');
+    expect(smoke).toContain('[ "$__corral_status" -eq 0 ]');
+    expect(smoke).not.toContain('cli safe corral --all 2>/dev/null || true');
+    expect(smoke).toContain('__corral_after="$(cksum < "$__corral_fixture")"');
+    expect(smoke).toContain('[ "$__corral_before" = "$__corral_after" ]');
+  });
+
+  test('packaged-binary soak owns private test state without weakening Off admission', () => {
+    const soak = readFileSync(binarySoakPath, 'utf8');
+    expect(soak).toContain('chmod 700 "$SOAK_PREFIX"');
+    expect(soak).toContain('PD_HOME="$SOAK_PREFIX"');
+    expect(soak).toContain('PORT_DADDY_DB="$TEST_DB"');
+    expect(soak).toContain('PORT_DADDY_TEST_DB="$TEST_DB"');
+    expect(soak).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');
+    expect(soak).not.toContain('PORT_DADDY_ISOLATED_TEST');
   });
 
   test('stage-validation failure writes a failing result without inventing case passes', () => {
