@@ -1,75 +1,61 @@
-% Brief (tikz-diagram-craft). Register row ch1-42 [should], desert
-% Sec. 13.2 "The enforcement gate proves; it does not yet compel".
-% Reader question: which layer of enforcement actually stops a
-%   non-cooperating same-user agent, and which merely proves what happened?
-% Claim: prevention is pre-effect complete mediation; detection observes an
-%   event, and remediation responds after detection. Only a separate-user
-%   (or separate-VM) boundary closes today's same-user bypass.
-% Evidence: whitepaper/single-writer-kernel.tex sec:enforcement-gap: the
-%   Coordination Guard, shim and hook harness (Built, in-band, advisory);
-%   a server-side branch-protection-plus-push-broker (Designed); a
-%   credential broker (Vision); a separate-user kernel (Vision, the only
-%   layer that removes the capability rather than refusing the verb).
-% Must distinguish: pre-effect prevention from post-effect detection and
-%   remediation; the present same-user bypass; what each proposed prevention
-%   component removes; remediation cannot erase an already durable effect.
-% Grammar: UML component path with one explicit bypass and a post-commit
-%   detection/remediation branch. Rejected: a maturity stack, which implies
-%   one cumulative wall and hides when each boundary acts.
-% Five-second test: "prevention sits before the effect; detection and
-%   remediation sit after it; the red bypass remains until OS/VM isolation".
+% Reader question: which control prevents a same-user bypass, and which controls only observe or respond after the effect?
+% Claim: only complete pre-effect mediation removes the capability; built in-band controls detect and remediate after an effect can already be durable.
+% Evidence: sec:enforcement-gap names guard/shim/hooks as built, push broker as designed, credential broker and OS/VM isolation as vision [internal].
+% Must distinguish: prevention before commit, the present direct bypass, detection after commit, and remediation that cannot erase durable history.
+% Grammar: UML component path with one bypass and a post-effect branch; rejected a maturity stack because it would hide when each layer acts.
+% Five-second test: the request reaches the protected effect only through mediation in the target design, while today's dashed bypass remains visible.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\yflow{4.55}
-  \node[pd uml component,minimum width=1.75cm] (agent) at (.95,\yflow)
+  \def\yflow{4.62}
+  \node[pd artifact,minimum width=1.65cm] (agent) at (.92,\yflow)
     {agent};
-  \pdumlicon{agent}
 
-  \node[pd uml component,pd focus outline,minimum width=4.70cm,
-        minimum height=2.65cm] (prevent) at (4.60,\yflow) {};
+  \node[pd uml component,pd focus outline,minimum width=4.85cm,
+        minimum height=2.72cm] (prevent) at (4.72,\yflow) {};
   \pdumlicon{prevent}
-  \node[pd kind,anchor=west] at (2.48,5.45) {prevent \textperiodcentered\ before commit};
-  \node[pd label,anchor=west,align=left,text width=3.85cm] at (2.48,4.65)
-    {push broker -- \textsc{designed}\\credential broker -- \textsc{vision}\\OS/VM isolation -- \textsc{vision}};
+  \node[pd kind,anchor=west] at (2.53,5.48)
+    {prevent \textperiodcentered\ before effect};
+  \node[pd label,anchor=west,align=left,text width=3.95cm] at (2.53,4.73)
+    {push broker --- \textsc{designed}\\credential broker --- \textsc{vision}};
+  \node[pd climax state,minimum width=3.85cm,minimum height=.58cm]
+    at (4.72,3.72) {OS/VM boundary --- \textsc{vision}};
 
-  \node[pd uml component,minimum width=2.40cm] (effect) at (8.75,\yflow)
+  \node[pd focus state,minimum width=2.05cm] (effect) at (9.55,\yflow)
     {protected\\effect};
-  \pdumlicon{effect}
-  \draw[pd focus arrow,shorten >=3pt] (agent.east) -- (prevent.west);
-  \draw[pd focus arrow,shorten >=3pt] (prevent.east) -- (effect.west);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (agent.east) -- (prevent.west);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (prevent.east) -- (effect.west);
 
-  % The direct same-user route exists today and bypasses the pre-effect gate.
-  \draw[pd breach arrow,rounded corners=4pt,shorten >=3pt]
-    (agent.south) -- ++(0,-1.35) -- ($(effect.south)+(0,-1.35)$) -- (effect.south);
-  \node[pd breach label,anchor=north] at (5.00,2.66)
+  % The same-user path is present today and avoids the pre-effect component.
+  \draw[pd breach arrow,rounded corners=4pt,shorten <=3pt,shorten >=3pt]
+    (agent.south) -- ++(0,-1.26) -- ($(effect.south)+(0,-1.26)$) -- (effect.south);
+  \node[pd breach label,anchor=north] at (5.20,2.83)
     {same-user bypass today};
 
-  \node[pd uml component,minimum width=4.05cm,minimum height=1.80cm]
-    (detect) at (2.70,1.10) {};
-  \pdumlicon{detect}
-  \node[pd kind,anchor=west] at (.92,1.42)
-    {detect \textperiodcentered\ observe};
-  \node[pd label,anchor=west,align=left,text width=3.15cm] at (.92,.83)
-    {guard \textperiodcentered\ shim \textperiodcentered\ hooks \textperiodcentered\ monitor};
+  \node[pd legible state,minimum width=4.10cm,minimum height=1.58cm,
+        align=left,text width=3.46cm]
+    (detect) at (2.72,.88)
+    {\pdfiglabelbold detect \textperiodcentered\ observe\\
+     guard \textperiodcentered\ shim \textperiodcentered\ hooks\\monitor};
 
-  \node[pd uml component,minimum width=4.05cm,minimum height=1.80cm]
-    (repair) at (7.85,1.10) {};
-  \pdumlicon{repair}
-  \node[pd kind,anchor=west] at (6.07,1.42)
-    {remediate \textperiodcentered\ respond};
-  \node[pd label,anchor=west,align=left,text width=3.15cm] at (6.07,.83)
-    {flag \textperiodcentered\ revoke \textperiodcentered\ halt \textperiodcentered\ compensate};
+  \node[pd breach state,minimum width=4.10cm,minimum height=1.58cm,
+        align=left,text width=3.46cm]
+    (repair) at (7.87,.88)
+    {\pdfiglabelbold remediate \textperiodcentered\ respond\\
+     flag \textperiodcentered\ revoke \textperiodcentered\ halt\\compensate};
 
-  \draw[pd thin arrow,shorten >=3pt] (effect.south) to[out=-90,in=25] (detect.north);
-  \draw[pd arrow,shorten >=3pt] (detect.east) -- (repair.west);
-  \node[pd note,anchor=north] at (7.85,-.02)
+  \draw[pd thin arrow,shorten >=3pt]
+    (effect.south) to[out=-90,in=25] (detect.north);
+  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
+    (detect.east) -- (repair.west);
+  \node[pd note,anchor=north] at (7.87,-.04)
     {response cannot erase an already durable effect};
 \end{tikzpicture}
-\caption{A component path separates pre-effect prevention from post-effect
-detection and remediation. Built in-band controls can record and respond,
-but only complete mediation at the designed separate-user or separate-VM
-boundary removes the same-user bypass. [internal]}
+\caption{A UML path separates pre-effect mediation from post-effect detection
+and remediation. The built controls record and respond; only the proposed
+OS/VM boundary removes the same-user capability before the effect. [internal]}
 \label{fig:swk-enforcement-layers}
 \end{figure}

@@ -1,84 +1,52 @@
-% Brief (grammar: paired sequence ladders, badges keyed to a shared legend;
-%   atlas V/fig:anchor-alg-confusion). Chapter line ~746 marks every figure
-%   that shows a message leaving daemon/verifier authority with a dashed band
-%   for the Dolev-Yao adversary's region -- added here on the token-to-
-%   verifier wire in both panels (it was missing before this redraw; flagged
-%   for the author to confirm).
-% Reader question: why does issuer-pinned verification reject a token that
-%   attacker-selected verification accepts?
-% Claim: identical wire bytes diverge only where control over the algorithm
-%   choice changes hands -- the header (panel A) or issuer policy (panel B).
-% Evidence: alg=none tampered payload (\S "Phase 1: Symmetric Pinning"); the
-%   ProVerif v1 (HS256) query neg-attacker(master_key) holding TRUE
-%   [verified, v1_refined.pv].
-% Must distinguish: the naive verifier's algorithm-assignment step (2, reads
-%   the wire) from the pinned verifier's (3, reads issuer policy) and its
-%   extra signature check (4) that the naive path never reaches.
-% Grammar chosen: two sequence ladders on one grid (tpl-sequence), badges
-%   keyed to one shared legend. Rejected: two prose paragraphs -- the atlas's
-%   own rejection, since prose cannot show the SAME step number meaning a
-%   different predicate without a table to key it.
-% Five-second test: "same message 1 in both panels; panel A's badge 2 accepts,
-%   panel B's badges 3-4 catch the same tamper and reject."
+% Reader question: why do identical tampered token bytes pass a header-selected verifier but fail an issuer-pinned verifier?
+% Claim: the paths diverge only at the source of algorithm authority: attacker-controlled header versus issuer policy.
+% Evidence: alg=none tampered payload in Phase 1 and the ProVerif v1 secrecy query [verified, v1_refined.pv].
+% Must distinguish: identical wire bytes, algorithm source, signature-check reachability, and accept/reject outcome.
+% Grammar: aligned paired security trace on shared rows; rejected stacked sequence ladders because their height hid the one changed control point.
+% Five-second test: one shared input fans into equal-width traces; header authority ends in accept, issuer authority ends in signature failure and reject.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=1cm,y=.92cm]
-  \def\gap{5.55}
-  % ================= panel A: header-selected =================
-  \node[pd title,anchor=west] at (0,15.0) {A \quad header-selected};
-  \node[pd state,minimum width=2.3cm] (tA) at (0,13.8) {token};
-  \node[pd state,minimum width=2.3cm] (vA) at (\gap,13.8) {verifier};
-    \draw[pd warn rule] (-.5,12.6) rectangle (\gap+.65,12.2);
-  \node[pd badge] (a1) at (\gap/2,12.4) {1};
-  \draw[pd rule,pd to badge,-] (0,12.4) -- (a1);
-  \draw[pd arrow,pd from badge] (a1) -- (\gap,12.4);
-  \node[pd state,pd warn,minimum width=2.6cm] (rA) at (\gap,11.0) {alg := header.alg};
-  \draw[pd arrow] (vA.south) -- (rA.north);
-  \node[pd badge] at ([xshift=6pt]rA.east) {2};
-  \node[pd breach state,minimum width=2.9cm] (oA) at (\gap,9.6) {accept (exploited)};
-  \draw[pd breach arrow] (rA.south) -- (oA.north);
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xL{2.48}
+  \def\xR{8.18}
 
-  % ================= panel B: policy-pinned =================
-  \node[pd title,anchor=west] at (0,7.8) {B \quad policy-pinned};
-  \node[pd state,minimum width=2.3cm] (tB) at (0,6.6) {token};
-  \node[pd state,minimum width=2.3cm] (vB) at (\gap,6.6) {verifier};
-    \draw[pd warn rule] (-.5,5.4) rectangle (\gap+.65,5.0);
-  \node[pd badge] (b1) at (\gap/2,5.2) {1};
-  \draw[pd rule,pd to badge,-] (0,5.2) -- (b1);
-  \draw[pd arrow,pd from badge] (b1) -- (\gap,5.2);
-  \node[pd focus state,minimum width=2.7cm] (rB) at (\gap,3.8) {alg := Ed25519};
-  \draw[pd focus arrow] (vB.south) -- (rB.north);
-  \node[pd badge] at ([xshift=6pt]rB.east) {3};
-  \node[pd focus state,minimum width=3.1cm] (cB) at (\gap,2.4) {checks signature};
-  \draw[pd focus arrow] (rB.south) -- (cB.north);
-  \node[pd badge] at ([xshift=6pt]cB.east) {4};
-  \node[pd ready state,minimum width=2.6cm] (oB) at (\gap,1.0) {reject (safe)};
-  \draw[pd ready arrow] (cB.south) -- (oB.north);
+  \node[pd artifact,minimum width=7.15cm,minimum height=.86cm]
+    (wire) at (5.33,4.86)
+    {same bytes on the untrusted wire: \texttt{alg=none} + tampered payload};
+  \node[pd title,anchor=south] at (\xL,5.48) {A \quad header-selected};
+  \node[pd title,anchor=south] at (\xR,5.48) {B \quad issuer-pinned};
 
-  % ================= the legend: badge, predicate =================
-  \def\ly{-.3}
-  \draw[pd rule] (0,\ly) -- (9.3,\ly);
-  \node[pd title,anchor=north west] at (.05,{\ly-.45}) {step};
-  \node[pd title,anchor=north west] at (.75,{\ly-.45}) {predicate};
-  \draw[pd hairline] (0,{\ly-1.35}) -- (9.3,{\ly-1.35});
+  \node[pd state,minimum width=4.45cm] (header) at (\xL,3.22)
+    {reads algorithm from token header};
+  \node[pd warn state,minimum width=4.45cm] (none) at (\xL,2.12)
+    {selects \texttt{none}; no signature check};
+  \node[pd breach state,minimum width=4.45cm] (accept) at (\xL,1.02)
+    {accepts forged token};
 
-  \foreach \i/\n/\g in {0/1/{token sends alg=none with a tampered payload (shared)},
-                        1/2/{naive verifier reads alg from the token header},
-                        2/3/{pinned verifier reads alg from issuer policy},
-                        3/4/{pinned verifier checks the tampered signature}}{
-    \node[pd badge] at (.35,{\ly-1.90-\i*.95}) {\n};
-    \node[pd label,anchor=west,align=left,text width=6.9cm] at (.75,{\ly-1.90-\i*.95}) {\g};}
+  \node[pd focus outline,minimum width=4.45cm] (policy) at (\xR,3.22)
+    {reads Ed25519 from issuer policy};
+  \node[pd focus state,minimum width=4.45cm] (check) at (\xR,2.12)
+    {checks the tampered signature};
+  \node[pd ready state,minimum width=4.45cm] (reject) at (\xR,1.02)
+    {rejects tampered token};
+
+  \draw[pd arrow,shorten <=3pt,shorten >=3pt]
+    (wire.south west) -- (header.north);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (wire.south east) -- (policy.north);
+  \draw[pd warn arrow,shorten <=3pt,shorten >=3pt]
+    (header.south) -- (none.north);
+  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
+    (none.south) -- (accept.north);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (policy.south) -- (check.north);
+  \draw[pd ready arrow,shorten <=3pt,shorten >=3pt]
+    (check.south) -- (reject.north);
 \end{tikzpicture}
-\caption{Two verifier ladders for the same wire bytes: \textbf{token} sends
-\texttt{alg=none} with a tampered payload to \textbf{verifier} in both
-panels (step 1, inside the dashed network band the Dolev-Yao adversary
-controls). Panel A lets the token's own header choose the algorithm (step 2)
-and accepts the forgery; panel B pins the algorithm to Ed25519 from issuer
-policy (step 3), so the signature check (step 4) fails and the token is
-rejected. This is the design invariant behind the ProVerif v1 (HS256) query
-the attacker cannot derive \texttt{master\_key}: the accepting
-path in panel A is exactly the path Algorithmic Pinning removes
-[verified, v1\_refined.pv].}
+\caption{Aligned security traces hold the wire bytes constant and vary only
+the source of algorithm authority. Header selection reaches acceptance
+without a signature check; issuer pinning forces Ed25519 and rejects the same
+tampered token. [verified, v1\_refined.pv]}
 \label{fig:anchor-alg-confusion}
 \end{figure}

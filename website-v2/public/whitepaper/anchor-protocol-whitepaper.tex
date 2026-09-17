@@ -426,7 +426,7 @@ the overlay staying connected, which is the sentence the theorem ends with.
 \end{pdexample}
 
 
-\paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Property~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. The card lifecycle gains a state ($\textit{valid} \to \textit{revoked} \to \textit{expired}$) modeled as an additional transition (Figure~\ref{fig:anchor-card-lifecycle}).
+\paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Property~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. One active card has exactly two terminal exits, explicit revocation or natural expiry; neither exit can return that card to the accepted set (Figure~\ref{fig:anchor-card-lifecycle}). A correction is fresh issuance under a new card ID, not a transition of the old card.
 
 \input{figures/fig-anchor-card-lifecycle}
 

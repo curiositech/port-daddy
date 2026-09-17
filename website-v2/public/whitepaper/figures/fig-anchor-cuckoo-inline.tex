@@ -1,76 +1,66 @@
-% Brief (grammar: before/after on identical six-bucket geometry; atlas
-%   V/fig:anchor-cuckoo-inline). Fixes the audit defect: v1 filled every
-%   bucket with a heavy solid navy cell, so the one fact (where c1 lands)
-%   could not out-shout the five empty buckets around it. Here every empty
-%   bucket is a plain white pd artifact cell; only a bucket that actually
-%   holds c1 is filled, in the hue that names why it is there.
-% Reader question: why can two daemons not merge cuckoo filters by OR-ing
-%   their bit arrays, and what do they gossip instead?
-% Claim: OR-ing keeps every placement either peer ever made, which is a state
-%   no single filter build could produce; gossiping the ID log and rebuilding
-%   locally keeps c1 in exactly one bucket.
-% Evidence: peer A's c1 at bucket 2, peer B's c1 at bucket 5 (\S "Withdrawing
-%   a card before it expires"); log union c1 c2 c4 c7 c9 [internal].
-% Must distinguish: an empty bucket (plain, uninformative) from a bucket that
-%   holds c1 (breach hue when the state is invalid, focus hue when rebuilt).
-% Grammar chosen: before/after dataflow on the same six-bucket geometry.
-%   Each transformation has one vertical arrow with a termination gap; its
-%   label sits beside the path, never across it. Rejected: the atlas's old
-%   load-threshold plot, because this paragraph argues merge semantics rather
-%   than occupancy limits, and heavy fills on every bucket, which erase the
-%   occupied-cell comparison.
-% Five-second test: "OR keeps c1 in two buckets at once; the rebuilt log
-%   keeps it in exactly one."
+% Reader question: why can two daemons not OR cuckoo-filter encodings, and what can they merge safely?
+% Claim: bitwise OR preserves two history-dependent placements for c1; ID-set union followed by local rebuild gives c1 one placement.
+% Evidence: sec:revocation places c1 in i0 for peer A and i3 for peer B, with log union c1,c2,c4,c7,c9 [internal].
+% Must distinguish: encoded bucket state from semantic revocation IDs, invalid duplicate occupancy from one locally rebuilt placement.
+% Grammar: paired dataflow traces with aligned outputs; rejected a load plot because this paragraph proves merge semantics, not capacity.
+% Five-second test: the left output contains c1 twice, while the right output contains c1 once after a visibly connected rebuild arrow.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.78cm,y=1cm,
-    bucket/.style={pd state,minimum width=.78cm,minimum height=.72cm,
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+    bucket/.style={pd artifact,minimum width=.58cm,minimum height=.60cm,
       inner sep=0pt,rounded corners=1pt}]
-  \newcommand{\rowlabelnode}[2]{\node[pd label,anchor=east,text width=1.45cm,align=right] at (-.38,#1) {#2};}
+  \def\dx{.64}
 
-  % ---------- before: encoded filter state is not mergeable -----------------
-  \node[pd title,anchor=west] at (-.35,8.35) {before: encoded filters do not merge};
-  \rowlabelnode{7.38}{peer A}
-  \foreach \i in {1,...,6} \node[bucket] (a\i) at (\i-1,7.38) {};
-  \node[bucket,pd focus fill] at (a2) {c1};
-  \rowlabelnode{6.38}{peer B}
-  \foreach \i in {1,...,6} \node[bucket] (b\i) at (\i-1,6.38) {};
-  \node[bucket,pd focus fill] at (b5) {c1};
+  \node[pd title,anchor=west] at (.05,5.42) {unsafe: merge encoding};
+  \node[pd title,anchor=west] at (5.68,5.42) {safe: merge IDs};
+  \draw[pd hairline] (5.40,.40) -- (5.40,5.16);
 
-  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt] (2.5,5.94) -- (2.5,5.12);
-  \node[pd breach label,anchor=west] at (2.78,5.53) {bitwise OR};
-  \rowlabelnode{4.68}{invalid}
-  \foreach \i in {1,...,6} \node[bucket] (o\i) at (\i-1,4.68) {};
-  \node[bucket,pd breach fill] at (o2) {c1};
-  \node[bucket,pd breach fill] at (o5) {c1};
-  \node[pd breach label,anchor=west] at (5.78,4.68) {c1 twice};
+  % Left panel: two history-dependent placements are retained by OR.
+  \node[pd label,anchor=east] at (1.08,4.50) {A filter};
+  \foreach \i in {1,...,5} \node[bucket] (la\i) at ({1.40+(\i-1)*\dx},4.50) {};
+  \node[bucket,pd focus fill] at (la1) {c1};
+  \node[pd label,anchor=east] at (1.08,3.72) {B filter};
+  \foreach \i in {1,...,5} \node[bucket] (lb\i) at ({1.40+(\i-1)*\dx},3.72) {};
+  \node[bucket,pd focus fill] at (lb4) {c1};
 
-  % ---------- after: semantic IDs merge, then rebuild locally ---------------
-  \draw[pd hairline] (-1.0,3.90) -- (7.20,3.90);
-  \node[pd title,anchor=west] at (-.35,3.42) {after: the ID log merges};
-  \node[pd artifact,minimum width=3.05cm] (lA) at (.20,2.45)
-    {\texttt{A: c1 c7 c4}};
-  \node[pd artifact,minimum width=3.05cm] (lB) at (4.80,2.45)
-    {\texttt{B: c2 c1 c9}};
-  \node[pd focus state,minimum width=5.05cm] (union) at (2.50,1.18)
-    {set union: \texttt{c1 c2 c4 c7 c9}};
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (lA.south) -- (union.north west);
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (lB.south) -- (union.north east);
+  \node[pd breach state,minimum width=2.10cm,minimum height=.66cm]
+    (or) at (2.68,2.55) {bitwise OR};
+  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
+    (la3.south) -- (or.north west);
+  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
+    (lb3.south) -- (or.north east);
 
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (union.south) -- ++(0,-.82);
-  \node[pd focus label,anchor=west] at (2.82,.58) {rebuild locally};
-  \rowlabelnode{-.18}{valid}
-  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.18) {};
-  \node[bucket,pd neutral fill] at (r1) {c2};
-  \node[bucket,pd focus fill] at (r2) {c1};
-  \node[bucket,pd neutral fill] at (r3) {c4};
-  \node[bucket,pd neutral fill] at (r4) {c7};
-  \node[bucket,pd neutral fill] at (r5) {c9};
-  \node[pd focus label,anchor=west] at (5.78,-.18) {c1 once};
+  \node[pd label,anchor=east] at (1.08,1.18) {invalid};
+  \foreach \i in {1,...,5} \node[bucket] (lo\i) at ({1.40+(\i-1)*\dx},1.18) {};
+  \node[bucket,pd breach fill] at (lo1) {c1};
+  \node[bucket,pd breach fill] at (lo4) {c1};
+  \draw[pd breach arrow,shorten <=3pt,shorten >=3pt]
+    (or.south) -- (lo3.north);
+  \node[pd breach label,anchor=east] at (5.15,1.66) {c1 twice};
+
+  % Right panel: merge semantic IDs, then project once into local geometry.
+  \node[pd artifact,minimum width=2.15cm] (logA) at (6.88,4.32)
+    {A: \texttt{c1 c7 c4}};
+  \node[pd artifact,minimum width=2.15cm] (logB) at (9.48,4.32)
+    {B: \texttt{c2 c1 c9}};
+  \node[pd focus state,minimum width=3.20cm,minimum height=.88cm]
+    (rebuild) at (8.18,2.72) {set union\\rebuild locally};
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (logA.south) -- (rebuild.north west);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (logB.south) -- (rebuild.north east);
+
+  \node[pd label,anchor=east] at (6.68,1.18) {valid};
+  \node[bucket,pd focus fill] (ro1) at (7.00,1.18) {c1};
+  \foreach \i/\v in {2/c2,3/c4,4/c7,5/c9}
+    \node[bucket,pd neutral fill] (ro\i) at ({7.00+(\i-1)*\dx},1.18) {\v};
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (rebuild.south) -- (ro3.north);
+  \node[pd focus label,anchor=west] at (10.18,1.18) {c1 once};
 \end{tikzpicture}
-\caption{Two dataflows compare unsafe filter-state union with semantic ID-log
-union. Bitwise \texttt{OR} duplicates \texttt{c1}; set union followed by a
-local rebuild projects it into exactly one bucket. [internal]}
+\caption{Paired dataflows compare unsafe filter-state union with semantic
+ID-set union. Bitwise OR leaves \texttt{c1} in two buckets; a local rebuild
+from merged IDs places it exactly once. [internal]}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

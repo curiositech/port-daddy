@@ -1,55 +1,40 @@
-% Brief (tikz-diagram-craft). Register row ch1-43 [could], desert
-% Sec. 13.4 "Hash-chain tamper-evidence, and the hardening OP-9 would need".
-% Reader question: which threat-table row does the same-machine adversary
-%   occupy before and after the OP-9 hardening ships?
-% Claim: OS-level ephemeral namespaces would move the adversary from the
-%   same-user row (out of scope, defended by nobody) to the different-uid
-%   row (in scope, partially defended) -- a real improvement, and still not
-%   "impossible": shared kernel surfaces stay in scope either way.
-% Evidence: whitepaper/single-writer-kernel.tex tab:threat-model (the two
-%   rows verbatim), sec:merkle (the OP-9 design and its own three caveats).
-% Must distinguish: this is a reclassification of one row, not a new
-%   defense; the row's own words (in/out, what defends) travel with it.
-% Grammar: before/after on identical UML component cards, reusing the threat
-%   table's own fields and showing one row moving. Rejected: redrawing the
-%   full five-row table, which would repeat a schema the chapter already owns.
-% Five-second test: "the same adversary moves from same-user/out/none to
-%   different-uid/in-partial/kernel credential; residual surfaces remain".
+% Reader question: which threat-table row contains the same-machine adversary before and after OP-9?
+% Claim: OP-9 reclassifies one adversary from same-user/out/none to different-UID/in-partial; it does not create a new defense category.
+% Evidence: tab:threat-model and sec:merkle name the two rows, ephemeral UID namespace, kernel peer credential, and residual kernel surfaces [internal].
+% Must distinguish: one threat moving rows from the row's changed scope/defense fields, while residual shared-kernel and sandbox risk persists.
+% Grammar: before/transform/after UML row cards on one rail; rejected the full five-row table because only one row changes.
+% Five-second test: the same adversary passes through OP-9 into the partially defended row, with the unchanged residual surface below both.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\cardw{4.15}
-  \node[pd title] at (2.15,4.05) {today};
-  \node[pd title] at (8.35,4.05) {after OP-9 ships};
+  \node[pd title] at (1.72,4.22) {today};
+  \node[pd title] at (8.72,4.22) {after OP-9 ships};
+  \node[pd kind] at (5.20,4.22) {same adversary};
 
-  \node[pd uml component,minimum width=\cardw cm,minimum height=2.55cm]
-    (before) at (2.15,2.30) {};
-  \pdumlicon{before}
-  \node[pd title,anchor=west] at (.35,2.95) {same-user process};
-  \node[pd label,anchor=west] at (.35,2.30) {scope: \textbf{out}};
-  \node[pd label,anchor=west] at (.35,1.65) {defense: none};
+  \node[pd breach state,minimum width=3.25cm,minimum height=2.45cm]
+    (before) at (1.72,2.65)
+    {same-user process\\scope: \textbf{out}\\defense: none};
 
-  \node[pd uml component,pd focus outline,minimum width=\cardw cm,
-        minimum height=2.55cm] (after) at (8.35,2.30) {};
-  \pdumlicon{after}
-  \node[pd title,anchor=west] at (6.55,2.95) {different-uid process};
-  \node[pd label,anchor=west] at (6.55,2.30) {scope: \textbf{in (partial)}};
-  \node[pd label,anchor=west,align=left,text width=3.15cm] at (6.55,1.65)
-    {defense: kernel\\peer credential};
+  \node[pd artifact,minimum width=2.05cm,minimum height=1.38cm]
+    (op9) at (5.20,2.65)
+    {OP-9\\ephemeral UID};
 
-  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt] (before.east) -- (after.west);
-  \node[pd kind,anchor=south] at (5.25,2.74) {same threat};
-  \node[pd artifact,align=center,text width=1.75cm] at (5.25,.95)
-    {OP-9: ephemeral UID namespace};
+  \node[pd focus outline,minimum width=3.45cm,minimum height=2.45cm]
+    (after) at (8.72,2.65)
+    {different-UID process\\scope: \textbf{in (partial)}\\kernel peer credential};
 
-  \draw[pd neutral fill] (.10,-1.25) rectangle (10.40,-.35);
-  \node[pd label,anchor=west] at (.34,-.80)
-    {still in scope: shared kernel surfaces \textperiodcentered\ sandbox implementation};
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (before.east) -- (op9.west);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (op9.east) -- (after.west);
+
+  \draw[pd neutral fill] (.08,-.02) rectangle (10.62,.86);
+  \node[pd label] at (5.35,.42)
+    {residual in both rows: shared kernel surfaces \textperiodcentered\ sandbox implementation};
 \end{tikzpicture}
-\caption{The same-machine adversary moves from the undefended same-user row
-to the partially defended different-uid row after OP-9. This is a threat-model
-reclassification, not proof that the residual boundary is impossible to cross.
-[internal]}
+\caption{One threat-table row moves through the OP-9 reclassification.
+The move adds partial kernel-credential defense but leaves shared-kernel and
+sandbox surfaces in scope; it is not proof of impossibility. [internal]}
 \label{fig:swk-op9-reclass}
 \end{figure}

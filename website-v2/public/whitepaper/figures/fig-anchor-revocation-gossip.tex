@@ -1,58 +1,46 @@
-% Brief (grammar: swimlane Gantt over a commit-style rail; atlas
-%   V/fig:anchor-revocation-gossip). Fixes the audit defect: v1 set the
-%   stale-window and partition labels in amber text inside cream boxes below
-%   the axis. Amber is never text (S3) and cream on white is a sticker (S6);
-%   both labels are now ink, in clear space, with the amber restricted to
-%   rules and the one fill region.
-% Reader question: how quickly does a revocation reach all participants under
-%   stated assumptions, and what is the residual exposure while it has not?
-% Claim: every verifier has its own exposure interval, closed only when
-%   gossip reaches it; the protocol's own guarantee is an expectation, not a
-%   wall-clock deadline, and an unbounded partition removes even that.
-% Evidence: five daemons A-E, wake times spread across the window (\S
-%   "Gossip-based synchronization"); Theta(log m) expected rounds; the
-%   pdexample computing 4-6 seconds for m=5 [internal].
-% Must distinguish: the stale interval (exposure, before a lane's own wake)
-%   from the informed interval (after); the partition caveat is a separate
-%   claim from the timing trace, so it gets a second, explicit marker.
-% Grammar chosen: compact swimlane Gantt on one round axis. Rejected: a
-%   single average-latency number, which hides lane-specific exposure, and a
-%   tall lane stack, which spends a page without adding a comparison.
-% Five-second test: "daemon A already knows; C, D, E are still stale when B
-%   learns; the dashed line on the right says a partition has no deadline at
-%   all."
+% Reader question: when does each verifier stop accepting a revoked card, and what assumption makes any convergence statement possible?
+% Claim: each lane closes its own stale interval when gossip arrives; connected gossip has expected logarithmic rounds, while a partition has no finite deadline.
+% Evidence: five-daemon trace, round time Delta=2 seconds, expected Theta(log m) rounds, and the 4--6 second m=5 example [internal].
+% Must distinguish: this illustrative connected trace from a deterministic bound, and the partitioned regime from every finite point on the trace axis.
+% Grammar: compact swimlane timeline plus a separate outlined regime card; rejected a finite partition marker because it falsely assigns a deadline.
+% Five-second test: every connected lane turns informed by t+2Delta, while the detached partition card says no finite deadline until healing.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
-\begin{tikzpicture}[pd figure,x=.72cm,y=.72cm]
-  \def\xzero{0}
-  \def\xend{9.7}
-  \def\xroundtwo{6.2}
-  \path[pd warn fill] (\xzero,.20) rectangle (\xroundtwo,5.35);
-  \node[pd label,anchor=south west] at (.08,5.72)
+\begin{tikzpicture}[pd figure,x=.92cm,y=.62cm]
+  \def\xzero{1.08}
+  \def\xend{10.08}
+  \def\xroundtwo{7.18}
+
+  \node[pd title,anchor=west] at (.06,6.30) {connected-overlay trace};
+  \draw[pd neutral fill]
+    (\xzero,.62) rectangle (\xroundtwo,4.92);
+  \node[pd label,anchor=south west] at (\xzero+.10,5.00)
     {possible stale acceptance};
 
-  \foreach \y/\peer/\wake in {4.75/A/0,3.75/B/2.8,2.75/C/6.2,1.75/D/3.6,.75/E/6.2} {
-    \node[pd label,anchor=east] at (\xzero-.30,\y) {\peer};
+  \foreach \y/\peer/\wake in {4.44/A/1.08,3.62/B/3.86,2.80/C/7.18,1.98/D/4.66,1.16/E/7.18} {
+    \node[pd row label] at (.72,\y) {\peer};
     \draw[pd warn rule] (\xzero,\y) -- (\wake,\y);
     \draw[pd focus rule] (\wake,\y) -- (\xend,\y);
     \node[pd focus datum,minimum size=4.5pt,inner sep=0pt] at (\wake,\y) {};
   }
-  \node[pd kind,anchor=east,rotate=90] at (-1.72,2.75) {verifier lane};
 
-  \draw[pd rule,->] (\xzero,-.15) -- (\xend,-.15);
-  \foreach \x/\lab in {0/$t$,2.8/$t+\Delta$,6.2/$t+2\Delta$} {
-    \draw[pd tick] (\x,-.04) -- (\x,-.25);
-    \node[pd label,anchor=north] at (\x,-.35) {\lab};
+  \draw[pd rule,->] (\xzero,.26) -- (\xend,.26);
+  \foreach \x/\lab in {1.08/$t$,3.86/$t+\Delta$,7.18/$t+2\Delta$} {
+    \draw[pd tick] (\x,.37) -- (\x,.15);
+    \node[pd label,anchor=north] at (\x,.04) {\lab};
   }
-  \node[pd label,anchor=west] at (\xend,-.15) {rounds};
+  \node[pd label,anchor=west] at (\xend,.26) {rounds};
 
-  \draw[pd breach rule] (8.30,.20) -- (8.30,5.10);
-  \node[pd breach label,anchor=south,align=center,text width=2.45cm]
-    at (8.30,5.55) {partition: no finite deadline};
+  % A categorical assumption failure, deliberately outside the time axis.
+  \node[pd panel,minimum width=10.25cm,minimum height=1.02cm,
+        text width=9.55cm,align=left] at (5.48,-2.02)
+    {\pdfiglabelbold Partitioned overlay.\quad
+     No finite deadline exists until connectivity returns.};
 \end{tikzpicture}
-\caption{Each verifier exits stale exposure when it observes revocation.
-Connected rounds converge by $t+2\Delta$; a partition has no finite deadline.
-[internal]}
+\caption{Five verifier lanes show one connected gossip trace reaching every
+daemon by $t+2\Delta$. The protocol promises expected $\Theta(\log m)$ rounds
+under its connectivity assumptions; the separate partition regime has no
+finite deadline. [internal]}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

@@ -1,58 +1,50 @@
-% Brief (tikz-diagram-craft). Register row ch1-20 [should].
-% Reader question: which of the two "delegation chain" objects does a
-%   given claim in this chapter mean?
-% Claim: "delegation chain" names two distinct objects that must never be
-%   merged -- the cryptographic authorization chain (Built) and the
-%   coordination lineage (Designed) -- and the second rides strictly
-%   inside the first, its authenticity guaranteed by the outer chain.
-% Evidence: whitepaper/single-writer-kernel.tex sec:comm (Two delegation
-%   chains, one dangerous name): authorization chain = hop-bound,
-%   attenuation-monotonic, anti-replay, anti-splice signatures, Built,
-%   mechanically verified; coordination lineage = task-lineage for loop
-%   detection and upward-block, Designed; "we never again write bare
-%   delegation chain."
-% Must distinguish: which object is cryptographic vs. coordination; that
-%   containment is the claim (the lineage rides inside the chain, not
-%   beside it); the open tension the pitfall names (a semantic task-shape
-%   equivalence is not deterministically signable).
-% Grammar: nested UML package plus component: the signed authorization
-%   package contains the coordination-lineage component it authenticates.
-%   Rejected: two side-by-side boxes, which would assert independence, and
-%   concentric colour fields, which show containment but not object kind.
-% Five-second test: "the coordination-lineage component is inside the signed
-%   authorization package; its task-shape binding is still open".
+% Reader question: how are the signed authorization chain and the coordination lineage related?
+% Claim: every coordination-lineage record is carried inside a signed, attenuating authorization hop; the two are not peer chains.
+% Evidence: sec:comm names hop binding, attenuation, replay/splice resistance, loop detection, upward blocking, and the open task-shape problem [internal].
+% Must distinguish: built cryptographic authorization from designed coordination semantics, including the still-open signable task-shape equivalence.
+% Grammar: UML package containing a pale semantic component and a three-party hop; rejected side-by-side chains because they falsely imply independence.
+% Five-second test: the verifier receives a signed hop whose payload visibly contains the coordination lineage, while semantic task equality remains open.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\w{10.55}
-  % UML package: the tab and frame name the signed container.
-  \draw[pd focus fill,rounded corners=1pt] (0,0) rectangle (\w,5.15);
-  \draw[pd focus fill,rounded corners=1pt] (0,5.15) rectangle (4.05,5.72);
-  \node[pd kind,anchor=west] at (.24,5.44) {signed package};
-  \node[pd title,anchor=west] at (.28,4.68)
-    {authorization chain \textperiodcentered\ \textsc{built}};
-  \node[pd label,anchor=west,text width=9.8cm,align=left] at (.28,4.02)
-    {hop-bound \textperiodcentered\ attenuating \textperiodcentered\ anti-replay
-     \textperiodcentered\ anti-splice};
+  \def\L{.12}
+  \def\R{10.72}
 
-  % UML component: a distinct coordination object carried in the package.
-  \node[pd uml component,minimum width=8.85cm,minimum height=2.25cm]
-    (lineage) at (5.28,2.05) {};
+  % The authorization chain is a UML package: white ground, strong edge.
+  \draw[pd focus outline,rounded corners=1pt] (\L,0) rectangle (\R,5.50);
+  \draw[pd focus fill,rounded corners=1pt] (\L,4.78) rectangle (5.20,5.50);
+  \node[pd kind,anchor=west] at (.36,5.14) {signed authorization package};
+  \node[pd title,anchor=west] at (.40,4.45)
+    {authorization chain \textperiodcentered\ \textsc{built}};
+
+  % One signed hop, shown as a conventional left-to-right component path.
+  \node[pd artifact,minimum width=2.15cm] (issuer) at (1.45,3.46)
+    {root signer};
+  \node[pd focus state,minimum width=2.35cm] (delegate) at (5.38,3.46)
+    {delegate hop};
+  \node[pd artifact,minimum width=2.15cm] (verifier) at (9.35,3.46)
+    {verifier};
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (issuer.east) -- (delegate.west);
+  \draw[pd focus arrow,shorten <=3pt,shorten >=3pt]
+    (delegate.east) -- (verifier.west);
+  \node[pd kind,anchor=south] at (3.42,3.78) {sign + attenuate};
+  \node[pd kind,anchor=south] at (7.37,3.78) {verify whole hop};
+
+  % The coordination object is a different kind, carried inside the package.
+  \node[pd uml component,pd protocol state,minimum width=9.25cm,minimum height=1.92cm]
+    (lineage) at (5.42,1.47) {};
   \pdumlicon{lineage}
-  \node[pd title,anchor=west] at (1.18,2.58)
+  \node[pd title,anchor=west] at (1.18,1.82)
     {coordination lineage \textperiodcentered\ \textsc{designed}};
-  \node[pd label,anchor=west] at (1.18,2.02)
-    {loop detection \textperiodcentered\ upward-block over the task shape};
-  \node[pd breach label,anchor=west] at (1.18,1.46)
-    {signed task-shape binding: open};
-  \node[pd kind,anchor=south west] at (.55,3.30)
-    {carried inside every signed hop};
-  \draw[pd focus rule] (.55,3.15) -- (9.95,3.15);
+  \node[pd label,anchor=west] at (1.18,1.25)
+    {task shape \textperiodcentered\ loop detection \textperiodcentered\ upward block};
+  \node[pd breach label,anchor=west] at (1.18,.86)
+    {open: signable task equivalence unresolved};
 \end{tikzpicture}
-\caption{A UML package separates the built signed authorization chain from
-the designed coordination-lineage component it carries. The outer signatures
-authenticate the lineage, while signable semantic task-shape equivalence
-remains open. [internal]}
+\caption{A UML package contains one coordination-lineage component inside
+the signed authorization path. Signatures authenticate the carried lineage;
+semantic task-shape equivalence remains an open design obligation. [internal]}
 \label{fig:swk-delegation-chains}
 \end{figure}

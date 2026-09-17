@@ -1,59 +1,46 @@
-% Brief (grammar: small state machine with guarded exits, badges keyed to a
-%   legend; atlas V/fig:anchor-card-lifecycle prescribes a state machine, not
-%   a timeline -- the current fragment and the tikz-diagram-craft example
-%   draft (redraw-anchor-card-lifecycle.tex) both draw a timeline of
-%   admissible intervals instead, and the draft also names the wrong hue
-%   (pdindigo; this chapter is pdcobalt). Redrawn to the atlas's own grammar
-%   here; flagged for the author to reconcile the atlas row or the draft.
 % Reader question: what are the only valid exits from an active card?
-% Claim: an issued card is absorbed into exactly one of two terminal states,
-%   revoked or expired; neither has an outgoing edge, so recovery is a new
-%   card, never a transition back to active.
-% Evidence: def:revocation, prop:no-reanim ("a revoked card cannot be
-%   un-revoked within its TTL... they must issue a new card"),
-%   prop:filter-mono (expiry only after t0+tau) [internal].
-% Must distinguish: the two absorbing terminal states (revoked, expired) from
-%   the one non-transition available after either -- issuing a new card,
-%   drawn as a correction off-ramp, never a return arrow to issued.
-% Grammar chosen: compact UML state machine, with the same-card lifecycle in
-%   one panel and fresh issuance outside it; guards are keyed to a ruled
-%   legend. Rejected: a timeline, which answers when rather than which exits,
-%   and a tall fork, which spends vertical space without adding state meaning.
-% Five-second test: "issued has exactly two guarded exits, both absorbing;
-%   the only way out of either is a new card, not a returning arrow."
+% Claim: an active card terminates by revocation or expiry; neither terminal state has an outgoing transition, and recovery issues a different card ID.
+% Evidence: def:revocation, prop:no-reanim, and prop:filter-mono define explicit revocation, natural expiry, and fresh issuance [internal].
+% Must distinguish: two terminal exits of one card from the separate issuance command that creates a new lifecycle.
+% Grammar: compact UML state machine with guarded exits and an unconnected fresh-card inset; rejected a timeline because the question is legal transition, not duration.
+% Five-second test: both old-card arrows end at double-boundary states, while the new card sits beyond a separator with no path from either terminal.
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  terminal/.style={pd breach state,double=pdpage,double distance=1.1pt,
-    line width=.5pt,rounded corners=4.5pt}]
-  \node[pd uml initial] (start) at (.20,2.00) {};
-  \node[pd uml focus state,minimum width=2.05cm] (issued) at (1.75,2.00)
-    {issued};
-  \node[pd uml choice] (fork) at (3.65,2.00) {};
-  \node[terminal,minimum width=2.25cm] (revoked) at (5.70,3.00)
+  revoked/.style={pd breach state,double=pdpage,double distance=1.1pt,
+    line width=.5pt,rounded corners=4.5pt,dash pattern=on 3.2pt off 2.2pt}]
+  \node[pd uml initial] (start) at (.18,1.72) {};
+  \node[pd uml focus state,minimum width=2.05cm] (active) at (1.78,1.72)
+    {active};
+  \node[pd uml choice] (fork) at (3.74,1.72) {};
+  \node[revoked,minimum width=2.28cm] (revoked) at (5.92,2.55)
     {revoked};
-  \node[terminal,minimum width=2.25cm] (expired) at (5.70,1.00)
+  \node[pd uml terminal,minimum width=2.28cm] (expired) at (5.92,.89)
     {expired};
 
-  \node[pd panel,fit=(start)(issued)(fork)(revoked)(expired),
-        inner sep=6pt] (samecard) {};
-  \node[pd kind,anchor=south] at (3.10,3.72) {same card ID};
-  \draw[pd uml transition,shorten >=3pt] (start) -- (issued);
-  \draw[pd uml transition,shorten >=3pt] (issued) -- (fork);
-  \node[pd badge] (g1) at (4.60,2.62) {1};
-  \node[pd badge] (g2) at (4.60,1.38) {2};
-  \draw[pd breach rule,pd to badge] (fork) -- (g1);
-  \draw[pd uml breach transition,pd from badge,shorten >=3pt] (g1) -- (revoked);
-  \draw[pd breach rule,pd to badge] (fork) -- (g2);
-  \draw[pd uml breach transition,pd from badge,shorten >=3pt] (g2) -- (expired);
+  \node[pd panel,fit=(start)(active)(fork)(revoked)(expired),
+        inner sep=6pt] (oldcard) {};
+  \node[pd kind,anchor=south] at (3.10,3.25) {same card ID};
+  \draw[pd uml focus transition,shorten >=3pt] (start) -- (active);
+  \draw[pd uml focus transition,shorten <=3pt,shorten >=3pt]
+    (active) -- (fork);
 
-  \node[pd ready state,minimum width=2.35cm] (fresh) at (9.15,3.00)
-    {new card\\new ID};
-  \draw[pd ready arrow,dash pattern=on 3.2pt off 2.2pt,shorten <=3pt,shorten >=3pt]
-    (samecard.east |- revoked.east) -- (fresh.west);
-  \node[pd note,anchor=north west,align=left,text width=3.2cm] at (7.22,2.45)
-    {not a transition of the revoked card};
+  \node[pd badge] (g1) at (4.78,2.24) {1};
+  \node[pd badge] (g2) at (4.78,1.20) {2};
+  \draw[pd breach rule,pd to badge] (fork) -- (g1);
+  \draw[pd uml breach transition,pd from badge,shorten >=3pt]
+    (g1) -- (revoked);
+  \draw[pd rule,pd to badge] (fork) -- (g2);
+  \draw[pd uml transition,pd from badge,shorten >=3pt]
+    (g2) -- (expired);
+
+  % Recovery is deliberately disconnected from both terminal old-card states.
+  \node[pd kind] at (9.18,3.03) {separate issuance};
+  \node[pd ready state,minimum width=2.55cm,minimum height=1.25cm]
+    (fresh) at (9.18,1.72) {new card\\new ID};
+  \node[pd note,align=center,text width=2.45cm] at (9.30,.08)
+    {a new lifecycle, not a transition of the old card};
 \end{tikzpicture}
 \vspace{2pt}
 {\pdfiglabel
@@ -65,8 +52,8 @@
 \raisebox{-.5ex}{\tikz[baseline=-.6ex]\node[pd badge]{2};} & natural expiry: issue time plus TTL \\
 \bottomrule
 \end{tabular}}
-\caption{A UML state machine gives one card ID exactly two guarded exits,
-both terminal. Recovery starts a new lifecycle on a fresh ID; it never
-reanimates the revoked card. [internal]}
+\caption{A UML state machine gives one card ID exactly two guarded terminal
+exits. Fresh issuance is shown separately, with no outgoing path from the
+revoked or expired card. [internal]}
 \label{fig:anchor-card-lifecycle}
 \end{figure}
