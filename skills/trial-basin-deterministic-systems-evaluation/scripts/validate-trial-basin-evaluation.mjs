@@ -55,7 +55,7 @@ export function validateEvaluation(record) {
   add(errors, requiredFaults.some((fault) => !record.faults.faultIds.includes(fault)), "E_FAULT_COVERAGE", "$.faults.faultIds");
   add(errors, record.evidence.committedBeforeMinimization !== true, "E_RAW_NOT_COMMITTED", "$.evidence.committedBeforeMinimization");
   add(errors, record.evidence.guestSoleWitness !== false, "E_GUEST_SOLE_WITNESS", "$.evidence.guestSoleWitness");
-  add(errors, record.oracle.mutationKilled > record.oracle.mutationTotal, "E_MUTATION_ARITHMETIC", "$.oracle");
+  add(errors, !Number.isInteger(record.oracle.mutationTotal) || record.oracle.mutationTotal < 1 || !Number.isInteger(record.oracle.mutationKilled) || record.oracle.mutationKilled < 0 || record.oracle.mutationKilled > record.oracle.mutationTotal, "E_MUTATION_ARITHMETIC", "$.oracle");
 
   for (const [index, control] of (record.negativeControls ?? []).entries()) {
     exact(control, CONTROL, `$.negativeControls[${index}]`, errors);

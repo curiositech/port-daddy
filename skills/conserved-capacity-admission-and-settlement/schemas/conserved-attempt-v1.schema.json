@@ -63,8 +63,8 @@
       "type": "array",
       "items": {
         "type": "object", "additionalProperties": false,
-        "required": ["effectId", "reservationCommitId", "status", "retryAuthority", "capacityHeld", "closureReceiptRef", "handoffId"],
-        "properties": {"effectId": {"type": "string", "minLength": 1}, "reservationCommitId": {"type": "string", "minLength": 1}, "status": {"enum": ["NONE", "PREPARED", "DISPATCHED", "CONFIRMED", "FAILED", "AMBIGUOUS", "RECONCILED", "CLOSED", "QUARANTINED_UNRESOLVED"]}, "retryAuthority": {"type": "boolean"}, "capacityHeld": {"type": "boolean"}, "closureReceiptRef": {"type": ["string", "null"]}, "handoffId": {"type": ["string", "null"]}}
+        "required": ["effectId", "reservationCommitId", "status", "retryAuthority", "capacityHeld", "closureReceiptRef", "closureAuthorityId", "handoffId"],
+        "properties": {"effectId": {"type": "string", "minLength": 1}, "reservationCommitId": {"type": "string", "minLength": 1}, "status": {"enum": ["NONE", "PREPARED", "DISPATCHED", "CONFIRMED", "FAILED", "AMBIGUOUS", "RECONCILED", "CLOSED", "QUARANTINED_UNRESOLVED"]}, "retryAuthority": {"type": "boolean"}, "capacityHeld": {"type": "boolean"}, "closureReceiptRef": {"type": ["string", "null"]}, "closureAuthorityId": {"type": ["string", "null"]}, "handoffId": {"type": ["string", "null"]}}
       }
     },
     "settlement": {

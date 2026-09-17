@@ -2,7 +2,7 @@
 
 **Decision:** BUILD the static contract spine and deterministic fake-execution slices. **HOLD** every live containment, provider, cancellation, accessibility, and release claim while the local runtime halt remains in force.
 
-This review is bound to repository object `6c2c30d74b889b4d8037ce5d43b265bfbf21a686` and sealed packet `sha256:5c3abfa1ee4d073555b5570e06a8de7fb650c93501e08241c089d6dddc493911` (43 files). The packet digest reproduced exactly. The worktree was intentionally dirty with post-seal skill replacements, so source claims were read from the Git object and those replacements were excluded.
+This review is bound to repository object `6c2c30d74b889b4d8037ce5d43b265bfbf21a686` and the historical v1 receipt `sha256:5c3abfa1ee4d073555b5570e06a8de7fb650c93501e08241c089d6dddc493911` (43 files). That v1 receipt does **not** reproduce under the current seal script and is retained only as historical evidence; [`sealed-packet-v2.json`](../sealed-packet-v2.json) is the current reproducible packet receipt. The worktree was intentionally dirty with post-v1 skill replacements, so source claims were read from the Git object and those replacements were excluded from this historical beat.
 
 ## Reciprocal-review correction
 

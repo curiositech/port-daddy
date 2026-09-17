@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2] - 2026-09-17
+
+### Fixed
+
+- Bind Engineering, Product, and Design reality beats to their declared participant roles and require three identity-distinct authors.
+- Added wrong-role and repeated-author mutations.
+
 ## [2.0.1] - 2026-09-17
 
 ### Fixed

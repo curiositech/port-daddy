@@ -31,7 +31,7 @@ A lost acknowledgement means the effect may have happened. The attempt may close
 
 ## Settlement handoff
 
-Effect closure and an idempotent outbox record commit together. The settlement authority consumes that record and may end `SETTLED` or `UNSETTLED`. The effect boundary cannot grade evidence, slash collateral, pay, or suppress the handoff.
+Every closed effect binds its closure receipt to the declared effect-boundary principal. Effect closure and an idempotent outbox record commit together only for a bounded-settlement profile. A `NO_SETTLEMENT` record forbids both settlement metadata and effect-level handoff identifiers. The settlement authority consumes a permitted outbox record and may end `SETTLED` or `UNSETTLED`. The effect boundary cannot grade evidence, slash collateral, pay, or suppress the handoff.
 
 ## Truth boundary
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 — 2026-09-17
+
+- Bind every bypass test to a unique, identity-disjoint `VERIFIER_RUNNER` witness.
+- Reject dangling mediation witnesses and require externally witnessed coverage to use a control-disjoint host or provider witness.
+- Add duplicate-test, missing-test-witness, and dangling-inventory-witness mutations.
+
 ## 1.0.0 — 2026-09-16
 
 Breaking replacement of the imported 0.1.0 bundle.

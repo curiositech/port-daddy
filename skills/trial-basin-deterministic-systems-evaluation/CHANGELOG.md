@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 — 2026-09-17
+
+- Require a positive integer mutation corpus and a non-negative integer killed count bounded by that corpus.
+- Add zero, negative, and fractional mutation-count adversarial cases.
+
 ## 1.0.1 — 2026-09-17
 
 - Closed the published JSON Schema root.

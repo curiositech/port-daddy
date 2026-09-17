@@ -19,6 +19,8 @@ const cases=[
  ["bad-steelman",()=>{const x=clone();x.reviews[0].steelman.protectedOutcome="";return x},"steelmanning-incomplete"],
  ["correction-role",()=>{const x=clone();x.corrections=[{ticketId:"t",authorId:"p1",packetSha256:x.packet.packetSha256,disposition:"ACCEPT",claimDelta:"x",preservedInvariants:[],evidenceRefs:[],truthLabel:"PROPOSED",dissent:"",createsRole:true,createsAuthority:false,createsRuntimeAction:false,attempt:1}];return x},"correction-broadens-scope"],
  ["stale-beat",()=>{const x=clone();x.realityBeats[0].authorId="p1";return x},"reality-beat-not-fresh"],
+ ["wrong beat role",()=>{const x=clone();x.participants.push({participantId:"e2",role:"ENGINEERING_BEAT",admissionEvidenceRef:"admit:e2"});x.realityBeats[1].authorId="e2";return x},"reality-beat-role-invalid"],
+ ["same author for multiple beats",()=>{const x=clone();x.realityBeats[1].authorId="e1";return x},"reality-beat-author-duplicate"],
  ["missing-beat",()=>{const x=clone();x.realityBeats.pop();return x},"reality-beat-missing"],
  ["hide-dissent",()=>{const x=clone();x.managerSubmission.referencedDissentIds=[];return x},"dissent-not-durable"],
  ["status-drift",()=>{const x=clone();x.managerSubmission.decision="BLOCKED";return x},"submission-status-mismatch"],

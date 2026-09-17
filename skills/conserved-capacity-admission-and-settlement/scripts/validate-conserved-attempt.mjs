@@ -9,7 +9,7 @@ const DI = ["name", "unit", "source", "opening", "granted", "available", "reserv
 const EL = ["commitId", "attemptId", "status", "schedulerId"];
 const RE = ["commitId", "attemptId", "brokerId", "status", "oneUse", "expiresAt", "idempotencyKey"];
 const AD = ["writerId", "eligibilityCommitId", "reservationCommitId", "status", "leaseId", "dispatchIntentDurable"];
-const EF = ["effectId", "reservationCommitId", "status", "retryAuthority", "capacityHeld", "closureReceiptRef", "handoffId"];
+const EF = ["effectId", "reservationCommitId", "status", "retryAuthority", "capacityHeld", "closureReceiptRef", "closureAuthorityId", "handoffId"];
 const SE = ["profile", "authorityId", "outboxId", "status", "compensationEffectRef"];
 
 function add(errors, condition, code, path) {
@@ -79,12 +79,16 @@ export function validateConservedAttempt(record) {
     if (["AMBIGUOUS", "QUARANTINED_UNRESOLVED"].includes(effect.status)) {
       add(errors, effect.retryAuthority || !effect.capacityHeld, "E_AMBIGUITY_RELEASED", `$.effects[${index}]`);
     }
-    if (effect.status === "CLOSED") add(errors, !effect.closureReceiptRef, "E_CLOSURE_RECEIPT", `$.effects[${index}].closureReceiptRef`);
+    if (effect.status === "CLOSED") {
+      add(errors, !effect.closureReceiptRef, "E_CLOSURE_RECEIPT", `$.effects[${index}].closureReceiptRef`);
+      add(errors, effect.closureAuthorityId !== record.authorities.effectBoundary, "E_EFFECT_AUTHORITY_BINDING", `$.effects[${index}].closureAuthorityId`);
+    } else add(errors, effect.closureAuthorityId !== null, "E_EFFECT_AUTHORITY_ORPHAN", `$.effects[${index}].closureAuthorityId`);
     if (effect.handoffId) add(errors, effect.status !== "CLOSED", "E_HANDOFF_BEFORE_CLOSURE", `$.effects[${index}].handoffId`);
   }
 
   if (record.settlement.profile === "NO_SETTLEMENT") {
     add(errors, record.settlement.status !== "NOT_REQUIRED" || record.settlement.outboxId !== null || record.settlement.compensationEffectRef !== null, "E_NO_SETTLEMENT_EFFECT", "$.settlement");
+    add(errors, record.effects.some((effect) => effect.handoffId !== null), "E_NO_SETTLEMENT_HANDOFF", "$.effects");
   } else {
     add(errors, !record.settlement.outboxId || record.settlement.status === "NOT_REQUIRED", "E_SETTLEMENT_HANDOFF", "$.settlement");
     add(errors, !record.effects.some((effect) => effect.status === "CLOSED" && effect.handoffId === record.settlement.outboxId), "E_SETTLEMENT_NOT_BOUND", "$.settlement.outboxId");

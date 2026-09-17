@@ -8,7 +8,7 @@ const TARGET=["targetRef","type","scope","capacityTokens","capabilityDigests","a
 const ITEM=["itemId","kind","trustClass","directiveChannel","droppable","tokenEstimate","scope","causalParents","retrievalSpace","obligationState","effectState","capabilityRequirements","authority","contentDigest"];
 const AUTH=["status","audience","guidanceEnvelopeRef","verificationReceiptRef","revocationWitnessRef"];
 const SPACE=["modelArtifactDigest","modelConfigDigest","preprocessingDigest","chunkerDigest","pooling","dimensions","normalization","metric","coordinatePrecision","quantizationDigest","redactionPolicyDigest","modality","spaceId"];
-const DISP=["itemId","disposition","targetRefs","reasonCode","proofRefs"];
+const DISP=["itemId","disposition","sourceTargetRef","targetRefs","reasonCode","proofRefs"];
 const TRANSFER=["itemId","fromTargetRef","toTargetRef","disclosureProofRef"];
 const COMPARISON=["leftItemId","rightItemId","spaceId"];
 const GAP=["code","itemId","targetRef","detail"];
@@ -63,6 +63,9 @@ export function validatePartition(plan){
     const item=items.get(d.itemId);if(!item)errors.push({code:"E_UNKNOWN_ITEM",path:`$.dispositions[${i}].itemId`});
     if(d.targetRefs.some(x=>!targets.has(x)))errors.push({code:"E_UNKNOWN_TARGET",path:`$.dispositions[${i}].targetRefs`});
     if(["ASSIGNED","TRANSFERRED"].includes(d.disposition)&&d.targetRefs.length===0)errors.push({code:"E_TARGET_REQUIRED",path:`$.dispositions[${i}].targetRefs`});
+    if(d.disposition==="TRANSFERRED"){
+      if(typeof d.sourceTargetRef!=="string"||!targets.has(d.sourceTargetRef)||d.targetRefs.includes(d.sourceTargetRef))errors.push({code:"E_TRANSFER_SOURCE_INVALID",path:`$.dispositions[${i}].sourceTargetRef`});
+    }else if(d.sourceTargetRef!==null)errors.push({code:"E_TRANSFER_SOURCE_ORPHAN",path:`$.dispositions[${i}].sourceTargetRef`});
     if(d.disposition==="OMITTED_ALLOWED"&&(!item?.droppable||!OMIT.has(d.reasonCode)))errors.push({code:"E_OMISSION_DENIED",path:`$.dispositions[${i}]`});
     if(d.disposition==="BLOCKED"&&plan.result==="FEASIBLE")errors.push({code:"E_BLOCKED_FEASIBLE",path:`$.dispositions[${i}]`});
   }
@@ -88,6 +91,7 @@ export function validatePartition(plan){
       continue;
     }
     if(!edges.length)errors.push({code:"E_TRANSFER_EVIDENCE_MISSING",path:`$.dispositions.${d.itemId}`});
+    for(const edge of edges)if(edge.fromTargetRef!==d.sourceTargetRef)errors.push({code:"E_TRANSFER_SOURCE_MISMATCH",path:`$.transfers.${d.itemId}`});
     for(const ref of new Set(d.targetRefs)){
       if(edges.filter(t=>t.toTargetRef===ref).length!==1)errors.push({code:"E_TRANSFER_DESTINATION_MISMATCH",path:`$.dispositions.${d.itemId}.targetRefs`});
     }

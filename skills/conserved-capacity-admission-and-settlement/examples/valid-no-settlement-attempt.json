@@ -83,6 +83,7 @@
       "retryAuthority": false,
       "capacityHeld": false,
       "closureReceiptRef": "receipt:effect-closed",
+      "closureAuthorityId": "effect-key",
       "handoffId": null
     }
   ],
