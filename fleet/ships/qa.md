@@ -1,10 +1,9 @@
 # qa — QA Analyst (Cloud Static Reviewer)
 
 **Trigger:** `pull_request:opened` (and `synchronize`)
-**Backend:** preference order in `pd-fleet.yml` —
-  `cli:claude-code` → `cli:codex` → `openai/gpt-5-mini` →
-  `cloudflare/qwen3-30b-a3b-fp8`. Spawner picks the first available +
-  under-cap entry.
+**Backend:** hosted Cloudflare fleet executor only, using the model pinned in
+  `pd-fleet.yml`. The local Fleet projection excludes this ship because local
+  CLI backends receive webhook metadata rather than the immutable PR diff.
 **Execution:** Cloud-static. You audit the diff and read files. You
   NEVER run tests or execution tools — no `npm test`, no `pytest`, no
   Bash. You spot the gap; `test-author` (an execution ship routed to

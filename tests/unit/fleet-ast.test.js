@@ -300,4 +300,43 @@ fleet:
     expect(malformedAst.agents.get('dark').enabled?.value).toBe(false);
     expect(astToConfig(malformedAst).agents).toEqual([]);
   });
+
+  it('keeps cloud-only declarations inspectable but out of the local runtime', () => {
+    const source = `
+fleet:
+  name: hosted-boundary
+  agents:
+    hosted-reviewer:
+      cloud_only: true
+      trigger: pull_request:opened
+      backend: cloudflare
+      prompt: "review the frozen diff"
+    local-reviewer:
+      cloud_only: false
+      trigger: git:committed
+      backend: claude-cli
+      prompt: "review the checkout"
+`;
+    const ast = parseFleetSource(source);
+
+    expect(ast.agents.get('hosted-reviewer').cloudOnly?.value).toBe(true);
+    expect(ast.agents.get('local-reviewer').cloudOnly?.value).toBe(false);
+    expect(astToConfig(ast).agents.map(agent => agent.name)).toEqual(['local-reviewer']);
+  });
+
+  it('fails closed to hosted-only when cloud_only is present but not boolean', () => {
+    const ast = parseFleetSource(`
+fleet:
+  name: malformed-hosted-boundary
+  agents:
+    reviewer:
+      cloud_only: "false"
+      trigger: pull_request:opened
+      backend: claude-cli
+      prompt: "must never run locally"
+`);
+
+    expect(ast.agents.get('reviewer').cloudOnly?.value).toBe(true);
+    expect(astToConfig(ast).agents).toEqual([]);
+  });
 });

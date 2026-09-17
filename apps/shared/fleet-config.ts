@@ -367,16 +367,20 @@ export { resolveCfModel };
 /**
  * The Workers AI model one ship runs on.
  *
- * Reads the ship's first `cloudflare` fallback and honors its declared pin when
- * the id is admitted; anything else falls through to the ship's name default.
- * The `break` is deliberate — a cloudflare fallback that declares nothing
- * honorable means "run the default", not "keep looking down the list".
+ * Honors an admitted model on a `cloudflare` primary, then reads the ship's
+ * first `cloudflare` fallback. Anything else falls through to the ship's name
+ * default. The `break` is deliberate — a cloudflare fallback that declares
+ * nothing honorable means "run the default", not "keep looking down the list".
  *
  * @param agent The raw pd-fleet.yml ship block.
  * @param name The ship's name, which decides the default.
  * @returns A concrete, admitted Workers AI model id.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
+  if (agent.backend === 'cloudflare') {
+    const pinned = resolveModelToken(agent.model);
+    if (pinned && KNOWN_GOOD_CF_MODELS.has(pinned)) return pinned;
+  }
   for (const fb of agent.fallbacks ?? []) {
     if (fb?.backend !== 'cloudflare') continue;
     // Both vocabularies are accepted, stable token first: `capability:`/a role

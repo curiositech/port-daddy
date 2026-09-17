@@ -11,7 +11,14 @@ const REAL_YAML = readFileSync(
   'utf8',
 );
 const REAL_DOCUMENT = parseYaml(REAL_YAML) as {
-  fleet?: { agents?: Record<string, { execution?: unknown; allowedTools?: unknown }> };
+  fleet?: { agents?: Record<string, {
+    execution?: unknown;
+    allowedTools?: unknown;
+    cloud_only?: unknown;
+    backend?: unknown;
+    model?: unknown;
+    fallbacks?: unknown;
+  }> };
 };
 
 describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () => {
@@ -92,6 +99,23 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(declaredQa).toBeDefined();
     expect(declaredQa!.execution).toBeUndefined();
     expect(declaredQa!.allowedTools).toBe('Read,Grep,Glob');
+    expect(declaredQa!.cloud_only).toBe(true);
+    expect(declaredQa!.backend).toBe('cloudflare');
+    expect(declaredQa!.fallbacks).toBeUndefined();
+    expect(qa!.cfModel).toBe(declaredQa!.model);
+  });
+
+  it('honors a cloudflare primary model without requiring a fake fallback', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      prompt: inspect the frozen diff
+      backend: cloudflare
+      model: '${CF_ROLE_MODELS.reviewBot}'
+`, 'pull_request:opened');
+
+    expect(parsed?.[0].cfModel).toBe(CF_ROLE_MODELS.reviewBot);
   });
 
   it('legacy test-author tool strings do not acquire execution authority', () => {
