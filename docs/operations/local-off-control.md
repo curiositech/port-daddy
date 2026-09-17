@@ -102,6 +102,10 @@ evidence stays available while provider egress still obeys Off. Provider calls
 and outward mutations require current cost-accounting truth even when they are
 not model inference.
 
+The table's first column names the derived runtime posture, the second explains
+the observed control and capability state, and the third states what that posture
+permits for automated or paid effects.
+
 | Posture | Meaning | Automated or paid effects |
 |---|---|---|
 | `off` | The operator wants Off and the stop boundary is durably observed closed. | Denied. |

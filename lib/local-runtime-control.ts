@@ -2,6 +2,8 @@
 import { accessSync, constants, lstatSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
+// NodeNext source imports name the emitted ESM file; TypeScript resolves this
+// specifier to the sibling runtime-posture.ts module during typechecking.
 import { admitRuntimeEffect, type RuntimePostureInput } from './runtime-posture.js';
 
 export interface LocalRuntimeControlOptions {
