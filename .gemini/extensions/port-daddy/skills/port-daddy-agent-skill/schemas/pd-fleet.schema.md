@@ -127,7 +127,6 @@ fleet:
       trigger: git:committed
       backend: cloudflare
       model: "@cf/qwen/qwen3-30b-a3b-fp8"
-      cloud_only: true
       identity: "{project}:fleet:qa"
       respawn: true
       max_respawns: 3
