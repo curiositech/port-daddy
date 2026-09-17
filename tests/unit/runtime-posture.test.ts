@@ -39,6 +39,21 @@ describe('runtime posture names the product state instead of treating it as a bo
       reasons: ['runtime_desired_unknown', 'runtime_control_unknown'],
     });
   });
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['an array', []],
+    ['a string', 'on'],
+  ])('a %s top-level posture payload returns stable unknown state', (_label, input) => {
+    expect(assessRuntimePosture(input as never)).toMatchObject({
+      posture: 'unknown',
+      desired: 'unknown',
+      control: 'unknown',
+      blockers: [],
+      reasons: ['runtime_input_invalid'],
+    });
+  });
 });
 
 describe('effect admission is narrower than the overall posture', () => {
@@ -261,5 +276,45 @@ describe('effect admission is narrower than the overall posture', () => {
     expect(admitRuntimeEffect({ ...ready, control: 'future_value' } as never, {
       effects: ['automatic_local'],
     })).toMatchObject({ allowed: false, posture: 'unknown', reasons: ['runtime_control_unknown'] });
+  });
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['an array', []],
+    ['a string', 'automatic_local'],
+  ])('a %s top-level effect request is denied without throwing', (_label, request) => {
+    expect(admitRuntimeEffect(ready, request as never)).toEqual({
+      allowed: false,
+      posture: 'on',
+      effects: [],
+      requiredCapabilities: [],
+      reasons: ['effect_request_invalid'],
+    });
+  });
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['an array', []],
+    ['a string', 'on'],
+  ])('a %s top-level posture input cannot use the human-safe exemption', (_label, input) => {
+    expect(admitRuntimeEffect(input as never, { effects: ['read_only'] })).toEqual({
+      allowed: false,
+      posture: 'unknown',
+      effects: [],
+      requiredCapabilities: [],
+      reasons: ['runtime_input_invalid'],
+    });
+  });
+
+  test('two malformed top-level objects report both stable denial reasons', () => {
+    expect(admitRuntimeEffect(null as never, null as never)).toEqual({
+      allowed: false,
+      posture: 'unknown',
+      effects: [],
+      requiredCapabilities: [],
+      reasons: ['runtime_input_invalid', 'effect_request_invalid'],
+    });
   });
 });
