@@ -106,6 +106,35 @@ async function establishConflict(harness: ReturnType<typeof buildHarness>) {
 }
 
 describe('authenticated claim conflict automatic Parley', () => {
+  test('keeps omitted-worktree preflight and storage in the explicit unscoped world', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'unscoped-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'unscoped-challenger');
+
+    const first = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: { purpose: 'unscoped owner', files: ['README.md'] },
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({ success: true, worktreeId: null, files: ['README.md'] });
+
+    const duplicate = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: challenger.headers,
+      payload: { purpose: 'unscoped challenger', files: ['README.md'] },
+    });
+    expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.json()).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [expect.objectContaining({ sessionId: first.json().id })],
+    });
+    await harness.app.close();
+  });
+
   test('does not report same relative paths in different worktree worlds as conflicts', async () => {
     const harness = buildHarness();
     const alpha = mintTestActor(harness.actorSouls, 'scope-alpha');

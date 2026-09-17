@@ -836,11 +836,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         reply.code(400);
         return worktreePolicy;
       }
+      // HTTP callers either provide a verified worktree context or are
+      // explicitly unscoped. Resolve that boundary once: passing `undefined`
+      // to sessions.start would let the store auto-detect the daemon checkout
+      // after this route already preflighted the unscoped world.
+      const resolvedWorktreeId = worktreePolicy.worktree?.id ?? null;
 
       if (files && Array.isArray(files) && files.length > 0 && !force) {
         const conflictCheck = sessions.getFileConflicts(files, {
           project: null,
-          worktreeId: worktreePolicy.worktree?.id ?? null,
+          worktreeId: resolvedWorktreeId,
         });
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
           evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
@@ -880,7 +885,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         agentId: sessionAgent.agentId,
         files,
         metadata: stampedMetadata,
-        worktreeId: worktreePolicy.worktree?.id,
+        worktreeId: resolvedWorktreeId,
         durable: lifecycle === 'durable',
       });
 
