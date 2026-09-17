@@ -157,7 +157,10 @@ function capabilityStatus(
   const now = Date.now();
   if (!Number.isFinite(observation.observedAt) || !Number.isFinite(observation.validUntil)) return 'unknown';
   if (observation.observedAt! > now || now - observation.observedAt! > MAX_OBSERVATION_AGE_MS) return 'unknown';
-  if (observation.validUntil! <= now || observation.validUntil! - now > MAX_OBSERVATION_HORIZON_MS) return 'unknown';
+  if (
+    observation.validUntil! <= now
+    || observation.validUntil! - observation.observedAt! > MAX_OBSERVATION_HORIZON_MS
+  ) return 'unknown';
   return observation.status;
 }
 
@@ -166,7 +169,10 @@ function observedControl(input: RuntimePostureInput): RuntimeControlObservation 
   const now = Date.now();
   if (!Number.isFinite(input.controlObservedAt) || !Number.isFinite(input.controlValidUntil)) return 'unknown';
   if (input.controlObservedAt! > now || now - input.controlObservedAt! > MAX_OBSERVATION_AGE_MS) return 'unknown';
-  if (input.controlValidUntil! <= now || input.controlValidUntil! - now > MAX_OBSERVATION_HORIZON_MS) return 'unknown';
+  if (
+    input.controlValidUntil! <= now
+    || input.controlValidUntil! - input.controlObservedAt! > MAX_OBSERVATION_HORIZON_MS
+  ) return 'unknown';
   return input.control;
 }
 
