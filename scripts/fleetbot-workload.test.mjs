@@ -3,19 +3,24 @@ import { verify } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import {
+  actionInputDigest,
   buildCommentRequest,
   buildEnqueueRequest,
   buildInspectRequest,
   buildReadyRequest,
   buildRequestReviewersRequest,
   buildReviewReplyRequest,
+  buildReceiptRecoveryEnvelope,
+  buildRecoveryManifest,
   grantReadHeaders,
   hashHex,
   main,
   parseReviewerJson,
+  recoverPublisherReceipt,
   signDigestHex,
   stableJson,
   verifyPublisherReceiptEnvelope,
+  verifyRecoveryManifest,
   workloadKey,
 } from './fleetbot-workload.mjs'
 
@@ -424,6 +429,184 @@ describe('fleetbot workload client', () => {
     }
   })
 
+  it('creates a non-secret immutable manifest and exact receipt-read proof', () => {
+    const snapshot = {
+      grantId,
+      grantEpoch: 8,
+      signingKeyGeneration: 4,
+      repositories: ['curiositech/port-daddy'],
+      operations: ['pull-request.comment'],
+    }
+    const request = buildCommentRequest({
+      key,
+      snapshot,
+      repository: 'curiositech/port-daddy',
+      pullRequest: {
+        number: 10282,
+        base: { ref: 'main', sha: '1'.repeat(40) },
+        head: { ref: 'codex/comment', sha: '2'.repeat(40) },
+      },
+      body: 'The exact-head finding is fixed.',
+      authorship: { sessionId: 'codex-01abc', roadmapItem: 'fleetbot-pr-authorship', sidequestReason: null },
+      runId: '123',
+      runAttempt: '1',
+      now: 2_000_000_000,
+      nonce: 'ef'.repeat(32),
+    })
+    const inputDigest = hashHex('dispatch-inputs')
+    const manifest = buildRecoveryManifest({
+      key,
+      request,
+      snapshot,
+      repository: 'curiositech/port-daddy',
+      workflow: 'Fleetbot actuator',
+      runId: '123',
+      command: 'comment',
+      pullRequestNumber: 10282,
+      inputDigest,
+      createdAt: 2_000_000_000,
+    })
+    assert.equal(verifyRecoveryManifest(manifest, {
+      key,
+      repository: 'curiositech/port-daddy',
+      workflow: 'Fleetbot actuator',
+      runId: '123',
+      command: 'comment',
+      pullRequestNumber: 10282,
+      inputDigest,
+    }), manifest)
+    assert.equal(JSON.stringify(manifest).includes('FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX'), false)
+    assert.equal(JSON.stringify(manifest).includes('GITHUB_TOKEN'), false)
+    assert.equal(JSON.stringify(manifest).includes('The exact-head finding is fixed.'), false)
+    assert.throws(() => verifyRecoveryManifest({ ...manifest, command: 'ready' }, {
+      key,
+      repository: 'curiositech/port-daddy',
+      workflow: 'Fleetbot actuator',
+      runId: '123',
+      command: 'ready',
+      pullRequestNumber: 10282,
+      inputDigest,
+    }), /immutable workflow invocation/)
+
+    const envelope = buildReceiptRecoveryEnvelope({ key, manifest, now: 2_000_000_100, nonce: 'ad'.repeat(32) })
+    assert.deepEqual(Object.keys(envelope).sort(), ['proof', 'proofSignature'])
+    assert.deepEqual(envelope.proof, {
+      schema: 'port-daddy.publisher-receipt-read.v1',
+      method: 'POST',
+      path: '/v1/fleetbot/publisher-receipts/recover',
+      daemonFingerprint: key.fingerprint,
+      signingKeyGeneration: 4,
+      issuedAt: 2_000_000_100,
+      nonce: 'ad'.repeat(32),
+      binding: manifest.binding,
+    })
+    assert.equal(verify(null, Buffer.from(hashHex(stableJson(envelope.proof)), 'hex'), key.privateKey, Buffer.from(envelope.proofSignature, 'hex')), true)
+  })
+
+  it('reruns recover only from the original manifest without reading GitHub, the grant, or publish', async () => {
+    const relay = workloadKey('27'.repeat(32))
+    const env = {
+      GITHUB_REPOSITORY: 'curiositech/port-daddy',
+      GITHUB_RUN_ID: '123',
+      GITHUB_RUN_ATTEMPT: '2',
+      GITHUB_WORKFLOW: 'Fleetbot actuator',
+      FLEETBOT_RELAY_URL: 'https://relay.example',
+      FLEETBOT_RELAY_PUBLIC_KEY_HEX: relay.publicKeyHex,
+      FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: '19'.repeat(32),
+      FLEETBOT_PULL_REQUEST_NUMBER: '10282',
+      FLEETBOT_OPERATION: 'comment',
+      FLEETBOT_COMMENT_BODY: 'The exact-head finding is fixed.',
+      FLEETBOT_ACTOR_ID: 'github-user:42',
+      FLEETBOT_AGENT_ID: 'admiral-reviewer',
+      FLEETBOT_SESSION_ID: 'codex-01abc',
+      FLEETBOT_PURPOSE: 'Answer the exact-head review finding.',
+      FLEETBOT_ROADMAP_ITEM: 'fleetbot-pr-authorship',
+    }
+    const snapshot = {
+      grantId,
+      grantEpoch: 8,
+      signingKeyGeneration: 4,
+      repositories: ['curiositech/port-daddy'],
+      operations: ['pull-request.comment'],
+    }
+    const request = buildCommentRequest({
+      key,
+      snapshot,
+      repository: env.GITHUB_REPOSITORY,
+      pullRequest: { number: 10282, base: { ref: 'main', sha: '1'.repeat(40) }, head: { ref: 'codex/comment', sha: '2'.repeat(40) } },
+      body: env.FLEETBOT_COMMENT_BODY,
+      authorship: {
+        actorId: env.FLEETBOT_ACTOR_ID,
+        agentId: env.FLEETBOT_AGENT_ID,
+        sessionId: env.FLEETBOT_SESSION_ID,
+        purpose: env.FLEETBOT_PURPOSE,
+        roadmapItem: env.FLEETBOT_ROADMAP_ITEM,
+        sidequestReason: null,
+      },
+      runId: env.GITHUB_RUN_ID,
+      runAttempt: '1',
+      now: 2_000_000_000,
+      nonce: 'ef'.repeat(32),
+    })
+    const manifest = buildRecoveryManifest({
+      key,
+      request,
+      snapshot,
+      repository: env.GITHUB_REPOSITORY,
+      workflow: env.GITHUB_WORKFLOW,
+      runId: env.GITHUB_RUN_ID,
+      command: env.FLEETBOT_OPERATION,
+      pullRequestNumber: 10282,
+      inputDigest: actionInputDigest(env.FLEETBOT_OPERATION, env),
+      createdAt: 2_000_000_000,
+    })
+    const seen = []
+    const fetchImpl = async (input, init = {}) => {
+      const url = String(input)
+      seen.push({ url, init })
+      if (url !== 'https://relay.example/v1/fleetbot/publisher-receipts/recover') throw new Error(`unexpected fetch ${url}`)
+      const recovery = JSON.parse(init.body)
+      assert.equal(recovery.proof.binding.idempotencyKey, request.idempotencyKey)
+      const unsigned = {
+        schema: 'port-daddy.fleetbot-receipt.v2',
+        receiptId: `github_receipt_${request.idempotencyKey.slice('pd-gh-'.length, 'pd-gh-'.length + 32)}`,
+        authority: 'port-daddy-relay-github-app',
+        appSlug: 'port-daddy',
+        operation: request.operation,
+        repository: request.repository,
+        idempotencyKey: request.idempotencyKey,
+        accountUserId: 'user-1',
+        accountGithubUserId: 42,
+        authorizedBy: { grantId, grantEpoch: 8, surface: 'publisher' },
+        admission: 'standing-publisher-grant',
+        actorId: request.authorship.actorId,
+        agentId: request.authorship.agentId,
+        sessionId: request.sessionId,
+        roadmapItem: request.authorship.roadmapItem,
+        resourceUrl: 'https://github.com/curiositech/port-daddy/pull/10282#issuecomment-1',
+        resourceNumber: 10282,
+        publishedBranch: 'codex/comment',
+        sourceHeadSha: null,
+        githubHeadSha: '2'.repeat(40),
+        result: 'created',
+        verifiedAt: 2_000_000_000,
+        relayPublicKey: relay.publicKeyHex,
+        tokenCleanup: 'confirmed',
+      }
+      return Response.json({ code: 'OK', recovered: true, receipt: { ...unsigned, signature: signDigestHex(relay.privateKey, stableJson(unsigned)) } })
+    }
+    await recoverPublisherReceipt({
+      relayUrl: env.FLEETBOT_RELAY_URL,
+      key,
+      manifest,
+      expectedRelayPublicKey: env.FLEETBOT_RELAY_PUBLIC_KEY_HEX,
+      fetchImpl,
+      now: 2_000_000_100,
+      nonce: 'ad'.repeat(32),
+    })
+    assert.deepEqual(seen.map(({ url }) => url), ['https://relay.example/v1/fleetbot/publisher-receipts/recover'])
+  })
+
   it('unwraps and verifies the exact Relay receipt envelope', () => {
     const relay = workloadKey('27'.repeat(32))
     const snapshot = {
@@ -649,6 +832,7 @@ describe('fleetbot workload client', () => {
     assert.match(workflow, /main-ref-gate:/)
     assert.match(workflow, /needs: main-ref-gate/)
     assert.doesNotMatch(workflow, /id-token: write/)
+    assert.match(workflow, /actions: read/)
     assert.match(workflow, /contents: read/)
     assert.match(workflow, /pull-requests: read/)
     assert.doesNotMatch(workflow, /pull-requests: write/)
@@ -660,7 +844,15 @@ describe('fleetbot workload client', () => {
     assert.match(workflow, /FLEETBOT_REVIEW_COMMENT_ID:.*inputs\.review_comment_id/)
     assert.match(workflow, /FLEETBOT_REVIEWERS_JSON:.*inputs\.reviewers_json/)
     assert.match(workflow, /FLEETBOT_TEAM_REVIEWERS_JSON:.*inputs\.team_reviewers_json/)
-    assert.match(workflow, /node scripts\/fleetbot-workload\.mjs "\$\{\{ inputs\.operation \}\}"/)
+    assert.match(workflow, /if: github\.run_attempt == 1/)
+    assert.match(workflow, /node scripts\/fleetbot-workload\.mjs prepare/)
+    assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40}/)
+    assert.match(workflow, /node scripts\/fleetbot-workload\.mjs publish-manifest/)
+    assert.match(workflow, /if: github\.run_attempt > 1/)
+    assert.match(workflow, /actions\/download-artifact@[0-9a-f]{40}/)
+    assert.match(workflow, /run-id: \$\{\{ github\.run_id \}\}/)
+    assert.match(workflow, /node scripts\/fleetbot-workload\.mjs recover-manifest/)
+    assert.doesNotMatch(workflow, /actions\/(upload-artifact|download-artifact)@v\d/)
     assert.doesNotMatch(workflow, /FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX:.*inputs/)
     assert.doesNotMatch(workflow, /FLEETBOT_PUBLISHER_GRANT_ID:.*inputs/)
     assert.doesNotMatch(workflow, /GH_TOKEN|pdu_/)
