@@ -103,6 +103,8 @@ export interface GitHubState {
   failConfig401: number;
   /** if set, the first N check-run CREATE (POST) calls return 500 (no id). */
   failCreateCheckRun: number;
+  /** if set, the first N check-run completion (PATCH) calls return 500. */
+  failCompleteCheckRun: number;
 
   // --- Git Data API + stacked-PR surface (purser) --------------------------
   /** branch name → commit sha, as maintained by the git refs endpoints. */
@@ -203,6 +205,7 @@ export function freshState(): GitHubState {
     failTokenMintTimes: 0,
     failConfig401: 0,
     failCreateCheckRun: 0,
+    failCompleteCheckRun: 0,
     gitRefs: new Map(),
     blobsCreated: 0,
     treesCreated: 0,
@@ -518,6 +521,10 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- complete check run ---
     const completeMatch = url.match(/\/check-runs\/(\d+)$/);
     if (completeMatch && method === 'PATCH') {
+      if (state.failCompleteCheckRun > 0) {
+        state.failCompleteCheckRun -= 1;
+        return text('check-run completion failed', 500);
+      }
       // Mirror GitHub: completing a check run makes it `completed` for every
       // later lookup. The executor's redelivery guard reads exactly this.
       const completedId = Number(completeMatch[1]);

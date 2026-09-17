@@ -2478,7 +2478,7 @@ export async function executeFleet(
   // binds Lookout only. Therefore no blanket resume disable is necessary — an
   // actual input change invalidates exactly the affected checkpoint, and a
   // stable input lets one-ship continuations make monotonic progress.
-  const resumedShips = await loadShipCheckpoints(
+  const retainedShipCheckpoints = await loadShipCheckpoints(
     env,
     runId,
     checkpointBindings,
@@ -2494,6 +2494,19 @@ export async function executeFleet(
       );
     },
   );
+  const resumedShips = new Map<string, ShipResult>();
+  for (const [ship, result] of retainedShipCheckpoints) {
+    if (!shipFindingLocationsAreReviewable(result.findings ?? [], prCtx.files)) {
+      await transcript.step(
+        'ship-checkpoint-invalidated',
+        ship,
+        `pd-${ship}: retained checkpoint findings are not publishable on the current RIGHT-side diff; refusing replay`,
+        { reason: 'findings-location-mismatch' },
+      );
+      continue;
+    }
+    resumedShips.set(ship, result);
+  }
 
   const results: ShipResult[] = [];
   const persistParticipation = async (result: ShipResult): Promise<void> => {
@@ -3623,11 +3636,9 @@ async function runShip(
     let parsedFindings = parseShipFindings(output);
     let locationsReviewable =
       parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, prCtx.files);
-    if (parsedFindings === null || !locationsReviewable) {
+    if (parsedFindings === null) {
       const healed = await tryRepair(
-        parsedFindings === null
-          ? 'the fenced json findings block was malformed'
-          : 'a finding path or line was not publishable on the RIGHT side of the pull request diff',
+        'the fenced json findings block was malformed',
         text => {
           const candidate = parseShipFindings(text);
           return candidate !== null && shipFindingLocationsAreReviewable(candidate, prCtx.files);
@@ -3639,6 +3650,10 @@ async function runShip(
           parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, prCtx.files);
       }
     }
+    // A parsed finding with an unpublishable location is substantive reviewer
+    // output, not a formatting error. A repair model is not given the exact
+    // diff and must never be allowed to erase that objection by returning an
+    // empty findings array plus PASS. Fail this ship closed instead.
     const findings = locationsReviewable ? parsedFindings : null;
 
     // Transcript: findings-admission outcome. A malformed or unpublishable set

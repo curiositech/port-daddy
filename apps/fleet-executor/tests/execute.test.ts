@@ -763,11 +763,17 @@ describe('blocking-ship verdict → check conclusion', () => {
       '',
       'FLEET-VERDICT: PASS',
     ].join('\n');
-    const ai = aiStub({ perShip: { 'code-reviewer': outsideHunk } });
+    const ai = aiStub({
+      perShip: { 'code-reviewer': '```json\n[]\n```\n\nFLEET-VERDICT: PASS' },
+      perShipQueue: { 'code-reviewer': [outsideHunk] },
+    });
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
 
-    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(1);
+    // A known finding is never sent through the format-repair model, which
+    // could otherwise erase it by returning the empty PASS fallback above.
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(d1.steps.filter(step => step.kind === 'ship-repair')).toHaveLength(0);
     expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
     expect(state.completed[0].summary).toContain('pd-code-reviewer [REQUIRED]: error');
     expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
@@ -3308,14 +3314,14 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
-  it.each([2, 4])('a valid-but-v%i checkpoint is ignored and re-runs the ship', async checkpointSchemaVersion => {
+  it('a valid-but-v2 checkpoint is ignored and re-runs the ship', async () => {
+    const checkpointSchemaVersion = 2;
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const d1 = memoryD1();
-    // These older wire shapes are clean and internally valid, but they predate
-    // either trusted config/contract binding (v2) or RIGHT-side review-line
-    // admission (v4), so neither may resume after deploy.
+    // This older wire shape predates trusted config/contract binding, so it
+    // cannot resume after deploy.
     d1.steps.push({
       runId: 'run:delivery-abc',
       seq: SHIP_CHECKPOINT_SEQ_BASE,
@@ -3425,6 +3431,94 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
 
     await expect(loadShipCheckpoints(env, 'run:delivery-abc', TEST_EXPECTED_CHECKPOINT_BINDINGS))
       .resolves.toEqual(new Map());
+  });
+
+  it('reuses a reviewable v4 checkpoint when settled publication is retried', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const job = makeJob();
+    const first = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding('PASS', 'durable finding') },
+    });
+
+    // Simulate GitHub refusing the public terminal check only after Fleet has
+    // completed the ship, checkpointed it, and settled its managed spend.
+    state.failCompleteCheckRun = 99;
+    await expect(executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: kv, AI: first.ai, DB: d1.db }),
+    )).rejects.toThrow(/check completion failed/i);
+
+    expect(first.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.reservations).toHaveLength(1);
+    expect(d1.reservations[0].state).toBe('settled');
+    const checkpoint = d1.steps.find(step => step.kind === SHIP_CHECKPOINT_KIND);
+    expect(checkpoint).toBeDefined();
+    expect(JSON.parse(String(checkpoint?.detail)).checkpointSchemaVersion).toBe(4);
+    expect(state.completed).toHaveLength(0);
+
+    // A settled reservation forbids new AI. The redelivery must revalidate the
+    // retained finding against the current RIGHT-side patch and publish from
+    // that durable evidence instead of becoming permanently unrecoverable.
+    state.failCompleteCheckRun = 0;
+    const retry = aiStub({
+      perShip: { 'code-reviewer': 'must not run\n\nFLEET-VERDICT: BLOCK' },
+    });
+    await executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: kv, AI: retry.ai, DB: d1.db }),
+    );
+
+    expect(retry.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/x.ts', line: 1, body: '[code-reviewer] durable finding' },
+    ]);
+  });
+
+  it('refuses an unpublishable v4 checkpoint during settled publication replay', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.reservations.push({
+      runId: 'run:delivery-abc',
+      installationId: 42,
+      retailMicrousd: 100_000_000,
+      providerCostCapMicrousd: 25_000_000,
+      providerCostMicrousd: 0,
+      state: 'settled',
+    });
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 99, severity: 'HIGH', body: 'outside the diff' }],
+      },
+      await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer'),
+    );
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'must not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+    )).rejects.toThrow(/settled run .* lacks checkpoint code-reviewer/i);
+
+    expect(ai.calls).toHaveLength(0);
+    expect(d1.steps.some(step =>
+      step.kind === 'ship-checkpoint-invalidated' &&
+      String(step.detail).includes('findings-location-mismatch')
+    )).toBe(true);
   });
 
   it('an invalid ship index uses the first reserved checkpoint slot', async () => {
