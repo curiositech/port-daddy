@@ -133,6 +133,17 @@ describe('effect admission is narrower than the overall posture', () => {
     });
   });
 
+  test('a prototype-backed effect classification cannot use the human-safe exemption', () => {
+    const inheritedRequest = Object.create({ effects: ['read_only'] });
+    expect(Object.hasOwn(inheritedRequest, 'effects')).toBe(false);
+    expect(admitRuntimeEffect({ ...ready, desired: 'off', control: 'disabled' }, inheritedRequest)).toMatchObject({
+      allowed: false,
+      effects: [],
+      requiredCapabilities: [],
+      reasons: ['effect_set_empty'],
+    });
+  });
+
   test.each([
     [
       'operator Off with a disabled boundary',

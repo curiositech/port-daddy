@@ -56,6 +56,22 @@ describe('runtime posture observation authority', () => {
     expect(Object.hasOwn(inheritedScopes!, 'sandbox')).toBe(false);
   });
 
+  test('prototype-backed top-level capability maps never authorize an effect', () => {
+    const { capabilities: _capabilities, expectedScopes: _expectedScopes, ...ownControl } = ready;
+    const inheritedMaps = Object.assign(Object.create({
+      capabilities: { sandbox: capabilities().sandbox },
+      expectedScopes: { sandbox: CAPABILITY_SCOPE.sandbox },
+    }), ownControl) as RuntimePostureInput;
+
+    expect(Object.hasOwn(inheritedMaps, 'capabilities')).toBe(false);
+    expect(Object.hasOwn(inheritedMaps, 'expectedScopes')).toBe(false);
+    expect(admitRuntimeEffect(inheritedMaps, { effects: ['managed_subprocess'] })).toMatchObject({
+      allowed: false,
+      requiredCapabilities: ['sandbox'],
+      reasons: ['sandbox_unknown'],
+    });
+  });
+
   test('prototype-backed receipt fields and top-level control authority never authorize an effect', () => {
     const inheritedReceipt = Object.create(capabilities().sandbox!) as NonNullable<
       RuntimePostureInput['capabilities']
