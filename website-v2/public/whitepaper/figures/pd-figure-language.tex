@@ -603,7 +603,10 @@
   pd row label/.style={pd title,anchor=east},
   pd panel title/.style={pd title,align=left},
   pd axis label/.style={pd label},
-  pd direct label/.style={pd tag,align=left},
+  % Direct labels sit beside their mark; they do not erase a line or box
+  % underneath themselves. A label that needs a paper knockout is misplaced
+  % and must be moved, not given an invisible patch.
+  pd direct label/.style={pd tag,fill=none,align=left},
   pd actor/.style={pd state},
   pd boundary/.style={pd panel},
   pd caution rule/.style={pd breach rule},
