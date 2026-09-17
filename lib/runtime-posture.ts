@@ -154,6 +154,10 @@ function capabilityStatus(
   input: RuntimePostureInput,
   capability: RuntimeCapability,
 ): RuntimeCapabilityStatus {
+  if (
+    !Object.prototype.hasOwnProperty.call(input, 'capabilities')
+    || !Object.prototype.hasOwnProperty.call(input, 'expectedScopes')
+  ) return 'unknown';
   const observedCapabilities = input.capabilities;
   const expectedScopes = input.expectedScopes;
   if (
@@ -288,7 +292,10 @@ export function admitRuntimeEffect(
     };
   }
 
-  const suppliedEffects: readonly unknown[] = Array.isArray(request.effects) ? request.effects : [];
+  const suppliedEffects: readonly unknown[] = (
+    Object.prototype.hasOwnProperty.call(request, 'effects')
+    && Array.isArray(request.effects)
+  ) ? request.effects : [];
   const effectsAreDense = isDenseArray(suppliedEffects);
   const knownEffects = new Set(Object.keys(RUNTIME_EFFECT_REQUIREMENTS));
   const invalidEffects = suppliedEffects.filter((effect) => typeof effect !== 'string' || !knownEffects.has(effect));
