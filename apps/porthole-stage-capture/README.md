@@ -104,8 +104,8 @@ and [Convoy requirements #9987](https://github.com/curiositech/port-daddy/pull/9
 
 | Order | Work | Acceptance gate |
 | --- | --- | --- |
-| Now | Finish #9992 review hardening, tests, and attributed replies | Published exact head, all actionable threads addressed, green required CI and terminal independent review |
-| Next | Focused #9970 security contract successor | Strict schemas, immutable-ledger trigger regressions, and ciphertext-envelope/AAD validation at ingestion; preserve the original broad branch as lineage |
+| Source foundation | #9992 and #10013 merged | Native prototype and storage/security contracts exist; neither establishes a production personal archive |
+| Now | Offline private-memory primitives and #9970 ADR reconciliation | Bounded support buffer, quota accounting, scoped recall contracts; preserve original broad branch as lineage |
 | Then | Shared macOS release machinery, with FleetBar and Porthole consumers | Extract the existing signing/notarization ceremony; accepted notarization, stapling, strict signature and Gatekeeper verification; missing credentials or rejected tickets prevent publication |
 | Release gate | Version/platform contract and stable Developer ID hardware proof | Resolve macOS minimum version, stamp versions, and preserve fresh attributed permission/background/privacy/interaction evidence |
 | Integration | Bind native evidence to Convoy source/stage/capsule receipts | One canonical evidence/authority model, immutable input digests, capability narrowing, and inspectable acceptance receipts; no parallel action ledger |
@@ -120,6 +120,24 @@ without a consumer, and new general-purpose geometry/packaging skills before a
 second real consumer. Synthetic fixture geometry, identity, clock, icon, and
 package contracts are automated here; hosted moving visual snapshots are not a
 substitute for operator-hardware acceptance.
+
+### Private developer memory implementation
+
+The [ordered delivery checklist](../../docs/operations/porthole-private-memory-delivery.md)
+preserves this roadmap and adds Drydock, shared search, and Epistemology dependencies.
+The core now includes an encoded support buffer capped by both 120 seconds and
+256 MiB (also 120 segments), actor-isolated reservation accounting with 20 GiB
+total/10 GiB free-reserve defaults, and versioned moment/recall policy contracts.
+Tests cover concurrent admission, pins, malformed intervals, reset generations,
+source/policy changes, expiry, revocation, and exact cloud excerpt/destination binding.
+
+These are offline primitives, not an enabled personal recorder. The buffer does
+not encode media, the budget does not reserve real filesystem blocks or recover
+after crashes, and the recall predicates do not authenticate user consent or
+send data. The existing synthetic-only persistence gate remains unchanged.
+The shared search owner still owns indexing/ranking; no duplicate index is added.
+Personal recording, durable recovery, derivative deletion, authorized search
+integration and observed no-egress evidence remain explicit delivery gates.
 
 ## Manual acceptance evidence
 
