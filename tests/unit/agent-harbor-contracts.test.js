@@ -34,6 +34,10 @@ import {
   checkNodeWitnessing,
   assertNodeWitnessing,
 } from '../../schemas/agent-harbor/v0/compliance-invariants.mjs';
+import {
+  checkPortholeMutationReceipt,
+  checkPortholeRejectionCoverage,
+} from '../../schemas/agent-harbor/v0/porthole-mutation-invariants.mjs';
 
 const {
   BODY_KINDS,
@@ -91,6 +95,8 @@ const SCHEMA_NAMES = [
   'porthole-control-lease',
   'porthole-disclosure-receipt',
   'porthole-regression-receipt',
+  'porthole-mutation-receipt',
+  'porthole-rejection-coverage',
 ];
 
 const PORTHOLE_SCHEMA_CONSTS = {
@@ -101,6 +107,8 @@ const PORTHOLE_SCHEMA_CONSTS = {
   'porthole-control-lease': 'pd.porthole.control-lease.v1',
   'porthole-disclosure-receipt': 'pd.porthole.disclosure-receipt.v1',
   'porthole-regression-receipt': 'pd.porthole.regression-receipt.v1',
+  'porthole-mutation-receipt': 'pd.porthole.mutation-receipt.v1',
+  'porthole-rejection-coverage': 'pd.porthole.rejection-coverage.v1',
 };
 
 const STRICT_SCHEMA_NAMES = new Set([
@@ -118,6 +126,8 @@ const STRICT_SCHEMA_NAMES = new Set([
   'porthole-control-lease',
   'porthole-disclosure-receipt',
   'porthole-regression-receipt',
+  'porthole-mutation-receipt',
+  'porthole-rejection-coverage',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -650,6 +660,48 @@ describe('agent-harbor v0 schema package', () => {
     const schema = loadSchema('work-intent');
     const broken = { ...loadFixture('work-intent'), schema: 'pd.agent-harbor.work-intent.v1' };
     expect(validate(schema, broken).some((e) => e.includes('const'))).toBe(true);
+  });
+
+  it('does not call a mutation killed when the constructed lie was accepted', () => {
+    const schema = loadSchema('porthole-mutation-receipt');
+    const broken = structuredClone(loadFixture('porthole-mutation-receipt'));
+    broken.execution.mutated.outcome = 'accepted';
+
+    expect(validate(schema, broken).some((error) => error.includes('expected const "rejected"'))).toBe(true);
+  });
+
+  it('requires replayable mutation evidence before rejection coverage is demonstrated', () => {
+    const schema = loadSchema('porthole-rejection-coverage');
+    const broken = structuredClone(loadFixture('porthole-rejection-coverage'));
+    broken.claims[0].mutationReceiptRefs = [];
+
+    expect(validate(schema, broken).some((error) => error.includes('fewer than minItems 1'))).toBe(true);
+  });
+
+  it('keeps not-demonstrated claims visibly empty instead of borrowing another receipt', () => {
+    const schema = loadSchema('porthole-rejection-coverage');
+    const broken = structuredClone(loadFixture('porthole-rejection-coverage'));
+    broken.claims[1].mutationReceiptRefs = ['mutation_receipt_attempt_substitution_01'];
+
+    expect(validate(schema, broken).some((error) => error.includes('more than maxItems 0'))).toBe(true);
+  });
+
+  it('binds rejection coverage to the exact subsystem, invariant, subject, and named-row totals', () => {
+    const receipt = loadFixture('porthole-mutation-receipt');
+    const coverage = loadFixture('porthole-rejection-coverage');
+
+    expect(checkPortholeMutationReceipt(receipt)).toEqual([]);
+    expect(checkPortholeRejectionCoverage(coverage, [receipt])).toEqual([]);
+
+    const wrongInvariant = structuredClone(coverage);
+    wrongInvariant.claims[0].invariantId = 'INV-OTHER';
+    expect(checkPortholeRejectionCoverage(wrongInvariant, [receipt]))
+      .toContain('mutation receipt mutation_receipt_attempt_substitution_01 belongs to another invariant');
+
+    const driftedSummary = structuredClone(coverage);
+    driftedSummary.summary.demonstratedCount = 0;
+    expect(checkPortholeRejectionCoverage(driftedSummary, [receipt]))
+      .toContain('rejection coverage demonstrated summary does not match named rows');
   });
 
   it('validator drift lock: every additionalProperties form compile() accepts is enforced by validate()', () => {

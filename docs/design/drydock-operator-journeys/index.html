@@ -424,6 +424,48 @@
     .approval-envelope .manifest-row { grid-template-columns: minmax(130px, .7fr) minmax(0, 1.8fr) auto; }
     .crumb { color: #a9c0ff; }
 
+    .studio {
+      display: grid;
+      grid-template-columns: 190px minmax(360px, 1.35fr) minmax(280px, .85fr) 220px;
+      min-height: 690px;
+    }
+    .studio > * { min-width: 0; border-right: 1px solid var(--ink); }
+    .studio > *:last-child { border-right: 0; }
+    .studio-pane { padding: 14px; background: var(--paper-2); }
+    .studio-pane h3, .graph-shell h3 { font-family: var(--mono); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+    .tree-item { padding: 10px 8px; border-bottom: 1px solid var(--soft-line); font-size: 14px; }
+    .tree-item.selected { color: var(--white); background: var(--cobalt); }
+    .tree-item small { display: block; margin-top: 3px; opacity: .72; }
+    .graph-shell { display: grid; grid-template-rows: auto 1fr auto; background: var(--white); }
+    .graph-toolbar { display: flex; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--ink); font-family: var(--mono); font-size: 14px; }
+    .graph-canvas { position: relative; min-height: 430px; padding: 28px; overflow: hidden; background-image: linear-gradient(var(--soft-line) 1px, transparent 1px), linear-gradient(90deg, var(--soft-line) 1px, transparent 1px); background-size: 28px 28px; }
+    .graph-flow { display: grid; grid-template-columns: repeat(4, minmax(100px, 1fr)); gap: 34px 24px; align-items: center; }
+    .graph-node { position: relative; min-height: 88px; padding: 12px; border: 2px solid var(--ink); background: var(--paper); box-shadow: 5px 5px 0 color-mix(in srgb, var(--ink) 18%, transparent); font-size: 14px; }
+    .graph-node::after { content: "→"; position: absolute; right: -22px; top: 30%; font-family: var(--mono); font-size: 22px; }
+    .graph-node:nth-child(4n)::after, .graph-node:last-child::after { content: ""; }
+    .graph-node.live { border-color: var(--teal); }
+    .graph-node.review { border-color: var(--violet); }
+    .graph-node.fog { border-style: dashed; opacity: .48; filter: blur(.15px); }
+    .graph-node strong, .service-card strong { display: block; }
+    .graph-node small, .service-card small { color: var(--muted); }
+    .artifact-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; border-top: 1px solid var(--ink); }
+    .artifact-thumb { min-height: 74px; padding: 9px; border: 1px solid var(--ink); background: var(--paper); font-family: var(--mono); font-size: 12px; }
+    .manager-pane { padding: 14px; background: var(--paper); }
+    .manager-pane .turn { max-width: 100%; }
+    .service-rail { padding: 12px; background: var(--ink); color: var(--paper); }
+    .service-card { padding: 10px; margin-bottom: 8px; border: 1px solid #66675f; background: #1d1e19; font-size: 13px; }
+    .service-card.alert { border-left: 6px solid var(--amber); }
+    .service-card.good-service { border-left: 6px solid var(--teal); }
+    .coverage-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); gap: 16px; }
+    .coverage-row { display: grid; grid-template-columns: 1.3fr .7fr .5fr; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--soft-line); font-size: 14px; }
+    .coverage-row:last-child { border-bottom: 0; }
+    .replay-stack { display: grid; gap: 10px; }
+    .replay-frame { padding: 13px; border: 1px solid var(--ink); background: var(--white); }
+    .replay-frame .label { display: block; margin-bottom: 4px; }
+    .replay-frame strong { display: block; }
+    .replay-frame.lie { border-left: 8px solid var(--red); }
+    .replay-frame.reject { border-left: 8px solid var(--teal); }
+
     footer {
       padding: 40px clamp(22px, 5vw, 70px) 60px;
       color: var(--paper);
@@ -446,6 +488,11 @@
       .state-grid { grid-template-columns: repeat(3, 1fr); }
       .phone-wrap { grid-template-columns: 1fr; }
       .phone { justify-self: center; }
+      .studio { grid-template-columns: 180px minmax(360px, 1fr); }
+      .manager-pane, .service-rail { border-top: 1px solid var(--ink); }
+      .manager-pane { grid-column: 1 / -1; }
+      .service-rail { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .service-rail h3 { grid-column: 1 / -1; }
     }
 
     @media (max-width: 760px) {
@@ -470,6 +517,13 @@
       .phone { width: 100%; max-width: 340px; justify-self: center; }
       .authority-strip { align-items: flex-start; flex-direction: column; }
       .state-lane { grid-template-columns: 1fr; }
+      .studio, .coverage-grid { grid-template-columns: 1fr; }
+      .studio > * { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .service-rail { grid-column: auto; grid-template-columns: 1fr; }
+      .graph-flow { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+      .graph-node:nth-child(4n)::after { content: "→"; }
+      .graph-node:nth-child(2n)::after, .graph-node:last-child::after { content: ""; }
+      .artifact-strip { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (prefers-color-scheme: dark) {
@@ -509,10 +563,10 @@
   <header>
     <div class="hero-copy">
       <div>
-        <span class="eyebrow">Drydock / operator journey / revision 02</span>
-        <h1>One worker.<br>Any body.<br>No mystery.</h1>
+        <span class="eyebrow">Drydock / cooperative coding studio / revision 03</span>
+        <h1>One intent.<br>Many hands.<br>Visible proof.</h1>
       </div>
-      <p>Start bounded software work, watch the conversation and evidence, spend scarce capacity deliberately, intervene cleanly, and continue the same worker after its process disappears.</p>
+      <p>Work like a coding agent: talk to a manager, move through repositories and worktrees, watch the execution hypertree unfold, inspect the artifacts being built, and replay the exact lies your validators rejected.</p>
     </div>
     <aside class="hero-ledger" aria-label="Fixture contract">
       <h2>Fixed trial</h2>
@@ -544,6 +598,8 @@
     <a href="#scene-12">12 Missing</a>
     <a href="#scene-13">13 Rebody</a>
     <a href="#scene-14">14 iOS</a>
+    <a href="#scene-15">15 Studio</a>
+    <a href="#scene-16">16 Rejection proof</a>
   </nav>
 
   <main>
@@ -904,6 +960,92 @@ DENIED · new paid launch / file edit / raw credentials</p></div>
               <p class="receipt" style="margin-top:18px">RELAY · reachable
 HARBOR · 4s fresh
 BODY G2 · witnessed</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-15">
+      <div class="scene-meta"><span class="scene-number">SCENE 15 · PRODUCT NORTH STAR</span><h2>Coding studio</h2><p>A coding workspace first. Manager coordination, project epistemology, and fleet services stay close without taking over the work.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · FIXED GPUI DIRECTION</span><span>GRAPH SELECTION DOES NOT EXECUTE</span></div>
+          <div class="ui-bar"><span><span class="crumb">curiositech/port-daddy</span> / feat/rejection-frontier / mutation-evidence-20260916</span><span class="status good">ROUND 03 · 4 ACTIVE · 2 FOG</span></div>
+          <div class="studio">
+            <aside class="studio-pane">
+              <h3>Repos + worktrees</h3>
+              <div class="tree-item selected"><strong>port-daddy</strong><small>feat/rejection-frontier</small></div>
+              <div class="tree-item"><strong>main</strong><small>read-only projection</small></div>
+              <div class="tree-item"><strong>prototype/ui</strong><small>ephemeral · 38m</small></div>
+              <h3 style="margin-top:20px">CLI parity</h3>
+              <p class="receipt">pd work intent show demo-wi-014
+pd plan frontier --round 3
+pd evidence reject INV-ATTEMPT-BINDING
+
+commands shown as target syntax only</p>
+            </aside>
+            <div class="graph-shell">
+              <div class="graph-toolbar"><span>EXECUTION HYPERTREE · 42%</span><span>−  +  fit · fog on</span></div>
+              <div class="graph-canvas" aria-label="Fixed zoomable hypertree storyboard">
+                <div class="graph-flow">
+                  <div class="graph-node live"><strong>Intent sealed</strong><small>durable result · prototype UI</small></div>
+                  <div class="graph-node live"><strong>Contracts</strong><small>2 schemas · accepted</small></div>
+                  <div class="graph-node review"><strong>Studio shell</strong><small>selected · visual draft</small></div>
+                  <div class="graph-node"><strong>Round 03 join</strong><small>dissent + consent pending</small></div>
+                  <div class="graph-node live"><strong>Whitepaper</strong><small>8 figures outlined</small></div>
+                  <div class="graph-node review"><strong>Mutation lies</strong><small>1 killed · 1 uncovered</small></div>
+                  <div class="graph-node fog"><strong>GPUI reducer</strong><small>future shape unresolved</small></div>
+                  <div class="graph-node fog"><strong>Live ingestion</strong><small>blocked by halt + grant</small></div>
+                </div>
+              </div>
+              <div class="artifact-strip">
+                <div class="artifact-thumb"><strong>UI</strong><br>studio shell<br><span class="good">preview →</span></div>
+                <div class="artifact-thumb"><strong>DIAGRAM</strong><br>lie loop<br><span class="good">render →</span></div>
+                <div class="artifact-thumb"><strong>SCHEMA</strong><br>mutation receipt<br><span class="violet">diff →</span></div>
+                <div class="artifact-thumb"><strong>TEST</strong><br>3 negative cases<br><span class="warn">output →</span></div>
+              </div>
+            </div>
+            <section class="manager-pane">
+              <h3>Manager · round 03</h3>
+              <div class="turn operator"><span class="label">ERICH · WORK INTENT</span>Make mutation evidence first-class. The end state is durable contracts plus a prototype; no live runtime.</div>
+              <div class="turn agent"><span class="label">MANAGER · SYNTHESIS</span>The contracts and whitepaper can join this round. GPUI execution remains fog. The capability-widening invariant has no demonstrated rejection and stays red.</div>
+              <div class="evidence ask"><strong>Project Epistemology · likely problem</strong><br>The coverage summary can drift from named rows. Confidence 0.81 · source: schema semantics.<span class="evidence-link">Open cited risk and proposed validator →</span></div>
+              <div class="button-row"><span class="button secondary">Inspect round contract</span><span class="button secondary">Open dissent</span></div>
+            </section>
+            <aside class="service-rail">
+              <h3>Fleet services · orthogonal</h3>
+              <div class="service-card good-service"><strong>Skill fitter</strong><small>0 blocking gaps · fresh 12s</small></div>
+              <div class="service-card alert"><strong>Parley scout</strong><small>1 overlap proposal · no consent</small></div>
+              <div class="service-card alert"><strong>Epistemology</strong><small>2 likely risks · cited</small></div>
+              <div class="service-card good-service"><strong>MCP / tools</strong><small>schemas current · no installs</small></div>
+              <div class="service-card"><strong>HITL concierge</strong><small>0 gates · next batch none</small></div>
+              <div class="service-card alert"><strong>Judges</strong><small>1 survivor · rework proposed</small></div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-16">
+      <div class="scene-meta"><span class="scene-number">SCENE 16 · PORTHOLE</span><h2>Replay the lie</h2><p>Known rejection and missing proof share one honest coverage surface.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>PORTHOLE · MUTATION EVIDENCE PROJECTION</span><span>STATIC FIXTURE · NO LIVE INGESTION</span></div>
+          <div class="ui-bar"><span>drydock.hypertree-gate · rejection frontier</span><span class="status warn">1 / 2 IMPORTANT CLAIMS DEMONSTRATED</span></div>
+          <div class="ui-content coverage-grid">
+            <div class="card">
+              <span class="label">Named claims</span>
+              <div class="coverage-row"><strong>Attempt binding</strong><span>receipt from another attempt</span><span class="status good">KILLED →</span></div>
+              <div class="coverage-row"><strong>Capability attenuation</strong><span>widened successor grant</span><span class="status bad">NOT DEMONSTRATED</span></div>
+              <div class="coverage-row"><strong>Self-approval</strong><span>producer = reviewer</span><span class="status warn">INCONCLUSIVE</span></div>
+              <div class="blocked-callout"><strong>No percentage absolution</strong><p>Each row names the lie, validator digest, owner, and replay. A score never hides an uncovered important invariant.</p></div>
+            </div>
+            <div class="replay-stack">
+              <div class="replay-frame"><span class="label">01 · Baseline</span><strong>attempt-02 receipt binds node-07</strong><p class="receipt">validator → ACCEPT · exit 0<br>artifact baseline-output</p></div>
+              <div class="replay-frame lie"><span class="label">02 · Constructed lie</span><strong>attempt-01 receipt substituted</strong><p class="receipt">one relation changed · payload otherwise valid<br>mutant mut_attempt_ref_swap_01</p></div>
+              <div class="replay-frame reject"><span class="label">03 · Decision boundary</span><strong>REJECT · attempt binding mismatch</strong><p class="receipt">validator validate-hypertree-execution@1.0.0<br>event event_mutation_rejected_01</p></div>
+              <div class="button-row"><span class="button secondary">Open synchronized replay</span><span class="button secondary">Inspect receipt JSON</span></div>
             </div>
           </div>
         </div>

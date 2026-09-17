@@ -2,7 +2,7 @@
 
 **Status:** product and architecture contract; delivery is phased below
 
-**Updated:** 2026-08-29
+**Updated:** 2026-09-16
 
 **Current proof:** PR #9902 proves an honest terminal replay/gallery layer, not the complete product
 
@@ -59,6 +59,7 @@ evidence set that explains it, plus a safe way to test a counterfactual repair.
 | **Existing Port Daddy authority, consumed after exact join verification** | canonical `TranscriptEvent`, T0–T5 fidelity, `ContextEnvelope`, `CompactionPacket`, and `WorkReceipt` |
 | **Join-only from owning work** | Sugar Parley settlement and `BufferedOutputRef`; Porthole must cite exact merged commits, tests, receipts, and fresh recordings before depicting them |
 | **Proposed Porthole engineering** | structured terminal/process observations, pre-persistence screen-aware DLP, decision projection, evidence search, selective disclosure, deterministic TUI assertions, controlled execution branching, microVM/Wasm snapshot acceleration |
+| **T0 mutation-evidence contract** | `PortholeMutationReceipt` and `PortholeRejectionCoverage` schemas plus fixtures define how an exact constructed lie, validator result, replay location, and unproved claim class are represented; they do not prove live ingestion or a production mutation runner |
 
 No gallery scene may stage an unread turn, overflow, interactive compaction, privacy claim, or branch
 takeover before the corresponding contract is executable and independently verified.
@@ -392,7 +393,46 @@ The assertion runner consumes the same sanitized canonical events and receipts a
 handoff, and review. It is not the center of the data model, and static strings are not the only
 truth available.
 
-## 13. Divergent perspectives and cooperative pd-console work
+## 13. Mutation evidence: replay the lie, not just the pass
+
+Every important invariant needs at least one deliberately constructed lie that
+the owning validator demonstrably rejects. Porthole makes that evidence a
+first-class decision view rather than burying it in a test log.
+
+Two strict contracts define the projection:
+
+- `PortholeMutationReceipt` binds one subsystem and invariant to one exact
+  validator artifact, baseline, mutated input, outcome, seed/replay path,
+  Porthole trace/event, and residual risk. `killed` is legal only when the
+  unchanged baseline was accepted and the constructed lie was rejected.
+- `PortholeRejectionCoverage` lists a subsystem's important claim classes as
+  `demonstrated`, `not-demonstrated`, `inconclusive`, or `out-of-scope`.
+  `demonstrated` requires at least one receipt; `not-demonstrated` must remain
+  visibly empty and name the gap.
+
+The UI sentence is intentionally narrow:
+
+> This exact validator rejected this exact lie at this exact source digest.
+
+It must never collapse into “the invariant is proved.” A killed signature
+substitution does not prove rejection of an expired permit. Each is a separate
+claim class, receipt, and replay. A surviving mutant is not hidden inside a
+score: it becomes a red coverage row with the accepted lie, validator output,
+owner, and next repair target.
+
+The default mutation replay synchronizes five panes: the honest input, the
+smallest constructed lie, the validator decision boundary, the artifact or
+screen state at rejection, and the coverage ledger before/after the run. The
+same projection applies to Port Daddy subsystems, skills, and systems produced
+for customers. Skill activation, output contracts, prohibited actions, and
+evidence requirements are invariants too; each important one needs an explicit
+negative fixture and replayable rejection receipt.
+
+Porthole remains the evidence projection. The test runner constructs the lie,
+the owning validator rejects or admits it, and the canonical event chain records
+the result. Porthole does not mutate production state or authorize execution.
+
+## 14. Divergent perspectives and cooperative pd-console work
 
 A team run is one correlated event graph with perspective-specific projections. NORA's screen,
 MILO's screen, the daemon ledger, and the operator console may disagree without one being discarded.
@@ -404,7 +444,7 @@ updates for cooperative pd-console sessions. They do not become the durable evid
 Porthole persists only privacy-authorized facts into the canonical ledger; the transport remains
 replaceable and floating cursors remain annotations unless cited by a decision or receipt.
 
-## 14. Why people install it
+## 15. Why people install it
 
 - **Agent developer:** deterministic failure traces, searchable visible state, and isolated repair
   experiments instead of unqueryable video or ANSI sludge.
@@ -416,11 +456,14 @@ replaceable and floating cursors remain annotations unless cited by a decision o
 - **Incident responder:** causal command/process/context reconstruction and safe handoff.
 - **Cooperative team:** multiple private perspectives, shared annotations, receipts, and controlled
   successor experiments without pretending everyone saw the same state.
+- **Subsystem owner:** a legible rejection frontier—claims the subsystem has
+  demonstrated it rejects, claims still unproved, and one-click replays of both
+  killed and surviving lies.
 
 The installation promise is: **when autonomous work fails or is disputed, you can explain it,
 continue it, and test a repair without surrendering every terminal byte to a surveillance archive.**
 
-## 15. Delivery order
+## 16. Delivery order
 
 1. **Truthful replay foundation (#9902):** land the conflict-free gallery/player proof only after
    its Sugar/context-pressure joins and adversarial review settle. Preserve real casts and receipts.
@@ -429,16 +472,18 @@ continue it, and test a repair without surrendering every terminal byte to a sur
    projection.
 3. **Port Daddy correlation join:** consume exact merged `BufferedOutputRef`, `ContextEnvelope`,
    `CompactionPacket`, Sugar settlement, and `WorkReceipt`; ship the first decision-centered viewer.
-4. **Cited search and selective disclosure:** screen-region retrieval, capability-scoped evidence
+4. **Mutation evidence projection:** ingest schema-valid mutation receipts and rejection coverage;
+   render killed, survived, inconclusive, and not-demonstrated claim classes with replay links.
+5. **Cited search and selective disclosure:** screen-region retrieval, capability-scoped evidence
    bundles, deletion/tombstones, and access audit.
-5. **Deterministic assertion runner:** action/wait/stability/region contracts with failure bundles;
+6. **Deterministic assertion runner:** action/wait/stability/region contracts with failure bundles;
    compare candidate engines behind the same conformance suite.
-6. **Controlled successor pilot:** reconstruction-based T5 checkpoints first, then microVM/Wasm
+7. **Controlled successor pilot:** reconstruction-based T5 checkpoints first, then microVM/Wasm
    acceleration after identity, credential, network, privacy, and receipt boundaries are proven.
-7. **Cooperative console projection:** live cursor/annotation transport over the same privacy and
+8. **Cooperative console projection:** live cursor/annotation transport over the same privacy and
    evidence rules.
 
-## 16. Non-goals
+## 17. Non-goals
 
 - a universal employee-screen recorder;
 - hidden input capture or model-private reasoning capture;

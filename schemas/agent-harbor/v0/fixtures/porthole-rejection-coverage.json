@@ -1,0 +1,34 @@
+{
+  "schema": "pd.porthole.rejection-coverage.v1",
+  "coverageId": "coverage_drydock_hypertree_gate_01",
+  "subsystemId": "drydock.hypertree-gate",
+  "subjectDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "claims": [
+    {
+      "invariantId": "INV-ATTEMPT-BINDING",
+      "claim": "A receipt from another node attempt cannot authorize this manager gate.",
+      "criticality": "important",
+      "status": "demonstrated",
+      "mutationReceiptRefs": ["mutation_receipt_attempt_substitution_01"],
+      "gapReason": null,
+      "owner": "drydock-execution-contract"
+    },
+    {
+      "invariantId": "INV-CAPABILITY-ATTENUATION",
+      "claim": "A handoff cannot widen the successor capability set.",
+      "criticality": "important",
+      "status": "not-demonstrated",
+      "mutationReceiptRefs": [],
+      "gapReason": "No capability-widening lie has been executed against this validator digest.",
+      "owner": "capability-compiler"
+    }
+  ],
+  "summary": {
+    "importantClaimCount": 2,
+    "demonstratedCount": 1,
+    "notDemonstratedCount": 1,
+    "inconclusiveCount": 0
+  },
+  "generatedFromEventHead": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+  "generatedAt": "2026-09-16T20:00:02.000Z"
+}

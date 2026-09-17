@@ -135,6 +135,9 @@ Every packet must preserve all of these:
    session.
 10. No single agent, daemon, UI, or guest both requests, authorizes, executes,
     and certifies the same consequential transition.
+11. Every important invariant names at least one constructed lie and owning
+    validator; demonstrated rejection requires a replayable mutation receipt,
+    while uncovered claim classes remain explicitly not demonstrated.
 
 ## Composition Procedure
 
@@ -318,6 +321,8 @@ Use `templates/architecture-packet.md`. A complete packet contains:
 - implementation hypertree and critical path;
 - selected diagram atlas views with proof limits;
 - scenario/fault matrix, witness-labeled receipts, and residual risks;
+- rejection-coverage inventory with killed, survived, inconclusive, and
+  not-demonstrated constructed lies plus Porthole replay paths;
 - operator journeys and two-action zoom paths;
 - tier verdict and next permitted action.
 
@@ -341,6 +346,9 @@ Before calling the packet complete:
 8. Confirm every PASS claim names an exact tier, digest, and external witness.
 9. Have a skeptical reviewer argue safety, liveness, economics, usability, and
    evidence independently.
+10. Confirm every important invariant has a registered constructed lie, and no
+    subsystem or skill reports demonstrated rejection without an exact
+    `PortholeMutationReceipt` bound to the current validator digest.
 
 ## Bundle Index
 
