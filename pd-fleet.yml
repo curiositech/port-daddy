@@ -162,7 +162,6 @@ fleet:
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
-      allowedTools: "Read,Grep,Glob"
       prompt: |
         QA review of the PR diff. Read every changed file. For each
         change, identify inputs that would break it.
