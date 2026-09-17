@@ -13,6 +13,9 @@
   HTML, Swift, and Rust observatory clients.
 - Added the observatory architecture and test plan, including deterministic,
   low-cost independent, specialist, manager, and human review gates.
+- Expanded the proof atlas from 17 to exactly 20 audited views with explicit
+  hypertree-to-round compilation, lie-per-invariant mutation evidence, and the
+  manager-centered cooperative coding studio.
 
 ## 1.0.0 - 2026-09-14
 
