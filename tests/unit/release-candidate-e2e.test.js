@@ -360,6 +360,23 @@ describe('release-candidate E2E contract', () => {
     }
   });
 
+  test('stage containment rejects a nested resource symlink that escapes the artifact tree', () => {
+    const base = join(homedir(), 'coding', 'tmp');
+    mkdirSync(base, { recursive: true });
+    const fixture = mkdtempSync(join(base, 'pd-rc-nested-stage-link-test-'));
+    const stage = join(fixture, 'stage');
+    const resourceDir = join(stage, 'skills', 'port-daddy-agent-skill');
+    const outside = join(fixture, 'outside-SKILL.md');
+    mkdirSync(resourceDir, { recursive: true });
+    writeFileSync(outside, 'external resource\n');
+    symlinkSync(outside, join(resourceDir, 'SKILL.md'));
+    try {
+      expect(() => assertOwnedSyntheticTree(stage)).toThrow(/escapes its owned root/);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   test('authority detector reports matrix and database state but not ordinary package files', () => {
     const base = join(homedir(), 'coding', 'tmp');
     mkdirSync(base, { recursive: true });
@@ -421,6 +438,7 @@ describe('release-candidate E2E contract', () => {
     expect(builder).toContain('redacted: true');
     expect(builder).toContain('await stopSelfHostedDaemon(child);');
     expect(runner).toContain('const DAEMON_READINESS_TIMEOUT_MS = 120_000;');
+    expect(runner).toContain('assertOwnedSyntheticTree(this.stagedDir);');
     expect(runner).toContain("category: 'artifact-build'");
     expect(runner).toMatch(/manifest\.smoke\?\.status !== 'ok'/);
     expect(runner).not.toContain('PD_MATRIX_FILE');

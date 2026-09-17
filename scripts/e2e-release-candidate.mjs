@@ -325,6 +325,7 @@ class ReleaseCandidateSuite {
   }
 
   validateStage() {
+    assertOwnedSyntheticTree(this.stagedDir);
     const pd = assertExecutableArtifact(join(this.stagedDir, 'pd'));
     const companion = assertExecutableArtifact(join(this.stagedDir, 'port-daddy'));
     const manifestPath = join(this.stagedDir, 'port-daddy-manifest.json');
