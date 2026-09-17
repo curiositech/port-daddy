@@ -41,11 +41,8 @@
   \foreach \cy/\l in {0/no, 1/yes}{
     \node[pd label,rotate=90,anchor=south] at ({\ox-.42},{\oy+\cy*\h+\h/2}) {\l};}
 \end{tikzpicture}
-\caption{Capability and permission are independent axes, not one word.
-The shaded cell -- capable but forbidden -- is the one collapsing them
-makes inexpressible: a dangerous override flag a tool exposes for
-emergencies exists (the agent is capable of invoking it) but must not be
-used (it is forbidden). The other three cells are ordinary; only this one
-is why the chapter keeps the two distinct. [internal]}
+\caption{Capability and permission are independent. The shaded case is
+possible but forbidden---the state a collapsed vocabulary cannot express.
+[internal]}
 \label{fig:swk-capability-permission}
 \end{figure}

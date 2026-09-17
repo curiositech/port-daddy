@@ -6,6 +6,13 @@ import { join } from 'node:path';
 
 const repoRoot = process.cwd();
 const buildScript = join(repoRoot, 'scripts', 'build-whitepapers.sh');
+const fragmentCompiler = join(
+  repoRoot,
+  'skills',
+  'harbor-chartwork',
+  'scripts',
+  'compile_fragment.sh',
+);
 
 function bashFunction(functionName, ...args) {
   return execFileSync(
@@ -122,6 +129,34 @@ describe('reproducible whitepaper source scoping', () => {
       pdf.includes('coordination-papers-mega-volume'),
     );
     expect(megaVolumeRoots).toEqual([`${pub}/coordination-papers-mega-volume.pdf`]);
+  });
+
+  test('standalone chapter PDF targets fail closed', () => {
+    const result = spawnSync('/bin/bash', [buildScript, 'spawn-to-person'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('not a Book target; chapter PDFs are retired');
+  });
+
+  test('figure QA rejects the retired chapter preamble', () => {
+    const result = spawnSync(
+      '/bin/bash',
+      [
+        fragmentCompiler,
+        'whitepaper/figures/fig-swk-stack-map.tex',
+        '--preamble',
+        'chapter',
+      ],
+      { cwd: repoRoot, encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain(
+      'chapter preambles are retired; Book figures must use --preamble book',
+    );
   });
 
   // Swiss is the Book's central edition: \pdedition defaults to it in the

@@ -450,12 +450,16 @@
 % \pdmargincaption[short list entry]{one-sentence caption} -- the numbered
 % caption path for figures, diagrams, plots, pictures, and tables. In the Book
 % it uses the outer margin and the same collision-aware allocator as glosses
-% and evidence notes. In a standalone chapter it is exactly a normal caption.
+% and evidence notes. Outside the Book it is exactly a normal caption.
 % A margin caption that grows beyond a quarter of the text block is no longer
 % concise; it falls back to the ordinary caption position instead of silently
 % overrunning the column. Call \label immediately after this macro, exactly as
 % with \caption.
 \newsavebox{\pd@captionbox}
+% The caption package is loaded before this shared apparatus. Save its real
+% command once: the Book-level router below must be able to fall back without
+% calling itself, and research documents must retain ordinary captions.
+\let\pd@inlinecaption\caption
 \newcommand{\pdmargincaption}[2][]{%
   \ifpdmargincolumn
     \ifx\@captype\@undefined
@@ -472,6 +476,7 @@
       \sbox{\pd@captionbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
         {\bfseries\@nameuse{fnum@\@captype}.}\enspace #2\end{minipage}}%
       \ifdim\dimexpr\ht\pd@captionbox+\dp\pd@captionbox\relax>.25\textheight
+        \typeout{PD-CAPTION-FALLBACK: \@captype\space \@nameuse{the\@captype}}%
         \par\addvspace{\abovecaptionskip}%
         \@makecaption{\@nameuse{fnum@\@captype}}{#2}%
         \par\addvspace{\belowcaptionskip}%
@@ -481,8 +486,37 @@
     \fi
   \else
     \def\pd@captionshort{#1}%
-    \ifx\pd@captionshort\@empty\caption{#2}\else\caption[#1]{#2}\fi
+    \ifx\pd@captionshort\@empty\pd@inlinecaption{#2}\else\pd@inlinecaption[#1]{#2}\fi
   \fi}
+
+% One caption path for the assembled Book. Figure and table fragments keep
+% writing ordinary \caption calls; in Book mode those calls become numbered
+% outer-margin captions, while long captions take the explicit inline fallback
+% above. Longtable and other specialist environments retain their own local
+% caption commands because this dispatcher only accepts the four real float
+% environments. This keeps numbering, labels and list entries centralized
+% without 200 per-fragment rewrites.
+\newif\ifpd@routecaption
+\newcommand{\pd@captiondispatch}[2]{%
+  \pd@routecaptionfalse
+  \ifpdmargincolumn
+    \edef\pd@captionenv{\@currenvir}%
+    \def\pd@captiontarget{figure}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
+    \def\pd@captiontarget{figure*}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
+    \def\pd@captiontarget{table}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
+    \def\pd@captiontarget{table*}\ifx\pd@captionenv\pd@captiontarget\pd@routecaptiontrue\fi
+  \fi
+  \ifpd@routecaption
+    \def\pd@captionshort{#1}%
+    \ifx\pd@captionshort\@empty\pdmargincaption{#2}\else\pdmargincaption[#1]{#2}\fi
+  \else
+    \def\pd@captionshort{#1}%
+    \ifx\pd@captionshort\@empty\pd@inlinecaption{#2}\else\pd@inlinecaption[#1]{#2}\fi
+  \fi}
+\newcommand{\pd@captionrouter}{\@ifnextchar[\pd@captionrouter@opt\pd@captionrouter@plain}
+\long\def\pd@captionrouter@opt[#1]#2{\pd@captiondispatch{#1}{#2}}
+\long\def\pd@captionrouter@plain#1{\pd@captiondispatch{}{#1}}
+\AtBeginDocument{\let\caption\pd@captionrouter}
 
 % ---------------------------------------------------------------------------
 % Marginalia (Wave 16): citations, provenance, and proved-on pointers at the
@@ -654,6 +688,15 @@
 \newcommand{\BUILTWEAK}{\BuiltWeak}
 \newcommand{\DESIGNED}{\Designed}
 \newcommand{\VISION}{\Vision}
+
+% Claim-kind words used inside ordinary theorem/definition bodies.  These are
+% vocabulary aliases, not status marks: kind says what sort of claim this is;
+% maturity says how much of its mechanism exists.  Keep them here so chapter
+% modules never need private typography macros for the common honesty ledger.
+\newcommand{\TheoremKind}{{\scshape theorem}}
+\newcommand{\DesignInvariantKind}{{\scshape design invariant}}
+\newcommand{\ModelCheckedKind}{{\scshape model-checked property}}
+\newcommand{\EmpiricalHypothesisKind}{{\scshape empirical hypothesis}}
 
 % 2. Guarantee. Marks a property that does NOT hold under the configuration
 % actually shipped -- chapter 1's power-loss durability, throughout. It is the

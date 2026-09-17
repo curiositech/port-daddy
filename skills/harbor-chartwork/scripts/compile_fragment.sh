@@ -3,35 +3,36 @@
 #
 # Wraps a bare `\input`-only fragment (from website-v2/public/whitepaper/figures,
 # whitepaper/figures, or docs/harbor-research/figures) in a minimal document that
-# loads the SAME preamble pieces the real chapter/paper would load, then compiles
-# it with tectonic. This is the only way to render a fragment on its own: none of
+# loads the SAME preamble pieces the assembled Book or research paper would load,
+# then compiles it with tectonic. This is the only way to render a fragment on
+# its own: none of
 # the three corpora's fragments carry a `\documentclass` of their own (bar six
 # orphaned website-v2/figures/diag-*.tex files -- see below), so they cannot be
 # compiled directly.
 #
-# Preamble fidelity, not reinvention: rather than hand-transcribing the chapter
-# palette/package list into this script (which would drift the moment the real
-# preamble changes), chapter mode READS the real chapter root's own preamble
-# block at run time and reuses it verbatim. Research mode copies and `\input`s
-# the real docs/harbor-research/tex/preamble.tex verbatim. Neither this script
+# Preamble fidelity, not reinvention: Book figures always read the assembled
+# Book root's preamble. There is deliberately no chapter mode: the eight chapter
+# files are source modules, not independently typeset products, and the old A4
+# chapter preambles admitted layouts that failed at the Book's 7 x 10 trim.
+# Research mode copies and `\input`s the real docs/harbor-research/tex/preamble.tex
+# verbatim. Neither this script
 # nor its output ever writes into a tracked source file or directory: everything
 # happens in a throwaway temp build dir, and only copies of the real style files
 # are placed there.
 #
 # Usage:
-#   compile_fragment.sh FRAGMENT.tex [--preamble chapter|research|book] [--out DIR]
+#   compile_fragment.sh FRAGMENT.tex [--preamble book|research] [--out DIR]
 #
 #   FRAGMENT.tex        Path to one figure fragment .tex file.
-#   --preamble MODE     Force "chapter" (website-v2/whitepaper corpora),
-#                        "research" (docs/harbor-research corpus) or "book"
-#                        (the Textbook Edition's own preamble: Palatino under
+#   --preamble MODE     Force "research" (docs/harbor-research corpus) or
+#                        "book" (the Textbook Edition's own preamble: Palatino under
 #                        XeTeX, 7 x 10 in, a 4.5 in text column; the way a
 #                        chapter figure is actually printed -- judge Book
 #                        figures ONLY in this mode, and run figcheck on the
 #                        result with --textwidth-cm 11.43)
 #                        selection. Default: auto-detect from the fragment's
-#                        location (a sibling pd-figure-language.tex means
-#                        chapter; a sibling ../tex/preamble.tex means research).
+#                        location (a sibling pd-figure-language.tex means Book;
+#                        a sibling ../tex/preamble.tex means research).
 #   --out DIR            Directory to write FRAGMENT.pdf and FRAGMENT.log into.
 #                        Default: ./chartwork-build/<fragment-stem>/ under the
 #                        current working directory.
@@ -86,8 +87,8 @@
 #                         skill's SKILL.md). CI should not need this: install
 #                         tectonic on PATH and let its default cache apply.
 #   CHARTWORK_LATEX_ENGINE  Which engine the local fallback drives. Default
-#                         `xelatex` -- the Book and every chapter root are
-#                         XeTeX documents (fontspec). Set to `pdflatex` or
+#                         `xelatex` -- the Book is a XeTeX document (fontspec).
+#                         Set to `pdflatex` or
 #                         `lualatex` only to reproduce a non-XeTeX context.
 #   CHARTWORK_LATEX_PASSES  Pass count for the bare-engine branch when latexmk
 #                         is not installed. Default 3. Ignored when latexmk is
@@ -109,7 +110,7 @@ umask 022
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DEV_SCRATCH_DEFAULT="/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tex"
+DEV_SCRATCH_DEFAULT="${HOME}/coding/tmp/chartwork-tex"
 CHARTWORK_SCRATCH_TEX="${CHARTWORK_SCRATCH_TEX:-$DEV_SCRATCH_DEFAULT}"
 
 TEXTWIDTH_CM="${CHARTWORK_TEXTWIDTH_CM:-16.3}"
@@ -159,8 +160,12 @@ if [ ! -f "$FRAGMENT" ]; then
   echo "compile_fragment.sh: no such file: $FRAGMENT" >&2
   exit 2
 fi
-if [ -n "$PREAMBLE_MODE" ] && [ "$PREAMBLE_MODE" != "chapter" ] && [ "$PREAMBLE_MODE" != "research" ] && [ "$PREAMBLE_MODE" != "book" ]; then
-  echo "compile_fragment.sh: --preamble must be 'chapter', 'research' or 'book', got: $PREAMBLE_MODE" >&2
+if [ "$PREAMBLE_MODE" = "chapter" ]; then
+  echo "compile_fragment.sh: chapter preambles are retired; Book figures must use --preamble book" >&2
+  exit 2
+fi
+if [ -n "$PREAMBLE_MODE" ] && [ "$PREAMBLE_MODE" != "research" ] && [ "$PREAMBLE_MODE" != "book" ]; then
+  echo "compile_fragment.sh: --preamble must be 'book' or 'research', got: $PREAMBLE_MODE" >&2
   exit 2
 fi
 
@@ -219,7 +224,12 @@ if [ -z "$ENGINE_KIND" ]; then
   fi
 fi
 
-BUILD="$(mktemp -d "${TMPDIR:-/tmp}/chartwork-compile.XXXXXX")"
+CHARTWORK_TMPDIR="${CHARTWORK_TMPDIR:-${HOME}/coding/tmp}"
+mkdir -p "$CHARTWORK_TMPDIR" || {
+  echo "compile_fragment.sh: cannot create scratch root: $CHARTWORK_TMPDIR" >&2
+  exit 2
+}
+BUILD="$(mktemp -d "$CHARTWORK_TMPDIR/chartwork-compile.XXXXXX")"
 cleanup() { rm -rf "$BUILD"; }
 trap cleanup EXIT
 
@@ -244,9 +254,9 @@ else
     if [ -f "$PARENT_DIR/tex/preamble.tex" ]; then
       PREAMBLE_MODE="research"
     elif [ -f "$FRAG_DIR/pd-figure-language.tex" ]; then
-      PREAMBLE_MODE="chapter"
+      PREAMBLE_MODE="book"
     else
-      echo "compile_fragment.sh: cannot auto-detect preamble mode for $FRAGMENT_ABS (no sibling ../tex/preamble.tex or pd-figure-language.tex); pass --preamble chapter|research" >&2
+      echo "compile_fragment.sh: cannot auto-detect preamble mode for $FRAGMENT_ABS (no sibling ../tex/preamble.tex or pd-figure-language.tex); pass --preamble book|research" >&2
       exit 2
     fi
   fi
@@ -315,67 +325,10 @@ else
     } >> "$WRAPPER"
     TEXTWIDTH_CM="11.43"
 
-  elif [ "$PREAMBLE_MODE" = "chapter" ]; then
-    # Prefer the ONE real chapter/whitepaper root that actually `\input`s
-    # this fragment (its full preamble, not just the shared style import --
-    # a fragment can rely on a `\newcommand` or a package that only ITS real
-    # chapter root defines). Fall back to any root that loads the shared
-    # style file, through that import line only, for a fragment nothing
-    # currently inputs (there is no "real" context to be faithful to).
-    REF_ROOT=""
-    for cand in "$PARENT_DIR"/*.tex; do
-      [ -f "$cand" ] || continue
-      if grep -qE "\\\\input\\{figures/${STEM}(\\.tex)?\\}" "$cand"; then
-        REF_ROOT="$cand"
-        break
-      fi
-    done
-
-    mkdir -p "$BUILD/figures"
-    # Every shared pd-*.tex sibling the chapter preamble may \input (figure
-    # language, palette, textbook map, hyperlinks, pedagogy), never just two of
-    # them: the preamble is copied verbatim below, so its inputs must resolve.
-    for shared in "$FRAG_DIR"/pd-*.tex; do
-      [ -f "$shared" ] && cp "$shared" "$BUILD/figures/$(basename "$shared")"
-    done
-    cp "$FRAGMENT_ABS" "$BUILD/figures/$STEM.tex"
-
-    if [ -n "$REF_ROOT" ]; then
-      extract_preamble "$REF_ROOT" > "$WRAPPER"
-    else
-      FALLBACK_ROOT=""
-      for cand in "$PARENT_DIR"/*.tex; do
-        [ -f "$cand" ] || continue
-        if grep -q '\\input{figures/pd-figure-language}' "$cand"; then
-          FALLBACK_ROOT="$cand"
-          break
-        fi
-      done
-      if [ -z "$FALLBACK_ROOT" ]; then
-        echo "compile_fragment.sh: no chapter root in $PARENT_DIR inputs figures/pd-figure-language; cannot build a chapter preamble" >&2
-        exit 2
-      fi
-      sed -n '1,/\\input{figures\/pd-figure-language}/p' "$FALLBACK_ROOT" > "$WRAPPER"
-    fi
-    if [ "$HAS_FIGURE_ENV" -eq 0 ]; then
-      # Bare tikzpicture: swap the article documentclass line for a
-      # tight-cropping standalone one; keep every other preamble line.
-      sed -i '1s#.*#\\documentclass[tikz,border=2mm]{standalone}#' "$WRAPPER"
-    fi
-    {
-      echo '\begin{document}'
-      if [ "$HAS_FIGURE_ENV" -eq 1 ]; then
-        echo '\pagestyle{empty}'
-        echo "\\newgeometry{textwidth=${TEXTWIDTH_CM}cm,textheight=${TEXTHEIGHT_CM}cm,top=1cm,bottom=1cm}"
-      fi
-      echo "\\input{figures/$STEM}"
-      echo '\end{document}'
-    } >> "$WRAPPER"
-
   else  # research
     # Prefer the ONE real tex/*.tex document that actually `\input`s this
-    # fragment (its full preamble) -- the same rationale as chapter mode
-    # above. Not just paper*.tex: exec1.tex/exec2.tex/exec3.tex each
+    # fragment (its full preamble), rather than approximating that context.
+    # Not just paper*.tex: exec1.tex/exec2.tex/exec3.tex each
     # `\input` exactly one figure too. This matters in practice: paper3.tex
     # and paper6.tex each add `\usetikzlibrary{patterns}` beyond the shared
     # preamble.tex, purely for one figure apiece (fig-r7-regime.tex,

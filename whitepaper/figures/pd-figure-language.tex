@@ -372,6 +372,10 @@
   pd focus rule/.style={draw=pdfocus,line width=1.6pt},
   pd focus arrow/.style={pd focus rule,->},
   pd focus state/.style={pd state,draw=pdfocus,line width=1.6pt,fill=pdfocus!24},
+  % The single solid chapter-colour surface in a figure: use only for the
+  % culmination or object the reader should name after five seconds. Editions
+  % may render ordinary focus with a pale field while keeping this one solid.
+  pd climax state/.style={pd focus state},
   % a member of the subject's set when the set, not one node, is the subject:
   % edged in the chapter hue, never filled, so the one solid node stays unique
   pd focus outline/.style={pd state,draw=pdfocus,line width=1.2pt,fill=pdpage},

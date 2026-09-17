@@ -51,9 +51,8 @@
   \node[pd breach label,anchor=south,align=center,text width=2.45cm]
     at (8.30,5.55) {partition: no finite deadline};
 \end{tikzpicture}
-\caption{A five-lane Gantt shows each verifier's stale-exposure interval until
-it observes the revocation; this execution converges in two rounds. Expected
-$\Theta(\log m)$ dissemination assumes connected, reliable rounds, while an
-unbounded partition removes any finite deadline. [internal]}
+\caption{Each verifier exits stale exposure when it observes revocation.
+Connected rounds converge by $t+2\Delta$; a partition has no finite deadline.
+[internal]}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

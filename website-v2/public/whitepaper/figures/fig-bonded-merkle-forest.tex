@@ -1,76 +1,91 @@
 % Brief (tikz-diagram-craft). Register row ch7-14 (must).
-% Reader question: how does one note's hash become a 700-byte, cross-daemon
-%   inclusion proof?
-% Claim: evidence is committed at three nested levels -- note chain,
-%   session Merkle tree, harbor Merkle tree of session roots -- and a
-%   proof crossing all three levels is small: for k=100 notes and
-%   N=10^4 settled sessions, about 20 hashes (32 bytes each) plus one
-%   64-byte signature, roughly 700 bytes.
-% Evidence: website-v2/public/whitepaper/agent-transactions-whitepaper.tex
-%   sec:merkle-forest, Definition (Merkle Forest) and the Inclusion proofs
-%   paragraph: note chain h_i=H(n_i||h_{i-1}); session root R_session over
-%   (h_1..h_k), O(log k) proof; harbor root R_harbor,l over every settled
-%   session root in the epoch, O(log N) proof, Ed25519-signed; total
-%   proof approx 20*32 + 64 approx 700 bytes at k=100, N=10^4
-%   [hand-derived, in-chapter arithmetic].
-% Must distinguish: the three nested levels and what each commits to
-%   (order at the note chain; presence within a session; presence within
-%   an epoch); the point where the proof crosses from session to harbor
-%   level, where the byte arithmetic is decided.
-% Grammar chosen: three-tier provenance stack, the chapter's own central
-%   architecture, with the proof-size arithmetic set as a callout at the
-%   session-to-harbor boundary it depends on. Rejected: a single flat
-%   Merkle-tree diagram spanning both levels, which would misstate the
-%   architecture -- the whole point is that a session tree and a harbor
-%   tree are two separate trees, not one, precisely so a proof can cross
-%   between them in O(log k) + O(log N) instead of O(log(kN)).
-% Five-second test: a reader traces one note up through two O(log ...)
-%   hops and reads the total at the boundary: about 700 bytes.
-\begin{figure}[H]
-\centering
+% Reader question: what evidence lets a verifier walk from one ordered note to
+%   one signed harbor epoch, and how large is that evidence?
+% Claim: the receipt contains two distinct inclusion proofs: seven sibling
+%   hashes to the 100-note session root, then fourteen sibling hashes to the
+%   10,000-session harbor root, plus one 64-byte signature -- 736 bytes total.
+% Grammar chosen: a four-step vertical proof journey. Each row makes one claim;
+%   the byte arithmetic is a separate final row. This deliberately spends page
+%   height to preserve readable labels and visible arrow shafts.
+% Five-second test: read 7 hashes, then 14 hashes, then 64-byte signature, then
+%   point to the 736-byte receipt.
 \pdfigurehue{pdgold}%
+\begin{figure*}[t]
+\centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\mfya{0}      % note-chain row
-  \def\mfyb{3.30}   % session-tree row
-  \def\mfyc{7.60}   % harbor-tree row
-  \def\mfcx{5.4}    % centre column
-  % Tier 1: the note chain -- each note hashes the previous
-  \foreach \i/\x in {1/0.6,2/2.05,3/3.5,4/4.95}{
-    \node[pd artifact,minimum width=1.15cm,minimum height=.85cm] (n\i) at (\x,\mfya) {$n_\i$};}
-  \node[pd focus state,minimum width=1.55cm,minimum height=.85cm] (nk) at (6.75,\mfya) {$n_k$};
-  \foreach \a/\b in {1/2,2/3,3/4}{\draw[pd thin arrow] (n\a.east) -- (n\b.west);}
-  \draw[pd thin arrow] (n4.east) -- (5.75,\mfya) -- (nk.west);
-  \node[pd label,anchor=north] at (3.5,{\mfya-.62}) {note chain: $h_i=H(n_i\,\|\,h_{i-1})$};
-  \node[pd tag] at (3.5,{\mfya+1.05}) {commits to order};
-  % Tier 2: the session Merkle tree over (h_1..h_k)
-  \draw[pd hairline] (0.6,{\mfya+.7}) -- (\mfcx,{\mfyb-.6});
-  \draw[pd hairline] (6.75,{\mfya+.7}) -- (\mfcx,{\mfyb-.6});
-  \node[pd focus outline,minimum width=3.0cm,minimum height=1.05cm,align=center]
-    (rsess) at (\mfcx,\mfyb) {\textbf{$R$}\\session root};
-  \node[pd label,anchor=west] at (7.6,\mfyb) {$O(\log k)$ proof, $k{=}100$ notes};
-  % the proof-size callout, offset beside the session-to-harbor connector
-  \node[pd panel,minimum width=3.7cm,text width=3.4cm,align=center] (proof) at (3.05,{(\mfyb+\mfyc)/2}) {%
-    $k=100, N=10^4 \Rightarrow 20{\times}32B{+}64B \approx 700$ bytes};
-  % Tier 3: the harbor Merkle tree -- this session root, plus every other
-  % settled session root in the epoch, feed one harbor tree
-  \node[pd artifact,minimum width=1.05cm] (so1) at (2.6,{\mfyc-.55}) {other};
-  \node[pd artifact,minimum width=1.05cm] (so2) at (8.4,{\mfyc-.55}) {other};
-  \node[pd focus outline,double=pdpage,double distance=1.1pt,minimum width=3.0cm,minimum height=1.05cm,align=center]
-    (rharb) at (\mfcx,\mfyc) {\textbf{$R_\ell$}\\harbor root};
-  \draw[pd focus arrow] (rsess.north) -- (rharb.south);
-  \draw[pd hairline] (so1.east) -- (rharb.west);
-  \draw[pd hairline] (so2.west) -- (rharb.east);
-  \node[pd tag] at (\mfcx,{\mfyc+.65}) {Ed25519-signed};
-  \node[pd label,anchor=south] at (\mfcx,{\mfyc+1.15}) {$O(\log N)$ proof, $N{=}10^4$ sessions};
+  \tikzset{
+    proof node/.style={pd state,minimum width=2.45cm,minimum height=1.02cm,
+      inner xsep=8pt,inner ysep=7pt,align=center},
+    proof packet/.style={pd artifact,minimum width=3.05cm,minimum height=1.02cm,
+      inner xsep=8pt,inner ysep=7pt,align=center},
+    proof root/.style={pd focus outline,minimum width=2.60cm,minimum height=1.08cm,
+      inner xsep=8pt,inner ysep=7pt,align=center},
+    proof signed/.style={pd focus state,double=pdpage,double distance=1.1pt,
+      minimum width=2.80cm,minimum height=1.12cm,inner xsep=8pt,
+      inner ysep=7pt,align=center},
+    proof step/.style={pd kind,anchor=west,text width=2.55cm,align=left},
+    proof why/.style={pd note,anchor=west,text width=2.65cm,align=left},
+    proof arrow/.style={pd focus arrow,shorten <=1pt,shorten >=2pt},
+    sum term/.style={pd state,minimum width=3.05cm,minimum height=1.12cm,
+      inner xsep=7pt,inner ysep=7pt,align=center},
+    sum result/.style={pd climax state,minimum width=2.20cm,minimum height=1.12cm,
+      inner xsep=7pt,inner ysep=7pt,align=center}
+  }
+
+  \node[pd title,anchor=west] at (0.00,7.80)
+    {one note becomes one signed, portable receipt};
+
+  % 1. The chain commits to order; it is not an inclusion proof.
+  \node[proof step] at (0.00,6.58) {1\quad ORDER};
+  \node[proof node] (prior) at (4.20,6.25) {prior hash};
+  \node[pd climax state,minimum width=2.45cm,minimum height=1.02cm,
+    inner xsep=8pt,inner ysep=7pt] (note) at (7.20,6.25) {note};
+  \node[proof node] (nhash) at (10.20,6.25) {note hash};
+  \node[proof why] at (12.45,6.25) {Fixes the note's position in the session log.};
+
+  % 2. First inclusion path: note to session root.
+  \node[proof step] at (0.00,4.78) {2\quad SESSION PROOF};
+  \node[proof node] (noteleaf) at (4.20,4.45) {note hash\\{\ttfamily leaf}};
+  \node[proof packet] (seven) at (7.55,4.45)
+    {7 sibling hashes\\for 100 notes};
+  \node[proof root] (session) at (11.05,4.45) {session root};
+  \node[proof why] at (12.45,4.45) {One of 100 ordered notes.};
+
+  % 3. Second inclusion path: session root to signed harbor root.
+  \node[proof step] at (0.00,2.98) {3\quad HARBOR PROOF};
+  \node[proof root] (sessionleaf) at (4.20,2.65) {session root\\{\ttfamily leaf}};
+  \node[proof packet] (fourteen) at (7.55,2.65)
+    {14 sibling hashes\\for 10,000 sessions};
+  \node[proof signed] (harbor) at (11.05,2.65) {signed\\harbor root};
+  \node[proof why] at (12.45,2.65) {One of 10,000 sessions. Signed by the harbor.};
+
+  % Long, straight shafts stay visible at final Book size. Connectors are
+  % painted before the filled nodes so no arrow crosses text.
+  \begin{scope}[on background layer]
+    \draw[proof arrow] (prior.east) -- (note.west);
+    \draw[proof arrow] (note.east) -- (nhash.west);
+    \draw[proof arrow] (noteleaf.east) -- (seven.west);
+    \draw[proof arrow] (seven.east) -- (session.west);
+    \draw[proof arrow] (sessionleaf.east) -- (fourteen.west);
+    \draw[proof arrow] (fourteen.east) -- (harbor.west);
+  \end{scope}
+
+  % 4. The receipt budget is a separate comparison, not squeezed into the
+  % proof-path rail above.
+  \draw[pd rule] (0.00,1.62) -- (15.10,1.62);
+  \node[proof step] at (0.00,0.92) {4\quad RECEIPT SIZE};
+  \node[sum term] at (4.20,0.58)
+    {7 hashes $\times$ 32 B\\\textbf{224 B}};
+  \node[pd title] at (5.95,0.58) {+};
+  \node[sum term] at (7.70,0.58)
+    {14 hashes $\times$ 32 B\\\textbf{448 B}};
+  \node[pd title] at (9.45,0.58) {+};
+  \node[sum term] at (11.20,0.58)
+    {Ed25519 signature\\\textbf{64 B}};
+  \node[sum result] at (14.00,0.58)
+    {\textbf{736 B}\\total};
 \end{tikzpicture}
-\caption{The Merkle forest: three nested evidence tiers. The note chain
-(bottom) commits to order within a session; the session Merkle tree
-(middle) commits to presence within that session; the harbor Merkle
-tree (top) commits to presence within a signed epoch across every
-settled session. The callout at left is the arithmetic where a proof
-crosses from the session tier to the harbor tier: at k=100 notes and
-N=10,000 settled sessions, the total proof is about 20 hashes plus one
-signature, roughly 700 bytes, small enough to embed in any settlement
-receipt. [hand-derived]}
+\caption{A receipt walks two inclusion paths, then authenticates the harbor
+root: $7+14$ hashes and one signature total 736 bytes. [hand-derived]}
 \label{fig:bonded-merkle-forest}
-\end{figure}
+\end{figure*}

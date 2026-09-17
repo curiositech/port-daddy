@@ -53,12 +53,15 @@ these; this file adds the house style.
 
 ## S5 Surface
 
-- `pd state` (white fill, ink edge) is a neutral thing; `pd artifact` (white
-  fill, grey edge) is subordinate; `pd focus state` and `X state` (24 % tint,
-  same-hue edge) are the subject and the named concepts. `pd terminal` is a
-  heavier ink edge.
-- Every fill has an edge. Text on a fill is ink (the Swiss edition knocks it out
-  in white on a solid block; that is the edition's business, not the fragment's).
+- `pd artifact` (white fill, grey edge) is subordinate; `pd state` (neutral
+  pale surface, ink edge) is an ordinary thing; `pd focus outline` is a member
+  of the subject set; `pd focus state` and `X state` use a pale field with a
+  strong same-hue edge; `pd climax state` is the one solid subject the reader
+  should retain. `pd terminal` is categorically final and may also be solid.
+- Every fill has an edge. Text on ordinary and focus fills is ink. Knocked-out
+  white type belongs only on `pd climax state`, a breach/refusal, or a terminal
+  state. Swiss must preserve the white/pale/outline/hatch/solid ladder rather
+  than flattening every role into an unedged chapter-colour rectangle.
 - Regions: `pd focus fill`, `X fill`, `pd neutral fill` (warm grey band), `pd hatch`.
 - `pd panel` (dashed, grey) groups things; it never carries a fill.
 

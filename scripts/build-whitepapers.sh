@@ -1,35 +1,33 @@
 #!/usr/bin/env bash
 #
-# build-whitepapers.sh — rebuild every published whitepaper PDF from its
-# LaTeX source, reproducibly.
+# build-whitepapers.sh — rebuild the one published Book PDF from its LaTeX
+# source modules, reproducibly.
 #
-# Why this exists: the published PDFs under website-v2/public/whitepaper/ are
-# the artifacts the website serves and people download. They are NOT rebuilt
-# automatically when the .tex or figures change, so they drift (e.g. the
-# trilogy PDFs shipped a June-3 render with retired cinnabar after the source
-# moved to cobalt on June 11). This script is the single source of truth for
-# turning source -> PDF; CI runs it and commits the result.
+# Why this exists: the assembled Book under website-v2/public/whitepaper/ is
+# the artifact the site serves and readers download. Chapter files are source
+# modules, never independently published PDFs. This script is the single source
+# of truth for turning those modules into the Book; CI runs it and commits the
+# result.
 #
-# Reproducibility: each paper's embedded /CreationDate (and the PDF /ID) is
+# Reproducibility: the Book's embedded /CreationDate (and the PDF /ID) is
 # pinned to the last source commit's author time via SOURCE_DATE_EPOCH +
 # FORCE_SOURCE_DATE. Author time survives GitHub's rebase merge; committer time
 # does not. So a given source tree renders byte-identically before and after it
 # enters main, which makes the CI drift guard meaningful.
 #
 # Usage:
-#   scripts/build-whitepapers.sh            # build all papers
-#   scripts/build-whitepapers.sh federated-harbor-whitepaper   # build one (by root basename)
-#   scripts/build-whitepapers.sh --changed-since <git-ref>      # build papers whose imported TeX changed
+#   scripts/build-whitepapers.sh            # build the canonical Book
+#   scripts/build-whitepapers.sh --changed-since <git-ref>      # build when imported TeX changed
 #   scripts/build-whitepapers.sh coordination-papers-mega-volume-maritime  # a switchable, unbuilt edition, on demand
 #
-# Requires: latexmk + pdflatex, plus xelatex for the Book (TeX Live). No bibtex/biber — all papers embed
-# \begin{thebibliography}.
+# Requires: latexmk + xelatex (TeX Live). No bibtex/biber — the generated Book
+# carries its collated bibliography.
 #
 # Engine, and why this script never asks for tectonic. tectonic is the figure
 # toolchain's reference engine (skills/harbor-chartwork/scripts/compile_fragment.sh)
 # and CI installs it for the per-figure gates, but the published PDFs have always
-# come off a plain TeX Live: latexmk driving pdflatex, and xelatex for the Book.
-# So this script needs no tectonic fallback — it IS the local path. What it does
+# come off a plain TeX Live: latexmk driving xelatex for the Book. So this
+# script needs no tectonic fallback — it IS the publication path. What it does
 # need is a TeX Live complete enough to satisfy the Book, and fontconfig able to
 # see TeX Gyre Pagella / TeX Gyre Heros / Source Code Pro, which the Book's
 # preamble binds BY NAME through fontspec. A stock apt TeX Live installs those
@@ -262,25 +260,17 @@ build_one() {
   (
     cd "$srcdir"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
-    # The Book sets its monospace face through fontspec (a Unicode-engine
-    # package) and turns off XeTeX's glyph-metric line boxes, so it is
-    # compiled with xelatex. Every row this script can reach is a
-    # coordination-papers-mega-volume* root now that the standalone chapters
-    # are retired, so the case below always fires and this default is dead.
-    # It stays because pdfTeX is still a first-class engine in this repository
-    # -- docs/harbor-research/Makefile builds the seven research papers with
-    # it, from the same pinned TeX Live digest -- so a future plain-pdflatex
-    # root here would be a new row, not a new engine.
-    local engine=pdflatex latexmk_engine=-pdf
-    case "$roottex" in
-      coordination-papers-mega-volume*.tex) engine=xelatex; latexmk_engine=-xelatex ;;
-    esac
+    # The Book sets its type through fontspec, so every reachable root in this
+    # publication script uses XeLaTeX. Research-paper builds live in their own
+    # Makefile and do not create a second chapter-shaped publication path here.
+    local engine=xelatex latexmk_engine=-xelatex
     if command -v latexmk >/dev/null 2>&1; then
       latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
               -outdir="$outdir" "$roottex"
     else
-      # BasicTeX can ship pdfTeX without latexmk. These papers use inline
-      # bibliographies, so bounded pdflatex passes are a complete fallback:
+      # BasicTeX can ship XeTeX without latexmk. The Book uses generated inputs
+      # and an inline collated bibliography, so bounded XeLaTeX passes are the
+      # fallback:
       # pass 1 writes labels/TOC, pass 2 resolves them, and two extra passes
       # cover the rare long-TOC case that still reports changed labels.
       if ! command -v "$engine" >/dev/null 2>&1; then
@@ -325,7 +315,7 @@ list_unchanged_since() {
 }
 
 main() {
-  local row srcdir roottex dest base
+  local row srcdir roottex dest base matched=0
   if [ -n "$LIST_UNCHANGED_SINCE" ]; then
     list_unchanged_since "$LIST_UNCHANGED_SINCE"
     return 0
@@ -342,6 +332,7 @@ main() {
     if [ -n "$FILTER" ] && [ "$FILTER" != "$base" ] && [ "$FILTER" != "${dest##*/}" ]; then
       continue
     fi
+    matched=1
     if [ -n "$CHANGED_SINCE" ] && ! paper_changed_since "$CHANGED_SINCE" "$srcdir" "$roottex"; then
       echo "skip $roottex (no imported TeX changed since $CHANGED_SINCE)"
       continue
@@ -352,6 +343,11 @@ main() {
       FAILED+=("$roottex")
     fi
   done
+
+  if [ -n "$FILTER" ] && [ "$matched" -eq 0 ]; then
+    echo "error: '$FILTER' is not a Book target; chapter PDFs are retired" >&2
+    exit 2
+  fi
 
   echo ""
   echo "built ${#BUILT[@]} PDF(s); ${#FAILED[@]} failure(s)"

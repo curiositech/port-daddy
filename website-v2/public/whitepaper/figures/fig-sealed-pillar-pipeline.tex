@@ -38,12 +38,28 @@
   \node[pd focus state,minimum width=2.30cm] (OUT) at (12.55,\flowy)
     {declared release};
   \pdumlicon{MON}\pdumlicon{GW}\pdumlicon{DG}\pdumlicon{EG}
-  \draw[pd focus arrow] (WO) -- (MON);
-  \draw[pd focus arrow] (MON) -- (GW);
-  \draw[pd focus arrow] (GW.east) -- ++(.42,0) |- (DG.west);
-  \draw[pd focus arrow] (GW.east) -- ++(.42,0) |- (EG.west);
-  \draw[pd focus arrow] (DG.east) -- ++(.42,0) |- (OUT.west);
-  \draw[pd focus arrow] (EG.east) -- ++(.42,0) |- (OUT.west);
+  % Explicit split and merge junctions keep the branch topology visible and
+  % give each arrowhead a straight, readable approach at final Book size.
+  \coordinate (split) at (7.88,\flowy);
+  \coordinate (dg-in) at ($(DG.west)+(-.62,0)$);
+  \coordinate (eg-in) at ($(EG.west)+(-.62,0)$);
+  \coordinate (dg-out) at ($(DG.east)+(.58,0)$);
+  \coordinate (eg-out) at ($(EG.east)+(.58,0)$);
+  \coordinate (merge) at (11.15,\flowy);
+  \begin{scope}[on background layer]
+    \draw[pd focus arrow] (WO.east) -- (MON.west);
+    \draw[pd focus arrow] (MON.east) -- (GW.west);
+    \draw[pd focus rule] (GW.east) -- (split);
+    \draw[pd focus rule] (split) |- (dg-in);
+    \draw[pd focus rule] (split) |- (eg-in);
+    \draw[pd focus arrow] (dg-in) -- (DG.west);
+    \draw[pd focus arrow] (eg-in) -- (EG.west);
+    \draw[pd focus rule] (DG.east) -- (dg-out) -| (merge);
+    \draw[pd focus rule] (EG.east) -- (eg-out) -| (merge);
+    \draw[pd focus arrow] (merge) -- (OUT.west);
+  \end{scope}
+  \fill[pdfocus] (split) circle[radius=1.6pt];
+  \fill[pdfocus] (merge) circle[radius=1.6pt];
   \begin{scope}[on background layer]
     \node[pd panel,fit={(MON)(GW)},inner xsep=7pt,inner ysep=11pt] (FENCES) {};
     \node[pd panel,fit={(DG)(EG)},inner xsep=7pt,inner ysep=7pt] (GATES) {};
@@ -63,9 +79,7 @@
   \node[pd ready state,text width=2.95cm] (PD) at (12.60,\propy)
     {\textbf{Detection}\\\texttt{a4\_canary\_sprt.py}};
 \end{tikzpicture}
-\caption{A full-width component flow from work order to declared release,
-with the four resulting properties keyed directly to their checkers. The two
-fences establish enforceability; the two gates make the slot, ledger, and
-detector claims testable. [internal; checker provenance named in figure]}
+\caption{One work order passes two fences and two gates; four property cards
+name the checker for each resulting claim. [internal]}
 \label{fig:sealed-pillar-pipeline}
 \end{figure}

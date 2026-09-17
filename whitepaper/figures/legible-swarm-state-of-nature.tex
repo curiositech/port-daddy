@@ -36,11 +36,11 @@
   }
 
   % Concrete shared base: every outcome below starts here.
-  \node[pd artifact,text width=9.55cm,align=left,anchor=south west] (base) at (0.35,5.55)
+  \node[pd artifact,text width=9.55cm,align=left,anchor=south west] (base) at (0.35,5.80)
     {\textbf{shared input}\quad \texttt{.vscode/settings.json @ a1c9}\\
      \texttt{formatOnSave=false}\quad \texttt{tsdk=node\_modules/...}\\
      \texttt{search.exclude=\{"**/dist": true\}}};
-  \node[pd label,anchor=north,text width=9.55cm,align=center] at (5.15,5.42)
+  \node[pd label,anchor=north,text width=9.55cm,align=center] at (5.15,5.62)
     {all three read \texttt{a1c9}; B's file lock overlaps A and C's pointer claims};
 
   % Lane fills come first; labels sit in three reserved columns.
@@ -97,9 +97,8 @@
   \node[pd breach label,anchor=east,text width=2.85cm,align=right] at (6.62,-4.30)
     {\textbf{next release}\\\texttt{fixtures/v1} unseen; replay fails};
 \end{tikzpicture}
-\caption{Three agents race from the same \texttt{settings.json} revision to
-three possible resolutions. Disjoint keys converge; a text splice breaks the
-repo at once; a search exclusion leaves mutation testing green until release
-replay needs the hidden fixture. [internal]}
+\caption{Three agents race from one \texttt{settings.json} revision. Disjoint
+keys converge; a text splice breaks immediately; a valid exclusion hides a
+fixture until release replay. [internal]}
 \label{fig:state-of-nature}
 \end{figure}

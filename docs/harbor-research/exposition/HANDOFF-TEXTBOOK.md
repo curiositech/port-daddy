@@ -45,12 +45,14 @@ paper edge, and the pictures the safety net rescued), `overfull_attrib.py`
 stranded headings, short pages), `leading_scan.py`. Render pages with PyMuPDF
 and look at them; do not trust a compile that merely succeeds. Figures are
 judged only under `skills/harbor-chartwork/scripts/compile_fragment.sh FRAG
---preamble book` (the Book's 4.5 in column); the chapter preamble is Latin Modern
-on A4 and misleads. Never `pkill -f tectonic`; never run jest during a build.
+--preamble book` (the Book's 4.5 in column). The obsolete A4 chapter mode has
+been removed because it admitted figures that failed in print. Never
+`pkill -f tectonic`; never run jest during a build.
 
-CI: `scripts/build-whitepapers.sh` compiles the chapters with pdflatex and the
-three editions with xelatex; two bots regenerate PDFs after every push and their
-commits then head the PR, leaving their own workflow runs in `action_required`.
+CI: `scripts/build-whitepapers.sh` compiles the canonical Swiss Book with
+XeLaTeX. Chapter files are imported source modules, not PDF targets. Two bots
+regenerate the Book after every push and their commits then head the PR, leaving
+their own workflow runs in `action_required`.
 Read the runs on the author's commits. After a bot regen: fast-forward, then
 `cd website-v2 && npm run fix:whitepaper-metadata`, commit, push.
 

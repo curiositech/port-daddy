@@ -383,7 +383,7 @@ levels and \$1,350 / \$1,800 / \$2,650; δ\*(3) = 0.34251 against the quoted
 - Three imported matplotlib PDFs are not regenerated.
 - `T9` (a fill painted over text) is prototyped and reported, not landed in
   `figcheck.py`.
-- The whole Book was not rebuilt: the local TeX shim does not auto-fetch
-  packages and `algpseudocode` was still installing. Every fragment added or
-  redrawn here was compiled and inspected individually under **both** the Book
-  (Swiss) preamble and the standalone-chapter preamble.
+- The whole Book was not rebuilt in this historical pass: the local TeX shim
+  did not auto-fetch packages and `algpseudocode` was still installing. The
+  standalone-chapter comparison named here is retired; current figure judgment
+  uses the Swiss Book preamble and the assembled Book only.

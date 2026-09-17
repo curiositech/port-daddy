@@ -1,12 +1,12 @@
-% Swiss edition overrides (v2 role names): grotesk labels, flat colour,
-% no outlines on surfaces, heavy rules, right angles, square marks.  The
-% Solid colour is a signal, so it is spent on three things only: the figure's
-% subject (a solid block in the chapter hue, words knocked out in white), a
-% breach or refusal (solid red), and a terminal state (solid ink, as UML
-% draws a final state). Every other surface is quiet: white, edged in its
-% concept hue, words in bold ink. Tufte's rule -- strong colour in small
-% areas on a quiet ground -- and the author's (2026-09-11): when every box
-% was a solid block, none of them meant anything.  Loaded by
+% Swiss edition overrides (v2 role names): grotesk labels, disciplined colour,
+% strong rules, right angles, and square marks. Swiss is not allowed to mean
+% ``flat solid rectangles'': hierarchy also travels through white surface,
+% pale surface, outline, hatch, and stroke weight. Solid colour is therefore
+% reserved for a climax state, a breach/refusal, or a terminal state. Ordinary
+% states keep a visible edge; focus states use a pale field and a strong edge;
+% artifacts stay white; hatching remains hatching. This gives the edition the
+% same expressive range as maritime and technical without spending extra hue.
+% Loaded by
 % pd-figure-language.tex before its concept map expands.
 %
 % Typographic law (#10191): an edition changes the FAMILY, in one command, and
@@ -27,20 +27,23 @@
   pd rule/.append style={line width=1pt},
   pd spine/.append style={line width=2pt},
   pd thin arrow/.append style={draw=pdink!70,line width=.8pt},
-  pd state/.append style={draw=none,fill=pdinkmuted!12,rounded corners=0pt,
+  pd state/.append style={draw=pdink!68,line width=.7pt,fill=pdinkmuted!8,rounded corners=0pt,
     inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
   pd terminal/.append style={fill=pdink,text=pdpage,font=\pdfiglabelbold},
   pd artifact/.append style={draw=pdinkmuted!60,line width=.6pt,fill=pdpage,rounded corners=0pt},
   pd panel/.append style={draw=pdink,line width=.9pt,solid,rounded corners=0pt},
-  pd neutral fill/.append style={fill=pdinkmuted!14,draw=none},
+  pd neutral fill/.append style={fill=pdinkmuted!10,draw=pdinkmuted!58,line width=.5pt},
   pd ink fill/.append style={fill=pdink,draw=none,text=pdpage},
-  pd decision/.append style={draw=none,rounded corners=0pt},
+  pd decision/.append style={draw=pdink,line width=.9pt,rounded corners=0pt},
   pd reverse label/.append style={fill=none,text=pdpage},
-  pd hatch/.append style={fill=pdink!12,draw=none},
+  pd hatch/.append style={fill=none,draw=none,
+    pattern={Lines[angle=45,distance=4pt,line width=.3pt]},pattern color=pdinkmuted!70},
   pd focus rule/.append style={line width=2pt},
-  pd focus state/.append style={draw=none,fill=pdfocus,text=pdpage,
-    font=\pdfiglabelbold},
-  pd focus fill/.append style={fill=pdfocus!22,draw=none},
+  pd focus state/.append style={draw=pdfocus,line width=1.6pt,fill=pdfocus!16,
+    text=pdink,font=\pdfiglabelbold},
+  pd climax state/.append style={draw=pdfocus,line width=2pt,fill=pdfocus,
+    text=pdpage,font=\pdfiglabelbold},
+  pd focus fill/.append style={fill=pdfocus!16,draw=pdfocus,line width=.6pt},
   pd focus datum/.append style={circle,draw=none,inner sep=2.7pt},
   pd datum/.append style={rectangle,draw=none,inner sep=2.3pt},
   pd badge/.append style={rectangle,rounded corners=0pt,minimum size=5.2mm,

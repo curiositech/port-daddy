@@ -13,8 +13,9 @@ chapter sources named in `whitepaper/textbook.json` and carry a
 enforces, so this audit and the figure-QA record set measure the same set by
 construction rather than by agreement.
 
-Each fragment was compiled standalone under its own chapter's preamble
-(`skills/harbor-chartwork/scripts/compile_fragment.sh --preamble chapter`), and the
+This historical measurement compiled each fragment under the now-retired A4
+chapter preamble. Current audits must use
+`skills/harbor-chartwork/scripts/compile_fragment.sh --preamble book`, and the
 resulting PDF read twice: by `skills/harbor-chartwork/scripts/figcheck.py`, whose
 `ink` block runs `skills/tufte-evidence-design/scripts/ink_audit.py` over the
 figure's content region, and by `ink_audit.py` standalone over a cropped 1.6x
