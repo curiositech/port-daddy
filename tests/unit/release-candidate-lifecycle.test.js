@@ -53,7 +53,7 @@ describe('release-candidate process lifecycle', () => {
     }
   });
 
-  test('child-exit proof settles for fast failures and remains readable after close', async () => {
+  test('child-exit proof settles for fast failures without missing close', async () => {
     const child = spawn(process.execPath, ['-e', 'process.exit(7)'], {
       stdio: 'ignore',
       env: secretFreeBaseEnv(),
