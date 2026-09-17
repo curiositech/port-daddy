@@ -516,7 +516,7 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
     expect(res.statusCode).toBe(403);
     expect(res.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
     expect(sessions.get(started.id).session.status).toBe('active');
-    expect(sessions.list({}).sessions).toHaveLength(1);
+    expect(sessions.list({ allWorktrees: true }).sessions).toHaveLength(1);
     await app.close();
   });
 
@@ -542,7 +542,7 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
     expect(res.statusCode).toBe(403);
     expect(res.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
     expect(sessions.get(started.id).session.status).toBe('abandoned');
-    expect(sessions.list({}).sessions).toHaveLength(1);
+    expect(sessions.list({ allWorktrees: true }).sessions).toHaveLength(1);
     await app.close();
   });
 });
