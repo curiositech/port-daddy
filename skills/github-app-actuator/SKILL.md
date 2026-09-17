@@ -106,10 +106,18 @@ enqueue, update, and publication operations remain restricted to uniquely
 receipted Fleetbot-owned branches. Phase A verifies the GitHub dispatcher; its
 agent and session fields remain explicitly labeled as dispatcher-supplied until
 the proposal broker admits them from durable identity state. Local harnesses do
-not yet have a proposal broker, and loss of Relay's final signed response does
-not yet authorize a fresh dispatch. Preserve the original request digest and
-wait for the workload-authenticated receipt-recovery path in rollout Phase B2;
-never blind-retry a write. Never copy the Actions workload seed into
+not yet have a proposal broker.
+
+The protected actuator prepares and uploads a signed, non-secret recovery
+manifest before its first mutation attempt. A rerun retrieves that immutable
+manifest and calls only `POST /v1/fleetbot/publisher-receipts/recover` with a
+fresh domain-separated read proof. Recovery returns an already finalized,
+Relay-signed receipt. It never reads the current PR, obtains a GitHub token,
+consumes another mutation capability, or calls the publish endpoint. Missing,
+running, failed, ambiguous, corrupt, and legacy-unbound intents stop without a
+fallback write. This recovers loss of Relay's final response; it does not claim
+that an ambiguous GitHub effect is safe to retry. Never blind-retry a write.
+Never copy the Actions workload seed into
 Codex, Claude Code,
 Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
@@ -149,6 +157,8 @@ This is exceptional and must name the one final allowed operation.
 - Treating token expiry as proof of revocation.
 - Commenting as the operator and adding a bot signature in the text.
 - Retrying a timed-out write without provider read-back.
+- Re-running a mutation after losing Relay's final response instead of using
+  the signed receipt-recovery manifest.
 - Claiming a policy prompt prevents credential use by a malicious same-UID process.
 
 ## Completion evidence

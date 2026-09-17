@@ -182,6 +182,7 @@ function intentDb() {
     receipt_json: null;
     updated_at: number;
     lease_fence: number;
+    recovery_binding_json: string;
   } | null = null;
   return {
     prepare(sql: string) {
@@ -204,7 +205,14 @@ function intentDb() {
         },
         async run() {
           if (sql.includes('INSERT OR IGNORE INTO github_publisher_intents') && !intent) {
-            intent = { request_hash: args[6] as string, state: 'reserved', receipt_json: null, updated_at: args[14] as number, lease_fence: 0 };
+            intent = {
+              request_hash: args[6] as string,
+              state: 'reserved',
+              receipt_json: null,
+              updated_at: args[14] as number,
+              lease_fence: 0,
+              recovery_binding_json: args[13] as string,
+            };
             return { success: true, meta: { changes: 1 } };
           }
           if (sql.includes('AND state = \'running\' AND lease_fence = ?')) {
@@ -815,6 +823,14 @@ describe('Fleetbot publisher authority hardening', () => {
       repository: 'curiositech/port-daddy', scopeSha: '1'.repeat(40),
       idempotencyKey: `pd-gh-${'4'.repeat(64)}`, requestHash: '4'.repeat(64),
       operation: 'pull-request.inspect', authorship: action().authorship!,
+      grantId: `pdg_${'ab'.repeat(16)}`, grantEpoch: 1,
+      recoveryBinding: {
+        grantId: `pdg_${'ab'.repeat(16)}`, grantEpoch: 1,
+        repository: 'curiositech/port-daddy', operation: 'pull-request.inspect',
+        baseBranch: 'main', baseSha: '1'.repeat(40), headSha: '2'.repeat(40),
+        sessionId: action().authorship!.sessionId,
+        requestHash: '4'.repeat(64), idempotencyKey: `pd-gh-${'4'.repeat(64)}`,
+      },
     };
     const env = { DB: intentDb() } as never;
     const first = await subject.reserveIntent(env, key, NOW);
