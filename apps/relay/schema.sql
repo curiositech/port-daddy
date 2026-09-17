@@ -1205,9 +1205,10 @@ CREATE INDEX IF NOT EXISTS publisher_grants_subject_idx
   ON publisher_grants (subject_fingerprint, surface, revoked_at, expires_at);
 CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope BEFORE INSERT ON publisher_grants
 BEGIN
-  -- Keep this as one statement. Wrangler's D1 migration executor rejects
-  -- multi-statement trigger bodies even though local SQLite accepts them.
-  SELECT CASE WHEN EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
+  -- D1's remote parser has rejected valid trigger CASE bodies as incomplete
+  -- while local SQLite accepts them. Keep one parenthesized CASE statement:
+  -- https://github.com/cloudflare/workers-sdk/issues/4326
+  SELECT (CASE WHEN EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
     OR EXISTS (SELECT 1 FROM json_each(NEW.operations_json) WHERE type != 'text' OR value NOT IN (
     'pull-request.publish','pull-request.update','pull-request.ready','pull-request.request-reviewers',
     'pull-request.comment','pull-request.review-reply','pull-request.enqueue','pull-request.inspect'))
@@ -1223,7 +1224,7 @@ BEGIN
     OR EXISTS (SELECT value FROM json_each(NEW.operations_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.branch_allow_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1)
-    THEN RAISE(ABORT, 'publisher grant scope invalid') END;
+    THEN RAISE(ABORT, 'publisher grant scope invalid') END);
 END;
 CREATE TRIGGER IF NOT EXISTS publisher_grants_immutable_authority
 BEFORE UPDATE OF grant_id, epoch, surface, account_user_id, subject_fingerprint,
