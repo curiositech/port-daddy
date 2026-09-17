@@ -686,7 +686,7 @@ describe('agent-harbor v0 schema package', () => {
     expect(validate(schema, broken).some((error) => error.includes('more than maxItems 0'))).toBe(true);
   });
 
-  it('binds rejection coverage to the exact subsystem, invariant, subject, and named-row totals', () => {
+  it('binds rejection coverage to the exact subsystem, invariant, subject, validator, tests, contract, and named-row totals', () => {
     const receipt = loadFixture('porthole-mutation-receipt');
     const coverage = loadFixture('porthole-rejection-coverage');
 
@@ -697,6 +697,21 @@ describe('agent-harbor v0 schema package', () => {
     wrongInvariant.claims[0].invariantId = 'INV-OTHER';
     expect(checkPortholeRejectionCoverage(wrongInvariant, [receipt]))
       .toContain('mutation receipt mutation_receipt_attempt_substitution_01 belongs to another invariant');
+
+    const obsoleteValidator = structuredClone(coverage);
+    obsoleteValidator.validatorArtifactDigest = `sha256:${'9'.repeat(64)}`;
+    expect(checkPortholeRejectionCoverage(obsoleteValidator, [receipt]))
+      .toContain('mutation receipt mutation_receipt_attempt_substitution_01 belongs to another validator artifact digest');
+
+    const obsoleteTests = structuredClone(coverage);
+    obsoleteTests.testBundleDigest = `sha256:${'8'.repeat(64)}`;
+    expect(checkPortholeRejectionCoverage(obsoleteTests, [receipt]))
+      .toContain('mutation receipt mutation_receipt_attempt_substitution_01 belongs to another test bundle digest');
+
+    const obsoleteContract = structuredClone(coverage);
+    obsoleteContract.contractRef = 'schemas/obsolete-contract.schema.json';
+    expect(checkPortholeRejectionCoverage(obsoleteContract, [receipt]))
+      .toContain('mutation receipt mutation_receipt_attempt_substitution_01 belongs to another contract');
 
     const driftedSummary = structuredClone(coverage);
     driftedSummary.summary.demonstratedCount = 0;

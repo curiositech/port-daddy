@@ -48,6 +48,15 @@ export function checkPortholeRejectionCoverage(coverage, receipts) {
       if (receipt.subject.sourceDigest !== coverage.subjectDigest) {
         errors.push(`mutation receipt ${receiptRef} belongs to another subject digest`);
       }
+      if (receipt.subject.validatorArtifactDigest !== coverage.validatorArtifactDigest) {
+        errors.push(`mutation receipt ${receiptRef} belongs to another validator artifact digest`);
+      }
+      if (receipt.subject.testBundleDigest !== coverage.testBundleDigest) {
+        errors.push(`mutation receipt ${receiptRef} belongs to another test bundle digest`);
+      }
+      if (receipt.subject.contractRef !== coverage.contractRef) {
+        errors.push(`mutation receipt ${receiptRef} belongs to another contract`);
+      }
       if (claim.status === 'demonstrated' && receipt.disposition !== 'killed') {
         errors.push(`demonstrated claim ${claim.invariantId} cites a non-killed mutation`);
       }

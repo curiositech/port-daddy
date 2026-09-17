@@ -3,6 +3,9 @@
   "coverageId": "coverage_drydock_hypertree_gate_01",
   "subsystemId": "drydock.hypertree-gate",
   "subjectDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "validatorArtifactDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "testBundleDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "contractRef": "skills/drydock-program-architecture/schemas/hypertree-execution.schema.json",
   "claims": [
     {
       "invariantId": "INV-ATTEMPT-BINDING",

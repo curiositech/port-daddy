@@ -33,8 +33,8 @@
   "counts": {
     "assets": 796,
     "distinctObjects": 760,
-    "bytes": 303490312,
-    "distinctBytes": 300696721
+    "bytes": 303495995,
+    "distinctBytes": 300702404
   },
   "assets": [
     {
@@ -1803,9 +1803,9 @@
     },
     {
       "path": "docs/pr-assets/mutation-evidence-observatory/cooperative-studio.png",
-      "bytes": 230850,
-      "sha256": "8a7d79c52a09f6b7fd7fc6bbbf8204fd47ac8d6411b0dcc188a1d8f603eb21bd",
-      "key": "sha256/8a/8a7d79c52a09f6b7fd7fc6bbbf8204fd47ac8d6411b0dcc188a1d8f603eb21bd.png",
+      "bytes": 236533,
+      "sha256": "0bae2354691aa7df8e4d2bf6e3a7c5a8ca86ac6711f793ac1815b21684092b4e",
+      "key": "sha256/0b/0bae2354691aa7df8e4d2bf6e3a7c5a8ca86ac6711f793ac1815b21684092b4e.png",
       "contentType": "image/png"
     },
     {
