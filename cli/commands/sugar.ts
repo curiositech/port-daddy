@@ -923,7 +923,11 @@ export async function handleDone(
     credential: resolveCliActorCredential(doneAgentId),
   });
   const data = await pd.done(note, {
-    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    // The exact session plus its minted credential is the authority. Do not
+    // also assert the session's display agentId: display aliases are a
+    // projection, can be rebuilt independently across daemon restarts, and
+    // are deliberately not ownership proof. The server authorizes the exact
+    // session against the credential-stamped actor in session metadata.
     sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
     status: typeof body.status === 'string' ? body.status : undefined,
     skipOriginCheck: skipOriginCheck ? true : undefined,

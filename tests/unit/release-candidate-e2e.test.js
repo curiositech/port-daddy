@@ -218,6 +218,10 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain("['rev-parse', '--git-common-dir']");
     expect(runner).toContain('alpha linked session recorded the wrong worktree root');
     expect(runner).toContain("['session', 'files', 'add', spec.claimPath, '--json']");
+    const sugarCli = readFileSync(join(repoRoot, 'cli', 'commands', 'sugar.ts'), 'utf8');
+    const doneCall = sugarCli.slice(sugarCli.indexOf('const data = await pd.done('), sugarCli.indexOf("if (!data?.success)", sugarCli.indexOf('const data = await pd.done(')));
+    expect(doneCall).toContain('sessionId:');
+    expect(doneCall).not.toMatch(/^\s*agentId:/m);
     expect(runner).toContain('const blockerSockets = new Set();');
     expect(runner).toContain("collision fixture listener did not close within 3 seconds");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
