@@ -64,6 +64,7 @@ You can mix them. If you set none, the agent is reachable only via manual `pd sp
 | `backend` | yes | One of `ollama`, `cloudflare`, `claude`, `claude-cli`, `codex`, `gemini`, `aider`, `custom`. Only setup-ready backends can launch. |
 | `model` | when supported | Pin it. `@cf/qwen/qwen3-30b-a3b-fp8`, `claude-haiku-4-5-20251001`, etc. Predictable cost > "best available". |
 | `prompt` | yes | For LLM backends, the user message. For `custom`, the shell command. |
+| `cloud_only` | optional | Boolean. `true` admits the agent only to the hosted Fleet executor and omits it from local daemon execution. Missing or `false` keeps local eligibility. Any non-boolean value is invalid and runtime parsing fails closed to hosted-only. |
 | `allowedTools` | optional | Claude-CLI tool allowlist: `Read,Grep,Bash(npm test*)`. |
 | `worktree` | optional | If `true`, the spawner creates a git worktree and runs the agent there. |
 | `timeout` | optional | Seconds before SIGKILL. |
@@ -126,6 +127,7 @@ fleet:
       trigger: git:committed
       backend: cloudflare
       model: "@cf/qwen/qwen3-30b-a3b-fp8"
+      cloud_only: true
       identity: "{project}:fleet:qa"
       respawn: true
       max_respawns: 3
