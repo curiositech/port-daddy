@@ -1,79 +1,76 @@
-% Figure IV.6 --- the four-message transfer ceremony, drawn as the sequence
-% diagram the prose (S:fh-xfer-ceremony) says it is; two wire crossings, then
-% B verifies alone.
-%
-% Reader question: who sends what to whom, in what order, and at which
-%   message does Harbor A stop being needed synchronously?
-% Claim: two messages cross the trust boundary (offer, ack); after the third,
-%   Harbor B verifies and delivers the attenuated card without calling A.
-% Evidence: the four message names and their bound fields from
-%   S:fh-xfer-ceremony (xfer_req, xfer_offer<C_A,att_A,R_A^(e)>,
-%   xfer_ack<C'_B,R_B^(e)>, xfer_deliver<C'_B>).
-% Must distinguish: which messages are local (no boundary crossing) from
-%   which cross the wire, and where the hot path stops needing A.
-% Grammar chosen: sequence diagram, two lifelines, four numbered messages
-%   (tpl-sequence.tex) -- matches what S:fh-xfer-ceremony already tells the
-%   reader they are looking at. Grammar rejected: the v1 authority-envelope
-%   area chart stacked over a timeline stacked over a caution/focus band
-%   (three devices in one picture) is why it had a T3/T4 collision and ran
-%   wider than the column; an area chart also asserts a continuous quantity
-%   the paper never computes.
-% Five-second test: which two messages cross from one harbor to the other,
-%   and after which message does B stop needing A synchronously?
+% Reader question: who sends each transfer message, and when does A leave the synchronous path?
+% Claim: only offer and ack cross the boundary; after ack, B verifies and delivers locally.
+% Evidence: xfer_req<C_A>, xfer_offer<C_A,att_A,R_A^(e)>, xfer_ack<C'_B,R_B^(e)>, xfer_deliver<C'_B>.
+% Must distinguish: local agent-daemon messages from the two cross-harbor messages and later asynchronous revocation.
+% Grammar chosen: four-lifeline UML sequence inside two dashed harbor groups; rejected: self-loops that looked outgoing.
+% Five-second test: messages 2 and 3 cross the wire, and message 3 ends A's synchronous role.
 \pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\xA{1.45}   \def\xB{9.15}   \def\dy{1.3}
-  \node[pd title,anchor=west,text width=10.4cm] at (0.00,1.00)
-    {two wire crossings, then $B$ verifies alone};
-  \node[pd state,minimum width=2.7cm] (hA) at (\xA,0) {Harbor $A$};
-  \node[pd label,text=pdinkmuted,anchor=north] at (\xA,-0.42) {daemon $D_A$};
-  \node[pd state,minimum width=2.7cm] (hB) at (\xB,0) {Harbor $B$};
-  \node[pd label,text=pdinkmuted,anchor=north] at (\xB,-0.42) {daemon $D_B$};
-  \draw[pd guide] (\xA,-1.05) -- (\xA,-7.10);
-  \draw[pd guide] (\xB,-1.05) -- (\xB,-7.10);
-  \draw[pd arrow] (\xA,-1.70) -- (\xA+0.80,-1.70) -- (\xA+0.80,-2.00) -- (\xA,-2.00);
-  \node[pd badge] at (\xA+0.40,-1.38) {1};
-  \node[pd tag,anchor=west] at (\xA+1.00,-1.85)
-    {$\mathsf{xfer\_req}$: agent $\to D_A$};
-  \node[pd badge] (m2) at (5.30,-3.10) {2};
-  \draw[pd protocol arrow,pd to badge] (\xA,-3.10) -- (m2);
-  \draw[pd protocol arrow,pd from badge] (m2) -- (\xB,-3.10);
-  \node[pd tag,anchor=south] at (5.30,-2.86)
-    {$\mathsf{xfer\_offer}\langle C_A,\mathrm{att}_A,R_A{}^{(e)}\rangle$};
-  \node[pd badge] (m3) at (5.30,-4.80) {3};
-  \draw[pd protocol arrow,pd to badge] (\xB,-4.80) -- (m3);
-  \draw[pd protocol arrow,pd from badge] (m3) -- (\xA,-4.80);
-  \node[pd tag,anchor=south] at (5.30,-4.56)
-    {$\mathsf{xfer\_ack}\langle C_B{}',R_B{}^{(e)}\rangle$};
-  \draw[pd focus rule] (\xB,-4.80) -- (\xB,-7.10);
-  \draw[pd focus arrow] (\xB,-6.15) -- (\xB-0.80,-6.15) -- (\xB-0.80,-6.45) -- (\xB,-6.45);
-  \node[pd focus badge] at (\xB-0.40,-5.83) {4};
-  \node[pd tag,anchor=east,inner ysep=4pt] at (\xB-1.00,-6.30)
-    {$\mathsf{xfer\_deliver}\langle C_B{}'\,\rangle$: $D_B\to$ agent};
-  \node[pd note,anchor=north west,text width=9.2cm] at (\xA-0.05,-7.35)
-    {after message 3, $B$ verifies $C_B'$ under $\mathit{sk}_B$ alone: no synchronous call to $A$};
-\end{tikzpicture}
+  \def\xS{0.75} \def\xA{3.45} \def\xB{7.10} \def\xT{9.80}
+  \node[pd title,anchor=west,text width=10.5cm] at (-0.35,1.55)
+    {two wire crossings; acknowledgement hands the hot path to $B$};
 
-\vspace{2pt}
-\footnotesize
-\renewcommand{\arraystretch}{1.1}
-\begin{tabular}{@{}l p{8.7cm}@{}}
-\toprule
-\textbf{Forecloses} & identity spoofing of $\mathit{sk}_A$ across the boundary; capability inflation across the transfer; replay at $B$ against a stale $R_A{}^{(e)}$ \\
-\textbf{Defers} & revocation latency (\S\ref{sec:fh-revocation}); settlement disputes (\S\ref{sec:fh-settlement}); admission of unbonded harbors (\S\ref{sec:fh-admission}) \\
-\bottomrule
-\end{tabular}
-\normalsize
+  % Dashed scopes make locality explicit; the four lifelines remove ambiguous self-loops.
+  \draw[pd panel] (-0.35,0.72) rectangle (4.52,-6.02);
+  \draw[pd panel] (6.03,0.72) rectangle (10.90,-6.02);
+  \node[pd kind] at (2.08,0.96) {Harbor $A$};
+  \node[pd kind] at (8.46,0.96) {Harbor $B$};
+
+  \node[pd artifact,minimum width=1.75cm] (hS) at (\xS,0) {agent};
+  \node[pd label,text=pdinkmuted,anchor=north] at (\xS,-0.40) {source};
+  \node[pd state,minimum width=1.85cm] (hA) at (\xA,0) {$D_A$};
+  \node[pd label,text=pdinkmuted,anchor=north] at (\xA,-0.40) {daemon};
+  \node[pd focus state,minimum width=1.85cm] (hB) at (\xB,0) {$D_B$};
+  \node[pd label,text=pdinkmuted,anchor=north] at (\xB,-0.40) {daemon};
+  \node[pd artifact,minimum width=1.75cm] (hT) at (\xT,0) {agent};
+  \node[pd label,text=pdinkmuted,anchor=north] at (\xT,-0.40) {recipient};
+  \foreach \x in {\xS,\xA,\xB,\xT}{\draw[pd guide] (\x,-1.10) -- (\x,-5.72);}
+
+  \node[pd tag,anchor=south] at (2.10,-1.48)
+    {$\mathsf{xfer\_req}\langle C_A\rangle$};
+  \node[pd badge] (m1) at (2.10,-1.85) {1};
+  \draw[pd arrow,-,pd to badge] (\xS,-1.85) -- (m1);
+  \draw[pd arrow,pd from badge] (m1) -- (\xA,-1.85);
+
+  \node[pd tag,anchor=south] at (5.28,-2.43)
+    {$\mathsf{xfer\_offer}\langle C_A,\mathsf{att}_A,R_A{}^{(e)}\rangle$};
+  \node[pd badge] (m2) at (5.28,-2.80) {2};
+  \draw[pd protocol arrow,-,pd to badge] (\xA,-2.80) -- (m2);
+  \draw[pd protocol arrow,pd from badge] (m2) -- (\xB,-2.80);
+
+  \node[pd tag,anchor=south] at (5.28,-3.68)
+    {$\mathsf{xfer\_ack}\langle C^{\prime}(B),R_B{}^{(e)}\rangle$};
+  \node[pd badge] (m3) at (5.28,-4.05) {3};
+  \draw[pd protocol arrow,-,pd to badge] (\xB,-4.05) -- (m3);
+  \draw[pd protocol arrow,pd from badge] (m3) -- (\xA,-4.05);
+
+  \node[pd tag,anchor=south] at (8.45,-4.93)
+    {$\mathsf{xfer\_deliver}\langle C^{\prime}(B)\rangle$};
+  \node[pd focus badge] (m4) at (8.45,-5.30) {4};
+  \draw[pd focus arrow,-,pd to badge] (\xB,-5.30) -- (m4);
+  \draw[pd focus arrow,pd from badge] (m4) -- (\xT,-5.30);
+
+  \node[pd note,anchor=north west,text width=10.2cm] at (-0.05,-6.30)
+    {after 3, $B$ verifies $C^{\prime}(B)$ under $\mathit{sk}_B$ alone; a later root from $A$ matters only on the asynchronous revocation path};
+  \draw[pd hairline] (-0.05,-7.35) -- (10.55,-7.35);
+  \node[pd kind,anchor=north west] at (-0.05,-7.52) {forecloses};
+  \node[pd label,anchor=north west,align=left,text width=8.45cm] at (2.05,-7.52)
+    {spoofing $\mathit{sk}_A$; transfer-time capability inflation; replay at $B$ against stale $R_A{}^{(e)}$};
+  \node[pd kind,anchor=north west] at (-0.05,-8.52) {defers};
+  \node[pd label,anchor=north west,align=left,text width=8.45cm] at (2.05,-8.52)
+    {revocation latency; settlement disputes; admission of unbonded harbors};
+  \draw[pd hairline] (-0.05,-9.68) -- (10.55,-9.68);
+\end{tikzpicture}
 \caption{\textbf{The transfer ceremony crosses the wire twice, then $B$ is on
 its own.} Message (1) is local: the agent presents $C_A$ to $D_A$. Messages
 (2) and (3), drawn in indigo, are the only ones that cross the trust boundary:
 the signed offer binds $\mathrm{att}_A$ and $A$'s epoch root, and the signed
-acknowledgement returns the attenuated card
-$C_B'=\mathrm{att}_B(\mathrm{att}_A(C_A))\subseteq C_A$
+acknowledgement returns the $B$-bound attenuated card
+$C^{\prime}(B)=\mathrm{att}_B(\mathrm{att}_A(C_A))\subseteq C_A$
 (Theorem~\ref{lem:fh-att}) with $B$'s epoch root. After (3), gold marks the hot
-path: $D_B$ delivers $C_B'$ locally (4) and every later presentation verifies
+path: $D_B$ delivers $C^{\prime}(B)$ locally (4) and every later presentation verifies
 under $\mathit{sk}_B$ alone. Harbor $A$ still matters asynchronously --- a
 later $R_A{}^{(e+1)}$ can revoke the transfer once it reaches $B$'s audit surface
 (Figure~\ref{fig:fh-revocation}) --- but that path is not on the hot path drawn

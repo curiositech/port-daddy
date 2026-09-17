@@ -23,6 +23,7 @@
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure]
 \begin{axis}[pd axis,
+  name=kinds,
   width=8.6cm,height=4.6cm,
   ybar,bar width=0.85cm,
   symbolic x coords={BOT,O/F,claims,temporal},
@@ -36,7 +37,8 @@
   every node near coord/.append style={pd label,anchor=south,yshift=2pt}]
   \addplot[pd focus fill] coordinates {(BOT,121) (O/F,195) (claims,484) (temporal,213)};
 \end{axis}
-\node[pd note,anchor=north west,text width=9.4cm] at (-0.30,-3.35)
+\node[pd note,anchor=north west,text width=9.4cm]
+  at ([xshift=-0.30cm,yshift=-0.90cm]kinds.south west)
   {885 policies carry at least one conflict; the four counts sum to
    $1{,}013$ because some carry more than one kind -- $764$ carry exactly
    one, $114$ carry two, and $7$ carry all three co-occurring kinds};

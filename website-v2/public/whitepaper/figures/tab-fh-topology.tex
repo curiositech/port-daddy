@@ -1,18 +1,25 @@
-% The federation topology as a table, shared by chapters 6 and 8 (one source).
+% Reader question: which artifact moves on each federation rail, in which direction, and what authority does it withhold?
+% Claim: four independent rails connect two sovereign roots; none makes one harbor authoritative for the other.
+% Evidence: epoch roots, attenuated card, revocation delta, and conditional settlement bond from the chapter protocols.
+% Must distinguish: correlation from authorization, attenuation from widening, eventual gossip from a deadline, and conditional from unconditional custody.
+% Grammar chosen: three-column contrast table with direction attached to the carried artifact; rejected: four narrow columns at book measure.
+% Five-second test: the reader can name the revocation rail's direction and its no-finite-deadline limit.
 \begin{table}[H]
 \centering
+\begin{minipage}{.96\linewidth}
 \caption{Federation is four independent rails between two sovereign harbors, each keeping its own signing root; there is no shared root. The witness rail correlates and exposes equivocation but authorizes nothing; the capability and revocation rails carry attenuated authority and later invalidation in opposite directions; the settlement rail relates a bond posted at A to damage measured at B, and its custody bound is conditional on the settlement gate, not an invariant. No rail makes either harbor a root of authority for the other. [internal]}
 \label{tab:fh-topology}
 \small
 \renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}X@{}}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{1.55cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
-\textbf{Rail} & \textbf{What crosses} & \textbf{Direction} & \textbf{What it does not do} \\
+Rail & \textbf{What crosses / direction} & \textbf{What it does not do} \\
 \midrule
-witness & the signed epoch roots $R_A{}^{(e)}, R_B{}^{(e)}$ and any equivocation evidence & both ways & authorize work: correlation, not authorization \\
-capability & an attenuated card, $C_A \mapsto C'{}_B \subseteq C_A$ & A to B & widen scope or lifetime at any hop \\
-revocation & the anti-entropy delta of revoked ids & B to A & promise a finite deadline under partition \\
-settlement & a bond posted at A against damage measured at B & both ways & bound custody unconditionally: it holds only if the settlement gate holds \\
+witness & signed epoch roots $R_A{}^{(e)},R_B{}^{(e)}$ plus equivocation evidence; both ways & authorize work: correlation is not authorization \\
+capability & $B$-bound attenuated card $C^{\prime}$ from $C_A$, with $C^{\prime}\subseteq C_A$; A to B & widen scope or lifetime at any hop \\
+revocation & anti-entropy delta of revoked ids; B to A & promise a finite deadline under partition \\
+settlement & bond at A against damage measured at B; both ways & bound custody unconditionally: the bound needs the settlement gate \\
 \bottomrule
 \end{tabularx}
+\end{minipage}
 \end{table}
