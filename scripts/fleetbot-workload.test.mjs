@@ -494,6 +494,12 @@ describe('fleetbot workload client', () => {
       workflow: 'Fleetbot actuator',
       runId: '124',
     }), /selected source run/)
+    assert.throws(() => verifyRecoveryManifestForRecovery(manifest, {
+      key: workloadKey('1a'.repeat(32)),
+      repository: 'curiositech/port-daddy',
+      workflow: 'Fleetbot actuator',
+      runId: '123',
+    }), /selected source run/)
     assert.equal(JSON.stringify(manifest).includes('FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX'), false)
     assert.equal(JSON.stringify(manifest).includes('GITHUB_TOKEN'), false)
     assert.equal(JSON.stringify(manifest).includes('The exact-head finding is fixed.'), false)

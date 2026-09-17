@@ -97,6 +97,11 @@ function recoveryEnv(input: {
   receipt?: FleetbotReceipt | null;
   includeIntent?: boolean;
   writes?: string[];
+  grantExpiresAt?: number;
+  grantRevokedAt?: number | null;
+  identityGeneration?: number;
+  identityRevoked?: number;
+  relayPrivateKey?: string;
 }): Env {
   const writes = input.writes ?? [];
   const statementFor = (sql: string) => {
@@ -111,11 +116,15 @@ function recoveryEnv(input: {
             operations_json: JSON.stringify([binding.operation]),
             branch_allow_json: JSON.stringify(['pd-agent/']),
             base_allow_json: JSON.stringify(['main']), mutations_per_day: 25,
-            expires_at: NOW + 1_000, revoked_at: null,
+            expires_at: input.grantExpiresAt ?? NOW + 1_000,
+            revoked_at: input.grantRevokedAt ?? null,
           };
         }
         if (sql.includes('FROM identities')) {
-          return { pub_key: WORKLOAD_PUBLIC_KEY, proof_method: 'oidc', expires_at: NOW + 1_000, revoked: 0, key_generation: 1 };
+          return {
+            pub_key: WORKLOAD_PUBLIC_KEY, proof_method: 'oidc', expires_at: NOW + 1_000,
+            revoked: input.identityRevoked ?? 0, key_generation: input.identityGeneration ?? 1,
+          };
         }
         if (sql.includes('FROM github_publisher_capability_uses_v2')) {
           return {
@@ -151,7 +160,7 @@ function recoveryEnv(input: {
     DB: { prepare: statementFor } as unknown as D1Database,
     KV: {} as KVNamespace,
     HARBOR_CHANNEL: {} as DurableObjectNamespace,
-    RELAY_ED25519_PRIVATE_KEY_HEX: RELAY_PRIVATE_KEY,
+    RELAY_ED25519_PRIVATE_KEY_HEX: input.relayPrivateKey ?? RELAY_PRIVATE_KEY,
   } as Env;
 }
 
@@ -278,6 +287,29 @@ describe('Fleetbot publisher receipt recovery', () => {
     const response = await handleFleetbotPublisherReceiptRecovery(
       recoveryRequest(await signedProof()),
       recoveryEnv({ receipt: null }),
+    );
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ code: 'INTENT_CORRUPT' });
+  });
+
+  it.each([
+    [{ grantExpiresAt: NOW - 1 }, 'PUBLISHER_GRANT_EXPIRED'],
+    [{ grantRevokedAt: NOW - 1 }, 'PUBLISHER_GRANT_REVOKED'],
+    [{ identityGeneration: 2 }, 'WORKLOAD_PROOF_INVALID'],
+    [{ identityRevoked: 1 }, 'PUBLISHER_IDENTITY_INVALID'],
+  ] as const)('fails closed when recovery authority has rotated or ended', async (options, code) => {
+    const response = await handleFleetbotPublisherReceiptRecovery(
+      recoveryRequest(await signedProof()),
+      recoveryEnv(options),
+    );
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(await response.json()).toMatchObject({ code });
+  });
+
+  it('fails closed when the stored receipt was signed by a prior unconfigured Relay key', async () => {
+    const response = await handleFleetbotPublisherReceiptRecovery(
+      recoveryRequest(await signedProof()),
+      recoveryEnv({ relayPrivateKey: '33'.repeat(32) }),
     );
     expect(response.status).toBe(500);
     expect(await response.json()).toMatchObject({ code: 'INTENT_CORRUPT' });
