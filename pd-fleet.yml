@@ -151,18 +151,7 @@ fleet:
         rules:
           - disposition: advisory
             prClasses: [code, ui, ci, data, dependencies]
-            reason: runnable product or build surface changed; execution evidence is advisory until the sandbox runner is configured
-      execution:
-        mode: write_sandbox
-        repository: current_repository
-        worktree: isolated
-        cwd: .
-        toolAllowlist: [read_file, list_files, search, run_tests]
-        mcpAllowlist: [github.read]
-        networkAllowlist: []
-        writePathAllowlist: [.]
-        maxWallClockMs: 600000
-        maxCostMicrousd: 2000000
+            reason: runnable product or build surface changed; static QA review is advisory and test-author owns execution evidence
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -173,7 +162,7 @@ fleet:
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
-      allowedTools: "Read,Grep,Glob,Bash(npm test*),Bash(gh*)"
+      allowedTools: "Read,Grep,Glob"
       prompt: |
         QA review of the PR diff. Read every changed file. For each
         change, identify inputs that would break it.

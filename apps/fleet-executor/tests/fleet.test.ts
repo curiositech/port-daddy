@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { parse as parseYaml } from 'yaml';
 import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
 import { CF_ADMITTED_MODELS, CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 
@@ -9,6 +10,9 @@ const REAL_YAML = readFileSync(
   fileURLToPath(new URL('../../../pd-fleet.yml', import.meta.url)),
   'utf8',
 );
+const REAL_DOCUMENT = parseYaml(REAL_YAML) as {
+  fleet?: { agents?: Record<string, { execution?: unknown; allowedTools?: unknown }> };
+};
 
 describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () => {
   const ships = parseFleetShips(REAL_YAML, 'pull_request:opened');
@@ -71,13 +75,18 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('tenderfoot')).toBe(false);
   });
 
-  it('keeps qa sandbox execution explicit and advisory until a runner is configured', () => {
+  it('keeps qa cloud-static and advisory without claiming execution authority', () => {
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa).toBeDefined();
-    expect(qa!.execution.mode).toBe('write_sandbox');
-    expect(qa!.executionConfigState).toBe('valid');
+    expect(qa!.execution.mode).toBe('none');
+    expect(qa!.executionConfigState).toBe('absent');
     expect(qa!.participation.unavailableBlocks).toBe(false);
     expect(qa!.participation.rules[0]?.disposition).toBe('advisory');
+
+    const declaredQa = REAL_DOCUMENT.fleet?.agents?.qa;
+    expect(declaredQa).toBeDefined();
+    expect(declaredQa!.execution).toBeUndefined();
+    expect(declaredQa!.allowedTools).toBe('Read,Grep,Glob');
   });
 
   it('legacy test-author tool strings do not acquire execution authority', () => {
