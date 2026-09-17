@@ -18,6 +18,7 @@ import {
   isExpectedCollisionSocketError,
   loadReleaseCandidateMatrix,
   redactReleaseCandidateText,
+  releaseCandidateIsolatedEnv,
   resolveDurableTestRoot,
   secretFreeBaseEnv,
   selectReleaseCandidateCases,
@@ -118,6 +119,64 @@ describe('release-candidate E2E contract', () => {
     expect(redacted).not.toContain('fixture-private-material');
     expect(redacted).toContain('Bearer [REDACTED]');
     expect(redacted).toContain('token [REDACTED]');
+  });
+
+  test('the isolated environment rejects unknown keys and paths outside approved roots', () => {
+    const root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-env-'));
+    const outside = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-outside-'));
+    try {
+      expect(() => releaseCandidateIsolatedEnv(root, { INVENTED_SECRET_PATH: outside }))
+        .toThrow(/override is not allowed/);
+      expect(() => releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: outside }))
+        .toThrow(/escapes its approved roots/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test('the isolated environment admits an explicit sibling root but rejects a symlink escape', () => {
+    const root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-env-'));
+    const sibling = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-sibling-'));
+    const escape = join(root, 'escape');
+    try {
+      const admitted = releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: sibling }, {
+        approvedPathRootsByKey: { SMOKE_SCRATCH_BASE: [sibling] },
+      });
+      expect(admitted.SMOKE_SCRATCH_BASE).toBe(sibling);
+
+      symlinkSync(sibling, escape);
+      expect(() => releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: escape }))
+        .toThrow(/escapes its approved roots/);
+    } finally {
+      rmSync(escape, { force: true });
+      rmSync(root, { recursive: true, force: true });
+      rmSync(sibling, { recursive: true, force: true });
+    }
+  });
+
+  test('the isolated environment scrubs ambient secrets and binds private runtime homes', () => {
+    const root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'port-daddy-rc-env-'));
+    try {
+      const isolated = releaseCandidateIsolatedEnv(root, {}, {
+        env: {
+          PATH: '/usr/bin:/bin',
+          LANG: 'en_US.UTF-8',
+          OPENAI_API_KEY: 'rc-secret-canary',
+          GITHUB_TOKEN: 'rc-github-canary',
+        },
+        home: join(root, 'ambient-home'),
+      });
+      expect(isolated.OPENAI_API_KEY).toBeUndefined();
+      expect(isolated.GITHUB_TOKEN).toBeUndefined();
+      expect(isolated.HOME).toBe(join(root, 'build-home'));
+      expect(isolated.USERPROFILE).toBe(join(root, 'build-home'));
+      expect(isolated.PD_HOME).toBe(join(root, 'control'));
+      expect(isolated.TMPDIR).toBe(join(root, 'tmp'));
+      expect(isolated.PORT_DADDY_DISABLE_KEYCHAIN).toBe('1');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('durable-root policy rejects OS temp paths and the source checkout', () => {

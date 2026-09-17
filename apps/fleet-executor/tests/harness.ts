@@ -156,6 +156,18 @@ export interface GitHubState {
   prMerged: boolean | undefined;
 }
 
+export const DEFAULT_PR_DIFF = [
+  'diff --git a/src/x.ts b/src/x.ts',
+  '--- a/src/x.ts',
+  '+++ b/src/x.ts',
+  '@@ -1,4 +1,4 @@',
+  ' context one',
+  ' context two',
+  ' context three',
+  '-old',
+  '+changed',
+].join('\n');
+
 /**
  * Default jest config seeded at `BASESHA:jest.config.js` — a broad, realistic
  * single-project testMatch covering the default authored-test fixture path
@@ -411,7 +423,7 @@ export function installGitHubFetch(state: GitHubState): void {
       const headers = new Headers(init?.headers);
       if (headers.get('Accept')?.includes('diff')) {
         return text(
-          state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed',
+          state.prDiff ?? DEFAULT_PR_DIFF,
           state.prDiffStatus ?? 200,
         );
       }

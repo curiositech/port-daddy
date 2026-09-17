@@ -635,6 +635,22 @@ describe('XO integration — editor pass', () => {
 
 describe('XO integration — advisory triage', () => {
   beforeEach(() => {
+    state.prDiff = [
+      'diff --git a/src/x.ts b/src/x.ts',
+      '--- a/src/x.ts',
+      '+++ b/src/x.ts',
+      '@@ -1,9 +1,10 @@',
+      ' line one',
+      ' line two',
+      '+changed line three',
+      ' line three',
+      ' line four',
+      ' line five',
+      ' line six',
+      ' line seven',
+      ' line eight',
+      ' line nine',
+    ].join('\n');
     state.prFiles = [{
       filename: 'src/x.ts',
       status: 'modified',

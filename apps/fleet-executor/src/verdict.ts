@@ -151,6 +151,87 @@ function rightSidePatchLines(patch: string): Set<number> {
   return lines;
 }
 
+/** Decode one Git path token, including core.quotePath C-style escapes. */
+function decodeGitPathToken(value: string): string | null {
+  const token = value.trim();
+  if (!token.startsWith('"')) return token || null;
+  if (!token.endsWith('"') || token.length < 2) return null;
+
+  const bytes: number[] = [];
+  const encoder = new TextEncoder();
+  const escapedByte = new Map<string, number>([
+    ['a', 0x07], ['b', 0x08], ['t', 0x09], ['n', 0x0a],
+    ['v', 0x0b], ['f', 0x0c], ['r', 0x0d], ['"', 0x22], ['\\', 0x5c],
+  ]);
+  for (let i = 1; i < token.length - 1;) {
+    if (token[i] !== '\\') {
+      const codePoint = token.codePointAt(i);
+      if (codePoint === undefined) return null;
+      const character = String.fromCodePoint(codePoint);
+      bytes.push(...encoder.encode(character));
+      i += character.length;
+      continue;
+    }
+
+    i += 1;
+    if (i >= token.length - 1) return null;
+    const escaped = token[i];
+    if (/[0-7]/.test(escaped)) {
+      let octal = escaped;
+      i += 1;
+      while (i < token.length - 1 && octal.length < 3 && /[0-7]/.test(token[i])) {
+        octal += token[i];
+        i += 1;
+      }
+      bytes.push(Number.parseInt(octal, 8));
+      continue;
+    }
+    bytes.push(escapedByte.get(escaped) ?? escaped.charCodeAt(0));
+    i += 1;
+  }
+  return new TextDecoder().decode(Uint8Array.from(bytes));
+}
+
+function postImagePath(section: string): string | null {
+  for (const line of section.split('\n')) {
+    if (!line.startsWith('+++ ')) continue;
+    const decoded = decodeGitPathToken(line.slice(4));
+    if (!decoded || decoded === '/dev/null') return null;
+    return decoded.startsWith('b/') ? decoded.slice(2) : null;
+  }
+
+  // GitHub's 406 reconstruction uses `/files` patches, whose bodies begin at
+  // `@@` and therefore have no +++ marker. A rename-to line is unambiguous;
+  // otherwise split the diff header at its final ` b/` boundary so ordinary
+  // paths containing spaces remain intact.
+  for (const line of section.split('\n')) {
+    if (line.startsWith('rename to ')) return decodeGitPathToken(line.slice('rename to '.length));
+    if (!line.startsWith('diff --git a/')) continue;
+    const remainder = line.slice('diff --git a/'.length);
+    const boundary = remainder.lastIndexOf(' b/');
+    if (boundary !== -1) return remainder.slice(boundary + 3).trim() || null;
+  }
+  return null;
+}
+
+/**
+ * Derive comment authority from the exact unified diff shown to the reviewer.
+ *
+ * GitHub's `/files` endpoint is paginated and may omit large patches, while
+ * the raw diff is the actual model input. Keeping the entire file section as
+ * `patch` lets the existing RIGHT-side hunk parser remain the sole line-level
+ * authority without trusting a partial, parallel inventory.
+ */
+export function reviewablePatchesFromUnifiedDiff(diff: string): ReviewablePatch[] {
+  const patches: ReviewablePatch[] = [];
+  for (const section of diff.replace(/\r\n/g, '\n').split(/(?=^diff --git )/m)) {
+    if (!section.startsWith('diff --git ')) continue;
+    const filename = postImagePath(section);
+    if (filename) patches.push({ filename, patch: section });
+  }
+  return patches;
+}
+
 /**
  * Prove every finding can be submitted as a RIGHT-side GitHub review comment.
  * Missing files, omitted patches, deleted lines, and out-of-hunk lines fail

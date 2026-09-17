@@ -70,9 +70,12 @@ import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { assertFleetIntentCurrent } from './run-intent.js';
 import {
   resolveVerdict,
+  parseVerdict,
   aggregateConclusion,
   parseShipFindings,
+  reviewablePatchesFromUnifiedDiff,
   shipFindingLocationsAreReviewable,
+  type ReviewablePatch,
   type ShipResult,
   type Verdict,
   reviewEventFor,
@@ -1739,6 +1742,11 @@ export async function executeFleet(
     return { kind: 'stale-head' };
   }
 
+  // The raw diff is the exact evidence reviewed by ships. GitHub's parallel
+  // `/files` response is one page and may omit large patches, so it cannot
+  // authorize or reject line comments for the complete reviewed change.
+  const reviewablePatches = reviewablePatchesFromUnifiedDiff(prCtx.diff);
+
   // --- Resolve ships -------------------------------------------------------
   // Deterministic parse of the WHOLE pd-fleet.yml, exactly once. A 404 (no
   // fleetYaml) or an unparseable/empty doc falls back to defaultPRShips() once —
@@ -2496,7 +2504,7 @@ export async function executeFleet(
   );
   const resumedShips = new Map<string, ShipResult>();
   for (const [ship, result] of retainedShipCheckpoints) {
-    if (!shipFindingLocationsAreReviewable(result.findings ?? [], prCtx.files)) {
+    if (!shipFindingLocationsAreReviewable(result.findings ?? [], reviewablePatches)) {
       await transcript.step(
         'ship-checkpoint-invalidated',
         ship,
@@ -2759,6 +2767,7 @@ export async function executeFleet(
         : await runShip(
             ship,
             prCtx,
+            reviewablePatches,
             token,
             env,
             contract,
@@ -3181,6 +3190,7 @@ async function recordNoUsableOutput(
 async function runShip(
   ship: ShipConfig,
   prCtx: PRContext,
+  reviewablePatches: ReviewablePatch[],
   token: string,
   env: ExecutorEnv,
   /** Exact trusted contract snapshot that was bound before checkpoint lookup. */
@@ -3455,6 +3465,27 @@ async function runShip(
       return repair.healed;
     };
 
+    // A substantive reviewer objection must never be handed to a repair model
+    // merely because its verdict line is missing. Repair is generative and can
+    // replace the finding with an empty PASS. Preserve the original evidence
+    // byte-for-byte and apply the fail-closed verdict deterministically.
+    if (!ship.ideation) {
+      const originalFindings = parseShipFindings(output);
+      if (
+        originalFindings !== null &&
+        originalFindings.length > 0 &&
+        parseVerdict(output) === null
+      ) {
+        output = `${output}\n\nFLEET-VERDICT: BLOCK`;
+        await transcript.step(
+          'ship-contract-defaulted',
+          ship.name,
+          `pd-${ship.name}: substantive findings omitted the verdict; preserved findings and defaulted to BLOCK`,
+          { findings: originalFindings.length, verdict: 'BLOCK' },
+        );
+      }
+    }
+
     // --- NO USABLE OUTPUT gate (src/usable-output.ts) ----------------------
     // Before either contract is parsed: did the model say ANYTHING its contract
     // asked for? If not, try to REPAIR it first (broken output is usually a
@@ -3635,19 +3666,19 @@ async function runShip(
     // green required check into evidence loss.
     let parsedFindings = parseShipFindings(output);
     let locationsReviewable =
-      parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, prCtx.files);
+      parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, reviewablePatches);
     if (parsedFindings === null) {
       const healed = await tryRepair(
         'the fenced json findings block was malformed',
         text => {
           const candidate = parseShipFindings(text);
-          return candidate !== null && shipFindingLocationsAreReviewable(candidate, prCtx.files);
+          return candidate !== null && shipFindingLocationsAreReviewable(candidate, reviewablePatches);
         },
       );
       if (healed) {
         parsedFindings = parseShipFindings(output);
         locationsReviewable =
-          parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, prCtx.files);
+          parsedFindings !== null && shipFindingLocationsAreReviewable(parsedFindings, reviewablePatches);
       }
     }
     // A parsed finding with an unpublishable location is substantive reviewer

@@ -4,6 +4,7 @@ import {
   resolveVerdict,
   aggregateConclusion,
   parseShipFindings,
+  reviewablePatchesFromUnifiedDiff,
   shipFindingLocationsAreReviewable,
   type ShipResult,
 } from '../src/verdict.js';
@@ -172,6 +173,59 @@ describe('shipFindingLocationsAreReviewable', () => {
 
   it('accepts an explicit empty finding set without diff-line authority', () => {
     expect(shipFindingLocationsAreReviewable([], [])).toBe(true);
+  });
+});
+
+describe('reviewablePatchesFromUnifiedDiff', () => {
+  it('preserves paths with spaces and authorizes RIGHT-side hunk lines', () => {
+    const patches = reviewablePatchesFromUnifiedDiff([
+      'diff --git a/docs/Harbor Notes.md b/docs/Harbor Notes.md',
+      '--- a/docs/Harbor Notes.md',
+      '+++ b/docs/Harbor Notes.md',
+      '@@ -1 +1,2 @@',
+      ' context',
+      '+new',
+    ].join('\n'));
+
+    expect(patches).toHaveLength(1);
+    expect(patches[0].filename).toBe('docs/Harbor Notes.md');
+    expect(shipFindingLocationsAreReviewable([
+      { path: 'docs/Harbor Notes.md', line: 2, severity: 'HIGH', body: 'review it' },
+    ], patches)).toBe(true);
+  });
+
+  it('uses the post-image name for renames and ignores deleted post-images', () => {
+    const patches = reviewablePatchesFromUnifiedDiff([
+      'diff --git a/src/old.ts b/src/new.ts',
+      'similarity index 80%',
+      'rename from src/old.ts',
+      'rename to src/new.ts',
+      '--- a/src/old.ts',
+      '+++ b/src/new.ts',
+      '@@ -1 +1 @@',
+      '-old',
+      '+new',
+      'diff --git a/src/gone.ts b/src/gone.ts',
+      'deleted file mode 100644',
+      '--- a/src/gone.ts',
+      '+++ /dev/null',
+      '@@ -1 +0,0 @@',
+      '-gone',
+    ].join('\n'));
+
+    expect(patches.map(patch => patch.filename)).toEqual(['src/new.ts']);
+  });
+
+  it('decodes a quoted UTF-8 post-image path', () => {
+    const patches = reviewablePatchesFromUnifiedDiff([
+      'diff --git "a/docs/caf\\303\\251.md" "b/docs/caf\\303\\251.md"',
+      '--- "a/docs/caf\\303\\251.md"',
+      '+++ "b/docs/caf\\303\\251.md"',
+      '@@ -0,0 +1 @@',
+      '+new',
+    ].join('\n'));
+
+    expect(patches.map(patch => patch.filename)).toEqual(['docs/café.md']);
   });
 });
 

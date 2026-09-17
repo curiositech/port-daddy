@@ -23,6 +23,7 @@ import {
   aiStub,
   makeEnv,
   makeJob,
+  DEFAULT_PR_DIFF,
   type GitHubState,
 } from './harness.js';
 
@@ -199,7 +200,7 @@ async function seedMediatorOrders(control: ReturnType<typeof memoryKV>, modifyTe
 
 /** Match the executor's live PR evidence digest for the shared GitHub harness. */
 async function checkpointReviewInputForState(): Promise<string> {
-  const diff = state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed';
+  const diff = state.prDiff ?? DEFAULT_PR_DIFF;
   return createCheckpointReviewInputSha256({
     owner: 'erichowens',
     repo: 'port-daddy',
@@ -781,6 +782,70 @@ describe('blocking-ship verdict → check conclusion', () => {
     expect(state.reviews[0].comments).toEqual([]);
   });
 
+  it('authorizes a finding from the full raw diff when the first /files page omits it', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prFiles = Array.from({ length: PR_FILES_PAGE_SIZE }, (_, index) => ({
+      filename: `docs/page-one-${index}.md`,
+      status: 'modified',
+      additions: 1,
+      deletions: 1,
+      patch: '@@ -1 +1 @@\n-old\n+new',
+    }));
+    state.prDiff = [
+      'diff --git a/src/late.ts b/src/late.ts',
+      '--- a/src/late.ts',
+      '+++ b/src/late.ts',
+      '@@ -0,0 +1 @@',
+      '+export const late = true;',
+    ].join('\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const finding = [
+      '```json',
+      JSON.stringify([{ path: 'src/late.ts', line: 1, severity: 'HIGH', body: 'late-page defect' }]),
+      '```',
+      '',
+      'FLEET-VERDICT: BLOCK',
+    ].join('\n');
+    const ai = aiStub({ perShip: { 'code-reviewer': finding } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/late.ts', line: 1, body: '[code-reviewer] late-page defect' },
+    ]);
+  });
+
+  it('preserves valid findings without a verdict and defaults them to BLOCK without repair', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const incomplete = [
+      '```json',
+      JSON.stringify([{ path: 'src/x.ts', line: 1, severity: 'HIGH', body: 'must survive repair' }]),
+      '```',
+      'The verdict line was accidentally omitted.',
+    ].join('\n');
+    const ai = aiStub({
+      perShip: { 'code-reviewer': '```json\n[]\n```\n\nFLEET-VERDICT: PASS' },
+      perShipQueue: { 'code-reviewer': [incomplete] },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(d1.steps.filter(step => step.kind === 'ship-repair')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-contract-defaulted')).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/x.ts', line: 1, body: '[code-reviewer] must survive repair' },
+    ]);
+  });
+
   it('does not checkpoint repair prose that never emits its mandatory verdict', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -1049,7 +1114,7 @@ describe('map-reduce fan-out', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const db = memoryD1();
-    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+    const ai = aiStub({ perShip: { 'code-reviewer': CONTRACT_MINIMAL_PASS } });
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
 
@@ -1106,7 +1171,7 @@ describe('map-reduce fan-out', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const db = memoryD1();
-    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+    const ai = aiStub({ perShip: { 'code-reviewer': CONTRACT_MINIMAL_PASS } });
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
 
@@ -1199,6 +1264,7 @@ describe('map-reduce fan-out', () => {
     // checking it too late, even though each file fits by itself.
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '@@ -0,0 +1,32 @@\n' +
       '+contextSafeSource\n'.repeat(32);
     state.prDiff = [file('src/x.ts'), file('src/a.ts'), file('src/b.ts')].join('');
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
@@ -1253,6 +1319,7 @@ describe('map-reduce fan-out', () => {
     const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      `@@ -0,0 +1,${linesPerFile} @@\n` +
       '+line\n'.repeat(linesPerFile);
     state.prDiff = ['src/x.ts', 'src/a.ts', 'src/b.ts', 'src/c.ts']
       .map(file)
