@@ -295,6 +295,19 @@ describe('coordination advisor', () => {
     },
   );
 
+  test('uses Git-family claim scope while retaining the semantic project witness', () => {
+    const sessionId = startSession();
+    sessions.claimFiles(sessionId, ['src/target.ts']);
+
+    const healthy = evaluate(sessionId, ['src/target.ts']);
+    expectClaimed(healthy);
+    expect(healthy.advice.map(item => item.id)).not.toContain('context.claim-scope-inconsistent');
+
+    const semanticMismatch = evaluate(sessionId, ['src/target.ts'], { project: 'foreign' });
+    const diagnostic = semanticMismatch.advice.find(item => item.id === 'context.claim-scope-inconsistent');
+    expect(diagnostic?.evidence).toContainEqual({ label: 'semanticProject', value: 'foreign' });
+  });
+
   test('preserves symbol and line-range selectors while projecting their paths', () => {
     const owner = startSession('owner');
     expect(sessions.claimFiles(owner, [], { regions: [
@@ -331,19 +344,18 @@ describe('coordination advisor', () => {
     expect(result.advice.filter(item => item.category === 'claim')).toEqual([]);
   });
 
-  test('repeated region claims warn about stale history while the active replacement remains claimed', () => {
+  test('repeated region claims replace both active projections while preserving history', () => {
     const sessionId = startSession();
     const regions = [{ path: 'src/target.ts', startLine: 3, endLine: 7 }];
     expect(sessions.claimFiles(sessionId, [], { regions }).success).toBe(true);
     expect(sessions.claimFiles(sessionId, [], { regions }).success).toBe(true);
-    expect(db.prepare('SELECT COUNT(*) AS count FROM session_files WHERE released_at IS NULL').get().count).toBe(2);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM session_files').get().count).toBe(2);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM session_files WHERE released_at IS NULL').get().count).toBe(1);
     expect(db.prepare('SELECT COUNT(*) AS count FROM claim_forest_claims WHERE released_at IS NULL').get().count).toBe(1);
     const before = db.serialize();
     const result = evaluate(sessionId);
     expectClaimed(result);
-    const warning = result.advice.find(item => item.id === 'claims.stale-legacy-projection');
-    expect(warning?.severity).toBe('warning');
-    expect(warning.evidence).toContainEqual({ label: 'staleClaimCount', value: 1 });
+    expect(result.advice.map(item => item.id)).not.toContain('claims.stale-legacy-projection');
     expect(result.advice.map(item => item.id)).not.toContain('claims.refine-whole-file');
     expect(db.serialize()).toEqual(before);
   });

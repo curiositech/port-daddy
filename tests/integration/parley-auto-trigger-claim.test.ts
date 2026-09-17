@@ -232,6 +232,76 @@ describe('authenticated claim conflict automatic Parley', () => {
     await harness.app.close();
   });
 
+  test('forced session start preserves Git-family conflict evidence and triggers Parley', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'forced-start-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'forced-start-challenger');
+    const unrelated = mintTestActor(harness.actorSouls, 'forced-start-unrelated');
+    const worktree = (id: string, root: string, commonDir: string) => ({
+      id,
+      root,
+      name: id,
+      branch: null,
+      isMain: false,
+      commonDir,
+    });
+
+    const ownerResponse = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: {
+        purpose: 'own file during session start',
+        agentId: 'forced-start-owner',
+        files: ['README.md'],
+        worktree: worktree('alpha-main', '/repos/alpha/main', '/repos/alpha/.git'),
+      },
+    });
+    expect(ownerResponse.statusCode).toBe(200);
+    const ownerSession = ownerResponse.json();
+
+    const forced = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: challenger.headers,
+      payload: {
+        purpose: 'force file during linked session start',
+        agentId: 'forced-start-challenger',
+        files: ['README.md'],
+        force: true,
+        worktree: worktree('alpha-linked', '/repos/alpha/linked', '/repos/alpha/.git'),
+      },
+    });
+    expect(forced.statusCode).toBe(200);
+    expect(forced.json()).toMatchObject({
+      success: true,
+      files: ['README.md'],
+      conflicts: [{ sessionId: ownerSession.id, filePath: 'README.md' }],
+    });
+    expect(forced.json().conflicts).toHaveLength(1);
+
+    const otherRepository = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: unrelated.headers,
+      payload: {
+        purpose: 'force same path in unrelated repository',
+        agentId: 'forced-start-unrelated',
+        files: ['README.md'],
+        force: true,
+        worktree: worktree('beta-main', '/repos/beta/main', '/repos/beta/.git'),
+      },
+    });
+    expect(otherRepository.statusCode).toBe(200);
+    expect(otherRepository.json().conflicts).toBeUndefined();
+
+    expect(harness.parley.list({ harbor: 'local' })).toHaveLength(1);
+    expect(harness.inbox.list('forced-start-owner').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-start-challenger').messages).toHaveLength(1);
+    expect(harness.inbox.list('forced-start-unrelated').messages).toHaveLength(0);
+    await harness.app.close();
+  });
+
   test('creates exactly one indexed Parley and one inbox summons per live actor across replay and force', async () => {
     const harness = buildHarness();
     const { owner, challenger, challengerSession } = await establishConflict(harness);

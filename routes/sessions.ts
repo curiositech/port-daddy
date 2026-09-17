@@ -890,16 +890,18 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         metadata: mergedMetadata,
       });
 
-      if (files && Array.isArray(files) && files.length > 0 && !force) {
+      let repositoryConflicts: unknown[] = [];
+      if (files && Array.isArray(files) && files.length > 0) {
         const conflictCheck = sessions.getFileConflicts(files, { repositoryId: ownerRepositoryId });
-        if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
-          evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
+        repositoryConflicts = Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [];
+        if (!force && repositoryConflicts.length > 0) {
+          evaluateClaimConflictBestEffort(sessionAgent.verdict, repositoryConflicts);
           reply.code(409);
           return {
             success: false,
             error: 'File conflicts detected',
             code: 'FILE_CONFLICT',
-            conflicts: conflictCheck.conflicts,
+            conflicts: repositoryConflicts,
             hint: 'Use force=true to claim files anyway'
           };
         }
@@ -934,8 +936,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: result.code || 'VALIDATION_ERROR' };
       }
 
-      if (force && Array.isArray(result.conflicts) && result.conflicts.length > 0) {
-        evaluateClaimConflictBestEffort(sessionAgent.verdict, result.conflicts);
+      const startConflicts = mergeClaimConflicts(
+        repositoryConflicts,
+        Array.isArray(result.conflicts) ? result.conflicts : [],
+      );
+      if (startConflicts.length > 0) {
+        result.conflicts = startConflicts;
+      }
+      if (force && startConflicts.length > 0) {
+        evaluateClaimConflictBestEffort(sessionAgent.verdict, startConflicts);
       }
 
       if (sessionAgent.verdict.kind !== 'anonymous') {
