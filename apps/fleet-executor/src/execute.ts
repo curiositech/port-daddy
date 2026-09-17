@@ -2512,6 +2512,12 @@ export async function executeFleet(
     );
   };
   let newlyExecutedShips = 0;
+  // Continuation is authorized only when every freshly executed predecessor
+  // has durable resume evidence. If an earlier checkpoint fails, a later ship
+  // must not hide that gap by checkpointing successfully: finish this roster
+  // in the current invocation so the uncheckpointed ship cannot be stranded
+  // outside `remainingShips` and re-spend on every subsequent slice.
+  let checkpointFailureObserved = false;
   for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
@@ -2805,6 +2811,7 @@ export async function executeFleet(
       result,
       checkpointBinding,
     );
+    if (!checkpointSaved) checkpointFailureObserved = true;
     newlyExecutedShips += 1;
 
     // A retryable Workers AI fault exhausted its bounded delivery budget. The
@@ -2840,7 +2847,11 @@ export async function executeFleet(
     // explicit continuation and retries the message without treating it as an
     // infrastructure failure. If D1 is unavailable, keep running in this
     // invocation rather than scheduling a continuation that cannot advance.
-    if (checkpointSaved && newlyExecutedShips >= maxNewShipsPerInvocation) {
+    if (
+      checkpointSaved &&
+      !checkpointFailureObserved &&
+      newlyExecutedShips >= maxNewShipsPerInvocation
+    ) {
       const remainingShips = orderedShips
         .slice(shipIndex + 1)
         .filter(candidate =>

@@ -2354,6 +2354,38 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('failure');
   });
 
+  it('does not let a later checkpoint strand an earlier uncheckpointed ship', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [];
+    state.branches = [];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.failNextShipCheckpointInsert = true;
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+
+    const disposition = await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 2 },
+    );
+
+    expect(disposition).toBeUndefined();
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND).map(step => step.ship))
+      .toEqual(['code-reviewer', 'qa']);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
   it('keeps an incomplete-inventory gated ship in the continuation roster', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_RED_TEAM_YAML);
     // An unparseable `/files` payload previously made red-team look gated out,

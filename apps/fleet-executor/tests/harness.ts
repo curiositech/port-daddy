@@ -645,6 +645,8 @@ export interface D1Capture {
   failTranscriptWrites: boolean;
   /** Set true to make the next fleet_run_steps insert throw, then reset. */
   failNextStepInsert: boolean;
+  /** Set true to fail only the next ship-checkpoint insert, then reset. */
+  failNextShipCheckpointInsert: boolean;
   /**
    * When true, the NEXT logical-run upsert into `fleet_runs`
    * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
@@ -686,6 +688,7 @@ export function memoryD1(): D1Capture {
     failAll: false,
     failTranscriptWrites: false,
     failNextStepInsert: false,
+    failNextShipCheckpointInsert: false,
     failNextRecordRunStartInsert: false,
     runCalls: 0,
   };
@@ -701,6 +704,14 @@ export function memoryD1(): D1Capture {
         if (cap.failNextStepInsert && /INTO fleet_run_steps/i.test(sql)) {
           cap.failNextStepInsert = false;
           throw new Error('D1 unavailable (simulated transcript step failure)');
+        }
+        if (
+          cap.failNextShipCheckpointInsert
+          && /INTO fleet_run_steps/i.test(sql)
+          && args[2] === 'ship-checkpoint'
+        ) {
+          cap.failNextShipCheckpointInsert = false;
+          throw new Error('D1 unavailable (simulated ship checkpoint failure)');
         }
         if (
           cap.failNextRecordRunStartInsert
