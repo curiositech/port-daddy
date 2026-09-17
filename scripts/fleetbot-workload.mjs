@@ -206,7 +206,9 @@ function buildExistingRequest({
   }
   const sessionId = requireIdentifier(authorship?.sessionId ?? `gha-${runId}-${runAttempt}`, 'authorship.sessionId')
   const roadmapItem = authorship?.roadmapItem ?? null
-  const sidequestReason = authorship?.sidequestReason ?? (roadmapItem ? null : 'Protected workload actuator operation')
+  const sidequestReason = authorship && Object.hasOwn(authorship, 'sidequestReason')
+    ? authorship.sidequestReason
+    : (roadmapItem ? null : 'Protected workload actuator operation')
   if ((roadmapItem === null) === (sidequestReason === null)) {
     throw new Error('authorship requires exactly one roadmap item or sidequest reason')
   }
