@@ -19,6 +19,7 @@ final class LocalRuntimeControl: @unchecked Sendable {
     let canonicalRoot: URL
     private let selectedRoot: URL
     private let customHalt: String?
+    private let configurationObservation: Observation?
     private let lock = NSLock()
     private var latchedObservation: Observation?
     private var effects: [UUID: @Sendable () -> Void] = [:]
@@ -29,10 +30,12 @@ final class LocalRuntimeControl: @unchecked Sendable {
         self.selectedRoot = environment["PD_HOME"].map { URL(fileURLWithPath: $0) } ?? canonicalRoot
         self.customHalt = environment["PD_HALT_FILE"]
         if let root = environment["PD_HOME"], !root.hasPrefix("/") {
-            latchedObservation = Observation(
+            configurationObservation = Observation(
                 state: .unknown,
                 reason: "The selected runtime control path is not absolute. Local starts are blocked."
             )
+        } else {
+            configurationObservation = nil
         }
     }
 
@@ -49,18 +52,32 @@ final class LocalRuntimeControl: @unchecked Sendable {
     /// Caller holds the admission lock. Observation and explicit Off share the
     /// same latch; observing another app's marker must also cancel active work.
     private func inspectLocked() -> Observation? {
-        if let latchedObservation { return latchedObservation }
-        let observed = Self.inspect(root: canonicalRoot) ?? Self.inspect(root: selectedRoot)
-            ?? customHalt.flatMap { path in
-                guard path.hasPrefix("/") else {
-                    return Observation(state: .unknown, reason: "The custom halt path is not absolute.")
-                }
+        if latchedObservation?.state == .off { return latchedObservation }
+
+        // Every configured source is authoritative for stopping. An unknown
+        // source must fail closed, but it must not hide a confirmed Off from a
+        // different source. Keep rechecking after an unknown latch so a marker
+        // that appears later can strengthen the operator-facing state to Off.
+        var observations = [latchedObservation, configurationObservation]
+            .compactMap { $0 }
+        if let canonical = Self.inspect(root: canonicalRoot) { observations.append(canonical) }
+        if selectedRoot != canonicalRoot, let selected = Self.inspect(root: selectedRoot) {
+            observations.append(selected)
+        }
+        if let path = customHalt {
+            if !path.hasPrefix("/") {
+                observations.append(Observation(state: .unknown, reason: "The custom halt path is not absolute."))
+            } else {
                 let marker = URL(fileURLWithPath: path)
-                guard Self.accessibleDirectory(marker.deletingLastPathComponent()) else {
-                    return Observation(state: .unknown, reason: "The custom halt directory cannot be verified.")
+                if !Self.accessibleDirectory(marker.deletingLastPathComponent()) {
+                    observations.append(Observation(state: .unknown, reason: "The custom halt directory cannot be verified."))
+                } else if let custom = Self.inspectMarker(marker) {
+                    observations.append(custom)
                 }
-                return Self.inspectMarker(marker)
             }
+        }
+        let observed = observations.first { $0.state == .off }
+            ?? observations.first { $0.state == .unknown }
         if let observed { latchedObservation = observed }
         return observed
     }
