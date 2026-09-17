@@ -736,7 +736,9 @@ class ReleaseCandidateSuite {
     await this.runCommand('git', ['config', 'user.name', 'Port Daddy RC Fixture'], { cwd: repo, env, label: `git-name-${name}`, stream: false });
     await this.runCommand('git', ['config', 'user.email', 'rc-fixture@invalid.example'], { cwd: repo, env, label: `git-email-${name}`, stream: false });
     writeFileSync(join(repo, 'README.md'), `# ${name}\n\nSynthetic release-candidate fixture.\n`);
-    await this.runCommand('git', ['add', 'README.md'], { cwd: repo, env, label: `git-add-${name}`, stream: false });
+    const claimFile = `${name.toUpperCase()}-CLAIM.md`;
+    writeFileSync(join(repo, claimFile), `# ${name} claim fixture\n`);
+    await this.runCommand('git', ['add', 'README.md', claimFile], { cwd: repo, env, label: `git-add-${name}`, stream: false });
     await this.runCommand('git', ['commit', '-m', `Initialize ${name}`], { cwd: repo, env, label: `git-commit-${name}`, stream: false });
     return repo;
   }
@@ -766,11 +768,8 @@ class ReleaseCandidateSuite {
     const sessions = [];
     const specs = [
       { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true, claimPath: 'README.md' },
-      // The linked worktree proves shared repository-family identity and distinct
-      // worktree identity. File-claim persistence is covered by the two main
-      // checkout sessions without overriding the family's active claim.
-      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: null },
-      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'README.md' },
+      { label: 'alpha-linked', cwd: alphaLinked, slot: 'alpha-linked', allowMain: false, claimPath: 'ALPHA-CLAIM.md' },
+      { label: 'beta-main', cwd: beta, slot: 'beta-main', allowMain: true, claimPath: 'BETA-CLAIM.md' },
     ];
     try {
       for (const spec of specs) {
@@ -794,10 +793,8 @@ class ReleaseCandidateSuite {
         const plan = await this.runCli(runtime, spec.cwd, ['plan', 'show'], { slot: spec.slot });
         if (!plan.stdout.includes(`* [x] verify ${spec.label}`)) throw new Error(`checked plan did not read back for ${spec.label}`);
         await this.runCli(runtime, spec.cwd, ['note', `RC evidence ${spec.label}`, '--type', 'evidence', '--json'], { slot: spec.slot });
-        if (spec.claimPath) {
-          const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
-          if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
-        }
+        const claim = readJsonOutput(await this.runCli(runtime, spec.cwd, ['session', 'files', 'add', spec.claimPath, '--json'], { slot: spec.slot }), `claim ${spec.label}`);
+        if (!claim.success || !claim.claimed?.includes(spec.claimPath)) throw new Error(`${spec.claimPath} claim did not land for ${spec.label}`);
         const sitrep = await this.runCli(runtime, spec.cwd, ['sitrep', '--template'], { slot: spec.slot });
         if (!sitrep.stdout.includes(sessionId)) throw new Error(`sitrep did not name ${spec.label}'s active session`);
         sessions.push({ ...spec, sessionId });
@@ -845,8 +842,7 @@ class ReleaseCandidateSuite {
         const noteBodies = (detail.body.notes || []).map((note) => note.content);
         const filePaths = (detail.body.files || []).map((file) => file.filePath || file.file_path || file.path);
         if (!noteBodies.includes(`RC evidence ${spec.label}`)) throw new Error(`note did not survive restart for ${spec.label}`);
-        if (spec.claimPath && !filePaths.includes(spec.claimPath)) throw new Error(`claim did not survive restart for ${spec.label}`);
-        if (!spec.claimPath && filePaths.length !== 0) throw new Error(`unclaimed linked session gained a claim after restart for ${spec.label}`);
+        if (!filePaths.includes(spec.claimPath)) throw new Error(`claim did not survive restart for ${spec.label}`);
         if (!session?.metadata?.worktree) throw new Error(`worktree metadata missing for ${spec.label}`);
         const afterCrash = {
           sessionId: session.id,
