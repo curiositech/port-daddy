@@ -141,6 +141,41 @@ describe('standing publisher grants', () => {
     expect(db.raw.prepare('SELECT count(*) AS n FROM github_publisher_capability_uses_v2').get()).toMatchObject({ n: 1 });
   });
 
+  it.each(['pull-request.comment', 'pull-request.review-reply'] as const)(
+    'authorizes branch-neutral %s only when the exact repository and operation are granted',
+    async (operation) => {
+      const db = fixture({ operations: [operation] });
+      const capability = await signedCapability({ operation });
+      await expect(authorize(db, capability, { headBranch: null })).resolves.toMatchObject({ grantId: GRANT_ID });
+
+      const wrongRepository = await signedCapability({
+        operation,
+        repository: 'curiositech/not-authorized',
+        nonce: '5'.repeat(64),
+        requestHash: '5'.repeat(64),
+      });
+      await expect(authorize(db, wrongRepository, { headBranch: null }))
+        .rejects.toMatchObject({ code: 'PUBLISHER_GRANT_SCOPE_MISMATCH', status: 403 });
+
+      const wrongOperation = await signedCapability({
+        operation: 'pull-request.enqueue',
+        nonce: '6'.repeat(64),
+        requestHash: '6'.repeat(64),
+      });
+      await expect(authorize(db, wrongOperation, { headBranch: null }))
+        .rejects.toMatchObject({ code: 'PUBLISHER_GRANT_SCOPE_MISMATCH', status: 403 });
+    },
+  );
+
+  it.each([
+    'pull-request.ready', 'pull-request.request-reviewers', 'pull-request.enqueue', 'pull-request.update',
+  ] as const)('refuses branch-neutral admission for state-changing %s', async (operation) => {
+    const db = fixture({ operations: [operation] });
+    const capability = await signedCapability({ operation });
+    await expect(authorize(db, capability, { headBranch: null }))
+      .rejects.toMatchObject({ code: 'PUBLISHER_GRANT_SCOPE_MISMATCH', status: 403 });
+  });
+
   it.each([
     ['epoch', { grantEpoch: 2 }, {}, 'PUBLISHER_GRANT_STALE'],
     ['subject', { daemonFingerprint: '9'.repeat(64) }, {}, 'PUBLISHER_GRANT_STALE'],

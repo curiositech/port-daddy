@@ -1,4 +1,5 @@
 import {
+  isFleetbotConversationalOperation,
   isRepository,
   isSafePublisherIdentifier,
   stableJson,
@@ -174,7 +175,7 @@ export interface AuthorizePublisherGrantInput {
   repository: string;
   operation: FleetbotOperation;
   baseBranch: string;
-  /** Null only for the read-only inspect operation, which publishes no branch. */
+  /** Null for inspect and conversational writes, which do not mutate the PR branch or state. */
   headBranch: string | null;
   sessionId: string;
   installationId: number;
@@ -188,6 +189,8 @@ export async function authorizePublisherGrant(
   input: AuthorizePublisherGrantInput,
 ): Promise<PublisherGrant> {
   const grant = await readPublisherGrant(db, input.capability.grantId, input.now);
+  const requiresPublisherBranch = input.operation !== 'pull-request.inspect'
+    && !isFleetbotConversationalOperation(input.operation);
   if (grant.epoch !== input.capability.grantEpoch
       || grant.subjectFingerprint !== input.capability.daemonFingerprint.toLowerCase()) {
     fail('PUBLISHER_GRANT_STALE', 403, 'the capability names a stale or different standing grant');
@@ -196,7 +199,7 @@ export async function authorizePublisherGrant(
       || !grant.repositories.includes(input.repository)
       || !grant.operations.includes(input.operation)
       || !grant.baseBranches.includes(input.baseBranch)
-      || (input.isMutation && (input.headBranch === null
+      || (requiresPublisherBranch && (input.headBranch === null
         || !grant.branchPrefixes.some((prefix) => input.headBranch!.startsWith(prefix))))) {
     fail('PUBLISHER_GRANT_SCOPE_MISMATCH', 403, 'the standing grant does not authorize this exact GitHub action');
   }

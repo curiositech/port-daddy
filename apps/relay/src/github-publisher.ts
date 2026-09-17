@@ -24,6 +24,7 @@ import {
   fleetbotReceiptId,
   fleetbotReceiptPreimage,
   isGitSha,
+  isFleetbotConversationalOperation,
   isRepository,
   isSafePublisherIdentifier,
   safeRepositoryPath,
@@ -1265,7 +1266,7 @@ async function executeExisting(
   app: GitHubAppIdentity,
   mutated: () => void,
 ): Promise<ExecutionResult> {
-  let pull = request.operation === 'pull-request.inspect'
+  let pull = request.operation === 'pull-request.inspect' || isFleetbotConversationalOperation(request.operation)
     ? await exactInspectablePull(request, payload, owner, repo, token, app)
     : await exactExistingPull(request, payload, owner, repo, token, app);
   let result: FleetbotReceipt['result'] = 'observed';
@@ -1442,7 +1443,7 @@ async function publisherHeadBranch(
   accountUserId: string,
 ): Promise<string | null> {
   if (action.operation === 'pull-request.publish') return expectedBranch(action, accountUserId);
-  if (action.operation === 'pull-request.inspect') return null;
+  if (action.operation === 'pull-request.inspect' || isFleetbotConversationalOperation(action.operation)) return null;
   return requireOwnedPullRequest(
     env,
     accountUserId,

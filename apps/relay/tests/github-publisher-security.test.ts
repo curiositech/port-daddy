@@ -204,7 +204,7 @@ describe('Fleetbot publisher authority hardening', () => {
     )).toThrow(expect.objectContaining({ code: 'CAPABILITY_EXPIRED', status: 401 }));
   });
 
-  it('allows inspect to bootstrap without an owned PR but keeps every mutation ownership-gated', async () => {
+  it('allows inspect and conversational writes without an owned PR but keeps state changes ownership-gated', async () => {
     const inspect = action();
     const parsedInspect = subject.parseRequest((await signedEnvelope(inspect)).request);
     const rejectingDb = {
@@ -220,14 +220,35 @@ describe('Fleetbot publisher authority hardening', () => {
       { DB: rejectingDb } as never, parsedInspect.request, parsedInspect.payload, 'account-1',
     )).resolves.toBeNull();
 
-    const mutation = action();
-    mutation.operation = 'pull-request.comment';
-    mutation.payload = { ...mutation.payload, body: 'governed comment' };
-    mutation.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(mutation))}`;
-    const parsedMutation = subject.parseRequest((await signedEnvelope(mutation)).request);
-    await expect(subject.publisherHeadBranch(
-      { DB: rejectingDb } as never, parsedMutation.request, parsedMutation.payload, 'account-1',
-    )).rejects.toMatchObject({ code: 'PULL_REQUEST_NOT_OWNED', status: 403 });
+    for (const operation of ['pull-request.comment', 'pull-request.review-reply'] as const) {
+      const conversation = action();
+      conversation.operation = operation;
+      conversation.payload = {
+        ...conversation.payload,
+        body: 'governed conversation',
+        ...(operation === 'pull-request.review-reply' ? { commentId: 42 } : {}),
+      };
+      conversation.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(conversation))}`;
+      const parsed = subject.parseRequest((await signedEnvelope(conversation)).request);
+      await expect(subject.publisherHeadBranch(
+        { DB: rejectingDb } as never, parsed.request, parsed.payload, 'account-1',
+      )).resolves.toBeNull();
+    }
+
+    for (const operation of [
+      'pull-request.ready', 'pull-request.request-reviewers', 'pull-request.enqueue',
+    ] as const) {
+      const mutation = action();
+      mutation.operation = operation;
+      if (operation === 'pull-request.request-reviewers') {
+        mutation.payload = { ...mutation.payload, reviewers: ['reviewer'], teamReviewers: [] };
+      }
+      mutation.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(mutation))}`;
+      const parsedMutation = subject.parseRequest((await signedEnvelope(mutation)).request);
+      await expect(subject.publisherHeadBranch(
+        { DB: rejectingDb } as never, parsedMutation.request, parsedMutation.payload, 'account-1',
+      )).rejects.toMatchObject({ code: 'PULL_REQUEST_NOT_OWNED', status: 403 });
+    }
   });
 
   it('inspects an exact ordinary pull request without requiring App authorship or a pd-agent branch', async () => {
@@ -325,8 +346,8 @@ describe('Fleetbot publisher authority hardening', () => {
     const pull = {
       number: 10129, node_id: 'PR_node', html_url: 'https://github.test/pull/10129',
       state: 'open', draft: false, title: 'Publisher', body: '',
-      user: { login: 'port-daddy[bot]' },
-      head: { ref: 'pd-agent/security', sha: '2'.repeat(40), repo: { full_name: request.repository } },
+      user: { login: 'ordinary-contributor' },
+      head: { ref: 'feature/security', sha: '2'.repeat(40), repo: { full_name: request.repository } },
       base: { ref: 'main', sha: '1'.repeat(40), repo: { full_name: request.repository } },
     };
     globalThis.fetch = async (input, init) => {
@@ -351,6 +372,57 @@ describe('Fleetbot publisher authority hardening', () => {
         () => {},
       );
       expect(result.result).toBe('created');
+      expect(createdBody).toContain('<!-- port-daddy:fleetbot-mutation:github_receipt_');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('replies to an exact review comment on an ordinary contributor pull request', async () => {
+    const originalFetch = globalThis.fetch;
+    let createdBody = '';
+    let created = false;
+    const request = action();
+    request.operation = 'pull-request.review-reply';
+    request.payload = {
+      baseBranch: 'main', baseSha: '1'.repeat(40), pullRequestNumber: 10129,
+      expectedGithubHeadSha: '2'.repeat(40), commentId: 7001,
+      body: 'The agent incorporated this review finding.',
+    };
+    request.idempotencyKey = `pd-gh-${hashHex(fleetbotIdempotencyPreimage(request))}`;
+    const pull = {
+      number: 10129, node_id: 'PR_node', html_url: 'https://github.test/pull/10129',
+      state: 'open', draft: false, title: 'Contributor change', body: '',
+      user: { login: 'ordinary-contributor' },
+      head: { ref: 'feature/contributor-change', sha: '2'.repeat(40), repo: { full_name: request.repository } },
+      base: { ref: 'main', sha: '1'.repeat(40), repo: { full_name: request.repository } },
+    };
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/pulls/10129')) return Response.json(pull);
+      if (url.endsWith('/pulls/10129/comments/7001/replies') && init?.method === 'POST') {
+        createdBody = JSON.parse(String(init.body)).body;
+        created = true;
+        return Response.json({ id: 9002 });
+      }
+      if (url.includes('/pulls/10129/comments')) {
+        return Response.json(created
+          ? [{ id: 9002, body: createdBody, in_reply_to_id: 7001, user: { login: 'port-daddy[bot]' } }]
+          : []);
+      }
+      throw new Error(`unexpected GitHub request: ${url}`);
+    };
+    try {
+      await expect(subject.executeExisting(
+        request, request.payload as never, 'curiositech', 'port-daddy', 'installation-token',
+        { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' },
+        () => {},
+      )).resolves.toMatchObject({
+        resourceNumber: 10129,
+        publishedBranch: 'feature/contributor-change',
+        githubHeadSha: '2'.repeat(40),
+        result: 'created',
+      });
       expect(createdBody).toContain('<!-- port-daddy:fleetbot-mutation:github_receipt_');
     } finally {
       globalThis.fetch = originalFetch;

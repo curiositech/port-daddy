@@ -21,6 +21,11 @@ export type FleetbotOperation =
   | 'pull-request.enqueue'
   | 'pull-request.inspect';
 
+/** Effects that may address an exact ordinary PR without changing its lifecycle state. */
+export function isFleetbotConversationalOperation(operation: FleetbotOperation): boolean {
+  return operation === 'pull-request.comment' || operation === 'pull-request.review-reply';
+}
+
 export interface FleetbotTreeChange {
   path: string;
   mode?: '100644' | '100755' | '120000';
