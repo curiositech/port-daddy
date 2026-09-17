@@ -360,7 +360,7 @@ describe('Fleetbot publisher authority hardening', () => {
       }
       if (url.includes('/issues/10129/comments')) {
         return Response.json(created
-          ? [{ id: 9001, body: createdBody, user: { login: 'port-daddy[bot]' } }]
+          ? [{ id: 9001, html_url: 'https://github.test/pull/10129#issuecomment-9001', body: createdBody, user: { login: 'port-daddy[bot]' } }]
           : []);
       }
       throw new Error(`unexpected GitHub request: ${url}`);
@@ -372,6 +372,7 @@ describe('Fleetbot publisher authority hardening', () => {
         () => {},
       );
       expect(result.result).toBe('created');
+      expect(result.resourceUrl).toBe('https://github.test/pull/10129#issuecomment-9001');
       expect(createdBody).toContain('<!-- port-daddy:fleetbot-mutation:github_receipt_');
     } finally {
       globalThis.fetch = originalFetch;
@@ -407,7 +408,7 @@ describe('Fleetbot publisher authority hardening', () => {
       }
       if (url.includes('/pulls/10129/comments')) {
         return Response.json(created
-          ? [{ id: 9002, body: createdBody, in_reply_to_id: 7001, user: { login: 'port-daddy[bot]' } }]
+          ? [{ id: 9002, html_url: 'https://github.test/pull/10129#discussion_r9002', body: createdBody, in_reply_to_id: 7001, user: { login: 'port-daddy[bot]' } }]
           : []);
       }
       throw new Error(`unexpected GitHub request: ${url}`);
@@ -419,6 +420,7 @@ describe('Fleetbot publisher authority hardening', () => {
         () => {},
       )).resolves.toMatchObject({
         resourceNumber: 10129,
+        resourceUrl: 'https://github.test/pull/10129#discussion_r9002',
         publishedBranch: 'feature/contributor-change',
         githubHeadSha: '2'.repeat(40),
         result: 'created',

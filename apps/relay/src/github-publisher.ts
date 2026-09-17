@@ -1270,6 +1270,7 @@ async function executeExisting(
     ? await exactInspectablePull(request, payload, owner, repo, token, app)
     : await exactExistingPull(request, payload, owner, repo, token, app);
   let result: FleetbotReceipt['result'] = 'observed';
+  let resourceUrl = pull.htmlUrl;
   const receiptId = fleetbotReceiptId(request.idempotencyKey!);
   const marker = fleetbotMutationMarker(receiptId);
   if (request.operation === 'pull-request.ready') {
@@ -1334,14 +1335,19 @@ async function executeExisting(
       if (!comment) failure('COMMENT_CREATE_AMBIGUOUS', 409, 'comment did not read back exactly', true);
       result = 'created';
     } else result = 'reused';
+    if (typeof comment.html_url !== 'string') {
+      failure('GITHUB_RESPONSE_INVALID', 502, 'comment readback has no resource URL');
+    }
+    resourceUrl = comment.html_url;
   } else if (request.operation === 'pull-request.review-reply') {
     const message = payload as MessagePayload;
     const body = stampFleetbotMessage({ body: message.body, authorship: request.authorship!, receiptId });
     const commentsUrl = `${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/comments`;
-    const existing = await listAllPages<{ body?: string; in_reply_to_id?: number; user?: { login?: string } }>(commentsUrl, token);
-    let found = existing.some((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
+    type ReviewReply = { body?: string; html_url?: string; in_reply_to_id?: number; user?: { login?: string } };
+    const existing = await listAllPages<ReviewReply>(commentsUrl, token);
+    let reply = existing.find((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
       && entry.user?.login?.toLowerCase() === app.botName.toLowerCase());
-    if (!found) {
+    if (!reply) {
       try {
         await fetchJson(`${GH_API}/repos/${owner}/${repo}/pulls/${pull.number}/comments/${message.commentId}/replies`, token, {
           method: 'POST', body: { body }, mutation: mutated,
@@ -1349,12 +1355,16 @@ async function executeExisting(
       } catch (error) {
         if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
       }
-      const observed = await listAllPages<{ body?: string; in_reply_to_id?: number; user?: { login?: string } }>(commentsUrl, token);
-      found = observed.some((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
+      const observed = await listAllPages<ReviewReply>(commentsUrl, token);
+      reply = observed.find((entry) => entry.body?.includes(marker) && entry.body === body && entry.in_reply_to_id === message.commentId
         && entry.user?.login?.toLowerCase() === app.botName.toLowerCase());
-      if (!found) failure('REVIEW_REPLY_AMBIGUOUS', 409, 'review reply did not read back exactly', true);
+      if (!reply) failure('REVIEW_REPLY_AMBIGUOUS', 409, 'review reply did not read back exactly', true);
       result = 'created';
     } else result = 'reused';
+    if (typeof reply.html_url !== 'string') {
+      failure('GITHUB_RESPONSE_INVALID', 502, 'review reply readback has no resource URL');
+    }
+    resourceUrl = reply.html_url;
   } else if (request.operation === 'pull-request.enqueue') {
     if (pull.draft) failure('PULL_REQUEST_NOT_READY', 409, 'draft pull request cannot enter the merge queue');
     const queueQuery = 'query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){id headRefOid mergeQueueEntry{id}}}}';
@@ -1382,7 +1392,7 @@ async function executeExisting(
     } else result = 'reused';
   }
   return {
-    resourceUrl: pull.htmlUrl,
+    resourceUrl,
     resourceNumber: pull.number,
     publishedBranch: pull.headRef,
     githubHeadSha: pull.headSha,
