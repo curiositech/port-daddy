@@ -53,11 +53,17 @@ final class EndpointFailClosedTests: XCTestCase {
         super.tearDown()
     }
 
-    func testNoRequestIsBuiltWhenControlPlaneUnavailable() async {
-        let store = FleetStore(autoStart: false, control: fixtureRuntimeControl())
-        // Force an unavailable endpoint via an invalid operator selection.
+    func testInvalidOperatorEndpointBuildsNoRequestWhileRuntimeControlIsOpen() async {
+        let control = fixtureRuntimeControl()
+        XCTAssertNil(control.blockedReason,
+                     "the endpoint failure must be independent of runtime-control denial")
+        let store = FleetStore(autoStart: false, control: control)
+
+        // Force an unavailable endpoint via FleetStore's real operator-selection
+        // validation while the independent runtime control remains open.
         store.rebind(to: "not-a-daemon-url")
-        XCTAssertFalse(store.isControlPlaneAvailable)
+        XCTAssertEqual(store.controlPlaneUnavailableReason,
+                       .invalidExplicitURL("not-a-daemon-url"))
         XCTAssertNil(store.daemonURL)
 
         RequestCountingProtocol.reset()
