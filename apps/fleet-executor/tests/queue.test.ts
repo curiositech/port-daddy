@@ -615,9 +615,30 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('INSERT INTO fleet_run_reservations')) return {
+              run_id: 'run:delivery-abc', installation_id: 42,
+              retail_microusd: 100_000_000, provider_cost_cap_microusd: 25_000_000,
+              provider_cost_microusd: null, state: 'reserved',
+            } as T;
             if (sql.includes('FROM fleet_managed_entitlements')) return {
               installation_id: 42, retail_balance_microusd: 1_000_000_000,
               run_retail_microusd: 100_000_000,
+            } as T;
+            if (sql.includes('UPDATE fleet_run_reservations SET lease_owner')) return {
+              run_id: 'run:delivery-abc', lease_owner: bound[0],
+              lease_fence: 1, lease_expires_at: bound[1],
+            } as T;
+            if (sql.includes('FROM fleet_run_spend_v2')) return {
+              installation_id: 42, model: '@cf/qwen/qwen3-30b-a3b-fp8',
+              input_tokens: 0, output_tokens: 0, provider_cost_microusd: 0,
+            } as T;
+            if (sql.includes('SELECT r.provider_cost_cap_microusd')) return {
+              provider_cost_cap_microusd: 25_000_000, provider_cost_microusd: 0,
+            } as T;
+            if (sql.includes("SET state = 'settled'")) return {
+              run_id: 'run:delivery-abc', installation_id: 42,
+              retail_microusd: 100_000_000, provider_cost_cap_microusd: 25_000_000,
+              provider_cost_microusd: 0, state: 'settled',
             } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
