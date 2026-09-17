@@ -1,26 +1,16 @@
-# Productive Discourse Facilitator — Changelog
+# Changelog
 
-## 2026-04-17
-- Normalized frontmatter into the canonical metadata-based repo shape
-- Added or refreshed repo-local provenance metadata
-- Recorded this automated migration for future structural upgrades
+## [2.0.0] - 2026-09-16
 
-## 2026-04-17
-- Structural bridge pass added or normalized decision, failure, example, quality-gate, and Mermaid scaffolding
+### Changed
 
-## 2026-04-17
-- Recovered upgraded skill assets from `/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/productive-discourse-facilitator`
-- Applied CTA SKILL.md overlay from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/productive-discourse-facilitator/after.md`
-- Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/productive-discourse-facilitator/audit.json`
+- Replaced clinical and open-ended facilitation advice with a bounded peer-discourse protocol.
+- Added explicit consent, withdrawal, safety, standing, mode, steelman, critique, dissent, and terminal records.
+- Added closed schema, semantic validator, activation corpus, and adversarial mutation tests.
+- Defined evidence-based integrity events without motive, character, or diagnostic claims.
 
-## 2026-04-17
-- Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts
+### Removed
 
-## 2026-04-18
-- Normalized frontmatter into the canonical metadata-based repo shape
-- Added or refreshed repo-local provenance metadata
-- Added or refreshed repo-local authorship metadata
-- Recorded this automated migration for future structural upgrades
-
-## 2026-04-18
-- Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts
+- Recovery, couples, trauma, nervous-system, and quasi-clinical playbooks.
+- Consensus-as-success, unbounded rounds, and facilitator authority.
+- Broad Write, Bash, and web access.

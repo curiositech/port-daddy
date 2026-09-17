@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "packetId": "drydock-anchor-convention-r1-corrected",
+  "repositoryAnchor": "6c2c30d74b889b4d8037ce5d43b265bfbf21a686",
+  "truthState": "T0_STATIC",
+  "runtimeAuthority": "NONE",
+  "algorithm": "sha256(path NUL sha256 LF, lexicographic path order)",
+  "fileCount": 43,
+  "packetSha256": "5c3abfa1ee4d073555b5570e06a8de7fb650c93501e08241c089d6dddc493911",
+  "reproductionStatus": "HISTORICAL_NON_REPRODUCIBLE_FROM_EXPANDED_WORKTREE",
+  "comparisonCommand": "node docs/research/drydock-anchor-convention/seal-packet.mjs v1",
+  "included": [
+    "README.md",
+    "research-basis.md",
+    "skill-audit-baseline.md",
+    "skill-graft-matrix.md",
+    "reality-checks/source-truth.md",
+    "synthesis/manager-extraction-r1.md",
+    "positions/*",
+    "reviews/*",
+    "corrections/*",
+    "skill-audits/*"
+  ],
+  "excludes": [
+    "cryptoeconomic-protocol-security and later skill audits",
+    "skill rewrites created after this seal",
+    "EM, PM, and design beat outputs",
+    "dynamic runtime evidence",
+    "uncommitted conversation context"
+  ],
+  "statement": "This historical digest records the static packet supplied to the fresh functional review beats. Its original untracked bytes cannot be reconstructed from the expanded v2 worktree. It grants no runtime, execution, settlement, or merge authority."
+}

@@ -1,181 +1,164 @@
 ---
 name: steel-man-argument
 description: >-
-  Construct the strongest, fairest version of someone's position before engaging with it. Use when the user wants to
-  understand opposing viewpoints, prepare for debate, ensure fair representation, or mentions 'steel man', 'strongest
-  argument', 'best case for', 'charitable interpretation'. Also useful for relationship conflicts where understanding
-  the other side genuinely matters.
+  Reconstructs the strongest version of a position that remains attributable to
+  its holder or canonical sources, then binds every premise to provenance,
+  uncertainty, counterevidence, and a falsifier before critique. Use for fair
+  reciprocal review, disagreement mapping, or decision preparation. NOT for
+  persuasive optimization of abuse, discrimination, atrocity, scams, coercion,
+  deceptive influence, mind-reading an absent person, crisis support, clinical
+  interpretation, or treating a reconstruction as endorsement or authority.
+license: Apache-2.0
+allowed-tools: Read,Grep,Glob
 metadata:
+  category: Reasoning & Deliberation
+  tags: [steel-man, fidelity, provenance, falsifier, reciprocal-review]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: productive-discourse-facilitator
+      reason: Carries a source-bound reconstruction into bounded discourse.
+    - skill: recursive-synthesis
+      reason: Preserves dissent while comparing multiple positions.
   io-contract:
     kind: deliverable
+    consumes:
+      - kind: position-and-source-material
+        format: markdown-or-structured-data
     produces:
-      - kind: critique
-        description: >-
-          Reconstructed strongest version of an opposing position with supporting evidence, logical structure, and
-          underlying values clarified
+      - kind: fidelity-ledger
+        format: json
+      - kind: bounded-reconstruction
         format: markdown
-      - kind: analysis
-        description: >-
-          Decision tree navigation showing readiness assessment, strength-level selection, and verification triggers
-          applied to the specific context
-        format: markdown
-      - kind: refactor-plan
-        description: >-
-          Before/after comparison of original argument vs. steelman, with explicit mapping of weak elements replaced and
-          evidence sources added
-        format: markdown
-license: Apache-2.0
-allowed-tools: Read,Write,Edit,Glob,Grep
 ---
 
 # Steel Man Argument
 
-## Decision Points
+The goal is fidelity before criticism, not making any thesis maximally
+persuasive. A strengthened premise is useful only when its origin and limits
+remain visible.
 
-### Readiness Assessment
-```
-Is user emotionally ready for steelmanning?
-├── High emotion/fresh hurt?
-│   ├── YES → Validate feelings first, defer steelmanning
-│   └── NO → Proceed to context assessment
-└── Context Assessment
-    ├── Relationship conflict?
-    │   ├── YES → "I hear this is painful. Let's acknowledge that before we explore their perspective."
-    │   └── NO → Proceed to steelmanning
-    ├── Intellectual debate prep?
-    │   ├── YES → Direct steelmanning
-    │   └── NO → Ask: "What's your goal with understanding their position?"
-    └── Policy/abstract topic?
-        └── YES → Direct steelmanning
-```
+## Gate before reconstruction
 
-### Strength Level Selection
-```
-How strong to make the steelman?
-├── User preparing for high-stakes debate?
-│   └── Maximum strength (replace all weak evidence, add expert sources)
-├── User seeking basic understanding?
-│   └── Moderate strength (fix logical gaps, clarify core claim)
-├── User in relationship conflict?
-│   └── Empathetic strength (focus on underlying needs/values)
-└── User analyzing policy/philosophy?
-    └── Academic strength (best scholarly version available)
-```
+1. Identify the requested use: `UNDERSTAND`, `RECIPROCAL_REVIEW`, `CRITIQUE`,
+   `PERSUADE`, or `JUSTIFY`.
+2. Classify the harm boundary:
+   - `SAFE`: normal reconstruction is allowed.
+   - `BOUNDED_NEUTRAL_ONLY`: map claims and likely consequences without
+     persuasive optimization or sympathetic motive invention.
+   - `REFUSE_OPTIMIZATION`: refuse help that improves abuse, discrimination,
+     atrocity, scams, coercion, or deceptive influence.
+3. In interpersonal disputes, never infer an absent person's motives as fact.
+   Record hypotheses as `inferred` with `holderWouldEndorse: UNKNOWN`.
+4. Crisis, trauma, diagnosis, addiction, or treatment requests are outside this
+   analytical skill. Provide ordinary safety-oriented support instead.
 
-### Verification Triggers
-```
-When to verify with user:
-├── Original position was extremely weak/strawman-like?
-│   └── YES → Show before/after, ask "Is this still their actual view?"
-├── Steelman significantly changed the argument structure?
-│   └── YES → "I've reframed their argument - does this capture their intent?"
-├── Multiple possible interpretations exist?
-│   └── YES → Present options: "Which version matches what they meant?"
-└── Standard case?
-    └── Always end with: "Does this feel fair to their position?"
+```mermaid
+flowchart TD
+  A[Requested reconstruction] --> B{Harm and power gate}
+  B -->|Optimization would increase harm| R[Refuse optimization]
+  B -->|Neutral mapping only| N[Bound scope and consequences]
+  B -->|Safe| T[Lock thesis audience scope and burden]
+  N --> T
+  T --> P[Label each premise explicit inferred or supplemented]
+  P --> E[Bind source evidence counterevidence and falsifier]
+  E --> Q{Same standard applied reciprocally?}
+  Q -->|No| X[Block and record asymmetry]
+  Q -->|Yes| V{Who verified fidelity?}
+  V -->|No holder check| S[SOURCE_BOUND or DRAFT]
+  V -->|Actual source holder| H[HOLDER_CONFIRMED]
+  S --> C[Critique exact claim delta]
+  H --> C
 ```
 
-## Failure Modes
+## Fidelity procedure
 
-### 1. Over-Strengthening into Position Drift
-**Symptoms:** The steelman becomes unrecognizable to the original holder; you've essentially argued for a different position entirely
-**Detection Rule:** If the original holder would say "That's not what I believe at all," you've drifted
-**Fix:** Return to their core thesis; strengthen support without changing the claim
+### 1. Lock the target
 
-### 2. Premature Steelmanning (Emotional Bypass)
-**Symptoms:** User becomes defensive, says "You're taking their side," or shuts down after steelman presentation
-**Detection Rule:** If user was expressing hurt/anger and you jumped straight to the other person's perspective
-**Fix:** Stop, validate user's experience first: "I hear this has been really difficult for you. That's valid." Then ask permission to explore the other perspective
+Record thesis, audience, scope, burden of proof, source holder when known, and
+the exact source corpus. Do not strengthen support by changing the thesis.
 
-### 3. Steelman Weaponization
-**Symptoms:** User takes your steelman and uses it to further attack the original holder ("See? Even AI admits they're wrong about X")
-**Detection Rule:** User responds with "So you agree they're terrible because..." or misrepresents your steelman as endorsement
-**Fix:** Clarify immediately: "Understanding their strongest argument doesn't mean I agree with it. Steelmanning is about intellectual honesty, not picking sides."
+### 2. Build a proposition ledger
 
-### 4. False Neutrality Trap
-**Symptoms:** You steelman genuinely harmful positions (abuse, violence, discrimination) without acknowledging the harm
-**Detection Rule:** If steelmanning a position that involves serious harm to others
-**Fix:** Name the harm clearly: "While I can outline their logical structure, this position causes real harm to [group]. Understanding the logic doesn't legitimize the impact."
+For every proposition record exact text; provenance (`explicit`, `inferred`, or
+`supplemented`); source locator and confidence; whether the holder would endorse
+it; strongest attributable evidence and counterevidence; and a concrete
+falsifier. Supplemented premises are never silently attributed to the holder.
 
-### 5. Thesis Smuggling
-**Symptoms:** You unconsciously insert your own views while "strengthening" their position
-**Detection Rule:** The steelman contains arguments or evidence the original holder never mentioned and wouldn't naturally reach
-**Fix:** Stick to evidence and reasoning they would actually use; draw from their knowledge base and value system
+### 3. Apply a symmetric standard
 
-## Worked Examples
+In reciprocal review, every side receives the same source quality, uncertainty,
+falsifier, and confirmation requirements. If one side gets charitable inference
+while another needs direct proof, terminate `BLOCKED` and record the asymmetry.
 
-### Example 1: Political Debate Preparation
-**Scenario:** User preparing for debate on universal basic income, wants to steelman the opposition
+### 4. State verification honestly
 
-**Decision Point Navigation:**
-- User state: Calm, intellectual preparation → Direct steelmanning appropriate
-- Strength level: High-stakes debate → Maximum strength needed
-- Original argument: "UBI will make people lazy"
+- `DRAFT`: interpretation has not been checked against canonical sources.
+- `SOURCE_BOUND`: traceable to sources but not confirmed by the holder.
+- `HOLDER_CONFIRMED`: the actual holder confirmed the exact reconstruction;
+  user approval is insufficient when the user is not that holder.
 
-**Steelmanning Process:**
-1. **Extract core claim:** UBI reduces work incentives
-2. **Identify weak elements:** "Lazy" is loaded language, no evidence provided
-3. **Strengthen with best available evidence:** 
-   - Finland study showing reduced work hours
-   - Economic theory on labor supply elasticity
-   - Historical examples of welfare dependency
-4. **Elevate underlying value:** Concern for productivity and human dignity through work
+Confirmation never makes a proposition true and never authorizes action.
 
-**Final Steelman:** "The strongest case against UBI rests on labor economic theory and emerging pilot data: unconditional income may reduce work hours by 5-15% (Finland study), and if work provides meaning beyond income (psychological research on purpose), UBI could inadvertently harm human flourishing by severing the contribution-reward link that gives many people identity and social connection."
+### 5. Critique the exact delta
 
-**Verification:** "Does this capture their real concerns, or did I miss something?"
+Name agreements, what changed your model, the strongest surviving disagreement,
+and its falsifier. Preserve unresolved dissent rather than manufacturing
+consensus.
 
-### Example 2: Relationship Conflict
-**Scenario:** User angry that partner won't commit to marriage after 3 years together
+## Shibboleths
 
-**Decision Point Navigation:**
-- User state: High emotion ("I'm so frustrated") → Validate first
-- Context: Relationship conflict → Emotional sequence critical
-- User goal: Understanding partner's resistance
+- “Stronger” means better supported *without thesis drift*.
+- A source locator proves traceability, not truth.
+- A charitable hypothesis about an absent person is still a hypothesis.
+- Understanding is not endorsement, permission, settlement, or authority.
+- Refusing harmful optimization does not require pretending the position has no
+  internal logic; bounded neutral description may remain appropriate.
 
-**Initial Response:** "It sounds like this uncertainty is really painful for you. Three years is a significant investment, and not knowing where you stand would be exhausting for anyone."
+## Anti-patterns
 
-**After validation, steelmanning partner:**
-1. **Extract partner's position:** Marriage feels premature/risky
-2. **Strengthen core concern:** Fear of making irreversible commitment before full readiness
-3. **Identify underlying value:** Desire to honor the commitment once made
+### Rhetorical laundering
 
-**Steelman:** "The strongest version of his position might be that he takes marriage so seriously that he wants to be absolutely certain before making what he sees as a lifelong promise. His hesitation could come from wanting to honor you by only committing when he's genuinely ready to mean it forever, rather than being pressured into a promise he might struggle to keep."
+**Bad:** add premises the holder never made, then attack or promote the upgraded
+position. **Detection:** any premise lacks a provenance label or source.
 
-**Verification with empathy:** "Does that feel like it matches his personality and how he approaches commitments generally?"
+### False holder confirmation
 
-## Reference Files
+**Bad:** ask an observer “does this feel fair?” and record
+`HOLDER_CONFIRMED`. **Detection:** confirmation receipt does not identify the
+actual source holder.
 
-- `diagrams/01_flowchart_decision-points.md` — Mermaid flowchart routing incoming requests through scope check, input assessment, and path selection (plan/migration/debug). **Read when** you need to confirm the request fits steelmanning scope or choose which guidance path to follow.
+### Disclaimer-unlocked harm
 
-- `references/patterns/relational-usage.md` — Steelmanning in relationships: emotional stakes, power dynamics, sequencing for conflict. Core principle: understanding is care, not capitulation. **Read when** the user is navigating interpersonal conflict or relationship tension.
+**Bad:** acknowledge harm, then optimize the harmful case. **Detection:**
+`REFUSE_OPTIMIZATION` appears with `PERSUADE` or `JUSTIFY` and a non-refused
+terminal state.
 
-- `references/theory/steelman-vs-strawman.md` — Definitions and contrasts: straw man (misrepresentation, oversimplification, caricature) vs. steel man (strongest fair version). **Read when** you need to clarify the distinction or explain why steelmanning matters.
+### One-sided charity
 
-## Quality Gates
+**Bad:** infer benevolent motives for one side while demanding direct evidence
+from another. **Detection:** reciprocal standards differ.
 
-- [ ] Original position has been preserved in recognizable form (no thesis drift)
-- [ ] Strongest available evidence has replaced weak evidence
-- [ ] Logical inconsistencies have been removed from the argument
-- [ ] Underlying values/concerns have been identified and elevated
-- [ ] Steelman uses language the original holder would actually use
-- [ ] User confirms the steelman feels fair and accurate
-- [ ] If relationship context: User's emotions were validated before steelmanning
-- [ ] If harmful content: Harm has been acknowledged while presenting logic
-- [ ] Steelman is clearly framed as intellectual exercise, not endorsement
-- [ ] User understands next steps (critique, dialogue, or further exploration)
+## Output and validation
 
-## NOT-FOR Boundaries
+Emit JSON matching `schemas/fidelity-ledger.schema.json`, then a short prose
+reconstruction that cites ledger proposition IDs. Validate structure and
+cross-field rules:
 
-**Do NOT use steelmanning for:**
-- **Immediate crisis intervention** → Use `crisis-support-protocol` instead
-- **User seeking emotional validation without understanding** → Use `active-listening-validation` instead
-- **Processing user's own traumatic experiences** → Use `trauma-informed-dialogue` instead
-- **Positions involving active harm to vulnerable populations** without explicit harm acknowledgment
-- **When user explicitly asks for help critiquing/debunking** → Use `argument-analysis` or `logical-fallacy-detector` instead
+```bash
+node skills/steel-man-argument/scripts/validate-fidelity-ledger.mjs <ledger.json>
+node skills/steel-man-argument/scripts/test-bundle.mjs
+```
 
-**Delegate to other skills when:**
-- User wants formal logical analysis → Use `toulmin-argument-analysis`
-- User wants to identify fallacies in original → Use `logical-fallacy-detector`
-- User wants structured debate preparation → Use `debate-preparation-coach`
-- User wants conflict resolution strategies → Use `productive-discourse-facilitator`
+## Load on demand
+
+| File | Load when |
+|---|---|
+| `references/fidelity-method.md` | Building the proposition and confirmation ledger. |
+| `references/harm-and-power-boundary.md` | A power imbalance or consequential harm is plausible. |
+| `examples/source-bound-review.json` | Starting a source-bound reciprocal review. |
+| `tests/activation.md` | Testing routing and NOT-for behavior. |
+| `diagrams/01-fidelity-gate.md` | Explaining the reconstruction gate visually. |
+| `scripts/validate-fidelity-ledger.mjs` | Validating one Fidelity Ledger. |
+| `scripts/test-bundle.mjs` | Running positive and adversarial validation cases. |

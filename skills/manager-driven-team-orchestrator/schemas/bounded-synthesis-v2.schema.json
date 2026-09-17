@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/bounded-synthesis-v2.schema.json",
+  "title": "BoundedSynthesisRecordV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mode", "runId", "status", "objective", "packet", "criteriaDigest", "authorityBoundary", "bounds", "participants", "positions", "reviews", "corrections", "realityBeats", "dissent", "managerSubmission", "externalDecisionRef", "claims"],
+  "properties": {
+    "schemaVersion": {"const": "2.0.0"},
+    "mode": {"const": "DESIGN_AUDIT_ONLY"},
+    "runId": {"type": "string", "minLength": 1},
+    "status": {"enum": ["SUBMIT_FOR_INDEPENDENT_REVIEW", "REWORK_REQUIRED", "BLOCKED"]},
+    "objective": {"type": "string", "minLength": 1},
+    "packet": {"$ref": "#/$defs/packet"},
+    "criteriaDigest": {"$ref": "#/$defs/digest"},
+    "authorityBoundary": {"$ref": "#/$defs/authority"},
+    "bounds": {"$ref": "#/$defs/bounds"},
+    "participants": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/participant"}},
+    "positions": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/position"}},
+    "reviews": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/review"}},
+    "corrections": {"type": "array", "items": {"$ref": "#/$defs/correction"}},
+    "realityBeats": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/beat"}},
+    "dissent": {"type": "array", "items": {"$ref": "#/$defs/dissent"}},
+    "managerSubmission": {"$ref": "#/$defs/submission"},
+    "externalDecisionRef": {"type": ["string", "null"]},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "packet": {
+      "type": "object", "additionalProperties": false,
+      "required": ["packetId", "repositoryAnchor", "packetSha256", "fileCount", "truthState", "runtimeAuthority", "includedClasses", "excludedClasses"],
+      "properties": {
+        "packetId": {"type": "string"}, "repositoryAnchor": {"type": "string"}, "packetSha256": {"$ref": "#/$defs/digest"},
+        "fileCount": {"type": "integer", "minimum": 1}, "truthState": {"type": "string"}, "runtimeAuthority": {"const": "NONE"},
+        "includedClasses": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "excludedClasses": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["managerMaySpawn", "managerMayApprove", "recursiveDelegationAllowed", "externalGateRequired"],
+      "properties": {"managerMaySpawn": {"const": false}, "managerMayApprove": {"const": false}, "recursiveDelegationAllowed": {"const": false}, "externalGateRequired": {"const": true}}
+    },
+    "bounds": {
+      "type": "object", "additionalProperties": false,
+      "required": ["maxRounds", "maxConcurrentContributors", "maxTotalBirths", "maxSpawnDepth", "maxAttemptsPerArtifact", "maxCorrectionAttemptsPerTicket", "deadline", "nativeCapacityCeilings"],
+      "properties": {
+        "maxRounds": {"type": "integer", "minimum": 1}, "maxConcurrentContributors": {"type": "integer", "minimum": 1},
+        "maxTotalBirths": {"type": "integer", "minimum": 0}, "maxSpawnDepth": {"const": 0},
+        "maxAttemptsPerArtifact": {"type": "integer", "minimum": 1}, "maxCorrectionAttemptsPerTicket": {"const": 1},
+        "deadline": {"type": "string", "format": "date-time"},
+        "nativeCapacityCeilings": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["resource", "unit", "ceiling"], "properties": {"resource": {"type": "string"}, "unit": {"type": "string"}, "ceiling": {"type": "number", "minimum": 0}}}
+      }
+    },
+    "participant": {
+      "type": "object", "additionalProperties": false,
+      "required": ["participantId", "role", "admissionEvidenceRef"],
+      "properties": {"participantId": {"type": "string"}, "role": {"enum": ["POSITION_AUTHOR", "RECIPROCAL_REVIEWER", "MANAGER", "CORRECTION_AUTHOR", "ENGINEERING_BEAT", "PRODUCT_BEAT", "DESIGN_BEAT"]}, "admissionEvidenceRef": {"type": "string"}}
+    },
+    "position": {
+      "type": "object", "additionalProperties": false,
+      "required": ["positionId", "authorId", "packetSha256", "artifactDigest", "falsifier"],
+      "properties": {"positionId": {"type": "string"}, "authorId": {"type": "string"}, "packetSha256": {"$ref": "#/$defs/digest"}, "artifactDigest": {"$ref": "#/$defs/digest"}, "falsifier": {"type": "string"}}
+    },
+    "review": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewId", "reviewerId", "positionId", "packetSha256", "steelman", "unresolvedTension", "critique", "critiqueFalsifier", "narrowAmendment", "ownConcession", "retainedDissent"],
+      "properties": {
+        "reviewId": {"type": "string"}, "reviewerId": {"type": "string"}, "positionId": {"type": "string"}, "packetSha256": {"$ref": "#/$defs/digest"},
+        "steelman": {"type": "object", "additionalProperties": false, "required": ["thesisMechanism", "evidenceFalsifier", "protectedOutcome"], "properties": {"thesisMechanism": {"type": "string", "minLength": 1}, "evidenceFalsifier": {"type": "string", "minLength": 1}, "protectedOutcome": {"type": "string", "minLength": 1}}},
+        "unresolvedTension": {"type": "string"}, "critique": {"type": "string"}, "critiqueFalsifier": {"type": "string"}, "narrowAmendment": {"type": "string"}, "ownConcession": {"type": "string"}, "retainedDissent": {"type": "string"}
+      }
+    },
+    "correction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ticketId", "authorId", "packetSha256", "disposition", "claimDelta", "preservedInvariants", "evidenceRefs", "truthLabel", "dissent", "createsRole", "createsAuthority", "createsRuntimeAction", "attempt"],
+      "properties": {
+        "ticketId": {"type": "string"}, "authorId": {"type": "string"}, "packetSha256": {"$ref": "#/$defs/digest"},
+        "disposition": {"enum": ["ACCEPT", "REJECT_WITH_EVIDENCE", "CLARIFY"]}, "claimDelta": {"type": "string"},
+        "preservedInvariants": {"type": "array", "items": {"type": "string"}}, "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "truthLabel": {"enum": ["SOURCE_PRESENT", "PROPOSED", "UNKNOWN", "BLOCKED_BY_HALT"]}, "dissent": {"type": "string"},
+        "createsRole": {"const": false}, "createsAuthority": {"const": false}, "createsRuntimeAction": {"const": false}, "attempt": {"const": 1}
+      }
+    },
+    "beat": {
+      "type": "object", "additionalProperties": false,
+      "required": ["beat", "authorId", "packetSha256", "artifactDigest", "decision", "falsifiers"],
+      "properties": {"beat": {"enum": ["ENGINEERING", "PRODUCT", "DESIGN"]}, "authorId": {"type": "string"}, "packetSha256": {"$ref": "#/$defs/digest"}, "artifactDigest": {"$ref": "#/$defs/digest"}, "decision": {"type": "string"}, "falsifiers": {"type": "array", "minItems": 1, "items": {"type": "string"}}}
+    },
+    "dissent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["dissentId", "originatorId", "packetSha256", "statementDigest", "status", "evidenceRefs"],
+      "properties": {"dissentId": {"type": "string"}, "originatorId": {"type": "string"}, "packetSha256": {"$ref": "#/$defs/digest"}, "statementDigest": {"$ref": "#/$defs/digest"}, "status": {"enum": ["OPEN", "INCORPORATED", "RETAINED", "REJECTED_WITH_EVIDENCE", "WITHDRAWN_BY_ORIGINATOR"]}, "evidenceRefs": {"type": "array", "items": {"type": "string"}}}
+    },
+    "submission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["managerId", "packetSha256", "candidateDigest", "referencedDissentIds", "decision"],
+      "properties": {"managerId": {"type": "string"}, "packetSha256": {"$ref": "#/$defs/digest"}, "candidateDigest": {"$ref": "#/$defs/digest"}, "referencedDissentIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "decision": {"enum": ["SUBMIT_FOR_INDEPENDENT_REVIEW", "REWORK_REQUIRED", "BLOCKED"]}}
+    },
+    "claim": {
+      "type": "object", "additionalProperties": false,
+      "required": ["claimId", "truthLabel", "statement", "evidenceRefs", "missingDynamicEvidence"],
+      "properties": {"claimId": {"type": "string"}, "truthLabel": {"enum": ["SOURCE_PRESENT", "PROPOSED", "UNKNOWN", "BLOCKED_BY_HALT"]}, "statement": {"type": "string"}, "evidenceRefs": {"type": "array", "items": {"type": "string"}}, "missingDynamicEvidence": {"type": "array", "items": {"type": "string"}}}
+    }
+  }
+}

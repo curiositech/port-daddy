@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 2,
+  "profile": "v2",
+  "packetId": "drydock-anchor-convention-v2",
+  "researchAnchor": "6c2c30d74b889b4d8037ce5d43b265bfbf21a686",
+  "rebasedOnto": "e3661d00ae5b55e1468e5ec10eb5aaa6737d1092",
+  "truthState": "T0_STATIC",
+  "runtimeAuthority": "NONE",
+  "algorithm": "sha256(path NUL sha256 LF, lexicographic path order)",
+  "fileCount": 187,
+  "packetSha256": "1510b8723d2024c53b0642ff6efc5f286a7f2939bc8cfde14d841c3465e9c5ec",
+  "verificationCommand": "node docs/research/drydock-anchor-convention/seal-packet.mjs v2",
+  "includedPacketRoot": "docs/research/drydock-anchor-convention",
+  "includedSkillRoots": [
+    "skills/agent-context-partitioner",
+    "skills/agent-conversation-protocols",
+    "skills/conserved-capacity-admission-and-settlement",
+    "skills/cryptoeconomic-protocol-security",
+    "skills/drydock-program-architecture",
+    "skills/manager-driven-team-orchestrator",
+    "skills/productive-discourse-facilitator",
+    "skills/provable-action-adjudicator",
+    "skills/steel-man-argument",
+    "skills/swarm-invocation-designer",
+    "skills/trial-basin-deterministic-systems-evaluation",
+    "skills/trust-typed-context-compiler"
+  ],
+  "excludedFromDigest": [
+    "docs/research/drydock-anchor-convention/seal-packet.mjs",
+    "docs/research/drydock-anchor-convention/sealed-packet-v1.json",
+    "docs/research/drydock-anchor-convention/sealed-packet-v2.json"
+  ],
+  "statement": "This receipt binds the named static packet and skill bytes. It proves neither runtime behavior nor authority to start Port Daddy, launch a provider, admit an agent, spend capacity, settle labor, or merge code."
+}

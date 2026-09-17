@@ -69,6 +69,10 @@ for (const source of markdown) {
 
 const skillText = readFileSync(join(skillRoot, "SKILL.md"), "utf8");
 for (const focused of [
+  "conserved-capacity-admission-and-settlement",
+  "trust-typed-context-compiler",
+  "trial-basin-deterministic-systems-evaluation",
+  "cryptoeconomic-protocol-security",
   "sandboxed-adversarial-test-harness",
   "agent-resurrection-and-body-continuity",
   "context-economics-for-agent-swarms",

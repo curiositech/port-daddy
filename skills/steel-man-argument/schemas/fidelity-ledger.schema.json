@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/fidelity-ledger-v1.json",
+  "title": "FidelityLedgerV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "ledgerId", "requestedUse", "harmGate", "targetPosition", "propositions", "reciprocity", "verificationState", "unknowns", "terminalStatus"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "ledgerId": {"type": "string", "minLength": 1},
+    "requestedUse": {"enum": ["UNDERSTAND", "RECIPROCAL_REVIEW", "CRITIQUE", "PERSUADE", "JUSTIFY"]},
+    "harmGate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["classification", "rationale"],
+      "properties": {
+        "classification": {"enum": ["SAFE", "BOUNDED_NEUTRAL_ONLY", "REFUSE_OPTIMIZATION"]},
+        "rationale": {"type": "string", "minLength": 1}
+      }
+    },
+    "targetPosition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["thesis", "audience", "scope", "burdenOfProof", "sourceCorpus"],
+      "properties": {
+        "thesis": {"type": "string", "minLength": 1},
+        "audience": {"type": "string", "minLength": 1},
+        "scope": {"type": "string", "minLength": 1},
+        "burdenOfProof": {"type": "string", "minLength": 1},
+        "sourceHolder": {"type": "string", "minLength": 1},
+        "sourceCorpus": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "propositions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "text", "provenance", "sourceLocator", "holderWouldEndorse", "confidence", "evidence", "falsifier"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^P[1-9][0-9]*$"},
+          "text": {"type": "string", "minLength": 1},
+          "provenance": {"enum": ["explicit", "inferred", "supplemented"]},
+          "sourceLocator": {"type": "string", "minLength": 1},
+          "holderWouldEndorse": {"enum": ["YES", "NO", "UNKNOWN"]},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["claim", "locator", "relation"],
+              "properties": {
+                "claim": {"type": "string", "minLength": 1},
+                "locator": {"type": "string", "minLength": 1},
+                "relation": {"enum": ["SUPPORTS", "CONTRADICTS", "CONTEXT"]}
+              }
+            }
+          },
+          "falsifier": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "reciprocity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["applied", "standard"],
+      "properties": {
+        "applied": {"type": "boolean"},
+        "standard": {"type": "string", "minLength": 1}
+      }
+    },
+    "verificationState": {"enum": ["DRAFT", "SOURCE_BOUND", "HOLDER_CONFIRMED"]},
+    "confirmationReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["confirmer", "confirmerIsSourceHolder", "ledgerDigest"],
+      "properties": {
+        "confirmer": {"type": "string", "minLength": 1},
+        "confirmerIsSourceHolder": {"const": true},
+        "ledgerDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+      }
+    },
+    "unknowns": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "terminalStatus": {"enum": ["VALID", "BLOCKED", "REFUSED"]}
+  }
+}

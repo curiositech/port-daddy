@@ -1,12 +1,15 @@
-# Manager Driven Team Orchestrator — Changelog
+# Changelog
 
-## 2026-04-19
-- Normalized frontmatter into the canonical metadata-based repo shape
-- Added or refreshed repo-local provenance metadata
-- Added or refreshed repo-local authorship metadata
-- Recorded this automated migration for future structural upgrades
+## [2.0.0] - 2026-09-16
 
-## 2026-04-19
-- Rewrote the skill around manager-owned round control, explicit `NOT for` boundaries, and a cleaner team-vs-workflow distinction
-- Added manager loop decision logic, fork guidance, sharper failure modes, and a worked example for dynamic role creation
-- Tightened frontmatter so the repo validator can read metadata as a mapping again
+### Changed
+
+- Replaced “plan and run” team management with a read-only, bounded synthesis designer and auditor.
+- Made packet freezing, reciprocal steelman review, durable dissent, one-shot corrections, and fresh EM/PM/Design beats mandatory.
+- Replaced manager sign-off with candidate submission to an identity-disjoint external gate.
+- Added closed schema, pure auditor, activation corpus, and adversarial mutation tests.
+
+### Removed
+
+- Direct spawning, role birth, runtime execution, fixed model/team counts, unbounded consensus loops, and manager self-approval.
+- The contradictory hand-maintained affordance scorecard.

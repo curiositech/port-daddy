@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/drydock-anchor-convention.schema.json",
+  "title": "Drydock Anchor Mini-Convention",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "anchor",
+    "truthState",
+    "runtimeAuthority",
+    "positions",
+    "pairings",
+    "realityChecks",
+    "outputs",
+    "limits"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.2.0" },
+    "anchor": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "truthState": { "const": "T0_STATIC" },
+    "runtimeAuthority": { "const": "NONE" },
+    "positions": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/position" }
+    },
+    "pairings": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/pairing" }
+    },
+    "realityChecks": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/realityCheck" }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managerSynthesis",
+        "packetLineage",
+        "packetSeal",
+        "skillGraftMatrix",
+        "operatorPrototype",
+        "operatorPrototypeValidator"
+      ],
+      "properties": {
+        "managerSynthesis": { "const": "synthesis/final-product-roadmap.md" },
+        "packetLineage": { "const": "synthesis/packet-lineage.md" },
+        "packetSeal": { "const": "sealed-packet-v2.json" },
+        "skillGraftMatrix": { "const": "skill-graft-matrix.md" },
+        "operatorPrototype": { "const": "operator-prototype/index.html" },
+        "operatorPrototypeValidator": { "const": "operator-prototype/validate-static-prototype.mjs" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "positionCount",
+        "reciprocalReviewCount",
+        "correctionsPerPosition",
+        "realityCheckCount",
+        "finalPackets",
+        "recursiveBirths"
+      ],
+      "properties": {
+        "positionCount": { "const": 10 },
+        "reciprocalReviewCount": { "const": 10 },
+        "correctionsPerPosition": { "const": 1 },
+        "realityCheckCount": { "const": 3 },
+        "finalPackets": { "const": 1 },
+        "recursiveBirths": { "const": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "authority", "question", "file", "sealed"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^P(?:10|[1-9])$" },
+        "authority": { "type": "string", "minLength": 3 },
+        "question": { "type": "string", "minLength": 12 },
+        "file": { "type": "string", "pattern": "^positions/.+\\.md$" },
+        "sealed": { "type": "boolean" }
+      }
+    },
+    "pairing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a", "b", "rationale"],
+      "properties": {
+        "a": { "type": "string", "pattern": "^P(?:10|[1-9])$" },
+        "b": { "type": "string", "pattern": "^P(?:10|[1-9])$" },
+        "rationale": { "type": "string", "minLength": 12 }
+      }
+    },
+    "realityCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "file", "sealed"],
+      "properties": {
+        "role": { "enum": ["ENGINEERING", "PRODUCT", "DESIGN"] },
+        "file": { "type": "string", "pattern": "^reality-checks/.+\\.md$" },
+        "sealed": { "type": "boolean" }
+      }
+    }
+  }
+}

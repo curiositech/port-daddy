@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trial-basin-evaluation-v1.schema.json",
+  "title": "Trial Basin evaluation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "evaluationId", "proposition", "subject", "repositoryAnchor", "policyDigest", "truthState", "environment", "haltObserved", "roles", "model", "schedule", "faults", "evidence", "oracle", "negativeControls", "resultVector", "replay", "promotion", "runtimeAuthority", "truthEffect"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "evaluationId": {"type": "string", "minLength": 1},
+    "proposition": {"type": "string", "minLength": 1},
+    "subject": {"type": "string", "minLength": 1},
+    "repositoryAnchor": {"type": "string", "minLength": 1},
+    "policyDigest": {"type": "string", "minLength": 1},
+    "truthState": {"enum": ["T0_STATIC", "T1_MODEL", "T2_SHADOW", "T3_CANARY"]},
+    "environment": {"enum": ["STATIC_FIXTURE", "DETERMINISTIC_FAKE", "SHADOW", "LIVE_CONTAINED"]},
+    "haltObserved": {"type": "boolean"},
+    "roles": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scheduler", "subject", "recorder", "oracle", "adjudicator"],
+      "properties": {
+        "scheduler": {"$ref": "#/$defs/role"}, "subject": {"$ref": "#/$defs/role"}, "recorder": {"$ref": "#/$defs/role"}, "oracle": {"$ref": "#/$defs/role"}, "adjudicator": {"$ref": "#/$defs/role"}
+      }
+    },
+    "model": {
+      "type": "object", "additionalProperties": false,
+      "required": ["modelId", "revision", "correspondence", "exclusions"],
+      "properties": {
+        "modelId": {"type": "string", "minLength": 1}, "revision": {"type": "string", "minLength": 1},
+        "correspondence": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["realMechanism", "modeledSubstitute", "contractRef", "knownMismatch", "falsifier"], "properties": {"realMechanism": {"type": "string", "minLength": 1}, "modeledSubstitute": {"type": "string", "minLength": 1}, "contractRef": {"type": "string", "minLength": 1}, "knownMismatch": {"type": "string", "minLength": 1}, "falsifier": {"type": "string", "minLength": 1}}}},
+        "exclusions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "schedule": {"type": "object", "additionalProperties": false, "required": ["digest", "virtualClock", "seed", "interleaving"], "properties": {"digest": {"type": "string", "minLength": 1}, "virtualClock": {"type": "string", "minLength": 1}, "seed": {"type": "string", "minLength": 1}, "interleaving": {"type": "string", "minLength": 1}}},
+    "faults": {"type": "object", "additionalProperties": false, "required": ["envelopeDigest", "faultIds"], "properties": {"envelopeDigest": {"type": "string", "minLength": 1}, "faultIds": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}},
+    "evidence": {"type": "object", "additionalProperties": false, "required": ["rawManifestDigest", "rawTraceDigest", "committedBeforeMinimization", "guestSoleWitness"], "properties": {"rawManifestDigest": {"type": "string", "minLength": 1}, "rawTraceDigest": {"type": "string", "minLength": 1}, "committedBeforeMinimization": {"const": true}, "guestSoleWitness": {"const": false}}},
+    "oracle": {"type": "object", "additionalProperties": false, "required": ["oracleId", "revision", "predicateIds", "mutationTotal", "mutationKilled"], "properties": {"oracleId": {"type": "string", "minLength": 1}, "revision": {"type": "string", "minLength": 1}, "predicateIds": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}, "mutationTotal": {"type": "integer", "minimum": 1}, "mutationKilled": {"type": "integer", "minimum": 0}}},
+    "negativeControls": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["controlId", "manifestDeclared", "expectedPredicate", "observedPredicate"], "properties": {"controlId": {"type": "string", "minLength": 1}, "manifestDeclared": {"const": true}, "expectedPredicate": {"type": "string", "minLength": 1}, "observedPredicate": {"type": "string", "minLength": 1}}}},
+    "resultVector": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["axis", "evidenceClass", "status", "evidenceRefs", "limitation"], "properties": {"axis": {"type": "string", "minLength": 1}, "evidenceClass": {"enum": ["STATIC", "MODEL", "RUNTIME", "HUMAN"]}, "status": {"enum": ["PASS", "FAIL", "INCOMPLETE", "UNKNOWN", "BLOCKED_BY_HALT"]}, "evidenceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}, "limitation": {"type": "string", "minLength": 1}}}},
+    "replay": {"type": "object", "additionalProperties": false, "required": ["semanticProjectionRef", "rawPredicate", "minimizedTraceDigest", "minimizedPredicate", "samePredicate"], "properties": {"semanticProjectionRef": {"type": "string", "minLength": 1}, "rawPredicate": {"type": "string", "minLength": 1}, "minimizedTraceDigest": {"type": "string", "minLength": 1}, "minimizedPredicate": {"type": "string", "minLength": 1}, "samePredicate": {"type": "boolean"}}},
+    "promotion": {"enum": ["RETAIN_STATIC", "CANDIDATE_FIXTURE", "BLOCKED_BY_HALT", "REJECTED"]},
+    "runtimeAuthority": {"const": "NONE"},
+    "truthEffect": {"const": "NONE"}
+  },
+  "$defs": {
+    "role": {"type": "object", "additionalProperties": false, "required": ["id", "controlDomain"], "properties": {"id": {"type": "string", "minLength": 1}, "controlDomain": {"type": "string", "minLength": 1}}}
+  }
+}

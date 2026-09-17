@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "conserved-attempt-v1.schema.json",
+  "title": "Conserved attempt record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "recordId", "identity", "authorities", "dimensions", "eligibility", "reservation", "admission", "effects", "settlement", "truthEffect", "runtimeAuthority"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "recordId": {"type": "string", "minLength": 1},
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["planDigest", "planRevision", "nodeId", "attemptId", "bodyGeneration", "principalId", "authorityEpoch", "repository", "targetDigest", "route", "providerProfile", "policyDigest"],
+      "properties": {
+        "planDigest": {"type": "string", "minLength": 1}, "planRevision": {"type": "integer", "minimum": 1},
+        "nodeId": {"type": "string", "minLength": 1}, "attemptId": {"type": "string", "minLength": 1},
+        "bodyGeneration": {"type": "integer", "minimum": 0}, "principalId": {"type": "string", "minLength": 1},
+        "authorityEpoch": {"type": "integer", "minimum": 1}, "repository": {"type": "string", "minLength": 1},
+        "targetDigest": {"type": "string", "minLength": 1}, "route": {"type": "string", "minLength": 1},
+        "providerProfile": {"type": "string", "minLength": 1}, "policyDigest": {"type": "string", "minLength": 1}
+      }
+    },
+    "authorities": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scheduler", "capacityBroker", "admissionWriter", "effectBoundary", "settlementAuthority"],
+      "properties": {
+        "scheduler": {"type": "string", "minLength": 1}, "capacityBroker": {"type": "string", "minLength": 1},
+        "admissionWriter": {"type": "string", "minLength": 1}, "effectBoundary": {"type": "string", "minLength": 1},
+        "settlementAuthority": {"type": "string", "minLength": 1}
+      }
+    },
+    "dimensions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "unit", "source", "opening", "granted", "available", "reserved", "consumed", "held", "released", "settled", "stopProtected"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1}, "unit": {"type": "string", "minLength": 1}, "source": {"type": "string", "minLength": 1},
+          "opening": {"type": "number", "minimum": 0}, "granted": {"type": "number", "minimum": 0},
+          "available": {"type": "number", "minimum": 0}, "reserved": {"type": "number", "minimum": 0},
+          "consumed": {"type": "number", "minimum": 0}, "held": {"type": "number", "minimum": 0},
+          "released": {"type": "number", "minimum": 0}, "settled": {"type": "number", "minimum": 0},
+          "stopProtected": {"type": "number", "minimum": 0}
+        }
+      }
+    },
+    "eligibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["commitId", "attemptId", "status", "schedulerId"],
+      "properties": {"commitId": {"type": "string", "minLength": 1}, "attemptId": {"type": "string", "minLength": 1}, "status": {"enum": ["ELIGIBLE", "INELIGIBLE"]}, "schedulerId": {"type": "string", "minLength": 1}}
+    },
+    "reservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["commitId", "attemptId", "brokerId", "status", "oneUse", "expiresAt", "idempotencyKey"],
+      "properties": {"commitId": {"type": "string", "minLength": 1}, "attemptId": {"type": "string", "minLength": 1}, "brokerId": {"type": "string", "minLength": 1}, "status": {"enum": ["COMMITTED", "CONSUMED", "DENIED", "HELD", "RELEASED"]}, "oneUse": {"const": true}, "expiresAt": {"type": "string", "minLength": 1}, "idempotencyKey": {"type": "string", "minLength": 1}}
+    },
+    "admission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["writerId", "eligibilityCommitId", "reservationCommitId", "status", "leaseId", "dispatchIntentDurable"],
+      "properties": {"writerId": {"type": "string", "minLength": 1}, "eligibilityCommitId": {"type": "string", "minLength": 1}, "reservationCommitId": {"type": "string", "minLength": 1}, "status": {"enum": ["NOT_ADMITTED", "ADMITTED", "DENIED"]}, "leaseId": {"type": ["string", "null"]}, "dispatchIntentDurable": {"type": "boolean"}}
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["effectId", "reservationCommitId", "status", "retryAuthority", "capacityHeld", "closureReceiptRef", "handoffId"],
+        "properties": {"effectId": {"type": "string", "minLength": 1}, "reservationCommitId": {"type": "string", "minLength": 1}, "status": {"enum": ["NONE", "PREPARED", "DISPATCHED", "CONFIRMED", "FAILED", "AMBIGUOUS", "RECONCILED", "CLOSED", "QUARANTINED_UNRESOLVED"]}, "retryAuthority": {"type": "boolean"}, "capacityHeld": {"type": "boolean"}, "closureReceiptRef": {"type": ["string", "null"]}, "handoffId": {"type": ["string", "null"]}}
+      }
+    },
+    "settlement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile", "authorityId", "outboxId", "status", "compensationEffectRef"],
+      "properties": {"profile": {"enum": ["NO_SETTLEMENT", "BOUNDED_SETTLEMENT"]}, "authorityId": {"type": "string", "minLength": 1}, "outboxId": {"type": ["string", "null"]}, "status": {"enum": ["NOT_REQUIRED", "HANDOFF_READY", "SETTLED", "UNSETTLED"]}, "compensationEffectRef": {"type": ["string", "null"]}}
+    },
+    "truthEffect": {"const": "NONE"},
+    "runtimeAuthority": {"const": "NONE"}
+  }
+}

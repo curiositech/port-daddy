@@ -1,23 +1,13 @@
-# Cryptoeconomic Protocol Security — Changelog
+# Changelog
 
-## 2026-04-17
-- Normalized frontmatter into the canonical metadata-based repo shape
-- Added or refreshed repo-local provenance metadata
-- Recorded this automated migration for future structural upgrades
+## 2.0.0 — 2026-09-16
 
-## 2026-04-17
-- Structural bridge pass added or normalized decision, failure, example, quality-gate, and Mermaid scaffolding
+- Replace the unsupported closed five-attack taxonomy with an extensible mechanism-security threat registry.
+- Remove unaudited Float Plan runtime assertions and mandatory invented point estimates.
+- Add authority, custody, liquidity, collusion, common-control, settlement, externality, and no-settlement analysis.
+- Require known/bounded/unknown native quantities, typed evidence, residual risk, falsifiers, and accepted-risk ownership.
+- Add a closed schema, executable example, semantic validator, activation corpus, and adversarial test bundle.
 
-## 2026-04-17
-- Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts
+## 1.x — historical
 
-## 2026-04-18
-- Normalized frontmatter into the canonical metadata-based repo shape
-- Added or refreshed repo-local provenance metadata
-- Added or refreshed repo-local authorship metadata
-- Recorded this automated migration for future structural upgrades
-
-## 2026-04-20
-- Tightened the description with explicit `NOT for` boundaries and more concrete trigger language
-- Split scope into explicit `When to Use` and `NOT for Boundaries` sections for validator-clean activation guidance
-- Moved the long Float Plan escrow walkthrough into `references/float-plan-escrow-analysis.md` to keep `SKILL.md` lean while preserving the full worked example
+- Earlier versions focused on five bonded-agent attack classes and a prose Float Plan example. Version 2.0.0 supersedes that model without compatibility mode.

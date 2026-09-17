@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/context-partition-proposal-v2.schema.json",
+  "title": "ContextPartitionProposalV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mode", "sourceRootDigest", "policyDigest", "result", "targets", "items", "semanticComparisons", "dispositions", "transfers", "gaps", "coverageDigest", "truthEffect", "authorityEffect"],
+  "properties": {
+    "schemaVersion": {"const": "2.0.0"},
+    "mode": {"enum": ["ACTIVE_SET_PARTITION", "CONTINUATION_REQUIREMENTS"]},
+    "sourceRootDigest": {"$ref": "#/$defs/digest"},
+    "policyDigest": {"$ref": "#/$defs/digest"},
+    "result": {"enum": ["FEASIBLE", "INFEASIBLE", "UNKNOWN"]},
+    "targets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/target"}},
+    "items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/item"}},
+    "semanticComparisons": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
+    "dispositions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/disposition"}},
+    "transfers": {"type": "array", "items": {"$ref": "#/$defs/transfer"}},
+    "gaps": {"type": "array", "items": {"$ref": "#/$defs/gap"}},
+    "coverageDigest": {"$ref": "#/$defs/digest"},
+    "truthEffect": {"const": "NONE"},
+    "authorityEffect": {"const": "NONE"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["targetRef", "type", "scope", "capacityTokens", "capabilityDigests", "admissionEvidenceRef"],
+      "properties": {
+        "targetRef": {"type": "string", "minLength": 1},
+        "type": {"enum": ["ADMITTED_BODY", "ABSTRACT_SLOT"]},
+        "scope": {"type": "string", "minLength": 1},
+        "capacityTokens": {"type": "integer", "minimum": 0},
+        "capabilityDigests": {"type": "array", "items": {"$ref": "#/$defs/digest"}, "uniqueItems": true},
+        "admissionEvidenceRef": {"type": ["string", "null"]}
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "audience", "guidanceEnvelopeRef", "verificationReceiptRef", "revocationWitnessRef"],
+      "properties": {
+        "status": {"enum": ["CURRENT", "STALE", "REVOKED", "UNKNOWN", "NOT_APPLICABLE"]},
+        "audience": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "guidanceEnvelopeRef": {"type": ["string", "null"]},
+        "verificationReceiptRef": {"type": ["string", "null"]},
+        "revocationWitnessRef": {"type": ["string", "null"]}
+      }
+    },
+    "retrievalSpace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["modelArtifactDigest", "modelConfigDigest", "preprocessingDigest", "chunkerDigest", "pooling", "dimensions", "normalization", "metric", "coordinatePrecision", "quantizationDigest", "redactionPolicyDigest", "modality", "spaceId"],
+      "properties": {
+        "modelArtifactDigest": {"$ref": "#/$defs/digest"}, "modelConfigDigest": {"$ref": "#/$defs/digest"},
+        "preprocessingDigest": {"$ref": "#/$defs/digest"}, "chunkerDigest": {"$ref": "#/$defs/digest"},
+        "pooling": {"type": "string"}, "dimensions": {"type": "integer", "minimum": 1}, "normalization": {"type": "string"},
+        "metric": {"type": "string"}, "coordinatePrecision": {"type": "string"}, "quantizationDigest": {"$ref": "#/$defs/digest"},
+        "redactionPolicyDigest": {"$ref": "#/$defs/digest"}, "modality": {"type": "string"}, "spaceId": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "item": {
+      "type": "object", "additionalProperties": false,
+      "required": ["itemId", "kind", "trustClass", "directiveChannel", "droppable", "tokenEstimate", "scope", "causalParents", "retrievalSpace", "obligationState", "effectState", "capabilityRequirements", "authority", "contentDigest"],
+      "properties": {
+        "itemId": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["GUIDANCE", "EVIDENCE", "DERIVED_CLAIM", "OBLIGATION", "EFFECT_RECEIPT", "DECISION", "ARTIFACT_REF", "COORDINATION", "UNTRUSTED_CONTENT", "TOMBSTONE"]},
+        "trustClass": {"enum": ["CURRENT_GUIDANCE", "PRIMARY_EVIDENCE", "CITED_DERIVATION", "UNTRUSTED_CONTENT", "DISPOSABLE_PROJECTION"]},
+        "directiveChannel": {"type": "boolean"},
+        "droppable": {"type": "boolean"},
+        "tokenEstimate": {"type": "integer", "minimum": 0},
+        "scope": {"type": "string", "minLength": 1},
+        "causalParents": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "retrievalSpace": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/retrievalSpace"}]},
+        "obligationState": {"enum": ["NONE", "OPEN", "BLOCKED", "CLOSED"]},
+        "effectState": {"enum": ["NONE", "PREPARED", "DISPATCHED", "CONFIRMED", "FAILED", "AMBIGUOUS", "RESOLVED"]},
+        "capabilityRequirements": {"type": "array", "items": {"$ref": "#/$defs/digest"}, "uniqueItems": true},
+        "authority": {"$ref": "#/$defs/authority"},
+        "contentDigest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "comparison": {
+      "type": "object", "additionalProperties": false,
+      "required": ["leftItemId", "rightItemId", "spaceId"],
+      "properties": {"leftItemId": {"type": "string"}, "rightItemId": {"type": "string"}, "spaceId": {"$ref": "#/$defs/digest"}}
+    },
+    "disposition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["itemId", "disposition", "targetRefs", "reasonCode", "proofRefs"],
+      "properties": {
+        "itemId": {"type": "string"}, "disposition": {"enum": ["ASSIGNED", "TRANSFERRED", "OMITTED_ALLOWED", "BLOCKED"]},
+        "targetRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "reasonCode": {"type": "string"}, "proofRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "transfer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["itemId", "fromTargetRef", "toTargetRef", "disclosureProofRef"],
+      "properties": {"itemId": {"type": "string"}, "fromTargetRef": {"type": "string"}, "toTargetRef": {"type": "string"}, "disclosureProofRef": {"type": "string", "minLength": 1}}
+    },
+    "gap": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "itemId", "targetRef", "detail"],
+      "properties": {"code": {"type": "string"}, "itemId": {"type": ["string", "null"]}, "targetRef": {"type": ["string", "null"]}, "detail": {"type": "string"}}
+    }
+  }
+}

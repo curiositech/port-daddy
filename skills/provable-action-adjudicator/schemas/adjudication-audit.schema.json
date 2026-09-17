@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/adjudication-audit-v1.json",
+  "title": "AdjudicationAuditV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "subject",
+    "claim",
+    "proposal",
+    "authority",
+    "decision",
+    "effect",
+    "mediationInventory",
+    "bypassTests",
+    "witnesses",
+    "unknowns",
+    "status"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "commit", "buildDigest", "boundaryId"],
+      "properties": {
+        "repo": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "buildDigest": { "$ref": "#/$defs/digest" },
+        "boundaryId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "statement", "truthState", "scope"],
+      "properties": {
+        "level": {
+          "enum": [
+            "CONTRACT_PARSED",
+            "VERIFIER_TESTED",
+            "AUTHORITY_BOUND",
+            "PRE_EFFECT_BOUND",
+            "MEDIATION_INVENTORIED",
+            "MEDIATION_WITNESSED"
+          ]
+        },
+        "statement": { "type": "string", "minLength": 1 },
+        "truthState": {
+          "enum": ["STATIC_INSPECTED", "DYNAMIC_WITNESSED", "BLOCKED_BY_HALT"]
+        },
+        "scope": { "type": "string", "minLength": 1 }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest", "requester", "principal", "bodyGeneration", "repo", "harbor",
+        "operation", "targetDigest", "parametersDigest", "expiresAt", "idempotencyKey"
+      ],
+      "properties": {
+        "digest": { "$ref": "#/$defs/digest" },
+        "requester": { "type": "string", "minLength": 1 },
+        "principal": { "type": "string", "minLength": 1 },
+        "bodyGeneration": { "type": "integer", "minimum": 0 },
+        "repo": { "type": "string", "minLength": 1 },
+        "harbor": { "type": "string", "minLength": 1 },
+        "operation": { "type": "string", "minLength": 1 },
+        "targetDigest": { "$ref": "#/$defs/digest" },
+        "parametersDigest": { "$ref": "#/$defs/digest" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "idempotencyKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receiptDigest", "proposalDigest", "issuer", "audience", "scopeDigest", "verified", "revocationChecked"],
+      "properties": {
+        "receiptDigest": { "$ref": "#/$defs/digest" },
+        "proposalDigest": { "$ref": "#/$defs/digest" },
+        "issuer": { "type": "string", "minLength": 1 },
+        "audience": { "type": "string", "minLength": 1 },
+        "scopeDigest": { "$ref": "#/$defs/digest" },
+        "verified": { "type": "boolean" },
+        "revocationChecked": { "type": "boolean" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receiptDigest", "proposalDigest", "authorityReceiptDigest", "policyDigest", "stateDigest", "adjudicator", "verdict", "reasonCodes", "issuedBeforeEffect"],
+      "properties": {
+        "receiptDigest": { "$ref": "#/$defs/digest" },
+        "proposalDigest": { "$ref": "#/$defs/digest" },
+        "authorityReceiptDigest": { "$ref": "#/$defs/digest" },
+        "policyDigest": { "$ref": "#/$defs/digest" },
+        "stateDigest": { "$ref": "#/$defs/digest" },
+        "adjudicator": { "type": "string", "minLength": 1 },
+        "verdict": { "enum": ["ALLOW", "DENY", "INDETERMINATE"] },
+        "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "issuedBeforeEffect": { "type": "boolean" }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channelOwner", "permitDigest", "redemptionState", "intentRecordedBeforeEffect", "executionState", "effectReceiptDigest", "reconciliationState"],
+      "properties": {
+        "channelOwner": { "type": "string", "minLength": 1 },
+        "permitDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "redemptionState": { "enum": ["NOT_APPLICABLE", "UNREDEEMED", "REDEEMED", "REPLAY_REJECTED"] },
+        "intentRecordedBeforeEffect": { "type": "boolean" },
+        "executionState": { "enum": ["NOT_EXECUTED", "EXECUTED", "AMBIGUOUS"] },
+        "effectReceiptDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "reconciliationState": { "enum": ["NOT_REQUIRED", "SETTLED", "AMBIGUOUS", "UNOBSERVED"] }
+      }
+    },
+    "mediationInventory": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["effectClass", "boundary", "owner", "coverage", "witnessId", "bypassCases"],
+        "properties": {
+          "effectClass": { "type": "string", "minLength": 1 },
+          "boundary": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "coverage": { "enum": ["SOURCE_PRESENT", "EXTERNALLY_WITNESSED", "UNKNOWN", "OUT_OF_SCOPE"] },
+          "witnessId": { "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] },
+          "bypassCases": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "bypassTests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "mutation", "expected", "observed", "passed", "witnessId"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "mutation": { "type": "string", "minLength": 1 },
+          "expected": { "type": "string", "minLength": 1 },
+          "observed": { "type": "string", "minLength": 1 },
+          "passed": { "type": "boolean" },
+          "witnessId": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "witnesses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "class", "principal", "independentOf", "evidenceDigest"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "class": { "enum": ["SOURCE_INSPECTOR", "VERIFIER_RUNNER", "HOST_OBSERVER", "PROVIDER_RECONCILER"] },
+          "principal": { "type": "string", "minLength": 1 },
+          "independentOf": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "evidenceDigest": { "$ref": "#/$defs/digest" }
+        }
+      }
+    },
+    "unknowns": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "status": { "enum": ["PASS", "FAIL", "BLOCKED"] }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}
