@@ -987,6 +987,20 @@
   language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={},
   moredelim=[l][\bfseries]{\$\ }}
 \newlength{\pd@sessionwidth}
+\newlength{\pd@wideoffset}
+\newcommand{\pd@measurewidefield}{%
+  \setlength{\pd@sessionwidth}{\linewidth}%
+  \setlength{\pd@wideoffset}{0pt}%
+  \ifpdmargincolumn
+    \setlength{\pd@sessionwidth}{\dimexpr\linewidth+\marginparsep+\marginparwidth\relax}%
+    % Strict page checking resolves the physical leaf from the aux file.  The
+    % outer margin is right on rectos and left on versos, so a wide apparatus
+    % must move left by exactly the margin field on an even page.
+    \checkoddpage
+    \ifoddpage\else
+      \setlength{\pd@wideoffset}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+    \fi
+  \fi}
 \lstnewenvironment{pdsession}[1][]{%
   \endgraf\addvspace{8pt plus 1pt}%
   \ifdefined\Needspace\Needspace{7\baselineskip}\fi
@@ -994,17 +1008,15 @@
   % 83 monospace characters), the full-width block of the page grammar.
   % (through the listing's own width key: a nested environment would change
   % \@currenvir and make listings look for the wrong end marker)
-  \ifpdmargincolumn
-    \setlength{\pd@sessionwidth}{\dimexpr\linewidth+\marginparsep+\marginparwidth\relax}%
-  \else
-    \setlength{\pd@sessionwidth}{\linewidth}%
-  \fi
-  \noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
+  \pd@measurewidefield
+  \noindent\hspace*{\pd@wideoffset}%
+  \makebox[\pd@sessionwidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
   \noindent\pd@marginhead{At the terminal}%
   \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
-  \lstset{style=pdsession,linewidth=\pd@sessionwidth}%
+  \lstset{style=pdsession,linewidth=\pd@sessionwidth,xleftmargin=\pd@wideoffset}%
 }{%
-  \endgraf\nobreak\noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
+  \endgraf\nobreak\noindent\hspace*{\pd@wideoffset}%
+  \makebox[\pd@sessionwidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
   \addvspace{8pt plus 1pt}%
 }
 
@@ -1030,7 +1042,9 @@
   boxrule=.45pt,arc=0pt,outer arc=0pt,
   colframe=pdinkmuted!62,colback=pdinkmuted!5,
   left=16pt,right=16pt,top=5pt,bottom=5pt,
-  before skip=10pt plus 1pt,after skip=10pt plus 1pt,
+  before={\par\addvspace{10pt plus 1pt}\pd@measurewidefield
+    \noindent\hspace*{\pd@wideoffset}},
+  after={\par\addvspace{10pt plus 1pt}},
   title={SAMPLE DATA\ifstrempty{#1}{}{\enspace\textcolor{pdinkmuted}{#1}}},
   fonttitle=\pdgrotesk\footnotesize\bfseries,coltitle=pdink,
   colbacktitle=pdinkmuted!8,titlerule=0pt,
