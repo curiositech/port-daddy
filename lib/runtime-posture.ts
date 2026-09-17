@@ -228,7 +228,9 @@ export function assessRuntimePosture(input: RuntimePostureInput): RuntimePosture
 /**
  * Admit one effect at its final boundary. Unknown state denies automation,
  * paid/provider work, subprocesses, schedules, and outward mutations. Human
- * local work, read-only inspection, and emergency controls remain available.
+ * local work, read-only inspection, and emergency controls remain available
+ * only while the request remains capability-free; adding a capability also
+ * opts the request back into the On/control authority boundary.
  */
 export function admitRuntimeEffect(
   input: RuntimePostureInput,
@@ -258,6 +260,7 @@ export function admitRuntimeEffect(
     ...additionalRequirements,
   ]);
   const onlyHumanSafeEffects = effects.every((effect) => HUMAN_SAFE_EFFECTS.has(effect));
+  const postureExempt = onlyHumanSafeEffects && requiredCapabilities.length === 0;
   const classificationReasons: string[] = [];
   if (!effectsAreDense) classificationReasons.push('effect_set_sparse');
   if (effectsAreDense && effects.length === 0 && invalidEffects.length === 0) classificationReasons.push('effect_set_empty');
@@ -265,7 +268,7 @@ export function admitRuntimeEffect(
   if (!additionalRequirementsAreDense) classificationReasons.push('capability_requirement_sparse');
   if (invalidAdditionalRequirements.length > 0) classificationReasons.push('capability_requirement_unknown');
 
-  if (onlyHumanSafeEffects && requiredCapabilities.length === 0 && classificationReasons.length === 0) {
+  if (postureExempt && classificationReasons.length === 0) {
     return {
       allowed: true,
       posture: assessment.posture,
@@ -276,7 +279,7 @@ export function admitRuntimeEffect(
   }
 
   const reasons = [...classificationReasons];
-  if (!onlyHumanSafeEffects) {
+  if (!postureExempt) {
     if (assessment.desired !== 'on') {
       reasons.push(assessment.desired === 'unknown' ? 'runtime_desired_unknown' : 'operator_intent_off');
     }

@@ -118,6 +118,33 @@ describe('effect admission is narrower than the overall posture', () => {
     });
   });
 
+  test.each([
+    [
+      'operator Off with a disabled boundary',
+      { ...ready, desired: 'off' as const, control: 'disabled' as const },
+      ['operator_intent_off', 'runtime_control_disabled'],
+    ],
+    [
+      'operator Off while the boundary remains enabled',
+      { ...ready, desired: 'off' as const },
+      ['operator_intent_off'],
+    ],
+    [
+      'an unknown control boundary',
+      { ...ready, control: 'unknown' as const },
+      ['runtime_control_unknown'],
+    ],
+  ])('a human-safe effect with provider authority is denied under %s', (_label, input, reasons) => {
+    expect(admitRuntimeEffect(input, {
+      effects: ['read_only'],
+      additionalRequirements: ['provider_access'],
+    })).toMatchObject({
+      allowed: false,
+      requiredCapabilities: ['provider_access'],
+      reasons,
+    });
+  });
+
   test('unknown additional requirements fail closed even when an untyped caller supplies matching ready evidence', () => {
     const input = {
       ...ready,
