@@ -267,7 +267,12 @@ class ReleaseCandidateSuite {
   }
 
   isolatedEnv(extra = {}) {
-    return releaseCandidateIsolatedEnv(this.root, extra);
+    return releaseCandidateIsolatedEnv(this.root, extra, {
+      approvedPathRootsByKey: {
+        PD_E2E_BIN: [this.stagedDir],
+        PORT_DADDY_RESOURCE_DIR: [this.stagedDir],
+      },
+    });
   }
 
   async buildAndStage() {

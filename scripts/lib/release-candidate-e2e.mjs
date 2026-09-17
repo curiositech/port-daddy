@@ -390,17 +390,25 @@ const RELEASE_CANDIDATE_EXTRA_PATH_KEYS = new Set([
 ]);
 
 /** Build the private environment shared by release-candidate build and run phases. */
-export function releaseCandidateIsolatedEnv(root, extra = {}, { env = process.env, home = homedir() } = {}) {
+export function releaseCandidateIsolatedEnv(
+  root,
+  extra = {},
+  { env = process.env, home = homedir(), approvedPathRootsByKey = {} } = {},
+) {
   const resolvedRoot = resolve(root);
   for (const [name, value] of Object.entries(extra)) {
     if (!RELEASE_CANDIDATE_EXTRA_ENV_KEYS.has(name)) {
       throw new Error(`release-candidate environment override is not allowed: ${name}`);
     }
-    if (
-      RELEASE_CANDIDATE_EXTRA_PATH_KEYS.has(name) &&
-      (typeof value !== 'string' || !isWithin(resolve(value), resolvedRoot))
-    ) {
-      throw new Error(`release-candidate path override escapes the suite root: ${name}`);
+    if (RELEASE_CANDIDATE_EXTRA_PATH_KEYS.has(name)) {
+      const resolvedValue = typeof value === 'string' ? resolve(value) : null;
+      const approvedRoots = [resolvedRoot, ...(approvedPathRootsByKey[name] || [])].map((path) => resolve(path));
+      const isApproved = resolvedValue !== null && approvedRoots.some(
+        (approvedRoot) => resolvedValue === approvedRoot || isWithin(resolvedValue, approvedRoot),
+      );
+      if (!isApproved) {
+        throw new Error(`release-candidate path override escapes its approved roots: ${name}`);
+      }
     }
   }
   return {

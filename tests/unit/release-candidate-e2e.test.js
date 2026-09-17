@@ -257,10 +257,25 @@ describe('release-candidate E2E contract', () => {
     ['PORT_DADDY_RESOURCE_DIR', '/operator/resources'],
     ['SMOKE_SCRATCH_BASE', '/operator/scratch'],
     ['SOAK_PREFIX', '/operator/soak'],
-  ])('rejects the allowed path override %s when it escapes the suite root', (name, value) => {
+  ])('rejects the allowed path override %s when it escapes its approved roots', (name, value) => {
     const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
     expect(() => releaseCandidateIsolatedEnv(root, { [name]: value })).toThrow(
-      `release-candidate path override escapes the suite root: ${name}`,
+      `release-candidate path override escapes its approved roots: ${name}`,
+    );
+  });
+
+  test('allows only the key assigned to an explicitly approved staged-artifact root', () => {
+    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
+    const staged = join(homedir(), 'coding', 'tmp', 'pd-rc-private-stage-test');
+    const options = {
+      approvedPathRootsByKey: {
+        PORT_DADDY_RESOURCE_DIR: [staged],
+      },
+    };
+    const env = releaseCandidateIsolatedEnv(root, { PORT_DADDY_RESOURCE_DIR: staged }, options);
+    expect(env.PORT_DADDY_RESOURCE_DIR).toBe(staged);
+    expect(() => releaseCandidateIsolatedEnv(root, { SMOKE_SCRATCH_BASE: join(staged, 'scratch') }, options)).toThrow(
+      'release-candidate path override escapes its approved roots: SMOKE_SCRATCH_BASE',
     );
   });
 
@@ -369,6 +384,7 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toContain('PORT_DADDY_TEST_DB: db');
     expect(runner).toContain('prepareOwnedPrivateDirectory(path);');
     expect(runner).toContain('releaseCandidateIsolatedEnv(this.root, extra)');
+    expect(runner).toContain('PORT_DADDY_RESOURCE_DIR: [this.stagedDir]');
     expect(runner).toContain("PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'port-daddy')");
     expect(runner).toContain("'sitrep',\n          '--json'");
     expect(runner).toContain("await closeServerBoundedly(blocker, 3_000, 'collision listener', blockerSockets)");
