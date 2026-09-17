@@ -102,6 +102,8 @@ verified together. Local harnesses do not yet have a proposal broker, so never
 copy the Actions workload seed into Codex, Claude Code, Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
 [`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).
+Direct use of an operator credential or ambient `gh` login does **not** satisfy this
+skill's boundary, even when the intended GitHub effect is otherwise authorized.
 
 ## Missing actuator
 
