@@ -216,7 +216,6 @@ describe('release-candidate E2E contract', () => {
   test('the build environment uses private key storage without ambient credentials or canonical Keychain access', () => {
     const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
     const env = releaseCandidateIsolatedEnv(root, {
-      PORT_DADDY_DISABLE_KEYCHAIN: '0',
       PORT_DADDY_RESOURCE_DIR: join(root, 'resources'),
     }, {
       env: {
@@ -236,6 +235,33 @@ describe('release-candidate E2E contract', () => {
     expect(env.GITHUB_TOKEN).toBeUndefined();
     expect(env.CARGO_HOME).toBe('/fixture/cargo');
     expect(env.RUSTUP_HOME).toBe('/fixture/rustup');
+  });
+
+  test.each([
+    ['HOME', '/operator/home'],
+    ['USERPROFILE', '/operator/home'],
+    ['PD_HOME', '/operator/home/.port-daddy'],
+    ['PD_SCRATCH_ROOT', '/operator/scratch'],
+    ['TMPDIR', '/operator/tmp'],
+    ['PORT_DADDY_DISABLE_KEYCHAIN', '0'],
+    ['PORT_DADDY_DB', '/operator/registry.db'],
+  ])('rejects the unapproved release-candidate environment override %s', (name, value) => {
+    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
+    expect(() => releaseCandidateIsolatedEnv(root, { [name]: value })).toThrow(
+      `release-candidate environment override is not allowed: ${name}`,
+    );
+  });
+
+  test.each([
+    ['PD_E2E_BIN', '/operator/bin/port-daddy'],
+    ['PORT_DADDY_RESOURCE_DIR', '/operator/resources'],
+    ['SMOKE_SCRATCH_BASE', '/operator/scratch'],
+    ['SOAK_PREFIX', '/operator/soak'],
+  ])('rejects the allowed path override %s when it escapes the suite root', (name, value) => {
+    const root = join(homedir(), 'coding', 'tmp', 'pd-rc-private-env-test');
+    expect(() => releaseCandidateIsolatedEnv(root, { [name]: value })).toThrow(
+      `release-candidate path override escapes the suite root: ${name}`,
+    );
   });
 
   test('private runtime fixture preparation rejects a symlink without changing its target', () => {
@@ -396,7 +422,11 @@ describe('release-candidate E2E contract', () => {
   test('packaged-binary soak owns private test state without weakening Off admission', () => {
     const soak = readFileSync(binarySoakPath, 'utf8');
     expect(soak).toContain('chmod 700 "$SOAK_PREFIX"');
-    expect(soak).toContain('PD_HOME="$SOAK_PREFIX"');
+    expect(soak).toContain('mkdir -p "$SOAK_HOME" "$SOAK_PD_HOME"');
+    expect(soak).toContain('chmod 700 "$SOAK_HOME" "$SOAK_PD_HOME"');
+    expect(soak).toContain('HOME="$SOAK_HOME"');
+    expect(soak).toContain('USERPROFILE="$SOAK_HOME"');
+    expect(soak).toContain('PD_HOME="$SOAK_PD_HOME"');
     expect(soak).toContain('PORT_DADDY_DB="$TEST_DB"');
     expect(soak).toContain('PORT_DADDY_TEST_DB="$TEST_DB"');
     expect(soak).toContain('PORT_DADDY_DISABLE_KEYCHAIN=1');

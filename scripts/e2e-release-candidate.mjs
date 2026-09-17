@@ -637,7 +637,7 @@ class ReleaseCandidateSuite {
       this.stagedDir,
     ], {
       cwd: caseRoot,
-      env: this.isolatedEnv({ TMPDIR: join(caseRoot, 'tmp') }),
+      env: this.isolatedEnv(),
       label: 'existing-squid-release-smoke',
       timeoutMs: 110_000,
     });

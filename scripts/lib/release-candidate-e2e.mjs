@@ -370,11 +370,42 @@ export function secretFreeBaseEnv(env = process.env) {
   return Object.fromEntries(Object.entries(env).filter(([name, value]) => keep.has(name) && typeof value === 'string'));
 }
 
+const RELEASE_CANDIDATE_EXTRA_ENV_KEYS = new Set([
+  'E2E_CLI_SURFACE_PORT',
+  'PD_E2E_BIN',
+  'PORT_DADDY_RESOURCE_DIR',
+  'SMOKE_SCRATCH_BASE',
+  'SOAK_BOOT_GRACE',
+  'SOAK_PORT',
+  'SOAK_PREFIX',
+  'SOAK_SECONDS',
+  'SOAK_WORKLOAD',
+]);
+
+const RELEASE_CANDIDATE_EXTRA_PATH_KEYS = new Set([
+  'PD_E2E_BIN',
+  'PORT_DADDY_RESOURCE_DIR',
+  'SMOKE_SCRATCH_BASE',
+  'SOAK_PREFIX',
+]);
+
 /** Build the private environment shared by release-candidate build and run phases. */
 export function releaseCandidateIsolatedEnv(root, extra = {}, { env = process.env, home = homedir() } = {}) {
   const resolvedRoot = resolve(root);
+  for (const [name, value] of Object.entries(extra)) {
+    if (!RELEASE_CANDIDATE_EXTRA_ENV_KEYS.has(name)) {
+      throw new Error(`release-candidate environment override is not allowed: ${name}`);
+    }
+    if (
+      RELEASE_CANDIDATE_EXTRA_PATH_KEYS.has(name) &&
+      (typeof value !== 'string' || !isWithin(resolve(value), resolvedRoot))
+    ) {
+      throw new Error(`release-candidate path override escapes the suite root: ${name}`);
+    }
+  }
   return {
     ...secretFreeBaseEnv(env),
+    ...extra,
     CI: 'true',
     CARGO_HOME: env.CARGO_HOME || join(home, '.cargo'),
     HOME: join(resolvedRoot, 'build-home'),
@@ -388,7 +419,6 @@ export function releaseCandidateIsolatedEnv(root, extra = {}, { env = process.en
     TERM: 'dumb',
     TMPDIR: join(resolvedRoot, 'tmp'),
     USERPROFILE: join(resolvedRoot, 'build-home'),
-    ...extra,
     // A private PD_HOME must never consult or mutate the operator's canonical
     // Keychain identity. Its mandatory note key is generated inside PD_HOME.
     PORT_DADDY_DISABLE_KEYCHAIN: '1',

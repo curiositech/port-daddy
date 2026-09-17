@@ -2514,9 +2514,10 @@ export async function executeFleet(
   let newlyExecutedShips = 0;
   // Continuation is authorized only when every freshly executed predecessor
   // has durable resume evidence. If an earlier checkpoint fails, a later ship
-  // must not hide that gap by checkpointing successfully: finish this roster
-  // in the current invocation so the uncheckpointed ship cannot be stranded
-  // outside `remainingShips` and re-spend on every subsequent slice.
+  // must not hide that gap by checkpointing successfully: finish this finite,
+  // trusted roster in the current invocation so broken-ship adjudication and
+  // best-effort D1 semantics remain intact. The absolute run deadline above
+  // remains the hard wall-clock/spend ceiling.
   let checkpointFailureObserved = false;
   for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
