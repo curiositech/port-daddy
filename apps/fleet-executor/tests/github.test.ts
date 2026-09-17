@@ -6,6 +6,7 @@ import {
   MAX_FILES_BYTES,
   type PRFile,
 } from '../src/github.js';
+import { reviewablePatchesFromUnifiedDiff, shipFindingLocationsAreReviewable } from '../src/verdict.js';
 
 /** Stub the GitHub Contents response with the supplied decoded contract text. */
 function stubTrustedContract(contract: string): ReturnType<typeof vi.fn> {
@@ -101,7 +102,7 @@ describe('fetchPRContext raw-diff 406 fallback', () => {
     // 1 file on page 2 (the short page that ends pagination).
     const page1 = Array.from({ length: 100 }, (_, i) =>
       makeFile({ filename: `src/page1-file-${i}.ts`, patch: `@@ -1,1 +1,1 @@\n-old${i}\n+new${i}` }));
-    const page2 = [makeFile({ filename: 'src/page2-file.ts', patch: '@@ -1,1 +1,1 @@\n-oldTail\n+newTail' })];
+    const page2 = [makeFile({ filename: 'docs/a b/file.md', patch: '@@ -1,1 +1,1 @@\n-oldTail\n+newTail' })];
 
     const fetcher = routedFetch([
       {
@@ -129,12 +130,18 @@ describe('fetchPRContext raw-diff 406 fallback', () => {
     const ctx = await fetchPRContext(OWNER, REPO, PR_NUMBER, MINIMAL_EVENT_PAYLOAD, 'token');
 
     expect(ctx.diffSource).toBe('reconstructed-from-files');
-    expect(ctx.diff).toContain('diff --git a/src/page1-file-0.ts b/src/page1-file-0.ts');
+    expect(ctx.diff).toContain('diff --git "a/src/page1-file-0.ts" "b/src/page1-file-0.ts"');
     expect(ctx.diff).toContain('+new0');
-    expect(ctx.diff).toContain('diff --git a/src/page2-file.ts b/src/page2-file.ts');
+    expect(ctx.diff).toContain('+++ "b/docs/a b/file.md"');
     expect(ctx.diff).toContain('+newTail');
     expect(ctx.files).toHaveLength(101);
     expect(ctx.filesTruncated).toBe(false);
+
+    const reviewable = reviewablePatchesFromUnifiedDiff(ctx.diff);
+    expect(reviewable.at(-1)?.filename).toBe('docs/a b/file.md');
+    expect(shipFindingLocationsAreReviewable([
+      { path: 'docs/a b/file.md', line: 1, severity: 'HIGH', body: 'review it' },
+    ], reviewable)).toBe(true);
   });
 
   it('still throws PullRequestDiffFetchError on a non-406 failure', async () => {
@@ -178,7 +185,7 @@ describe('fetchPRContext raw-diff 406 fallback', () => {
     const ctx = await fetchPRContext(OWNER, REPO, PR_NUMBER, MINIMAL_EVENT_PAYLOAD, 'token');
 
     expect(ctx.diff).toContain('Binary files a/assets/logo.png and b/assets/logo.png differ');
-    expect(ctx.diff).toContain('diff --git a/src/a.ts b/src/a.ts');
+    expect(ctx.diff).toContain('diff --git "a/src/a.ts" "b/src/a.ts"');
     expect(ctx.diffSource).toBe('reconstructed-from-files');
   });
 
