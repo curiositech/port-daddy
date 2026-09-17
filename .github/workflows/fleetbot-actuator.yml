@@ -127,16 +127,8 @@ jobs:
         env:
           FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
         run: node scripts/fleetbot-workload.mjs publish-manifest
-      - name: Retrieve the original immutable recovery manifest
+      - name: Refuse mutation-job reruns
         if: github.run_attempt > 1
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: fleetbot-recovery-${{ github.run_id }}
-          path: ${{ github.workspace }}
-          run-id: ${{ github.run_id }}
-          github-token: ${{ github.token }}
-      - name: Recover the original receipt without retrying the mutation
-        if: github.run_attempt > 1
-        env:
-          FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
-        run: node scripts/fleetbot-workload.mjs recover-manifest
+        run: |
+          echo "Do not rerun a Fleetbot mutation job. Dispatch the Fleetbot receipt recovery workflow with source run ${GITHUB_RUN_ID}." >&2
+          exit 1

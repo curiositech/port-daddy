@@ -958,13 +958,17 @@ async function reserveIntent(
   ).bind(...intentBinds(key)).first<IntentRow>();
   if (!row) failure('INTENT_RESERVATION_FAILED', 500, 'publisher intent was not durably reserved');
   if (row.request_hash !== key.requestHash) failure('IDEMPOTENCY_REPLAY_MISMATCH', 409, 'idempotency key was already used for different content');
+  // Preserve exact idempotent reuse for pre-migration successful intents. The
+  // new recovery endpoint still refuses those rows because they lack an exact
+  // signed recovery binding; ordinary /publish reuse already has the full
+  // original request and validates the stored signed receipt against it.
+  if (row.state === 'succeeded') return { reused: await parseStoredReceipt(env, row.receipt_json, key) };
   if (row.recovery_binding_json === null) {
     failure('RECOVERY_BINDING_UNAVAILABLE', 409, 'publisher intent predates exact receipt recovery binding');
   }
   if (row.recovery_binding_json !== stableJson(key.recoveryBinding)) {
     failure('IDEMPOTENCY_REPLAY_MISMATCH', 409, 'idempotency key was already used for a different recovery scope');
   }
-  if (row.state === 'succeeded') return { reused: await parseStoredReceipt(env, row.receipt_json, key) };
   const leased = await env.DB.prepare(
     `UPDATE github_publisher_intents
         SET state = 'running', updated_at = ?, error_code = NULL,
