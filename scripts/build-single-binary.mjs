@@ -634,6 +634,8 @@ async function smokeSelfHostedDaemon(
   const isolatedBinDir = join(prefix, 'isolated-bin');
   const isolatedOutfile = join(isolatedBinDir, basename(outfile));
   const resourceDir = join(prefix, 'empty-resource-root');
+  const runtimeDir = join(prefix, 'runtime');
+  const testDb = join(runtimeDir, 'port-daddy.db');
   rmSync(prefix, { recursive: true, force: true });
   mkdirSync(isolatedBinDir, { recursive: true });
   mkdirSync(resourceDir, { recursive: true });
@@ -706,7 +708,11 @@ async function smokeSelfHostedDaemon(
     cwd: resourceDir,
     env: {
       ...process.env,
-      PORT_DADDY_PREFIX: join(prefix, 'runtime'),
+      PORT_DADDY_PREFIX: runtimeDir,
+      // The self-hosted daemon is a bounded release test. When its caller
+      // supplies NODE_ENV=test, name the exact throwaway database explicitly
+      // so the production-database guard can prove this path is test-owned.
+      PORT_DADDY_TEST_DB: testDb,
       PORT_DADDY_PORT: String(port),
       PORT_DADDY_NO_FLEET: '1',
       PORT_DADDY_NO_FLEETBAR: '1',

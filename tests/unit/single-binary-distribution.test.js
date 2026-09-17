@@ -113,6 +113,7 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('embeddedNativeCore');
     expect(buildScript).toContain('embeddedAgentHarborSchemas');
     expect(buildScript).toContain('smokeSelfHostedDaemon');
+    expect(buildScript).toContain('PORT_DADDY_TEST_DB: testDb');
     expect(buildScript).toContain('smokeSurfaceGatewaySchemas');
     expect(buildScript).toContain('work-intent.capture');
     expect(buildScript).toContain('work-intent.list');
