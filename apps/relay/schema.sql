@@ -1206,9 +1206,9 @@ CREATE INDEX IF NOT EXISTS publisher_grants_subject_idx
 CREATE TRIGGER IF NOT EXISTS publisher_grants_insert_scope BEFORE INSERT ON publisher_grants
 BEGIN
   -- D1's remote parser has rejected valid trigger CASE bodies as incomplete
-  -- while local SQLite accepts them. Keep one parenthesized CASE statement:
+  -- while local SQLite accepts them. Avoid CASE and keep one statement:
   -- https://github.com/cloudflare/workers-sdk/issues/4326
-  SELECT (CASE WHEN EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
+  SELECT RAISE(ABORT, 'publisher grant scope invalid') WHERE EXISTS (SELECT 1 FROM json_each(NEW.repositories_json) WHERE type != 'text' OR value != lower(value) OR value NOT LIKE '%/%')
     OR EXISTS (SELECT 1 FROM json_each(NEW.operations_json) WHERE type != 'text' OR value NOT IN (
     'pull-request.publish','pull-request.update','pull-request.ready','pull-request.request-reviewers',
     'pull-request.comment','pull-request.review-reply','pull-request.enqueue','pull-request.inspect'))
@@ -1223,8 +1223,7 @@ BEGIN
   ) OR EXISTS (SELECT value FROM json_each(NEW.repositories_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.operations_json) GROUP BY value HAVING count(*) > 1)
     OR EXISTS (SELECT value FROM json_each(NEW.branch_allow_json) GROUP BY value HAVING count(*) > 1)
-    OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1)
-    THEN RAISE(ABORT, 'publisher grant scope invalid') END);
+    OR EXISTS (SELECT value FROM json_each(NEW.base_allow_json) GROUP BY value HAVING count(*) > 1);
 END;
 CREATE TRIGGER IF NOT EXISTS publisher_grants_immutable_authority
 BEFORE UPDATE OF grant_id, epoch, surface, account_user_id, subject_fingerprint,
@@ -1237,10 +1236,9 @@ END;
 CREATE TRIGGER IF NOT EXISTS publisher_grants_irreversible_revocation
 BEFORE UPDATE OF revoked_at, revoked_reason ON publisher_grants
 BEGIN
-  SELECT CASE WHEN OLD.revoked_at IS NOT NULL
+  SELECT RAISE(ABORT, 'publisher grant revocation is irreversible') WHERE OLD.revoked_at IS NOT NULL
       OR NEW.revoked_at IS NULL OR NEW.revoked_reason IS NULL
-      OR length(trim(NEW.revoked_reason)) = 0
-    THEN RAISE(ABORT, 'publisher grant revocation is irreversible') END;
+      OR length(trim(NEW.revoked_reason)) = 0;
 END;
 CREATE TABLE IF NOT EXISTS github_publisher_session_bindings (
   session_id TEXT PRIMARY KEY,
