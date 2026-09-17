@@ -7,6 +7,7 @@ export function validateContract(data) {
   const exact = (value, keys, where) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) { errors.push(`${where}:object-required`); return; }
     const allowed = new Set(keys);
+    for (const key of keys) if (!Object.hasOwn(value, key)) errors.push(`${where}:required:${key}`);
     for (const key of Object.keys(value)) if (!allowed.has(key)) errors.push(`${where}:unknown:${key}`);
   };
   const positive = (value, where, allowZero = false) => {

@@ -9,8 +9,8 @@
   "runtimeAuthority": "NONE",
   "algorithm": "sha256(path NUL sha256 LF, lexicographic path order)",
   "fileCount": 187,
-  "packetSha256": "c5c5f58d51f6901b522ec2ea240b8c8ec6a96dbd3bf11826a9a023dc2f8c8722",
-  "verificationCommand": "node docs/research/drydock-anchor-convention/seal-packet.mjs v2",
+  "packetSha256": "fcd76e4d667bc550a8cbd6080280d486a8804825c54aa21aff25b214875c8ee9",
+  "verificationCommand": "node docs/research/drydock-anchor-convention/seal-packet.mjs v2 --check",
   "includedPacketRoot": "docs/research/drydock-anchor-convention",
   "includedSkillRoots": [
     "skills/agent-context-partitioner",

@@ -71,7 +71,28 @@ export function validatePartition(plan){
   const used=new Map([...targets.keys()].map(x=>[x,0]));
   for(const d of dispositions.values())if(["ASSIGNED","TRANSFERRED"].includes(d.disposition))for(const ref of d.targetRefs){const item=items.get(d.itemId),target=targets.get(ref);if(!item||!target)continue;used.set(ref,used.get(ref)+item.tokenEstimate);if(item.scope!==target.scope)errors.push({code:"E_DISCLOSURE_SCOPE",path:`$.dispositions.${d.itemId}`});for(const cap of item.capabilityRequirements)if(!target.capabilityDigests.includes(cap))errors.push({code:"E_CAPABILITY_GAP",path:`$.dispositions.${d.itemId}`});}
   for(const[ref,n]of used)if(n>targets.get(ref).capacityTokens)errors.push({code:"E_BUDGET_OVERFLOW",path:`$.targets.${ref}`});
-  for(const[i,t]of(plan.transfers??[]).entries()){exact(t,TRANSFER,`$.transfers[${i}]`,errors);if(!items.has(t.itemId)||!targets.has(t.fromTargetRef)||!targets.has(t.toTargetRef)||!t.disclosureProofRef)errors.push({code:"E_TRANSFER_INVALID",path:`$.transfers[${i}]`});}
+  const transfersByItem=new Map(),transferEdges=new Set();
+  for(const[i,t]of(plan.transfers??[]).entries()){
+    exact(t,TRANSFER,`$.transfers[${i}]`,errors);
+    const edge=`${t.itemId}\0${t.fromTargetRef}\0${t.toTargetRef}`;
+    if(transferEdges.has(edge))errors.push({code:"E_TRANSFER_DUPLICATE",path:`$.transfers[${i}]`});
+    transferEdges.add(edge);
+    if(!items.has(t.itemId)||!targets.has(t.fromTargetRef)||!targets.has(t.toTargetRef)||typeof t.disclosureProofRef!=="string"||!t.disclosureProofRef.trim())errors.push({code:"E_TRANSFER_INVALID",path:`$.transfers[${i}]`});
+    if(t.fromTargetRef===t.toTargetRef)errors.push({code:"E_TRANSFER_SELF_EDGE",path:`$.transfers[${i}]`});
+    const edges=transfersByItem.get(t.itemId)??[];edges.push(t);transfersByItem.set(t.itemId,edges);
+  }
+  for(const d of dispositions.values()){
+    const edges=transfersByItem.get(d.itemId)??[];
+    if(d.disposition!=="TRANSFERRED"){
+      if(edges.length)errors.push({code:"E_TRANSFER_ORPHAN",path:`$.dispositions.${d.itemId}`});
+      continue;
+    }
+    if(!edges.length)errors.push({code:"E_TRANSFER_EVIDENCE_MISSING",path:`$.dispositions.${d.itemId}`});
+    for(const ref of new Set(d.targetRefs)){
+      if(edges.filter(t=>t.toTargetRef===ref).length!==1)errors.push({code:"E_TRANSFER_DESTINATION_MISMATCH",path:`$.dispositions.${d.itemId}.targetRefs`});
+    }
+    for(const edge of edges)if(!d.targetRefs.includes(edge.toTargetRef))errors.push({code:"E_TRANSFER_DESTINATION_MISMATCH",path:`$.transfers.${d.itemId}`});
+  }
   for(const[i,c]of(plan.semanticComparisons??[]).entries()){exact(c,COMPARISON,`$.semanticComparisons[${i}]`,errors);const a=items.get(c.leftItemId)?.retrievalSpace,b=items.get(c.rightItemId)?.retrievalSpace;if(!a||!b||a.spaceId!==b.spaceId||c.spaceId!==a.spaceId)errors.push({code:"E_CROSS_SPACE_COMPARISON",path:`$.semanticComparisons[${i}]`});}
   for(const[i,g]of(plan.gaps??[]).entries())exact(g,GAP,`$.gaps[${i}]`,errors);
   if(plan.result==="FEASIBLE"&&plan.gaps.length)errors.push({code:"E_FEASIBLE_WITH_GAPS",path:"$.gaps"});

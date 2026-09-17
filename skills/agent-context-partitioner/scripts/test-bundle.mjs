@@ -5,8 +5,16 @@ import {computeCoverageDigest,validatePartition} from "./validate-context-partit
 const base=JSON.parse(fs.readFileSync(new URL("../examples/valid-proposal.json",import.meta.url),"utf8"));
 const clone=()=>structuredClone(base);
 function mutate(fn){const x=clone();fn(x);x.coverageDigest=computeCoverageDigest(x);return x;}
+function transferred(){
+  return mutate(x=>{
+    x.targets.push({...structuredClone(x.targets[0]),targetRef:"body:source:g1",admissionEvidenceRef:"admission:source:g1"});
+    x.dispositions[0].disposition="TRANSFERRED";
+    x.transfers=[{itemId:"guidance:1",fromTargetRef:"body:source:g1",toTargetRef:"body:reviewer:g2",disclosureProofRef:"disclosure:guidance:1"}];
+  });
+}
 const cases=[
   ["valid",()=>clone(),null],
+  ["valid transfer",()=>transferred(),null],
   ["unknown",()=>mutate(x=>x.spawn=true),"E_UNKNOWN_FIELD"],
   ["unadmitted",()=>mutate(x=>x.targets[0].admissionEvidenceRef=null),"E_UNADMITTED_BODY"],
   ["fact-directive",()=>mutate(x=>x.items[1].directiveChannel=true),"E_AUTHORITY_CHANNEL"],
@@ -19,6 +27,8 @@ const cases=[
   ["overflow",()=>mutate(x=>x.targets[0].capacityTokens=100),"E_BUDGET_OVERFLOW"],
   ["causal-gap",()=>mutate(x=>x.items[1].causalParents=["missing"]),"E_CAUSAL_GAP"],
   ["cross-space",()=>mutate(x=>x.semanticComparisons=[{leftItemId:"guidance:1",rightItemId:"obligation:1",spaceId:x.sourceRootDigest}]),"E_CROSS_SPACE_COMPARISON"],
+  ["transferred without evidence",()=>{const x=transferred();x.transfers=[];return x},"E_TRANSFER_EVIDENCE_MISSING"],
+  ["transfer destination mismatch",()=>{const x=transferred();x.dispositions[0].targetRefs=["body:source:g1"];x.coverageDigest=computeCoverageDigest(x);return x},"E_TRANSFER_DESTINATION_MISMATCH"],
   ["blocked-green",()=>mutate(x=>x.dispositions[1].disposition="BLOCKED"),"E_BLOCKED_FEASIBLE"],
   ["authority-mint",()=>mutate(x=>x.authorityEffect="ADMIT_SUCCESSOR"),"E_ADMISSION_ACTION_FORBIDDEN"],
   ["bad-coverage",()=>{const x=clone();x.coverageDigest=x.sourceRootDigest;return x},"E_COVERAGE_DIGEST"]

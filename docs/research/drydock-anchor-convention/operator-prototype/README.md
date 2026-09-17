@@ -1,6 +1,6 @@
 # Drydock Control Room prototype
 
-Open [`index.html`](index.html) directly in a browser. It is a self-contained static product prototype. It starts no service, makes no network request, emits no command, and represents no live Port Daddy state.
+Open [`index.html`](index.html) directly in a browser. It is a self-contained static interaction prototype, not a shipped console. It starts no service, makes no network request, emits no command, and represents no live Port Daddy state.
 
 The prototype demonstrates the first safe product wedge:
 
@@ -11,7 +11,7 @@ The prototype demonstrates the first safe product wedge:
 - projection-only run selection;
 - a visibly separate Switchboard preview for consequential commands;
 - typed `PROPOSED`, `OBSERVED`, `PENDING`, `UNKNOWN`, `STALE`, and `BLOCKED` states;
-- native-unit capacity presentation;
+- native-unit capacity presentation, meaning provider-native allowances such as tokens, requests, elapsed execution time, and reset-window remainder rather than a misleading zero-dollar ledger entry;
 - two-activation evidence zoom ending in primary evidence or an unavailable-evidence receipt;
 - keyboard, 200% zoom, forced-colors, and reduced-motion foundations.
 

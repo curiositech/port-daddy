@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1 — 2026-09-17
+
+### Fixed
+
+- Make every exact-object check reject missing required fields as well as unknown fields.
+- Added top-level and nested missing-field mutations for gather, reducer, intent, and plan contracts.
+
 ## 2.0.0 — 2026-09-16
 
 ### Breaking

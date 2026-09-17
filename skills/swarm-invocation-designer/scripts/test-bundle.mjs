@@ -11,6 +11,10 @@ const clone = () => JSON.parse(JSON.stringify(base));
 const cases = [
   ["valid", base, true],
   ["unknown field", (() => { const x=clone(); x.surprise=true; return x; })(), false],
+  ["missing gathers", (() => { const x=clone(); delete x.gathers; return x; })(), false],
+  ["missing reducers", (() => { const x=clone(); delete x.reducers; return x; })(), false],
+  ["missing intent field", (() => { const x=clone(); delete x.intent.completionPredicate; return x; })(), false],
+  ["missing plan field", (() => { const x=clone(); delete x.plan.limitDigest; return x; })(), false],
   ["recursive birth", (() => { const x=clone(); x.limits.maxRecursiveBirths=1; return x; })(), false],
   ["unbounded rework", (() => { const x=clone(); x.reviewPolicy.maxReworkRounds=2; return x; })(), false],
   ["missing topology acceptance", (() => { const x=clone(); delete x.topology.acceptanceRef; return x; })(), false],
