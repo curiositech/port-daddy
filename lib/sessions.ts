@@ -820,9 +820,11 @@ export function createSessions(
   }
 
   function claimsConflict(
-    existing: { startLine: number | null; endLine: number | null; symbolPath: string | null },
-    requested: { startLine: number | null; endLine: number | null; symbolPath: string | null },
+    existing: { startLine: number | null; endLine: number | null; symbol: string | null; symbolPath: string | null },
+    requested: { startLine: number | null; endLine: number | null; symbol: string | null; symbolPath: string | null },
   ): boolean {
+    // An unqualified symbol without resolved line evidence stays fail-closed:
+    // names alone cannot prove that two selectors are disjoint.
     if (isWholeFileClaim(existing) || isWholeFileClaim(requested)) {
       return true;
     }
@@ -2059,11 +2061,13 @@ export function createSessions(
           {
             startLine: claim.startLine,
             endLine: claim.endLine,
+            symbol: claim.symbol,
             symbolPath: claim.symbolPath,
           },
           {
             startLine,
             endLine,
+            symbol,
             symbolPath,
           },
         )) {
@@ -2291,11 +2295,13 @@ export function createSessions(
           {
             startLine: claim.startLine,
             endLine: claim.endLine,
+            symbol: claim.symbol,
             symbolPath: claim.symbolPath,
           },
           {
             startLine: requested.startLine,
             endLine: requested.endLine,
+            symbol: requested.symbol,
             symbolPath: requested.symbolPath,
           },
         )) {

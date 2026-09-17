@@ -1214,6 +1214,29 @@ describe('Sessions Module', () => {
       expect(adjacent.conflicts).toEqual([]);
     });
 
+    it('should keep unresolved symbol-only preflight fail-closed across worktrees', () => {
+      const owner = sessions.start('Symbol owner', { project: 'alpha', worktreeId: 'alpha-main' });
+      const claimant = sessions.start('Symbol claimant', { project: 'alpha', worktreeId: 'alpha-linked' });
+      expect(sessions.claimFiles(owner.id, [], {
+        regions: [{ path: 'src/symbols.ts', symbol: 'render' }],
+      }).success).toBe(true);
+
+      const result = sessions.getRegionConflicts([{
+        path: 'src/symbols.ts',
+        symbol: 'update',
+      }], {
+        project: 'alpha',
+        excludeSessionId: claimant.id,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.conflicts).toEqual([expect.objectContaining({
+        sessionId: owner.id,
+        filePath: 'src/symbols.ts',
+        symbol: 'render',
+      })]);
+    });
+
     it('should not collapse the valid local project into the projectless scope', () => {
       const projectless = sessions.start('Projectless', { worktreeId: 'projectless-main' });
       const literalLocal = sessions.start('Literal local', { project: 'local', worktreeId: 'local-main' });

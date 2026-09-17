@@ -279,14 +279,18 @@ function sessionAddressForLegacy(row: LegacySessionFileRow): ClaimForestAddress 
 }
 
 function rowToClaim(row: ClaimForestRow): ClaimForestClaim {
+  const persistedRepoId = row.repo_id?.trim();
+  const repoId = row.session_identity_project == null && persistedRepoId === 'local'
+    ? PROJECTLESS_REPO_ID
+    : normalizeRepoId(persistedRepoId);
   return {
     id: row.id,
     nodeId: row.node_id,
-    // The session row is the source of truth for repository scope. Deriving
-    // here also reconciles claims written by older builds that stored both a
-    // projectless session and the valid literal project "local" as repo_id
-    // "local"; no destructive migration can safely distinguish those nodes.
-    repoId: normalizeRepoId(row.session_identity_project),
+    // Older builds persisted projectless claims under the literal "local"
+    // repository id. The owning session disambiguates only that historical
+    // case; every other claim keeps the repository boundary stamped on its
+    // node instead of silently borrowing a mutable session projection.
+    repoId,
     worldKind: row.world_kind,
     worldId: row.world_id,
     gitOid: row.git_oid,
