@@ -193,6 +193,25 @@ fleet:
     expect(json.errors.some((e) => e.field === 'reviewer.prompt' && e.message === 'required')).toBe(true);
   });
 
+  it('BAD_SCHEMA when cloud_only is not a boolean', async () => {
+    const yaml = `
+fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      prompt: "Review the exact head."
+      cloud_only: "false"
+`;
+    const res = await handleFleetValidate(
+      req('/v1/fleet/validate', 'POST', OPERATOR, { yaml }),
+      makeEnv(),
+    );
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as { code: string; errors: Array<{ field: string; message: string }> };
+    expect(json.code).toBe('BAD_SCHEMA');
+    expect(json.errors).toContainEqual({ field: 'qa.cloud_only', message: 'must be a boolean' });
+  });
+
   it('BAD_JSON when the body is not {yaml: string}', async () => {
     const res = await handleFleetValidate(
       req('/v1/fleet/validate', 'POST', OPERATOR, { notyaml: 1 }),
@@ -229,6 +248,33 @@ describe('handleFleetSmokeTest', () => {
     expect(ai.run.mock.calls[0]![0]).toBe(CF_ROLE_MODELS.reviewBot);
     const inputs = ai.run.mock.calls[0]![1] as { max_tokens: number; messages: Array<{ role: string }> };
     expect(inputs.max_tokens).toBe(2000); // bounded
+  });
+
+  it('runs an admitted primary Cloudflare model instead of the ship default', async () => {
+    const pinnedModel = '@cf/zai-org/glm-4.7-flash';
+    const yaml = `
+fleet:
+  agents:
+    qa:
+      trigger: pull_request:opened
+      backend: cloudflare
+      model: "${pinnedModel}"
+      cloud_only: true
+      prompt: "Review the exact head."
+`;
+    const ai = makeAI('CLEAN');
+    const res = await handleFleetSmokeTest(
+      req('/v1/fleet/smoke-test', 'POST', OPERATOR, {
+        ship: 'qa',
+        yaml,
+        sampleDiff: 'diff',
+      }),
+      makeEnv({ ai }),
+    );
+    expect(res.status).toBe(200);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(ai.run.mock.calls[0]![0]).toBe(pinnedModel);
+    expect(ai.run.mock.calls[0]![0]).not.toBe(CF_ROLE_MODELS.shipDefault);
   });
 
   it('SHIP_NOT_FOUND when the ship name is absent from the YAML', async () => {
