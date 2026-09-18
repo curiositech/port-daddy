@@ -62,11 +62,18 @@ class BookTypographyTests(unittest.TestCase):
 class RenderedBookTypographyTests(unittest.TestCase):
     def test_actual_prose_uses_source_not_legacy_pagella(self):
         with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
+            aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
+            reader_pages = []
+            for key in ("book:reader-left", "book:reader-right"):
+                folio = re.search(r"\\newlabel\{" + re.escape(key)
+                                  + r"\}\{\{[^{}]*\}\{([^{}]+)\}", aux).group(1)
+                reader_pages.append(next(i for i, page in enumerate(book)
+                                         if page.get_label() == folio))
             chapter = next(row[2] - 1 for row in book.get_toc()
                            if row[1] == "1 The Single-Writer Kernel")
             # The reader-guide prose and two continuous-prose chapter pages.
             # Counting characters avoids a title or caption satisfying the test.
-            for index in [5, 6, chapter + 1, chapter + 2]:
+            for index in [*reader_pages, chapter + 1, chapter + 2]:
                 fonts = Counter()
                 for block in book[index].get_text("dict")["blocks"]:
                     for line in block.get("lines", []):

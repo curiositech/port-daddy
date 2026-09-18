@@ -25,6 +25,15 @@ The mathematical symbol and Greek fonts remain `newpxmath`; explicit math
 text, operators, and numerals use the new serif. This preserves the established
 proof notation while its compatibility is checked on rendered pages.
 
+`newpxtext` resets the body family at the end of the preamble. The Book's
+shared typography module therefore repeats the public `fontspec` selection
+in a later hook. Do not replace that with a bare `rmdefault` assignment:
+feature-bearing faces and microtype's font cache also need consistent state.
+Set `BOOK_TYPOGRAPHY_PDF` when running `test_book_typography.py` to check the
+actual prose fonts in an assembled PDF, not merely the intended source.
+Font changes require a fresh full-Book build and figure clearance review;
+successful font loading alone says nothing about wrapping or collisions.
+
 IBM Plex Serif and Newsreader were compared at the Book's text and caption
 sizes. Plex's technical character is useful, but its available small-cap
 coverage did not fit the existing apparatus. Newsreader is a warm editorial
