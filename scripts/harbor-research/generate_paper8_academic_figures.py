@@ -3,11 +3,14 @@
 Generate publication-grade academic figures for Paper 8:
 "The Cohomology of Swarms: Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair"
 
-Style: Clean academic publication standard (IEEE/ACM/SIAM)
-- Off-white / white crisp background
-- High-contrast typography (Helvetica/Computer Modern)
-- Mathematically exact labels and real numerical data
-- Zero AI-diffusion hallucinated pseudo-words
+Conforms strictly to docs/harbor-research/figures/CONVENTION.md:
+- Harbor Research Palette:
+    harborblue: #1e466e (RGB 30, 70, 110)
+    shipred:    #8c1e1e (RGB 140, 30, 30)
+    seagreen:   #1f6e46 (RGB 31, 110, 70)
+    neutrals:   #1e293b, #475569, #cbd5e1, #ffffff
+- Minimalist, austere, high-density scientific styling (SIAM / IEEE / Nature)
+- Exact mathematical typography, clean thin lines, zero cartoon badges, zero pastel clown colors
 """
 
 import os
@@ -15,23 +18,33 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from matplotlib.patches import FancyArrowPatch, Wedge
 import networkx as nx
 import numpy as np
 
-# Configure publication typography and styling
+# Standard Harbor Research Color Palette
+HARBOR_BLUE = '#1e466e'
+SHIP_RED    = '#8c1e1e'
+SEA_GREEN   = '#1f6e46'
+SLATE_DARK  = '#1e293b'
+SLATE_MID   = '#475569'
+SLATE_LIGHT = '#94a3b8'
+LINE_GRAY   = '#cbd5e1'
+BG_LIGHT    = '#f8fafc'
+BG_WHITE    = '#ffffff'
+
 plt.rcParams.update({
-    'font.size': 10,
-    'axes.labelsize': 11,
-    'axes.titlesize': 12,
-    'xtick.labelsize': 9,
-    'ytick.labelsize': 9,
-    'legend.fontsize': 9,
-    'figure.titlesize': 13,
+    'font.size': 9,
+    'axes.labelsize': 9.5,
+    'axes.titlesize': 10.5,
+    'xtick.labelsize': 8.5,
+    'ytick.labelsize': 8.5,
+    'legend.fontsize': 8.5,
+    'figure.titlesize': 11.5,
     'font.family': 'sans-serif',
-    'font.sans-serif': ['DejaVu Sans', 'Helvetica', 'Arial'],
+    'font.sans-serif': ['Helvetica', 'Arial', 'DejaVu Sans'],
     'mathtext.fontset': 'cm',
-    'figure.autolayout': False,
+    'axes.edgecolor': '#94a3b8',
+    'axes.linewidth': 0.8,
 })
 
 FIG_DIR = "docs/harbor-research/figures"
@@ -40,24 +53,23 @@ os.makedirs(FIG_DIR, exist_ok=True)
 os.makedirs(BRAIN_DIR, exist_ok=True)
 
 # -------------------------------------------------------------------------
-# FIGURE 1: Open Tree vs Closed Cycle (The Topological Horizon)
+# FIGURE 1: Open Tree vs Closed Cycle (Topological Horizon)
 # -------------------------------------------------------------------------
 def make_fig1():
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.8), dpi=300)
-    fig.patch.set_facecolor('#ffffff')
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300)
+    fig.patch.set_facecolor(BG_WHITE)
 
-    # Subplot 1: Open Tree (Silent to Equivocation)
-    ax1.set_facecolor('#fafbfc')
-    ax1.set_title(r"(a) Open Tree Topology ($r = 0$, Silent to Lie)", pad=12, fontweight='bold', color='#1e293b')
+    # Panel A: Open Tree
+    ax1.set_facecolor(BG_WHITE)
+    ax1.set_title("(a) Acyclic Gossip Tree ($r = 0$, Provably Silent)", pad=10, fontweight='bold', color=SLATE_DARK)
     
-    # Tree graph
     pos_tree = {
-        0: (0.5, 0.85),
-        1: (0.25, 0.50),
-        2: (0.75, 0.50),
-        3: (0.12, 0.15),
-        4: (0.38, 0.15),
-        5: (0.75, 0.15)
+        0: (0.5, 0.82),
+        1: (0.25, 0.48),
+        2: (0.75, 0.48),
+        3: (0.12, 0.14),
+        4: (0.38, 0.14),
+        5: (0.75, 0.14)
     }
     tree_edges = [(0, 1), (0, 2), (1, 3), (1, 4), (2, 5)]
     
@@ -65,384 +77,330 @@ def make_fig1():
         x1, y1 = pos_tree[u]
         x2, y2 = pos_tree[v]
         ax1.annotate('', xy=(x2, y2), xytext=(x1, y1),
-                     arrowprops=dict(arrowstyle="->", color="#64748b", lw=2, shrinkA=12, shrinkB=12))
+                     arrowprops=dict(arrowstyle="-|>", color=SLATE_MID, lw=1.2, mutation_scale=10, shrinkA=8, shrinkB=8))
         mx, my = (x1 + x2)/2, (y1 + y2)/2
-        ax1.text(mx + 0.04, my, r"$g_e = x_v - x_u$", fontsize=8, color="#475569", fontstyle='italic')
+        ax1.text(mx + 0.03, my, r"$g_e = x_v - x_u$", fontsize=7.5, color=SLATE_MID, fontstyle='italic')
 
-    # Draw nodes
     for node, (x, y) in pos_tree.items():
-        color = '#f87171' if node == 1 else '#38bdf8'
-        ec = '#b91c1c' if node == 1 else '#0284c7'
-        circle = plt.Circle((x, y), 0.055, facecolor=color, edgecolor=ec, lw=2, zorder=4)
+        fc = SHIP_RED if node == 1 else HARBOR_BLUE
+        circle = plt.Circle((x, y), 0.042, facecolor=fc, edgecolor=SLATE_DARK, lw=1.0, zorder=4)
         ax1.add_patch(circle)
-        label = r"$v_1^{\mathrm{equiv}}$" if node == 1 else f"$v_{node}$"
-        ax1.text(x, y, label, ha='center', va='center', fontsize=9, fontweight='bold', color='#0f172a', zorder=5)
+        label = r"$v_1^*$" if node == 1 else f"$v_{node}$"
+        ax1.text(x, y, label, ha='center', va='center', fontsize=8, color=BG_WHITE, fontweight='bold', zorder=5)
 
-    ax1.text(0.5, 0.02, 
-             r"Theorem CR-1: $\ker(\delta_0^T) = \{0\} \Rightarrow \Pi_T = 0 \Rightarrow r = \|\Pi_T g\|_2 \equiv 0$" + "\n"
-             "Any arbitrary edge lie is absorbed by vertex gauge; detection is provably dark.",
-             ha='center', va='bottom', fontsize=8.5, color='#334155',
-             bbox=dict(boxstyle="round,pad=0.5", facecolor='#f1f5f9', edgecolor='#cbd5e1'))
+    ax1.text(0.5, -0.05, 
+             r"Theorem CR-1: $\ker(\delta_0^T) = \{0\} \Rightarrow \Pi_T = 0 \Rightarrow r = 0$" + "\n"
+             r"Any uninspected edge lie is absorbed by vertex potentials; equivocation is dark.",
+             ha='center', va='top', fontsize=8, color=SLATE_DARK,
+             bbox=dict(boxstyle="square,pad=0.4", facecolor=BG_LIGHT, edgecolor=LINE_GRAY, lw=0.8))
 
-    ax1.set_xlim(-0.05, 1.05)
-    ax1.set_ylim(-0.05, 1.0)
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.12, 0.95)
     ax1.axis('off')
 
-    # Subplot 2: Closed Cycle (Topological Trap)
-    ax2.set_facecolor('#fafbfc')
-    ax2.set_title(r"(b) Closed Cycle Topology ($r > 0$, Certified Detection)", pad=12, fontweight='bold', color='#1e293b')
+    # Panel B: Closed Cycle
+    ax2.set_facecolor(BG_WHITE)
+    ax2.set_title("(b) Cycle Topology ($r > 0$, Certified Lower Bound)", pad=10, fontweight='bold', color=SLATE_DARK)
 
-    pos_cycle = {
-        0: (0.2, 0.75),
-        1: (0.8, 0.75),
-        2: (0.8, 0.25),
-        3: (0.2, 0.25)
-    }
+    pos_cycle = {0: (0.22, 0.75), 1: (0.78, 0.75), 2: (0.78, 0.22), 3: (0.22, 0.22)}
     cycle_edges = [
-        (0, 1, r"$g_{01} = 0$"),
-        (1, 2, r"$g_{12} = +3.0$ (Lie)"),
-        (2, 3, r"$g_{23} = 0$"),
-        (3, 0, r"$g_{30} = 0$")
+        (0, 1, r"$g_{01} = 0$", False),
+        (1, 2, r"$g_{12} = +3.0$ (Lie)", True),
+        (2, 3, r"$g_{23} = 0$", False),
+        (3, 0, r"$g_{30} = 0$", False)
     ]
 
-    for u, v, lbl in cycle_edges:
+    for u, v, lbl, is_lie in cycle_edges:
         x1, y1 = pos_cycle[u]
         x2, y2 = pos_cycle[v]
-        edge_col = '#dc2626' if (u, v) == (1, 2) else '#0284c7'
+        col = SHIP_RED if is_lie else HARBOR_BLUE
+        lw = 1.6 if is_lie else 1.2
         ax2.annotate('', xy=(x2, y2), xytext=(x1, y1),
-                     arrowprops=dict(arrowstyle="->", color=edge_col, lw=2.5, shrinkA=12, shrinkB=12))
+                     arrowprops=dict(arrowstyle="-|>", color=col, lw=lw, mutation_scale=10, shrinkA=8, shrinkB=8))
         mx, my = (x1 + x2)/2, (y1 + y2)/2
         dx, dy = (0, 0.05) if y1 == y2 else (0.05, 0)
-        ax2.text(mx + dx, my + dy, lbl, ha='center', va='center', fontsize=8.5,
-                 fontweight='bold' if (u, v) == (1, 2) else 'normal',
-                 color='#dc2626' if (u, v) == (1, 2) else '#334155')
+        ax2.text(mx + dx, my + dy, lbl, ha='center', va='center', fontsize=7.8,
+                 color=SHIP_RED if is_lie else SLATE_DARK, fontweight='bold' if is_lie else 'normal')
 
-    # Center circulation indicator
-    arc = patches.Arc((0.5, 0.5), 0.28, 0.28, angle=0, theta1=20, theta2=310, color='#dc2626', lw=2, ls='--')
+    # Subtle central circulation indicator
+    arc = patches.Arc((0.5, 0.485), 0.24, 0.24, angle=0, theta1=20, theta2=310, color=SHIP_RED, lw=1.2, ls='--')
     ax2.add_patch(arc)
-    ax2.annotate('', xy=(0.63, 0.55), xytext=(0.64, 0.51),
-                 arrowprops=dict(arrowstyle="->", color="#dc2626", lw=2))
-    ax2.text(0.5, 0.5, r"Circulation $\rho \ne 0$" + "\n" + r"$B^T \rho = 0$",
-             ha='center', va='center', fontsize=8.5, color='#991b1b', fontweight='bold')
+    ax2.annotate('', xy=(0.61, 0.53), xytext=(0.62, 0.49),
+                 arrowprops=dict(arrowstyle="-|>", color=SHIP_RED, lw=1.2, mutation_scale=8))
+    ax2.text(0.5, 0.485, r"$\rho \in \ker(B^T)$" + "\n" + r"$\|\rho\|_2 = 1.500$",
+             ha='center', va='center', fontsize=7.8, color=SHIP_RED)
 
     for node, (x, y) in pos_cycle.items():
-        color = '#f87171' if node == 1 else '#38bdf8'
-        ec = '#b91c1c' if node == 1 else '#0284c7'
-        circle = plt.Circle((x, y), 0.06, facecolor=color, edgecolor=ec, lw=2, zorder=4)
+        fc = SHIP_RED if node == 1 else HARBOR_BLUE
+        circle = plt.Circle((x, y), 0.045, facecolor=fc, edgecolor=SLATE_DARK, lw=1.0, zorder=4)
         ax2.add_patch(circle)
-        label = r"$v_1^{\mathrm{equiv}}$" if node == 1 else f"$v_{node}$"
-        ax2.text(x, y, label, ha='center', va='center', fontsize=9.5, fontweight='bold', color='#0f172a', zorder=5)
+        label = r"$v_1^*$" if node == 1 else f"$v_{node}$"
+        ax2.text(x, y, label, ha='center', va='center', fontsize=8, color=BG_WHITE, fontweight='bold', zorder=5)
 
-    ax2.text(0.5, 0.02, 
+    ax2.text(0.5, -0.05, 
              r"Closed form: $r = |s|\sqrt{1 - R_{\mathrm{eff}}(e)} = 3.0\sqrt{1 - 3/4} = 1.500$" + "\n"
-             "Non-zero completion residual traps the uninspected lie algebraically.",
-             ha='center', va='bottom', fontsize=8.5, color='#334155',
-             bbox=dict(boxstyle="round,pad=0.5", facecolor='#fef2f2', edgecolor='#fca5a5'))
+             r"The cycle constraint traps the uninspected lie with certified lower bound $r \leq \|\varepsilon\|_2$.",
+             ha='center', va='top', fontsize=8, color=SLATE_DARK,
+             bbox=dict(boxstyle="square,pad=0.4", facecolor=BG_LIGHT, edgecolor=LINE_GRAY, lw=0.8))
 
-    ax2.set_xlim(0.0, 1.0)
-    ax2.set_ylim(-0.05, 1.0)
+    ax2.set_xlim(0.05, 0.95)
+    ax2.set_ylim(-0.12, 0.95)
     ax2.axis('off')
 
     plt.tight_layout()
-    out_svg = os.path.join(FIG_DIR, "fig-paper8-topological-loop.png")
-    out_brain = os.path.join(BRAIN_DIR, "fig-paper8-topological-loop.png")
-    plt.savefig(out_svg, dpi=300, facecolor='#ffffff')
-    plt.savefig(out_brain, dpi=300, facecolor='#ffffff')
+    plt.savefig(os.path.join(FIG_DIR, "fig-paper8-topological-loop.png"), dpi=300, facecolor=BG_WHITE)
+    plt.savefig(os.path.join(BRAIN_DIR, "fig-paper8-topological-loop.png"), dpi=300, facecolor=BG_WHITE)
     plt.close()
-    print("Saved Figure 1:", out_svg)
+    print("Regenerated Figure 1.")
 
 # -------------------------------------------------------------------------
 # FIGURE 2: The Rosetta Stone (Swarm to Cellular Sheaves)
 # -------------------------------------------------------------------------
 def make_fig2():
-    fig, ax = plt.subplots(figsize=(10.5, 5.0), dpi=300)
-    fig.patch.set_facecolor('#ffffff')
-    ax.set_facecolor('#ffffff')
-    ax.set_title("The Rosetta Stone: Mapping Multi-Agent Systems to Cellular Sheaves", 
-                 pad=14, fontsize=12, fontweight='bold', color='#0f172a')
+    fig, ax = plt.subplots(figsize=(9.8, 4.4), dpi=300)
+    fig.patch.set_facecolor(BG_WHITE)
+    ax.set_facecolor(BG_WHITE)
+    ax.set_title("The Rosetta Stone: Mapping Multi-Agent Swarms to Cellular Sheaves", 
+                 pad=12, fontsize=11, fontweight='bold', color=SLATE_DARK)
 
-    # Draw 3 structural tiers
-    # 0-Cells
-    rect0 = patches.FancyBboxPatch((0.03, 0.48), 0.28, 0.42, boxstyle="round,pad=0.03",
-                                  facecolor='#f0fdf4', edgecolor='#16a34a', lw=1.8)
-    ax.add_patch(rect0)
-    ax.text(0.17, 0.85, "0-Cells: AgentNodes\n(Vertices $v \\in V$)", ha='center', va='center', 
-            fontsize=10, fontweight='bold', color='#166534')
-    ax.text(0.17, 0.64, 
-            r"Stalk Vector $x_v \in \mathbb{R}^D$:" + "\n"
-            r"$\bullet$ Epoch: $t_v \in \mathbb{N}$" + "\n"
-            r"$\bullet$ Token Budget: $b_v \in \mathbb{R}_+$" + "\n"
-            r"$\bullet$ AST Lock: $\mathrm{hash}(L) \in \mathbb{R}$" + "\n"
-            r"$\bullet$ State Digest: $h_v \in \mathbb{R}$",
-            ha='center', va='center', fontsize=8.5, color='#14532d', linespacing=1.3)
+    # 3 Clean Columns (0-Cells, 1-Cells, 2-Cells)
+    cols = [
+        (r"0-Cells: AgentNodes ($v \in V$)", 0.04, 0.28, [
+            r"Stalk Vector $x_v \in \mathbb{R}^D$:",
+            r"$\bullet$ Local Epoch: $t_v \in \mathbb{N}$",
+            r"$\bullet$ Token Spend: $b_v \in \mathbb{R}_+$",
+            r"$\bullet$ AST Lease Hash: $h_L \in \mathbb{R}$",
+            r"$\bullet$ State Root Digest: $d_v \in \mathbb{R}$"
+        ]),
+        (r"1-Cells: Channels & Claims ($e \in E$)", 0.36, 0.28, [
+            r"Restriction Map $P_e: \mathbb{R}^D \to \mathbb{R}^S$:",
+            r"$\bullet$ Coordinate-wise selection",
+            r"$\bullet$ Edge Discrepancy (1-Cochain):",
+            r"  $g_e = P_e x_v - P_e x_u$",
+            r"$\bullet$ Coboundary $(\delta_0 x)_e = x_v - x_u$"
+        ]),
+        (r"2-Cells: Review Contracts ($\tau \in F$)", 0.68, 0.28, [
+            r"Triadic Consensus Join:",
+            r"$\bullet$ Producer $\leftrightarrow$ Dissenter",
+            r"$\bullet$ Dissenter $\leftrightarrow$ Manager",
+            r"$\bullet$ Manager $\leftrightarrow$ Producer",
+            r"$\bullet$ Boundary: $(\delta_1 g)_\tau = g_{01} + g_{12} - g_{02}$"
+        ])
+    ]
 
-    # 1-Cells
-    rect1 = patches.FancyBboxPatch((0.36, 0.48), 0.28, 0.42, boxstyle="round,pad=0.03",
-                                  facecolor='#eff6ff', edgecolor='#2563eb', lw=1.8)
-    ax.add_patch(rect1)
-    ax.text(0.50, 0.85, "1-Cells: Channels & Leases\n(Edges $e \\in E$)", ha='center', va='center', 
-            fontsize=10, fontweight='bold', color='#1e40af')
-    ax.text(0.50, 0.64, 
-            r"Restriction Map $P_e: \mathbb{R}^D \to \mathbb{R}^S$:" + "\n"
-            r"$\bullet$ Selects shared fields" + "\n"
-            r"$\bullet$ Edge Discrepancy (1-Cochain):" + "\n"
-            r"  $g_e = P_e x_v - P_e x_u$" + "\n"
-            r"$\bullet$ Coboundary $(\delta_0 x)_e = x_v - x_u$",
-            ha='center', va='center', fontsize=8.5, color='#1e3a8a', linespacing=1.3)
+    for title, x, w, items in cols:
+        rect = patches.Rectangle((x, 0.45), w, 0.46, facecolor=BG_LIGHT, edgecolor=LINE_GRAY, lw=0.8)
+        ax.add_patch(rect)
+        ax.text(x + w/2, 0.85, title, ha='center', va='center', fontsize=8.8, fontweight='bold', color=HARBOR_BLUE)
+        body = "\n".join(items)
+        ax.text(x + 0.015, 0.62, body, ha='left', va='center', fontsize=8.0, color=SLATE_DARK, linespacing=1.35)
 
-    # 2-Cells
-    rect2 = patches.FancyBboxPatch((0.69, 0.48), 0.28, 0.42, boxstyle="round,pad=0.03",
-                                  facecolor='#fefce8', edgecolor='#ca8a04', lw=1.8)
-    ax.add_patch(rect2)
-    ax.text(0.83, 0.85, "2-Cells: Triadic Contracts\n(Faces $\\tau \\in F$)", ha='center', va='center', 
-            fontsize=10, fontweight='bold', color='#854d0e')
-    ax.text(0.83, 0.64, 
-            r"Review Triad (3-way Join):" + "\n"
-            r"$\bullet$ Producer $\to$ Dissenter" + "\n"
-            r"$\bullet$ Dissenter $\to$ Manager" + "\n"
-            r"$\bullet$ Manager $\to$ Producer" + "\n"
-            r"$\bullet$ Boundary: $\delta_1 g = g_{01} + g_{12} - g_{02}$",
-            ha='center', va='center', fontsize=8.5, color='#713f12', linespacing=1.3)
+    # Clean connecting coboundary arrows
+    ax.annotate('', xy=(0.355, 0.68), xytext=(0.325, 0.68),
+                arrowprops=dict(arrowstyle="-|>", lw=1.2, color=SLATE_MID, mutation_scale=10))
+    ax.text(0.34, 0.72, r"$\delta_0$", ha='center', va='center', fontsize=10, fontweight='bold', color=SLATE_DARK)
 
-    # Connecting arrows
-    ax.annotate('', xy=(0.36, 0.69), xytext=(0.31, 0.69),
-                arrowprops=dict(arrowstyle="->", lw=2, color="#475569"))
-    ax.text(0.335, 0.72, r"$\delta_0$", ha='center', va='center', fontsize=11, fontweight='bold', color='#0f172a')
+    ax.annotate('', xy=(0.675, 0.68), xytext=(0.645, 0.68),
+                arrowprops=dict(arrowstyle="-|>", lw=1.2, color=SLATE_MID, mutation_scale=10))
+    ax.text(0.66, 0.72, r"$\delta_1$", ha='center', va='center', fontsize=10, fontweight='bold', color=SLATE_DARK)
 
-    ax.annotate('', xy=(0.69, 0.69), xytext=(0.64, 0.69),
-                arrowprops=dict(arrowstyle="->", lw=2, color="#475569"))
-    ax.text(0.665, 0.72, r"$\delta_1$", ha='center', va='center', fontsize=11, fontweight='bold', color='#0f172a')
-
-    # Bottom Chain Complex Summary Banner
-    rect_bottom = patches.FancyBboxPatch((0.03, 0.08), 0.94, 0.32, boxstyle="round,pad=0.03",
-                                         facecolor='#f8fafc', edgecolor='#94a3b8', lw=1.5)
+    # Bottom Complex Banner
+    rect_bottom = patches.Rectangle((0.04, 0.08), 0.92, 0.30, facecolor=BG_WHITE, edgecolor=LINE_GRAY, lw=0.8)
     ax.add_patch(rect_bottom)
 
-    chain_eq = (
-        r"$\mathrm{The\ Discrete\ Cochain\ Complex:}\quad "
-        r"0 \longrightarrow C^0(X; \mathcal{F}) \longrightarrow C^1(X; \mathcal{F}) "
-        r"\longrightarrow C^2(X; \mathcal{F}) \longrightarrow 0$"
-    )
-    ax.text(0.50, 0.30, chain_eq, ha='center', va='center', fontsize=10.5, color='#0f172a')
-    ax.text(0.50, 0.22, r"Coboundary operators:  $\delta_0 : C^0 \to C^1$ (difference),   $\delta_1 : C^1 \to C^2$ (triadic curl)",
-            ha='center', va='center', fontsize=9.0, color='#334155')
-
-    fund_eq = (
-        r"$\mathrm{Fundamental\ Simplicial\ Identity:}\quad \delta_1 \circ \delta_0 = 0 \ \Leftrightarrow \ \mathrm{im}(\delta_0) \subseteq \ker(\delta_1)$" + "\n"
-        r"(Honest potential gradients automatically satisfy all triadic contracts with zero curl)"
-    )
-    ax.text(0.50, 0.13, fund_eq, ha='center', va='center', fontsize=8.8, color='#475569')
+    ax.text(0.50, 0.27, 
+            r"Discrete Cochain Complex:   "
+            r"$0 \longrightarrow C^0(X; \mathcal{F}) \longrightarrow C^1(X; \mathcal{F}) \longrightarrow C^2(X; \mathcal{F}) \longrightarrow 0$",
+            ha='center', va='center', fontsize=9.2, color=SLATE_DARK)
+    
+    ax.text(0.50, 0.15,
+            r"Fundamental Simplicial Boundary Identity:   $\delta_1 \circ \delta_0 = 0 \ \Leftrightarrow \ \mathrm{im}(\delta_0) \subseteq \ker(\delta_1)$" + "\n"
+            r"(Honest potential gradients automatically satisfy all triadic contracts with zero curl)",
+            ha='center', va='center', fontsize=8.2, color=SLATE_MID)
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis('off')
 
     plt.tight_layout()
-    out_svg = os.path.join(FIG_DIR, "fig-paper8-sheaf-rosetta.png")
-    out_brain = os.path.join(BRAIN_DIR, "fig-paper8-sheaf-rosetta.png")
-    plt.savefig(out_svg, dpi=300, facecolor='#ffffff')
-    plt.savefig(out_brain, dpi=300, facecolor='#ffffff')
+    plt.savefig(os.path.join(FIG_DIR, "fig-paper8-sheaf-rosetta.png"), dpi=300, facecolor=BG_WHITE)
+    plt.savefig(os.path.join(BRAIN_DIR, "fig-paper8-sheaf-rosetta.png"), dpi=300, facecolor=BG_WHITE)
     plt.close()
-    print("Saved Figure 2:", out_svg)
+    print("Regenerated Figure 2.")
 
 # -------------------------------------------------------------------------
 # FIGURE 3: Discrete Hodge Decomposition & Legibility Ratio
 # -------------------------------------------------------------------------
 def make_fig3():
-    fig = plt.figure(figsize=(12, 5.2), dpi=300)
-    fig.patch.set_facecolor('#ffffff')
+    fig = plt.figure(figsize=(11, 4.6), dpi=300)
+    fig.patch.set_facecolor(BG_WHITE)
+    gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 0.85], wspace=0.25)
     
-    # 3 spatial subplots + 1 gauge/bar subplot
-    gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 0.9])
     ax1 = fig.add_subplot(gs[0])
     ax2 = fig.add_subplot(gs[1])
     ax3 = fig.add_subplot(gs[2])
     ax4 = fig.add_subplot(gs[3])
 
     for ax in [ax1, ax2, ax3]:
-        ax.set_facecolor('#f8fafc')
+        ax.set_facecolor(BG_WHITE)
         ax.set_xlim(-0.1, 1.1)
         ax.set_ylim(-0.1, 1.1)
         ax.axis('off')
 
+    pos_tri = [(0.15, 0.18), (0.85, 0.18), (0.50, 0.82)]
+
     # 1. Gauge Gradient delta_0 x
-    ax1.set_title(r"1. Gauge Gradient $\delta_0 x$" + "\n(Curl-free, Benign)", fontsize=9.5, fontweight='bold', color='#166534')
-    pos_tri = [(0.1, 0.15), (0.9, 0.15), (0.5, 0.85)]
-    # Draw potential contours / arrows
-    ax1.annotate('', xy=pos_tri[1], xytext=pos_tri[0], arrowprops=dict(arrowstyle="->", color="#16a34a", lw=2.5, shrinkA=8, shrinkB=8))
-    ax1.annotate('', xy=pos_tri[2], xytext=pos_tri[1], arrowprops=dict(arrowstyle="->", color="#16a34a", lw=2.5, shrinkA=8, shrinkB=8))
-    ax1.annotate('', xy=pos_tri[2], xytext=pos_tri[0], arrowprops=dict(arrowstyle="->", color="#16a34a", lw=2.5, shrinkA=8, shrinkB=8))
-    ax1.text(0.5, 0.42, r"$\delta_1(\delta_0 x) \equiv 0$" + "\nExplainable\nClock Skew", ha='center', va='center', fontsize=8.5, color='#14532d')
+    ax1.set_title(r"1. Gauge Gradient $\delta_0 x$" + "\n" + r"(Curl-free, $\delta_1(\delta_0 x) \equiv 0$)", 
+                  fontsize=8.8, fontweight='bold', color=SEA_GREEN)
+    ax1.annotate('', xy=pos_tri[1], xytext=pos_tri[0], arrowprops=dict(arrowstyle="-|>", color=SEA_GREEN, lw=1.4, shrinkA=6, shrinkB=6))
+    ax1.annotate('', xy=pos_tri[2], xytext=pos_tri[1], arrowprops=dict(arrowstyle="-|>", color=SEA_GREEN, lw=1.4, shrinkA=6, shrinkB=6))
+    ax1.annotate('', xy=pos_tri[2], xytext=pos_tri[0], arrowprops=dict(arrowstyle="-|>", color=SEA_GREEN, lw=1.4, shrinkA=6, shrinkB=6))
+    ax1.text(0.5, 0.38, "Explainable\nClock Lag\n" + r"$\delta_1 g = 0$", ha='center', va='center', fontsize=7.8, color=SEA_GREEN)
     for i, (x, y) in enumerate(pos_tri):
-        ax1.add_patch(plt.Circle((x, y), 0.08, facecolor='#bbf7d0', edgecolor='#16a34a', lw=1.5, zorder=4))
-        ax1.text(x, y, f"$v_{i}$", ha='center', va='center', fontsize=8.5, fontweight='bold')
+        ax1.add_patch(plt.Circle((x, y), 0.06, facecolor=BG_WHITE, edgecolor=SEA_GREEN, lw=1.2, zorder=4))
+        ax1.text(x, y, f"$v_{i}$", ha='center', va='center', fontsize=8, color=SLATE_DARK)
 
     # 2. Harmonic Cavity h
-    ax2.set_title(r"2. Harmonic Cavity $h \in \mathcal{H}^1$" + "\n(Macro Partition)", fontsize=9.5, fontweight='bold', color='#1e40af')
-    # 4-node ring with central void
-    ring = [(0.15, 0.15), (0.85, 0.15), (0.85, 0.85), (0.15, 0.85)]
+    ax2.set_title(r"2. Harmonic Cavity $h \in \mathcal{H}^1$" + "\n" + r"($\delta_1 h = 0$, $\delta_0^* h = 0$)", 
+                  fontsize=8.8, fontweight='bold', color=HARBOR_BLUE)
+    ring = [(0.18, 0.18), (0.82, 0.18), (0.82, 0.82), (0.18, 0.82)]
     for i in range(4):
-        p1, p2 = ring[i], ring[(i+1)%4]
-        ax2.annotate('', xy=p2, xytext=p1, arrowprops=dict(arrowstyle="->", color="#2563eb", lw=2.5, shrinkA=8, shrinkB=8))
-    # Unfilled center hole
-    hole = plt.Circle((0.5, 0.5), 0.22, facecolor='#dbeafe', edgecolor='#3b82f6', lw=1.5, ls='--')
+        ax2.annotate('', xy=ring[(i+1)%4], xytext=ring[i], 
+                     arrowprops=dict(arrowstyle="-|>", color=HARBOR_BLUE, lw=1.4, shrinkA=6, shrinkB=6))
+    hole = plt.Circle((0.5, 0.5), 0.18, facecolor=BG_LIGHT, edgecolor=HARBOR_BLUE, lw=0.8, ls='--')
     ax2.add_patch(hole)
-    ax2.text(0.5, 0.5, r"Topological Void" + "\n" + r"$\delta_1 h = 0$" + "\n" + r"$\delta_0^* h = 0$", 
-             ha='center', va='center', fontsize=8, color='#1e3a8a', fontweight='bold')
+    ax2.text(0.5, 0.5, "Macro Cavity\n(Partition Void)", ha='center', va='center', fontsize=7.5, color=HARBOR_BLUE)
     for i, (x, y) in enumerate(ring):
-        ax2.add_patch(plt.Circle((x, y), 0.08, facecolor='#bfdbfe', edgecolor='#2563eb', lw=1.5, zorder=4))
-        ax2.text(x, y, f"$u_{i}$", ha='center', va='center', fontsize=8.5, fontweight='bold')
+        ax2.add_patch(plt.Circle((x, y), 0.06, facecolor=BG_WHITE, edgecolor=HARBOR_BLUE, lw=1.2, zorder=4))
+        ax2.text(x, y, f"$u_{i}$", ha='center', va='center', fontsize=8, color=SLATE_DARK)
 
-    # 3. Triadic Local Curl delta_1^* psi
-    ax3.set_title(r"3. Triadic Curl $\delta_1^* \psi$" + "\n(Micro Review Bug)", fontsize=9.5, fontweight='bold', color='#991b1b')
-    # Shaded 2-simplex triangle
-    poly = plt.Polygon(pos_tri, facecolor='#fee2e2', edgecolor='#ef4444', lw=2, zorder=2)
+    # 3. Triadic Curl delta_1^* psi
+    ax3.set_title(r"3. Triadic Curl $\delta_1^* \psi$" + "\n" + r"(Divergence-free, $\delta_0^* = 0$)", 
+                  fontsize=8.8, fontweight='bold', color=SHIP_RED)
+    poly = plt.Polygon(pos_tri, facecolor=BG_LIGHT, edgecolor=SHIP_RED, lw=1.2, zorder=2)
     ax3.add_patch(poly)
-    # Vortex circulation
-    arc = patches.Arc((0.5, 0.4), 0.32, 0.32, angle=0, theta1=20, theta2=320, color='#dc2626', lw=2.2, ls='-')
+    arc = patches.Arc((0.5, 0.40), 0.28, 0.28, angle=0, theta1=20, theta2=320, color=SHIP_RED, lw=1.2, ls='--')
     ax3.add_patch(arc)
-    ax3.annotate('', xy=(0.65, 0.46), xytext=(0.66, 0.42), arrowprops=dict(arrowstyle="->", color="#dc2626", lw=2.2))
-    ax3.text(0.5, 0.4, r"Broken 3-Way" + "\n" + r"Contract" + "\n" + r"$(\delta_1 g \ne 0)$", 
-             ha='center', va='center', fontsize=8, color='#991b1b', fontweight='bold')
+    ax3.annotate('', xy=(0.63, 0.45), xytext=(0.64, 0.41), arrowprops=dict(arrowstyle="-|>", color=SHIP_RED, lw=1.2))
+    ax3.text(0.5, 0.40, "Broken 3-Way\nReview Join\n" + r"$(\delta_1 g \neq 0)$", ha='center', va='center', fontsize=7.5, color=SHIP_RED)
     for i, (x, y) in enumerate(pos_tri):
-        ax3.add_patch(plt.Circle((x, y), 0.08, facecolor='#fecaca', edgecolor='#ef4444', lw=1.5, zorder=4))
-        ax3.text(x, y, f"$v_{i}$", ha='center', va='center', fontsize=8.5, fontweight='bold')
+        ax3.add_patch(plt.Circle((x, y), 0.06, facecolor=BG_WHITE, edgecolor=SHIP_RED, lw=1.2, zorder=4))
+        ax3.text(x, y, f"$v_{i}$", ha='center', va='center', fontsize=8, color=SLATE_DARK)
 
-    # 4. Swarm Legibility Ratio Comparison Bar Chart
-    ax4.set_facecolor('#ffffff')
-    ax4.set_title(r"Swarm Legibility Ratio" + "\n" + r"$\mathcal{L}(g) = \frac{\|h\|^2}{\|h\|^2 + \|\delta_1^*\psi\|^2}$",
-                  fontsize=9.5, fontweight='bold', color='#0f172a', pad=10)
-
+    # 4. Legibility Ratio Bar Chart
+    ax4.set_facecolor(BG_WHITE)
+    ax4.set_title(r"Swarm Legibility $\mathcal{L}(g)$" + "\n" + r"$\frac{\|h\|^2}{\|h\|^2 + \|\delta_1^*\psi\|^2}$",
+                  fontsize=8.8, fontweight='bold', color=SLATE_DARK, pad=8)
+    
     categories = ['Review Bug\n(Micro)', 'Network Split\n(Macro)']
     values = [0.00, 1.00]
-    bars = ax4.bar(categories, values, width=0.55, color=['#ef4444', '#2563eb'], edgecolor='#0f172a', lw=1.2)
-    ax4.set_ylabel(r"$\mathcal{L}(g) \in [0, 1]$", fontsize=9.5)
+    bars = ax4.bar(categories, values, width=0.45, color=[SHIP_RED, HARBOR_BLUE], edgecolor=SLATE_DARK, lw=0.8)
+    ax4.set_ylabel(r"$\mathcal{L}(g) \in [0, 1]$", fontsize=8.5)
     ax4.set_ylim(0, 1.15)
-    ax4.grid(axis='y', linestyle=':', alpha=0.6)
-    
-    # Value annotations on bars
-    ax4.text(0, 0.05, "0.000\n(Local)", ha='center', va='bottom', fontsize=8.5, fontweight='bold', color='#991b1b')
-    ax4.text(1, 1.02, "1.000\n(Global)", ha='center', va='bottom', fontsize=8.5, fontweight='bold', color='#1e3a8a')
+    ax4.grid(axis='y', linestyle=':', alpha=0.35)
+    ax4.text(0, 0.05, "0.00", ha='center', va='bottom', fontsize=8, fontweight='bold', color=SHIP_RED)
+    ax4.text(1, 1.02, "1.00", ha='center', va='bottom', fontsize=8, fontweight='bold', color=HARBOR_BLUE)
 
     plt.tight_layout()
-    out_svg = os.path.join(FIG_DIR, "fig-paper8-simplicial-hodge.png")
-    out_brain = os.path.join(BRAIN_DIR, "fig-paper8-simplicial-hodge.png")
-    plt.savefig(out_svg, dpi=300, facecolor='#ffffff')
-    plt.savefig(out_brain, dpi=300, facecolor='#ffffff')
+    plt.savefig(os.path.join(FIG_DIR, "fig-paper8-simplicial-hodge.png"), dpi=300, facecolor=BG_WHITE)
+    plt.savefig(os.path.join(BRAIN_DIR, "fig-paper8-simplicial-hodge.png"), dpi=300, facecolor=BG_WHITE)
     plt.close()
-    print("Saved Figure 3:", out_svg)
+    print("Regenerated Figure 3.")
 
 # -------------------------------------------------------------------------
 # FIGURE 4: Theorem CR-4 (Optimal Cohomological Repair via Min-Cut)
 # -------------------------------------------------------------------------
 def make_fig4():
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4.2), dpi=300)
-    fig.patch.set_facecolor('#ffffff')
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(11, 3.8), dpi=300)
+    fig.patch.set_facecolor(BG_WHITE)
 
-    # Panel 1: Residual Energy Distribution E(e) = rho_e^2
-    ax1.set_facecolor('#fafbfc')
-    ax1.set_title(r"Step 0: Residual Flow $\rho$", fontsize=10, fontweight='bold', color='#0f172a')
+    # Panel 1: Residual Flow Graph
+    ax1.set_facecolor(BG_WHITE)
+    ax1.set_title(r"(a) Residual Flow $\rho = \Pi_K g_K$", fontsize=9.5, fontweight='bold', color=SLATE_DARK)
+    pos = {0: (0.18, 0.82), 1: (0.82, 0.82), 2: (0.82, 0.18), 3: (0.18, 0.18)}
+    edge_energies = {(0,1): 0.50, (1,2): 2.33, (2,3): 0.80, (3,0): 0.80, (0,2): 1.85}
     
-    G = nx.Graph()
-    G.add_edges_from([(0,1), (1,2), (2,3), (3,0), (0,2)])
-    pos = {0: (0.15, 0.85), 1: (0.85, 0.85), 2: (0.85, 0.15), 3: (0.15, 0.15)}
-    
-    # Draw edges with width proportional to residual energy
-    edge_energies = {(0,1): 0.5, (1,2): 2.33, (2,3): 0.8, (3,0): 0.8, (0,2): 1.85}
     for (u, v), en in edge_energies.items():
-        col = '#dc2626' if en > 1.5 else '#64748b'
-        lw = 1.5 + en * 1.5
+        col = SHIP_RED if en > 1.5 else SLATE_LIGHT
+        lw = 1.0 + en * 0.8
         ax1.plot([pos[u][0], pos[v][0]], [pos[u][1], pos[v][1]], color=col, lw=lw, zorder=2)
         mx, my = (pos[u][0] + pos[v][0])/2, (pos[u][1] + pos[v][1])/2
-        ax1.text(mx, my, f"{en:.2f}", fontsize=7.5, color='#991b1b' if en > 1.5 else '#334155',
-                 bbox=dict(boxstyle="round,pad=0.2", facecolor='#ffffff', edgecolor='#cbd5e1', lw=0.5))
+        ax1.text(mx, my, f"{en:.2f}", fontsize=7.2, color=SHIP_RED if en > 1.5 else SLATE_MID,
+                 bbox=dict(boxstyle="square,pad=0.15", facecolor=BG_WHITE, edgecolor=LINE_GRAY, lw=0.5))
 
     for node, (x, y) in pos.items():
-        col = '#f87171' if node == 2 else '#93c5fd'
-        ec = '#b91c1c' if node == 2 else '#1d4ed8'
-        ax1.add_patch(plt.Circle((x, y), 0.08, facecolor=col, edgecolor=ec, lw=1.5, zorder=4))
-        ax1.text(x, y, f"$v_{node}$", ha='center', va='center', fontsize=8.5, fontweight='bold')
+        fc = SHIP_RED if node == 2 else HARBOR_BLUE
+        ax1.add_patch(plt.Circle((x, y), 0.065, facecolor=fc, edgecolor=SLATE_DARK, lw=0.8, zorder=4))
+        ax1.text(x, y, f"$v_{node}$", ha='center', va='center', fontsize=8, color=BG_WHITE, fontweight='bold')
 
-    ax1.text(0.5, 0.02, r"Initial Residual $r = 2.683$" + "\nNode $v_2$ equivocating", ha='center', va='bottom', fontsize=8, color='#991b1b')
-    ax1.set_xlim(0, 1)
-    ax1.set_ylim(0, 1)
+    ax1.text(0.5, -0.04, r"Initial $r = 2.683$; Node $v_2$ equivocating", ha='center', va='top', fontsize=7.8, color=SLATE_DARK)
+    ax1.set_xlim(0.05, 0.95)
+    ax1.set_ylim(-0.1, 0.95)
     ax1.axis('off')
 
-    # Panel 2: Energy-to-Cost Controller Evaluation E(e)/w(e)
-    ax2.set_facecolor('#ffffff')
-    ax2.set_title(r"Controller: $\arg\max \frac{E(e)}{w(e)}$", fontsize=10, fontweight='bold', color='#0f172a')
-    
+    # Panel 2: Ratio Controller Plot
+    ax2.set_facecolor(BG_WHITE)
+    ax2.set_title(r"(b) Controller: $\arg\max \frac{E(e)}{w(e)}$", fontsize=9.5, fontweight='bold', color=SLATE_DARK)
     edge_names = ['(0,1)', '(1,2)', '(2,3)', '(3,0)', '(0,2)']
-    costs = [5.0, 5.0, 5.0, 5.0, 1.0] # chord (0,2) has low fence cost
-    energies = [0.5, 2.33, 0.8, 0.8, 1.85]
+    costs = [5.0, 5.0, 5.0, 5.0, 1.0]
+    energies = [0.50, 2.33, 0.80, 0.80, 1.85]
     ratios = [en / c for en, c in zip(energies, costs)]
     
-    bars = ax2.bar(edge_names, ratios, width=0.5, color=['#94a3b8', '#94a3b8', '#94a3b8', '#94a3b8', '#16a34a'], edgecolor='#0f172a', lw=1)
-    ax2.set_ylabel(r"Ratio $E(e)/w(e)$", fontsize=9)
-    ax2.grid(axis='y', linestyle=':', alpha=0.6)
-    ax2.text(4, ratios[4] + 0.08, r"Optimal Cut $e^*$" + "\n" + r"(Max Ratio=1.85)", ha='center', va='bottom', fontsize=8, color='#166534', fontweight='bold')
+    bars = ax2.bar(edge_names, ratios, width=0.45, color=[SLATE_LIGHT]*4 + [HARBOR_BLUE], edgecolor=SLATE_DARK, lw=0.8)
+    ax2.set_ylabel(r"Ratio $E(e)/w(e)$", fontsize=8.5)
+    ax2.grid(axis='y', linestyle=':', alpha=0.35)
+    ax2.text(4, ratios[4] + 0.06, r"Optimal Cut $e^*$" + "\n" + r"(Ratio=1.85)", ha='center', va='bottom', fontsize=7.5, color=HARBOR_BLUE, fontweight='bold')
     ax2.set_ylim(0, 2.3)
 
-    # Panel 3: Iteration Collapse r(t) -> 0
-    ax3.set_facecolor('#ffffff')
-    ax3.set_title(r"Residual Collapse: $r(t) \to 0$", fontsize=10, fontweight='bold', color='#0f172a')
-    
+    # Panel 3: Monotonic Decay Curve
+    ax3.set_facecolor(BG_WHITE)
+    ax3.set_title(r"(c) Residual Collapse: $r(t) \to 0$", fontsize=9.5, fontweight='bold', color=SLATE_DARK)
     rounds = [0, 1, 2]
     residuals = [2.683, 1.528, 0.000]
     
-    ax3.plot(rounds, residuals, marker='o', lw=2.2, color='#2563eb', markersize=7)
+    ax3.plot(rounds, residuals, marker='s', lw=1.4, color=HARBOR_BLUE, markersize=5)
     for r_idx, val in zip(rounds, residuals):
-        ax3.text(r_idx, val + 0.12, f"$r={val:.3f}$", ha='center', va='bottom', fontsize=8.5, fontweight='bold', color='#1e3a8a')
+        ax3.text(r_idx, val + 0.12, f"$r={val:.3f}$", ha='center', va='bottom', fontsize=8, color=HARBOR_BLUE)
     
-    ax3.set_xlabel("Intervention Round", fontsize=9)
-    ax3.set_ylabel("Completion Residual $r$", fontsize=9)
+    ax3.set_xlabel("Intervention Round", fontsize=8.5)
+    ax3.set_ylabel("Completion Residual $r$", fontsize=8.5)
     ax3.set_xticks([0, 1, 2])
     ax3.set_ylim(-0.2, 3.2)
-    ax3.grid(True, linestyle=':', alpha=0.6)
-    ax3.text(1.2, 0.3, r"Terminates in $\leq \beta_1(G)$ rounds" + "\n" + r"$\beta_1(G) = 5 - 4 + 1 = 2$",
-             fontsize=8, color='#166534', bbox=dict(boxstyle="round,pad=0.3", facecolor='#f0fdf4', edgecolor='#86efac'))
+    ax3.grid(True, linestyle=':', alpha=0.35)
+    ax3.text(1.15, 0.4, r"Bound: $\leq \beta_1(G)$ rounds" + "\n" + r"$\beta_1(G) = 5 - 4 + 1 = 2$",
+             fontsize=7.8, color=SEA_GREEN, bbox=dict(boxstyle="square,pad=0.3", facecolor=BG_LIGHT, edgecolor=LINE_GRAY, lw=0.6))
 
     plt.tight_layout()
-    out_svg = os.path.join(FIG_DIR, "fig-paper8-active-repair.png")
-    out_brain = os.path.join(BRAIN_DIR, "fig-paper8-active-repair.png")
-    plt.savefig(out_svg, dpi=300, facecolor='#ffffff')
-    plt.savefig(out_brain, dpi=300, facecolor='#ffffff')
+    plt.savefig(os.path.join(FIG_DIR, "fig-paper8-active-repair.png"), dpi=300, facecolor=BG_WHITE)
+    plt.savefig(os.path.join(BRAIN_DIR, "fig-paper8-active-repair.png"), dpi=300, facecolor=BG_WHITE)
     plt.close()
-    print("Saved Figure 4:", out_svg)
+    print("Regenerated Figure 4.")
 
 # -------------------------------------------------------------------------
-# FIGURE 5: 16-Agent Enterprise Matrix Swarm (Mixed Micro/Macro Failure)
+# FIGURE 5: 16-Agent Clustered Enterprise Matrix (Mixed Failure)
 # -------------------------------------------------------------------------
 def make_fig5():
-    fig, (ax_graph, ax_stats) = plt.subplots(1, 2, figsize=(12, 5.5), dpi=300, width_ratios=[1.3, 0.7])
-    fig.patch.set_facecolor('#ffffff')
-    ax_graph.set_facecolor('#ffffff')
-    ax_stats.set_facecolor('#fafbfc')
+    fig, (ax_graph, ax_stats) = plt.subplots(1, 2, figsize=(11, 4.8), dpi=300, width_ratios=[1.25, 0.75])
+    fig.patch.set_facecolor(BG_WHITE)
+    ax_graph.set_facecolor(BG_WHITE)
+    ax_stats.set_facecolor(BG_WHITE)
 
-    ax_graph.set_title("16-Agent Clustered Enterprise Swarm: Mixed Failure Triage", 
-                       fontsize=11, fontweight='bold', color='#0f172a', pad=12)
+    ax_graph.set_title("16-Agent Enterprise Organization: Mixed Failure Triage", 
+                       fontsize=10.5, fontweight='bold', color=SLATE_DARK, pad=10)
 
-    # 4 Quadrants for 4 Teams
-    team_centers = {
-        'Frontend': (0.28, 0.72),
-        'Backend': (0.72, 0.72),
-        'Data': (0.72, 0.28),
-        'Security': (0.28, 0.28)
-    }
+    # 4 Team Quadrants (subtle, clean, neutral borders)
     team_boxes = {
-        'Frontend': (0.05, 0.52, 0.40, 0.42, '#f0fdf4', '#16a34a'),
-        'Backend': (0.55, 0.52, 0.40, 0.42, '#fff7ed', '#ea580c'),
-        'Data': (0.55, 0.05, 0.40, 0.42, '#faf5ff', '#9333ea'),
-        'Security': (0.05, 0.05, 0.40, 0.42, '#eff6ff', '#2563eb')
+        'Frontend': (0.05, 0.52, 0.40, 0.42),
+        'Backend':  (0.55, 0.52, 0.40, 0.42),
+        'Data':     (0.55, 0.05, 0.40, 0.42),
+        'Security': (0.05, 0.05, 0.40, 0.42)
     }
 
-    for name, (bx, by, bw, bh, fc, ec) in team_boxes.items():
-        rect = patches.FancyBboxPatch((bx, by), bw, bh, boxstyle="round,pad=0.02",
-                                     facecolor=fc, edgecolor=ec, lw=1.2, alpha=0.85, zorder=1)
+    for name, (bx, by, bw, bh) in team_boxes.items():
+        rect = patches.Rectangle((bx, by), bw, bh, facecolor=BG_LIGHT, edgecolor=LINE_GRAY, lw=0.8, zorder=1)
         ax_graph.add_patch(rect)
-        ax_graph.text(bx + 0.03, by + bh - 0.05, f"Team: {name}", fontsize=9, fontweight='bold', color=ec, zorder=2)
+        ax_graph.text(bx + 0.03, by + bh - 0.045, f"Team: {name}", fontsize=8.2, fontweight='bold', color=HARBOR_BLUE, zorder=2)
 
-    # Node positions (4 nodes per team)
     pos = {
         # Frontend: 0,1,2,3
         0: (0.15, 0.83), 1: (0.35, 0.83), 2: (0.38, 0.62), 3: (0.18, 0.62),
@@ -454,24 +412,18 @@ def make_fig5():
         12: (0.38, 0.15), 13: (0.18, 0.15), 14: (0.15, 0.38), 15: (0.35, 0.38),
     }
 
-    # Draw Triangles (2-cells)
-    # Backend triangle (4,5,6) has MICRO REVIEW BUG (highlight in red)
-    poly_err = plt.Polygon([pos[4], pos[5], pos[6]], facecolor='#fee2e2', edgecolor='#dc2626', lw=2, zorder=2)
+    # Micro failure: Backend triangle (4,5,6)
+    poly_err = plt.Polygon([pos[4], pos[5], pos[6]], facecolor=BG_WHITE, edgecolor=SHIP_RED, lw=1.4, zorder=2)
     ax_graph.add_patch(poly_err)
-    ax_graph.text(0.76, 0.69, r"Micro Triad Bug" + "\n" + r"$\delta_1^* \psi = 3.46$",
-                 ha='center', va='center', fontsize=7.5, color='#991b1b', fontweight='bold', zorder=5)
+    ax_graph.text(0.76, 0.69, r"Triad Bug" + "\n" + r"$\delta_1^* \psi = 3.46$",
+                 ha='center', va='center', fontsize=7.2, color=SHIP_RED, zorder=5)
 
-    # Other normal review triangles (light grey/green)
-    normal_triangles = [
-        [pos[0], pos[1], pos[2]],
-        [pos[8], pos[9], pos[10]],
-        [pos[12], pos[13], pos[14]]
-    ]
-    for pts in normal_triangles:
-        poly = plt.Polygon(pts, facecolor='#e2e8f0', edgecolor='#94a3b8', lw=1, alpha=0.5, zorder=2)
+    # Normal review triangles
+    for pts in [[pos[0], pos[1], pos[2]], [pos[8], pos[9], pos[10]], [pos[12], pos[13], pos[14]]]:
+        poly = plt.Polygon(pts, facecolor=BG_WHITE, edgecolor=LINE_GRAY, lw=0.8, zorder=2)
         ax_graph.add_patch(poly)
 
-    # Intra-team edges
+    # Intra-team links
     intra_edges = [
         (0,1), (1,2), (0,2), (1,3), (2,3),
         (4,5), (5,6), (4,6), (5,7), (6,7),
@@ -479,77 +431,68 @@ def make_fig5():
         (12,13), (13,14), (12,14), (13,15), (14,15)
     ]
     for u, v in intra_edges:
-        col = '#dc2626' if (u in [4,5,6] and v in [4,5,6]) else '#64748b'
-        lw = 2.2 if (u in [4,5,6] and v in [4,5,6]) else 1.2
+        col = SHIP_RED if (u in [4,5,6] and v in [4,5,6]) else SLATE_LIGHT
+        lw = 1.4 if (u in [4,5,6] and v in [4,5,6]) else 0.9
         ax_graph.plot([pos[u][0], pos[v][0]], [pos[u][1], pos[v][1]], color=col, lw=lw, zorder=3)
 
-    # Inter-team bridge edges (macro loop)
+    # Inter-team bridge links
     inter_edges = [(2, 4), (3, 5), (6, 8), (7, 9), (10, 12), (11, 13), (0, 14), (15, 6)]
     for u, v in inter_edges:
-        col = '#2563eb' if (u, v) in [(2, 4), (3, 5)] else '#94a3b8'
-        lw = 2.0 if (u, v) in [(2, 4), (3, 5)] else 1.2
-        ls = '--'
+        is_lag = (u, v) in [(2, 4), (3, 5)]
+        col = HARBOR_BLUE if is_lag else LINE_GRAY
+        lw = 1.4 if is_lag else 0.8
+        ls = '--' if is_lag else ':'
         ax_graph.plot([pos[u][0], pos[v][0]], [pos[u][1], pos[v][1]], color=col, lw=lw, ls=ls, zorder=3)
 
-    # Macro cavity loop annotation between FE and BE
-    ax_graph.text(0.50, 0.69, r"Macro Cavity Flow" + "\n" + r"$h = 2.50$",
-                 ha='center', va='center', fontsize=7.8, color='#1e40af', fontweight='bold',
-                 bbox=dict(boxstyle="round,pad=0.2", facecolor='#dbeafe', edgecolor='#93c5fd', lw=0.8), zorder=6)
+    ax_graph.text(0.50, 0.69, r"Partition Cavity" + "\n" + r"$h = 2.50$",
+                 ha='center', va='center', fontsize=7.2, color=HARBOR_BLUE,
+                 bbox=dict(boxstyle="square,pad=0.2", facecolor=BG_WHITE, edgecolor=HARBOR_BLUE, lw=0.6), zorder=6)
 
-    # Draw Nodes
+    # Nodes
     for node, (x, y) in pos.items():
-        if node in [4, 5, 6]:
-            fc, ec = '#fca5a5', '#dc2626'
-        elif node in [2, 3]:
-            fc, ec = '#93c5fd', '#1d4ed8'
-        else:
-            fc, ec = '#ffffff', '#475569'
-        ax_graph.add_patch(plt.Circle((x, y), 0.038, facecolor=fc, edgecolor=ec, lw=1.5, zorder=4))
-        ax_graph.text(x, y, f"{node}", ha='center', va='center', fontsize=8, fontweight='bold', zorder=5)
+        fc = SHIP_RED if node in [4, 5, 6] else (HARBOR_BLUE if node in [2, 3] else SLATE_DARK)
+        ax_graph.add_patch(plt.Circle((x, y), 0.030, facecolor=fc, edgecolor=SLATE_DARK, lw=0.8, zorder=4))
+        ax_graph.text(x, y, f"{node}", ha='center', va='center', fontsize=7.5, color=BG_WHITE, zorder=5)
 
     ax_graph.set_xlim(0.0, 1.0)
     ax_graph.set_ylim(0.0, 1.0)
     ax_graph.axis('off')
 
-    # Right Subplot: Decomposition Statistics & Prescriptive Triage
-    ax_stats.set_title("Hodge Decomposition Energy", fontsize=11, fontweight='bold', color='#0f172a', pad=12)
+    # Right Panel: Energy Stats
+    ax_stats.set_title("Hodge Decomposition Energy", fontsize=10.5, fontweight='bold', color=SLATE_DARK, pad=10)
 
     components = ['Gauge Progress\n($\\|\\delta_0 x\\| = 3.13$)',
                   'Harmonic Cavity\n($\\|h\\| = 2.50$)',
                   'Triadic Curl\n($\\|\\delta_1^* \\psi\\| = 3.46$)']
     energies = [3.126**2, 2.496**2, 3.464**2]
-    total_energy = sum(energies)
-    colors = ['#16a34a', '#2563eb', '#dc2626']
+    colors = [SEA_GREEN, HARBOR_BLUE, SHIP_RED]
 
-    bars = ax_stats.barh(components, energies, color=colors, edgecolor='#0f172a', lw=1, height=0.55)
-    ax_stats.set_xlabel("Energy Metric ($\\|\\cdot\\|_2^2$)", fontsize=9.5)
-    ax_stats.grid(axis='x', linestyle=':', alpha=0.6)
+    bars = ax_stats.barh(components, energies, color=colors, edgecolor=SLATE_DARK, lw=0.8, height=0.45)
+    ax_stats.set_xlabel(r"Energy Metric ($\|\cdot\|_2^2$)", fontsize=8.5)
+    ax_stats.grid(axis='x', linestyle=':', alpha=0.35)
 
     for bar, val in zip(bars, energies):
-        ax_stats.text(val + 0.4, bar.get_y() + bar.get_height()/2, f"{val:.1f}", 
-                     va='center', fontsize=8.5, fontweight='bold', color='#1e293b')
+        ax_stats.text(val + 0.3, bar.get_y() + bar.get_height()/2, f"{val:.1f}", 
+                     va='center', fontsize=8, color=SLATE_DARK)
 
-    # Summary Card Box
     summary_text = (
         r"$\mathbf{Swarm\ Legibility\ Ratio:}$" + "\n"
-        r"$\mathcal{L}(g) = \frac{\|h\|^2}{\|h\|^2 + \|\delta_1^* \psi\|^2} = \frac{6.23}{6.23 + 12.00} = \mathbf{0.342}$" + "\n\n"
-        r"$\mathbf{Operational\ Triage\ Verdict:}$" + "\n"
-        r"$\bullet\ \mathbf{65.8\%\ Micro:}$ Review bug in Backend Triad $(v_4, v_5, v_6)$." + "\n"
-        r"  $\rightarrow$ Action: Re-prompt Dissenter / Manager." + "\n"
-        r"$\bullet\ \mathbf{34.2\%\ Macro:}$ Epoch lag on Bridge $(v_2, v_4)$." + "\n"
-        r"  $\rightarrow$ Action: Force cross-team contract sync."
+        r"$\mathcal{L}(g) = \frac{\|h\|^2}{\|h\|^2 + \|\delta_1^* \psi\|^2} = \mathbf{0.342}$" + "\n\n"
+        r"$\mathbf{Prescriptive\ Triage:}$" + "\n"
+        r"$\bullet\ \mathbf{65.8\%\ Micro:}$ Review bug in $(v_4, v_5, v_6)$." + "\n"
+        r"  $\rightarrow$ Re-prompt Backend triad." + "\n"
+        r"$\bullet\ \mathbf{34.2\%\ Macro:}$ Lag on bridge $(v_2, v_4)$." + "\n"
+        r"  $\rightarrow$ Reconcile API interface."
     )
-    ax_stats.text(0.5, 0.15, summary_text, transform=ax_stats.transAxes,
-                  ha='center', va='center', fontsize=8.5, color='#0f172a', linespacing=1.3,
-                  bbox=dict(boxstyle="round,pad=0.5", facecolor='#ffffff', edgecolor='#cbd5e1', lw=1.2))
+    ax_stats.text(0.5, 0.16, summary_text, transform=ax_stats.transAxes,
+                  ha='center', va='center', fontsize=7.8, color=SLATE_DARK, linespacing=1.3,
+                  bbox=dict(boxstyle="square,pad=0.4", facecolor=BG_LIGHT, edgecolor=LINE_GRAY, lw=0.8))
 
     plt.tight_layout()
-    out_svg = os.path.join(FIG_DIR, "fig-paper8-16agent-matrix.png")
-    out_brain = os.path.join(BRAIN_DIR, "fig-paper8-16agent-matrix.png")
-    plt.savefig(out_svg, dpi=300, facecolor='#ffffff')
-    plt.savefig(out_brain, dpi=300, facecolor='#ffffff')
+    plt.savefig(os.path.join(FIG_DIR, "fig-paper8-16agent-matrix.png"), dpi=300, facecolor=BG_WHITE)
+    plt.savefig(os.path.join(BRAIN_DIR, "fig-paper8-16agent-matrix.png"), dpi=300, facecolor=BG_WHITE)
     plt.close()
-    print("Saved Figure 5:", out_svg)
+    print("Regenerated Figure 5.")
 
 if __name__ == '__main__':
     make_fig1()
@@ -557,4 +500,4 @@ if __name__ == '__main__':
     make_fig3()
     make_fig4()
     make_fig5()
-    print("All 5 academic figures successfully rendered!")
+    print("All 5 academic figures regenerated with Harbor Research styling!")

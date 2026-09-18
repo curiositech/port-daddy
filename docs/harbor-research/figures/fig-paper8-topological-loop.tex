@@ -1,0 +1,67 @@
+% Paper8 Figure 1: Topological Horizon of Equivocation Detection.
+% Shows open tree (acyclic, provably silent) vs closed cycle (trapped lie, certified lower bound).
+% Conforms to CONVENTION.md: native TikZ, harborblue/shipred/seagreen palette.
+% [verified: script generate_paper8_academic_figures.py]
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}[
+  gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\scriptsize\bfseries,text=white},
+  liegnode/.style={circle,draw=black,thick,fill=shipred,minimum size=5.5mm,inner sep=0pt,font=\scriptsize\bfseries,text=white},
+  treeedge/.style={slate,thick,->},
+]
+\node[gnode] (n0) at (2.0, 3.2) {$v_0$};
+\node[liegnode] (n1) at (1.0, 1.8) {$v_1^*$};
+\node[gnode] (n2) at (3.0, 1.8) {$v_2$};
+\node[gnode] (n3) at (0.5, 0.4) {$v_3$};
+\node[gnode] (n4) at (1.5, 0.4) {$v_4$};
+\node[gnode] (n5) at (3.0, 0.4) {$v_5$};
+
+\draw[treeedge] (n0) -- (n1);
+\draw[treeedge] (n0) -- (n2);
+\draw[treeedge] (n1) -- (n3);
+\draw[treeedge] (n1) -- (n4);
+\draw[treeedge] (n2) -- (n5);
+
+\node[font=\tiny,color=slate,align=center] at (2.0, -0.4) {
+  $\ker(\delta_0^T) = \{0\} \Rightarrow \Pi_T = 0 \Rightarrow r = 0$\\
+  Lie is absorbed by gauge; provably silent.
+};
+\end{tikzpicture}
+\\[4pt]
+{\small\bfseries (a) Acyclic Gossip Tree ($r = 0$)}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}[
+  gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\scriptsize\bfseries,text=white},
+  liegnode/.style={circle,draw=black,thick,fill=shipred,minimum size=5.5mm,inner sep=0pt,font=\scriptsize\bfseries,text=white},
+  okedge/.style={harborblue,thick,->},
+  lieedge/.style={shipred,very thick,->},
+]
+\node[gnode] (c0) at (0.8, 2.6) {$v_0$};
+\node[liegnode] (c1) at (3.2, 2.6) {$v_1^*$};
+\node[gnode] (c2) at (3.2, 0.8) {$v_2$};
+\node[gnode] (c3) at (0.8, 0.8) {$v_3$};
+
+\draw[okedge] (c0) -- node[above,font=\tiny] {$g_{01}=0$} (c1);
+\draw[lieedge] (c1) -- node[right,font=\tiny,shipred,font=\scriptsize\bfseries] {$g_{12}=+3.0$} (c2);
+\draw[okedge] (c2) -- node[below,font=\tiny] {$g_{23}=0$} (c3);
+\draw[okedge] (c3) -- node[left,font=\tiny] {$g_{30}=0$} (c0);
+
+\draw[shipred,dashed,thick,->] (2.0, 1.7) arc (30:330:0.45);
+\node[shipred,font=\tiny\bfseries,align=center] at (2.0, 1.7) {$\rho \ne 0$};
+
+\node[font=\tiny,color=slate,align=center] at (2.0, -0.4) {
+  $r = |s|\sqrt{1 - R_{\mathrm{eff}}(e)} = 3.0\sqrt{1 - 3/4} = 1.500$\\
+  Cycle constraint certifies minimum lie lower bound.
+};
+\end{tikzpicture}
+\\[4pt]
+{\small\bfseries (b) Cycle Topology ($r > 0$)}
+\end{minipage}
+\caption{Topological horizon of equivocation detection. Left: In an acyclic graph, every uninspected disagreement is absorbed by vertex potentials, producing zero residual by algebra ($r = 0$). Right: On a cycle, the lie creates an unresolvable circulation $\rho \in \ker(B^T)$ with certified lower bound $r = |s|\sqrt{1 - R_{\mathrm{eff}}(e)} = 1.500$ [verified; script \texttt{generate\_paper8\_academic\_figures.py}].}
+\label{fig:topological-loop}
+\end{figure}
