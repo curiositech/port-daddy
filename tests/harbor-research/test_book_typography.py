@@ -63,6 +63,22 @@ class BookTypographyTests(unittest.TestCase):
 @unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),
                      "Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks")
 class RenderedBookTypographyTests(unittest.TestCase):
+    def test_four_part_opening_spreads_are_retained(self):
+        manifest = json.loads((ROOT / "whitepaper/textbook.json").read_text())
+        aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
+        with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
+            for number, part in enumerate(manifest["parts"], start=1):
+                key = "part:" + part["numeral"]
+                folio = re.search(r"\\newlabel\{" + re.escape(key)
+                                  + r"\}\{\{[^{}]*\}\{([^{}]+)\}", aux).group(1)
+                index = book.resolve_names()[f"part.{number}"]["page"]
+                with self.subTest(part=part["numeral"]):
+                    self.assertEqual(book[index].get_label(), folio)
+                    self.assertEqual((index + 1) % 2, 0, "Part art must open on a left page")
+                    self.assertGreater(len(book[index].get_images()), 0, "Part art is missing")
+                    self.assertIn("The chapters", book[index + 1].get_text())
+                    self.assertIn("Part " + part["numeral"], book[index + 1].get_text())
+
     def test_every_chapter_keeps_its_epigraph_on_the_opener(self):
         manifest = json.loads((ROOT / "whitepaper/textbook.json").read_text())
         aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
