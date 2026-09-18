@@ -40,7 +40,7 @@ $$(h_B - h_A) + (h_C - h_B) + (h_D - h_C) + (h_A - h_D) = 0$$
 
 Because the reported steps sum to $+4$, you do not need to inspect the monks' shoes or question their motives to know that **something impossible has occurred**. The closed loop traps the contradiction.
 
-![Figure 1: Open Tree vs Closed Cycle Topological Obstruction](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/sheaf_swarm_loop_1789770061536.jpg)
+![Figure 1: Open Tree vs Closed Cycle Topological Obstruction](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/fig-paper8-topological-loop.png)
 *Figure 1: Intuition behind topological detection. Left: In an open tree network of AI agents, message drift and contradictory claims can be rationalized away as network delays. Right: In a closed cycle, an equivocating agent creates an unresolvable contradiction (an Escher loop) that produces a non-zero circulation vector detected by sheaf cohomology.*
 
 ### 1.2 The Multi-Agent Coordination Dilemma
@@ -133,7 +133,7 @@ Real AI agents do not simply gossip a single real number. An agent maintains ric
 
 This is precisely what a **cellular sheaf** formalizes.
 
-![Figure 2: The Rosetta Stone — Swarms to Cellular Sheaves](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/sheaf_swarm_rosetta_1789770073994.jpg)
+![Figure 2: The Rosetta Stone — Swarms to Cellular Sheaves](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/fig-paper8-sheaf-rosetta.png)
 *Figure 2: The Rosetta Stone architecture. Multi-agent runtime primitives (AgentNodes, channels, and review triads) map directly to cells, vector stalks, restriction matrices, and coboundary operators.*
 
 ### 3.1 Definition of a Cellular Sheaf
@@ -234,7 +234,7 @@ Is it a localized logic error inside a single 3-agent review team? Or is it a ma
 
 To answer this, we lift the analysis to a **simplicial 2-complex** $X = (V, E, F)$.
 
-![Figure 3: Discrete Hodge-Helmholtz Decomposition and Swarm Legibility Ratio](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/simplicial_hodge_decomp_1789770088085.jpg)
+![Figure 3: Discrete Hodge-Helmholtz Decomposition and Swarm Legibility Ratio](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/fig-paper8-simplicial-hodge.png)
 *Figure 3: Discrete Hodge-Helmholtz Decomposition on a simplicial 2-complex. An observed disagreement cochain $g$ splits into three mutually orthogonal components: gauge gradient $\delta_0 x$ (benign progress), harmonic cavity $h$ (macro network partition hole), and triadic curl $\delta_1^* \psi$ (micro-contract failure). The Swarm Legibility Ratio $\mathcal{L}(g)$ quantifies whether the failure is micro or macro.*
 
 ### 5.1 Theorem CR-5: The Simplicial Hodge-Helmholtz Decomposition
@@ -296,7 +296,7 @@ However, intervention is not free:
 
 Let $w(e) > 0$ be the **cost of intervention** on edge $e \in K$.
 
-![Figure 4: Theorem CR-4 Optimal Cohomological Repair Workflow](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/sheaf_active_repair_1789770102600.jpg)
+![Figure 4: Theorem CR-4 Optimal Cohomological Repair Workflow](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/fig-paper8-active-repair.png)
 *Figure 4: Theorem CR-4 active repair closed loop. Left: The swarm graph exhibits non-zero residual circulation around a rogue equivocating node. Center: The greedy controller computes the energy-to-cost ratio $E(e)/w(e)$ across active edges. Right: The optimal cut edge is fenced, destroying the cycle constraint and restoring $r=0$.*
 
 ### 6.1 The Repair Optimization Problem
