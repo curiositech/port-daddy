@@ -105,10 +105,18 @@ $$(\delta_1 g)_{\tau} = g_{uv} + g_{vw} - g_{uw} \quad \text{for } \tau = (u, v,
 
 This leads to the most celebrated identity in topology:
 
-```
-                  δ_0                  δ_1
-0 ───────> C^0 ─────────> C^1 ─────────> C^2 ───────> 0
- (Vertices)             (Edges)             (Triangles)
+```mermaid
+flowchart LR
+    Z0["0"] --> C0["C⁰ (0-Cochains)<br/>Vertices / AgentNodes"]
+    C0 -->|"δ₀ (Gradient / Differences)"| C1["C¹ (1-Cochains)<br/>Edges / Channels"]
+    C1 -->|"δ₁ (Curl / Triadic Joins)"| C2["C² (2-Cochains)<br/>Triangles / Review Contracts"]
+    C2 --> Z1["0"]
+
+    style Z0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px
+    style C0 fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    style C1 fill:#eff6ff,stroke:#2563eb,stroke-width:2px
+    style C2 fill:#fefce8,stroke:#ca8a04,stroke-width:2px
+    style Z1 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px
 ```
 
 > **Lemma 1 (The Fundamental Simplicial Identity):**  
