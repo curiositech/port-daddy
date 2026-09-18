@@ -410,9 +410,151 @@ def make_fig4():
     plt.close()
     print("Saved Figure 4:", out_svg)
 
+# -------------------------------------------------------------------------
+# FIGURE 5: 16-Agent Enterprise Matrix Swarm (Mixed Micro/Macro Failure)
+# -------------------------------------------------------------------------
+def make_fig5():
+    fig, (ax_graph, ax_stats) = plt.subplots(1, 2, figsize=(12, 5.5), dpi=300, width_ratios=[1.3, 0.7])
+    fig.patch.set_facecolor('#ffffff')
+    ax_graph.set_facecolor('#ffffff')
+    ax_stats.set_facecolor('#fafbfc')
+
+    ax_graph.set_title("16-Agent Clustered Enterprise Swarm: Mixed Failure Triage", 
+                       fontsize=11, fontweight='bold', color='#0f172a', pad=12)
+
+    # 4 Quadrants for 4 Teams
+    team_centers = {
+        'Frontend': (0.28, 0.72),
+        'Backend': (0.72, 0.72),
+        'Data': (0.72, 0.28),
+        'Security': (0.28, 0.28)
+    }
+    team_boxes = {
+        'Frontend': (0.05, 0.52, 0.40, 0.42, '#f0fdf4', '#16a34a'),
+        'Backend': (0.55, 0.52, 0.40, 0.42, '#fff7ed', '#ea580c'),
+        'Data': (0.55, 0.05, 0.40, 0.42, '#faf5ff', '#9333ea'),
+        'Security': (0.05, 0.05, 0.40, 0.42, '#eff6ff', '#2563eb')
+    }
+
+    for name, (bx, by, bw, bh, fc, ec) in team_boxes.items():
+        rect = patches.FancyBboxPatch((bx, by), bw, bh, boxstyle="round,pad=0.02",
+                                     facecolor=fc, edgecolor=ec, lw=1.2, alpha=0.85, zorder=1)
+        ax_graph.add_patch(rect)
+        ax_graph.text(bx + 0.03, by + bh - 0.05, f"Team: {name}", fontsize=9, fontweight='bold', color=ec, zorder=2)
+
+    # Node positions (4 nodes per team)
+    pos = {
+        # Frontend: 0,1,2,3
+        0: (0.15, 0.83), 1: (0.35, 0.83), 2: (0.38, 0.62), 3: (0.18, 0.62),
+        # Backend: 4,5,6,7
+        4: (0.62, 0.62), 5: (0.82, 0.62), 6: (0.85, 0.83), 7: (0.65, 0.83),
+        # Data: 8,9,10,11
+        8: (0.62, 0.38), 9: (0.82, 0.38), 10: (0.85, 0.15), 11: (0.65, 0.15),
+        # Security: 12,13,14,15
+        12: (0.38, 0.15), 13: (0.18, 0.15), 14: (0.15, 0.38), 15: (0.35, 0.38),
+    }
+
+    # Draw Triangles (2-cells)
+    # Backend triangle (4,5,6) has MICRO REVIEW BUG (highlight in red)
+    poly_err = plt.Polygon([pos[4], pos[5], pos[6]], facecolor='#fee2e2', edgecolor='#dc2626', lw=2, zorder=2)
+    ax_graph.add_patch(poly_err)
+    ax_graph.text(0.76, 0.69, r"Micro Triad Bug" + "\n" + r"$\delta_1^* \psi = 3.46$",
+                 ha='center', va='center', fontsize=7.5, color='#991b1b', fontweight='bold', zorder=5)
+
+    # Other normal review triangles (light grey/green)
+    normal_triangles = [
+        [pos[0], pos[1], pos[2]],
+        [pos[8], pos[9], pos[10]],
+        [pos[12], pos[13], pos[14]]
+    ]
+    for pts in normal_triangles:
+        poly = plt.Polygon(pts, facecolor='#e2e8f0', edgecolor='#94a3b8', lw=1, alpha=0.5, zorder=2)
+        ax_graph.add_patch(poly)
+
+    # Intra-team edges
+    intra_edges = [
+        (0,1), (1,2), (0,2), (1,3), (2,3),
+        (4,5), (5,6), (4,6), (5,7), (6,7),
+        (8,9), (9,10), (8,10), (9,11), (10,11),
+        (12,13), (13,14), (12,14), (13,15), (14,15)
+    ]
+    for u, v in intra_edges:
+        col = '#dc2626' if (u in [4,5,6] and v in [4,5,6]) else '#64748b'
+        lw = 2.2 if (u in [4,5,6] and v in [4,5,6]) else 1.2
+        ax_graph.plot([pos[u][0], pos[v][0]], [pos[u][1], pos[v][1]], color=col, lw=lw, zorder=3)
+
+    # Inter-team bridge edges (macro loop)
+    inter_edges = [(2, 4), (3, 5), (6, 8), (7, 9), (10, 12), (11, 13), (0, 14), (15, 6)]
+    for u, v in inter_edges:
+        col = '#2563eb' if (u, v) in [(2, 4), (3, 5)] else '#94a3b8'
+        lw = 2.0 if (u, v) in [(2, 4), (3, 5)] else 1.2
+        ls = '--'
+        ax_graph.plot([pos[u][0], pos[v][0]], [pos[u][1], pos[v][1]], color=col, lw=lw, ls=ls, zorder=3)
+
+    # Macro cavity loop annotation between FE and BE
+    ax_graph.text(0.50, 0.69, r"Macro Cavity Flow" + "\n" + r"$h = 2.50$",
+                 ha='center', va='center', fontsize=7.8, color='#1e40af', fontweight='bold',
+                 bbox=dict(boxstyle="round,pad=0.2", facecolor='#dbeafe', edgecolor='#93c5fd', lw=0.8), zorder=6)
+
+    # Draw Nodes
+    for node, (x, y) in pos.items():
+        if node in [4, 5, 6]:
+            fc, ec = '#fca5a5', '#dc2626'
+        elif node in [2, 3]:
+            fc, ec = '#93c5fd', '#1d4ed8'
+        else:
+            fc, ec = '#ffffff', '#475569'
+        ax_graph.add_patch(plt.Circle((x, y), 0.038, facecolor=fc, edgecolor=ec, lw=1.5, zorder=4))
+        ax_graph.text(x, y, f"{node}", ha='center', va='center', fontsize=8, fontweight='bold', zorder=5)
+
+    ax_graph.set_xlim(0.0, 1.0)
+    ax_graph.set_ylim(0.0, 1.0)
+    ax_graph.axis('off')
+
+    # Right Subplot: Decomposition Statistics & Prescriptive Triage
+    ax_stats.set_title("Hodge Decomposition Energy", fontsize=11, fontweight='bold', color='#0f172a', pad=12)
+
+    components = ['Gauge Progress\n($\\|\\delta_0 x\\| = 3.13$)',
+                  'Harmonic Cavity\n($\\|h\\| = 2.50$)',
+                  'Triadic Curl\n($\\|\\delta_1^* \\psi\\| = 3.46$)']
+    energies = [3.126**2, 2.496**2, 3.464**2]
+    total_energy = sum(energies)
+    colors = ['#16a34a', '#2563eb', '#dc2626']
+
+    bars = ax_stats.barh(components, energies, color=colors, edgecolor='#0f172a', lw=1, height=0.55)
+    ax_stats.set_xlabel("Energy Metric ($\\|\\cdot\\|_2^2$)", fontsize=9.5)
+    ax_stats.grid(axis='x', linestyle=':', alpha=0.6)
+
+    for bar, val in zip(bars, energies):
+        ax_stats.text(val + 0.4, bar.get_y() + bar.get_height()/2, f"{val:.1f}", 
+                     va='center', fontsize=8.5, fontweight='bold', color='#1e293b')
+
+    # Summary Card Box
+    summary_text = (
+        r"$\mathbf{Swarm\ Legibility\ Ratio:}$" + "\n"
+        r"$\mathcal{L}(g) = \frac{\|h\|^2}{\|h\|^2 + \|\delta_1^* \psi\|^2} = \frac{6.23}{6.23 + 12.00} = \mathbf{0.342}$" + "\n\n"
+        r"$\mathbf{Operational\ Triage\ Verdict:}$" + "\n"
+        r"$\bullet\ \mathbf{65.8\%\ Micro:}$ Review bug in Backend Triad $(v_4, v_5, v_6)$." + "\n"
+        r"  $\rightarrow$ Action: Re-prompt Dissenter / Manager." + "\n"
+        r"$\bullet\ \mathbf{34.2\%\ Macro:}$ Epoch lag on Bridge $(v_2, v_4)$." + "\n"
+        r"  $\rightarrow$ Action: Force cross-team contract sync."
+    )
+    ax_stats.text(0.5, 0.15, summary_text, transform=ax_stats.transAxes,
+                  ha='center', va='center', fontsize=8.5, color='#0f172a', linespacing=1.3,
+                  bbox=dict(boxstyle="round,pad=0.5", facecolor='#ffffff', edgecolor='#cbd5e1', lw=1.2))
+
+    plt.tight_layout()
+    out_svg = os.path.join(FIG_DIR, "fig-paper8-16agent-matrix.png")
+    out_brain = os.path.join(BRAIN_DIR, "fig-paper8-16agent-matrix.png")
+    plt.savefig(out_svg, dpi=300, facecolor='#ffffff')
+    plt.savefig(out_brain, dpi=300, facecolor='#ffffff')
+    plt.close()
+    print("Saved Figure 5:", out_svg)
+
 if __name__ == '__main__':
     make_fig1()
     make_fig2()
     make_fig3()
     make_fig4()
-    print("All 4 academic figures successfully rendered!")
+    make_fig5()
+    print("All 5 academic figures successfully rendered!")

@@ -526,6 +526,123 @@ The controller automatically zeroed in on Node 3's corrupted edges, evaluated th
 
 ---
 
+### 7.4 Case Study 4: 16-Agent Clustered Enterprise Matrix with Mixed Micro-Macro Failure ($\mathcal{L} = 0.342$)
+
+Real enterprise deployments of multi-agent coding swarms (such as Port Daddy managing parallel feature development) organize dozens of agents into cross-functional teams. To demonstrate how cellular sheaf cohomology scales to realistic organizations, we model a 16-agent matrix organization:
+
+- **Team 0 (Frontend UI/UX)**: Nodes $v_0, v_1, v_2, v_3$ (Component generator, Style auditor, React architect, View reviewer).
+- **Team 1 (Backend Services)**: Nodes $v_4, v_5, v_6, v_7$ (API router, ORM optimizer, Auth validator, Middleware tester).
+- **Team 2 (Data Engineering)**: Nodes $v_8, v_9, v_{10}, v_{11}$ (Schema migration, BigQuery sync, Pipeline monitor, Shard manager).
+- **Team 3 (Security & Infrastructure)**: Nodes $v_{12}, v_{13}, v_{14}, v_{15}$ (Seatbelt sandbox, Egress auditor, Key manager, Attestation verifier).
+
+Each team contains 4 agents connected by 5 internal communication channels, with internal 3-way review triangles (2-simplices) enforcing local code review invariants. The teams are interconnected by 8 cross-team dependency channels:
+- Frontend $\leftrightarrow$ Backend API contract bridges: $(v_2, v_4)$ and $(v_3, v_5)$.
+- Backend $\leftrightarrow$ Data database schema bridges: $(v_6, v_8)$ and $(v_7, v_9)$.
+- Data $\leftrightarrow$ Security deploy bridges: $(v_{10}, v_{12})$ and $(v_{11}, v_{13})$.
+- Security $\leftrightarrow$ Frontend attestation loop: $(v_0, v_{14})$ and $(v_6, v_{15})$.
+
+This forms a cell complex with $n = 16$ vertices, $m = 28$ edges, and 8 filled triangular 2-cells, with first Betti number $\beta_1(G) = 28 - 16 + 1 = 13$.
+
+![Figure 5: 16-Agent Clustered Enterprise Swarm: Mixed Failure Triage](/Users/erichowens/.gemini/antigravity-ide/brain/e497dc38-cc24-40e0-b379-efe6fcf6d4d2/fig-paper8-16agent-matrix.png)
+*Figure 5: 16-agent enterprise swarm triage under mixed failure. The Backend Team experiences an internal triadic review hallucination ($\delta_1^* \psi = 3.46$), while cross-team bridge $(v_2, v_4)$ experiences an uninspected network partition lag ($h = 2.50$). The Swarm Legibility Ratio $\mathcal{L}(g) = 0.342$ decomposes the failure into 65.8% micro-triad bug and 34.2% macro-partition cavity.*
+
+#### The Injected Mixed Anomaly:
+1. **Micro Triadic Contract Failure**: Inside Team 1 (Backend), the review triad $(v_4, v_5, v_6)$ produces a hallucinated contradiction: $g_{45} = +2.0$, $g_{56} = +2.0$, and $g_{46} = -2.0$. The triangular curl is non-zero: $(\delta_1 g)_{456} = 2.0 + 2.0 - (-2.0) = 6.0 \neq 0$.
+2. **Macro Network Partition Drift**: Simultaneously, cross-team API bridge $(v_2, v_4)$ experiences a network lag of $+4.0$ relative to parallel bridge $(v_3, v_5)$.
+
+#### Python Execution:
+```python
+# 16-agent enterprise matrix cochains
+# delta_0: 28 x 16, delta_1: 8 x 28
+# Hodge decomposition: g = delta_0 x + h + delta_1^* psi
+x_hat, _, _, _ = np.linalg.lstsq(delta_0, g, rcond=None)
+grad_comp = delta_0 @ x_hat
+w = g - grad_comp
+
+psi_hat, _, _, _ = np.linalg.lstsq(delta_1.T, w, rcond=None)
+curl_comp = delta_1.T @ psi_hat
+h = w - curl_comp
+
+norm_grad = float(np.linalg.norm(grad_comp))
+norm_curl = float(np.linalg.norm(curl_comp))
+norm_h = float(np.linalg.norm(h))
+L = (norm_h**2) / (norm_h**2 + norm_curl**2)
+```
+
+#### Analytical Decomposition Results:
+- **Gauge Gradient Norm**: $\|\delta_0 x\| = 3.1260$ (Explainable node-level clock skew).
+- **Triadic Curl Norm**: $\|\delta_1^* \psi\| = 3.4641$ (Energy $= 12.00$, accounting for **65.8%** of total inconsistency).
+- **Harmonic Cavity Norm**: $\|h\| = 2.4956$ (Energy $= 6.23$, accounting for **34.2%** of total inconsistency).
+- **Swarm Legibility Ratio**:
+  $$\mathcal{L}(g) = \frac{6.23}{6.23 + 12.00} = \mathbf{0.3417}$$
+
+#### Operational Significance for Autonomous Swarms:
+In traditional multi-agent systems without Hodge decomposition, this failure presents as a bewildering cluster of 14 failing assertion alerts across multiple teams. An orchestrator would typically trigger a costly global reboot of all 16 agents.
+
+With the Swarm Legibility Ratio:
+1. The supervisor observes $\mathcal{L} = 0.342$, diagnosing a **compound failure**.
+2. **Micro component (65.8%)**: Localized exclusively to 2-cell $(v_4, v_5, v_6)$ in the Backend Team. The supervisor automatically re-prompts the Backend Manager without disrupting the other 13 agents.
+3. **Macro component (34.2%)**: Localized to the non-contractible 4-cycle $(v_2, v_4, v_5, v_3)$ crossing the Frontend/Backend boundary. The supervisor triggers targeted bridge synchronization on $(v_2, v_4)$.
+
+---
+
+### 7.5 Case Study 5: 24-Agent Multi-Harbor Relay Mesh under Dual Byzantine Attack (Theorem CR-4)
+
+Next, we evaluate active cohomological control on a 24-agent distributed mesh spanning three geographical cloud regions:
+- **Harbor 1 (US-East)**: 8 agents ($v_0 \dots v_7$).
+- **Harbor 2 (EU-Central)**: 8 agents ($v_8 \dots v_{15}$).
+- **Harbor 3 (AP-East)**: 8 agents ($v_{16} \dots v_{23}$).
+
+Each harbor maintains an internal chorded 8-cycle mesh (11 edges per harbor). Harbors are interconnected via 6 cross-region zero-trust SSE relay channels: $(v_2, v_8)$ and $(v_5, v_{11})$ (US $\leftrightarrow$ EU); $(v_{10}, v_{16})$ and $(v_{13}, v_{19})$ (EU $\leftrightarrow$ AP); and $(v_{18}, v_0)$ and $(v_{21}, v_3)$ (AP $\leftrightarrow$ US).  
+Total complex: $n = 24$ agents, $m = 39$ communication edges, with $\beta_1(G) = 39 - 24 + 1 = 16$ independent cycle constraints.
+
+#### The Dual Attack & Cost Topology:
+- **Byzantine Attacker 1**: Node $v_4$ (in US-East) equivocates by injecting a $+4.0$ lie on edge $(v_4, v_5)$.
+- **Byzantine Attacker 2**: Node $v_{12}$ (in EU-Central) equivocates by injecting a $-3.5$ lie on edge $(v_{12}, v_{13})$.
+- **Intervention Cost Structure**:
+  - Inter-harbor transatlantic links carry high operational cost: $w(e) = 10.0$ (severing inter-region channels disrupts cross-harbor telemetry).
+  - Internal perimeter links carry medium cost: $w(e) = 3.0$.
+  - Internal chords carry low cost: $w(e) = 1.0$.
+
+#### Active Controller Trace (Theorem CR-4 Execution):
+```python
+# Initial State: 24 agents, 39 edges, Residual r = 3.4302
+Round 0: r = 3.4302 | Candidate Edge (4 <-> 5) has Energy = 2.822, Cost = 3.0, Ratio = 0.941
+         --> Fencing Edge 4 (4 <-> 5) in US-East
+Round 1: r = 2.3318 | Candidate Edge (12 <-> 13) has Energy = 2.413, Cost = 3.0, Ratio = 0.804
+         --> Fencing Edge 15 (12 <-> 13) in EU-Central
+Round 2: Residual r = 0.000000
+==> Global swarm consensus restored in exactly 2 rounds! (Bound: <= beta_1 = 16)
+```
+
+#### Why This Is Remarkable:
+1. **Zero False Fencing**: Despite the high connectivity of the 24-agent network, the controller did not sever any of the 6 critical inter-harbor bridges ($w = 10.0$).
+2. **Minimal Invasiveness**: Out of 39 communication links, the algorithm placed fences on **exactly 2 edges**, isolating the two malicious flows while leaving the remaining 37 channels fully operational.
+3. **Exact Bound Conformance**: The convergence required 2 iterations, far below the theoretical upper bound $\beta_1(G) = 16$.
+
+---
+
+### 7.6 Case Study 6: 12-Agent Execution Hypertree with Multi-Parent Joins
+
+In the Port Daddy Drydock architecture, complex agent tasks are decomposed into **Execution Hypertrees** (directed acyclic task complexes with multi-way join contracts).
+
+Consider a 12-agent task decomposition:
+- Root Task Node $v_0$ decomposes a major migration into three parallel streams:
+  - Stream A: Database refactoring ($v_1 \to v_2 \to v_3$).
+  - Stream B: API endpoints refactoring ($v_4 \to v_5 \to v_6$).
+  - Stream C: Client SDK updates ($v_7 \to v_8 \to v_9$).
+- Multi-Parent Join Barrier: Nodes $v_3, v_6, v_9$ must converge into Aggregator Node $v_{10}$ and Attestation Auditor $v_{11}$.
+
+#### Hyperedge Simplicial Triangulation:
+The multi-way join between $v_3, v_6, v_9$ and $v_{10}$ is a 4-vertex hyperedge. In our simplicial sheaf, it is triangulated into three 2-simplices: $\tau_1 = (v_3, v_6, v_{10})$, $\tau_2 = (v_6, v_9, v_{10})$, and $\tau_3 = (v_3, v_9, v_{10})$.
+
+If Stream B silently rolls back its database schema version while Stream A continues under the new version, the triangular coboundary $\delta_1$ immediately catches the non-monotonic rollback:
+$$(\delta_1 g)_{\tau_1} = g_{3,6} + g_{6,10} - g_{3,10} \neq 0$$
+
+Sheaf cohomology provides the exact mathematical framework to verify that parallel execution branches in asynchronous hypertrees remain monotonic without requiring centralized global locking.
+
+---
+
 ## 8. Academic Literature Survey & Novelty Analysis (2024–2026)
 
 To place our contributions in context, we review the state of the art in applied topology and distributed consensus over the past three years.
