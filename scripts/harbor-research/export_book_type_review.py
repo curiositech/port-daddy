@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract the typography review from the assembled Book, never chapter PDFs.
+"""Extract the typography review from the assembled Swiss Book, never chapter PDFs.
 
 Usage: python3 scripts/harbor-research/export_book_type_review.py BOOK.pdf REVIEW.pdf
 The Book's .aux file must sit beside the PDF. All selections follow current

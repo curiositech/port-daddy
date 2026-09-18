@@ -63,6 +63,11 @@ class BookTypographyTests(unittest.TestCase):
 @unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),
                      "Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks")
 class RenderedBookTypographyTests(unittest.TestCase):
+    def test_retired_serif_is_not_loaded_anywhere_in_swiss(self):
+        with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
+            families = {font[3] for page in book for font in page.get_fonts()}
+            self.assertFalse(any("SourceSerif4" in name for name in families), families)
+
     def test_four_part_opening_spreads_are_retained(self):
         manifest = json.loads((ROOT / "whitepaper/textbook.json").read_text())
         aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
