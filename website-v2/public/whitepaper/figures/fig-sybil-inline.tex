@@ -34,24 +34,24 @@
     \node[pd identity state,circle,minimum size=6.5mm,inner sep=.5pt] at (\ix,\y) {\lab};
     \draw[pd identity rule,dashed] (pp.east) -- ({\ix-.42},\y);}
   \node[pd label,anchor=south] at (\ix,2.90) {$K$ insurer identities};
-  \node[pd note,anchor=north,text width=3.6cm,align=center] at (\ix,-.30)
+  \node[pd note,anchor=north,text width=3.6cm,align=center] at (\ix,-.46)
     {$K \times B_{\mathrm{dep}}$ posted; each identity can re-enter};
   \draw[pd focus arrow] (\ax,\py) -- (4.25,\py);
   % ---- panel B: the closed-form response, s = min(B_dep, B_T) --------------
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\ox,\oy) -- (\xmax,\oy);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (\ox,\oy) -- (\ox,\ymax);
+  \draw[pd arrow] (\ox,\oy) -- (\xmax,\oy);
+  \draw[pd arrow] (\ox,\oy) -- (\ox,\ymax);
   \node[pd label,anchor=west] at (\xmax,\oy) {deposit};
   \node[pd label,anchor=west] at ({\ox+.08},{\ymax+.16}) {slash $s$};
   \draw[pd guide] (\kx,\oy) -- (\kx,\ky);
   \draw[pd guide] (\ox,\ky) -- (\kx,\ky);
   \node[pd label,anchor=north] at (\kx,{\oy-.10}) {$B_T$};
   \node[pd label,anchor=east] at ({\ox-.10},\ky) {$B_T$};
-  \fill[pd neutral fill] (\kx,\oy) rectangle (\rx,\ky);
+  \path[pd neutral fill] (\kx,\oy) rectangle (\rx,\ky);
   \draw[pd focus rule] (\ox,\oy) -- (\kx,\ky);
   \draw[pd focus rule] (\kx,\ky) -- (\rx,\ky);
   \node[pd focus datum] at (\kx,\ky) {};
   \node[pd label,anchor=south] at ({(\kx+\rx)/2},{\ky+.14}) {$s=B_T$};
-  \node[pd note,anchor=north,text width=3.1cm,align=center] at ({(\ox+\rx)/2},{\oy-.30})
+  \node[pd note,anchor=north,text width=3.5cm,align=center] at ({(\ox+\rx)/2},{\oy-.72})
     {extra deposit returns intact past $B_T$};
 \end{tikzpicture}
 \caption{Deposit-only Sybil deterrence saturates. One principal can fund $K$

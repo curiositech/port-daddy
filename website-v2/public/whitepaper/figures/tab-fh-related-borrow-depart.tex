@@ -14,24 +14,25 @@
 % Grammar rejected: none -- this is the direct atlas-prescribed table for a
 %   five-item x three-property classification, and the companion chapter
 %   already sets the exact column contract to match.
-% Five-second test: which lineage's departure is explicitly "not closed,"
-%   i.e. an open question rather than a settled design choice?
-\begin{table}[H]
-\centering\small
-\caption{What the Federated Harbor borrows from each prior body of work,
-where it departs, and why. Mirrors the companion chapter own
-\texttt{tab:related-borrow-depart} (\pdchapref{bonded}{The Bonded
-Commons}). [internal]}
+% Five-second test: which lineage supplies Merkle consistency proofs, and
+%   which one supplies priced delegation constraints?
+\begin{table*}[t]
+\centering\footnotesize
+\caption{Five lineages supply mechanisms but not the Federated Harbor's
+complete contract. Each row names the borrowed mechanism, the deliberate
+departure, and the operational reason for it. [internal]}
 \label{tab:fh-related-borrow-depart}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Body of work} & \textbf{Borrowed} & \textbf{Departure} & \textbf{Why} \\
 \midrule
-Federated identity (OpenID Federation) & the trust-anchor pattern: signed statements, trust chains assembled upward & adds a capability layer; no HTTP fetching & daemons cannot reliably expose HTTP endpoints \\
-Capability federation (Macaroons, UCAN) & \mbox{third-party-caveat} attenuation chains; public-key principals & keeps the daemon a structural authority; prices delegation with bonds & delegation needs a price, not just a constraint \\
-Transparency logs (CT, \mbox{Sigstore/Rekor}) & the append-only Merkle history tree, CT own model & applied to capability tokens instead of certificates & the witness log needs the same tamper-evidence CT gives certificates \\
-Cross-domain settlement (Herlihy, IBC) & a \mbox{trusted-third-party} settlement comparison point & not trustless in Herlihy sense; no \mbox{consensus-backed} state machine underneath & bonds are \mbox{non-fungible} and \mbox{reputation-priced}, not fungible assets \\
-Agentic commerce (UCP, ACP, AP2) & the well-known discovery profile; SD-JWT/JWS mandate formats & adds the bonding and settlement enforcement those protocols leave out by design & they standardize discovery, not counterparty trustworthiness \\
+Federated identity (OpenID Federation) & signed statements and trust chains assembled toward an anchor & adds capability transfer and avoids HTTP fetching & daemons cannot assume a reliable public HTTP endpoint \\
+Capability federation (Macaroons, UCAN) & caveated attenuation chains and public-key principals & keeps each daemon a structural authority and prices delegation with bonds & delegation needs an economic exposure, not only a constraint \\
+Transparency logs (CT, Sigstore / Rekor) & append-only Merkle history and consistency proofs & logs capability roots rather than certificates & transfer and revocation need the same tamper evidence \\
+Cross-domain settlement (Herlihy, IBC) & an adjudication point shared by two domains & is not trustless and has no consensus state machine underneath & bonds are nonfungible and reputation-priced \\
+Agentic commerce (UCP, ACP, AP2) & discovery profiles and signed mandate formats & adds bonding and settlement enforcement & those protocols standardize discovery, not counterparty trust \\
 \bottomrule
 \end{tabularx}
-\end{table}
+\end{table*}

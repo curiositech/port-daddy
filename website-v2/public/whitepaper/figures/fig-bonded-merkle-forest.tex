@@ -28,7 +28,7 @@
     proof arrow/.style={pd focus arrow,shorten <=1pt,shorten >=2pt},
     sum term/.style={pd state,minimum width=3.05cm,minimum height=1.12cm,
       inner xsep=7pt,inner ysep=7pt,align=center},
-    sum result/.style={pd climax state,minimum width=2.20cm,minimum height=1.12cm,
+    sum result/.style={pd terminal,pd climax state,minimum width=2.20cm,minimum height=1.12cm,
       inner xsep=7pt,inner ysep=7pt,align=center}
   }
 
@@ -38,14 +38,14 @@
   % 1. The chain commits to order; it is not an inclusion proof.
   \node[proof step] at (0.00,6.58) {1\quad ORDER};
   \node[proof node] (prior) at (4.20,6.25) {prior hash};
-  \node[pd climax state,minimum width=2.45cm,minimum height=1.02cm,
+  \node[pd focus state,minimum width=2.45cm,minimum height=1.02cm,
     inner xsep=8pt,inner ysep=7pt] (note) at (7.20,6.25) {note};
   \node[proof node] (nhash) at (10.20,6.25) {note hash};
   \node[proof why] at (12.45,6.25) {Fixes the note's position in the session log.};
 
   % 2. First inclusion path: note to session root.
   \node[proof step] at (0.00,4.78) {2\quad SESSION PROOF};
-  \node[proof node] (noteleaf) at (4.20,4.45) {note hash\\{\ttfamily leaf}};
+  \node[proof node] (noteleaf) at (4.20,4.45) {note hash\\\texttt{leaf}};
   \node[proof packet] (seven) at (7.55,4.45)
     {7 sibling hashes\\for 100 notes};
   \node[proof root] (session) at (11.05,4.45) {session root};
@@ -53,7 +53,7 @@
 
   % 3. Second inclusion path: session root to signed harbor root.
   \node[proof step] at (0.00,2.98) {3\quad HARBOR PROOF};
-  \node[proof root] (sessionleaf) at (4.20,2.65) {session root\\{\ttfamily leaf}};
+  \node[proof root] (sessionleaf) at (4.20,2.65) {session root\\\texttt{leaf}};
   \node[proof packet] (fourteen) at (7.55,2.65)
     {14 sibling hashes\\for 10,000 sessions};
   \node[proof signed] (harbor) at (11.05,2.65) {signed\\harbor root};

@@ -20,11 +20,9 @@
 \centering
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=west,text width=9.9cm] at (-0.30,4.00)
-    {detection probability and sampled loss jointly set the cartel boundary};
-  \draw[pd rule,->] (-0.30,-1.55) -- (5.30,-1.55);
-  \draw[pd rule,->] (-0.30,-1.55) -- (-0.30,3.15);
-  \node[pd label,anchor=west] at (5.45,-1.55) {detection $p_d$};
+  \draw[pd rule,->] (-0.30,-1.45) -- (5.30,-1.45);
+  \draw[pd rule,->] (-0.30,-1.45) -- (-0.30,3.15);
+  \node[pd label,anchor=west] at (5.45,-1.45) {detection probability $p_d$};
   \node[pd label,rotate=90,anchor=south] at (-0.70,.80) {loss if detected $L$};
   % ---- the two regions, edged by the boundary they share -------------------
   \begin{scope}[on background layer]
@@ -33,33 +31,26 @@
       -- (4.90,-.85) -- (4.90,3.15) -- (0.30,3.15) -- cycle;
     \fill[pd warn fill]
       (0.30,2.65) -- (1.70,2.00) -- (3.10,1.05) -- (3.95,.35) -- (4.50,-.15)
-      -- (4.90,-.85) -- (4.90,-1.55) -- (0.30,-1.55) -- cycle;
+      -- (4.90,-.85) -- (4.90,-1.45) -- (0.30,-1.45) -- cycle;
   \end{scope}
   \draw[pd focus rule,line width=1.4pt]
     (0.30,2.65) -- (1.70,2.00) -- (3.10,1.05) -- (3.95,.35) -- (4.50,-.15)
     -- (4.90,-.85);
-  \node[pd focus label,anchor=west] at (0.45,3.35) {$V_C=\pi_D$};
-  \node[pd kind,align=center] at (3.60,3.35) {deviation dominates};
-  \node[pd label,anchor=north,align=center,text width=2.4cm] at (3.60,3.13)
-    {cartel unsustainable};
-  \node[pd kind,align=center] at (1.85,.35) {collusion persists};
-  \node[pd label,anchor=north,align=center,text width=2.1cm] at (1.85,.13)
-    {discounted stream still wins};
+  \node[pd focus label,anchor=south west] at (0.45,2.72)
+    {boundary $V_C=\pi_D$};
+  \node[pd label,align=center,text width=2.5cm] at (3.60,2.55)
+    {deviation pays\\cartel unstable};
+  \node[pd label,align=center,text width=2.3cm] at (1.72,-.05)
+    {collusion pays\\discounted stream wins};
   % ---- the two worked points, on the shared boundary ------------------------
   \node[pd datum] at (1.70,2.00) {};
-  \node[pd label,anchor=north] at (1.70,-1.70) {rare / severe};
+  \node[pd tag,anchor=south east] at (1.53,2.10) {rare, severe};
   \node[pd datum] at (3.95,.35) {};
-  \node[pd label,anchor=north] at (3.95,-1.70) {frequent / smaller};
-  \node[pd note,anchor=north west,text width=7.0cm] at (-0.30,-2.35)
-    {$V_C=(\pi_C-p_dL)/(1-\delta(1-p_d))$: monitoring frequency alone is not
-     the mechanism};
+  \node[pd tag,anchor=north east] at (3.78,.20) {frequent, smaller};
 \end{tikzpicture}
-\caption{\textbf{Cartel sustainability is a two-policy phase diagram.} The
-boundary is the repeated-game equality $V_C=\pi_D$ (gold). Below it (amber),
-the discounted collusive stream still dominates a one-shot deviation. Above
-it (green), deviation wins and the cartel is unstable. A rarer severe sampled
-loss and a more frequent smaller loss can lie on the same deterrence
-boundary. Detection frequency by itself is therefore not the mechanism; the
-product enters through the full discounted payoff expression. [internal]}
+\caption{\textbf{Cartel sustainability in the detection--loss plane.} The
+curve marks $V_C=\pi_D$: below it collusion pays; above it deviation pays.
+The two marked policies share the boundary, so detection frequency alone does
+not determine stability. [internal]}
 \label{fig:cartel-game-inline}
 \end{figure}

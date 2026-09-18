@@ -386,7 +386,9 @@ The first governing protocol is the cross-harbor capability transfer ceremony. A
 
 \subsection{The four-message ceremony}\label{sec:fh-xfer-ceremony}
 
-Figure~\ref{fig:fh-xfer} shows the protocol as a sequence diagram. The four messages are:
+Figure~\ref{fig:fh-xfer} separates two questions that a single diagram used
+to conflate: its upper panel shows authority attenuation, while its lower
+panel gives the exact four-message sequence. The four messages are:
 
 \begin{enumerate}[nosep,leftmargin=*]
 \item $\mathsf{xfer\_req}(C_A, B)$ --- Alice's agent presents $C_A$ to its local daemon $D_A$ and names $B$ as the target harbor. The request is intra-harbor; standard Anchor verification applies.
@@ -432,7 +434,8 @@ Each attenuation is a subset operation in the Anchor algebra; subset composition
 
 \subsection{Threats foreclosed and threats deferred}\label{sec:fh-xfer-threats}
 
-The annotation band at the bottom of Figure~\ref{fig:fh-xfer} summarizes which threats this ceremony forecloses and which are deferred to other primitives. Specifically:
+The ceremony closes only the threats implied by those bindings; the remaining
+threats are deferred to other primitives. Specifically:
 
 \begin{itemize}[nosep]
 \item \textbf{Foreclosed:} identity spoofing of $\mathit{sk}_A$ across the boundary; capability inflation across the transfer; replay at $B$ against a stale $R_A$.
@@ -903,7 +906,10 @@ This is engineering discipline, not a theorem. The historical evidence on whethe
 
 The four primitives are easier to read against a concrete case. We work the example end-to-end: two organizations, three machines, one shared project. The example is intentionally familiar; nothing in it is novel except the way the primitives compose.
 
-Figure~\ref{fig:fh-worked-example} shows the whole incident end to end, three harbor lifelines and six marked steps, before the subsections below walk through it one at a time.
+Figure~\ref{fig:fh-worked-example} shows the admission precondition and the
+whole incident end to end across the three harbors, escrow, and witness log,
+with six marked steps before the subsections below walk through them one at a
+time.
 
 \input{figures/fig-fh-worked-example}
 

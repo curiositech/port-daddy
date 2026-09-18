@@ -537,7 +537,9 @@ The evidence structure has three levels:
 The collection $\{R_{\text{harbor},\ell}\}_{\ell}$ is the \emph{Merkle forest}: one tree per epoch.
 \end{definition}
 
-Figure~\ref{fig:bonded-merkle-forest} draws all three tiers together, with the proof-size arithmetic set at the point a proof crosses from the session tier to the harbor tier.
+Figure~\ref{fig:bonded-merkle-forest} follows one receipt from an ordered note
+through its session and harbor inclusion paths, then totals the bytes carried
+by those two proofs and the harbor signature.
 
 \input{figures/fig-bonded-merkle-forest}
 
@@ -1172,7 +1174,8 @@ A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A
 
 Grim trigger is used in the analysis below for analytical tractability---it gives the cleanest recurrence and the closed-form $p_d^\star$ threshold of Figure~\ref{fig:cartel-folk}. A production detector should use a graduated response because crashes (\S\ref{sec:crash-recovery}) can be observationally similar to deliberate defection; permanent punishment for a transient infrastructure event would destroy cooperation. The claim-signaling and cartel layers therefore share an analysis template, not one interchangeable equilibrium result.
 
-Figure~\ref{fig:cartel-game-inline} shows the per-round decision node and the closed-form sustainability inequality.
+Figure~\ref{fig:cartel-game-inline} shows how detection probability and sampled
+loss jointly cross the closed-form sustainability boundary.
 
 \input{figures/fig-cartel-game-inline}
 

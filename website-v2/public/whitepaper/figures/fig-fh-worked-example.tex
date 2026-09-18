@@ -1,130 +1,124 @@
-% Figure IV.9 --- the worked example (S8), drawn as a three-realm swimlane
-% sequence over the message-ladder idiom (templates/tpl-message-ladder.tex):
-% one lifeline per harbor, badges numbered and forward-sloped, a ruled
-% legend of what each one binds.
+% Worked incident: one concrete run across the four governing primitives.
 %
-% Reader question: how do all four governing protocols (transfer,
-%   revocation, settlement, admission) actually compose in one concrete
-%   incident?
-% Claim: the four primitives fire in exactly one order against one shared
-%   incident -- transfer, then a two-hour-later damage discovery, then
-%   settlement, then revocation -- and each is doing its own narrow job, not
-%   improvising.
-% Evidence: the chapter's own names and numbers from S:fh-ex-setup through
-%   S:fh-ex-revocation -- Controller-7, harbors A/S/B, att_A ("controller
-%   schema, 9am-5pm, human approval within 30 min"), att_S ("controller
-%   schema, after a snapshot, no other migration in flight"), the float32 vs
-%   float64 schema mismatch, bond B_alpha at 24h TTL, and the ~3-round
-%   ($\log_2 8$) gossip estimate for an 8-harbor federation.
-% Must distinguish: which events are local to one harbor (deliver, damage
-%   detected, revoke) from which cross a boundary (offer, claim, clear), and
-%   the two-hour real-time gap between transfer and damage discovery.
-% Grammar chosen: message-ladder (tpl-message-ladder.tex) extended to three
-%   lifelines with phase dividers, drawn full width (6.0in) because a
-%   four-phase, six-message incident does not fit the 4.5in column without
-%   crowding -- declared here per S1. Grammar rejected: a generic swimlane
-%   Gantt (tpl-swimlane-gantt.tex) would show concurrency/duration, which
-%   this incident does not turn on; every step here is a discrete event in a
-%   strict order, which the ladder's numbered, forward-sloped arrows carry
-%   directly.
-% Five-second test: which harbor discovers the damage, and how long after
-%   the transfer does it happen?
+% Reader question: in what order do admission, transfer, settlement, and
+%   revocation matter during Controller-7's staging-schema failure?
+% Claim: admission is a prerequisite; the incident then has six ordered steps
+%   in which each primitive performs one narrow job and no participant becomes
+%   another harbor's root authority.
+% Evidence: the chapter's A/S/B scene, Controller-7, the float32/float64
+%   mismatch, B_alpha with 24h TTL, Beta's six-month probation, and the
+%   illustrative three-round expectation for eight harbors.
+% Must distinguish: local events from boundary messages and the two-hour delay.
+% Grammar chosen: five-party sequence with one admission precondition strip.
+%   Rejected: a Gantt, because every operative step is discrete and ordered.
+% Five-second test: Beta finds the damage two hours later; escrow clears it;
+%   Acme then publishes the revocation root.
 \pdfigurehue{pdgold}%
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\xA{0.90}  \def\xS{7.10}  \def\xB{13.30}  \def\xG{9.60}
-  \node[pd title,anchor=west,text width=13.6cm] at (0.00,1.05)
-    {one incident, four primitives, in order};
-  \node[pd state,minimum width=3.0cm] (hA) at (\xA,0) {Harbor $A$};
-  \node[pd label,text=pdinkmuted,anchor=north] at (\xA,-0.42) {Acme};
-  \node[pd state,minimum width=3.0cm] (hS) at (\xS,0) {Harbor $S$};
-  \node[pd label,text=pdinkmuted,anchor=north] at (\xS,-0.42) {staging};
-  \node[pd state,minimum width=3.0cm] (hB) at (\xB,0) {Harbor $B$};
-  \node[pd label,text=pdinkmuted,anchor=north] at (\xB,-0.42) {Beta};
-  \draw[pd guide] (\xA,-1.05) -- (\xA,-11.60);
-  \draw[pd guide] (\xS,-1.05) -- (\xS,-11.60);
-  \draw[pd guide] (\xB,-1.05) -- (\xB,-11.60);
+  \tikzset{
+    incident head/.style={pd artifact,minimum width=2.25cm,minimum height=.72cm,
+      inner xsep=5pt,inner ysep=4pt,align=center},
+    incident event/.style={pd state,minimum width=3.10cm,minimum height=.82cm,
+      inner xsep=6pt,inner ysep=5pt,align=center}
+  }
+  \def\xA{.85} \def\xS{4.15} \def\xB{7.45} \def\xE{10.75} \def\xW{14.05}
 
-  % ---- pre-mark: bond posted at A -----------------------------------------
-  \node[pd datum] (bond) at (\xA,-1.45) {};
-  \node[pd tag,anchor=west,text width=4.6cm,align=left] at (\xA+0.30,-1.45)
+  \node[pd title,anchor=west] at (0,7.05)
+    {one admitted federation, one delayed failure, six ordered steps};
+
+  % Admission is a prerequisite, not a message improvised during the incident.
+  \draw[pd panel] (0,5.22) rectangle (15.20,6.20);
+  \node[pd kind,anchor=west] at (.20,5.72) {Admission prerequisite};
+  \node[pd label,anchor=west,text width=11.3cm,align=left] at (3.62,5.72)
+    {$A$, $S$, and $B$ enrolled; Beta: six months, zero forfeitures};
+
+  \node[incident head] (hA) at (\xA,4.55) {Harbor $A$\\Acme};
+  \node[incident head] (hS) at (\xS,4.55) {Harbor $S$\\staging};
+  \node[incident head] (hB) at (\xB,4.55) {Harbor $B$\\Beta};
+  \node[incident head] (hE) at (\xE,4.55) {escrow};
+  \node[incident head] (hW) at (\xW,4.55) {witness log};
+  % Lifelines stop at opaque events. This matters in the Technical edition,
+  % whose patterned states must not leave a construction line through text.
+  \draw[pd uml lifeline] (\xA,3.98) -- (\xA,-.12);
+  \draw[pd uml lifeline] (\xA,-.72) -- (\xA,-7.05);
+  \draw[pd uml lifeline] (\xS,3.98) -- (\xS,1.35);
+  \draw[pd uml lifeline] (\xS,.20) -- (\xS,-.12);
+  \draw[pd uml lifeline] (\xS,-.72) -- (\xS,-7.05);
+  \draw[pd uml lifeline] (\xB,3.98) -- (\xB,-.12);
+  \draw[pd uml lifeline] (\xB,-.72) -- (\xB,-.84);
+  \draw[pd uml lifeline] (\xB,-1.92) -- (\xB,-7.05);
+  \draw[pd uml lifeline] (\xE,3.98) -- (\xE,-.12);
+  \draw[pd uml lifeline] (\xE,-.72) -- (\xE,-3.05);
+  \draw[pd uml lifeline] (\xE,-4.65) -- (\xE,-7.05);
+  \draw[pd uml lifeline] (\xW,3.98) -- (\xW,-.12);
+  \draw[pd uml lifeline] (\xW,-.72) -- (\xW,-7.05);
+
+  % Bond precondition: funded before Controller-7 receives the risky capability.
+  \node[pd value datum] at (\xA,3.55) {};
+  \node[pd value datum] at (\xE,3.30) {};
+  \draw[pd value arrow] (\xA,3.55) -- (\xE,3.30);
+  \node[pd tag,anchor=south,text width=5.0cm,align=center] at (5.80,3.62)
     {bond posted: $B_\alpha$, TTL 24h};
 
-  % ---- phase 1: transfer ---------------------------------------------------
-  \node[pd kind,anchor=west] at (\xA+0.36,-2.15) {transfer (\S\ref{sec:fh-ex-xfer})};
-  \draw[pd guide] (0.00,-2.55) -- (13.90,-2.55);
-  \node[pd tag,anchor=south,text width=6.6cm,align=center] at ({(\xA+\xS)/2},-2.96)
-    {$\mathsf{xfer\_offer}\langle C_A,\mathrm{att}_A,R_A{}^{(e)}\rangle$};
-  \node[pd focus badge] (m1) at ({(\xA+\xS)/2},-3.20) {1};
-  \draw[pd focus arrow,pd to badge] (\xA,-3.00) -- (m1);
-  \draw[pd focus arrow,pd from badge] (m1) -- (\xS,-3.40);
-  \node[pd badge] (m2) at (\xS,-4.20) {2};
-  \draw[pd arrow] (\xS,-4.00) to[out=20,in=-20] (m2) to[out=160,in=200] (\xS,-4.00);
-  \node[pd tag,anchor=west,text width=5.6cm,align=left] at (\xS+0.35,-4.20)
-    {local: verify, compose $C_S{}^\prime=\mathrm{att}_S(\mathrm{att}_A(C_A))$, deliver
-    to Controller-7; migration runs, rolls into $R_S{}^{(e)}$};
+  % 1. Cross-harbor transfer.
+  \node[pd focus badge] (m1) at (2.50,2.15) {1};
+  \draw[pd protocol arrow,pd to badge] (\xA,2.34) -- (m1);
+  \draw[pd protocol arrow,pd from badge] (m1) -- (\xS,1.96);
+  \node[pd tag,anchor=south,text width=5.2cm,align=center] at (2.50,2.48)
+    {$\mathsf{xfer\_offer}\langle C_A,\mathsf{att}_A,R_A{}^{(e)}\rangle$};
 
-  % ---- time gap -------------------------------------------------------------
-  \draw[pd guide,dashed] (0.00,-5.10) -- (13.90,-5.10);
-  \node[pd note,anchor=west] at (\xA+0.36,-5.40) {$+2$ hours --- agent has moved on};
+  % 2. Destination-local verification and migration.
+  \node[pd focus state,minimum width=3.3cm,minimum height=.92cm,
+    inner xsep=6pt,inner ysep=5pt,align=center] (localS) at (\xS,.78)
+    {verify destination card\\snapshot; run migration};
+  \node[pd focus badge] at ({\xS-2.08},.78) {2};
+  \draw[pd focus arrow] (\xS,1.96) -- (localS.north);
 
-  % ---- phase 2: damage detection --------------------------------------------
-  \node[pd kind,anchor=west] at (\xA+0.36,-6.00) {damage (\S\ref{sec:fh-ex-damage})};
-  \draw[pd guide] (0.00,-6.40) -- (13.90,-6.40);
-  \node[pd badge,draw=pderror,line width=.9pt] (m3) at (\xB+0.55,-6.85) {3};
-  \node[pd breach datum] at (\xB,-7.10) {};
-  \node[pd breach label,anchor=west,text width=5.4cm,align=left] at (\xB-6.10,-7.30)
-    {integration test fails: schema mismatch, Acme uses \texttt{float32}, Beta needs
-    \texttt{float64}};
+  % The delayed consequence is the fact the worked example exists to expose.
+  \draw[pd guide] (0,-.10) -- (15.20,-.10);
+  \node[pd note,anchor=west] at (.20,-.42) {$+2$ hours --- Controller-7 has moved on};
 
-  % ---- phase 3: settlement ----------------------------------------------
-  \node[pd kind,anchor=west] at (\xA+0.36,-8.00) {settlement (\S\ref{sec:fh-ex-settle})};
-  \draw[pd guide] (0.00,-8.40) -- (13.90,-8.40);
-  \node[pd tag,anchor=south,text width=4.4cm,align=center] at ({(\xG+\xB)/2},-8.75)
-    {$\mathsf{cl}_B=(R_B{}^{(e+1)},\mathrm{evidence})$};
-  \node[pd badge] (m4) at ({(\xG+\xB)/2},-9.30) {4};
-  \draw[pd protocol arrow,pd to badge] (\xB,-9.10) -- (m4);
-  \node[draw=pdinkmuted!70,line width=.9pt,fill=pdpage,diamond,
-    minimum width=1.5cm,minimum height=0.85cm,inner sep=0pt,pd label]
-    (gate) at (\xG,-9.30) {escrow};
-  \draw[pd protocol arrow,pd from badge] (m4) -- (gate);
-  \node[pd focus label,anchor=south,text width=5.6cm,align=center] at ({(\xG+\xA)/2},-9.90)
-    {\textbf{clear}: debit $B_\alpha$ at $A$, pay $B$, refund remainder};
-  \node[pd focus badge] (m5) at ({(\xG+\xA)/2},-10.35) {5};
-  \draw[pd focus arrow,pd to badge] (gate) -- (m5);
-  \draw[pd focus arrow,pd from badge] (m5) -- (\xA,-10.55);
+  % 3. Beta observes the concrete schema mismatch locally.
+  \node[pd breach state,minimum width=3.65cm,minimum height=1.00cm,
+    inner xsep=6pt,inner ysep=5pt,align=center] (damage) at (\xB,-1.38)
+    {integration test fails\\\texttt{float32} $\neq$ \texttt{float64}};
+  \node[pd badge] at ({\xB-2.08},-1.38) {3};
 
-  % ---- phase 4: revocation ---------------------------------------------------
-  \node[pd kind,anchor=west] at (\xA+0.36,-10.85) {revocation (\S\ref{sec:fh-ex-revocation})};
-  \draw[pd guide] (0.00,-11.25) -- (13.90,-11.25);
+  % 4. The claim crosses from B to escrow with proof-bound evidence.
+  \node[pd badge] (m4) at (9.10,-2.86) {4};
+  \draw[pd protocol arrow,pd to badge] (\xB,-2.66) -- (m4);
+  \draw[pd protocol arrow,pd from badge] (m4) -- (\xE,-3.05);
+  \node[pd tag,anchor=south,text width=5.2cm,align=center] at (9.10,-2.54)
+    {damage claim + Merkle proof};
+
+  % 5. One clearance decision fans out to the payer and beneficiary.
+  \node[pd terminal,pd climax state,minimum width=2.20cm,minimum height=.82cm,
+    inner xsep=6pt,inner ysep=5pt,text width=1.60cm,align=center]
+    (clear) at (\xE,-4.18) {5\quad clear};
+  \draw[pd focus arrow] (\xE,-3.05) -- (clear.north);
+  \node[pd focus datum] (split) at (9.10,-4.82) {};
+  \draw[pd focus arrow] (clear.west) -- (split);
+  \draw[pd focus arrow] (split) -- (\xB,-5.08);
+  \draw[pd focus arrow] (split) -- (\xA,-5.28);
+  \node[pd focus label,anchor=south] at (8.18,-4.83) {pay Beta};
+  \node[pd focus label,anchor=south] at (5.55,-5.02) {refund Acme};
+
+  % 6. Revocation is a later publication, then asynchronous gossip.
+  \node[pd focus badge] (m6) at (7.45,-6.64) {6};
+  \draw[pd focus arrow,pd to badge] (\xA,-6.45) -- (m6);
+  \draw[pd focus arrow,pd from badge] (m6) -- (\xW,-6.83);
+  \node[pd tag,anchor=south,text width=7.0cm,align=center] at (7.45,-6.30)
+    {publish new epoch root; expect three reliable gossip rounds};
 \end{tikzpicture}
 
-\vspace{4pt}
-\footnotesize
-\renewcommand{\arraystretch}{1.12}
-\begin{tabularx}{\textwidth}{@{}c l X@{}}
-\toprule
-\# & step & binds / value \\
-\midrule
---- & bond post & $A$ funds $B_\alpha$, locked TTL 24h, signed into $R_A{}^{(e)}$ and $R_S{}^{(e)}$ \\
-1 & transfer offer & $A\to S$, signed $\mathit{sk}_A$: $C_A$, $\mathrm{att}_A$, $R_A{}^{(e)}$ \\
-2 & local deliver & $S$ composes $C_S{}^\prime$, delivers to Controller-7; migration executes \\
-3 & damage detected & $B$ integration test fails on the staging schema, $2$h after transfer \\
-4 & damage claim & $B\to$ escrow: $\mathsf{cl}_B=(R_B{}^{(e+1)},\mathrm{evidence})$, a Merkle inclusion proof \\
-5 & clearance & escrow $\to A,B$: bond debited, $B$ paid, remainder refunded to $A$ \\
-6 & revoke $+$ gossip & $A$ publishes $R_A{}^{(e+2)}$; expected $3$ rounds ($\log_2 8$) across $8$ harbors \\
-\bottomrule
-\end{tabularx}
-\normalsize
-\caption{\textbf{One incident, four primitives, in strict order.} The card of
-Controller-7 crosses from Acme harbor $A$ to the shared staging harbor $S$
-(message 1--2); two hours later Beta harbor $B$ discovers the schema damage
-the migration caused (mark 3); the bond posted at $A$ settles against $B$
-claim through the escrow (messages 4--5, \S\ref{sec:fh-settlement}); Acme then
-revokes the card of Controller-7, with gossip expected to reach all eight
-federation members in about three rounds (\S\ref{sec:fh-ex-revocation}). No
-step needed the other two harbors to trust each other signing key as a root;
-each primitive covers exactly one step and no more. [internal]}
+\caption{A five-party sequence for the Controller-7 incident. Admission is
+already settled before work begins. Acme funds a 24-hour bond, transfers an
+attenuated card to staging, and staging runs the migration; two hours later
+Beta detects the \texttt{float32}/\texttt{float64} mismatch, submits a bound
+claim, and escrow clears it. Acme then publishes the revocation root, whose
+three-round estimate is an expectation for eight harbors under reliable
+rounds, not a deadline. [internal]}
 \label{fig:fh-worked-example}
 \end{figure*}

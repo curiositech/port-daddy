@@ -1,59 +1,57 @@
-% Figure --- the revocation exposure regime: which bound binds a stale card.
-% Provenance: cor:fh-window (exposure <= T_p + T_g under a partition bound and
-% a delivery service level) and thm:fh-conv item 3 (no bound without them);
-% the card's TTL is the fail-closed ceiling. Drawn by hand; TTL = 8 rounds.
+% Revocation exposure regime. Provenance: cor:fh-window and thm:fh-conv.
 %
-% Reader question: which bound actually stops a stale card from being
-%   admitted: the operational bounds, or the card's own expiry?
-% Claim: below the TTL diagonal the sum of the two operational bounds binds
-%   exposure; above it those bounds exceed the TTL and only expiry binds.
-% Evidence: Corollary~cor:fh-window (T_p+T_g) and Theorem thm:fh-conv item 3
-%   (no bound without a partition bound), TTL=8 rounds (illustrative).
-% Must distinguish: the region where the operational bound is tighter than
-%   the TTL from the region where the TTL alone is doing the work.
-% Grammar chosen: regime plane in rounds (tpl-quadrant.tex idiom, adapted to
-%   a diagonal split rather than four cells, since the boundary is a sum, not
-%   two independent yes/no axes). Grammar rejected: a timeline would need a
-%   third axis for the partition bound; a bare formula restates the corollary
-%   without showing which regime a deployment actually lands in.
-% Five-second test: at partition bound 6 and delivery level 6, which bound is
-%   doing the work?
+% Reader question: which bound stops a stale card first: the operational
+%   partition-plus-delivery window, or the card's own time to live?
+% Claim: exposure is min(T_p + T_g, TTL); the diagonal T_p + T_g = 8 separates
+%   the operationally bounded region from the expiry-only region.
+% Evidence: the chapter's two operational terms and an illustrative TTL of
+%   eight rounds; the worked deployment point T_p=T_g=6.
+% Must distinguish: a connected service-level bound from fail-closed expiry.
+% Grammar chosen: an edged regime plane with one worked point. Rejected: a
+%   timeline, because two independent operational bounds determine the regime.
+% Five-second test: at (6,6), say which bound wins and what exposure remains.
 \pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=0.76cm,y=0.40cm]
-  \node[pd title,anchor=west,text width=9.6cm,align=left] at (0,12.2)
-    {which bound binds a stale card: partition bound against delivery level};
-  \draw[pd focus rule] (0,0) -- (8,0);
-  \draw[pd focus rule] (0,0) -- (0,8);
-  \draw[pd breach rule] (10,0) -- (10,10) -- (0,10) -- (0,8);
-  \draw[pd focus rule,line width=1.4pt] (8,0) -- (0,8);
+\begin{tikzpicture}[pd figure,x=.86cm,y=.47cm]
+  \node[pd title,anchor=west,text width=9.6cm,align=left] at (-1.55,10.55)
+    {exposure is the smaller of the operational window and TTL};
 
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (10.4,0);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (0,10.6);
-  \foreach \t in {2,4,6,8,10}
-    {\draw[pd tick] (\t,0) -- (\t,-0.30);
-     \node[pd label,anchor=north] at (\t,-0.42) {\t};
-     \draw[pd tick] (0,\t) -- (-0.14,\t);
-     \node[pd label,anchor=east] at (-0.22,\t) {\t};}
-  \node[pd label,anchor=north,text width=6.5cm,align=center] at (5,-1.15)
-    {partition bound, in rounds};
-  \node[pd label,anchor=south,rotate=90,text width=6.5cm,align=center] at (-1.75,5)
-    {delivery service level, in rounds};
+  % Regions are edged and named; texture marks the categorical fail-closed case.
+  \path[pd focus fill] (0,0) -- (8,0) -- (0,8) -- cycle;
+  \path[pd neutral fill] (0,8) -- (8,0) -- (8,8) -- cycle;
+  \draw[pd breach rule] (0,8) -- (8,8) -- (8,0);
+  \draw[pd focus rule] (0,8) -- (8,0);
 
-  \node[pd focus label,anchor=south west] at (0.30,2.55)
-    {exposure $\leq T_p+T_g$};
-  \node[pd breach label,anchor=north west] at (1.60,9.55)
-    {only the TTL (expiry) binds};
-  \node[pd focus label,anchor=south west] at (4.55,5.10)
-    {TTL: 8 rounds here};
+  \draw[pd arrow] (0,0) -- (8.55,0);
+  \draw[pd arrow] (0,0) -- (0,8.55);
+  \foreach \t in {2,4,6,8}
+    {\draw[pd tick] (\t,0) -- (\t,-.18);
+     \node[pd label,anchor=north] at (\t,-.34) {\t};
+     \draw[pd tick] (0,\t) -- (-.09,\t);
+     \node[pd label,anchor=east] at (-.16,\t) {\t};}
+  \node[pd label,anchor=north,text width=6.6cm,align=center] at (4,-1.50)
+    {partition bound, rounds};
+  \node[pd label,anchor=south,rotate=90,text width=6.1cm,align=center] at (-1.55,4)
+    {delivery bound, rounds};
+
+  \node[pd focus label,anchor=center,text width=4.4cm,align=center] at (2.15,2.10)
+    {operational window binds\\partition + delivery};
+  \node[pd tag,anchor=center,text width=7.0cm,align=center] at (4,9.35)
+    {card expiry binds at TTL $=8$ rounds};
+  \node[pd tag,anchor=south west] at (3.92,4.18) {sum $=8$};
+
+  \draw[pd guide] (6,0) -- (6,6);
+  \draw[pd guide] (0,6) -- (6,6);
+  \node[pd breach datum] at (6,6) {};
+  \node[pd note,anchor=north,text width=7.4cm,align=center] at (4,-2.60)
+    {worked point: partition 6 + delivery 6 = 12; the card expires after 8 rounds};
 \end{tikzpicture}
-\caption{Which bound binds a stale card after revocation. Under a partition
-bound and a delivery service level, exposure is at most the two added
-together (Corollary~\ref{cor:fh-window}, below the gold TTL line); once that
-sum exceeds the card's time to live the expiry binds instead and the harbor
-fails closed (above the line, red dashed border). Without a partition bound the horizontal axis is unbounded and
-only the expiry remains (Theorem~\ref{thm:fh-conv}, item 3); the line is
-drawn for an illustrative time to live of eight rounds. [internal]}
+\caption{A regime plane for stale-card exposure after revocation. Below the
+diagonal, the partition and delivery guarantees add to a tighter operational
+bound; above it, only the card's eight-round expiry closes the window. The
+worked point $(6,6)$ is expiry-limited: the operational sum is 12 rounds, so
+the harbor fails closed at 8. Without a partition bound, only expiry remains.
+[internal; illustrative TTL]}
 \label{fig:fh-revocation-regime}
 \end{figure}

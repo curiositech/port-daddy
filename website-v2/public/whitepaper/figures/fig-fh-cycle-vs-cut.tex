@@ -1,61 +1,59 @@
-% Cycle versus cut: the same pairwise disagreement is detectable on C6, where
-% it closes a visible cycle, and invisible on P6, where no edge closes one.
-% Radii from skills/harbor-results/scripts/sheaf_consistency_radius.py
-% (seed 20260816): C6 r = 3 sqrt(1 - 5/6) = 1.2247, P6 r = 0. [verified]
+% Cycle versus cut. Radii from sheaf_consistency_radius.py, seed 20260816.
 %
-% Reader question: why does the same disagreement get caught on one topology
-%   and not another?
-% Claim: detection is exactly the visible-cycle condition: the disagreeing
-%   overlap closes a cycle on C6 (r>0) but no edge closes one on P6 (r=0).
-% Evidence: the two computed radii from sheaf_consistency_radius.py, seed
-%   20260816, on six harbors numbered 1-6.
-% Must distinguish: a closed cycle through the disagreement (detectable)
-%   from the same disagreement on a path (invisible, r=0 exactly).
-% Grammar chosen: before/after pair, two instances of the same six-node
-%   graph on one grid (tpl-before-after idiom, applied to two topologies
-%   rather than two times). Grammar rejected: a single graph with both edge
-%   sets overlaid would hide which edge is the one difference (the missing
-%   closing edge on the path).
-% Five-second test: which panel's disagreeing edge closes a cycle, and what
-%   is that panel's radius?
+% Reader question: why does the same edge disagreement produce a residual on
+%   one six-harbor topology and disappear on another?
+% Claim: edge 3--4 closes a visible cycle on C6 (r=1.2247) but is a bridge on
+%   P6, where the missing 6--1 edge leaves no cycle and r=0.
+% Evidence: the two computed radii and six numbered harbors.
+% Must distinguish: the disagreeing edge from the separate missing closure.
+% Grammar chosen: aligned topology small multiples. Rejected: one overlaid
+%   graph, because it would hide the single missing edge that changes the rank.
+% Five-second test: identify edge 3--4 in both panels and the absent 6--1 edge.
 \pdfigurehue{pdgold}%
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\cax{1.50}   \def\pbx{7.10}   \def\rad{1.25}
-  \node[pd title,anchor=north,text width=4.0cm,align=center] at (\cax,2.85)
-    {the 6-cycle: disagreement closes a cycle};
-  \foreach \i in {1,...,6}
-    {\node[pd state,circle,minimum size=6.2mm,inner sep=0pt] (c\i)
-       at ({\cax+\rad*cos(90-60*(\i-1))},{\rad*sin(90-60*(\i-1))}) {\i};}
-  \foreach \i/\j in {1/2,2/3,3/4,4/5,5/6}
-    {\draw[pd rule] (c\i) -- (c\j);}
-  \draw[pd breach rule,line width=1.3pt] (c6) -- (c1);
-  \node[pd breach label,anchor=west] at (\cax+\rad+0.25,0.55) {disagreeing edge};
-  \node[pd label,anchor=north,text width=3.6cm,align=center] at (\cax,-1.75)
-    {$r=1.2247$: visible};
+  \def\cx{1.70}  \def\cy{1.15}  \def\rad{1.18}
+  \def\px{5.62}  \def\pitch{.86}
 
-  \node[pd title,anchor=north,text width=4.6cm,align=center] at (\pbx,2.85)
-    {the 6-path: same disagreement, no cycle};
+  \node[pd title,anchor=north,text width=4.2cm,align=center] at (\cx,4.05)
+    {A. cycle: edge 3--4 closes the loop};
   \foreach \i in {1,...,6}
-    {\node[pd state,circle,minimum size=6.2mm,inner sep=0pt] (p\i)
-       at ({\pbx-2.15+(\i-1)*0.86},0.30) {\i};}
+    {\node[pd state,circle,minimum size=6.4mm,inner sep=0pt] (c\i)
+       at ({\cx+\rad*cos(90-60*(\i-1))},{\cy+\rad*sin(90-60*(\i-1))}) {\i};}
+  \foreach \i/\j in {1/2,2/3,4/5,5/6,6/1}
+    {\draw[pd rule] (c\i) -- (c\j);}
+  \draw[pd breach rule] (c3) -- (c4);
+  \node[pd breach datum] at ($(c3)!0.5!(c4)$) {};
+  \node[pd breach label,anchor=west] at (2.98,.22) {edge 3--4};
+  \node[pd focus state,minimum width=2.5cm,minimum height=.70cm,
+    inner xsep=5pt,inner ysep=4pt] at (\cx,-1.35) {$r=1.2247$: visible};
+
+  \node[pd title,anchor=north,text width=5.0cm,align=center] at (7.78,4.05)
+    {B. path: edge 3--4 is a cut};
+  \foreach \i in {1,...,6}
+    {\node[pd state,circle,minimum size=6.4mm,inner sep=0pt] (p\i)
+       at ({\px+(\i-1)*\pitch},1.15) {\i};}
   \foreach \i/\j in {1/2,2/3,4/5,5/6}
     {\draw[pd rule] (p\i) -- (p\j);}
-  \draw[pd breach rule,line width=1.3pt] (p3) -- (p4);
-  \node[pd breach label,anchor=south] at ({\pbx-0.43},0.65) {disagreeing edge};
-  \draw[pd hairline,dashed] (p6) to[out=-55,in=-125] (p1);
-  \node[pd label,anchor=north,text width=3.4cm,align=center] at (\pbx,-0.55)
-    {no edge closes a cycle};
-  \node[pd label,anchor=north,text width=3.6cm,align=center] at (\pbx,-1.75)
-    {$r=0$: invisible};
+  \draw[pd breach rule] (p3) -- (p4);
+  \node[pd breach datum] at ($(p3)!0.5!(p4)$) {};
+  \node[pd breach label,anchor=south,text width=2.8cm,align=center]
+    at ($(p3)!0.5!(p4)+(0,.24)$) {same edge 3--4};
+
+  % Two short stubs name the absent closure without drawing a false edge.
+  \draw[pd guide] (p1.south west) -- ++(-.34,-.30);
+  \draw[pd guide] (p6.south east) -- ++(.34,-.30);
+  \node[pd label,anchor=north,text width=4.1cm,align=center] at (7.78,.45)
+    {no 6--1 closing edge};
+  \node[pd state,minimum width=2.5cm,minimum height=.70cm,
+    inner xsep=5pt,inner ysep=4pt] at (7.78,-1.35) {$r=0$: invisible};
 \end{tikzpicture}
-\caption{Cycle versus cut on six harbors, numbered 1 to 6. The same pairwise
-disagreement on one overlap is placed on the cycle $C_6$ and on the path
-$P_6$. On the cycle the disagreeing edge closes a visible cycle and the
-consistency radius is $r=3\,(1-5/6)^{1/2}=1.2247$; on the path no edge closes
-a cycle and $r=0$, so detection is exactly the visible-cycle condition of
-Theorem~\ref{thm:sheaf-equivocation}. [verified; \texttt{sheaf\_consistency\_radius.py},
-seed 20260816]}
+\caption{The same disagreement on edge 3--4 is placed on two six-harbor
+topologies. On $C_6$ that edge closes a visible cycle and the measured
+consistency radius is $r=1.2247$. On $P_6$, edge 6--1 is absent, so edge
+3--4 is a cut and the residual is exactly zero. Detection therefore depends
+on a visible cycle, not on the local disagreement alone. [verified,
+\texttt{sheaf\_consistency\_radius.py}; seed 20260816]}
 \label{fig:fh-cycle-vs-cut}
 \end{figure}
