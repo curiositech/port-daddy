@@ -2185,10 +2185,32 @@ current load & pull: residue & --- & $\bullet$ & the daemon's own claim table \\
 \end{tabularx}
 \end{table}
 
-It is tempting to claim that this discovery ranker and the operator-facing
-\emph{attention queue} are \emph{the same function} with different weights. The claim
-is elegant and, on inspection, false: the two readers have incompatible loss
-functions. We state the distinction as a theorem.
+\paragraph{Maya's dispute: whom to ask is not what to inspect.}
+An agent needs help repairing the note display in \path{lib/briefing.ts};
+Maya, the operator, has time to inspect one proposal. In this synthetic
+example, candidate A knows the briefing code and proposes a reversible
+display fix. Candidate B works on \path{lib/attention.ts} and proposes
+marking unread messages as seen without returning them, risking missed
+instructions; B is a weaker fit for the briefing query but Maya's first
+inspection. Candidate C proposes a comment correction in
+\path{lib/resurrection.ts} and ranks last for both readers. The artifact
+names are real; the proposals and preferences are invented for this example.
+
+Figure~\ref{fig:split-ranker} holds the routing order fixed and compares two
+possible Maya orders. The upper panel is an agreement case; the lower is her
+dispute. Both sides show \emph{ordinal ranks}, with 1 highest, rather than
+putting capability scores and expected losses on incompatible numerical
+scales. Neither the left-to-right direction nor the panel order denotes time.
+
+\input{figures/legible-swarm-split-ranker}
+
+With a one-item budget, the router selects A while Maya selects B. Their
+crossing lines certify the strict reversal: A is above B for one reader and
+below B for the other. No increasing rescaling can repair it. A tie would
+not establish that conflict: if Maya were indifferent between A and B, she
+could accept the router's order. Tied ranks belong at the same height, not
+at invented adjacent positions. The figure has no ties and makes no claim
+about the size of either reader's preference.
 
 \begin{pdclaim}{Theorem}{No universal monotone identification of the two heads}
 \label{thm:split-ranker}
@@ -2206,7 +2228,7 @@ No universal monotone transform of one scalar yields the other on that domain.
 \end{pdclaim}
 
 \begin{proof}[Proof sketch]
-Suppose, for contradiction, that there is a strictly monotone map $\phi$ with
+Suppose, for contradiction, that there is a strictly increasing map $\phi$ with
 $\mathrm{regret}(x)=\phi(\mathrm{fit}(x))$ for all items $x$, so the two heads induce
 the same ranking. Construct two items. Item $A$ is a highly capable, perfectly
 on-topic completion of a safe, fully reversible task: $\mathrm{fit}(A)$ is maximal,
@@ -2215,7 +2237,7 @@ near zero, so $\mathrm{regret}(A)$ is minimal. Item $B$ is an off-topic, low-cap
 agent that has nonetheless just proposed an irreversible, high-stakes, anomalous
 action: $\mathrm{fit}(B)$ is low, but $\mathrm{regret}(B)$ is maximal. Then
 $\mathrm{fit}(A)>\mathrm{fit}(B)$ while $\mathrm{regret}(A)<\mathrm{regret}(B)$, so the
-two heads order $\{A,B\}$ oppositely. No monotone $\phi$ can both preserve and reverse
+two heads order $\{A,B\}$ oppositely. No increasing $\phi$ can both preserve and reverse
 an order, contradiction. Hence the heads optimize genuinely different objectives; they
 may share candidate generation and decay, but the scoring head must be chosen per
 reader. \qed
@@ -2225,46 +2247,47 @@ reader. \qed
 above shows only that \emph{this} pair of heads cannot be identified. The general
 fact says when sharing \emph{is} safe, which is the statement a designer needs.
 
-\paragraph{The scene.}
-Two readers want two numbers from one thermometer. The successor wants the reading
-that predicts tomorrow's weather; the operator wants the reading that says whether
-to act now. One scalar can serve both only when the two orderings agree item by
-item, and decision theory has had a word for that agreement since the 1980s:
-the two readers' losses are \textbf{comonotone} --- they move together across
-the items, never one rising while the other falls --- the property Yaari and
-Schmeidler built rank-dependent and Choquet expected utility
-on~\pdcite{yaari1987,schmeidler1989}. Their theorems are about how a decision
-maker prices comonotone acts; the theorem below borrows only the concept, and
-once the concept is named the rest is elementary: two real-valued functions on
-a finite set are comonotone exactly when they induce the same ranking, which is
-exactly when one number can stand in for both. So the box says when a shared
-head is safe, and the crossing pair after it says why, for these two readers,
-it isn't. (The super-additive price of serving both --- the $2.13\times$ of
-Theorem~\ref{thm:split-digest}, unbounded in $k$ --- is the part that is not
-in Yaari or Schmeidler, and the part this chapter is actually claiming.)
+\paragraph{When agreement is enough.}
+The upper panel gives the useful converse: different objectives can share a
+ranking when their strict preferences never oppose each other. This is
+\textbf{comonotonicity}, the concept used in Yaari's rank-dependent utility
+and Schmeidler's Choquet expected utility~\pdcite{yaari1987,schmeidler1989}.
+For priority scores $u$ and $v$, both oriented so larger means higher
+priority, the condition is
+$(u(x)-u(y))(v(x)-v(y))\geq 0$ for every pair. A negative product is a
+strict reversal; a zero product may be a tie and is not a contradiction.
+Thus compatible orders can have different ties: they need a common
+refinement, not identical numerical scores or identical indifference
+classes. Sharing an ordering also does not calibrate fit and regret into
+the same units. The following finite ranking statement borrows this
+concept, not the utility representation theorems of those authors.
 
 \begin{pdclaim}{Theorem}{Comonotone characterization}
 \label{thm:comonotone}
-A scalar head $h:X\to\mathbb R$ \emph{serves} a reader with loss $L_r$ if ranking by
-$h$ realizes $r$'s optimal selection at every budget. A single head serves two
-readers iff their induced preference orders are comonotone (they agree on every
-pair). The successor and operator orders are not comonotone: a routine-but-essential
-working state (high continuation value, negligible regret) and an anomalously
-abandoned dead end with irreversible side effects (zero continuation value, maximal
-regret) order oppositely. Hence no shared head serves both.
+Let $X$ be a finite item set and suppose each reader's optimal selections at
+every budget $m$ are the top-$m$ sets of a total preorder of item priorities.
+A scalar head $h:X\to\mathbb R$ \emph{serves} a reader if its first $m$ items,
+under one fixed tie-breaking order, are optimal for every $m$.
+A single head serves both readers iff their priority orders are comonotone:
+no pair is strictly preferred in opposite directions. Ties may be refined
+in an order both accept. Maya's lower-panel preferences violate the
+condition on A and B, so no shared head serves those two orders.
 \end{pdclaim}
 \begin{proof}
-($\Leftarrow$) Comonotone total preorders admit a common refinement, and any utility
-representing the refinement serves both. ($\Rightarrow$) A shared head induces one
-order; each reader's optimum at every budget is a top-$m$ set of that order, so
-both readers' orders equal the $h$-order and agree pairwise. The displayed pair,
-constructible in any real fleet, disagrees, so no shared head exists.
+($\Leftarrow$) Sort by the first reader's priority and resolve each tie by
+the second reader's priority. Without a strict reversal, this order
+preserves every strict comparison of both readers. Assign decreasing
+scalar values along it; each prefix is optimal for both.
+($\Rightarrow$) Suppose one reader strictly prefers $x$ to $y$ and the
+other strictly prefers $y$ to $x$. Whichever item the shared order places
+first, the prefix ending there includes it without the other. Exchanging
+the two improves that prefix for one reader, so it cannot be optimal at
+that budget. Hence a shared head cannot contain a strict reversal.
 \end{proof}
-The crossing pair constructed above is precisely the certificate that discovery-fit
-and operator-regret are not comonotone, and the misread to preempt is the
-converse: comonotone readers \emph{can} share a head. The theorem forbids sharing
-only when the crossing pair actually occurs in the domain, and in agent oversight
-it does.
+The lower panel is a certificate that the two objectives \emph{can}
+disagree, not evidence that every pair of real queues does. The theorem
+forbids sharing when a strict reversal actually occurs; the upper panel
+shows why different objective names alone do not establish impossibility.
 
 The consequence is a design rule: the operator wants the \emph{most dangerous} item
 surfaced, the agent wants the \emph{most capable} collaborator. Collapsing them into
@@ -2367,11 +2390,6 @@ the inequality read at fixed $a>0$ with $C_{\mathrm{miss}}$ large.
 This is the formal content of ``reputation must not defeat hard stakes gates,'' and
 it is the reason the reputation layer of the next part hands this chapter a
 posterior, not a discount.
-
-Figure~\ref{fig:split-ranker} draws the two heads side by side over the same
-candidate pool, making concrete why one ranker cannot serve both readers.
-
-\input{figures/legible-swarm-split-ranker}
 
 \begin{protocol}{Attention-queue ranking with miss-cost}
 On each refresh, given the live set of items and the operator's per-class trust

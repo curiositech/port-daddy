@@ -1,90 +1,66 @@
-% Restyle of fig-split-ranker to the tikz-diagram-craft v2 standard (v1
-% names and raw colours migrated to roles; slope-chart layout unchanged,
-% ch4.md restyles). Fixes the clipped end glosses: they now sit on a wider
-% grid with enough margin that "safe, calm" and the other three-word tags no
-% longer run off the picture's own edge.
-%
-% Reader question: how can one substrate support two incompatible rankings?
-% Claim: discovery rank and attention rank are not monotone rescalings of
-% each other -- two candidates (A, B) fully invert, and a smaller pair
-% (C, D) swap one adjacent step, the same non-comonotone fact in miniature.
-% Evidence: candidates A (best fit, safest to skip) and B (poor fit, most
-% dangerous to miss), whitepaper/legible-swarm.tex [internal].
-% Must distinguish: the full inversion (A, B) from the adjacent swap (C, D);
-% which end of each axis a candidate sits at, named at both ends so no
-% legend is needed.
-% Grammar chosen: paired ranked lists (slope chart) -- two rank columns,
-% one line per candidate; a shared substrate splitting into two scoring
-% lanes is exactly this grammar's reading.
-% Grammar rejected: a single weighted score would erase the claim, which is
-% that no single rescaling reconciles the two orders.
-% Five-second test: which candidate is safe to skip but dangerous to miss?
+% Reader question: when can Maya and the routing agent share one ranking?
+% Claim: a strict reversal, not a difference in units or a tie, prevents
+% one order from satisfying both readers at every selection budget.
+% Evidence: synthetic ordinal ranks over three proposals named for real
+% lib/ artifacts; the complete data is pdRankSamples below. Checked by
+% tests/harbor-research/test_legible_swarm_split_ranker.py; no measured scores.
+% Must distinguish: readers (left/right) from alternative cases (top/bottom);
+% rank 1 is highest on BOTH sides. Only the briefing/attention pair reverses.
+% Grammar: paired slopegraphs, identical geometry and direct endpoint labels.
+% Reject: before/after, raw fit-versus-loss units, or an invented unified score.
+% Five-second test: Maya puts attention.ts first while the router puts
+% briefing.ts first; resurrection.ts remains third for both.
+% Width: the 4.5-inch Book column, unscaled. All type inherits shared roles.
+% Design references: https://charliepark.org/slopegraphs/ (ordinal scales,
+% ties, direct labels); https://www.edwardtufte.com/notebook/
+% sparkline-theory-and-practice-edward-tufte/ (words and graphics together).
 \begin{figure}[H]
 \centering
 \pdfigurehue{pdteal}%
-\begin{tikzpicture}[pd figure,x=.60cm,y=1cm]
-  \def\lx{3.4}   % discovery-rank column
-  \def\rx{9.4}   % attention-rank column
-  \draw[pd focus rule,line width=1.1pt] (\lx,0.7)--(\lx,5.8);
-  \draw[pd breach rule,line width=1.1pt] (\rx,0.7)--(\rx,5.8);
-  \node[pd title,anchor=south,align=center] at (\lx,6.05)
-    {rank by discovery\\(fit)};
-  \node[pd title,text=pderror,anchor=south,align=center] at (\rx,6.05)
-    {rank by attention\\(regret)};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\lx{3.45}
+  \def\rx{7.65}
+  \def\rankpitch{0.84}
+  \def\panelpitch{3.70}
+  % artifact / routing rank / Maya agreement rank / Maya dispute rank /
+  % shared line role / shared endpoint role. These ranks are illustrative.
+  \def\pdRankSamples{%
+    briefing.ts/1/1/2/pd focus rule/pd focus datum,
+    attention.ts/2/2/1/pd rule/pd datum,
+    resurrection.ts/3/3/3/pd hairline/pd datum}
 
-  \foreach \y/\rank in {5.2/1,3.9/2,2.6/3,1.3/4}{
-    \draw[pd tick] (\lx-.15,\y)--(\lx+.15,\y);
-    \draw[pd tick] (\rx-.15,\y)--(\rx+.15,\y);
-    \node[pd label,anchor=east] at (\lx-.30,\y) {\rank};
-    \node[pd label,anchor=west] at (\rx+.30,\y) {\rank};}
+  \node[pd label,anchor=west,inner sep=0pt] at (0,1.65)
+    {Synthetic ordinal ranks; 1 is highest on both sides};
 
-  % A: discovery rank 1 -> attention rank 4 (safe to ignore)
-  \draw[pd focus rule,line width=1.05pt] (\lx,5.2)--(\rx,1.3);
-  \node[pd focus datum] at (\lx,5.2) {};
-  \node[pd focus datum] at (\rx,1.3) {};
-  % B: discovery rank 4 -> attention rank 1 (dangerous to miss)
-  \draw[pd breach rule,line width=1.05pt] (\lx,1.3)--(\rx,5.2);
-  \node[pd breach datum] at (\lx,1.3) {};
-  \node[pd breach datum] at (\rx,5.2) {};
-  % C, D: a smaller adjacent swap, the same non-comonotone fact in miniature
-  \draw[pd hairline] (\lx,3.9)--(\rx,2.6);
-  \draw[pd hairline] (\lx,2.6)--(\rx,3.9);
-  \node[pd datum] at (\lx,3.9) {};
-  \node[pd datum] at (\rx,2.6) {};
-  \node[pd datum] at (\lx,2.6) {};
-  \node[pd datum] at (\rx,3.9) {};
+  \foreach \panel/\heading in {
+    0/{Agreement: one order serves both},
+    1/{Dispute: the top choices conflict}}{
+    \begin{scope}[yshift=-\panel*\panelpitch cm]
+      \node[pd title,anchor=west,inner sep=0pt] at (0,1.02) {\heading};
+      \node[pd label,anchor=east,inner sep=0pt] at (\lx-.22,.46)
+        {Routing agent: fit};
+      \node[pd label,anchor=west,inner sep=0pt] at (\rx+.22,.46)
+        {Maya: regret if ignored};
 
-  % end glosses, named at both ends, in the clear margin outside both axes
-  \node[pd focus label,anchor=east,align=center,text width=2.3cm]
-    at (0.55,5.2) {\hyphenpenalty=10000\textbf{A}\\capable, safe, calm};
-  \node[pd focus label,anchor=west,align=center,text width=2.3cm]
-    at (12.25,1.3) {\hyphenpenalty=10000\textbf{A}\\capable, safe, calm};
-
-  \node[pd label,text=pderror,anchor=east,align=center,text width=2.3cm]
-    at (0.55,1.3) {\hyphenpenalty=10000\textbf{B}\\off-topic, risky, tense};
-  \node[pd label,text=pderror,anchor=west,align=center,text width=2.3cm]
-    at (12.25,5.2) {\hyphenpenalty=10000\textbf{B}\\off-topic, risky, tense};
-
-  \node[pd label,anchor=east,align=center,text width=2.3cm]
-    at (0.55,3.9) {\hyphenpenalty=10000\textbf{C}\\steady, calm, minor};
-  \node[pd label,anchor=west,align=center,text width=2.3cm]
-    at (12.25,2.6) {\hyphenpenalty=10000\textbf{C}\\steady, calm, minor};
-
-  \node[pd label,anchor=east,align=center,text width=2.3cm]
-    at (0.55,2.6) {\hyphenpenalty=10000\textbf{D}\\shaky, tense, rising};
-  \node[pd label,anchor=west,align=center,text width=2.3cm]
-    at (12.25,3.9) {\hyphenpenalty=10000\textbf{D}\\shaky, tense, rising};
-
-  \node[pd note,anchor=north,align=center,text width=8.2cm] at (6.4,0.35)
-    {\hyphenpenalty=10000\exhyphenpenalty=10000
-     A and B reverse: no monotone rescaling\\makes the two heads interchangeable};
+      \foreach \artifact/\route/\agreement/\dispute/\stroke/\mark in \pdRankSamples {
+        \pgfmathtruncatemacro{\readerRank}{ifthenelse(\panel==0,\agreement,\dispute)}
+        % Both ends use the same downward ordinal scale; no arrow implies time.
+        \draw[\stroke] (\lx,{-(\route-1)*\rankpitch})
+          -- (\rx,{-(\readerRank-1)*\rankpitch});
+        \node[\mark] at (\lx,{-(\route-1)*\rankpitch}) {};
+        \node[\mark] at (\rx,{-(\readerRank-1)*\rankpitch}) {};
+        \node[pd label,anchor=east,align=right,text width=3.15cm,inner sep=0pt]
+          at (\lx-.22,{-(\route-1)*\rankpitch})
+          {\texttt{\artifact}\quad\route};
+        \node[pd label,anchor=west,align=left,text width=3.15cm,inner sep=0pt]
+          at (\rx+.22,{-(\readerRank-1)*\rankpitch})
+          {\readerRank\quad\texttt{\artifact}};
+      }
+    \end{scope}
+  }
 \end{tikzpicture}
-\caption{One candidate pool under two loss functions, ranks 1--4 on both
-axes. Discovery ranks by fit; attention ranks by expected regret if ignored.
-Candidate A is the best fit but safest to skip, while B is a poor fit but the
-most dangerous to miss, so their ranks fully invert (1--4 against 4--1). C
-and D swap one adjacent pair, the same non-comonotone fact at smaller scale.
-Shared candidate generation and recency decay do not make the two scoring
-heads interchangeable [internal].}
+\caption{One pair crosses when Maya and the router disagree.
+Panels compare alternative preferences, not time.
+[internal, synthetic ordinal example]}
 \label{fig:split-ranker}
 \end{figure}
