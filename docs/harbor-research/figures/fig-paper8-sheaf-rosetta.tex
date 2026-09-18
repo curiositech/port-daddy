@@ -1,0 +1,49 @@
+% Paper8 Figure 2: The Rosetta Stone mapping swarm primitives to cellular sheaves.
+% Structural diagram in native TikZ conforming to CONVENTION.md.
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  sbox/.style={draw=black!30,thick,fill=white,rounded corners=2pt,inner sep=6pt,text width=3.8cm,align=left},
+  head/.style={font=\scriptsize\bfseries,text=harborblue},
+  body/.style={font=\tiny,text=black!85},
+  carrow/.style={thick,->,harborblue},
+]
+\node[sbox] (box0) at (0, 0) {
+  {\head 0-Cells: AgentNodes ($v \in V$)}\\[3pt]
+  {\body Stalk Vector $x_v \in \mathbb{R}^D$:\\[1pt]
+  $\bullet$ Local Epoch $t_v \in \mathbb{N}$\\
+  $\bullet$ Token Spend $b_v \in \mathbb{R}_+$\\
+  $\bullet$ AST Lease Hash $h_L \in \mathbb{R}$\\
+  $\bullet$ State Root Digest $d_v \in \mathbb{R}$}
+};
+
+\node[sbox] (box1) at (5.0, 0) {
+  {\head 1-Cells: Channels ($e \in E$)}\\[3pt]
+  {\body Restriction Map $P_e: \mathbb{R}^D \to \mathbb{R}^S$:\\[1pt]
+  $\bullet$ Coordinate-wise selection\\
+  $\bullet$ Edge Discrepancy (1-cochain):\\
+  \quad $g_e = P_e x_v - P_e x_u$\\
+  $\bullet$ Coboundary $(\delta_0 x)_e = x_v - x_u$}
+};
+
+\node[sbox] (box2) at (10.0, 0) {
+  {\head 2-Cells: Review Triads ($\tau \in F$)}\\[3pt]
+  {\body Consensus Join Contract:\\[1pt]
+  $\bullet$ Producer $\leftrightarrow$ Dissenter\\
+  $\bullet$ Dissenter $\leftrightarrow$ Manager\\
+  $\bullet$ Manager $\leftrightarrow$ Producer\\
+  $\bullet$ Boundary $(\delta_1 g)_\tau = g_{01} + g_{12} - g_{02}$}
+};
+
+\draw[carrow] (box0) -- node[above,font=\small\bfseries,harborblue] {$\delta_0$} (box1);
+\draw[carrow] (box1) -- node[above,font=\small\bfseries,harborblue] {$\delta_1$} (box2);
+
+\node[draw=black!25,fill=black!2,rounded corners=2pt,inner sep=5pt,text width=13.6cm,align=center] at (5.0, -1.8) {
+  {\small\bfseries Discrete Cochain Complex:}\quad
+  $0 \longrightarrow C^0(X; \mathcal{F}) \xrightarrow{\quad\delta_0\quad} C^1(X; \mathcal{F}) \xrightarrow{\quad\delta_1\quad} C^2(X; \mathcal{F}) \longrightarrow 0$\\[2pt]
+  {\scriptsize Fundamental Simplicial Identity: $\delta_1 \circ \delta_0 = 0 \iff \mathrm{im}(\delta_0) \subseteq \ker(\delta_1)$ (honest potentials automatically satisfy all triadic contracts with zero curl).}
+};
+\end{tikzpicture}
+\caption{The Rosetta Stone: exact algebraic translation from multi-agent swarm primitives into cellular sheaves and simplicial complexes over cell complex $X = (V, E, F)$.}
+\label{fig:sheaf-rosetta}
+\end{figure}
