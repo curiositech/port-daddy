@@ -62,7 +62,7 @@
 \begingroup
 \makeatletter\let\@xfloat\pd@orig@xfloat\makeatother
 % ---- shared lane geometry (both pages use the same row and rule spec) -----
-\def\yTop{10.55}\def\yHead{10.15}\def\ySub{9.60}\def\yBase{0.55}
+\def\yTop{11.15}\def\yHead{10.35}\def\ySub{9.50}\def\yBase{0.55}
 \def\yPrac{8.55}\def\yEng{6.90}\def\ySec{5.25}\def\yEcon{3.60}\def\yPhil{1.95}
 \def\wFat{9.0}\def\wMed{5.0}\def\wThin{2.0}
 % A river segment: #1 x start, #2 x end, #3 y, #4 line width, #5 extra style.
@@ -87,7 +87,7 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,
-  pd panel title/.append style={font=\pdcaptionface\bfseries\footnotesize},
+  pd panel title/.append style={font=\pdcaptionface\bfseries\footnotesize,text width=3.35cm},
   pd note/.append style={font=\pdcaptionface\footnotesize}]
   % ---- column geometry: two parts, touching, no gap ---------------------
   \def\bA{0}\def\bB{3.65}\def\bC{7.30}
@@ -142,7 +142,7 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,
-  pd panel title/.append style={font=\pdcaptionface\bfseries\footnotesize},
+  pd panel title/.append style={font=\pdcaptionface\bfseries\footnotesize,text width=3.35cm},
   pd note/.append style={font=\pdcaptionface\footnotesize}]
   % ---- column geometry: the other two parts, touching, no gap -----------
   \def\bA{0}\def\bB{3.65}\def\bC{7.30}

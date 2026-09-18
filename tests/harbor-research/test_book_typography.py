@@ -1,9 +1,16 @@
 """Pinned fonts and role routing are inputs to both Book and fragment builds."""
 import hashlib
 import json
+import os
+from collections import Counter
 from pathlib import Path
 import re
 import unittest
+
+try:
+    import fitz
+except ImportError:
+    fitz = None
 
 ROOT = Path(__file__).resolve().parents[2]
 BOOK = ROOT / "website-v2/public/whitepaper"
@@ -43,6 +50,33 @@ class BookTypographyTests(unittest.TestCase):
         self.assertIn(r"\renewcommand{\pdfiglabelfamily}{\pdcaptionface}", swiss)
         compiler = (ROOT / "skills/harbor-chartwork/scripts/compile_fragment.sh").read_text()
         self.assertIn('cp -R "$BOOK_DIR/fonts" "$BUILD/fonts"', compiler)
+
+    def test_late_legacy_font_reset_is_overridden(self):
+        source = (BOOK / "coordination-papers-mega-volume-typography.tex").read_text()
+        hook = source[source.index(r"\AtBeginDocument"):]
+        self.assertIn(r"\renewcommand{\rmdefault}{pdsource}", hook)
+        self.assertIn(r"\renewcommand{\familydefault}{\rmdefault}\normalfont", hook)
+
+
+@unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),
+                     "Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks")
+class RenderedBookTypographyTests(unittest.TestCase):
+    def test_actual_prose_uses_source_not_legacy_pagella(self):
+        with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
+            chapter = next(row[2] - 1 for row in book.get_toc()
+                           if row[1] == "1 The Single-Writer Kernel")
+            # The reader-guide prose and two continuous-prose chapter pages.
+            # Counting characters avoids a title or caption satisfying the test.
+            for index in [5, 6, chapter + 1, chapter + 2]:
+                fonts = Counter()
+                for block in book[index].get_text("dict")["blocks"]:
+                    for line in block.get("lines", []):
+                        for span in line["spans"]:
+                            fonts[span["font"]] += len(span["text"])
+                with self.subTest(page=index + 1):
+                    self.assertGreater(fonts["SourceSerif4-Regular"], 250, fonts)
+                    self.assertEqual(sum(n for face, n in fonts.items()
+                                         if face.startswith("TeXGyrePagellaX")), 0, fonts)
 
 
 if __name__ == "__main__":

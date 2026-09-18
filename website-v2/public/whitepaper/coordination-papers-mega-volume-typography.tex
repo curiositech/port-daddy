@@ -49,6 +49,10 @@
   % combination real leading; changing face must not squeeze adjacent lines.
   \DeclareCaptionFont{pdbookserif}{\pdcaptionface\linespread{1.16}\selectfont}
   \AtBeginDocument{%
+    % newpxtext installs Pagella in AtEndPreamble. Select the already loaded
+    % named Text family afterwards; otherwise titles change but prose does not.
+    \renewcommand{\rmdefault}{pdsource}%
+    \renewcommand{\familydefault}{\rmdefault}\normalfont
     \captionsetup{font={small,pdbookserif},labelfont=bf}%
     \renewcommand*{\marginfont}{\pdcaptionface\linespread{1.16}\footnotesize\raggedright\color{pdinkmuted}}}
 \fi\fi
