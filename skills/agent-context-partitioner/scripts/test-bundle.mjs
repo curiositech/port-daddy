@@ -22,6 +22,7 @@ const cases=[
   ["revoked-guidance",()=>mutate(x=>x.items[0].authority.status="REVOKED"),"E_GUIDANCE_NOT_CURRENT"],
   ["obligation-droppable",()=>mutate(x=>x.items[1].droppable=true),"E_NON_DROPPABLE_STATE"],
   ["missing-disposition",()=>mutate(x=>x.dispositions.pop()),"E_COVERAGE_MISSING"],
+  ["unknown-disposition",()=>mutate(x=>x.dispositions[0].disposition="EXECUTED"),"E_DISPOSITION"],
   ["omit-obligation",()=>mutate(x=>{x.items[1].droppable=true;x.dispositions[1].disposition="OMITTED_ALLOWED";x.dispositions[1].targetRefs=[];x.dispositions[1].reasonCode="EXPIRED_DISPOSABLE"}),"E_NON_DROPPABLE_STATE"],
   ["scope",()=>mutate(x=>x.targets[0].scope="repo:other"),"E_DISCLOSURE_SCOPE"],
   ["capability",()=>mutate(x=>x.targets[0].capabilityDigests=[]),"E_CAPABILITY_GAP"],

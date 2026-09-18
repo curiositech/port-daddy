@@ -13,6 +13,7 @@ const TRANSFER=["itemId","fromTargetRef","toTargetRef","disclosureProofRef"];
 const COMPARISON=["leftItemId","rightItemId","spaceId"];
 const GAP=["code","itemId","targetRef","detail"];
 const OMIT=new Set(["OUT_OF_SCOPE","RETENTION_REDACTED_WITH_TOMBSTONE","EXPIRED_DISPOSABLE","DUPLICATE_CONTENT_HASH","SUPERSEDED_PROJECTION"]);
+const DISPOSITIONS=new Set(["ASSIGNED","TRANSFERRED","OMITTED_ALLOWED","BLOCKED"]);
 const EFFECT_OPEN=new Set(["PREPARED","DISPATCHED","AMBIGUOUS"]);
 const digestPattern=/^sha256:[0-9a-f]{64}$/;
 
@@ -60,6 +61,7 @@ export function validatePartition(plan){
   for(const[i,d]of(plan.dispositions??[]).entries()){
     exact(d,DISP,`$.dispositions[${i}]`,errors);
     if(dispositions.has(d.itemId))errors.push({code:"E_DUPLICATE_DISPOSITION",path:`$.dispositions[${i}].itemId`});dispositions.set(d.itemId,d);
+    if(!DISPOSITIONS.has(d.disposition))errors.push({code:"E_DISPOSITION",path:`$.dispositions[${i}].disposition`});
     const item=items.get(d.itemId);if(!item)errors.push({code:"E_UNKNOWN_ITEM",path:`$.dispositions[${i}].itemId`});
     if(d.targetRefs.some(x=>!targets.has(x)))errors.push({code:"E_UNKNOWN_TARGET",path:`$.dispositions[${i}].targetRefs`});
     if(["ASSIGNED","TRANSFERRED"].includes(d.disposition)&&d.targetRefs.length===0)errors.push({code:"E_TARGET_REQUIRED",path:`$.dispositions[${i}].targetRefs`});

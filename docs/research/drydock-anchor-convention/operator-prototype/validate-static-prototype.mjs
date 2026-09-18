@@ -59,6 +59,13 @@ expect(/@media \(forced-colors: active\)/.test(html), "missing forced-colors bra
 expect(/\.shell > \*, \.masthead > \*, \.workspace > \*, \.authority-footer > \* \{ min-width: 0; \}/.test(html), "missing intrinsic-grid overflow guard");
 expect(/<meta name="viewport" content="width=device-width, initial-scale=1">/.test(html), "missing responsive viewport contract");
 
+const fontDeclarations = [...html.matchAll(/(?:font-size|font)\s*:\s*[^;]*?([\d.]+)(px|rem|em)\b/g)];
+for (const declaration of fontDeclarations) {
+  const value = Number(declaration[1]);
+  const pixels = declaration[2] === "px" ? value : value * 16;
+  expect(pixels >= 14, `operator text falls below the 14px floor: ${declaration[0]}`);
+}
+
 const result = {
   valid: failures.length === 0,
   failures,

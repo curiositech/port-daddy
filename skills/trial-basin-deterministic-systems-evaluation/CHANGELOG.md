@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3 — 2026-09-17
+
+- Reject result-vector statuses outside the closed evidence-state vocabulary.
+- Add an adversarial status mutation that cannot bypass PASS evidence checks.
+
 ## 1.0.2 — 2026-09-17
 
 - Require a positive integer mutation corpus and a non-negative integer killed count bounded by that corpus.

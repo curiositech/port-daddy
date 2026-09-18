@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
+import { createHash, verify } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -26,11 +26,12 @@ export const computeFidelityDigest = (data) => {
   const unsigned = JSON.parse(JSON.stringify(data));
   if (unsigned.confirmationReceipt && typeof unsigned.confirmationReceipt === "object") {
     delete unsigned.confirmationReceipt.ledgerDigest;
+    delete unsigned.confirmationReceipt.signatureBase64;
   }
   return `sha256:${createHash("sha256").update(JSON.stringify(canonicalize(unsigned))).digest("hex")}`;
 };
 
-export const validateFidelityLedger = (data) => {
+export const validateFidelityLedger = (data, { trustedHolderKeys = new Map() } = {}) => {
   const errors = [];
   const shape = (value, allowedKeys, requiredKeys, where) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -127,18 +128,35 @@ export const validateFidelityLedger = (data) => {
   if (!VERIFICATION_STATES.includes(data?.verificationState)) errors.push("verificationState is invalid");
   if (data?.verificationState === "HOLDER_CONFIRMED") {
     text(data?.targetPosition?.sourceHolder, "targetPosition.sourceHolder");
-    shape(data?.confirmationReceipt, ["confirmer", "confirmerIsSourceHolder", "ledgerDigest"], ["confirmer", "confirmerIsSourceHolder", "ledgerDigest"], "confirmationReceipt");
+    shape(data?.confirmationReceipt, ["confirmer", "signerKeyId", "signatureAlgorithm", "ledgerDigest", "signatureBase64"], ["confirmer", "signerKeyId", "signatureAlgorithm", "ledgerDigest", "signatureBase64"], "confirmationReceipt");
     text(data?.confirmationReceipt?.confirmer, "confirmationReceipt.confirmer");
+    text(data?.confirmationReceipt?.signerKeyId, "confirmationReceipt.signerKeyId");
     if (data?.confirmationReceipt?.confirmer !== data?.targetPosition?.sourceHolder) {
       errors.push("confirmationReceipt.confirmer must equal targetPosition.sourceHolder");
     }
-    if (data?.confirmationReceipt?.confirmerIsSourceHolder !== true) {
-      errors.push("holder confirmation requires the actual source holder");
-    }
+    if (data?.confirmationReceipt?.signatureAlgorithm !== "Ed25519") errors.push("confirmationReceipt.signatureAlgorithm must equal Ed25519");
     if (!/^sha256:[a-f0-9]{64}$/.test(data?.confirmationReceipt?.ledgerDigest ?? "")) {
       errors.push("confirmationReceipt.ledgerDigest is invalid");
     } else if (data.confirmationReceipt.ledgerDigest !== computeFidelityDigest(data)) {
       errors.push("confirmationReceipt.ledgerDigest does not bind this exact ledger");
+    }
+    const trustedKey = trustedHolderKeys.get(data?.confirmationReceipt?.signerKeyId);
+    if (!trustedKey || trustedKey.sourceHolder !== data?.targetPosition?.sourceHolder) {
+      errors.push("confirmationReceipt.signerKeyId is not trusted for targetPosition.sourceHolder");
+    } else if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data?.confirmationReceipt?.signatureBase64 ?? "")) {
+      errors.push("confirmationReceipt.signatureBase64 is invalid");
+    } else {
+      try {
+        const authentic = verify(
+          null,
+          Buffer.from(data.confirmationReceipt.ledgerDigest, "utf8"),
+          trustedKey.publicKeyPem,
+          Buffer.from(data.confirmationReceipt.signatureBase64, "base64"),
+        );
+        if (!authentic) errors.push("confirmationReceipt signature is not authentic");
+      } catch {
+        errors.push("confirmationReceipt signature is not authentic");
+      }
     }
   } else if (data?.confirmationReceipt !== undefined) {
     errors.push("confirmationReceipt is allowed only for HOLDER_CONFIRMED");
@@ -162,13 +180,15 @@ export const validateFidelityLedger = (data) => {
 
 const isMain = process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
 if (isMain) {
-  const [file] = process.argv.slice(2);
+  const [file, trustFile] = process.argv.slice(2);
   if (!file) {
-    console.error("usage: validate-fidelity-ledger.mjs <ledger.json>");
+    console.error("usage: validate-fidelity-ledger.mjs <ledger.json> [trusted-holder-keys.json]");
     process.exit(2);
   }
   const data = JSON.parse(readFileSync(file, "utf8"));
-  const result = validateFidelityLedger(data);
+  const trustBundle = trustFile ? JSON.parse(readFileSync(trustFile, "utf8")) : { keys: [] };
+  const trustedHolderKeys = new Map((trustBundle.keys ?? []).map((key) => [key.keyId, key]));
+  const result = validateFidelityLedger(data, { trustedHolderKeys });
   console.log(JSON.stringify({ ...result, ledgerDigest: computeFidelityDigest(data) }, null, 2));
   process.exitCode = result.valid ? 0 : 1;
 }
