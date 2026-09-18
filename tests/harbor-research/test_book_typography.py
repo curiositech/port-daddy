@@ -5,6 +5,7 @@ import os
 from collections import Counter
 from pathlib import Path
 import re
+import unicodedata
 import unittest
 
 try:
@@ -60,6 +61,25 @@ class BookTypographyTests(unittest.TestCase):
 @unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),
                      "Set BOOK_TYPOGRAPHY_PDF to the assembled Swiss Book for rendered-font checks")
 class RenderedBookTypographyTests(unittest.TestCase):
+    def test_every_chapter_keeps_its_epigraph_on_the_opener(self):
+        manifest = json.loads((ROOT / "whitepaper/textbook.json").read_text())
+        aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()
+
+        def letters(text):
+            return "".join(char.casefold() for char in unicodedata.normalize("NFKD", text)
+                           if char.isalnum())
+
+        with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
+            for chapter in manifest["chapters"]:
+                key = "chap:" + chapter["prefix"]
+                folio = re.search(r"\\newlabel\{" + re.escape(key)
+                                  + r"\}\{\{[^{}]*\}\{([^{}]+)\}", aux).group(1)
+                page = next(page for page in book if page.get_label() == folio)
+                actual = letters(page.get_text())
+                with self.subTest(chapter=chapter["id"], folio=folio):
+                    self.assertIn(letters(chapter["epigraph"]["text"]), actual)
+                    self.assertIn(letters(chapter["epigraph"]["source"]), actual)
+
     def test_actual_prose_uses_source_not_legacy_pagella(self):
         with fitz.open(os.environ["BOOK_TYPOGRAPHY_PDF"]) as book:
             aux = Path(os.environ["BOOK_TYPOGRAPHY_PDF"]).with_suffix(".aux").read_text()

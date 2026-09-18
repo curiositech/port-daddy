@@ -507,16 +507,35 @@
   {\noindent\fontsize{21}{26}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
   \vspace{9pt}
   {\noindent\small\itshape\pdchapteroneline\par}
-  \vspace{0.9cm}
-  \noindent\pdswissplate{#3}{0.7\linewidth}\par
-  \vfill
-  \begin{flushright}
-    \begin{minipage}{0.84\linewidth}\raggedleft
+  % Reserve the actual epigraph before choosing the art's height. A fixed
+  % plate size let a longer serif-set question push the quote onto the next
+  % page, where the still-open full-width list also used the wrong parity.
+  % Only the raster art scales; the title, question and quote keep their type.
+  \sbox{\pdepigraphbox}{\begin{minipage}{0.84\linewidth}\raggedleft
       {\itshape\pdchapterepigraph\par}
       \vspace{5pt}
       {\pdgrotesk\footnotesize\color{hhgray}\pdchapterepigraphsource\par}
-    \end{minipage}
-  \end{flushright}
+    \end{minipage}}%
+  \par\vspace{0.55cm}
+  \ifdim\pagegoal=\maxdimen
+    \setlength{\pdplateh}{\dimexpr\textheight-\pagetotal\relax}%
+  \else
+    \setlength{\pdplateh}{\dimexpr\pagegoal-\pagetotal\relax}%
+  \fi
+  \addtolength{\pdplateh}{-\ht\pdepigraphbox}%
+  \addtolength{\pdplateh}{-\dp\pdepigraphbox}%
+  \addtolength{\pdplateh}{-1.0cm}%
+  \addtolength{\pdplateh}{-2\baselineskip}%
+  \sbox{\pdopenerplatebox}{\pdswissplate{#3}{0.7\linewidth}}%
+  \ifdim\pdplateh<2cm
+    \PackageError{pd-book}{Chapter #1 opener has no room for its plate}%
+      {Shorten the opener or adjust the shared layout; do not shrink its text.}%
+  \fi
+  \noindent\ifdim\dimexpr\ht\pdopenerplatebox+\dp\pdopenerplatebox\relax>\pdplateh
+    \resizebox*{!}{\pdplateh}{\usebox{\pdopenerplatebox}}%
+  \else\usebox{\pdopenerplatebox}\fi\par
+  \nobreak\vspace{0.35cm}\vfill
+  \noindent\hfill\usebox{\pdepigraphbox}\par
   \vspace{0.3cm}
   \end{adjustwidth*}}
 % technical: a drawing sheet; the chapter numeral in the accent, the title
@@ -562,6 +581,7 @@
   \end{adjustwidth*}}
 \makeatother
 \newsavebox{\pdqbox}\newsavebox{\pdpartbox}\newlength{\pdplateh}
+\newsavebox{\pdepigraphbox}\newsavebox{\pdopenerplatebox}
 \makeatletter
 \newcommand{\pdchapter}[4]{%
   \cleardoublepage
