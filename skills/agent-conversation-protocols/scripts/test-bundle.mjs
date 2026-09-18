@@ -16,6 +16,7 @@ const cases=[
   ["dynamic-member",()=>{const x=clone();x.gathers[0].membership.push("principal:nobody");return x},"E_GATHER_MEMBERSHIP"],
   ["bad-contributor",()=>{const x=clone();x.messages[1].senderPrincipalRef="principal:author";return x},"E_GATHER_CONTRIBUTION"],
   ["post-terminal",()=>{const x=clone();x.messages[3].kind="RESPONSE";return x},"E_POST_TERMINAL_MESSAGE"],
+  ["completed-with-incomplete-gather",()=>{const x=clone();x.messages.splice(1,1);x.messages[1].causationId="m1";x.messages[2].senderSequence=1;return x},"E_GATHER_INCOMPLETE"],
   ["missing-ack",()=>{const x=clone();x.terminal.receivedAcknowledgements=[];return x},"E_ACK_REQUIRED"],
   ["authority-mint",()=>{const x=clone();x.authorityEffect="EXECUTE";return x},"E_AUTHORITY_MINTING"],
   ["truth-mint",()=>{const x=clone();x.truthEffect="VERIFIED";return x},"E_TRUTH_MINTING"]

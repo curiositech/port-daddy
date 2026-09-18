@@ -96,9 +96,10 @@ while another needs direct proof, terminate `BLOCKED` and record the asymmetry.
 
 - `DRAFT`: interpretation has not been checked against canonical sources.
 - `SOURCE_BOUND`: traceable to sources but not confirmed by the holder.
-- `HOLDER_CONFIRMED`: the named source holder confirmed the canonical digest of
-  this exact reconstruction; user approval is insufficient when the user is not
-  that holder, and any later ledger change invalidates the receipt.
+- `HOLDER_CONFIRMED`: the named source holder signed the canonical digest of
+  this exact reconstruction with an Ed25519 key trusted for that holder by the
+  verifier; user approval or a self-asserted holder name is insufficient, and
+  any later ledger change invalidates the receipt.
 
 Confirmation never makes a proposition true and never authorizes action.
 
@@ -127,8 +128,8 @@ position. **Detection:** any premise lacks a provenance label or source.
 ### False holder confirmation
 
 **Bad:** ask an observer “does this feel fair?” and record
-`HOLDER_CONFIRMED`. **Detection:** confirmation receipt does not identify the
-actual source holder.
+`HOLDER_CONFIRMED`. **Detection:** confirmation is not signed by a key in the
+verifier's external trust set for the actual source holder.
 
 ### Disclaimer-unlocked harm
 
@@ -148,7 +149,7 @@ reconstruction that cites ledger proposition IDs. Validate structure and
 cross-field rules:
 
 ```bash
-node skills/steel-man-argument/scripts/validate-fidelity-ledger.mjs <ledger.json>
+node skills/steel-man-argument/scripts/validate-fidelity-ledger.mjs <ledger.json> [trusted-holder-keys.json]
 node skills/steel-man-argument/scripts/test-bundle.mjs
 ```
 

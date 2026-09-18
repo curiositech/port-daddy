@@ -78,7 +78,14 @@ export function validateTrace(trace) {
   for (let i=(fenceIndex??trace.messages?.length??0)+1;i<(trace.messages??[]).length;i++) if (trace.messages[i].kind!=="ACK") errors.push({code:"E_POST_TERMINAL_MESSAGE",path:`$.messages[${i}]`});
   const ackSenders=new Set((trace.messages??[]).filter(m=>m.kind==="ACK"&&m.causationId===trace.terminal?.fenceMessageId).map(m=>m.senderPrincipalRef));
   if ((trace.terminal?.receivedAcknowledgements??[]).some(x=>!ackSenders.has(x))) errors.push({code:"E_ACK_EVIDENCE",path:"$.terminal.receivedAcknowledgements"});
-  if (trace.terminal?.state==="COMPLETED"&&(trace.terminal.requiredAcknowledgements??[]).some(x=>!trace.terminal.receivedAcknowledgements.includes(x))) errors.push({code:"E_ACK_REQUIRED",path:"$.terminal.receivedAcknowledgements"});
+  if (trace.terminal?.state==="COMPLETED") {
+    if ((trace.terminal.requiredAcknowledgements??[]).some(x=>!trace.terminal.receivedAcknowledgements.includes(x))) errors.push({code:"E_ACK_REQUIRED",path:"$.terminal.receivedAcknowledgements"});
+    for (const [gatherId,gather] of gathers) {
+      const contributors=new Set((trace.messages??[]).filter(m=>m.gatherId===gatherId&&m.kind===gather.inputKind).map(m=>m.senderPrincipalRef));
+      const required=gather.policy==="ALL"?gather.membership.length:gather.policy==="QUORUM"?gather.quorum:1;
+      if (contributors.size<required) errors.push({code:"E_GATHER_INCOMPLETE",path:`$.gathers.${gatherId}`});
+    }
+  }
   if (!isDigest(trace.terminal?.stateDigest)) errors.push({code:"E_DIGEST",path:"$.terminal.stateDigest"});
   if (trace.truthEffect!=="NONE") errors.push({code:"E_TRUTH_MINTING",path:"$.truthEffect"});
   if (trace.authorityEffect!=="NONE") errors.push({code:"E_AUTHORITY_MINTING",path:"$.authorityEffect"});

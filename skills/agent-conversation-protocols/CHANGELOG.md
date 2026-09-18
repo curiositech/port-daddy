@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1] - 2026-09-17
+
+### Fixed
+
+- Require every declared gather to satisfy its `ALL`, `QUORUM`, or
+  `FIRST_SUCCESS` contribution threshold before a trace may be `COMPLETED`.
+
 ## [2.0.0] - 2026-09-16
 
 ### Changed

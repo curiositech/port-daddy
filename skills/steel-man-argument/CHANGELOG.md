@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 — 2026-09-17
+
+### Fixed
+
+- Require `HOLDER_CONFIRMED` ledgers to carry an Ed25519 signature verified by
+  a key in the verifier's external trust set for the named source holder.
+- Reject self-minted confirmation, forged signatures, and post-signature ledger
+  mutation with direct deterministic tests.
+
 ## 1.0.1 — 2026-09-17
 
 ### Fixed
