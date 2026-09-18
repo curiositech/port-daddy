@@ -16,7 +16,8 @@
 %   reaches zero from the (much higher, in fact never-reached) deposit that
 %   would zero the attacker's own profit; K=1 from K=3 Sybils.
 % Grammar chosen: two aligned pgfplots panels sharing the log-x deposit
-%   axis, direct-labelled series, a shared coverage-cap guide line.
+%   axis, direct-labelled series, a shared coverage-cap guide line. Deliberate
+%   full-field spacing keeps the second y-axis label outside the first plot.
 %   Rejected: a single panel with both y quantities on twin axes, which
 %   would force an arbitrary shared scale between two different units of
 %   the same currency (attacker profit vs. commons deficit) that the
@@ -28,7 +29,7 @@
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure]
 \begin{groupplot}[
-  group style={group size=2 by 1, horizontal sep=1.15cm},
+  group style={group size=2 by 1, horizontal sep=2.4cm},
   pd axis,width=4.0cm,height=4.0cm,
   xmode=log,xmin=0.4,xmax=1400,
   xtick={0.5,5,50,500},
@@ -48,7 +49,7 @@
   \addplot[pd breach series] coordinates {
     (0.5,1656.89)(1,1667.15)(2,1649.50)(5,1634.65)(10,1614.24)
     (25,1559.28)(50,1466.05)(100,1305.58)(200,1144.08)(500,1141.04)(1000,1146.41)};
-  \node[pd focus label,anchor=south west] at (axis cs:1,2050) {$K{=}1$};
+  \node[pd focus label,anchor=south west] at (axis cs:1,1900) {$K{=}1$};
   \node[pd breach label,anchor=north west] at (axis cs:1,1550) {$K{=}3$};
 \nextgroupplot[
   title={(b) commons deficit},
@@ -63,7 +64,7 @@
   \addplot[pd breach series] coordinates {
     (0.5,366.94)(1,364.38)(2,362.30)(5,340.33)(10,317.40)
     (25,263.34)(50,182.33)(100,16.95)(200,0)(500,0)(1000,0)};
-  \node[pd focus label,anchor=south west] at (axis cs:1,405) {$K{=}1$};
+  \node[pd focus label,anchor=south west] at (axis cs:1,385) {$K{=}1$};
   \node[pd breach label,anchor=north west] at (axis cs:1,300) {$K{=}3$};
 \end{groupplot}
 \end{tikzpicture}

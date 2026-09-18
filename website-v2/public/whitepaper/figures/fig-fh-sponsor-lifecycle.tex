@@ -38,10 +38,10 @@
     \node[pd label,anchor=east,text width=2.3cm,align=right] at ({\gx-.55},{\i*\dy}) {\t};}
   \foreach \i/\n in {1.5/1, 0.5/2}{\node[pd badge] at ({\gx-.22},{\i*\dy}) {\n};}
   % the one branch off the honest path: misbehavior forfeits the sponsor bond
-  \node[pd breach state,minimum width=2.8cm] (X) at (8.60,0.60) {expelled};
+  \node[pd breach state,minimum width=2.8cm] (X) at (9.40,0.60) {expelled};
   \draw[pd breach arrow,rounded corners=3pt]
     (S1.east) -- (6.85,{1*\dy}) -- (6.85,0.60) -- (X.west);
-  \node[pd breach label,anchor=south,text width=2.0cm,align=center] at (6.85,{1*\dy+0.48}) {misbehaves};
+  \node[pd breach label,anchor=south,text width=2.0cm,align=center] at (9.05,{1*\dy+0.48}) {misbehaves};
   \node[pd badge,draw=pderror,line width=.9pt] at (6.85,{1*\dy-0.32}) {3};
   \def\ly{-1.35}
   \draw[pd rule] (0,\ly) -- (\R,\ly);
@@ -51,9 +51,9 @@
   \foreach \i/\n/\g/\c in {0/1/{sponsor $S$ posts bond, sized to worst-case loss}/{$S$'s capital at risk},
                            1/2/{$N$'s own reputation suffices, sponsor bond released}/{nothing -- $N$ now prices its own risk},
                            2/3/{$N$ forges, equivocates, or refuses a settled bond}/{sponsor bond forfeit, not $N$'s}}{
-    \node[pd badge] at (.28,{\ly-1.20-\i*1.05}) {\n};
-    \node[pd label,anchor=west,align=left,text width=4.5cm] at (.62,{\ly-1.20-\i*1.05}) {\g};
-    \node[pd label,anchor=west,align=left,text width=4.6cm] at (5.90,{\ly-1.20-\i*1.05}) {\c};}
+    \node[pd badge] at (.28,{\ly-1.60-\i*1.10}) {\n};
+    \node[pd label,anchor=west,align=left,text width=4.5cm] at (.62,{\ly-1.60-\i*1.10}) {\g};
+    \node[pd label,anchor=west,align=left,text width=4.6cm] at (5.90,{\ly-1.60-\i*1.10}) {\c};}
 \end{tikzpicture}
 
 \caption{\textbf{Two terminal states, one asymmetric cost.} A newcomer $N$

@@ -25,13 +25,15 @@
   ybar,bar width=1.1cm,
   symbolic x coords={keep-gain,claw-back},
   enlarge x limits=0.35,
-  xtick=data,
+  xtick={keep-gain,claw-back},
   ymin=0,ymax=0.32,
   ytick={0,0.1,0.2,0.3},
   ylabel={critical rate $\rho^\star$},
   nodes near coords,
-  every node near coord/.append style={pd label,anchor=south,yshift=2pt}]
-  \addplot[pd focus fill] coordinates {(keep-gain,0.25) (claw-back,0.2083)};
+  every node near coord/.append style={pd label,anchor=south,yshift=6pt}]
+  % Each convention has its own bar outline and a clear value-label gap.
+  \addplot[pd focus fill,bar shift=0pt] coordinates {(keep-gain,0.25)};
+  \addplot[pd focus fill,bar shift=0pt] coordinates {(claw-back,0.2083)};
 \end{axis}
 \node[pd note,anchor=north west,text width=8.0cm] at (-0.30,-2.55)
   {same $G=10$, $d=0.8$, $B=50$ in both bars; only the forfeiture on a

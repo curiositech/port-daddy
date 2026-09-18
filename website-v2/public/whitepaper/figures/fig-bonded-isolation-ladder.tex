@@ -25,10 +25,10 @@
 \centering
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\ldy{2.05}  % rung pitch
+  \def\ldy{3.35}  % rung pitch: prose height plus a visible transition shaft
   \def\ldw{7.6}   % rung width
-  \tikzset{rung/.style={pd label,minimum width=\ldw cm,minimum height=1.55cm,
-    draw,line width=.9pt,align=left,text width=6.9cm,inner xsep=8pt}}
+  \tikzset{rung/.style={pd label,minimum width=\ldw cm,minimum height=2.3cm,
+    draw,line width=.9pt,align=left,text width=6.9cm,inner xsep=8pt,inner ysep=8pt}}
   \node[rung,pd focus fill,line width=1.6pt] (i2) at (0,{2*\ldy})
     {\textbf{$I_2$ Structural} --- separate git worktrees; filesystem-level
      isolation, agents cannot observe each other's intermediate state;
@@ -42,11 +42,11 @@
      detection; maximum parallelism, no safety};
   \draw[pd focus arrow] (i0.north) -- (i1.south);
   \draw[pd focus arrow] (i1.north) -- (i2.south);
-  \node[pd tag] at (0,{.5*\ldy}) {stronger};
-  \node[pd tag] at (0,{1.5*\ldy}) {stronger};
-  \node[pd kind,anchor=west] at ({\ldw/2+.35},\ldy) {the default};
-  \draw[pd hairline,densely dashed,->] (i1.east) .. controls +(0:1.1) and +(180:0.4) .. ({\ldw/2+.05},{\ldy-.45});
-  \node[pd note,anchor=north west,text width=3.0cm] at ({\ldw/2+.35},{\ldy-.55})
+  \node[pd label,anchor=west] at (.38,{.5*\ldy}) {stronger};
+  \node[pd label,anchor=west] at (.38,{1.5*\ldy}) {stronger};
+  \node[pd kind,anchor=west] at ({\ldw/2+.55},\ldy) {the default};
+  \draw[pd hairline] (i1.east) -- ++(.25,0);
+  \node[pd note,anchor=north west,text width=3.0cm] at ({\ldw/2+.55},{\ldy-.65})
     {choosing $I_1$ versus $I_2$: an economics decision, Section 5};
 \end{tikzpicture}
 \caption{The three isolation tiers order strictly by strength, weakest to
