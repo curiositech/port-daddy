@@ -36,6 +36,24 @@
  * Every adjudicated result also WRITES a `ship-broken` marker step, so the
  * evidence base builds run over run and the epidemic test needs no separate
  * bookkeeping.
+ *
+ * THE SIMULTANEITY WIDENING (2026-09, curiositech/port-daddy#9737). The
+ * cross-PR counter above is populated BY completed runs — it necessarily
+ * LAGS the very outage it is meant to detect. During a fast fleet-wide
+ * collapse, PRs whose runs land early in the wave get a hard FAILURE while
+ * PRs behind them in the queue — broken for the identical reason, in the
+ * identical run — get adjudicated NEUTRAL once the counter catches up. The
+ * blocking outcome then hinges on queue position, not on evidence.
+ *
+ * The fix does not touch the counter path; it ADDS a second, counter-free
+ * test that fires on evidence available WITHIN the single run being judged:
+ * if {@link SIMULTANEOUS_MIN_SHIPS} or more ships error in the SAME run, that
+ * is on its face a fleet-level fault — independent reviewers do not all
+ * discover a defect in one author's diff at the same instant. Every broken
+ * ship in such a run is adjudicated fleet-wide immediately, on the FIRST PR
+ * the run touches, with no cross-PR history required. The adjudication note
+ * says `simultaneous outage` (not `broken on N other PR(s)`) so an operator
+ * can tell which rule fired.
  */
 
 import type { ExecutorEnv } from './env.js';
@@ -57,6 +75,16 @@ export const EPIDEMIC_LOOKBACK_SEC = 72 * 3600;
  * two pathological diffs; three PRs breaking the same ship is an outage.
  */
 export const EPIDEMIC_MIN_OTHER_PRS = 2;
+
+/**
+ * How many ships must error TOGETHER, in the single run under judgment,
+ * before that run's breakage is treated as fleet-wide on its face — no
+ * cross-PR counter consulted. 3 is deliberate, same reasoning as the
+ * cross-PR threshold: two ships could plausibly both choke on one
+ * pathological diff; three or more independent ships failing in the same
+ * run is not a diff problem, it is an outage.
+ */
+export const SIMULTANEOUS_MIN_SHIPS = 3;
 
 /**
  * Transcript step kinds that mark a ship as broken. `ship-broken` is the
