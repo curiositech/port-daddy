@@ -27,7 +27,7 @@
   \def\dy{1.12}  % phase pitch
   \def\sx{3.95}  % spine
   \def\rx{5.35}  % any-phase rail
-  \def\tx{9.55}  % write-target column
+  \def\tx{10.15} % write targets clear the transition labels and panel edge
   \def\gx{2.02}  % gutter: right edge of the transition names
   \def\bx{2.46}  % gutter: guard badges
   \def\ox{0.30}  % off-ramp
@@ -67,19 +67,19 @@
   \end{scope}
   \node[pd title,anchor=south] at (panel.north) {append-only write targets};
   % writes from the rail: label over the arrow, guard badge by the rail
-  \draw[pd arrow] (\rx,0|-EP.west) -- (EP.west) node[pd label,pos=.50,above=1pt] {reassign-role};
-  \draw[pd arrow] (\rx,0|-IJ.west) -- (IJ.west) node[pd label,pos=.57,above=1pt] {external-op};
+  \draw[pd arrow] (\rx,0|-EP.west) -- (EP.west) node[pd label,pos=.50,above=4pt] {reassign-role};
+  \draw[pd arrow] (\rx,0|-IJ.west) -- (IJ.west) node[pd label,pos=.57,above=4pt] {external-op};
   \node[pd badge] at ($(\rx,0|-IJ.west)!.13!(IJ.west)$) {2};
-  \draw[pd arrow] (\rx,0|-GR.west) -- (GR.west) node[pd label,pos=.57,above=1pt] {delegate};
+  \draw[pd arrow] (\rx,0|-GR.west) -- (GR.west) node[pd label,pos=.57,above=4pt] {delegate};
   \node[pd badge] at ($(\rx,0|-GR.west)!.13!(GR.west)$) {4};
   % the one write only executing may make, bridged over the rail
   \draw[pd arrow,preaction={draw=pdpage,line width=3.2pt,-}] (X.east) -- (EJ.west)
-    node[pd label,pos=.56,above=1pt] {admit-effect};
+    node[pd label,pos=.56,above=4pt] {admit-effect};
   \node[pd badge] at ($(X.east)!.19!(EJ.west)$) {1};
 \end{tikzpicture}
 
 \medskip
-{\footnotesize
+{\pdcaptionface\footnotesize
 \begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X r@{}}
 \toprule
  & guard & crime once it is removed & steps \\

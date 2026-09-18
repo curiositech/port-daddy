@@ -22,14 +22,14 @@
 \pdfigurehue{pdcobalt}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \def\lx{0}      % load column
-  \def\rx{1.46}   % read column
-  \def\sx{2.92}   % submit column
-  \def\gx{4.54}   % release column, inside the slot
+  \def\rx{2.1}    % read column: leave a visible arrow shaft between boxes
+  \def\sx{4.2}    % submit column
+  \def\gx{6.4}    % release column, inside the slot
   \def\yA{6.6}    % World A lane
   \def\yB{3.4}    % World B lane
   % --- the two worlds, identical except Derek's secret ---------------------
-  \node[pd title,anchor=east,align=center,text width=1.0cm] at (-0.50,\yA) {World A\\$s=0$};
-  \node[pd title,anchor=east,align=center,text width=1.0cm] at (-0.50,\yB) {World B\\$s=2$};
+  \node[pd title,anchor=east,align=center,text width=1.5cm] at (-1.0,\yA) {World A\\$s=0$};
+  \node[pd title,anchor=east,align=center,text width=1.5cm] at (-1.0,\yB) {World B\\$s=2$};
   \node[pd state,minimum width=1.42cm] (A1) at (\lx,\yA) {load};
   \node[pd state,minimum width=1.42cm] (A2) at (\rx,\yA) {read};
   \node[pd state,minimum width=1.42cm] (A3) at (\sx,\yA) {submit};

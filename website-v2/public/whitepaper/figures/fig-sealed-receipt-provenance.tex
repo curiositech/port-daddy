@@ -41,12 +41,12 @@
   \node[pd artifact,minimum width=2.05cm,align=center] (C3) at ({2*\cx},0) {$H(\text{inputs})$};
   \node[pd artifact,minimum width=2.05cm,align=center] (C4) at ({3*\cx},0) {$H(M)$\\model};
   \node[pd breach state,minimum width=2.05cm,align=center] (C5) at ({4*\cx},0) {$H(\text{output}$\\$\text{ciphertext})$};
-  \node[pd artifact,align=center,text width=2.35cm]
-    (C6) at ({5.35*\cx},0) {labels, declassifications, counters, nonce, epoch};
+  \node[pd artifact,align=center,text width=2.85cm]
+    (C6) at ({5.55*\cx},0) {labels, declassifications, counters, nonce, epoch};
   \foreach \c in {C1,C2,C3,C4,C6}{
     \draw[pd focus arrow] (R) -- (\c);}
   \draw[pd breach arrow] (R) -- (C5);
-  \node[pd tag,text=pderror,anchor=north] at (C5.south) {proves reported, not true};
+  \node[pd tag,text=pderror,anchor=north,yshift=-4pt] at (C5 |- C6.south) {proves reported, not true};
 \end{tikzpicture}
 \caption{The receipt $R=\mathrm{Sign}(\ldots)$ of Sec.~\ref{sec:sealed-design},
 drawn as a provenance tree. Four leaves are hashes that establish
