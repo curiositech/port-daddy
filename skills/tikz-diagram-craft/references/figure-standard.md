@@ -27,8 +27,9 @@ these; this file adds the house style.
 - `\texttt` only for literal identifiers (`fs:read`, `git push`); math only for symbols.
 - No hyphenation inside a figure (the language sets the penalties); if a label
   needs to break, give it `text width=` and break it by hand at a word.
-- Swiss and technical editions set labels in Heros; maritime in Palatino. Never
-  set a font inside a fragment.
+- Swiss labels use Source Serif 4's Caption cut; technical uses Heros and
+  maritime inherits the text serif. These are shared Book typography roles.
+  Never set a font inside a fragment.
 
 ## S3 Hue
 

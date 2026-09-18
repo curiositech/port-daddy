@@ -213,7 +213,7 @@ where to begin and where to end within five seconds.
 ### Spend an expressive ladder, not one flat fill
 
 Swiss modernism does not mean solid chapter-colour boxes everywhere. Preserve
-the edition's grotesk and right-angle discipline while expressing hierarchy
+the edition's editorial grid and right-angle discipline while expressing hierarchy
 through a shared ladder:
 
 1. white artifact with a quiet edge;
@@ -246,6 +246,11 @@ requires it.
 
 ### Text and boxes
 
+- Swiss is now serif-led: Source Serif 4 Text for prose, Caption for marginalia
+  and figure labels, Display for large heads. Select shared semantic roles,
+  never a font file inside a figure. Source Sans 3 is for explicit interface
+  material, and Source Code Pro for literals. Font sources and licenses live
+  under the Book's `fonts/`; test the change on prose, math, code and captions.
 - One figure type family and no more than three type sizes.
 - Final-size labels should remain comfortably readable; never rescue a crowded
   composition by shrinking type.

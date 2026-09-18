@@ -1,0 +1,59 @@
+% Shared Book typography. Fonts are vendored, unmodified OFL releases: see
+% fonts/README.md. No system-font discovery and no per-figure face selection.
+% Swiss means an editorial grid and precise hierarchy; it need not mean sans.
+\ifXeTeX\ifpdswiss
+  \setmainfont{SourceSerif4-Regular.otf}[
+    Path=fonts/source-serif/,Extension=.otf,
+    BoldFont=SourceSerif4-Semibold.otf,ItalicFont=SourceSerif4-It.otf,
+    BoldItalicFont=SourceSerif4-SemiboldIt.otf,Ligatures=TeX]
+  \newfontfamily\pdtextface{SourceSerif4-Regular.otf}[
+    Path=fonts/source-serif/,Extension=.otf,
+    BoldFont=SourceSerif4-Semibold.otf,ItalicFont=SourceSerif4-It.otf,
+    BoldItalicFont=SourceSerif4-SemiboldIt.otf,Ligatures=TeX,NFSSFamily=pdsource]
+  \newfontfamily\pddisplayface{SourceSerif4Display-Regular.otf}[
+    Path=fonts/source-serif/,Extension=.otf,
+    BoldFont=SourceSerif4Display-Semibold.otf,ItalicFont=SourceSerif4Display-It.otf,
+    BoldItalicFont=SourceSerif4Display-SemiboldIt.otf,Ligatures=TeX]
+  \newfontfamily\pdcaptionface{SourceSerif4Caption-Regular.otf}[
+    Path=fonts/source-serif/,Extension=.otf,
+    BoldFont=SourceSerif4Caption-Semibold.otf,ItalicFont=SourceSerif4Caption-It.otf,
+    BoldItalicFont=SourceSerif4Caption-SemiboldIt.otf,Ligatures=TeX,
+    Numbers={Lining,Tabular}]
+  \setsansfont{SourceSans3-Regular.otf}[
+    Path=fonts/source-sans/,Extension=.otf,
+    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
+    BoldItalicFont=SourceSans3-SemiboldIt.otf,Scale=MatchLowercase]
+  \newfontfamily\pdinterfaceface{SourceSans3-Regular.otf}[
+    Path=fonts/source-sans/,Extension=.otf,
+    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
+    BoldItalicFont=SourceSans3-SemiboldIt.otf,Scale=MatchLowercase,NFSSFamily=pdsourcesans]
+  % Re-match the code face after setting the body face. Real italic and
+  % semibold shapes are explicit throughout; no synthesized bold or slant.
+  \setmonofont{SourceCodePro-Regular.otf}[BoldFont=SourceCodePro-Bold.otf,
+    ItalicFont=SourceCodePro-RegularIt.otf,BoldItalicFont=SourceCodePro-BoldIt.otf,
+    Scale=MatchLowercase]
+  % Keep the proven newpx mathematical symbol/Greek fonts. Textual operators,
+  % numerals, and explicit text alphabets match the new prose. Replacing the
+  % math engine is a separate, proof-sensitive change, not a font fallback.
+  \SetSymbolFont{operators}{normal}{TU}{pdsource}{m}{n}
+  \SetSymbolFont{operators}{bold}{TU}{pdsource}{b}{n}
+  \SetMathAlphabet{\mathrm}{normal}{TU}{pdsource}{m}{n}
+  \SetMathAlphabet{\mathbf}{normal}{TU}{pdsource}{b}{n}
+  \SetMathAlphabet{\mathit}{normal}{TU}{pdsource}{m}{it}
+  \SetMathAlphabet{\mathsf}{normal}{TU}{pdsourcesans}{m}{n}
+  % Compatibility for existing shared headers. New work uses semantic roles;
+  % this legacy name no longer prescribes a grotesk in the Swiss edition.
+  \renewcommand{\pdgrotesk}{\pdtextface}
+  \renewcommand{\pdpartface}{\pddisplayface}
+  % Captions often mix prose with taller mathematical symbols. Give that
+  % combination real leading; changing face must not squeeze adjacent lines.
+  \DeclareCaptionFont{pdbookserif}{\pdcaptionface\linespread{1.16}\selectfont}
+  \AtBeginDocument{%
+    \captionsetup{font={small,pdbookserif},labelfont=bf}%
+    \renewcommand*{\marginfont}{\pdcaptionface\linespread{1.16}\footnotesize\raggedright\color{pdinkmuted}}}
+\fi\fi
+% Other editions retain their declared character, with the same role API.
+\providecommand{\pdtextface}{\rmfamily}
+\providecommand{\pddisplayface}{\pdgrotesk}
+\providecommand{\pdcaptionface}{\rmfamily}
+\providecommand{\pdinterfaceface}{\sffamily}

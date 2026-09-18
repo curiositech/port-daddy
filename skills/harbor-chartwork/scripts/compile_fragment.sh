@@ -295,6 +295,10 @@ else
     for piece in "$BOOK_DIR"/coordination-papers-mega-volume-*.tex; do
       [ -f "$piece" ] && cp "$piece" "$BUILD/$(basename "$piece")"
     done
+    # Font files are Book inputs, just like the shared preamble. Copy the
+    # pinned assets so a fragment uses the same optical cuts as a full build
+    # even on a machine without these faces installed.
+    [ ! -d "$BOOK_DIR/fonts" ] || cp -R "$BOOK_DIR/fonts" "$BUILD/fonts"
     # ...but the two the wrapper cannot compile without are still asserted, so a
     # renamed preamble fails here rather than 200 lines into a TeX log.
     for required in coordination-papers-mega-volume-preamble.tex coordination-papers-mega-volume-seams.tex; do

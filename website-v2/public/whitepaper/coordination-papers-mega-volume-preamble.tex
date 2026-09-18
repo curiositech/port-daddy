@@ -163,6 +163,7 @@
 \def\pd@tmp{swiss}\ifx\pd@ed\pd@tmp\pdswisstrue\fi
 \def\pd@tmp{technical}\ifx\pd@ed\pd@tmp\pdtechnicaltrue\fi
 \makeatother
+\input{coordination-papers-mega-volume-typography.tex}
 % The technical edition's accents are the brand's own Seventies trio: amber
 % (mustard), rust (brown) and gold (avocado); no colour outside the palette.
 \geometry{paperwidth=7in,paperheight=10in,inner=0.8in,outer=1.7in,%
@@ -528,9 +529,9 @@
     \node[fill=#4,inner sep=0pt,minimum width=\linewidth,minimum height=0.36\textheight,anchor=north west] (band) at (0,0) {};
     \node[anchor=north west,text=hhpaper,font=\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries,inner sep=0pt]
       at (0.45cm,-0.5cm) {Chapter #1 of \pdchaptercount\quad\textperiodcentered\quad\pdchapterpartlabel};
-    \node[anchor=south west,text=hhpaper,font=\pdgrotesk\fontsize{78}{78}\selectfont\bfseries,inner sep=0pt]
+    \node[anchor=south west,text=hhpaper,font=\pddisplayface\fontsize{78}{78}\selectfont\bfseries,inner sep=0pt]
       at (0.4cm,{-0.36\textheight+3.0cm}) {#1};
-    \node[anchor=south west,text=hhpaper,font=\pdgrotesk\fontsize{27}{31}\selectfont\bfseries,inner sep=0pt,
+    \node[anchor=south west,text=hhpaper,font=\pddisplayface\fontsize{27}{31}\selectfont\bfseries,inner sep=0pt,
       text width={\dimexpr\linewidth-1cm\relax},align=left] at (0.45cm,{-0.36\textheight+0.55cm}) {#2};
   \end{tikzpicture}\par
   \vspace{1.0cm}
@@ -744,9 +745,9 @@
     \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
     \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{1.4pt}}\par
     \vspace{0.6cm}
-    \noindent{\pdgrotesk\fontsize{84}{84}\selectfont\bfseries #1\par}
+    \noindent{\pddisplayface\fontsize{84}{84}\selectfont\bfseries #1\par}
     \vspace{0.5cm}
-    \noindent{\pdgrotesk\fontsize{30}{34}\selectfont\bfseries\hyphenpenalty=10000\raggedright #2\par}
+    \noindent{\pddisplayface\fontsize{30}{34}\selectfont\bfseries\hyphenpenalty=10000\raggedright #2\par}
     \vspace{0.5cm}
     \noindent\begin{minipage}{0.75\linewidth}{\pdgrotesk\fontsize{11}{15}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \par
