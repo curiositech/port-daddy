@@ -839,7 +839,15 @@
     % starts at the top of the next page, the raise is capped to nothing by the
     % page top, and the whole block is on the paper below its anchor. A
     % recitation ends a section, so the short page costs the argument nothing.
-    \ifdim\dimexpr\pagetotal+2\baselineskip\relax>\pagegoal
+    % The old two-line test only noticed an anchor already at the foot.  A
+    % tall Recall block can be issued considerably earlier and still have no
+    % honest placement: its raised offset is computed while the enclosing
+    % paragraph/float is still migrating, so the block may land at the foot
+    % with most of itself below the paper.  We have already measured the box;
+    % use that measurement.  When the remaining column cannot hold the whole
+    % block plus one line of breathing room, advance the section-ending Recall
+    % to the next page before asking the shared allocator to place it.
+    \ifdim\dimexpr\pagetotal+\ht\pd@recallbox+\dp\pd@recallbox+\baselineskip\relax>\pagegoal
       \newpage\penalty\@M\vskip\z@\fi
     \pd@placemargin{\pd@recallbox}%
     \global\let\pd@pendingpointer\@empty
