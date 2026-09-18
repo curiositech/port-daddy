@@ -53,9 +53,8 @@ class BookTypographyTests(unittest.TestCase):
 
     def test_late_legacy_font_reset_is_overridden(self):
         source = (BOOK / "coordination-papers-mega-volume-typography.tex").read_text()
-        hook = source[source.index(r"\AtBeginDocument"):]
-        self.assertIn(r"\renewcommand{\rmdefault}{pdsource}", hook)
-        self.assertIn(r"\renewcommand{\familydefault}{\rmdefault}\normalfont", hook)
+        self.assertIn(r"\AtEndPreamble{\pdsetbookmainfont}", source)
+        self.assertIn(r"\newcommand{\pdsetbookmainfont}{\setmainfont", source)
 
 
 @unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),

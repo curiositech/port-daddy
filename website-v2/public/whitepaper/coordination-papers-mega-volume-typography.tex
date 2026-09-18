@@ -2,10 +2,16 @@
 % fonts/README.md. No system-font discovery and no per-figure face selection.
 % Swiss means an editorial grid and precise hierarchy; it need not mean sans.
 \ifXeTeX\ifpdswiss
-  \setmainfont{SourceSerif4-Regular.otf}[
+  \newcommand{\pdsetbookmainfont}{\setmainfont{SourceSerif4-Regular.otf}[
     Path=fonts/source-serif/,Extension=.otf,
     BoldFont=SourceSerif4-Semibold.otf,ItalicFont=SourceSerif4-It.otf,
-    BoldItalicFont=SourceSerif4-SemiboldIt.otf,Ligatures=TeX]
+    BoldItalicFont=SourceSerif4-SemiboldIt.otf,Ligatures=TeX]}
+  \pdsetbookmainfont
+  % newpxtext selects Pagella in its earlier AtEndPreamble hook. Use the
+  % public fontspec selector afterwards, so its NFSS and microtype state stay
+  % coherent as well as the visible family. Merely changing rmdefault is not
+  % enough: fontspec also maintains the small-cap and feature-bearing faces.
+  \AtEndPreamble{\pdsetbookmainfont}
   \newfontfamily\pdtextface{SourceSerif4-Regular.otf}[
     Path=fonts/source-serif/,Extension=.otf,
     BoldFont=SourceSerif4-Semibold.otf,ItalicFont=SourceSerif4-It.otf,
@@ -49,10 +55,6 @@
   % combination real leading; changing face must not squeeze adjacent lines.
   \DeclareCaptionFont{pdbookserif}{\pdcaptionface\linespread{1.16}\selectfont}
   \AtBeginDocument{%
-    % newpxtext installs Pagella in AtEndPreamble. Select the already loaded
-    % named Text family afterwards; otherwise titles change but prose does not.
-    \renewcommand{\rmdefault}{pdsource}%
-    \renewcommand{\familydefault}{\rmdefault}\normalfont
     \captionsetup{font={small,pdbookserif},labelfont=bf}%
     \renewcommand*{\marginfont}{\pdcaptionface\linespread{1.16}\footnotesize\raggedright\color{pdinkmuted}}}
 \fi\fi
