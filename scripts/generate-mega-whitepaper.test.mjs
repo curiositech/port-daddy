@@ -432,13 +432,63 @@ test('the shared palette and hyperlink files are byte-identical in both source t
   }
 });
 
-test('the front-matter spread lists every chapter in order without a numbering concordance', () => {
-  const contents = renderContents(loadTextbook());
-  const numbers = [...contents.matchAll(/\\pdcontentschapter\{(\d+)\}/g)].map((m) => Number(m[1]));
+test('one complete contents renderer decorates the live ToC with metadata, without a second map', () => {
+  const textbook = loadTextbook();
+  const contents = renderContents(textbook);
+  const numbers = [...contents.matchAll(/\\pdcontentschaptermeta\{(\d+)\}/g)].map((m) => Number(m[1]));
   assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.equal((contents.match(/\\pdcontentsspreadbreak/g) ?? []).length, 1);
-  assert.doesNotMatch(contents, /First-edition numbering|First edition & This edition/);
+  const artKeys = [...contents.matchAll(/\\pdcontentspartmeta\{\d+\}\{([^}]+)\}/g)].map((m) => m[1]);
+  assert.deepEqual(artKeys, textbook.parts.map((part) => part.numeral));
+  for (const numeral of artKeys) {
+    for (const edition of ['', 'swiss/', 'technical/']) {
+      assert.ok(existsSync(resolve(`website-v2/public/whitepaper/plates/${edition}part-${numeral}.jpg`)));
+    }
+  }
+  assert.equal((contents.match(/\\pdtableofcontents/g) ?? []).length, 1);
+  assert.doesNotMatch(contents, /pdcontentsspread|pdcontentschapter\{|The argument, chapter by chapter/);
   assert.match(contents, /Proves what \\pdchapref\{swk\}/);
+  assert.doesNotMatch(collectedVolumeSource, /\\tableofcontents\b/);
+  assert.equal((collectedVolumeSource.match(/mega-volume-contents\.tex/g) ?? []).length, 1);
+});
+
+test('contents follows changed metadata and keeps summaries rather than a hard-coded chapter catalog', () => {
+  const textbook = loadTextbook();
+  textbook.parts[0].blurb = 'A changed part obligation.';
+  textbook.parts[0].chapters[0].oneLine = 'A changed chapter claim.';
+  const contents = renderContents(textbook);
+  assert.match(contents, /A changed part obligation\./);
+  assert.match(contents, /A changed chapter claim\./);
+});
+
+test('solutions add navigable per-chapter entries and the reader guide starts on the left half', () => {
+  const chapters = loadTextbook().chapters;
+  const solutions = renderSolutions(chapters);
+  assert.equal((solutions.match(/\\addcontentsline\{toc\}\{section\}/g) ?? []).length, chapters.length);
+  const map = readFileSync(resolve('website-v2/public/whitepaper/figures/fig-book-reader-map.tex'), 'utf8');
+  const leftProse = map.indexOf('\\pdreaderleftprose');
+  const rightPage = map.indexOf('\\label{book:reader-right}');
+  assert.ok(leftProse > map.indexOf('\\label{book:reader-left}'));
+  assert.ok(leftProse < map.indexOf('\\clearpage', leftProse));
+  assert.ok(map.indexOf('\\clearpage', leftProse) < rightPage);
+  assert.match(collectedVolumeSource, /\\newcommand\{\\pdreaderleftprose\}\{%\s*There are two ways/);
+});
+
+test('retained unnumbered headings enter the ToC without duplicating authored entries or code examples', () => {
+  const chapter = loadTextbook().chapters[0];
+  const body = String.raw`\subsection*{One ledger, \emph{three} keys}
+Prose.
+\section*{Review}
+\label{sec:review}
+% Keep the authored short title.
+\addcontentsline{toc}{section}{Review of the key ideas}
+% \section*{Comment, not a heading}
+\begin{lstlisting}
+\subsection*{Code, not a heading}
+\end{lstlisting}`;
+  const rendered = renderChapter(chapter, body);
+  assert.match(rendered, /\\subsection\*\{One ledger, \\emph\{three\} keys\}\n\\addcontentsline\{toc\}\{subsection\}\{One ledger, \\emph\{three\} keys\}/);
+  assert.equal((rendered.match(/\\addcontentsline/g) ?? []).length, 2);
+  assert.equal((renderChapter(chapter, rendered).match(/\\addcontentsline/g) ?? []).length, 2);
 });
 
 test('a reference whose label already names another chapter by its prefix is left alone', () => {

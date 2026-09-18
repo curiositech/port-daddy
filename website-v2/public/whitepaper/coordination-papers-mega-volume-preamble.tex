@@ -174,46 +174,12 @@
 \raggedbottom
 \captionsetup{font=small,labelfont=bf}
 \setlength{\emergencystretch}{3em}\tolerance=1500
-% Depth 1 (parts, chapters, and top-level sections) is a deliberate choice for
-% a book assembled from independently structured chapters: at depth 2 the
-% front-matter ToC runs to several hundred headings and reads as a text-only
-% index rather than a map. Each chapter's own reader's map / abstract is the
-% fine-grained entry point; this ToC's job is to show the four parts, the
-% chapter spine, and the appendices. The PDF bookmarks go three levels deep.
-\setcounter{tocdepth}{1}
+% Contents includes every chapter, section and subsection. The single
+% illustrated renderer below reads the live .toc; bookmarks retain their own
+% depth. Figure and table lists keep the conventional locator treatment.
+\setcounter{tocdepth}{2}
 \makeatletter
-% article.cls has no chapter level; the Book adds one between part and section.
 \providecommand*{\toclevel@chapter}{0}
-\newcommand*\l@chapter[2]{%
-  \ifnum \c@tocdepth >-1\relax
-    \addpenalty\@secpenalty
-    \addvspace{0.7em \@plus\p@}%
-    \begingroup
-      \parindent \z@ \rightskip \@pnumwidth
-      \parfillskip -\@pnumwidth
-      \leavevmode \bfseries\color{hhink}%
-      \setlength\@tempdima{2.0em}%
-      \advance\leftskip\@tempdima \hskip -\leftskip
-      #1\nobreak\hfil \nobreak\hb@xt@\@pnumwidth{\hss #2}\par
-      \nobreak\vspace{0.15em}%
-    \endgroup
-  \fi}
-\renewcommand*\l@part[2]{%
-  \ifnum \c@tocdepth >-2\relax
-    \addpenalty\@secpenalty
-    \addvspace{1.4em \@plus\p@}%
-    \begingroup
-      \parindent \z@ \rightskip \@pnumwidth
-      \parfillskip -\@pnumwidth
-      {\leavevmode
-       \large\scshape\bfseries\color{hhink} #1\dotfill\normalfont\normalsize\bfseries\color{hhink}#2}\par
-       \nobreak
-       \vspace{0.3em}
-    \endgroup
-  \fi}
-\renewcommand*\l@section{\@dottedtocline{1}{1.2em}{3.5em}}
-\renewcommand*\l@subsection{\@dottedtocline{2}{4.1em}{4.2em}}
-\renewcommand*\l@subsubsection{\@dottedtocline{3}{7.0em}{4.8em}}
 \renewcommand*\l@figure{\@dottedtocline{1}{1.2em}{2.8em}}
 \renewcommand*\l@table{\@dottedtocline{1}{1.2em}{2.8em}}
 \makeatother
@@ -827,62 +793,122 @@
 }
 \makeatother
 
-% Swiss-modern contents spread, generated semantically from textbook.json.
-% Each page carries two part-colour fields using the same grotesk, hard rules,
-% numerals, and uncoated-paper ground as the part and chapter plates.
-\newsavebox{\pdbandbox}
-\newlength{\pdbandwidth}
-\newcommand{\pdbandcolor}{pdcobalt}
-\newcommand{\pdcontentsspreadbegin}{%
-  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
-  \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}%
-  \vspace*{0.15cm}%
-  \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Contents\hfill 01 / 02}\par
-  \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{1.4pt}}\par
-  \vspace{0.55cm}%
-  \noindent{\pdgrotesk\fontsize{38}{41}\selectfont\bfseries The argument\\chapter by chapter}\par
-  \vspace{0.3cm}%
-  \noindent\begin{minipage}{0.76\linewidth}\pdgrotesk\small
-    Each chapter stands on the ones before it. A proof chapter closes a promise
-    an earlier chapter had to leave open.
-  \end{minipage}\par\vspace{0.55cm}}
-\newcommand{\pdcontentsspreadbreak}{%
-  \end{adjustwidth*}\clearpage
-  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
-  \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}%
-  \vspace*{0.15cm}%
-  \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Contents\hfill 02 / 02}\par
-  \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{1.4pt}}\par
-  \vspace{0.55cm}}
-\newcommand{\pdcontentspart}[3]{%
-  \hypersetup{linkcolor=hhpaper}%
-  \renewcommand{\pdbandcolor}{#3}%
-  \setlength{\pdbandwidth}{\dimexpr\linewidth-28pt\relax}%
-  \begin{lrbox}{\pdbandbox}\begin{minipage}[t]{\pdbandwidth}%
-    \color{hhpaper}\pdgrotesk\vspace{12pt}%
-    {\noindent\fontsize{28}{28}\selectfont\bfseries #1\hspace{0.5em}%
-      \fontsize{15}{18}\selectfont\bfseries Part #1\enspace\textperiodcentered\enspace #2}\par\vspace{8pt}}
-\newcommand{\pdcontentschapter}[5]{%
-  \par\noindent\begin{minipage}[t]{1.6em}\raggedleft\bfseries\pdchaplink{#2}{#1}\end{minipage}\hspace{0.65em}%
-  \begin{minipage}[t]{\dimexpr\pdbandwidth-2.25em\relax}\raggedright
-    \pdchaplink{#2}{\bfseries #3}\ifx\relax#5\relax\else\enspace{\scriptsize\itshape #5}\fi\par
-    {\footnotesize #4\par}\end{minipage}\par\vspace{5pt}}
-\newcommand{\pdcontentspartend}{%
-  \vspace{7pt}\end{minipage}\end{lrbox}%
-  \par\vspace{8pt}\noindent{\setlength{\fboxsep}{0pt}%
-    \colorbox{\pdbandcolor}{\hspace{14pt}\usebox{\pdbandbox}\hspace{14pt}}}\par}
-\newcommand{\pdcontentsbackmatter}{%
-  \vfill\noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Continue}\par
-  \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.7pt}}\par\vspace{0.35cm}%
-  \noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries}l X@{}}
-    Introduction & The unit of account is the work.\\
-    Result Atlas & Claims, evidence, limits, and status in one ledger.\\
-    Solutions & Checks, traces, and open obligations from all eight chapters.\\
-    References & One bibliography with live back-references.\\
-  \end{tabularx}}
-\newcommand{\pdcontentsend}{%
-  \pdcontentsbackmatter\end{adjustwidth*}\clearpage\nopagecolor\color{hhink}%
-  \hypersetup{linkcolor=pdinkmuted}}
+% ---------------------------------------------------------------------------
+% One complete illustrated ToC. Entries and destinations belong to LaTeX's
+% .toc; textbook.json supplies only the part art key, hue and chapter summaries.
+% Prose inherits \rmfamily; heading roles come from the shared typography module.
+% The six-inch navigation field has room for real subsection titles; no heading
+% is abbreviated or thrown away to make the contents look short.
+% ---------------------------------------------------------------------------
+\makeatletter
+\newcommand{\pdcontentspartmeta}[4]{%
+  \expandafter\def\csname pd@tocpartart@#1\endcsname{#2}%
+  \expandafter\def\csname pd@tocpartcolor@#1\endcsname{#3}%
+  \expandafter\def\csname pd@tocpartblurb@#1\endcsname{#4}}
+\newcommand{\pdcontentschaptermeta}[3]{%
+  \expandafter\def\csname pd@tocchapterclaim@#1\endcsname{#2}%
+  \expandafter\def\csname pd@tocchapternote@#1\endcsname{#3}}
+\newcount\pd@tocpart
+\newcount\pd@tocchapter
+\newif\ifpd@tocafterpart
+\newcommand{\pd@toccolor}{hhink}
+\newcommand{\pd@tocplate}[1]{%
+  \ifpdswiss\def\pd@tocplatepath{plates/swiss/part-#1.jpg}\else
+  \ifpdtechnical\def\pd@tocplatepath{plates/technical/part-#1.jpg}\else
+  \def\pd@tocplatepath{plates/part-#1.jpg}\fi\fi
+  \includegraphics[width=\linewidth,height=1.42in,keepaspectratio]{\pd@tocplatepath}}
+% A fresh page for a part keeps its existing art and the first chapter together.
+% The image is a visual locator for the same part plate encountered in the body.
+\renewcommand*\l@part[2]{%
+  \ifnum\pd@tocpart=0
+    \par\addvspace{24pt}%
+  \else
+    \ifnum\pd@tocpart>\pdpartcount
+      \Needspace*{14\baselineskip}\addvspace{24pt}%
+    \else\clearpage\fi
+  \fi
+  \advance\pd@tocpart\@ne
+  \pd@tocafterparttrue
+  \ifnum\pd@tocpart>\pdpartcount
+    \def\pd@toccolor{hhink}%
+    {\pdtextface\LARGE\bfseries #1\hfill #2\par}%
+    \vspace{9pt}\noindent\rule{\linewidth}{0.7pt}\par\vspace{12pt}%
+  \else
+    \edef\pd@toccolor{\csname pd@tocpartcolor@\the\pd@tocpart\endcsname}%
+    \noindent
+    \begin{minipage}[t]{0.29\linewidth}\vspace{0pt}%
+      \expandafter\pd@tocplate\expandafter{\csname pd@tocpartart@\the\pd@tocpart\endcsname}%
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.66\linewidth}\vspace{0pt}\pdtextface\raggedright
+      {\Large\bfseries\color{\pd@toccolor}#1\par}%
+      \vspace{7pt}%
+      {\small\csname pd@tocpartblurb@\the\pd@tocpart\endcsname\par}%
+      \vspace{7pt}{\small Part opens on page #2\par}%
+    \end{minipage}\par
+    \vspace{13pt}\noindent{\color{\pd@toccolor}\rule{\linewidth}{1.1pt}}\par\vspace{10pt}%
+  \fi\nobreak}
+\newcommand*\l@chapter[2]{%
+  \ifpd@tocafterpart\pd@tocafterpartfalse\else
+    \Needspace*{15\baselineskip}\addvspace{22pt}%
+  \fi
+  \advance\pd@tocchapter\@ne
+  \begingroup
+    \pdtextface\large\bfseries\color{\pd@toccolor}%
+    \parindent\z@\rightskip 2.5em\parfillskip -2.5em
+    \let\numberline\pd@tocchapternumber
+    #1\nobreak\hfill\makebox[2.5em][r]{#2}\par
+  \endgroup\nobreak
+  \vspace{5pt}%
+  {\rmfamily\small\raggedright
+    \csname pd@tocchapterclaim@\the\pd@tocchapter\endcsname\par
+    \edef\pd@tocnotename{pd@tocchapternote@\the\pd@tocchapter}%
+    \expandafter\ifx\csname\pd@tocnotename\endcsname\@empty\else
+      \vspace{3pt}{\itshape\csname\pd@tocnotename\endcsname\par}%
+    \fi}%
+  \nobreak\vspace{10pt}}
+\newcommand{\pd@tocchapternumber}[1]{#1\enspace}
+% A quiet number gutter and one aligned page column. Subsections indent only
+% their numbers; long titles keep a generous measure and wrap as hanging text.
+\renewcommand*\l@section[2]{%
+  \addvspace{5pt}\begingroup\pdtextface\normalsize\bfseries
+    \@dottedtocline{1}{0pt}{3.8em}{#1}{#2}%
+  \endgroup\nobreak}
+\renewcommand*\l@subsection[2]{%
+  \begingroup\pdtextface\small
+    \@dottedtocline{2}{1.2em}{4.4em}{#1}{#2}%
+  \endgroup}
+\renewcommand*\l@subsubsection[2]{%
+  \@dottedtocline{3}{2.4em}{5em}{#1}{#2}}
+\newcommand{\pdtableofcontents}{%
+  \clearpage
+  \newgeometry{inner=0.8in,outer=0.2in,top=0.85in,bottom=0.95in}%
+  \begingroup
+    \rmfamily\normalsize\color{hhink}%
+    \parindent\z@\parskip\z@
+    % Frontmatter roman folios need more room than the class's 1.55em gutter.
+    \renewcommand\@pnumwidth{2.8em}\renewcommand\@tocrmarg{3.8em}%
+    \setlength{\headwidth}{\textwidth}%
+    \fancyhf{}\fancyhead[LE,RO]{\rmfamily\small Contents}%
+    \fancyfoot[LE,RO]{\rmfamily\small\thepage}%
+    \hypersetup{linkcolor=hhink}%
+    \pd@tocpart=0 \pd@tocchapter=0 \pd@tocafterpartfalse
+    \phantomsection\label{book:contents}%
+    \pdfbookmark[0]{Contents}{book.contents}%
+    {\pddisplayface\Huge\bfseries Contents\par}%
+    \vspace{10pt}\noindent\rule{\linewidth}{1.1pt}\par\vspace{14pt}%
+    {\pdtextface\large The complete argument, in \pdchaptercount{} chapters.\par}%
+    \vspace{6pt}%
+    \begin{minipage}{0.84\linewidth}\rmfamily\normalsize\raggedright
+      Every chapter, section and subsection is listed here, followed by
+      solutions, the result atlas, reference material and image credits.
+      Titles and page numbers lead directly to their place in the book.
+    \end{minipage}\par\vspace{20pt}%
+    \@starttoc{toc}%
+    \clearpage
+  \endgroup
+  \restoregeometry
+}
+\makeatother
 
 % Hyperlink and cross-reference discipline (must stay last).
 \input{figures/pd-hyperlinks}

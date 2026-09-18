@@ -38,7 +38,7 @@
     % image has the rest of the sheet. The imprint used to sit at the foot,
     % which put 9pt type over a halftone photograph that is 37% lighter than
     % luminance 140 -- neither black nor reversed white reads on that.
-    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,14) {The Harbor,\\the Person,\\and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pddisplayface\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,14) {The Harbor,\\the Person,\\and the Economy};
     \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,66) {\pdeditionsubtitle};
     \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhgray] at (14,75) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
   \end{tikzpicture}
@@ -208,9 +208,9 @@ time.
 
 % A spread begins on a verso and ends on the facing recto. This is a page
 % architecture guarantee, not a hope that two consecutive pages face.
-\cleartoleftpage
-\input{figures/fig-book-reader-map}
-
+% The map invokes this prose between its two halves. Keeping the words here
+% leaves the figure responsible only for spread geometry and the reading key.
+\newcommand{\pdreaderleftprose}{%
 There are two ways through every result. Each opens with an express lane, the
 claim in one breath and a pointer to the box that states it precisely; readers
 who know the field read the lane and the box and move on, and everyone else
@@ -220,7 +220,10 @@ hand, what the result buys, and where it stops. Worked numbers carry a tag:
 \textsf{[internal]} when only the chapter's own derivation does. Exercises come
 in three kinds, \textsc{Check}, \textsc{Trace}, and \textsc{Open}, rated one to
 three; their solutions are collected at the back of the book, and each
-exercise and solution links to the other.
+exercise and solution links to the other.\par}
+
+\cleartoleftpage
+\input{figures/fig-book-reader-map}
 
 Every important statement is labeled by what backs it. A \emph{Theorem} follows
 from a stated formal model with explicit assumptions. A \emph{Design invariant}
@@ -237,6 +240,7 @@ means a running slice that does not yet satisfy its full contract;
 finite model checks, repository experiments, and running code remain separate
 kinds of evidence throughout, and none is silently promoted into another.
 
+\clearpage
 \paragraph{Four ways to teach from this book.} The eight chapters are written to
 be read in order and they do not have to be. Each of the paths below is a
 coherent semester that ends somewhere, rather than a subset that merely omits
@@ -327,10 +331,7 @@ tables, exercises, page numbers, and citations are links, and every
 bibliography entry ends with the pages that cite it.
 
 \cleartoleftpage
-\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{chapter map}
-
-\clearpage
-\begingroup\small\sloppy\tableofcontents\endgroup\clearpage
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{complete contents}
 
 \section{Introduction: the unit of account is the work}
 
@@ -415,5 +416,21 @@ artifact. The chapters stand alone; the book's claim is the chain they make.
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-solutions.tex}{solutions}
+% Include unnumbered backmatter headings as well. The legacy References entry
+% precedes its heading and inherits the previous section's destination; replace
+% only that entry with the one emitted AFTER the real bibliography heading.
+\begingroup
+\let\pdbackmatteraddcontentsline\addcontentsline
+\renewcommand{\addcontentsline}[3]{%
+  \ifstrequal{#1/#2/#3}{toc/section/References}{}{\pdbackmatteraddcontentsline{#1}{#2}{#3}}}
+\let\pdbackmattersection\section
+\let\pdbackmattersubsection\subsection
+\RenewDocumentCommand{\section}{s o m}{%
+  \IfBooleanTF{#1}{\pdbackmattersection*{#3}\pdbackmatteraddcontentsline{toc}{section}{#3}}%
+    {\IfNoValueTF{#2}{\pdbackmattersection{#3}}{\pdbackmattersection[#2]{#3}}}}
+\RenewDocumentCommand{\subsection}{s o m}{%
+  \IfBooleanTF{#1}{\pdbackmattersubsection*{#3}\pdbackmatteraddcontentsline{toc}{subsection}{#3}}%
+    {\IfNoValueTF{#2}{\pdbackmattersubsection{#3}}{\pdbackmattersubsection[#2]{#3}}}}
 \input{coordination-papers-mega-volume-appendices.tex}
+\endgroup
 \end{document}
