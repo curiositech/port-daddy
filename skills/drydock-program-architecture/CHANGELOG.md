@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Added the source-present H1 controller-local TypeScript reducer, closed
+  projection-update envelope, projection-only cursor consumer, and sealed
+  golden-prefix corpus.
+- Added fail-closed tests for event conflict/gaps, role collisions, incomplete
+  work, aliased capacity, provider-native reservation/settlement, bounded
+  envelopes, rework ceilings, atomic rejection, stream drift, digest tampering,
+  and stale/offline truth.
+- Bound each manager decision to the manager named by that attempt's assignment
+  receipt and rejected provider/account/unit budget aliases that could multiply
+  one underlying allowance.
+- Clarified that the local runtime halt blocks dynamic promotion, not ordinary
+  source implementation, and that Rust/Swift/HTML clients do not independently
+  re-adjudicate lifecycle history.
 - Added a closed hypertree-execution schema and semantic validator covering
   exact plan binding, ordered event chains, producer/reviewer/manager separation,
   deterministic checks, native-unit review reservations, and bounded rework.

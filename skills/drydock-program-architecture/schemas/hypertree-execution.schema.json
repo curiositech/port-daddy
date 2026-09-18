@@ -9,11 +9,14 @@
     "schemaVersion",
     "kind",
     "executionId",
+    "definitionDigest",
     "status",
     "plan",
     "scope",
+    "authorityModel",
     "contracts",
     "reviewPolicy",
+    "capacityBudgets",
     "limits",
     "clientBindings",
     "events",
@@ -25,6 +28,7 @@
     "schemaVersion": { "const": 1 },
     "kind": { "const": "DrydockHypertreeExecution" },
     "executionId": { "$ref": "#/$defs/slug" },
+    "definitionDigest": { "$ref": "#/$defs/digest" },
     "status": { "const": "fixture-static-design" },
     "plan": {
       "type": "object",
@@ -49,42 +53,70 @@
     "scope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["nodeIds", "fixturePurpose"],
+      "required": ["nodeIds", "dependencies", "fixturePurpose"],
       "properties": {
         "nodeIds": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 500,
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/nodeId" }
         },
+        "dependencies": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": { "$ref": "#/$defs/nodeDependency" }
+        },
         "fixturePurpose": { "type": "string", "minLength": 1 }
+      }
+    },
+    "authorityModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventAdmission", "projectionReducer", "clientAuthority"],
+      "properties": {
+        "eventAdmission": { "const": "controller-only" },
+        "projectionReducer": { "const": "controller-typescript" },
+        "clientAuthority": { "const": "projection-only" }
       }
     },
     "contracts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["inputEnvelopeSchema", "outputEnvelopeSchema", "projectionSchema", "nodeContracts"],
+      "required": ["inputEnvelopeSchema", "outputEnvelopeSchema", "projectionSchema", "projectionUpdateSchema", "reducerVersion", "nodeContracts"],
       "properties": {
         "inputEnvelopeSchema": { "const": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json" },
         "outputEnvelopeSchema": { "const": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json" },
         "projectionSchema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json" },
+        "projectionUpdateSchema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection-update.v1.json" },
+        "reducerVersion": { "const": "drydock-hypertree-reducer.v1" },
         "nodeContracts": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 500,
           "items": { "$ref": "#/$defs/nodeContract" }
         }
       }
     },
     "reviewPolicy": { "$ref": "#/$defs/reviewPolicy" },
+    "capacityBudgets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/capacityBudget" }
+    },
     "limits": { "$ref": "#/$defs/limits" },
     "clientBindings": {
       "type": "array",
       "minItems": 3,
+      "maxItems": 3,
       "items": { "$ref": "#/$defs/clientBinding" }
     },
     "events": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 10000,
       "items": { "$ref": "#/$defs/event" }
     },
     "expectedProjection": { "$ref": "#/$defs/projection" },
@@ -93,12 +125,72 @@
   "$defs": {
     "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "nodeId": { "type": "string", "pattern": "^DD-[0-9]{3}[A-Z]?$" },
+    "eventId": { "type": "string", "pattern": "^[a-z0-9]+(?:[-:/][a-z0-9]+)*$" },
     "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "canonicalTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
     "identity": { "type": "string", "pattern": "^[a-z0-9]+(?:[-:/][a-z0-9]+)*$" },
     "nonemptyStrings": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 512,
       "items": { "type": "string", "minLength": 1 }
+    },
+    "nodeDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "dependsOnNodeIds"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "dependsOnNodeIds": {
+          "type": "array",
+          "maxItems": 499,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nodeId" }
+        }
+      }
+    },
+    "reworkFindingRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceEventId", "evidenceUri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "sourceEventId": { "$ref": "#/$defs/eventId" },
+        "evidenceUri": { "type": "string", "pattern": "^evidence://.+" }
+      }
+    },
+    "reworkDirective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventId", "findings", "requiredArtifactKinds"],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/eventId" },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/reworkFindingRef" }
+        },
+        "requiredArtifactKinds": { "$ref": "#/$defs/nonemptyStrings" }
+      }
+    },
+    "managerRework": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["findings", "requiredArtifactKinds"],
+      "properties": {
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/finding" }
+        },
+        "requiredArtifactKinds": { "$ref": "#/$defs/nonemptyStrings" }
+      }
     },
     "nodeContract": {
       "type": "object",
@@ -129,12 +221,14 @@
         },
         "riskClasses": {
           "type": "array",
+          "maxItems": 7,
           "uniqueItems": true,
           "items": { "enum": ["identity", "authority", "money", "security", "lifecycle", "release", "destructive-effect"] }
         },
         "requiredReviewerClasses": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 2,
           "uniqueItems": true,
           "items": { "enum": ["low-cost-independent", "specialist"] }
         },
@@ -178,6 +272,7 @@
             "mandatoryRiskClasses": {
               "type": "array",
               "minItems": 1,
+              "maxItems": 7,
               "uniqueItems": true,
               "items": { "enum": ["identity", "authority", "money", "security", "lifecycle", "release", "destructive-effect"] }
             },
@@ -189,13 +284,22 @@
         "managerGate": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["mode", "managerMustDifferFromProducerAndReviewer", "mayWaiveChecks", "maySelfApprove", "requiredEvidence"],
+          "required": ["mode", "managerMustDifferFromProducerAndReviewer", "mayWaiveChecks", "maySelfApprove", "reservationUnit", "maxUnitsPerDecision", "requiredEvidence"],
           "properties": {
             "mode": { "const": "risk-triggered-and-terminal" },
             "managerMustDifferFromProducerAndReviewer": { "const": true },
             "mayWaiveChecks": { "const": false },
             "maySelfApprove": { "const": false },
-            "requiredEvidence": { "$ref": "#/$defs/nonemptyStrings" }
+            "reservationUnit": { "const": "provider-native-units" },
+            "maxUnitsPerDecision": { "type": "integer", "minimum": 1 },
+            "requiredEvidence": {
+              "const": [
+                "schema-valid-output",
+                "all-deterministic-checks-pass",
+                "all-required-reviews-approve",
+                "no-unresolved-blocking-findings"
+              ]
+            }
           }
         },
         "rework": {
@@ -216,14 +320,19 @@
     "limits": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["maxNodeAttempts", "maxReworkRounds", "maxManagerRounds", "maxTopologyMutations", "maxWallClockSeconds", "maxReviewUnitsTotal", "maxRecursiveBirths", "retryOwner", "retryLayers"],
+      "required": ["maxScopeNodes", "maxEvents", "maxNodeStartsTotal", "maxCapacityReservationsTotal", "maxArtifactsPerOutput", "maxOutputBytesPerAttempt", "maxNodeAttempts", "maxReworkRounds", "maxManagerRounds", "maxTopologyMutations", "maxWallClockSeconds", "maxRecursiveBirths", "retryOwner", "retryLayers"],
       "properties": {
+        "maxScopeNodes": { "type": "integer", "minimum": 1, "maximum": 500 },
+        "maxEvents": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "maxNodeStartsTotal": { "type": "integer", "minimum": 1, "maximum": 1500 },
+        "maxCapacityReservationsTotal": { "type": "integer", "minimum": 1, "maximum": 5000 },
+        "maxArtifactsPerOutput": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "maxOutputBytesPerAttempt": { "type": "integer", "minimum": 1, "maximum": 104857600 },
         "maxNodeAttempts": { "type": "integer", "minimum": 1, "maximum": 3 },
         "maxReworkRounds": { "type": "integer", "minimum": 0, "maximum": 2 },
         "maxManagerRounds": { "type": "integer", "minimum": 1, "maximum": 3 },
         "maxTopologyMutations": { "type": "integer", "minimum": 0, "maximum": 3 },
         "maxWallClockSeconds": { "type": "integer", "minimum": 1, "maximum": 21600 },
-        "maxReviewUnitsTotal": { "type": "integer", "minimum": 1 },
         "maxRecursiveBirths": { "const": 0 },
         "retryOwner": { "const": "external-controller" },
         "retryLayers": { "const": 1 }
@@ -232,29 +341,86 @@
     "clientBinding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "implementation", "transport", "decoder", "projectionSchema", "authority", "commandPath", "resumeCursor", "activityMotion"],
+      "required": ["id", "implementation", "transport", "decoder", "projectionSchema", "projectionUpdateSchema", "rawEventInput", "authority", "commandPath", "resumeCursor", "activityMotion"],
       "properties": {
         "id": { "$ref": "#/$defs/slug" },
         "implementation": { "enum": ["html", "swift", "rust"] },
         "transport": { "enum": ["sse-json", "relay-sse-json", "in-process-json-or-sse"] },
         "decoder": { "enum": ["json-schema-2020-12", "swift-codable", "rust-serde"] },
         "projectionSchema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json" },
+        "projectionUpdateSchema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection-update.v1.json" },
+        "rawEventInput": { "const": "denied" },
         "authority": { "const": "projection-only" },
         "commandPath": { "const": "separate-signed-control-api" },
         "resumeCursor": { "const": "sequence-and-event-id" },
         "activityMotion": { "const": "one-shot-edge-cue-then-calm" }
       }
     },
+    "capacityBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "providerId", "accountRef", "unit", "maxReservedUnits"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "providerId": { "$ref": "#/$defs/slug" },
+        "accountRef": { "$ref": "#/$defs/eventId" },
+        "unit": { "$ref": "#/$defs/slug" },
+        "maxReservedUnits": { "type": "integer", "minimum": 1, "maximum": 1000000000 }
+      }
+    },
+    "capacityReservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "idempotencyKey", "budgetId", "purpose", "executionId", "nodeId", "attempt", "reservedUnits", "expiresAt", "receiptDigest", "evidenceUri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/eventId" },
+        "idempotencyKey": { "$ref": "#/$defs/eventId" },
+        "budgetId": { "$ref": "#/$defs/slug" },
+        "purpose": { "enum": ["work", "review:low-cost-independent", "review:specialist", "manager"] },
+        "executionId": { "$ref": "#/$defs/eventId" },
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "reservedUnits": { "type": "integer", "minimum": 1 },
+        "expiresAt": { "$ref": "#/$defs/canonicalTimestamp" },
+        "receiptDigest": { "$ref": "#/$defs/digest" },
+        "evidenceUri": { "type": "string", "pattern": "^evidence://.+" }
+      }
+    },
+    "capacitySettlement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reservationId", "outcome", "usedUnits", "receiptDigest", "evidenceUri"],
+      "properties": {
+        "reservationId": { "$ref": "#/$defs/eventId" },
+        "outcome": { "enum": ["CONSUMED", "RELEASED", "UNKNOWN"] },
+        "usedUnits": { "type": "integer", "minimum": 0 },
+        "receiptDigest": { "$ref": "#/$defs/digest" },
+        "evidenceUri": { "type": "string", "pattern": "^evidence://.+" }
+      }
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["round", "managerIdentity", "roleId", "receiptDigest", "evidenceUri"],
+      "properties": {
+        "round": { "type": "integer", "minimum": 1 },
+        "managerIdentity": { "$ref": "#/$defs/identity" },
+        "roleId": { "$ref": "#/$defs/slug" },
+        "receiptDigest": { "$ref": "#/$defs/digest" },
+        "evidenceUri": { "type": "string", "pattern": "^evidence://.+" }
+      }
+    },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "mediaType", "digest", "evidenceUri"],
+      "required": ["id", "kind", "mediaType", "byteLength", "digest", "evidenceUri"],
       "properties": {
         "id": { "$ref": "#/$defs/slug" },
         "kind": { "type": "string", "minLength": 1 },
         "mediaType": { "type": "string", "minLength": 1 },
+        "byteLength": { "type": "integer", "minimum": 0 },
         "digest": { "$ref": "#/$defs/digest" },
-        "evidenceUri": { "type": "string", "pattern": "^evidence://" }
+        "evidenceUri": { "type": "string", "pattern": "^evidence://.+" }
       }
     },
     "check": {
@@ -264,7 +430,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/slug" },
         "status": { "enum": ["PASS", "FAIL", "UNKNOWN"] },
-        "evidenceUri": { "type": "string", "pattern": "^evidence://" }
+        "evidenceUri": { "type": "string", "pattern": "^evidence://.+" }
       }
     },
     "finding": {
@@ -275,21 +441,28 @@
         "id": { "$ref": "#/$defs/slug" },
         "severity": { "enum": ["blocking", "major", "minor"] },
         "summary": { "type": "string", "minLength": 1 },
-        "evidenceUri": { "type": "string", "pattern": "^evidence://" }
+        "evidenceUri": { "type": "string", "pattern": "^evidence://.+" }
       }
     },
     "nodeInput": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "nodeContractId", "planDigest", "artifacts", "priorAttemptArtifactIds", "capabilitySetDigest", "capacityReservationIds"],
+      "required": ["schema", "nodeContractId", "planDigest", "definitionDigest", "artifacts", "priorAttemptArtifactIds", "reworkDirective", "capabilitySetDigest", "capacityReservations"],
       "properties": {
         "schema": { "const": "https://portdaddy.dev/schemas/hypertree-node-input.v1.json" },
         "nodeContractId": { "$ref": "#/$defs/slug" },
         "planDigest": { "$ref": "#/$defs/digest" },
-        "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } },
-        "priorAttemptArtifactIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
+        "definitionDigest": { "$ref": "#/$defs/digest" },
+        "artifacts": { "type": "array", "minItems": 1, "maxItems": 512, "items": { "$ref": "#/$defs/artifact" } },
+        "priorAttemptArtifactIds": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
+        "reworkDirective": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reworkDirective" }
+          ]
+        },
         "capabilitySetDigest": { "$ref": "#/$defs/digest" },
-        "capacityReservationIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } }
+        "capacityReservations": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/capacityReservation" } }
       }
     },
     "eventBase": {
@@ -298,10 +471,15 @@
       "required": ["sequence", "eventId", "previousEventId", "type", "occurredAt", "witnessClass", "nodeId", "attempt", "payload"],
       "properties": {
         "sequence": { "type": "integer", "minimum": 1 },
-        "eventId": { "type": "string", "pattern": "^evt-[0-9]{3}$" },
-        "previousEventId": { "type": ["string", "null"], "pattern": "^evt-[0-9]{3}$" },
+        "eventId": { "$ref": "#/$defs/eventId" },
+        "previousEventId": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/eventId" }
+          ]
+        },
         "type": { "enum": ["RUN_OPENED", "NODE_STARTED", "OUTPUT_PRODUCED", "CHECKS_COMPLETED", "REVIEW_COMPLETED", "REWORK_REQUESTED", "MANAGER_DECIDED", "NODE_APPROVED", "RUN_COMPLETED"] },
-        "occurredAt": { "type": "string", "format": "date-time" },
+        "occurredAt": { "$ref": "#/$defs/canonicalTimestamp" },
         "witnessClass": { "enum": ["HOST_OBSERVED", "BROKER_OBSERVED", "GUEST_ASSERTED", "MODEL_CHECKED", "OPERATOR_OBSERVED"] },
         "nodeId": { "oneOf": [{ "$ref": "#/$defs/nodeId" }, { "type": "null" }] },
         "attempt": { "type": ["integer", "null"], "minimum": 1 },
@@ -316,15 +494,17 @@
             {
               "properties": {
                 "type": { "const": "RUN_OPENED" },
+                "witnessClass": { "const": "HOST_OBSERVED" },
                 "nodeId": { "type": "null" },
                 "attempt": { "type": "null" },
                 "payload": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["planDigest", "scopeNodeIds"],
+                  "required": ["planDigest", "definitionDigest", "scopeNodeIds"],
                   "properties": {
                     "planDigest": { "$ref": "#/$defs/digest" },
-                    "scopeNodeIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } }
+                    "definitionDigest": { "$ref": "#/$defs/digest" },
+                    "scopeNodeIds": { "type": "array", "minItems": 1, "maxItems": 500, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } }
                   }
                 }
               }
@@ -332,15 +512,16 @@
             {
               "properties": {
                 "type": { "const": "NODE_STARTED" },
+                "witnessClass": { "const": "HOST_OBSERVED" },
                 "nodeId": { "$ref": "#/$defs/nodeId" },
                 "attempt": { "type": "integer", "minimum": 1 },
                 "payload": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["workerIdentity", "managerRound", "input"],
+                  "required": ["workerIdentity", "assignment", "input"],
                   "properties": {
                     "workerIdentity": { "$ref": "#/$defs/identity" },
-                    "managerRound": { "type": "integer", "minimum": 1 },
+                    "assignment": { "$ref": "#/$defs/assignment" },
                     "input": { "$ref": "#/$defs/nodeInput" }
                   }
                 }
@@ -349,17 +530,19 @@
             {
               "properties": {
                 "type": { "const": "OUTPUT_PRODUCED" },
+                "witnessClass": { "const": "GUEST_ASSERTED" },
                 "nodeId": { "$ref": "#/$defs/nodeId" },
                 "attempt": { "type": "integer", "minimum": 1 },
                 "payload": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["schema", "producerIdentity", "result", "artifacts"],
+                  "required": ["schema", "producerIdentity", "result", "artifacts", "capacitySettlements"],
                   "properties": {
                     "schema": { "const": "https://portdaddy.dev/schemas/hypertree-node-output.v1.json" },
                     "producerIdentity": { "$ref": "#/$defs/identity" },
                     "result": { "const": "CANDIDATE" },
-                    "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } }
+                    "artifacts": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/artifact" } },
+                    "capacitySettlements": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/capacitySettlement" } }
                   }
                 }
               }
@@ -367,6 +550,7 @@
             {
               "properties": {
                 "type": { "const": "CHECKS_COMPLETED" },
+                "witnessClass": { "const": "HOST_OBSERVED" },
                 "nodeId": { "$ref": "#/$defs/nodeId" },
                 "attempt": { "type": "integer", "minimum": 1 },
                 "payload": {
@@ -374,7 +558,7 @@
                   "additionalProperties": false,
                   "required": ["checks"],
                   "properties": {
-                    "checks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/check" } }
+                    "checks": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "$ref": "#/$defs/check" } }
                   }
                 }
               }
@@ -382,20 +566,21 @@
             {
               "properties": {
                 "type": { "const": "REVIEW_COMPLETED" },
+                "witnessClass": { "const": "MODEL_CHECKED" },
                 "nodeId": { "$ref": "#/$defs/nodeId" },
                 "attempt": { "type": "integer", "minimum": 1 },
                 "payload": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["reviewerIdentity", "reviewerClass", "producerIdentity", "verdict", "reservedUnits", "usedUnits", "findings"],
+                  "required": ["reviewerIdentity", "reviewerClass", "producerIdentity", "verdict", "capacityReservation", "capacitySettlement", "findings"],
                   "properties": {
                     "reviewerIdentity": { "$ref": "#/$defs/identity" },
                     "reviewerClass": { "enum": ["low-cost-independent", "specialist"] },
                     "producerIdentity": { "$ref": "#/$defs/identity" },
                     "verdict": { "enum": ["APPROVE", "REWORK", "ESCALATE"] },
-                    "reservedUnits": { "type": "integer", "minimum": 1 },
-                    "usedUnits": { "type": "integer", "minimum": 0 },
-                    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+                    "capacityReservation": { "$ref": "#/$defs/capacityReservation" },
+                    "capacitySettlement": { "$ref": "#/$defs/capacitySettlement" },
+                    "findings": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/finding" } }
                   }
                 }
               }
@@ -403,17 +588,18 @@
             {
               "properties": {
                 "type": { "const": "REWORK_REQUESTED" },
+                "witnessClass": { "const": "HOST_OBSERVED" },
                 "nodeId": { "$ref": "#/$defs/nodeId" },
                 "attempt": { "type": "integer", "minimum": 1 },
                 "payload": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["targetNodeId", "targetAttempt", "findingIds", "requiredEvidence"],
+                  "required": ["targetNodeId", "targetAttempt", "findings", "requiredArtifactKinds"],
                   "properties": {
                     "targetNodeId": { "$ref": "#/$defs/nodeId" },
                     "targetAttempt": { "type": "integer", "minimum": 2 },
-                    "findingIds": { "$ref": "#/$defs/nonemptyStrings" },
-                    "requiredEvidence": { "$ref": "#/$defs/nonemptyStrings" }
+                    "findings": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/reworkFindingRef" } },
+                    "requiredArtifactKinds": { "$ref": "#/$defs/nonemptyStrings" }
                   }
                 }
               }
@@ -421,19 +607,23 @@
             {
               "properties": {
                 "type": { "const": "MANAGER_DECIDED" },
+                "witnessClass": { "const": "MODEL_CHECKED" },
                 "nodeId": { "$ref": "#/$defs/nodeId" },
                 "attempt": { "type": "integer", "minimum": 1 },
                 "payload": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["managerIdentity", "decision", "reasoningEvidenceIds", "bypassedGateIds", "assignments"],
+                  "required": ["managerIdentity", "capacityReservation", "capacitySettlement", "decision", "reasoningEvidenceIds", "bypassedGateIds", "assignments", "rework"],
                   "properties": {
                     "managerIdentity": { "$ref": "#/$defs/identity" },
+                    "capacityReservation": { "$ref": "#/$defs/capacityReservation" },
+                    "capacitySettlement": { "$ref": "#/$defs/capacitySettlement" },
                     "decision": { "enum": ["APPROVE_NODE", "CONTINUE", "ADD_ROLE", "ESCALATE", "HALT"] },
                     "reasoningEvidenceIds": { "$ref": "#/$defs/nonemptyStrings" },
                     "bypassedGateIds": { "type": "array", "maxItems": 0 },
                     "assignments": {
                       "type": "array",
+                      "maxItems": 500,
                       "items": {
                         "type": "object",
                         "additionalProperties": false,
@@ -444,14 +634,39 @@
                           "reason": { "type": "string", "minLength": 1 }
                         }
                       }
+                    },
+                    "rework": {
+                      "anyOf": [
+                        { "type": "null" },
+                        { "$ref": "#/$defs/managerRework" }
+                      ]
                     }
-                  }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": { "decision": { "const": "ADD_ROLE" } },
+                        "required": ["decision"]
+                      },
+                      "then": { "properties": { "assignments": { "minItems": 1 } } },
+                      "else": { "properties": { "assignments": { "maxItems": 0 } } }
+                    },
+                    {
+                      "if": {
+                        "properties": { "decision": { "const": "CONTINUE" } },
+                        "required": ["decision"]
+                      },
+                      "then": { "properties": { "rework": { "$ref": "#/$defs/managerRework" } } },
+                      "else": { "properties": { "rework": { "type": "null" } } }
+                    }
+                  ]
                 }
               }
             },
             {
               "properties": {
                 "type": { "const": "NODE_APPROVED" },
+                "witnessClass": { "const": "HOST_OBSERVED" },
                 "nodeId": { "$ref": "#/$defs/nodeId" },
                 "attempt": { "type": "integer", "minimum": 1 },
                 "payload": {
@@ -467,6 +682,7 @@
             {
               "properties": {
                 "type": { "const": "RUN_COMPLETED" },
+                "witnessClass": { "const": "HOST_OBSERVED" },
                 "nodeId": { "type": "null" },
                 "attempt": { "type": "null" },
                 "payload": {
@@ -474,7 +690,7 @@
                   "additionalProperties": false,
                   "required": ["terminalNodeIds", "evidenceRoot"],
                   "properties": {
-                    "terminalNodeIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
+                    "terminalNodeIds": { "type": "array", "minItems": 1, "maxItems": 500, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
                     "evidenceRoot": { "$ref": "#/$defs/digest" }
                   }
                 }
@@ -498,33 +714,94 @@
     "projectedNode": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["nodeId", "state", "attempt", "reworkRounds", "latestEventId", "checkStatus", "reviewVerdict", "managerDecision", "artifactIds"],
+      "required": ["nodeId", "dependsOnNodeIds", "state", "attempt", "reworkRounds", "latestEventId", "checkStatus", "reviewVerdict", "managerDecision", "artifactIds"],
       "properties": {
         "nodeId": { "$ref": "#/$defs/nodeId" },
+        "dependsOnNodeIds": { "type": "array", "maxItems": 499, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
         "state": { "enum": ["BLOCKED", "ELIGIBLE", "RUNNING", "AWAITING_CHECKS", "AWAITING_REVIEW", "REWORK_REQUIRED", "AWAITING_MANAGER", "APPROVED", "FAILED", "ESCALATED", "CANCELLED", "QUARANTINED"] },
-        "attempt": { "type": "integer", "minimum": 1 },
+        "attempt": { "type": "integer", "minimum": 0 },
         "reworkRounds": { "type": "integer", "minimum": 0 },
-        "latestEventId": { "type": "string", "pattern": "^evt-[0-9]{3}$" },
+        "latestEventId": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/eventId" }
+          ]
+        },
         "checkStatus": { "enum": ["PASS", "FAIL", "UNKNOWN"] },
-        "reviewVerdict": { "enum": ["APPROVE", "REWORK", "ESCALATE"] },
-        "managerDecision": { "enum": ["APPROVE_NODE", "CONTINUE", "ADD_ROLE", "ESCALATE", "HALT"] },
-        "artifactIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } }
+        "reviewVerdict": {
+          "anyOf": [
+            { "type": "null" },
+            { "enum": ["APPROVE", "REWORK", "ESCALATE"] }
+          ]
+        },
+        "managerDecision": {
+          "anyOf": [
+            { "type": "null" },
+            { "enum": ["APPROVE_NODE", "CONTINUE", "ADD_ROLE", "ESCALATE", "HALT"] }
+          ]
+        },
+        "artifactIds": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } }
+      }
+    },
+    "projectedCapacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budgetId", "providerId", "accountRef", "unit", "maxReservedUnits", "reservedUnits", "heldUnits", "usedUnits", "reservationCount"],
+      "properties": {
+        "budgetId": { "$ref": "#/$defs/slug" },
+        "providerId": { "$ref": "#/$defs/slug" },
+        "accountRef": { "$ref": "#/$defs/eventId" },
+        "unit": { "$ref": "#/$defs/slug" },
+        "maxReservedUnits": { "type": "integer", "minimum": 1 },
+        "reservedUnits": { "type": "integer", "minimum": 0 },
+        "heldUnits": { "type": "integer", "minimum": 0 },
+        "usedUnits": { "type": "integer", "minimum": 0 },
+        "reservationCount": { "type": "integer", "minimum": 0 }
       }
     },
     "projection": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "asOfSequence", "asOfEventId", "runState", "topology", "nodes", "staleAfter", "truthState"],
+      "required": ["schema", "reducerVersion", "executionId", "planId", "planDigest", "definitionDigest", "asOfSequence", "asOfEventId", "runState", "topology", "nodes", "capacity", "staleAfter", "truthState", "terminalEvidenceRoot"],
       "properties": {
         "schema": { "const": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json" },
-        "asOfSequence": { "type": "integer", "minimum": 1 },
-        "asOfEventId": { "type": "string", "pattern": "^evt-[0-9]{3}$" },
+        "reducerVersion": { "const": "drydock-hypertree-reducer.v1" },
+        "executionId": { "$ref": "#/$defs/slug" },
+        "planId": { "$ref": "#/$defs/slug" },
+        "planDigest": { "$ref": "#/$defs/digest" },
+        "definitionDigest": { "$ref": "#/$defs/digest" },
+        "asOfSequence": { "type": "integer", "minimum": 0 },
+        "asOfEventId": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/eventId" }
+          ]
+        },
         "runState": { "enum": ["OPEN", "RUNNING", "COMPLETED", "HALTED", "FAILED", "UNKNOWN"] },
         "topology": { "$ref": "#/$defs/clientTopology" },
-        "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/projectedNode" } },
-        "staleAfter": { "type": "string", "format": "date-time" },
-        "truthState": { "enum": ["FIXTURE", "LIVE", "STALE", "OFFLINE", "UNKNOWN"] }
-      }
+        "nodes": { "type": "array", "minItems": 1, "maxItems": 500, "items": { "$ref": "#/$defs/projectedNode" } },
+        "capacity": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/projectedCapacity" } },
+        "staleAfter": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/canonicalTimestamp" }
+          ]
+        },
+        "truthState": { "enum": ["FIXTURE", "LIVE", "STALE", "OFFLINE", "UNKNOWN"] },
+        "terminalEvidenceRoot": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "runState": { "const": "COMPLETED" } }, "required": ["runState"] },
+          "then": { "properties": { "terminalEvidenceRoot": { "$ref": "#/$defs/digest" } } },
+          "else": { "properties": { "terminalEvidenceRoot": { "type": "null" } } }
+        }
+      ]
     }
   }
 }

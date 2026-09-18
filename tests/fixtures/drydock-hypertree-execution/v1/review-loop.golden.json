@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "sourceExecutionDigest": "sha256:1b226d38eac7ff99f0fb3653365fab10f7a6a2cc838020833e347af754b119cd",
+  "cases": [
+    {
+      "id": "empty-controller-state",
+      "eventCount": 0,
+      "projectionDigest": "sha256:0cf21cc157216537e012e53a46298c1436f83265de77ed837aa3fd450f503972",
+      "projection": {
+        "schema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+        "reducerVersion": "drydock-hypertree-reducer.v1",
+        "executionId": "drydock-observatory-review-loop-fixture",
+        "planId": "drydock-resurrection-capacity-context-control",
+        "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+        "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
+        "asOfSequence": 0,
+        "asOfEventId": null,
+        "runState": "OPEN",
+        "topology": {
+          "eligibility": "dag",
+          "qualityRouting": "bounded-workflow",
+          "staffing": "manager-driven-rounds",
+          "observation": "append-only-event-projection"
+        },
+        "nodes": [
+          {
+            "nodeId": "DD-070",
+            "dependsOnNodeIds": [],
+            "state": "BLOCKED",
+            "attempt": 0,
+            "reworkRounds": 0,
+            "latestEventId": null,
+            "checkStatus": "UNKNOWN",
+            "reviewVerdict": null,
+            "managerDecision": null,
+            "artifactIds": []
+          }
+        ],
+        "capacity": [
+          {
+            "budgetId": "codex-subscription-window",
+            "providerId": "openai-codex",
+            "accountRef": "operator/main",
+            "unit": "subscription-basis-points",
+            "maxReservedUnits": 1000,
+            "reservedUnits": 0,
+            "heldUnits": 0,
+            "usedUnits": 0,
+            "reservationCount": 0
+          }
+        ],
+        "staleAfter": null,
+        "truthState": "FIXTURE",
+        "terminalEvidenceRoot": null
+      }
+    },
+    {
+      "id": "named-rework-boundary",
+      "eventCount": 6,
+      "projectionDigest": "sha256:73a229e8abc1170e7b3e23374fa946f9f6a14f18d9dbacff4f5cc32b69165ab1",
+      "projection": {
+        "schema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+        "reducerVersion": "drydock-hypertree-reducer.v1",
+        "executionId": "drydock-observatory-review-loop-fixture",
+        "planId": "drydock-resurrection-capacity-context-control",
+        "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+        "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
+        "asOfSequence": 6,
+        "asOfEventId": "evt-006",
+        "runState": "RUNNING",
+        "topology": {
+          "eligibility": "dag",
+          "qualityRouting": "bounded-workflow",
+          "staffing": "manager-driven-rounds",
+          "observation": "append-only-event-projection"
+        },
+        "nodes": [
+          {
+            "nodeId": "DD-070",
+            "dependsOnNodeIds": [],
+            "state": "REWORK_REQUIRED",
+            "attempt": 1,
+            "reworkRounds": 1,
+            "latestEventId": "evt-006",
+            "checkStatus": "PASS",
+            "reviewVerdict": "REWORK",
+            "managerDecision": null,
+            "artifactIds": [
+              "authority-split-a1",
+              "state-reel-a1",
+              "zoom-paths-a1",
+              "responsive-rules-a1"
+            ]
+          }
+        ],
+        "capacity": [
+          {
+            "budgetId": "codex-subscription-window",
+            "providerId": "openai-codex",
+            "accountRef": "operator/main",
+            "unit": "subscription-basis-points",
+            "maxReservedUnits": 1000,
+            "reservedUnits": 140,
+            "heldUnits": 0,
+            "usedUnits": 98,
+            "reservationCount": 2
+          }
+        ],
+        "staleAfter": "2026-09-14T12:05:11Z",
+        "truthState": "FIXTURE",
+        "terminalEvidenceRoot": null
+      }
+    },
+    {
+      "id": "approved-terminal-state",
+      "eventCount": 14,
+      "projectionDigest": "sha256:4f5452f4a43d2ed61b824ec71d58b0f9d79c03d4088b2e369c856793114e9fa9",
+      "projection": {
+        "schema": "https://portdaddy.dev/schemas/hypertree-execution-projection.v1.json",
+        "reducerVersion": "drydock-hypertree-reducer.v1",
+        "executionId": "drydock-observatory-review-loop-fixture",
+        "planId": "drydock-resurrection-capacity-context-control",
+        "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a",
+        "definitionDigest": "sha256:2486f4b4ef1957d6e9f210b1bce56d17e823dbd760648cf21ec7d3096babdd93",
+        "asOfSequence": 14,
+        "asOfEventId": "evt-014",
+        "runState": "COMPLETED",
+        "topology": {
+          "eligibility": "dag",
+          "qualityRouting": "bounded-workflow",
+          "staffing": "manager-driven-rounds",
+          "observation": "append-only-event-projection"
+        },
+        "nodes": [
+          {
+            "nodeId": "DD-070",
+            "dependsOnNodeIds": [],
+            "state": "APPROVED",
+            "attempt": 2,
+            "reworkRounds": 1,
+            "latestEventId": "evt-013",
+            "checkStatus": "PASS",
+            "reviewVerdict": "APPROVE",
+            "managerDecision": "APPROVE_NODE",
+            "artifactIds": [
+              "authority-split-a2",
+              "state-reel-a2",
+              "zoom-paths-a2",
+              "responsive-rules-a2"
+            ]
+          }
+        ],
+        "capacity": [
+          {
+            "budgetId": "codex-subscription-window",
+            "providerId": "openai-codex",
+            "accountRef": "operator/main",
+            "unit": "subscription-basis-points",
+            "maxReservedUnits": 1000,
+            "reservedUnits": 325,
+            "heldUnits": 0,
+            "usedUnits": 203,
+            "reservationCount": 6
+          }
+        ],
+        "staleAfter": "2026-09-14T12:05:24Z",
+        "truthState": "FIXTURE",
+        "terminalEvidenceRoot": "sha256:b0e657ebb4b7b6c195a29df847f3d94de22b446ab64bbf92f534824a867c1ade"
+      }
+    }
+  ]
+}
