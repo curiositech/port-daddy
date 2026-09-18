@@ -36,11 +36,15 @@
   \foreach \x/\y/\k/\p in {0.80/2.15/1/40\%,2.40/1.50/2/16\%,4.00/.85/3/6.4\%,
                             5.60/.20/4/2.6\%,7.20/-.45/5/1.0\%}{
     \node[pd focus datum,inner sep=2.4pt] at (\x,\y) {};
-    \node[pd focus label,anchor=south] at (\x,{\y+.26}) {$k=\k$};
+    \ifnum\k=2
+      \node[pd focus label,anchor=west] at ({\x+.20},{\y+.25}) {$k=\k$};
+    \else
+      \node[pd focus label,anchor=south] at (\x,{\y+.26}) {$k=\k$};
+    \fi
     \node[pd label,anchor=north] at (\x,{\y-.26}) {\p};}
   \draw[pd warn rule,line width=1.25pt] (0.80,2.15) -- (7.20,2.15);
   \node[pd warn datum,inner sep=2.6pt] at (7.20,2.15) {};
-  \node[pd label,anchor=west,align=left,text width=2.5cm] at (7.45,2.15)
+  \node[pd label,anchor=west,align=left,text width=2.3cm] at (7.30,2.15)
     {five correlated reviewers: effective $k\approx1$};
   \node[pd note,anchor=north west,text width=9.6cm] at (-0.30,-2.85)
     {frontier is valid only with independent blind spots and deterrence

@@ -25,34 +25,34 @@
   }
   \def\xA{.85} \def\xS{4.15} \def\xB{7.45} \def\xE{10.75} \def\xW{14.05}
 
-  \node[pd title,anchor=west] at (0,7.05)
+  \node[pd title,anchor=west] at (0,7.75)
     {one admitted federation, one delayed failure, six ordered steps};
 
   % Admission is a prerequisite, not a message improvised during the incident.
-  \draw[pd panel] (0,5.22) rectangle (15.20,6.20);
-  \node[pd kind,anchor=west] at (.20,5.72) {Admission prerequisite};
-  \node[pd label,anchor=west,text width=11.3cm,align=left] at (3.62,5.72)
+  \draw[pd panel] (0,5.92) rectangle (15.20,6.90);
+  \node[pd kind,anchor=west] at (.20,6.42) {Admission prerequisite};
+  \node[pd label,anchor=west,text width=10.5cm,align=left] at (4.40,6.42)
     {$A$, $S$, and $B$ enrolled; Beta: six months, zero forfeitures};
 
-  \node[incident head] (hA) at (\xA,4.55) {Harbor $A$\\Acme};
-  \node[incident head] (hS) at (\xS,4.55) {Harbor $S$\\staging};
-  \node[incident head] (hB) at (\xB,4.55) {Harbor $B$\\Beta};
-  \node[incident head] (hE) at (\xE,4.55) {escrow};
-  \node[incident head] (hW) at (\xW,4.55) {witness log};
+  \node[incident head] (hA) at (\xA,4.95) {Harbor $A$\\Acme};
+  \node[incident head] (hS) at (\xS,4.95) {Harbor $S$\\staging};
+  \node[incident head] (hB) at (\xB,4.95) {Harbor $B$\\Beta};
+  \node[incident head] (hE) at (\xE,4.95) {escrow};
+  \node[incident head] (hW) at (\xW,4.95) {witness log};
   % Lifelines stop at opaque events. This matters in the Technical edition,
   % whose patterned states must not leave a construction line through text.
-  \draw[pd uml lifeline] (\xA,3.98) -- (\xA,-.12);
+  \draw[pd uml lifeline] (hA.south) -- (\xA,-.12);
   \draw[pd uml lifeline] (\xA,-.72) -- (\xA,-7.05);
-  \draw[pd uml lifeline] (\xS,3.98) -- (\xS,1.35);
+  \draw[pd uml lifeline] (hS.south) -- (\xS,1.35);
   \draw[pd uml lifeline] (\xS,.20) -- (\xS,-.12);
   \draw[pd uml lifeline] (\xS,-.72) -- (\xS,-7.05);
-  \draw[pd uml lifeline] (\xB,3.98) -- (\xB,-.12);
+  \draw[pd uml lifeline] (hB.south) -- (\xB,-.12);
   \draw[pd uml lifeline] (\xB,-.72) -- (\xB,-.84);
   \draw[pd uml lifeline] (\xB,-1.92) -- (\xB,-7.05);
-  \draw[pd uml lifeline] (\xE,3.98) -- (\xE,-.12);
+  \draw[pd uml lifeline] (hE.south) -- (\xE,-.12);
   \draw[pd uml lifeline] (\xE,-.72) -- (\xE,-3.05);
   \draw[pd uml lifeline] (\xE,-4.65) -- (\xE,-7.05);
-  \draw[pd uml lifeline] (\xW,3.98) -- (\xW,-.12);
+  \draw[pd uml lifeline] (hW.south) -- (\xW,-.12);
   \draw[pd uml lifeline] (\xW,-.72) -- (\xW,-7.05);
 
   % Bond precondition: funded before Controller-7 receives the risky capability.
@@ -73,7 +73,7 @@
   \node[pd focus state,minimum width=3.3cm,minimum height=.92cm,
     inner xsep=6pt,inner ysep=5pt,align=center] (localS) at (\xS,.78)
     {verify destination card\\snapshot; run migration};
-  \node[pd focus badge] at ({\xS-2.08},.78) {2};
+  \node[pd focus badge] at ({\xS-2.65},.78) {2};
   \draw[pd focus arrow] (\xS,1.96) -- (localS.north);
 
   % The delayed consequence is the fact the worked example exists to expose.

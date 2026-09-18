@@ -24,7 +24,7 @@
 % Five-second test: a reader can see the true curve sitting above the naive
 % one at mu_s=5, and both flattening toward a floor that still sits above
 % the pool's flat cost line.
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
 \pdfigurehue{pdgold}%
 \begin{tikzpicture}[pd figure]
@@ -36,9 +36,9 @@
   ylabel={expected wait $W$}]
   % the pool's flat cost, and the unreachable floor -- both named in place
   \addplot[pd muted series,mark=none,domain=4.2:20] {1.0362};
-  \node[pd tag,inner xsep=5pt,inner ysep=3pt] at (axis cs:9,1.0362) {pool cost $K=1.04$};
+  \node[pd label,anchor=west] at (axis cs:20.5,1.0362) {pool cost $K=1.04$};
   \addplot[pd guide,mark=none,domain=4.2:20] {2.667};
-  \node[pd tag,inner xsep=5pt,inner ysep=3pt] at (axis cs:9,2.667) {floor $W_\infty=2.667$};
+  \node[pd label,anchor=west] at (axis cs:20.5,2.667) {floor $W_\infty=2.667$};
   % the naive sum (wrong) and the true breakdown wait (right)
   \addplot[pd warn series,mark=none,domain=4.2:20,samples=80]
     {1/((x/3)-1)+2.667};
@@ -61,4 +61,4 @@ and because that floor already exceeds the pool's own cost $K=1.04$ here
 ($\xi/\eta=2.0\gg D^\star=0.3496$), the pool wins at every skill level, not
 just typical ones. [verified, \texttt{b8\_specialization.py}]}
 \label{fig:he-succession-price}
-\end{figure}
+\end{figure*}

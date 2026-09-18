@@ -12,7 +12,7 @@
 % icon (asserts safety without showing the mechanism). Five-second test: a
 % reader says "the dashed line is the attack, and it never rises above the
 % solid one."
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
 \pdfigurehue{pdviolet}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
@@ -46,13 +46,13 @@
   \draw[pd breach rule,line width=1.25pt] (0.20,0.30) -- (\pw,3.40);
   \draw[pd focus rule,line width=1.45pt] (0.20,1.40) -- (\pw,1.40);
   \node[pd breach label,anchor=north west,text width=2.3cm] at (0.25,3.55) {one label = one vote};
-  \node[pd focus label,anchor=north east,text width=2.3cm,align=right] at (\pw,1.15) {one principal = one accountable weight};
+  \node[pd focus label,anchor=north west,text width=4.1cm,align=left] at (0,-1.10) {one principal = one accountable weight};
   \foreach \x in {0.60,1.25,1.90,2.55,3.20,3.90}
     \node[pd breach datum,inner sep=1.5pt] at (\x,{0.30+0.795*(\x-0.20)}) {};
   \foreach \x in {0.60,1.25,1.90,2.55,3.20,3.90}
     \node[pd focus datum,inner sep=1.5pt] at (\x,1.40) {};
   \end{scope}
-  \node[pd note,anchor=west,text width=10.4cm] at (0,-1.15)
+  \node[pd note,anchor=north west,text width=10.4cm] at (0,-2.70)
     {scope: one trusted daemon and one bound principal; federation still owes cross-operator attestation};
 \end{tikzpicture}
 \caption{\textbf{Non-forgeable identity changes the economics of both classic
@@ -64,4 +64,4 @@ and principal binding close these attacks inside one trusted domain; they do not
 solve cross-operator attestation. Newcomer friction applies to economic ceiling,
 not to the ability to perform work. [internal]}
 \label{fig:sybil}
-\end{figure}
+\end{figure*}

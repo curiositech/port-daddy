@@ -17,13 +17,15 @@
 \centering
 \pdfigurehue{pdviolet}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd title,anchor=west] at (0,8.60) {append-only history};
+  \node[pd title,anchor=west] at (0,9.15) {append-only history};
   \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0.65,7.20) -- (9.45,7.20);
-  \foreach \x/\lab in {0.95/$o_1$,2.45/$o_2$,4.05/{$o_3$ fraudulent},5.65/{re-audit},
-                       7.05/{$t(o_3)$ appended},8.80/{imported tombstone}} {
+  \foreach \x/\ly/\lab in {0.95/7.60/$o_1$,2.45/7.60/$o_2$,
+                       4.05/7.60/{$o_3$ fraudulent},5.65/8.40/{re-audit},
+                       7.05/7.60/{$t(o_3)$ appended},8.80/7.60/{imported tombstone}} {
     \draw[pd tick] (\x,6.95) -- (\x,7.45);
-    \node[pd label,anchor=south,align=center,text width=1.5cm] at (\x,7.60) {\lab};
+    \node[pd label,anchor=south,align=center,text width=1.5cm] at (\x,\ly) {\lab};
   }
+  \draw[pd guide] (5.65,7.45) -- (5.65,8.25);
   \node[pd breach datum] at (4.05,7.20) {};
   \node[pd breach datum] at (7.05,7.20) {};
   \node[pd focus datum] at (8.80,7.20) {};
@@ -45,7 +47,7 @@
   \draw[pd breach rule,{Stealth[length=1.4mm,width=0.9mm]}-{Stealth[length=1.4mm,width=0.9mm]}] (7.05,-1.05) -- (8.80,-1.05);
   \node[pd breach label,anchor=north,text width=4.6cm,align=center] at (7.90,-1.25)
     {bounded propagation window $\tau$};
-  \node[pd note,anchor=west,text width=9.3cm] at (0.65,-2.55)
+  \node[pd note,anchor=north west,text width=9.3cm] at (0.65,-2.90)
     {the honest claim is a bounded window, not an instantaneous or history-deleting correction};
 \end{tikzpicture}
 \caption{\textbf{A tombstone changes score consumption without rewriting history.}

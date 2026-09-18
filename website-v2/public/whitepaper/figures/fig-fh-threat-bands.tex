@@ -17,17 +17,17 @@
 % Five-second test: which single row is closest to MECHANIZED, and which
 %   three rows have not moved off OPEN?
 \pdfigurehue{pdgold}%
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \def\lx{1.85}   \def\x0{2.05}   \def\pw{8.35}
+  \def\lx{1.65}   \def\x0{2.05}   \def\pw{8.35}
   \node[pd title,anchor=north west,text width=10.6cm,align=left] at (0,5.15)
     {assurance advances only when a threat acquires an artifact or theorem};
 
   \foreach \y/\lab in {3.30/{identity + replay},1.90/{revocation},0.50/{equivocation},
     -0.90/{settlement},-2.30/{cold-start admission},-3.70/{cartel monitoring},
     -5.40/{centralization}}
-    {\node[pd label,anchor=east,text width=1.75cm,align=right] at (\lx,\y) {\lab};
+    {\node[pd label,anchor=east,text width=2.7cm,align=right] at (\lx,\y) {\lab};
      \draw[pd hairline] (\x0,\y) -- (\x0+\pw,\y);}
 
   % identity + replay -- strongest evidence: chapter's own exemplar
@@ -58,19 +58,19 @@
   % cold-start admission -- open, neutral ink
   \draw[pd rule,line width=1.2pt] (\x0,-2.30) -- (4.96,-2.30);
   \node[pd datum] at (4.96,-2.30) {};
-  \node[pd label,anchor=south east,text width=3.4cm,align=right] at (4.96,-2.12)
+  \node[pd label,anchor=south west,text width=4.0cm,align=left] at (2.45,-2.12)
     {thin reputation cannot price a bond};
 
   % cartel monitoring -- open, neutral ink
   \draw[pd rule,line width=1.2pt] (\x0,-3.70) -- (4.66,-3.70);
   \node[pd datum] at (4.66,-3.70) {};
-  \node[pd label,anchor=south east,text width=3.4cm,align=right] at (4.66,-3.52)
+  \node[pd label,anchor=south west,text width=4.0cm,align=left] at (2.45,-3.52)
     {monitoring game incomplete};
 
   % centralization -- open, neutral ink; the pushback point (S:fh-limitations)
   \draw[pd rule,line width=1.2pt] (\x0,-5.40) -- (4.22,-5.40);
   \node[pd datum] at (4.22,-5.40) {};
-  \node[pd label,anchor=south east,text width=3.4cm,align=right] at (4.22,-5.22)
+  \node[pd label,anchor=south west,text width=4.0cm,align=left] at (2.45,-5.22)
     {pushback is design discipline, not a bound};
 
   % ---- assurance-position axis --------------------------------------------
@@ -93,4 +93,4 @@ shows how far its assurance moves if the custody gate is bypassable
 centralization remain open. A row advances only when the missing artifact or
 theorem exists. [internal]}
 \label{fig:fh-threat-bands}
-\end{figure}
+\end{figure*}

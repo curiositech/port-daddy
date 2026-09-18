@@ -15,7 +15,7 @@
 % separate diagrams (hides that all four break the same theorem) and a
 % prose list (hides which guard is cheapest to attack). Five-second test: a
 % reader says "the wrong turn costs one step; every dropped clause costs two."
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
 \pdfigurehue{pdviolet}%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
@@ -23,7 +23,7 @@
   \def\dy{1.32}   % phase pitch; transitions are named at the half-pitch
   \def\sx{3.30}   % spine column
   \def\gx{1.75}   % right edge of the naming gutter
-  \def\R{9.85}    % right margin of the picture
+  \def\R{12.40}   % full-width legend; preserve the shared caption type
   % ---- the honest spine, in the chapter hue --------------------------------
   \node[pd focus outline,minimum width=3.2cm] (P) at (\sx,{5*\dy}) {migration requested};
   \node[pd focus outline,minimum width=3.2cm] (A) at (\sx,{4*\dy}) {lineage verified};
@@ -47,7 +47,7 @@
   \def\ly{-1.15}
   \draw[pd rule] (0,\ly) -- (\R,\ly);
   \node[pd title,anchor=north west] at (.05,{\ly-.16}) {guard};
-  \node[pd title,anchor=north west] at (4.75,{\ly-.16}) {crime once it is removed};
+  \node[pd title,anchor=north west] at (5.30,{\ly-.16}) {crime once it is removed};
   \node[pd title,anchor=north east] at (\R,{\ly-.16}) {steps};
   \draw[pd hairline] (0,{\ly-.80}) -- (\R,{\ly-.80});
   \foreach \i/\n/\g/\c/\s in {%
@@ -55,10 +55,10 @@
     1/2/{lineage: credential + continuity witness}/{whitewash-by-resurrection: ledger shed with the old body}/{2},
     2/3/{successor outcomes engine-attested}/{engine-history shedding: paid on the wrong key}/{2},
     3/4/{commitments closed or escrowed before cutover}/{liability stranding: default lands on nobody}/{2}}{
-      \node[pd badge] at (.28,{\ly-1.45-\i*1.15}) {\n};
-      \node[pd label,anchor=west,align=left,text width=3.85cm] at (.62,{\ly-1.45-\i*1.15}) {\g};
-      \node[pd breach label,anchor=west,align=left,text width=3.6cm] at (4.75,{\ly-1.45-\i*1.15}) {\c};
-      \node[pd label,anchor=east] at (\R,{\ly-1.45-\i*1.15}) {\s};}
+      \node[pd badge] at (.28,{\ly-1.65-\i*1.55}) {\n};
+      \node[pd label,anchor=west,align=left,text width=4.2cm] at (.62,{\ly-1.65-\i*1.55}) {\g};
+      \node[pd breach label,anchor=west,align=left,text width=5.7cm] at (5.30,{\ly-1.65-\i*1.55}) {\c};
+      \node[pd label,anchor=east] at (\R,{\ly-1.65-\i*1.55}) {\s};}
 \end{tikzpicture}
 \caption{Resurrection soundness (Model-checked property~\ref{thm:resurrection-soundness}):
 the honest migration spine, violet, holds sanction-respecting reputation
@@ -71,4 +71,4 @@ opens the cheapest crime, one step, with no migration needed. Every dropped
 clause is caught within two steps. [verified;
 \texttt{b5\_engine\_substitution.py}, seed 20260816]}
 \label{fig:stp-resurrection-soundness}
-\end{figure}
+\end{figure*}

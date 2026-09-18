@@ -19,7 +19,7 @@
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \tikzset{
-    xfer card/.style={minimum width=3.05cm,minimum height=1.54cm,
+    xfer card/.style={text width=2.65cm,minimum height=2.70cm,
       inner xsep=6pt,inner ysep=6pt,align=center},
     xfer actor/.style={pd artifact,minimum width=2.55cm,minimum height=.72cm,
       inner xsep=6pt,inner ysep=4pt,align=center},
@@ -27,18 +27,18 @@
       inner xsep=6pt,inner ysep=4pt,align=center}
   }
 
-  \node[pd title,anchor=west] at (0,7.65)
+  \node[pd title,anchor=west] at (0,8.50)
     {authority narrows; only two messages cross the wire};
 
   % Panel A: authority envelope. Set membership, not area, carries the claim.
-  \node[pd kind,anchor=west] at (0,7.00) {A\quad Authority envelope};
-  \node[pd artifact,xfer card] (capA) at (1.65,5.55)
+  \node[pd kind,anchor=west] at (0,7.80) {A\quad Authority envelope};
+  \node[pd artifact,xfer card] (capA) at (1.65,6.00)
     {request\\$C_A$\\\texttt{db:write}\\test database};
-  \node[pd focus outline,xfer card] (attA) at (5.55,5.55)
+  \node[pd focus outline,xfer card] (attA) at (5.55,6.00)
     {offer\\A-side attenuation\\\texttt{db:write}\\same resource};
-  \node[pd focus state,xfer card] (capB) at (9.45,5.55)
+  \node[pd focus state,xfer card] (capB) at (9.45,6.00)
     {acknowledge\\destination card\\\texttt{db:write}\\09:00--17:00};
-  \node[pd terminal,pd climax state,xfer card] (localB) at (13.35,5.55)
+  \node[pd terminal,pd climax state,xfer card] (localB) at (13.35,6.00)
     {deliver\\destination card\\signed by \texttt{sk\_B}\\verified locally};
 
   \begin{scope}[on background layer]
@@ -46,8 +46,8 @@
     \draw[pd focus arrow] (attA.east) -- (capB.west);
     \draw[pd focus arrow] (capB.east) -- (localB.west);
   \end{scope}
-  \node[pd label,anchor=south] at (3.60,5.75) {att$_A$};
-  \node[pd label,anchor=south] at (7.50,5.75) {att$_B$};
+  \node[pd label,anchor=south] at (3.60,6.20) {att$_A$};
+  \node[pd label,anchor=south] at (7.50,6.20) {att$_B$};
 
   \draw[pd protocol rule] (1.65,4.02) -- (9.45,4.02);
   \draw[pd focus rule] (9.45,4.02) -- (13.35,4.02);
@@ -58,42 +58,44 @@
     {Harbor B verifies locally};
 
   % Panel B: exact wire protocol. Time advances downward.
+  \begin{scope}[yshift=-.60cm]
   \node[pd kind,anchor=west] at (0,3.20) {B\quad Four-message sequence};
-  \draw[pd panel] (0.00,2.90) rectangle (7.35,-2.25);
-  \draw[pd panel] (7.85,2.90) rectangle (15.20,-2.25);
-  \node[pd label,anchor=north west] at (.18,2.81) {Harbor $A$ realm};
-  \node[pd label,anchor=north west] at (8.03,2.81) {Harbor $B$ realm};
+  \draw[pd panel] (0.00,2.90) rectangle (7.35,-4.10);
+  \draw[pd panel] (7.85,2.90) rectangle (15.20,-4.10);
+  \node[pd label,anchor=west] at (.18,2.58) {Harbor $A$ realm};
+  \node[pd label,anchor=west] at (8.03,2.58) {Harbor $B$ realm};
 
-  \node[xfer actor] (agentA) at (1.25,1.90) {agent at $A$};
-  \node[xfer daemon] (daemonA) at (5.35,1.90) {$D_A$};
-  \node[xfer daemon] (daemonB) at (9.85,1.90) {$D_B$};
-  \node[xfer actor] (agentB) at (13.95,1.90) {agent at $B$};
+  \node[xfer actor] (agentA) at (1.25,1.75) {agent at $A$};
+  \node[xfer daemon] (daemonA) at (5.35,1.75) {$D_A$};
+  \node[xfer daemon] (daemonB) at (9.85,1.75) {$D_B$};
+  \node[xfer actor] (agentB) at (13.95,1.75) {agent at $B$};
   \foreach \x in {1.25,5.35,9.85,13.95}
-    {\draw[pd uml lifeline] (\x,1.50) -- (\x,-2.08);}
+    {\draw[pd uml lifeline] (\x,1.35) -- (\x,-3.90);}
 
-  \node[pd badge] (m1) at (3.30,.82) {1};
-  \node[pd tag,anchor=south] at (3.30,1.10)
+  \node[pd badge] (m1) at (3.30,.25) {1};
+  \node[pd tag,anchor=south] at (3.30,.65)
     {\texttt{xfer\_req}$(C_A,B)$};
-  \draw[pd arrow,pd to badge] (1.25,1.00) -- (m1);
-  \draw[pd arrow,pd from badge] (m1) -- (5.35,.64);
+  \draw[pd arrow,pd to badge] (1.25,.43) -- (m1);
+  \draw[pd arrow,pd from badge] (m1) -- (5.35,.07);
 
-  \node[pd focus badge] (m2) at (7.60,-.18) {2};
-  \node[pd tag,anchor=south,text width=6.7cm,align=center] at (7.60,.10)
+  \node[pd focus badge] (m2) at (7.60,-1.05) {2};
+  \node[pd tag,anchor=south,text width=6.7cm,align=center] at (7.60,-.77)
     {\texttt{xfer\_offer}$\langle C_A,\mathrm{att}_A,R_A{}^{(e)}\rangle$};
-  \draw[pd protocol arrow,pd to badge] (5.35,0) -- (m2);
-  \draw[pd protocol arrow,pd from badge] (m2) -- (9.85,-.36);
+  \draw[pd protocol arrow,pd to badge] (5.35,-.87) -- (m2);
+  \draw[pd protocol arrow,pd from badge] (m2) -- (9.85,-1.23);
 
-  \node[pd focus badge] (m3) at (7.60,-1.13) {3};
-  \node[pd tag,anchor=south,text width=6.7cm,align=center] at (7.60,-.85)
+  \node[pd focus badge] (m3) at (7.60,-2.35) {3};
+  \node[pd tag,anchor=south,text width=6.7cm,align=center] at (7.60,-2.07)
     {\texttt{xfer\_ack}: destination card + epoch root};
-  \draw[pd protocol arrow,pd to badge] (9.85,-.95) -- (m3);
-  \draw[pd protocol arrow,pd from badge] (m3) -- (5.35,-1.31);
+  \draw[pd protocol arrow,pd to badge] (9.85,-2.17) -- (m3);
+  \draw[pd protocol arrow,pd from badge] (m3) -- (5.35,-2.53);
 
-  \node[pd focus badge] (m4) at (11.90,-1.85) {4};
-  \node[pd tag,anchor=south,text width=5.7cm,align=center] at (11.90,-1.57)
+  \node[pd focus badge] (m4) at (11.90,-3.55) {4};
+  \node[pd tag,anchor=south,text width=5.7cm,align=center] at (11.90,-3.27)
     {\texttt{xfer\_deliver}: destination card};
-  \draw[pd focus arrow,pd to badge] (9.85,-1.67) -- (m4);
-  \draw[pd focus arrow,pd from badge] (m4) -- (13.95,-2.03);
+  \draw[pd focus arrow,pd to badge] (9.85,-3.37) -- (m4);
+  \draw[pd focus arrow,pd from badge] (m4) -- (13.95,-3.73);
+  \end{scope}
 \end{tikzpicture}
 
 \caption{Authority narrowing (top) and the four-message ceremony (bottom).
