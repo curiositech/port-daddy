@@ -246,10 +246,11 @@ requires it.
 
 ### Text and boxes
 
-- Swiss is now serif-led: Source Serif 4 Text for prose, Caption for marginalia
-  and figure labels, Display for large heads. Select shared semantic roles,
-  never a font file inside a figure. Source Sans 3 is for explicit interface
-  material, and Source Code Pro for literals. Font sources and licenses live
+- Swiss is sans-led: Source Sans 3 for prose, marginalia, figure labels and
+  headings, with real Regular/Semibold/Italic shapes. Select shared semantic
+  roles, never a font file inside a figure. Prose uses proportional numerals;
+  axes and data use lining, equal-width numerals. Source Code Pro is reserved
+  for literals. Font sources and licenses live
   under the Book's `fonts/`; test the change on prose, math, code and captions.
 - One figure type family and no more than three type sizes.
 - Final-size labels should remain comfortably readable; never rescue a crowded

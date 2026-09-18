@@ -1,11 +1,14 @@
 # Book type assets
 
-The Swiss edition uses **Source Serif 4** for an editorial, serif-led reading
-system inside the Book's Swiss grid. The text cut carries continuous prose;
-the Caption cut has stronger small-size detail for marginalia and diagrams;
-the Display cut carries large chapter and part titles. Real Semibold is the
-bold role. Source Sans 3 is reserved for explicitly sans interface material;
-Source Code Pro remains the literal/code face supplied by the TeX bundle.
+The Swiss edition uses **Source Sans 3** for its technical, instructional
+register: open counters for dense labels, real small caps for the existing
+apparatus, and one family shared by prose, diagrams and navigation. Regular
+and real Semibold establish hierarchy without unrelated display faces. Source
+Code Pro remains the literal/code face supplied by the TeX bundle.
+
+The operator clarified **sans serif**, not serif, on 2026-09-17. The earlier
+Source Serif 4 proof is superseded. Its licensed assets are retained for
+comparison, but no active Swiss typography role loads them.
 
 These are unmodified OpenType files under the SIL Open Font License 1.1.
 Each directory includes its upstream license and copyright notice. Loading
@@ -22,7 +25,7 @@ weights shipped. Serif includes Text, Caption, and Display cuts. No variable
 font instancing, synthetic styles, or renamed derivatives are used.
 
 The mathematical symbol and Greek fonts remain `newpxmath`; explicit math
-text, operators, and numerals use the new serif. This preserves the established
+text, operators, and numerals use the shared sans. This preserves the established
 proof notation while its compatibility is checked on rendered pages.
 
 `newpxtext` resets the body family at the end of the preamble. The Book's
@@ -34,8 +37,14 @@ actual prose fonts in an assembled PDF, not merely the intended source.
 Font changes require a fresh full-Book build and figure clearance review;
 successful font loading alone says nothing about wrapping or collisions.
 
-IBM Plex Serif and Newsreader were compared at the Book's text and caption
-sizes. Plex's technical character is useful, but its available small-cap
-coverage did not fit the existing apparatus. Newsreader is a warm editorial
-alternative; Source's small optical cut and denser, sturdier labels make it
-the better first implementation for this particular Book.
+Source Sans is a humanist choice inside the Swiss grid, not an imitation of
+Helvetica. Archivo is a sturdier neo-grotesque alternative; IBM Plex Sans
+leans more overtly industrial. Source fits this teaching book's prose/code
+mixture and already supplies real small caps and the four styles in use.
+The typography-expert skill guided that register-and-role choice. No trial
+font or paid license is required by this implementation.
+
+Prose selects proportional numerals. Axes, data and marginalia use Source
+Sans's default equal-width lining numerals, with its `pnum` and `onum`
+alternates explicitly disabled. The font does not need a `tnum` feature to
+have tabular defaults; never request unsupported features by assumption.

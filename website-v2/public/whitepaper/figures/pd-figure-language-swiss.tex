@@ -1,4 +1,4 @@
-% Swiss edition overrides (v2 role names): small-optical-size serif labels, disciplined colour,
+% Swiss edition overrides (v2 role names): Source Sans labels, disciplined colour,
 % strong rules, right angles, and square marks. Swiss is not allowed to mean
 % ``flat solid rectangles'': hierarchy also travels through white surface,
 % pale surface, outline, hatch, and stroke weight. Solid colour is therefore
@@ -12,7 +12,7 @@
 % Typographic law (#10191): an edition changes the FAMILY, in one command, and
 % the character of the marks; it never changes the size, and it never restates
 % a guide's width without the dash derived from it.
-\providecommand{\pdcaptionface}{\rmfamily}
+\providecommand{\pdcaptionface}{\sffamily}
 \renewcommand{\pdfiglabelfamily}{\pdcaptionface}
 \renewcommand{\pdfigbasesize}{\footnotesize}
 \tikzset{
@@ -75,7 +75,7 @@
     \tikzset{#1 state/.style={pd state,fill=#2!10,draw=#2,line width=1.2pt,text=pdink,font=\pdfiglabelbold}}%
   \fi}
 
-% Plots: square marks, heavier spines, caption-cut serif carries the ticks.
+% Plots: square marks, heavier spines, shared sans carries the ticks.
 \pgfplotsset{
   pd axis/.append style={axis line style={line width=1pt},tick style={line width=1pt},
     every axis plot/.append style={line width=1pt}},

@@ -1,30 +1,35 @@
 % Shared Book typography. Fonts are vendored, unmodified OFL releases: see
 % fonts/README.md. No system-font discovery and no per-figure face selection.
-% Swiss means an editorial grid and precise hierarchy; it need not mean sans.
+% Swiss uses one humanist sans across prose, navigation and diagrams. Hierarchy
+% comes from real weights and shared roles, not unrelated per-figure families.
 \ifXeTeX\ifpdswiss
-  \newcommand{\pdsetbookmainfont}{\setmainfont{SourceSerif4-Regular.otf}[
-    Path=fonts/source-serif/,Extension=.otf,
-    BoldFont=SourceSerif4-Semibold.otf,ItalicFont=SourceSerif4-It.otf,
-    BoldItalicFont=SourceSerif4-SemiboldIt.otf,Ligatures=TeX]}
+  \newcommand{\pdsetbookmainfont}{\setmainfont{SourceSans3-Regular.otf}[
+    Path=fonts/source-sans/,Extension=.otf,
+    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
+    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,Numbers=Proportional]}
   \pdsetbookmainfont
   % newpxtext selects Pagella in its earlier AtEndPreamble hook. Use the
   % public fontspec selector afterwards, so its NFSS and microtype state stay
   % coherent as well as the visible family. Merely changing rmdefault is not
   % enough: fontspec also maintains the small-cap and feature-bearing faces.
   \AtEndPreamble{\pdsetbookmainfont}
-  \newfontfamily\pdtextface{SourceSerif4-Regular.otf}[
-    Path=fonts/source-serif/,Extension=.otf,
-    BoldFont=SourceSerif4-Semibold.otf,ItalicFont=SourceSerif4-It.otf,
-    BoldItalicFont=SourceSerif4-SemiboldIt.otf,Ligatures=TeX,NFSSFamily=pdsource]
-  \newfontfamily\pddisplayface{SourceSerif4Display-Regular.otf}[
-    Path=fonts/source-serif/,Extension=.otf,
-    BoldFont=SourceSerif4Display-Semibold.otf,ItalicFont=SourceSerif4Display-It.otf,
-    BoldItalicFont=SourceSerif4Display-SemiboldIt.otf,Ligatures=TeX]
-  \newfontfamily\pdcaptionface{SourceSerif4Caption-Regular.otf}[
-    Path=fonts/source-serif/,Extension=.otf,
-    BoldFont=SourceSerif4Caption-Semibold.otf,ItalicFont=SourceSerif4Caption-It.otf,
-    BoldItalicFont=SourceSerif4Caption-SemiboldIt.otf,Ligatures=TeX,
-    Numbers={Lining,Tabular}]
+  \newfontfamily\pdtextface{SourceSans3-Regular.otf}[
+    Path=fonts/source-sans/,Extension=.otf,
+    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
+    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,
+    Numbers=Proportional,NFSSFamily=pdsource]
+  \newfontfamily\pddisplayface{SourceSans3-Regular.otf}[
+    Path=fonts/source-sans/,Extension=.otf,
+    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
+    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,Numbers=Proportional]
+  % Source Sans has lining, equal-width figures by default. Explicitly turn
+  % off its proportional/oldstyle alternates; do not request nonexistent tnum
+  % or lnum features. Prose can use proportional figures; tables and axes cannot.
+  \newfontfamily\pdcaptionface{SourceSans3-Regular.otf}[
+    Path=fonts/source-sans/,Extension=.otf,
+    BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
+    BoldItalicFont=SourceSans3-SemiboldIt.otf,Ligatures=TeX,
+    RawFeature={-pnum,-onum},NFSSFamily=pdsourcedata]
   \setsansfont{SourceSans3-Regular.otf}[
     Path=fonts/source-sans/,Extension=.otf,
     BoldFont=SourceSans3-Semibold.otf,ItalicFont=SourceSans3-It.otf,
@@ -39,23 +44,22 @@
     ItalicFont=SourceCodePro-RegularIt.otf,BoldItalicFont=SourceCodePro-BoldIt.otf,
     Scale=MatchLowercase]
   % Keep the proven newpx mathematical symbol/Greek fonts. Textual operators,
-  % numerals, and explicit text alphabets match the new prose. Replacing the
+  % numerals, and explicit text alphabets match the sans prose. Replacing the
   % math engine is a separate, proof-sensitive change, not a font fallback.
-  \SetSymbolFont{operators}{normal}{TU}{pdsource}{m}{n}
-  \SetSymbolFont{operators}{bold}{TU}{pdsource}{b}{n}
+  \SetSymbolFont{operators}{normal}{TU}{pdsourcedata}{m}{n}
+  \SetSymbolFont{operators}{bold}{TU}{pdsourcedata}{b}{n}
   \SetMathAlphabet{\mathrm}{normal}{TU}{pdsource}{m}{n}
   \SetMathAlphabet{\mathbf}{normal}{TU}{pdsource}{b}{n}
   \SetMathAlphabet{\mathit}{normal}{TU}{pdsource}{m}{it}
   \SetMathAlphabet{\mathsf}{normal}{TU}{pdsourcesans}{m}{n}
-  % Compatibility for existing shared headers. New work uses semantic roles;
-  % this legacy name no longer prescribes a grotesk in the Swiss edition.
+  % Compatibility for existing shared headers. New work uses semantic roles.
   \renewcommand{\pdgrotesk}{\pdtextface}
   \renewcommand{\pdpartface}{\pddisplayface}
   % Captions often mix prose with taller mathematical symbols. Give that
   % combination real leading; changing face must not squeeze adjacent lines.
-  \DeclareCaptionFont{pdbookserif}{\pdcaptionface\linespread{1.16}\selectfont}
+  \DeclareCaptionFont{pdbookcaption}{\pdcaptionface\linespread{1.16}\selectfont}
   \AtBeginDocument{%
-    \captionsetup{font={small,pdbookserif},labelfont=bf}%
+    \captionsetup{font={small,pdbookcaption},labelfont=bf}%
     \renewcommand*{\marginfont}{\pdcaptionface\linespread{1.16}\footnotesize\raggedright\color{pdinkmuted}}}
 \fi\fi
 % Other editions retain their declared character, with the same role API.

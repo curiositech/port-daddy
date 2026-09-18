@@ -56,6 +56,8 @@ class BookTypographyTests(unittest.TestCase):
         source = (BOOK / "coordination-papers-mega-volume-typography.tex").read_text()
         self.assertIn(r"\AtEndPreamble{\pdsetbookmainfont}", source)
         self.assertIn(r"\newcommand{\pdsetbookmainfont}{\setmainfont", source)
+        self.assertNotIn("SourceSerif4", source)
+        self.assertIn("RawFeature={-pnum,-onum}", source)
 
 
 @unittest.skipUnless(fitz and os.environ.get("BOOK_TYPOGRAPHY_PDF"),
@@ -100,9 +102,9 @@ class RenderedBookTypographyTests(unittest.TestCase):
                         for span in line["spans"]:
                             fonts[span["font"]] += len(span["text"])
                 with self.subTest(page=index + 1):
-                    self.assertGreater(fonts["SourceSerif4-Regular"], 250, fonts)
+                    self.assertGreater(fonts["SourceSans3-Regular"], 250, fonts)
                     self.assertEqual(sum(n for face, n in fonts.items()
-                                         if face.startswith("TeXGyrePagellaX")), 0, fonts)
+                                         if face.startswith(("TeXGyrePagellaX", "SourceSerif4"))), 0, fonts)
 
 
 if __name__ == "__main__":
