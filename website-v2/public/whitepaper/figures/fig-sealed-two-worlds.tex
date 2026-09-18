@@ -59,9 +59,9 @@
   \node[pd note,anchor=north west,align=left,text width=3.3cm] at (-0.50,1.95)
     {Erin's trace is identical at every step, to depth 7};
   % --- the mutation: honest gate replaced by one that leaks the raw secret -
-  \draw[pd breach arrow] (\gx,{\yB-1.05}) -- (\gx,0.75);
-  \node[pd breach state,text width=1.55cm,align=center] (LEAK) at (\gx,-0.05)
+  \node[pd breach state,text width=2.1cm,align=center] (LEAK) at (\gx,-0.05)
     {leaky gate:\\caught here};
+  \draw[pd breach arrow] (slot.south) -- (LEAK.north);
 \end{tikzpicture}
 \caption{Two runs of the clean room, identical except Derek's secret ($s{=}0$ against $s{=}2$, equal parity so $g(s){=}0$ either way), driven in lockstep through \texttt{load}$\to$\texttt{read}$\to$\texttt{submit}$\to$\texttt{release}. Erin's observable state is tied ($\equiv$) at every step; the release step is boxed as ``the slot'' because it is the only step the theorem lets differ at all, and here it still does not. Below the slot, replacing the honest gate with one that leaks the raw secret breaks the tie at this same step -- leak $0$ from World A against leak $2$ from World B, now distinguishable. The finite clean-room model, secrets $s\in\{0,1,2,3\}$ with $g(s)=s\bmod 2$, passes this check exhaustively to depth 7 over every interleaving and secret pair; both mutations are caught -- the leaked-secret gate shown here (4 steps) and a worker that bypasses the gate entirely (3 steps) [internal, \texttt{c1\_noninterference.py}].}
 \label{fig:sealed-two-worlds}
