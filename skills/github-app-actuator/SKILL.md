@@ -94,7 +94,8 @@ the reviewed-code smoke is
 
 Do not overstate that foundation. The client exposes enrollment, read-only
 inspection, and typed requests for PR comments, review replies,
-ready-for-review, reviewer requests, and merge-queue enrollment;
+ready-for-review, reviewer requests, merge-queue enrollment, and new-PR publication
+from a bounded committed-source package;
 [`../../.github/workflows/fleetbot-actuator.yml`](../../.github/workflows/fleetbot-actuator.yml)
 is the protected reviewed-code entry point for those writes. Its steady-state
 write path does not request OIDC or exchange identity again. Source presence is
@@ -102,11 +103,24 @@ not deployment evidence: publishing is available only after the environment,
 grant operation, workload key, Relay receipt key, and deployed Relay version are
 verified together. Comments and review replies may target an ordinary
 same-repository PR at its capability-bound exact head; readiness, reviewer,
-enqueue, update, and publication operations remain restricted to uniquely
-receipted Fleetbot-owned branches. Phase A verifies the GitHub dispatcher; its
+enqueue and update operations remain restricted to uniquely receipted
+Fleetbot-owned branches. New publication creates such a branch from its
+capability-bound source tree and base; it does not adopt an existing ordinary
+branch. Phase A verifies the GitHub dispatcher; its
 agent and session fields remain explicitly labeled as dispatcher-supplied until
 the proposal broker admits them from durable identity state. Local harnesses do
 not yet have a proposal broker.
+
+For new publication, use the offline package builder
+[`../../scripts/fleetbot-publication.mjs`](../../scripts/fleetbot-publication.mjs)
+and the protected workflow's `publish` operation. Follow
+[`../../docs/operations/fleetbot-source-publication.md`](../../docs/operations/fleetbot-source-publication.md).
+The proposed source is data, never runner code. Publication creates a new
+governed App branch; it does not adopt an ordinary branch or authorize closing
+its predecessor. Verify the signed source head, App branch and exact Git tree,
+then the provider PR/commit readback. A source package is not a grant or proof
+that the protected deployment is configured. New publication uses the same
+pre-effect manifest and recovery-only path below; never retry its mutation job.
 
 The protected actuator prepares and uploads a signed, non-secret recovery
 manifest before its first mutation attempt. Do not rerun that mutation job:

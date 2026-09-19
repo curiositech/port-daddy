@@ -55,8 +55,9 @@ Conversational effects and state-changing effects have deliberately different
 target policy. A comment or review reply may target an ordinary same-repository
 pull request, but only at the exact repository, PR number, base SHA, and head SHA
 bound into the signed capability and standing operation grant. Readiness,
-reviewer requests, enqueue, update, and publication remain restricted to a
-uniquely receipted Fleetbot publication on a governed `pd-agent/*` branch. This
+reviewer requests, enqueue, and update remain restricted to a
+uniquely receipted Fleetbot publication on a governed `pd-agent/*` branch.
+New publication creates that governed branch from an exact source tree. This
 lets Fleetbot discuss and answer review on existing work without granting it the
 power to advance or merge work it does not own.
 
@@ -94,6 +95,18 @@ or Relay receipt-key rotation therefore fails closed. The seven-day artifact
 retention is cleanup policy, not a promise that revoked authority remains
 usable. Phase B3 adds explicit, auditable key lineage and successor authority;
 Phase B2 does not silently weaken revocation to simulate rotation support.
+
+## Phase F publication source boundary
+
+The offline committed-source packager and protected workload now implement
+new ready-for-review PR creation. The package carries bounded file data; the
+runner executes only reviewed main-branch code, signs the exact package, and
+checks the Relay receipt plus GitHub PR and commit tree. See
+[`../operations/fleetbot-source-publication.md`](../operations/fleetbot-source-publication.md)
+for limits, preparation and recovery. This source slice does not implement PR
+updates, the local proposal broker, or standing-grant provisioning. Phase F
+remains incomplete until those lifecycle paths and a real protected publication
+have their required evidence.
 
 ## Phase C and D trust split
 

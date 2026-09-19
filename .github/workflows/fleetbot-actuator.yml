@@ -8,15 +8,20 @@ on:
         required: true
         type: choice
         options:
+          - publish
           - comment
           - review-reply
           - ready
           - request-reviewers
           - enqueue
       pull_request:
-        description: Exact pull request number to re-read before acting.
-        required: true
-        type: number
+        description: Existing PR number; leave empty for new publication.
+        required: false
+        type: string
+      publication_package:
+        description: Data-only token from fleetbot-publication.mjs; required only for publish.
+        required: false
+        type: string
       comment_body:
         description: Required for comment and review-reply. Fleetbot appends responsible-agent and receipt provenance.
         required: false
@@ -62,7 +67,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: fleetbot-actuator-${{ inputs.pull_request }}
+  group: fleetbot-actuator-${{ inputs.operation == 'publish' && 'publication' || inputs.pull_request }}
   cancel-in-progress: false
 
 jobs:
@@ -88,6 +93,7 @@ jobs:
       FLEETBOT_RELAY_PUBLIC_KEY_HEX: ${{ vars.FLEETBOT_RELAY_PUBLIC_KEY_HEX }}
       FLEETBOT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request }}
       FLEETBOT_OPERATION: ${{ inputs.operation }}
+      FLEETBOT_PUBLICATION_PACKAGE: ${{ inputs.publication_package }}
       FLEETBOT_MANIFEST_PATH: ${{ github.workspace }}/fleetbot-recovery-manifest.json
       FLEETBOT_REQUEST_PATH: ${{ github.workspace }}/fleetbot-publish-request.json
       FLEETBOT_COMMENT_BODY: ${{ inputs.comment_body }}
@@ -125,6 +131,7 @@ jobs:
       - name: Perform the exact manifested operation through Fleetbot
         if: github.run_attempt == 1
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX: ${{ secrets.FLEETBOT_WORKLOAD_PRIVATE_KEY_HEX }}
         run: node scripts/fleetbot-workload.mjs publish-manifest
       - name: Refuse mutation-job reruns
