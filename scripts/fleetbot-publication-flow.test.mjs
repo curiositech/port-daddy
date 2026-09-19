@@ -18,6 +18,7 @@ import {
   recoverPublisherReceipt,
   signDigestHex,
   stableJson,
+  verifyPublicationSourceTree,
   verifyPublicationReadback,
   verifyPublisherReceiptEnvelope,
   workloadKey,
@@ -40,7 +41,7 @@ function gitTreeSha(entries) {
   const body = Buffer.concat(entries
     .slice()
     .sort((left, right) => left.path.localeCompare(right.path))
-    .map(entry => Buffer.concat([Buffer.from(`${entry.mode} ${entry.path}\0`), Buffer.from(entry.sha, 'hex')])))
+    .map(entry => Buffer.concat([Buffer.from(`${entry.mode === '040000' ? '40000' : entry.mode} ${entry.path}\0`), Buffer.from(entry.sha, 'hex')])))
   return createHash('sha1').update(`tree ${body.length}\0`).update(body).digest('hex')
 }
 
@@ -439,6 +440,28 @@ test('prepare hydrates a base delta into the exact full Relay blob and rejects a
     await assert.rejects(() => main(['prepare'], forgedEnv), /Reconstructed publication tree does not match the approved source tree/i)
     assert.equal(forgedSeen.some(entry => entry.url === 'https://relay.example/v1/fleetbot/publish'), false)
   })
+})
+
+test('rebuilds nested directory hashes after a committed child changes', () => {
+  const oldBytes = Buffer.from('old\n')
+  const newBytes = Buffer.from('new\n')
+  const oldBlobSha = gitBlobSha(oldBytes)
+  const newBlobSha = gitBlobSha(newBytes)
+  const oldSrcTreeSha = gitTreeSha([{ mode: '100644', path: 'old.txt', sha: oldBlobSha }])
+  const newSrcTreeSha = gitTreeSha([{ mode: '100644', path: 'old.txt', sha: newBlobSha }])
+  const sourceTree = gitTreeSha([{ mode: '040000', path: 'src', sha: newSrcTreeSha }])
+  const publication = publicationPackage({
+    payload: {
+      ...publicationPackage().payload,
+      sourceTreeSha: sourceTree,
+      changes: [{ path: 'src/old.txt', mode: '100644', contentBase64: newBytes.toString('base64') }],
+    },
+  })
+  const baseEntries = new Map([
+    ['src', { mode: '040000', type: 'tree', sha: oldSrcTreeSha }],
+    ['src/old.txt', { mode: '100644', type: 'blob', sha: oldBlobSha }],
+  ])
+  assert.doesNotThrow(() => verifyPublicationSourceTree(publication, baseEntries))
 })
 
 test('recovery contacts only receipt recovery and carries sanitized source proof', async () => {
