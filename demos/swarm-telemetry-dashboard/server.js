@@ -75,6 +75,34 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url === '/telemetry_data.json' || req.url === '/api/data') {
+    const dataPath = path.join(__dirname, 'telemetry_data.json');
+    fs.readFile(dataPath, 'utf8', (err, content) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'telemetry_data.json not found' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(content);
+    });
+    return;
+  }
+
+  if (req.url === '/full_agent_transcripts.json' || req.url === '/api/transcripts') {
+    const dataPath = path.join(__dirname, 'full_agent_transcripts.json');
+    fs.readFile(dataPath, 'utf8', (err, content) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'full_agent_transcripts.json not found' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(content);
+    });
+    return;
+  }
+
   if (req.url === '/api/telemetry' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(telemetryState));

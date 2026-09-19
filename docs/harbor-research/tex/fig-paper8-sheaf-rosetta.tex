@@ -12,18 +12,19 @@
     line width=1.1pt,
     fill=white,
     inner sep=6pt,
-    text width=4.1cm,
+    text width=4.5cm,
+    minimum height=4.5cm,
     align=left,
     anchor=north
   }
 ]
 
 % 1. Coordinate Grid Context (Swiss Modern Metric Field)
-\draw[swissgrid] (-0.25, -6.85) grid (14.85, 0.45);
-\draw[majorgrid] (-0.25, -6.85) grid (14.85, 0.45);
+\draw[swissgrid] (-0.3, -8.6) grid (15.7, 0.4);
+\draw[majorgrid] (-0.3, -8.6) grid (15.7, 0.4);
 
 % 0-Cells
-\node[sbox] (box0) at (2.15, 0) {
+\node[sbox, minimum height=4.8cm] (box0) at (2.45, 0) {
   \colorbox{ptDark}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip 0-CELLS: AGENTNODES\enskip}\\[3pt]
   {\sffamily\scriptsize\bfseries Set $V$: Private Stalks ($v \in V$)}\\[5pt]
   \textbf{\small Stalk Vector} $x_v \in \mathbb{R}^D$:\\[3pt]
@@ -34,34 +35,33 @@
 };
 
 % 1-Cells
-\node[sbox] (box1) at (7.30, 0) {
+\node[sbox, minimum height=4.8cm] (box1) at (7.70, 0) {
   \colorbox{ptBlue}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip 1-CELLS: CHANNELS\enskip}\\[3pt]
   {\sffamily\scriptsize\bfseries Set $E$: Restriction Maps ($e \in E$)}\\[5pt]
   \textbf{\small Restriction Map} $P_e: \mathbb{R}^D \to \mathbb{R}^d$:\\[3pt]
-  $\bullet$ Coordinate-wise selection\\
+  $\bullet$ Coordinate projection $S_e \subseteq [D]$\\
   $\bullet$ \textbf{1-Cochain Discrepancy}:\\
   \quad $g_e = P_e x_v - P_e x_u$\\[2pt]
-  $\bullet$ \textbf{Coboundary}: $(\delta_0 x)_e = x_v - x_u$
+  $\bullet$ \textbf{Sheaf Coboundary}:\\
+  \quad $(\delta_0 x)_e = x_v - x_u$
 };
 
 % 2-Cells
-\node[sbox] (box2) at (12.45, 0) {
+\node[sbox, minimum height=4.8cm] (box2) at (12.95, 0) {
   \colorbox{ptGold!85!black}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip 2-CELLS: TRIADS\enskip}\\[3pt]
   {\sffamily\scriptsize\bfseries Set $F$: Join Contracts ($\tau \in F$)}\\[5pt]
   \textbf{\small Consensus Join Contract}:\\[3pt]
-  $\bullet$ Producer $\leftrightarrow$ Critic\\
-  $\bullet$ Critic $\leftrightarrow$ Manager\\
-  $\bullet$ Manager $\leftrightarrow$ Producer\\
+  $\bullet$ Producer $\leftrightarrow$ Critic $\leftrightarrow$ Manager\\[2pt]
   $\bullet$ \textbf{Triadic Curl}:\\
   \quad $(\delta_1 g)_\tau = g_{01} + g_{12} - g_{02}$
 };
 
 % Cochain arrows between boxes (generous runway with masked labels)
-\draw[dArr] (box0.east |- 0, -2.0) -- node[above=2pt, font=\sffamily\bfseries\normalsize, mask] {$\delta_0$} (box1.west |- 0, -2.0);
-\draw[dArr] (box1.east |- 0, -2.0) -- node[above=2pt, font=\sffamily\bfseries\normalsize, mask] {$\delta_1$} (box2.west |- 0, -2.0);
+\draw[dArr] (box0.east |- 0, -2.2) -- node[above=2pt, font=\sffamily\bfseries\normalsize, mask] {$\delta_0$} (box1.west |- 0, -2.2);
+\draw[dArr] (box1.east |- 0, -2.2) -- node[above=2pt, font=\sffamily\bfseries\normalsize, mask] {$\delta_1$} (box2.west |- 0, -2.2);
 
-% Cochain complex banner below (hard 90-degree rectangle)
-\node[rectangle, draw=ptDark, fill=ptLightGray, line width=1pt, inner sep=6pt, text width=14.2cm, align=center, anchor=north] at (7.30, -5.2) {
+% Cochain complex banner below (hard 90-degree rectangle, generous clearance)
+\node[rectangle, draw=ptDark, fill=ptLightGray, line width=1pt, inner sep=7pt, text width=15.0cm, align=center, anchor=north] at (7.70, -6.1) {
   \textbf{\normalsize Discrete Cochain Complex on Simplicial 2-Complex $X = (V, E, F)$}:\\[4pt]
   $\displaystyle 0 \longrightarrow C^0(X; \mathcal{F}) \xrightarrow{\quad\delta_0\quad} C^1(X; \mathcal{F}) \xrightarrow{\quad\delta_1\quad} C^2(X; \mathcal{F}) \longrightarrow 0$\\[4pt]
   {\small \textbf{Fundamental Nilpotent Identity}: $\delta_1 \circ \delta_0 \equiv 0 \iff \mathrm{im}(\delta_0) \subseteq \ker(\delta_1)$ (honest agent potential fields automatically satisfy all triadic contracts with zero curl).}

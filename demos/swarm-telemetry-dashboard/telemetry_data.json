@@ -1,0 +1,1653 @@
+{
+  "metadata": {
+    "title": "Port Daddy Sheaf Telemetry Control Plane",
+    "protocol": "FIPA-ACL SC00061G Communicative Speech Acts",
+    "mathematics": "Cellular Sheaf Cohomology & Discrete Hodge-Helmholtz",
+    "agentCount": 9,
+    "edgeCount": 16,
+    "simplexCount": 10,
+    "stalkDimension": 3,
+    "totalTimeSeconds": 30
+  },
+  "agents": [
+    {
+      "id": "v0",
+      "name": "Operator Proxy",
+      "role": "Executive Human Input"
+    },
+    {
+      "id": "v1",
+      "name": "Lead Orchestrator",
+      "role": "Architecture & Routing"
+    },
+    {
+      "id": "v2",
+      "name": "AuthDev",
+      "role": "Authentication Backend"
+    },
+    {
+      "id": "v3",
+      "name": "TokenService",
+      "role": "Session & Token Issuer"
+    },
+    {
+      "id": "v4",
+      "name": "ClientFrontend",
+      "role": "UI & Client SDK"
+    },
+    {
+      "id": "v5",
+      "name": "DatabaseDev",
+      "role": "PostgreSQL & Schema"
+    },
+    {
+      "id": "v6",
+      "name": "SecurityCritic",
+      "role": "Static Analysis & Vuln Audit"
+    },
+    {
+      "id": "v7",
+      "name": "QAVerifier",
+      "role": "Integration & E2E Tests"
+    },
+    {
+      "id": "v8",
+      "name": "ReleaseManager",
+      "role": "Deployment Gatekeeper"
+    }
+  ],
+  "edges": [
+    {
+      "source": "v0",
+      "target": "v1",
+      "id": "v0_v1"
+    },
+    {
+      "source": "v1",
+      "target": "v2",
+      "id": "v1_v2"
+    },
+    {
+      "source": "v1",
+      "target": "v3",
+      "id": "v1_v3"
+    },
+    {
+      "source": "v1",
+      "target": "v4",
+      "id": "v1_v4"
+    },
+    {
+      "source": "v2",
+      "target": "v3",
+      "id": "v2_v3"
+    },
+    {
+      "source": "v2",
+      "target": "v5",
+      "id": "v2_v5"
+    },
+    {
+      "source": "v3",
+      "target": "v5",
+      "id": "v3_v5"
+    },
+    {
+      "source": "v2",
+      "target": "v6",
+      "id": "v2_v6"
+    },
+    {
+      "source": "v3",
+      "target": "v6",
+      "id": "v3_v6"
+    },
+    {
+      "source": "v4",
+      "target": "v2",
+      "id": "v4_v2"
+    },
+    {
+      "source": "v4",
+      "target": "v7",
+      "id": "v4_v7"
+    },
+    {
+      "source": "v6",
+      "target": "v7",
+      "id": "v6_v7"
+    },
+    {
+      "source": "v6",
+      "target": "v8",
+      "id": "v6_v8"
+    },
+    {
+      "source": "v7",
+      "target": "v8",
+      "id": "v7_v8"
+    },
+    {
+      "source": "v4",
+      "target": "v8",
+      "id": "v4_v8"
+    },
+    {
+      "source": "v1",
+      "target": "v8",
+      "id": "v1_v8"
+    }
+  ],
+  "faces": [
+    {
+      "vertices": [
+        "v1",
+        "v2",
+        "v3"
+      ],
+      "id": "v1_v2_v3"
+    },
+    {
+      "vertices": [
+        "v2",
+        "v3",
+        "v5"
+      ],
+      "id": "v2_v3_v5"
+    },
+    {
+      "vertices": [
+        "v2",
+        "v3",
+        "v6"
+      ],
+      "id": "v2_v3_v6"
+    },
+    {
+      "vertices": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "id": "v1_v2_v4"
+    },
+    {
+      "vertices": [
+        "v4",
+        "v6",
+        "v7"
+      ],
+      "id": "v4_v6_v7"
+    },
+    {
+      "vertices": [
+        "v6",
+        "v7",
+        "v8"
+      ],
+      "id": "v6_v7_v8"
+    },
+    {
+      "vertices": [
+        "v4",
+        "v6",
+        "v8"
+      ],
+      "id": "v4_v6_v8"
+    },
+    {
+      "vertices": [
+        "v4",
+        "v7",
+        "v8"
+      ],
+      "id": "v4_v7_v8"
+    },
+    {
+      "vertices": [
+        "v1",
+        "v6",
+        "v8"
+      ],
+      "id": "v1_v6_v8"
+    },
+    {
+      "vertices": [
+        "v1",
+        "v7",
+        "v8"
+      ],
+      "id": "v1_v7_v8"
+    }
+  ],
+  "ganttTasks": [
+    {
+      "id": "task_op_0",
+      "agentId": "v0",
+      "label": "Release Intent Briefing",
+      "start": 0,
+      "end": 4,
+      "status": "nominal"
+    },
+    {
+      "id": "task_op_1",
+      "agentId": "v0",
+      "label": "Bad Instruction: Parallel AST Write",
+      "start": 7,
+      "end": 10,
+      "status": "breach"
+    },
+    {
+      "id": "task_op_2",
+      "agentId": "v0",
+      "label": "Bad Instruction: Security Gate Bypass",
+      "start": 17,
+      "end": 20,
+      "status": "breach"
+    },
+    {
+      "id": "task_op_3",
+      "agentId": "v0",
+      "label": "Harvest Production Sign-Off",
+      "start": 26,
+      "end": 30,
+      "status": "nominal"
+    },
+    {
+      "id": "task_orch_0",
+      "agentId": "v1",
+      "label": "Dependency DAG Decomposition",
+      "start": 1,
+      "end": 6,
+      "status": "nominal"
+    },
+    {
+      "id": "task_orch_1",
+      "agentId": "v1",
+      "label": "Lease Arbitrage & Supervision",
+      "start": 6,
+      "end": 11,
+      "status": "nominal"
+    },
+    {
+      "id": "task_orch_2",
+      "agentId": "v1",
+      "label": "CR-4 Active Fencing & Edge Quench",
+      "start": 12,
+      "end": 15,
+      "status": "repaired"
+    },
+    {
+      "id": "task_orch_3",
+      "agentId": "v1",
+      "label": "Bypass Interception & Audit Lock",
+      "start": 21,
+      "end": 25,
+      "status": "repaired"
+    },
+    {
+      "id": "task_orch_4",
+      "agentId": "v1",
+      "label": "Consensus Verification",
+      "start": 26,
+      "end": 30,
+      "status": "nominal"
+    },
+    {
+      "id": "task_auth_0",
+      "agentId": "v2",
+      "label": "Passkey Registration Stalk Model",
+      "start": 2,
+      "end": 7,
+      "status": "nominal"
+    },
+    {
+      "id": "task_auth_1",
+      "agentId": "v2",
+      "label": "AST Lease Hold: session.ts",
+      "start": 8,
+      "end": 14,
+      "status": "contested"
+    },
+    {
+      "id": "task_auth_2",
+      "agentId": "v2",
+      "label": "Rebase on Canonical Head (Commit 102)",
+      "start": 14,
+      "end": 18,
+      "status": "nominal"
+    },
+    {
+      "id": "task_auth_3",
+      "agentId": "v2",
+      "label": "Signed Cryptographic Release",
+      "start": 25,
+      "end": 29,
+      "status": "nominal"
+    },
+    {
+      "id": "task_token_0",
+      "agentId": "v3",
+      "label": "Ed25519 Token Issuer Setup",
+      "start": 3,
+      "end": 7,
+      "status": "nominal"
+    },
+    {
+      "id": "task_token_1",
+      "agentId": "v3",
+      "label": "Concurrent Conflicting Lease Claim",
+      "start": 8,
+      "end": 12,
+      "status": "contested"
+    },
+    {
+      "id": "task_token_2",
+      "agentId": "v3",
+      "label": "Fenced by CR-4 (HTTP 409 Yield)",
+      "start": 12,
+      "end": 15,
+      "status": "repaired"
+    },
+    {
+      "id": "task_token_3",
+      "agentId": "v3",
+      "label": "Token Refresh Protocol Alignment",
+      "start": 16,
+      "end": 22,
+      "status": "nominal"
+    },
+    {
+      "id": "task_client_0",
+      "agentId": "v4",
+      "label": "WebAuthn Client SDK Integration",
+      "start": 4,
+      "end": 9,
+      "status": "nominal"
+    },
+    {
+      "id": "task_client_1",
+      "agentId": "v4",
+      "label": "Mock Handshake Tests",
+      "start": 10,
+      "end": 16,
+      "status": "nominal"
+    },
+    {
+      "id": "task_client_2",
+      "agentId": "v4",
+      "label": "Unvetted Deployment Push (Bypass)",
+      "start": 18,
+      "end": 22,
+      "status": "contested"
+    },
+    {
+      "id": "task_client_3",
+      "agentId": "v4",
+      "label": "Fenced & Re-routed to Gatekeeper",
+      "start": 23,
+      "end": 26,
+      "status": "repaired"
+    },
+    {
+      "id": "task_db_0",
+      "agentId": "v5",
+      "label": "PostgreSQL Credential Table Migration",
+      "start": 3,
+      "end": 8,
+      "status": "nominal"
+    },
+    {
+      "id": "task_db_1",
+      "agentId": "v5",
+      "label": "Foreign Key Invariants & Row Locks",
+      "start": 9,
+      "end": 16,
+      "status": "nominal"
+    },
+    {
+      "id": "task_db_2",
+      "agentId": "v5",
+      "label": "Migration Smoke Verification",
+      "start": 24,
+      "end": 28,
+      "status": "nominal"
+    },
+    {
+      "id": "task_sec_0",
+      "agentId": "v6",
+      "label": "Static Analysis Rule Formulation",
+      "start": 4,
+      "end": 9,
+      "status": "nominal"
+    },
+    {
+      "id": "task_sec_1",
+      "agentId": "v6",
+      "label": "Token Replay Vulnerability Audit",
+      "start": 10,
+      "end": 15,
+      "status": "nominal"
+    },
+    {
+      "id": "task_sec_2",
+      "agentId": "v6",
+      "label": "Disconfirm Client Bypass (CVE-2026)",
+      "start": 19,
+      "end": 24,
+      "status": "nominal"
+    },
+    {
+      "id": "task_sec_3",
+      "agentId": "v6",
+      "label": "Cryptographic Attestation Minting",
+      "start": 25,
+      "end": 28,
+      "status": "nominal"
+    },
+    {
+      "id": "task_qa_0",
+      "agentId": "v7",
+      "label": "Triadic E2E Matrix Generation",
+      "start": 5,
+      "end": 11,
+      "status": "nominal"
+    },
+    {
+      "id": "task_qa_1",
+      "agentId": "v7",
+      "label": "Headless Test Harness Execution",
+      "start": 12,
+      "end": 18,
+      "status": "nominal"
+    },
+    {
+      "id": "task_qa_2",
+      "agentId": "v7",
+      "label": "Security Regression Assertion",
+      "start": 20,
+      "end": 25,
+      "status": "nominal"
+    },
+    {
+      "id": "task_qa_3",
+      "agentId": "v7",
+      "label": "All 24 Tests Green Certification",
+      "start": 26,
+      "end": 30,
+      "status": "nominal"
+    },
+    {
+      "id": "task_rel_0",
+      "agentId": "v8",
+      "label": "Deployment Pipeline Standby",
+      "start": 2,
+      "end": 17,
+      "status": "nominal"
+    },
+    {
+      "id": "task_rel_1",
+      "agentId": "v8",
+      "label": "Contradictory Gossip Stalled",
+      "start": 19,
+      "end": 23,
+      "status": "contested"
+    },
+    {
+      "id": "task_rel_2",
+      "agentId": "v8",
+      "label": "Verified Attestation Adjudication",
+      "start": 25,
+      "end": 28,
+      "status": "nominal"
+    },
+    {
+      "id": "task_rel_3",
+      "agentId": "v8",
+      "label": "Staging Deployment Promotion",
+      "start": 28,
+      "end": 30,
+      "status": "nominal"
+    }
+  ],
+  "fipaTranscripts": [
+    {
+      "t": 1.0,
+      "sender": "v0",
+      "receiver": "v1",
+      "performative": "REQUEST",
+      "conversation": "conv-init",
+      "content": "request(decompose_sprint, goal='Ship WebAuthn Passkeys & Refresh Tokens')"
+    },
+    {
+      "t": 2.5,
+      "sender": "v1",
+      "receiver": "v2",
+      "performative": "PROPOSE",
+      "conversation": "conv-init",
+      "content": "propose(assign_role, target='src/auth/passkeys.ts', mode='EXCLUSIVE_WRITE')"
+    },
+    {
+      "t": 3.2,
+      "sender": "v2",
+      "receiver": "v1",
+      "performative": "ACCEPT-PROPOSAL",
+      "conversation": "conv-init",
+      "content": "accept-proposal(assign_role, commit_base='4bc6690', lease_acquired=true)"
+    },
+    {
+      "t": 4.5,
+      "sender": "v1",
+      "receiver": "v3",
+      "performative": "PROPOSE",
+      "conversation": "conv-init",
+      "content": "propose(assign_role, target='src/auth/token_issuer.ts', mode='EXCLUSIVE_WRITE')"
+    },
+    {
+      "t": 5.8,
+      "sender": "v3",
+      "receiver": "v1",
+      "performative": "ACCEPT-PROPOSAL",
+      "conversation": "conv-init",
+      "content": "accept-proposal(assign_role, commit_base='4bc6690', lease_acquired=true)"
+    },
+    {
+      "t": 7.2,
+      "sender": "v2",
+      "receiver": "v5",
+      "performative": "INFORM",
+      "conversation": "conv-schema",
+      "content": "inform(schema_delta, table='user_credentials', columns=['credential_id', 'public_key'])"
+    },
+    {
+      "t": 8.0,
+      "sender": "v0",
+      "receiver": "v2",
+      "performative": "REQUEST",
+      "conversation": "conv-rush-1",
+      "content": "request(immediate_patch, symbol='src/auth/session.ts::generateKey', bypass_lock=true)"
+    },
+    {
+      "t": 8.5,
+      "sender": "v0",
+      "receiver": "v3",
+      "performative": "REQUEST",
+      "conversation": "conv-rush-2",
+      "content": "request(add_refresh_rotation, symbol='src/auth/session.ts::generateKey', speed='max')"
+    },
+    {
+      "t": 9.1,
+      "sender": "v2",
+      "receiver": "v1",
+      "performative": "PROPOSE",
+      "conversation": "conv-lease-clash",
+      "content": "propose(acquire_lease, symbol='src/auth/session.ts::generateKey', mode='EXCLUSIVE')"
+    },
+    {
+      "t": 9.4,
+      "sender": "v3",
+      "receiver": "v1",
+      "performative": "PROPOSE",
+      "conversation": "conv-lease-clash",
+      "content": "propose(acquire_lease, symbol='src/auth/session.ts::generateKey', mode='EXCLUSIVE')"
+    },
+    {
+      "t": 10.2,
+      "sender": "v2",
+      "receiver": "v3",
+      "performative": "INFORM",
+      "conversation": "conv-race",
+      "content": "inform(local_hold, symbol='session.ts::generateKey', commit='101a')"
+    },
+    {
+      "t": 10.8,
+      "sender": "v3",
+      "receiver": "v2",
+      "performative": "INFORM",
+      "conversation": "conv-race",
+      "content": "inform(local_hold, symbol='session.ts::generateKey', commit='101b_CONCURRENT')"
+    },
+    {
+      "t": 11.5,
+      "sender": "v1",
+      "receiver": "v0",
+      "performative": "INFORM",
+      "conversation": "conv-alarm",
+      "content": "inform(sheaf_alarm, obstruction_r=14.281, high_curl_triangle=['v1','v2','v3'])"
+    },
+    {
+      "t": 12.5,
+      "sender": "v1",
+      "receiver": "v3",
+      "performative": "REFUSE",
+      "conversation": "conv-cr4-repair",
+      "content": "refuse(acquire_lease, reason='CR-4 MIN-CUT: Quenched edge (v2,v3). Revert commit 101b')"
+    },
+    {
+      "t": 13.8,
+      "sender": "v3",
+      "receiver": "v1",
+      "performative": "INFORM",
+      "conversation": "conv-cr4-repair",
+      "content": "inform(lease_relinquished, symbol='session.ts::generateKey', status='FENCED_WAITING')"
+    },
+    {
+      "t": 14.5,
+      "sender": "v2",
+      "receiver": "v3",
+      "performative": "INFORM",
+      "conversation": "conv-sync",
+      "content": "inform(canonical_head, commit='102_STABLE', lock_status='EXCLUSIVE_HELD')"
+    },
+    {
+      "t": 16.0,
+      "sender": "v3",
+      "receiver": "v2",
+      "performative": "CONFIRM",
+      "conversation": "conv-sync",
+      "content": "confirm(rebase_complete, synced_commit='102_STABLE', r=0.0000)"
+    },
+    {
+      "t": 18.0,
+      "sender": "v0",
+      "receiver": "v4",
+      "performative": "REQUEST",
+      "conversation": "conv-bypass",
+      "content": "request(force_push, pr='PR#104', target='release/v2.4', skip_ci=true)"
+    },
+    {
+      "t": 19.2,
+      "sender": "v4",
+      "receiver": "v8",
+      "performative": "INFORM",
+      "conversation": "conv-deploy",
+      "content": "inform(pr_status, pr='PR#104', approved=true, authority='operator_request')"
+    },
+    {
+      "t": 20.1,
+      "sender": "v6",
+      "receiver": "v8",
+      "performative": "DISCONFIRM",
+      "conversation": "conv-audit",
+      "content": "disconfirm(pr_status, pr='PR#104', reason='CVE-2026-TOKEN-FORGERY in unvetted PR#104')"
+    },
+    {
+      "t": 20.8,
+      "sender": "v6",
+      "receiver": "v4",
+      "performative": "REFUSE",
+      "conversation": "conv-audit",
+      "content": "refuse(direct_merge, reason='Triadic contract breached on (v4,v6,v8). Attestation absent')"
+    },
+    {
+      "t": 21.6,
+      "sender": "v8",
+      "receiver": "v1",
+      "performative": "INFORM",
+      "conversation": "conv-alarm-2",
+      "content": "inform(sheaf_alarm, obstruction_r=22.614, harmonic_split=0.642, triad=['v4','v6','v8'])"
+    },
+    {
+      "t": 22.8,
+      "sender": "v1",
+      "receiver": "v4",
+      "performative": "REFUSE",
+      "conversation": "conv-cr4-fence",
+      "content": "refuse(force_push, reason='CR-4 INTERVENTION: Fence edge (v4,v8). Operator bypass rejected')"
+    },
+    {
+      "t": 23.5,
+      "sender": "v4",
+      "receiver": "v6",
+      "performative": "PROPOSE",
+      "conversation": "conv-remedy",
+      "content": "propose(submit_patch, pr='PR#104b_SANITY', token_nonce_validation=true)"
+    },
+    {
+      "t": 24.8,
+      "sender": "v6",
+      "receiver": "v8",
+      "performative": "INFORM",
+      "conversation": "conv-cert",
+      "content": "inform(attestation_minted, sha256='9e2f4a1...', verdict='CLEARED_PASS')"
+    },
+    {
+      "t": 25.5,
+      "sender": "v7",
+      "receiver": "v8",
+      "performative": "INFORM",
+      "conversation": "conv-cert",
+      "content": "inform(test_run_pass, total=24, failed=0, code_coverage=99.2)"
+    },
+    {
+      "t": 26.8,
+      "sender": "v8",
+      "receiver": "v1",
+      "performative": "CONFIRM",
+      "conversation": "conv-done",
+      "content": "confirm(global_consensus, r=0.0000, L=1.0000, release_promoted=true)"
+    },
+    {
+      "t": 28.5,
+      "sender": "v1",
+      "receiver": "v0",
+      "performative": "INFORM",
+      "conversation": "conv-done",
+      "content": "inform(production_live, version='v2.4.0', status='ACTIVE_GREEN', zero_obstruction=true)"
+    }
+  ],
+  "timelineEpochs": [
+    {
+      "t": 0,
+      "timeFormatted": "00:00",
+      "r": 0.094,
+      "rTree": 0.0,
+      "legibility": 0.26,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 40.0,
+      "pctCurl": 44.4,
+      "pctHarm": 15.6,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 1,
+      "timeFormatted": "00:01",
+      "r": 0.111,
+      "rTree": 0.0,
+      "legibility": 0.238,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 32.3,
+      "pctCurl": 51.5,
+      "pctHarm": 16.1,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 2,
+      "timeFormatted": "00:02",
+      "r": 0.107,
+      "rTree": 0.0,
+      "legibility": 0.189,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 36.4,
+      "pctCurl": 51.6,
+      "pctHarm": 12.0,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 3,
+      "timeFormatted": "00:03",
+      "r": 0.097,
+      "rTree": 0.0,
+      "legibility": 0.193,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 41.4,
+      "pctCurl": 47.3,
+      "pctHarm": 11.3,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 4,
+      "timeFormatted": "00:04",
+      "r": 0.083,
+      "rTree": 0.0,
+      "legibility": 0.264,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 42.7,
+      "pctCurl": 42.2,
+      "pctHarm": 15.1,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 5,
+      "timeFormatted": "00:05",
+      "r": 0.106,
+      "rTree": 0.0,
+      "legibility": 0.146,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 33.7,
+      "pctCurl": 56.6,
+      "pctHarm": 9.7,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 6,
+      "timeFormatted": "00:06",
+      "r": 0.101,
+      "rTree": 0.0,
+      "legibility": 0.13,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 48.4,
+      "pctCurl": 44.9,
+      "pctHarm": 6.7,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 7,
+      "timeFormatted": "00:07",
+      "r": 0.091,
+      "rTree": 0.0,
+      "legibility": 0.276,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 40.0,
+      "pctCurl": 43.4,
+      "pctHarm": 16.6,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 8,
+      "timeFormatted": "00:08",
+      "r": 3.362,
+      "rTree": 0.0,
+      "legibility": 0.022,
+      "energyGrad": 11.52,
+      "energyCurl": 11.07,
+      "energyHarm": 0.25,
+      "pctGrad": 50.5,
+      "pctCurl": 48.5,
+      "pctHarm": 1.1,
+      "status": "Consensus",
+      "contestedEdges": [
+        {
+          "edge": "v2->v3",
+          "source": "v2",
+          "target": "v3",
+          "sourceName": "AuthDev",
+          "targetName": "TokenService",
+          "residual": 2.29
+        },
+        {
+          "edge": "v3->v6",
+          "source": "v3",
+          "target": "v6",
+          "sourceName": "TokenService",
+          "targetName": "SecurityCritic",
+          "residual": 1.204
+        },
+        {
+          "edge": "v2->v5",
+          "source": "v2",
+          "target": "v5",
+          "sourceName": "AuthDev",
+          "targetName": "DatabaseDev",
+          "residual": 1.016
+        },
+        {
+          "edge": "v3->v5",
+          "source": "v3",
+          "target": "v5",
+          "sourceName": "TokenService",
+          "targetName": "DatabaseDev",
+          "residual": 1.016
+        }
+      ]
+    },
+    {
+      "t": 9,
+      "timeFormatted": "00:09",
+      "r": 8.957,
+      "rTree": 0.0,
+      "legibility": 0.02,
+      "energyGrad": 80.11,
+      "energyCurl": 78.6,
+      "energyHarm": 1.6,
+      "pctGrad": 50.0,
+      "pctCurl": 49.0,
+      "pctHarm": 1.0,
+      "status": "Contested Clash",
+      "contestedEdges": [
+        {
+          "edge": "v2->v3",
+          "source": "v2",
+          "target": "v3",
+          "sourceName": "AuthDev",
+          "targetName": "TokenService",
+          "residual": 6.102
+        },
+        {
+          "edge": "v3->v6",
+          "source": "v3",
+          "target": "v6",
+          "sourceName": "TokenService",
+          "targetName": "SecurityCritic",
+          "residual": 3.168
+        },
+        {
+          "edge": "v2->v5",
+          "source": "v2",
+          "target": "v5",
+          "sourceName": "AuthDev",
+          "targetName": "DatabaseDev",
+          "residual": 2.748
+        },
+        {
+          "edge": "v3->v5",
+          "source": "v3",
+          "target": "v5",
+          "sourceName": "TokenService",
+          "targetName": "DatabaseDev",
+          "residual": 2.748
+        }
+      ]
+    },
+    {
+      "t": 10,
+      "timeFormatted": "00:10",
+      "r": 14.522,
+      "rTree": 0.0,
+      "legibility": 0.02,
+      "energyGrad": 212.8,
+      "energyCurl": 206.64,
+      "energyHarm": 4.27,
+      "pctGrad": 50.2,
+      "pctCurl": 48.8,
+      "pctHarm": 1.0,
+      "status": "Contested Clash",
+      "contestedEdges": [
+        {
+          "edge": "v2->v3",
+          "source": "v2",
+          "target": "v3",
+          "sourceName": "AuthDev",
+          "targetName": "TokenService",
+          "residual": 9.899
+        },
+        {
+          "edge": "v3->v6",
+          "source": "v3",
+          "target": "v6",
+          "sourceName": "TokenService",
+          "targetName": "SecurityCritic",
+          "residual": 5.134
+        },
+        {
+          "edge": "v2->v5",
+          "source": "v2",
+          "target": "v5",
+          "sourceName": "AuthDev",
+          "targetName": "DatabaseDev",
+          "residual": 4.468
+        },
+        {
+          "edge": "v3->v5",
+          "source": "v3",
+          "target": "v5",
+          "sourceName": "TokenService",
+          "targetName": "DatabaseDev",
+          "residual": 4.468
+        }
+      ]
+    },
+    {
+      "t": 11,
+      "timeFormatted": "00:11",
+      "r": 17.269,
+      "rTree": 0.0,
+      "legibility": 0.02,
+      "energyGrad": 298.48,
+      "energyCurl": 292.26,
+      "energyHarm": 5.94,
+      "pctGrad": 50.0,
+      "pctCurl": 49.0,
+      "pctHarm": 1.0,
+      "status": "Critical Alarm",
+      "contestedEdges": [
+        {
+          "edge": "v2->v3",
+          "source": "v2",
+          "target": "v3",
+          "sourceName": "AuthDev",
+          "targetName": "TokenService",
+          "residual": 11.769
+        },
+        {
+          "edge": "v3->v6",
+          "source": "v3",
+          "target": "v6",
+          "sourceName": "TokenService",
+          "targetName": "SecurityCritic",
+          "residual": 6.089
+        },
+        {
+          "edge": "v2->v5",
+          "source": "v2",
+          "target": "v5",
+          "sourceName": "AuthDev",
+          "targetName": "DatabaseDev",
+          "residual": 5.336
+        },
+        {
+          "edge": "v3->v5",
+          "source": "v3",
+          "target": "v5",
+          "sourceName": "TokenService",
+          "targetName": "DatabaseDev",
+          "residual": 5.336
+        }
+      ]
+    },
+    {
+      "t": 12,
+      "timeFormatted": "00:12",
+      "r": 11.785,
+      "rTree": 0.0,
+      "legibility": 0.02,
+      "energyGrad": 138.66,
+      "energyCurl": 136.15,
+      "energyHarm": 2.76,
+      "pctGrad": 50.0,
+      "pctCurl": 49.0,
+      "pctHarm": 1.0,
+      "status": "Contested Clash",
+      "contestedEdges": [
+        {
+          "edge": "v2->v3",
+          "source": "v2",
+          "target": "v3",
+          "sourceName": "AuthDev",
+          "targetName": "TokenService",
+          "residual": 8.036
+        },
+        {
+          "edge": "v3->v6",
+          "source": "v3",
+          "target": "v6",
+          "sourceName": "TokenService",
+          "targetName": "SecurityCritic",
+          "residual": 4.151
+        },
+        {
+          "edge": "v2->v5",
+          "source": "v2",
+          "target": "v5",
+          "sourceName": "AuthDev",
+          "targetName": "DatabaseDev",
+          "residual": 3.628
+        },
+        {
+          "edge": "v3->v5",
+          "source": "v3",
+          "target": "v5",
+          "sourceName": "TokenService",
+          "targetName": "DatabaseDev",
+          "residual": 3.628
+        }
+      ]
+    },
+    {
+      "t": 13,
+      "timeFormatted": "00:13",
+      "r": 4.316,
+      "rTree": 0.0,
+      "legibility": 0.02,
+      "energyGrad": 18.67,
+      "energyCurl": 18.25,
+      "energyHarm": 0.38,
+      "pctGrad": 50.1,
+      "pctCurl": 48.9,
+      "pctHarm": 1.0,
+      "status": "Active CR-4 Repair",
+      "contestedEdges": [
+        {
+          "edge": "v2->v3",
+          "source": "v2",
+          "target": "v3",
+          "sourceName": "AuthDev",
+          "targetName": "TokenService",
+          "residual": 2.942
+        },
+        {
+          "edge": "v3->v6",
+          "source": "v3",
+          "target": "v6",
+          "sourceName": "TokenService",
+          "targetName": "SecurityCritic",
+          "residual": 1.535
+        },
+        {
+          "edge": "v2->v5",
+          "source": "v2",
+          "target": "v5",
+          "sourceName": "AuthDev",
+          "targetName": "DatabaseDev",
+          "residual": 1.324
+        },
+        {
+          "edge": "v3->v5",
+          "source": "v3",
+          "target": "v5",
+          "sourceName": "TokenService",
+          "targetName": "DatabaseDev",
+          "residual": 1.324
+        }
+      ]
+    },
+    {
+      "t": 14,
+      "timeFormatted": "00:14",
+      "r": 0.821,
+      "rTree": 0.0,
+      "legibility": 0.017,
+      "energyGrad": 0.77,
+      "energyCurl": 0.66,
+      "energyHarm": 0.01,
+      "pctGrad": 53.4,
+      "pctCurl": 45.8,
+      "pctHarm": 0.8,
+      "status": "Active CR-4 Repair",
+      "contestedEdges": [
+        {
+          "edge": "v2->v3",
+          "source": "v2",
+          "target": "v3",
+          "sourceName": "AuthDev",
+          "targetName": "TokenService",
+          "residual": 0.557
+        }
+      ]
+    },
+    {
+      "t": 15,
+      "timeFormatted": "00:15",
+      "r": 0.111,
+      "rTree": 0.0,
+      "legibility": 0.223,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 39.1,
+      "pctCurl": 47.3,
+      "pctHarm": 13.6,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 16,
+      "timeFormatted": "00:16",
+      "r": 0.108,
+      "rTree": 0.0,
+      "legibility": 0.247,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 45.0,
+      "pctCurl": 41.4,
+      "pctHarm": 13.6,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 17,
+      "timeFormatted": "00:17",
+      "r": 0.08,
+      "rTree": 0.0,
+      "legibility": 0.293,
+      "energyGrad": 0.02,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 61.9,
+      "pctCurl": 26.9,
+      "pctHarm": 11.2,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 18,
+      "timeFormatted": "00:18",
+      "r": 5.135,
+      "rTree": 0.0,
+      "legibility": 0.236,
+      "energyGrad": 14.56,
+      "energyCurl": 38.24,
+      "energyHarm": 11.79,
+      "pctGrad": 22.5,
+      "pctCurl": 59.2,
+      "pctHarm": 18.3,
+      "status": "Contested Clash",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 3.357
+        },
+        {
+          "edge": "v6->v8",
+          "source": "v6",
+          "target": "v8",
+          "sourceName": "SecurityCritic",
+          "targetName": "ReleaseManager",
+          "residual": 2.693
+        },
+        {
+          "edge": "v4->v2",
+          "source": "v4",
+          "target": "v2",
+          "sourceName": "ClientFrontend",
+          "targetName": "AuthDev",
+          "residual": 1.285
+        },
+        {
+          "edge": "v1->v4",
+          "source": "v1",
+          "target": "v4",
+          "sourceName": "Lead Orchestrator",
+          "targetName": "ClientFrontend",
+          "residual": 1.152
+        }
+      ]
+    },
+    {
+      "t": 19,
+      "timeFormatted": "00:19",
+      "r": 15.5,
+      "rTree": 0.0,
+      "legibility": 0.236,
+      "energyGrad": 130.48,
+      "energyCurl": 347.32,
+      "energyHarm": 107.38,
+      "pctGrad": 22.3,
+      "pctCurl": 59.4,
+      "pctHarm": 18.3,
+      "status": "Critical Alarm",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 10.094
+        },
+        {
+          "edge": "v6->v8",
+          "source": "v6",
+          "target": "v8",
+          "sourceName": "SecurityCritic",
+          "targetName": "ReleaseManager",
+          "residual": 8.182
+        },
+        {
+          "edge": "v4->v2",
+          "source": "v4",
+          "target": "v2",
+          "sourceName": "ClientFrontend",
+          "targetName": "AuthDev",
+          "residual": 3.858
+        },
+        {
+          "edge": "v1->v4",
+          "source": "v1",
+          "target": "v4",
+          "sourceName": "Lead Orchestrator",
+          "targetName": "ClientFrontend",
+          "residual": 3.492
+        }
+      ]
+    },
+    {
+      "t": 20,
+      "timeFormatted": "00:20",
+      "r": 27.938,
+      "rTree": 0.0,
+      "legibility": 0.236,
+      "energyGrad": 426.17,
+      "energyCurl": 1128.95,
+      "energyHarm": 348.98,
+      "pctGrad": 22.4,
+      "pctCurl": 59.3,
+      "pctHarm": 18.3,
+      "status": "Critical Alarm",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 18.189
+        },
+        {
+          "edge": "v6->v8",
+          "source": "v6",
+          "target": "v8",
+          "sourceName": "SecurityCritic",
+          "targetName": "ReleaseManager",
+          "residual": 14.746
+        },
+        {
+          "edge": "v4->v2",
+          "source": "v4",
+          "target": "v2",
+          "sourceName": "ClientFrontend",
+          "targetName": "AuthDev",
+          "residual": 6.923
+        },
+        {
+          "edge": "v1->v4",
+          "source": "v1",
+          "target": "v4",
+          "sourceName": "Lead Orchestrator",
+          "targetName": "ClientFrontend",
+          "residual": 6.322
+        }
+      ]
+    },
+    {
+      "t": 21,
+      "timeFormatted": "00:21",
+      "r": 32.339,
+      "rTree": 0.0,
+      "legibility": 0.236,
+      "energyGrad": 569.05,
+      "energyCurl": 1511.02,
+      "energyHarm": 465.73,
+      "pctGrad": 22.4,
+      "pctCurl": 59.4,
+      "pctHarm": 18.3,
+      "status": "Critical Alarm",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 21.057
+        },
+        {
+          "edge": "v6->v8",
+          "source": "v6",
+          "target": "v8",
+          "sourceName": "SecurityCritic",
+          "targetName": "ReleaseManager",
+          "residual": 17.071
+        },
+        {
+          "edge": "v4->v2",
+          "source": "v4",
+          "target": "v2",
+          "sourceName": "ClientFrontend",
+          "targetName": "AuthDev",
+          "residual": 8.011
+        },
+        {
+          "edge": "v1->v4",
+          "source": "v1",
+          "target": "v4",
+          "sourceName": "Lead Orchestrator",
+          "targetName": "ClientFrontend",
+          "residual": 7.295
+        }
+      ]
+    },
+    {
+      "t": 22,
+      "timeFormatted": "00:22",
+      "r": 23.099,
+      "rTree": 0.0,
+      "legibility": 0.236,
+      "energyGrad": 290.17,
+      "energyCurl": 770.58,
+      "energyHarm": 237.73,
+      "pctGrad": 22.3,
+      "pctCurl": 59.3,
+      "pctHarm": 18.3,
+      "status": "Critical Alarm",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 15.025
+        },
+        {
+          "edge": "v6->v8",
+          "source": "v6",
+          "target": "v8",
+          "sourceName": "SecurityCritic",
+          "targetName": "ReleaseManager",
+          "residual": 12.203
+        },
+        {
+          "edge": "v4->v2",
+          "source": "v4",
+          "target": "v2",
+          "sourceName": "ClientFrontend",
+          "targetName": "AuthDev",
+          "residual": 5.705
+        },
+        {
+          "edge": "v1->v4",
+          "source": "v1",
+          "target": "v4",
+          "sourceName": "Lead Orchestrator",
+          "targetName": "ClientFrontend",
+          "residual": 5.231
+        }
+      ]
+    },
+    {
+      "t": 23,
+      "timeFormatted": "00:23",
+      "r": 12.056,
+      "rTree": 0.0,
+      "legibility": 0.236,
+      "energyGrad": 79.42,
+      "energyCurl": 210.55,
+      "energyHarm": 64.92,
+      "pctGrad": 22.4,
+      "pctCurl": 59.3,
+      "pctHarm": 18.3,
+      "status": "Contested Clash",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 7.838
+        },
+        {
+          "edge": "v6->v8",
+          "source": "v6",
+          "target": "v8",
+          "sourceName": "SecurityCritic",
+          "targetName": "ReleaseManager",
+          "residual": 6.385
+        },
+        {
+          "edge": "v4->v2",
+          "source": "v4",
+          "target": "v2",
+          "sourceName": "ClientFrontend",
+          "targetName": "AuthDev",
+          "residual": 2.992
+        },
+        {
+          "edge": "v1->v4",
+          "source": "v1",
+          "target": "v4",
+          "sourceName": "Lead Orchestrator",
+          "targetName": "ClientFrontend",
+          "residual": 2.697
+        }
+      ]
+    },
+    {
+      "t": 24,
+      "timeFormatted": "00:24",
+      "r": 4.093,
+      "rTree": 0.0,
+      "legibility": 0.234,
+      "energyGrad": 8.99,
+      "energyCurl": 24.09,
+      "energyHarm": 7.34,
+      "pctGrad": 22.2,
+      "pctCurl": 59.6,
+      "pctHarm": 18.2,
+      "status": "Active CR-4 Repair",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 2.669
+        },
+        {
+          "edge": "v6->v8",
+          "source": "v6",
+          "target": "v8",
+          "sourceName": "SecurityCritic",
+          "targetName": "ReleaseManager",
+          "residual": 2.16
+        },
+        {
+          "edge": "v4->v2",
+          "source": "v4",
+          "target": "v2",
+          "sourceName": "ClientFrontend",
+          "targetName": "AuthDev",
+          "residual": 0.996
+        },
+        {
+          "edge": "v1->v4",
+          "source": "v1",
+          "target": "v4",
+          "sourceName": "Lead Orchestrator",
+          "targetName": "ClientFrontend",
+          "residual": 0.919
+        }
+      ]
+    },
+    {
+      "t": 25,
+      "timeFormatted": "00:25",
+      "r": 0.639,
+      "rTree": 0.0,
+      "legibility": 0.241,
+      "energyGrad": 0.22,
+      "energyCurl": 0.59,
+      "energyHarm": 0.19,
+      "pctGrad": 22.4,
+      "pctCurl": 58.9,
+      "pctHarm": 18.7,
+      "status": "Active CR-4 Repair",
+      "contestedEdges": [
+        {
+          "edge": "v4->v8",
+          "source": "v4",
+          "target": "v8",
+          "sourceName": "ClientFrontend",
+          "targetName": "ReleaseManager",
+          "residual": 0.409
+        }
+      ]
+    },
+    {
+      "t": 26,
+      "timeFormatted": "00:26",
+      "r": 0.071,
+      "rTree": 0.0,
+      "legibility": 0.327,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 50.8,
+      "pctCurl": 33.1,
+      "pctHarm": 16.1,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 27,
+      "timeFormatted": "00:27",
+      "r": 0.109,
+      "rTree": 0.0,
+      "legibility": 0.192,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 40.8,
+      "pctCurl": 47.8,
+      "pctHarm": 11.4,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 28,
+      "timeFormatted": "00:28",
+      "r": 0.106,
+      "rTree": 0.0,
+      "legibility": 0.312,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.01,
+      "pctGrad": 41.9,
+      "pctCurl": 40.0,
+      "pctHarm": 18.1,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 29,
+      "timeFormatted": "00:29",
+      "r": 0.094,
+      "rTree": 0.0,
+      "legibility": 0.222,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 33.1,
+      "pctCurl": 52.0,
+      "pctHarm": 14.8,
+      "status": "Consensus",
+      "contestedEdges": []
+    },
+    {
+      "t": 30,
+      "timeFormatted": "00:30",
+      "r": 0.11,
+      "rTree": 0.0,
+      "legibility": 0.239,
+      "energyGrad": 0.01,
+      "energyCurl": 0.01,
+      "energyHarm": 0.0,
+      "pctGrad": 42.0,
+      "pctCurl": 44.1,
+      "pctHarm": 13.9,
+      "status": "Consensus",
+      "contestedEdges": []
+    }
+  ]
+}

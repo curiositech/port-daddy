@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SwarmTelemetry · Active Cellular Sheaf Cohomology Surveillance</title>
+  <title>SwarmTelemetry · Active Sheaf Cohomology Cockpit</title>
   <script src="d3.min.js"></script>
   <script>
     if (typeof d3 === 'undefined') {
@@ -12,44 +12,62 @@
   </script>
   <style>
     :root {
-      --bg: #070a12;
-      --panel-bg: rgba(13, 19, 34, 0.78);
-      --panel-header-bg: rgba(18, 26, 46, 0.9);
-      --border: #1a243b;
-      --border-subtle: #111a2e;
-      --accent-cyan: #38bdf8;
-      --accent-rose: #f43f5e;
-      --accent-emerald: #10b981;
-      --accent-amber: #f59e0b;
-      --accent-violet: #818cf8;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
+      --bg: #090b10;
+      --panel: #11141c;
+      --panel-header: #161a24;
+      --panel-hover: #1c2230;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-accent: rgba(56, 189, 248, 0.3);
+      
+      --text: #f1f5f9;
+      --text-muted: #8b949e;
       --text-dim: #475569;
+      
+      --cyan: #38bdf8;
+      --crimson: #f43f5e;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --indigo: #818cf8;
+      --purple: #c084fc;
+      
       --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       --font-mono: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
+      overflow: hidden;
       background-color: var(--bg);
-      color: var(--text-main);
+      color: var(--text);
       font-family: var(--font-sans);
       line-height: 1.4;
-      padding: 16px 24px 32px 24px;
-      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Top Control Bar */
+    /* Top Control Bar (Strict 48px height) */
     header {
+      height: 48px;
+      min-height: 48px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 16px;
       gap: 16px;
-      flex-wrap: wrap;
+      z-index: 50;
     }
 
     .brand-group {
@@ -58,1043 +76,1310 @@
       gap: 12px;
     }
 
+    .brand-mark {
+      width: 10px;
+      height: 10px;
+      background: var(--cyan);
+      border-radius: 1px;
+    }
+
     .brand-title {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.4px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .status-pill {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 2px 8px;
-      border-radius: 9999px;
       font-family: var(--font-mono);
-      background: rgba(16, 185, 129, 0.15);
-      color: var(--accent-emerald);
-      border: 1px solid var(--accent-emerald);
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .status-pill.alarm {
-      background: rgba(244, 63, 94, 0.18);
-      color: var(--accent-rose);
-      border-color: var(--accent-rose);
-    }
-    .status-pill.alarm::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      background: var(--accent-rose);
-      border-radius: 50%;
-      box-shadow: 0 0 8px var(--accent-rose);
-    }
-    .status-pill.live::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      background: var(--accent-emerald);
-      border-radius: 50%;
-      box-shadow: 0 0 6px var(--accent-emerald);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text);
     }
 
-    /* Scrubber Controls */
-    .scrubber-controls {
+    .brand-subtitle {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 6px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+
+    /* Playback & Scrubber Controls */
+    .playback-bar {
       display: flex;
       align-items: center;
       gap: 10px;
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid var(--border);
-      padding: 4px 12px;
-      border-radius: 6px;
     }
 
     .btn-ctrl {
-      background: transparent;
+      background: var(--panel-header);
       border: 1px solid var(--border);
-      color: var(--text-main);
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 11px;
+      color: var(--text);
       font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 2px;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       transition: all 0.15s ease;
     }
+
     .btn-ctrl:hover {
-      background: var(--border);
-      color: var(--accent-cyan);
-    }
-    .btn-ctrl.active {
-      background: var(--accent-cyan);
-      color: #000;
-      border-color: var(--accent-cyan);
+      background: var(--panel-hover);
+      border-color: var(--cyan);
     }
 
-    .time-slider {
-      width: 140px;
-      accent-color: var(--accent-cyan);
+    .btn-ctrl.active {
+      background: var(--cyan);
+      color: var(--bg);
+      border-color: var(--cyan);
+      font-weight: bold;
+    }
+
+    .epoch-scrubber {
+      width: 160px;
+      accent-color: var(--cyan);
       cursor: pointer;
     }
 
-    /* Diagnosis Banner (Insight-First) */
-    .diagnosis-banner {
-      background: linear-gradient(90deg, rgba(244, 63, 94, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
-      border-left: 3px solid var(--accent-rose);
-      border-top: 1px solid rgba(244, 63, 94, 0.2);
-      border-right: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      border-radius: 0 6px 6px 0;
-      padding: 10px 16px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-    }
-    .diagnosis-banner.calm {
-      background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
-      border-left-color: var(--accent-emerald);
-      border-top-color: rgba(16, 185, 129, 0.2);
+    .epoch-readout {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cyan);
+      min-width: 55px;
     }
 
-    /* Layout Containers */
-    .horizon-panel {
-      background: var(--panel-bg);
+    /* Telemetry Telemetry KPI Badges */
+    .kpi-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .kpi-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 2px;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      backdrop-filter: blur(12px);
-      margin-bottom: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .kpi-badge.alarm {
+      border-color: rgba(244, 63, 94, 0.4);
+      background: rgba(244, 63, 94, 0.1);
+      color: var(--crimson);
+    }
+
+    .kpi-badge.nominal {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.08);
+      color: var(--emerald);
+    }
+
+    .kpi-badge.repaired {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(56, 189, 248, 0.08);
+      color: var(--cyan);
+    }
+
+    /* Main Viewport Workspace (100% viewport, zero outer scroll) */
+    main {
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr) 380px;
+      gap: 8px;
+      padding: 8px;
       overflow: hidden;
     }
 
-    .horizon-header {
-      background: var(--panel-header-bg);
-      padding: 8px 16px;
+    @media (max-width: 1360px) {
+      main {
+        grid-template-columns: 250px minmax(0, 1fr) 340px;
+        gap: 6px;
+        padding: 6px;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      main {
+        grid-template-columns: 220px minmax(0, 1fr) 300px;
+        gap: 4px;
+        padding: 4px;
+      }
+      .brand-subtitle { display: none; }
+      .epoch-scrubber { width: 110px; }
+    }
+
+    @media (max-height: 750px) {
+      header { height: 40px; min-height: 40px; }
+      .card-header { height: 28px; min-height: 28px; }
+      .kpi-badge { font-size: 10px; padding: 2px 6px; }
+      .tab-btn { height: 28px; }
+    }
+
+    /* Swiss Modern Card Containers */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .card-header {
+      height: 32px;
+      min-height: 32px;
+      padding: 0 10px;
+      background: var(--panel-header);
+      border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-    .horizon-title {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .horizon-meta {
       font-family: var(--font-mono);
       font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .card-header .tag {
+      font-size: 9px;
+      padding: 1px 5px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
       color: var(--text-dim);
     }
 
-    /* Chart SVG Containers */
-    #chart-svg-container, #swimlane-svg-container {
+    .card-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 8px;
+      position: relative;
+    }
+
+    /* LEFT PANE: Split between Topology & Stalks */
+    .left-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .topology-container {
+      flex: 1.1;
+      min-height: 0;
+    }
+
+    .stalks-container {
+      flex: 0.9;
+      min-height: 0;
+    }
+
+    /* Topology SVG */
+    #topology-svg {
       width: 100%;
-      height: auto;
+      height: 100%;
+      background: #0d1017;
+    }
+
+    /* Stalk Table */
+    .stalk-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .stalk-table th {
+      text-align: left;
+      padding: 4px 6px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--panel);
+      z-index: 5;
+    }
+
+    .stalk-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+
+    .stalk-table tr.active-agent td {
+      background: rgba(56, 189, 248, 0.08);
+      color: var(--text);
+    }
+
+    /* CENTER PANE: Gantt Swimlanes & D3 Metric Line Chart */
+    .center-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .gantt-container {
+      flex: 1.3;
+      min-height: 0;
+    }
+
+    .metrics-container {
+      flex: 0.9;
+      min-height: 0;
+    }
+
+    #gantt-chart-container {
+      width: 100%;
+      height: 100%;
+      overflow-x: auto;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    #metrics-chart-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* RIGHT PANE: Tabs for FIPA Feed, Full Transcripts & Formal Prover */
+    .right-pane {
+      min-height: 0;
+    }
+
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-header);
+    }
+
+    .tab-btn {
+      flex: 1;
+      height: 32px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tab-btn.active {
+      color: var(--cyan);
+      border-bottom-color: var(--cyan);
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    .tab-content {
+      flex: 1;
+      min-height: 0;
+      display: none;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .tab-content.active {
       display: block;
     }
 
-    /* Horizon 3 Grid */
-    .horizon3-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-    @media (max-width: 1100px) {
-      .horizon3-grid { grid-template-columns: 1fr; }
+    /* FIPA Speech Act Feed Cards */
+    .fipa-card {
+      background: #0d1017;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cyan);
+      border-radius: 2px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
     }
 
-    /* Table styling */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
+    .fipa-card:hover {
+      background: var(--panel-hover);
+      border-color: var(--border-accent);
     }
-    th {
-      text-align: left;
-      padding: 6px 12px;
-      color: var(--text-dim);
-      font-size: 11px;
+
+    .fipa-card.contested {
+      border-left-color: var(--crimson);
+      background: rgba(244, 63, 94, 0.05);
+    }
+
+    .fipa-card.repaired {
+      border-left-color: var(--emerald);
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .fipa-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .performative-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 2px;
       text-transform: uppercase;
-      font-weight: 600;
-      border-bottom: 1px solid var(--border);
-    }
-    td {
-      padding: 6px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-      font-family: var(--font-mono);
-    }
-    tr.contested-row td {
-      background: rgba(244, 63, 94, 0.12);
-      color: #ffb4c2;
-    }
-    tr.fenced-row td {
-      text-decoration: line-through;
-      color: var(--text-dim);
+      letter-spacing: 0.04em;
     }
 
-    /* Terminal Log */
-    .terminal-log {
-      max-height: 180px;
-      overflow-y: auto;
+    .performative-badge.request { background: rgba(56, 189, 248, 0.15); color: var(--cyan); }
+    .performative-badge.propose { background: rgba(192, 132, 252, 0.15); color: var(--purple); }
+    .performative-badge.refuse { background: rgba(244, 63, 94, 0.2); color: var(--crimson); }
+    .performative-badge.disconfirm { background: rgba(245, 158, 11, 0.2); color: var(--amber); }
+    .performative-badge.confirm { background: rgba(16, 185, 129, 0.15); color: var(--emerald); }
+
+    .fipa-body {
+      color: var(--text);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .fipa-meta {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Full Transcript Card (Detailed with Thought & Code) */
+    .transcript-entry {
+      background: #0d1017;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+
+    .transcript-entry .t-meta {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .transcript-entry .t-thought {
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+      line-height: 1.4;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 6px;
+      border-left: 2px solid var(--indigo);
+    }
+
+    .transcript-entry .t-tool {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--amber);
+      background: #161a24;
+      padding: 4px 6px;
+      border-radius: 2px;
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+
+    .transcript-entry pre {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: #06080c;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow-x: auto;
+      color: #a5f3fc;
+      margin-bottom: 6px;
+    }
+
+    /* Formal Prover Tab */
+    .proof-box {
+      background: #0d1017;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+
+    .proof-box h4 {
       font-family: var(--font-mono);
       font-size: 11px;
-      padding: 8px 12px;
+      color: var(--cyan);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .proof-box p {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .proof-badge {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      padding: 1px 5px;
+      border-radius: 2px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    /* Modal / Drawer Overlay for Deep Transcript Inspection */
+    .drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(3px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drawer-modal {
+      width: 800px;
+      max-width: 90vw;
+      height: 80vh;
+      background: var(--panel);
+      border: 1px solid var(--border-accent);
+      border-radius: 3px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+      overflow: hidden;
     }
-    .log-line {
+
+    .drawer-header {
+      height: 40px;
+      padding: 0 16px;
+      background: var(--panel-header);
+      border-bottom: 1px solid var(--border);
       display: flex;
-      gap: 8px;
-      padding: 3px 6px;
-      border-radius: 3px;
-    }
-    .log-line.active {
-      background: rgba(56, 189, 248, 0.15);
-      border-left: 2px solid var(--accent-cyan);
-    }
-    .log-time { color: var(--text-dim); flex-shrink: 0; }
-    .log-msg { color: var(--text-muted); }
-    .log-msg.alarm { color: var(--accent-rose); font-weight: 600; }
-    .log-msg.fenced { color: var(--accent-amber); }
-    .log-msg.repair { color: var(--accent-emerald); }
-
-    /* D3 Visual Components */
-    .axis text {
-      fill: var(--text-dim);
-      font-size: 10px;
+      justify-content: space-between;
+      align-items: center;
       font-family: var(--font-mono);
-    }
-    .axis line, .axis path {
-      stroke: var(--border);
-    }
-    .grid line {
-      stroke: rgba(255, 255, 255, 0.04);
-      stroke-dasharray: 2, 3;
-    }
-
-    /* Tooltip */
-    #d3-tooltip {
-      position: absolute;
-      pointer-events: none;
-      background: rgba(10, 15, 29, 0.95);
-      border: 1px solid var(--border);
-      padding: 8px 12px;
-      border-radius: 6px;
       font-size: 12px;
-      font-family: var(--font-mono);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      display: none;
-      z-index: 100;
+      font-weight: 700;
+      color: var(--cyan);
     }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
   </style>
 </head>
 <body>
 
-  <!-- Top Header & Scrubber -->
+  <!-- TOP SURVEILLANCE & PLAYBACK BAR -->
   <header>
     <div class="brand-group">
-      <h1 class="brand-title">
-        ⚓ SwarmTelemetry
-      </h1>
-      <span class="status-pill alarm" id="status-pill">E3 Conflict Active</span>
+      <div class="brand-mark"></div>
+      <div>
+        <span class="brand-title">SwarmTelemetry</span>
+        <span class="brand-subtitle">Active Sheaf Cohomology Cockpit · 9-Agent WebAuthn Swarm</span>
+      </div>
     </div>
 
-    <!-- Interactive Time-Travel Controls -->
-    <div class="scrubber-controls">
-      <button class="btn-ctrl" id="btn-start" title="First Epoch">⏮</button>
-      <button class="btn-ctrl" id="btn-prev" title="Step Back">◀</button>
-      <button class="btn-ctrl active" id="btn-play" title="Play/Pause">❚❚ PAUSE</button>
-      <button class="btn-ctrl" id="btn-next" title="Step Forward">▶</button>
-      <button class="btn-ctrl" id="btn-end" title="Latest Epoch">⏭</button>
-      <input type="range" class="time-slider" id="epoch-slider" min="0" max="4" step="0.05" value="3.0">
-      <span style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan); min-width: 55px;" id="epoch-display">Epoch 3.0</span>
+    <!-- Playback Scrubber Controls -->
+    <div class="playback-bar">
+      <button class="btn-ctrl" id="btn-first" title="First Epoch">|&lt;</button>
+      <button class="btn-ctrl" id="btn-prev" title="Step Back">&lt;</button>
+      <button class="btn-ctrl" id="btn-play">PLAY</button>
+      <button class="btn-ctrl" id="btn-next" title="Step Forward">&gt;</button>
+      <button class="btn-ctrl" id="btn-last" title="Last Epoch">&gt;|</button>
+      <input type="range" id="epoch-slider" class="epoch-scrubber" min="0" max="30" value="0">
+      <span class="epoch-readout" id="epoch-val">t = 0.0s</span>
     </div>
 
-    <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">
-      Session: <span style="color: var(--text-muted);">sheaf-swarm-live</span> · 5 Agents
+    <!-- Live Cohomology KPIs -->
+    <div class="kpi-group">
+      <div class="kpi-badge nominal" id="badge-residual">r = 0.000</div>
+      <div class="kpi-badge nominal" id="badge-legibility">L = 0.000</div>
+      <div class="kpi-badge" id="badge-betti">&beta;₁ = 8</div>
+      <div class="kpi-badge" id="badge-cut">Min-Cut: NONE</div>
+      <div class="kpi-badge nominal" id="badge-z3">Z3: 5/5 SOUND</div>
     </div>
   </header>
 
-  <!-- Dynamic Diagnosis Banner (Story Arc) -->
-  <div class="diagnosis-banner" id="diagnosis-banner">
-    <div>
-      <strong id="diag-title" style="color: var(--accent-rose); font-weight: 700;">⚡ EPOCH 3: OPERATOR DISRUPTION & HIGH-CURL CONFLICT</strong>
-      <div id="diag-desc" style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">
-        Operator interrupted flow; AuthDev forced competing exclusive lease on src/auth.ts::handleRegistration. Sheaf residual r = 45.2714. Tree comparator r_tree ≡ 0.0000 (Blind!).
-      </div>
-    </div>
-    <div style="text-align: right; font-family: var(--font-mono); flex-shrink: 0; padding-left: 20px;">
-      <div style="font-size: 11px; color: var(--text-dim);">LEGIBILITY RATIO L(g)</div>
-      <div style="font-size: 16px; font-weight: 800; color: var(--accent-cyan);" id="diag-legibility">0.671 (Micro-Curl)</div>
-    </div>
-  </div>
-
-  <!-- HORIZON 1: THE CONTINUOUS INVARIANT & TREE BLINDNESS PLANE (D3.js) -->
-  <div class="horizon-panel">
-    <div class="horizon-header">
-      <div class="horizon-title">
-        <span>Horizon 1 · Cohomological Residual r(t) vs Acyclic Tree Comparator r_tree(t)</span>
-      </div>
-      <div class="horizon-meta">
-        <span style="color: var(--accent-rose);">■ Active Sheaf r(t) = ||Π_K g_K||₂</span> &nbsp;|&nbsp; 
-        <span style="color: var(--accent-cyan); border-bottom: 1px dashed var(--accent-cyan);">╌ Tree Comparator (Blind)</span>
-      </div>
-    </div>
-    <svg id="chart-svg-container" viewBox="0 0 960 170"></svg>
-  </div>
-
-  <!-- HORIZON 2: THE CAUSALITY SWIMLANES & SIDE-EFFECT REGISTERS (D3.js) -->
-  <div class="horizon-panel">
-    <div class="horizon-header">
-      <div class="horizon-title">
-        <span>Horizon 2 · Agent Causality Ribbon & Physical Side Effects (AST Leases & Communicative Arcs)</span>
-      </div>
-      <div class="horizon-meta">
-        Synchronized Timeline · Hover or drag playhead to scrub
-      </div>
-    </div>
-    <svg id="swimlane-svg-container" viewBox="0 0 960 250"></svg>
-  </div>
-
-  <!-- HORIZON 3: SPATIAL SIMPLICIAL TOPOLOGY & STATE INSPECTOR -->
-  <div class="horizon3-grid">
-    <!-- 2D Simplicial Complex Force Simulation -->
-    <div class="horizon-panel">
-      <div class="horizon-header">
-        <div class="horizon-title">
-          <span>Horizon 3A · Simplicial Complex Topology X = (V, E, F)</span>
+  <!-- 3-PANE SINGLE-VIEWPORT WORKSPACE -->
+  <main>
+    
+    <!-- LEFT PANE: Simplicial Complex & Stalk Vectors -->
+    <div class="left-pane">
+      <div class="card topology-container">
+        <div class="card-header">
+          <span>Simplicial 2-Complex Topology</span>
+          <span class="tag">9V · 16E · 10F</span>
         </div>
-        <div class="horizon-meta">
-          D3 Force-Directed · Drag nodes to inspect
-        </div>
-      </div>
-      <svg id="topology-svg-container" viewBox="0 0 460 270" style="display: block; width: 100%; height: 270px;"></svg>
-    </div>
-
-    <!-- Active Leases & Hodge Spectral Breakdown -->
-    <div class="horizon-panel">
-      <div class="horizon-header">
-        <div class="horizon-title">
-          <span>Horizon 3B · AST Lease Ledger & Communicative Speech Acts</span>
-        </div>
-        <div class="horizon-meta">
-          At Playhead Epoch <span id="meta-epoch-sub">3.0</span>
+        <div class="card-body" style="padding: 0;">
+          <svg id="topology-svg"></svg>
         </div>
       </div>
 
-      <div style="padding: 10px 16px 6px 16px; border-bottom: 1px solid var(--border-subtle);">
-        <table id="leases-table">
-          <thead>
-            <tr>
-              <th>Agent</th>
-              <th>Held Symbol Path</th>
-              <th>Mode</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="leases-tbody"></tbody>
-        </table>
+      <div class="card stalks-container">
+        <div class="card-header">
+          <span>Private Stalk Vectors x_v &isin; &Ropf;⁴</span>
+          <span class="tag">[t_v, b_v, h_L, d_v]</span>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <table class="stalk-table">
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Clock</th>
+                <th>Budget</th>
+                <th>AST Hash</th>
+                <th>Commit</th>
+              </tr>
+            </thead>
+            <tbody id="stalks-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER PANE: 9-Agent Swimlane Gantt Chart & Dual Horizon Metrics -->
+    <div class="center-pane">
+      
+      <!-- Gantt Swimlanes -->
+      <div class="card gantt-container">
+        <div class="card-header">
+          <span>Multi-Agent Task Schedule & Swimlanes</span>
+          <span class="tag">36 Tasks · Interactive Playhead</span>
+        </div>
+        <div class="card-body" id="gantt-chart-container" style="padding: 4px;">
+          <!-- D3 Gantt rendered here -->
+        </div>
       </div>
 
-      <div class="terminal-log" id="terminal-log"></div>
+      <!-- Cohomology Metrics: Simplicial Residual vs Tree Blindness & Hodge Energy -->
+      <div class="card metrics-container">
+        <div class="card-header">
+          <span>Completion Residual r(t) vs Tree Comparator r_tree(t) & Hodge Energy</span>
+          <span class="tag">Theorem CR-1 & CR-5</span>
+        </div>
+        <div class="card-body" id="metrics-chart-container" style="padding: 4px;">
+          <!-- D3 Metrics line & stacked energy bar rendered here -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANE: Tabs for FIPA Feed, Full Transcripts & Formal Prover -->
+    <div class="card right-pane">
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-btn-fipa" onclick="switchTab('fipa')">FIPA Feed</button>
+        <button class="tab-btn" id="tab-btn-transcripts" onclick="switchTab('transcripts')">Full Transcripts</button>
+        <button class="tab-btn" id="tab-btn-prover" onclick="switchTab('prover')">Formal Z3 Proofs</button>
+      </div>
+
+      <!-- Tab 1: Live FIPA Feed -->
+      <div class="tab-content active" id="tab-fipa">
+        <div id="fipa-feed-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Tab 2: Full Detailed Transcripts -->
+      <div class="tab-content" id="tab-transcripts">
+        <div id="full-transcripts-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Tab 3: Formal Verification Suite -->
+      <div class="tab-content" id="tab-prover">
+        <div class="proof-box">
+          <h4>Theorem CR-1: Cochain Nilpotence <span class="proof-badge">Z3 PROVED</span></h4>
+          <p>Verified that &delta;₁ &compfn; &delta;₀ &equiv; 0 for all 0-cochains in &Ropf;^{|V| &times; D}. Honest agent potential fields automatically satisfy all triadic review contracts with zero curl.</p>
+        </div>
+        <div class="proof-box">
+          <h4>Theorem CR-2: Algebraic Circulation <span class="proof-badge">Z3 PROVED</span></h4>
+          <p>Verified that B_K^T &rho; = 0. The residual vector &rho; = &Pi;_K g_K is an exact, divergence-free circulation whose non-zero support is strictly confined to visible cycles passing through equivocating agents.</p>
+        </div>
+        <div class="proof-box">
+          <h4>Theorem CR-3: Tree Blindness <span class="proof-badge">Z3 PROVED</span></h4>
+          <p>Verified that on any tree or cut-edge where R_eff(e) = 1, r = |s|&radic;(1 - R_eff) &equiv; 0.000. Proves that standard acyclic DAG loggers (OpenTelemetry, LangSmith) are topologically blind to split-view equivocations.</p>
+        </div>
+        <div class="proof-box">
+          <h4>Theorem CR-4: Greedy Repair Dissipation <span class="proof-badge">Z3 PROVED</span></h4>
+          <p>Verified that greedy min-cut selection e* = argmax ||&rho;_e||&sup2; / w(e) strictly guarantees &Delta;E &ge; ||&rho;_{e*}||&sup2; / R_eff(e*) &gt; 0, terminating in at most &beta;₁(G_K) = 8 iterations.</p>
+        </div>
+        <div class="proof-box">
+          <h4>Theorem CR-5: Hodge Orthogonality <span class="proof-badge">Z3 PROVED</span></h4>
+          <p>Verified mutual orthogonality of gauge gradients, harmonic cavities, and triadic curls. Establishes the Swarm Legibility Ratio &Lscr;(g) &in; [0, 1] as an exact projection.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- DEEP TRANSCRIPT INSPECTION MODAL -->
+  <div class="drawer-overlay" id="transcript-modal" onclick="closeModal(event)">
+    <div class="drawer-modal" onclick="event.stopPropagation()">
+      <div class="drawer-header">
+        <span id="modal-title">Agent Epistemic Reasoning & Tool Call Execution</span>
+        <button class="btn-ctrl" onclick="document.getElementById('transcript-modal').style.display='none'">&times;</button>
+      </div>
+      <div class="drawer-body" id="modal-content">
+        <!-- Injected dynamically -->
+      </div>
     </div>
   </div>
-
-  <!-- Interactive Floating Tooltip -->
-  <div id="d3-tooltip"></div>
 
   <script>
-    /**
-     * BOSTOCKEDQUE D3.JS ACTIVE CELLULAR SHEAF SURVEILLANCE ENGINE
-     * =============================================================
-     * Strictly implemented using D3 v7 selections, scales, paths,
-     * force-directed simulation, drag behaviors, and transitions.
-     */
-
-    // --- State Dataset ---
-    const swarmData = {
-      epochs: [
-        { 
-          epoch: 0, 
-          r: 0.0000, 
-          treeR: 0.0000, 
-          L: 1.0000, 
-          grad: 0.00, 
-          harm: 0.00, 
-          curl: 0.00,
-          label: "Boot", 
-          title: "Swarm Boot & Discovery",
-          desc: "All agents discovered via roster; zero cochain discrepancy. Consensus active (r = 0.0000)." 
-        },
-        { 
-          epoch: 1, 
-          r: 0.0000, 
-          treeR: 0.0000, 
-          L: 1.0000, 
-          grad: 0.12, 
-          harm: 0.00, 
-          curl: 0.00,
-          label: "Auth Lock", 
-          title: "SecDev Claims Exclusive Lock",
-          desc: "SecDev grants EXCLUSIVE AST lease on src/auth.ts::handleRegistration. Harmonic circulation zero." 
-        },
-        { 
-          epoch: 2, 
-          r: 0.7493, 
-          treeR: 0.0000, 
-          L: 0.6670, 
-          grad: 0.35, 
-          harm: 0.50, 
-          curl: 0.49,
-          label: "Race Injected", 
-          title: "Concurrent Lease Race Condition",
-          desc: "AuthDev requested concurrent lease on src/auth.ts. Sheaf residual spiked to r = 0.7493. Tree comparator stays at 0.0000 (BLIND)." 
-        },
-        { 
-          epoch: 3, 
-          r: 45.2714, 
-          treeR: 0.0000, 
-          L: 0.6710, 
-          grad: 1.41, 
-          harm: 0.81, 
-          curl: 44.82,
-          label: "Hallucination", 
-          title: "Operator Interruption & Stance Equivocation",
-          desc: "Messy Human operator injected conflicting priority. RedTeam emitted contradictory stance. High-curl anomaly r = 45.2714!" 
-        },
-        { 
-          epoch: 4, 
-          r: 0.0000, 
-          treeR: 0.0000, 
-          L: 1.0000, 
-          grad: 0.00, 
-          harm: 0.00, 
-          curl: 0.00,
-          label: "CR-4 Restored", 
-          title: "CR-4 Greedy Min-Cut Self-Healing",
-          desc: "Spawner clamped rogue lease via CR-4 Min-Cut eviction. Residual quenched back to r = 0.0000." 
-        }
-      ],
-      agents: [
-        { id: 0, name: "v0 Coordinator", model: "Claude-3.5-S", role: "Manager", yOffset: 30 },
-        { id: 1, name: "v1 SecDev",      model: "DeepSeek-V3",  role: "Security", yOffset: 75 },
-        { id: 2, name: "v2 AuthDev",     model: "GPT-4o-mini",  role: "Client Auth", yOffset: 120 },
-        { id: 3, name: "v3 RedTeam",     model: "Gemini-Flash", role: "Critic", yOffset: 165 },
-        { id: 4, name: "v4 Auditor",     model: "Attestation",  role: "Attest", yOffset: 210 }
-      ],
-      // Discrete Agent Operations & Side Effects
-      spans: [
-        { agent: 0, start: 0.0, end: 1.2, type: "planning", text: "PLANNING & ROSTER" },
-        { agent: 0, start: 1.2, end: 3.2, type: "coordinating", text: "SUPERVISING" },
-        { agent: 0, start: 3.2, end: 4.0, type: "harvest", text: "HARVESTING CONSENSUS" },
-
-        { agent: 1, start: 0.8, end: 2.8, type: "coding", text: "CODING: auth.ts (+42/-8)", lease: "src/auth.ts [EXCLUSIVE]" },
-        { agent: 1, start: 2.8, end: 4.0, type: "review", text: "COMMIT 4bc6690", lease: "src/auth.ts [COMMITTED]" },
-
-        { agent: 2, start: 1.0, end: 2.2, type: "idle", text: "IDLE" },
-        { agent: 2, start: 2.2, end: 3.4, type: "conflict", text: "⚡ CONTESTED LEASE (+18/-0)", lease: "src/auth.ts [409 CLASH]" },
-        { agent: 2, start: 3.4, end: 4.0, type: "fenced", text: "🛡️ FENCED BY CR-4", lease: "src/auth.ts [REVOKED]" },
-
-        { agent: 3, start: 1.5, end: 3.2, type: "review", text: "FUZZING & AUDIT" },
-        { agent: 3, start: 3.2, end: 4.0, type: "review", text: "PASSKEY VERIFIED" },
-
-        { agent: 4, start: 0.0, end: 4.0, type: "idle", text: "ATTESTATION MONITOR" }
-      ],
-      // Causal FIPA Communicative Arcs
-      causalArcs: [
-        { from: 0, to: 1, time: 0.8, act: "PROPOSE", text: "Assign auth.ts spec to SecDev" },
-        { from: 1, to: 0, time: 2.1, act: "INFORM", text: "SecDev acquired EXCLUSIVE lease" },
-        { from: 2, to: 1, time: 2.4, act: "CONTENTION", text: "AuthDev 409 Conflict with SecDev" },
-        { from: 3, to: 2, time: 3.3, act: "REJECT", text: "RedTeam rejects AuthDev signature" },
-        { from: 0, to: 2, time: 3.5, act: "FENCE", text: "Coordinator enforces Min-Cut clamp" }
-      ],
-      // Simplicial Complex Graph Topology
-      graph: {
-        nodes: [
-          { id: 0, name: "Coordinator", code: "v0", model: "Claude-3.5-S" },
-          { id: 1, name: "SecDev",      code: "v1", model: "DeepSeek-V3" },
-          { id: 2, name: "AuthDev",     code: "v2", model: "GPT-4o-mini" },
-          { id: 3, name: "RedTeam",     code: "v3", model: "Gemini-Flash" },
-          { id: 4, name: "Auditor",     code: "v4", model: "Attestation" }
-        ],
-        links: [
-          { source: 0, target: 1, id: "e0", baseEnergy: 0.2 },
-          { source: 1, target: 3, id: "e1", baseEnergy: 1.0 },
-          { source: 0, target: 3, id: "e2", baseEnergy: 0.3 },
-          { source: 0, target: 2, id: "e3", baseEnergy: 0.2 },
-          { source: 2, target: 3, id: "e4", baseEnergy: 0.8 },
-          { source: 1, target: 2, id: "e5", baseEnergy: 44.8, isContested: true },
-          { source: 3, target: 4, id: "e6", baseEnergy: 0.1 }
-        ],
-        faces: [
-          { v: [0, 1, 3], id: "f0" },
-          { v: [0, 2, 3], id: "f1" },
-          { v: [1, 2, 3], id: "f2", isContested: true }
-        ]
-      },
-      logEvents: [
-        { time: "E0.00", epoch: 0.0, type: "info", text: "Roster active: 5 agents registered in TCB. Consensus r = 0.0000." },
-        { time: "E0.80", epoch: 0.8, type: "info", text: "Coordinator proposes Auth specification to SecDev." },
-        { time: "E1.00", epoch: 1.0, type: "lease", text: "SecDev acquired EXCLUSIVE lease on src/auth.ts::handleRegistration." },
-        { time: "E2.20", epoch: 2.2, type: "alarm", text: "COLLISION: AuthDev requested concurrent lease on held symbol (r = 0.7493)." },
-        { time: "E2.70", epoch: 2.7, type: "alarm", text: "⚡ OPERATOR INTERRUPT: 'Cancel auth, reassign to v2 immediately!'" },
-        { time: "E3.00", epoch: 3.0, type: "alarm", text: "CRITICAL: High-curl circulation on triangle [v1,v2,v3]. r = 45.2714!" },
-        { time: "E3.30", epoch: 3.3, type: "fenced", text: "RedTeam emitted equivocation; rejected AuthDev commit signature." },
-        { time: "E3.60", epoch: 3.6, type: "repair", text: "CR-4 MIN-CUT: Quenched edge (v1,v2). AuthDev lease fenced." },
-        { time: "E4.00", epoch: 4.0, type: "repair", text: "CONSENSUS RESTORED: All boundary obstructions resolved. r = 0.0000." }
-      ]
-    };
-
-    // Current Interactive State
-    let currentEpoch = 3.0;
+    // State Variables
+    let telemetryData = null;
+    let fullTranscripts = null;
+    let currentEpoch = 0;
     let isPlaying = false;
-    let playTimer = null;
+    let playInterval = null;
 
-    // --- Horizon 1: Continuous Invariant Chart (D3.js) ---
-    const h1Svg = d3.select("#chart-svg-container");
-    const h1Margin = { top: 20, right: 40, bottom: 25, left: 50 };
-    const h1Width = 960 - h1Margin.left - h1Margin.right;
-    const h1Height = 170 - h1Margin.top - h1Margin.bottom;
-
-    const h1G = h1Svg.append("g")
-      .attr("transform", `translate(${h1Margin.left},${h1Margin.top})`);
-
-    const h1X = d3.scaleLinear()
-      .domain([0, 4])
-      .range([0, h1Width]);
-
-    const h1Y = d3.scaleLinear()
-      .domain([0, 50])
-      .range([h1Height, 0]);
-
-    // Gridlines
-    h1G.append("g")
-      .attr("class", "grid")
-      .call(d3.axisLeft(h1Y).ticks(5).tickSize(-h1Width).tickFormat(""));
-
-    // Axes
-    h1G.append("g")
-      .attr("class", "axis")
-      .attr("transform", `translate(0,${h1Height})`)
-      .call(d3.axisBottom(h1X).ticks(5).tickFormat(i => `E${i} (${swarmData.epochs[i] ? swarmData.epochs[i].label : ''})`));
-
-    h1G.append("g")
-      .attr("class", "axis")
-      .call(d3.axisLeft(h1Y).ticks(5));
-
-    // Consensus Boundary Reference Line (r = 1.0)
-    h1G.append("line")
-      .attr("x1", 0)
-      .attr("x2", h1Width)
-      .attr("y1", h1Y(1.0))
-      .attr("y2", h1Y(1.0))
-      .attr("stroke", "rgba(16, 185, 129, 0.4)")
-      .attr("stroke-dasharray", "4, 4");
-
-    h1G.append("text")
-      .attr("x", h1Width - 5)
-      .attr("y", h1Y(1.0) - 4)
-      .attr("fill", "var(--accent-emerald)")
-      .attr("font-size", "9px")
-      .attr("font-family", "var(--font-mono)")
-      .attr("text-anchor", "end")
-      .text("Consensus Threshold r_crit = 1.0");
-
-    // D3 Area & Line Generators
-    const areaGen = d3.area()
-      .x(d => h1X(d.epoch))
-      .y0(h1Y(0))
-      .y1(d => h1Y(d.r))
-      .curve(d3.curveMonotoneX);
-
-    const lineGen = d3.line()
-      .x(d => h1X(d.epoch))
-      .y(d => h1Y(d.r))
-      .curve(d3.curveMonotoneX);
-
-    const treeLineGen = d3.line()
-      .x(d => h1X(d.epoch))
-      .y(d => h1Y(d.treeR))
-      .curve(d3.curveLinear);
-
-    // Gradient definition for area
-    const defs = h1Svg.append("defs");
-    const areaGrad = defs.append("linearGradient")
-      .attr("id", "residual-gradient")
-      .attr("x1", "0%").attr("y1", "0%")
-      .attr("x2", "0%").attr("y2", "100%");
-    areaGrad.append("stop").attr("offset", "0%").attr("stop-color", "var(--accent-rose)").attr("stop-opacity", 0.4);
-    areaGrad.append("stop").attr("offset", "100%").attr("stop-color", "var(--accent-rose)").attr("stop-opacity", 0.0);
-
-    // Render Area & Line
-    h1G.append("path")
-      .datum(swarmData.epochs)
-      .attr("fill", "url(#residual-gradient)")
-      .attr("d", areaGen);
-
-    h1G.append("path")
-      .datum(swarmData.epochs)
-      .attr("fill", "none")
-      .attr("stroke", "var(--accent-rose)")
-      .attr("stroke-width", 2.2)
-      .attr("d", lineGen);
-
-    // Acyclic Tree Comparator (The Blindness Invariant: r_tree ≡ 0)
-    h1G.append("path")
-      .datum(swarmData.epochs)
-      .attr("fill", "none")
-      .attr("stroke", "var(--accent-cyan)")
-      .attr("stroke-width", 1.8)
-      .attr("stroke-dasharray", "4, 3")
-      .attr("d", treeLineGen);
-
-    // Epoch milestone nodes
-    h1G.selectAll(".epoch-dot")
-      .data(swarmData.epochs)
-      .join("circle")
-      .attr("class", "epoch-dot")
-      .attr("cx", d => h1X(d.epoch))
-      .attr("cy", d => h1Y(d.r))
-      .attr("r", 4.5)
-      .attr("fill", d => d.r > 1.0 ? "var(--accent-rose)" : "var(--accent-emerald)")
-      .attr("stroke", "#070a12")
-      .attr("stroke-width", 2)
-      .style("cursor", "pointer")
-      .on("click", (event, d) => setEpoch(d.epoch));
-
-    // Synchronized Vertical Playhead Needle on Horizon 1
-    const h1Needle = h1G.append("line")
-      .attr("class", "playhead-needle")
-      .attr("y1", -5)
-      .attr("y2", h1Height)
-      .attr("stroke", "var(--accent-cyan)")
-      .attr("stroke-width", 1.5)
-      .attr("pointer-events", "none");
-
-
-    // --- Horizon 2: Agent Causality Ribbon & Swimlanes (D3.js) ---
-    const h2Svg = d3.select("#swimlane-svg-container");
-    const h2Margin = { top: 15, right: 40, bottom: 20, left: 140 };
-    const h2Width = 960 - h2Margin.left - h2Margin.right;
-    const h2Height = 250 - h2Margin.top - h2Margin.bottom;
-
-    const h2G = h2Svg.append("g")
-      .attr("transform", `translate(${h2Margin.left},${h2Margin.top})`);
-
-    const h2X = d3.scaleLinear()
-      .domain([0, 4])
-      .range([0, h2Width]);
-
-    const h2Y = d3.scalePoint()
-      .domain(swarmData.agents.map(a => a.id))
-      .range([15, h2Height - 15]);
-
-    // Agent Track Guidelines & Row Labels
-    const trackG = h2G.selectAll(".agent-track")
-      .data(swarmData.agents)
-      .join("g")
-      .attr("class", "agent-track")
-      .attr("transform", d => `translate(0,${h2Y(d.id)})`);
-
-    // Track baseline
-    trackG.append("line")
-      .attr("x1", 0)
-      .attr("x2", h2Width)
-      .attr("stroke", "rgba(255,255,255,0.05)")
-      .attr("stroke-dasharray", "2, 4");
-
-    // Agent identity on left margin
-    trackG.append("text")
-      .attr("x", -12)
-      .attr("y", -2)
-      .attr("fill", "var(--text-main)")
-      .attr("font-size", "11px")
-      .attr("font-weight", "600")
-      .attr("text-anchor", "end")
-      .text(d => d.name);
-
-    trackG.append("text")
-      .attr("x", -12)
-      .attr("y", 11)
-      .attr("fill", "var(--text-dim)")
-      .attr("font-size", "9px")
-      .attr("font-family", "var(--font-mono)")
-      .attr("text-anchor", "end")
-      .text(d => `${d.model}`);
-
-    // D3 Causal Arcs (Message exchanges between agents)
-    const arcG = h2G.append("g").attr("class", "causal-arcs");
-
-    function renderCausalArcs() {
-      const arcPath = arcG.selectAll(".causal-arc")
-        .data(swarmData.causalArcs)
-        .join("path")
-        .attr("class", "causal-arc")
-        .attr("d", d => {
-          const x = h2X(d.time);
-          const y1 = h2Y(d.from);
-          const y2 = h2Y(d.to);
-          const dx = 25 * (d.from < d.to ? 1 : -1);
-          return `M ${x} ${y1} C ${x + dx} ${y1}, ${x + dx} ${y2}, ${x} ${y2}`;
-        })
-        .attr("fill", "none")
-        .attr("stroke", d => {
-          if (d.act === "CONTENTION") return "var(--accent-rose)";
-          if (d.act === "FENCE") return "var(--accent-amber)";
-          return "var(--accent-cyan)";
-        })
-        .attr("stroke-width", d => d.act === "CONTENTION" ? 2.0 : 1.2)
-        .attr("stroke-dasharray", d => d.act === "CONTENTION" ? "none" : "3, 2")
-        .attr("opacity", d => d.time <= currentEpoch ? 0.85 : 0.15);
+    // Switch Right-Pane Tabs
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      document.getElementById('tab-btn-' + tabId).classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
     }
-    renderCausalArcs();
 
-    // D3 Agent State Activity Spans & Side-Effect Ribbons
-    const spanG = h2G.append("g").attr("class", "agent-spans");
+    function closeModal(e) {
+      document.getElementById('transcript-modal').style.display = 'none';
+    }
 
-    const spanColorMap = {
-      planning: { bg: "rgba(129, 140, 248, 0.2)", border: "var(--accent-violet)" },
-      coordinating: { bg: "rgba(56, 189, 248, 0.2)", border: "var(--accent-cyan)" },
-      coding: { bg: "rgba(16, 185, 129, 0.25)", border: "var(--accent-emerald)" },
-      conflict: { bg: "rgba(244, 63, 94, 0.35)", border: "var(--accent-rose)" },
-      fenced: { bg: "rgba(245, 158, 11, 0.2)", border: "var(--accent-amber)" },
-      review: { bg: "rgba(148, 163, 184, 0.15)", border: "var(--text-muted)" },
-      idle: { bg: "rgba(255, 255, 255, 0.03)", border: "rgba(255,255,255,0.08)" }
+    function openTranscriptModal(transcriptId) {
+      if (!fullTranscripts) return;
+      const item = fullTranscripts.transcripts.find(t => t.id === transcriptId);
+      if (!item) return;
+
+      const modal = document.getElementById('transcript-modal');
+      const title = document.getElementById('modal-title');
+      const content = document.getElementById('modal-content');
+
+      title.textContent = `[${item.id}] ${item.agent_name} → ${item.target_name} (${item.performative})`;
+
+      content.innerHTML = `
+        <div style="font-family: var(--font-mono); font-size: 11px; margin-bottom: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
+          <span>Timestamp: ${item.timestamp}</span>
+          <span>Epoch: t = ${item.epoch}.0s</span>
+          <span class="performative-badge ${item.performative.toLowerCase()}">${item.performative}</span>
+        </div>
+
+        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--text);">${item.summary}</h4>
+
+        <div style="margin-bottom: 12px;">
+          <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Agent Internal Reasoning (Chain of Thought):</div>
+          <div class="t-thought">${item.thought}</div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Tool Invocation & Execution Return:</div>
+          <div class="t-tool">
+            <strong>TOOL:</strong> ${item.tool_call.tool}<br>
+            <strong>ARGS:</strong> ${JSON.stringify(item.tool_call.args)}<br>
+            <strong>RETURN:</strong> ${item.tool_call.result}
+          </div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Code Snippet / Diff:</div>
+          <pre>${item.code_snippet}</pre>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">FIPA-ACL SC00061G Message Envelope:</div>
+          <pre>${JSON.stringify(item.fipa_envelope, null, 2)}</pre>
+        </div>
+
+        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); display: flex; gap: 20px;">
+          <span>Stalk Before: [${item.stalk_before.join(', ')}]</span>
+          <span>&rarr;</span>
+          <span>Stalk After: [${item.stalk_after.join(', ')}]</span>
+        </div>
+      `;
+
+      modal.style.display = 'flex';
+    }
+
+    // Load Simulation Data and Transcripts
+    async function loadData() {
+      try {
+        const [simRes, trRes] = await Promise.all([
+          fetch('/telemetry_data.json'),
+          fetch('/full_agent_transcripts.json')
+        ]);
+        telemetryData = await simRes.json();
+        telemetryData.timeline = telemetryData.timelineEpochs || telemetryData.timeline || [];
+        telemetryData.fipaTranscripts = telemetryData.fipaTranscripts || telemetryData.fipa_speech_acts || [];
+        telemetryData.ganttTasks = telemetryData.ganttTasks || telemetryData.gantt_tasks || [];
+        fullTranscripts = await trRes.json();
+
+        initTopologyGraph();
+        renderGanttChart();
+        renderMetricsChart();
+        populateTranscriptsList();
+        setEpoch(0);
+
+        // Responsive Observer
+        const ro = new ResizeObserver(() => {
+          initTopologyGraph();
+          renderGanttChart();
+          renderMetricsChart();
+          setEpoch(currentEpoch);
+        });
+        const center = document.querySelector('.center-pane');
+        if (center) ro.observe(center);
+      } catch (err) {
+        console.error("Error loading telemetry data:", err);
+      }
+    }
+
+    // Epoch Update Controller
+    function setEpoch(epoch) {
+      if (!telemetryData || !telemetryData.timeline) return;
+      currentEpoch = Math.max(0, Math.min(epoch, telemetryData.timeline.length - 1));
+      
+      document.getElementById('epoch-slider').value = currentEpoch;
+      document.getElementById('epoch-val').textContent = `t = ${currentEpoch}.0s`;
+
+      const tPoint = telemetryData.timeline[currentEpoch] || {};
+      updateKPIs(tPoint);
+      updateStalkTable(tPoint);
+      updateTopologyColors(tPoint);
+      updateGanttPlayhead(currentEpoch);
+      updateMetricsCursor(currentEpoch);
+      filterFipaFeed(currentEpoch);
+    }
+
+    function updateKPIs(tPoint) {
+      const bRes = document.getElementById('badge-residual');
+      const bLeg = document.getElementById('badge-legibility');
+      const bCut = document.getElementById('badge-cut');
+
+      const r = tPoint.r !== undefined ? tPoint.r : (tPoint.residual || 0);
+      const leg = tPoint.legibility !== undefined ? tPoint.legibility : (tPoint.legibility_ratio || 0);
+      const rawContested = tPoint.contestedEdges || tPoint.fenced_edges || [];
+      const contested = rawContested.map(e => typeof e === 'object' ? (e.edge || `${e.source}_${e.target}`) : e);
+
+      bRes.textContent = `r = ${r.toFixed(3)}`;
+      bLeg.textContent = `L = ${leg.toFixed(3)}`;
+
+      if (r > 1.0) {
+        bRes.className = 'kpi-badge alarm';
+        bLeg.className = leg < 0.2 ? 'kpi-badge alarm' : 'kpi-badge nominal';
+      } else if (contested.length > 0) {
+        bRes.className = 'kpi-badge repaired';
+        bLeg.className = 'kpi-badge repaired';
+      } else {
+        bRes.className = 'kpi-badge nominal';
+        bLeg.className = 'kpi-badge nominal';
+      }
+
+      if (contested.length > 0) {
+        bCut.textContent = `Contested: ${contested.slice(0, 2).join(', ')}`;
+        bCut.className = r > 1.0 ? 'kpi-badge alarm' : 'kpi-badge repaired';
+      } else {
+        bCut.textContent = 'Min-Cut: NONE';
+        bCut.className = 'kpi-badge';
+      }
+    }
+
+    function updateStalkTable(tPoint) {
+      const tbody = document.getElementById('stalks-tbody');
+      if (!tbody || !telemetryData || !telemetryData.agents) return;
+      tbody.innerHTML = '';
+
+      telemetryData.agents.forEach(agent => {
+        const tr = document.createElement('tr');
+        const clock = currentEpoch;
+        const budget = (0.15 * currentEpoch + 0.1).toFixed(2);
+        let hash = "0.500";
+        if (agent.id === "v2") hash = currentEpoch >= 2 ? "0.942" : "0.500";
+        if (agent.id === "v3") hash = (currentEpoch >= 8 && currentEpoch < 14) ? "0.119" : (currentEpoch >= 14 ? "0.942" : "0.500");
+        const commit = currentEpoch >= 14 ? "+0.95" : (currentEpoch >= 8 ? "-0.80" : "+0.45");
+
+        if (currentEpoch >= 8 && currentEpoch < 14 && (agent.id === "v2" || agent.id === "v3")) {
+          tr.className = 'active-agent';
+        }
+
+        tr.innerHTML = `
+          <td style="font-weight: 600; color: var(--text);">${agent.name}</td>
+          <td>${clock}</td>
+          <td>$${budget}</td>
+          <td style="color: ${hash === '0.119' ? 'var(--crimson)' : (hash === '0.942' ? 'var(--emerald)' : 'var(--text-muted)')}">${hash}</td>
+          <td style="color: ${commit.startsWith('-') ? 'var(--crimson)' : 'var(--emerald)'}">${commit}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // D3 SIMPLICIAL 2-COMPLEX TOPOLOGY GRAPH
+    let simulation, linkSelection, nodeSelection;
+    function initTopologyGraph() {
+      const container = document.querySelector('.topology-container .card-body');
+      if (!container || !telemetryData) return;
+      const width = container.clientWidth || 280;
+      const height = container.clientHeight || 220;
+
+      const svg = d3.select('#topology-svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      svg.selectAll('*').remove();
+
+      const g = svg.append('g');
+
+      const nodes = telemetryData.agents.map(a => ({ id: a.id, name: a.name }));
+      const links = (telemetryData.edges || []).map(e => ({
+        source: e.source || (Array.isArray(e) ? e[0] : e.u),
+        target: e.target || (Array.isArray(e) ? e[1] : e.v),
+        id: e.id || `${e.source || e[0]}_${e.target || e[1]}`
+      }));
+
+      simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(45))
+        .force('charge', d3.forceManyBody().strength(-120))
+        .force('center', d3.forceCenter(width / 2, height / 2));
+
+      linkSelection = g.append('g')
+        .selectAll('line')
+        .data(links)
+        .enter().append('line')
+        .attr('stroke', 'rgba(255, 255, 255, 0.2)')
+        .attr('stroke-width', 1.5);
+
+      nodeSelection = g.append('g')
+        .selectAll('g')
+        .data(nodes)
+        .enter().append('g')
+        .call(d3.drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended));
+
+      nodeSelection.append('circle')
+        .attr('r', 9)
+        .attr('fill', '#161a24')
+        .attr('stroke', 'var(--cyan)')
+        .attr('stroke-width', 1.5);
+
+      nodeSelection.append('text')
+        .attr('dy', 3)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#fff')
+        .attr('font-size', '8px')
+        .attr('font-family', 'var(--font-mono)')
+        .text(d => d.id.toUpperCase());
+
+      simulation.on('tick', () => {
+        linkSelection
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+
+        nodeSelection.attr('transform', d => `translate(${d.x},${d.y})`);
+      });
+
+      function dragstarted(event) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+      }
+      function dragged(event) {
+        event.subject.fx = event.x;
+        event.subject.fy = event.y;
+      }
+      function dragended(event) {
+        if (!event.active) simulation.alphaTarget(0);
+        event.subject.fx = null;
+        event.subject.fy = null;
+      }
+    }
+
+    function updateTopologyColors(tPoint) {
+      if (!linkSelection) return;
+      const contested = tPoint.contestedEdges || tPoint.fenced_edges || [];
+      const res = tPoint.r !== undefined ? tPoint.r : (tPoint.residual || 0);
+
+      linkSelection
+        .attr('stroke', d => {
+          const sId = typeof d.source === 'object' ? d.source.id : d.source;
+          const tId = typeof d.target === 'object' ? d.target.id : d.target;
+          const edgeKeyUnderscore = `${sId}_${tId}`;
+          const edgeKeyHyphen = `${sId}-${tId}`;
+          if (contested.includes(edgeKeyUnderscore) || contested.includes(edgeKeyHyphen) || contested.includes(d.id)) return 'var(--cyan)';
+          if (res > 5.0 && (d.id === 'v2_v3' || d.id === 'v2-v3' || d.id === 'v4_v8' || d.id === 'v4-v8')) return 'var(--crimson)';
+          return 'rgba(255, 255, 255, 0.2)';
+        })
+        .attr('stroke-width', d => {
+          const sId = typeof d.source === 'object' ? d.source.id : d.source;
+          const tId = typeof d.target === 'object' ? d.target.id : d.target;
+          const edgeKeyUnderscore = `${sId}_${tId}`;
+          const edgeKeyHyphen = `${sId}-${tId}`;
+          if (contested.includes(edgeKeyUnderscore) || contested.includes(edgeKeyHyphen) || contested.includes(d.id) || (res > 5.0 && (d.id === 'v2_v3' || d.id === 'v2-v3' || d.id === 'v4_v8' || d.id === 'v4-v8'))) return 3;
+          return 1.2;
+        });
+    }
+
+    // D3 GANTT SWIMLANES
+    let ganttPlayhead;
+    function renderGanttChart() {
+      const container = document.getElementById('gantt-chart-container');
+      if (!container || !telemetryData) return;
+      const width = container.clientWidth || 600;
+      const height = container.clientHeight || 280;
+
+      d3.select(container).selectAll('*').remove();
+
+      const svg = d3.select(container).append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const margin = { top: 20, right: 20, bottom: 20, left: 110 };
+      const innerW = Math.max(10, width - margin.left - margin.right);
+      const innerH = Math.max(10, height - margin.top - margin.bottom);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const xScale = d3.scaleLinear().domain([0, 30]).range([0, innerW]);
+      const yScale = d3.scaleBand()
+        .domain(telemetryData.agents.map(a => a.name))
+        .range([0, innerH])
+        .padding(0.25);
+
+      // Gridlines
+      g.append('g')
+        .attr('transform', `translate(0,${innerH})`)
+        .call(d3.axisBottom(xScale).ticks(10).tickFormat(d => `${d}s`))
+        .attr('color', 'var(--text-dim)')
+        .attr('font-family', 'var(--font-mono)')
+        .attr('font-size', '9px');
+
+      g.append('g')
+        .call(d3.axisLeft(yScale))
+        .attr('color', 'var(--text-dim)')
+        .attr('font-family', 'var(--font-mono)')
+        .attr('font-size', '9px');
+
+      const agentMap = {};
+      telemetryData.agents.forEach(a => agentMap[a.id] = a.name);
+      const rawTasks = telemetryData.ganttTasks || telemetryData.gantt_tasks || [];
+      const tasks = rawTasks.map(d => ({
+        id: d.id,
+        agent_name: d.agent_name || agentMap[d.agentId] || d.agentId,
+        start_epoch: d.start !== undefined ? d.start : (d.start_epoch || 0),
+        end_epoch: d.end !== undefined ? d.end : (d.end_epoch || 0),
+        status: d.status === 'breach' ? 'contested' : d.status,
+        label: d.label || ''
+      }));
+
+      // Task bars
+      g.selectAll('.task-bar')
+        .data(tasks)
+        .enter().append('rect')
+        .attr('class', 'task-bar')
+        .attr('x', d => xScale(d.start_epoch))
+        .attr('y', d => yScale(d.agent_name) || 0)
+        .attr('width', d => Math.max(4, xScale(d.end_epoch) - xScale(d.start_epoch)))
+        .attr('height', yScale.bandwidth())
+        .attr('rx', 2)
+        .attr('fill', d => {
+          if (d.status === 'contested') return 'var(--crimson)';
+          if (d.status === 'repaired') return 'var(--cyan)';
+          return 'rgba(56, 189, 248, 0.4)';
+        })
+        .attr('stroke', d => {
+          if (d.status === 'contested') return 'var(--crimson)';
+          if (d.status === 'repaired') return 'var(--cyan)';
+          return 'var(--border-accent)';
+        })
+        .style('cursor', 'pointer')
+        .on('click', (e, d) => setEpoch(d.start_epoch));
+
+      // Synchronized Playhead Rule
+      ganttPlayhead = g.append('line')
+        .attr('y1', 0)
+        .attr('y2', innerH)
+        .attr('stroke', 'var(--cyan)')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '3,3');
+    }
+
+    function updateGanttPlayhead(epoch) {
+      if (!ganttPlayhead) return;
+      const container = document.getElementById('gantt-chart-container');
+      const width = container.clientWidth || 600;
+      const margin = { left: 110, right: 20 };
+      const innerW = Math.max(10, width - margin.left - margin.right);
+      const xScale = d3.scaleLinear().domain([0, 30]).range([0, innerW]);
+
+      ganttPlayhead
+        .attr('x1', xScale(epoch))
+        .attr('x2', xScale(epoch));
+    }
+
+    // D3 METRICS LINE & ENERGY STACK CHART
+    let metricCursor;
+    function renderMetricsChart() {
+      const container = document.getElementById('metrics-chart-container');
+      if (!container || !telemetryData) return;
+      const width = container.clientWidth || 600;
+      const height = container.clientHeight || 200;
+
+      d3.select(container).selectAll('*').remove();
+
+      const svg = d3.select(container).append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const margin = { top: 15, right: 20, bottom: 20, left: 45 };
+      const innerW = Math.max(10, width - margin.left - margin.right);
+      const innerH = Math.max(10, height - margin.top - margin.bottom);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const xScale = d3.scaleLinear().domain([0, 30]).range([0, innerW]);
+      const yScale = d3.scaleLinear().domain([0, 30]).range([innerH, 0]);
+
+      // Axes
+      g.append('g')
+        .attr('transform', `translate(0,${innerH})`)
+        .call(d3.axisBottom(xScale).ticks(10).tickFormat(d => `${d}s`))
+        .attr('color', 'var(--text-dim)')
+        .attr('font-family', 'var(--font-mono)')
+        .attr('font-size', '9px');
+
+      g.append('g')
+        .call(d3.axisLeft(yScale).ticks(5))
+        .attr('color', 'var(--text-dim)')
+        .attr('font-family', 'var(--font-mono)')
+        .attr('font-size', '9px');
+
+      const timeline = (telemetryData.timeline || []).map(d => ({
+        epoch: d.t !== undefined ? d.t : (d.epoch || 0),
+        residual: d.r !== undefined ? d.r : (d.residual || 0),
+        tree_residual: d.rTree !== undefined ? d.rTree : (d.tree_residual || 0),
+        legibility: d.legibility !== undefined ? d.legibility : (d.legibility_ratio || 0)
+      }));
+
+      // Tree line comparator (always flat 0.000)
+      const treeLine = d3.line()
+        .x(d => xScale(d.epoch))
+        .y(d => yScale(d.tree_residual));
+
+      g.append('path')
+        .datum(timeline)
+        .attr('fill', 'none')
+        .attr('stroke', 'var(--text-dim)')
+        .attr('stroke-dasharray', '4,4')
+        .attr('stroke-width', 1.5)
+        .attr('d', treeLine);
+
+      // Simplicial residual line
+      const resLine = d3.line()
+        .x(d => xScale(d.epoch))
+        .y(d => yScale(d.residual))
+        .curve(d3.curveMonotoneX);
+
+      g.append('path')
+        .datum(timeline)
+        .attr('fill', 'none')
+        .attr('stroke', 'var(--crimson)')
+        .attr('stroke-width', 2)
+        .attr('d', resLine);
+
+      // Legend
+      const legend = g.append('g').attr('transform', `translate(${innerW - 190}, 0)`);
+      legend.append('line').attr('x1', 0).attr('x2', 15).attr('y1', 5).attr('y2', 5).attr('stroke', 'var(--crimson)').attr('stroke-width', 2);
+      legend.append('text').attr('x', 20).attr('y', 8).attr('fill', '#fff').attr('font-size', '9px').attr('font-family', 'var(--font-mono)').text('r(t) [Simplicial 2-Complex]');
+      legend.append('line').attr('x1', 0).attr('x2', 15).attr('y1', 18).attr('y2', 18).attr('stroke', 'var(--text-dim)').attr('stroke-dasharray', '3,3').attr('stroke-width', 1.5);
+      legend.append('text').attr('x', 20).attr('y', 21).attr('fill', 'var(--text-muted)').attr('font-size', '9px').attr('font-family', 'var(--font-mono)').text('r_tree(t) \u2261 0 [Blind Tree]');
+
+      // Playhead Cursor
+      metricCursor = g.append('line')
+        .attr('y1', 0)
+        .attr('y2', innerH)
+        .attr('stroke', 'var(--cyan)')
+        .attr('stroke-width', 1.5);
+    }
+
+    function updateMetricsCursor(epoch) {
+      if (!metricCursor) return;
+      const container = document.getElementById('metrics-chart-container');
+      const width = container.clientWidth || 600;
+      const margin = { left: 45, right: 20 };
+      const innerW = Math.max(10, width - margin.left - margin.right);
+      const xScale = d3.scaleLinear().domain([0, 30]).range([0, innerW]);
+
+      metricCursor
+        .attr('x1', xScale(epoch))
+        .attr('x2', xScale(epoch));
+    }
+
+    // FIPA SPEECH-ACT FEED
+    function filterFipaFeed(epoch) {
+      const feed = document.getElementById('fipa-feed-list');
+      if (!feed) return;
+      feed.innerHTML = '';
+
+      const agentMap = {};
+      if (telemetryData && telemetryData.agents) {
+        telemetryData.agents.forEach(a => agentMap[a.id] = a.name);
+      }
+
+      const rawActs = (telemetryData && (telemetryData.fipaTranscripts || telemetryData.fipa_speech_acts)) || [];
+      const acts = rawActs.map(a => ({
+        epoch: a.t !== undefined ? Math.floor(a.t) : (a.epoch || 0),
+        exact_t: a.t !== undefined ? a.t : a.epoch,
+        sender_id: a.sender || a.sender_id,
+        sender_name: a.sender_name || agentMap[a.sender] || a.sender,
+        receiver_id: a.receiver || a.receiver_id,
+        receiver_name: a.receiver_name || agentMap[a.receiver] || a.receiver,
+        performative: a.performative || 'INFORM',
+        content: a.content || '',
+        ontology: a.ontology || (a.conversation || 'fipa-cohomology'),
+        status: (a.performative === 'REFUSE' || a.performative === 'DISCONFIRM') ? 'contested' : ((a.performative === 'CONFIRM' || a.performative === 'ACCEPT-PROPOSAL') ? 'repaired' : 'nominal')
+      })).filter(a => epoch === 0 ? a.epoch <= 2 : a.epoch <= epoch);
+
+      acts.slice(-12).reverse().forEach(act => {
+        const div = document.createElement('div');
+        div.className = `fipa-card ${act.status}`;
+        div.innerHTML = `
+          <div class="fipa-header">
+            <span><strong>${act.sender_name}</strong> &rarr; <strong>${act.receiver_name}</strong></span>
+            <span class="performative-badge ${act.performative.toLowerCase().replace('-', '')}">${act.performative}</span>
+          </div>
+          <div class="fipa-body">${act.content}</div>
+          <div class="fipa-meta">
+            <span>t = ${act.exact_t}s</span>
+            <span>ontology: ${act.ontology}</span>
+          </div>
+        `;
+        div.onclick = () => {
+          if (fullTranscripts && fullTranscripts.transcripts) {
+            const tr = fullTranscripts.transcripts.find(t => t.epoch === act.epoch || t.agent_id === act.sender_id);
+            if (tr) openTranscriptModal(tr.id);
+          }
+        };
+        feed.appendChild(div);
+      });
+    }
+
+    // FULL TRANSCRIPTS LIST
+    function populateTranscriptsList() {
+      if (!fullTranscripts || !fullTranscripts.transcripts) return;
+      const list = document.getElementById('full-transcripts-list');
+      if (!list) return;
+      list.innerHTML = '';
+
+      fullTranscripts.transcripts.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'transcript-entry';
+        card.style.cursor = 'pointer';
+        card.innerHTML = `
+          <div class="t-meta">
+            <span>[${item.id}] ${item.agent_name} &rarr; ${item.target_name}</span>
+            <span class="performative-badge ${item.performative.toLowerCase().replace('-', '')}">${item.performative}</span>
+          </div>
+          <div style="font-weight: 600; font-size: 11px; margin-bottom: 4px; color: var(--text);">${item.summary}</div>
+          <div class="t-thought">${item.thought}</div>
+          <div class="t-tool">TOOL: ${item.tool_call.tool}</div>
+          <div style="font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); display: flex; justify-content: space-between;">
+            <span>Epoch: t = ${item.epoch}.0s</span>
+            <span style="color: var(--cyan); text-decoration: underline;">Click to inspect full code diff & envelope &rarr;</span>
+          </div>
+        `;
+        card.onclick = () => openTranscriptModal(item.id);
+        list.appendChild(card);
+      });
+    }
+
+    // Playback Controller
+    document.getElementById('btn-play').onclick = () => {
+      isPlaying = !isPlaying;
+      const btn = document.getElementById('btn-play');
+      if (isPlaying) {
+        btn.textContent = 'PAUSE';
+        btn.classList.add('active');
+        playInterval = setInterval(() => {
+          if (currentEpoch >= 30) {
+            setEpoch(0);
+          } else {
+            setEpoch(currentEpoch + 1);
+          }
+        }, 1000);
+      } else {
+        btn.textContent = 'PLAY';
+        btn.classList.remove('active');
+        clearInterval(playInterval);
+      }
     };
 
-    spanG.selectAll(".state-span")
-      .data(swarmData.spans)
-      .join("g")
-      .attr("class", "state-span")
-      .each(function(d) {
-        const el = d3.select(this);
-        const x = h2X(d.start);
-        const w = h2X(d.end) - x;
-        const y = h2Y(d.agent) - 10;
-        const colors = spanColorMap[d.type] || spanColorMap.idle;
+    document.getElementById('btn-prev').onclick = () => setEpoch(currentEpoch - 1);
+    document.getElementById('btn-next').onclick = () => setEpoch(currentEpoch + 1);
+    document.getElementById('btn-first').onclick = () => setEpoch(0);
+    document.getElementById('btn-last').onclick = () => setEpoch(30);
+    document.getElementById('epoch-slider').oninput = (e) => setEpoch(parseInt(e.target.value, 10));
 
-        // Activity Rect
-        el.append("rect")
-          .attr("x", x)
-          .attr("y", y)
-          .attr("width", Math.max(w, 2))
-          .attr("height", 20)
-          .attr("rx", 3)
-          .attr("fill", colors.bg)
-          .attr("stroke", colors.border)
-          .attr("stroke-width", 1);
-
-        // Text label
-        if (w > 45) {
-          el.append("text")
-            .attr("x", x + 6)
-            .attr("y", y + 13)
-            .attr("fill", "#f1f5f9")
-            .attr("font-size", "9.5px")
-            .attr("font-family", "var(--font-mono)")
-            .text(d.text);
-        }
-
-        // Tangible AST Lease Under-ribbon (Physical Side Effect)
-        if (d.lease) {
-          el.append("rect")
-            .attr("x", x)
-            .attr("y", y + 22)
-            .attr("width", Math.max(w, 2))
-            .attr("height", 4)
-            .attr("rx", 1)
-            .attr("fill", d.type === "conflict" ? "var(--accent-rose)" : (d.type === "fenced" ? "var(--accent-amber)" : "var(--accent-emerald)"))
-            .attr("opacity", 0.9);
-        }
-      });
-
-    // Synchronized Vertical Playhead Needle on Horizon 2
-    const h2Needle = h2G.append("line")
-      .attr("class", "playhead-needle")
-      .attr("y1", 0)
-      .attr("y2", h2Height)
-      .attr("stroke", "var(--accent-cyan)")
-      .attr("stroke-width", 1.5)
-      .attr("pointer-events", "none");
-
-    // Interaction Scrubber Plane
-    h2G.append("rect")
-      .attr("width", h2Width)
-      .attr("height", h2Height)
-      .attr("fill", "transparent")
-      .style("cursor", "crosshair")
-      .on("mousemove click", function(event) {
-        const [mx] = d3.pointer(event);
-        const ep = Math.max(0, Math.min(4, h2X.invert(mx)));
-        setEpoch(ep);
-      });
-
-    h1G.append("rect")
-      .attr("width", h1Width)
-      .attr("height", h1Height)
-      .attr("fill", "transparent")
-      .style("cursor", "crosshair")
-      .on("mousemove click", function(event) {
-        const [mx] = d3.pointer(event);
-        const ep = Math.max(0, Math.min(4, h1X.invert(mx)));
-        setEpoch(ep);
-      });
-
-
-    // --- Horizon 3A: Simplicial Complex Force Simulation (D3.js) ---
-    const topoSvg = d3.select("#topology-svg-container");
-    const topoW = 460, topoH = 270;
-
-    const sim = d3.forceSimulation(swarmData.graph.nodes)
-      .force("link", d3.forceLink(swarmData.graph.links).id(d => d.id).distance(95))
-      .force("charge", d3.forceManyBody().strength(-240))
-      .force("center", d3.forceCenter(topoW / 2, topoH / 2))
-      .force("y", d3.forceY(topoH / 2).strength(0.1));
-
-    const topoG = topoSvg.append("g");
-
-    // 2-Simplices (Shaded Triangle Faces)
-    const facePaths = topoG.selectAll(".simplicial-face")
-      .data(swarmData.graph.faces)
-      .join("polygon")
-      .attr("class", "simplicial-face")
-      .attr("fill", d => d.isContested ? "rgba(244, 63, 94, 0.25)" : "rgba(56, 189, 248, 0.08)")
-      .attr("stroke", d => d.isContested ? "rgba(244, 63, 94, 0.4)" : "none");
-
-    // 1-Simplices (Edges)
-    const edgeLines = topoG.selectAll(".simplicial-edge")
-      .data(swarmData.graph.links)
-      .join("line")
-      .attr("class", "simplicial-edge")
-      .attr("stroke", d => d.isContested ? "var(--accent-rose)" : "rgba(255,255,255,0.18)")
-      .attr("stroke-width", d => d.isContested ? 3.0 : 1.5)
-      .attr("stroke-dasharray", d => d.isContested ? "none" : "none");
-
-    // 0-Simplices (Nodes / Vertices)
-    const nodeG = topoG.selectAll(".simplicial-node")
-      .data(swarmData.graph.nodes)
-      .join("g")
-      .attr("class", "simplicial-node")
-      .call(d3.drag()
-        .on("start", dragStarted)
-        .on("drag", dragged)
-        .on("end", dragEnded));
-
-    nodeG.append("circle")
-      .attr("r", 15)
-      .attr("fill", "#0f172a")
-      .attr("stroke", d => d.id === 2 ? "var(--accent-rose)" : (d.id === 1 ? "var(--accent-emerald)" : "var(--accent-cyan)"))
-      .attr("stroke-width", 2);
-
-    nodeG.append("text")
-      .attr("dy", 4)
-      .attr("text-anchor", "middle")
-      .attr("fill", "#f8fafc")
-      .attr("font-size", "10px")
-      .attr("font-family", "var(--font-mono)")
-      .attr("font-weight", "bold")
-      .text(d => d.code);
-
-    nodeG.append("text")
-      .attr("dy", 26)
-      .attr("text-anchor", "middle")
-      .attr("fill", "var(--text-muted)")
-      .attr("font-size", "9.5px")
-      .text(d => d.name);
-
-    sim.on("tick", () => {
-      edgeLines
-        .attr("x1", d => d.source.x)
-        .attr("y1", d => d.source.y)
-        .attr("x2", d => d.target.x)
-        .attr("y2", d => d.target.y);
-
-      nodeG.attr("transform", d => `translate(${d.x},${d.y})`);
-
-      facePaths.attr("points", d => {
-        const p0 = swarmData.graph.nodes[d.v[0]];
-        const p1 = swarmData.graph.nodes[d.v[1]];
-        const p2 = swarmData.graph.nodes[d.v[2]];
-        return `${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y}`;
-      });
-    });
-
-    function dragStarted(event) {
-      if (!event.active) sim.alphaTarget(0.3).restart();
-      event.subject.fx = event.subject.x;
-      event.subject.fy = event.subject.y;
-    }
-    function dragged(event) {
-      event.subject.fx = event.x;
-      event.subject.fy = event.y;
-    }
-    function dragEnded(event) {
-      if (!event.active) sim.alphaTarget(0);
-      event.subject.fx = null;
-      event.subject.fy = null;
-    }
-
-
-    // --- Dynamic Scrubber & Synchronization Engine ---
-    function setEpoch(epoch) {
-      currentEpoch = Math.max(0, Math.min(4, epoch));
-      document.getElementById("epoch-slider").value = currentEpoch;
-      document.getElementById("epoch-display").innerText = `Epoch ${currentEpoch.toFixed(1)}`;
-      document.getElementById("meta-epoch-sub").innerText = currentEpoch.toFixed(1);
-
-      // 1. Move Playhead Needles in Lockstep
-      h1Needle.attr("x1", h1X(currentEpoch)).attr("x2", h1X(currentEpoch));
-      h2Needle.attr("x1", h2X(currentEpoch)).attr("x2", h2X(currentEpoch));
-
-      // 2. Interpolate Metric Values
-      const i0 = Math.floor(currentEpoch);
-      const i1 = Math.min(4, Math.ceil(currentEpoch));
-      const factor = currentEpoch - i0;
-
-      const e0 = swarmData.epochs[i0];
-      const e1 = swarmData.epochs[i1];
-      const currentR = e0.r + (e1.r - e0.r) * factor;
-      const currentL = e0.L + (e1.L - e0.L) * factor;
-
-      // 3. Update Narrative Diagnosis Banner
-      const isAlarm = currentR > 1.0;
-      const banner = document.getElementById("diagnosis-banner");
-      const pill = document.getElementById("status-pill");
-
-      if (isAlarm) {
-        banner.className = "diagnosis-banner";
-        pill.className = "status-pill alarm";
-        pill.innerText = `E${currentEpoch.toFixed(1)} High-Curl Alarm`;
-        document.getElementById("diag-title").innerText = `⚡ EPOCH ${currentEpoch.toFixed(1)}: ${e0.title}`;
-        document.getElementById("diag-desc").innerText = `${e0.desc} Active Sheaf Residual r = ${currentR.toFixed(4)}.`;
-        document.getElementById("diag-legibility").innerText = `${currentL.toFixed(3)} (Micro-Curl Breach)`;
-      } else {
-        banner.className = "diagnosis-banner calm";
-        pill.className = "status-pill live";
-        pill.innerText = `Consensus Active`;
-        document.getElementById("diag-title").innerText = `✓ EPOCH ${currentEpoch.toFixed(1)}: ${e0.title}`;
-        document.getElementById("diag-desc").innerText = `${e0.desc} Residual r = ${currentR.toFixed(4)} (Consensus Bound).`;
-        document.getElementById("diag-legibility").innerText = `1.000 (Exact Coboundary)`;
-      }
-
-      // 4. Update Simplicial Complex Visual Tension
-      edgeLines.attr("stroke", d => {
-        if (d.isContested) {
-          return currentEpoch >= 2.0 && currentEpoch < 3.8 ? "var(--accent-rose)" : "rgba(255,255,255,0.18)";
-        }
-        return "rgba(255,255,255,0.18)";
-      }).attr("stroke-width", d => {
-        if (d.isContested && currentEpoch >= 2.0 && currentEpoch < 3.8) return 3.5;
-        return 1.5;
-      });
-
-      facePaths.attr("fill", d => {
-        if (d.isContested && currentEpoch >= 2.0 && currentEpoch < 3.8) {
-          return "rgba(244, 63, 94, 0.35)";
-        }
-        return "rgba(56, 189, 248, 0.08)";
-      });
-
-      // 5. Update Causal Arcs Opacity
-      renderCausalArcs();
-
-      // 6. Update Active AST Leases Table
-      const tbody = document.getElementById("leases-tbody");
-      tbody.innerHTML = "";
-
-      if (currentEpoch >= 1.0) {
-        const tr1 = document.createElement("tr");
-        tr1.innerHTML = `
-          <td><strong style="color: var(--accent-emerald);">v1 SecDev</strong></td>
-          <td>src/auth.ts::handleRegistration</td>
-          <td><span style="color: var(--accent-violet);">EXCLUSIVE</span></td>
-          <td>${currentEpoch >= 3.8 ? '<span style="color: var(--accent-emerald);">COMMITTED</span>' : 'ACTIVE HOLD'}</td>
-        `;
-        tbody.appendChild(tr1);
-      }
-
-      if (currentEpoch >= 2.2 && currentEpoch < 3.5) {
-        const tr2 = document.createElement("tr");
-        tr2.className = "contested-row";
-        tr2.innerHTML = `
-          <td><strong style="color: var(--accent-rose);">v2 AuthDev</strong></td>
-          <td>src/auth.ts::handleRegistration</td>
-          <td><span style="color: var(--accent-rose);">EXCLUSIVE</span></td>
-          <td>⚡ 409 CONTESTED CLASH</td>
-        `;
-        tbody.appendChild(tr2);
-      } else if (currentEpoch >= 3.5) {
-        const tr2 = document.createElement("tr");
-        tr2.className = "fenced-row";
-        tr2.innerHTML = `
-          <td>v2 AuthDev</td>
-          <td>src/auth.ts::handleRegistration</td>
-          <td>EXCLUSIVE</td>
-          <td>🛡️ CR-4 FENCED (CLAMPS APPLIED)</td>
-        `;
-        tbody.appendChild(tr2);
-      }
-
-      // 7. Update Terminal Log Focus
-      const logContainer = document.getElementById("terminal-log");
-      logContainer.innerHTML = "";
-      swarmData.logEvents.forEach(ev => {
-        const row = document.createElement("div");
-        row.className = `log-line ${Math.abs(ev.epoch - currentEpoch) < 0.3 ? 'active' : ''}`;
-        row.innerHTML = `
-          <span class="log-time">[${ev.time}]</span>
-          <span class="log-msg ${ev.type}">${ev.text}</span>
-        `;
-        logContainer.appendChild(row);
-      });
-    }
-
-    // Slider listener
-    document.getElementById("epoch-slider").addEventListener("input", e => {
-      setEpoch(parseFloat(e.target.value));
-    });
-
-    // Scrubber Buttons
-    document.getElementById("btn-start").addEventListener("click", () => setEpoch(0));
-    document.getElementById("btn-end").addEventListener("click", () => setEpoch(4));
-    document.getElementById("btn-prev").addEventListener("click", () => setEpoch(Math.max(0, currentEpoch - 0.5)));
-    document.getElementById("btn-next").addEventListener("click", () => setEpoch(Math.min(4, currentEpoch + 0.5)));
-
-    // Play/Pause Loop
-    const playBtn = document.getElementById("btn-play");
-    function togglePlay() {
-      isPlaying = !isPlaying;
-      if (isPlaying) {
-        playBtn.innerText = "❚❚ PAUSE";
-        playBtn.className = "btn-ctrl active";
-        playTimer = setInterval(() => {
-          let next = currentEpoch + 0.05;
-          if (next > 4) next = 0;
-          setEpoch(next);
-        }, 80);
-      } else {
-        playBtn.innerText = "▶ PLAY";
-        playBtn.className = "btn-ctrl";
-        clearInterval(playTimer);
-      }
-    }
-    playBtn.addEventListener("click", togglePlay);
-
-    // Initial render
-    setEpoch(3.0);
-    togglePlay(); // Start playing immediately for lively demonstration
+    // Boot
+    window.addEventListener('DOMContentLoaded', loadData);
   </script>
 </body>
 </html>

@@ -1,0 +1,203 @@
+% Paper 8 Figure 7: Full-Page 6-Part Narrative Graphic
+% End-to-End Sheaf-Theoretic Closed-Loop Diagnosis and Repair on a 9-Agent WebAuthn Swarm
+% Swiss Modern Systems Graphics: clean metric field, hairline strokes, zero emojis, nano-illustrations.
+
+\begin{figure}[p]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  panel/.style={
+    rectangle,
+    draw=ptDark,
+    line width=0.9pt,
+    fill=white,
+    inner sep=5pt,
+    text width=6.9cm,
+    minimum height=4.6cm,
+    align=left,
+    anchor=north west
+  },
+  nanobox/.style={
+    rectangle,
+    draw=ptDark!60,
+    line width=0.5pt,
+    fill=ptLightGray!70,
+    inner sep=2.5pt,
+    text width=6.2cm,
+    font=\scriptsize,
+    align=left
+  }
+]
+
+% Background Metric Coordinate Field (15.2cm x 15.9cm)
+\draw[swissgrid] (-0.1, -15.8) grid (15.2, 0.2);
+\draw[majorgrid] (-0.1, -15.8) grid (15.2, 0.2);
+
+% =========================================================================
+% ROW 1: TOP (y = 0.0)
+% =========================================================================
+
+% PART 1: 0-CELLS & STALK VECTORS (Top-Left, x = 0.0, y = 0.0)
+\node[panel] (p1) at (0.0, 0.0) {
+  \colorbox{ptDark}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip PART 1: 0-CELLS \& PRIVATE STALK VECTORS\enskip}\\[2pt]
+  {\sffamily\scriptsize\bfseries 9-Agent WebAuthn Swarm $V = \{v_0 \dots v_8\}$}\\[2pt]
+  {\scriptsize Private stalks $\mathcal{F}(v) \cong \mathbb{R}^4$: $x_v = [t_v, b_v, h_L, d_v]^T$}\\[1pt]
+  {\tiny $t_v$: turn clock, $b_v$: budget (\$), $h_L$: AST hash, $d_v$: commit}\\[2pt]
+  {\scriptsize\textbf{Computed Stalk Telemetry at $t = 8\mathrm{s}$}:}
+  \begin{itemize}[leftmargin=7pt,noitemsep,topsep=1pt]
+    \item \scriptsize $v_1$ (Lead): \texttt{[12, \$1.42, 0.500, +0.95]}
+    \item \scriptsize $v_2$ (AuthDev): \texttt{[14, \$2.10, 0.942, +0.88]} (Passkey)
+    \item \scriptsize $v_3$ (TokenSvc): \texttt{[14, \$1.85, 0.119, +0.45]} (RS256)
+  \end{itemize}
+  \vspace{1pt}
+  % Nano Callout 1: Visual Stalk Register
+  \begin{tikzpicture}
+    \node[nanobox] at (0,0) {
+      \textbf{\textsf{NANO-CALLOUT 1.A: PRIVATE STALK REGISTERS}}\\[1pt]
+      \texttt{v2::AuthDev: ast\_lease: "auth\_mid.ts:L45-98" (0x942A)}\\
+      \texttt{v3::TokenSvc: ast\_lease: "auth\_mid.ts:L45-98" (0x119C)}
+    };
+  \end{tikzpicture}
+};
+
+% PART 2: 1-CELLS & FIPA SPEECH ACTS (Top-Right, x = 8.1, y = 0.0)
+\node[panel] (p2) at (8.1, 0.0) {
+  \colorbox{ptBlue}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip PART 2: 1-CELLS \& FIPA RESTRICTION MAPS\enskip}\\[2pt]
+  {\sffamily\scriptsize\bfseries Typed Message Channels as Maps $P_e: \mathbb{R}^4 \to \mathbb{R}^2$}\\[2pt]
+  {\scriptsize Observed cochain: $g_e = P_e x_v - P_e x_u \in \mathbb{R}^2$ for $e = (u,v)$}\\[1pt]
+  {\tiny Projection filter selects interface fields: $S_e = \{h_L, d_v\}$}\\[2pt]
+  {\scriptsize\textbf{FIPA-ACL SC00061G Communicative Acts}:}
+  \begin{itemize}[leftmargin=7pt,noitemsep,topsep=1pt]
+    \item \scriptsize $v_0 \to v_2$: \texttt{REQUEST(action: "MigrateToPasskeys")}
+    \item \scriptsize $v_2 \to v_3$: \texttt{PROPOSE(protocol: "Ed25519", h: 0.942)}
+    \item \scriptsize $v_3 \to v_2$: \texttt{REFUSE(reason: "EnforceRS256", h: 0.119)}
+  \end{itemize}
+  \vspace{1pt}
+  % Nano Callout 2: FIPA Frame Projection
+  \begin{tikzpicture}
+    \node[nanobox] at (0,0) {
+      \textbf{\textsf{NANO-CALLOUT 2.A: FIPA $\to$ 1-COCHAIN PROJECTION}}\\[1pt]
+      \texttt{ACL::INFORM(:sender v2 :content (AST\_CLAIM 0.942))}\\
+      $\implies P_{23} x_{v2} = [0.942, 0.88]^T \implies g_{23} = [0.823, 0.43]^T$
+    };
+  \end{tikzpicture}
+};
+
+% =========================================================================
+% ROW 2: MIDDLE (y = -5.3)
+% =========================================================================
+
+% PART 3: FAULT INJECTION (Mid-Left, x = 0.0, y = -5.3)
+\node[panel] (p3) at (0.0, -5.3) {
+  \colorbox{ptRed}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip PART 3: CONFLICTING DIRECTIVE INJECTION\enskip}\\[2pt]
+  {\sffamily\scriptsize\bfseries Uncoordinated Operator Prompts Induce AST Race}\\[2pt]
+  {\scriptsize At $t = 8\mathrm{s}$, Operator $v_0$ injects contradictory goals: prompts $v_2$ for Ed25519 Passkeys, but prompts $v_3$ for RS256 JWTs.}\\[2pt]
+  {\scriptsize\textbf{Discrepancy Cochains Across 1-Cells}:}
+  \begin{itemize}[leftmargin=7pt,noitemsep,topsep=1pt]
+    \item \scriptsize Link $(v_1, v_2)$: Lead $\leftrightarrow$ AuthDev: $g_{12} = [0.442, -0.07]^T$
+    \item \scriptsize Link $(v_1, v_3)$: Lead $\leftrightarrow$ TokenSvc: $g_{13} = [-0.381, -0.50]^T$
+    \item \scriptsize Contested Link $(v_2, v_3)$: $g_{23} = [0.823, 0.430]^T$
+  \end{itemize}
+  \vspace{1pt}
+  % Nano Callout 3: AST Diff
+  \begin{tikzpicture}
+    \node[nanobox] at (0,0) {
+      \textbf{\textsf{NANO-CALLOUT 3.A: AST LEASE CLASH}}\\[1pt]
+      \texttt{v2: export const verify = WebAuthnVerify(pubKey);}\\
+      \texttt{v3: export const verify = JwtRs256Verify(jwtToken);}
+    };
+  \end{tikzpicture}
+};
+
+% PART 4: COMPLETION RESIDUAL (Mid-Right, x = 8.1, y = -5.3)
+\node[panel] (p4) at (8.1, -5.3) {
+  \colorbox{ptDark}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip PART 4: COMPLETION RESIDUAL \& BLINDNESS\enskip}\\[2pt]
+  {\sffamily\scriptsize\bfseries Certified Contradiction vs Acyclic Logger Blindness}\\[2pt]
+  {\scriptsize Sheaf projection: $\rho = \Pi_K g_K = (I - \delta_0(\delta_0^T \delta_0)^{-1}\delta_0^T) g_K$}\\[1pt]
+  {\scriptsize Evaluated residual norm: $\mathbf{r = \|\rho\|_2 = 17.269 > 0}$ (Alarm!)}\\[2pt]
+  {\scriptsize\textbf{Theorem CR-1: Topological Blindness of Tree Logs}:}
+  \begin{itemize}[leftmargin=7pt,noitemsep,topsep=1pt]
+    \item \scriptsize OpenTelemetry / LangSmith: logs spans as acyclic DAG $\mathcal{T}$.
+    \item \scriptsize Effective resistance on trees: $R_{\mathrm{eff}}^{\mathcal{T}}(e) = 1.000$.
+    \item \scriptsize Residual on DAG: $r_{\text{tree}} = |s|\sqrt{1 - 1} \equiv \mathbf{0.000}$ \textbf{(BLIND!)}
+  \end{itemize}
+  \vspace{1pt}
+  % Nano Callout 4: Circulation Analogy
+  \begin{tikzpicture}
+    \node[nanobox] at (0,0) {
+      \textbf{\textsf{NANO-CALLOUT 4.A: ALGEBRAIC CIRCULATION ON 1-CYCLES}}\\[1pt]
+      Tree $\mathcal{T}$: $\ker(B_{\mathcal{T}}^T) = \{0\} \implies \text{Circulation} \equiv 0 \implies \text{Silent Failure}$\\
+      Simplex $K$: $B_K^T \rho = 0, \ \rho \neq 0 \implies \text{Trapped Nonzero Flow}$
+    };
+  \end{tikzpicture}
+};
+
+% =========================================================================
+% ROW 3: BOTTOM (y = -10.6)
+% =========================================================================
+
+% PART 5: HODGE TRIADIC CURL (Bottom-Left, x = 0.0, y = -10.6)
+\node[panel] (p5) at (0.0, -10.6) {
+  \colorbox{ptGold!85!black}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip PART 5: DISCRETE HODGE-HELMHOLTZ TRIAGE\enskip}\\[2pt]
+  {\sffamily\scriptsize\bfseries Triadic Curl Localization \& Swarm Legibility Ratio}\\[2pt]
+  {\scriptsize Discrete Hodge decomposition on 2-complex: $g = \delta_0 x + h + \delta_1^* \psi$}\\[1pt]
+  {\scriptsize Triad $\tau(v_1, v_2, v_3)$: $(\delta_1 g)_\tau = g_{12} + g_{23} - g_{13} = [0.82, 0.43]^T$}\\[2pt]
+  {\scriptsize\textbf{Energy Spectrum \& Automated Triage}:}
+  \begin{itemize}[leftmargin=7pt,noitemsep,topsep=1pt]
+    \item \scriptsize Triadic Curl Energy: $\|\delta_1^* \psi\|^2 = \mathbf{292.8}$ (98.0\% of error)
+    \item \scriptsize Harmonic Cavity Energy: $\|h\|^2 = \mathbf{6.0}$ (2.0\% of error)
+    \item \scriptsize \textbf{Swarm Legibility Ratio}: $\mathcal{L}(g) = \frac{6.0}{6.0 + 292.8} = \mathbf{0.020} \ll 1$
+  \end{itemize}
+  \vspace{1pt}
+  % Nano Callout 5: Diagnostic Decision Rule
+  \begin{tikzpicture}
+    \node[nanobox] at (0,0) {
+      \textbf{\textsf{NANO-CALLOUT 5.A: TOPOLOGICAL CLASSIFICATION RULE}}\\[1pt]
+      $\mathcal{L} \approx 0 \implies$ \textbf{Triadic Review Bug} (Micro AST lease clash)\\
+      $\mathcal{L} \approx 1 \implies$ \textbf{Macro Network Cavity} (Cross-cluster bridge drift)
+    };
+  \end{tikzpicture}
+};
+
+% PART 6: THEOREM CR-4 REPAIR (Bottom-Right, x = 8.1, y = -10.6)
+\node[panel] (p6) at (8.1, -10.6) {
+  \colorbox{seagreen}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip PART 6: CLOSED-LOOP THEOREM CR-4 REPAIR\enskip}\\[2pt]
+  {\sffamily\scriptsize\bfseries Min-Cut Energy Fencing Restores Consensus}\\[2pt]
+  {\scriptsize Controller identifies maximum energy-to-cost link:}\\[1pt]
+  {\scriptsize $e^* = \arg\max_{e \in E} \frac{\|\rho_e\|^2}{w(e)} = (v_2, v_3)$ (Contested AST claim interface)}\\[2pt]
+  {\scriptsize\textbf{Automated FIPA Arbitration Protocol}:}
+  \begin{itemize}[leftmargin=7pt,noitemsep,topsep=1pt]
+    \item \scriptsize Controller locks $e_{23}$, revokes $v_3$ stale RS256 write lease.
+    \item \scriptsize $v_3 \xrightarrow{\text{CONFIRM}} v_2$: Adopts Ed25519 Passkey specification.
+    \item \scriptsize Inconsistency residual: $17.269 \xrightarrow{\text{Round 1}} \mathbf{0.000}$ ($\Delta E \to 0$).
+  \end{itemize}
+  \vspace{1pt}
+  % Nano Callout 6: Monotonic Energy Dissipation
+  \begin{tikzpicture}
+    \node[nanobox] at (0,0) {
+      \textbf{\textsf{NANO-CALLOUT 6.A: MONOTONIC ENERGY DISSIPATION}}\\[1pt]
+      Iteration 0: $r = 17.269, \ \mathcal{E} = 298.8 \implies \text{Fencing } e_{23}$\\
+      Iteration 1: $r = 0.000, \ \mathcal{E} = 0.0 \implies \textbf{Consensus Restored in 1 Step}$
+    };
+  \end{tikzpicture}
+};
+
+% =========================================================================
+% ORTHOGONAL GUTTER ARROWS (Explicit coordinates, strictly inside gaps)
+% =========================================================================
+% Horizontal row arrows (across the 1.0cm gap between x=7.1 and x=8.1)
+\draw[dArr, line width=1.1pt] (7.1, -2.4) -- node[above=1pt, font=\sffamily\bfseries\tiny, mask] {$P_e$} (8.1, -2.4);
+\draw[dArr, line width=1.1pt] (7.1, -7.7) -- node[above=1pt, font=\sffamily\bfseries\tiny, mask] {$\Pi_K g_K$} (8.1, -7.7);
+\draw[dArr, line width=1.1pt] (7.1, -13.0) -- node[above=1pt, font=\sffamily\bfseries\tiny, mask] {$e^*$} (8.1, -13.0);
+
+% Vertical progression arrows (strictly inside the 0.5cm row gaps)
+\draw[rArr, line width=1.1pt] (3.55, -4.8) -- node[right=1pt, font=\sffamily\bfseries\tiny, mask] {$\Delta h_L > 0$} (3.55, -5.3);
+\draw[dArr, line width=1.1pt] (3.55, -10.1) -- node[right=1pt, font=\sffamily\bfseries\tiny, mask] {Cochain $g$} (3.55, -10.6);
+
+\draw[rArr, line width=1.1pt] (11.65, -4.8) -- node[right=1pt, font=\sffamily\bfseries\tiny, mask] {Equivocation} (11.65, -5.3);
+\draw[dArr, line width=1.1pt] (11.65, -10.1) -- node[right=1pt, font=\sffamily\bfseries\tiny, mask] {Curl $\delta_1^* \psi$} (11.65, -10.6);
+
+\end{tikzpicture}
+\caption{The Complete Closed-Loop Cohomological Control Cycle on a 9-Agent Production Swarm. The 6-part narrative tracks the WebAuthn passkey refactor through private stalk emission (Part 1), FIPA communicative cochains (Part 2), operator fault injection (Part 3), topological residual detection vs. acyclic logging blindness (Part 4), simplicial Hodge-Helmholtz triadic curl localization (Part 5), and Theorem CR-4 greedy closed-loop repair (Part 6).}
+\label{fig:full-cycle-narrative}
+\end{figure}

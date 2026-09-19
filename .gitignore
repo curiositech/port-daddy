@@ -29,6 +29,9 @@ coverage/
 
 # TLC model checker intermediate state (only check in .tla, .cfg, .run.log)
 proofs/**/states/
+*.jar
+*.aux
+*.out
 
 # OG image scratch
 website-v2/.tmp-og/

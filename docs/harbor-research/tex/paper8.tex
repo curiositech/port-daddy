@@ -703,7 +703,20 @@ Therefore, the greedy energy-to-cost controller is guaranteed to terminate in at
 
 \section{Empirical Evaluation \& Case Studies}\label{sec:eval}
 
-We evaluate the theory across six benchmark scenarios implemented in Python simulation suites.
+We evaluate the theory across seven benchmark scenarios implemented in Python simulation suites.
+
+\subsection{End-to-End Walkthrough: 9-Agent WebAuthn Production Swarm}\label{sec:webauthn-swarm}
+To demonstrate the complete closed-loop theory on an asynchronous multi-agent system executing a real software engineering task, we deploy a 9-agent heterogeneous swarm ($V = \{v_0 \dots v_8\}$) communicating via formal FIPA-ACL speech acts across a 2-simplicial complex ($|E| = 16$, $|F| = 10$). Figure~\ref{fig:full-cycle-narrative} illustrates the complete 6-part narrative:
+\begin{enumerate}[noitemsep]
+  \item \textbf{0-Cell Stalk Telemetry}: Each agent $v$ emits private stalk vector $x_v = [t_v, b_v, h_L, d_v]^T \in \mathbb{R}^4$ tracking turn clock $t_v$, cumulative budget $b_v$, AST symbol lease hash $h_L$, and git commit scalar $d_v$.
+  \item \textbf{1-Cell FIPA Restriction Maps}: Formal FIPA speech acts (\texttt{REQUEST}, \texttt{PROPOSE}, \texttt{INFORM}, \texttt{REFUSE}) are unpacked into coordinate projection restriction maps $P_e: \mathbb{R}^4 \to \mathbb{R}^2$ defining 1-cochain discrepancies $g_e = P_e x_v - P_e x_u$.
+  \item \textbf{Conflicting Directive Injection}: At $t = 8\mathrm{s}$, Operator Proxy $v_0$ prompts AuthDev $v_2$ to enforce Passkeys (Ed25519) while simultaneously prompting TokenService $v_3$ to retain RS256 JWTs, inducing an AST write-lease collision ($h_L(v_2) = 0.942 \neq 0.119 = h_L(v_3)$) on \texttt{auth\_middleware.ts}.
+  \item \textbf{Topological Completion Residual}: Evaluating $\rho = \Pi_K g_K$ triggers a critical alarm ($r = 17.269 > 0$). In contrast, standard acyclic DAG loggers (OpenTelemetry, LangSmith) evaluate $r_{\text{tree}} \equiv 0.000$ due to cut-edge blindness (Theorem CR-1), failing to detect the contradiction.
+  \item \textbf{Discrete Hodge Triadic Curl Triage}: Simplicial Hodge decomposition yields $\|\delta_1^* \psi\|^2 = 292.8$ (98\% of inconsistency energy) across review triad $\tau(v_1, v_2, v_3)$ with $\mathcal{L}(g) = 0.020 \ll 1$, algebraically proving the issue is an internal triadic review collision rather than an architectural network partition.
+  \item \textbf{Theorem CR-4 Closed-Loop Repair}: The greedy controller targets maximum energy link $e^* = (v_2, v_3)$, triggers FIPA arbitration (\texttt{REFUSE} $\to$ \texttt{CONFIRM}), collapsing the residual from $17.269 \to 0.000$ in a single step ($\Delta E \to 0$) and restoring certified global consensus.
+\end{enumerate}
+
+\IfFileExists{fig-paper8-full-cycle-narrative.tex}{\input{fig-paper8-full-cycle-narrative.tex}}{\input{../figures/fig-paper8-full-cycle-narrative.tex}}
 
 \subsection{Case Study 1: The Drydock Triadic Review Hallucination (\texorpdfstring{$\mathcal{L} = 0.000$}{L=0.000})}
 Three agents collaborate on code refactoring: Coder $v_0$ (Claude 3.7), Critic $v_1$ (Codex), and Manager $v_2$ (Gemini 2.5).
