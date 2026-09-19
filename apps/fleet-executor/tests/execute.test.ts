@@ -23,6 +23,7 @@ import {
   aiStub,
   makeEnv,
   makeJob,
+  DEFAULT_PR_DIFF,
   type GitHubState,
 } from './harness.js';
 
@@ -199,7 +200,7 @@ async function seedMediatorOrders(control: ReturnType<typeof memoryKV>, modifyTe
 
 /** Match the executor's live PR evidence digest for the shared GitHub harness. */
 async function checkpointReviewInputForState(): Promise<string> {
-  const diff = state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed';
+  const diff = state.prDiff ?? DEFAULT_PR_DIFF;
   return createCheckpointReviewInputSha256({
     owner: 'erichowens',
     repo: 'port-daddy',
@@ -215,7 +216,13 @@ async function checkpointReviewInputForState(): Promise<string> {
     isFork: state.prHeadRepo !== state.prBaseRepo,
     state: state.prState ?? '',
     merged: state.prMerged === true,
-    files: state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }],
+    files: state.prFiles ?? [{
+      filename: 'src/x.ts',
+      status: 'modified',
+      additions: 1,
+      deletions: 1,
+      patch: '@@ -1,4 +1,4 @@\n context one\n context two\n context three\n-old\n+changed',
+    }],
     diff,
     diffBytes: new TextEncoder().encode(diff).byteLength,
     diffTruncated: false,
@@ -711,6 +718,150 @@ describe('blocking-ship verdict → check conclusion', () => {
     expect(state.completed[0].conclusion).toBe('failure');
   });
 
+  it('rejects a non-publishable finding before it can vote PASS or poison the aggregate review', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const lineZero = [
+      '```json',
+      JSON.stringify([{ path: 'src/x.ts', line: 0, severity: 'HIGH', body: 'invalid line' }]),
+      '```',
+      '',
+      'FLEET-VERDICT: PASS',
+    ].join('\n');
+    const ai = aiStub({ perShip: { 'code-reviewer': lineZero } });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+    );
+
+    // The initial parse and the bounded repair path both reject the structurally
+    // invalid result. It becomes a broken required ship before aggregation,
+    // so the literal PASS cannot authorize a green check or a checkpoint.
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('pd-code-reviewer [REQUIRED]: error');
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+
+    // The aggregate summary remains publishable, but the rejected inline
+    // finding never reaches GitHub's all-or-nothing review-comments payload.
+    expect(state.reviews).toHaveLength(1);
+    expect(state.reviews[0].comments).toEqual([]);
+  });
+
+  it('rejects a positive finding line outside every RIGHT-side diff hunk', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const outsideHunk = [
+      '```json',
+      JSON.stringify([{ path: 'src/x.ts', line: 99, severity: 'HIGH', body: 'not publishable' }]),
+      '```',
+      '',
+      'FLEET-VERDICT: PASS',
+    ].join('\n');
+    const ai = aiStub({
+      perShip: { 'code-reviewer': '```json\n[]\n```\n\nFLEET-VERDICT: PASS' },
+      perShipQueue: { 'code-reviewer': [outsideHunk] },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    // A known finding is never sent through the format-repair model, which
+    // could otherwise erase it by returning the empty PASS fallback above.
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(d1.steps.filter(step => step.kind === 'ship-repair')).toHaveLength(0);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('pd-code-reviewer [REQUIRED]: error');
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+    expect(state.reviews).toHaveLength(1);
+    expect(state.reviews[0].comments).toEqual([]);
+  });
+
+  it('authorizes a finding from the full raw diff when the first /files page omits it', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prFiles = Array.from({ length: PR_FILES_PAGE_SIZE }, (_, index) => ({
+      filename: `docs/page-one-${index}.md`,
+      status: 'modified',
+      additions: 1,
+      deletions: 1,
+      patch: '@@ -1 +1 @@\n-old\n+new',
+    }));
+    state.prDiff = [
+      'diff --git a/src/late.ts b/src/late.ts',
+      '--- a/src/late.ts',
+      '+++ b/src/late.ts',
+      '@@ -0,0 +1 @@',
+      '+export const late = true;',
+    ].join('\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const finding = [
+      '```json',
+      JSON.stringify([{ path: 'src/late.ts', line: 1, severity: 'HIGH', body: 'late-page defect' }]),
+      '```',
+      '',
+      'FLEET-VERDICT: BLOCK',
+    ].join('\n');
+    const ai = aiStub({ perShip: { 'code-reviewer': finding } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/late.ts', line: 1, body: '[code-reviewer] late-page defect' },
+    ]);
+  });
+
+  it('preserves valid findings without a verdict and defaults them to BLOCK without repair', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const incomplete = [
+      '```json',
+      JSON.stringify([{ path: 'src/x.ts', line: 1, severity: 'HIGH', body: 'must survive repair' }]),
+      '```',
+      'The verdict line was accidentally omitted.',
+    ].join('\n');
+    const ai = aiStub({
+      perShip: { 'code-reviewer': '```json\n[]\n```\n\nFLEET-VERDICT: PASS' },
+      perShipQueue: { 'code-reviewer': [incomplete] },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(d1.steps.filter(step => step.kind === 'ship-repair')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-contract-defaulted')).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/x.ts', line: 1, body: '[code-reviewer] must survive repair' },
+    ]);
+  });
+
+  it('does not checkpoint repair prose that never emits its mandatory verdict', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const incomplete = '```json\n[]\n```\nI will emit FLEET-VERDICT after this explanation.';
+    const ai = aiStub({ perShip: { 'code-reviewer': incomplete } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('no usable output');
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+  });
+
   it('blocking ship that errors => failure (fail closed) and other ships still run', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
     const kv = memoryKV();
@@ -963,7 +1114,7 @@ describe('map-reduce fan-out', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const db = memoryD1();
-    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+    const ai = aiStub({ perShip: { 'code-reviewer': CONTRACT_MINIMAL_PASS } });
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
 
@@ -1020,7 +1171,7 @@ describe('map-reduce fan-out', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const db = memoryD1();
-    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+    const ai = aiStub({ perShip: { 'code-reviewer': CONTRACT_MINIMAL_PASS } });
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
 
@@ -1063,7 +1214,7 @@ describe('map-reduce fan-out', () => {
       const kv = memoryKV();
       seedToken(kv, 42);
       const db = memoryD1();
-      const ai = aiStub({ perShip: { 'red-team': reviewWithFinding('PASS') } });
+      const ai = aiStub({ perShip: { 'red-team': CONTRACT_MINIMAL_PASS } });
 
       await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
 
@@ -1113,6 +1264,7 @@ describe('map-reduce fan-out', () => {
     // checking it too late, even though each file fits by itself.
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '@@ -0,0 +1,32 @@\n' +
       '+contextSafeSource\n'.repeat(32);
     state.prDiff = [file('src/x.ts'), file('src/a.ts'), file('src/b.ts')].join('');
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
@@ -1167,6 +1319,7 @@ describe('map-reduce fan-out', () => {
     const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      `@@ -0,0 +1,${linesPerFile} @@\n` +
       '+line\n'.repeat(linesPerFile);
     state.prDiff = ['src/x.ts', 'src/a.ts', 'src/b.ts', 'src/c.ts']
       .map(file)
@@ -2354,6 +2507,67 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('failure');
   });
 
+  it('finishes the finite roster instead of yielding after any checkpoint write fails', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [];
+    state.branches = [];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.failNextShipCheckpointInsert = true;
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+
+    const disposition = await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      // A one-ship slice makes the fail-closed condition direct: the first
+      // failed checkpoint already reaches the nominal continuation threshold,
+      // yet every remaining ship must still execute in this invocation.
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    );
+
+    expect(disposition).toBeUndefined();
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND).map(step => step.ship))
+      .toEqual(['code-reviewer', 'qa']);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('refuses a checkpoint that the resume parser cannot reconstruct', async () => {
+    const d1 = memoryD1();
+    const invalidResult = {
+      ship: 'qa',
+      blocking: false,
+      verdict: 'PASS' as const,
+      errored: false,
+      findings: [{
+        path: 'src/x.ts',
+        line: 0,
+        severity: 'MEDIUM' as const,
+        body: 'A zero line serializes but is not a resumable finding.',
+      }],
+    };
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:invalid-checkpoint',
+      0,
+      invalidResult,
+      TEST_CHECKPOINT_BINDING,
+    )).resolves.toBe(false);
+
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+  });
+
   it('keeps an incomplete-inventory gated ship in the continuation roster', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_RED_TEAM_YAML);
     // An unparseable `/files` payload previously made red-team look gated out,
@@ -2364,8 +2578,8 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     const d1 = memoryD1();
     const ai = aiStub({
       perShip: {
-        'code-reviewer': reviewWithFinding('PASS'),
-        'red-team': reviewWithFinding('PASS'),
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        'red-team': CONTRACT_MINIMAL_PASS,
       },
     });
 
@@ -2669,7 +2883,13 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       '+export const changed = true;',
       '',
     ].join('\n');
-    state.prFiles = [{ filename: 'src/changed.ts', status: 'added', additions: 1, deletions: 0 }];
+    state.prFiles = [{
+      filename: 'src/changed.ts',
+      status: 'added',
+      additions: 1,
+      deletions: 0,
+      patch: '@@ -0,0 +1 @@\n+export const changed = true;',
+    }];
     const currentBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
     expect(currentBinding).not.toEqual(priorBinding);
 
@@ -2684,7 +2904,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       priorBinding,
     );
 
-    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    const ai = aiStub({ perShip: { 'code-reviewer': CONTRACT_MINIMAL_PASS } });
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
 
     expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
@@ -2809,6 +3029,59 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       },
       binding,
     )).resolves.toBe(false);
+    expect(d1.steps).toHaveLength(0);
+  });
+
+  it.each([
+    {
+      label: 'a malformed finding',
+      result: {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS' as const,
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 0, severity: 'HIGH' as const, body: 'bad line' }],
+      },
+    },
+    {
+      label: 'an invalid coverage explanation',
+      result: {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS' as const,
+        errored: false,
+        findings: [],
+        reviewCoverage: 'partial' as const,
+        reviewCoverageReason: 'x'.repeat(2_049),
+      },
+    },
+  ])('does not claim checkpoint progress for $label that cannot resume', async ({ result }) => {
+    const d1 = memoryD1();
+    const binding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      result,
+      binding,
+    )).resolves.toBe(false);
+
+    expect(d1.steps).toHaveLength(0);
+  });
+
+  it('rejects a malformed checkpoint binding before serialization', async () => {
+    const d1 = memoryD1();
+    const { reviewInputSha256: _missingDigest, ...malformedBinding } = TEST_CHECKPOINT_BINDING;
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      malformedBinding as unknown as typeof TEST_CHECKPOINT_BINDING,
+    )).resolves.toBe(false);
+
     expect(d1.steps).toHaveLength(0);
   });
 
@@ -3109,25 +3382,26 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
   });
 
   it('a valid-but-v2 checkpoint is ignored and re-runs the ship', async () => {
+    const checkpointSchemaVersion = 2;
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const d1 = memoryD1();
-    // This is the former v2 wire shape: clean and internally valid, but it
-    // predates trusted config/contract binding so must not resume after deploy.
+    // This older wire shape predates trusted config/contract binding, so it
+    // cannot resume after deploy.
     d1.steps.push({
       runId: 'run:delivery-abc',
       seq: SHIP_CHECKPOINT_SEQ_BASE,
       kind: SHIP_CHECKPOINT_KIND,
       ship: 'code-reviewer',
-      title: 'v2 clean checkpoint',
+      title: `v${checkpointSchemaVersion} clean checkpoint`,
       detail: JSON.stringify({
         ship: 'code-reviewer',
         blocking: true,
         verdict: 'PASS',
         errored: false,
         findings: [],
-        checkpointSchemaVersion: 2,
+        checkpointSchemaVersion,
       }),
     });
 
@@ -3224,6 +3498,94 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
 
     await expect(loadShipCheckpoints(env, 'run:delivery-abc', TEST_EXPECTED_CHECKPOINT_BINDINGS))
       .resolves.toEqual(new Map());
+  });
+
+  it('reuses a reviewable v4 checkpoint when settled publication is retried', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const job = makeJob();
+    const first = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding('PASS', 'durable finding') },
+    });
+
+    // Simulate GitHub refusing the public terminal check only after Fleet has
+    // completed the ship, checkpointed it, and settled its managed spend.
+    state.failCompleteCheckRun = 99;
+    await expect(executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: kv, AI: first.ai, DB: d1.db }),
+    )).rejects.toThrow(/check completion failed/i);
+
+    expect(first.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.reservations).toHaveLength(1);
+    expect(d1.reservations[0].state).toBe('settled');
+    const checkpoint = d1.steps.find(step => step.kind === SHIP_CHECKPOINT_KIND);
+    expect(checkpoint).toBeDefined();
+    expect(JSON.parse(String(checkpoint?.detail)).checkpointSchemaVersion).toBe(4);
+    expect(state.completed).toHaveLength(0);
+
+    // A settled reservation forbids new AI. The redelivery must revalidate the
+    // retained finding against the current RIGHT-side patch and publish from
+    // that durable evidence instead of becoming permanently unrecoverable.
+    state.failCompleteCheckRun = 0;
+    const retry = aiStub({
+      perShip: { 'code-reviewer': 'must not run\n\nFLEET-VERDICT: BLOCK' },
+    });
+    await executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: kv, AI: retry.ai, DB: d1.db }),
+    );
+
+    expect(retry.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/x.ts', line: 1, body: '[code-reviewer] durable finding' },
+    ]);
+  });
+
+  it('refuses an unpublishable v4 checkpoint during settled publication replay', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.reservations.push({
+      runId: 'run:delivery-abc',
+      installationId: 42,
+      retailMicrousd: 100_000_000,
+      providerCostCapMicrousd: 25_000_000,
+      providerCostMicrousd: 0,
+      state: 'settled',
+    });
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 99, severity: 'HIGH', body: 'outside the diff' }],
+      },
+      await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer'),
+    );
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'must not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+    )).rejects.toThrow(/settled run .* lacks checkpoint code-reviewer/i);
+
+    expect(ai.calls).toHaveLength(0);
+    expect(d1.steps.some(step =>
+      step.kind === 'ship-checkpoint-invalidated' &&
+      String(step.detail).includes('findings-location-mismatch')
+    )).toBe(true);
   });
 
   it('an invalid ship index uses the first reserved checkpoint slot', async () => {

@@ -106,6 +106,108 @@ async function establishConflict(harness: ReturnType<typeof buildHarness>) {
 }
 
 describe('authenticated claim conflict automatic Parley', () => {
+  test('keeps omitted-worktree preflight and storage in the explicit unscoped world', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'unscoped-owner');
+    const challenger = mintTestActor(harness.actorSouls, 'unscoped-challenger');
+
+    const first = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: { purpose: 'unscoped owner', files: ['README.md'] },
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({ success: true, worktreeId: null, files: ['README.md'] });
+
+    const duplicate = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: challenger.headers,
+      payload: { purpose: 'unscoped challenger', files: ['README.md'] },
+    });
+    expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.json()).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+      conflicts: [expect.objectContaining({ sessionId: first.json().id })],
+    });
+    await harness.app.close();
+  });
+
+  test('rejects a supplied malformed worktree before deriving claim scope', async () => {
+    const harness = buildHarness();
+    const owner = mintTestActor(harness.actorSouls, 'malformed-worktree-owner');
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: {
+        purpose: 'must not become unscoped',
+        worktree: { id: 'partial', root: '/fixtures/partial' },
+        files: ['README.md'],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      success: false,
+      code: 'WORKTREE_CONTEXT_INVALID',
+      worktree: null,
+    });
+    expect(harness.sessions.list({ status: 'active', allWorktrees: true }).sessions).toHaveLength(0);
+    await harness.app.close();
+  });
+
+  test('does not report same relative paths in different worktree worlds as conflicts', async () => {
+    const harness = buildHarness();
+    const alpha = mintTestActor(harness.actorSouls, 'scope-alpha');
+    const beta = mintTestActor(harness.actorSouls, 'scope-beta');
+    const alphaWorktree = {
+      id: 'alpha-main', root: '/fixtures/alpha', name: 'alpha', branch: 'main', isMain: true,
+    };
+    const betaWorktree = {
+      id: 'beta-main', root: '/fixtures/beta', name: 'beta', branch: 'main', isMain: true,
+    };
+    const alphaSession = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: alpha.headers,
+      payload: { purpose: 'alpha owner', worktree: alphaWorktree, files: ['README.md'] },
+    });
+    expect(alphaSession.statusCode).toBe(200);
+
+    const betaStartWithClaim = await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: beta.headers,
+      payload: { purpose: 'beta start owner', worktree: betaWorktree, files: ['README.md'] },
+    });
+    expect(betaStartWithClaim.statusCode).toBe(200);
+    expect(betaStartWithClaim.json()).toMatchObject({ success: true, files: ['README.md'] });
+
+    const betaTarget = (await harness.app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: beta.headers,
+      payload: {
+        purpose: 'beta second world',
+        worktree: { ...betaWorktree, id: 'beta-linked', root: '/fixtures/beta-linked', isMain: false },
+      },
+    })).json();
+    const betaClaim = await harness.app.inject({
+      method: 'POST',
+      url: `/sessions/${betaTarget.id}/files`,
+      headers: beta.headers,
+      payload: { files: ['README.md'] },
+    });
+    expect(betaClaim.statusCode).toBe(200);
+    expect(betaClaim.json()).toMatchObject({ success: true, claimed: ['README.md'] });
+    expect(harness.parley.list({ harbor: 'local' })).toHaveLength(0);
+    await harness.app.close();
+  });
+
   test('creates exactly one indexed Parley and one inbox summons per live actor across replay and force', async () => {
     const harness = buildHarness();
     const { owner, challenger, challengerSession } = await establishConflict(harness);

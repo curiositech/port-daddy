@@ -41,6 +41,12 @@ export interface Finding {
   body: string;
 }
 
+/** Changed-file evidence needed to prove an inline comment is publishable. */
+export interface ReviewablePatch {
+  filename: string;
+  patch?: string;
+}
+
 // First fenced ```json … ``` block. Non-greedy body; tolerant of trailing
 // whitespace before the closing fence.
 const FINDINGS_BLOCK_RE = /```json\s*\n([\s\S]*?)\n?```/;
@@ -89,7 +95,14 @@ export function parseShipFindings(output: string): Finding[] | null {
   for (const item of parsed) {
     if (!item || typeof item !== 'object') return null;
     const o = item as Record<string, unknown>;
-    if (typeof o.path !== 'string' || typeof o.line !== 'number' || typeof o.body !== 'string') {
+    if (
+      typeof o.path !== 'string' ||
+      !o.path.trim() ||
+      !Number.isSafeInteger(o.line) ||
+      (o.line as number) < 1 ||
+      typeof o.body !== 'string' ||
+      !o.body.trim()
+    ) {
       return null; // element does not match the Finding schema
     }
     // Separator is the six-character ESCAPE \u0000, never a literal NUL byte.
@@ -101,12 +114,142 @@ export function parseShipFindings(output: string): Finding[] | null {
     seen.add(key);
     findings.push({
       path: o.path,
-      line: o.line,
+      line: o.line as number,
       severity: coerceSeverity(o.severity),
       body: o.body,
     });
   }
   return findings;
+}
+
+/**
+ * Return every RIGHT-side blob line GitHub exposes in one unified patch.
+ * Context and added lines are reviewable; deleted lines exist only on LEFT.
+ */
+function rightSidePatchLines(patch: string): Set<number> {
+  const lines = new Set<number>();
+  let rightLine: number | null = null;
+
+  for (const rawLine of patch.replace(/\r\n/g, '\n').split('\n')) {
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(rawLine);
+    if (hunk) {
+      rightLine = Number(hunk[1]);
+      continue;
+    }
+    if (rightLine === null || rawLine.startsWith('\\')) continue;
+    if (rawLine.startsWith('+') || rawLine.startsWith(' ')) {
+      lines.add(rightLine);
+      rightLine += 1;
+      continue;
+    }
+    if (rawLine.startsWith('-')) continue;
+    // Text without a unified-diff prefix is outside a hunk. Stop carrying the
+    // cursor so malformed or synthetic patch text cannot mint authority.
+    rightLine = null;
+  }
+
+  return lines;
+}
+
+/** Decode one Git path token, including core.quotePath C-style escapes. */
+function decodeGitPathToken(value: string): string | null {
+  const token = value.trim();
+  if (!token.startsWith('"')) return token || null;
+  if (!token.endsWith('"') || token.length < 2) return null;
+
+  const bytes: number[] = [];
+  const encoder = new TextEncoder();
+  const escapedByte = new Map<string, number>([
+    ['a', 0x07], ['b', 0x08], ['t', 0x09], ['n', 0x0a],
+    ['v', 0x0b], ['f', 0x0c], ['r', 0x0d], ['"', 0x22], ['\\', 0x5c],
+  ]);
+  for (let i = 1; i < token.length - 1;) {
+    if (token[i] !== '\\') {
+      const codePoint = token.codePointAt(i);
+      if (codePoint === undefined) return null;
+      const character = String.fromCodePoint(codePoint);
+      bytes.push(...encoder.encode(character));
+      i += character.length;
+      continue;
+    }
+
+    i += 1;
+    if (i >= token.length - 1) return null;
+    const escaped = token[i];
+    if (/[0-7]/.test(escaped)) {
+      let octal = escaped;
+      i += 1;
+      while (i < token.length - 1 && octal.length < 3 && /[0-7]/.test(token[i])) {
+        octal += token[i];
+        i += 1;
+      }
+      bytes.push(Number.parseInt(octal, 8));
+      continue;
+    }
+    bytes.push(escapedByte.get(escaped) ?? escaped.charCodeAt(0));
+    i += 1;
+  }
+  return new TextDecoder().decode(Uint8Array.from(bytes));
+}
+
+function postImagePath(section: string): string | null {
+  for (const line of section.split('\n')) {
+    if (!line.startsWith('+++ ')) continue;
+    const decoded = decodeGitPathToken(line.slice(4));
+    if (!decoded || decoded === '/dev/null') return null;
+    return decoded.startsWith('b/') ? decoded.slice(2) : null;
+  }
+
+  // GitHub's 406 reconstruction uses `/files` patches, whose bodies begin at
+  // `@@` and therefore have no +++ marker. A rename-to line is unambiguous;
+  // otherwise split the diff header at its final ` b/` boundary so ordinary
+  // paths containing spaces remain intact.
+  for (const line of section.split('\n')) {
+    if (line.startsWith('rename to ')) return decodeGitPathToken(line.slice('rename to '.length));
+    if (!line.startsWith('diff --git a/')) continue;
+    const remainder = line.slice('diff --git a/'.length);
+    const boundary = remainder.lastIndexOf(' b/');
+    if (boundary !== -1) return remainder.slice(boundary + 3).trim() || null;
+  }
+  return null;
+}
+
+/**
+ * Derive comment authority from the exact unified diff shown to the reviewer.
+ *
+ * GitHub's `/files` endpoint is paginated and may omit large patches, while
+ * the raw diff is the actual model input. Keeping the entire file section as
+ * `patch` lets the existing RIGHT-side hunk parser remain the sole line-level
+ * authority without trusting a partial, parallel inventory.
+ */
+export function reviewablePatchesFromUnifiedDiff(diff: string): ReviewablePatch[] {
+  const patches: ReviewablePatch[] = [];
+  for (const section of diff.replace(/\r\n/g, '\n').split(/(?=^diff --git )/m)) {
+    if (!section.startsWith('diff --git ')) continue;
+    const filename = postImagePath(section);
+    if (filename) patches.push({ filename, patch: section });
+  }
+  return patches;
+}
+
+/**
+ * Prove every finding can be submitted as a RIGHT-side GitHub review comment.
+ * Missing files, omitted patches, deleted lines, and out-of-hunk lines fail
+ * closed so a green verdict cannot precede an all-or-nothing review rejection.
+ */
+export function shipFindingLocationsAreReviewable(
+  findings: Finding[],
+  files: ReviewablePatch[],
+): boolean {
+  if (findings.length === 0) return true;
+
+  const reviewable = new Map<string, Set<number>>();
+  for (const file of files) {
+    if (typeof file.patch !== 'string') continue;
+    reviewable.set(file.filename, rightSidePatchLines(file.patch));
+  }
+
+  return findings.every(finding => reviewable.get(finding.path)?.has(finding.line) === true);
 }
 
 /**
@@ -276,9 +419,9 @@ export function reviewEventFor(results: ShipResult[]): 'COMMENT' | 'REQUEST_CHAN
  * THE BROKEN-SHIP DOCTRINE (operator ruling, 2026-08-19). "Advisory" scopes a
  * ship's JUDGMENT, not its machinery. An advisory ship saying BLOCK is an
  * opinion the operator chose not to gate on — that stays `neutral`. But an
- * advisory ship that errored, returned no usable output, or emitted a
- * malformed block did not render an opinion at all: the fleet itself is
- * broken, and a fleet run that silently tolerates its own broken ships trains
+ * advisory ship that errored, returned no usable output, or emitted findings
+ * the fleet could not safely admit did not render an opinion at all: the fleet
+ * itself is broken, and a fleet run that silently tolerates broken ships trains
  * everyone to ignore the fleet. Earlier doctrine resolved these to `neutral`
  * ("advisory paths fail open"), and the observable result was an entire run —
  * pd-spark, pd-lookout, pd-spider returning nothing usable, pd-snipe emitting
