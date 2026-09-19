@@ -59,6 +59,52 @@ How to map real Port Daddy and Drydock runtime objects into cellular sheaves:
 
 ---
 
+## Practical Stalk Feature Engineering in Real Swarms
+
+In real-life agent swarms (e.g., Port Daddy / Harbor), the stalk vector $x_v \in \mathbb{R}^D$ is assembled via four deterministic pipelines rather than a black-box embedding:
+
+```mermaid
+flowchart TD
+    subgraph AgentRuntime ["Autonomous Agent Runtime (0-Cell v)"]
+        A1["Turn Counter & Token Spend<br/>(Logical Clock / Cost)"]
+        A2["AST Symbol Claims & Locks<br/>(Working Tree Files / AST Path)"]
+        A3["Natural Language Reasoning & PR<br/>(LLM Critique / Commit Intent)"]
+        A4["Review Decision Gate<br/>(Triadic Review Stance)"]
+    end
+
+    subgraph FeaturePipeline ["Stalk Feature Engineering Pipeline"]
+        F1["Pipeline 1: Monotonic Normalization<br/>t_v ∈ ℕ, b_v = tokens / 10⁵"]
+        F2["Pipeline 2: Uniform Hash Folding<br/>MurmurHash3(HEAD) / (2³² - 1) ∈ [-1, 1]<br/>Multi-hot AST Bitmask"]
+        F3["Pipeline 3: Dense Embedding + PCA<br/>all-MiniLM-L6-v2 (384-d)<br/>→ SVD/PCA Compression (k = 8..16)"]
+        F4["Pipeline 4: Categorical Stance Logits<br/>[-1.0 (Reject), 0.0 (Wait), +1.0 (Approve)]"]
+    end
+
+    subgraph StalkVector ["Agent Stalk Vector x_v ∈ ℝ^D"]
+        SV["x_v = [ Temporal Invariants ∥ AST Leases ∥ Semantic Intent ∥ Review Stance ]^T"]
+    end
+
+    A1 --> F1
+    A2 --> F2
+    A3 --> F3
+    A4 --> F4
+
+    F1 --> SV
+    F2 --> SV
+    F3 --> SV
+    F4 --> SV
+
+    style AgentRuntime fill:#f8fafc,stroke:#64748b,stroke-width:1px
+    style FeaturePipeline fill:#eff6ff,stroke:#2563eb,stroke-width:1px
+    style StalkVector fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+```
+
+### Heterogeneous Restriction Mapping ($P_{v \trianglelefteq e}$)
+When agent roles have different internal state spaces (e.g., Frontend $D_u = 6$ vs. Backend $D_v = 6$), the restriction map $P_{v \trianglelefteq e} \in \{0, 1\}^{d_e \times D_v}$ is a rectangular Boolean selection matrix extracting shared interface variables:
+$$P_{u \trianglelefteq e} = \begin{bmatrix} I_{d_e \times d_e} & 0_{d_e \times (D_v - d_e)} \end{bmatrix}$$
+The coboundary operator then evaluates $g_e = P_{v \trianglelefteq e} x_v - P_{u \trianglelefteq e} x_u$, enabling embarrassingly parallel coordinate-wise solves in $< 2$ milliseconds without LLM calls.
+
+---
+
 ## Core Theorems & Formulas
 
 ### 1. Three-Tier Visibility & The Completion Residual (R6 / CR-1)
