@@ -223,6 +223,126 @@ In our multi-agent runtime, the mapping from systems concepts to sheaf concepts 
 In distributed systems, restriction maps often represent simple coordinate selections (e.g., Agent A and Agent B compare `epoch` and `ast_lock_id`, but ignore `private_scratchpad`).  
 When restriction maps are coordinate-subset projections, the global sheaf coboundary $\delta_0$ decouples into independent scalar coboundary matrices $\delta_0^c$ for each coordinate $c \in \{0, \dots, D-1\}$. This allows high-dimensional agent state consistency to be computed in parallel across coordinates with zero cross-talk.
 
+### 3.4 Practical Stalk Engineering: How Agents Become Sheaves in Production
+
+In production multi-agent runtimes (such as Port Daddy, Harbor, or DARPA autonomous swarm architectures), the stalk $\mathcal{F}(v) \cong \mathbb{R}^D$ is neither an abstract mathematical mystery nor a single monolithic LLM embedding. Instead, an ambient supervisor or sidecar process (e.g., the Coxswain daemon) extracts a structured, coordinate-wise decoupled telemetry vector across four distinct feature pipelines.
+
+```mermaid
+flowchart TD
+    subgraph AgentRuntime ["Autonomous Agent Runtime (0-Cell v)"]
+        A1["Turn Counter & Token Spend<br/>(Logical Clock / Cost)"]
+        A2["AST Symbol Claims & Locks<br/>(Working Tree Files / AST Path)"]
+        A3["Natural Language Reasoning & PR<br/>(LLM Critique / Commit Intent)"]
+        A4["Review Decision Gate<br/>(Triadic Review Stance)"]
+    end
+
+    subgraph FeaturePipeline ["Stalk Feature Engineering Pipeline"]
+        F1["Pipeline 1: Monotonic Normalization<br/>t_v ∈ ℕ, b_v = tokens / 10⁵"]
+        F2["Pipeline 2: Uniform Hash Folding<br/>MurmurHash3(HEAD) / (2³² - 1) ∈ [-1, 1]<br/>Multi-hot AST Bitmask"]
+        F3["Pipeline 3: Dense Embedding + PCA<br/>all-MiniLM-L6-v2 (384-d)<br/>→ SVD/PCA Compression (k = 8..16)"]
+        F4["Pipeline 4: Categorical Stance Logits<br/>[-1.0 (Reject), 0.0 (Wait), +1.0 (Approve)]"]
+    end
+
+    subgraph StalkVector ["Agent Stalk Vector x_v ∈ ℝ^D"]
+        SV["x_v = [ Temporal Invariants ∥ AST Leases ∥ Semantic Intent ∥ Review Stance ]^T"]
+    end
+
+    A1 --> F1
+    A2 --> F2
+    A3 --> F3
+    A4 --> F4
+
+    F1 --> SV
+    F2 --> SV
+    F3 --> SV
+    F4 --> SV
+
+    style AgentRuntime fill:#f8fafc,stroke:#64748b,stroke-width:1px
+    style FeaturePipeline fill:#eff6ff,stroke:#2563eb,stroke-width:1px
+    style StalkVector fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+```
+
+#### The Four Concrete Feature Pipelines
+
+1. **Pipeline 1: Temporal & Spend Invariants (Monotonic Logical Clocks)**
+   - *Features Extracted:* Monotonic execution turn epoch $t_v \in \mathbb{N}$ (Lamport logical clock) and cumulative token spend $b_v = \text{tokens} / 10^5 \in \mathbb{R}_+$.
+   - *Why subtraction works:* For an honest agent advancing its turn, $t_v - t_u = \Delta t$. Around any closed loop $v_0 \to v_1 \to \dots \to v_0$, honest turn updates form a pure **gauge gradient** ($\delta_0 x$) with identically zero curl ($\delta_1(\delta_0 x) \equiv 0$). If an agent equivocates about its turn or encounters an unresolvable rollback, an algebraic circulation $\rho \in \ker(B^T) \neq \{0\}$ is trapped immediately.
+
+2. **Pipeline 2: AST Symbol Claims & Resource Leases (One-Hot & Hashed State)**
+   - *Features Extracted:* In an agent OS with AST-backed symbol locking, an agent claims ownership over a specific syntax node (e.g., `src/auth/jwt.ts:verifyToken`). For small swarms, this is a multi-hot bitmask across contested symbols. For large codebases, the commit hash and symbol path are projected onto normalized signed floats via uniform hash folding:
+     $$x_v[\text{git}] = \frac{\text{MurmurHash3}(\text{HEAD})}{2^{32} - 1} \in [-1, 1]$$
+   - *Why subtraction works:* When two agents are synchronized on the same commit, their difference $x_v[\text{git}] - x_u[\text{git}] = 0$. If they disagree, the non-zero discrepancy propagates through the coboundary operator.
+
+3. **Pipeline 3: Semantic Beliefs & Intent (Dense Embeddings with PCA Compression)**
+   - *Features Extracted:* When agents exchange unstructured natural language (e.g., architecture proposals or PR review summaries), the text is passed through a lightweight local embedding model (e.g., `all-MiniLM-L6-v2`, 384 dimensions).
+   - *The Dimensionality Reduction Step:* Computing the Hodge Laplacian over 384 dimensions for a 100-agent swarm incurs unacceptable latency. Real-world systems run an incremental SVD or pre-calibrated PCA to compress the 384-dimensional dense embedding down to **$k = 8$ to $16$ principal directions** capturing $>90\%$ of semantic variance, or train a linear probe onto calibrated semantic axes `[Agreement, Uncertainty, Scope]`.
+
+4. **Pipeline 4: Triadic Review Stance (Categorical Logits)**
+   - *Features Extracted:* In 3-way code review joins (Producer, Dissenter, Manager), the agent's explicit review vote is encoded as a discrete categorical coordinate:
+     $$x_v[\text{review}] \in \{-1.0 \text{ (Reject / Changes Requested)},\, 0.0 \text{ (Abstain / Pending)},\, +1.0 \text{ (Approved / Ship)}\}$$
+
+#### Heterogeneous Restriction Maps ($P_{v \trianglelefteq e}$)
+
+In real distributed swarms, agents are heterogeneous: a Frontend agent tracks UI routes and bundle size, while a Backend agent tracks database pools and endpoints. They do not share the same internal state space.
+
+A cellular sheaf handles this seamlessly via rectangular **restriction maps** $P_{v \trianglelefteq e} \in \{0, 1\}^{d_e \times D_v}$:
+
+```mermaid
+flowchart LR
+    subgraph AgentU ["Agent u (Frontend) — D_u = 6"]
+        Xu["x_u = [turn, spend, git, ast_claim, route, bundle]^T"]
+    end
+
+    subgraph AgentV ["Agent v (Backend) — D_v = 6"]
+        Xv["x_v = [turn, spend, git, ast_claim, api, db_pool]^T"]
+    end
+
+    subgraph EdgeChannel ["Channel e = (u, v) — d_e = 4"]
+        Ge["Shared Contract Stalk ℱ(e) ∈ ℝ⁴<br/>g_e = P_{v⊴e} x_v - P_{u⊴e} x_u<br/>Coordinates: [turn, spend, git, ast_claim]"]
+    end
+
+    Xu -->|"P_{u⊴e} = [I₄ | 0]"| Ge
+    Xv -->|"P_{v⊴e} = [I₄ | 0]"| Ge
+
+    style AgentU fill:#eff6ff,stroke:#2563eb,stroke-width:2px
+    style AgentV fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    style EdgeChannel fill:#fefce8,stroke:#ca8a04,stroke-width:2px
+```
+
+The restriction map $P_{u \trianglelefteq e}$ simply acts as a coordinate mask selecting the shared interface variables:
+$$P_{u \trianglelefteq e} = \begin{bmatrix} I_{4 \times 4} & 0_{4 \times 2} \end{bmatrix} \in \mathbb{R}^{4 \times 6}$$
+This allows each agent to evolve arbitrary private variables while the sheaf enforces rigorous mathematical consistency only over the coordinates governed by the communication contract.
+
+#### The Complete Runtime Supervision Loop
+
+Because all stalk operations decompose into sparse linear algebra, the supervisor executes without LLM calls:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Agent Fleet (Workers)
+    participant S as Ambient Sidecar (Coxswain)
+    participant Solver as Sparse Hodge Solver (Theorem CR-5)
+    participant O as Orchestrator / Repair Loop (Theorem CR-4)
+
+    A->>S: Telemetry event emitted (MCP call, SSE log, PR review)
+    Note over S: Feature pipeline extracts x_v ∈ ℝ^D (< 0.1 ms)
+    S->>Solver: Update stalks & compute g_e = P x_v - P x_u
+    Note over Solver: Solve r = ||Π_K g_K|| and compute Hodge split (1-2 ms)
+    alt r = 0 or Pure Gauge Gradient (δ₀ x)
+        Solver-->>O: Status GREEN: Benign turn lag (Zero False Alarm Guarantee)
+    else Triadic Curl Dominant (ℒ(g) ≈ 0)
+        Solver-->>O: Status RED: Review contract paradox in triangle (u, v, w)!
+        O->>A: Inject residual diff into dissenting agent prompt
+    else Harmonic Cavity Dominant (ℒ(g) ≈ 1)
+        Solver-->>O: Status AMBER: Macro-network partition hole!
+        O->>A: Trigger relay cross-harbor synchronization
+    else Equivocator Detected (Completion Residual r > 0)
+        Solver-->>O: Status PURPLE: Byzantine equivocation on cycle
+        O->>A: Execute Theorem CR-4 greedy min-cut fencing
+    end
+```
+
 ---
 
 ## 4. Passive Detection: The Completion Residual and Consistency Radius
