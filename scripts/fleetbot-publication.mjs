@@ -250,7 +250,7 @@ function resolveCommit(cwd, ref) {
   return output
 }
 
-function parseTree(cwd, commit) {
+function parseTree(cwd, commit, wantedPaths) {
   const bytes = git(cwd, ['ls-tree', '-r', '-z', '--full-tree', commit])
   const entries = new Map()
   let start = 0
@@ -259,9 +259,13 @@ function parseTree(cwd, commit) {
     const row = bytes.subarray(start, end); start = end + 1
     if (row.length === 0) continue
     const tab = row.indexOf(9); if (tab < 0) fail('Git tree entry is malformed')
-    let header; let path
-    try { header = new TextDecoder('utf-8', { fatal: true }).decode(row.subarray(0, tab)); path = new TextDecoder('utf-8', { fatal: true }).decode(row.subarray(tab + 1)) } catch { fail('Git path is not valid UTF-8') }
-    if (!safePath(path)) fail('Git path cannot be represented safely in publication JSON')
+    let header
+    try { header = new TextDecoder('utf-8', { fatal: true }).decode(row.subarray(0, tab)) } catch { fail('Git tree metadata is not valid UTF-8') }
+    const rawPath = row.subarray(tab + 1)
+    if (wantedPaths && !wantedPaths.has(rawPath.toString('hex'))) continue
+    let path
+    try { path = new TextDecoder('utf-8', { fatal: true }).decode(rawPath) } catch { fail('changed Git path is not valid UTF-8') }
+    if (!safePath(path)) fail('changed Git path cannot be represented safely in publication JSON')
     const [mode, type, objectSha] = header.split(' ')
     if (!mode || !type || !SHA_RE.test(objectSha ?? '')) fail('Git tree entry is malformed')
     entries.set(path, { mode, type, sha: objectSha })
@@ -276,14 +280,19 @@ function parseDiff(cwd, base, head) {
     if (end !== bytes.length && bytes[end] !== 0) continue
     const field = bytes.subarray(start, end); start = end + 1
     if (field.length === 0) continue
-    try { fields.push(new TextDecoder('utf-8', { fatal: true }).decode(field)) } catch { fail('Changed Git path is not valid UTF-8') }
+    fields.push(field)
   }
   const changes = []
   for (let index = 0; index < fields.length; index += 2) {
-    const status = fields[index]; const path = fields[index + 1]
-    if (!path || !/^[A-Z]$/.test(status)) fail('Git diff contains an unsupported status')
-    if (status === 'D') changes.push({ path, delete: true })
-    else if (status === 'A' || status === 'M' || status === 'T') changes.push({ path, _status: status })
+    let status; let path
+    try {
+      status = new TextDecoder('utf-8', { fatal: true }).decode(fields[index])
+      path = new TextDecoder('utf-8', { fatal: true }).decode(fields[index + 1])
+    } catch { fail('changed Git path is not valid UTF-8') }
+    if (!path || !/^[A-Z]$/.test(status) || !safePath(path)) fail('changed Git path cannot be represented safely in publication JSON')
+    const rawPathHex = fields[index + 1].toString('hex')
+    if (status === 'D') changes.push({ path, rawPathHex, delete: true })
+    else if (status === 'A' || status === 'M' || status === 'T') changes.push({ path, rawPathHex, _status: status })
     else fail('Git diff contains a rename, copy, or unresolved path')
   }
   if (fields.length % 2 !== 0) fail('Git diff output is malformed')
@@ -305,7 +314,7 @@ function buildChange(cwd, baseTree, headTree, item) {
   if (item.delete) {
     if (!baseTree.has(item.path) || headTree.has(item.path)) fail('Git diff and committed trees disagree')
     if (baseTree.get(item.path).type !== 'blob') fail('changed submodule paths cannot be deleted')
-    return item
+    return { path: item.path, delete: true }
   }
   const before = baseTree.get(item.path); const after = headTree.get(item.path)
   if (!after || (item._status !== 'A' && !before) || (item._status === 'A' && before)) fail('Git diff and committed trees disagree')
@@ -338,10 +347,11 @@ export function buildPublicationPackage({ cwd, repository, baseBranch = 'main', 
   if (gitText(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all']).length > 0) {
     fail('publication requires a clean tracked and untracked worktree')
   }
-  const baseTree = parseTree(cwd, baseSha); const headTree = parseTree(cwd, actualHead)
   const diff = parseDiff(cwd, baseSha, actualHead)
   if (diff.length === 0) fail('publication requires at least one committed changed path')
   if (diff.length > MAX_CHANGES) fail('publication contains more than 100 changed paths')
+  const changedPaths = new Set(diff.map(item => item.rawPathHex))
+  const baseTree = parseTree(cwd, baseSha, changedPaths); const headTree = parseTree(cwd, actualHead, changedPaths)
   const changes = diff.map(item => buildChange(cwd, baseTree, headTree, item))
   const sourceCommittedAt = Number(gitText(cwd, ['show', '-s', '--format=%ct', actualHead]).trim())
   const commitMessage = gitText(cwd, ['show', '-s', '--format=%B', actualHead]).trim()
