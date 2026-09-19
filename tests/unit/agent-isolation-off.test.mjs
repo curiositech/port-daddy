@@ -101,9 +101,9 @@ test('stale or mismatched readiness is not an Off exemption', () => {
   const result = run({subagent_type: 'worker'});
   assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
 });
-test('Off exits while stdin remains open', async () => {
-  writeFileSync(join(canonical, 'hooks.disabled'), 'off');
-  const child = spawn('/bin/bash', [subject], { cwd: fixture, env: env({ PATH: bin }), stdio: 'pipe' });
+for (const off of ['marker', 'environment']) test(`${off} Off exits while stdin remains open`, async () => {
+  if (off === 'marker') writeFileSync(join(canonical, 'hooks.disabled'), 'off');
+  const child = spawn('/bin/bash', [subject], { cwd: fixture, env: env({ PATH: bin, ...(off === 'environment' ? { PD_AGENT_ISOLATION_OFF: '1' } : {}) }), stdio: 'pipe' });
   let output = '';
   child.stdout.on('data', chunk => { output += chunk; });
   child.stderr.on('data', chunk => { output += chunk; });
