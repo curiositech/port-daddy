@@ -43,8 +43,9 @@
 
 \title{\textbf{The Cohomology of Swarms:}\\[4pt]
 \large Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair in Asynchronous Multi-Agent Systems\\[3pt]
-\normalsize Paper 8 of the Harbor Research Program --- Theorems CR-1 through CR-5, the Swarm Rosetta Stone, and the Active Control Closed-Loop}
-\author{Erich Owens\\ \normalsize The Harbor Research Program \& curiositech/port-daddy \quad \texttt{erich.owens@gmail.com}}
+\normalsize Theorems CR-1 through CR-5, the Swarm Rosetta Stone, and the Active Control Closed-Loop}
+\author{Erich Owens \quad \texttt{erich.owens@gmail.com}\\
+\normalsize Curiositech AI Research}
 \date{September 2026}
 \begin{document}
 \maketitle
@@ -59,12 +60,12 @@ In this paper, we develop a unified, mathematically rigorous framework for \text
 (iv)~\textbf{The Swarm Legibility Ratio via Simplicial Hodge Decomposition (Theorem CR-5)}: On a 2-complex where 2-simplices model triadic contracts, any observed disagreement cochain admits a unique orthogonal split $g = \delta_0 x + h + \delta_1^* \psi$. We define the \textbf{Swarm Legibility Ratio} $\mathcal{L}(g) = \frac{\|h\|_2^2}{\|h\|_2^2 + \|\delta_1^* \psi\|_2^2} \in [0, 1]$, proving it cleanly separates micro-review bugs ($\mathcal{L} \approx 0$) from macro-network partition cavities ($\mathcal{L} \approx 1$);
 (v)~\textbf{Optimal Cohomological Repair (Theorem CR-4)}: Given non-uniform intervention costs $w(e)$, finding the minimal-cost edge set to reconcile or fence to drive $r \to 0$ decomposes into a circulation min-cut. We prove that a greedy energy-to-cost controller choosing $e^* = \arg\max \frac{\|\rho_e\|^2}{w(e)}$ terminates in at most $\beta_1(G_K)$ rounds.
 
-All results are grounded in verified mathematical proofs, executable simulation suites with falsification mutation tests, and real-world architectures from the Port Daddy / Drydock multi-agent runtime.
+All results are grounded in verified mathematical proofs, executable simulation suites with falsification mutation tests, and real-world architectures from production multi-agent runtimes.
 \end{abstract}
 
 \section{The Problem: Hallucinations, Equivocations, and Partitions in Multi-Agent Swarms}\label{sec:problem}
 
-\textbf{The scene.} In modern autonomous software engineering environments (such as Port Daddy), dozens of specialized LLM agents collaborate concurrently: Producer agents write feature code, Dissenter agents synthesize adversarial unit tests, Manager agents adjudicate pull request merges, and supervisor actors (Coxswain, Cartographer, Lookout) coordinate resource leases and roadmap progress. Because these agents execute across heterogeneous runtimes, Docker containers, and Cloudflare Workers, they communicate via asynchronous gossip channels, shared AST symbol claims, and event relays.
+\textbf{The scene.} In modern autonomous software engineering environments, dozens of specialized LLM agents collaborate concurrently: Producer agents write feature code, Critic agents synthesize adversarial unit tests, Manager agents adjudicate pull request merges, and supervisor actors coordinate resource leases and task progress. Because these agents execute across heterogeneous runtimes, Docker containers, and serverless workers, they communicate via asynchronous gossip channels, shared AST symbol claims, and event relays.
 
 Inevitably, coordination breaks down. An agent reports an updated commit hash to one peer while lagging behind on another; a prompt-injected or hallucinating agent asserts that a test suite passed when it was rejected; or a cross-cloud network partition splits the fleet into two internally consistent but mutually contradictory branches.
 
@@ -251,7 +252,7 @@ r^2 = \sum_{c=1}^D (r^c)^2 = \sum_{c=1}^D \|\Pi_{K_c} g^c\|_2^2.
 This enables embarrassingly parallel consistency audits across all state fields with zero cross-talk.
 
 \subsection{Practical Stalk Engineering and Heterogeneous Restriction Maps}
-In deployed multi-agent platforms (e.g., the Port Daddy daemon and Harbor control plane), the vector stalk $\mathcal{F}(v) \cong \mathbb{R}^D$ is assembled via four deterministic feature pipelines rather than a monolithic embedding:
+In deployed multi-agent platforms and autonomous agent operating systems, the vector stalk $\mathcal{F}(v) \cong \mathbb{R}^D$ is assembled via four deterministic feature pipelines rather than a monolithic embedding:
 \begin{enumerate}[noitemsep]
 \item \textbf{Temporal and Resource Invariants}: Monotonic execution turn epochs $t_v \in \mathbb{N}$ (Lamport logical clocks) and cumulative token spend $b_v = \mathrm{tokens} / 10^5 \in \mathbb{R}_+$.
 \item \textbf{AST Symbol Leases and Cryptographic Digests}: Abstract Syntax Tree symbol path leases (e.g., \textsf{auth.ts:verifyToken}) encoded as multi-hot bitmasks or scalar hash-folded commit digests:
@@ -755,7 +756,7 @@ A 24-agent network spanning US-East, EU-Central, and AP-East (39 edges, $\beta_1
 The greedy repair controller fences internal edge $(4, 5)$ in Round 0 and internal edge $(12, 13)$ in Round 1, collapsing $r \to 0$ in 2 rounds with zero disruptions to inter-harbor links.
 
 \subsection{Case Study 6: 12-Agent Execution Hypertree with Multi-Parent Joins}
-In the Port Daddy Drydock architecture, complex agent tasks decompose into directed acyclic hypertrees. A 12-agent migration splits into three streams (Database, API, SDK) converging into an Aggregator node. Triangulating the 4-way join into three 2-simplices allows $\delta_1$ to detect non-monotonic database rollbacks instantly without global locks.
+In production agent supervisor architectures, complex agent tasks decompose into directed acyclic hypertrees. A 12-agent migration splits into three streams (Database, API, SDK) converging into an Aggregator node. Triangulating the 4-way join into three 2-simplices allows $\delta_1$ to detect non-monotonic database rollbacks instantly without global locks.
 
 \section{Falsification Protocol \& Mutation Testing}\label{sec:falsification}
 To prevent methodological artifacts, our evaluation suite enforces strict falsification testing:
@@ -789,7 +790,7 @@ To ensure academic and operational rigor for peer review, we explicitly address 
 
 \subsection{Threat Model 3: Attribution vs.\ Localization (The Sheng et al.\ Forensic Gap)}
 \paragraph{Objection:} \emph{``Does the completion residual vector $\rho$ identify which specific agent signed the lie?''}
-\paragraph{Pre-Emptive Defense:} As established in Section~4.5 and the Sheng et al.~(2025) boundary, linear algebra localizes the \emph{cycle} and the \emph{broken contract} carrying the contradiction, but cannot distinguish whether node $u$ lied by $+s$ or node $v$ lied by $-s$. In Port Daddy, attribution is handled by cryptographic capability cards (OIDC / Ed25519 signatures), while cohomology provides instant topological localization. Topology and cryptography are orthogonal and complementary: signatures prove who signed; cohomology proves the conversation is mathematically impossible.
+\paragraph{Pre-Emptive Defense:} As established in Section~4.5 and the Sheng et al.~(2025) boundary, linear algebra localizes the \emph{cycle} and the \emph{broken contract} carrying the contradiction, but cannot distinguish whether node $u$ lied by $+s$ or node $v$ lied by $-s$. In modern multi-agent control planes, attribution is handled by cryptographic capability cards (OIDC / Ed25519 signatures), while cohomology provides instant topological localization. Topology and cryptography are orthogonal and complementary: signatures prove who signed; cohomology proves the conversation is mathematically impossible.
 
 \subsection{Threat Model 4: Multi-Equivocator Cancelling and Byzantine Collusion}
 \paragraph{Objection:} \emph{``Can colluding Byzantine agents coordinate to cancel out the completion residual?''}
@@ -811,8 +812,8 @@ By lifting multi-agent swarm coordination into simplicial sheaves and discrete H
 \bibitem{curry} J.~Curry, \emph{Sheaves, Cosheaves and Applications}, Ph.D. dissertation, University of Pennsylvania, 2014.
 \bibitem{spielman-teng} D.~A.~Spielman and S.-H.~Teng, ``Nearly-linear time algorithms for graph partitions, graph Laplacians, and designing faster algorithms,'' \emph{Communications of the ACM}, vol.~56, no.~10, pp.~87--97, 2013.
 \bibitem{abramsky-brandenburger} S.~Abramsky and A.~Brandenburger, ``The sheaf-theoretic structure of non-locality and contextuality,'' \emph{New Journal of Physics}, vol.~13, no.~11, p.~113036, 2011.
-\bibitem{owens-r6} E.~Owens, ``The Cohomology of Equivocation: Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency,'' \emph{Paper 7 of the Harbor Research Program}, curiositech/port-daddy, Aug. 2026.
-\bibitem{owens-hypertrees} E.~Owens, ``Adversarial Proof Hypertrees: Scalable Non-Collusive Verification in Autonomous Fleets,'' \emph{Port Daddy Technical Whitepaper Series}, 2026.
+\bibitem{owens-r6} E.~Owens, ``The Cohomology of Equivocation: Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency,'' \emph{Technical Report}, Curiositech Research, Aug. 2026.
+\bibitem{owens-hypertrees} E.~Owens, ``Adversarial Proof Hypertrees: Scalable Non-Collusive Verification in Autonomous Fleets,'' \emph{Curiositech Whitepaper Series}, 2026.
 \end{thebibliography}
 
 \end{document}

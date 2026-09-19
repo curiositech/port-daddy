@@ -1,91 +1,100 @@
 % Paper 8 Figure 5: Theorem CR-4 Active Cohomological Repair Closed Loop.
-% Native vector TikZ diagram conforming to docs/harbor-research/figures/CONVENTION.md.
-% 100% native document fonts without artificial downscaling or overlap.
+% Swiss Modern Systems Graphics specification: visual proofs, hard 90-degree corners,
+% metric coordinate drafting grid, and strict chromatic state taxonomy.
 
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[
   font=\small,
-  snode/.style={circle, draw=harborblue!90, fill=harborblue!15, very thick, minimum size=8.5mm, inner sep=0pt, font=\small\bfseries, text=harborblue!90},
-  rogue/.style={circle, draw=shipred!90, fill=shipred!20, very thick, minimum size=8.5mm, inner sep=0pt, font=\small\bfseries, text=shipred!90},
-  fencednode/.style={circle, draw=slate!50, fill=slate!10, thick, dashed, minimum size=8.5mm, inner sep=0pt, font=\small\bfseries, text=slate!60},
-  edgeok/.style={draw=harborblue, very thick, ->},
-  edgered/.style={draw=shipred, very thick, ->},
-  edgecut/.style={draw=shipred!60, very thick, dashed},
-  fieldbox/.style={draw=slate!40, fill=white, rounded corners=3pt, thick, inner sep=6pt, font=\footnotesize, align=left},
-  actionbox/.style={draw=slate!30, fill=slate!5, rounded corners=3pt, thick, inner sep=5pt, font=\footnotesize, align=center},
+  vnode/.style={circle, draw=ptDark, fill=ptLightGray, line width=1.1pt, minimum size=8.5mm, inner sep=0pt, font=\sffamily\bfseries\small, text=ptDark},
+  rogue/.style={circle, draw=ptRed, fill=ptRed!20, line width=1.2pt, minimum size=8.5mm, inner sep=0pt, font=\sffamily\bfseries\small, text=ptRed},
+  fencednode/.style={circle, draw=ptDark!50, fill=ptLightGray, line width=1pt, dashed, minimum size=8.5mm, inner sep=0pt, font=\sffamily\bfseries\small, text=ptDark!60}
 ]
+
+% 1. Explicit Coordinate Grid Context (Swiss Modern Metric Field)
+\draw[swissgrid] (-0.35, -1.5) grid (14.25, 5.35);
+\draw[majorgrid] (-0.35, -1.5) grid (14.25, 5.35);
 
 % =========================================================================
 % STEP 1: Residual Circulation around Equivocator (Left)
 % =========================================================================
-\node[align=center] at (1.6, 4.6) {\colorbox{harborblue}{\color{white}\bfseries\small STEP 1}\\[3pt]\textbf{\small Residual Circulation ($\rho \ne 0$)}};
+\node[align=center] at (1.5, 4.6) {
+  \colorbox{ptDark}{\color{white}\sffamily\bfseries\footnotesize\strut\enskip STEP 1: CONTRADICTION\enskip}\\[3pt]
+  \textbf{\sffamily\small Residual Circulation ($\rho \ne 0$)}
+};
 
-\node[snode] (n0) at (0.6, 3.0) {$v_0$};
-\node[rogue] (n1) at (2.6, 3.0) {$v_1^*$};
-\node[snode] (n2) at (2.6, 1.2) {$v_2$};
-\node[snode] (n3) at (0.6, 1.2) {$v_3$};
+\node[vnode] (n0) at (0.55, 3.0) {$v_0$};
+\node[rogue] (n1) at (2.45, 3.0) {$v_1^*$};
+\node[vnode] (n2) at (2.45, 1.2) {$v_2$};
+\node[vnode] (n3) at (0.55, 1.2) {$v_3$};
 
-\draw[edgeok] (n0) -- (n1);
-\draw[edgered] (n1) -- node[right=2pt, font=\scriptsize\bfseries, color=shipred] {Lie} (n2);
-\draw[edgeok] (n2) -- (n3);
-\draw[edgeok] (n3) -- (n0);
+\draw[dArr] (n0) -- (n1);
+\draw[rArr] (n1) -- (n2) node[midway, right=1pt, font=\sffamily\bfseries\scriptsize, color=ptRed, mask] {Lie};
+\draw[dArr] (n2) -- (n3);
+\draw[dArr] (n3) -- (n0);
 
 % Residual Circulation Flow
-\draw[shipred, very thick, dashed, ->] (1.6, 2.1) arc (30:330:0.42);
-\node[font=\small\bfseries, color=shipred] at (1.6, 2.1) {$\rho \ne 0$};
+\draw[draw=ptRed, line width=1.3pt, dashed, -{Stealth[length=2.5mm, width=1.6mm]}] (1.5, 2.1) arc (30:330:0.42);
+\node[font=\sffamily\bfseries\small, color=ptRed, mask] at (1.5, 2.1) {$\rho \ne 0$};
 
-\node[actionbox, draw=shipred!40, fill=shipred!5, text width=3.1cm, anchor=north] at (1.6, 0.4) {
-  \textbf{\small Inconsistency Trapped}:\\[2pt]
-  Residual $r = \|\Pi_K g_K\|_2 = 1.50 > 0$\\
-  Cycle circulation certifies lie.
+\node[rectangle, draw=ptRed, fill=ptRed!6, line width=1pt, inner sep=5pt, text width=3.3cm, anchor=north] at (1.5, 0.4) {
+  \textbf{\sffamily\small Inconsistency Trapped}:\\[2pt]
+  Residual $r = \|\Pi_K g_K\|_2 = 1.50$\\
+  Circulation $\rho \ne 0$ certifies lie.
 };
 
 % Big Arrow 1 -> 2
-\draw[line width=2pt, draw=harborblue!80, ->] (3.4, 2.1) -- (4.4, 2.1);
+\draw[dArr, line width=1.4pt] (3.4, 2.1) -- (4.3, 2.1);
 
 % =========================================================================
 % STEP 2: Greedy Energy-to-Cost Controller (Center)
 % =========================================================================
-\node[align=center] at (6.8, 4.6) {\colorbox{harborblue}{\color{white}\bfseries\small STEP 2}\\[3pt]\textbf{\small Energy-to-Cost Controller}};
+\node[align=center] at (6.8, 4.6) {
+  \colorbox{ptGold!85!black}{\color{white}\sffamily\bfseries\footnotesize\strut\enskip STEP 2: CONTROLLER\enskip}\\[3pt]
+  \textbf{\sffamily\small Energy-to-Cost Min-Cut}
+};
 
-\node[fieldbox, draw=amber!60, fill=amber!5, text width=4.4cm, anchor=north] at (6.8, 3.8) {
-  \textbf{\small Residual Energy} $\|\rho_e\|_2^2$ ($w \equiv 1$):\\[2pt]
-  $\bullet$ Channels $e_{01}, e_{23}, e_{30}: 0.56$\\[2pt]
-  $\bullet$ \textbf{\color{shipred} Lie Channel $e_{12}^*: \mathbf{2.25}$ (Max!)}\\[4pt]
-  \textbf{\small Energy-to-Cost Controller}:\\[2pt]
+\node[rectangle, draw=ptGold!85!black, fill=ptGold!10, line width=1pt, inner sep=5pt, text width=4.3cm, anchor=north] at (6.8, 3.8) {
+  \textbf{\sffamily\small Residual Energy} $\|\rho_e\|_2^2$ ($w \equiv 1$):\\[2pt]
+  $\bullet$ Honest channels: $0.56$\\[2pt]
+  $\bullet$ \textbf{\color{ptRed} Lie channel $e_{12}^*: \mathbf{2.25}$ (Max!)}\\[4pt]
+  \textbf{\sffamily\small Energy-to-Cost Metric}:\\[2pt]
   $\displaystyle e^* = \arg\max_{e \in K} \frac{E(e)}{w(e)} = \mathbf{e_{12}}$\\[4pt]
-  \textbf{\small Selected Optimal Cut}:\\[2pt]
+  \textbf{\sffamily\small Selected Optimal Cut}:\\[2pt]
   Sever $e_{12}$ at minimal cost $w(e^*) = 1.0$.
 };
 
 % Big Arrow 2 -> 3
-\draw[line width=2pt, draw=harborblue!80, ->] (9.2, 2.1) -- (10.2, 2.1);
+\draw[dArr, line width=1.4pt] (9.3, 2.1) -- (10.2, 2.1);
 
 % =========================================================================
 % STEP 3: Fenced Edge & Consensus Restored (Right)
 % =========================================================================
-\node[align=center] at (11.9, 4.6) {\colorbox{harborblue}{\color{white}\bfseries\small STEP 3}\\[3pt]\textbf{\small Consensus Restored ($r \to 0$)}};
+\node[align=center] at (12.1, 4.6) {
+  \colorbox{ptBlue}{\color{white}\sffamily\bfseries\footnotesize\strut\enskip STEP 3: RESTORATION\enskip}\\[3pt]
+  \textbf{\sffamily\small Consensus Restored ($r \to 0$)}
+};
 
-\node[snode] (r0) at (10.9, 3.0) {$v_0$};
-\node[fencednode] (r1) at (12.9, 3.0) {$v_1^*$};
-\node[snode] (r2) at (12.9, 1.2) {$v_2$};
-\node[snode] (r3) at (10.9, 1.2) {$v_3$};
+\node[vnode] (r0) at (11.15, 3.0) {$v_0$};
+\node[fencednode] (r1) at (13.05, 3.0) {$v_1^*$};
+\node[vnode] (r2) at (13.05, 1.2) {$v_2$};
+\node[vnode] (r3) at (11.15, 1.2) {$v_3$};
 
-\draw[edgeok] (r0) -- (r1);
+\draw[dArr] (r0) -- (r1);
 % Fenced severed edge
-\draw[edgecut] (r1) -- node[left=2pt, font=\scriptsize\bfseries, color=shipred] {FENCED} (r2);
-\node[font=\large\bfseries, color=shipred] at (12.9, 2.1) {$\times$};
-\draw[edgeok] (r2) -- (r3);
-\draw[edgeok] (r3) -- (r0);
+\draw[draw=ptRed!80, line width=1.3pt, dashed] (r1) -- (r2);
+\node[font=\large\bfseries, color=ptRed, mask] at (13.05, 2.2) {$\times$};
+\node[font=\sffamily\bfseries\scriptsize, color=ptRed, mask] at (13.05, 1.7) {FENCED};
+\draw[dArr] (r2) -- (r3);
+\draw[dArr] (r3) -- (r0);
 
-\node[actionbox, draw=emerald!50, fill=emerald!6, text width=3.1cm, anchor=north] at (11.9, 0.4) {
-  \textbf{\color{seagreen}\small Consensus Restored}:\\[2pt]
+\node[rectangle, draw=ptBlue, fill=ptBlue!6, line width=1pt, inner sep=5pt, text width=3.3cm, anchor=north] at (12.1, 0.4) {
+  \textbf{\color{ptBlue}\sffamily\small Consensus Restored}:\\[2pt]
   Cycle destroyed $\implies \beta_1(G') = 0$\\
   Residual $r = 0$ in $\le \beta_1(G)$ rounds!
 };
 
 \end{tikzpicture}
-\caption{Theorem CR-4 active repair closed loop. (Step 1) An equivocator $v_1^*$ injects contradiction $s = 3.0$, creating non-zero circulation $\rho \ne 0$. (Step 2) The greedy controller computes residual energy-to-cost ratios $E(e)/w(e)$ across active channels. (Step 3) Severing optimal edge $e_{12}^*$ breaks the cycle constraint, restoring consensus ($r \to 0$) in polynomial time.}
+\caption{Theorem CR-4 active repair closed loop adhering to Swiss Modern Systems Graphics. (Step 1) An equivocator $v_1^*$ injects contradiction $s = 3.0$, creating non-zero circulation $\rho \ne 0$ detected by the projection residual $r > 0$. (Step 2) The greedy controller computes residual energy-to-cost ratios $E(e)/w(e)$ across active channels, identifying $e_{12}^*$ as the unique maximal violator. (Step 3) Severing optimal edge $e_{12}^*$ breaks the cycle constraint, restoring consensus ($r \to 0$) in polynomial time.}
 \label{fig:repair}
 \end{figure}
