@@ -265,6 +265,28 @@ r^2 = \sum_{c=1}^D (r^c)^2 = \sum_{c=1}^D \|\Pi_{K_c} g^c\|_2^2.
 \]
 This enables embarrassingly parallel consistency audits across all state fields with zero cross-talk.
 
+\subsection{Practical Stalk Engineering and Heterogeneous Restriction Maps}
+In deployed multi-agent platforms (e.g., the Port Daddy daemon and Harbor control plane), the vector stalk $\mathcal{F}(v) \cong \mathbb{R}^D$ is assembled via four deterministic feature pipelines rather than a monolithic embedding:
+\begin{enumerate}[noitemsep]
+\item \textbf{Temporal and Resource Invariants}: Monotonic execution turn epochs $t_v \in \mathbb{N}$ (Lamport logical clocks) and cumulative token spend $b_v = \mathrm{tokens} / 10^5 \in \mathbb{R}_+$.
+\item \textbf{AST Symbol Leases and Cryptographic Digests}: Abstract Syntax Tree symbol path leases (e.g., \textsf{auth.ts:verifyToken}) encoded as multi-hot bitmasks or scalar hash-folded commit digests:
+\[
+x_v[\mathrm{git}] = \frac{\mathrm{MurmurHash3}(\mathrm{HEAD})}{2^{32} - 1} \in [-1, 1].
+\]
+\item \textbf{Semantic Beliefs via Principal Component Projection}: Dense natural language embeddings (e.g., 384-dimensional MiniLM-L6-v2 vectors from design rationales or PR summaries) compressed via incremental SVD/PCA to $k \in [8, 16]$ principal directions, preserving $>90\%$ of semantic variance while maintaining sparse Hodge solver efficiency.
+\item \textbf{Triadic Review Stances}: Discrete categorical review logits:
+\[
+x_v[\mathrm{review}] \in \{-1.0 \text{ (Reject)},\, 0.0 \text{ (Pending)},\, +1.0 \text{ (Approve)}\}.
+\]
+\end{enumerate}
+
+\paragraph{Heterogeneous Restriction Projections}
+Because distinct agent roles maintain different internal variable sets (e.g., a Frontend agent with $D_u = 6$ tracking UI route bundles versus a Backend agent with $D_v = 6$ tracking database connection pools), restriction maps $P_{v \trianglelefteq e} \in \{0, 1\}^{d_e \times D_v}$ act as rectangular Boolean selection matrices:
+\[
+P_{v \trianglelefteq e} = \begin{bmatrix} I_{d_e \times d_e} & 0_{d_e \times (D_v - d_e)} \end{bmatrix},
+\]
+filtering each agent's private state down to the exact coordinates governed by the shared communication contract. The resulting coboundary evaluation $g_e = P_{v \trianglelefteq e} x_v - P_{u \trianglelefteq e} x_u$ executes in $\mathcal{O}(d_e)$ time per edge, bypassing expensive LLM arbitration and running in under 2 milliseconds across a 50-agent swarm.
+
 \section{Passive Detection: The Completion Residual and Consistency Radius}\label{sec:detection}
 
 \subsection{The Three-Tier Visibility Model}
