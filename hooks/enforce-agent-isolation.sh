@@ -54,7 +54,7 @@ if [ "$isolation" = "worktree" ]; then
   exit 0
 fi
 
-# Strip any plugin namespace prefix, e.g. "windags-skills:sensemaker" -> "sensemaker".
+# Strip any plugin namespace prefix, e.g. "plugin:sensemaker" -> "sensemaker".
 base="${subagent##*:}"
 
 # Read-only agent types cannot mutate the tree, so they need no isolation.
