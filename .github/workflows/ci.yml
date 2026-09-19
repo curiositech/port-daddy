@@ -294,7 +294,7 @@ jobs:
         run: npm run test:purser
 
       - name: Protected Fleetbot publication and recovery fixtures
-        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
 
       - name: Daemon backend transcript E2E (hermetic CLI fallback)
         # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
@@ -352,7 +352,7 @@ jobs:
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
       - name: Protected Fleetbot publication and recovery fixtures
-        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
 
       - name: Test CLI tools
         run: |

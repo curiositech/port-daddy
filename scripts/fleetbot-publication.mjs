@@ -77,14 +77,25 @@ function safePath(value) {
     && value.split('/').every(part => part && part !== '.' && part !== '..')
 }
 
-function base64Bytes(value, name) {
-  if (typeof value !== 'string' || value.length === 0 || value.length % 4 === 1
+function base64Bytes(value, name, { allowEmpty = false } = {}) {
+  if (typeof value !== 'string' || (!allowEmpty && value.length === 0) || value.length % 4 === 1
       || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)
       || Buffer.from(value, 'base64').toString('base64') !== value) {
-    fail(`${name} must be canonical non-empty base64`)
+    fail(`${name} must be canonical${allowEmpty ? '' : ' non-empty'} base64`)
   }
   const bytes = Buffer.from(value, 'base64')
-  if (bytes.length === 0) fail(`${name} must not encode an empty blob`)
+  if (!allowEmpty && bytes.length === 0) fail(`${name} must not encode an empty blob`)
+  return bytes
+}
+
+function utf8Bytes(value, name, { allowEmpty = false } = {}) {
+  if (typeof value !== 'string' || (!allowEmpty && value.length === 0)) {
+    fail(`${name} must be canonical UTF-8 text`)
+  }
+  const bytes = Buffer.from(value, 'utf8')
+  let decoded
+  try { decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes) } catch { fail(`${name} must be canonical UTF-8 text`) }
+  if (decoded !== value || (!allowEmpty && bytes.length === 0)) fail(`${name} must be canonical UTF-8 text`)
   return bytes
 }
 
@@ -97,7 +108,7 @@ function gitObjectSha(type, bytes) {
   return createHash('sha1').update(`${type} ${bytes.length}\0`).update(bytes).digest('hex')
 }
 
-function validateChange(change, paths, totals) {
+function validateChange(change, paths, totals, { allowDelta = false, allowUtf8 = false } = {}) {
   if (!change || typeof change !== 'object' || Array.isArray(change) || !safePath(change.path) || paths.has(change.path)) {
     fail('changes contain an unsafe or duplicate path')
   }
@@ -106,16 +117,33 @@ function validateChange(change, paths, totals) {
     exactKeys(change, ['path', 'delete'], 'deletion')
     return
   }
-  exactKeys(change, ['path', 'mode', 'contentBase64'], 'blob change')
+  const isDelta = allowDelta && Object.hasOwn(change, 'baseBlobSha')
+  const contentKey = Object.hasOwn(change, 'contentBase64')
+    ? 'contentBase64'
+    : (allowUtf8 && Object.hasOwn(change, 'contentUtf8') ? 'contentUtf8' : null)
+  if (!contentKey) fail('blob change must contain exactly one content representation')
+  exactKeys(change, isDelta
+    ? ['path', 'mode', 'baseBlobSha', 'prefixBytes', 'suffixBytes', contentKey]
+    : ['path', 'mode', contentKey], isDelta ? 'delta blob change' : 'blob change')
   if (!MODES.has(change.mode)) fail('changed file mode is unsupported')
-  const bytes = base64Bytes(change.contentBase64, 'contentBase64')
+  if (isDelta) {
+    sha(change.baseBlobSha, 'baseBlobSha')
+    if (!Number.isSafeInteger(change.prefixBytes) || change.prefixBytes < 0
+        || !Number.isSafeInteger(change.suffixBytes) || change.suffixBytes < 0
+        || change.prefixBytes > MAX_UNCOMPRESSED_BYTES || change.suffixBytes > MAX_UNCOMPRESSED_BYTES
+        || change.prefixBytes + change.suffixBytes > MAX_UNCOMPRESSED_BYTES) {
+      fail('delta prefix and suffix lengths are invalid or exceed the package bound')
+    }
+  }
+  const bytes = contentKey === 'contentUtf8'
+    ? utf8Bytes(change.contentUtf8, 'contentUtf8', { allowEmpty: isDelta })
+    : base64Bytes(change.contentBase64, 'contentBase64', { allowEmpty: isDelta })
   if (bytes.length > MAX_CHANGE_BYTES) fail('one changed blob exceeds 4 MiB')
   totals.value += bytes.length
   if (totals.value > MAX_TOTAL_CHANGE_BYTES) fail('changed blobs exceed 8 MiB total')
 }
 
-/** Validate the exact Relay-compatible package shape and return the same value. */
-export function validatePublicationPackage(value, { now = Math.floor(Date.now() / 1000) } = {}) {
+function validatePackage(value, { now = Math.floor(Date.now() / 1000), allowDelta = false, allowUtf8 = false } = {}) {
   exactKeys(value, ROOT_KEYS, 'publication package')
   if (value.schema !== PUBLICATION_SCHEMA || typeof value.repository !== 'string' || !REPOSITORY_RE.test(value.repository)) {
     fail('publication schema or repository is invalid')
@@ -135,8 +163,32 @@ export function validatePublicationPackage(value, { now = Math.floor(Date.now() 
     fail('changes must contain 1-100 entries')
   }
   const paths = new Set(); const totals = { value: 0 }
-  for (const change of payload.changes) validateChange(change, paths, totals)
+  for (const change of payload.changes) validateChange(change, paths, totals, { allowDelta, allowUtf8 })
   return value
+}
+
+/** Validate the exact Relay-compatible expanded package shape and return the same value. */
+export function validatePublicationPackage(value, options = {}) {
+  return validatePackage(value, { ...options, allowDelta: false })
+}
+
+function validateTransportPackage(value, options = {}) {
+  return validatePackage(value, { ...options, allowDelta: true, allowUtf8: true })
+}
+
+function validUtf8Text(bytes) {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    return Buffer.from(text, 'utf8').equals(bytes) ? text : null
+  } catch { return null }
+}
+
+function chooseContentRepresentation(change, bytes) {
+  const base64 = { ...change, contentBase64: bytes.toString('base64') }
+  const text = validUtf8Text(bytes)
+  if (text === null) return base64
+  const utf8 = { ...change, contentUtf8: text }
+  return stableJson(utf8).length < stableJson(base64).length ? utf8 : base64
 }
 
 function crc32(bytes) {
@@ -176,9 +228,39 @@ function decodeGzipStrict(bytes) {
   return inflated
 }
 
-export function encodePublicationPackage(value) {
+export function encodePublicationPackage(value, { baseBlobs = new Map() } = {}) {
   validatePublicationPackage(value)
-  const plain = Buffer.from(stableJson(value), 'utf8')
+  if (!(baseBlobs instanceof Map)) fail('baseBlobs must be a Map keyed by changed path')
+  const transport = {
+    ...value,
+    payload: {
+      ...value.payload,
+      changes: value.payload.changes.map((change) => {
+        if (change.delete) return change
+        const target = Buffer.from(change.contentBase64, 'base64')
+        if (!baseBlobs.has(change.path)) return chooseContentRepresentation({ path: change.path, mode: change.mode }, target)
+        const base = baseBlobs.get(change.path)
+        if (!Buffer.isBuffer(base)) fail(`base blob for ${change.path} must be a Buffer`)
+        const full = chooseContentRepresentation({ path: change.path, mode: change.mode }, target)
+        let prefix = 0
+        while (prefix < base.length && prefix < target.length && base[prefix] === target[prefix]) prefix += 1
+        let suffix = 0
+        while (suffix < base.length - prefix && suffix < target.length - prefix
+            && base[base.length - 1 - suffix] === target[target.length - 1 - suffix]) suffix += 1
+        const middle = target.subarray(prefix, target.length - suffix)
+        const delta = chooseContentRepresentation({
+          path: change.path,
+          mode: change.mode,
+          baseBlobSha: gitObjectSha('blob', base),
+          prefixBytes: prefix,
+          suffixBytes: suffix,
+        }, middle)
+        return stableJson(delta).length < stableJson(full).length ? delta : full
+      }),
+    },
+  }
+  validateTransportPackage(transport)
+  const plain = Buffer.from(stableJson(transport), 'utf8')
   if (plain.length > MAX_UNCOMPRESSED_BYTES) fail('publication package exceeds the 12 MiB uncompressed bound')
   const token = JSON.stringify({ encoding: 'gzip+base64', data: gzipSync(plain).toString('base64') })
   if (token.length > MAX_ENCODED_CHARACTERS) fail('compressed publication token exceeds 48,000 characters')
@@ -197,9 +279,54 @@ export function decodePublicationPackage(encoded) {
   try { text = new TextDecoder('utf-8', { fatal: true }).decode(plain) } catch { fail('publication package is not valid UTF-8') }
   let value
   try { value = JSON.parse(text) } catch { fail('publication package is not valid JSON') }
-  validatePublicationPackage(value)
+  validatePackage(value, { allowDelta: true, allowUtf8: true })
   if (stableJson(value) !== text) fail('publication package is not canonical or contains trailing data')
-  return value
+  const normalized = {
+    ...value,
+    payload: {
+      ...value.payload,
+      changes: value.payload.changes.map(change => {
+        if (change.delete || Object.hasOwn(change, 'contentBase64')) return change
+        const bytes = utf8Bytes(change.contentUtf8, 'contentUtf8', { allowEmpty: Object.hasOwn(change, 'baseBlobSha') })
+        const { contentUtf8, ...rest } = change
+        return { ...rest, contentBase64: bytes.toString('base64') }
+      }),
+    },
+  }
+  validateTransportPackage(normalized)
+  return normalized
+}
+
+/** Expand transport deltas using committed base blobs before signing or Relay submission. */
+export async function hydratePublicationPackage(value, { readBaseBlob } = {}) {
+  validateTransportPackage(value)
+  if (typeof readBaseBlob !== 'function') fail('readBaseBlob callback is required to hydrate publication deltas')
+  const changes = []; let total = 0
+  for (const change of value.payload.changes) {
+    if (change.delete || !Object.hasOwn(change, 'baseBlobSha')) {
+      changes.push(change)
+      if (!change.delete) total += base64Bytes(change.contentBase64, 'contentBase64').length
+      continue
+    }
+    const base = await readBaseBlob(change.baseBlobSha, change.path)
+    if (!Buffer.isBuffer(base)) fail('readBaseBlob must return a Buffer')
+    if (gitObjectSha('blob', base) !== change.baseBlobSha) fail(`base blob hash mismatch for ${change.path}`)
+    if (change.prefixBytes + change.suffixBytes > base.length) fail(`delta prefix and suffix overlap for ${change.path}`)
+    const middle = base64Bytes(change.contentBase64, 'contentBase64', { allowEmpty: true })
+    const resultLength = change.prefixBytes + middle.length + change.suffixBytes
+    if (resultLength === 0) fail('delta reconstructs an empty changed blob')
+    if (resultLength > MAX_CHANGE_BYTES) fail('hydrated changed blob exceeds 4 MiB')
+    total += resultLength
+    if (total > MAX_TOTAL_CHANGE_BYTES) fail('hydrated changed blobs exceed 8 MiB total')
+    const bytes = Buffer.concat([
+      base.subarray(0, change.prefixBytes),
+      middle,
+      base.subarray(base.length - change.suffixBytes),
+    ])
+    changes.push({ path: change.path, mode: change.mode, contentBase64: bytes.toString('base64') })
+  }
+  const expanded = { ...value, payload: { ...value.payload, changes } }
+  return validatePublicationPackage(expanded)
 }
 
 const GIT_ENV = {
@@ -383,6 +510,18 @@ function readTextFile(path, name, { trimTrailingNewline = false } = {}) {
   return trimTrailingNewline ? text.replace(/\r?\n$/, '') : text
 }
 
+function readCommittedBaseBlobs(cwd, publication) {
+  const wanted = new Set(publication.payload.changes.map(change => Buffer.from(change.path, 'utf8').toString('hex')))
+  const tree = parseTree(cwd, publication.payload.baseSha, wanted)
+  const blobs = new Map()
+  for (const change of publication.payload.changes) {
+    if (change.delete) continue
+    const entry = tree.get(change.path)
+    if (entry?.type === 'blob') blobs.set(change.path, git(cwd, ['cat-file', 'blob', entry.sha]))
+  }
+  return blobs
+}
+
 function cli() {
   const args = process.argv.slice(2)
   if (args[0] !== 'prepare') fail('usage: prepare --base SHA --repository owner/name --title-file PATH --body-file PATH --output PATH')
@@ -394,7 +533,7 @@ function cli() {
   }
   if (options.size !== allowed.size) fail('all publication CLI arguments are required')
   const publication = buildPublicationPackage({ cwd: process.cwd(), repository: options.get('--repository'), baseSha: options.get('--base'), title: readTextFile(options.get('--title-file'), 'title file', { trimTrailingNewline: true }), body: readTextFile(options.get('--body-file'), 'body file') })
-  const encoded = encodePublicationPackage(publication)
+  const encoded = encodePublicationPackage(publication, { baseBlobs: readCommittedBaseBlobs(process.cwd(), publication) })
   writeFileSync(options.get('--output'), `${encoded}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   process.stdout.write(`${JSON.stringify({ output: options.get('--output'), repository: publication.repository, sourceBranch: publication.sourceBranch, baseSha: publication.payload.baseSha, sourceHeadSha: publication.payload.sourceHeadSha, sourceTreeSha: publication.payload.sourceTreeSha, encodedCharacters: encoded.length, sha256: createHash('sha256').update(encoded).digest('hex') })}\n`)
 }

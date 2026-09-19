@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -25,11 +26,31 @@ import {
 const repository = 'curiositech/port-daddy'
 const sourceBaseSha = '1'.repeat(40)
 const sourceHeadSha = '2'.repeat(40)
-const sourceTreeSha = '3'.repeat(40)
+const emptyTreeSha = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 const relayKey = workloadKey('27'.repeat(32))
 const workloadPrivateKeyHex = '19'.repeat(32)
 const grantId = `pdg_${'ab'.repeat(16)}`
 const scratch = []
+
+function gitBlobSha(bytes) {
+  return createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex')
+}
+
+function gitTreeSha(entries) {
+  const body = Buffer.concat(entries
+    .slice()
+    .sort((left, right) => left.path.localeCompare(right.path))
+    .map(entry => Buffer.concat([Buffer.from(`${entry.mode} ${entry.path}\0`), Buffer.from(entry.sha, 'hex')])))
+  return createHash('sha1').update(`tree ${body.length}\0`).update(body).digest('hex')
+}
+
+const publishedBytes = Buffer.from('published\n')
+const publishedBlobSha = gitBlobSha(publishedBytes)
+const sourceTreeSha = gitTreeSha([{ mode: '100644', path: 'README.md', sha: publishedBlobSha }])
+
+function gitTreeResponse(sha, entries) {
+  return response({ sha, truncated: false, tree: entries })
+}
 
 function publicationPackage(overrides = {}) {
   return {
@@ -43,7 +64,7 @@ function publicationPackage(overrides = {}) {
       sourceTreeSha,
       sourceCommittedAt: 1_700_000_000,
       commitMessage: 'publish the reviewed source tree',
-      changes: [{ path: 'README.md', mode: '100644', contentBase64: Buffer.from('published\n').toString('base64') }],
+      changes: [{ path: 'README.md', mode: '100644', contentBase64: publishedBytes.toString('base64') }],
       title: 'Reviewed publication',
       body: 'A reviewed publication.\n\nRoadmap-Item: fleetbot-pr-authorship',
       draft: false,
@@ -280,6 +301,8 @@ test('prepare reads the exact main ref, emits a null PR manifest, and publish-ma
     const url = String(input); seen.push({ url, init })
     if (url.endsWith(`/publisher-grants/${grantId}`)) return response({ ...snapshot(), schema: 'port-daddy.publisher-grant-snapshot.v1' })
     if (url === `https://api.github.com/repos/${repository}/git/ref/heads/main`) return response({ object: { sha: sourceBaseSha } })
+    if (url === `https://api.github.com/repos/${repository}/git/commits/${sourceBaseSha}`) return response({ sha: sourceBaseSha, tree: { sha: emptyTreeSha } })
+    if (url.startsWith(`https://api.github.com/repos/${repository}/git/trees/${emptyTreeSha}`)) return gitTreeResponse(emptyTreeSha, [])
     if (url === 'https://relay.example/v1/fleetbot/publish') {
       const actualRequest = JSON.parse(init.body)
       return response(signedReceipt(actualRequest))
@@ -328,6 +351,94 @@ test('base movement and protected workflow context reject publication before mut
   })
   assert.equal(seen.some(url => url === 'https://relay.example/v1/fleetbot/publish'), false)
   await assert.rejects(() => main(['prepare'], { ...env, GITHUB_REF: 'refs/heads/feature' }), /first attempt.*protected main workflow/i)
+})
+
+test('prepare hydrates a base delta into the exact full Relay blob and rejects a mismatched base blob before publish', async () => {
+  const baseBlob = Buffer.from(`${'A'.repeat(2048)}old-middle${'Z'.repeat(2048)}`)
+  const fullBlob = Buffer.from(`${'A'.repeat(2048)}new-middle${'Z'.repeat(2048)}`)
+  const baseBlobSha = gitBlobSha(baseBlob)
+  const baseTreeSha = gitTreeSha([{ mode: '100644', path: 'README.md', sha: baseBlobSha }])
+  const fullTreeSha = gitTreeSha([{ mode: '100644', path: 'README.md', sha: gitBlobSha(fullBlob) }])
+  const publication = publicationPackage({
+    payload: {
+      ...publicationPackage().payload,
+      sourceTreeSha: fullTreeSha,
+      changes: [{ path: 'README.md', mode: '100644', contentBase64: fullBlob.toString('base64') }],
+    },
+  })
+  const encoded = encodePublicationPackage(publication, { baseBlobs: new Map([['README.md', baseBlob]]) })
+  const transport = decodePublicationPackage(encoded)
+  assert.equal(transport.payload.changes[0].baseBlobSha, baseBlobSha)
+  assert.equal(transport.payload.changes[0].prefixBytes, 2048)
+  assert.equal(transport.payload.changes[0].suffixBytes, 2055)
+
+  const paths = tempPaths()
+  const env = mainEnv(encoded, paths)
+  const seen = []
+  await withFetch(async (input, init = {}) => {
+    const url = String(input); seen.push({ url, init })
+    if (url.endsWith(`/publisher-grants/${grantId}`)) return response({ ...snapshot(), schema: 'port-daddy.publisher-grant-snapshot.v1' })
+    if (url === `https://api.github.com/repos/${repository}/git/ref/heads/main`) return response({ object: { sha: sourceBaseSha } })
+    if (url === `https://api.github.com/repos/${repository}/git/commits/${sourceBaseSha}`) return response({ sha: sourceBaseSha, tree: { sha: baseTreeSha } })
+    if (url.startsWith(`https://api.github.com/repos/${repository}/git/trees/${baseTreeSha}`)) {
+      return gitTreeResponse(baseTreeSha, [{ path: 'README.md', mode: '100644', type: 'blob', sha: baseBlobSha }])
+    }
+    if (url === `https://api.github.com/repos/${repository}/git/blobs/${baseBlobSha}`) {
+      return response({ sha: baseBlobSha, encoding: 'base64', size: baseBlob.length, content: baseBlob.toString('base64') })
+    }
+    throw new Error(`unexpected fetch ${url}`)
+  }, async () => {
+    await main(['prepare'], env)
+    const prepared = JSON.parse(readFileSync(paths.requestPath, 'utf8'))
+    assert.deepEqual(prepared.payload.changes, [{ path: 'README.md', mode: '100644', contentBase64: fullBlob.toString('base64') }])
+    assert.equal(seen.some(entry => entry.url === 'https://relay.example/v1/fleetbot/publish'), false)
+  })
+
+  const badPaths = tempPaths()
+  const badEnv = mainEnv(encoded, badPaths)
+  const badSeen = []
+  const wrongPathTreeSha = gitTreeSha([{ mode: '100644', path: 'README.md', sha: 'e'.repeat(40) }])
+  await withFetch(async (input, init = {}) => {
+    const url = String(input); badSeen.push({ url, init })
+    if (url.endsWith(`/publisher-grants/${grantId}`)) return response({ ...snapshot(), schema: 'port-daddy.publisher-grant-snapshot.v1' })
+    if (url === `https://api.github.com/repos/${repository}/git/ref/heads/main`) return response({ object: { sha: sourceBaseSha } })
+    if (url === `https://api.github.com/repos/${repository}/git/commits/${sourceBaseSha}`) return response({ sha: sourceBaseSha, tree: { sha: wrongPathTreeSha } })
+    if (url.startsWith(`https://api.github.com/repos/${repository}/git/trees/${wrongPathTreeSha}`)) {
+      return gitTreeResponse(wrongPathTreeSha, [{ path: 'README.md', mode: '100644', type: 'blob', sha: 'e'.repeat(40) }])
+    }
+    if (url === `https://api.github.com/repos/${repository}/git/blobs/${baseBlobSha}`) {
+      return response({ sha: 'f'.repeat(40), encoding: 'base64', size: baseBlob.length, content: baseBlob.toString('base64') })
+    }
+    throw new Error(`unexpected fetch ${url}`)
+  }, async () => {
+    await assert.rejects(() => main(['prepare'], badEnv), /does not belong to its admitted base path/i)
+    assert.equal(badSeen.some(entry => entry.url === 'https://relay.example/v1/fleetbot/publish'), false)
+  })
+
+  const forgedPublication = publicationPackage({
+    payload: {
+      ...publication.payload,
+      sourceTreeSha: 'f'.repeat(40),
+    },
+  })
+  const forgedEnv = mainEnv(encodePublicationPackage(forgedPublication, { baseBlobs: new Map([['README.md', baseBlob]]) }), tempPaths())
+  const forgedSeen = []
+  await withFetch(async (input, init = {}) => {
+    const url = String(input); forgedSeen.push({ url, init })
+    if (url.endsWith(`/publisher-grants/${grantId}`)) return response({ ...snapshot(), schema: 'port-daddy.publisher-grant-snapshot.v1' })
+    if (url === `https://api.github.com/repos/${repository}/git/ref/heads/main`) return response({ object: { sha: sourceBaseSha } })
+    if (url === `https://api.github.com/repos/${repository}/git/commits/${sourceBaseSha}`) return response({ sha: sourceBaseSha, tree: { sha: baseTreeSha } })
+    if (url.startsWith(`https://api.github.com/repos/${repository}/git/trees/${baseTreeSha}`)) {
+      return gitTreeResponse(baseTreeSha, [{ path: 'README.md', mode: '100644', type: 'blob', sha: baseBlobSha }])
+    }
+    if (url === `https://api.github.com/repos/${repository}/git/blobs/${baseBlobSha}`) {
+      return response({ sha: baseBlobSha, encoding: 'base64', size: baseBlob.length, content: baseBlob.toString('base64') })
+    }
+    throw new Error(`unexpected fetch ${url}`)
+  }, async () => {
+    await assert.rejects(() => main(['prepare'], forgedEnv), /Reconstructed publication tree does not match the approved source tree/i)
+    assert.equal(forgedSeen.some(entry => entry.url === 'https://relay.example/v1/fleetbot/publish'), false)
+  })
 })
 
 test('recovery contacts only receipt recovery and carries sanitized source proof', async () => {
