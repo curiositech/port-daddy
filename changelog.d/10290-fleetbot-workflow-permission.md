@@ -1,5 +1,3 @@
----
-category: Fixed
----
+type: fixed
 
-Fleetbot now requests the GitHub App's Workflows write permission only when a governed publication adds, changes, or removes a file under `.github/workflows/`. Ordinary code publication keeps its narrower Contents and Pull Requests permissions. An installation that has not granted Workflows permission cannot mint the workflow-changing token, so publication fails before a GitHub repository mutation.
+- **Fleetbot workflow publication now asks for Workflows write only when the change set needs it.** A governed publication that adds, changes, or removes a file under `.github/workflows/` requests that permission on its one-repository GitHub App token; ordinary code publication retains narrower Contents and Pull Requests permissions. An installation without Workflows permission fails token minting before any GitHub repository mutation.
