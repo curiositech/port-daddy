@@ -1,0 +1,96 @@
+% Paper 8 Figure 4: Simplicial Hodge Decomposition and the Swarm Legibility Ratio.
+% Native vector TikZ diagram conforming to docs/harbor-research/figures/CONVENTION.md.
+% 100% native document fonts without artificial downscaling or overlap.
+
+\begin{figure}[htbp]
+\centering
+
+% =========================================================================
+% LEFT: Panel (a) The Oriented 2-Simplex & Boundary Operator
+% =========================================================================
+\begin{minipage}[t]{0.38\textwidth}
+\centering
+{\normalsize\bfseries (a) Oriented 2-Simplex}\\[2pt]
+{\footnotesize (Triadic Review Contract)}\\[6pt]
+\begin{tikzpicture}[
+  font=\small,
+  snode/.style={circle, draw=harborblue!90, fill=harborblue!15, very thick, minimum size=8.5mm, inner sep=0pt, font=\small\bfseries, text=harborblue!90},
+  fieldbox/.style={draw=slate!40, fill=white, rounded corners=3pt, thick, inner sep=6pt, font=\footnotesize, align=left, anchor=north},
+  hedge/.style={draw=harborblue, very thick, ->},
+]
+  % Triangle vertices
+  \node[snode] (v0) at (0.6, 1.2) {$v_0$};
+  \node[snode] (v1) at (4.4, 1.2) {$v_1$};
+  \node[snode] (v2) at (2.5, 4.1) {$v_2$};
+
+  % Shaded 2-cell interior
+  \fill[amber!15] (v0.center) -- (v1.center) -- (v2.center) -- cycle;
+  \node[font=\small\bfseries, color=amber!90] at (2.5, 2.5) {Face $\tau = [v_0, v_1, v_2]$};
+  \node[font=\footnotesize, color=amber!80] at (2.5, 2.0) {Review Join $C^2$};
+
+  % Directed edges with 1-cochains
+  \draw[hedge] (v0) -- node[below=2pt, font=\footnotesize\bfseries] {$e_{01}: g_{01}$} (v1);
+  \draw[hedge] (v1) -- node[above right=2pt, font=\footnotesize\bfseries] {$e_{12}: g_{12}$} (v2);
+  \draw[hedge] (v0) -- node[above left=2pt, font=\footnotesize\bfseries] {$e_{02}: g_{02}$} (v2);
+
+  % Boundary equation box below
+  \node[fieldbox, text width=4.8cm] at (2.5, 0.4) {
+    \textbf{\small Oriented Boundary}:\\[2pt]
+    $\partial_2 \tau = e_{01} + e_{12} - e_{02}$\\[4pt]
+    \textbf{\small Triadic Review Curl}:\\[2pt]
+    $(\delta_1 g)_\tau = g_{01} + g_{12} - g_{02} \in \mathbb{R}^d$
+  };
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+% =========================================================================
+% RIGHT: Panel (b) Discrete Hodge Orthogonal Splitting & Legibility Triage
+% =========================================================================
+\begin{minipage}[t]{0.59\textwidth}
+\centering
+{\normalsize\bfseries (b) Discrete Hodge 1-Laplacian}\\[2pt]
+{\footnotesize ($L_1 = \delta_0 \delta_0^* + \delta_1^* \delta_1$ Decomposition)}\\[6pt]
+\begin{tikzpicture}[
+  font=\small,
+  actionbox/.style={draw=slate!30, fill=slate!5, rounded corners=3pt, thick, inner sep=5pt, font=\footnotesize, align=center, anchor=north},
+]
+  % Orthogonal Subspaces Venn/Partition Diagram
+  \begin{scope}[shift={(0, 3.1)}]
+    % Subspace 1: Gradient
+    \draw[thick, draw=seagreen!80, fill=seagreen!8, rounded corners=3pt] (0, 0) rectangle (2.8, 2.7);
+    \node[font=\small\bfseries, color=seagreen] at (1.4, 2.35) {$\mathrm{im}(\delta_0)$};
+    \node[font=\footnotesize\bfseries, color=seagreen, align=center] at (1.4, 1.75) {Gauge\\[1pt]Gradients};
+    \node[font=\scriptsize, align=center] at (1.4, 0.75) {Curl-free: $\delta_1(\delta_0 x) \equiv 0$\\[1pt]Benign turn latency\\[1pt]$\| \delta_0 x \|_2^2$};
+
+    % Subspace 2: Harmonic
+    \draw[thick, draw=harborblue!80, fill=harborblue!8, rounded corners=3pt] (3.05, 0) rectangle (5.85, 2.7);
+    \node[font=\small\bfseries, color=harborblue] at (4.45, 2.35) {$\mathcal{H}^1(X; \mathbb{R})$};
+    \node[font=\footnotesize\bfseries, color=harborblue, align=center] at (4.45, 1.75) {Harmonic\\[1pt]Cavities};
+    \node[font=\scriptsize, align=center] at (4.45, 0.75) {$\ker(\delta_0^*) \cap \ker(\delta_1)$\\[1pt]Macro network splits\\[1pt]$\| h \|_2^2$};
+
+    % Subspace 3: Curl
+    \draw[thick, draw=shipred!80, fill=shipred!8, rounded corners=3pt] (6.1, 0) rectangle (8.9, 2.7);
+    \node[font=\small\bfseries, color=shipred] at (7.5, 2.35) {$\mathrm{im}(\delta_1^*)$};
+    \node[font=\footnotesize\bfseries, color=shipred, align=center] at (7.5, 1.75) {Triadic\\[1pt]Curls};
+    \node[font=\scriptsize, align=center] at (7.5, 0.75) {Divergence-free\\[1pt]Local review bugs\\[1pt]$\| \delta_1^* \psi \|_2^2$};
+  \end{scope}
+
+  % Orthogonal Sum Formula (anchored north below the 3 boxes)
+  \node[actionbox, fill=white, draw=slate!40, text width=8.7cm] at (4.45, 2.8) {
+    \textbf{\small Pythagorean Invariance (Theorem CR-5)}:\\[2pt]
+    $\|g\|_2^2 = \|\delta_0 x\|_2^2 + \|h\|_2^2 + \|\delta_1^* \psi\|_2^2 \quad (\text{Exact Mutual Orthogonality})$
+  };
+
+  % Legibility Triage Box (anchored north below Pythagorean box)
+  \node[actionbox, fill=amber!6, draw=amber!50, text width=8.7cm] at (4.45, 1.3) {
+    \textbf{\normalsize Swarm Legibility Ratio}: \quad
+    $\displaystyle \mathcal{L}(g) = \frac{\|h\|_2^2}{\|h\|_2^2 + \|\delta_1^* \psi\|_2^2} \in [0, 1]$\\[4pt]
+    $\bullet$ \textbf{$\mathcal{L}(g) \approx 0$ (Curl Dominant)}: Local review bug $\to$ \textbf{Re-prompt triad}\\[2pt]
+    $\bullet$ \textbf{$\mathcal{L}(g) \approx 1$ (Harmonic Split)}: Macro partition $\to$ \textbf{Bridge cavity}
+  };
+\end{tikzpicture}
+\end{minipage}
+
+\caption{Discrete Hodge decomposition on a simplicial 2-complex. (a) A 2-simplex $\tau = [v_0, v_1, v_2]$ modeling a 3-way review contract with oriented boundary $\partial_2 \tau = e_{01} + e_{12} - e_{02}$. (b) The Hodge 1-Laplacian $L_1 = \delta_0 \delta_0^* + \delta_1^* \delta_1$ decomposes observed discrepancies into mutually orthogonal gauge gradients, harmonic cavities, and triadic curls, providing the zero-token Swarm Legibility Ratio $\mathcal{L}(g)$.}
+\label{fig:hodge}
+\end{figure}
