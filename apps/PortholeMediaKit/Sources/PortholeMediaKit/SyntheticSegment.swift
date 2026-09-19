@@ -36,7 +36,7 @@ public struct SyntheticSegment: Sendable {
 }
 
 /// Each segment has its own codec session, zero-based PTS and first keyframe.
-/// Callers own successful files. Failed/cancelled attempts remove only their fresh UUID directory.
+/// Callers own successful files. Cleanup attempts best-effort removal of only the fresh UUID directory.
 public actor SyntheticSegmentWriter {
     private var writing = false
     private let afterFirstFrame: (@Sendable () async -> Void)?

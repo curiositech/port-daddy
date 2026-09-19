@@ -6,7 +6,7 @@ Shared iOS 17 / macOS 14 offline media fixture primitives. Both native packages 
 
 `PlaybackTimeline` resolves half-open source intervals to segment-local ticks or an explicit gap. It rejects overlaps, implicit holes, and reversed intervals. Playback clients must render gaps as unavailable, not continue showing the previous frame as current evidence.
 
-Cancellation, encoding failure, deadline expiry, or observed output-size overflow removes only the operation's newly created directory. Successful output belongs to the caller. The byte check is an observed output limit, not a filesystem quota: encoder buffering can temporarily exceed it. The 30-second deadline is cooperative; AVFoundation cancellation/finalization may block. No sealed archive, crash recovery, persistent index, privacy admission, HEVC hardware guarantee, live capture, network delivery, audio, or remote-control authority is implemented here.
+Cancellation, encoding failure, deadline expiry, or observed output-size overflow attempts best-effort removal of only the operation's newly created directory. Filesystem cleanup failures are not surfaced separately and may leave synthetic fixture output behind. Successful output belongs to the caller. The byte check is an observed output limit, not a filesystem quota: encoder buffering can temporarily exceed it. The 30-second deadline is cooperative; AVFoundation cancellation/finalization may block. No sealed archive, crash recovery, persistent index, privacy admission, HEVC hardware guarantee, live capture, network delivery, audio, or remote-control authority is implemented here.
 
 Run offline round-trip and rejection tests:
 

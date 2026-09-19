@@ -7,5 +7,5 @@ let package = Package(
     products: [.library(name: "PortholeMediaKit", targets: ["PortholeMediaKit"])],
     targets: [.target(name: "PortholeMediaKit"),
               .testTarget(name: "PortholeMediaKitTests", dependencies: ["PortholeMediaKit"])],
-    swiftLanguageModes: [.v5]
+    swiftLanguageModes: [.v6]
 )
