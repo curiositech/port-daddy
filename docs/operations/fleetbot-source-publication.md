@@ -2,8 +2,8 @@
 
 The protected workload accepts a compressed data package describing committed
 source relative to an exact base. Existing files can use bounded prefix/suffix
-edits against an identified base blob, keeping small edits to large files small
-in transit. Relay creates the blobs, tree, App-authored
+edits or DEFLATE with the identified base blob as a dictionary, keeping sparse
+edits to large files small in transit. Relay creates the blobs, tree, App-authored
 commit, governed branch and ready-for-review PR. The runner never executes code
 from the package and never receives a GitHub App installation token.
 
@@ -40,7 +40,7 @@ The protected runner resolves each base blob through the repository's read-only
 Git API, verifies its Git object hash and byte count, then reconstructs the full
 changed content under the same per-file and total byte limits. Only the expanded
 Relay payload is signed. Fractional or overlapping copy lengths, wrong base
-objects, malformed encodings and excessive reconstructed output fail before
+objects, malformed encodings, trailing compressed data and excessive reconstructed output fail before
 publication. Transport input remains bound by the recovery manifest's digest.
 
 ## Protected invocation and proof
@@ -75,7 +75,9 @@ A signed recovery manifest is uploaded before the effect. A successful response
 must carry the pinned Relay signature, expected App, account-bound branch,
 source head, PR URL/number and confirmed token cleanup. Readback then checks the
 App author, exact base/head, source tree, single parent, title, readiness and
-receipt marker. The local source head and App-authored GitHub commit differ;
+the complete body produced by Relay's shared provenance stamper. Keeping a
+receipt marker while changing the description or roadmap trailer fails readback.
+The local source head and App-authored GitHub commit differ;
 tree equality connects their content.
 
 ## Lost responses

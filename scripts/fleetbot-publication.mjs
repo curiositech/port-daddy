@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { constants, gzipSync, inflateRawSync } from 'node:zlib'
+import { constants, deflateRawSync, gzipSync, inflateRawSync } from 'node:zlib'
 
 export const PUBLICATION_SCHEMA = 'port-daddy.fleetbot-publication.v1'
 export const MAX_ENCODED_CHARACTERS = 48_000
@@ -117,17 +117,25 @@ function validateChange(change, paths, totals, { allowDelta = false, allowUtf8 =
     exactKeys(change, ['path', 'delete'], 'deletion')
     return
   }
+  const dictionaryDelta = allowDelta && Object.hasOwn(change, 'contentDeflateBase64')
   const isDelta = allowDelta && Object.hasOwn(change, 'baseBlobSha')
-  const contentKey = Object.hasOwn(change, 'contentBase64')
+  if (dictionaryDelta && !isDelta) fail('compressed delta is missing its base blob binding')
+  const contentKey = dictionaryDelta
+    ? 'contentDeflateBase64'
+    : (Object.hasOwn(change, 'contentBase64')
     ? 'contentBase64'
-    : (allowUtf8 && Object.hasOwn(change, 'contentUtf8') ? 'contentUtf8' : null)
+    : (allowUtf8 && Object.hasOwn(change, 'contentUtf8') ? 'contentUtf8' : null))
   if (!contentKey) fail('blob change must contain exactly one content representation')
-  exactKeys(change, isDelta
+  exactKeys(change, dictionaryDelta
+    ? ['path', 'mode', 'baseBlobSha', 'contentDeflateBase64']
+    : isDelta
     ? ['path', 'mode', 'baseBlobSha', 'prefixBytes', 'suffixBytes', contentKey]
     : ['path', 'mode', contentKey], isDelta ? 'delta blob change' : 'blob change')
   if (!MODES.has(change.mode)) fail('changed file mode is unsupported')
   if (isDelta) {
     sha(change.baseBlobSha, 'baseBlobSha')
+  }
+  if (isDelta && !dictionaryDelta) {
     if (!Number.isSafeInteger(change.prefixBytes) || change.prefixBytes < 0
         || !Number.isSafeInteger(change.suffixBytes) || change.suffixBytes < 0
         || change.prefixBytes > MAX_UNCOMPRESSED_BYTES || change.suffixBytes > MAX_UNCOMPRESSED_BYTES
@@ -135,7 +143,9 @@ function validateChange(change, paths, totals, { allowDelta = false, allowUtf8 =
       fail('delta prefix and suffix lengths are invalid or exceed the package bound')
     }
   }
-  const bytes = contentKey === 'contentUtf8'
+  const bytes = dictionaryDelta
+    ? base64Bytes(change.contentDeflateBase64, 'contentDeflateBase64')
+    : contentKey === 'contentUtf8'
     ? utf8Bytes(change.contentUtf8, 'contentUtf8', { allowEmpty: isDelta })
     : base64Bytes(change.contentBase64, 'contentBase64', { allowEmpty: isDelta })
   if (bytes.length > MAX_CHANGE_BYTES) fail('one changed blob exceeds 4 MiB')
@@ -255,7 +265,15 @@ export function encodePublicationPackage(value, { baseBlobs = new Map() } = {}) 
           prefixBytes: prefix,
           suffixBytes: suffix,
         }, middle)
-        return stableJson(delta).length < stableJson(full).length ? delta : full
+        const compressed = deflateRawSync(target, { dictionary: base })
+        const dictionaryDelta = compressed.length <= MAX_CHANGE_BYTES ? {
+          path: change.path,
+          mode: change.mode,
+          baseBlobSha: gitObjectSha('blob', base),
+          contentDeflateBase64: compressed.toString('base64'),
+        } : null
+        return [full, delta, dictionaryDelta].filter(Boolean)
+          .sort((left, right) => stableJson(left).length - stableJson(right).length)[0]
       }),
     },
   }
@@ -263,7 +281,7 @@ export function encodePublicationPackage(value, { baseBlobs = new Map() } = {}) 
   const plain = Buffer.from(stableJson(transport), 'utf8')
   if (plain.length > MAX_UNCOMPRESSED_BYTES) fail('publication package exceeds the 12 MiB uncompressed bound')
   const token = JSON.stringify({ encoding: 'gzip+base64', data: gzipSync(plain).toString('base64') })
-  if (token.length > MAX_ENCODED_CHARACTERS) fail('compressed publication token exceeds 48,000 characters')
+  if (token.length > MAX_ENCODED_CHARACTERS) fail(`compressed publication token is ${token.length} characters and exceeds 48,000 characters`)
   return token
 }
 
@@ -286,7 +304,7 @@ export function decodePublicationPackage(encoded) {
     payload: {
       ...value.payload,
       changes: value.payload.changes.map(change => {
-        if (change.delete || Object.hasOwn(change, 'contentBase64')) return change
+        if (change.delete || Object.hasOwn(change, 'contentBase64') || Object.hasOwn(change, 'contentDeflateBase64')) return change
         const bytes = utf8Bytes(change.contentUtf8, 'contentUtf8', { allowEmpty: Object.hasOwn(change, 'baseBlobSha') })
         const { contentUtf8, ...rest } = change
         return { ...rest, contentBase64: bytes.toString('base64') }
@@ -311,6 +329,31 @@ export async function hydratePublicationPackage(value, { readBaseBlob } = {}) {
     const base = await readBaseBlob(change.baseBlobSha, change.path)
     if (!Buffer.isBuffer(base)) fail('readBaseBlob must return a Buffer')
     if (gitObjectSha('blob', base) !== change.baseBlobSha) fail(`base blob hash mismatch for ${change.path}`)
+    if (Object.hasOwn(change, 'contentDeflateBase64')) {
+      const compressed = base64Bytes(change.contentDeflateBase64, 'contentDeflateBase64')
+      let inflated
+      let consumed
+      try {
+        const result = inflateRawSync(compressed, {
+          dictionary: base,
+          info: true,
+          finishFlush: constants.Z_FINISH,
+          maxOutputLength: MAX_CHANGE_BYTES,
+        })
+        inflated = result.buffer
+        consumed = result.engine.bytesWritten
+      } catch {
+        fail(`compressed delta for ${change.path} is invalid or exceeds 4 MiB`)
+      }
+      if (!Number.isSafeInteger(consumed) || consumed !== compressed.length) {
+        fail(`compressed delta for ${change.path} contains trailing data`)
+      }
+      if (inflated.length === 0) fail('compressed delta reconstructs an empty changed blob')
+      total += inflated.length
+      if (total > MAX_TOTAL_CHANGE_BYTES) fail('hydrated changed blobs exceed 8 MiB total')
+      changes.push({ path: change.path, mode: change.mode, contentBase64: inflated.toString('base64') })
+      continue
+    }
     if (change.prefixBytes + change.suffixBytes > base.length) fail(`delta prefix and suffix overlap for ${change.path}`)
     const middle = base64Bytes(change.contentBase64, 'contentBase64', { allowEmpty: true })
     const resultLength = change.prefixBytes + middle.length + change.suffixBytes

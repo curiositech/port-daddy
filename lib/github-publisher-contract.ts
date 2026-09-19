@@ -7,6 +7,12 @@
  * component holding the GitHub App key.
  */
 
+import {
+  fleetbotMutationMarker as sharedMutationMarker,
+  stampPullRequestBody as sharedPullRequestBody,
+  stampFleetbotMessage as sharedFleetbotMessage,
+} from './github-publisher-stamp.mjs';
+
 export const FLEETBOT_ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1' as const;
 export const FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2' as const;
 export const FLEETBOT_RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v2' as const;
@@ -172,8 +178,6 @@ const REPOSITORY_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const IDENTIFIER_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/;
 const SHA_RE = /^[0-9a-f]{40}$/i;
 const TRAILER_RE = /^Roadmap-Item\s*:\s*(.+)$/gim;
-const PROVENANCE_START = '<!-- port-daddy:fleetbot-provenance:start -->';
-const PROVENANCE_END = '<!-- port-daddy:fleetbot-provenance:end -->';
 
 /** Stable JSON representation used as the cross-runtime idempotency preimage. */
 export function stableJson(value: unknown): string {
@@ -288,42 +292,9 @@ export function validateRoadmapTrailer(
   return null;
 }
 
-function stripExistingProvenance(body: string): string {
-  const start = body.indexOf(PROVENANCE_START);
-  if (start < 0) return body.trim();
-  const end = body.indexOf(PROVENANCE_END, start);
-  if (end < 0) return body.trim();
-  return `${body.slice(0, start)}${body.slice(end + PROVENANCE_END.length)}`.trim();
-}
-
-function provenanceBlock(input: {
-  authorship: FleetbotAuthorship;
-  receiptId: string;
-  sourceHeadSha?: string | null;
-}): string {
-  const a = input.authorship;
-  const source = input.sourceHeadSha ? `\n> Source head: \`${input.sourceHeadSha}\`` : '';
-  const roadmap = a.roadmapItem
-    ? `Roadmap: \`${a.roadmapItem}\``
-    : 'Roadmap: explicit sidequest';
-  return [
-    PROVENANCE_START,
-    fleetbotMutationMarker(input.receiptId),
-    '> **Published by Port Daddy Fleetbot**',
-    `> Verified dispatcher: \`${a.actorId}\``,
-    `> Dispatcher-supplied agent label: \`${a.agentId}\``,
-    `> Dispatcher-supplied session label: \`${a.sessionId}\` · ${roadmap}${source}`,
-    `> Relay receipt: \`${input.receiptId}\``,
-    PROVENANCE_END,
-  ].join('\n');
-}
-
 /** Stable, machine-readable GitHub mutation marker used for exact readback. */
 export function fleetbotMutationMarker(receiptId: string): string {
-  if (!/^[A-Za-z0-9_-]{1,80}$/.test(receiptId)) {
-    throw new Error('Fleetbot receipt id is invalid');
-  }
-  return `<!-- port-daddy:fleetbot-mutation:${receiptId.toLowerCase()} -->`;
+  return sharedMutationMarker(receiptId);
 }
 
 /** Insert an idempotent visible signature immediately before the roadmap trailer. */
@@ -333,14 +304,7 @@ export function stampPullRequestBody(input: {
   receiptId: string;
   sourceHeadSha?: string | null;
 }): string {
-  const clean = stripExistingProvenance(input.body);
-  const lines = clean.split(/\r?\n/);
-  const trailerIndex = lines.findIndex((line) => /^Roadmap-Item\s*:/i.test(line.trim()));
-  const block = provenanceBlock(input);
-  if (trailerIndex < 0) return `${clean}\n\n${block}\n`;
-  const before = lines.slice(0, trailerIndex).join('\n').trimEnd();
-  const after = lines.slice(trailerIndex).join('\n').trimStart();
-  return `${before}\n\n${block}\n\n${after}\n`;
+  return sharedPullRequestBody(input);
 }
 
 /** Append the same traceable signature to comments and review replies. */
@@ -350,8 +314,7 @@ export function stampFleetbotMessage(input: {
   receiptId: string;
   sourceHeadSha?: string | null;
 }): string {
-  const clean = stripExistingProvenance(input.body);
-  return `${clean}\n\n${provenanceBlock(input)}\n`;
+  return sharedFleetbotMessage(input);
 }
 
 export function fleetbotReceiptId(idempotencyKey: string): string {

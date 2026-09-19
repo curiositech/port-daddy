@@ -6,7 +6,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
-import { gunzipSync, gzipSync } from 'node:zlib'
+import { deflateRawSync, gunzipSync, gzipSync } from 'node:zlib'
 import {
   buildPublicationPackage,
   decodePublicationPackage,
@@ -72,12 +72,15 @@ function deltaCliFixture() {
   mkdirSync(ROOT, { recursive: true })
   const cwd = mkdtempSync(join(ROOT, 'fleetbot-publication-cli-delta-'))
   git(cwd, 'init', '-b', 'main'); git(cwd, 'config', 'user.name', 'Publication Fixture'); git(cwd, 'config', 'user.email', 'fixture@example.invalid')
-  const base = Buffer.alloc(128 * 1024, 0x61)
+  const base = Buffer.alloc(32 * 1024)
+  for (let index = 0; index < base.length; index += 1) base[index] = (index * 31 + 17) % 256
   writeFileSync(join(cwd, 'large.bin'), base)
   git(cwd, 'add', '.'); git(cwd, 'commit', '-m', 'delta base')
   const baseSha = git(cwd, 'rev-parse', 'HEAD')
   git(cwd, 'switch', '-c', 'codex/publication-cli-delta')
-  const target = Buffer.from(base); target.fill(0x62, 64 * 1024, 64 * 1024 + 32)
+  const target = Buffer.from(base)
+  target.fill(0x62, 0, 32)
+  target.fill(0x63, target.length - 32)
   writeFileSync(join(cwd, 'large.bin'), target)
   git(cwd, 'add', '.'); git(cwd, 'commit', '-m', 'delta publication')
   return { cwd, baseSha, cleanup: () => rmSync(cwd, { recursive: true, force: true }) }
@@ -245,6 +248,49 @@ describe('offline Fleetbot publication package', () => {
     } finally { f.cleanup() }
   })
 
+  it('hydrates dictionary-deflate deltas and rejects trailing data, wrong bases, and output bombs', async () => {
+    const f = fixture()
+    try {
+      const value = buildPublicationPackage({ cwd: f.cwd, repository: 'curiositech/port-daddy', baseSha: f.baseSha, title: 'x', body: 'x' })
+      const target = Buffer.alloc(64 * 1024)
+      for (let index = 0; index < target.length; index += 1) target[index] = (index * 19 + 7) % 256
+      target[0] = 0x5a; target[target.length - 1] = 0x4a
+      const expanded = {
+        ...value,
+        payload: {
+          ...value.payload,
+          changes: value.payload.changes.map(change => change.path === 'keep.txt'
+            ? { path: change.path, mode: change.mode, contentBase64: target.toString('base64') }
+            : change),
+        },
+      }
+      const base = Buffer.from(target); base[0] = 0x58; base[base.length - 1] = 0x48
+      const transport = decodePublicationPackage(encodePublicationPackage(expanded, { baseBlobs: new Map([['keep.txt', base]]) }))
+      const dictionary = transport.payload.changes.find(change => change.path === 'keep.txt')
+      assert.equal(typeof dictionary.contentDeflateBase64, 'string')
+      assert.deepEqual(await hydratePublicationPackage(transport, { readBaseBlob: async () => base }), expanded)
+      await assert.rejects(() => hydratePublicationPackage(transport, { readBaseBlob: async () => Buffer.from('wrong') }), /base blob hash mismatch/)
+
+      const trailing = structuredClone(transport)
+      const trailingChange = trailing.payload.changes.find(change => change.path === 'keep.txt')
+      trailingChange.contentDeflateBase64 = Buffer.concat([Buffer.from(trailingChange.contentDeflateBase64, 'base64'), Buffer.from([0])]).toString('base64')
+      await assert.rejects(() => hydratePublicationPackage(trailing, { readBaseBlob: async () => base }), /trailing|invalid/)
+      const malformed = structuredClone(transport)
+      malformed.payload.changes.find(change => change.path === 'keep.txt').contentDeflateBase64 = '!!!!'
+      assert.throws(() => validatePublicationPackage(malformed), /unsupported|fields|representation/)
+      assert.throws(() => decodePublicationPackage(transportToken(malformed)), /base64|representation/)
+      await assert.rejects(() => hydratePublicationPackage(malformed, { readBaseBlob: async () => base }), /base64/)
+
+      const bombBase = Buffer.from('dictionary')
+      const bombTarget = Buffer.alloc(4 * 1024 * 1024 + 1, 0x42)
+      const bomb = structuredClone(transport)
+      const bombChange = bomb.payload.changes.find(change => change.path === 'keep.txt')
+      bombChange.baseBlobSha = createHash('sha1').update(`blob ${bombBase.length}\0`).update(bombBase).digest('hex')
+      bombChange.contentDeflateBase64 = deflateRawSync(bombTarget, { dictionary: bombBase }).toString('base64')
+      await assert.rejects(() => hydratePublicationPackage(bomb, { readBaseBlob: async () => bombBase }), /4 MiB|invalid/)
+    } finally { f.cleanup() }
+  })
+
   it('ignores untracked excluded files but rejects dirty, detached, base-branch, and stale source inputs', () => {
     const f = fixture()
     try {
@@ -297,6 +343,22 @@ describe('offline Fleetbot publication package', () => {
       const threeMeg = Buffer.alloc(3 * 1024 * 1024, 7).toString('base64')
       const aggregate = [1, 2, 3].map(index => ({ path: `large-${index}.bin`, mode: '100644', contentBase64: threeMeg }))
       assert.throws(() => validatePublicationPackage({ ...value, payload: { ...value.payload, changes: aggregate } }), /8 MiB/)
+      const noisy = Buffer.alloc(64 * 1024)
+      let noise = 0x9e3779b9
+      for (let index = 0; index < noisy.length; index += 1) {
+        noise = (Math.imul(noise ^ (noise >>> 16), 0x45d9f3b) + 0x27100001) | 0
+        noisy[index] = noise & 0xff
+      }
+      const oversize = {
+        ...value,
+        payload: {
+          ...value.payload,
+          changes: value.payload.changes.map(change => change.path === 'keep.txt'
+            ? { path: change.path, mode: change.mode, contentBase64: noisy.toString('base64') }
+            : change),
+        },
+      }
+      assert.throws(() => encodePublicationPackage(oversize), /48,000/)
       const marker = join(ROOT, 'publication-filter-marker')
       writeFileSync(join(f.cwd, '.gitattributes'), 'keep.txt filter=marker\n')
       git(f.cwd, 'add', '.gitattributes'); git(f.cwd, 'commit', '-m', 'configure custom filter')
@@ -358,11 +420,13 @@ describe('offline Fleetbot publication package', () => {
       const titlePath = join(inputs, 'title.txt'); const bodyPath = join(inputs, 'body.txt'); const output = join(inputs, 'package.token')
       writeFileSync(titlePath, 'CLI delta\n'); writeFileSync(bodyPath, 'CLI delta body')
       const script = fileURLToPath(new URL('./fleetbot-publication.mjs', import.meta.url))
-      execFileSync(process.execPath, [script, 'prepare', '--base', f.baseSha, '--repository', 'curiositech/port-daddy', '--title-file', titlePath, '--body-file', bodyPath, '--output', output], { cwd: f.cwd, env: GIT_ENV, encoding: 'utf8' })
+      const summary = JSON.parse(execFileSync(process.execPath, [script, 'prepare', '--base', f.baseSha, '--repository', 'curiositech/port-daddy', '--title-file', titlePath, '--body-file', bodyPath, '--output', output], { cwd: f.cwd, env: GIT_ENV, encoding: 'utf8' }))
+      assert.ok(summary.encodedCharacters < MAX_ENCODED_CHARACTERS)
       const transport = decodePublicationPackage(readFileSync(output, 'utf8').trim())
       assert.equal(transport.payload.changes.length, 1)
       assert.equal(typeof transport.payload.changes[0].baseBlobSha, 'string')
-      assert.equal(transport.payload.changes[0].contentBase64.length, 44)
+      assert.equal(typeof transport.payload.changes[0].contentDeflateBase64, 'string')
+      assert.equal(transport.payload.changes[0].contentDeflateBase64.length < 48_000, true)
     } finally { f.cleanup(); rmSync(inputs, { recursive: true, force: true }) }
   })
 })

@@ -8,6 +8,7 @@ import {
   decodePublicationPackage,
   encodePublicationPackage,
 } from './fleetbot-publication.mjs'
+import { stampPullRequestBody } from '../lib/github-publisher-stamp.mjs'
 import {
   actionInputDigest,
   buildPublishRequest,
@@ -264,7 +265,12 @@ test('readback proves the new PR and commit and refuses every mismatch', async (
     head: { repo: { full_name: repository }, ref: receipt.publishedBranch, sha: receipt.githubHeadSha },
     base: { repo: { full_name: repository }, ref: 'main', sha: sourceBaseSha },
     title: request.payload.title,
-    body: `Published\n<!-- port-daddy:fleetbot-mutation:${receipt.receiptId} -->`,
+    body: stampPullRequestBody({
+      body: request.payload.body,
+      authorship: request.authorship,
+      receiptId: receipt.receiptId,
+      sourceHeadSha: request.payload.sourceHeadSha,
+    }),
   }
   const commit = { sha: receipt.githubHeadSha, tree: { sha: sourceTreeSha }, parents: [{ sha: sourceBaseSha }] }
   const fetchImpl = async (input) => {
@@ -288,6 +294,21 @@ test('readback proves the new PR and commit and refuses every mismatch', async (
   ]) {
     await assert.rejects(
       () => verifyPublicationReadback({ request, receipt, token: 'read-only', fetchImpl: async (input) => String(input).includes('/git/commits/') ? response(changedCommit) : response(changedPull) }),
+      /exact approved source tree/,
+    )
+  }
+  const hostileBodies = [
+    pull.body.replace('A reviewed publication.', 'Forged publication description.'),
+    pull.body.replace('Roadmap: `fleetbot-pr-authorship`', 'Roadmap: `forged-roadmap`'),
+    pull.body.replace('> Dispatcher-supplied agent label: `Admiral/Reviewer`', '> Dispatcher-supplied agent label: `forged-agent`'),
+  ]
+  for (const body of hostileBodies) {
+    assert.match(body, /<!-- port-daddy:fleetbot-mutation:/)
+    await assert.rejects(
+      () => verifyPublicationReadback({
+        request, receipt, token: 'read-only',
+        fetchImpl: async (input) => String(input).includes('/git/commits/') ? response(commit) : response({ ...pull, body }),
+      }),
       /exact approved source tree/,
     )
   }
