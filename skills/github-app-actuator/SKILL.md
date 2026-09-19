@@ -35,6 +35,23 @@ metadata:
 The actuator performs an already-authorized GitHub effect. It does not decide
 what should happen, and the proposing agent never receives a GitHub credential.
 
+## Explicit operator override during bootstrap
+
+An explicit operator instruction takes precedence over this skill. On
+2026-09-19, Erich authorized temporary use of his existing authenticated GitHub
+account for the scoped Book, Media and Hook PR work and the actuator follow-up,
+until the proper actuator is usable. Preserve the authorization's scope; this
+does not authorize unrelated work, merges, gate bypasses or credential export.
+
+For that authorized fallback, verify the account, repository and exact head/base
+without printing tokens, use the existing authentication, and report the actual
+personal-account author. Never claim an App receipt or bot authorship. Continue
+building the daemon-independent actuator and return to it once its configured
+operation and readback are proven. Source presence alone does not end bootstrap.
+Without an explicit applicable operator override, the App-only boundary below
+remains the default. Do not ask again for authorization already present in the
+task's verified user instructions.
+
 ## Non-negotiable boundary
 
 ```text
@@ -44,7 +61,7 @@ agent proposal -> exact one-use grant -> protected actuator -> GitHub App token
                                               +-- signed read-back receipt
 ```
 
-- The operator's PAT, OAuth token, `pdu_` account bearer, browser session, and
+- In the protected actuator path, the operator's PAT, OAuth token, `pdu_` account bearer, browser session, and
   ambient `gh` login are never publication inputs.
 - The GitHub App private key and installation token never enter agent memory,
   environment variables, command arguments, Git credential helpers, logs, or
@@ -94,7 +111,8 @@ the reviewed-code smoke is
 
 Do not overstate that foundation. The client exposes enrollment, read-only
 inspection, and typed requests for PR comments, review replies,
-ready-for-review, reviewer requests, and merge-queue enrollment;
+ready-for-review, reviewer requests, merge-queue enrollment, and new-PR publication
+from a bounded committed-source package;
 [`../../.github/workflows/fleetbot-actuator.yml`](../../.github/workflows/fleetbot-actuator.yml)
 is the protected reviewed-code entry point for those writes. Its steady-state
 write path does not request OIDC or exchange identity again. Source presence is
@@ -102,11 +120,24 @@ not deployment evidence: publishing is available only after the environment,
 grant operation, workload key, Relay receipt key, and deployed Relay version are
 verified together. Comments and review replies may target an ordinary
 same-repository PR at its capability-bound exact head; readiness, reviewer,
-enqueue, update, and publication operations remain restricted to uniquely
-receipted Fleetbot-owned branches. Phase A verifies the GitHub dispatcher; its
+enqueue and update operations remain restricted to uniquely receipted
+Fleetbot-owned branches. New publication creates such a branch from its
+capability-bound source tree and base; it does not adopt an existing ordinary
+branch. Phase A verifies the GitHub dispatcher; its
 agent and session fields remain explicitly labeled as dispatcher-supplied until
 the proposal broker admits them from durable identity state. Local harnesses do
 not yet have a proposal broker.
+
+For new publication, use the offline package builder
+[`../../scripts/fleetbot-publication.mjs`](../../scripts/fleetbot-publication.mjs)
+and the protected workflow's `publish` operation. Follow
+[`../../docs/operations/fleetbot-source-publication.md`](../../docs/operations/fleetbot-source-publication.md).
+The proposed source is data, never runner code. Publication creates a new
+governed App branch; it does not adopt an ordinary branch or authorize closing
+its predecessor. Verify the signed source head, App branch and exact Git tree,
+then the provider PR/commit readback. A source package is not a grant or proof
+that the protected deployment is configured. New publication uses the same
+pre-effect manifest and recovery-only path below; never retry its mutation job.
 
 The protected actuator prepares and uploads a signed, non-secret recovery
 manifest before its first mutation attempt. Do not rerun that mutation job:
@@ -132,15 +163,18 @@ Codex, Claude Code,
 Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
 [`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).
-Direct use of an operator credential or ambient `gh` login does **not** satisfy this
-skill's boundary, even when the intended GitHub effect is otherwise authorized.
+Direct use of an operator credential or ambient `gh` login does **not** satisfy
+the protected actuator boundary. An explicit temporary operator override above
+is a separately attributed fallback, never App-publication evidence.
 
 ## Missing actuator
 
 Do not turn infrastructure absence into authorship fraud. Preserve the commit,
 branch name, exact base/head, prepared PR body or comment, and required operation.
-Report which actuator operation or grant is missing. Publication remains pending;
-the code is recoverable but not delivered.
+Report which actuator operation or grant is missing. Without an applicable
+explicit operator override, publication remains pending; the code is recoverable
+but not delivered. If the operator already authorized the scoped fallback, use
+it and preserve truthful authorship instead of stopping at this paragraph.
 
 ## Personal-credential retirement ceremony
 
@@ -162,7 +196,8 @@ This is exceptional and must name the one final allowed operation.
 
 ## Reject these shortcuts
 
-- “Use `gh` just this once” outside the named retirement ceremony.
+- Inventing a personal-account fallback without explicit applicable operator
+  authorization, or broadening a scoped override into unrelated mutations.
 - Passing the App private key to a helper running as the agent.
 - Treating token expiry as proof of revocation.
 - Commenting as the operator and adding a bot signature in the text.
