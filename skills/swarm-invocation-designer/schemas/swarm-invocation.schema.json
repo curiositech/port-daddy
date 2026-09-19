@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/swarm-invocation-v2.json",
+  "title": "ControllerOwnedInvocationContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "contractId", "truthState", "intent", "plan", "topology", "authority", "limits", "nodes", "gathers", "reducers", "reservationPolicy", "leasePolicy", "messagePolicy", "reviewPolicy", "cancellationPolicy", "replayPolicy", "evidence", "terminalStatus"],
+  "properties": {
+    "schemaVersion": {"const": "2.0.0"},
+    "kind": {"const": "ControllerOwnedInvocationContract"},
+    "contractId": {"type": "string", "minLength": 1},
+    "truthState": {"enum": ["T0_STATIC", "PROPOSED", "UNKNOWN", "BLOCKED_BY_HALT"]},
+    "intent": {"type": "object"},
+    "plan": {"type": "object"},
+    "topology": {"type": "object"},
+    "authority": {"type": "object"},
+    "limits": {"type": "object"},
+    "nodes": {"type": "array", "minItems": 1},
+    "gathers": {"type": "array"},
+    "reducers": {"type": "array"},
+    "reservationPolicy": {"type": "object"},
+    "leasePolicy": {"type": "object"},
+    "messagePolicy": {"type": "object"},
+    "reviewPolicy": {"type": "object"},
+    "cancellationPolicy": {"type": "object"},
+    "replayPolicy": {"type": "object"},
+    "evidence": {"type": "object"},
+    "terminalStatus": {"enum": ["STATIC_VALID", "STATIC_INVALID", "INCOMPLETE_STATIC", "OUT_OF_SCOPE", "OUT_OF_SCOPE_LIVE_OPERATION"]}
+  }
+}

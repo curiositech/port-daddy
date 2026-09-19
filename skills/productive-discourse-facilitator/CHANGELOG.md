@@ -1,26 +1,29 @@
-# Productive Discourse Facilitator — Changelog
+# Changelog
 
-## 2026-04-17
-- Normalized frontmatter into the canonical metadata-based repo shape
-- Added or refreshed repo-local provenance metadata
-- Recorded this automated migration for future structural upgrades
+## [2.0.2] - 2026-09-17
 
-## 2026-04-17
-- Structural bridge pass added or normalized decision, failure, example, quality-gate, and Mermaid scaffolding
+### Fixed
 
-## 2026-04-17
-- Recovered upgraded skill assets from `/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/productive-discourse-facilitator`
-- Applied CTA SKILL.md overlay from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/productive-discourse-facilitator/after.md`
-- Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/productive-discourse-facilitator/audit.json`
+- Reject duplicate claim, certificate, critique, exchange-round, integrity-event, dissent, and assent identities before reference resolution or terminal closure.
+- Added adversarial duplicates for every referenced record class.
 
-## 2026-04-17
-- Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts
+## [2.0.1] - 2026-09-17
 
-## 2026-04-18
-- Normalized frontmatter into the canonical metadata-based repo shape
-- Added or refreshed repo-local provenance metadata
-- Added or refreshed repo-local authorship metadata
-- Recorded this automated migration for future structural upgrades
+### Fixed
 
-## 2026-04-18
-- Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts
+- Closed the published JSON Schema root so standard parsers can consume the discourse contract.
+
+## [2.0.0] - 2026-09-16
+
+### Changed
+
+- Replaced clinical and open-ended facilitation advice with a bounded peer-discourse protocol.
+- Added explicit consent, withdrawal, safety, standing, mode, steelman, critique, dissent, and terminal records.
+- Added closed schema, semantic validator, activation corpus, and adversarial mutation tests.
+- Defined evidence-based integrity events without motive, character, or diagnostic claims.
+
+### Removed
+
+- Recovery, couples, trauma, nervous-system, and quasi-clinical playbooks.
+- Consensus-as-success, unbounded rounds, and facilitator authority.
+- Broad Write, Bash, and web access.
