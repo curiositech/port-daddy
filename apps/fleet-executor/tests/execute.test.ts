@@ -23,6 +23,7 @@ import {
   aiStub,
   makeEnv,
   makeJob,
+  makePurserSandbox,
   type GitHubState,
 } from './harness.js';
 
@@ -1920,7 +1921,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     });
     await expect(executeFleet(
       makeJob(),
-      makeEnv({ FLEET_TOKENS: kv, AI: interruptedPurserAi.ai, DB: d1.db }),
+      makeEnv({ FLEET_TOKENS: kv, AI: interruptedPurserAi.ai, DB: d1.db, SANDBOX: makePurserSandbox() }),
       { queueAttempt: 2, maxNewShipsPerInvocation: 1 },
     )).rejects.toThrow();
 
@@ -1941,7 +1942,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     });
     await expect(executeFleet(
       makeJob(),
-      makeEnv({ FLEET_TOKENS: kv, AI: resumedPurserAi.ai, DB: d1.db }),
+      makeEnv({ FLEET_TOKENS: kv, AI: resumedPurserAi.ai, DB: d1.db, SANDBOX: makePurserSandbox() }),
       { queueAttempt: 3, maxNewShipsPerInvocation: 1 },
     )).resolves.toBeUndefined();
 

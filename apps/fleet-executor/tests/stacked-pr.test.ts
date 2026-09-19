@@ -3,7 +3,6 @@ import {
   validateStackedFiles,
   createOrUpdateBranch,
   openStackedPr,
-  retargetPrBase,
   fetchRepoFileText,
   fetchRepoTreePaths,
   GitHubApiError,
@@ -175,7 +174,7 @@ describe('openStackedPr — idempotent create', () => {
 
   it('finds and reuses an existing open PR for the head branch (no duplicate)', async () => {
     const first = await openStackedPr(OWNER, REPO, 'purser/pr-7-tests', 'main', 't', 'b', [], TOKEN);
-    const second = await openStackedPr(OWNER, REPO, 'purser/pr-7-tests', 'main', 't2', 'b2', [], TOKEN);
+    const second = await openStackedPr(OWNER, REPO, 'purser/pr-7-tests', 'feat/widget', 't2', 'b2', [], TOKEN);
 
     expect(second.existed).toBe(true);
     expect(second.number).toBe(first.number);
@@ -183,7 +182,7 @@ describe('openStackedPr — idempotent create', () => {
     // The reuse path refreshed title/body in place.
     expect(state.prPatches).toContainEqual({
       number: first.number,
-      base: undefined,
+      base: 'feat/widget',
       title: 't2',
       body: 'b2',
     });
@@ -242,30 +241,6 @@ describe('openStackedPr — idempotent create', () => {
 
     expect(guard).toHaveBeenCalledWith(`before refresh stacked PR #${first.number}`);
     expect(state.stackedPrs).toHaveLength(1);
-    expect(state.prPatches).toHaveLength(0);
-  });
-});
-
-describe('retargetPrBase', () => {
-  it('PATCHes the PR base to the new branch', async () => {
-    await retargetPrBase(OWNER, REPO, 7, 'purser/pr-7-tests', TOKEN);
-    expect(state.prPatches).toContainEqual({
-      number: 7,
-      base: 'purser/pr-7-tests',
-      title: undefined,
-      body: undefined,
-    });
-  });
-
-  it('does not retarget when the mutation guard rejects', async () => {
-    const superseded = new Error('reviewed PR head changed');
-    const guard = vi.fn().mockRejectedValue(superseded);
-
-    await expect(
-      retargetPrBase(OWNER, REPO, 7, 'purser/pr-7-tests', TOKEN, guard),
-    ).rejects.toBe(superseded);
-
-    expect(guard).toHaveBeenCalledWith('before retarget PR #7 base');
     expect(state.prPatches).toHaveLength(0);
   });
 });
