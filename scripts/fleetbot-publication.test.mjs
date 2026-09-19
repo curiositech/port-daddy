@@ -35,6 +35,7 @@ function fixture() {
   writeFileSync(join(cwd, 'delete.txt'), 'delete me\n')
   writeFileSync(join(cwd, 'rename.txt'), 'rename me\n')
   writeFileSync(join(cwd, 'mode.sh'), '#!/bin/sh\necho base\n')
+  writeFileSync(join(cwd, 'unchanged:colon.txt'), 'preserve this committed path\n')
   git(cwd, 'add', '.')
   git(cwd, 'commit', '-m', 'fixture base')
   const baseSha = git(cwd, 'rev-parse', 'HEAD')
@@ -81,6 +82,10 @@ describe('offline Fleetbot publication package', () => {
       assert.equal(value.payload.changes.find(c => c.path === 'mode.sh').mode, '100755')
       assert.equal(Buffer.from(value.payload.changes.find(c => c.path === 'binary.bin').contentBase64, 'base64')[1], 255)
       assert.equal(Buffer.from(value.payload.changes.find(c => c.path === 'link').contentBase64, 'base64').toString(), 'keep.txt')
+      assert.equal(value.payload.changes.some(c => c.path === 'unchanged:colon.txt'), false)
+      writeFileSync(join(f.cwd, 'changed:colon.txt'), 'unsafe changed path\n')
+      git(f.cwd, 'add', 'changed:colon.txt'); git(f.cwd, 'commit', '-m', 'unsafe changed path')
+      assert.throws(() => buildPublicationPackage({ cwd: f.cwd, repository: 'curiositech/port-daddy', baseSha: f.baseSha, title: 'Fixture publication', body: 'Roadmap-Item: fixture' }), /changed Git path/)
       const decoded = decodePublicationPackage(encodePublicationPackage(value))
       assert.deepEqual(decoded, value)
     } finally { f.cleanup() }
