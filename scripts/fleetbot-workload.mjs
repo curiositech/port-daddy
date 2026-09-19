@@ -10,6 +10,7 @@ import {
 } from 'node:crypto'
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 import { decodePublicationPackage, hydratePublicationPackage, validatePublicationPackage } from './fleetbot-publication.mjs'
+import { stampPullRequestBody } from '../lib/github-publisher-stamp.mjs'
 
 export const ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1'
 export const CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2'
@@ -566,7 +567,7 @@ export async function verifyPublicationReadback({ request, receipt, token, fetch
       || pull.head?.ref !== receipt.publishedBranch || pull.head?.sha !== receipt.githubHeadSha
       || pull.base?.ref !== request.payload.baseBranch || pull.base?.sha !== request.payload.baseSha
       || pull.title !== request.payload.title
-      || !pull.body?.includes(`<!-- port-daddy:fleetbot-mutation:${receipt.receiptId.toLowerCase()} -->`)
+      || pull.body !== stampPullRequestBody({ body: request.payload.body, authorship: request.authorship, receiptId: receipt.receiptId, sourceHeadSha: request.payload.sourceHeadSha })
       || commit.sha !== receipt.githubHeadSha || commit.tree?.sha !== request.payload.sourceTreeSha
       || commit.parents?.length !== 1 || commit.parents[0].sha !== request.payload.baseSha) {
     throw new Error('Published PR/commit did not read back at the exact approved source tree; recover the receipt, never retry publication')
