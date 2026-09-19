@@ -76,3 +76,23 @@ Both core test harnesses have passed 100% of theorem and mutation tests:
 - **Don't stay in draft purgatory**: Perfectionism and "one more experiment" is the classic ADHD entrepreneur trap.
 - **The Winning Move**: Publish the foundational science openly (arXiv preprint + conference submission to establish undisputed academic authority and brand moat), while building the proprietary commercial implementation into the Port Daddy / Harbor control plane (FleetBar, multi-machine relay, enterprise AST lock supervision).
 
+---
+
+## 6. Graphic Discipline & Publication Standard: Swiss Modern Systems Graphics
+
+Diagrams in theoretical computer science and multi-agent systems are visual proofs, not marketing illustrations.
+- **Epistemological Clarity**: Every mark, stroke, and hue corresponds to a verifiable algebraic invariant or state boundary.
+- **Metric Coordinate Field**: Background drafting grids (`swissgrid` step 0.25cm, `majorgrid` step 1.00cm) anchor drawings to a millimeter Cartesian space.
+- **Geometric Purity**: Zero rounded corners (`rounded corners` forbidden). Crisp $90^\circ$ orthogonal rectangles, true circles for agent nodes, and sharp vector terminators.
+- **Chromatic State Taxonomy**: Operational states mapped strictly to the 7-color system:
+  - `ptDark` (`#1A1A1A`): Drafting ink / stationary nodes / ground truth invariants.
+  - `ptRed` (`#B52227`): Active mutation / policy violations / topological curl ($\oint \delta \ne 0$) / equivocation.
+  - `ptBlue` (`#274975`): Verified state / synchronous responses / coboundary potential fields / consensus restoration.
+  - `ptGold` (`#D4A373`): Warning / transient buffers / Hodge triage cards / join contracts.
+  - `ptLightGray` (`#F4F4F4`): Substrate / unselected nodes / quiescent cells.
+  - `ptGray` (`#E2E2E2`): Bounding perimeters / isolation containers.
+  - `ptGrid` (`#E5E5E5`): Structural metric background grid.
+- **Clearance & Masking**: All vector paths enforce clearance (`shorten >= 2pt, shorten <= 2pt`). Labels crossing grid lines use `mask/.style={fill=white, inner sep=1.5pt}` placed alongside paths to avoid slicing vector shafts.
+- **Typographic Optical Floor**: Strict adherence to minimum font sizes (no micro-text below 8pt `\scriptsize`), avoiding downscaling artifacts.
+
+
