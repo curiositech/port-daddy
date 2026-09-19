@@ -232,7 +232,7 @@ jobs:
           # relay-only PR that retypes a column must run this job — the shape
           # mismatch it would otherwise introduce is invisible on the relay side.
           # ci.yml changes re-run it so the gate can be edited under test.
-          if printf '%s\n' "$changed" | grep -qE '^(apps/pd-ios/|scripts/generate-pd-ios-fixtures\.ts$|lib/maritime(-signals)?\.ts$|skills/agent-control-command-contract/examples/sample-input\.json$|apps/relay/src/interruptions\.ts$|apps/relay/migrations/(2026-08-04-operator-interruptions|2026-08-08-relay-baseline)\.sql$|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -qE '^(apps/PortholeMediaKit/|apps/pd-ios/|scripts/generate-pd-ios-fixtures\.ts$|lib/maritime(-signals)?\.ts$|skills/agent-control-command-contract/examples/sample-input\.json$|apps/relay/src/interruptions\.ts$|apps/relay/migrations/(2026-08-04-operator-interruptions|2026-08-08-relay-baseline)\.sql$|\.github/workflows/ci\.yml$)'; then
             echo "pd-ios=true" >> "$GITHUB_OUTPUT"
           else
             echo "pd-ios=false" >> "$GITHUB_OUTPUT"
@@ -240,7 +240,7 @@ jobs:
           # Native Porthole Stage is a self-contained SwiftPM package plus its
           # strict ad-hoc CI packager. Merge-group and API-error runs fail safe
           # to true above, while unrelated pull requests avoid a macOS runner.
-          if printf '%s\n' "$changed" | grep -qE '^(apps/porthole-stage-capture/|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -qE '^(apps/PortholeMediaKit/|apps/porthole-stage-capture/|\.github/workflows/ci\.yml$)'; then
             echo "porthole-stage=true" >> "$GITHUB_OUTPUT"
           else
             echo "porthole-stage=false" >> "$GITHUB_OUTPUT"
@@ -1169,7 +1169,9 @@ jobs:
         run: brew install librsvg
 
       - name: Test the Stage policy and capture core
-        run: swift test --package-path apps/porthole-stage-capture
+        run: |
+          swift test --package-path apps/PortholeMediaKit
+          swift test --package-path apps/porthole-stage-capture
 
       - name: Assemble two ad-hoc CI packages from one release build
         env:
