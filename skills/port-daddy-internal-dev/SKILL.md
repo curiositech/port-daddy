@@ -243,6 +243,12 @@ Contributor gotchas specific to these:
   every subprocess backend in `lib/spawner.ts`; the agent-facing refusal must
   never name the opt-out (same rule as the guard bypass — guardrails do not
   advertise their bypass).
+- **Do not classify tracked dotenv templates as secrets.** Seatbelt dotenv
+  rules must keep `.env`, `.env.local`, and other secret-bearing variants
+  unreadable while allowing the exact project `.env.example` template that Git
+  needs for a truthful cleanliness check. Prove the boundary through the real
+  `wrapWithSandbox` path on macOS, including a symlink from `.env.example` to a
+  denied dotenv target; a pure profile-string assertion is not enough.
 - **`pd attest` is a loud-fail gate.** Adding an invariant means it can flip
   CI/boot gates red. New CRITICAL invariants go in `lib/attest-invariants.ts`
   with a test; mark non-blocking checks as such so a green exit keeps meaning
