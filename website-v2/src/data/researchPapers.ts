@@ -235,6 +235,30 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
       findingsPath: 'flag-4-topological-consensus-citation-audit/findings.md',
     },
   },
+  {
+    id: 'active-sheaf-cohomology-for-swarms',
+    number: '8',
+    title: 'The Cohomology of Swarms',
+    subtitle: 'Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair',
+    pdfPath: '/research/paper8.pdf',
+    pages: 22,
+    sizeKb: 2627,
+    claim:
+      'Multi-agent review hallucinations and macro-network partitions decompose into mutually orthogonal Hodge subspaces, giving an instant Swarm Legibility Ratio and a polynomial-time greedy min-cut repair.',
+    pullQuote:
+      'L(g) = ||h||² / (||h||² + ||δ₁* ψ||²) separates micro-triad bugs from macro-network splits in < 2 ms without LLM calls, and greedy min-cut repair drives residual r → 0 in at most β₁(G) rounds.',
+    resultTags: ['CR-1', 'CR-2', 'CR-3', 'CR-4', 'CR-5'],
+    tone: 'primary',
+    icon: Layers3,
+    chapterRef: 'legible-swarm',
+    chapterWhy: 'provides the active control closed-loop, higher-order 2-complex triage, and polynomial-time repair for the fleet',
+    priorArtDive: {
+      verdict: 'CLEAR',
+      summary:
+        'Robinson (2014) established static sensor sheaves; Bodnar et al. (2022) established continuous GNN sheaf diffusion. Neither addressed autonomous LLM swarms, triadic review contracts, or active cycle-matroid repair.',
+      findingsPath: 'paper8-active-sheaf-cohomology/findings.md',
+    },
+  },
 ]
 
 export const RESEARCH_PAPER_TOTAL_PAGES = RESEARCH_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
