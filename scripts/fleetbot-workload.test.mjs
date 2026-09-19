@@ -861,7 +861,7 @@ describe('fleetbot workload client', () => {
   it('keeps the first write workflow manual, protected, typed, and credential-separated', () => {
     const workflow = readFileSync(new URL('../.github/workflows/fleetbot-actuator.yml', import.meta.url), 'utf8')
     assert.match(workflow, /workflow_dispatch:/)
-    assert.match(workflow, /options:\n          - comment\n          - review-reply\n          - ready\n          - request-reviewers\n          - enqueue/)
+    assert.match(workflow, /options:\n          - publish\n          - comment\n          - review-reply\n          - ready\n          - request-reviewers\n          - enqueue/)
     assert.match(workflow, /environment: fleetbot-workload/)
     assert.match(workflow, /main-ref-gate:/)
     assert.match(workflow, /needs: main-ref-gate/)
