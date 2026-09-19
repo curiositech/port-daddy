@@ -235,9 +235,9 @@ impl PollFailure {
     /// Human-readable reason for the "unknown" state.
     pub fn reason(&self) -> String {
         match self {
-            PollFailure::Rejected { status } => {
-                format!("relay rejected the poll (HTTP {status}) — check the pdu_ token")
-            }
+            PollFailure::Rejected { status } => format!(
+                "operator session rejected by relay (HTTP {status}) — renew sign-in from FleetBar Credentials"
+            ),
             PollFailure::Transient { reason } => reason.clone(),
         }
     }
@@ -383,8 +383,8 @@ impl PollMachine {
 /// Whether the console currently KNOWS the operator's interruption state.
 #[derive(Debug, Clone, PartialEq)]
 pub enum HitlHealth {
-    /// No relay configured (`PD_CONSOLE_RELAY_URL` unset) — state is unknown,
-    /// which is NOT the same as "all clear".
+    /// No signed-in account is available — state is unknown, which is NOT the
+    /// same as "all clear".
     Unconfigured,
     /// The last poll failed; `reason` is the real transport/HTTP error. Any
     /// items shown are the LAST KNOWN list, marked stale.
@@ -463,11 +463,11 @@ pub fn view_blocks(snap: &HitlSnapshot, deep_link: Option<&str>, now_ms: i64) ->
         HitlHealth::Unconfigured => {
             blocks.push(Block::KeyVal(
                 "status".into(),
-                "unknown — no relay configured (set PD_CONSOLE_RELAY_URL + PD_CONSOLE_RELAY_TOKEN)"
+                "signed out — interruption state is unknown; sign in from FleetBar Credentials"
                     .into(),
             ));
             blocks.push(Block::Chip {
-                label: "UNKNOWN — not \u{201c}all clear\u{201d}".into(),
+                label: "UNKNOWN — sign-in required, not \u{201c}all clear\u{201d}".into(),
                 tone: Tone::Gated,
             });
             return blocks;
