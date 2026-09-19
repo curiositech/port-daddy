@@ -91,22 +91,12 @@ In physical reality, height $h$ is a single-valued potential field. Along any di
 \]
 Because the reported steps sum to $+4$, an auditor does not need to inspect the monks' footwear or question their honesty to prove that \textbf{an impossible contradiction has occurred}. The closed topological cycle traps the lie.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{fig-paper8-topological-loop.png}
-\caption{Topological horizon of equivocation detection. Left: In an open, acyclic delegation tree, message discrepancies can always be absorbed by scalar potentials ($\ker(\delta_0^T) = \{0\}$), rendering lies undetectable without direct edge audits ($r = 0$). Right: In a closed review cycle, an equivocating agent creates an unresolvable contradiction (an Escher loop) that produces a non-zero circulation vector $\rho \in \ker(B^T)$ with certified lower bound $r = |s|\sqrt{1 - R_{\mathrm{eff}}(e)}$ [verified; script \texttt{generate\_paper8\_academic\_figures.py}].}
-\label{fig:topological-loop}
-\end{figure}
+\IfFileExists{fig-paper8-topological-loop.tex}{\input{fig-paper8-topological-loop.tex}}{\input{../figures/fig-paper8-topological-loop.tex}}
 
 \subsection{The AI Engineer's Field Guide}\label{sec:fieldguide}
 To make algebraic topology operational for software engineers building multi-agent systems, we translate the mathematical primitives into their concrete systems equivalents (summarized visually in Figure~\ref{fig:fieldguide}).
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.98\textwidth]{fig-paper8-agent-foundations.png}
-\caption{The AI Engineer's Field Guide to Cellular Sheaves and Cohomology. (a) An agent's private state vector is modeled as a vector stalk $\mathcal{F}(v)$. (b) The cochain complex $C^0 \to C^1 \to C^2$ connects agents, communication channels, and 3-way review joins, governed by the zero false-alarm identity $\delta_1 \circ \delta_0 = 0$. (c) Hierarchical delegation trees have $\ker(\delta_0^T) = \{0\}$ and silently swallow lies, whereas closed review cycles trap contradictions with non-zero completion residuals $r > 0$. (d) Discrete Hodge theory separates benign turn latency (gauge processes) from review hallucinations (triadic curl) and network partitions (harmonic cavities).}
-\label{fig:fieldguide}
-\end{figure}
+\IfFileExists{fig-paper8-agent-foundations.tex}{\input{fig-paper8-agent-foundations.tex}}{\input{../figures/fig-paper8-agent-foundations.tex}}
 
 \paragraph{1. What is a Stalk $\mathcal{F}(v)$?}
 Mathematically, a stalk is a vector space $\mathcal{F}(v) \cong \mathbb{R}^D$ assigned to vertex $v$. In a multi-agent runtime, it represents an agent's private state vector $x_v \in \mathbb{R}^D$, tracking:
@@ -226,12 +216,7 @@ A cellular sheaf $\mathcal{F}$ over cell complex $X = (V, E, F)$ consists of:
 \end{enumerate}
 \end{definition}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{fig-paper8-sheaf-rosetta.png}
-\caption{The Rosetta Stone architecture: mapping multi-agent swarm primitives into cells, vector stalks, restriction maps, and coboundary operators over cell complex $X = (V, E, F)$.}
-\label{fig:rosetta}
-\end{figure}
+\IfFileExists{fig-paper8-sheaf-rosetta.tex}{\input{fig-paper8-sheaf-rosetta.tex}}{\input{../figures/fig-paper8-sheaf-rosetta.tex}}
 
 \subsection{The Swarm Algebraic Dictionary}
 Table~\ref{tab:rosetta} provides the complete translation between multi-agent systems and sheaf-theoretic topology.
@@ -511,12 +496,7 @@ The verification cost scales nearly linearly in the number of swarm edges and st
 
 While $r > 0$ certifies that an inconsistency exists, it cannot distinguish between localized review hallucinations and macro-network partitions. We solve this via the \textbf{Discrete Hodge-Helmholtz Decomposition} on simplicial 2-complexes.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{fig-paper8-simplicial-hodge.png}
-\caption{Discrete Hodge-Helmholtz Decomposition on a simplicial 2-complex. An observed cochain $g$ splits into three mutually orthogonal components: gauge gradient $\delta_0 x$ (benign turn lag), harmonic cavity $h$ (macro-partition hole), and triadic curl $\delta_1^* \psi$ (micro-review hallucination). The Swarm Legibility Ratio $\mathcal{L}(g)$ quantifies whether the failure is micro or macro.}
-\label{fig:hodge}
-\end{figure}
+\IfFileExists{fig-paper8-simplicial-hodge.tex}{\input{fig-paper8-simplicial-hodge.tex}}{\input{../figures/fig-paper8-simplicial-hodge.tex}}
 
 \subsection{Theorem CR-5: Discrete Hodge-Helmholtz Decomposition}
 Consider the cochain complex $C^0 \xrightarrow{\delta_0} C^1 \xrightarrow{\delta_1} C^2$.
@@ -647,12 +627,7 @@ This provides an instant operational triage diagnostic:
 
 When $r > 0$, the orchestrator must intervene to restore global consensus. Let $w(e) > 0$ be the cost of fencing or reconciling edge $e \in K$.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{fig-paper8-active-repair.png}
-\caption{Theorem CR-4 active repair closed loop. Left: The swarm graph exhibits non-zero residual circulation around a rogue equivocating node. Center: The greedy controller computes the energy-to-cost ratio $E(e)/w(e)$ across active edges. Right: The optimal cut edge is fenced, destroying the cycle constraint and restoring $r=0$.}
-\label{fig:repair}
-\end{figure}
+\IfFileExists{fig-paper8-active-repair.tex}{\input{fig-paper8-active-repair.tex}}{\input{../figures/fig-paper8-active-repair.tex}}
 
 The operator seeks a subset of edges $S^* \subseteq K$ minimizing total intervention cost:
 \[
@@ -764,12 +739,7 @@ The greedy controller selects:
 \subsection{Case Study 4: 16-Agent Clustered Enterprise Matrix (\texorpdfstring{$\mathcal{L} = 0.342$}{L=0.342})}
 A 16-agent organization (Frontend, Backend, Data, Security) with 28 edges and 8 review triangles experiences a compound failure (Figure~\ref{fig:matrix}): Backend review triad $(v_4, v_5, v_6)$ hallucinates $(\delta_1 g)_{456} = 6.0$, while cross-team bridge $(v_2, v_4)$ drifts by $+4.0$.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.98\textwidth]{fig-paper8-16agent-matrix.png}
-\caption{16-agent enterprise swarm triage under mixed failure. The Backend Team experiences an internal review hallucination ($\delta_1^* \psi = 3.46$), while cross-team bridge $(v_2, v_4)$ experiences an uninspected network partition lag ($h = 2.50$). The Swarm Legibility Ratio $\mathcal{L}(g) = 0.342$ decomposes the failure into 65.8\% micro-triad bug and 34.2\% macro-partition cavity.}
-\label{fig:matrix}
-\end{figure}
+\IfFileExists{fig-paper8-16agent-matrix.tex}{\input{fig-paper8-16agent-matrix.tex}}{\input{../figures/fig-paper8-16agent-matrix.tex}}
 
 Decomposition yields:
 \begin{itemize}[noitemsep]

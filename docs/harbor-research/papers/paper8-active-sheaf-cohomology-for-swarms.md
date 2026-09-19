@@ -1,4 +1,4 @@
-# The Cohomology of Swarms: Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair in Asynchronous Multi-Agent Systems
+#  The Cohomology of Swarms: Triadic Simplicial Sheaves, Discrete Hodge Legibility, and Optimal Repair in Asynchronous Multi-Agent Systems
 
 **Paper 8 of the Harbor Research Program — Theorems CR-1 through CR-5, the Swarm Rosetta Stone, and the Active Control Closed-Loop**
 
