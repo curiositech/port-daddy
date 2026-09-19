@@ -61,6 +61,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url === '/d3.min.js') {
+    const d3Path = path.join(__dirname, 'd3.min.js');
+    fs.readFile(d3Path, (err, content) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('d3.min.js not found');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/javascript' });
+      res.end(content);
+    });
+    return;
+  }
+
   if (req.url === '/api/telemetry' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(telemetryState));
