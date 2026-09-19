@@ -107,7 +107,16 @@ final class SyntheticSegmentTests: XCTestCase {
         let gate = FrameGate()
         let writer = SyntheticSegmentWriter(afterFirstFrame: { await gate.pause() })
         let task = Task { try await writer.write(try .init(width: 64, height: 64), in: parent) }
-        while !(await gate.paused) { try await Task.sleep(for: .milliseconds(1)) }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !(await gate.paused), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        guard await gate.paused else {
+            task.cancel()
+            await gate.resume()
+            _ = try? await task.value
+            return XCTFail("writer did not reach the first-frame seam within five seconds")
+        }
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path).count, 2)
         do { _ = try await writer.write(try .init(), in: parent); XCTFail("concurrent writer admitted") }
         catch { XCTAssertEqual(error as? SegmentError, .busy) }
@@ -116,14 +125,18 @@ final class SyntheticSegmentTests: XCTestCase {
         do { _ = try await task.value; XCTFail() } catch { XCTAssertTrue(error is CancellationError) }
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), ["keep.txt"])
         XCTAssertEqual(try Data(contentsOf: sentinel), Data("keep".utf8))
+        let recovered = try await writer.write(try .init(width: 64, height: 64, frameCount: 1), in: parent)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: recovered.movie.path))
     }
 }
 
 private actor FrameGate {
     var paused = false
+    var released = false
     var continuation: CheckedContinuation<Void, Never>?
     func pause() async {
+        guard !paused, !released else { return }
         await withCheckedContinuation { continuation = $0; paused = true }
     }
-    func resume() { continuation?.resume(); continuation = nil }
+    func resume() { released = true; continuation?.resume(); continuation = nil }
 }
