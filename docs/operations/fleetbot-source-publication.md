@@ -1,7 +1,9 @@
 # Publish committed source through Fleetbot
 
 The protected workload accepts a compressed data package describing committed
-source relative to an exact base. Relay creates the blobs, tree, App-authored
+source relative to an exact base. Existing files can use bounded prefix/suffix
+edits against an identified base blob, keeping small edits to large files small
+in transit. Relay creates the blobs, tree, App-authored
 commit, governed branch and ready-for-review PR. The runner never executes code
 from the package and never receives a GitHub App installation token.
 
@@ -33,6 +35,13 @@ a non-ancestor base, submodules, unsafe paths, empty blobs unsupported by the
 present Relay parser, and excessive changes or bytes. It does not push, install
 hooks, read credentials or contact a provider. Oversize packages fail; split the
 source change instead of substituting an unverified remote download.
+
+The protected runner resolves each base blob through the repository's read-only
+Git API, verifies its Git object hash and byte count, then reconstructs the full
+changed content under the same per-file and total byte limits. Only the expanded
+Relay payload is signed. Fractional or overlapping copy lengths, wrong base
+objects, malformed encodings and excessive reconstructed output fail before
+publication. Transport input remains bound by the recovery manifest's digest.
 
 ## Protected invocation and proof
 

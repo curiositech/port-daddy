@@ -9,7 +9,7 @@ import {
   verify,
 } from 'node:crypto'
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
-import { decodePublicationPackage, validatePublicationPackage } from './fleetbot-publication.mjs'
+import { decodePublicationPackage, hydratePublicationPackage, validatePublicationPackage } from './fleetbot-publication.mjs'
 
 export const ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1'
 export const CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v2'
@@ -579,6 +579,98 @@ function githubReadHeaders(token) {
   return { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'port-daddy-fleetbot-workload' }
 }
 
+async function githubPublicationBlob({ repository, sha, token }) {
+  const blob = await jsonFetch(`https://api.github.com/repos/${repository}/git/blobs/${sha}`, { headers: githubReadHeaders(token) })
+  if (blob.sha !== sha || blob.encoding !== 'base64' || typeof blob.content !== 'string'
+      || !Number.isSafeInteger(blob.size) || blob.size < 0 || blob.size > 4 * 1024 * 1024
+      || blob.content.length > 6 * 1024 * 1024) {
+    throw new Error('Publication base blob did not read back within its exact identity and byte bounds')
+  }
+  const encoded = blob.content.replace(/\n/g, '')
+  const bytes = Buffer.from(encoded, 'base64')
+  if (bytes.toString('base64') !== encoded || bytes.length !== blob.size) {
+    throw new Error('Publication base blob has malformed content or a mismatched size')
+  }
+  return bytes
+}
+
+function publicationTreeHash(entries) {
+  const children = new Map()
+  for (const [path, entry] of entries) {
+    const slash = path.lastIndexOf('/')
+    const parent = slash < 0 ? '' : path.slice(0, slash)
+    if (parent && entries.get(parent)?.type !== 'tree') throw new Error('Publication base tree has a missing or non-directory parent')
+    const row = { ...entry, path, name: path.slice(slash + 1) }
+    if (!children.has(parent)) children.set(parent, [])
+    children.get(parent).push(row)
+  }
+  const hashDirectory = path => {
+    const rows = (children.get(path) ?? []).sort((left, right) => Buffer.compare(
+      Buffer.from(left.name + (left.type === 'tree' ? '/' : '')),
+      Buffer.from(right.name + (right.type === 'tree' ? '/' : '')),
+    ))
+    const content = Buffer.concat(rows.map(row => Buffer.concat([
+      Buffer.from(`${row.type === 'tree' ? '40000' : row.mode} ${row.name}\0`),
+      Buffer.from(row.type === 'tree' ? hashDirectory(row.path) : row.sha, 'hex'),
+    ])))
+    return createHash('sha1').update(`tree ${content.length}\0`).update(content).digest('hex')
+  }
+  return hashDirectory('')
+}
+
+export function validatePublicationBaseTree(tree, expectedSha) {
+  if (tree.sha !== expectedSha || tree.truncated !== false || !Array.isArray(tree.tree) || tree.tree.length > 100_000) {
+    throw new Error('Publication requires the complete exact admitted base tree')
+  }
+  const entries = new Map()
+  for (const entry of tree.tree) {
+    if (typeof entry.path !== 'string' || Buffer.byteLength(entry.path) > 4096
+        || entry.path.includes('\0') || Buffer.from(entry.path).toString() !== entry.path
+        || entry.path.split('/').some(part => !part || part === '.' || part === '..')
+        || entries.has(entry.path) || !/^[0-9a-f]{40}$/.test(entry.sha ?? '')
+        || !((entry.type === 'tree' && entry.mode === '040000')
+          || (entry.type === 'blob' && ['100644', '100755', '120000'].includes(entry.mode))
+          || (entry.type === 'commit' && entry.mode === '160000'))) {
+      throw new Error('Publication base tree contains malformed or duplicate entries')
+    }
+    entries.set(entry.path, { mode: entry.mode, type: entry.type, sha: entry.sha })
+  }
+  if (publicationTreeHash(entries) !== expectedSha) throw new Error('Publication base tree object hash does not match the admitted base')
+  return entries
+}
+
+export function verifyPublicationSourceTree(publication, baseEntries) {
+  validatePublicationPackage(publication)
+  const entries = new Map(baseEntries)
+  for (const change of publication.payload.changes.filter(change => change.delete)) {
+    if (entries.get(change.path)?.type !== 'blob') throw new Error('Publication deletion is not an existing base blob')
+    entries.delete(change.path)
+    let parent = change.path.slice(0, change.path.lastIndexOf('/'))
+    while (change.path.includes('/') && parent) {
+      if ([...entries.keys()].some(path => path.startsWith(`${parent}/`))) break
+      entries.delete(parent)
+      const slash = parent.lastIndexOf('/')
+      parent = slash < 0 ? '' : parent.slice(0, slash)
+    }
+  }
+  for (const change of publication.payload.changes.filter(change => !change.delete)) {
+    const current = entries.get(change.path)
+    if (current && current.type !== 'blob') throw new Error('Publication cannot replace a base directory or submodule')
+    const parts = change.path.split('/')
+    for (let index = 1; index < parts.length; index += 1) {
+      const parent = parts.slice(0, index).join('/')
+      const existing = entries.get(parent)
+      if (existing && existing.type !== 'tree') throw new Error('Publication path conflicts with an existing base blob')
+      if (!existing) entries.set(parent, { mode: '040000', type: 'tree', sha: '' })
+    }
+    const bytes = Buffer.from(change.contentBase64, 'base64')
+    entries.set(change.path, { mode: change.mode, type: 'blob', sha: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') })
+  }
+  if (publicationTreeHash(entries) !== publication.payload.sourceTreeSha) {
+    throw new Error('Reconstructed publication tree does not match the approved source tree')
+  }
+}
+
 async function githubPullRequest({ repository, number, token, fetchImpl = fetch }) {
   return jsonFetch(`https://api.github.com/repos/${repository}/pulls/${number}`, {
     headers: {
@@ -705,11 +797,25 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   }
   const grantId = env.FLEETBOT_PUBLISHER_GRANT_ID
   const snapshot = await readGrantSnapshot({ relayUrl, key, grantId })
-  const publicationPackage = publishing ? decodePublicationPackage(env.FLEETBOT_PUBLICATION_PACKAGE) : null
+  let publicationPackage = publishing ? decodePublicationPackage(env.FLEETBOT_PUBLICATION_PACKAGE) : null
   if (publishing) {
     if (publicationPackage.repository !== repository) throw new Error('Publication repository does not match the workload repository')
     const base = await jsonFetch(`https://api.github.com/repos/${repository}/git/ref/heads/${encodeURIComponent(publicationPackage.payload.baseBranch)}`, { headers: githubReadHeaders(env.GITHUB_TOKEN) })
     if (base.object?.sha !== publicationPackage.payload.baseSha) throw new Error('Publication base moved; rebuild the package from the current base')
+    const commit = await jsonFetch(`https://api.github.com/repos/${repository}/git/commits/${publicationPackage.payload.baseSha}`, { headers: githubReadHeaders(env.GITHUB_TOKEN) })
+    if (commit.sha !== publicationPackage.payload.baseSha || !/^[0-9a-f]{40}$/.test(commit.tree?.sha ?? '')) {
+      throw new Error('Publication base commit did not read back exactly')
+    }
+    const tree = await jsonFetch(`https://api.github.com/repos/${repository}/git/trees/${commit.tree.sha}?recursive=1`, { headers: githubReadHeaders(env.GITHUB_TOKEN) })
+    const baseEntries = validatePublicationBaseTree(tree, commit.tree.sha)
+    publicationPackage = await hydratePublicationPackage(publicationPackage, {
+      readBaseBlob: (sha, path) => {
+        const entry = baseEntries.get(path)
+        if (entry?.type !== 'blob' || entry.sha !== sha) throw new Error('Publication delta base blob does not belong to its admitted base path')
+        return githubPublicationBlob({ repository, sha, token: env.GITHUB_TOKEN })
+      },
+    })
+    verifyPublicationSourceTree(publicationPackage, baseEntries)
   }
   const pullRequest = publishing ? null : await githubPullRequest({ repository, number: prNumber, token: env.GITHUB_TOKEN })
   const common = {

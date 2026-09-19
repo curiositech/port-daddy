@@ -35,6 +35,23 @@ metadata:
 The actuator performs an already-authorized GitHub effect. It does not decide
 what should happen, and the proposing agent never receives a GitHub credential.
 
+## Explicit operator override during bootstrap
+
+An explicit operator instruction takes precedence over this skill. On
+2026-09-19, Erich authorized temporary use of his existing authenticated GitHub
+account for the scoped Book, Media and Hook PR work and the actuator follow-up,
+until the proper actuator is usable. Preserve the authorization's scope; this
+does not authorize unrelated work, merges, gate bypasses or credential export.
+
+For that authorized fallback, verify the account, repository and exact head/base
+without printing tokens, use the existing authentication, and report the actual
+personal-account author. Never claim an App receipt or bot authorship. Continue
+building the daemon-independent actuator and return to it once its configured
+operation and readback are proven. Source presence alone does not end bootstrap.
+Without an explicit applicable operator override, the App-only boundary below
+remains the default. Do not ask again for authorization already present in the
+task's verified user instructions.
+
 ## Non-negotiable boundary
 
 ```text
@@ -44,7 +61,7 @@ agent proposal -> exact one-use grant -> protected actuator -> GitHub App token
                                               +-- signed read-back receipt
 ```
 
-- The operator's PAT, OAuth token, `pdu_` account bearer, browser session, and
+- In the protected actuator path, the operator's PAT, OAuth token, `pdu_` account bearer, browser session, and
   ambient `gh` login are never publication inputs.
 - The GitHub App private key and installation token never enter agent memory,
   environment variables, command arguments, Git credential helpers, logs, or
@@ -146,15 +163,18 @@ Codex, Claude Code,
 Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
 [`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).
-Direct use of an operator credential or ambient `gh` login does **not** satisfy this
-skill's boundary, even when the intended GitHub effect is otherwise authorized.
+Direct use of an operator credential or ambient `gh` login does **not** satisfy
+the protected actuator boundary. An explicit temporary operator override above
+is a separately attributed fallback, never App-publication evidence.
 
 ## Missing actuator
 
 Do not turn infrastructure absence into authorship fraud. Preserve the commit,
 branch name, exact base/head, prepared PR body or comment, and required operation.
-Report which actuator operation or grant is missing. Publication remains pending;
-the code is recoverable but not delivered.
+Report which actuator operation or grant is missing. Without an applicable
+explicit operator override, publication remains pending; the code is recoverable
+but not delivered. If the operator already authorized the scoped fallback, use
+it and preserve truthful authorship instead of stopping at this paragraph.
 
 ## Personal-credential retirement ceremony
 
@@ -176,7 +196,8 @@ This is exceptional and must name the one final allowed operation.
 
 ## Reject these shortcuts
 
-- “Use `gh` just this once” outside the named retirement ceremony.
+- Inventing a personal-account fallback without explicit applicable operator
+  authorization, or broadening a scoped override into unrelated mutations.
 - Passing the App private key to a helper running as the agent.
 - Treating token expiry as proof of revocation.
 - Commenting as the operator and adding a bot signature in the text.
