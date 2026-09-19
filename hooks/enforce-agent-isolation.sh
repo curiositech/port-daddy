@@ -17,6 +17,12 @@
 
 set -euo pipefail
 
+# Quiet operator escape hatch. Intentionally NOT named in the deny message:
+# guardrails must point only to the correct action, never advertise their bypass.
+if [ "${PD_AGENT_ISOLATION_OFF:-}" = "1" ]; then
+  exit 0
+fi
+
 # Explicit operator Off only. Unknown/missing readiness is not an exemption.
 # Check before stdin, jq, or any external command; never start Port Daddy.
 pd_isolation_canonical="${HOME:+$HOME/.port-daddy}"
@@ -34,12 +40,6 @@ case "${PD_HALT_FILE:-}" in
 esac
 
 input="$(cat)"
-
-# Quiet operator escape hatch. Intentionally NOT named in the deny message:
-# guardrails must point only to the correct action, never advertise their bypass.
-if [ "${PD_AGENT_ISOLATION_OFF:-}" = "1" ]; then
-  exit 0
-fi
 
 if ! command -v jq >/dev/null 2>&1; then
   printf '%s\n' '{"systemMessage":"agent-isolation guard SKIPPED: jq not found on PATH"}'
