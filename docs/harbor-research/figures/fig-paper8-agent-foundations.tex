@@ -1,7 +1,6 @@
 % Paper 8 Figure 2: The AI Engineer's Field Guide to Cellular Sheaves and Cohomology.
-% Native vector TikZ diagram conforming to docs/harbor-research/figures/CONVENTION.md.
-% High-legibility typography: all fonts match document text (normalsize / small / footnotesize).
-% Clean 4-panel modular layout with guaranteed zero overlap.
+% Swiss Modern Systems Graphics specification: visual proofs, hard 90-degree corners,
+% metric coordinate drafting grid, and strict chromatic state taxonomy.
 
 \begin{figure}[htbp]
 \centering
@@ -10,18 +9,22 @@
 % TOP ROW: Panel (a) and Panel (b)
 % =========================================================================
 \begin{minipage}[t]{0.485\textwidth}
+\vspace{0pt}
 \centering
 {\normalsize\bfseries (a) What is a Stalk $\mathcal{F}(v)$?}\\[2pt]
 {\footnotesize (Agent Private State)}\\[6pt]
 \begin{tikzpicture}[
-  agentnode/.style={circle, draw=harborblue!90, fill=harborblue!15, very thick, minimum size=1.05cm, inner sep=0pt, font=\normalsize\bfseries, text=harborblue!90},
-  fieldbox/.style={draw=slate!40, fill=white, rounded corners=3pt, thick, inner sep=6pt, font=\footnotesize, align=left},
-  actionbox/.style={draw=harborblue!40, fill=harborblue!5, rounded corners=3pt, thick, inner sep=5pt, font=\footnotesize, align=center},
-  pedgeok/.style={draw=harborblue, very thick, ->},
+  agentnode/.style={circle, draw=ptDark, fill=ptLightGray, line width=1.1pt, minimum size=1.05cm, inner sep=0pt, font=\sffamily\bfseries\normalsize, text=ptDark},
+  fieldbox/.style={rectangle, draw=ptDark, fill=white, line width=1pt, inner sep=6pt, font=\footnotesize, align=left},
+  actionbox/.style={rectangle, draw=ptBlue, fill=ptLightGray, line width=1pt, inner sep=5pt, font=\footnotesize, align=center},
 ]
+  % 1. Coordinate Grid Context
+  \draw[swissgrid] (-0.25, -0.25) grid (6.85, 3.85);
+  \draw[majorgrid] (-0.25, -0.25) grid (6.85, 3.85);
+
   % Node and stalk
   \node[agentnode] (ag) at (0.6, 2.6) {$v$};
-  \node[font=\footnotesize\bfseries, text=harborblue] at (0.6, 1.8) {AgentNode};
+  \node[font=\sffamily\bfseries\scriptsize, text=ptDark, mask] at (0.6, 1.8) {AgentNode};
 
   \node[fieldbox, text width=4.6cm] (stalk) at (4.2, 2.6) {
     \textbf{\small Vector Stalk} $\mathcal{F}(v) \cong \mathbb{R}^D$ ($x_v \in \mathbb{R}^D$):\\[3pt]
@@ -30,10 +33,10 @@
     $\bullet$ \textbf{AST Lease}: $h_L \in \mathbb{R}$\\
     $\bullet$ \textbf{Commit Root}: $d_v \in [-1, 1]$
   };
-  \draw[slate!60, dashed, thick, ->, shorten >= 3pt] (ag) -- (stalk);
+  \draw[ptDark, dashed, thick, ->, shorten >= 3pt] (ag) -- (stalk);
 
   % Restriction arrow
-  \draw[pedgeok] (4.2, 1.35) -- node[right=3pt, font=\footnotesize\bfseries, text=harborblue] {Restriction $P_{v \trianglelefteq e}$} (4.2, 0.55);
+  \draw[bArr] (4.2, 1.35) -- node[right=3pt, font=\sffamily\bfseries\scriptsize, text=ptBlue, mask] {Restriction $P_{v \trianglelefteq e}$} (4.2, 0.55);
 
   \node[actionbox, text width=6.4cm, anchor=north] at (3.3, 0.4) {
     \textbf{\small Shared Channel Coordinate Selection}:\\[2pt]
@@ -43,49 +46,56 @@
 \end{minipage}%
 \hfill
 \begin{minipage}[t]{0.485\textwidth}
+\vspace{0pt}
 \centering
 {\normalsize\bfseries (b) Cochain Complex $C^0 \xrightarrow{\delta_0} C^1 \xrightarrow{\delta_1} C^2$}\\[6pt]
 \begin{tikzpicture}[
-  fieldbox/.style={draw=harborblue!30, fill=harborblue!4, rounded corners=3pt, thick, inner sep=6pt, font=\footnotesize, align=left, anchor=north},
-  actionbox/.style={draw=emerald!50, fill=emerald!5, rounded corners=3pt, thick, inner sep=5pt, font=\footnotesize, align=center, anchor=north},
+  fieldbox/.style={rectangle, draw=ptDark, fill=ptLightGray!50, line width=1pt, inner sep=6pt, font=\footnotesize, align=left, anchor=north},
+  actionbox/.style={rectangle, draw=ptBlue, fill=ptBlue!6, line width=1pt, inner sep=5pt, font=\footnotesize, align=center, anchor=north},
 ]
-  \node[fieldbox, text width=6.5cm] at (3.4, 3.8) {
+  % 1. Coordinate Grid Context
+  \draw[swissgrid] (-0.25, -0.25) grid (6.85, 3.85);
+  \draw[majorgrid] (-0.25, -0.25) grid (6.85, 3.85);
+
+  \node[fieldbox, text width=6.4cm] at (3.3, 3.8) {
     \textbf{\small 0-Cochains ($C^0$)}: Fleet States $x \in \mathbb{R}^{n \cdot D}$\\[3pt]
     \textbf{\small 1-Cochains ($C^1$)}: Channel Differences $g \in \mathbb{R}^{m \cdot d}$\\[3pt]
     \textbf{\small 2-Cochains ($C^2$)}: Triadic Review Curvature $\delta_1 g \in \mathbb{R}^{f \cdot d}$
   };
 
-  \node[actionbox, text width=6.5cm] at (3.4, 1.25) {
-    \textbf{\small Fundamental Boundary Nilpotency}:\\[2pt]
+  \node[actionbox, text width=6.4cm] at (3.3, 1.25) {
+    \textbf{\color{ptBlue}\small Fundamental Boundary Nilpotency}:\\[2pt]
     $\delta_1 \circ \delta_0 \equiv 0 \quad \Longleftrightarrow \quad \mathrm{im}(\delta_0) \subseteq \ker(\delta_1)$\\[4pt]
-    \textbf{\small Zero False-Alarm Guarantee}:\\[2pt]
+    \textbf{\color{ptBlue}\small Zero False-Alarm Guarantee}:\\[2pt]
     Honest potentials $g = \delta_0 x$ produce exactly\\
     zero triadic review curl ($\delta_1 g \equiv 0$).
   };
 \end{tikzpicture}
 \end{minipage}
 
-\vspace{0.4cm}
-\hrule height 0.6pt \relax
-\vspace{0.4cm}
+\vspace{0.35cm}
+\hrule height 0.8pt \relax
+\vspace{0.35cm}
 
 % =========================================================================
 % BOTTOM ROW: Panel (c) and Panel (d)
 % =========================================================================
 \begin{minipage}[t]{0.485\textwidth}
+\vspace{0pt}
 \centering
 {\normalsize\bfseries (c) Gossip Trees vs.\ Closed Cycles}\\[2pt]
 {\footnotesize (Acyclic Silence vs.\ Certified Traps)}\\[6pt]
 \begin{tikzpicture}[
-  agentnode/.style={circle, draw=harborblue!90, fill=harborblue!15, very thick, minimum size=7.2mm, inner sep=0pt, font=\footnotesize\bfseries, text=harborblue!90},
-  roguenode/.style={circle, draw=shipred!90, fill=shipred!20, very thick, minimum size=7.2mm, inner sep=0pt, font=\footnotesize\bfseries, text=shipred!90},
-  actionbox/.style={rounded corners=3pt, thick, inner sep=5pt, font=\footnotesize, align=center, anchor=north},
-  pedgeweak/.style={draw=slate!60, thick, ->},
-  pedgeok/.style={draw=harborblue, very thick, ->},
-  pedgered/.style={draw=shipred, very thick, ->},
+  agentnode/.style={circle, draw=ptDark, fill=ptLightGray, line width=1pt, minimum size=7.2mm, inner sep=0pt, font=\sffamily\bfseries\footnotesize, text=ptDark},
+  roguenode/.style={circle, draw=ptRed, fill=ptRed!20, line width=1.2pt, minimum size=7.2mm, inner sep=0pt, font=\sffamily\bfseries\footnotesize, text=ptRed},
+  actionbox/.style={rectangle, line width=1pt, inner sep=5pt, font=\footnotesize, align=center, anchor=north},
 ]
+  % 1. Coordinate Grid Context
+  \draw[swissgrid] (-0.25, -0.75) grid (6.85, 4.45);
+  \draw[majorgrid] (-0.25, -0.75) grid (6.85, 4.45);
+
   % Left: Open Tree
-  \node[font=\footnotesize\bfseries, text=slatedark, align=center] at (1.6, 4.2) {Open Delegation Tree\\[1pt]{\scriptsize (LangChain / AutoGen)}};
+  \node[font=\sffamily\bfseries\scriptsize, text=ptDark, align=center, mask] at (1.6, 4.2) {Open Delegation Tree\\[1pt]{\scriptsize (LangChain / CrewAI)}};
   \node[agentnode] (t0) at (1.6, 3.2) {$v_0$};
   \node[roguenode] (t1) at (0.8, 2.2) {$v_1^*$};
   \node[agentnode] (t2) at (2.4, 2.2) {$v_2$};
@@ -93,94 +103,97 @@
   \node[agentnode] (t4) at (1.2, 1.3) {$v_4$};
   \node[agentnode] (t5) at (2.4, 1.3) {$v_5$};
 
-  \draw[pedgeweak] (t0) -- (t1);
-  \draw[pedgeweak] (t0) -- (t2);
-  \draw[pedgeweak] (t1) -- (t3);
-  \draw[pedgeweak] (t1) -- (t4);
-  \draw[pedgeweak] (t2) -- (t5);
+  \draw[dArr] (t0) -- (t1);
+  \draw[dArr] (t0) -- (t2);
+  \draw[dArr] (t1) -- (t3);
+  \draw[dArr] (t1) -- (t4);
+  \draw[dArr] (t2) -- (t5);
 
-  \node[actionbox, draw=shipred!40, fill=shipred!5, text width=3.1cm] at (1.6, 0.4) {
-    \textbf{\color{shipred} $\ker(\delta_0^T) = \{0\}$ (Silent!)}\\[2pt]
+  \node[actionbox, draw=ptRed, fill=ptRed!5, text width=3.1cm] at (1.6, 0.4) {
+    \textbf{\color{ptRed} $\ker(\delta_0^T) = \{0\}$ (Silent!)}\\[2pt]
     Acyclic trees swallow lies into scalar potentials; $r \equiv 0$.
   };
 
   % Right: Closed Cycle
-  \node[font=\footnotesize\bfseries, text=slatedark, align=center] at (5.3, 4.2) {Closed Review Cycle\\[1pt]{\scriptsize (Port Daddy / Harbor)}};
+  \node[font=\sffamily\bfseries\scriptsize, text=ptDark, align=center, mask] at (5.3, 4.2) {Closed Review Cycle\\[1pt]{\scriptsize (Autonomous Control Plane)}};
   \node[agentnode] (c0) at (4.3, 3.1) {$u_0$};
   \node[roguenode] (c1) at (6.3, 3.1) {$u_1^*$};
   \node[agentnode] (c2) at (6.3, 1.3) {$u_2$};
   \node[agentnode] (c3) at (4.3, 1.3) {$u_3$};
 
-  \draw[pedgeok] (c0) -- (c1);
-  \draw[pedgered] (c1) -- node[right=2pt, font=\scriptsize\bfseries, text=shipred] {Lie} (c2);
-  \draw[pedgeok] (c2) -- (c3);
-  \draw[pedgeok] (c3) -- (c0);
+  \draw[dArr] (c0) -- (c1);
+  \draw[rArr] (c1) -- node[right=2pt, font=\sffamily\bfseries\scriptsize, text=ptRed, mask] {Lie} (c2);
+  \draw[dArr] (c2) -- (c3);
+  \draw[dArr] (c3) -- (c0);
 
-  \draw[shipred, very thick, dashed, ->] (5.3, 2.2) arc (30:330:0.42);
-  \node[font=\small\bfseries, text=shipred] at (5.3, 2.2) {$\rho \neq 0$};
+  \draw[rArr, dashed] (5.3, 2.2) arc (30:330:0.42);
+  \node[font=\sffamily\bfseries\small, text=ptRed, mask] at (5.3, 2.2) {$\rho \neq 0$};
 
-  \node[actionbox, draw=harborblue!40, fill=harborblue!5, text width=3.1cm] at (5.3, 0.4) {
-    \textbf{\color{harborblue} $\ker(\delta_0^T) \neq \{0\}$ (Trapped!)}\\[2pt]
+  \node[actionbox, draw=ptBlue, fill=ptBlue!6, text width=3.1cm] at (5.3, 0.4) {
+    \textbf{\color{ptBlue} $\ker(\delta_0^T) \neq \{0\}$ (Trapped!)}\\[2pt]
     Cycle traps contradiction with certified residual $r > 0$.
   };
 \end{tikzpicture}
 \end{minipage}%
 \hfill
 \begin{minipage}[t]{0.485\textwidth}
+\vspace{0pt}
 \centering
 {\normalsize\bfseries (d) Gauge Skew vs.\ Triadic Curl}\\[6pt]
 \begin{tikzpicture}[
-  gaugenode/.style={circle, draw=seagreen!90, fill=seagreen!15, very thick, minimum size=7.5mm, inner sep=0pt, font=\footnotesize\bfseries, text=seagreen!90},
-  roguenode/.style={circle, draw=shipred!90, fill=shipred!20, very thick, minimum size=7.5mm, inner sep=0pt, font=\footnotesize\bfseries, text=shipred!90},
-  actionbox/.style={rounded corners=3pt, thick, inner sep=5pt, font=\footnotesize, align=center, anchor=north},
-  pedgegreen/.style={draw=seagreen, very thick, ->},
-  pedgered/.style={draw=shipred, very thick, ->},
+  gaugenode/.style={circle, draw=ptBlue, fill=ptBlue!12, line width=1.1pt, minimum size=7.5mm, inner sep=0pt, font=\sffamily\bfseries\footnotesize, text=ptBlue},
+  roguenode/.style={circle, draw=ptRed, fill=ptRed!20, line width=1.2pt, minimum size=7.5mm, inner sep=0pt, font=\sffamily\bfseries\footnotesize, text=ptRed},
+  actionbox/.style={rectangle, line width=1pt, inner sep=5pt, font=\footnotesize, align=center, anchor=north},
 ]
+  % 1. Coordinate Grid Context
+  \draw[swissgrid] (-0.25, -0.75) grid (6.85, 4.45);
+  \draw[majorgrid] (-0.25, -0.75) grid (6.85, 4.45);
+
   % Left: Gauge Skew
-  \node[font=\footnotesize\bfseries, text=seagreen, align=center] at (1.6, 4.2) {Gauge Skew\\[1pt]{\scriptsize (Benign Turn Lag)}};
+  \node[font=\sffamily\bfseries\scriptsize, text=ptBlue, align=center, mask] at (1.6, 4.2) {Gauge Skew\\[1pt]{\scriptsize (Benign Turn Lag)}};
   \node[gaugenode] (g0) at (0.6, 1.3) {$t_0$};
   \node[gaugenode] (g1) at (2.6, 1.3) {$t_1$};
   \node[gaugenode] (g2) at (1.6, 3.4) {$t_2$};
 
-  \draw[pedgegreen] (g0) -- (g1);
-  \draw[pedgegreen] (g1) -- (g2);
-  \draw[pedgegreen] (g0) -- (g2);
-  \node[font=\small\bfseries, text=seagreen] at (1.6, 2.1) {$\delta_1 g = 0$};
-  \node[font=\scriptsize\bfseries, text=seagreen] at (1.6, 1.7) {Curl-free};
+  \draw[bArr] (g0) -- (g1);
+  \draw[bArr] (g1) -- (g2);
+  \draw[bArr] (g0) -- (g2);
+  \node[font=\sffamily\bfseries\small, text=ptBlue, mask] at (1.6, 2.1) {$\delta_1 g = 0$};
+  \node[font=\sffamily\bfseries\scriptsize, text=ptBlue, mask] at (1.6, 1.7) {Curl-free};
 
-  \node[actionbox, draw=seagreen!40, fill=seagreen!5, text width=3.1cm] at (1.6, 0.4) {
-    \textbf{\color{seagreen} Action: Do Nothing!}\\[2pt]
+  \node[actionbox, draw=ptDark, fill=ptLightGray, text width=3.1cm] at (1.6, 0.4) {
+    \textbf{\color{ptDark} Action: Do Nothing!}\\[2pt]
     Benign step latency;\\
     self-resolves next turn.
   };
 
   % Right: Triadic Curl
-  \node[font=\footnotesize\bfseries, text=shipred, align=center] at (5.3, 4.2) {Triadic Curl\\[1pt]{\scriptsize (Review Bug / Paradox)}};
+  \node[font=\sffamily\bfseries\scriptsize, text=ptRed, align=center, mask] at (5.3, 4.2) {Triadic Curl\\[1pt]{\scriptsize (Review Bug / Paradox)}};
   \node[roguenode] (r0) at (4.2, 1.3) {Coder};
   \node[roguenode] (r1) at (6.4, 1.3) {Critic};
   \node[roguenode] (r2) at (5.3, 3.4) {Mgr};
 
-  \draw[pedgered] (r0) -- (r1);
-  \draw[pedgered] (r1) -- (r2);
-  \draw[pedgered] (r2) -- (r0);
+  \draw[rArr] (r0) -- (r1);
+  \draw[rArr] (r1) -- (r2);
+  \draw[rArr] (r2) -- (r0);
 
-  \draw[shipred, very thick, dashed, ->] (5.3, 2.1) arc (30:330:0.38);
-  \node[font=\small\bfseries, text=shipred] at (5.3, 2.1) {$\delta_1 g \neq 0$};
+  \draw[rArr, dashed] (5.3, 2.1) arc (30:330:0.38);
+  \node[font=\sffamily\bfseries\small, text=ptRed, mask] at (5.3, 2.1) {$\delta_1 g \neq 0$};
 
-  \node[actionbox, draw=shipred!40, fill=shipred!5, text width=3.1cm] at (5.3, 0.4) {
-    \textbf{\color{shipred} Action: Re-prompt!}\\[2pt]
+  \node[actionbox, draw=ptRed, fill=ptRed!5, text width=3.1cm] at (5.3, 0.4) {
+    \textbf{\color{ptRed} Action: Re-prompt!}\\[2pt]
     Review contract violated;\\
     restart critique loop.
   };
 \end{tikzpicture}
 \end{minipage}
 
-\vspace{0.3cm}
+\vspace{0.35cm}
 \begin{tikzpicture}
-  \node[draw=slate!40, fill=slate!5, rounded corners=3pt, thick, text width=0.96\linewidth, inner sep=7pt, align=center] {
+  \node[rectangle, draw=ptDark, fill=ptLightGray, line width=1pt, text width=0.96\linewidth, inner sep=7pt, align=center] {
     {\normalsize\textbf{Swarm Legibility Ratio}: \quad
     $\displaystyle \mathcal{L}(g) = \frac{\|h\|_2^2}{\|h\|_2^2 + \|\delta_1^* \psi\|_2^2} \in [0, 1]$}\\[4pt]
-    {\small $\mathcal{L}(g) \approx 0 \implies$ \textbf{Local Review Hallucination} (Re-prompt critique triad) \quad $\vert$ \quad $\mathcal{L}(g) \approx 1 \implies$ \textbf{Macro Network Split} (Harmonic partition cavity)}
+    {\small $\mathcal{L}(g) \approx 0 \implies$ \textbf{\color{ptRed}Local Review Hallucination} (Re-prompt critique triad) \quad $\vert$ \quad $\mathcal{L}(g) \approx 1 \implies$ \textbf{\color{ptBlue}Macro Network Split} (Harmonic partition cavity)}
   };
 \end{tikzpicture}
 
