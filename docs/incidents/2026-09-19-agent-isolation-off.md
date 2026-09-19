@@ -2,7 +2,7 @@
 
 On 2026-09-19 the standalone Agent/Task isolation hook was repaired for the
 operator's halted local runtime. Before it reads stdin or invokes `jq`, it now
-only treats an existing canonical `~/.port-daddy/hooks.disabled`, `HALT`, or
+honors the existing `PD_AGENT_ISOLATION_OFF=1` override and treats an existing canonical `~/.port-daddy/hooks.disabled`, `HALT`, or
 an existing absolute `PD_HALT_FILE` marker (including a symlink) as explicit
 Off. The same explicit markers in a selected `PD_HOME` also stop the hook, but a relative or
 missing `PD_HALT_FILE` is not a stop marker.
@@ -15,7 +15,9 @@ standalone hook; it does not run an installer or modify hook registrations.
 The lead separately applied the same narrow patch to the existing installed
 `.codex` and `.claude` copies under the operator's explicit OFF request. All
 three copies had SHA-256 `5aa82321cba4817bb72c783427e6c9790505e5ffd5e0732f54f6f845de5c7d9c`
-at read-back. The existing OFF marker was not changed.
+at that historical read-back. The later environment-override ordering repair
+is source-only; installed copies were not updated or exercised by this PR
+follow-up. The existing OFF marker was not changed.
 
 Validation is limited to reviewed shell fixture copies with synthetic paths:
 `node --test tests/unit/agent-isolation-off.test.mjs` (no Jest setup, Port
