@@ -7,3 +7,4 @@ Load only the file that matches the question in front of you.
 - `h1-as-settlement-obstruction.md`: H¹ as settlement obstruction — Port Daddy ledger PRV-12/13 and the double-spend problem.
 - `hansen-ghrist-2021.md`: opinion dynamics on discourse sheaves (Hansen & Ghrist 2021).
 - `practical-walkthrough.md`: 3-agent triangle walkthrough — computing H¹ from pheromone disagreement data.
+- `active-repair-and-triadic-cohomology.md`: formal mathematical foundations, theorems, and proofs for active multi-agent swarm control (CR-4) and higher-order 2-complex triage (CR-5).
