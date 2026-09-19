@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-rejection-coverage.schema.json",
+  "title": "PortholeRejectionCoverage",
+  "description": "A point-in-time subsystem inventory separating claim classes with replayable mutation evidence from claims whose rejection has not yet been demonstrated. Demonstrated means at least one exact constructed lie was killed, never universal proof.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.rejection-coverage.v1" },
+    "coverageId": { "type": "string", "minLength": 1 },
+    "subsystemId": { "type": "string", "minLength": 1 },
+    "subjectDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "validatorArtifactDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "testBundleDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "contractRef": { "type": "string", "minLength": 1 },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "invariantId": { "type": "string", "minLength": 1 },
+          "claim": { "type": "string", "minLength": 8 },
+          "criticality": { "enum": ["important", "supporting"] },
+          "status": { "enum": ["demonstrated", "survived", "not-demonstrated", "inconclusive", "out-of-scope"] },
+          "mutationReceiptRefs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "gapReason": { "type": ["string", "null"] },
+          "owner": { "type": "string", "minLength": 1 }
+        },
+        "required": ["invariantId", "claim", "criticality", "status", "mutationReceiptRefs", "gapReason", "owner"],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": { "properties": { "status": { "const": "demonstrated" } }, "required": ["status"] },
+            "then": {
+              "properties": {
+                "mutationReceiptRefs": { "minItems": 1 },
+                "gapReason": { "const": null }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "status": { "const": "survived" } }, "required": ["status"] },
+            "then": {
+              "properties": {
+                "mutationReceiptRefs": { "minItems": 1 },
+                "gapReason": { "type": "string", "minLength": 8 }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "status": { "const": "not-demonstrated" } }, "required": ["status"] },
+            "then": {
+              "properties": {
+                "mutationReceiptRefs": { "maxItems": 0 },
+                "gapReason": { "type": "string", "minLength": 8 }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "importantClaimCount": { "type": "integer", "minimum": 0 },
+        "demonstratedCount": { "type": "integer", "minimum": 0 },
+        "survivedCount": { "type": "integer", "minimum": 0 },
+        "notDemonstratedCount": { "type": "integer", "minimum": 0 },
+        "inconclusiveCount": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["importantClaimCount", "demonstratedCount", "survivedCount", "notDemonstratedCount", "inconclusiveCount"],
+      "additionalProperties": false
+    },
+    "generatedFromEventHead": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "generatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["schema", "coverageId", "subsystemId", "subjectDigest", "validatorArtifactDigest", "testBundleDigest", "contractRef", "claims", "summary", "generatedFromEventHead", "generatedAt"],
+  "additionalProperties": false
+}

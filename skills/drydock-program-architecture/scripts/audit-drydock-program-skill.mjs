@@ -80,12 +80,13 @@ requireValue(/NOT for/i.test(skillText.slice(0, skillText.indexOf("---", 4))), "
 
 const atlas = readFileSync(join(skillRoot, "references/diagram-atlas.md"), "utf8");
 const diagrams = [...atlas.matchAll(/^```mermaid\s*$/gm)].length;
-requireValue(diagrams === 17, `diagram atlas must contain exactly 17 decision views; found ${diagrams}`);
-for (let index = 1; index <= 17; index += 1) {
+const expectedDiagramViews = 20;
+requireValue(diagrams === expectedDiagramViews, `diagram atlas must contain exactly ${expectedDiagramViews} decision views; found ${diagrams}`);
+for (let index = 1; index <= expectedDiagramViews; index += 1) {
   requireValue(new RegExp(`^## ${index}\\. `, "m").test(atlas), `diagram atlas omits numbered view ${index}`);
 }
-requireValue((atlas.match(/\*\*Proves visually:\*\*/g) ?? []).length === 17, "every diagram needs a proof statement");
-requireValue((atlas.match(/\*\*Does not prove:\*\*/g) ?? []).length === 17, "every diagram needs a non-proof statement");
+requireValue((atlas.match(/\*\*Proves visually:\*\*/g) ?? []).length === expectedDiagramViews, "every diagram needs a proof statement");
+requireValue((atlas.match(/\*\*Does not prove:\*\*/g) ?? []).length === expectedDiagramViews, "every diagram needs a non-proof statement");
 
 const observatory = readFileSync(join(skillRoot, "references/hypertree-execution-observatory.md"), "utf8");
 requireValue((observatory.match(/^```mermaid\s*$/gm) ?? []).length >= 3, "hypertree observatory needs at least three decision diagrams");

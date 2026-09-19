@@ -114,6 +114,11 @@ const ALLOWED_FILES = new Set([
   'schemas/agent-harbor/v0/fixtures/body.json',
   'schemas/agent-harbor/v0/fixtures/cost-accrual-event.json',
   'schemas/agent-harbor/v0/fixtures/durable-agent-profile.json',
+  // Mutation-proof fixtures carry deliberately synthetic SHA-256 values. The
+  // generic local-model regex also matches `sha256:<digits>`, but these fields
+  // are cryptographic evidence identities, not runtime model selections.
+  'schemas/agent-harbor/v0/fixtures/porthole-mutation-receipt.json',
+  'schemas/agent-harbor/v0/fixtures/porthole-rejection-coverage.json',
   'schemas/agent-harbor/v0/fixtures/work-receipt.json',
   // DOCUMENTATION ILLUSTRATIONS. These render sample terminal output, sample
   // MCP/SDK responses, and `--model` flag examples — the explicit-override
