@@ -230,6 +230,32 @@ function intentDb() {
 }
 
 describe('Fleetbot publisher authority hardening', () => {
+  it('requests Workflows write only when a committed change touches a workflow file', () => {
+    const payload = (path: string, deleting = false) => ({
+      baseBranch: 'main',
+      baseSha: '1'.repeat(40),
+      sourceHeadSha: '2'.repeat(40),
+      sourceTreeSha: '3'.repeat(40),
+      sourceCommittedAt: NOW,
+      commitMessage: 'Publish reviewed work',
+      changes: [deleting ? { path, delete: true } : { path, mode: '100644', contentBase64: 'YQ==' }],
+      title: 'Publish reviewed work',
+      body: 'Reviewed work',
+      draft: false,
+    }) as unknown as Parameters<typeof subject.permissionsFor>[1];
+
+    expect(subject.permissionsFor('pull-request.publish', payload('src/index.ts')))
+      .toEqual({ contents: 'write', pull_requests: 'write' });
+    expect(subject.permissionsFor('pull-request.publish', payload('.github/workflows/ci.yml')))
+      .toEqual({ contents: 'write', pull_requests: 'write', workflows: 'write' });
+    expect(subject.permissionsFor('pull-request.update', payload('.github/workflows/old.yml', true)))
+      .toEqual({ contents: 'write', pull_requests: 'write', workflows: 'write' });
+    expect(subject.permissionsFor('pull-request.publish', payload('.github/workflows-notes/README.md')))
+      .toEqual({ contents: 'write', pull_requests: 'write' });
+    expect(subject.permissionsFor('pull-request.inspect', payload('src/index.ts')))
+      .toEqual({ pull_requests: 'read' });
+  });
+
   it('requires write authority for every mutation but only read for inspection', () => {
     expect(subject.repositoryAccessFor('pull-request.inspect')).toBe('read');
     for (const operation of [

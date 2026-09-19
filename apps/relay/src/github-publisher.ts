@@ -1024,12 +1024,20 @@ async function finishIntent(
   }
 }
 
-function permissionsFor(operation: FleetbotOperation): Readonly<Record<string, InstallationPermission>> {
-  return operation === 'pull-request.publish' || operation === 'pull-request.update'
-    ? { contents: 'write', pull_requests: 'write' }
-    : operation === 'pull-request.inspect'
-      ? { pull_requests: 'read' }
-      : { pull_requests: 'write' };
+function permissionsFor(
+  operation: FleetbotOperation,
+  payload: ParsedPayload,
+): Readonly<Record<string, InstallationPermission>> {
+  if (operation === 'pull-request.publish' || operation === 'pull-request.update') {
+    const changes = (payload as PublishPayload | UpdatePayload).changes;
+    const modifiesWorkflow = changes.some((change) => change.path.startsWith('.github/workflows/'));
+    return modifiesWorkflow
+      ? { contents: 'write', pull_requests: 'write', workflows: 'write' }
+      : { contents: 'write', pull_requests: 'write' };
+  }
+  return operation === 'pull-request.inspect'
+    ? { pull_requests: 'read' }
+    : { pull_requests: 'write' };
 }
 
 function repositoryAccessFor(operation: FleetbotOperation): 'read' | 'write' {
@@ -2012,7 +2020,7 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
       installationId,
       owner,
       repo,
-      permissionsFor(action.operation),
+      permissionsFor(action.operation, payload),
     );
     appToken = minted.token;
     executionResult = await execute(action, payload, appToken, app, account.user.id, () => { mutationAttempted = true; });
@@ -2073,5 +2081,6 @@ export const __fleetbotPublisherTest = {
   gitObjectSha,
   expectedCommitSha,
   repositoryAccessFor,
+  permissionsFor,
   maxOuterRequestBytes: MAX_OUTER_REQUEST_BYTES,
 };
