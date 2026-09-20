@@ -34,11 +34,30 @@ class StructuralTests(unittest.TestCase):
         text = "# A\n## B\nThis paragraph is a real break.\n### C\n"
         self.assertEqual(review.scan_text("chapter.md", text), [])
 
-    def test_markdown_bold_and_italic_standalone_blocks_count(self):
-        text = "**A**\n\n_ B _\n\n### C\n"
-        # The spaces inside the italic wrapper are intentional content and are
-        # still a standalone italic block.
+    def test_markdown_indented_code_is_not_a_title_stack(self):
+        for indent in ('    ', '\t'):
+            with self.subTest(indent=indent):
+                text = '\n'.join(indent + line for line in ('# A', '## B', '### C'))
+                self.assertEqual(review.scan_text("chapter.md", text), [])
+
+    def test_markdown_whitespace_only_blank_line_keeps_stack(self):
+        text = '# A\n    \n## B\n\t\n### C'
         self.assertEqual(finding_ids(review.scan_text("chapter.md", text)), ["title-stack-candidate"])
+
+    def test_markdown_bold_and_italic_standalone_blocks_count(self):
+        text = "**A**\n\n_B_\n\n### C\n"
+        self.assertEqual(finding_ids(review.scan_text("chapter.md", text)), ["title-stack-candidate"])
+
+    def test_markdown_mixed_emphasis_prose_is_not_a_title_stack(self):
+        text = ('**First** paragraph explains **one**\n\n'
+                '**Second** paragraph explains **two**\n\n'
+                '**Third** paragraph explains **three**')
+        self.assertEqual(review.scan_text("chapter.md", text), [])
+
+    def test_markdown_spaced_or_mismatched_emphasis_is_plain_text(self):
+        for middle in ('_ B _', '**B__', '*B_'):
+            with self.subTest(middle=middle):
+                self.assertEqual(review.scan_text("chapter.md", f'# A\n\n{middle}\n\n## C'), [])
 
     def test_markdown_fences_comments_and_frontmatter_are_ignored(self):
         text = "---\ntitle: Metadata\n---\n# A\n## B\n\n```md\n### fake\n#### fake\n##### fake\n```\n<!-- ### comment -->\n"
@@ -111,6 +130,44 @@ class StructuralTests(unittest.TestCase):
     def test_html_group_class_is_a_container(self):
         text = '<div class="group"><h2>A</h2><em>B</em><i>C</i></div>'
         self.assertEqual(finding_ids(review.scan_text("page.html", text)), ["title-stack-candidate"])
+
+    def test_html_ordinary_hero_wrapper_is_scanned_once(self):
+        text = ('<header>\n<div class="hero-copy">\n'
+                '<p class="eyebrow">Research</p>\n<h1>Learning</h1>\n'
+                '<p class="subtitle">A study</p>\n</div>\n</header>')
+        found = review.scan_text("page.html", text)
+        self.assertEqual(finding_ids(found), ["title-stack-candidate"])
+        self.assertEqual(found[0]["line"], 3)
+        self.assertEqual(found[0]["excerpt"], "Research | Learning | A study")
+
+    def test_html_nested_plain_wrappers_are_scanned(self):
+        text = '<div><div><h1>A</h1><h2>B</h2><h3>C</h3></div></div>'
+        self.assertEqual(finding_ids(review.scan_text("page.html", text)), ["title-stack-candidate"])
+
+    def test_html_sibling_wrappers_do_not_combine_titles(self):
+        text = ('<header><div><h1>A</h1><h2>B</h2></div>'
+                '<div><h2>C</h2><h3>D</h3></div></header>')
+        self.assertEqual(review.scan_text("page.html", text), [])
+
+    def test_html_wrapper_prose_breaks_stack(self):
+        text = '<div><h1>A</h1><p>Actual prose.</p><h2>B</h2><h3>C</h3></div>'
+        self.assertEqual(review.scan_text("page.html", text), [])
+
+    def test_html_wrappers_in_ignored_elements_remain_ignored(self):
+        for tag in ('nav', 'pre', 'code', 'script', 'style', 'template'):
+            with self.subTest(tag=tag):
+                text = f'<{tag}><div><h1>A</h1><h2>B</h2><h3>C</h3></div></{tag}>'
+                self.assertEqual(review.scan_text("page.html", text), [])
+
+    def test_html_media_breaks_title_run(self):
+        for media in ('<figure><img src="graph.png" alt="Graph"></figure>',
+                      '<p><img src="graph.png" alt="Graph"></p>',
+                      '<a href="full.png"><img src="graph.png" alt="Graph"></a>',
+                      '<img src="graph.png" alt="Graph">', '<video src="lesson.mp4"></video>',
+                      '<svg><path d="M0 0L1 1"></path></svg>', '<hr>'):
+            with self.subTest(media=media):
+                text = f'<section><h2>A</h2>{media}<h3>B</h3><h4>C</h4></section>'
+                self.assertEqual(review.scan_text("page.html", text), [])
 
     def test_tex_section_subsection_and_styled_lines_are_detected(self):
         text = r"\section{A}"
@@ -197,6 +254,12 @@ class LearningMapTests(unittest.TestCase):
         data["evidence"] = [item for item in data["evidence"] if item["concept_id"] == "fraction"]
         ids = finding_ids(review.validate_learning_map(data))
         self.assertEqual(ids, [])
+
+    def test_prior_knowledge_can_be_used_before_a_later_refresher(self):
+        data = self.valid_map()
+        data['declared_prior_knowledge'] = ['whole']
+        data['concepts'][0]['teaching_line'] = 100
+        self.assertEqual(review.validate_learning_map(data), [])
 
     def test_bool_is_not_accepted_as_positive_line(self):
         data = self.valid_map()

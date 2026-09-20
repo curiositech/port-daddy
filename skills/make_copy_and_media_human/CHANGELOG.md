@@ -19,6 +19,13 @@ or blanket deletion advice. Corrected cumulative time in the backoff example and
 reduced unsupported style-pattern severity. New fixtures cover structural cues,
 legitimate counterexamples and malformed annotation maps.
 
+Fixed missed HTML title stacks inside ordinary `div` layout wrappers, including
+nested hero copy. Wrapper boundaries remain separate so unrelated cards do not
+combine into a title stack; prose and ignored-element regressions are covered.
+Adversarial review also caught false positives for Markdown indented code and
+mixed emphasis, inert HTML templates, media between headings, and declared
+prior knowledge refreshed later in a lesson. Added regressions for each case.
+
 ## 0.3.0 — 2026-09-14
 
 Rebuilt around measured evidence. The skill previously carried thresholds that

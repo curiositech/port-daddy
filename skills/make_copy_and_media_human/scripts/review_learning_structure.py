@@ -210,6 +210,10 @@ def _markdown_runs(text: str) -> list[list[tuple[int, str]]]:
             if stripped in {"---", "..."}:
                 in_frontmatter = False
             continue
+        if stripped and raw.expandtabs(4).startswith("    "):
+            # Indented code is not a standalone heading/emphasis block.
+            flush()
+            continue
         if re.match(r"^\s*(```+|~~~+)", raw):
             marker = re.match(r"^\s*(```+|~~~+)", raw).group(1)
             if not in_fence:
@@ -226,11 +230,12 @@ def _markdown_runs(text: str) -> list[list[tuple[int, str]]]:
         candidate: str | None = None
         if re.match(r"^#{1,6}\s+\S", stripped):
             candidate = re.sub(r"^#{1,6}\s+", "", stripped).rstrip("# ")
-        elif re.fullmatch(r"(?:\*\*|__)[^*_].*?(?:\*\*|__)", stripped):
-            candidate = re.sub(r"^(?:\*\*|__)", "", stripped)
-            candidate = re.sub(r"(?:\*\*|__)$", "", candidate)
-        elif re.fullmatch(r"(?:\*|_)[^*_].*?(?:\*|_)", stripped):
-            candidate = stripped[1:-1]
+        else:
+            # Conservative whole-block emphasis: matching delimiters and
+            # non-space edges, without internal delimiters hiding body prose.
+            emphasis = re.fullmatch(r"(\*\*|__|\*|_)([^*_]+)\1", stripped)
+            if emphasis and emphasis[2] == emphasis[2].strip():
+                candidate = emphasis[2]
         if candidate is None:
             flush()
         else:
@@ -250,7 +255,7 @@ class _HTMLNode:
 
 
 class _HTMLTree(HTMLParser):
-    ignored = {"nav", "script", "style", "code", "pre"}
+    ignored = {"nav", "script", "style", "code", "pre", "template"}
     void_elements = {
         "area", "base", "br", "col", "embed", "hr", "img", "input",
         "link", "meta", "param", "source", "track", "wbr",
@@ -303,7 +308,9 @@ def _node_text(node: _HTMLNode) -> str:
 
 
 def _is_container(node: _HTMLNode) -> bool:
-    if node.tag in {"header", "section", "article", "hgroup"}:
+    # Ordinary layout wrappers are scan scopes too. Keep their boundaries:
+    # flattening sibling wrappers could join headings from unrelated cards.
+    if node.tag in {"header", "section", "article", "hgroup", "div"}:
         return True
     role = node.attrs.get("role", "").lower()
     classes = set(node.attrs.get("class", "").split())
@@ -328,7 +335,11 @@ def _html_runs(node: _HTMLNode) -> list[list[tuple[int, str]]]:
                 flush()
             continue
         if _is_container(child):
-            # Nested sections are separate scopes, never a parent stack.
+            # Nested containers are separate scopes, never a parent stack.
+            flush()
+            continue
+        if child.tag in {"figure", "img", "video", "audio", "svg", "canvas", "iframe", "object", "embed", "hr"}:
+            # Non-text content still separates title layers.
             flush()
             continue
         text = _node_text(child)
@@ -339,7 +350,9 @@ def _html_runs(node: _HTMLNode) -> list[list[tuple[int, str]]]:
         ) or (explicit_role and text):
             run.append((child.line, text))
         else:
-            if text:
+            # An unrecognized block can carry media without text. Only known
+            # non-content nodes are transparent to a run.
+            if text or child.tag not in _HTMLTree.ignored | {"br", "wbr", "meta", "link"}:
                 flush()
     flush()
     return runs
@@ -486,7 +499,7 @@ def validate_learning_map(data: Any) -> list[dict[str, Any]]:
 
     findings: list[dict[str, Any]] = []
     for cid, concept in concepts.items():
-        if concept["first_use_line"] < concept["teaching_line"]:
+        if cid not in prior and concept["first_use_line"] < concept["teaching_line"]:
             findings.append(_finding(
                 source, concept["first_use_line"], cid, "prerequisite-not-established",
                 f"Concept {cid!r} has first_use_line before teaching_line. This is an "

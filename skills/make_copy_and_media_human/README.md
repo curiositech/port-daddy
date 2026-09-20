@@ -99,6 +99,8 @@ python3 scripts/test_review_regressions.py
 ```
 
 A title-stack finding is a low-severity candidate. Read the layers and inspect
-rendered output before deciding whether they repeat meaning. Optional learning
+rendered output before deciding whether they repeat meaning. HTML scanning includes
+ordinary `div` wrappers as separate scopes; sibling wrappers do not combine into
+one title stack. Optional learning
 maps record reviewer annotations, not automatically inferred mastery. See
 `templates/learning-map.json` and the scanner's `--help`.
