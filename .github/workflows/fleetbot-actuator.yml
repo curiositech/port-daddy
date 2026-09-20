@@ -11,6 +11,7 @@ on:
           - publish
           - comment
           - review-reply
+          - resolve-review-thread
           - ready
           - request-reviewers
           - enqueue
@@ -28,6 +29,10 @@ on:
         type: string
       review_comment_id:
         description: Positive review-comment database id; required for review-reply.
+        required: false
+        type: string
+      review_thread_id:
+        description: Exact review-thread GraphQL node id; required for resolve-review-thread.
         required: false
         type: string
       reviewers_json:
@@ -98,6 +103,7 @@ jobs:
       FLEETBOT_REQUEST_PATH: ${{ github.workspace }}/fleetbot-publish-request.json
       FLEETBOT_COMMENT_BODY: ${{ inputs.comment_body }}
       FLEETBOT_REVIEW_COMMENT_ID: ${{ inputs.review_comment_id }}
+      FLEETBOT_REVIEW_THREAD_ID: ${{ inputs.review_thread_id }}
       FLEETBOT_REVIEWERS_JSON: ${{ inputs.reviewers_json }}
       FLEETBOT_TEAM_REVIEWERS_JSON: ${{ inputs.team_reviewers_json }}
       FLEETBOT_ACTOR_ID: github-user:${{ github.actor_id }}
