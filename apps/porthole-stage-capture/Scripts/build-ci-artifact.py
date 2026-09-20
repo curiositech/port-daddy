@@ -56,6 +56,7 @@ BUNDLE_SPECS = (
                 "Contents/Info.plist",
                 "Contents/MacOS/Porthole",
                 "Contents/Resources/PortholeIcon.icns",
+                "Contents/Resources/porthole-control",
                 "Contents/Resources/safe-fixture-identity.json",
                 "Contents/_CodeSignature/CodeResources",
             }
