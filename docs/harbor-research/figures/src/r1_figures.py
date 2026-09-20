@@ -69,7 +69,7 @@ def create_relation_map():
 
     rows = [
         (7.4,
-         ["N artifacts total,", "k of them load-bearing:", "C(N,k) ways to place", "the k criticals among N"],
+         ["N artifacts total,", "k of them critical:", "C(N,k) ways to place", "the k criticals among N"],
          ["Shared codebook:", "every flagged m-subset", "covers only C(m,k) of", "those C(N,k) placements"],
          ["one digest selects", "ONE covering"]),
         (4.6,
