@@ -599,7 +599,11 @@ def citation_spread(text: str, sections):
     n_bibitems = len(set(_BIBITEM_RE.findall(text)))
     per_key_sections: dict[str, set] = {}
     for m in _CITE_RE.finditer(text, 0, bib_start):
-        where = enclosing_top_section(sections, m.start())
+        section = enclosing_top_section_obj(sections, m.start())
+        # Titles are display text, not identity: two identically titled
+        # sections are distinct citation sites; their subsections roll up
+        # to the enclosing top-level span. None is the preamble site.
+        where = section.start if section is not None else None
         for key in m.group(1).split(","):
             key = key.strip()
             if key:
