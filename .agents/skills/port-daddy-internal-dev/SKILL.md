@@ -67,6 +67,23 @@ not roadmap authority: a missing or stale daemon-pushed mirror means unknown
 work and `proposed` claims, never permission for the Relay to become a second
 roadmap writer.
 
+## Validate a roadmap declaration offline
+
+Before publishing a PR, save its body to an owned file under `~/coding/tmp/`
+and run `node node_modules/tsx/dist/cli.mjs scripts/check-roadmap-link.ts
+--body-file <absolute-pr-body-path>` from the contributor checkout (one command).
+This path needs the existing development dependencies but no GitHub credentials,
+GitHub event, roadmap snapshot, or local Port Daddy runtime. It takes precedence
+over inherited event state and numeric PR arguments; label and comment paths
+remain dry-run. A nonzero exit means the declaration is missing or invalid.
+
+This validates the current declaration-only contract: a slug or a reasoned
+`Roadmap-Item: none` opt-out. It does not prove that a slug exists, that its
+roadmap state is fresh, that a planning declaration was reconciled, or that the
+PR is ready to merge. Preserve that distinction and keep an operator-halted
+runtime stopped; do not restore snapshot-age or planning-file merge gates as
+part of using this command.
+
 ## How to work a slice (operating expectations)
 
 The full posture lives in `AGENTS.md` § Agent Operating Expectations. The
