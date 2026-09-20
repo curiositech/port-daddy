@@ -293,8 +293,31 @@ jobs:
       # attestation and float-plan definitions now use chapter-specific raw
       # IDs; the gate runs without exceptions. This checks label collisions,
       # not semantic equivalence between differently named statements.
-      - name: No theorem is stated twice in the Book
+      - name: Statement raw IDs are unique in the Book
         run: python3 scripts/harbor-research/check_duplicate_theorems.py
+
+      # Unique names do not resolve the Float Plan schema/ownership conflict.
+      # Keep that accepted debt visible until the structured ledger records completion.
+      - name: Report remaining Float Plan semantic duplication
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          rows = json.loads(Path("docs/harbor-research/critique-ledger.json").read_text())
+          matches = [row for row in rows if row.get("#") == "CA-014"]
+          if len(matches) != 1:
+              raise SystemExit("Expected exactly one CA-014 critique ledger row")
+          status = matches[0]["Status"]
+          complete = isinstance(status, str) and re.fullmatch(r"DONE \S.*", status) is not None
+          if complete:
+              message = "CA-014 is recorded complete in the critique ledger. The raw-ID gate checks labels only."
+          else:
+              message = "CA-014 remains open: Float Plan semantic/schema duplication still needs the Book owner's reconciliation. Unique raw IDs do not resolve it."
+              print("::warning title=Book semantic duplication remains open::" + message)
+          if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+              with Path(summary).open("a", encoding="utf-8") as stream:
+                  stream.write(message + "\n")
+          PY
 
       # The two steps above fixed half of what an outside reader found and then
       # went green over the other half. The reader wrote that "the four-message
