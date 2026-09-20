@@ -289,16 +289,12 @@ jobs:
       # can reuse a name without the Book failing to compile -- which is also
       # what let chapters 6 and 8 each print the conditional escrow bound
       # under their own number, with different titles, until someone read
-      # both. The label is the signal, so the check keys on it. The two
-      # definitions allowed here are restated on purpose in different words
-      # (the cross-operator attestation problem in chapters 5 and 6, the float
-      # plan in chapters 6 and 7); each is a known duplicate still waiting for
-      # an owner, and the allow is the record of that, not a verdict that a
-      # reader should meet either twice.
+      # both. The label is the signal, so the check keys on it. The
+      # attestation and float-plan definitions now use chapter-specific raw
+      # IDs; the gate runs without exceptions. This checks label collisions,
+      # not semantic equivalence between differently named statements.
       - name: No theorem is stated twice in the Book
-        run: >-
-          python3 scripts/harbor-research/check_duplicate_theorems.py
-          --allow def:0040b --allow def:float-plan
+        run: python3 scripts/harbor-research/check_duplicate_theorems.py
 
       # The two steps above fixed half of what an outside reader found and then
       # went green over the other half. The reader wrote that "the four-message
