@@ -16,6 +16,32 @@ order**. This contract answers four different questions:
 3. Which checks, independent reviews, and manager decisions permit progress?
 4. How do HTML, Swift, and Rust show the same execution truth?
 
+## DAG and hypertree are related, not interchangeable
+
+A **DAG** is the executable dependency projection: nodes plus directed edges,
+with no directed cycle. It answers whether a node is eligible and gives a
+machine-checkable partial order.
+
+A **hypertree** is the operator's richer planning object. It contains the DAG,
+but also nested problem regions, typed hyperedges joining several inputs or
+outputs, manager rounds, alternative decompositions, review/rework loops, and
+fog nodes whose future shape is intentionally vague. A hypertree may project
+one executable DAG for the current round without pretending the entire future
+has already been decomposed.
+
+| Term | Carries | Must not imply |
+|---|---|---|
+| Proposal | operator intent, end-state class, constraints, open questions | executable authority |
+| Hypertree | current decomposition plus groups, joins, alternatives, rounds, and fog | that fog can launch |
+| Round DAG | the acyclic executable slice selected from the hypertree | that later rounds are fixed |
+| Workflow | review, rework, escalation, and consent routes around node outputs | cyclic work eligibility |
+| Event projection | what happened across all shapes | authority to change any shape |
+
+“DAG/hypertree decomposition” therefore means: grow a hypertree from the
+proposal, then compile the currently knowable and admitted portion into a DAG.
+Do not call the two structures synonyms, and do not force dissent, rework, or
+future uncertainty into fake dependency edges.
+
 ## What the JSON Schema adds
 
 The plan's [JSON Schema](../schemas/drydock-resurrection-hypertree.schema.json)
@@ -111,6 +137,57 @@ flowchart TB
 execute DAG and workflow shapes, while several richer labels are projected
 through DAG execution. This Drydock composition is therefore a target contract,
 not proof that manager rounds or the shared blackboard execute natively today.
+
+## Proposal-to-proof round protocol
+
+Each manager round follows the same typed sequence. A stage advances only on
+artifacts, never on a conversational impression of agreement.
+
+```mermaid
+flowchart LR
+    Intent["Work intent\nend state + constraints"]
+    Tree["Hypertree decomposition\ngroups + joins + fog"]
+    DAG["Current round DAG\neligible nodes only"]
+    Context["Context partitions\nsealed per node"]
+    Agents["Node agents\nbounded role + lifetime"]
+    Drafts["Proposal drafts\nartifacts + evidence"]
+    Dissent["Steel-man dissent\nstrongest blocking case"]
+    Consent["Scoped consent\nagreement + reservations"]
+    Manager["Manager synthesis\nno self-approval"]
+    Contract["Typed round artifacts\nplan delta + decisions"]
+    Validate["Deterministic + independent validators"]
+    Mutate["Constructed lies\nattack each important invariant"]
+    Porthole["Porthole receipts\nreplay + rejection coverage"]
+
+    Intent --> Tree --> DAG --> Context --> Agents --> Drafts
+    Drafts --> Dissent
+    Drafts --> Consent
+    Dissent --> Manager
+    Consent --> Manager
+    Manager --> Contract --> Validate --> Mutate --> Porthole
+    Porthole -. "survivor or gap" .-> Tree
+```
+
+Required per-round artifacts are:
+
+- `DecompositionDelta`: new, changed, retired, and fog nodes with rationale;
+- `ContextPartitionManifest`: declared inputs, omissions, trust labels, and
+  capability digest for every node;
+- `DraftSet`: content-addressed candidate outputs and producer identities;
+- `DissentPacket`: the strongest good-faith objection, its evidence, and what
+  observation would resolve it;
+- `ConsentPacket`: scoped agreements, reservations, expiries, and explicit
+  non-agreements; silence is never consent;
+- `ManagerSynthesis`: accepted/rejected arguments, plan delta, assignments,
+  unresolved risks, and next gate;
+- `RoundContract`: exact node input/output contracts and acceptance gates;
+- `ValidationSet`: deterministic checks and independent review verdicts;
+- `MutationEvidenceSet`: killed, survived, inconclusive, and not-run lies;
+- `RoundReceipt`: event-head binding and Porthole replay entry points.
+
+Context partitions should be sufficient for the node contract and deliberately
+insufficient for unrelated authority. Cross-node discovery becomes an explicit
+manager, Parley, or artifact edge rather than shared ambient context.
 
 ## Node input and output contracts
 
@@ -209,6 +286,39 @@ Human review is reserved for permission expansion, budget expansion, disputed
 or low-confidence verdicts, irreversible effects, constitutional/product
 choices, and exhausted rework. Batch related questions; do not pepper the
 operator with a gate for every node.
+
+## The lie-per-invariant standard
+
+Every important invariant must have at least one deliberately constructed lie
+that proves the owning validator rejects that exact lie. This applies to Port
+Daddy, its skills, and the systems it builds for other people.
+
+The minimum mutation loop is:
+
+1. name one falsifiable invariant and the validator that owns it;
+2. preserve an unchanged baseline that the validator accepts;
+3. construct the smallest plausible lie that violates only that invariant;
+4. run the same validator against baseline and mutant;
+5. record `killed`, `survived`, `inconclusive`, or `not-run`;
+6. publish a `PortholeMutationReceipt` with exact digests and replay location;
+7. regenerate `PortholeRejectionCoverage` for the subsystem;
+8. route a survivor or uncovered important claim back to a named owner.
+
+Examples include a receipt without a permit, an expired capability, actor or
+attempt substitution, a signature over the wrong payload, a PASS contradicted
+by evidence, a substituted Merkle leaf, widened handoff authority, self-review,
+and removal of a required field. Schema-invalid junk is useful but insufficient:
+the strongest mutants are plausible records that violate semantic joins.
+
+“Demonstrated” is intentionally existential and digest-bound: at least one
+receipt proves rejection of one exact lie in the claim class. It is not a
+universal theorem. Unknown and uncovered claims remain visible; a coverage
+percentage may summarize, but may never replace the named list.
+
+Skills use the same standard. Important activation boundaries, forbidden
+actions, input/output contracts, evidence requirements, and halt behavior each
+need negative fixtures. A skill that describes a prohibition but has never
+rejected a fixture violating it reports that claim as `not-demonstrated`.
 
 ## Bounded rework and retry
 
@@ -319,6 +429,7 @@ All three clients expose the same four modes, adapted to their form factor:
 | Execution | What is happening now and what is waiting? | Active wave, body, attempts, checks, reviews, spend |
 | Evidence | Why is this node green, red, stale, or blocked? | Receipt chain and two-action links |
 | Team | Who was assigned, reviewed, replaced, or escalated? | Manager rounds and role/body lineage |
+| Rejection coverage | Which lies can this subsystem demonstrably reject? | Named invariant rows, killed/survived receipts, and replay |
 
 For 1–50 visible nodes, render full nodes. From 51–150, compact labels and keep
 details in the inspector. Above 150, collapse completed subtrees/waves and keep
@@ -341,6 +452,55 @@ Every node summary must zoom in no more than two actions to:
 - manager decision;
 - capacity reservation and settlement;
 - blocker, retry, breaker, or resurrection receipt.
+
+### Cooperative coding shell
+
+The primary product is a Codex/Claude Code-like coding environment with two
+equal entry points over the same contracts:
+
+- a scriptable CLI for intents, plan inspection, node/round status, evidence,
+  and separately authorized controls;
+- a polished GPUI desktop IDE where repositories, branches, worktrees, agent
+  chat, diffs, terminals, artifacts, and the execution hypertree are first-class.
+
+The default center is manager chat beside a gigantic zoomable hypertree. Near
+nodes are concrete and receipt-backed; farther nodes lose detail into visibly
+vague fog. Selecting any node opens its worktree, conversation, artifacts,
+checks, dissent, mutation evidence, and downstream impact without changing
+execution. The operator speaks in work intents and declares the intended end
+state—`durable`, `ephemeral`, or `prototype`—before staffing is proposed.
+
+Project Epistemology runs forward-looking analysis as evidence, not prophecy:
+likely conflicts, missing claims, brittle assumptions, knowledge gaps, and
+future gates appear as uncertain risk overlays with sources and confidence.
+They may propose new fog nodes or reviews; they may not launch or block work
+without the owning policy/manager transition.
+
+Artifacts are visual citizens. A selected node may show the evolving UI,
+diagram, document, plot, diff, test failure, or recorded interaction in the
+main canvas, with chat and evidence adjacent. Operators should see the thing
+being built, not only agent status cards.
+
+### Orthogonal fleet-service agents
+
+Long-lived service roles sit beside the work hypertree rather than masquerading
+as project nodes. They observe and propose; managers decide when their proposal
+changes a round.
+
+| Service | Watches for | Emits | Never owns |
+|---|---|---|---|
+| Skill fitter | missing or weak node capability | graft/skill proposal with conformance evidence | launch or capability grant |
+| Parley scout | collision, overlap, and opportunity | scoped consultation proposal | consent or settlement |
+| Epistemology sentinel | assumptions, gaps, and likely downstream failure | cited risk/fog proposal | truth or veto by itself |
+| Tool/MCP maintainer | adapter drift, broken schemas, stale integrations | repair proposal and compatibility evidence | ambient tool installation |
+| HITL concierge | decisions that truly need a person | batched question with deadline and impact | inferred approval |
+| Validator/judge | contract violations and evidence gaps | typed verdict and findings | production plus self-review |
+| Rework shepherd | repeated findings and stalled correction | bounded rework or escalation proposal | infinite retry |
+
+Their live service/evaluation visualizations form an orthogonal rail: queue,
+freshness, confidence, capacity, current observation, recent proposal, validator
+quality, surviving mutants, and breaker state. Service health is not project
+progress, and a green service card never turns a work node green.
 
 ## Failure projection
 
@@ -396,6 +556,17 @@ are distinct states. The observer must not collapse all four into “agent faile
 - manager bypass lists are structurally empty;
 - high-risk nodes cannot use low-cost review as final specialist approval.
 
+### Mutation and rejection coverage
+
+- every important invariant has at least one registered constructed lie;
+- `killed` requires accepted baseline plus rejected mutant under one validator digest;
+- a mutant accepted by the validator is `survived`, never PASS or expected failure;
+- demonstrated coverage requires a replayable mutation receipt;
+- not-demonstrated coverage has no borrowed receipt and names owner plus gap;
+- changing source, validator, contract, or test-bundle digest invalidates inherited coverage;
+- Porthole replay converges on the same baseline, mutant, verdict, and event head;
+- skill activation, halt, output, and prohibited-action fixtures use the same receipt contract.
+
 ### Runtime and clients
 
 - crash between output and review resumes without duplicate work authority;
@@ -412,6 +583,7 @@ are distinct states. The observer must not collapse all four into “agent faile
 | Slice | Output | Gate | State |
 |---|---|---|---|
 | H0 | Closed execution schema, validator, bounded review fixture | Static contract tests | **THIS PR / T0** |
+| H0M | Porthole mutation receipt and rejection-coverage contracts; design projections | Schema fixtures and negative contract tests | **THIS PR / T0** |
 | H1 | Rust event/reducer crate plus golden projection fixtures | Property tests, replay, mutation tests | TARGET |
 | H2 | HTML observatory consuming snapshot + fake deterministic stream | Browser E2E, accessibility, 500-node budget | TARGET |
 | H3 | pd-console Rust graph/timeline/evidence/team views | Rust fixture parity, GPUI visual proof | TARGET |

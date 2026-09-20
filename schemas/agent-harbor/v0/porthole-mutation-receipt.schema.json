@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-mutation-receipt.schema.json",
+  "title": "PortholeMutationReceipt",
+  "description": "A fail-closed, replay-addressable account of one deliberately constructed lie presented to one exact validator. A killed disposition means the unchanged baseline was accepted and the mutant was rejected; it does not prove that every lie in the claim class is rejected.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.mutation-receipt.v1" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "subsystemId": { "type": "string", "minLength": 1 },
+    "invariantId": { "type": "string", "minLength": 1 },
+    "rejectedClaim": { "type": "string", "minLength": 8 },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "sourceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "validatorArtifactDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "testBundleDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "contractRef": { "type": "string", "minLength": 1 }
+      },
+      "required": ["sourceDigest", "validatorArtifactDigest", "testBundleDigest", "contractRef"],
+      "additionalProperties": false
+    },
+    "mutation": {
+      "type": "object",
+      "properties": {
+        "mutantId": { "type": "string", "minLength": 1 },
+        "class": {
+          "enum": [
+            "missing-authority", "expired-authority", "identity-substitution",
+            "attempt-substitution", "payload-substitution", "verdict-contradiction",
+            "proof-substitution", "capability-widening", "self-approval",
+            "required-field-removal", "ordering-violation", "custom"
+          ]
+        },
+        "constructedLie": { "type": "string", "minLength": 8 },
+        "expectedRejection": { "type": "string", "minLength": 8 },
+        "seed": { "type": ["string", "null"] },
+        "replayPath": { "type": ["string", "null"] }
+      },
+      "required": ["mutantId", "class", "constructedLie", "expectedRejection", "seed", "replayPath"],
+      "additionalProperties": false
+    },
+    "oracle": {
+      "type": "object",
+      "properties": {
+        "validatorId": { "type": "string", "minLength": 1 },
+        "validatorVersion": { "type": "string", "minLength": 1 },
+        "commandRef": { "type": "string", "minLength": 1 },
+        "runner": { "type": "string", "minLength": 1 }
+      },
+      "required": ["validatorId", "validatorVersion", "commandRef", "runner"],
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "baseline": { "$ref": "porthole-mutation-receipt.schema.json#/$defs/runResult" },
+        "mutated": { "$ref": "porthole-mutation-receipt.schema.json#/$defs/runResult" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["baseline", "mutated", "startedAt", "completedAt", "durationMs"],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "traceId": { "type": "string", "minLength": 1 },
+        "perspectiveId": { "type": "string", "minLength": 1 },
+        "decisionEventId": { "type": "string", "minLength": 1 },
+        "replayUri": { "type": "string", "minLength": 1 },
+        "artifactRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["traceId", "perspectiveId", "decisionEventId", "replayUri", "artifactRefs"],
+      "additionalProperties": false
+    },
+    "disposition": { "enum": ["killed", "survived", "inconclusive", "not-run"] },
+    "residualRisk": { "type": "string", "minLength": 8 },
+    "issuer": {
+      "type": "object",
+      "properties": {
+        "participantId": { "type": "string", "minLength": 1 },
+        "bodyId": { "type": "string", "minLength": 1 },
+        "signingKeyId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["participantId", "bodyId", "signingKeyId"],
+      "additionalProperties": false
+    },
+    "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 32 }
+      },
+      "required": ["algorithm", "keyId", "value"],
+      "additionalProperties": false
+    },
+    "issuedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "schema", "receiptId", "subsystemId", "invariantId", "rejectedClaim",
+    "subject", "mutation", "oracle", "execution", "evidence", "disposition",
+    "residualRisk", "issuer", "contentHash", "signature", "issuedAt"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "disposition": { "const": "killed" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "baseline": { "properties": { "outcome": { "const": "accepted" } } },
+              "mutated": { "properties": { "outcome": { "const": "rejected" } } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "survived" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "baseline": { "properties": { "outcome": { "const": "accepted" } } },
+              "mutated": { "properties": { "outcome": { "const": "accepted" } } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "not-run" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "baseline": { "properties": { "outcome": { "const": "not-run" } } },
+              "mutated": { "properties": { "outcome": { "const": "not-run" } } }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "runResult": {
+      "type": "object",
+      "properties": {
+        "inputRef": { "type": "string", "minLength": 1 },
+        "outcome": { "enum": ["accepted", "rejected", "error", "timeout", "not-run"] },
+        "exitCode": { "type": ["integer", "null"] },
+        "outputRef": { "type": ["string", "null"] }
+      },
+      "required": ["inputRef", "outcome", "exitCode", "outputRef"],
+      "additionalProperties": false
+    }
+  }
+}
