@@ -2,9 +2,9 @@
 
 This archive-only successor retains all source, build and runtime assets. It removes 395 historical review captures (186,445,278 bytes) from the current Git tree after anonymous public reads verified their content-addressed copies. All 304 original non-prose consumer holds remain. An additional 95 paths remain because directory-level consumers or recovery-ledger references need separate reconciliation. Those holds are intentional retention, not a claim that every referenced directory actively reads every image.
 
-The source archive is PR #10271 at `375a8bc07c81e48b01db847f3252fbdb1ba318e0`; only its `e285531fd320e5d48128bc3afb69e3dc487ffdbd` archive slice is reused. Other Book/PDF changes in that PR remain unaccepted by this receipt. No Book source, PDF, figure source, production website asset, authority-owned recovery ledger, runtime, workflow or uploader was changed.
+The source archive is PR #10271 at `375a8bc07c81e48b01db847f3252fbdb1ba318e0`; only its `e285531fd320e5d48128bc3afb69e3dc487ffdbd` archive slice is reused. Other Book/PDF changes in that PR remain unaccepted by this receipt. No Book source, PDF, figure source, production website asset, authority-owned recovery ledger, runtime or uploader was changed. The media and unit-test workflows hydrate only the declared review-media roots before verifying their bytes.
 
-Validation: the unchanged R2 unit suite passed 57/57 tests; generated manifest matches all 399 remaining tracked assets. All 598 entries in the original proposed offload manifest passed anonymous HTTPS status, content-type, length and SHA256 checks on this date, covering every one of this successor's 503 offloaded entries. All 31 historical commit-pinned raw links considered by the original rewrite resolve to the same SHA256 bytes locally. Each selected deletion was hashed again from the base Git object and matched its archive entry. These checks prove observed public bytes, not bucket configuration or perpetual retention.
+Validation: the R2 unit suite initially passed 57/57 tests; two hydration regression cases were added after hosted CI exposed unhydrated LFS pointers; generated manifest matches all 399 remaining tracked assets. All 598 entries in the original proposed offload manifest passed anonymous HTTPS status, content-type, length and SHA256 checks on this date, covering every one of this successor's 503 offloaded entries. All 31 historical commit-pinned raw links considered by the original rewrite resolve to the same SHA256 bytes locally. Each selected deletion was hashed again from the base Git object and matched its archive entry. These checks prove observed public bytes, not bucket configuration or perpetual retention.
 
 Consumer review: basename scanning refuses non-prose consumers; the additional directory scan retains dynamic capture directories, historical report projections and recovery references without rewriting active consumers. Product assets under website-v2/public, Book/figure sources and fonts stay in Git. The two manifests remain disjoint. Existing archive prose links point to the verified content hashes. The complete selected and retained paths follow.
 
@@ -1151,3 +1151,7 @@ Consumer review: basename scanning refuses non-prose consumers; the additional d
   }
 }
 ```
+
+## Hosted checkout correction
+
+The first hosted manifest run at `88b6aab8da687b5313759cb12ce0f71f9b77b85d` read 130-byte LFS pointers for retained figure-rival images. Local generation had correctly recorded actual image bytes. The manifest and upload jobs, plus every root unit-test lane, now call `scripts/hydrate-r2-media.mjs` before reading media. It fetches only ADR-0142 review-media roots and propagates failures. Whole-Book and product-public LFS content is outside that selection. Both initial hosted public-read jobs passed. Final hosted validation belongs to the final PR head.
