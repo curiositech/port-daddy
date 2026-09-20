@@ -6,6 +6,9 @@
   without its proposed title-keyword exemptions. Author-declared metadata
   selects exact heading labels or unique exact titles; undeclared sections
   stay body. No chapter/PDF blobs from that older PR are restored.
+- Citation-spread hints identify section spans, so repeated titles no longer
+  collapse distinct citation sites. Pedagogy-file discovery assertions compare
+  canonical paths across macOS aliases.
 - Body-only example coverage and opener selection; duplicate headings count
   independently, all-apparatus chapters fail, and apparatus claims remain
   subject to honesty checks. Reports expose the exclusions.
