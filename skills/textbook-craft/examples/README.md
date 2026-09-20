@@ -50,3 +50,5 @@ needs fixing.
 Both files are regenerated with `--repo-root .` from the repository root, so
 the chapter column holds repo-relative paths rather than whichever absolute
 path the generating checkout happened to live at.
+
+Current capture: main `d3b5b90317f5ef7e4194c2de57f8e99361fd1de5`, with the explicit-apparatus checker and no corpus declarations: **15 blocking, 6 advisory, 8 REVIEW**. This is the conservative all-body baseline, not the old #10202 budget of 17. Examples count as body until the Book author approves a role map. Re-capture using `--apparatus FILE` when such declarations are adopted.
