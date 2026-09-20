@@ -1,5 +1,20 @@
 # Textbook Craft — Changelog
 
+## v1.4.0 (2026-09-20)
+
+- Retain the body/apparatus measurement and bounded-gate intent of #10202
+  without its proposed title-keyword exemptions. Author-declared metadata
+  selects exact heading labels or unique exact titles; undeclared sections
+  stay body. No chapter/PDF blobs from that older PR are restored.
+- Body-only example coverage and opener selection; duplicate headings count
+  independently, all-apparatus chapters fail, and apparatus claims remain
+  subject to honesty checks. Reports expose the exclusions.
+- Stale or ambiguous metadata fails closed, including declarations for
+  unselected chapters. `--max-blocking N` permits a measured aggregate debt
+  budget without hiding failures or ignoring invalid input.
+- Corpus role declarations and CI activation require source-owner agreement;
+  the historical budget of 17 must not be copied without remeasurement.
+
 ## v1.3.0 (2026-09-15)
 
 `scripts/readers_eye.py` and `references/readers-eye-lexicon.json` landed in

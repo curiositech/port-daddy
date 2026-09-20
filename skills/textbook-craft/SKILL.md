@@ -12,7 +12,7 @@ allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Writing & Communication
   tags: [textbook, pedagogy, exposition, exercise-design, harbor]
-  version: 1.3.0
+  version: 1.4.0
   pairs-with:
     - skill: harbor-exposition
       reason: Shares the honesty-ledger and express-lane discipline; harbor-exposition governs one result, this skill governs a chapter of many
@@ -318,14 +318,18 @@ first `theorem`/`definition`.
 
 ## Scripts
 
-- `python3 scripts/chapter_lint.py [CHAPTER.tex ...] [--json|--md] [--strict] [--table]` —
+- `python3 scripts/chapter_lint.py [CHAPTER.tex ...] [--json|--md] [--strict|--max-blocking N] [--table] [--apparatus FILE]` —
   a DO-CONFIRM checklist (Gawande, `references/canon.md`) that strips TeX
   comments (an unescaped `%`, the same idiom `check_plate_provenance.py` uses
   in the harbor-research scripts, not yet merged to main <!-- cite-exempt -->)
   before every regex pass, then reports, against this
   skill's floors:
-  - **`worked_example_per_section`** — every top-level section has >=1
-    worked example (`pdexample`/`example`) before its general statement.
+  - **`worked_example_per_section`** — every body section has >=1 worked
+    example (`pdexample`/`example`). Counts use each section span, so duplicate
+    headings cannot borrow examples. This measures presence, not whether the
+    example precedes the general statement. Only explicit `--apparatus FILE`
+    declarations exclude sections; undeclared sections remain body. An empty
+    body fails rather than passing vacuously.
   - **`claims_carry_epistemic_kind`** — every claim-like environment
     (theorem/lemma/definition/property/corollary, or `pdclaim{KIND}{...}`)
     carries an epistemic-kind tag *inside its own body* (a brace-and-env
@@ -351,7 +355,7 @@ first `theorem`/`definition`.
     correctly-placed clusters as misplaced. Advisory because the Book's
     chapters have not all been relocated to this rule yet.
   - **`chapter_opener_and_claim_labeling`** (advisory) — the chapter's
-    first `\section` opens with prose or an epigraph macro rather than a
+    first body `\section` opens with prose or an epigraph macro rather than a
     cold table or claim, and every claim-like environment is tagged.
     Advisory because no chapter in the corpus yet opens with an epigraph.
   - **`at_most_one_labelled_interlude`** — sections/subsections *titled*
@@ -380,8 +384,52 @@ first `theorem`/`definition`.
   report `library-checks.yml`'s CI step reads (advisory today: two blocking
   floors already fail on several chapters, pre-dating this script, so the
   step is `continue-on-error` until that content catches up). Unit tests:
-  `tests/test_chapter_lint.py` (`python3 -m unittest discover -s
+  `tests/test_chapter_lint.py` and `tests/test_apparatus_metrics.py`
+  (`python3 -m unittest discover -s
   skills/textbook-craft/tests -p 'test_*.py'`).
+
+### Explicit apparatus declarations
+
+The chapter author decides which sections serve as apparatus. The checker
+accepts a versioned JSON sidecar through `--apparatus FILE`, with paths
+relative to `--repo-root` (symlink aliases resolve to the same source):
+
+```json
+{
+  "version": 1,
+  "chapters": {
+    "whitepaper/chapter.tex": [
+      {"label": "sec:reader-map", "role": "front-matter", "reason": "Author-declared navigation"},
+      {"title": "Review of the key ideas", "role": "review", "reason": "Author-declared retrieval prompts"}
+    ]
+  }
+}
+```
+
+Use a heading's stable `label` where available. An exact `title` selector is
+allowed for an existing unlabelled heading, but must select one top-level
+section. The allowed roles are `front-matter`, `review`, `exercises`,
+`references`, and `appendix`. Each declaration requires a reason. Titles,
+`app:` labels, and `\appendix` alone grant no exemption: a threat model,
+handoff, proof or teaching appendix remains body unless its author declares
+otherwise. This mechanism does not replace the existing separate close,
+exercise-placement, or interlude checks, whose heuristic limits still apply.
+Claims in declared apparatus still require epistemic labels.
+
+Missing or ambiguous selectors, repeated declarations, duplicate JSON keys,
+missing source files and paths outside the repository exit 2. Every declared
+chapter is validated even when a command selects only one. Reports expose
+body/apparatus counts and every excluded section; JSON `section_metrics`
+also includes each heading's labels, role and individual example count.
+Without `--apparatus`, every section counts as body.
+
+`--max-blocking N` is a nonnegative aggregate failure-count ceiling, mutually
+exclusive with `--strict`. It keeps existing failures visible and exits 1
+only above the ceiling; input/metadata errors still exit 2. It can allow one
+new failure to offset one repaired failure, so it is not a per-floor debt
+allowlist or chapter approval. Remeasure current source with the accepted
+apparatus declarations before setting a CI budget; an old report is not a
+baseline. Corpus declarations require the Book author's approval.
 
 - `python3 scripts/readers_eye.py [CHAPTER.tex ...] [--json|--summary] [--rule RULE] [--limit N] [--strict] [--selftest]` —
   the mechanical half of the reader's-eye check. Where `chapter_lint.py`
