@@ -26,6 +26,7 @@ export type FleetbotOperation =
   | 'pull-request.request-reviewers'
   | 'pull-request.comment'
   | 'pull-request.review-reply'
+  | 'pull-request.resolve-review-thread'
   | 'pull-request.enqueue'
   | 'pull-request.inspect';
 
