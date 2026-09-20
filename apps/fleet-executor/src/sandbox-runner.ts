@@ -207,9 +207,9 @@ export interface SandboxRunParams {
   /** Installation token used for the authenticated clone. */
   token: string;
   /**
-   * The repo's test runner invocation. Defaults to `npm test -- <authored
-   * paths>` after an `npm ci`; repos with another runner can be supported
-   * later via config.
+   * Explicit trusted runner override. The default calls the installed Jest
+   * binary directly, with authored paths, after a lifecycle-disabled install.
+   * Model output must never select this command.
    */
   testCommand?: string;
   /**
@@ -254,7 +254,7 @@ interface SandboxCoordinationRunIdentity {
 }
 
 const DEFAULT_INSTALL_COMMAND =
-  'npm ci --no-audit --no-fund --onnxruntime-node-install=skip';
+  'npm ci --ignore-scripts --no-audit --no-fund --onnxruntime-node-install=skip';
 
 const CLOUD_PEER_ROOT = '/work/pd-peer';
 const CLOUD_PEER_WITNESS_ROOT = '/work/pd-peer-witness';
@@ -286,16 +286,19 @@ function buildDefaultJestInvocation(
 ): string {
   const authoredPaths = files.map(file => shq(file.path)).join(' ');
   return (
-    `npm test -- --runTestsByPath ${authoredPaths} ` +
+    `node --experimental-vm-modules node_modules/jest/bin/jest.js --runTestsByPath ${authoredPaths} ` +
     `--json --outputFile=${shq(JEST_RESULT_PATH)}`
   );
 }
 
 function parseJestSummary(output: string): JestRunSummary | null {
-  for (const line of output.split(/\r?\n/)) {
+  // The fixed wrapper emits its summary after the test process exits. Earlier
+  // marker-like test logs must not override that final report.
+  for (const line of output.split(/\r?\n/).reverse()) {
     if (!line.startsWith(JEST_SUMMARY_MARKER)) continue;
     try {
       const encoded = line.slice(JEST_SUMMARY_MARKER.length);
+      if (encoded.length > 4096) return null;
       const binary = atob(encoded);
       const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
       const value = JSON.parse(new TextDecoder().decode(bytes)) as Partial<JestRunSummary>;
@@ -673,9 +676,10 @@ function buildRunnerScript(
  * Running the repository's unfiltered test script made a four-file unit
  * contract boot unrelated integration infrastructure. A failure in that
  * infrastructure then blocked the reviewed PR without naming a failed
- * contract case. Passing paths after npm's `--` keeps the repository's own
- * runner and configuration while limiting execution to the evidence under
- * review. Every path is shell-quoted because authored filenames cross a trust
+ * contract case. Calling the installed runner directly keeps its configuration
+ * without executing npm pretest/posttest hooks. Install lifecycle scripts are
+ * disabled; packages requiring them need an explicitly approved setup recipe.
+ * Every path is shell-quoted because authored filenames cross a trust
  * boundary even after the stacked-file path checks have accepted them.
  */
 export function buildDefaultSandboxTestCommand(
@@ -717,18 +721,23 @@ function classifyRunnerResult(
     };
   }
 
-  const passed = execPassed(result);
+  const exitedCleanly = execPassed(result);
   const jestSummary = usesDefaultJestRunner ? parseJestSummary(combined) : null;
-  const outcomeKind: SandboxRunOutcome['outcomeKind'] = passed
-    ? 'passed'
-    : jestSummary?.numFailedTests
-      ? 'assertion-failure'
-      : jestSummary
-        ? 'harness-failure'
-        : 'unclassified-failure';
+  const hasCases = jestSummary !== null && jestSummary.numTotalTests > 0 &&
+    jestSummary.numRuntimeErrorTestSuites === 0 &&
+    jestSummary.numTotalTests >= jestSummary.numPassedTests + jestSummary.numFailedTests;
+  const outcomeKind: SandboxRunOutcome['outcomeKind'] = !usesDefaultJestRunner
+    ? exitedCleanly ? 'passed' : 'unclassified-failure'
+    : !jestSummary ? 'unclassified-failure'
+    : hasCases && exitedCleanly && jestSummary.success && jestSummary.numPassedTests > 0 &&
+        jestSummary.numFailedTests === 0 && jestSummary.numFailedTestSuites === 0
+      ? 'passed'
+      : hasCases && !exitedCleanly && !jestSummary.success && jestSummary.numFailedTests > 0
+        ? 'assertion-failure'
+        : 'harness-failure';
   return {
     executed: true,
-    passed,
+    passed: outcomeKind === 'passed',
     outputTail: visibleOutput.slice(-OUTPUT_TAIL_BYTES),
     failures:
       outcomeKind === 'assertion-failure' ? parseTestFailures(visibleOutput) : [],
@@ -779,10 +788,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     );
   }
 
-  const publicCloneUrl = `https://github.com/${params.owner}/${params.repo}.git`;
-  const cloneUrl = coordinationEnrollment
-    ? publicCloneUrl
-    : `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
+  const cloneUrl = `https://github.com/${params.owner}/${params.repo}.git`;
   const cloneLines: string[] = [
     'set -e',
     // rm -rf first: a retried run (network flake, transient sandbox error)
@@ -794,9 +800,11 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     `git init -q repo && cd repo`,
     `git remote add origin ${shq(cloneUrl)}`,
     `git fetch -q --depth 1 origin ${shq(params.headSha)}`,
-    `git checkout -q ${shq(params.headSha)}`,
   ];
-  const setupLines: string[] = ['set -e'];
+  const setupLines: string[] = [
+    'set -e',
+    `git -c core.hooksPath=/dev/null checkout -q --detach ${shq(params.headSha)}`,
+  ];
   for (const f of params.files) {
     const dir = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '.';
     setupLines.push(`mkdir -p ${shq(dir)}`);
@@ -812,30 +820,18 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
   }
   const runner = buildRunnerScript(params.files, params.testCommand);
 
-  // Preserve the existing single-command Purser protocol when no cloud peer
-  // is configured. The multi-process split below is a security boundary for
-  // the daemon macaroon, not a compatibility-breaking runner rewrite.
-  if (!coordinationEnrollment) {
-    try {
-      const result = await sandbox.exec(
-        `bash -lc ${shq([...cloneLines, ...setupLines, runner.script].join('\n'))}`,
-      );
-      return classifyRunnerResult(result, runner.usesDefaultJestRunner);
-    } catch (err) {
-      return notExecuted(`sandbox execution failed: ${String(err).slice(0, 300)}`);
-    }
-  }
-
   let daemonProcess: SandboxProcessLike | null = null;
   try {
     // Scope the installation token to Git alone. npm lifecycle and authored
     // repository code run in later exec calls without this environment.
     const auth = btoa(`x-access-token:${params.token}`);
     const cloneResult = await sandbox.exec(`bash -lc ${shq(cloneLines.join('\n'))}`, {
+      timeout: 30_000,
       env: {
         GIT_CONFIG_COUNT: '1',
         GIT_CONFIG_KEY_0: 'http.extraHeader',
         GIT_CONFIG_VALUE_0: `Authorization: Basic ${auth}`,
+        GIT_TERMINAL_PROMPT: '0',
       },
     });
     if (!execPassed(cloneResult)) {
@@ -844,9 +840,17 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
 
     const setupResult = await sandbox.exec(`bash -lc ${shq(setupLines.join('\n'))}`, {
       cwd: REPOSITORY_ROOT,
+      timeout: 120_000,
     });
     if (!execPassed(setupResult)) {
       return notExecuted('sandbox setup failed before the test runner started', combinedOutput(setupResult));
+    }
+
+    if (!coordinationEnrollment) {
+      const testResult = await sandbox.exec(`bash -lc ${shq(runner.script)}`, {
+        cwd: REPOSITORY_ROOT, timeout: 120_000,
+      });
+      return classifyRunnerResult(testResult, runner.usesDefaultJestRunner);
     }
 
     let coordinationPeer: SandboxCoordinationPeer;
