@@ -293,6 +293,12 @@ jobs:
         # in the step above, these target node:test.
         run: npm run test:purser
 
+      - name: Protected Fleetbot publication and recovery fixtures
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
+
+      - name: Agent isolation explicit-Off fixtures (no runtime)
+        run: node --test tests/unit/agent-isolation-off.test.mjs
+
       - name: Daemon backend transcript E2E (hermetic CLI fallback)
         # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
         # The broad integration-tests job below is advisory; this required
@@ -347,6 +353,12 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Protected Fleetbot publication and recovery fixtures
+        run: node --test scripts/fleetbot-workload.test.mjs scripts/fleetbot-publication.test.mjs scripts/fleetbot-publication-flow.test.mjs scripts/fleetbot-publication-tree.test.mjs
+
+      - name: Agent isolation explicit-Off fixtures (no runtime)
+        run: node --test tests/unit/agent-isolation-off.test.mjs
 
       - name: Test CLI tools
         run: |

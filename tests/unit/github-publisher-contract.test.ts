@@ -1,7 +1,11 @@
 import { describe, expect, test } from '@jest/globals';
 import {
   FLEETBOT_ACTION_SCHEMA,
+  FLEETBOT_RECEIPT_READ_SCHEMA,
+  FLEETBOT_RECEIPT_RECOVERY_PATH,
   fleetbotIdempotencyPreimage,
+  fleetbotReceiptReadProofPreimage,
+  fleetbotReceiptRecoveryBindingPreimage,
   fleetbotReceiptPreimage,
   roadmapTrailers,
   stampFleetbotMessage,
@@ -9,6 +13,7 @@ import {
   validateRoadmapTrailer,
   type FleetbotActionRequest,
   type FleetbotAuthorship,
+  type FleetbotReceiptReadProof,
 } from '../../lib/github-publisher-contract.js';
 
 const authorship: FleetbotAuthorship = {
@@ -24,6 +29,37 @@ const authorship: FleetbotAuthorship = {
 };
 
 describe('Fleetbot publisher contract', () => {
+  test('domain-separates recovery bindings and read proofs from mutation capabilities', () => {
+    const binding = {
+      grantId: `pdg_${'1'.repeat(32)}`,
+      grantEpoch: 2,
+      repository: 'curiositech/port-daddy',
+      operation: 'pull-request.enqueue' as const,
+      baseBranch: 'main',
+      baseSha: '2'.repeat(40),
+      headSha: '3'.repeat(40),
+      sessionId: 'session-publisher',
+      requestHash: '4'.repeat(64),
+      idempotencyKey: 'pd-gh-recovery-test',
+    };
+    const proof: FleetbotReceiptReadProof = {
+      schema: FLEETBOT_RECEIPT_READ_SCHEMA,
+      method: 'POST',
+      path: FLEETBOT_RECEIPT_RECOVERY_PATH,
+      daemonFingerprint: '5'.repeat(64),
+      signingKeyGeneration: 3,
+      issuedAt: 1_800_000_000,
+      nonce: '6'.repeat(64),
+      binding,
+    };
+    expect(fleetbotReceiptRecoveryBindingPreimage(binding)).toContain('"grantId":"pdg_');
+    expect(fleetbotReceiptReadProofPreimage(proof)).toContain(FLEETBOT_RECEIPT_READ_SCHEMA);
+    expect(fleetbotReceiptReadProofPreimage(proof)).toContain(
+      fleetbotReceiptRecoveryBindingPreimage(binding).slice(1, -1),
+    );
+    expect(fleetbotReceiptReadProofPreimage(proof)).not.toContain('fleetbot-publisher-capability');
+  });
+
   test('canonicalizes nested objects without changing array order', () => {
     const left: FleetbotActionRequest = {
       schema: FLEETBOT_ACTION_SCHEMA,

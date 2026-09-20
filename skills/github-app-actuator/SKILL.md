@@ -35,6 +35,23 @@ metadata:
 The actuator performs an already-authorized GitHub effect. It does not decide
 what should happen, and the proposing agent never receives a GitHub credential.
 
+## Explicit operator override during bootstrap
+
+An explicit operator instruction takes precedence over this skill. On
+2026-09-19, Erich authorized temporary use of his existing authenticated GitHub
+account for the scoped Book, Media and Hook PR work and the actuator follow-up,
+until the proper actuator is usable. Preserve the authorization's scope; this
+does not authorize unrelated work, merges, gate bypasses or credential export.
+
+For that authorized fallback, verify the account, repository and exact head/base
+without printing tokens, use the existing authentication, and report the actual
+personal-account author. Never claim an App receipt or bot authorship. Continue
+building the daemon-independent actuator and return to it once its configured
+operation and readback are proven. Source presence alone does not end bootstrap.
+Without an explicit applicable operator override, the App-only boundary below
+remains the default. Do not ask again for authorization already present in the
+task's verified user instructions.
+
 ## Non-negotiable boundary
 
 ```text
@@ -44,7 +61,7 @@ agent proposal -> exact one-use grant -> protected actuator -> GitHub App token
                                               +-- signed read-back receipt
 ```
 
-- The operator's PAT, OAuth token, `pdu_` account bearer, browser session, and
+- In the protected actuator path, the operator's PAT, OAuth token, `pdu_` account bearer, browser session, and
   ambient `gh` login are never publication inputs.
 - The GitHub App private key and installation token never enter agent memory,
   environment variables, command arguments, Git credential helpers, logs, or
@@ -93,31 +110,71 @@ the reviewed-code smoke is
 [`../../.github/workflows/fleetbot-workload-smoke.yml`](../../.github/workflows/fleetbot-workload-smoke.yml).
 
 Do not overstate that foundation. The client exposes enrollment, read-only
-inspection, and a typed PR-comment request;
+inspection, and typed requests for PR comments, review replies,
+ready-for-review, reviewer requests, merge-queue enrollment, and new-PR publication
+from a bounded committed-source package;
 [`../../.github/workflows/fleetbot-actuator.yml`](../../.github/workflows/fleetbot-actuator.yml)
-is the protected reviewed-code entry point for that first write. Source presence
-is not deployment evidence: posting is available only after the environment,
+is the protected reviewed-code entry point for those writes. Its steady-state
+write path does not request OIDC or exchange identity again. Source presence is
+not deployment evidence: publishing is available only after the environment,
 grant operation, workload key, Relay receipt key, and deployed Relay version are
 verified together. Comments and review replies may target an ordinary
 same-repository PR at its capability-bound exact head; readiness, reviewer,
-enqueue, update, and publication operations remain restricted to uniquely
-receipted Fleetbot-owned branches. Phase A verifies the GitHub dispatcher; its
+enqueue and update operations remain restricted to uniquely receipted
+Fleetbot-owned branches. New publication creates such a branch from its
+capability-bound source tree and base; it does not adopt an existing ordinary
+branch. Phase A verifies the GitHub dispatcher; its
 agent and session fields remain explicitly labeled as dispatcher-supplied until
 the proposal broker admits them from durable identity state. Local harnesses do
-not yet have a proposal broker, so never copy the Actions workload seed into
+not yet have a proposal broker.
+
+For new publication, use the offline package builder
+[`../../scripts/fleetbot-publication.mjs`](../../scripts/fleetbot-publication.mjs)
+and the protected workflow's `publish` operation. Follow
+[`../../docs/operations/fleetbot-source-publication.md`](../../docs/operations/fleetbot-source-publication.md).
+The proposed source is data, never runner code. Publication creates a new
+governed App branch; it does not adopt an ordinary branch or authorize closing
+its predecessor. Verify the signed source head, App branch and exact Git tree,
+then the provider PR/commit readback. A source package is not a grant or proof
+that the protected deployment is configured. New publication uses the same
+pre-effect manifest and recovery-only path below; never retry its mutation job.
+
+The protected actuator prepares and uploads a signed, non-secret recovery
+manifest before its first mutation attempt. Do not rerun that mutation job:
+GitHub's upload-artifact tracker documents attempt-one artifacts becoming
+unavailable after a rerun begins
+([actions/upload-artifact#585](https://github.com/actions/upload-artifact/issues/585)).
+Instead, dispatch the separate protected **Fleetbot receipt
+recovery** workflow with the original run id. It retrieves the original-run
+artifact and calls only `POST /v1/fleetbot/publisher-receipts/recover` with a
+fresh domain-separated read proof. Recovery returns an already finalized,
+Relay-signed receipt. It never reads the current PR, obtains a GitHub token,
+consumes another mutation capability, or calls the publish endpoint. Missing,
+running, failed, ambiguous, corrupt, and legacy-unbound intents stop without a
+fallback write. This recovers loss of Relay's final response; it does not claim
+that an ambiguous GitHub effect is safe to retry. Never blind-retry a write.
+Recovery currently requires the original publisher grant, workload identity,
+signing-key generation, and Relay receipt key to remain current. Expiry,
+revocation, or rotation fails closed; artifact retention does not extend
+authority. Planned cross-rotation recovery requires the separately reviewed
+key-lineage phase rather than accepting an untrusted historical key.
+Never copy the Actions workload seed into
 Codex, Claude Code,
 Antigravity, Gemini, Agy,
 or a local helper to bridge that gap. Follow
 [`../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md`](../../docs/plans/FLEETBOT-AGENT-ACTUATOR-ROLLOUT.md).
-Direct use of an operator credential or ambient `gh` login does **not** satisfy this
-skill's boundary, even when the intended GitHub effect is otherwise authorized.
+Direct use of an operator credential or ambient `gh` login does **not** satisfy
+the protected actuator boundary. An explicit temporary operator override above
+is a separately attributed fallback, never App-publication evidence.
 
 ## Missing actuator
 
 Do not turn infrastructure absence into authorship fraud. Preserve the commit,
 branch name, exact base/head, prepared PR body or comment, and required operation.
-Report which actuator operation or grant is missing. Publication remains pending;
-the code is recoverable but not delivered.
+Report which actuator operation or grant is missing. Without an applicable
+explicit operator override, publication remains pending; the code is recoverable
+but not delivered. If the operator already authorized the scoped fallback, use
+it and preserve truthful authorship instead of stopping at this paragraph.
 
 ## Personal-credential retirement ceremony
 
@@ -139,11 +196,14 @@ This is exceptional and must name the one final allowed operation.
 
 ## Reject these shortcuts
 
-- “Use `gh` just this once” outside the named retirement ceremony.
+- Inventing a personal-account fallback without explicit applicable operator
+  authorization, or broadening a scoped override into unrelated mutations.
 - Passing the App private key to a helper running as the agent.
 - Treating token expiry as proof of revocation.
 - Commenting as the operator and adding a bot signature in the text.
 - Retrying a timed-out write without provider read-back.
+- Re-running a mutation after losing Relay's final response instead of sending
+  the original run id to the separate receipt-recovery workflow.
 - Claiming a policy prompt prevents credential use by a malicious same-UID process.
 
 ## Completion evidence

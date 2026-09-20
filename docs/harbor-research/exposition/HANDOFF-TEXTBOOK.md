@@ -154,8 +154,9 @@ lead; digests short; at most six or seven workers at once.
 Math typography fix verified in a full build → Swiss/technical opener fixes
 verified (compact chapter list, the technical sheet's bounding box) → covers per
 edition → thread inventory and the page-one honesty paragraph → marginalia fetch,
-clearance, duotone and placement (`pdmarginfigure` and `pdgloss` to be added to
-the pedagogy twins) → the figure standard and the redraw wave (kernel first,
+clearance, duotone and placement (`pdmarginfigure` and `pdgloss` added to
+the pedagogy twins — done; `pdmarginfigure` placed per §4 above, `pdgloss`
+now called from the chapters) → the figure standard and the redraw wave (kernel first,
 inspected in all three editions on one contact sheet) → pseudocode listings to
 the CLRS register with `algpseudocode` → sessions for chapters 3–6, the
 worked-example floor, the plots from the R-scripts → overfull lines and stranded
