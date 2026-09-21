@@ -4,17 +4,33 @@
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{enumitem}
-\usepackage{titlesec}
+\IfFileExists{titlesec.sty}{%
+  \usepackage{titlesec}%
+  \titleformat{\section}{\large\bfseries\color{harborblue}}{\thesection}{0.7em}{}%
+  \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}%
+}{}
 \usepackage[colorlinks=true,linkcolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
 \usepackage{tikz}
-\usepackage{pgfplots}
-\pgfplotsset{compat=1.18}
+\IfFileExists{pgfplots.sty}{%
+  \usepackage{pgfplots}%
+  \pgfplotsset{compat=1.18}%
+}{}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
-\definecolor{harborblue}{RGB}{30,70,110}
-\definecolor{shipred}{RGB}{140,30,30}
+% --- SWISS MODERN SYSTEMS GRAPHICS PALETTE ---
+\definecolor{ptRed}{HTML}{B52227}
+\definecolor{ptBlue}{HTML}{274975}
+\definecolor{ptDark}{HTML}{1A1A1A}
+\definecolor{ptLightGray}{HTML}{F4F4F4}
+\definecolor{ptGray}{HTML}{E2E2E2}
+\definecolor{ptGold}{HTML}{D4A373}
+\definecolor{ptGrid}{HTML}{E5E5E5}
+\definecolor{harborblue}{HTML}{274975}
+\definecolor{shipred}{HTML}{B52227}
 \definecolor{seagreen}{RGB}{31,110,70}
-\titleformat{\section}{\large\bfseries\color{harborblue}}{\thesection}{0.7em}{}
-\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\definecolor{slate}{RGB}{71,85,105}
+\definecolor{slatedark}{RGB}{30,41,59}
+\definecolor{amber}{HTML}{D4A373}
+\definecolor{emerald}{RGB}{16,185,129}
 \newtheorem{theorem}{Theorem}
 \newtheorem{claim}{Claim}
 \theoremstyle{definition}
@@ -29,27 +45,27 @@
 % regime diagrams, and data plots). Vector TikZ/pgfplots only -- see
 % docs/harbor-research/figures/CONVENTION.md for the house rule this follows.
 \tikzset{
-  relnode/.style={draw,rounded corners,thick,minimum width=2.6cm,minimum height=0.9cm,align=center,font=\small},
+  swissgrid/.style={step=0.25cm, draw=ptGrid, line width=0.35pt},
+  majorgrid/.style={step=1.00cm, draw=ptGrid!75!black, line width=0.55pt},
+  snode/.style={rectangle, draw=ptDark, line width=1pt, fill=white, inner sep=4pt, minimum height=0.65cm, font=\sffamily\bfseries\scriptsize, align=center},
+  darknode/.style={snode, fill=ptDark, text=white, font=\sffamily\bfseries\scriptsize\color{white}},
+  mask/.style={fill=white, inner sep=1.5pt},
+  dArr/.style={-{Stealth[length=2.5mm, width=1.6mm]}, ptDark, line width=1.1pt, shorten >=2pt, shorten <=2pt},
+  rArr/.style={-{Stealth[length=2.5mm, width=1.6mm]}, ptRed, line width=1.3pt, shorten >=2pt, shorten <=2pt},
+  bArr/.style={-{Stealth[length=2.5mm, width=1.6mm]}, ptBlue, line width=1.1pt, shorten >=2pt, shorten <=2pt},
+  relnode/.style={draw,thick,minimum width=2.6cm,minimum height=0.9cm,align=center,font=\small},
   relarrow/.style={-{Stealth[length=2.5mm]},thick},
-  regimebox/.style={draw,thick,align=center,font=\small,inner sep=4pt},
+  regimebox/.style={draw,thick,align=center,font=\small,inner sep=4pt}
 }
+\IfFileExists{pgfplots.sty}{%
 \pgfplotsset{
-  % height is generous on purpose: a rotated ylabel string, rendered at
-  % label-font size, must fit inside the axis height without poking above
-  % the top of the axis into the title's row -- a real collision bug found
-  % by rendering the first CI build (fig-r2-regime.tex, fig-b1-frontier.tex).
   harbor curve/.style={
     width=0.46\textwidth,height=5.6cm,
     axis lines=left,
     label style={font=\scriptsize},
     tick label style={font=\scriptsize},
     title style={font=\small,align=center,yshift=2pt},
-    % Opaque plate under the legend: an inside-plot legend (legend pos=...)
-    % otherwise renders its text directly on top of plotted curves, which
-    % reads as noise, not data. This does not fix true text/text collisions
-    % (two annotations, or a legend square with a data marker) -- those
-    % still need a per-figure legend pos / node position choice.
-    legend style={font=\scriptsize,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
+    legend style={font=\scriptsize,draw=ptDark!40,line width=0.6pt,fill=white,fill opacity=0.95,text opacity=1,inner sep=3pt},
     thick,
   },
   harbor bar/.style={
@@ -59,10 +75,9 @@
     axis lines=left,
     label style={font=\scriptsize},
     tick label style={font=\tiny},
-    % Long/multi-word symbolic x-tick labels (category names) collide with
-    % each other at 0deg; rotate and right-anchor so they read cleanly.
     xticklabel style={rotate=40,anchor=east,font=\tiny,inner sep=1pt},
     title style={font=\small,align=center,yshift=2pt},
-    legend style={font=\scriptsize,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
+    legend style={font=\scriptsize,draw=ptDark!40,line width=0.6pt,fill=white,fill opacity=0.95,text opacity=1,inner sep=3pt},
   },
 }
+}{}

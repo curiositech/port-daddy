@@ -1,0 +1,73 @@
+% Paper 8 Figure 3: The Rosetta Stone mapping swarm primitives to cellular sheaves.
+% Swiss Modern Systems Graphics specification: visual proofs, hard 90-degree corners,
+% metric coordinate drafting grid, and strict chromatic state taxonomy.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  sbox/.style={
+    rectangle,
+    draw=ptDark,
+    line width=1.1pt,
+    fill=white,
+    inner sep=6pt,
+    text width=4.1cm,
+    align=left,
+    anchor=north
+  }
+]
+
+% 1. Coordinate Grid Context (Swiss Modern Metric Field)
+\draw[swissgrid] (-0.25, -6.85) grid (14.85, 0.45);
+\draw[majorgrid] (-0.25, -6.85) grid (14.85, 0.45);
+
+% 0-Cells
+\node[sbox] (box0) at (2.15, 0) {
+  \colorbox{ptDark}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip 0-CELLS: AGENTNODES\enskip}\\[3pt]
+  {\sffamily\scriptsize\bfseries Set $V$: Private Stalks ($v \in V$)}\\[5pt]
+  \textbf{\small Stalk Vector} $x_v \in \mathbb{R}^D$:\\[3pt]
+  $\bullet$ Turn Epoch $t_v \in \mathbb{N}$ (Clock)\\
+  $\bullet$ Token Spend $b_v \in \mathbb{R}_+$ (Budget)\\
+  $\bullet$ AST Lease Hash $h_L \in \mathbb{R}$\\
+  $\bullet$ Commit Root $d_v \in [-1, 1]$
+};
+
+% 1-Cells
+\node[sbox] (box1) at (7.30, 0) {
+  \colorbox{ptBlue}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip 1-CELLS: CHANNELS\enskip}\\[3pt]
+  {\sffamily\scriptsize\bfseries Set $E$: Restriction Maps ($e \in E$)}\\[5pt]
+  \textbf{\small Restriction Map} $P_e: \mathbb{R}^D \to \mathbb{R}^d$:\\[3pt]
+  $\bullet$ Coordinate-wise selection\\
+  $\bullet$ \textbf{1-Cochain Discrepancy}:\\
+  \quad $g_e = P_e x_v - P_e x_u$\\[2pt]
+  $\bullet$ \textbf{Coboundary}: $(\delta_0 x)_e = x_v - x_u$
+};
+
+% 2-Cells
+\node[sbox] (box2) at (12.45, 0) {
+  \colorbox{ptGold!85!black}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip 2-CELLS: TRIADS\enskip}\\[3pt]
+  {\sffamily\scriptsize\bfseries Set $F$: Join Contracts ($\tau \in F$)}\\[5pt]
+  \textbf{\small Consensus Join Contract}:\\[3pt]
+  $\bullet$ Producer $\leftrightarrow$ Critic\\
+  $\bullet$ Critic $\leftrightarrow$ Manager\\
+  $\bullet$ Manager $\leftrightarrow$ Producer\\
+  $\bullet$ \textbf{Triadic Curl}:\\
+  \quad $(\delta_1 g)_\tau = g_{01} + g_{12} - g_{02}$
+};
+
+% Cochain arrows between boxes (generous runway with masked labels)
+\draw[dArr] (box0.east |- 0, -2.0) -- node[above=2pt, font=\sffamily\bfseries\normalsize, mask] {$\delta_0$} (box1.west |- 0, -2.0);
+\draw[dArr] (box1.east |- 0, -2.0) -- node[above=2pt, font=\sffamily\bfseries\normalsize, mask] {$\delta_1$} (box2.west |- 0, -2.0);
+
+% Cochain complex banner below (hard 90-degree rectangle)
+\node[rectangle, draw=ptDark, fill=ptLightGray, line width=1pt, inner sep=6pt, text width=14.2cm, align=center, anchor=north] at (7.30, -5.2) {
+  \textbf{\normalsize Discrete Cochain Complex on Simplicial 2-Complex $X = (V, E, F)$}:\\[4pt]
+  $\displaystyle 0 \longrightarrow C^0(X; \mathcal{F}) \xrightarrow{\quad\delta_0\quad} C^1(X; \mathcal{F}) \xrightarrow{\quad\delta_1\quad} C^2(X; \mathcal{F}) \longrightarrow 0$\\[4pt]
+  {\small \textbf{Fundamental Nilpotent Identity}: $\delta_1 \circ \delta_0 \equiv 0 \iff \mathrm{im}(\delta_0) \subseteq \ker(\delta_1)$ (honest agent potential fields automatically satisfy all triadic contracts with zero curl).}
+};
+
+\end{tikzpicture}
+\caption{The Rosetta Stone conforming to Swiss Modern Systems Graphics: exact algebraic translation from multi-agent swarm primitives into cellular sheaves and simplicial complexes over cell complex $X = (V, E, F)$.}
+\label{fig:sheaf-rosetta}
+\end{figure}

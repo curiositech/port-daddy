@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SwarmTelemetry · Active Cellular Sheaf Cohomology Surveillance</title>
+  <script src="d3.min.js"></script>
+  <script>
+    if (typeof d3 === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/d3@7"><\/script>');
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #070a12;
+      --panel-bg: rgba(13, 19, 34, 0.78);
+      --panel-header-bg: rgba(18, 26, 46, 0.9);
+      --border: #1a243b;
+      --border-subtle: #111a2e;
+      --accent-cyan: #38bdf8;
+      --accent-rose: #f43f5e;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-violet: #818cf8;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #475569;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.4;
+      padding: 16px 24px 32px 24px;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Control Bar */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 1px solid var(--accent-emerald);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-pill.alarm {
+      background: rgba(244, 63, 94, 0.18);
+      color: var(--accent-rose);
+      border-color: var(--accent-rose);
+    }
+    .status-pill.alarm::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      background: var(--accent-rose);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-rose);
+    }
+    .status-pill.live::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      background: var(--accent-emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--accent-emerald);
+    }
+
+    /* Scrubber Controls */
+    .scrubber-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+
+    .btn-ctrl {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-ctrl:hover {
+      background: var(--border);
+      color: var(--accent-cyan);
+    }
+    .btn-ctrl.active {
+      background: var(--accent-cyan);
+      color: #000;
+      border-color: var(--accent-cyan);
+    }
+
+    .time-slider {
+      width: 140px;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    /* Diagnosis Banner (Insight-First) */
+    .diagnosis-banner {
+      background: linear-gradient(90deg, rgba(244, 63, 94, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+      border-left: 3px solid var(--accent-rose);
+      border-top: 1px solid rgba(244, 63, 94, 0.2);
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      border-radius: 0 6px 6px 0;
+      padding: 10px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .diagnosis-banner.calm {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%);
+      border-left-color: var(--accent-emerald);
+      border-top-color: rgba(16, 185, 129, 0.2);
+    }
+
+    /* Layout Containers */
+    .horizon-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      backdrop-filter: blur(12px);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .horizon-header {
+      background: var(--panel-header-bg);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .horizon-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .horizon-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* Chart SVG Containers */
+    #chart-svg-container, #swimlane-svg-container {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Horizon 3 Grid */
+    .horizon3-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 1100px) {
+      .horizon3-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Table styling */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th {
+      text-align: left;
+      padding: 6px 12px;
+      color: var(--text-dim);
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 6px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      font-family: var(--font-mono);
+    }
+    tr.contested-row td {
+      background: rgba(244, 63, 94, 0.12);
+      color: #ffb4c2;
+    }
+    tr.fenced-row td {
+      text-decoration: line-through;
+      color: var(--text-dim);
+    }
+
+    /* Terminal Log */
+    .terminal-log {
+      max-height: 180px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-line {
+      display: flex;
+      gap: 8px;
+      padding: 3px 6px;
+      border-radius: 3px;
+    }
+    .log-line.active {
+      background: rgba(56, 189, 248, 0.15);
+      border-left: 2px solid var(--accent-cyan);
+    }
+    .log-time { color: var(--text-dim); flex-shrink: 0; }
+    .log-msg { color: var(--text-muted); }
+    .log-msg.alarm { color: var(--accent-rose); font-weight: 600; }
+    .log-msg.fenced { color: var(--accent-amber); }
+    .log-msg.repair { color: var(--accent-emerald); }
+
+    /* D3 Visual Components */
+    .axis text {
+      fill: var(--text-dim);
+      font-size: 10px;
+      font-family: var(--font-mono);
+    }
+    .axis line, .axis path {
+      stroke: var(--border);
+    }
+    .grid line {
+      stroke: rgba(255, 255, 255, 0.04);
+      stroke-dasharray: 2, 3;
+    }
+
+    /* Tooltip */
+    #d3-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(10, 15, 29, 0.95);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: none;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header & Scrubber -->
+  <header>
+    <div class="brand-group">
+      <h1 class="brand-title">
+        ⚓ SwarmTelemetry
+      </h1>
+      <span class="status-pill alarm" id="status-pill">E3 Conflict Active</span>
+    </div>
+
+    <!-- Interactive Time-Travel Controls -->
+    <div class="scrubber-controls">
+      <button class="btn-ctrl" id="btn-start" title="First Epoch">⏮</button>
+      <button class="btn-ctrl" id="btn-prev" title="Step Back">◀</button>
+      <button class="btn-ctrl active" id="btn-play" title="Play/Pause">❚❚ PAUSE</button>
+      <button class="btn-ctrl" id="btn-next" title="Step Forward">▶</button>
+      <button class="btn-ctrl" id="btn-end" title="Latest Epoch">⏭</button>
+      <input type="range" class="time-slider" id="epoch-slider" min="0" max="4" step="0.05" value="3.0">
+      <span style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan); min-width: 55px;" id="epoch-display">Epoch 3.0</span>
+    </div>
+
+    <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">
+      Session: <span style="color: var(--text-muted);">sheaf-swarm-live</span> · 5 Agents
+    </div>
+  </header>
+
+  <!-- Dynamic Diagnosis Banner (Story Arc) -->
+  <div class="diagnosis-banner" id="diagnosis-banner">
+    <div>
+      <strong id="diag-title" style="color: var(--accent-rose); font-weight: 700;">⚡ EPOCH 3: OPERATOR DISRUPTION & HIGH-CURL CONFLICT</strong>
+      <div id="diag-desc" style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">
+        Operator interrupted flow; AuthDev forced competing exclusive lease on src/auth.ts::handleRegistration. Sheaf residual r = 45.2714. Tree comparator r_tree ≡ 0.0000 (Blind!).
+      </div>
+    </div>
+    <div style="text-align: right; font-family: var(--font-mono); flex-shrink: 0; padding-left: 20px;">
+      <div style="font-size: 11px; color: var(--text-dim);">LEGIBILITY RATIO L(g)</div>
+      <div style="font-size: 16px; font-weight: 800; color: var(--accent-cyan);" id="diag-legibility">0.671 (Micro-Curl)</div>
+    </div>
+  </div>
+
+  <!-- HORIZON 1: THE CONTINUOUS INVARIANT & TREE BLINDNESS PLANE (D3.js) -->
+  <div class="horizon-panel">
+    <div class="horizon-header">
+      <div class="horizon-title">
+        <span>Horizon 1 · Cohomological Residual r(t) vs Acyclic Tree Comparator r_tree(t)</span>
+      </div>
+      <div class="horizon-meta">
+        <span style="color: var(--accent-rose);">■ Active Sheaf r(t) = ||Π_K g_K||₂</span> &nbsp;|&nbsp; 
+        <span style="color: var(--accent-cyan); border-bottom: 1px dashed var(--accent-cyan);">╌ Tree Comparator (Blind)</span>
+      </div>
+    </div>
+    <svg id="chart-svg-container" viewBox="0 0 960 170"></svg>
+  </div>
+
+  <!-- HORIZON 2: THE CAUSALITY SWIMLANES & SIDE-EFFECT REGISTERS (D3.js) -->
+  <div class="horizon-panel">
+    <div class="horizon-header">
+      <div class="horizon-title">
+        <span>Horizon 2 · Agent Causality Ribbon & Physical Side Effects (AST Leases & Communicative Arcs)</span>
+      </div>
+      <div class="horizon-meta">
+        Synchronized Timeline · Hover or drag playhead to scrub
+      </div>
+    </div>
+    <svg id="swimlane-svg-container" viewBox="0 0 960 250"></svg>
+  </div>
+
+  <!-- HORIZON 3: SPATIAL SIMPLICIAL TOPOLOGY & STATE INSPECTOR -->
+  <div class="horizon3-grid">
+    <!-- 2D Simplicial Complex Force Simulation -->
+    <div class="horizon-panel">
+      <div class="horizon-header">
+        <div class="horizon-title">
+          <span>Horizon 3A · Simplicial Complex Topology X = (V, E, F)</span>
+        </div>
+        <div class="horizon-meta">
+          D3 Force-Directed · Drag nodes to inspect
+        </div>
+      </div>
+      <svg id="topology-svg-container" viewBox="0 0 460 270" style="display: block; width: 100%; height: 270px;"></svg>
+    </div>
+
+    <!-- Active Leases & Hodge Spectral Breakdown -->
+    <div class="horizon-panel">
+      <div class="horizon-header">
+        <div class="horizon-title">
+          <span>Horizon 3B · AST Lease Ledger & Communicative Speech Acts</span>
+        </div>
+        <div class="horizon-meta">
+          At Playhead Epoch <span id="meta-epoch-sub">3.0</span>
+        </div>
+      </div>
+
+      <div style="padding: 10px 16px 6px 16px; border-bottom: 1px solid var(--border-subtle);">
+        <table id="leases-table">
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Held Symbol Path</th>
+              <th>Mode</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="leases-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="terminal-log" id="terminal-log"></div>
+    </div>
+  </div>
+
+  <!-- Interactive Floating Tooltip -->
+  <div id="d3-tooltip"></div>
+
+  <script>
+    /**
+     * BOSTOCKEDQUE D3.JS ACTIVE CELLULAR SHEAF SURVEILLANCE ENGINE
+     * =============================================================
+     * Strictly implemented using D3 v7 selections, scales, paths,
+     * force-directed simulation, drag behaviors, and transitions.
+     */
+
+    // --- State Dataset ---
+    const swarmData = {
+      epochs: [
+        { 
+          epoch: 0, 
+          r: 0.0000, 
+          treeR: 0.0000, 
+          L: 1.0000, 
+          grad: 0.00, 
+          harm: 0.00, 
+          curl: 0.00,
+          label: "Boot", 
+          title: "Swarm Boot & Discovery",
+          desc: "All agents discovered via roster; zero cochain discrepancy. Consensus active (r = 0.0000)." 
+        },
+        { 
+          epoch: 1, 
+          r: 0.0000, 
+          treeR: 0.0000, 
+          L: 1.0000, 
+          grad: 0.12, 
+          harm: 0.00, 
+          curl: 0.00,
+          label: "Auth Lock", 
+          title: "SecDev Claims Exclusive Lock",
+          desc: "SecDev grants EXCLUSIVE AST lease on src/auth.ts::handleRegistration. Harmonic circulation zero." 
+        },
+        { 
+          epoch: 2, 
+          r: 0.7493, 
+          treeR: 0.0000, 
+          L: 0.6670, 
+          grad: 0.35, 
+          harm: 0.50, 
+          curl: 0.49,
+          label: "Race Injected", 
+          title: "Concurrent Lease Race Condition",
+          desc: "AuthDev requested concurrent lease on src/auth.ts. Sheaf residual spiked to r = 0.7493. Tree comparator stays at 0.0000 (BLIND)." 
+        },
+        { 
+          epoch: 3, 
+          r: 45.2714, 
+          treeR: 0.0000, 
+          L: 0.6710, 
+          grad: 1.41, 
+          harm: 0.81, 
+          curl: 44.82,
+          label: "Hallucination", 
+          title: "Operator Interruption & Stance Equivocation",
+          desc: "Messy Human operator injected conflicting priority. RedTeam emitted contradictory stance. High-curl anomaly r = 45.2714!" 
+        },
+        { 
+          epoch: 4, 
+          r: 0.0000, 
+          treeR: 0.0000, 
+          L: 1.0000, 
+          grad: 0.00, 
+          harm: 0.00, 
+          curl: 0.00,
+          label: "CR-4 Restored", 
+          title: "CR-4 Greedy Min-Cut Self-Healing",
+          desc: "Spawner clamped rogue lease via CR-4 Min-Cut eviction. Residual quenched back to r = 0.0000." 
+        }
+      ],
+      agents: [
+        { id: 0, name: "v0 Coordinator", model: "Claude-3.5-S", role: "Manager", yOffset: 30 },
+        { id: 1, name: "v1 SecDev",      model: "DeepSeek-V3",  role: "Security", yOffset: 75 },
+        { id: 2, name: "v2 AuthDev",     model: "GPT-4o-mini",  role: "Client Auth", yOffset: 120 },
+        { id: 3, name: "v3 RedTeam",     model: "Gemini-Flash", role: "Critic", yOffset: 165 },
+        { id: 4, name: "v4 Auditor",     model: "Attestation",  role: "Attest", yOffset: 210 }
+      ],
+      // Discrete Agent Operations & Side Effects
+      spans: [
+        { agent: 0, start: 0.0, end: 1.2, type: "planning", text: "PLANNING & ROSTER" },
+        { agent: 0, start: 1.2, end: 3.2, type: "coordinating", text: "SUPERVISING" },
+        { agent: 0, start: 3.2, end: 4.0, type: "harvest", text: "HARVESTING CONSENSUS" },
+
+        { agent: 1, start: 0.8, end: 2.8, type: "coding", text: "CODING: auth.ts (+42/-8)", lease: "src/auth.ts [EXCLUSIVE]" },
+        { agent: 1, start: 2.8, end: 4.0, type: "review", text: "COMMIT 4bc6690", lease: "src/auth.ts [COMMITTED]" },
+
+        { agent: 2, start: 1.0, end: 2.2, type: "idle", text: "IDLE" },
+        { agent: 2, start: 2.2, end: 3.4, type: "conflict", text: "⚡ CONTESTED LEASE (+18/-0)", lease: "src/auth.ts [409 CLASH]" },
+        { agent: 2, start: 3.4, end: 4.0, type: "fenced", text: "🛡️ FENCED BY CR-4", lease: "src/auth.ts [REVOKED]" },
+
+        { agent: 3, start: 1.5, end: 3.2, type: "review", text: "FUZZING & AUDIT" },
+        { agent: 3, start: 3.2, end: 4.0, type: "review", text: "PASSKEY VERIFIED" },
+
+        { agent: 4, start: 0.0, end: 4.0, type: "idle", text: "ATTESTATION MONITOR" }
+      ],
+      // Causal FIPA Communicative Arcs
+      causalArcs: [
+        { from: 0, to: 1, time: 0.8, act: "PROPOSE", text: "Assign auth.ts spec to SecDev" },
+        { from: 1, to: 0, time: 2.1, act: "INFORM", text: "SecDev acquired EXCLUSIVE lease" },
+        { from: 2, to: 1, time: 2.4, act: "CONTENTION", text: "AuthDev 409 Conflict with SecDev" },
+        { from: 3, to: 2, time: 3.3, act: "REJECT", text: "RedTeam rejects AuthDev signature" },
+        { from: 0, to: 2, time: 3.5, act: "FENCE", text: "Coordinator enforces Min-Cut clamp" }
+      ],
+      // Simplicial Complex Graph Topology
+      graph: {
+        nodes: [
+          { id: 0, name: "Coordinator", code: "v0", model: "Claude-3.5-S" },
+          { id: 1, name: "SecDev",      code: "v1", model: "DeepSeek-V3" },
+          { id: 2, name: "AuthDev",     code: "v2", model: "GPT-4o-mini" },
+          { id: 3, name: "RedTeam",     code: "v3", model: "Gemini-Flash" },
+          { id: 4, name: "Auditor",     code: "v4", model: "Attestation" }
+        ],
+        links: [
+          { source: 0, target: 1, id: "e0", baseEnergy: 0.2 },
+          { source: 1, target: 3, id: "e1", baseEnergy: 1.0 },
+          { source: 0, target: 3, id: "e2", baseEnergy: 0.3 },
+          { source: 0, target: 2, id: "e3", baseEnergy: 0.2 },
+          { source: 2, target: 3, id: "e4", baseEnergy: 0.8 },
+          { source: 1, target: 2, id: "e5", baseEnergy: 44.8, isContested: true },
+          { source: 3, target: 4, id: "e6", baseEnergy: 0.1 }
+        ],
+        faces: [
+          { v: [0, 1, 3], id: "f0" },
+          { v: [0, 2, 3], id: "f1" },
+          { v: [1, 2, 3], id: "f2", isContested: true }
+        ]
+      },
+      logEvents: [
+        { time: "E0.00", epoch: 0.0, type: "info", text: "Roster active: 5 agents registered in TCB. Consensus r = 0.0000." },
+        { time: "E0.80", epoch: 0.8, type: "info", text: "Coordinator proposes Auth specification to SecDev." },
+        { time: "E1.00", epoch: 1.0, type: "lease", text: "SecDev acquired EXCLUSIVE lease on src/auth.ts::handleRegistration." },
+        { time: "E2.20", epoch: 2.2, type: "alarm", text: "COLLISION: AuthDev requested concurrent lease on held symbol (r = 0.7493)." },
+        { time: "E2.70", epoch: 2.7, type: "alarm", text: "⚡ OPERATOR INTERRUPT: 'Cancel auth, reassign to v2 immediately!'" },
+        { time: "E3.00", epoch: 3.0, type: "alarm", text: "CRITICAL: High-curl circulation on triangle [v1,v2,v3]. r = 45.2714!" },
+        { time: "E3.30", epoch: 3.3, type: "fenced", text: "RedTeam emitted equivocation; rejected AuthDev commit signature." },
+        { time: "E3.60", epoch: 3.6, type: "repair", text: "CR-4 MIN-CUT: Quenched edge (v1,v2). AuthDev lease fenced." },
+        { time: "E4.00", epoch: 4.0, type: "repair", text: "CONSENSUS RESTORED: All boundary obstructions resolved. r = 0.0000." }
+      ]
+    };
+
+    // Current Interactive State
+    let currentEpoch = 3.0;
+    let isPlaying = false;
+    let playTimer = null;
+
+    // --- Horizon 1: Continuous Invariant Chart (D3.js) ---
+    const h1Svg = d3.select("#chart-svg-container");
+    const h1Margin = { top: 20, right: 40, bottom: 25, left: 50 };
+    const h1Width = 960 - h1Margin.left - h1Margin.right;
+    const h1Height = 170 - h1Margin.top - h1Margin.bottom;
+
+    const h1G = h1Svg.append("g")
+      .attr("transform", `translate(${h1Margin.left},${h1Margin.top})`);
+
+    const h1X = d3.scaleLinear()
+      .domain([0, 4])
+      .range([0, h1Width]);
+
+    const h1Y = d3.scaleLinear()
+      .domain([0, 50])
+      .range([h1Height, 0]);
+
+    // Gridlines
+    h1G.append("g")
+      .attr("class", "grid")
+      .call(d3.axisLeft(h1Y).ticks(5).tickSize(-h1Width).tickFormat(""));
+
+    // Axes
+    h1G.append("g")
+      .attr("class", "axis")
+      .attr("transform", `translate(0,${h1Height})`)
+      .call(d3.axisBottom(h1X).ticks(5).tickFormat(i => `E${i} (${swarmData.epochs[i] ? swarmData.epochs[i].label : ''})`));
+
+    h1G.append("g")
+      .attr("class", "axis")
+      .call(d3.axisLeft(h1Y).ticks(5));
+
+    // Consensus Boundary Reference Line (r = 1.0)
+    h1G.append("line")
+      .attr("x1", 0)
+      .attr("x2", h1Width)
+      .attr("y1", h1Y(1.0))
+      .attr("y2", h1Y(1.0))
+      .attr("stroke", "rgba(16, 185, 129, 0.4)")
+      .attr("stroke-dasharray", "4, 4");
+
+    h1G.append("text")
+      .attr("x", h1Width - 5)
+      .attr("y", h1Y(1.0) - 4)
+      .attr("fill", "var(--accent-emerald)")
+      .attr("font-size", "9px")
+      .attr("font-family", "var(--font-mono)")
+      .attr("text-anchor", "end")
+      .text("Consensus Threshold r_crit = 1.0");
+
+    // D3 Area & Line Generators
+    const areaGen = d3.area()
+      .x(d => h1X(d.epoch))
+      .y0(h1Y(0))
+      .y1(d => h1Y(d.r))
+      .curve(d3.curveMonotoneX);
+
+    const lineGen = d3.line()
+      .x(d => h1X(d.epoch))
+      .y(d => h1Y(d.r))
+      .curve(d3.curveMonotoneX);
+
+    const treeLineGen = d3.line()
+      .x(d => h1X(d.epoch))
+      .y(d => h1Y(d.treeR))
+      .curve(d3.curveLinear);
+
+    // Gradient definition for area
+    const defs = h1Svg.append("defs");
+    const areaGrad = defs.append("linearGradient")
+      .attr("id", "residual-gradient")
+      .attr("x1", "0%").attr("y1", "0%")
+      .attr("x2", "0%").attr("y2", "100%");
+    areaGrad.append("stop").attr("offset", "0%").attr("stop-color", "var(--accent-rose)").attr("stop-opacity", 0.4);
+    areaGrad.append("stop").attr("offset", "100%").attr("stop-color", "var(--accent-rose)").attr("stop-opacity", 0.0);
+
+    // Render Area & Line
+    h1G.append("path")
+      .datum(swarmData.epochs)
+      .attr("fill", "url(#residual-gradient)")
+      .attr("d", areaGen);
+
+    h1G.append("path")
+      .datum(swarmData.epochs)
+      .attr("fill", "none")
+      .attr("stroke", "var(--accent-rose)")
+      .attr("stroke-width", 2.2)
+      .attr("d", lineGen);
+
+    // Acyclic Tree Comparator (The Blindness Invariant: r_tree ≡ 0)
+    h1G.append("path")
+      .datum(swarmData.epochs)
+      .attr("fill", "none")
+      .attr("stroke", "var(--accent-cyan)")
+      .attr("stroke-width", 1.8)
+      .attr("stroke-dasharray", "4, 3")
+      .attr("d", treeLineGen);
+
+    // Epoch milestone nodes
+    h1G.selectAll(".epoch-dot")
+      .data(swarmData.epochs)
+      .join("circle")
+      .attr("class", "epoch-dot")
+      .attr("cx", d => h1X(d.epoch))
+      .attr("cy", d => h1Y(d.r))
+      .attr("r", 4.5)
+      .attr("fill", d => d.r > 1.0 ? "var(--accent-rose)" : "var(--accent-emerald)")
+      .attr("stroke", "#070a12")
+      .attr("stroke-width", 2)
+      .style("cursor", "pointer")
+      .on("click", (event, d) => setEpoch(d.epoch));
+
+    // Synchronized Vertical Playhead Needle on Horizon 1
+    const h1Needle = h1G.append("line")
+      .attr("class", "playhead-needle")
+      .attr("y1", -5)
+      .attr("y2", h1Height)
+      .attr("stroke", "var(--accent-cyan)")
+      .attr("stroke-width", 1.5)
+      .attr("pointer-events", "none");
+
+
+    // --- Horizon 2: Agent Causality Ribbon & Swimlanes (D3.js) ---
+    const h2Svg = d3.select("#swimlane-svg-container");
+    const h2Margin = { top: 15, right: 40, bottom: 20, left: 140 };
+    const h2Width = 960 - h2Margin.left - h2Margin.right;
+    const h2Height = 250 - h2Margin.top - h2Margin.bottom;
+
+    const h2G = h2Svg.append("g")
+      .attr("transform", `translate(${h2Margin.left},${h2Margin.top})`);
+
+    const h2X = d3.scaleLinear()
+      .domain([0, 4])
+      .range([0, h2Width]);
+
+    const h2Y = d3.scalePoint()
+      .domain(swarmData.agents.map(a => a.id))
+      .range([15, h2Height - 15]);
+
+    // Agent Track Guidelines & Row Labels
+    const trackG = h2G.selectAll(".agent-track")
+      .data(swarmData.agents)
+      .join("g")
+      .attr("class", "agent-track")
+      .attr("transform", d => `translate(0,${h2Y(d.id)})`);
+
+    // Track baseline
+    trackG.append("line")
+      .attr("x1", 0)
+      .attr("x2", h2Width)
+      .attr("stroke", "rgba(255,255,255,0.05)")
+      .attr("stroke-dasharray", "2, 4");
+
+    // Agent identity on left margin
+    trackG.append("text")
+      .attr("x", -12)
+      .attr("y", -2)
+      .attr("fill", "var(--text-main)")
+      .attr("font-size", "11px")
+      .attr("font-weight", "600")
+      .attr("text-anchor", "end")
+      .text(d => d.name);
+
+    trackG.append("text")
+      .attr("x", -12)
+      .attr("y", 11)
+      .attr("fill", "var(--text-dim)")
+      .attr("font-size", "9px")
+      .attr("font-family", "var(--font-mono)")
+      .attr("text-anchor", "end")
+      .text(d => `${d.model}`);
+
+    // D3 Causal Arcs (Message exchanges between agents)
+    const arcG = h2G.append("g").attr("class", "causal-arcs");
+
+    function renderCausalArcs() {
+      const arcPath = arcG.selectAll(".causal-arc")
+        .data(swarmData.causalArcs)
+        .join("path")
+        .attr("class", "causal-arc")
+        .attr("d", d => {
+          const x = h2X(d.time);
+          const y1 = h2Y(d.from);
+          const y2 = h2Y(d.to);
+          const dx = 25 * (d.from < d.to ? 1 : -1);
+          return `M ${x} ${y1} C ${x + dx} ${y1}, ${x + dx} ${y2}, ${x} ${y2}`;
+        })
+        .attr("fill", "none")
+        .attr("stroke", d => {
+          if (d.act === "CONTENTION") return "var(--accent-rose)";
+          if (d.act === "FENCE") return "var(--accent-amber)";
+          return "var(--accent-cyan)";
+        })
+        .attr("stroke-width", d => d.act === "CONTENTION" ? 2.0 : 1.2)
+        .attr("stroke-dasharray", d => d.act === "CONTENTION" ? "none" : "3, 2")
+        .attr("opacity", d => d.time <= currentEpoch ? 0.85 : 0.15);
+    }
+    renderCausalArcs();
+
+    // D3 Agent State Activity Spans & Side-Effect Ribbons
+    const spanG = h2G.append("g").attr("class", "agent-spans");
+
+    const spanColorMap = {
+      planning: { bg: "rgba(129, 140, 248, 0.2)", border: "var(--accent-violet)" },
+      coordinating: { bg: "rgba(56, 189, 248, 0.2)", border: "var(--accent-cyan)" },
+      coding: { bg: "rgba(16, 185, 129, 0.25)", border: "var(--accent-emerald)" },
+      conflict: { bg: "rgba(244, 63, 94, 0.35)", border: "var(--accent-rose)" },
+      fenced: { bg: "rgba(245, 158, 11, 0.2)", border: "var(--accent-amber)" },
+      review: { bg: "rgba(148, 163, 184, 0.15)", border: "var(--text-muted)" },
+      idle: { bg: "rgba(255, 255, 255, 0.03)", border: "rgba(255,255,255,0.08)" }
+    };
+
+    spanG.selectAll(".state-span")
+      .data(swarmData.spans)
+      .join("g")
+      .attr("class", "state-span")
+      .each(function(d) {
+        const el = d3.select(this);
+        const x = h2X(d.start);
+        const w = h2X(d.end) - x;
+        const y = h2Y(d.agent) - 10;
+        const colors = spanColorMap[d.type] || spanColorMap.idle;
+
+        // Activity Rect
+        el.append("rect")
+          .attr("x", x)
+          .attr("y", y)
+          .attr("width", Math.max(w, 2))
+          .attr("height", 20)
+          .attr("rx", 3)
+          .attr("fill", colors.bg)
+          .attr("stroke", colors.border)
+          .attr("stroke-width", 1);
+
+        // Text label
+        if (w > 45) {
+          el.append("text")
+            .attr("x", x + 6)
+            .attr("y", y + 13)
+            .attr("fill", "#f1f5f9")
+            .attr("font-size", "9.5px")
+            .attr("font-family", "var(--font-mono)")
+            .text(d.text);
+        }
+
+        // Tangible AST Lease Under-ribbon (Physical Side Effect)
+        if (d.lease) {
+          el.append("rect")
+            .attr("x", x)
+            .attr("y", y + 22)
+            .attr("width", Math.max(w, 2))
+            .attr("height", 4)
+            .attr("rx", 1)
+            .attr("fill", d.type === "conflict" ? "var(--accent-rose)" : (d.type === "fenced" ? "var(--accent-amber)" : "var(--accent-emerald)"))
+            .attr("opacity", 0.9);
+        }
+      });
+
+    // Synchronized Vertical Playhead Needle on Horizon 2
+    const h2Needle = h2G.append("line")
+      .attr("class", "playhead-needle")
+      .attr("y1", 0)
+      .attr("y2", h2Height)
+      .attr("stroke", "var(--accent-cyan)")
+      .attr("stroke-width", 1.5)
+      .attr("pointer-events", "none");
+
+    // Interaction Scrubber Plane
+    h2G.append("rect")
+      .attr("width", h2Width)
+      .attr("height", h2Height)
+      .attr("fill", "transparent")
+      .style("cursor", "crosshair")
+      .on("mousemove click", function(event) {
+        const [mx] = d3.pointer(event);
+        const ep = Math.max(0, Math.min(4, h2X.invert(mx)));
+        setEpoch(ep);
+      });
+
+    h1G.append("rect")
+      .attr("width", h1Width)
+      .attr("height", h1Height)
+      .attr("fill", "transparent")
+      .style("cursor", "crosshair")
+      .on("mousemove click", function(event) {
+        const [mx] = d3.pointer(event);
+        const ep = Math.max(0, Math.min(4, h1X.invert(mx)));
+        setEpoch(ep);
+      });
+
+
+    // --- Horizon 3A: Simplicial Complex Force Simulation (D3.js) ---
+    const topoSvg = d3.select("#topology-svg-container");
+    const topoW = 460, topoH = 270;
+
+    const sim = d3.forceSimulation(swarmData.graph.nodes)
+      .force("link", d3.forceLink(swarmData.graph.links).id(d => d.id).distance(95))
+      .force("charge", d3.forceManyBody().strength(-240))
+      .force("center", d3.forceCenter(topoW / 2, topoH / 2))
+      .force("y", d3.forceY(topoH / 2).strength(0.1));
+
+    const topoG = topoSvg.append("g");
+
+    // 2-Simplices (Shaded Triangle Faces)
+    const facePaths = topoG.selectAll(".simplicial-face")
+      .data(swarmData.graph.faces)
+      .join("polygon")
+      .attr("class", "simplicial-face")
+      .attr("fill", d => d.isContested ? "rgba(244, 63, 94, 0.25)" : "rgba(56, 189, 248, 0.08)")
+      .attr("stroke", d => d.isContested ? "rgba(244, 63, 94, 0.4)" : "none");
+
+    // 1-Simplices (Edges)
+    const edgeLines = topoG.selectAll(".simplicial-edge")
+      .data(swarmData.graph.links)
+      .join("line")
+      .attr("class", "simplicial-edge")
+      .attr("stroke", d => d.isContested ? "var(--accent-rose)" : "rgba(255,255,255,0.18)")
+      .attr("stroke-width", d => d.isContested ? 3.0 : 1.5)
+      .attr("stroke-dasharray", d => d.isContested ? "none" : "none");
+
+    // 0-Simplices (Nodes / Vertices)
+    const nodeG = topoG.selectAll(".simplicial-node")
+      .data(swarmData.graph.nodes)
+      .join("g")
+      .attr("class", "simplicial-node")
+      .call(d3.drag()
+        .on("start", dragStarted)
+        .on("drag", dragged)
+        .on("end", dragEnded));
+
+    nodeG.append("circle")
+      .attr("r", 15)
+      .attr("fill", "#0f172a")
+      .attr("stroke", d => d.id === 2 ? "var(--accent-rose)" : (d.id === 1 ? "var(--accent-emerald)" : "var(--accent-cyan)"))
+      .attr("stroke-width", 2);
+
+    nodeG.append("text")
+      .attr("dy", 4)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#f8fafc")
+      .attr("font-size", "10px")
+      .attr("font-family", "var(--font-mono)")
+      .attr("font-weight", "bold")
+      .text(d => d.code);
+
+    nodeG.append("text")
+      .attr("dy", 26)
+      .attr("text-anchor", "middle")
+      .attr("fill", "var(--text-muted)")
+      .attr("font-size", "9.5px")
+      .text(d => d.name);
+
+    sim.on("tick", () => {
+      edgeLines
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+      nodeG.attr("transform", d => `translate(${d.x},${d.y})`);
+
+      facePaths.attr("points", d => {
+        const p0 = swarmData.graph.nodes[d.v[0]];
+        const p1 = swarmData.graph.nodes[d.v[1]];
+        const p2 = swarmData.graph.nodes[d.v[2]];
+        return `${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y}`;
+      });
+    });
+
+    function dragStarted(event) {
+      if (!event.active) sim.alphaTarget(0.3).restart();
+      event.subject.fx = event.subject.x;
+      event.subject.fy = event.subject.y;
+    }
+    function dragged(event) {
+      event.subject.fx = event.x;
+      event.subject.fy = event.y;
+    }
+    function dragEnded(event) {
+      if (!event.active) sim.alphaTarget(0);
+      event.subject.fx = null;
+      event.subject.fy = null;
+    }
+
+
+    // --- Dynamic Scrubber & Synchronization Engine ---
+    function setEpoch(epoch) {
+      currentEpoch = Math.max(0, Math.min(4, epoch));
+      document.getElementById("epoch-slider").value = currentEpoch;
+      document.getElementById("epoch-display").innerText = `Epoch ${currentEpoch.toFixed(1)}`;
+      document.getElementById("meta-epoch-sub").innerText = currentEpoch.toFixed(1);
+
+      // 1. Move Playhead Needles in Lockstep
+      h1Needle.attr("x1", h1X(currentEpoch)).attr("x2", h1X(currentEpoch));
+      h2Needle.attr("x1", h2X(currentEpoch)).attr("x2", h2X(currentEpoch));
+
+      // 2. Interpolate Metric Values
+      const i0 = Math.floor(currentEpoch);
+      const i1 = Math.min(4, Math.ceil(currentEpoch));
+      const factor = currentEpoch - i0;
+
+      const e0 = swarmData.epochs[i0];
+      const e1 = swarmData.epochs[i1];
+      const currentR = e0.r + (e1.r - e0.r) * factor;
+      const currentL = e0.L + (e1.L - e0.L) * factor;
+
+      // 3. Update Narrative Diagnosis Banner
+      const isAlarm = currentR > 1.0;
+      const banner = document.getElementById("diagnosis-banner");
+      const pill = document.getElementById("status-pill");
+
+      if (isAlarm) {
+        banner.className = "diagnosis-banner";
+        pill.className = "status-pill alarm";
+        pill.innerText = `E${currentEpoch.toFixed(1)} High-Curl Alarm`;
+        document.getElementById("diag-title").innerText = `⚡ EPOCH ${currentEpoch.toFixed(1)}: ${e0.title}`;
+        document.getElementById("diag-desc").innerText = `${e0.desc} Active Sheaf Residual r = ${currentR.toFixed(4)}.`;
+        document.getElementById("diag-legibility").innerText = `${currentL.toFixed(3)} (Micro-Curl Breach)`;
+      } else {
+        banner.className = "diagnosis-banner calm";
+        pill.className = "status-pill live";
+        pill.innerText = `Consensus Active`;
+        document.getElementById("diag-title").innerText = `✓ EPOCH ${currentEpoch.toFixed(1)}: ${e0.title}`;
+        document.getElementById("diag-desc").innerText = `${e0.desc} Residual r = ${currentR.toFixed(4)} (Consensus Bound).`;
+        document.getElementById("diag-legibility").innerText = `1.000 (Exact Coboundary)`;
+      }
+
+      // 4. Update Simplicial Complex Visual Tension
+      edgeLines.attr("stroke", d => {
+        if (d.isContested) {
+          return currentEpoch >= 2.0 && currentEpoch < 3.8 ? "var(--accent-rose)" : "rgba(255,255,255,0.18)";
+        }
+        return "rgba(255,255,255,0.18)";
+      }).attr("stroke-width", d => {
+        if (d.isContested && currentEpoch >= 2.0 && currentEpoch < 3.8) return 3.5;
+        return 1.5;
+      });
+
+      facePaths.attr("fill", d => {
+        if (d.isContested && currentEpoch >= 2.0 && currentEpoch < 3.8) {
+          return "rgba(244, 63, 94, 0.35)";
+        }
+        return "rgba(56, 189, 248, 0.08)";
+      });
+
+      // 5. Update Causal Arcs Opacity
+      renderCausalArcs();
+
+      // 6. Update Active AST Leases Table
+      const tbody = document.getElementById("leases-tbody");
+      tbody.innerHTML = "";
+
+      if (currentEpoch >= 1.0) {
+        const tr1 = document.createElement("tr");
+        tr1.innerHTML = `
+          <td><strong style="color: var(--accent-emerald);">v1 SecDev</strong></td>
+          <td>src/auth.ts::handleRegistration</td>
+          <td><span style="color: var(--accent-violet);">EXCLUSIVE</span></td>
+          <td>${currentEpoch >= 3.8 ? '<span style="color: var(--accent-emerald);">COMMITTED</span>' : 'ACTIVE HOLD'}</td>
+        `;
+        tbody.appendChild(tr1);
+      }
+
+      if (currentEpoch >= 2.2 && currentEpoch < 3.5) {
+        const tr2 = document.createElement("tr");
+        tr2.className = "contested-row";
+        tr2.innerHTML = `
+          <td><strong style="color: var(--accent-rose);">v2 AuthDev</strong></td>
+          <td>src/auth.ts::handleRegistration</td>
+          <td><span style="color: var(--accent-rose);">EXCLUSIVE</span></td>
+          <td>⚡ 409 CONTESTED CLASH</td>
+        `;
+        tbody.appendChild(tr2);
+      } else if (currentEpoch >= 3.5) {
+        const tr2 = document.createElement("tr");
+        tr2.className = "fenced-row";
+        tr2.innerHTML = `
+          <td>v2 AuthDev</td>
+          <td>src/auth.ts::handleRegistration</td>
+          <td>EXCLUSIVE</td>
+          <td>🛡️ CR-4 FENCED (CLAMPS APPLIED)</td>
+        `;
+        tbody.appendChild(tr2);
+      }
+
+      // 7. Update Terminal Log Focus
+      const logContainer = document.getElementById("terminal-log");
+      logContainer.innerHTML = "";
+      swarmData.logEvents.forEach(ev => {
+        const row = document.createElement("div");
+        row.className = `log-line ${Math.abs(ev.epoch - currentEpoch) < 0.3 ? 'active' : ''}`;
+        row.innerHTML = `
+          <span class="log-time">[${ev.time}]</span>
+          <span class="log-msg ${ev.type}">${ev.text}</span>
+        `;
+        logContainer.appendChild(row);
+      });
+    }
+
+    // Slider listener
+    document.getElementById("epoch-slider").addEventListener("input", e => {
+      setEpoch(parseFloat(e.target.value));
+    });
+
+    // Scrubber Buttons
+    document.getElementById("btn-start").addEventListener("click", () => setEpoch(0));
+    document.getElementById("btn-end").addEventListener("click", () => setEpoch(4));
+    document.getElementById("btn-prev").addEventListener("click", () => setEpoch(Math.max(0, currentEpoch - 0.5)));
+    document.getElementById("btn-next").addEventListener("click", () => setEpoch(Math.min(4, currentEpoch + 0.5)));
+
+    // Play/Pause Loop
+    const playBtn = document.getElementById("btn-play");
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        playBtn.innerText = "❚❚ PAUSE";
+        playBtn.className = "btn-ctrl active";
+        playTimer = setInterval(() => {
+          let next = currentEpoch + 0.05;
+          if (next > 4) next = 0;
+          setEpoch(next);
+        }, 80);
+      } else {
+        playBtn.innerText = "▶ PLAY";
+        playBtn.className = "btn-ctrl";
+        clearInterval(playTimer);
+      }
+    }
+    playBtn.addEventListener("click", togglePlay);
+
+    // Initial render
+    setEpoch(3.0);
+    togglePlay(); // Start playing immediately for lively demonstration
+  </script>
+</body>
+</html>
