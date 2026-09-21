@@ -29,6 +29,17 @@ const bookBlockValues = {
   pdblockProtocol: '007D73',
   pdblockNeutral: '363B40',
 }
+const bookBlockTokens = {
+  pdblockProof: '--book-block-proof',
+  pdblockProperty: '--book-block-property',
+  pdblockHypothesis: '--book-block-hypothesis',
+  pdblockCalculation: '--book-block-calculation',
+  pdblockInvariant: '--book-block-invariant',
+  pdblockDefinition: '--book-block-definition',
+  pdblockChecked: '--book-block-checked',
+  pdblockProtocol: '--book-block-protocol',
+  pdblockNeutral: '--book-block-neutral',
+}
 const bookBlockHelpers = [
   join(websiteRoot, '..', 'whitepaper', 'figures', 'pd-semantic-blocks.tex'),
   join(websiteRoot, 'public', 'whitepaper', 'figures', 'pd-semantic-blocks.tex'),
@@ -76,8 +87,7 @@ describe('check-figure-palette.mjs', () => {
   test('Book semantic colors have a separate exact registry and helper scope', () => {
     const css = readFileSync(realTokens, 'utf8')
     for (const [name, hex] of Object.entries(bookBlockValues)) {
-      const token = `--book-block-${name.replace(/^pdblock/, '').replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`
-      expect(css).toContain(`${token}: #${hex.toLowerCase()}`)
+      expect(css).toContain(`${bookBlockTokens[name as keyof typeof bookBlockTokens]}: #${hex.toLowerCase()}`)
     }
     expect(readFileSync(bookBlockHelpers[0], 'utf8')).toBe(readFileSync(bookBlockHelpers[1], 'utf8'))
 
@@ -94,6 +104,22 @@ describe('check-figure-palette.mjs', () => {
     for (const path of otherTex) {
       const text = readFileSync(path, 'utf8')
       for (const name of Object.keys(bookBlockValues)) expect(text).not.toMatch(new RegExp(`\\b${name}\\b`))
+    }
+  })
+
+  test('rejects an approved hue or Book role outside the exact helper files', () => {
+    const path = join(websiteRoot, 'public', 'whitepaper', 'figures', `.palette-negative-${process.pid}.tex`)
+    writeFileSync(path, [
+      '\\definecolor{pdblockProof}{HTML}{B33F35}',
+      '\\definecolor{pdblockSpeculation}{HTML}{B33F35}',
+    ].join('\n'))
+    try {
+      const { code, out } = runGuard()
+      expect(code).toBe(1)
+      expect(out).toMatch(/Book semantic role pdblockProof is outside the exact semantic-block helper files/)
+      expect(out).toMatch(/off-brand hex #B33F35/)
+    } finally {
+      rmSync(path, { force: true })
     }
   })
 
