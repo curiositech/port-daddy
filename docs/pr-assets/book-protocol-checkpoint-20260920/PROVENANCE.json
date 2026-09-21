@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "purpose": "Two exact parent-inspected page renders for protocol-only A review; evidence transport only.",
+  "repository": "curiositech/port-daddy",
+  "source_commit": "e3a4d315aef228a818c1f96bd2f5efd21fb06573",
+  "source_tree": "ff94925032f373ae53bb525b5fb7e9c6c318b1f2",
+  "source_base": "73d8ce4ec38d1f1125d32401888984a7f5ee1936",
+  "source_manifest_sha256": "7e5559e37bf49762694ef789cad3a05136d829b48e952c9ac3ea8b038d737be1",
+  "original_render_base": "6e18c80fc88e94454f3d0ac4514cd1c811efbff5",
+  "binding": "All 14 actual fixture repository input hashes match the source manifest; images match its recorded evidence hashes. No rebuild performed or claimed. Original render receipts retain their original base and validator identity.",
+  "fixture_repository_inputs_verified": 14,
+  "images": [
+    {
+      "path": "docs/pr-assets/book-protocol-checkpoint-20260920/main-open-paragraph-restored/page-7.png",
+      "source_path": ".cache/protocol-checkpoint/main-open-paragraph-restored/page-7.png",
+      "sha256": "98942f36e88750acd294a13300a9bb3e59136c8cc61954491770998458c45ec2",
+      "bytes": 173219,
+      "render_profile": "main-open-paragraph-restored",
+      "render_receipt_sha256": "f3157996f57f0c708aa577d64874e043b6418eed3b3a77997c2d01c97755772d",
+      "pdf_sha256": "3d65fb87153978a367857b828e34241b2b03da5d19e1486bf59254288fc9d84c"
+    },
+    {
+      "path": "docs/pr-assets/book-protocol-checkpoint-20260920/heros-open-paragraph-restored/page-10.png",
+      "source_path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/page-10.png",
+      "sha256": "5490bf54bf55e25881b6b33aa35323e8e9707dd27fc8334484196d54f67aee6e",
+      "bytes": 76838,
+      "render_profile": "heros-open-paragraph-restored",
+      "render_receipt_sha256": "3e5e8fa0cd1330abb6c19fc1441a981816d6ff97c16bc53bb793d412d9566fa6",
+      "pdf_sha256": "e5f005425b6b4ed133f21b44cf4e5d25467432d1730e9379a77381b20bf03e23"
+    }
+  ],
+  "publication_identity": "erichowens",
+  "publication_authority": "Existing temporary operator-scoped Book/Media/Hook personal-account exception; not GitHub App authorship or a signed App receipt.",
+  "boundaries": [
+    "No full-Book source-to-PDF binding or full-Book acceptance.",
+    "No global B typography/palette approval.",
+    "No source files changed by this evidence branch.",
+    "No runtime restart, private fonts, image edits or branch deletion."
+  ]
+}
