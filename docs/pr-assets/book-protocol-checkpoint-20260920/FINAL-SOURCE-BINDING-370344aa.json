@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "final_source_commit": "370344aa547cfdfb9a81c83747ffc079fd05a690",
+  "final_source_tree": "29a500b9206f37b779c1a4687beef6d0e33fbd1f",
+  "base": "73d8ce4ec38d1f1125d32401888984a7f5ee1936",
+  "earlier_binding_source_commit": "01a9d54387622d8b48bc1a6fe60703554499e7f8",
+  "unchanged_evidence_commit": "0ebd25b2f4ecb254b8a8adaa6637cd27421d361a",
+  "unchanged_evidence_provenance_sha256": "8862a13655aeee53fb1aa8e359da3f1bff863a502ca355da1c768884d1700d53",
+  "images": [
+    {
+      "path": "docs/pr-assets/book-protocol-checkpoint-20260920/main-open-palette-descendant/page-7.png",
+      "sha256": "cfa218154f58ccf10eec84cc864494907e038249b545ced18ba91cba67c336ef",
+      "bytes": 148009
+    },
+    {
+      "path": "docs/pr-assets/book-protocol-checkpoint-20260920/heros-open-palette-descendant/page-10.png",
+      "sha256": "60863683072dccdc25e28fe2ed096402f071161feb997ea56caa7f4652b04cfd",
+      "bytes": 67081
+    }
+  ],
+  "binding": "All 14 actual fixture input hashes and validator per profile independently match final committed source. Later guard and requirements commits change no rendered input. Earlier execution receipts and evidence remain unchanged.",
+  "owner_review": "Renewed Book owner fixture review pending; do not merge.",
+  "actual_publication_identity": "erichowens",
+  "github_app_receipt": false,
+  "boundaries": [
+    "Static protocol-only open-font proof; no full-Book or global B acceptance.",
+    "Root controls review resolution, queue admission and merge."
+  ]
+}
