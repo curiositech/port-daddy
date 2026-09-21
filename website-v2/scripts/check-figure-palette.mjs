@@ -347,7 +347,13 @@ try {
     return { ...g, hex }
   }).filter((g) => g.hex)
 
-  for (const token of Object.values(PD_TOKEN_LOCKSTEP)) {
+  // All registered inks, including Book edge inks, must clear their role
+  // floor on each page ground. The Book loop below adds its white and 2%
+  // role-field checks.
+  for (const token of [
+    ...Object.values(PD_TOKEN_LOCKSTEP),
+    ...Object.values(BOOK_BLOCK_TOKEN_LOCKSTEP),
+  ]) {
     const role = INK_ROLE[token]
     if (!role) {
       // A new ink reaching the lockstep without a declared role would otherwise
@@ -371,7 +377,7 @@ try {
 
   // The Book's semantic colors are edge-only inks. Check their full-strength
   // perimeter against the white field and the exact retained 2% field used by
-  // pd-semantic-blocks.tex, while the loop above checks the page grounds.
+  // pd-semantic-blocks.tex, in addition to the page grounds above.
   for (const token of Object.values(BOOK_BLOCK_TOKEN_LOCKSTEP)) {
     const role = INK_ROLE[token]
     if (!role) {
