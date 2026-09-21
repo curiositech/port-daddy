@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,6 +18,21 @@ const here = fileURLToPath(new URL('.', import.meta.url))
 const websiteRoot = join(here, '..')
 const guard = join(websiteRoot, 'scripts', 'check-figure-palette.mjs')
 const realTokens = join(websiteRoot, 'src', 'styles', 'tokens.semantic.css')
+const bookBlockValues = {
+  pdblockProof: 'B33F35',
+  pdblockProperty: '7048A5',
+  pdblockHypothesis: '427A26',
+  pdblockCalculation: '946000',
+  pdblockInvariant: '233A76',
+  pdblockDefinition: '3D454B',
+  pdblockChecked: '006EA0',
+  pdblockProtocol: '007D73',
+  pdblockNeutral: '363B40',
+}
+const bookBlockHelpers = [
+  join(websiteRoot, '..', 'whitepaper', 'figures', 'pd-semantic-blocks.tex'),
+  join(websiteRoot, 'public', 'whitepaper', 'figures', 'pd-semantic-blocks.tex'),
+]
 
 function runGuard(args: string[] = []) {
   const r = spawnSync('node', [guard, ...args], { cwd: websiteRoot, encoding: 'utf8' })
@@ -58,6 +73,46 @@ describe('wcag.mjs arithmetic', () => {
 })
 
 describe('check-figure-palette.mjs', () => {
+  test('Book semantic colors have a separate exact registry and helper scope', () => {
+    const css = readFileSync(realTokens, 'utf8')
+    for (const [name, hex] of Object.entries(bookBlockValues)) {
+      const token = `--book-block-${name.replace(/^pdblock/, '').replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`
+      expect(css).toContain(`${token}: #${hex.toLowerCase()}`)
+    }
+    expect(readFileSync(bookBlockHelpers[0], 'utf8')).toBe(readFileSync(bookBlockHelpers[1], 'utf8'))
+
+    const otherTex = [] as string[]
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const path = join(dir, entry)
+        if (statSync(path).isDirectory()) walk(path)
+        else if (path.endsWith('.tex') && !bookBlockHelpers.includes(path)) otherTex.push(path)
+      }
+    }
+    walk(join(websiteRoot, 'public', 'whitepaper'))
+    walk(join(websiteRoot, '..', 'whitepaper'))
+    for (const path of otherTex) {
+      const text = readFileSync(path, 'utf8')
+      for (const name of Object.keys(bookBlockValues)) expect(text).not.toMatch(new RegExp(`\\b${name}\\b`))
+    }
+  })
+
+  test('FAILS when an edge ink is paled or detached from its Book token (negative control)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-book-palette-'))
+    try {
+      const paled = readFileSync(realTokens, 'utf8').replace('--book-block-proof: #b33f35', '--book-block-proof: #d9b4af')
+      expect(paled).not.toBe(readFileSync(realTokens, 'utf8'))
+      const fixture = join(dir, 'tokens.semantic.css')
+      writeFileSync(fixture, paled)
+      const { code, out } = runGuard(['--tokens', fixture])
+      expect(code).toBe(1)
+      expect(out).toMatch(/lockstep: pdblockProof is #B33F35 in the Book registry but --book-block-proof is #D9B4AF/)
+      expect(out).toMatch(/contrast: --book-block-proof .* below the 3:1 floor for role "edge"/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   test('passes the real tree', () => {
     const { code, out } = runGuard()
     expect(out).toContain('✓ figure-palette guard')
