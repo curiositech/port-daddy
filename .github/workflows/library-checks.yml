@@ -99,7 +99,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # The protocol checkpoint tests verify ancestry to their pinned source base.
+      # Keep commit history available without downloading historical file blobs.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
 
       - uses: actions/setup-node@v4
         with:
