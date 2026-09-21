@@ -1,13 +1,13 @@
 % Presentation only. Official Lucide assets: figures/lucide/LICENSE.
 \makeatletter
-\definecolor{pdblockProof}{HTML}{673B65}
-\definecolor{pdblockProperty}{HTML}{593A82}
-\definecolor{pdblockHypothesis}{HTML}{00645D}
-\definecolor{pdblockCalculation}{HTML}{875B13}
-\definecolor{pdblockInvariant}{HTML}{245488}
-\definecolor{pdblockDefinition}{HTML}{363B40}
-\definecolor{pdblockChecked}{HTML}{375C70}
-\definecolor{pdblockProtocol}{HTML}{8C4D20}
+\definecolor{pdblockProof}{HTML}{B33F35}
+\definecolor{pdblockProperty}{HTML}{7048A5}
+\definecolor{pdblockHypothesis}{HTML}{427A26}
+\definecolor{pdblockCalculation}{HTML}{946000}
+\definecolor{pdblockInvariant}{HTML}{233A76}
+\definecolor{pdblockDefinition}{HTML}{3D454B}
+\definecolor{pdblockChecked}{HTML}{006EA0}
+\definecolor{pdblockProtocol}{HTML}{007D73}
 \definecolor{pdblockNeutral}{HTML}{363B40}
 \newcommand{\pdblockfamily}[1]{%
   \def\pdblock@family{#1}%
@@ -33,10 +33,12 @@
   \edef\pdblock@expanded{#1}\expandafter\pdblockfamily\expandafter{\pdblock@expanded}%
   \raisebox{-2.2pt}{\includegraphics[width=12pt,height=12pt]{figures/lucide/\pdblock@icon.pdf}}%
   \endgroup\hspace{.45em}}
-% Every split segment keeps a full thin perimeter. The colored upper-left cap
+% Every split segment keeps a full-strength 0.5pt perimeter for the Book inks.
+% The retained 2% field and corner geometry are specific to this protocol slice.
+% The colored upper-left cap
 % is longer than its upright; the lower-right upright is longer than its cap.
 \newcommand{\pdblock@frame}{%
-  \draw[draw=\pdblock@color!65!white,line width=.45pt]
+  \draw[draw=\pdblock@color,line width=.5pt]
     (frame.south west) rectangle (frame.north east);
   \fill[\pdblock@color] (frame.north west) rectangle
     ([xshift=32pt,yshift=-3pt]frame.north west);
