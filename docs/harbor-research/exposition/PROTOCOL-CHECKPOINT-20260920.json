@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "scope": "Option A: parent-approved protocol-only immutable source checkpoint; review-PR publication pending",
+  "scope": "Option A: protocol-only palette/perimeter descendant; renewed owner fixture review pending; steward owns publication",
   "base_commit": "73d8ce4ec38d1f1125d32401888984a7f5ee1936",
   "branch": "codex/book-protocol-checkpoint-20260920",
-  "helper_freeze_sha256": "a34ac91f4a56cf54694e0677a4f57e143ea09a65a300de0d64875f21bb0452a8",
+  "helper_freeze_sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
   "upstream_icons": {
     "repository": "https://github.com/lucide-icons/lucide",
     "commit": "951813ce76a859d4d8b145366972cbb237147a4e",
@@ -33,8 +33,8 @@
     },
     {
       "path": "docs/harbor-research/exposition/PROTOCOL-CHECKPOINT-20260920.md",
-      "sha256": "f27096da8ce4423fe099c84542a69c5d83f5e0567bd343afa76794ed5163d4ea",
-      "bytes": 15914,
+      "sha256": "b01d2710c4b789a65551eb2e9af247d37de19fad4ba27f8b753dc0baaafb0d57",
+      "bytes": 21551,
       "change": "new"
     },
     {
@@ -57,8 +57,8 @@
     },
     {
       "path": "tests/harbor-research/test_protocol_style.py",
-      "sha256": "7e590610fb1b2b2514c5980606c7ef47d12c8aead6e4cb66ef263c3a4e41cba5",
-      "bytes": 24318,
+      "sha256": "33d76a0499ea567ea5614f57422192467bf13e813c68c603d4cb1ac663a7f40b",
+      "bytes": 26469,
       "change": "new"
     },
     {
@@ -201,8 +201,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",
-      "sha256": "a34ac91f4a56cf54694e0677a4f57e143ea09a65a300de0d64875f21bb0452a8",
-      "bytes": 3843,
+      "sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
+      "bytes": 3944,
       "change": "new"
     },
     {
@@ -339,8 +339,8 @@
     },
     {
       "path": "whitepaper/figures/pd-semantic-blocks.tex",
-      "sha256": "a34ac91f4a56cf54694e0677a4f57e143ea09a65a300de0d64875f21bb0452a8",
-      "bytes": 3843,
+      "sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
+      "bytes": 3944,
       "change": "new"
     }
   ],
@@ -407,8 +407,8 @@
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex",
-      "sha256": "a34ac91f4a56cf54694e0677a4f57e143ea09a65a300de0d64875f21bb0452a8",
-      "bytes": 3843
+      "sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
+      "bytes": 3944
     },
     {
       "path": "website-v2/public/whitepaper/figures/pd-textbook-map.tex",
@@ -536,182 +536,428 @@
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/protocol-style.pdf",
       "sha256": "3d65fb87153978a367857b828e34241b2b03da5d19e1486bf59254288fc9d84c",
-      "bytes": 35894
+      "bytes": 35894,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/protocol-style.aux",
       "sha256": "762d849d0ec720fce189eeb445518547df5ca7abc5f28cc3b37bba64d4321ef4",
-      "bytes": 4556
+      "bytes": 4556,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/protocol-style.log",
       "sha256": "f7a0144c749900a1fbd69bf19b54117965a826ca9458ca82aee496c07d39319e",
-      "bytes": 80417
+      "bytes": 80417,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/fonts.txt",
       "sha256": "471825880841f668f81a76520764fe3d24592d8c82e62b6a1d5216f5babfa7d9",
-      "bytes": 481
+      "bytes": 481,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/destinations.txt",
       "sha256": "0267749b8b24a4baea9ff46a260bfde5e85bfaa357e465ee596e4ffd5967df0e",
-      "bytes": 2027
+      "bytes": 2027,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/receipt.json",
       "sha256": "f3157996f57f0c708aa577d64874e043b6418eed3b3a77997c2d01c97755772d",
-      "bytes": 5423
+      "bytes": 5423,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/inputs.mk",
       "sha256": "90931ce62420cfd0804c21c175e910fbc9821e13d423e69650d79a67acd1ba66",
-      "bytes": 2470
+      "bytes": 2470,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/text.txt",
       "sha256": "24bc3ef7fae730a792ea659a6ffef7debce29f86737c5dc423c22b17b9e6f243",
-      "bytes": 16618
+      "bytes": 16618,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/heading-layout.json",
       "sha256": "0bc706680bc061d484807797d28b7ec9e18561ecb4f4db4b0eb4f8fe03654eff",
-      "bytes": 1921
+      "bytes": 1921,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/list-layout.json",
       "sha256": "8bf21107f7b956861d10ae1cff24a64e4e8910f7ef51a8a3e73b43924d5f55a3",
-      "bytes": 1966
+      "bytes": 1966,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/ordinary-layout.json",
       "sha256": "a388ab6da379a2972a755e8a22508c798654b7aca5c7a4143380b074c9ca98bc",
-      "bytes": 320
+      "bytes": 320,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/page-1.png",
       "sha256": "af7a790de69276f61e350169dca449a114061dfefb9861021bb64cb867c4ca71",
-      "bytes": 167541
+      "bytes": 167541,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/page-2.png",
       "sha256": "bbce698ecb001e037852397b20b4214b8771703ca7caba58f5a2b33254e0d63b",
-      "bytes": 390838
+      "bytes": 390838,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/page-3.png",
       "sha256": "2c3eb93db4a68a6dc99ff702d20f68825f23dbfe2623618c03ece89a9a46287a",
-      "bytes": 358853
+      "bytes": 358853,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/page-6.png",
       "sha256": "b2ad7a28158727a55043d001b02ec67f0a162270df9b4dccf786da7d1fb075f0",
-      "bytes": 215632
+      "bytes": 215632,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/page-7.png",
       "sha256": "98942f36e88750acd294a13300a9bb3e59136c8cc61954491770998458c45ec2",
-      "bytes": 173219
+      "bytes": 173219,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/main-open-paragraph-restored/page-8.png",
       "sha256": "5af986c87c1a45b7c14b9441923ae9cab5829e17866ded467a05749dba68b8b7",
-      "bytes": 44125
+      "bytes": 44125,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/protocol-style.pdf",
       "sha256": "e5f005425b6b4ed133f21b44cf4e5d25467432d1730e9379a77381b20bf03e23",
-      "bytes": 31839
+      "bytes": 31839,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/protocol-style.aux",
       "sha256": "b1ba791e67c401fc793ee18acf071d5787dff1c527258f8a5d8b465d773b86a6",
-      "bytes": 4569
+      "bytes": 4569,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/protocol-style.log",
       "sha256": "2c1c393ad63979bd912d0361714ae29816dbffecd542d1caf8b352eb7944a7bb",
-      "bytes": 83397
+      "bytes": 83397,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/fonts.txt",
       "sha256": "3b06b897962bb3dce006e3bfeb9dce827314761c6239747eec2477dc0e0e589e",
-      "bytes": 473
+      "bytes": 473,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/destinations.txt",
       "sha256": "3af84f6db311b69561eef5b949ea9c23090dfbf6f29b98fa34808ef94399f643",
-      "bytes": 2112
+      "bytes": 2112,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/receipt.json",
       "sha256": "3e5e8fa0cd1330abb6c19fc1441a981816d6ff97c16bc53bb793d412d9566fa6",
-      "bytes": 5431
+      "bytes": 5431,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/inputs.mk",
       "sha256": "f915662023ad81291f42167193b8d87b5f803078ad419aed1266bb0681f2ffd5",
-      "bytes": 2475
+      "bytes": 2475,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/text.txt",
       "sha256": "c459ad09faed7c03da32ebbe79be2c2d84e2ed683ef277693e6dbb4935015ecb",
-      "bytes": 16511
+      "bytes": 16511,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/heading-layout.json",
       "sha256": "aa7d8b115258df400117adc285fa67e3c5ac07ca23f8fbf5ac2a8d74934a346e",
-      "bytes": 1926
+      "bytes": 1926,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/list-layout.json",
       "sha256": "c9e75b0944b31a6875027d4646908172a945aa30d14be53806b5cacef30b570d",
-      "bytes": 1977
+      "bytes": 1977,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/ordinary-layout.json",
       "sha256": "e5af9e112de7d01f3e21516842e5762fd4b9b70fd1c4ff1e2b6776d817be9374",
-      "bytes": 324
+      "bytes": 324,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/page-1.png",
       "sha256": "31f5fe486aa7703c4806fb460346e947c80a340a42dde711b536ca3d44d671a0",
-      "bytes": 146094
+      "bytes": 146094,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/page-8.png",
       "sha256": "fc6f57ca103ca3503d5ed8e0f48a1e39506b3eac205b867db2409214394993db",
-      "bytes": 63811
+      "bytes": 63811,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/page-9.png",
       "sha256": "e8e50fbe38267d8215deeb73a1d559a1868c9428bd3f7bf1a03dfe0f30decc6e",
-      "bytes": 132382
+      "bytes": 132382,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/heros-open-paragraph-restored/page-10.png",
       "sha256": "5490bf54bf55e25881b6b33aa35323e8e9707dd27fc8334484196d54f67aee6e",
-      "bytes": 76838
+      "bytes": 76838,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/newline-list-negative/protocol-style.pdf",
       "sha256": "007f3f793f7f12671522a1d12942ded172060b769176ebd696caeafdd9ddb06f",
-      "bytes": 35011
+      "bytes": 35011,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/newline-list-negative/protocol-style.log",
       "sha256": "c803e3cb9e501760d45fd161ab7a4efae57da6d63c152c16f1deb9304f8987d0",
-      "bytes": 80169
+      "bytes": 80169,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/newline-list-negative/page-7.png",
       "sha256": "bd3a526ef16bfc1838e2f53cda5220c4d85135ed93c06dfe41b9c27132b5da55",
-      "bytes": 176591
+      "bytes": 176591,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
     },
     {
       "path": ".cache/protocol-checkpoint/newline-list-negative/negative-result.json",
       "sha256": "1701e3d453c5c2936fb6cc14db38a2c426e59f57d9c9e1601dec6d2d0c5383be",
-      "bytes": 497
+      "bytes": 497,
+      "status": "historical preserved paragraph proof or negative control; not current palette render"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/protocol-style.pdf",
+      "sha256": "415aa66db88e3111a8ed792ce638d1215b66d5473f490e245da4ece84a62e5b7",
+      "bytes": 35786,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/protocol-style.aux",
+      "sha256": "762d849d0ec720fce189eeb445518547df5ca7abc5f28cc3b37bba64d4321ef4",
+      "bytes": 4556,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/protocol-style.log",
+      "sha256": "ff2eb74fbf53797c4117ba39c5711b22a685021b1674908366fddb658594f9e4",
+      "bytes": 80417,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/fonts.txt",
+      "sha256": "471825880841f668f81a76520764fe3d24592d8c82e62b6a1d5216f5babfa7d9",
+      "bytes": 481,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/destinations.txt",
+      "sha256": "0267749b8b24a4baea9ff46a260bfde5e85bfaa357e465ee596e4ffd5967df0e",
+      "bytes": 2027,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/text.txt",
+      "sha256": "24bc3ef7fae730a792ea659a6ffef7debce29f86737c5dc423c22b17b9e6f243",
+      "bytes": 16618,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/inputs.mk",
+      "sha256": "588ec5e04c188dd1921f87b411e87612dae6bb35859147a1e74573492b02b2f9",
+      "bytes": 2470,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/heading-layout.json",
+      "sha256": "0bc706680bc061d484807797d28b7ec9e18561ecb4f4db4b0eb4f8fe03654eff",
+      "bytes": 1921,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/list-layout.json",
+      "sha256": "8bf21107f7b956861d10ae1cff24a64e4e8910f7ef51a8a3e73b43924d5f55a3",
+      "bytes": 1966,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/ordinary-layout.json",
+      "sha256": "a388ab6da379a2972a755e8a22508c798654b7aca5c7a4143380b074c9ca98bc",
+      "bytes": 320,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/receipt.json",
+      "sha256": "ec85d7c96f905af05becf7365b87b946b306c1cb5f89f59cece49516ae2804e6",
+      "bytes": 5423,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-1.png",
+      "sha256": "fc2cdc3ea4812779ceb01e506f6d759f8dcd532075d51646d1b9ca3ec0bf1e98",
+      "bytes": 145402,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-2.png",
+      "sha256": "1b98e29c7010afb892f7fe714ce329ca8c6158081f579be067eda6b0b77e3672",
+      "bytes": 326960,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-3.png",
+      "sha256": "1d0a7d28b2c57a37a749024ac5d36238c42b17e1bab6e4f4aa6008bd75c5f735",
+      "bytes": 297971,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-6.png",
+      "sha256": "187127906b701d92a74902f5a0126641a970373b6bbb0a305b0f507f6ba0b5a9",
+      "bytes": 183360,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-7.png",
+      "sha256": "cfa218154f58ccf10eec84cc864494907e038249b545ced18ba91cba67c336ef",
+      "bytes": 148009,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-8.png",
+      "sha256": "c9e97ce26977944ffdf3489a05ba3aa7f8d05edb597d4f974e18b9cb258d139d",
+      "bytes": 40576,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/protocol-style.pdf",
+      "sha256": "41245c9c2d3b6dcdff2afb3a7464ceb59bf7dadd4c1317fb4054eedf0ef4d47c",
+      "bytes": 31703,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/protocol-style.aux",
+      "sha256": "b1ba791e67c401fc793ee18acf071d5787dff1c527258f8a5d8b465d773b86a6",
+      "bytes": 4569,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/protocol-style.log",
+      "sha256": "236b21a9f054cfbdd13ff1ab02a871f0291866a5d06e152cbc3d1486e5bed788",
+      "bytes": 83397,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/fonts.txt",
+      "sha256": "3b06b897962bb3dce006e3bfeb9dce827314761c6239747eec2477dc0e0e589e",
+      "bytes": 473,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/destinations.txt",
+      "sha256": "3af84f6db311b69561eef5b949ea9c23090dfbf6f29b98fa34808ef94399f643",
+      "bytes": 2112,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/text.txt",
+      "sha256": "c459ad09faed7c03da32ebbe79be2c2d84e2ed683ef277693e6dbb4935015ecb",
+      "bytes": 16511,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/inputs.mk",
+      "sha256": "fa504e4024e57c840fac1e3229e2cec2d7c98a4ab23e981e783dc7a02b7a5764",
+      "bytes": 2475,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/heading-layout.json",
+      "sha256": "aa7d8b115258df400117adc285fa67e3c5ac07ca23f8fbf5ac2a8d74934a346e",
+      "bytes": 1926,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/list-layout.json",
+      "sha256": "c9e75b0944b31a6875027d4646908172a945aa30d14be53806b5cacef30b570d",
+      "bytes": 1977,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/ordinary-layout.json",
+      "sha256": "e5af9e112de7d01f3e21516842e5762fd4b9b70fd1c4ff1e2b6776d817be9374",
+      "bytes": 324,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/receipt.json",
+      "sha256": "12ae6b5504d9499cc3def9bc4dd150eb0d235c863a6cfd6bccbf529c5290298f",
+      "bytes": 5431,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-1.png",
+      "sha256": "021d10e4177f06916aa8dfafee7bce28860ee00d3ea049b6ba36f6b01022dbea",
+      "bytes": 124904,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-8.png",
+      "sha256": "5626e8899de89d6074d6831bd5636906eba84e2cbf4049785ea7dc24341a9ff4",
+      "bytes": 59827,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-9.png",
+      "sha256": "1b9d3e6e8d3ccf37cd4eaba6cd1e5ea2ce03c9c88e07f32dca0ebb5f2d3a1754",
+      "bytes": 113212,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-10.png",
+      "sha256": "60863683072dccdc25e28fe2ed096402f071161feb997ea56caa7f4652b04cfd",
+      "bytes": 67081,
+      "status": "current palette descendant fixture"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/palette-review-7320777/comparison.json",
+      "sha256": "c59e7fb6a6e15ec6147f889b23b8b4a3e96d177fb3ef708fd0cdcfcfeba029b4",
+      "bytes": 4760,
+      "status": "current palette descendant review"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/palette-review-7320777/design-evidence.md",
+      "sha256": "b2d2355eaaa35547cf87b18e3681a274670d71215d01795bb17139fe53e480a4",
+      "bytes": 13758,
+      "status": "current palette descendant review"
+    },
+    {
+      "path": ".cache/protocol-checkpoint/palette-review-7320777/full-harbor-tests.log",
+      "sha256": "6565cc56a394be742ca29809ccca9bb5f1605737203c430930400032d395efb0",
+      "bytes": 656,
+      "status": "current palette descendant affected library tests"
     }
   ],
   "exclusions": [
@@ -734,10 +980,10 @@
       "stpprotocol"
     ],
     "evidence": "Each profile: 18 true paragraph-entry checks, 10 prose and 8 actual list-marker/body geometry checks, 17 scope-restoration checks, 3 unchanged ordinary-family controls and exactly 18 protocol glyphs; old newline PDF is rejected.",
-    "integration": "User owns B global headings/colors. Merge selected protocol hunks, not the entire preamble; avoid double-ending headings where B already has a global hook. Preserve counters/title APIs and font group. No global theorem/proof patch in A; helper unchanged.",
-    "helper_unchanged": true,
+    "integration": "Protocol-local heading implementation unchanged. Owner-approved nine-ink palette and full-strength 0.5pt perimeter retain A corner geometry and 2% field. Do not import global B headings, role-specific edges or padding; reconcile selected protocol hooks once.",
+    "helper_unchanged": false,
     "implementation": "Environment-group-local one-heading append to active amsthm/nameref entry for protocol/heprotocol, with immediate restoration of both entry and heading renderer before body; custom wrappers share protocol-only paragraph end.",
-    "remaining_limit": "Parent approved bounded A source commit, not B/global styling or full-Book acceptance. Steward review-PR publication pending; cached TeX bundle bytes not independently pinned."
+    "remaining_limit": "Historical A source approval is preserved; fresh palette fixtures await renewed owner review. No full-Book acceptance or source-to-Book binding."
   },
   "base_refresh": {
     "previous_base_commit": "d684f03e7e55e8b6a6b25c67fe7272e47ac8b853",
@@ -922,5 +1168,171 @@
     "publication": "Steward-owned authorized GitHub App/Fleetbot publish operation; source package is not a grant or publication receipt",
     "integration": "B must reconcile overlapping heading termination, not install a second paragraph-end hook; no whole-preamble copyback",
     "source_to_full_book_binding": false
+  },
+  "palette_descendant": {
+    "approved_source_commit": "e3a4d315aef228a818c1f96bd2f5efd21fb06573",
+    "parent_commit": "fd6963b2c5676a83ea82f251ed295f395e3fa983",
+    "scope_authorization": "Book owner confirmation relayed by steward: nine inks and full-strength 0.5pt perimeter, retaining A corners and 2% field",
+    "renewed_fixture_acceptance": "pending owner review",
+    "old_helper_sha256": "a34ac91f4a56cf54694e0677a4f57e143ea09a65a300de0d64875f21bb0452a8",
+    "helper_sha256": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
+    "source_test_count": 12,
+    "unchanged_repository_tex_inputs": 13,
+    "contrast_srgb_against_2_percent_field": {
+      "Proof": 5.546372069547996,
+      "Property": 6.459396134281759,
+      "Hypothesis": 5.061431728568084,
+      "Calculation": 5.2009917965858925,
+      "Invariant": 10.474358306676194,
+      "Definition": 9.454072236028884,
+      "Checked": 5.462160834394085,
+      "Protocol": 4.889673382946748,
+      "Neutral": 10.937543267761194
+    },
+    "contrast_limit": "Computed source sRGB; no print/CVD/accessibility certification",
+    "profiles": [
+      {
+        "profile": "main-open",
+        "pages": 8,
+        "pdf_sha256": "415aa66db88e3111a8ed792ce638d1215b66d5473f490e245da4ece84a62e5b7",
+        "text_and_word_geometry_identical": true,
+        "path_geometry_identical": true,
+        "drawing_count": 190,
+        "vector_style_changed_pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "pngs": [
+          {
+            "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-1.png",
+            "sha256": "fc2cdc3ea4812779ceb01e506f6d759f8dcd532075d51646d1b9ca3ec0bf1e98",
+            "bytes": 145402
+          },
+          {
+            "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-2.png",
+            "sha256": "1b98e29c7010afb892f7fe714ce329ca8c6158081f579be067eda6b0b77e3672",
+            "bytes": 326960
+          },
+          {
+            "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-3.png",
+            "sha256": "1d0a7d28b2c57a37a749024ac5d36238c42b17e1bab6e4f4aa6008bd75c5f735",
+            "bytes": 297971
+          },
+          {
+            "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-6.png",
+            "sha256": "187127906b701d92a74902f5a0126641a970373b6bbb0a305b0f507f6ba0b5a9",
+            "bytes": 183360
+          },
+          {
+            "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-7.png",
+            "sha256": "cfa218154f58ccf10eec84cc864494907e038249b545ced18ba91cba67c336ef",
+            "bytes": 148009
+          },
+          {
+            "path": ".cache/protocol-checkpoint/main-open-palette-descendant/page-8.png",
+            "sha256": "c9e97ce26977944ffdf3489a05ba3aa7f8d05edb597d4f974e18b9cb258d139d",
+            "bytes": 40576
+          }
+        ],
+        "receipt": ".cache/protocol-checkpoint/main-open-palette-descendant/receipt.json",
+        "inspected_png_pages": [
+          1,
+          2,
+          3,
+          6,
+          7,
+          8
+        ],
+        "visual_review": "Page-scale PNGs inspected: complete stronger teal perimeter, retained corner cues, separate headings/list markers, ordinary unframed controls. No full-Book or all-role render claim.",
+        "rendered_complete_full_strength_perimeters": 22,
+        "perimeter_width_pdf_pt": 0.49814000725746155,
+        "perimeter_stroke_rgb": [
+          0.0,
+          0.490200012922287,
+          0.45096999406814575
+        ]
+      },
+      {
+        "profile": "heros-open",
+        "pages": 10,
+        "pdf_sha256": "41245c9c2d3b6dcdff2afb3a7464ceb59bf7dadd4c1317fb4054eedf0ef4d47c",
+        "text_and_word_geometry_identical": true,
+        "path_geometry_identical": true,
+        "drawing_count": 202,
+        "vector_style_changed_pages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "pngs": [
+          {
+            "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-1.png",
+            "sha256": "021d10e4177f06916aa8dfafee7bce28860ee00d3ea049b6ba36f6b01022dbea",
+            "bytes": 124904
+          },
+          {
+            "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-8.png",
+            "sha256": "5626e8899de89d6074d6831bd5636906eba84e2cbf4049785ea7dc24341a9ff4",
+            "bytes": 59827
+          },
+          {
+            "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-9.png",
+            "sha256": "1b9d3e6e8d3ccf37cd4eaba6cd1e5ea2ce03c9c88e07f32dca0ebb5f2d3a1754",
+            "bytes": 113212
+          },
+          {
+            "path": ".cache/protocol-checkpoint/heros-open-palette-descendant/page-10.png",
+            "sha256": "60863683072dccdc25e28fe2ed096402f071161feb997ea56caa7f4652b04cfd",
+            "bytes": 67081
+          }
+        ],
+        "receipt": ".cache/protocol-checkpoint/heros-open-palette-descendant/receipt.json",
+        "inspected_png_pages": [
+          1,
+          8,
+          9,
+          10
+        ],
+        "visual_review": "Page-scale PNGs inspected: complete stronger teal perimeter, retained corner cues, separate headings/list markers, ordinary unframed controls. No full-Book or all-role render claim.",
+        "rendered_complete_full_strength_perimeters": 24,
+        "perimeter_width_pdf_pt": 0.49814000725746155,
+        "perimeter_stroke_rgb": [
+          0.0,
+          0.490200012922287,
+          0.45096999406814575
+        ]
+      }
+    ],
+    "historical_evidence_files_preserved": 36,
+    "new_evidence_files": 35,
+    "before_snapshots": ".cache/protocol-checkpoint/palette-review-7320777/before",
+    "render_binding": "Fresh receipts retain parent source_head with actual uncommitted input and validator hashes. External descendant receipt binds exact committed inputs after commit; execution receipts are not relabeled.",
+    "not_imported": [
+      "B role-specific edges",
+      "B wider padding",
+      "B 6% field",
+      "B global headings",
+      "B manuscript or full Book PDF"
+    ],
+    "palette_guard_integration": "Separate four-file guard/registry parent fd6963b2c5676a83ea82f251ed295f395e3fa983 preserved; integrated figure-palette guard passed",
+    "render_parent_commit": "7320777afe25a5e49cf9133c323c6be20e70dfff",
+    "affected_library_tests": {
+      "count": 456,
+      "passed": true,
+      "log": ".cache/protocol-checkpoint/palette-review-7320777/full-harbor-tests.log"
+    }
   }
 }

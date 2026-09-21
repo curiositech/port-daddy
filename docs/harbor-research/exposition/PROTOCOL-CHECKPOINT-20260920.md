@@ -1,4 +1,106 @@
-# Protocol-only checkpoint — approved source freeze
+# Protocol-only checkpoint — palette descendant for renewed review
+
+The Book owner confirmed the nine Book-specific inks and the minimal contrast
+correction for A: a full-strength 0.5pt complete perimeter. This descendant keeps
+A's asymmetric corner geometry, 2% field, hidden-frame metric, padding, and all
+protocol-local heading behavior. Fresh fixture acceptance remains pending owner
+review; this receipt does not approve or publish the whole Book.
+
+The historical approved source commit is
+`e3a4d315aef228a818c1f96bd2f5efd21fb06573`.
+The palette change is prepared atop its CI-only descendant
+`7320777afe25a5e49cf9133c323c6be20e70dfff`, preserving both commits. The separately owned four-file palette guard commit
+`fd6963b2c5676a83ea82f251ed295f395e3fa983` is the immediate parent of this
+five-file palette descendant.
+Only the two helper mirrors, focused validator, this handoff, and its JSON
+manifest change in this palette slice. Palette guard/registry integration is
+owned separately by the steward; no such files are included in this slice.
+
+## Current palette and contrast evidence
+
+Both helper mirrors have SHA-256
+`625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd`.
+Source sRGB contrast is computed against each actual `ink!2!white` field:
+
+| Role | Ink | Full-strength edge / field |
+| --- | --- | --- |
+| Proof | `B33F35` | 5.5464:1 |
+| Property | `7048A5` | 6.4594:1 |
+| Hypothesis | `427A26` | 5.0614:1 |
+| Calculation | `946000` | 5.2010:1 |
+| Invariant | `233A76` | 10.4744:1 |
+| Definition | `3D454B` | 9.4541:1 |
+| Checked | `006EA0` | 5.4622:1 |
+| Protocol | `007D73` | 4.8897:1 |
+| Neutral | `363B40` | 10.9375:1 |
+
+The new source tests enforce a 3:1 edge/field floor and reject the old 65%-tinted
+perimeter, a 6% field import, and an old ink substitution. Six roles would fall
+below 3:1 with the old tinted perimeter. These are computed sRGB values, not
+print, CVD, accessibility, or scientific certification. Explicit labels and
+Lucide icons remain; only Protocol is activated by the protocol-only fixture.
+The nine-role map is source-checked, not a claim that every role was rendered.
+
+Read-only design provenance is the owner's
+`BOOK-BLOCK-COLOR-EDGE-STUDIES-20260920.md` in the separate canonical worktree.
+A hashed snapshot is retained locally as `palette-review-7320777/design-evidence.md`.
+A does not import B's role-specific edges, wider padding, 6% field, global
+heading machinery, or manuscript. The visible overlay becomes 0.5pt; the hidden
+`boxrule=.45pt` metric remains unchanged to preserve A's layout.
+
+## Fresh protocol fixtures
+
+Twelve focused source tests and all 456 affected library tests pass. The
+integrated figure-palette guard passes. Both open-font profiles were rebuilt with
+cache-only, untrusted Tectonic and three TeX passes into fresh directories:
+
+| Profile | Pages | PDF SHA-256 |
+| --- | --- | --- |
+| main-open | 8 | `415aa66db88e3111a8ed792ce638d1215b66d5473f490e245da4ece84a62e5b7` |
+| heros-open | 10 | `41245c9c2d3b6dcdff2afb3a7464ceb59bf7dadd4c1317fb4054eedf0ef4d47c` |
+
+Directories under `.cache/protocol-checkpoint/` are
+`main-open-palette-descendant/` and `heros-open-palette-descendant/`.
+Every profile passes 18 paragraph-entry checks, 10 prose-heading and eight
+list-marker/body checks, 17 scope restorations, 23 labels/destinations, three
+ordinary-family controls, and the exact count of 18 protocol glyphs. No
+undefined references, multiply defined labels, missing characters, or overfull
+boxes occur. Baseline font/geometry warnings remain recorded in the logs.
+
+Page-scale 150-dpi PNGs were inspected: main pages 1, 2, 3, 6, 7, 8 and Heros
+pages 1, 8, 9, 10. Stronger teal perimeters enclose every split segment, and the
+heading/list markers remain separate. Compared with the preserved paragraph
+proofs, all 18 pages retain exact extracted words and coordinates, path geometry,
+page sizes/counts, AUX references, destinations, and heading/list/ordinary
+geometry records. Only vector styling changes; 190 main-profile and 202 Heros
+vector drawing records were compared. The ordinary theorem/proof controls
+remain unframed. PDF vector inspection confirms 22 / 24 closed teal perimeters
+at 0.49814 PDF points (0.5 TeX pt). This comparison is not a full-Book acceptance
+claim.
+
+Each fresh receipt binds all 14 actual repository input hashes and the validator
+before and after compilation. Its `source_head` is the pre-commit parent
+`7320777afe25a5e49cf9133c323c6be20e70dfff`; the palette/helper and validator were
+uncommitted during rendering, and the actual recorded hashes bind their bytes.
+The final external descendant receipt will bind those bytes to the new commit
+without rewriting these execution receipts. Thirteen TeX inputs are unchanged;
+only the shared helper input changes. The preamble, fixture, icons, and licenses
+remain byte-identical. Cached TeX bundle bytes are not independently pinned.
+
+The JSON manifest retains all 36 old evidence entries, labeled historical, and
+adds fresh render/PNG/comparison evidence. The before snapshots live in
+`.cache/protocol-checkpoint/palette-review-7320777/before/`. Earlier approval and
+render receipts remain intact. The external handoff records commit/tree after
+commit to avoid self-reference. No push, PR update, or renewed owner acceptance
+is claimed by this implementation receipt.
+
+## Historical approved source checkpoint (e3a4d315)
+
+Everything below records the earlier e3 source freeze, its old helper palette,
+old renders, and approval boundaries as they stood at that checkpoint. Current
+palette/input/evidence claims are the descendant entries above and in the JSON
+`palette_descendant` section. Historical receipts are not relabeled.
+
 
 **Parent approved the bounded A paragraph/list implementation for an immutable
 source checkpoint, not global B or full-Book acceptance.** Parent reviewed the

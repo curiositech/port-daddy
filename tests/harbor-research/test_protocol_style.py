@@ -21,7 +21,8 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 PUB = Path("website-v2/public/whitepaper")
 PREAMBLE = PUB / "coordination-papers-mega-volume-preamble.tex"
-HELPER_SHA = "a34ac91f4a56cf54694e0677a4f57e143ea09a65a300de0d64875f21bb0452a8"
+HELPER_SHA = "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd"
+BLOCK_INKS = {'Proof': 'B33F35', 'Property': '7048A5', 'Hypothesis': '427A26', 'Calculation': '946000', 'Invariant': '233A76', 'Definition': '3D454B', 'Checked': '006EA0', 'Protocol': '007D73', 'Neutral': '363B40'}
 ICONS = ("book-open", "calculator", "file-text", "flask-conical", "key-round",
          "list-checks", "lock-keyhole", "scroll-text", "workflow")
 LABELS = {
@@ -98,6 +99,28 @@ def protocol_contract(source: str) -> None:
     assert r"\pdblockafter{Protocol}" in block
     assert r"\small\pdprotocolheadingend" in block
     assert "minipage" not in block and "tikzpicture" not in block
+
+
+def block_edge_contrast(source: str) -> dict:
+    """Audit source sRGB inks against A's actual 2% field, not print output."""
+    inks = dict(re.findall(r"\\definecolor\{pdblock(\w+)\}\{HTML\}\{([A-F0-9]{6})\}", source))
+    assert inks == BLOCK_INKS
+    assert r"\draw[draw=\pdblock@color,line width=.5pt]" in source
+    assert r"colback=\pdblock@color!2!white" in source
+
+    def luminance(rgb):
+        linear = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+                  for v in rgb]
+        return sum(v * weight for v, weight in zip(linear, (0.2126, 0.7152, 0.0722)))
+
+    result = {}
+    for role, ink in inks.items():
+        rgb = [int(ink[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        field = [0.02 * v + 0.98 for v in rgb]  # xcolor ink!2!white
+        ratio = (luminance(field) + 0.05) / (luminance(rgb) + 0.05)
+        assert ratio >= 3.0, (role, "edge/field contrast below 3:1", ratio)
+        result[role] = ratio
+    return result
 
 
 def pdf_words(bbox: str) -> list:
@@ -244,6 +267,25 @@ class ProtocolSourceTests(unittest.TestCase):
         self.assertEqual(set(re.findall(r"\\def\\pdblock@icon\{([^}]+)\}", text)), set(ICONS))
         for segment in ("unbroken", "first", "middle", "last"):
             self.assertIn("overlay " + segment + r"={\pdblock@frame}", text)
+
+    def test_block_inks_and_full_strength_edges_match_retained_field(self):
+        source = (ROOT / PUB / "figures/pd-semantic-blocks.tex").read_text()
+        contrast = block_edge_contrast(source)
+        self.assertEqual(len(contrast), 9)
+        self.assertAlmostEqual(contrast["Protocol"], 4.889673382946748)
+
+    def test_block_contract_rejects_tinted_edges_or_broad_book_style_import(self):
+        source = (ROOT / PUB / "figures/pd-semantic-blocks.tex").read_text()
+        for old, new in (
+            (r"draw=\pdblock@color,line width=.5pt",
+             r"draw=\pdblock@color!65!white,line width=.45pt"),
+            (r"colback=\pdblock@color!2!white", r"colback=\pdblock@color!6!white"),
+            ("{B33F35}", "{673B65}"),
+        ):
+            with self.subTest(regression=old):
+                self.assertIn(old, source)
+                with self.assertRaises(AssertionError):
+                    block_edge_contrast(source.replace(old, new))
 
     def test_list_geometry_rejects_marker_stranded_on_heading_line(self):
         def specimen(marker_top):
