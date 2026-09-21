@@ -148,3 +148,59 @@ Scene.\begin{pdexample}{B}x\end{pdexample}
             with self.assertRaises(SystemExit) as caught:
                 self.run_cli(source, *flags)
             self.assertEqual(caught.exception.code, 2)
+
+
+class TestCorpusGatePipeline(RepoFixtureTestCase):
+    """Run the actual CLI boundary used by library-checks on a tiny corpus."""
+
+    def setUp(self):
+        super().setUp()
+        self.source = self.fixture.chapter(r"""\input{figures/pd-pedagogy}
+\section{Body} A scene.\begin{pdexample}{B}1+1=2.\end{pdexample}
+\section{Review of the key ideas}\label{sec:review} Revisit the result.
+\section{Exercises}\label{sec:exercises}\begin{pdexercise}{ex:1}Check it.\end{pdexercise}
+\section{Related work} Context.\begin{pdexample}{R}x\end{pdexample}
+\section{Limitations} Boundary.\begin{pdexample}{L}x\end{pdexample}
+""")
+        write(self.fixture.root / "whitepaper/textbook.json", json.dumps({
+            "chapters": [{"source": "whitepaper/chapter.tex"}]
+        }))
+        self.metadata = write(self.fixture.root / "whitepaper/chapter-apparatus.json", json.dumps({
+            "version": 1, "chapters": {"whitepaper/chapter.tex": [
+                {"label": "sec:review", "role": "review", "reason": "Authored recap"},
+                {"label": "sec:exercises", "role": "exercises", "reason": "Authored practice"},
+            ]}
+        }))
+
+    def gate(self):
+        import subprocess
+        import sys
+        return subprocess.run([
+            sys.executable, str(chapter_lint.__file__), "--repo-root", str(self.fixture.root),
+            "--apparatus", str(self.metadata), "--max-blocking", "0", "--json",
+        ], capture_output=True, text=True, check=False)
+
+    def test_breached_budget_fails_the_cli_process_and_keeps_failure_visible(self):
+        self.assertEqual(self.gate().returncode, 0)
+        self.source.write_text(self.source.read_text().replace(r"\begin{pdexample}{B}1+1=2.\end{pdexample}", ""))
+        result = self.gate()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertFalse(report["floors"]["worked_example_per_section"]["ok"])
+
+    def test_stale_selector_fails_the_cli_process_as_invalid_input(self):
+        self.source.write_text(self.source.read_text().replace(r"\label{sec:review}", r"\label{sec:renamed}"))
+        result = self.gate()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("matched 0 top-level sections", result.stderr)
+
+    def test_apparatus_claim_still_breaches_the_cli_gate(self):
+        self.assertEqual(self.gate().returncode, 0)
+        self.source.write_text(self.source.read_text().replace(
+            "Revisit the result.", r"Revisit the result.\begin{theorem}Unlabelled claim.\end{theorem}"
+        ))
+        result = self.gate()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertTrue(report["floors"]["worked_example_per_section"]["ok"])
+        self.assertFalse(report["floors"]["claims_carry_epistemic_kind"]["ok"])

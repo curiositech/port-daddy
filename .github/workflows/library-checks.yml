@@ -402,20 +402,13 @@ jobs:
       - name: textbook-craft chapter_lint unit tests
         run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
 
-      # Advisory (continue-on-error) for the same reason 7c2c5e16f made the
-      # figure-blocker check advisory: two of chapter_lint's BLOCKING floors
-      # (worked_example_per_section, claims_carry_epistemic_kind) already
-      # fail on 6 of the 8 Book chapters today, pre-dating this check --
-      # making the step required now would freeze every PR that merely
-      # touches a whitepaper path (this job also runs unconditionally on
-      # merge_group, so a required failure here would freeze the whole
-      # queue). Drop continue-on-error once those two floors are clean
-      # chapter-by-chapter; the floors made advisory in the linter itself
-      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) stay
-      # advisory here too -- --strict only fails on a BLOCKING floor.
-      - name: Chapter template floors hold across every Book chapter (advisory)
-        continue-on-error: true
-        run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+      # The conservative authored-role map excludes only recap and grouped
+      # exercise sections. All literature, teaching appendices and substantive
+      # boundaries remain body. Re-measured at cf07690b03: 15 blocking floors.
+      # This aggregate ceiling prevents debt growth without hiding existing
+      # failures. Metadata/read errors remain fatal regardless of the budget.
+      - name: Book chapter floor regression budget
+        run: python3 skills/textbook-craft/scripts/chapter_lint.py --apparatus whitepaper/chapter-apparatus.json --max-blocking 15
 
       - name: readers_eye unit tests
         run: python3 -m unittest discover -s tests/harbor-research -p 'test_readers_eye.py' -v
@@ -427,8 +420,8 @@ jobs:
       - name: The reader's-eye check still separates clean prose from bad
         run: python3 skills/textbook-craft/scripts/readers_eye.py --selftest
 
-      # Advisory, for exactly the reason the chapter_lint step above is: the
-      # corpus is not clean for these rules yet (149 findings across the eight
+      # Advisory: this prose check has no measured regression ceiling yet.
+      # The corpus is not clean for these rules (149 findings across the eight
       # chapters at the time of landing, 92 of them the single systemic
       # "this paper" register issue), and a check nobody has cleaned up after
       # must not freeze the merge queue on the day it lands. Promote one rule

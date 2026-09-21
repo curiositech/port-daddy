@@ -381,16 +381,17 @@ first `theorem`/`definition`.
   paths. Tested on `whitepaper/single-writer-kernel.tex` (see
   `examples/chapter1-lint-report.txt`) and, consolidated across all eight
   Book chapters, in `examples/consolidated-lint-report.txt` — the same
-  report `library-checks.yml`'s CI step reads (advisory today: two blocking
-  floors already fail on several chapters, pre-dating this script, so the
-  step is `continue-on-error` until that content catches up). Unit tests:
+  report `library-checks.yml`'s CI step reads using
+  `--apparatus whitepaper/chapter-apparatus.json --max-blocking 15`. The
+  ceiling is the current measured debt, not a clean chapter verdict, and
+  the step is required. Invalid metadata fails independently of the budget. Unit tests:
   `tests/test_chapter_lint.py` and `tests/test_apparatus_metrics.py`
   (`python3 -m unittest discover -s
   skills/textbook-craft/tests -p 'test_*.py'`).
 
 ### Explicit apparatus declarations
 
-The chapter author decides which sections serve as apparatus. The checker
+Section roles are explicit editorial declarations, not inferred classifications. The checker
 accepts a versioned JSON sidecar through `--apparatus FILE`, with paths
 relative to `--repo-root` (symlink aliases resolve to the same source):
 
@@ -429,7 +430,18 @@ only above the ceiling; input/metadata errors still exit 2. It can allow one
 new failure to offset one repaired failure, so it is not a per-floor debt
 allowlist or chapter approval. Remeasure current source with the accepted
 apparatus declarations before setting a CI budget; an old report is not a
-baseline. Corpus declarations require the Book author's approval.
+baseline. The active Book policy in `whitepaper/chapter-apparatus.json`
+selects only the eight authored recap sections and eight grouped exercise
+collections. Comparative literature sections and all substantive teaching,
+proof, status, threat-model, handoff and conclusion sections stay body.
+Widening these exemptions requires an explicit editorial decision.
+
+At main `cf07690b03a3f6082092fc9760155f36c7d47256`, the selected policy
+measures 117 body sections (77 without a counted worked example), 15
+blocking failures, 6 advisory failures and 8 REVIEW rows. Those failures
+remain visible; CI fails above 15. Three actual CLI-process regression tests
+prove a ceiling breach exits 1, a stale selector exits 2, and an unlabelled
+claim inside declared apparatus still fails the gate.
 
 - `python3 scripts/readers_eye.py [CHAPTER.tex ...] [--json|--summary] [--rule RULE] [--limit N] [--strict] [--selftest]` —
   the mechanical half of the reader's-eye check. Where `chapter_lint.py`
