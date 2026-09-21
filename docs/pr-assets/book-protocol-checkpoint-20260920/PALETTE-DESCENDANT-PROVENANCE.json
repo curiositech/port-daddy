@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "purpose": "Fresh protocol-only A palette descendant proof; evidence transport, renewed Book owner review pending. Do not merge.",
+  "repository": "curiositech/port-daddy",
+  "source_commit": "01a9d54387622d8b48bc1a6fe60703554499e7f8",
+  "source_tree": "9d4ee7d33333d73cc9e62922ea521bc4dd3af3d5",
+  "source_base": "73d8ce4ec38d1f1125d32401888984a7f5ee1936",
+  "original_approved_checkpoint_preserved": "e3a4d315aef228a818c1f96bd2f5efd21fb06573",
+  "historical_evidence_commit_preserved": "bbfee7181e1b790a5ea64ab9466015c35930c416",
+  "binding": "Original execution receipts retain their pre-commit source_head; all 14 actual fixture inputs and validator hashes per profile were independently verified against final committed source. Images copied without editing.",
+  "images": [
+    {
+      "path": "docs/pr-assets/book-protocol-checkpoint-20260920/main-open-palette-descendant/page-7.png",
+      "sha256": "cfa218154f58ccf10eec84cc864494907e038249b545ced18ba91cba67c336ef",
+      "bytes": 148009,
+      "pdf_sha256": "415aa66db88e3111a8ed792ce638d1215b66d5473f490e245da4ece84a62e5b7",
+      "render_receipt_sha256": "ec85d7c96f905af05becf7365b87b946b306c1cb5f89f59cece49516ae2804e6",
+      "execution_source_head": "7320777afe25a5e49cf9133c323c6be20e70dfff",
+      "execution_had_uncommitted_helper": true,
+      "fixture_repository_inputs_sha256": {
+        "tests/harbor-research/fixtures/protocol-style-book.tex": "b17cc5304e720d6037795ec0c71cc75d34dbcb8908d9303e5f2b4091655c94a6",
+        "tests/harbor-research/fixtures/protocol-style-fixture.tex": "619d77213e578a6dd40220d873e079d5430785c77a171070c697d68aa61d4188",
+        "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex": "a1e8ee579d69335f5ca49fa7340729dd070efe6ddfcbc93615be34b76be170fb",
+        "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex": "344a626f7976d4fc69c314b38d776da51aa7bb93c5692a498228969a12a86ae5",
+        "website-v2/public/whitepaper/figures/lucide/workflow.pdf": "8c275b160ad83fd52e44a874154d42dc34cec14dc30fefe327c09dd42eb19d99",
+        "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex": "596c37f23dbab751303ca1cc94043dd5d50a318326cb598e36969c6fdeedb8c3",
+        "website-v2/public/whitepaper/figures/pd-discharges.tex": "56fbd01c9b74a7745cdc286ee8326cefabd210381e0c927f563a07da0070d6bb",
+        "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex": "2141de2981cd8f98a57b2fbc6b0f629c8162f3e6619106d020e99af9de1f1ee9",
+        "website-v2/public/whitepaper/figures/pd-figure-language.tex": "1c7c847b44ec247d548a2143492dfca9ea7e2348a7f360535e82d11024d7965c",
+        "website-v2/public/whitepaper/figures/pd-hyperlinks.tex": "bd512ab0f5003663f7cb462601ab64b4bd276f567074477795ea61907d8b2248",
+        "website-v2/public/whitepaper/figures/pd-palette.tex": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec",
+        "website-v2/public/whitepaper/figures/pd-pedagogy.tex": "4b6a5291b9bdf5553e338df8138dc546a30b6f4fd4fa8dc3f5641aab8c122212",
+        "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
+        "website-v2/public/whitepaper/figures/pd-textbook-map.tex": "8d98164275a9417e2fc5d6971604e4fedea3db6d972a17ccec5a3e912d7f5a68"
+      },
+      "validator_sha256": "33d76a0499ea567ea5614f57422192467bf13e813c68c603d4cb1ac663a7f40b",
+      "all_inputs_and_validator_match_committed_source": true,
+      "validated_counts": {
+        "standalone_protocol_headings": 10,
+        "list_first_headings": 8,
+        "ordinary_inline_controls": 3,
+        "paragraph_entry_checks": 18,
+        "protocol_glyph_count": 18,
+        "scope_restoration_checks": 17
+      }
+    },
+    {
+      "path": "docs/pr-assets/book-protocol-checkpoint-20260920/heros-open-palette-descendant/page-10.png",
+      "sha256": "60863683072dccdc25e28fe2ed096402f071161feb997ea56caa7f4652b04cfd",
+      "bytes": 67081,
+      "pdf_sha256": "41245c9c2d3b6dcdff2afb3a7464ceb59bf7dadd4c1317fb4054eedf0ef4d47c",
+      "render_receipt_sha256": "12ae6b5504d9499cc3def9bc4dd150eb0d235c863a6cfd6bccbf529c5290298f",
+      "execution_source_head": "7320777afe25a5e49cf9133c323c6be20e70dfff",
+      "execution_had_uncommitted_helper": true,
+      "fixture_repository_inputs_sha256": {
+        "tests/harbor-research/fixtures/protocol-style-book.tex": "b17cc5304e720d6037795ec0c71cc75d34dbcb8908d9303e5f2b4091655c94a6",
+        "tests/harbor-research/fixtures/protocol-style-fixture.tex": "619d77213e578a6dd40220d873e079d5430785c77a171070c697d68aa61d4188",
+        "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex": "a1e8ee579d69335f5ca49fa7340729dd070efe6ddfcbc93615be34b76be170fb",
+        "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex": "344a626f7976d4fc69c314b38d776da51aa7bb93c5692a498228969a12a86ae5",
+        "website-v2/public/whitepaper/figures/lucide/workflow.pdf": "8c275b160ad83fd52e44a874154d42dc34cec14dc30fefe327c09dd42eb19d99",
+        "website-v2/public/whitepaper/figures/pd-cite-shortforms.tex": "596c37f23dbab751303ca1cc94043dd5d50a318326cb598e36969c6fdeedb8c3",
+        "website-v2/public/whitepaper/figures/pd-discharges.tex": "56fbd01c9b74a7745cdc286ee8326cefabd210381e0c927f563a07da0070d6bb",
+        "website-v2/public/whitepaper/figures/pd-figure-language-swiss.tex": "2141de2981cd8f98a57b2fbc6b0f629c8162f3e6619106d020e99af9de1f1ee9",
+        "website-v2/public/whitepaper/figures/pd-figure-language.tex": "1c7c847b44ec247d548a2143492dfca9ea7e2348a7f360535e82d11024d7965c",
+        "website-v2/public/whitepaper/figures/pd-hyperlinks.tex": "bd512ab0f5003663f7cb462601ab64b4bd276f567074477795ea61907d8b2248",
+        "website-v2/public/whitepaper/figures/pd-palette.tex": "6bf675a9b0595654955c1524deddf7103bb437c04333ef7f88fb93915215a6ec",
+        "website-v2/public/whitepaper/figures/pd-pedagogy.tex": "4b6a5291b9bdf5553e338df8138dc546a30b6f4fd4fa8dc3f5641aab8c122212",
+        "website-v2/public/whitepaper/figures/pd-semantic-blocks.tex": "625e72f0391304e25939a395ee4ec983b2a25c7843869510dd99f2e1745de3dd",
+        "website-v2/public/whitepaper/figures/pd-textbook-map.tex": "8d98164275a9417e2fc5d6971604e4fedea3db6d972a17ccec5a3e912d7f5a68"
+      },
+      "validator_sha256": "33d76a0499ea567ea5614f57422192467bf13e813c68c603d4cb1ac663a7f40b",
+      "all_inputs_and_validator_match_committed_source": true,
+      "validated_counts": {
+        "standalone_protocol_headings": 10,
+        "list_first_headings": 8,
+        "ordinary_inline_controls": 3,
+        "paragraph_entry_checks": 18,
+        "protocol_glyph_count": 18,
+        "scope_restoration_checks": 17
+      }
+    }
+  ],
+  "publication_identity": "erichowens",
+  "github_app_receipt": false,
+  "publication_authority": "Existing scoped operator Book/Media/Hook personal-account exception.",
+  "boundaries": [
+    "Renewed Book owner fixture review pending; publication enables hosted CI, not merge approval.",
+    "No full-Book source-to-PDF binding or global B acceptance.",
+    "No runtime, private fonts, source changes or historical evidence replacement."
+  ]
+}
