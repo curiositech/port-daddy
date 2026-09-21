@@ -133,6 +133,7 @@ describe('check-figure-palette.mjs', () => {
       const { code, out } = runGuard(['--tokens', fixture])
       expect(code).toBe(1)
       expect(out).toMatch(/lockstep: pdblockProof is #B33F35 in the Book registry but --book-block-proof is #D9B4AF/)
+      expect(out).toMatch(/contrast: --book-block-proof .* on --surface-base .* below the 3:1 floor for role "edge"/)
       expect(out).toMatch(/contrast: --book-block-proof .* below the 3:1 floor for role "edge"/)
     } finally {
       rmSync(dir, { recursive: true, force: true })
