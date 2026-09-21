@@ -1,0 +1,110 @@
+% Paper 8 Figure 4: Simplicial Hodge Decomposition and the Swarm Legibility Ratio.
+% Swiss Modern Systems Graphics specification: visual proofs, hard 90-degree corners,
+% metric coordinate drafting grid, and strict chromatic state taxonomy.
+
+\begin{figure}[htbp]
+\centering
+
+% =========================================================================
+% LEFT: Panel (a) The Oriented 2-Simplex & Boundary Operator
+% =========================================================================
+\begin{minipage}[t]{0.36\textwidth}
+\vspace{0pt}% Top-anchor baseline
+\centering
+{\normalsize\sffamily\bfseries (a) Oriented 2-Simplex}\\[2pt]
+{\footnotesize\sffamily (Triadic Review Contract)}\\[6pt]
+\begin{tikzpicture}[
+  font=\small,
+  vnode/.style={circle, draw=ptDark, fill=ptLightGray, line width=1.1pt, minimum size=8.5mm, inner sep=0pt, font=\sffamily\bfseries\small},
+  fieldbox/.style={rectangle, draw=ptDark, fill=white, line width=1pt, inner sep=6pt, font=\footnotesize, align=left, anchor=north}
+]
+  % 1. Explicit Coordinate Grid Context (Swiss Modern Metric Field)
+  \draw[swissgrid] (-0.35, -1.6) grid (5.35, 4.85);
+  \draw[majorgrid] (-0.35, -1.6) grid (5.35, 4.85);
+
+  % Triangle coordinates
+  \coordinate (c0) at (0.6, 1.2);
+  \coordinate (c1) at (4.4, 1.2);
+  \coordinate (c2) at (2.5, 4.1);
+
+  % Shaded 2-cell interior
+  \fill[ptGold!15] (c0) -- (c1) -- (c2) -- cycle;
+  \draw[ptGold!70, line width=0.8pt] (c0) -- (c1) -- (c2) -- cycle;
+  \node[font=\sffamily\bfseries\small, color=ptDark, mask] at (2.5, 2.55) {Face $\tau = [v_0, v_1, v_2]$};
+  \node[font=\sffamily\footnotesize, color=ptDark!75, mask] at (2.5, 2.10) {Review Join $C^2$};
+
+  % Vertex nodes
+  \node[vnode] (v0) at (c0) {$v_0$};
+  \node[vnode] (v1) at (c1) {$v_1$};
+  \node[vnode] (v2) at (c2) {$v_2$};
+
+  % Directed edges with 1-cochains (clearance arrows with masked labels alongside)
+  \draw[bArr] (v0) -- (v1) node[midway, below=2pt, font=\sffamily\bfseries\footnotesize, mask] {$e_{01}: g_{01}$};
+  \draw[bArr] (v1) -- (v2) node[midway, above right=1pt, font=\sffamily\bfseries\footnotesize, mask] {$e_{12}: g_{12}$};
+  \draw[bArr] (v0) -- (v2) node[midway, above left=1pt, font=\sffamily\bfseries\footnotesize, mask] {$e_{02}: g_{02}$};
+
+  % Boundary equation box below (hard 90-degree rectangle)
+  \node[fieldbox, text width=4.8cm] at (2.5, 0.4) {
+    \textbf{\sffamily\small Oriented Boundary}:\\[2pt]
+    $\partial_2 \tau = e_{01} + e_{12} - e_{02}$\\[4pt]
+    \textbf{\sffamily\small Triadic Review Curl}:\\[2pt]
+    $(\delta_1 g)_\tau = g_{01} + g_{12} - g_{02} \in \mathbb{R}^d$
+  };
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+% =========================================================================
+% RIGHT: Panel (b) Discrete Hodge Orthogonal Splitting & Legibility Triage
+% =========================================================================
+\begin{minipage}[t]{0.61\textwidth}
+\vspace{0pt}% Top-anchor baseline
+\centering
+{\normalsize\sffamily\bfseries (b) Discrete Hodge 1-Laplacian}\\[2pt]
+{\footnotesize\sffamily ($L_1 = \delta_0 \delta_0^* + \delta_1^* \delta_1$ Decomposition)}\\[6pt]
+\begin{tikzpicture}[
+  font=\small
+]
+  % 1. Explicit Coordinate Grid Context (Swiss Modern Metric Field)
+  \draw[swissgrid] (-0.35, -1.2) grid (9.25, 6.1);
+  \draw[majorgrid] (-0.35, -1.2) grid (9.25, 6.1);
+
+  % Subspace 1: Gradient (ptBlue)
+  \draw[line width=1pt, draw=ptBlue, fill=ptBlue!8] (0, 3.1) rectangle (2.8, 5.8);
+  \node[rectangle, fill=ptBlue, text=white, font=\sffamily\bfseries\scriptsize, inner sep=2pt, minimum width=2.8cm, anchor=north] at (1.4, 5.8) {\strut GAUGE GRADIENT};
+  \node[font=\sffamily\bfseries\normalsize, color=ptBlue] at (1.4, 4.95) {$\mathrm{im}(\delta_0)$};
+  \node[font=\sffamily\bfseries\footnotesize, color=ptDark, align=center] at (1.4, 4.45) {Benign Drift};
+  \node[font=\scriptsize, align=center] at (1.4, 3.75) {Curl-free: $\delta_1(\delta_0 x) \equiv 0$\\[1pt]Turn latency\\[1pt]$\| \delta_0 x \|_2^2$};
+
+  % Subspace 2: Harmonic (ptDark)
+  \draw[line width=1pt, draw=ptDark, fill=ptLightGray] (3.05, 3.1) rectangle (5.85, 5.8);
+  \node[rectangle, fill=ptDark, text=white, font=\sffamily\bfseries\scriptsize, inner sep=2pt, minimum width=2.8cm, anchor=north] at (4.45, 5.8) {\strut HARMONIC CAVITY};
+  \node[font=\sffamily\bfseries\normalsize, color=ptDark] at (4.45, 4.95) {$\mathcal{H}^1(X; \mathbb{R})$};
+  \node[font=\sffamily\bfseries\footnotesize, color=ptDark, align=center] at (4.45, 4.45) {Macro Partitions};
+  \node[font=\scriptsize, align=center] at (4.45, 3.75) {$\ker(\delta_0^*) \cap \ker(\delta_1)$\\[1pt]Topology splits\\[1pt]$\| h \|_2^2$};
+
+  % Subspace 3: Curl (ptRed)
+  \draw[line width=1pt, draw=ptRed, fill=ptRed!8] (6.1, 3.1) rectangle (8.9, 5.8);
+  \node[rectangle, fill=ptRed, text=white, font=\sffamily\bfseries\scriptsize, inner sep=2pt, minimum width=2.8cm, anchor=north] at (7.5, 5.8) {\strut TRIADIC CURL};
+  \node[font=\sffamily\bfseries\normalsize, color=ptRed] at (7.5, 4.95) {$\mathrm{im}(\delta_1^*)$};
+  \node[font=\sffamily\bfseries\footnotesize, color=ptDark, align=center] at (7.5, 4.45) {Local Review Bug};
+  \node[font=\scriptsize, align=center] at (7.5, 3.75) {Divergence-free\\[1pt]Review conflicts\\[1pt]$\| \delta_1^* \psi \|_2^2$};
+
+  % Orthogonal Sum Formula (hard 90-degree rectangle, compact single line)
+  \node[rectangle, draw=ptDark, fill=white, line width=1pt, inner sep=5pt, text width=8.9cm, align=center, anchor=north] at (4.45, 2.7) {
+    \textbf{\sffamily\small Pythagorean Orthogonal Invariance (Theorem CR-5)}:\\[2pt]
+    $\|g\|_2^2 = \|\delta_0 x\|_2^2 + \|h\|_2^2 + \|\delta_1^* \psi\|_2^2$
+  };
+
+  % Legibility Triage Box (hard 90-degree rectangle, ptGold palette, zero overlap)
+  \node[rectangle, draw=ptGold!85!black, fill=ptGold!12, line width=1.1pt, inner sep=6pt, text width=8.9cm, align=left, anchor=north] at (4.45, 1.40) {
+    \colorbox{ptGold!85!black}{\color{white}\sffamily\bfseries\scriptsize\strut\enskip SWARM LEGIBILITY RATIO $\mathcal{L}(g) \in [0, 1]$\enskip}\\[4pt]
+    $\displaystyle \mathcal{L}(g) = \frac{\|h\|_2^2}{\|h\|_2^2 + \|\delta_1^* \psi\|_2^2}$\\[4pt]
+    $\bullet$ \textbf{\sffamily $\mathcal{L}(g) \approx 0$ (Curl Dominant)}: Local review bug $\to$ \textbf{\color{ptRed}Re-prompt triad}\\[2pt]
+    $\bullet$ \textbf{\sffamily $\mathcal{L}(g) \approx 1$ (Harmonic Split)}: Macro partition $\to$ \textbf{\color{ptBlue}Bridge cavity}
+  };
+\end{tikzpicture}
+\end{minipage}
+
+\caption{Discrete Hodge decomposition on a simplicial 2-complex conforming to Swiss Modern Systems Graphics. (a) A 2-simplex $\tau = [v_0, v_1, v_2]$ modeling a 3-way review contract with oriented boundary $\partial_2 \tau = e_{01} + e_{12} - e_{02}$. (b) The Hodge 1-Laplacian $L_1 = \delta_0 \delta_0^* + \delta_1^* \delta_1$ decomposes observed discrepancies into mutually orthogonal gauge gradients ($\mathrm{im}(\delta_0)$, blue), harmonic cavities ($\mathcal{H}^1$, dark), and triadic curls ($\mathrm{im}(\delta_1^*)$, red), yielding the zero-token Swarm Legibility Ratio $\mathcal{L}(g)$.}
+\label{fig:hodge}
+\end{figure}

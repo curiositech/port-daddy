@@ -1,0 +1,89 @@
+% Paper 8 Figure 1: The Active Control Loop of Sheaf Cohomology in Multi-Agent Swarms.
+% Swiss Modern Systems Graphics specification: visual proofs, hard 90-degree corners,
+% metric coordinate drafting grid, and strict chromatic state taxonomy.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  block/.style={
+    rectangle,
+    draw=ptDark,
+    fill=white,
+    line width=1.1pt,
+    inner sep=7pt,
+    text width=5.6cm,
+    align=center
+  }
+]
+
+% 1. Explicit Coordinate Grid Context (Swiss Modern Metric Field)
+\draw[swissgrid] (-0.25, -5.35) grid (15.25, 7.35);
+\draw[majorgrid] (-0.25, -5.35) grid (15.25, 7.35);
+
+% Block 1: Multi-Agent Swarm (Top Left)
+\node[block] (b1) at (3.0, 5.0) {
+  \colorbox{ptDark}{\color{white}\sffamily\bfseries\footnotesize\strut\enskip STAGE 1: SWARM RUNTIME\enskip}\\[5pt]
+  \textbf{\large Asynchronous Agent Swarm}\\[4pt]
+  Agents $v \in V$ emit vector stalks $x_v \in \mathbb{R}^D$.\\[4pt]
+  \begin{tikzpicture}[scale=0.75]
+    \node[circle, draw=ptDark, fill=ptLightGray, line width=1pt, inner sep=2pt, font=\sffamily\bfseries\scriptsize] (v1) at (-1.2,0) {$v_1$};
+    \node[circle, draw=ptRed, fill=ptRed!20, text=ptRed, line width=1.2pt, inner sep=2pt, font=\sffamily\bfseries\scriptsize] (v2) at (0,1.0) {$v_2^*$};
+    \node[circle, draw=ptDark, fill=ptLightGray, line width=1pt, inner sep=2pt, font=\sffamily\bfseries\scriptsize] (v3) at (1.2,0) {$v_3$};
+    \draw[dArr] (v1) -- (v2);
+    \draw[dArr] (v2) -- (v3);
+    \draw[dArr] (v3) -- (v1);
+  \end{tikzpicture}\\[4pt]
+  Observations yield cochain $g_K \in C^1(K)$.
+};
+
+% Block 2: Sheaf Coboundary & SDD Solver (Top Right)
+\node[block] (b2) at (12.0, 5.0) {
+  \colorbox{ptBlue}{\color{white}\sffamily\bfseries\footnotesize\strut\enskip STAGE 2: SDD PROJECTION\enskip}\\[5pt]
+  \textbf{\large Sheaf Coboundary \& SDD Solver}\\[4pt]
+  Solve normal equations $\widetilde{\mathcal{O}}(|E| \cdot D)$:\\[3pt]
+  \colorbox{ptBlue!8}{\fboxrule=0.6pt\fboxsep=2pt\color{ptBlue}\bfseries $\delta_K^T \delta_K \hat{x} = \delta_K^T g_K$}\\[4pt]
+  Orthogonal completion projection:\\[2pt]
+  \colorbox{ptBlue!8}{\fboxrule=0.6pt\fboxsep=2pt\color{ptBlue}\bfseries $\rho = \Pi_K g_K = g_K - \delta_K \hat{x}$}\\[4pt]
+  {\small Circulation: $B_K^T \rho = 0 \implies \rho \in \ker(B_K^T)$}\\[3pt]
+  {\small Scalar Residual: $r = \|\rho\|_2 = \|\Pi_K g_K\|_2$}.
+};
+
+% Block 3: Hodge Triage & Greedy Controller (Bottom Right)
+\node[block] (b3) at (12.0, -3.2) {
+  \colorbox{ptGold!85!black}{\color{white}\sffamily\bfseries\footnotesize\strut\enskip STAGE 3: HODGE CONTROL\enskip}\\[5pt]
+  \textbf{\large Hodge Triage \& Energy Min-Cut}\\[4pt]
+  \textbf{Higher-Order Triage} via Hodge $L_1$:\\[2pt]
+  \colorbox{ptGold!12}{\small$\displaystyle \mathcal{L}(g) = \frac{\|h\|_2^2}{\|h\|_2^2 + \|\delta_1^* \psi\|_2^2}$}\\[4pt]
+  \textbf{Theorem CR-4 Greedy Selection}:\\[2pt]
+  \colorbox{ptGold!12}{$\displaystyle e^* = \arg\max_{e \in K} \frac{\|\rho_e\|_2^2}{w(e)}$}
+};
+
+% Block 4: Swarm Actuation & Repair (Bottom Left)
+\node[block] (b4) at (3.0, -3.2) {
+  \colorbox{ptRed}{\color{white}\sffamily\bfseries\footnotesize\strut\enskip STAGE 4: RUNTIME REPAIR\enskip}\\[5pt]
+  \textbf{\large Swarm Actuation \& Repair}\\[4pt]
+  Targeted remediation without global freeze:\\[3pt]
+  $\bullet$ \textbf{$\mathcal{L} \approx 0$}: Re-prompt critique triad ($C^2$)\\
+  $\bullet$ \textbf{$\mathcal{L} \approx 1$}: Bridge partition cavity ($H^1$)\\
+  $\bullet$ \textbf{Fence Edge}: Sever channel $e^*$ ($w(e^*) \to \infty$)\\
+  $\bullet$ \textbf{Reconcile State}: Reset stalk $x_{v^*}$ to $\hat{x}_{v^*}$
+};
+
+% Connecting Vectors with explicit clearance and masked labels alongside paths
+\draw[dArr] (b1.east) -- node[above=3pt, font=\sffamily\bfseries\scriptsize, mask] {Gossip Cochain $g_K$} (b2.west);
+\draw[rArr] (b2.south) -- node[right=4pt, font=\sffamily\bfseries\scriptsize, align=left, mask] {Residual $\rho \ne 0$\\[1pt]Circulation} (b3.north);
+\draw[dArr] (b3.west) -- node[below=3pt, font=\sffamily\bfseries\scriptsize, mask] {Optimal Cut $e^*$} (b4.east);
+\draw[bArr] (b4.north) -- node[left=4pt, font=\sffamily\bfseries\scriptsize, align=right, mask] {Mutated\\Topology $G'$} (b1.south);
+
+% Center Invariant Badge (Hard 90-degree rectangle, grounded in ptDark frame)
+\node[rectangle, draw=ptDark, fill=ptLightGray, line width=1pt, inner sep=7pt, font=\small, align=center, text width=3.4cm] at (7.5, 0.9) {
+  \textbf{Closed-Loop Invariant}\\[2pt]
+  \textbf{(Theorem CR-4)}\\[4pt]
+  Guaranteed consensus\\($r \to 0$) in at most\\$\beta_1(G_K)$ rounds.
+};
+
+\end{tikzpicture}
+\caption{The active control loop of sheaf cohomology in autonomous multi-agent systems. (1) Gossip cochains $g_K$ enter the coboundary projector $\Pi_K$; (2) The residual vector $\rho$ isolates non-zero circulation on closed cycles; (3) The greedy controller computes energy-to-cost ratios $E(e)/w(e)$ and Hodge legibility $\mathcal{L}(g)$; (4) Actions fence or reconcile rogue edges, closing the loop back to the communication graph.}
+\label{fig:topological-loop}
+\end{figure}
