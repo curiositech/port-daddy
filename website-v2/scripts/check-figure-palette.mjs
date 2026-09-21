@@ -2,7 +2,9 @@
 /**
  * check-figure-palette.mjs — the regression guard for whitepaper figure color.
  *
- * Every TikZ figure and whitepaper .tex must draw ONLY from the brand palette.
+ * Every TikZ figure and whitepaper .tex must draw ONLY from a registered
+ * palette: the Port Daddy brand/story palette or the exact Book semantic-block
+ * edge registry.
  * This fails (exit 1) if it finds an off-brand hex, an off-brand color NAME
  * (cinnabar / brass / patina — the warm accents that kept creeping back), or an
  * accent whose contrast on the paper ground drops below the floor its role
@@ -10,13 +12,16 @@
  *
  * Brand source of truth: website-v2/src/styles/tokens.semantic.css (light theme).
  *
- * Two palettes coexist in the TeX sources:
+ * Three registered layers coexist in the TeX sources:
  *   hh*  — the first-edition figure palette (cobalt / deepened teal / deepened
  *          amber / mayday, all AAA as text on the cream ground);
  *   pd*  — the Book's semantic palette (story palette v2, one hue per meaning),
  *          declared once per source tree in figures/pd-palette.tex and kept in
  *          LOCKSTEP with the light tokens: this script fails if a pd* hex and
  *          its token disagree, or if the two committed copies differ.
+ *   pdblock* — the Book's semantic-block edge inks, declared only in the two
+ *          exact pd-semantic-blocks.tex mirrors and kept in lockstep with the
+ *          separate --book-block-* CSS registry.
  *
  * The contrast pass recomputes every ink's WCAG 2.2 ratio against every ground
  * it can print on, rather than trusting a number somebody measured once. It
@@ -457,4 +462,4 @@ if (violations.length) {
   console.error('cinnabar/brass/patina are banned. New accents require an explicit token, role, file scope, and measured contrast.\n')
   process.exit(1)
 }
-console.log('✓ figure-palette guard: all whitepaper figures are on the brand palette, and pd-palette.tex matches the light tokens.')
+console.log('✓ figure-palette guard: all whitepaper figures use a registered palette; pd-palette.tex and Book semantic-block helpers match their light-token registries.')
