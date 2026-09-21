@@ -160,6 +160,16 @@ paper_sources() {
         "$srcdir/coordination-papers-mega-volume-appendices.tex" \
         "$srcdir/coordination-papers-mega-volume-swiss-plates.tex" \
         "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
+      # The Book preamble imports this helper, whose glyph path is assembled
+      # from explicit icon-family assignments rather than a literal \input.
+      # Declare the consumed PDFs even when missing: enumerating existing files
+      # would hide a deleted dependency from both change detection and epochs.
+      printf '%s\n' "$srcdir/figures/pd-semantic-blocks.tex"
+      local icon
+      for icon in book-open calculator file-text flask-conical key-round \
+        list-checks lock-keyhole scroll-text workflow; do
+        printf '%s\n' "$srcdir/figures/lucide/$icon.pdf"
+      done
       # Art plates (jacket, part and chapter openers) are Book inputs too.
       if [ -d "$srcdir/plates" ]; then
         find "$srcdir/plates" -type f | sort
