@@ -15,8 +15,12 @@
 - Stale or ambiguous metadata fails closed, including declarations for
   unselected chapters. `--max-blocking N` permits a measured aggregate debt
   budget without hiding failures or ignoring invalid input.
-- Corpus role declarations and CI activation require source-owner agreement;
-  the historical budget of 17 must not be copied without remeasurement.
+- Activate only the 16 authored recap/exercise declarations in
+  `whitepaper/chapter-apparatus.json`; literature and teaching appendices stay
+  body. Replace the advisory CI step with a freshly measured ceiling of 15
+  blocking floors. The historical budget of 17 is not reused. Three actual
+  CLI-process tests witness breached-budget, stale-selector and apparatus-claim
+  failures. No manuscript or PDF changes are included.
 
 ## v1.3.0 (2026-09-15)
 
