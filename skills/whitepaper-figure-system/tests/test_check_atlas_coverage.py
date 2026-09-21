@@ -319,20 +319,11 @@ class AtlasCoverageTests(unittest.TestCase):
                 contracts, atlas_ids, source_ids
             ),
         )
-        # 66 again, and the round trip is the lesson. It was 66, then 61 on
-        # 2026-09-08 when five volume-IV rows left the atlas because chapter 6
-        # had stopped re-inputting drawings chapters 7 and 8 develop -- the Book
-        # was printing each of them twice under two figure numbers -- and 66
-        # once more the same day, because deleting them was half a fix.
-        # harbor-economy.tex is also the source of a standalone submission
-        # paper, and rewriting its prose to point at chapters removed five
-        # figures from a PDF whose reader has no other chapters to be pointed
-        # at. The whole fix is \ifpdbook: the Book takes the cross-reference,
-        # the paper keeps its copy, and the SOURCE therefore still carries all
-        # 66. A pinned count is the right shape for this assertion; it just has
-        # to move when the corpus does, and it has now moved twice.
-        self.assertEqual(report["source_count"], 66)
-        self.assertEqual(report["atlas_count"], 66)
+        # Pin the reviewed corpus so simultaneous source/atlas deletion cannot
+        # silently pass. The current canonical roots contain 72 environments;
+        # every single-row deletion must still fail the mutation checks below.
+        self.assertEqual(report["source_count"], 72)
+        self.assertEqual(report["atlas_count"], 72)
         # Five, and the previous revision of this comment is why the assertion
         # was kept at zero rather than deleted: it said it would "notice when a
         # contract legitimately reappears -- a standalone paper carrying its own

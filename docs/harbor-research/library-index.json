@@ -1055,9 +1055,9 @@
       "reason": "Chapter-native definition (\"Evidence Trail\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
-      "id": "def:float-plan",
+      "id": "def:bonded-float-plan",
       "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-      "reason": "Chapter-native definition (\"Float Plan\") -- distinct instance of a shared label id used independently by harbor-economy.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+      "reason": "Chapter-native definition (\"Float Plan\"); the Bonded Commons chapter's collateral profile of harbor-economy.tex's def:float-plan uses a distinct raw label; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
       "id": "def:isolation",
@@ -1275,9 +1275,9 @@
       "reason": "Chapter-native open conjecture; Chapter-native open conjecture with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding."
     },
     {
-      "id": "def:0040b",
+      "id": "def:cross-operator-attestation-problem",
       "file": "website-v2/public/whitepaper/harbor-economy.tex",
-      "reason": "Chapter-native definition (\"The cross-operator attestation problem\") -- distinct instance of a shared label id used independently by spawn-to-person.tex; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
+      "reason": "Chapter-native definition (\"The cross-operator attestation problem\"); restates spawn-to-person.tex's def:cross-operator-attestation from the market's side under a distinct raw label; Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
       "id": "def:float-plan",
@@ -1355,7 +1355,7 @@
       "reason": "Chapter-native definition (\"Local non-forgeable identity\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },
     {
-      "id": "def:0040b",
+      "id": "def:cross-operator-attestation",
       "file": "website-v2/public/whitepaper/spawn-to-person.tex",
       "reason": "Chapter-native definition (\"Cross-operator attestation\"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only)."
     },

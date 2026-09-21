@@ -105,6 +105,9 @@
 \makeatother
 \usepackage{needspace}
 \usepackage{etoolbox}
+% Protocol frames use breakable skins; this dependency is absent from the
+% baseline pedagogy layer and is intentionally explicit in the Book preamble.
+\usepackage[skins,breakable]{tcolorbox}
 % The reservation has to cover the heading's own apparatus before it covers any
 % prose: a \section spends roughly 3.5 baselines on beforeskip, the heading line
 % at \Large and afterskip, so 6 left about 2.5 lines of text under it -- right on
@@ -337,9 +340,34 @@
   ENABLED,WF_,SF_,THEOREM,ASSUME,INSTANCE,WITH,LOCAL}}
 \lstset{style=pdcode}
 
+% Shared presentation primitives, loaded without adopting the broader semantic
+% or margin-layout changes. Only protocols opt into the frame and glyph here.
+\input{figures/pd-semantic-blocks}
+\newtheoremstyle{pdprotocol}
+  {7pt plus 1pt minus 1pt}{7pt plus 1pt minus 1pt}
+  {\normalfont}{}{\bfseries}{.}{0pt}
+  {\pdblockglyph{Protocol}\thmname{#1}\thmnumber{\ #2}\thmnote{\hspace{.35em}(#3)}}
+\makeatletter
+\newcommand{\pdprotocolheadingend}{%
+  \par\nobreak\smallskip\@afterindentfalse\@afterheading\ignorespaces}
+% AtBeginEnvironment runs inside the environment group, before amsthm builds
+% its deferred heading. Flush that heading, then end its paragraph even when
+% the body begins with a list. Preserve nameref's wrapper and restore the entry
+% and heading renderer immediately, so nested unrelated families are unchanged.
+\newcommand{\pdprotocolparagraphs}{%
+  \let\pdprotocolsavedentry\@begintheorem
+  \let\pdprotocolsavedhead\thmhead
+  \apptocmd{\@begintheorem}{\leavevmode\pdprotocolheadingend
+    \let\@begintheorem\pdprotocolsavedentry
+    \let\thmhead\pdprotocolsavedhead\ignorespaces}{}%
+    {\PackageError{pdprotocol}{Cannot terminate the protocol heading}{Check the amsthm entry point.}}}
+\AtBeginEnvironment{protocol}{\pdprotocolparagraphs}
+\AtBeginEnvironment{heprotocol}{\pdprotocolparagraphs}
+\makeatother
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
 \newtheorem{property}{Property}[section]
+\theoremstyle{pdprotocol}
 \newtheorem{protocol}{Protocol}[section]
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
@@ -349,26 +377,33 @@
 \newtheorem{conjecture}{Conjecture}[section]
 \theoremstyle{remark}
 \newtheorem*{remark}{Remark}
+\BeforeBeginEnvironment{protocol}{\pdblockbefore{Protocol}}
+\AfterEndEnvironment{protocol}{\pdblockafter{Protocol}}
 
 \newcounter{lsprotocol}[section]
 \renewcommand{\thelsprotocol}{\thesection.\arabic{lsprotocol}}
+% Keep the original counters and title APIs; reserve space before the anchor
+% and allow the prose to split instead of boxing it into one minipage.
+\newenvironment{pdbookprotocol}[2]{%
+  \pdblockbefore{Protocol}%
+  \refstepcounter{#1}%
+  \noindent{\raggedright\normalfont\bfseries\color{hhink}\pdblockglyph{Protocol}%
+    Protocol~\csname the#1\endcsname\ifblank{#2}{}{\hspace{.35em}(#2)}.\par}%
+  \small\pdprotocolheadingend
+}{\pdblockafter{Protocol}}
 \newenvironment{lsprotocol}[1]{%
-  \par\vspace{8pt}\refstepcounter{lsprotocol}\noindent\begin{tikzpicture}
-  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
-  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
-  {\scshape\bfseries\color{hhink}Protocol~\thelsprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}\small
-}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+  \begin{pdbookprotocol}{lsprotocol}{#1}%
+}{\end{pdbookprotocol}}
 \newcounter{stpprotocol}[section]
 \renewcommand{\thestpprotocol}{\thesection.\arabic{stpprotocol}}
 \newenvironment{stpprotocol}[1][]{%
-  \par\vspace{8pt}\refstepcounter{stpprotocol}\noindent\begin{tikzpicture}
-  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]\bgroup
-  \begin{minipage}{\dimexpr\textwidth-46pt\relax}
-  {\scshape\bfseries\color{hhink}Protocol~\thestpprotocol.}%
-  \ifx\\#1\\\else\ {\bfseries #1}\fi\par\vspace{3pt}\small
-}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
-\theoremstyle{definition}
+  \begin{pdbookprotocol}{stpprotocol}{#1}%
+}{\end{pdbookprotocol}}
+\theoremstyle{pdprotocol}
 \newtheorem{heprotocol}{Protocol}[section]
+\BeforeBeginEnvironment{heprotocol}{\pdblockbefore{Protocol}}
+\AfterEndEnvironment{heprotocol}{\pdblockafter{Protocol}}
+\theoremstyle{definition}
 
 \tikzset{
   stp box/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,inner sep=7pt,align=center,minimum height=10mm},

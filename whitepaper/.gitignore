@@ -3,6 +3,8 @@
 *.out
 *.toc
 *.pdf
+# Official vector source dependencies, not compiled chapter artifacts.
+!figures/lucide/*.pdf
 *.fls
 *.fdb_latexmk
 *.synctex.gz
