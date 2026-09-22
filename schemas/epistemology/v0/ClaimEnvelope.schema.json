@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/epistemology/v0/ClaimEnvelope.schema.json",
+  "title": "ClaimEnvelope",
+  "description": "Versioned claim envelope representing an epistemic assertion exchanged between separately governed autonomous agents and projects.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "pd.epistemology.claim-envelope.v0"
+    },
+    "claimId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique deterministic or content-addressed identifier for this claim envelope."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["fact", "hypothesis", "preference", "decision", "obligation"],
+      "description": "Epistemic category: fact (verifiable evidence), hypothesis (provisional), preference (design goal), decision (authorized principal choice), obligation (binding invariant)."
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Symbol path, API endpoint, interface name, file path, or resource identifier being qualified."
+    },
+    "proposition": {
+      "type": "object",
+      "description": "Structured proposition payload describing the invariant, type constraint, or behavioral claim.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["type_constraint", "state_invariant", "contract_behavior", "resource_bound", "freeform"]
+        },
+        "property": { "type": "string" },
+        "value": {},
+        "nullable": { "type": "boolean" },
+        "expression": { "type": "string" },
+        "parameters": { "type": "object" }
+      },
+      "required": ["type"]
+    },
+    "scope": {
+      "type": "object",
+      "description": "Repository, branch, commit, and file scope to which this claim applies.",
+      "properties": {
+        "repository": { "type": "string" },
+        "branch": { "type": "string" },
+        "commitSha": { "type": "string" },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["repository", "paths"]
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Explicit premises and environment preconditions under which this claim holds (ATMS assumption labels)."
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Cryptographic references, test receipts, witness observations, or Porthole capture receipts supporting the claim.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "witnessClass": {
+            "type": "string",
+            "enum": ["witnessed", "reported", "derived", "inferred", "porthole_capture"]
+          },
+          "digest": { "type": "string" },
+          "uri": { "type": "string" },
+          "portholeSessionId": { "type": "string" },
+          "portholeTimestampMs": { "type": "number" },
+          "witnessIdentity": { "type": "string" }
+        },
+        "required": ["witnessClass", "digest", "uri"]
+      }
+    },
+    "issuer": {
+      "type": "object",
+      "description": "Identity of the agent, principal, and execution engine that formulated the claim.",
+      "properties": {
+        "principalId": { "type": "string" },
+        "agentId": { "type": "string" },
+        "agentGeneration": { "type": "integer" },
+        "model": { "type": "string" },
+        "harness": { "type": "string" }
+      },
+      "required": ["principalId", "agentId"]
+    },
+    "observationTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 observation or generation timestamp."
+    },
+    "ttlSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time-to-live freshness window in seconds. 0 indicates perpetual until superseded."
+    },
+    "confidence": {
+      "type": "object",
+      "description": "Statistical uncertainty and calibration metrics, strictly distinct from authority/approval.",
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sampleCount": { "type": "integer", "minimum": 0 },
+        "calibrationTier": { "type": "string" }
+      },
+      "required": ["score"]
+    },
+    "authority": {
+      "type": "string",
+      "enum": ["draft", "proposed", "principal_approved", "revoked"],
+      "description": "Authority state: draft, proposed, principal_approved (human sign-off), revoked."
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Claim IDs that must remain valid for this claim to hold."
+    },
+    "supersedes": {
+      "type": ["string", "null"],
+      "description": "Prior claim ID retracted or replaced by this claim."
+    },
+    "disclosurePolicy": {
+      "type": "string",
+      "enum": ["public", "harbor_internal", "private_owner_only"],
+      "description": "Fine-grained boundary rule dictating who may read the claim proposition and evidence."
+    }
+  },
+  "required": [
+    "schema",
+    "claimId",
+    "kind",
+    "subject",
+    "proposition",
+    "scope",
+    "assumptions",
+    "evidence",
+    "issuer",
+    "observationTime",
+    "authority"
+  ]
+}
