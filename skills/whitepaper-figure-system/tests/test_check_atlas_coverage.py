@@ -331,8 +331,8 @@ class AtlasCoverageTests(unittest.TestCase):
         # the paper keeps its copy, and the SOURCE therefore still carries all
         # 66. A pinned count is the right shape for this assertion; it just has
         # to move when the corpus does, and it has now moved twice.
-        self.assertEqual(report["source_count"], 66)
-        self.assertEqual(report["atlas_count"], 66)
+        self.assertEqual(report["source_count"], 127)
+        self.assertEqual(report["atlas_count"], 127)
         # Five, and the previous revision of this comment is why the assertion
         # was kept at zero rather than deleted: it said it would "notice when a
         # contract legitimately reappears -- a standalone paper carrying its own

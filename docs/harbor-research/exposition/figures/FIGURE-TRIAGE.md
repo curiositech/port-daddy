@@ -7,6 +7,12 @@ until it does. Committed verbatim from the Wave 11 triage pass.
 
 # Figure triage — every figure judged on its page
 
+**18 September 2026: historical dispositions, not current approval.** The
+author rejected the latest presented sample. The entire current Book needs a
+fresh semantic and rendered-page review under
+[Book visual review](../BOOK-VISUAL-REVIEW.md). A previous `keep` or automated
+`PASS` below does not validate the current source, typography or placement.
+
 Default verdict is FAIL. A figure earns *keep* only by passing all five rubric points
 (one readable fact; concrete instance; anchored geometry; print contrast; no collisions)
 on its page. Page role: carries / supports / decorates / interrupts.
