@@ -16,6 +16,7 @@ const RESULT = ["axis", "evidenceClass", "status", "evidenceRefs", "limitation"]
 const REPLAY = ["semanticProjectionRef", "rawPredicate", "minimizedTraceDigest", "minimizedPredicate", "samePredicate"];
 const TRUTH_STATES = new Set(["T0_STATIC", "T1_MODEL", "T2_SHADOW", "T3_CANARY"]);
 const RESULT_STATUSES = new Set(["PASS", "FAIL", "INCOMPLETE", "UNKNOWN", "BLOCKED_BY_HALT"]);
+const EVIDENCE_CLASSES = new Set(["STATIC", "MODEL", "RUNTIME", "HUMAN"]);
 
 function add(errors, condition, code, path) { if (condition) errors.push({ code, path }); }
 function exact(value, fields, path, errors) {
@@ -72,6 +73,7 @@ export function validateEvaluation(record) {
     add(errors, axes.has(result.axis), "E_DUPLICATE_AXIS", `$.resultVector[${index}].axis`);
     axes.add(result.axis);
     add(errors, !RESULT_STATUSES.has(result.status), "E_RESULT_STATUS", `$.resultVector[${index}].status`);
+    add(errors, !EVIDENCE_CLASSES.has(result.evidenceClass), "E_EVIDENCE_CLASS", `$.resultVector[${index}].evidenceClass`);
     if (result.status === "PASS") {
       hasPass = true;
       add(errors, !result.evidenceRefs?.length, "E_PASS_WITHOUT_EVIDENCE", `$.resultVector[${index}].evidenceRefs`);

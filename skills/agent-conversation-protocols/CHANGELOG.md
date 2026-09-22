@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2] - 2026-09-21
+
+### Fixed
+
+- Enforce closed gather `policy` (`ALL`, `QUORUM`, `FIRST_SUCCESS`) and `reducer` vocabulary in `validateTrace`.
+- Reject unsupported policies like `ANY` with `E_GATHER_POLICY` and add adversarial mutation test case.
+
 ## [2.0.1] - 2026-09-17
 
 ### Fixed

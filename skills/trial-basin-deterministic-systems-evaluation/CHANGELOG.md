@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4 — 2026-09-21
+
+- Enforce closed `EVIDENCE_CLASSES` vocabulary (`STATIC`, `MODEL`, `RUNTIME`, `HUMAN`) in `validateEvaluation`.
+- Reject unsupported evidence classes such as `PRODUCTION` with `E_EVIDENCE_CLASS` and add adversarial mutation test case.
+
 ## 1.0.3 — 2026-09-17
 
 - Reject result-vector statuses outside the closed evidence-state vocabulary.

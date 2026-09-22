@@ -22,6 +22,7 @@ const cases = [
   ["negative killed count", () => { const x = clone(); x.oracle.mutationKilled = -1; return x; }, "E_MUTATION_ARITHMETIC"],
   ["fractional mutation count", () => { const x = clone(); x.oracle.mutationTotal = 4.5; return x; }, "E_MUTATION_ARITHMETIC"],
   ["runtime pass from model", () => { const x = clone(); x.resultVector[1].status = "PASS"; x.resultVector[1].evidenceRefs = ["fake"]; return x; }, "E_EVIDENCE_CLASS_PROMOTION"],
+  ["unrecognized evidence class", () => { const x = clone(); x.resultVector[0].evidenceClass = "PRODUCTION"; return x; }, "E_EVIDENCE_CLASS"],
   ["unsupported result status", () => { const x = clone(); x.resultVector[0].status = "SUCCESS"; x.resultVector[0].evidenceRefs = []; x.oracle.mutationKilled = 0; return x; }, "E_RESULT_STATUS"],
   ["pass no evidence", () => { const x = clone(); x.resultVector[0].evidenceRefs = []; return x; }, "E_PASS_WITHOUT_EVIDENCE"],
   ["replay drift", () => { const x = clone(); x.replay.minimizedPredicate = "different"; return x; }, "E_REPLAY_PREDICATE_DRIFT"],
