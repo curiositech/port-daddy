@@ -45,9 +45,16 @@
     % image has the rest of the sheet. The imprint used to sit at the foot,
     % which put 9pt type over a halftone photograph that is 37% lighter than
     % luminance 140 -- neither black nor reversed white reads on that.
-    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pddisplayface\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,14) {The Harbor,\\the Person,\\and the Economy};
-    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,66) {\pdeditionsubtitle};
-    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhgray] at (14,75) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+    \node[anchor=north west,inner sep=0pt,text width=145mm,align=left] at (14,14) {%
+      {\pdcovergrotesk\fontsize{38}{42}\selectfont\bfseries\color{hhink}%
+       The Harbor,\\the Person,\\and the Economy\par}%
+      \vspace{6mm}%
+      {\pdcovergrotesk\fontsize{12}{15}\selectfont\color{hhink}%
+       \pdeditionsubtitle\par}%
+      \vspace{3.5mm}%
+      {\pdcovergrotesk\fontsize{8.5}{11}\selectfont\color{hhgray}%
+       Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition\par}%
+    };
   \end{tikzpicture}
 \else\ifpdtechnical
   % Technical cover: the engraving in the lower two thirds of the sheet, the

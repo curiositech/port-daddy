@@ -1,4 +1,7 @@
-\usepackage[utf8]{inputenc}
+\usepackage{iftex}
+\ifXeTeX\else
+  \usepackage[utf8]{inputenc}
+\fi
 \usepackage[T1]{fontenc}
 % Legacy text for maritime/technical; mathematical symbols for all editions.
 % The shared typography module selects the Swiss sans after edition setup
@@ -58,6 +61,9 @@
     BoldFont=texgyretermes-bold.otf,BoldItalicFont=texgyretermes-bolditalic.otf,Ligatures=TeX]
   \newfontfamily\pdgrotesk{texgyreheros-regular.otf}[ItalicFont=texgyreheros-italic.otf,
     BoldFont=texgyreheros-bold.otf,BoldItalicFont=texgyreheros-bolditalic.otf,Ligatures=TeX]
+  \newfontfamily\pdcovergrotesk{texgyreheros-regular.otf}[ItalicFont=texgyreheros-italic.otf,
+    BoldFont=texgyreheros-bold.otf,BoldItalicFont=texgyreheros-bolditalic.otf,Ligatures=TeX]
+  \providecommand{\pdshorttitle}{The Harbor, the Person, and the Economy}
   % A 66-character column cannot hold a script path in one piece. Inside
   % \texttt, XeTeX's inter-character tokens allow a break (no hyphen) after
   % / _ . - = : and , so paths and flags wrap where a reader expects.
@@ -438,7 +444,7 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[RE,LO]{\small\itshape\color{hhgray} \pdeditiontitle}
+\fancyhead[RE,LO]{\small\itshape\color{hhgray} \pdshorttitle}
 \fancyhead[LE,RO]{\small\color{hhgray}\thepage}
 \fancyfoot[C]{\footnotesize\color{hhgray} Textbook Edition \textperiodcentered\ \pdeditiondate}
 \renewcommand{\headrulewidth}{0.4pt}
