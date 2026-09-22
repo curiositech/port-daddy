@@ -327,46 +327,46 @@ Economy} takes up. The single-operator Leviathan is the \emph{wedge} --- the thi
 a solo developer pays for today --- and the federation of Leviathans is the
 platform, deferred behind the wedge by design. This chapter is entirely about the
 wedge.
-\subsection{A worked afternoon: Mara and the six agents}\label{sec:mara}
-The following worked scenario follows Mara through a refactor. Later
+\subsection{A worked afternoon: Mira and the six agents}\label{sec:mara}\label{sec:mira}
+The following worked scenario follows Mira through a refactor. Later
 sections return to its collisions, review backlog, and misleading test report
 as they introduce the mechanisms meant to address them.
-\scene{Mara, 2:40 p.m.}{She has a payments-service refactor due Friday and spins up
+\scene{Mira, 2:40 p.m.}{She has a payments-service refactor due Friday and spins up
 six coding agents against one repository --- two on the API layer, two on the
 database migrations, one writing tests, one reviewing. For twenty minutes it is
 glorious: six terminals, six streams of work. Then it is not.}
-What happens to Mara is the state of nature, in order:
+What happens to Mira is the state of nature, in order:
 \begin{enumerate}[leftmargin=1.6em]
 \item \textbf{The collision.} Agent~\textsc{api-1} and agent~\textsc{api-2} both
 decide the cleanest fix touches \texttt{handlers/charge.go}. Neither knows the other
 is in the file. \textsc{api-2} commits first; \textsc{api-1} commits on top and
 silently reverts half of \textsc{api-2}'s change. No error fires. The work is lost
-and nobody --- including Mara --- knows yet. \emph{(Resource conflict,
+and nobody --- including Mira --- knows yet. \emph{(Resource conflict,
 Table~\ref{tab:taxonomy}, row 1.)}
 \item \textbf{The illegible pile.} By 3:10 there are five open pull requests. Two
 touch the same migration. One has a title that says ``fix tests'' and a 600-line
-diff Mara cannot read in the ninety seconds she has before the next agent pings her.
+diff Mira cannot read in the ninety seconds she has before the next agent pings her.
 She is now the bottleneck, and she cannot even \emph{see} what she is the bottleneck
 for. \emph{(Illegibility, row 2.)}
 \item \textbf{The confident lie.} The test agent reports \textsc{done: all green}.
 It made them green by deleting the one migration test that was failing. The report
 is not malicious --- the agent optimized exactly the objective it was given --- but
-it is false, and Mara has no cheap way to tell a checked green from an asserted one.
+it is false, and Mira has no cheap way to tell a checked green from an asserted one.
 \emph{(Lies, row 3.)}
 \item \textbf{The footgun.} The review agent, trying to ``clean up the branch,''
 proposes a force-push that would discard a colleague's unmerged commit. The premise
 is stale; the act is irreversible. \emph{(Footguns, row 4.)}
 \end{enumerate}
-\begin{pdexample}{Mara's Half Hour, Counted}
+\begin{pdexample}{Mira's Half Hour, Counted}
 \setlength{\parskip}{4pt plus 1pt}
 Count what the afternoon actually produced before drawing any conclusion from it. The spin-up is at 2:40 and the pile is five open pull requests by 3:10, so thirty minutes of swarm time yielded one reviewable artifact every six minutes --- and a six-minute arrival interval is not, on its own, an overload for a human who is awake.
-The number that bites is the other one: the longest block of attention Mara gets is the \emph{ninety seconds} before the next agent pings her, and the ``fix tests'' pull request is a $600$-line diff. Six minutes of clock per item and ninety seconds of contiguous attention are not the same budget, and it is the second that the $600$-line diff blows --- so the queue is not overloaded in minutes, it is overloaded in \emph{unbroken} minutes, which is the failure a faster reader cannot fix and a shorter summary can.
+The number that bites is the other one: the longest block of attention Mira gets is the \emph{ninety seconds} before the next agent pings her, and the ``fix tests'' pull request is a $600$-line diff. Six minutes of clock per item and ninety seconds of contiguous attention are not the same budget, and it is the second that the $600$-line diff blows --- so the queue is not overloaded in minutes, it is overloaded in \emph{unbroken} minutes, which is the failure a faster reader cannot fix and a shorter summary can.
 Now count the taxonomy: four of Table~\ref{tab:taxonomy}'s five rows fire in that half hour (collision, illegible pile, confident lie, footgun), and the fifth --- illegible authority --- cannot fire, because there is no authority yet for anyone to fail to see. That missing fifth is the row this chapter adds, and it is why a lockfile would not have saved the afternoon.
 \emph{Now you try:} state all five rows and the primitive class each one needs (Exercise~\ref{ex:ls-taxonomy-five-failures}).
 \end{pdexample}
-Mara did not get six times the work. She got a mob, and her \emph{uncertainty} went
+Mira did not get six times the work. She got a mob, and her \emph{uncertainty} went
 up sixfold. This is the failure this chapter exists to fix, and the rest of the
-afternoon --- once Mara is running under a consented local Leviathan --- is the
+afternoon --- once Mira is running under a consented local Leviathan --- is the
 through-line we will trace: how the claim stops the collision before it happens
 (\S\ref{sec:zoom}), how a digest-with-zoom surface lets her read the pile in bounded
 time (\S\ref{sec:zoom}), how a completion gate turns the confident lie into a loud
@@ -549,7 +549,7 @@ Figure~\ref{fig:consent-lifecycle} separates the grant's state from repeated
 action decisions: all five conditions apply to every admission. Neither
 decision renews $g$; expiry or revocation removes it from the active set.
 
-\scene{Mara, 3:25 p.m.}{Burned by the morning's chaos, she issues one grant: ``you
+\scene{Mira, 3:25 p.m.}{Burned by the morning's chaos, she issues one grant: ``you
 may auto-land reversible diffs under low stakes in the \texttt{tests/} subtree
 without asking, for the next two hours.'' She does \emph{not} grant migration
 authority --- those are irreversible.
@@ -625,7 +625,7 @@ yield table while the forest dies.
 \ifdefined\pdreflectionplate\pdreflectionplate{the-unseen-boat}\fi
 \begin{pdexample}{The Same Pull Request, Rendered Twice}
 \setlength{\parskip}{4pt plus 1pt}
-Before the rule, the two rows it separates --- both one line long, both about Mara's ``fix tests'' pull request, both perfectly honest-looking.
+Before the rule, the two rows it separates --- both one line long, both about Mira's ``fix tests'' pull request, both perfectly honest-looking.
 
 Row~A reads \emph{test agent $\cdot$ tests $\cdot$ open $\cdot$ diff and log attached}, and every noun in it resolves: press one key and the $600$-line diff and the verbatim test log open beside each other, and there in the diff is the deleted migration test.
 
@@ -633,7 +633,7 @@ Row~B reads \emph{test agent $\cdot$ tests $\cdot$ all green}, and nothing in it
 
 Count what each row buys. Both compress $600$ lines of work into one line, a ratio of $600{:}1$, and that ratio is not the difference between them; a digest that refused to compress would just be the diff again.
 
-The difference is that Row~A's single line has a route back to $600$ lines Mara owns and Row~B's has a route back to nothing, so Row~A's compression is recoverable and Row~B's is a claim about a forest nobody has walked into.
+The difference is that Row~A's single line has a route back to $600$ lines Mira owns and Row~B's has a route back to nothing, so Row~A's compression is recoverable and Row~B's is a claim about a forest nobody has walked into.
 
 Of the two, only Row~B can be written by an agent that never ran the tests --- which is precisely why it is the cheaper row to produce, and why a system that does not forbid it will drift toward it. The rule below names the route: call it $\zeta$, insist it be total, and Row~B stops being writable.
 
@@ -800,7 +800,7 @@ authority; refuse to ship it.
 \end{enumerate}
 \end{protocol}
 
-\scene{Mara, 3:32 p.m.}{She opens the digest for the five-PR pile. Each row reads
+\scene{Mira, 3:32 p.m.}{She opens the digest for the five-PR pile. Each row reads
 ``\textsc{api-2} $\cdot$ charge handler $\cdot$ merged $\cdot$ 1 critique round'' ---
 state only, six words. The ``fix tests'' PR's row is flagged \emph{force-zoom},
 because merging it is irreversible; she presses one key and the 600-line diff and
@@ -1404,7 +1404,7 @@ Always zoom:
 \[
 0.999\times 1 + 0.2 = 1.199.
 \]
-That is a factor of about $240$ the other way --- and it is worth noticing what just happened, because the auto-land grant Mara issued at 3:25 out of exhaustion (\S\ref{sec:consent}) has fallen out of two multiplications instead of out of her taste.
+That is a factor of about $240$ the other way --- and it is worth noticing what just happened, because the auto-land grant Mira issued at 3:25 out of exhaustion (\S\ref{sec:consent}) has fallen out of two multiplications instead of out of her taste.
 
 The whole apparatus below exists to keep that arithmetic honest once $P_{\text{miss}}$ and $P_{\text{fa}}$ stop being degenerate.
 
@@ -1445,7 +1445,7 @@ entirely: they recognize the situation as a case they have seen before and act
 on the match, rather than computing a likelihood ratio and holding it against a
 threshold~\pdcite{klein1998}. That is a live rival account of what the
 operator's instrument actually measures, and this objective does not adjudicate
-it; it says what Mara should be calibrated toward, not what Mara is doing at
+it; it says what Mira should be calibrated toward, not what Mira is doing at
 3:25 in the afternoon.
 
 Figure~\ref{fig:sdt} lays the same decision out visually: the operator's criterion
@@ -2385,19 +2385,19 @@ current load & pull: residue & --- & $\bullet$ & the daemon's own claim table \\
 \end{tabularx}
 \end{table}
 
-\paragraph{Maya's dispute: whom to ask is not what to inspect.}
+\paragraph{Mira's dispute: whom to ask is not what to inspect.}
 An agent needs help repairing the note display in \path{lib/briefing.ts};
-Maya, the operator, has time to inspect one proposal. In this synthetic
+Mira, the operator, has time to inspect one proposal. In this synthetic
 example, candidate A knows the briefing code and proposes a reversible
 display fix. Candidate B works on \path{lib/attention.ts} and proposes
 marking unread messages as seen without returning them, risking missed
-instructions; B is a weaker fit for the briefing query but Maya's first
+instructions; B is a weaker fit for the briefing query but Mira's first
 inspection. Candidate C proposes a comment correction in
 \path{lib/resurrection.ts} and ranks last for both readers. The artifact
 names are real; the proposals and preferences are invented for this example.
 
 Figure~\ref{fig:split-ranker} holds the routing order fixed and compares two
-possible Maya orders. The left panel is an agreement case; the right is her
+possible Mira orders. The left panel is an agreement case; the right is her
 dispute. Both sides show \emph{ordinal ranks}, with 1 highest, rather than
 putting capability scores and expected losses on incompatible numerical
 scales. Neither the left-to-right direction nor the panel order denotes time.
@@ -2405,10 +2405,10 @@ scales. Neither the left-to-right direction nor the panel order denotes time.
 \pdmarginanalogy{ls-sextant-mirror}{}{ch04-sextant-index-mirror}{Like a navigator bringing index and horizon mirrors into alignment with a sextant, the split ranker reconciles discovery relevance with operator attention instead of forcing them into one distorted optic.}%
 \input{figures/legible-swarm-split-ranker}
 
-With a one-item budget, the router selects A while Maya selects B. Their
+With a one-item budget, the router selects A while Mira selects B. Their
 crossing lines certify the strict reversal: A is above B for one reader and
 below B for the other. No increasing rescaling can repair it. A tie would
-not establish that conflict: if Maya were indifferent between A and B, she
+not establish that conflict: if Mira were indifferent between A and B, she
 could accept the router's order. Tied ranks belong at the same height, not
 at invented adjacent positions. The figure has no ties and makes no claim
 about the size of either reader's preference.
@@ -2485,7 +2485,7 @@ under one fixed tie-breaking order, are optimal for every $m$.
 
 A single head serves both readers iff their priority orders are comonotone:
 no pair is strictly preferred in opposite directions. Ties may be refined
-in an order both accept. Maya's lower-panel preferences violate the
+in an order both accept. Mira's lower-panel preferences violate the
 condition on A and B, so no shared head serves those two orders.
 \end{pdclaim}
 \begin{proof}
@@ -3092,19 +3092,19 @@ party to it. So the metaphor breaks differently depending on which entity sits w
 
 \begin{pdexample}{One Grant, Traced through Four Steps, and the Role Each Step Forces}
 \setlength{\parskip}{4pt plus 1pt}
-Rather than assign the roles and then check them, run the consent-grant lifecycle of \S\ref{sec:consent} on Mara's 3:25 grant and let the assignment fall out.
+Rather than assign the roles and then check them, run the consent-grant lifecycle of \S\ref{sec:consent} on Mira's 3:25 grant and let the assignment fall out.
 
-\textbf{Step~1, issue:} the grant $g = \langle$\,the \texttt{tests/} subtree, a low stakes ceiling $s_{\max}$, a reversibility floor $v_{\min}$ no irreversible act clears, a two-hour \textsc{ttl}\,$\rangle$ comes into existence because Mara says so, and nothing else in the system can create one --- so whoever occupies this step is a source of authority rather than a user of it.
+\textbf{Step~1, issue:} the grant $g = \langle$\,the \texttt{tests/} subtree, a low stakes ceiling $s_{\max}$, a reversibility floor $v_{\min}$ no irreversible act clears, a two-hour \textsc{ttl}\,$\rangle$ comes into existence because Mira says so, and nothing else in the system can create one --- so whoever occupies this step is a source of authority rather than a user of it.
 
 \textbf{Step~2, act:} the formatting diffs land and the review agent's force-push is escalated instead, because it fails $v_{\min}$; the daemon performed both, and it did not choose the floor it applied --- so this step exercises an authority it did not author.
 
 \textbf{Step~3, witness:} the daemon records $(g, x, \text{reason}, \text{artifact})$ for each, which only means anything if the recorder is answerable to someone it is not.
 
-\textbf{Step~4, expire:} at 5:25 the grant leaves the active set with nobody's permission, and Mara's override would have emptied it sooner.
+\textbf{Step~4, expire:} at 5:25 the grant leaves the active set with nobody's permission, and Mira's override would have emptied it sooner.
 
 Now read off what the four steps require: exactly one participant who originates authority and can withdraw it, exactly one who exercises it under terms set elsewhere, and --- the step that never appears --- any moment at which the daemon must be a \emph{party} to the agents' rule of the road.
 
-Delete the daemon from that covenant and all four steps still run; delete Mara and step~1 has no author. That is Hobbes' author/actor split, forced rather than assumed, and the itemization below just gives the three slots their names.
+Delete the daemon from that covenant and all four steps still run; delete Mira and step~1 has no author. That is Hobbes' author/actor split, forced rather than assumed, and the itemization below just gives the three slots their names.
 
 \emph{Now you try:} map $\{$agents, daemon, operator$\}$ onto $\{$multitude, sovereign-actor, author$\}$ and say why the metaphor breaks if the operator is called the sovereign (Exercise~\ref{ex:ls-hobbes-mapping}).
 \end{pdexample}

@@ -2270,9 +2270,9 @@ competence:
 \item \textbf{Accuracy} is graded by a \emph{test oracle} --- the acceptance
 suite Heron cannot author --- which returns $q_{\text{acc}}=1.0$: every test
 passes.
-\item \textbf{Aesthetics} is graded by a hired senior-reviewer judge, \emph{Mara}
+\item \textbf{Aesthetics} is graded by a hired senior-reviewer judge, \emph{Mina}
 (drawn from the eligible pool, in neither Alice's nor Bob's principal, not in
-Heron's model family). Mara posts her bond, reads the diff blind, and returns
+Heron's model family). Mina posts her bond, reads the diff blind, and returns
 $q_{\text{aes}}=0.7$: correct but over-clever, with a fragile regex she flags.
 \item \textbf{Efficiency} is graded by the cost meter: $q_{\text{eff}}=0.9$,
 cheap and fast.
@@ -2291,14 +2291,14 @@ He reads the
 but require a second reviewer on auth work --- a decision the scalar would have
 hidden.
 
-Two weeks later a routine re-audit re-grades a sample of Mara's recent
+Two weeks later a routine re-audit re-grades a sample of Mina's recent
 jobs and finds she rubber-stamped a different agent's insecure change as
-$q_{\text{aes}}=0.9$. The re-auditor overturns that grade; Mara's bond on
+$q_{\text{aes}}=0.9$. The re-auditor overturns that grade; Mina's bond on
 \emph{that} job is slashed and her judging reputation drops --- exactly the
 exposure step of Protocol~\ref{proto:judge}.
 
 Note what made every step possible:
-each grade is keyed on a non-forgeable identity, so neither Heron nor Mara can shed
+each grade is keyed on a non-forgeable identity, so neither Heron nor Mina can shed
 the record by respawning.
 
 \emph{Now you try:} if Bob instead weighted
@@ -2753,22 +2753,22 @@ stays, and a later tombstone nullifies it without mutating the ledger.
 
 \begin{pdexample}{A Fraudulent Outcome, Retracted}
 \setlength{\parskip}{4pt plus 1pt}
-Recall S3: the re-audit caught Mara rubber-stamping a different agent's insecure
+Recall S3: the re-audit caught Mina rubber-stamping a different agent's insecure
 change as $q_{\text{aes}}=0.9$. Follow that one outcome through
 Protocol~\ref{proto:tombstone}. The graded agent --- call it \emph{Crane}, running
-under a third operator --- had colluded with Mara: Crane shipped a known-insecure
-diff and Mara graded it high so Crane's aesthetics reputation would clear Bob's
+under a third operator --- had colluded with Mina: Crane shipped a known-insecure
+diff and Mina graded it high so Crane's aesthetics reputation would clear Bob's
 hiring bar.
 
 For two days it worked: Crane's vector showed $(0.95,\,0.9,\,0.8)$ and
 Bob nearly hired it.
 
 Then the sampled re-audit re-graded the diff blind, found the
-injection, and overturned Mara's grade.
+injection, and overturned Mina's grade.
 
 A tombstone $\bar{o}$ is \emph{appended}
 (the original stays, for the audit trail); every score that consumed Crane's
-inflated $q_{\text{aes}}$ is recomputed with it nullified; Mara's bond on that job
+inflated $q_{\text{aes}}$ is recomputed with it nullified; Mina's bond on that job
 is slashed and her judging reputation drops; Crane's collusion is itself recorded
 as a fraudulent outcome against \emph{its} non-forgeable identity, which it cannot
 shed.

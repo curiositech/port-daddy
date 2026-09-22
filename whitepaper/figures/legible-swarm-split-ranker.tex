@@ -1,4 +1,4 @@
-% Reader question: when can Maya and the routing agent share one ranking?
+% Reader question: when can Mira and the routing agent share one ranking?
 % Claim: a strict reversal, not a difference in units or a tie, prevents
 % one order from satisfying both readers at every selection budget.
 % Evidence: synthetic ordinal ranks over three proposals named for real
@@ -22,7 +22,7 @@
   \def\lxB{7.20}
   \def\rxB{9.00}
   \def\rankpitch{0.95}
-  % artifact / routing rank / Maya agreement rank / Maya dispute rank / role tag
+  % artifact / routing rank / Mira agreement rank / Mira dispute rank / role tag
   \def\pdRankSamples{%
 briefing.ts/1/1/2/briefing,
 attention.ts/2/2/1/attention,
@@ -43,7 +43,7 @@ resurrection.ts/3/3/3/resurrection}
   \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxA,2.55)
     {\textbf{Router}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize fit}};
   \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxA,2.55)
-    {\textbf{Maya}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
+    {\textbf{Mira}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
 
   % Guide spines
   \draw[draw=pdink!18,line width=0.4pt] (\lxA,2.40) -- (\lxA,0.25);
@@ -74,7 +74,7 @@ resurrection.ts/3/3/3/resurrection}
   \node[pd label,anchor=south,align=center,inner sep=0pt] at (\lxB,2.55)
     {\textbf{Router}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize fit}};
   \node[pd label,anchor=south,align=center,inner sep=0pt] at (\rxB,2.55)
-    {\textbf{Maya}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
+    {\textbf{Mira}\\[-0.5ex]\textcolor{pdinkmuted}{\scriptsize regret}};
 
   % Guide spines
   \draw[draw=pdink!18,line width=0.4pt] (\lxB,2.40) -- (\lxB,0.25);
@@ -99,7 +99,7 @@ resurrection.ts/3/3/3/resurrection}
     \else
       % Reversing items: bold highlighted crossing slopes
       \ifnum\route=1\relax
-        % briefing.ts drops 1 -> 2 (Router top choice, Maya rank 2)
+        % briefing.ts drops 1 -> 2 (Router top choice, Mira rank 2)
         \draw[draw=pdcobalt,line width=1.2pt] (\lxB,\yL) -- (\rxB,\yR);
         \fill[pdcobalt] (\lxB,\yL) circle (1.4pt);
         \fill[pdcobalt] (\rxB,\yR) circle (1.4pt);
@@ -110,7 +110,7 @@ resurrection.ts/3/3/3/resurrection}
           at ({\rxB+0.12},\yR)
           {\textbf{\dispute}\enspace\texttt{\artifact}};
       \else
-        % attention.ts rises 2 -> 1 (Maya top choice, Router rank 2)
+        % attention.ts rises 2 -> 1 (Mira top choice, Router rank 2)
         \draw[draw=pdteal,line width=1.2pt] (\lxB,\yL) -- (\rxB,\yR);
         \fill[pdteal] (\lxB,\yL) circle (1.4pt);
         \fill[pdteal] (\rxB,\yR) circle (1.4pt);
@@ -124,6 +124,6 @@ resurrection.ts/3/3/3/resurrection}
     \fi
   }
 \end{tikzpicture}
-\caption{One pair crosses when Maya and the router disagree. Panel (a) shows concordant preferences (one ranking satisfies both readers); panel (b) shows the strict reversal where high irreversible risk inverts the top choices. Panels compare alternative objective preferences, not time.}
+\caption{One pair crosses when Mira and the router disagree. Panel (a) shows concordant preferences (one ranking satisfies both readers); panel (b) shows the strict reversal where high irreversible risk inverts the top choices. Panels compare alternative objective preferences, not time.}
 \label{fig:split-ranker}
 \end{figure}

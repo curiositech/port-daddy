@@ -282,11 +282,15 @@
   \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!18,rounded corners=2pt,inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{\small #1};
   \end{tikzpicture}\vspace{4pt}}
 \newcommand{\scene}[2]{%
-  \par\vspace{6pt}\noindent\begin{tikzpicture}
-  \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,text width=\dimexpr\textwidth-28pt\relax,align=left] (s)
-        {{\scshape\bfseries\color{hhgray}\footnotesize Scene.}\enspace{\bfseries #1}\enspace\itshape #2};
-  \draw[hhgray!60,line width=1pt] (s.north west) -- (s.south west);
-  \end{tikzpicture}\par\vspace{6pt}}
+  \par\vspace{8pt plus 2pt}\noindent\begin{tcolorbox}[
+    enhanced, breakable, sharp corners,
+    colback=white, colframe=black,
+    boxrule=0.5pt, leftrule=3.2pt,
+    left=9pt, right=9pt, top=7pt, bottom=7pt,
+    before skip=6pt, after skip=6pt
+  ]%
+  \noindent{\small\raisebox{-2pt}{\IfFileExists{figures/icons/mira-silhouette.pdf}{\includegraphics[height=1.35em]{figures/icons/mira-silhouette.pdf}}{\IfFileExists{figures/icons/mira-silhouette.png}{\includegraphics[height=1.35em]{figures/icons/mira-silhouette.png}}{}}}\enspace{\scshape\bfseries\color{black}Scene}\enspace\textperiodcentered\enspace{\bfseries #1}\pdblockheadingend{\itshape #2}}%
+  \end{tcolorbox}\par\vspace{8pt plus 2pt}}
 \newcommand{\openstar}{{\textcolor{hhcobalt}{$\bigstar$}}\;}
 \newcommand{\exhead}[1]{\par\vspace{4pt}\noindent{\scshape\bfseries\color{hhink}#1}\par\vspace{-2pt}}
 

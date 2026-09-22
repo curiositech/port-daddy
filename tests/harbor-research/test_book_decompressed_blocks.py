@@ -83,7 +83,7 @@ class DecompressedBlocks(unittest.TestCase):
         check_trade(example(TRADE.read_text(), "Efficient Trade That the Mechanism Still Refuses"))
 
     def test_mara_grant_and_observable_consequences_are_separate(self):
-        text = SWARM.read_text().split(r"\scene{Mara, 3:25 p.m.}{", 1)[1].split(r"\begin{pdclaim}", 1)[0]
+        text = SWARM.read_text().split(r"\scene{Mira, 3:25 p.m.}{", 1)[1].split(r"\begin{pdclaim}", 1)[0]
         require_groups(text, ["Burned by the morning's chaos", "The grant is a single line"])
         for phrase in ["auto-land reversible diffs under low stakes", "next two hours",
                        r"She does \emph{not} grant migration", r"$v_{\min}$",

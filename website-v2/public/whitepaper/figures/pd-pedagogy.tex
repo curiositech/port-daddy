@@ -1403,7 +1403,18 @@
   % An unedited call remains ordinary prose; it never prints an empty label.
   \RenewDocumentCommand\keyidea{O{} +m}{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\ifstrempty{#1}{}{\pd@marginhead{#1}}#2\par\addvspace{6pt plus 1pt}}%
   \RenewDocumentCommand\pitfall{O{} +m}{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\ifstrempty{#1}{}{\pd@marginhead{#1}}#2\par\addvspace{6pt plus 1pt}}%
-  \long\def\scene#1#2{\par\pd@settle\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Scene}{\bfseries #1}\pdblockheadingend{\itshape #2}\par\addvspace{6pt plus 1pt}}%
+  \long\def\scene#1#2{%
+    \par\pd@settle\addvspace{8pt plus 2pt}%
+    \noindent\begin{tcolorbox}[
+      enhanced, breakable, sharp corners,
+      colback=white, colframe=black,
+      boxrule=0.5pt, leftrule=3.2pt,
+      left=9pt, right=9pt, top=7pt, bottom=7pt,
+      before skip=6pt, after skip=6pt
+    ]%
+    \noindent{\small\raisebox{-2pt}{\IfFileExists{figures/icons/mira-silhouette.pdf}{\includegraphics[height=1.35em]{figures/icons/mira-silhouette.pdf}}{\IfFileExists{figures/icons/mira-silhouette.png}{\includegraphics[height=1.35em]{figures/icons/mira-silhouette.png}}{}}}\enspace{\scshape\bfseries\color{black}Scene}\enspace\textperiodcentered\enspace{\bfseries #1}\pdblockheadingend{\itshape #2}}%
+    \end{tcolorbox}\par\addvspace{8pt plus 2pt}%
+  }%
   \long\def\xrefbox#1{\par\pd@settle\addvspace{4pt}\noindent\pd@marginhead{See also}{\small #1}\par\addvspace{4pt}}%
   % A generic "Thesis" margin label does not identify which claim matters.
   % Keep the prose; use an authored keyidea head only when it adds meaning.

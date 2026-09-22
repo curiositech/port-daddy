@@ -1,8 +1,8 @@
 {
   "$schema": "./textbook.schema.json",
   "edition": {
-    "title": "The Harbor, the Person, and the Economy",
-    "subtitle": "A textbook of accountable autonomous work",
+    "title": "The Harbor, the Person, and the Economy: The Architecture of Autonomous AI Agents",
+    "subtitle": "A Textbook of Multi-Agent Systems, Operating Kernels, and Market Governance",
     "version": "4.0 (Textbook Edition)",
     "date": "September 2026",
     "pdf": "coordination-papers-mega-volume.pdf",

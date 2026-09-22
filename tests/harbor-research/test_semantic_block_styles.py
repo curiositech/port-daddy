@@ -269,7 +269,7 @@ class SemanticBlocks(unittest.TestCase):
             ("Protocol 3.1 (Delegation).", "Delegation protocol body"),
             ("Protocol 3.1 (Settlement).", "Settlement protocol body"),
             ("Remark (Scope).", "Remark body starts"),
-            ("Mara, 3:25 p.m.", "Scene body starts"),
+            ("Mira, 3:25 p.m.", "Scene body starts"),
             ("0.1", "Exercise body starts"),
             ("0.1", "Solution body starts"),
             ("A statement beginning with a list).", "List body starts"),
