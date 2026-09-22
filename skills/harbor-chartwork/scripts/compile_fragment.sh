@@ -299,6 +299,8 @@ else
     # pinned assets so a fragment uses the same optical cuts as a full build
     # even on a machine without these faces installed.
     [ ! -d "$BOOK_DIR/fonts" ] || cp -R "$BOOK_DIR/fonts" "$BUILD/fonts"
+    # Same typography as the assembled Book; configuration only, no font copies.
+    python3 "$BOOK_DIR/../../../scripts/prepare-book-fonts.py" "$BUILD" || exit 2
     # ...but the two the wrapper cannot compile without are still asserted, so a
     # renamed preamble fails here rather than 200 lines into a TeX log.
     for required in coordination-papers-mega-volume-preamble.tex coordination-papers-mega-volume-seams.tex; do

@@ -1,6 +1,6 @@
 """Tests for beauty_lint.py: each check gets a synthetic PDF it must flag and
 one it must pass. PDFs are drawn with PyMuPDF directly so the tests need no TeX."""
-import sys, unittest
+import sys, tempfile, unittest
 from pathlib import Path
 import pymupdf
 
@@ -121,6 +121,54 @@ class TestHyphenAndCaption(unittest.TestCase):
             pg.insert_text((100, 120), 'label', fontsize=8)
             caption(pg, text='Figure 1: A caption with no bracket.')
         self.assertIn('B10', ids(bl.lint(make('prov_bad', d))))
+
+
+class TestMarginCaptionRegion(unittest.TestCase):
+    def test_side_captions_do_not_hide_overprinted_figure_labels(self):
+        scratch = Path(__file__).resolve().parents[3] / '.cache' / 'beauty-tests'
+        scratch.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as temp:
+            for side, caption_x in [('left', 14), ('right', 396)]:
+                with self.subTest(side=side), pymupdf.open() as doc:
+                    page = doc.new_page(width=504, height=720)
+                    page.insert_text((caption_x, 80), 'Figure 1.', fontsize=9)
+                    page.insert_text((caption_x, 100), 'A caption.', fontsize=9)
+                    page.insert_text((caption_x, 115), '[internal]', fontsize=9)
+                    # Both labels are below the caption top; the old vertical
+                    # crop ignored them and reported no B3 failure.
+                    page.insert_text((180, 105), 'first layer', fontsize=9)
+                    page.insert_text((182, 109), 'second layer', fontsize=9)
+                    region, caption_text = bl._pic_region(page)
+                    self.assertGreater(region.y1, 109)
+                    self.assertTrue(caption_text.endswith('[internal]'))
+                    self.assertNotIn('layer', caption_text)
+                    self.assertEqual(len(bl._words(page, region)), 2)
+                    target = Path(temp) / (side + '.pdf')
+                    doc.save(target)
+                    report = bl.lint(target)
+                    self.assertIn('B3', ids(report, 'fail'))
+                    self.assertNotIn('B10', ids(report))
+
+    def test_bottom_caption_keeps_a_vertical_crop(self):
+        with pymupdf.open() as doc:
+            page = doc.new_page(width=504, height=720)
+            page.insert_text((100, 120), 'picture label', fontsize=9)
+            caption(page)
+            region, caption_text = bl._pic_region(page)
+            self.assertLess(region.y1, 400)
+            self.assertGreater(region.y1, 120)
+            self.assertTrue(caption_text.endswith('[internal]'))
+            self.assertEqual([word['text'] for word in bl._words(page, region)],
+                             ['picture label'])
+
+    def test_margin_caption_does_not_hide_an_unlabelled_drawing(self):
+        with pymupdf.open() as doc:
+            page = doc.new_page(width=504, height=720)
+            page.insert_text((396, 80), 'Figure 1.', fontsize=9)
+            page.insert_text((396, 105), '[internal]', fontsize=9)
+            page.draw_rect(pymupdf.Rect(180, 90, 280, 160))
+            region, _ = bl._pic_region(page)
+            self.assertTrue(region.contains(pymupdf.Rect(180, 90, 280, 160)))
 
 
 if __name__ == '__main__':

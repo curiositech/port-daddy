@@ -124,19 +124,19 @@ quote.
 - `website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex`
   — the Book's 7×10 trim geometry: 4.5in text column, 1.3in `marginparwidth`,
   0.2in `marginparsep`; `\pdfullwidth` macro and the `pgfsys@typesetpicturebox`
-  hook that promotes an over-wide TikZ picture to a full-width figure
-  automatically. `[verified — read directly, this repo]`
+  hook. Captioned figures must fit the body column; new margin evidence fails
+  rather than scaling. A legacy spill/scale path remains for other inline art
+  and must not be treated as an authoring recommendation.
 - `website-v2/public/whitepaper/figures/pd-pedagogy.tex` (byte-identical twin of
   `whitepaper/figures/pd-pedagogy.tex`) — defines `\pdmarginfigure{slug}{caption}`
   (a duotone portrait keyed to `plates/marginalia/<slug>.jpg`, Book-only, silently
   a no-op when `\ifpdmargincolumn` is false) and the whole pedagogic apparatus
   (`pdclaim`, `pdboundary`, `pdexample`, `pdrecitation`, `pdexercise`,
   `pdsession`). `[verified — read directly, this repo]`
-- `\pdgloss` does **not exist yet** in this repository. `docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md`
-  lists "`pdmarginfigure` and `pdgloss` to be added to the pedagogy twins" as a
-  planned, not-yet-done step. `[verified — read directly, this repo]` Do not tell a
-  caller to use `\pdgloss`; it will fail to compile. See
-  `references/margin-apparatus.md`.
+- `\pdgloss` is implemented in the pedagogy twins. The older handoff's planned
+  status is obsolete. `figures/pd-margin-layout.tex` records shipped anchors and
+  places measured boxes; `figures/pd-margin-evidence.tex` adds native-size tables,
+  counterexamples and generated analogies. See `references/margin-apparatus.md`.
 - `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md` and
   `docs/harbor-research/exposition/READING-FLOW-AUDIT.md` — the current
   marginalia proposal (which chapters/sections get which portrait, at most one

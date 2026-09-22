@@ -26,6 +26,14 @@ specific figure. The atlas covers every canonical `figure` environment in Volume
 book's eight chapters) and gives each one a stable, source-derived identifier, reader question,
 first-choice grammar, required evidence, and rejected forms.
 
+For the assembled Book, also read
+`docs/harbor-research/exposition/BOOK-VISUAL-REVIEW.md` from the repository root.
+The 18 September author review invalidated blanket acceptance of the current
+suite. The atlas has known coverage gaps; use the assembled Book's full caption
+inventory and inspect uncaptioned exhibits too. Mechanical checks do not approve
+meaning, typography or reader comprehension, and old `keep` decisions are not
+evidence about a changed rendering.
+
 After selecting the semantic form, use the `tikz-figure-engineering` skill for implementation,
 final-size rendering, page-fit checks, and contact sheets. This skill decides *what the figure
 must be*; that skill makes it survive publication.

@@ -111,9 +111,12 @@ rule, so the rule is applied with its known objection already in view rather tha
       against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) — a small multiple, sparkline, or regime
       strip in the margin faces no such quota; the Book's margin column is meant to be used generously.
 - [ ] The plate is cleared (no `.NOT-CLEARED.json` sidecar) before writing a portrait's macro call.
-- [ ] Two margin figures of any kind are not placed within about a dozen source lines of each other, or they will
-      likely collide on the printed page (`scripts/margin_lint.py` warns advisory; the real gate is the build log's
-      "Marginpar on page" count).
+- [ ] Use actual data, small drawings and counterexamples in the margin through
+      `\pdmarginexhibit`, not only captions and portraits. Compose at native margin width.
+- [ ] Run the finished Book's caption, owner-adjacency and margin-bounds audits.
+      Source-line distance and an absent "Marginpar on page" warning are not proof of fit.
+- [ ] Open the actual pages at reading size. No shrinking, silent omission, footer
+      spill, detached caption or caption-height blank space in the body.
 - [ ] Every house term gets its own `\pdgloss{Term}{one-line definition}` at its first use — a chapter may (and
       should) carry many glosses, one per term — not `\pd@marginhead{Term}` by hand, and never the SAME term glossed
       twice (`scripts/margin_lint.py` checks both this and that the term actually appears in the chapter's own prose).

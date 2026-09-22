@@ -17,11 +17,13 @@ Options:
   --jobs N      parallel compiles (default 4)
   --width-in W  widest ink allowed (default 4.5, the column; 6.0 = full width)
 
-Verdict per figure/edition: PASS when it compiles, figcheck T1-T5 and T8 are
+Automated checks are clear when it compiles, figcheck T1-T5 and T8 are
 clean, beauty_lint has no fail (B1 < 1 pt moat, B3 < .5 pt gap, B9 hyphen),
 and the ink is no wider than --width-in. beauty_lint warnings (B1-B10) are
 printed and drawn on the sheet: read each one and fix it or say why not.  Exit 0 only when every row
-passes in every edition.  Needs tectonic, python3 with PyMuPDF and Pillow.
+clears these checks in every edition. This is NOT a design approval: meaning,
+readability and actual Book-page placement require separate review. The legacy
+JSON `pass` field means automated checks only. Needs tectonic, PyMuPDF and Pillow.
 """
 import argparse, json, os, re, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
@@ -88,7 +90,7 @@ def ink_width_in(pdf):
             r |= d['rect']
     for b in pg.get_text('blocks'):
         # the caption is set to the column; only the picture can overhang
-        r |= fitz.Rect(b[:4]) if not str(b[4]).lstrip().startswith('Figure') else fitz.Rect()
+        r |= fitz.Rect(b[:4]) if not str(b[4]).lstrip().startswith(('Figure', 'Table')) else fitz.Rect()
     return (r.width / 72.0 if not r.is_empty else 0.0), r
 
 
@@ -116,7 +118,8 @@ def run_one(frag, edition, hue, out, width_in):
     Path(env['TMPDIR']).mkdir(parents=True, exist_ok=True)
     r = subprocess.run([str(COMPILE), str(frag), '--preamble', 'book', '--out', str(d)],
                        env=env, capture_output=True, text=True, cwd=REPO)
-    res = {'figure': stem, 'edition': edition, 'hue': hue, 'compiled': r.returncode == 0}
+    res = {'figure': stem, 'edition': edition, 'hue': hue, 'compiled': r.returncode == 0,
+           'design_review': 'unreviewed'}
     pdf = d / f'{stem}.pdf'
     if r.returncode != 0 or not pdf.exists():
         res['error'] = (r.stderr or r.stdout).strip().splitlines()[-1:] 
@@ -157,6 +160,17 @@ def run_one(frag, edition, hue, out, width_in):
     return res
 
 
+def mechanical_label(result):
+    """Never infer reader approval from compilation or geometric lint."""
+    if not result:
+        return 'Missing render; design unreviewed'
+    if result.get('pass'):
+        checks = 'Checks clear' if not result.get('beauty_warn') else 'Checks: warnings'
+    else:
+        checks = 'Checks: failed'
+    return checks + '; design unreviewed'
+
+
 def sheet(results, editions, path):
     from PIL import Image, ImageDraw, ImageFont
     try:
@@ -189,13 +203,15 @@ def sheet(results, editions, path):
     for f, cells, h in rows:
         for i, (r, im) in enumerate(cells):
             x = 24 + i * (cw + 24)
-            tag = 'missing' if not r else ('PASS' if r.get('pass') else 'FAIL ' + ' '.join(
+            tag = mechanical_label(r)
+            if r and not r.get('pass'):
+                tag += ' ' + ' '.join(
                 (r.get('figcheck_fail') or []) + (r.get('beauty_fail') or [])
                 + (['wide %.2fin' % r['ink_width_in']] if r.get('too_wide') else [])
-                + ([] if r.get('compiled') else ['no compile'])))
+                + ([] if r.get('compiled') else ['no compile']))
             if r and r.get('beauty_warn'):
-                tag += '   beauty: ' + ' '.join(r['beauty_warn'])
-            col = (0, 110, 60) if r and r.get('pass') else (180, 30, 30)
+                tag += ' ' + ' '.join(r['beauty_warn'])
+            col = (80, 80, 80) if r and r.get('pass') else (180, 30, 30)
             dr.text((x, y + 6), f"{f} [{editions[i]}]", fill='black', font=font)
             dr.text((x, y + 32), tag, fill=col, font=font)
             if im:
@@ -245,12 +261,13 @@ def main():
     sheet(results, eds, sp)
     bad = [r for r in results if not r['pass']]
     for r in results:
-        flag = 'PASS' if r['pass'] else 'FAIL'
+        flag = 'CHECKS CLEAR' if r['pass'] else 'CHECKS FAILED'
         why = ' '.join((r.get('figcheck_fail') or []) + (r.get('beauty_fail') or []) + (['wide=%.2fin' % r['ink_width_in']] if r.get('too_wide') else []) + ([] if r['compiled'] else ['compile: ' + ' '.join(r.get('error', []))]))
         if r.get('beauty_warn'):
             why += '  (beauty warn: ' + ' '.join(r['beauty_warn']) + ')'
         print(f"{flag} {r['edition']:9} {r['figure']:40} {r.get('ink_width_in','-')}in {why}")
-    print(f"\n{len(results) - len(bad)}/{len(results)} pass; sheet: {sp}")
+    print(f"\n{len(results) - len(bad)}/{len(results)} clear automated failure checks; "
+          f"all {len(results)} design reviews remain unreviewed. Sheet: {sp}")
     sys.exit(1 if bad else 0)
 
 

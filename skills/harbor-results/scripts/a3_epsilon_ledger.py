@@ -23,17 +23,23 @@ runs a randomized deep sweep (seed 20260816), then MUTATION-TESTS the checker:
       disagree (log records eps, sigma += eps-1) - a torn write.
 Both must be caught with shortest counterexample traces (BFS = shortest).
 
-DP semantics of the summed eps (imported, [verified] formulas):
-  sequential composition: k mechanisms at eps each compose to k*eps
-  advanced composition (Dwork-Rothblum-Vadhan FOCS 2010), for any delta' > 0:
+Conditional DP formulas (not established by this bookkeeping model):
+  basic composition: valid conditionally eps-private mechanisms add costs
+  advanced composition (Dwork-Rothblum-Vadhan FOCS 2010), delta' > 0:
       eps' = sqrt(2 k ln(1/delta')) * eps + k * eps * (e^eps - 1)
-So sigma <= eps_max certifies (eps_max, 0)-DP by sequential composition, or the
-tighter (eps', k*delta + delta')-DP bound when k is large; the script prints
-the crossover where advanced accounting starts paying.
+This script checks declared-spend conservation, not DP of releases or complete
+mediation. Conditional pure-DP releases and coverage of the full observer
+transcript are premises of the basic adaptive filter (RRUV 2016, Theorem 3.3).
+The printed DRV formulas assume fixed privacy caps and horizon; queries may
+still adapt to prior outputs. For pure inputs the advanced guarantee includes
+positive delta-prime, and large k alone does not make its epsilon smaller.
+Fully adaptive advanced accounting requires a separately justified filter;
+this script does not implement the WRRW 2023 filter. No proof of deployment
+or harmlessness of metadata, refusals and timing follows from these checks.
 
-Honest caveat, stated up front: conservation governs RECORDED spend. That all
-spend is recorded is exactly the complete-mediation assumption - B3/R5's
-hypervisor result is the prerequisite, not a nicety.
+Sources: https://papers.neurips.cc/paper/6170-privacy-odometers-and-filters-pay-as-you-go-composition.pdf
+https://www.microsoft.com/en-us/research/wp-content/uploads/2010/01/DworkRV10.pdf
+https://proceedings.mlr.press/v202/whitehouse23a/whitehouse23a.pdf
 """
 from collections import deque
 import numpy as np
@@ -174,7 +180,7 @@ nr, violr = bfs()
 assert not violr and nr == n
 print(f'  mutations reverted: all invariants restored, {nr} states  [OK]')
 
-print('\n=== (4) DP COMPOSITION: what the conserved sum MEANS ===')
+print('\n=== (4) FIXED-PARAMETER COMPOSITION FORMULAS (conditional) ===')
 dp = 1e-6   # delta'
 print(f"  {'k':>5} {'eps':>6} {'basic k*eps':>12} {'advanced (DRV FOCS 2010)':>25}")
 rows = [(8, 0.5), (32, 0.1), (128, 0.05)]
@@ -185,9 +191,9 @@ for k, e in rows:
     print(f"  {k:>5} {e:>6.2f} {k*e:>12.2f} {adv:>25.2f}")
 assert vals[(8, 0.5)][1] > vals[(8, 0.5)][0],   "advanced should NOT pay at small k"
 assert vals[(128, 0.05)][1] < vals[(128, 0.05)][0], "advanced should pay at large k"
-print('  reading: below the crossover, quote sigma <= eps_max via sequential')
-print('  composition (exact, delta-free); for long engagements (k large), the')
-print('  same conserved ledger certifies the sqrt(k)-scaled advanced bound.')
+print('  reading: fixed caps/horizon; valid conditional pure-DP releases assumed.')
+print('  Basic composition is delta-free; advanced composition adds delta-prime.')
+print('  These formula comparisons do not certify the privacy of any release.')
 
 print('''
 READING. The ledger conserves: in every reachable state under every
@@ -198,8 +204,10 @@ sequential one by the kernel's single-writer serialization. Both canonical
 breaks of atomicity are caught with shortest traces, and the torn write's
 deeper crime is exhibited: an undercounting sigma silently admits recorded
 spend past the budget, so the ATOMIC pairing of append and add is what makes
-the budget promise auditable. What the conserved sum buys is DP composition:
-sequential composition makes sigma <= eps_max an (eps_max, 0)-DP certificate;
-advanced composition tightens it for long engagements. Conservation governs
-RECORDED spend only - complete mediation (every release passes the gate) is
-B3/R5's controllability result, the stated prerequisite.''')
+the budget promise auditable. Conservation governs DECLARED spend only.
+Conditional per-release DP and complete mediation are unverified premises,
+not consequences of the bookkeeping check. The observer's full transcript,
+including metadata, refusals and timing, must be covered. A basic adaptive
+filter can then support (eps_max, 0)-DP; the printed advanced formulas instead
+assume fixed caps/horizon and include delta-prime. A fully adaptive advanced
+filter is not implemented here.''')
